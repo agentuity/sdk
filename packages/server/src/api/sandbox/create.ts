@@ -1,14 +1,12 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { throwSandboxError, API_VERSION } from './util';
 import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
 
 const SandboxCreateRequestSchema = z
 	.object({
-		runtime: z
-			.string()
-			.optional()
-			.describe('Runtime name (e.g., "bun:1", "python:3.14")'),
+		projectId: z.string().optional().describe('Project ID to associate the sandbox with'),
+		runtime: z.string().optional().describe('Runtime name (e.g., "bun:1", "python:3.14")'),
 		runtimeId: z.string().optional().describe('Runtime ID (e.g., "srt_xxx")'),
 		name: z.string().optional().describe('Optional sandbox name'),
 		description: z.string().optional().describe('Optional sandbox description'),
@@ -27,6 +25,13 @@ const SandboxCreateRequestSchema = z
 		network: z
 			.object({
 				enabled: z.boolean().optional().describe('Whether network access is enabled'),
+				port: z
+					.number()
+					.int()
+					.min(1024)
+					.max(65535)
+					.optional()
+					.describe('Port to expose from the sandbox (1024-65535)'),
 			})
 			.optional()
 			.describe('Network configuration for the sandbox'),
@@ -59,7 +64,7 @@ const SandboxCreateRequestSchema = z
 						})
 					)
 					.optional()
-					.describe('Files to write before execution'),
+					.describe('Files to write before execution (deprecated: use top-level files)'),
 				mode: z
 					.enum(['oneshot', 'interactive'])
 					.optional()
@@ -67,6 +72,10 @@ const SandboxCreateRequestSchema = z
 			})
 			.optional()
 			.describe('Initial command to run in the sandbox'),
+		files: z
+			.record(z.string(), z.string())
+			.optional()
+			.describe('Files to write to sandbox on creation (path -> base64 content)'),
 		snapshot: z.string().optional().describe('Snapshot ID to restore the sandbox from'),
 		dependencies: z
 			.array(z.string())
@@ -123,6 +132,9 @@ export async function sandboxCreate(
 	const { options = {}, orgId } = params;
 	const body: z.infer<typeof SandboxCreateRequestSchema> = {};
 
+	if (options.projectId) {
+		body.projectId = options.projectId;
+	}
 	if (options.runtime) {
 		body.runtime = options.runtime;
 	}
@@ -160,6 +172,11 @@ export async function sandboxCreate(
 			})),
 		};
 	}
+	if (options.files && options.files.length > 0) {
+		body.files = Object.fromEntries(
+			options.files.map((f) => [f.path, f.content.toString('base64')])
+		);
+	}
 	if (options.snapshot) {
 		body.snapshot = options.snapshot;
 	}
@@ -188,5 +205,5 @@ export async function sandboxCreate(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }

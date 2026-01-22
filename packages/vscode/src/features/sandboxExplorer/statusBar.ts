@@ -40,8 +40,20 @@ export function updateStatusBar(): void {
 	} else if (linked.length === 1) {
 		const sandbox = linked[0];
 		const name = sandbox.name || sandbox.sandboxId.slice(0, 8);
+		const runtime = sandbox.runtime?.name ?? sandbox.runtime?.id ?? 'bun:1';
 		statusBarItem.text = `$(vm) ${name}`;
-		statusBarItem.tooltip = `Sandbox: ${sandbox.sandboxId}\nLinked: ${new Date(sandbox.linkedAt).toLocaleDateString()}\nLast sync: ${sandbox.lastSyncedAt ? new Date(sandbox.lastSyncedAt).toLocaleString() : 'Never'}\n\nClick for sandbox options`;
+
+		const tooltipLines = [
+			`Sandbox: ${sandbox.sandboxId}`,
+			`Runtime: ${runtime}`,
+			`Linked: ${new Date(sandbox.linkedAt).toLocaleDateString()}`,
+			`Last sync: ${sandbox.lastSyncedAt ? new Date(sandbox.lastSyncedAt).toLocaleString() : 'Never'}`,
+		];
+		if (sandbox.description) {
+			tooltipLines.unshift(`Description: ${sandbox.description}`);
+		}
+		tooltipLines.push('', 'Click for sandbox options');
+		statusBarItem.tooltip = tooltipLines.join('\n');
 		statusBarItem.backgroundColor = undefined;
 	} else {
 		statusBarItem.text = `$(vm) ${linked.length} Sandboxes`;
@@ -125,9 +137,10 @@ async function showSandboxQuickPick(): Promise<void> {
 
 		for (const sandbox of linked) {
 			const name = sandbox.name || sandbox.sandboxId.slice(0, 8);
+			const runtime = sandbox.runtime?.name ?? sandbox.runtime?.id ?? 'bun:1';
 			items.push({
 				label: `$(vm) ${name}`,
-				description: sandbox.sandboxId,
+				description: `${runtime} · ${sandbox.sandboxId.slice(0, 8)}`,
 				detail: sandbox.lastSyncedAt
 					? `Last synced: ${new Date(sandbox.lastSyncedAt).toLocaleString()}`
 					: 'Never synced',

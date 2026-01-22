@@ -20,7 +20,8 @@ export const searchSubcommand = createCommand({
 	name: 'search',
 	description: 'Search for keys matching a keyword in a keyvalue namespace',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{

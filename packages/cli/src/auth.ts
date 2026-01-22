@@ -1,19 +1,19 @@
 import enquirer from 'enquirer';
-import { getDefaultConfigDir, getAuth, saveConfig, loadConfig, saveOrgId } from './config';
+import { getDefaultConfigPath, getAuth, saveConfig, loadConfig, saveOrgId } from './config';
 import { getCommand } from './command-prefix';
 import type { CommandContext, AuthData } from './types';
 import * as tui from './tui';
 import { defaultProfileName } from './config';
 import { listOrganizations } from '@agentuity/server';
-import { APIClient, getAPIBaseURL, type APIClient as APIClientType } from './api';
+import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
 
 export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
 }
 
 export async function hasLoggedInBefore(): Promise<boolean> {
-	const configDir = getDefaultConfigDir();
-	return await Bun.file(configDir).exists();
+	const configPath = getDefaultConfigPath();
+	return await Bun.file(configPath).exists();
 }
 
 export async function isAuthenticated(): Promise<boolean> {
@@ -95,12 +95,23 @@ export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthD
 
 export async function optionalAuth(
 	ctx: CommandContext<undefined>,
-	continueText?: string
+	continueText?: string,
+	skipPrompts?: boolean
 ): Promise<AuthData | null> {
 	const auth = await getAuth();
 
 	if (auth && auth.expires > new Date()) {
 		return auth;
+	}
+
+	// Skip interactive prompts if requested (e.g., --confirm flag, --no-register in CI/scripts)
+	// Still show the logged out message to inform user about limited capabilities
+	if (skipPrompts) {
+		if (isTTY()) {
+			const hasLoggedIn = await hasLoggedInBefore();
+			tui.showLoggedOutMessage(getAppBaseURL(ctx.config ?? null), hasLoggedIn);
+		}
+		return null;
 	}
 
 	// Show signup benefits but don't block - just return null
@@ -145,7 +156,7 @@ export async function optionalAuth(
 			});
 
 			if (response.action === 'local') {
-				tui.showLoggedOutMessage();
+				tui.showLoggedOutMessage(getAppBaseURL(ctx.config ?? null), hasLoggedIn);
 				return null;
 			}
 
@@ -187,7 +198,7 @@ export async function optionalAuth(
 			});
 
 			if (response.action === 'local') {
-				tui.showLoggedOutMessage();
+				tui.showLoggedOutMessage(getAppBaseURL(ctx.config ?? null), hasLoggedIn);
 				return null;
 			}
 
@@ -221,11 +232,6 @@ export async function requireOrg(
 	// Check if org is provided via --org-id flag
 	if (options.orgId) {
 		return options.orgId;
-	}
-
-	// Check if org is saved in config preferences
-	if (config?.preferences?.orgId) {
-		return config.preferences.orgId;
 	}
 
 	// Fetch organizations
@@ -268,11 +274,7 @@ export async function optionalOrg(
 		return undefined;
 	}
 
-	// Skip org selection if --no-register is explicitly set (e.g., create command)
-	// Type assertion: register is a command-specific option not in GlobalOptions
-	if ('register' in options && (options as { register?: boolean }).register === false) {
-		return undefined;
-	}
+	// Note: --no-register check is handled in cli.ts before calling this function
 
 	// Check if org is provided via --org-id flag
 	if (options.orgId) {

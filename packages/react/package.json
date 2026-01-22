@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/react",
-	"version": "0.1.8",
+	"version": "0.1.24",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -27,7 +27,7 @@
 		"src"
 	],
 	"scripts": {
-		"clean": "rm -rf dist",
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
 		"build": "bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test",

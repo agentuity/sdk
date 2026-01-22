@@ -6,9 +6,11 @@ import type { APIClient as APIClientType } from '../../api';
 
 const ProjectCreateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
+	error: z.string().optional().describe('Error message if setup failed'),
 	name: z.string().describe('Project name'),
 	path: z.string().describe('Project directory path'),
 	projectId: z.string().optional().describe('Project ID if registered'),
+	orgId: z.string().optional().describe('Organization ID if registered'),
 	template: z.string().describe('Template used'),
 	installed: z.boolean().describe('Whether dependencies were installed'),
 	built: z.boolean().describe('Whether the project was built'),
@@ -25,11 +27,14 @@ export const createProjectSubcommand = createSubcommand({
 	idempotent: false,
 	optional: { auth: true, region: true, apiClient: true },
 	examples: [
-		{ command: getCommand('project create'), description: 'Create new item' },
-		{ command: getCommand('project create --name my-ai-agent'), description: 'Create new item' },
+		{ command: getCommand('project create'), description: 'Create new project' },
+		{
+			command: getCommand('project create --name my-ai-agent'),
+			description: 'Create new project',
+		},
 		{
 			command: getCommand('project create --name customer-service-bot --dir ~/projects/agent'),
-			description: 'Create new item',
+			description: 'Create new project',
 		},
 		{
 			command: getCommand('project create --template basic --no-install'),
@@ -67,12 +72,21 @@ export const createProjectSubcommand = createSubcommand({
 				.default(true)
 				.optional()
 				.describe('Register the project, if authenticated (use --no-register to skip)'),
+			database: z
+				.string()
+				.optional()
+				.describe('Database action: "skip", "new", or existing database name'),
+			storage: z
+				.string()
+				.optional()
+				.describe('Storage action: "skip", "new", or existing bucket name'),
+			enableAuth: z.boolean().optional().describe('Enable Agentuity Auth'),
 		}),
 		response: ProjectCreateResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { logger, opts, auth, config, apiClient, region } = ctx;
+		const { logger, opts, auth, config, apiClient, region, options } = ctx;
 
 		// Only get org if registering
 		let orgId: string | undefined;
@@ -83,7 +97,7 @@ export const createProjectSubcommand = createSubcommand({
 			);
 		}
 
-		await runCreateFlow({
+		const result = await runCreateFlow({
 			projectName: opts.name,
 			dir: opts.dir,
 			domains: opts.domains,
@@ -99,16 +113,27 @@ export const createProjectSubcommand = createSubcommand({
 			apiClient,
 			orgId: opts.register === true ? orgId : undefined,
 			region,
+			database: opts.database,
+			storage: opts.storage,
+			enableAuth: opts.enableAuth,
 		});
 
-		// Return best-effort response (runCreateFlow doesn't return values)
+		// Exit with error code if setup failed and not in JSON mode
+		if (!result.success && !options.json) {
+			process.exitCode = 1;
+		}
+
 		return {
-			success: true,
-			name: opts.name || 'project',
-			path: opts.dir || process.cwd(),
-			template: opts.template || 'default',
-			installed: opts.install !== false,
-			built: opts.build !== false,
+			success: result.success,
+			error: result.error,
+			name: result.name,
+			path: result.path,
+			projectId: result.projectId,
+			orgId: result.orgId,
+			template: result.template,
+			installed: result.installed,
+			built: result.built,
+			domains: result.domains,
 		};
 	},
 });

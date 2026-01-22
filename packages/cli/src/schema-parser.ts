@@ -13,7 +13,7 @@ export interface ParsedArgs {
 export interface ParsedOption {
 	name: string;
 	description?: string;
-	type: 'string' | 'number' | 'boolean' | 'array';
+	type: 'string' | 'number' | 'boolean' | 'array' | 'optionalString';
 	hasDefault?: boolean;
 	defaultValue?: unknown;
 	enumValues?: string[];
@@ -55,6 +55,45 @@ function unwrapSchema(schema: unknown): unknown {
 	}
 
 	return current;
+}
+
+/**
+ * Check if a schema is a union of boolean and string (for optional string flags like --org [value])
+ * This pattern is used when a flag can be used as a boolean (--org) or with a value (--org=myOrgId)
+ */
+function isBooleanStringUnion(schema: unknown): boolean {
+	const unwrapped = unwrapSchema(schema) as ZodTypeInternal;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const def = unwrapped?._def as any;
+	// Zod 3 uses typeName, Zod 4 uses type
+	const typeId = def?.typeName || def?.type;
+
+	if (typeId !== 'ZodUnion' && typeId !== 'union') {
+		return false;
+	}
+
+	// Zod 3 uses _def.options, Zod 4 uses .options directly on the schema or _def.options
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const options = def?.options || (unwrapped as any)?.options;
+	if (!Array.isArray(options) || options.length !== 2) {
+		return false;
+	}
+
+	const types = new Set<string>();
+	for (const opt of options) {
+		// Zod 4: type is directly on the object as .type
+		// Zod 3: type is _def.typeName
+		const optUnknown = opt as unknown as Record<string, unknown>;
+		const optDef = optUnknown?._def as Record<string, unknown> | undefined;
+		const optType =
+			(optUnknown?.type as string) || (optDef?.typeName as string) || (optDef?.type as string);
+		types.add(optType);
+	}
+
+	return (
+		(types.has('boolean') || types.has('ZodBoolean')) &&
+		(types.has('string') || types.has('ZodString'))
+	);
 }
 
 function getShape(schema: ZodType): Record<string, unknown> {
@@ -182,9 +221,12 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 			}
 		}
 
-		let type: 'string' | 'number' | 'boolean' | 'array' = 'string';
+		let type: 'string' | 'number' | 'boolean' | 'array' | 'optionalString' = 'string';
 		let enumValues: string[] | undefined;
-		if (typeId === 'ZodNumber' || typeId === 'number') {
+		if (isBooleanStringUnion(value)) {
+			// z.union([z.boolean(), z.string()]) - flag can be used as --flag or --flag=value
+			type = 'optionalString';
+		} else if (typeId === 'ZodNumber' || typeId === 'number') {
 			type = 'number';
 		} else if (typeId === 'ZodBoolean' || typeId === 'boolean') {
 			type = 'boolean';
@@ -212,10 +254,119 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 	return options;
 }
 
+// Cache for stdin confirmation detection
+let stdinConfirmationChecked = false;
+let stdinConfirmation: boolean | null = null;
+
+/**
+ * Check if stdin contains a piped "yes" confirmation.
+ * This allows commands to be run with `echo "yes" | agentuity <command>` pattern.
+ * Only works when stdin is not a TTY (piped input) and command doesn't use stdin.
+ */
+async function checkStdinConfirmation(): Promise<boolean> {
+	if (stdinConfirmationChecked) {
+		return stdinConfirmation === true;
+	}
+	stdinConfirmationChecked = true;
+
+	// Only check if stdin is not a TTY (meaning input is piped)
+	if (process.stdin.isTTY) {
+		stdinConfirmation = null;
+		return false;
+	}
+
+	try {
+		// Read stdin with a short timeout to avoid blocking
+		const reader = process.stdin;
+		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+		let resolved = false;
+		const MAX_BYTES = 4096;
+
+		// Define handlers outside so we can remove them in all paths
+		let data = '';
+		const onData = (chunk: Buffer) => {
+			data += chunk.toString();
+			if (data.length >= MAX_BYTES) {
+				data = data.slice(0, MAX_BYTES);
+			}
+		};
+
+		let onEnd: (() => void) | null = null;
+		let onError: ((err: Error) => void) | null = null;
+
+		const cleanup = () => {
+			reader.removeListener('data', onData);
+			if (onEnd) {
+				reader.removeListener('end', onEnd);
+			}
+			if (onError) {
+				reader.removeListener('error', onError);
+			}
+			reader.pause();
+		};
+
+		const readPromise = new Promise<string>((resolve) => {
+			onEnd = () => {
+				if (resolved) return;
+				resolved = true;
+				if (timeoutId !== null) {
+					clearTimeout(timeoutId);
+					timeoutId = null;
+				}
+				cleanup();
+				resolve(data.trim().toLowerCase());
+			};
+			onError = (_err: Error) => {
+				if (resolved) return;
+				resolved = true;
+				stdinConfirmation = null;
+				if (timeoutId !== null) {
+					clearTimeout(timeoutId);
+					timeoutId = null;
+				}
+				cleanup();
+				resolve('');
+			};
+			reader.on('data', onData);
+			reader.on('end', onEnd);
+			reader.on('error', onError);
+		});
+
+		// Use a short timeout to avoid blocking
+		const timeoutPromise = new Promise<string>((resolve) => {
+			timeoutId = setTimeout(() => {
+				if (resolved) return;
+				resolved = true;
+				// Clean up listeners and pause stdin when timeout wins
+				cleanup();
+				resolve('');
+			}, 100);
+		});
+
+		const input = await Promise.race([readPromise, timeoutPromise]);
+		// Take first token/line to handle inputs like "yes\nanything"
+		const firstToken = input.split(/\s+/)[0] ?? '';
+		stdinConfirmation = firstToken === 'yes' || firstToken === 'y';
+		return stdinConfirmation;
+	} catch {
+		stdinConfirmation = null;
+		return false;
+	}
+}
+
+/**
+ * Reset stdin confirmation cache (for testing)
+ */
+export function resetStdinConfirmationCache(): void {
+	stdinConfirmationChecked = false;
+	stdinConfirmation = null;
+}
+
 export function buildValidationInput(
 	schemas: CommandSchemas,
 	rawArgs: unknown[],
-	rawOptions: Record<string, unknown>
+	rawOptions: Record<string, unknown>,
+	_options?: { usesStdin?: boolean }
 ): { args: Record<string, unknown>; options: Record<string, unknown> } {
 	const result = { args: {} as Record<string, unknown>, options: {} as Record<string, unknown> };
 
@@ -232,9 +383,48 @@ export function buildValidationInput(
 			// Only include the option if it has a value - omitting undefined allows Zod to apply defaults
 			// Commander.js converts kebab-case to camelCase, so we need to check both
 			const camelCaseName = opt.name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-			const value = rawOptions[opt.name] ?? rawOptions[camelCaseName];
+			let value = rawOptions[opt.name] ?? rawOptions[camelCaseName];
+
+			// Handle --yes alias for --confirm: if confirm is not set but yes is, use yes value
+			if (opt.name === 'confirm' && value === undefined && rawOptions.yes === true) {
+				value = true;
+			}
+
 			if (value !== undefined) {
 				result.options[opt.name] = value;
+			}
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Async version of buildValidationInput that also checks stdin for "yes" confirmation.
+ * Use this when the command has a confirm option and doesn't use stdin for other purposes.
+ */
+export async function buildValidationInputAsync(
+	schemas: CommandSchemas,
+	rawArgs: unknown[],
+	rawOptions: Record<string, unknown>,
+	options?: { usesStdin?: boolean }
+): Promise<{ args: Record<string, unknown>; options: Record<string, unknown> }> {
+	const result = buildValidationInput(schemas, rawArgs, rawOptions, options);
+
+	// Check for stdin confirmation if:
+	// 1. Command has a confirm option in schema
+	// 2. Command doesn't use stdin for other purposes
+	// 3. confirm is not already set via flags
+	if (schemas.options && !options?.usesStdin) {
+		// Use getShape() instead of parseOptionsSchema() to avoid re-evaluating function defaults
+		const shape = getShape(schemas.options);
+		const hasConfirmOption = Object.prototype.hasOwnProperty.call(shape, 'confirm');
+		const confirmValue = result.options.confirm;
+
+		if (hasConfirmOption && confirmValue === undefined) {
+			const stdinConfirmed = await checkStdinConfirmation();
+			if (stdinConfirmed) {
+				result.options.confirm = true;
 			}
 		}
 	}

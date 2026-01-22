@@ -7,7 +7,7 @@ import { getCommand } from '../../../command-prefix';
 export const streamCommand = createCommand({
 	name: 'stream',
 	aliases: ['streams'],
-	description: 'Manage streams',
+	description: 'Manage durable streams',
 	tags: ['slow', 'requires-auth'],
 	examples: [
 		{ command: getCommand('cloud stream list'), description: 'List all streams' },

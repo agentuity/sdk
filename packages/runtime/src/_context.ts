@@ -7,6 +7,7 @@ import {
 	type StreamStorage,
 	type VectorStorage,
 	type SandboxService,
+	type QueueService,
 } from '@agentuity/core';
 import type { AuthInterface } from '@agentuity/auth';
 import type {
@@ -54,6 +55,7 @@ export class RequestAgentContext<
 	stream!: StreamStorage;
 	vector!: VectorStorage;
 	sandbox!: SandboxService;
+	queue!: QueueService;
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;
@@ -193,6 +195,16 @@ export const setupRequestAgentContext = <
 	// Note: All Hono context variables are set via c.set() in _server.ts middleware.
 	// RequestAgentContext is only used within agents via AsyncLocalStorage.
 	// No properties need to be copied between them.
+
+	// Provide c.waitUntil() directly on route context for consistency with AgentContext
+	if (!('waitUntil' in ctxObject)) {
+		Object.defineProperty(ctxObject, 'waitUntil', {
+			value: (callback: Promise<void> | (() => void | Promise<void>)) => {
+				args.handler.waitUntil(callback);
+			},
+			configurable: true,
+		});
+	}
 
 	// Provide executionCtx.waitUntil for compatibility with Cloudflare Workers API
 	Object.defineProperty(ctxObject, 'executionCtx', {

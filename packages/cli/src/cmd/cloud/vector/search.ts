@@ -22,7 +22,8 @@ export const searchSubcommand = createCommand({
 	aliases: ['list', 'ls'],
 	description: 'Search for vectors using semantic similarity',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{

@@ -16,6 +16,9 @@ import type { AnalyticsConfig } from './analytics-config';
 // Inject analytics config and script into HTML
 // Note: Only static config is injected (org, project, devmode, tracking options)
 // Session and thread IDs are read from cookies by the beacon script
+//
+// In production: beacon is served from CDN as a hashed asset (injected by Vite build)
+// In development: beacon is served from /_agentuity/webanalytics/analytics.js route
 export function injectAnalytics(html: string, analyticsConfig: AnalyticsConfig): string {
 	if (!analyticsConfig.enabled) return html;
 
@@ -34,7 +37,17 @@ export function injectAnalytics(html: string, analyticsConfig: AnalyticsConfig):
 	const configScript = `<script>window.__AGENTUITY_ANALYTICS__=${JSON.stringify(pageConfig)};</script>`;
 	// Session script sets cookies and window.__AGENTUITY_SESSION__ (dynamic, not cached)
 	const sessionScript = '<script src="/_agentuity/webanalytics/session.js" async></script>';
-	// Beacon script - must be sync (not async/defer) to patch history API before the router loads
+
+	// In production, the beacon is already in HTML as a CDN asset (data-agentuity-beacon marker)
+	// Inject config/session BEFORE the beacon marker so config exists when beacon runs
+	const beaconMarker = '<script data-agentuity-beacon';
+	if (html.includes(beaconMarker)) {
+		// Production: inject config/session right before the beacon script
+		const injection = configScript + sessionScript;
+		return html.replace(beaconMarker, injection + beaconMarker);
+	}
+
+	// Development: beacon served from local route, inject all three scripts
 	const beaconScript = '<script src="/_agentuity/webanalytics/analytics.js"></script>';
 	const injection = configScript + sessionScript + beaconScript;
 
@@ -69,13 +82,16 @@ export function registerAnalyticsRoutes(app: ReturnType<typeof createRouter>): v
 		});
 	});
 
-	// Static beacon script - can be cached
-	app.get('/_agentuity/webanalytics/analytics.js', async (c: Context) => {
-		return new Response(BEACON_SCRIPT, {
-			headers: {
-				'Content-Type': 'application/javascript; charset=utf-8',
-				'Cache-Control': 'public, max-age=3600',
-			},
+	// Dev mode only: serve beacon script from local route
+	// In production, the beacon is served from CDN as a hashed asset
+	if (runtimeIsDevMode()) {
+		app.get('/_agentuity/webanalytics/analytics.js', async (c: Context) => {
+			return new Response(BEACON_SCRIPT, {
+				headers: {
+					'Content-Type': 'application/javascript; charset=utf-8',
+					'Cache-Control': 'no-store, no-cache, must-revalidate',
+				},
+			});
 		});
-	});
+	}
 }

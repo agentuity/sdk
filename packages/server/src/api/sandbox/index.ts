@@ -19,9 +19,25 @@ export type {
 	ExecutionListParams,
 	ExecutionListResponse,
 } from './execution';
-export { SandboxResponseError, writeAndDrain } from './util';
+export {
+	SandboxResponseError,
+	SandboxNotFoundError,
+	SandboxTerminatedError,
+	ExecutionNotFoundError,
+	ExecutionTimeoutError,
+	ExecutionCancelledError,
+	SnapshotNotFoundError,
+	throwSandboxError,
+	writeAndDrain,
+} from './util';
+export type { SandboxErrorCode, SandboxErrorContext } from './util';
 export { SandboxClient } from './client';
-export type { SandboxClientOptions, SandboxInstance, ExecuteOptions } from './client';
+export type {
+	SandboxClientOptions,
+	SandboxClientRunIO,
+	SandboxInstance,
+	ExecuteOptions,
+} from './client';
 export {
 	sandboxWriteFiles,
 	sandboxReadFile,
@@ -49,7 +65,18 @@ export type {
 	SetEnvParams,
 	SetEnvResult,
 } from './files';
-export { snapshotCreate, snapshotGet, snapshotList, snapshotDelete, snapshotTag } from './snapshot';
+export {
+	snapshotCreate,
+	snapshotGet,
+	snapshotList,
+	snapshotDelete,
+	snapshotTag,
+	snapshotLineage,
+	snapshotPublicGet,
+	snapshotBuildInit,
+	snapshotBuildFinalize,
+	snapshotUpload,
+} from './snapshot';
 export type {
 	SnapshotInfo,
 	SnapshotFileInfo,
@@ -59,4 +86,16 @@ export type {
 	SnapshotListResponse,
 	SnapshotDeleteParams,
 	SnapshotTagParams,
+	SnapshotLineageParams,
+	SnapshotLineageEntry,
+	SnapshotLineageResponse,
+	SnapshotPublicGetParams,
+	SnapshotBuildGitInfo,
+	SnapshotBuildInitParams,
+	SnapshotBuildInitResponse,
+	SnapshotBuildFinalizeParams,
+	SnapshotUploadParams,
+	SnapshotUploadResponse,
 } from './snapshot';
+export { SnapshotBuildFileSchema } from './snapshot-build';
+export type { SnapshotBuildFile } from './snapshot-build';

@@ -123,9 +123,18 @@ export class APIClient {
 	async get<TResponse = void>(
 		endpoint: string,
 		responseSchema?: z.ZodType<TResponse>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('GET', endpoint, responseSchema, undefined, undefined, signal);
+		return this.request(
+			'GET',
+			endpoint,
+			responseSchema,
+			undefined,
+			undefined,
+			signal,
+			extraHeaders
+		);
 	}
 
 	/**
@@ -136,9 +145,10 @@ export class APIClient {
 		body?: TBody,
 		responseSchema?: z.ZodType<TResponse>,
 		bodySchema?: z.ZodType<TBody>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('POST', endpoint, responseSchema, body, bodySchema, signal);
+		return this.request('POST', endpoint, responseSchema, body, bodySchema, signal, extraHeaders);
 	}
 
 	/**
@@ -149,9 +159,10 @@ export class APIClient {
 		body?: TBody,
 		responseSchema?: z.ZodType<TResponse>,
 		bodySchema?: z.ZodType<TBody>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('PUT', endpoint, responseSchema, body, bodySchema, signal);
+		return this.request('PUT', endpoint, responseSchema, body, bodySchema, signal, extraHeaders);
 	}
 
 	/**
@@ -160,9 +171,18 @@ export class APIClient {
 	async delete<TResponse = void>(
 		endpoint: string,
 		responseSchema?: z.ZodType<TResponse>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('DELETE', endpoint, responseSchema, undefined, undefined, signal);
+		return this.request(
+			'DELETE',
+			endpoint,
+			responseSchema,
+			undefined,
+			undefined,
+			signal,
+			extraHeaders
+		);
 	}
 
 	/**
@@ -173,17 +193,30 @@ export class APIClient {
 		body?: TBody,
 		responseSchema?: z.ZodType<TResponse>,
 		bodySchema?: z.ZodType<TBody>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('PATCH', endpoint, responseSchema, body, bodySchema, signal);
+		return this.request(
+			'PATCH',
+			endpoint,
+			responseSchema,
+			body,
+			bodySchema,
+			signal,
+			extraHeaders
+		);
 	}
 
 	/**
 	 * Raw GET request that returns the Response object directly.
 	 * Useful for streaming responses where you need access to the body stream.
 	 */
-	async rawGet(endpoint: string, signal?: AbortSignal): Promise<Response> {
-		return this.#makeRequest('GET', endpoint, undefined, signal);
+	async rawGet(
+		endpoint: string,
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
+	): Promise<Response> {
+		return this.#makeRequest('GET', endpoint, undefined, signal, undefined, extraHeaders);
 	}
 
 	/**
@@ -200,6 +233,20 @@ export class APIClient {
 	}
 
 	/**
+	 * Raw PUT request that returns the Response object directly.
+	 * Useful for binary uploads where you need to pass raw body data.
+	 */
+	async rawPut(
+		endpoint: string,
+		body: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array> | string | Blob,
+		contentType: string,
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
+	): Promise<Response> {
+		return this.#makeRequest('PUT', endpoint, body, signal, contentType, extraHeaders);
+	}
+
+	/**
 	 * Generic request method (prefer HTTP verb methods: get, post, put, delete, patch)
 	 */
 	async request<TResponse = void, TBody = unknown>(
@@ -208,7 +255,8 @@ export class APIClient {
 		responseSchema?: z.ZodType<TResponse>,
 		body?: TBody,
 		bodySchema?: z.ZodType<TBody>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
 		// Validate request body if schema provided
 		if (body !== undefined && bodySchema) {
@@ -221,7 +269,14 @@ export class APIClient {
 			}
 		}
 
-		const response = await this.#makeRequest(method, endpoint, body, signal);
+		const response = await this.#makeRequest(
+			method,
+			endpoint,
+			body,
+			signal,
+			undefined,
+			extraHeaders
+		);
 
 		// Handle empty responses (204 or zero-length body)
 		let data: unknown;
@@ -263,7 +318,8 @@ export class APIClient {
 		endpoint: string,
 		body?: unknown,
 		signal?: AbortSignal,
-		contentType?: string
+		contentType?: string,
+		extraHeaders?: Record<string, string>
 	): Promise<Response> {
 		this.#logger.trace('sending %s to %s%s', method, this.#baseUrl, endpoint);
 
@@ -294,6 +350,11 @@ export class APIClient {
 			);
 		}
 
+		// Apply per-request extra headers (e.g., x-agentuity-orgid for CLI auth)
+		if (extraHeaders) {
+			Object.keys(extraHeaders).forEach((key) => (headers[key] = extraHeaders[key]));
+		}
+
 		const canRetry = !(body instanceof ReadableStream); // we cannot safely retry a ReadableStream as body
 
 		for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -306,6 +367,7 @@ export class APIClient {
 						| ArrayBuffer
 						| ReadableStream<Uint8Array>
 						| string
+						| Blob
 						| undefined;
 					if (body !== undefined) {
 						if (contentType && contentType !== 'application/json') {
@@ -313,7 +375,8 @@ export class APIClient {
 								| Uint8Array
 								| ArrayBuffer
 								| ReadableStream<Uint8Array>
-								| string;
+								| string
+								| Blob;
 						} else {
 							requestBody = JSON.stringify(body);
 						}
@@ -651,6 +714,7 @@ export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
 		z.object({
 			success: z.literal<false>(false),
 			message: z.string().describe('the error message'),
+			code: z.string().optional().describe('machine-readable error code'),
 		}),
 		z.object({
 			success: z.literal<true>(true),
@@ -663,6 +727,7 @@ export const APIResponseSchemaOptionalData = <T extends z.ZodType>(dataSchema: T
 		z.object({
 			success: z.literal<false>(false),
 			message: z.string().describe('the error message'),
+			code: z.string().optional().describe('machine-readable error code'),
 		}),
 		z.object({
 			success: z.literal<true>(true),
@@ -675,6 +740,7 @@ export const APIResponseSchemaNoData = () =>
 		z.object({
 			success: z.literal<false>(false),
 			message: z.string().describe('the error message'),
+			code: z.string().optional().describe('machine-readable error code'),
 		}),
 		z.object({
 			success: z.literal<true>(true),

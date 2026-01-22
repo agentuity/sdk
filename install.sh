@@ -9,6 +9,7 @@ CYAN='\033[38;2;0;139;139m'
 NC='\033[0m' # No Color
 
 MIN_BUN_VERSION="1.3.3"
+SETUP_TOKEN="-"
 
 requested_version=${VERSION:-}
 force_install=false
@@ -782,21 +783,23 @@ check_legacy_binaries
 check_musl_and_gcompat
 
 # NOTE: we will remove this once we are in production!
-printf "\n"
-printf "${RED}╭─────────────────────────────────────────────────────────────────────╮${NC}\n"
-printf "${RED}│${NC}  ${RED}⚠  v1 BETA BUILD - READY FOR PRODUCTION TESTING${NC}                    ${RED}│${NC}\n"
-printf "${RED}├─────────────────────────────────────────────────────────────────────┤${NC}\n"
-printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-printf "${RED}│${NC}  This is an Beta build of the upcoming v1 production release.       ${RED}│${NC}\n"
-printf "${RED}│${NC}  This build is ${RED}ready for production testing${NC}.                        ${RED}│${NC}\n"
-printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-printf "${RED}│${NC}  Please report any issues:                                          ${RED}│${NC}\n"
-printf "${RED}│${NC}    • Discord: ${CYAN}https://discord.gg/agentuity${NC}                          ${RED}│${NC}\n"
-printf "${RED}│${NC}    • GitHub:  ${CYAN}https://github.com/agentuity/sdk/discussions${NC}          ${RED}│${NC}\n"
-printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-printf "${RED}│${NC}  ${MUTED}Thank you for your assistance during this final testing period!${NC}    ${RED}│${NC}\n"
-printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-printf "${RED}╰─────────────────────────────────────────────────────────────────────╯${NC}\n"
+if [ "${AGENTUITY_HIDE_BANNER:-}" != "true" ]; then
+  printf "\n"
+  printf "${RED}╭─────────────────────────────────────────────────────────────────────╮${NC}\n"
+  printf "${RED}│${NC}  ${RED}⚠  v1 BETA BUILD - READY FOR PRODUCTION TESTING${NC}                    ${RED}│${NC}\n"
+  printf "${RED}├─────────────────────────────────────────────────────────────────────┤${NC}\n"
+  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
+  printf "${RED}│${NC}  This is a Beta build of the upcoming v1 production release.       ${RED}│${NC}\n"
+  printf "${RED}│${NC}  This build is ${RED}ready for production testing${NC}.                        ${RED}│${NC}\n"
+  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
+  printf "${RED}│${NC}  Please report any issues:                                          ${RED}│${NC}\n"
+  printf "${RED}│${NC}    • Discord: ${CYAN}https://discord.gg/agentuity${NC}                          ${RED}│${NC}\n"
+  printf "${RED}│${NC}    • GitHub:  ${CYAN}https://github.com/agentuity/sdk/discussions${NC}          ${RED}│${NC}\n"
+  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
+  printf "${RED}│${NC}  ${MUTED}Thank you for your assistance during this final testing period!${NC}    ${RED}│${NC}\n"
+  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
+  printf "${RED}╰─────────────────────────────────────────────────────────────────────╯${NC}\n"
+fi
 
 if [ "$force_install" = false ]; then
   check_version
@@ -806,13 +809,14 @@ download_and_install
 add_to_path() {
   _atp_config_file=$1
   _atp_command=$2
+  _atp_name=${3:-agentuity}
 
   if grep -Fxq "$_atp_command" "$_atp_config_file"; then
     print_message debug "Command already exists in $_atp_config_file, skipping write."
   elif [ -w "$_atp_config_file" ]; then
-    printf "\n# agentuity\n" >>"$_atp_config_file"
+    printf "\n# %s\n" "$_atp_name" >>"$_atp_config_file"
     printf "%s\n" "$_atp_command" >>"$_atp_config_file"
-    print_message info "${MUTED}Successfully added ${NC}agentuity ${MUTED}to \$PATH in ${NC}$_atp_config_file"
+    print_message info "${MUTED}Successfully added ${NC}$_atp_name ${MUTED}to \$PATH in ${NC}$_atp_config_file"
     path_modified=true
   else
     print_message warning "Manually add the directory to $_atp_config_file (or similar):"
@@ -903,10 +907,10 @@ if [ -n "$config_file" ]; then
     *)
       case $current_shell in
       fish)
-        add_to_path "$config_file" "fish_add_path $bun_bin_dir"
+        add_to_path "$config_file" "fish_add_path $bun_bin_dir" "bun"
         ;;
       *)
-        add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH"
+        add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH" "bun"
         ;;
       esac
       ;;
@@ -980,7 +984,7 @@ fi
 # Use the full path since PATH may not be updated in the current shell session
 # The || true ensures this doesn't fail on older binaries that don't have the setup command
 if [ "$non_interactive" = true ]; then
-  "$INSTALL_DIR/agentuity" setup --non-interactive || true
+  "$INSTALL_DIR/agentuity" setup --non-interactive --setup-token "${SETUP_TOKEN}" || true
 else
-  "$INSTALL_DIR/agentuity" setup || true
+  "$INSTALL_DIR/agentuity" setup --setup-token "${SETUP_TOKEN}" || true
 fi

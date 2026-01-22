@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, parseFileArgs } from './util';
+import { createSandboxClient, parseFileArgs, cacheSandboxRegion } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxCreate } from '@agentuity/server';
 import { StructuredError } from '@agentuity/core';
+import { validateAptDependencies } from '../../../utils/apt-validator';
+import { ErrorCode } from '../../../errors';
 
 const InvalidMetadataError = StructuredError(
 	'InvalidMetadataError',
@@ -23,6 +25,7 @@ export const createSubcommand = createCommand({
 	description: 'Create an interactive sandbox for multiple executions',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, region: true, org: true },
+	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox create'),
@@ -44,13 +47,14 @@ export const createSubcommand = createCommand({
 			command: getCommand('cloud sandbox create --env KEY=VAL'),
 			description: 'Create a sandbox with a specific environment variable',
 		},
+		{
+			command: getCommand('cloud sandbox create --project-id proj_123'),
+			description: 'Create a sandbox associated with a specific project',
+		},
 	],
 	schema: {
 		options: z.object({
-			runtime: z
-				.string()
-				.optional()
-				.describe('Runtime name (e.g., "bun:1", "python:3.14")'),
+			runtime: z.string().optional().describe('Runtime name (e.g., "bun:1", "python:3.14")'),
 			runtimeId: z.string().optional().describe('Runtime ID (e.g., "srt_xxx")'),
 			name: z.string().optional().describe('Sandbox name'),
 			description: z.string().optional().describe('Sandbox description'),
@@ -73,14 +77,65 @@ export const createSubcommand = createCommand({
 				.optional()
 				.describe('Apt packages to install (can be specified multiple times)'),
 			metadata: z.string().optional().describe('JSON object of user-defined metadata'),
+			port: z
+				.number()
+				.int()
+				.min(1024)
+				.max(65535)
+				.optional()
+				.describe('Port to expose from the sandbox to the outside Internet (1024-65535)'),
+			projectId: z.string().optional().describe('Project ID to associate this sandbox with'),
 		}),
 		response: SandboxCreateResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { opts, options, auth, region, logger, orgId } = ctx;
+		const { opts, options, auth, region, config, logger, orgId, project } = ctx;
+		const projectId = opts.projectId || project?.projectId;
 		const client = createSandboxClient(logger, auth, region);
 		const started = Date.now();
+
+		// Validate apt dependencies before creating sandbox
+		if (opts.dependency && opts.dependency.length > 0) {
+			const aptValidation = await tui.spinner({
+				message: 'Validating apt dependencies...',
+				type: 'simple',
+				callback: async () => {
+					return await validateAptDependencies(opts.dependency!, region, config, logger);
+				},
+			});
+
+			if (aptValidation.invalid.length > 0) {
+				if (options.json) {
+					return {
+						sandboxId: '',
+						status: 'failed',
+						errors: aptValidation.invalid.map((pkg) => ({
+							type: 'invalid-apt-dependency',
+							package: pkg.package,
+							error: pkg.error,
+							searchUrl: pkg.searchUrl,
+							availableVersions: pkg.availableVersions,
+						})),
+					} as never;
+				}
+
+				tui.error('Invalid apt dependencies:');
+				tui.newline();
+				for (const pkg of aptValidation.invalid) {
+					tui.bullet(`${tui.bold(pkg.package)}: ${pkg.error}`);
+					if (pkg.availableVersions && pkg.availableVersions.length > 0) {
+						tui.muted(`    Available versions: ${pkg.availableVersions.join(', ')}`);
+					}
+					tui.muted(`    Search: ${tui.link(pkg.searchUrl)}`);
+				}
+				tui.newline();
+				tui.fatal(
+					'Fix the apt dependencies and try again. Search for valid packages at: https://packages.debian.org/stable/',
+					ErrorCode.CONFIG_INVALID
+				);
+			}
+		}
 
 		const envMap: Record<string, string> = {};
 		if (opts.env) {
@@ -111,6 +166,7 @@ export const createSubcommand = createCommand({
 
 		const result = await sandboxCreate(client, {
 			options: {
+				projectId,
 				runtime: opts.runtime,
 				runtimeId: opts.runtimeId,
 				name: opts.name,
@@ -123,7 +179,10 @@ export const createSubcommand = createCommand({
 								disk: opts.disk,
 							}
 						: undefined,
-				network: opts.network ? { enabled: true } : undefined,
+				network:
+					opts.network || opts.port
+						? { enabled: opts.network || opts.port !== undefined, port: opts.port }
+						: undefined,
 				timeout: opts.idleTimeout ? { idle: opts.idleTimeout } : undefined,
 				env: Object.keys(envMap).length > 0 ? envMap : undefined,
 				command: hasFiles ? { exec: [], files } : undefined,
@@ -133,6 +192,9 @@ export const createSubcommand = createCommand({
 			},
 			orgId,
 		});
+
+		// Cache the region for future lookups
+		await cacheSandboxRegion(config?.name, result.sandboxId, region);
 
 		if (!options.json) {
 			const duration = Date.now() - started;

@@ -11,16 +11,19 @@ export const replSubcommand = createCommand({
 	description: 'Start an interactive repl for working with keyvalue database',
 	tags: ['slow', 'requires-auth'],
 	idempotent: false,
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	examples: [{ command: getCommand('kv repl'), description: 'Start interactive KV session' }],
 
 	async handler(ctx) {
 		showBanner(undefined, true);
-		tui.info('Managing keyvalue store for project');
+		tui.info('Managing keyvalue store');
 		tui.newline();
-		console.log(tui.bold('Org:'.padEnd(10, ' ')), ' ', tui.muted(ctx.project.orgId));
-		console.log(tui.bold('Project:'.padEnd(10, ' ')), ' ', tui.muted(ctx.project.projectId));
-		tui.newline();
+		if (ctx.project) {
+			console.log(tui.bold('Org:'.padEnd(10, ' ')), ' ', tui.muted(ctx.project.orgId));
+			console.log(tui.bold('Project:'.padEnd(10, ' ')), ' ', tui.muted(ctx.project.projectId));
+			tui.newline();
+		}
 
 		const storage = await createStorageAdapter(ctx);
 

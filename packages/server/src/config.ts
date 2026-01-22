@@ -41,7 +41,7 @@ export function getServiceUrls(region?: string): ServiceUrls {
 }
 
 function getDomainSuffix(region?: string) {
-	if (region === 'local') {
+	if (region === 'local' || region === 'l') {
 		return 'agentuity.io';
 	}
 	return 'agentuity.cloud';

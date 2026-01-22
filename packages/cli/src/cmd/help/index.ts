@@ -1,5 +1,6 @@
 import { createCommand } from '../../types';
 import { getCommand } from '../../command-prefix';
+import { getProgram } from '../../program-ref';
 
 export const command = createCommand({
 	name: 'help',
@@ -13,28 +14,13 @@ export const command = createCommand({
 	idempotent: true,
 
 	async handler() {
-		// Spawn the CLI with no arguments to show help
-		let spawnArgs: string[];
-
-		if (process.env.AGENTUITY_CLI_VERSION) {
-			// Compiled binary: spawn only the binary executable with no additional args
-			spawnArgs = [process.argv[0]];
-		} else {
-			// Script mode: spawn runtime and script, omitting the 'help' argument
-			spawnArgs = [process.argv[0], ...(process.argv.length > 1 ? [process.argv[1]] : [])];
+		// Get the root program and display its help
+		// This avoids spawning a subprocess which doesn't work reliably
+		// with Bun compiled binaries
+		const program = getProgram();
+		if (program) {
+			program.outputHelp();
 		}
-
-		const proc = Bun.spawn(spawnArgs, {
-			stdio: ['inherit', 'inherit', 'inherit'],
-			env: process.env,
-		});
-
-		const exitCode = await proc.exited;
-
-		if (exitCode !== 0) {
-			throw new Error(`Help command exited with code ${exitCode}`);
-		}
-
-		return undefined;
+		process.exit(0);
 	},
 });

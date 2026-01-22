@@ -45,7 +45,7 @@ export { maskSecret };
 // Export new TUI components
 export { createPrompt, PromptFlow } from './tui/prompt';
 export { group } from './tui/group';
-export { note, drawBox } from './tui/box';
+export { note, drawBox, errorBox, warningBox } from './tui/box';
 export { symbols } from './tui/symbols';
 export { colors as tuiColors } from './tui/colors';
 export type {
@@ -247,7 +247,8 @@ export function getSeverityColor(severity: string): (text: string) => string {
 export function success(message: string): void {
 	const color = getColor('success');
 	const reset = getColor('reset');
-	process.stderr.write(`${color}${ICONS.success} ${message}${reset}\n`);
+	// Clear line first to ensure no leftover content from previous output
+	process.stderr.write(`\r\x1b[2K${color}${ICONS.success} ${message}${reset}\n`);
 }
 
 /**
@@ -348,6 +349,11 @@ export function link(url: string, title?: string, color = getColor('link')): str
  * Check if terminal supports OSC 8 hyperlinks
  */
 export function supportsHyperlinks(): boolean {
+	// No hyperlink support without a TTY
+	if (!process.stdout.isTTY) {
+		return false;
+	}
+
 	const term = process.env.TERM || '';
 	const termProgram = process.env.TERM_PROGRAM || '';
 	const wtSession = process.env.WT_SESSION || '';
@@ -360,7 +366,6 @@ export function supportsHyperlinks(): boolean {
 		termProgram.includes('Apple_Terminal') ||
 		termProgram.includes('Hyper') ||
 		term.includes('xterm-kitty') ||
-		term.includes('xterm-256color') ||
 		wtSession !== '' // Windows Terminal
 	);
 }
@@ -807,20 +812,31 @@ export function showSignupBenefits(): void {
 
 /**
  * Display a message when unauthenticated to let the user know certain capabilities are disabled
+ * @param hasProfile - If true, user has logged in before so only show "Login" instead of "Sign up / Login"
  */
-export function showLoggedOutMessage(): void {
+export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): void {
 	const YELLOW = Bun.color('yellow', 'ansi-16m');
 	const TEXT =
 		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
 	const RESET = '\x1b[0m';
 
-	const signupTitle = 'Sign up / Login';
+	const signupTitle = hasProfile ? 'Login' : 'Sign up / Login';
+	const signupURL = hasProfile ? `${appBaseUrl}/sign-in` : `${appBaseUrl}/sign-up`;
 	const showInline = supportsHyperlinks();
-	const signupURL = 'https://app-v1.agentuity.com/sign-up';
 	const signupLink = showInline
 		? link(signupURL, signupTitle)
 		: ' '.repeat(stringWidth(signupTitle));
-	const showNewLine = showInline ? '' : `║ ${RESET}${link(signupURL)}${YELLOW}            ║`;
+	// Box inner width is 46 chars, "unauthenticated. " = 17 chars
+	// Padding needed: 46 - 17 - signupTitle.length - 1 (space before link) = 28 - signupTitle.length
+	const paddingLength = 28 - signupTitle.length;
+	const padding = ' '.repeat(paddingLength);
+	// When not showing inline hyperlink, show URL on separate line with proper padding
+	// Box format: "║ " + content + "║" = 48 chars total
+	// Content area = 46 chars, with leading space = 45 chars for URL + padding
+	const urlPadding = Math.max(0, 45 - signupURL.length);
+	const showNewLine = showInline
+		? ''
+		: `║ ${RESET}${link(signupURL)}${YELLOW}${' '.repeat(urlPadding)}║`;
 
 	const lines = [
 		'╔══════════════════════════════════════════════╗',
@@ -828,13 +844,45 @@ export function showLoggedOutMessage(): void {
 		'║                                              ║',
 		`║ ${TEXT}Certain capabilities such as the AI services${YELLOW} ║`,
 		`║ ${TEXT}and devmode remote are unavailable when${YELLOW}      ║`,
-		`║ ${TEXT}unauthenticated.${YELLOW} ${signupLink}${YELLOW}             ║`,
+		`║ ${TEXT}unauthenticated.${YELLOW} ${signupLink}${YELLOW}${padding}║`,
 		showNewLine,
 		'╚══════════════════════════════════════════════╝',
 	];
 
 	console.log('');
 	lines.filter(Boolean).map((line) => console.log(YELLOW + line + RESET));
+	console.log('');
+	console.log('');
+}
+
+/**
+ * Display a warning when running in local-only mode (no agentuity.json project config)
+ * This is shown during `agentuity dev` when the project hasn't been registered with Agentuity Cloud
+ */
+export function showLocalOnlyWarning(): void {
+	const YELLOW = Bun.color('yellow', 'ansi-16m');
+	const TEXT =
+		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
+	const RESET = '\x1b[0m';
+
+	const lines = [
+		'╔═══════════════════════════════════════════════════════════════╗',
+		`║ ⨺ Local-only mode                                             ║`,
+		'║                                                               ║',
+		`║ ${TEXT}This project is not registered with Agentuity Cloud.${YELLOW}          ║`,
+		`║ ${TEXT}The following features are disabled:${YELLOW}                          ║`,
+		`║   ${TEXT}• AI Gateway (LLM calls require provider API keys)${YELLOW}          ║`,
+		`║   ${TEXT}• Public URL / Remote access${YELLOW}                                ║`,
+		`║   ${TEXT}• Dashboard / Tracing / Observability${YELLOW}                       ║`,
+		'║                                                               ║',
+		`║ ${TEXT}To enable cloud features, create a project and login.${YELLOW}         ║`,
+		`║ ${TEXT}Or set provider API keys (e.g. OPENAI_API_KEY) in .env${YELLOW}        ║`,
+		'╚═══════════════════════════════════════════════════════════════╝',
+	];
+
+	console.log('');
+	lines.map((line) => console.log(YELLOW + line + RESET));
+	console.log('');
 }
 
 /**
@@ -1011,6 +1059,11 @@ export interface SimpleSpinnerOptions<T> {
 	 * Defaults to false
 	 */
 	clearOnSuccess?: boolean;
+	/**
+	 * If true, suppress the error message display on failure (for custom error handling)
+	 * Defaults to false
+	 */
+	clearOnError?: boolean;
 }
 
 /**
@@ -1025,6 +1078,11 @@ export interface ProgressSpinnerOptions<T> {
 	 * Defaults to false
 	 */
 	clearOnSuccess?: boolean;
+	/**
+	 * If true, suppress the error message display on failure (for custom error handling)
+	 * Defaults to false
+	 */
+	clearOnError?: boolean;
 }
 
 /**
@@ -1114,6 +1172,11 @@ export async function spinner<T>(
 		options = messageOrOptions;
 	}
 
+	// assume true by default
+	if (options.clearOnSuccess === undefined) {
+		options.clearOnSuccess = true;
+	}
+
 	const message = options.message;
 	const reset = getColor('reset');
 
@@ -1150,8 +1213,12 @@ export async function spinner<T>(
 
 			return result;
 		} catch (err) {
-			const errorColor = getColor('error');
-			console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
+			const clearOnError =
+				(options.type === 'progress' || options.type === 'simple') && options.clearOnError;
+			if (!clearOnError) {
+				const errorColor = getColor('error');
+				console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
+			}
 			throw err;
 		}
 	}
@@ -1264,11 +1331,17 @@ export async function spinner<T>(
 		// Stop animation
 		clearInterval(interval);
 
-		// Move cursor to start of output, clear all lines
+		// Move cursor to start of output, clear only our lines (not to end of screen)
 		if (linesRendered > 0) {
 			process.stderr.write(`\x1b[${linesRendered}A`);
+			for (let i = 0; i < linesRendered; i++) {
+				process.stderr.write('\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stderr.write('\x1b[B'); // Move down one line
+				}
+			}
+			process.stderr.write(`\x1b[${linesRendered}A\r`); // Move back up
 		}
-		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		process.exit(130); // Standard exit code for SIGINT
@@ -1324,11 +1397,22 @@ export async function spinner<T>(
 		// Stop animation first
 		clearInterval(interval);
 
-		// Move cursor to start of output, clear all lines
+		// Move cursor to start of output, clear only our lines (not to end of screen)
 		if (linesRendered > 0) {
 			process.stderr.write(`\x1b[${linesRendered}A`);
+			for (let i = 0; i < linesRendered; i++) {
+				process.stderr.write('\r\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stderr.write('\x1b[B'); // Move down one line
+				}
+			}
+			// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+			// Move up (linesRendered - 1) to get back to start position
+			if (linesRendered > 1) {
+				process.stderr.write(`\x1b[${linesRendered - 1}A`);
+			}
+			process.stderr.write('\r');
 		}
-		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		// If clearOnSuccess is false, show success message
@@ -1345,17 +1429,32 @@ export async function spinner<T>(
 		// Stop animation first
 		clearInterval(interval);
 
-		// Move cursor to start of output, clear all lines
+		// Move cursor to start of output, clear only our lines (not to end of screen)
 		if (linesRendered > 0) {
 			process.stderr.write(`\x1b[${linesRendered}A`);
+			for (let i = 0; i < linesRendered; i++) {
+				process.stderr.write('\r\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stderr.write('\x1b[B'); // Move down one line
+				}
+			}
+			// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+			// Move up (linesRendered - 1) to get back to start position
+			if (linesRendered > 1) {
+				process.stderr.write(`\x1b[${linesRendered - 1}A`);
+			}
+			process.stderr.write('\r');
 		}
-		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
-		// Show error
-		const errorColor = getColor('error');
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		console.error(`${errorColor}${ICONS.error} ${message}: ${errorMessage}${reset}`);
+		// Show error (unless clearOnError is set for custom error handling)
+		const clearOnError =
+			(options.type === 'progress' || options.type === 'simple') && options.clearOnError;
+		if (!clearOnError) {
+			const errorColor = getColor('error');
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			console.error(`${errorColor}${ICONS.error} ${message}: ${errorMessage}${reset}`);
+		}
 
 		throw err;
 	}
@@ -1522,7 +1621,8 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 
 					for (const line of lines) {
 						if (line.trim()) {
-							allOutputLines.push(line);
+							// Strip ANSI codes from command output to prevent cursor/display issues
+							allOutputLines.push(stripAnsi(line));
 							renderOutput(maxLinesOutput); // Show last N lines while streaming
 						}
 					}
@@ -1543,25 +1643,44 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 			if (linesRendered > 0) {
 				// Move up to the command line
 				process.stdout.write(`\x1b[${linesRendered}A`);
-				// Clear each line (entire line) and move cursor back up
+				// Clear each line (entire line)
 				for (let i = 0; i < linesRendered; i++) {
-					process.stdout.write('\x1b[2K'); // Clear entire line
+					process.stdout.write('\r\x1b[2K'); // Clear entire line
 					if (i < linesRendered - 1) {
 						process.stdout.write('\x1b[B'); // Move down one line
 					}
 				}
-				// Move cursor back up to original position
-				process.stdout.write(`\x1b[${linesRendered}A\r`);
+				// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+				// Move up (linesRendered - 1) to get back to start position
+				if (linesRendered > 1) {
+					process.stdout.write(`\x1b[${linesRendered - 1}A`);
+				}
+				process.stdout.write('\r');
 			}
 			return exitCode;
 		}
 
-		// Clear all rendered lines completely
+		// Determine how many lines to show in final output
+		const finalLinesToShow = exitCode === 0 ? maxLinesOutput : maxLinesOnFailure;
+		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
+
+		// Clear all rendered lines completely (only our lines, not previous output)
 		if (linesRendered > 0) {
 			// Move up to the command line (first line of our output)
 			process.stdout.write(`\x1b[${linesRendered}A`);
-			// Move to beginning of line and clear from cursor to end of screen
-			process.stdout.write('\r\x1b[J');
+			// Clear the lines we rendered during streaming
+			for (let i = 0; i < linesRendered; i++) {
+				process.stdout.write('\r\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stdout.write('\x1b[B'); // Move down one line
+				}
+			}
+			// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+			// Move up (linesRendered - 1) to get back to start position
+			if (linesRendered > 1) {
+				process.stdout.write(`\x1b[${linesRendered - 1}A`);
+			}
+			process.stdout.write('\r');
 		}
 
 		// Determine icon based on exit code
@@ -1573,18 +1692,17 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 			`\r\x1b[K${statusColor}${icon}${reset} ${cmdColor}${displayCmd}${reset}\n`
 		);
 
-		// Determine how many lines to show in final output
-		const finalLinesToShow = exitCode === 0 ? maxLinesOutput : maxLinesOnFailure;
-
-		// Show final output lines
-		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
+		// Show final output lines (clearing each line first in case we're using more lines than before)
 		for (const line of finalOutputLines) {
 			const displayLine =
 				truncate && getDisplayWidth(line) > maxLineWidth
 					? truncateToWidth(line, maxLineWidth)
 					: line;
-			process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
+			process.stdout.write(`\x1b[2K${mutedColor}${displayLine}${reset}\n`);
 		}
+
+		// If we're showing more lines than we had before, the extra lines may contain old content
+		// We've already written over them, so they're clean now
 
 		return exitCode;
 	} catch (err) {
@@ -1666,20 +1784,33 @@ export async function selectOrganization(
 		return orgs[0].id;
 	}
 
-	if (!process.stdin.isTTY) {
-		if (initial) {
-			return initial;
+	// Use saved preference if available (regardless of TTY mode)
+	// This allows consistent behavior without prompting on every command
+	if (initial) {
+		const initialOrg = orgs.find((o) => o.id === initial);
+		if (initialOrg) {
+			return initialOrg.id;
 		}
-		fatal(
-			'Organization selection required but cannot prompt in non-interactive environment. Set AGENTUITY_CLOUD_ORG_ID or provide a default organization using --org-id'
-		);
 	}
 
+	// Check for non-interactive environment (check both stdin and stdout)
+	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
+	if (isNonInteractive) {
+		// In non-interactive mode with multiple orgs, auto-select first org
+		// This allows scripts and CI/CD to work without explicit org selection
+		warning(
+			`Multiple organizations found. Auto-selecting first org: ${orgs[0].name}. ` +
+				`Set AGENTUITY_CLOUD_ORG_ID or use --org-id to specify a different org.`
+		);
+		return orgs[0].id;
+	}
+
+	// Interactive mode with no saved preference - prompt user
 	const response = await enquirer.prompt<{ action: string }>({
 		type: 'select',
 		name: 'action',
 		message: 'Select an organization',
-		initial: initial || (orgs.length === 1 ? orgs[0].id : undefined),
+		initial: 0,
 		choices: orgs.map((o) => ({ message: o.name, name: o.id })),
 	});
 
@@ -1830,6 +1961,11 @@ export interface TableOptions {
 	 * - 'auto': Automatically choose based on terminal width (default)
 	 */
 	layout?: 'horizontal' | 'vertical' | 'auto';
+
+	/**
+	 * the padding before any label
+	 */
+	padStart?: string;
 }
 
 /**
@@ -1838,10 +1974,11 @@ export interface TableOptions {
  */
 function calculateTableWidth<T extends Record<string, unknown>>(
 	data: T[],
-	columnNames: string[]
+	columnNames: string[],
+	padStart = ''
 ): number {
 	const columnWidths = columnNames.map((colName) => {
-		let maxWidth = getDisplayWidth(colName);
+		let maxWidth = getDisplayWidth(padStart + colName);
 		for (const row of data) {
 			const value = row[colName];
 			const valueStr = value !== undefined && value !== null ? String(value) : '';
@@ -1866,14 +2003,17 @@ function calculateTableWidth<T extends Record<string, unknown>>(
  */
 function renderVerticalTable<T extends Record<string, unknown>>(
 	data: T[],
-	columnNames: string[]
+	columnNames: string[],
+	padStart = ''
 ): string {
 	const lines: string[] = [];
 	const mutedColor = getColor('muted');
 	const reset = getColor('reset');
 
 	// Calculate max column name width for alignment
-	const maxLabelWidth = Math.max(...columnNames.map((name) => 1 + getDisplayWidth(name)));
+	const maxLabelWidth = Math.max(
+		...columnNames.map((name) => 1 + getDisplayWidth(padStart + name))
+	);
 
 	for (let i = 0; i < data.length; i++) {
 		const row = data[i];
@@ -1881,7 +2021,7 @@ function renderVerticalTable<T extends Record<string, unknown>>(
 		for (const colName of columnNames) {
 			const value = row[colName];
 			const valueStr = value !== undefined && value !== null ? String(value) : '';
-			const paddedLabel = `${colName}:`.padEnd(maxLabelWidth);
+			const paddedLabel = `${padStart}${colName}:`.padEnd(maxLabelWidth);
 			lines.push(`${mutedColor}${paddedLabel}${reset}  ${valueStr}`);
 		}
 
@@ -1942,13 +2082,13 @@ export function table<T extends Record<string, unknown>>(
 	// Determine layout mode
 	const layout = options?.layout ?? 'auto';
 	const termWidth = getTerminalWidth(80);
-	const tableWidth = calculateTableWidth(data, columnNames);
+	const tableWidth = calculateTableWidth(data, columnNames, options?.padStart);
 	const useVertical = layout === 'vertical' || (layout === 'auto' && tableWidth > termWidth);
 
 	let output: string;
 
 	if (useVertical) {
-		output = renderVerticalTable(data, columnNames);
+		output = renderVerticalTable(data, columnNames, options?.padStart);
 	} else {
 		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		const Table = require('cli-table3') as new (options?: {

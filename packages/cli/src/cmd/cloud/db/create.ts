@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createResources, APIError } from '@agentuity/server';
+import { createResources, APIError, validateDatabaseName } from '@agentuity/server';
 import { createSubcommand as defineSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
@@ -16,14 +16,15 @@ export const createSubcommand = defineSubcommand({
 	idempotent: false,
 	requires: { auth: true, org: true, region: true },
 	examples: [
-		{ command: getCommand('cloud db create'), description: 'Create new item' },
+		{ command: getCommand('cloud db create'), description: 'Create new database' },
 		{ command: getCommand('cloud db new'), description: 'Run new command' },
-		{ command: getCommand('cloud db create --name my-db'), description: 'Create new item' },
-		{ command: getCommand('--dry-run cloud db create'), description: 'Create new item' },
+		{ command: getCommand('cloud db create --name my-db'), description: 'Create new database' },
+		{ command: getCommand('--dry-run cloud db create'), description: 'Create new database' },
 	],
 	schema: {
 		options: z.object({
 			name: z.string().optional().describe('Custom database name'),
+			description: z.string().optional().describe('Optional database description'),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether creation succeeded'),
@@ -34,11 +35,22 @@ export const createSubcommand = defineSubcommand({
 	async handler(ctx) {
 		const { logger, opts, orgId, region, auth, options } = ctx;
 
+		// Validate database name if provided
+		if (opts.name) {
+			const validation = validateDatabaseName(opts.name);
+			if (!validation.valid) {
+				tui.fatal(validation.error!, ErrorCode.INVALID_ARGUMENT);
+			}
+		}
+
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
-			const message = opts.name
+			let message = opts.name
 				? `Would create database with name: ${opts.name} in region: ${region}`
 				: `Would create database in region: ${region}`;
+			if (opts.description) {
+				message += ` with description: "${opts.description}"`;
+			}
 			outputDryRun(message, options);
 			if (!options.json) {
 				tui.newline();
@@ -58,7 +70,7 @@ export const createSubcommand = defineSubcommand({
 				clearOnSuccess: true,
 				callback: async () => {
 					return await createResources(catalystClient, orgId, region!, [
-						{ type: 'db', name: opts.name },
+						{ type: 'db', name: opts.name, description: opts.description },
 					]);
 				},
 			});

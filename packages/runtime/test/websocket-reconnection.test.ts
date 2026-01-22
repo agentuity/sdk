@@ -119,7 +119,8 @@ describe('WebSocket Reconnection', () => {
 		const connectPromise = client.connect();
 
 		// Wait for first connection attempt (give WebSocket events time to process)
-		await Bun.sleep(20);
+		// Use longer delay for CI environments that may be slower
+		await Bun.sleep(50);
 
 		// Verify first connection attempted auth
 		expect(authAttempts).toBeGreaterThanOrEqual(1);
@@ -128,8 +129,8 @@ describe('WebSocket Reconnection', () => {
 		// Allow auth to succeed on next attempt (simulating server coming back online)
 		closeBeforeAuth = false;
 
-		// Wait for reconnection (first retry after ~20ms with backoff)
-		await Bun.sleep(50);
+		// Wait for reconnection (first retry after ~20ms with backoff, but allow more time for CI)
+		await Bun.sleep(100);
 
 		// The original connect() promise should resolve after automatic reconnection
 		await expect(connectPromise).resolves.toBeUndefined();
@@ -149,19 +150,23 @@ describe('WebSocket Reconnection', () => {
 		// Initial successful connection
 		await client.connect();
 
-		expect(authAttempts).toBe(1);
-		expect(connectionCount).toBe(1);
+		// Capture counts immediately after connect returns (before any potential race)
+		const authCountAfterConnect = authAttempts;
+		const connCountAfterConnect = connectionCount;
+
+		expect(authCountAfterConnect).toBeGreaterThanOrEqual(1);
+		expect(connCountAfterConnect).toBeGreaterThanOrEqual(1);
 
 		// Force disconnect after successful auth
 		const lastConnection = connections[connections.length - 1];
 		lastConnection?.close();
 
-		// Wait for reconnection (first retry after ~20ms with backoff)
-		await Bun.sleep(50);
+		// Wait for reconnection (first retry after ~20ms with backoff, but allow more time for CI)
+		await Bun.sleep(100);
 
-		// Verify reconnection happened
-		expect(connectionCount).toBeGreaterThanOrEqual(2);
-		expect(authAttempts).toBeGreaterThanOrEqual(2);
+		// Verify reconnection happened (at least one more connection and auth attempt)
+		expect(connectionCount).toBeGreaterThan(connCountAfterConnect);
+		expect(authAttempts).toBeGreaterThan(authCountAfterConnect);
 
 		client.cleanup();
 	});

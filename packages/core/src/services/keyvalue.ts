@@ -3,6 +3,21 @@ import { buildUrl, toServiceException, toPayload } from './_util';
 import { StructuredError } from '../error';
 
 /**
+ * Minimum TTL value in seconds (1 minute)
+ */
+export const KV_MIN_TTL_SECONDS = 60;
+
+/**
+ * Maximum TTL value in seconds (90 days)
+ */
+export const KV_MAX_TTL_SECONDS = 7776000;
+
+/**
+ * Default TTL value in seconds (7 days) - used when namespace is auto-created or no TTL specified
+ */
+export const KV_DEFAULT_TTL_SECONDS = 604800;
+
+/**
  * the result of a data operation when the data is found
  */
 export interface DataResultFound<T> {
@@ -50,6 +65,23 @@ export interface KeyValueStorageSetParams {
 }
 
 /**
+ * Parameters for creating a namespace
+ */
+export interface CreateNamespaceParams {
+	/**
+	 * Default TTL for keys in this namespace (in seconds).
+	 * - If undefined/omitted: uses server default (7 days / 604,800 seconds)
+	 * - If 0: keys will not expire by default
+	 * - If 60-7,776,000: custom TTL in seconds (1 minute to 90 days)
+	 *
+	 * Keys can override this default by specifying TTL in the set() call.
+	 * Active keys are automatically extended (sliding expiration) when read
+	 * if their remaining TTL is less than 50% of the original TTL.
+	 */
+	defaultTTLSeconds?: number;
+}
+
+/**
  * Statistics for a key-value store namespace
  */
 export interface KeyValueStats {
@@ -68,6 +100,46 @@ export interface KeyValueItemWithMetadata<T = unknown> {
 	size: number;
 	created_at: string;
 	updated_at: string;
+}
+
+/**
+ * Parameters for getting all namespace statistics with optional pagination
+ */
+export interface GetAllStatsParams {
+	/**
+	 * Maximum number of namespaces to return (default: 100, max: 1000)
+	 */
+	limit?: number;
+	/**
+	 * Number of namespaces to skip for pagination (default: 0)
+	 */
+	offset?: number;
+}
+
+/**
+ * Paginated response for namespace statistics
+ */
+export interface KeyValueStatsPaginated {
+	/**
+	 * Map of namespace names to their statistics
+	 */
+	namespaces: Record<string, KeyValueStats>;
+	/**
+	 * Total number of namespaces across all pages
+	 */
+	total: number;
+	/**
+	 * Number of namespaces requested per page
+	 */
+	limit: number;
+	/**
+	 * Number of namespaces skipped
+	 */
+	offset: number;
+	/**
+	 * Whether there are more namespaces available
+	 */
+	hasMore: boolean;
 }
 
 export interface KeyValueStorage {
@@ -114,14 +186,22 @@ export interface KeyValueStorage {
 	/**
 	 * get statistics for all namespaces
 	 *
-	 * @returns map of namespace names to statistics
+	 * @param params - optional pagination parameters
+	 * @returns map of namespace names to statistics, or paginated response if params provided
 	 */
-	getAllStats(): Promise<Record<string, KeyValueStats>>;
+	getAllStats(
+		params?: GetAllStatsParams
+	): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated>;
 
 	/**
 	 * get all namespace names
 	 *
-	 * @returns array of namespace names
+	 * @returns array of namespace names (up to 1000)
+	 *
+	 * @remarks
+	 * This method returns a maximum of 1000 namespace names.
+	 * If you have more than 1000 namespaces, only the first 1000
+	 * (ordered by creation date, most recent first) will be returned.
 	 */
 	getNamespaces(): Promise<string[]>;
 
@@ -156,8 +236,9 @@ export interface KeyValueStorage {
 	 * create a new namespace
 	 *
 	 * @param name - the name of the key value storage to create
+	 * @param params - optional parameters including default TTL
 	 */
-	createNamespace(name: string): Promise<void>;
+	createNamespace(name: string, params?: CreateNamespaceParams): Promise<void>;
 }
 
 const KeyValueInvalidTTLError = StructuredError('KeyValueInvalidTTLError');
@@ -201,6 +282,21 @@ export class KeyValueStorageService implements KeyValueStorage {
 		throw await toServiceException('GET', url, res.response);
 	}
 
+	/**
+	 * set a value in the key value storage
+	 *
+	 * @param name - the name of the key value storage
+	 * @param key - the key to set the value of
+	 * @param value - the value to set in any of the supported data types
+	 * @param params - the KeyValueStorageSetParams
+	 *
+	 * @remarks
+	 * TTL behavior:
+	 * - If TTL is not specified, the key inherits the namespace's default TTL
+	 * - TTL values below 60 seconds are clamped to 60 seconds
+	 * - TTL values above 7,776,000 seconds (90 days) are clamped to 90 days
+	 * - If the namespace doesn't exist, it is auto-created with a 7-day default TTL
+	 */
 	async set<T = unknown>(
 		name: string,
 		key: string,
@@ -282,10 +378,25 @@ export class KeyValueStorageService implements KeyValueStorage {
 		throw await toServiceException('GET', url, res.response);
 	}
 
-	async getAllStats(): Promise<Record<string, KeyValueStats>> {
-		const url = buildUrl(this.#baseUrl, '/kv/2025-03-17/stats');
+	async getAllStats(
+		params?: GetAllStatsParams
+	): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated> {
+		const queryParams = new URLSearchParams();
+		if (params?.limit !== undefined) {
+			queryParams.set('limit', String(params.limit));
+		}
+		if (params?.offset !== undefined) {
+			queryParams.set('offset', String(params.offset));
+		}
+		const queryString = queryParams.toString();
+		const url = buildUrl(
+			this.#baseUrl,
+			`/kv/2025-03-17/stats${queryString ? `?${queryString}` : ''}`
+		);
 		const signal = AbortSignal.timeout(10_000);
-		const res = await this.#adapter.invoke<Record<string, KeyValueStats>>(url, {
+		const res = await this.#adapter.invoke<
+			Record<string, KeyValueStats> | KeyValueStatsPaginated
+		>(url, {
 			method: 'GET',
 			signal,
 			telemetry: {
@@ -300,8 +411,20 @@ export class KeyValueStorageService implements KeyValueStorage {
 	}
 
 	async getNamespaces(): Promise<string[]> {
-		const stats = await this.getAllStats();
-		return Object.keys(stats);
+		const url = buildUrl(this.#baseUrl, '/kv/2025-03-17/namespaces');
+		const signal = AbortSignal.timeout(10_000);
+		const res = await this.#adapter.invoke<string[]>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.keyvalue.getNamespaces',
+				attributes: {},
+			},
+		});
+		if (res.ok) {
+			return res.data;
+		}
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async search<T = unknown>(
@@ -361,12 +484,19 @@ export class KeyValueStorageService implements KeyValueStorage {
 		throw await toServiceException('DELETE', url, res.response);
 	}
 
-	async createNamespace(name: string): Promise<void> {
+	async createNamespace(name: string, params?: CreateNamespaceParams): Promise<void> {
 		const url = buildUrl(this.#baseUrl, `/kv/2025-03-17/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(10_000);
+
+		const body =
+			params?.defaultTTLSeconds !== undefined
+				? JSON.stringify({ default_ttl_seconds: params.defaultTTLSeconds })
+				: undefined;
+
 		const res = await this.#adapter.invoke(url, {
 			method: 'POST',
 			signal,
+			...(body && { body, contentType: 'application/json' }),
 			telemetry: {
 				name: 'agentuity.keyvalue.createNamespace',
 				attributes: { name },

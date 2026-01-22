@@ -39,7 +39,8 @@ export class SandboxTreeItem extends vscode.TreeItem {
 		public readonly parentSandboxId?: string,
 		public readonly categoryType?: 'files' | 'snapshots' | 'executions',
 		public readonly linkedData?: LinkedSandbox,
-		public readonly filePath?: string
+		public readonly filePath?: string,
+		public readonly region?: string
 	) {
 		super(label, collapsibleState);
 		this.setupItem();
@@ -92,9 +93,18 @@ export class SandboxTreeItem extends vscode.TreeItem {
 		}
 		this.contextValue = contextValue;
 
-		// Set description
+		// Set description with status and runtime
 		const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-		this.description = isLinked ? `${statusLabel} [linked]` : statusLabel;
+		const runtimeLabel =
+			this.sandboxData.runtime?.name ?? this.sandboxData.runtime?.id ?? 'bun:1';
+		let desc = `${statusLabel} · ${runtimeLabel}`;
+		if (this.sandboxData.url) {
+			desc += ' 🌐';
+		}
+		if (isLinked) {
+			desc += ' [linked]';
+		}
+		this.description = desc;
 
 		// Set tooltip
 		this.tooltip = this.formatSandboxTooltip();
@@ -135,12 +145,36 @@ export class SandboxTreeItem extends vscode.TreeItem {
 	private formatSandboxTooltip(): string {
 		if (!this.sandboxData) return '';
 
-		const lines = [
-			`ID: ${this.sandboxData.sandboxId}`,
-			`Status: ${this.sandboxData.status}`,
-			`Region: ${this.sandboxData.region}`,
-			`Created: ${new Date(this.sandboxData.createdAt).toLocaleString()}`,
-		];
+		const lines: string[] = [];
+
+		// Name and description first if present
+		if (this.sandboxData.name) {
+			lines.push(`Name: ${this.sandboxData.name}`);
+		}
+		if (this.sandboxData.description) {
+			lines.push(`Description: ${this.sandboxData.description}`);
+		}
+
+		lines.push(`ID: ${this.sandboxData.sandboxId}`);
+		lines.push(`Status: ${this.sandboxData.status}`);
+
+		// Runtime info
+		const runtimeDisplay =
+			this.sandboxData.runtime?.name ?? this.sandboxData.runtime?.id ?? 'bun:1';
+		lines.push(`Runtime: ${runtimeDisplay}`);
+
+		if (this.sandboxData.region) {
+			lines.push(`Region: ${this.sandboxData.region}`);
+		}
+		lines.push(`Created: ${new Date(this.sandboxData.createdAt).toLocaleString()}`);
+
+		// Network/URL info
+		if (this.sandboxData.url) {
+			lines.push(`URL: ${this.sandboxData.url}`);
+		}
+		if (this.sandboxData.networkPort) {
+			lines.push(`Port: ${this.sandboxData.networkPort}`);
+		}
 
 		if (this.sandboxData.resources) {
 			const r = this.sandboxData.resources;
@@ -209,7 +243,10 @@ export class SandboxTreeItem extends vscode.TreeItem {
 	private setupSnapshotItem(): void {
 		if (!this.snapshotData) return;
 
-		this.iconPath = new vscode.ThemeIcon('device-camera');
+		// Use globe icon for public snapshots
+		this.iconPath = this.snapshotData.public
+			? new vscode.ThemeIcon('globe')
+			: new vscode.ThemeIcon('device-camera');
 
 		if (this.snapshotData.tag) {
 			this.contextValue = 'snapshot.tagged';
@@ -219,12 +256,20 @@ export class SandboxTreeItem extends vscode.TreeItem {
 			this.description = `${this.snapshotData.fileCount} files`;
 		}
 
+		// Add public indicator to description
+		if (this.snapshotData.public) {
+			this.description = `🌐 ${this.description}`;
+		}
+
 		this.tooltip = [
+			this.snapshotData.fullName ? `Name: ${this.snapshotData.fullName}` : '',
 			`ID: ${this.snapshotData.snapshotId}`,
 			`Size: ${this.formatFileSize(this.snapshotData.sizeBytes)}`,
 			`Files: ${this.snapshotData.fileCount}`,
 			`Created: ${new Date(this.snapshotData.createdAt).toLocaleString()}`,
 			this.snapshotData.tag ? `Tag: ${this.snapshotData.tag}` : '',
+			this.snapshotData.public ? '🌐 Public snapshot' : '',
+			this.snapshotData.orgSlug ? `Org: @${this.snapshotData.orgSlug}` : '',
 			'',
 			'Click to view snapshot details',
 		]
@@ -382,20 +427,21 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 
 		// Category children
 		if (element.itemType === 'category' && element.parentSandboxId) {
+			const region = element.sandboxData?.region;
 			switch (element.categoryType) {
 				case 'files':
 					// Pass undefined for root listing (CLI defaults to sandbox home)
-					return this.getFilesChildren(element.parentSandboxId, undefined);
+					return this.getFilesChildren(element.parentSandboxId, undefined, region);
 				case 'snapshots':
-					return this.getSnapshotsChildren(element.parentSandboxId);
+					return this.getSnapshotsChildren(element.parentSandboxId, region);
 				case 'executions':
-					return this.getExecutionsChildren(element.parentSandboxId);
+					return this.getExecutionsChildren(element.parentSandboxId, region);
 			}
 		}
 
 		// Directory children
 		if (element.itemType === 'directory' && element.parentSandboxId && element.filePath) {
-			return this.getFilesChildren(element.parentSandboxId, element.filePath);
+			return this.getFilesChildren(element.parentSandboxId, element.filePath, element.region);
 		}
 
 		// Snapshot children (files from snapshot get)
@@ -469,7 +515,11 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		// Add sandbox items
 		for (const sandbox of this.sandboxes) {
 			const linked = linkedSandboxes.find((l) => l.sandboxId === sandbox.sandboxId);
-			const displayName = linked?.name || sandbox.sandboxId;
+			// Prefer server-side name, then linked alias, then short ID
+			const displayName =
+				sandbox.name && sandbox.name.trim().length > 0
+					? sandbox.name
+					: linked?.name || sandbox.sandboxId.slice(0, 12);
 
 			items.push(
 				new SandboxTreeItem(
@@ -552,15 +602,18 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		];
 	}
 
-	private async getFilesChildren(sandboxId: string, dirPath?: string): Promise<SandboxTreeItem[]> {
+	private async getFilesChildren(
+		sandboxId: string,
+		dirPath?: string,
+		region?: string
+	): Promise<SandboxTreeItem[]> {
 		// Always fetch from root to get full file list, then filter
 		const cacheKey = `${sandboxId}:root`;
 
 		// Check cache first - always cache from root
 		if (!this.filesCache.has(cacheKey)) {
 			const cli = getCliClient();
-			// Always fetch from root (no path) to get complete file list
-			const result = await cli.sandboxLs(sandboxId);
+			const result = await cli.sandboxLs(sandboxId, undefined);
 
 			if (result.success && result.data) {
 				this.filesCache.set(cacheKey, result.data);
@@ -621,12 +674,16 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 				sandboxId,
 				undefined,
 				undefined,
-				file.path // Use the full path from CLI
+				file.path, // Use the full path from CLI
+				region // Pass region to child items
 			);
 		});
 	}
 
-	private async getSnapshotsChildren(sandboxId: string): Promise<SandboxTreeItem[]> {
+	private async getSnapshotsChildren(
+		sandboxId: string,
+		region?: string
+	): Promise<SandboxTreeItem[]> {
 		if (!this.snapshotsCache.has(sandboxId)) {
 			const cli = getCliClient();
 			const result = await cli.snapshotList(sandboxId);
@@ -663,7 +720,11 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 					undefined,
 					snap,
 					undefined,
-					sandboxId
+					sandboxId,
+					undefined,
+					undefined,
+					undefined,
+					region
 				)
 		);
 	}
@@ -720,7 +781,10 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		});
 	}
 
-	private async getExecutionsChildren(sandboxId: string): Promise<SandboxTreeItem[]> {
+	private async getExecutionsChildren(
+		sandboxId: string,
+		region?: string
+	): Promise<SandboxTreeItem[]> {
 		if (!this.executionsCache.has(sandboxId)) {
 			const cli = getCliClient();
 			const result = await cli.executionList(sandboxId);
@@ -756,7 +820,11 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 					undefined,
 					undefined,
 					exec,
-					sandboxId
+					sandboxId,
+					undefined,
+					undefined,
+					undefined,
+					region
 				)
 		);
 	}

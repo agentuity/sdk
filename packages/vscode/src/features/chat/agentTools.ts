@@ -138,7 +138,10 @@ export class GetSessionsTool implements vscode.LanguageModelTool<GetSessionsInpu
 
 		const cli = getCliClient();
 		const count = options.input.count || 10;
-		const result = await cli.listSessions({ count });
+		const result = await cli.listSessions({
+			count,
+			agentIdentifier: options.input.agentName,
+		});
 
 		if (!result.success || !result.data) {
 			throw new Error(`Failed to list sessions: ${result.error || 'Unknown error'}`);
@@ -507,7 +510,11 @@ export class ListSandboxesTool implements vscode.LanguageModelTool<ListSandboxes
 
 		const sandboxes = result.data.map((s) => ({
 			id: s.sandboxId,
+			name: s.name,
+			description: s.description,
 			status: s.status,
+			runtime: s.runtime?.name ?? s.runtime?.id,
+			runtimeId: s.runtime?.id,
 			region: s.region,
 			createdAt: s.createdAt,
 			resources: s.resources,
@@ -529,12 +536,57 @@ export class ListSandboxesTool implements vscode.LanguageModelTool<ListSandboxes
 	}
 }
 
+export interface ListSandboxRuntimesInput {
+	limit?: number;
+}
+
+export class ListSandboxRuntimesTool implements vscode.LanguageModelTool<ListSandboxRuntimesInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<ListSandboxRuntimesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		const cli = getCliClient();
+		const limit = options.input.limit ?? 50;
+		const result = await cli.sandboxRuntimeList({ limit });
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to list runtimes: ${result.error || 'Unknown error'}`);
+		}
+
+		const output = result.data.runtimes.map((rt) => ({
+			id: rt.id,
+			name: rt.name,
+			description: rt.description,
+			tags: rt.tags,
+			url: rt.url,
+		}));
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(JSON.stringify(output, null, 2)),
+		]);
+	}
+
+	async prepareInvocation(
+		_options: vscode.LanguageModelToolInvocationPrepareOptions<ListSandboxRuntimesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: 'Listing sandbox runtimes...',
+		};
+	}
+}
+
 export interface CreateSandboxInput {
 	memory?: string;
 	cpu?: string;
 	network?: boolean;
 	snapshot?: string;
 	dependencies?: string[];
+	// New fields
+	runtime?: string;
+	runtimeId?: string;
+	name?: string;
+	description?: string;
 }
 
 export class CreateSandboxTool implements vscode.LanguageModelTool<CreateSandboxInput> {
@@ -549,6 +601,10 @@ export class CreateSandboxTool implements vscode.LanguageModelTool<CreateSandbox
 			network: options.input.network,
 			snapshot: options.input.snapshot,
 			dependencies: options.input.dependencies,
+			runtime: options.input.runtime,
+			runtimeId: options.input.runtimeId,
+			name: options.input.name,
+			description: options.input.description,
 		};
 
 		const result = await cli.sandboxCreate(createOptions);
@@ -557,10 +613,20 @@ export class CreateSandboxTool implements vscode.LanguageModelTool<CreateSandbox
 			throw new Error(`Failed to create sandbox: ${result.error || 'Unknown error'}`);
 		}
 
+		const info = result.data;
+		const lines = [
+			'Sandbox created successfully!',
+			'',
+			`ID: ${info.sandboxId}`,
+			info.name ? `Name: ${info.name}` : '',
+			info.description ? `Description: ${info.description}` : '',
+			`Runtime: ${info.runtime?.name ?? info.runtime?.id ?? 'bun:1'}`,
+			`Status: ${info.status}`,
+			`Region: ${info.region}`,
+		].filter(Boolean);
+
 		return new vscode.LanguageModelToolResult([
-			new vscode.LanguageModelTextPart(
-				`Sandbox created successfully!\n\nID: ${result.data.sandboxId}\nStatus: ${result.data.status}\nRegion: ${result.data.region}`
-			),
+			new vscode.LanguageModelTextPart(lines.join('\n')),
 		]);
 	}
 
@@ -680,6 +746,7 @@ export class ExecuteInSandboxTool implements vscode.LanguageModelTool<ExecuteInS
 export interface CreateSnapshotInput {
 	sandboxId: string;
 	tag?: string;
+	region?: string;
 }
 
 export class CreateSnapshotTool implements vscode.LanguageModelTool<CreateSnapshotInput> {
@@ -712,6 +779,360 @@ export class CreateSnapshotTool implements vscode.LanguageModelTool<CreateSnapsh
 	): Promise<vscode.PreparedToolInvocation> {
 		return {
 			invocationMessage: `Creating snapshot of sandbox ${options.input.sandboxId?.substring(0, 8)}...`,
+		};
+	}
+}
+
+export interface DeleteSandboxInput {
+	sandboxId: string;
+}
+
+export class DeleteSandboxTool implements vscode.LanguageModelTool<DeleteSandboxInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<DeleteSandboxInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		const { sandboxId } = options.input;
+		if (!sandboxId) {
+			throw new Error('Sandbox ID is required.');
+		}
+
+		const cli = getCliClient();
+		const result = await cli.sandboxDelete(sandboxId);
+
+		if (!result.success) {
+			throw new Error(`Failed to delete sandbox: ${result.error || 'Unknown error'}`);
+		}
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(`Sandbox ${sandboxId} deleted successfully.`),
+		]);
+	}
+
+	async prepareInvocation(
+		options: vscode.LanguageModelToolInvocationPrepareOptions<DeleteSandboxInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: `Deleting sandbox ${options.input.sandboxId?.substring(0, 8)}...`,
+			confirmationMessages: {
+				title: 'Delete Sandbox',
+				message: new vscode.MarkdownString(
+					`Are you sure you want to delete sandbox **${options.input.sandboxId}**?\n\nThis action cannot be undone.`
+				),
+			},
+		};
+	}
+}
+
+// Queue tools
+export interface ListQueuesInput {
+	limit?: number;
+}
+
+export class ListQueuesTool implements vscode.LanguageModelTool<ListQueuesInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<ListQueuesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		if (!hasProject()) {
+			throw new Error('No Agentuity project found in the current workspace.');
+		}
+
+		const cli = getCliClient();
+		const result = await cli.listQueues({ limit: options.input.limit });
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to list queues: ${result.error || 'Unknown error'}`);
+		}
+
+		const queues = result.data.queues;
+		if (queues.length === 0) {
+			return new vscode.LanguageModelToolResult([
+				new vscode.LanguageModelTextPart('No queues found.'),
+			]);
+		}
+
+		const output = queues.map((q) => ({
+			name: q.name,
+			type: q.queue_type,
+			messageCount: q.message_count,
+			dlqCount: q.dlq_count,
+			createdAt: q.created_at,
+		}));
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(JSON.stringify(output, null, 2)),
+		]);
+	}
+
+	async prepareInvocation(
+		_options: vscode.LanguageModelToolInvocationPrepareOptions<ListQueuesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: 'Fetching queues...',
+		};
+	}
+}
+
+export interface PublishQueueMessageInput {
+	queueName: string;
+	payload: string;
+	metadata?: string;
+	ttl?: number;
+}
+
+export class PublishQueueMessageTool implements vscode.LanguageModelTool<PublishQueueMessageInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<PublishQueueMessageInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		if (!hasProject()) {
+			throw new Error('No Agentuity project found in the current workspace.');
+		}
+
+		const { queueName, payload, metadata, ttl } = options.input;
+		if (!queueName || !payload) {
+			throw new Error('Queue name and payload are required.');
+		}
+
+		// Validate JSON
+		try {
+			JSON.parse(payload);
+		} catch {
+			throw new Error('Payload must be valid JSON.');
+		}
+
+		if (metadata) {
+			try {
+				JSON.parse(metadata);
+			} catch {
+				throw new Error('Metadata must be valid JSON.');
+			}
+		}
+
+		const cli = getCliClient();
+		const result = await cli.publishQueueMessage(queueName, payload, { metadata, ttl });
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to publish message: ${result.error || 'Unknown error'}`);
+		}
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(
+				`Published message to queue "${queueName}":\n\nID: ${result.data.id}\nOffset: ${result.data.offset}\nState: ${result.data.state}`
+			),
+		]);
+	}
+
+	async prepareInvocation(
+		options: vscode.LanguageModelToolInvocationPrepareOptions<PublishQueueMessageInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: `Publishing message to queue "${options.input.queueName}"...`,
+			confirmationMessages: {
+				title: 'Publish Message',
+				message: new vscode.MarkdownString(
+					`Publish message to queue **${options.input.queueName}**?\n\n\`\`\`json\n${options.input.payload}\n\`\`\``
+				),
+			},
+		};
+	}
+}
+
+export interface ListQueueMessagesInput {
+	queueName: string;
+	limit?: number;
+}
+
+export class ListQueueMessagesTool implements vscode.LanguageModelTool<ListQueueMessagesInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<ListQueueMessagesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		if (!hasProject()) {
+			throw new Error('No Agentuity project found in the current workspace.');
+		}
+
+		const { queueName, limit } = options.input;
+		if (!queueName) {
+			throw new Error('Queue name is required.');
+		}
+
+		const cli = getCliClient();
+		const result = await cli.listQueueMessages(queueName, { limit: limit || 20 });
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to list messages: ${result.error || 'Unknown error'}`);
+		}
+
+		const messages = result.data.data?.messages || [];
+		if (messages.length === 0) {
+			return new vscode.LanguageModelToolResult([
+				new vscode.LanguageModelTextPart(`No messages in queue "${queueName}".`),
+			]);
+		}
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(JSON.stringify(messages, null, 2)),
+		]);
+	}
+
+	async prepareInvocation(
+		options: vscode.LanguageModelToolInvocationPrepareOptions<ListQueueMessagesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: `Fetching messages from queue "${options.input.queueName}"...`,
+		};
+	}
+}
+
+export interface PauseResumeQueueInput {
+	queueName: string;
+	action: 'pause' | 'resume';
+}
+
+export class PauseResumeQueueTool implements vscode.LanguageModelTool<PauseResumeQueueInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<PauseResumeQueueInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		if (!hasProject()) {
+			throw new Error('No Agentuity project found in the current workspace.');
+		}
+
+		const { queueName, action } = options.input;
+		if (!queueName || !action) {
+			throw new Error('Queue name and action are required.');
+		}
+
+		const cli = getCliClient();
+		const result =
+			action === 'pause' ? await cli.pauseQueue(queueName) : await cli.resumeQueue(queueName);
+
+		if (!result.success) {
+			throw new Error(`Failed to ${action} queue: ${result.error || 'Unknown error'}`);
+		}
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(`Queue "${queueName}" ${action}d successfully.`),
+		]);
+	}
+
+	async prepareInvocation(
+		options: vscode.LanguageModelToolInvocationPrepareOptions<PauseResumeQueueInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: `${options.input.action === 'pause' ? 'Pausing' : 'Resuming'} queue "${options.input.queueName}"...`,
+		};
+	}
+}
+
+export interface ListDlqMessagesInput {
+	queueName: string;
+	limit?: number;
+}
+
+export class ListDlqMessagesTool implements vscode.LanguageModelTool<ListDlqMessagesInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<ListDlqMessagesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		if (!hasProject()) {
+			throw new Error('No Agentuity project found in the current workspace.');
+		}
+
+		const { queueName, limit } = options.input;
+		if (!queueName) {
+			throw new Error('Queue name is required.');
+		}
+
+		const cli = getCliClient();
+		const result = await cli.listDlqMessages(queueName, { limit: limit || 20 });
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to list DLQ messages: ${result.error || 'Unknown error'}`);
+		}
+
+		const messages = result.data.messages || [];
+		if (messages.length === 0) {
+			return new vscode.LanguageModelToolResult([
+				new vscode.LanguageModelTextPart(`No messages in DLQ for queue "${queueName}".`),
+			]);
+		}
+
+		const output = messages.map((m) => ({
+			id: m.id,
+			offset: m.offset,
+			failureReason: m.failure_reason,
+			deliveryAttempts: m.delivery_attempts,
+			movedAt: m.moved_at,
+		}));
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(JSON.stringify(output, null, 2)),
+		]);
+	}
+
+	async prepareInvocation(
+		options: vscode.LanguageModelToolInvocationPrepareOptions<ListDlqMessagesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: `Fetching DLQ messages from queue "${options.input.queueName}"...`,
+		};
+	}
+}
+
+export interface ReplayDlqMessageInput {
+	queueName: string;
+	messageId: string;
+}
+
+export class ReplayDlqMessageTool implements vscode.LanguageModelTool<ReplayDlqMessageInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<ReplayDlqMessageInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		if (!hasProject()) {
+			throw new Error('No Agentuity project found in the current workspace.');
+		}
+
+		const { queueName, messageId } = options.input;
+		if (!queueName || !messageId) {
+			throw new Error('Queue name and message ID are required.');
+		}
+
+		const cli = getCliClient();
+		const result = await cli.replayDlqMessage(queueName, messageId);
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to replay message: ${result.error || 'Unknown error'}`);
+		}
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(
+				`Replayed DLQ message ${messageId}. New offset: ${result.data.message.offset}`
+			),
+		]);
+	}
+
+	async prepareInvocation(
+		options: vscode.LanguageModelToolInvocationPrepareOptions<ReplayDlqMessageInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: `Replaying DLQ message ${options.input.messageId?.substring(0, 8)}...`,
+			confirmationMessages: {
+				title: 'Replay DLQ Message',
+				message: new vscode.MarkdownString(
+					`Replay message **${options.input.messageId}** from the dead letter queue back to queue **${options.input.queueName}**?`
+				),
+			},
 		};
 	}
 }
@@ -760,6 +1181,10 @@ export function registerAgentTools(context: vscode.ExtensionContext): void {
 		);
 
 		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_list_sandbox_runtimes', new ListSandboxRuntimesTool())
+		);
+
+		context.subscriptions.push(
 			vscode.lm.registerTool('agentuity_create_sandbox', new CreateSandboxTool())
 		);
 
@@ -773,6 +1198,35 @@ export function registerAgentTools(context: vscode.ExtensionContext): void {
 
 		context.subscriptions.push(
 			vscode.lm.registerTool('agentuity_create_snapshot', new CreateSnapshotTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_delete_sandbox', new DeleteSandboxTool())
+		);
+
+		// Queue tools
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_list_queues', new ListQueuesTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_publish_queue_message', new PublishQueueMessageTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_list_queue_messages', new ListQueueMessagesTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_pause_resume_queue', new PauseResumeQueueTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_list_dlq_messages', new ListDlqMessagesTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_replay_dlq_message', new ReplayDlqMessageTool())
 		);
 	} catch {
 		// LM API not available

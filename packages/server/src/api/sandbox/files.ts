@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIClient } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { SandboxResponseError, throwSandboxError, API_VERSION } from './util';
 import type { FileToWrite } from '@agentuity/core';
 
 export const FileToWriteSchema = z.object({
@@ -85,7 +85,7 @@ export async function sandboxWriteFiles(
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message, sandboxId });
+	throwSandboxError(resp, { sandboxId });
 }
 
 export interface ReadFileParams {
@@ -118,12 +118,14 @@ export async function sandboxReadFile(
 	const url = `/fs/${API_VERSION}/${sandboxId}?${queryString}`;
 
 	const response = await client.rawGet(url, signal);
+	const sessionId = response.headers.get('x-session-id');
 
 	if (!response.ok) {
 		const text = await response.text().catch(() => 'Unknown error');
 		throw new SandboxResponseError({
 			message: `Failed to read file: ${response.status} ${text}`,
 			sandboxId,
+			sessionId,
 		});
 	}
 
@@ -131,6 +133,7 @@ export async function sandboxReadFile(
 		throw new SandboxResponseError({
 			message: 'No response body',
 			sandboxId,
+			sessionId,
 		});
 	}
 
@@ -193,7 +196,7 @@ export async function sandboxMkDir(client: APIClient, params: MkDirParams): Prom
 	);
 
 	if (!resp.success) {
-		throw new SandboxResponseError({ message: resp.message, sandboxId });
+		throwSandboxError(resp, { sandboxId });
 	}
 }
 
@@ -253,7 +256,7 @@ export async function sandboxRmDir(client: APIClient, params: RmDirParams): Prom
 	);
 
 	if (!resp.success) {
-		throw new SandboxResponseError({ message: resp.message, sandboxId });
+		throwSandboxError(resp, { sandboxId });
 	}
 }
 
@@ -310,7 +313,7 @@ export async function sandboxRmFile(client: APIClient, params: RmFileParams): Pr
 	);
 
 	if (!resp.success) {
-		throw new SandboxResponseError({ message: resp.message, sandboxId });
+		throwSandboxError(resp, { sandboxId });
 	}
 }
 
@@ -392,7 +395,7 @@ export async function sandboxListFiles(
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message, sandboxId });
+	throwSandboxError(resp, { sandboxId });
 }
 
 export type ArchiveFormat = 'zip' | 'tar.gz';
@@ -433,12 +436,14 @@ export async function sandboxDownloadArchive(
 	const url = `/fs/${API_VERSION}/download/${sandboxId}${queryString ? `?${queryString}` : ''}`;
 
 	const response = await client.rawGet(url, signal);
+	const sessionId = response.headers.get('x-session-id');
 
 	if (!response.ok) {
 		const text = await response.text().catch(() => 'Unknown error');
 		throw new SandboxResponseError({
 			message: `Failed to download archive: ${response.status} ${text}`,
 			sandboxId,
+			sessionId,
 		});
 	}
 
@@ -446,6 +451,7 @@ export async function sandboxDownloadArchive(
 		throw new SandboxResponseError({
 			message: 'No response body',
 			sandboxId,
+			sessionId,
 		});
 	}
 
@@ -498,12 +504,14 @@ export async function sandboxUploadArchive(
 	const url = `/fs/${API_VERSION}/upload/${sandboxId}${queryString ? `?${queryString}` : ''}`;
 
 	const response = await client.rawPost(url, archive, 'application/octet-stream', signal);
+	const sessionId = response.headers.get('x-session-id');
 
 	if (!response.ok) {
 		const text = await response.text().catch(() => 'Unknown error');
 		throw new SandboxResponseError({
 			message: `Failed to upload archive: ${response.status} ${text}`,
 			sandboxId,
+			sessionId,
 		});
 	}
 
@@ -511,7 +519,7 @@ export async function sandboxUploadArchive(
 	const result = UploadArchiveResponseSchema.parse(body);
 
 	if (!result.success) {
-		throw new SandboxResponseError({ message: result.message, sandboxId });
+		throwSandboxError(result, { sandboxId, sessionId });
 	}
 }
 
@@ -584,5 +592,5 @@ export async function sandboxSetEnv(
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message, sandboxId });
+	throwSandboxError(resp, { sandboxId });
 }

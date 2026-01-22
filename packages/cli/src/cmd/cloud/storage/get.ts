@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { listResources } from '@agentuity/server';
+import { listOrgResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
+import { getResourceInfo, setResourceInfo } from '../../../cache';
 
 const StorageGetResponseSchema = z.object({
 	bucket_name: z.string().describe('Storage bucket name'),
@@ -12,6 +13,8 @@ const StorageGetResponseSchema = z.object({
 	secret_key: z.string().optional().describe('S3 secret key'),
 	region: z.string().optional().describe('S3 region'),
 	endpoint: z.string().optional().describe('S3 endpoint URL'),
+	org_id: z.string().optional().describe('Organization ID that owns this bucket'),
+	org_name: z.string().optional().describe('Organization name that owns this bucket'),
 });
 
 export const getSubcommand = createSubcommand({
@@ -19,7 +22,8 @@ export const getSubcommand = createSubcommand({
 	aliases: ['show'],
 	description: 'Show details about a specific storage bucket',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true },
+	optional: { org: true },
 	idempotent: true,
 	examples: [
 		{
@@ -52,19 +56,42 @@ export const getSubcommand = createSubcommand({
 	webUrl: (ctx) => `/services/storage/${encodeURIComponent(ctx.args.name)}`,
 
 	async handler(ctx) {
-		const { logger, args, opts, options, orgId, region, auth } = ctx;
+		const { logger, args, opts, options, auth, config } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const profileName = config?.name ?? 'production';
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+
+		// Check cache first for orgId
+		const cachedInfo = await getResourceInfo('bucket', profileName, args.name);
+		const orgId = ctx.orgId ?? cachedInfo?.orgId;
+
+		if (!orgId) {
+			tui.fatal(
+				`Organization not found for bucket '${args.name}'. Run 'agentuity cloud storage list' first or specify --org-id.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
 
 		const resources = await tui.spinner({
 			message: `Fetching storage bucket ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listResources(catalystClient, orgId, region);
+				return listOrgResources(catalystClient, { type: 's3', orgId });
 			},
 		});
 
 		const bucket = resources.s3.find((s3) => s3.bucket_name === args.name);
+
+		// Cache the bucket info for future lookups
+		if (bucket?.cloud_region) {
+			await setResourceInfo(
+				'bucket',
+				profileName,
+				bucket.bucket_name,
+				bucket.cloud_region,
+				orgId
+			);
+		}
 
 		if (!bucket) {
 			tui.fatal(`Storage bucket '${args.name}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
@@ -75,24 +102,27 @@ export const getSubcommand = createSubcommand({
 		const shouldMask = !options.json && !shouldShowCredentials;
 
 		if (!options.json) {
-			console.log(tui.bold('Bucket Name: ') + bucket.bucket_name);
+			console.log(tui.bold('Bucket Name:  ') + bucket.bucket_name);
+			if (bucket.org_name || bucket.org_id) {
+				console.log(tui.bold('Organization: ') + (bucket.org_name || bucket.org_id));
+			}
 			if (bucket.access_key) {
 				const displayAccessKey = shouldMask
 					? tui.maskSecret(bucket.access_key)
 					: bucket.access_key;
-				console.log(tui.bold('Access Key:  ') + displayAccessKey);
+				console.log(tui.bold('Access Key:   ') + displayAccessKey);
 			}
 			if (bucket.secret_key) {
 				const displaySecretKey = shouldMask
 					? tui.maskSecret(bucket.secret_key)
 					: bucket.secret_key;
-				console.log(tui.bold('Secret Key:  ') + displaySecretKey);
+				console.log(tui.bold('Secret Key:   ') + displaySecretKey);
 			}
 			if (bucket.region) {
-				console.log(tui.bold('Region:      ') + bucket.region);
+				console.log(tui.bold('Region:       ') + bucket.region);
 			}
 			if (bucket.endpoint) {
-				console.log(tui.bold('Endpoint:    ') + bucket.endpoint);
+				console.log(tui.bold('Endpoint:     ') + bucket.endpoint);
 			}
 		}
 
@@ -102,6 +132,8 @@ export const getSubcommand = createSubcommand({
 			secret_key: bucket.secret_key ?? undefined,
 			region: bucket.region ?? undefined,
 			endpoint: bucket.endpoint ?? undefined,
+			org_id: bucket.org_id,
+			org_name: bucket.org_name,
 		};
 	},
 });

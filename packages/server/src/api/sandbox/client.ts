@@ -5,17 +5,21 @@ import type {
 	ExecuteOptions as CoreExecuteOptions,
 	Execution,
 	FileToWrite,
+	SandboxRunOptions,
+	SandboxRunResult,
 } from '@agentuity/core';
-import type { Writable } from 'node:stream';
+import type { Readable, Writable } from 'node:stream';
 import { APIClient } from '../api';
 import { sandboxCreate, type SandboxCreateResponse } from './create';
 import { sandboxDestroy } from './destroy';
 import { sandboxGet } from './get';
 import { sandboxExecute } from './execute';
 import { sandboxWriteFiles, sandboxReadFile } from './files';
+import { sandboxRun } from './run';
 import { executionGet, type ExecutionInfo } from './execution';
 import { ConsoleLogger } from '../../logger';
 import { getServiceUrls } from '../../config';
+import { writeAndDrain } from './util';
 
 const POLL_INTERVAL_MS = 100;
 const MAX_POLL_TIME_MS = 300000; // 5 minutes
@@ -64,10 +68,14 @@ async function waitForExecution(
 }
 
 /**
- * Pipes a remote stream URL to a local writable stream
+ * Pipes a remote stream URL to a local writable stream with proper backpressure handling
  */
-async function pipeStreamToWritable(streamUrl: string, writable: Writable): Promise<void> {
-	const response = await fetch(streamUrl);
+async function pipeStreamToWritable(
+	streamUrl: string,
+	writable: Writable,
+	signal?: AbortSignal
+): Promise<void> {
+	const response = await fetch(streamUrl, { signal });
 	if (!response.ok) {
 		throw new Error(`Failed to fetch stream: ${response.status} ${response.statusText}`);
 	}
@@ -81,10 +89,15 @@ async function pipeStreamToWritable(streamUrl: string, writable: Writable): Prom
 			const { done, value } = await reader.read();
 			if (done) break;
 			if (value) {
-				writable.write(value);
+				await writeAndDrain(writable, value);
 			}
 		}
 	} finally {
+		try {
+			await reader.cancel();
+		} catch {
+			// Ignore cancel errors - stream may already be closed
+		}
 		reader.releaseLock();
 	}
 }
@@ -130,6 +143,36 @@ export interface SandboxClientOptions {
 }
 
 /**
+ * I/O options for one-shot sandbox execution via run()
+ */
+export interface SandboxClientRunIO {
+	/**
+	 * AbortSignal to cancel the execution
+	 */
+	signal?: AbortSignal;
+
+	/**
+	 * Readable stream for stdin input
+	 */
+	stdin?: Readable;
+
+	/**
+	 * Writable stream for stdout output
+	 */
+	stdout?: Writable;
+
+	/**
+	 * Writable stream for stderr output
+	 */
+	stderr?: Writable;
+
+	/**
+	 * Optional logger override for this run
+	 */
+	logger?: Logger;
+}
+
+/**
  * A sandbox instance returned by SandboxClient.create()
  */
 export interface SandboxInstance {
@@ -159,6 +202,16 @@ export interface SandboxInstance {
 	execute(options: ExecuteOptions): Promise<Execution>;
 
 	/**
+	 * Write files to the sandbox workspace
+	 */
+	writeFiles(files: FileToWrite[]): Promise<number>;
+
+	/**
+	 * Read a file from the sandbox workspace
+	 */
+	readFile(path: string): Promise<ReadableStream<Uint8Array>>;
+
+	/**
 	 * Get current sandbox information
 	 */
 	get(): Promise<SandboxInfo>;
@@ -174,15 +227,25 @@ export interface SandboxInstance {
  *
  * @example
  * ```typescript
+ * // Interactive sandbox usage
  * const client = new SandboxClient();
  * const sandbox = await client.create();
  * const result = await sandbox.execute({ command: ['echo', 'hello'] });
  * await sandbox.destroy();
+ *
+ * // One-shot execution with streaming
+ * const result = await client.run(
+ *   { command: { exec: ['bun', 'run', 'script.ts'] } },
+ *   { stdout: process.stdout, stderr: process.stderr }
+ * );
  * ```
  */
 export class SandboxClient {
 	readonly #client: APIClient;
 	readonly #orgId?: string;
+	readonly #apiKey?: string;
+	readonly #region: string;
+	readonly #logger: Logger;
 
 	constructor(options: SandboxClientOptions = {}) {
 		const apiKey =
@@ -202,6 +265,48 @@ export class SandboxClient {
 
 		this.#client = new APIClient(url, logger, apiKey ?? '', {});
 		this.#orgId = options.orgId;
+		this.#apiKey = apiKey;
+		this.#region = region;
+		this.#logger = logger;
+	}
+
+	/**
+	 * Run a one-shot command in a new sandbox (creates, executes, destroys)
+	 *
+	 * This is a high-level convenience method that handles the full lifecycle:
+	 * creating a sandbox, streaming I/O, polling for completion, and cleanup.
+	 *
+	 * @param options - Execution options including command and configuration
+	 * @param io - Optional I/O streams and abort signal
+	 * @returns The run result including exit code and duration
+	 * @throws {Error} If stdin is provided without an API key
+	 *
+	 * @example
+	 * ```typescript
+	 * const client = new SandboxClient();
+	 * const result = await client.run(
+	 *   { command: { exec: ['bun', 'run', 'script.ts'] } },
+	 *   { stdout: process.stdout, stderr: process.stderr }
+	 * );
+	 * console.log('Exit code:', result.exitCode);
+	 * ```
+	 */
+	async run(options: SandboxRunOptions, io: SandboxClientRunIO = {}): Promise<SandboxRunResult> {
+		if (io.stdin && !this.#apiKey) {
+			throw new Error('SandboxClient.run(): stdin streaming requires an API key');
+		}
+
+		return sandboxRun(this.#client, {
+			options,
+			orgId: this.#orgId,
+			region: this.#region,
+			apiKey: this.#apiKey,
+			signal: io.signal,
+			stdin: io.stdin,
+			stdout: io.stdout,
+			stderr: io.stderr,
+			logger: io.logger ?? this.#logger,
+		});
 	}
 
 	/**
@@ -242,12 +347,20 @@ export class SandboxClient {
 
 					if (pipe.stdout && initialResult.stdoutStreamUrl) {
 						streamPromises.push(
-							pipeStreamToWritable(initialResult.stdoutStreamUrl, pipe.stdout)
+							pipeStreamToWritable(
+								initialResult.stdoutStreamUrl,
+								pipe.stdout,
+								coreOptions.signal
+							)
 						);
 					}
 					if (pipe.stderr && initialResult.stderrStreamUrl) {
 						streamPromises.push(
-							pipeStreamToWritable(initialResult.stderrStreamUrl, pipe.stderr)
+							pipeStreamToWritable(
+								initialResult.stderrStreamUrl,
+								pipe.stderr,
+								coreOptions.signal
+							)
 						);
 					}
 
@@ -273,6 +386,15 @@ export class SandboxClient {
 					stdoutStreamUrl: initialResult.stdoutStreamUrl,
 					stderrStreamUrl: initialResult.stderrStreamUrl,
 				};
+			},
+
+			async writeFiles(files: FileToWrite[]): Promise<number> {
+				const result = await sandboxWriteFiles(client, { sandboxId, files, orgId });
+				return result.filesWritten;
+			},
+
+			async readFile(path: string): Promise<ReadableStream<Uint8Array>> {
+				return sandboxReadFile(client, { sandboxId, path, orgId });
 			},
 
 			async get(): Promise<SandboxInfo> {

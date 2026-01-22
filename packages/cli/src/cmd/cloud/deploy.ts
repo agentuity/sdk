@@ -33,12 +33,14 @@ import {
 	projectDeploymentUpdate,
 	projectDeploymentComplete,
 	projectDeploymentStatus,
+	projectDeploymentMalwareCheck,
 	validateResources,
 	type Deployment,
 	type BuildMetadata,
 	type DeploymentInstructions,
 	type DeploymentComplete,
 	type DeploymentStatusResult,
+	type MalwareCheckResult,
 	getAppBaseURL,
 } from '@agentuity/server';
 import {
@@ -51,10 +53,12 @@ import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { getCommand } from '../../command-prefix';
 import * as domain from '../../domain';
-import { ErrorCode } from '../../errors';
+import { ErrorCode, getExitCode } from '../../errors';
 import { typecheck } from '../build/typecheck';
 import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
 import { runForkedDeploy } from './deploy-fork';
+import { validateAptDependencies } from '../../utils/apt-validator';
+import { extractDependencies } from '../../utils/deps';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -120,7 +124,38 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { project, apiClient, projectDir, config, options, logger, opts } = ctx;
+		let { project } = ctx;
+		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
+
+		// Verify project access and offer import if needed
+		const { reconcileProject } = await import('../project/reconcile');
+		const { isTTY } = await import('../../auth');
+
+		const reconcileResult = await reconcileProject({
+			dir: projectDir,
+			auth,
+			apiClient,
+			config: config!,
+			logger,
+			interactive: isTTY(),
+		});
+
+		if (reconcileResult.status === 'error') {
+			tui.fatal(reconcileResult.message!, ErrorCode.PROJECT_NOT_FOUND);
+		}
+
+		if (reconcileResult.status === 'skipped') {
+			tui.fatal(
+				'Project must be registered with Agentuity Cloud to deploy.',
+				ErrorCode.PROJECT_NOT_FOUND
+			);
+		}
+
+		if (reconcileResult.status === 'imported' && reconcileResult.project) {
+			// Project was imported - use the new project config
+			project = reconcileResult.project;
+			tui.newline();
+		}
 
 		// Initialize build report collector if reportFile is specified
 		const collector = new BuildReportCollector();
@@ -135,6 +170,7 @@ export const deploySubcommand = createSubcommand({
 		let instructions: DeploymentInstructions | undefined;
 		let complete: DeploymentComplete | undefined;
 		let statusResult: DeploymentStatusResult | undefined;
+		let malwareCheckPromise: Promise<MalwareCheckResult | null> | undefined;
 		const logs: string[] = [];
 
 		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
@@ -168,6 +204,54 @@ export const deploySubcommand = createSubcommand({
 						tui.error(`  ${error}`);
 					}
 					tui.fatal('Fix the resource configuration and try again.', ErrorCode.CONFIG_INVALID);
+				}
+			}
+
+			// Validate apt dependencies before creating deployment
+			if (deploymentConfig.dependencies && deploymentConfig.dependencies.length > 0) {
+				const aptValidation = await tui.spinner({
+					message: 'Validating apt dependencies...',
+					type: 'simple',
+					callback: async () => {
+						return await validateAptDependencies(
+							deploymentConfig.dependencies!,
+							project.region,
+							config,
+							logger
+						);
+					},
+				});
+
+				if (aptValidation.invalid.length > 0) {
+					if (options.json) {
+						return {
+							success: false,
+							deploymentId: '',
+							projectId: project.projectId,
+							errors: aptValidation.invalid.map((pkg) => ({
+								type: 'invalid-apt-dependency',
+								package: pkg.package,
+								error: pkg.error,
+								searchUrl: pkg.searchUrl,
+								availableVersions: pkg.availableVersions,
+							})),
+						} as never;
+					}
+
+					tui.error('Invalid apt dependencies in agentuity.json:');
+					tui.newline();
+					for (const pkg of aptValidation.invalid) {
+						tui.bullet(`${tui.bold(pkg.package)}: ${pkg.error}`);
+						if (pkg.availableVersions && pkg.availableVersions.length > 0) {
+							tui.muted(`    Available versions: ${pkg.availableVersions.join(', ')}`);
+						}
+						tui.muted(`    Search: ${tui.link(pkg.searchUrl)}`);
+					}
+					tui.newline();
+					tui.fatal(
+						'Fix the apt dependencies and try again. Search for valid packages at: https://packages.debian.org/stable/',
+						ErrorCode.CONFIG_INVALID
+					);
 				}
 			}
 
@@ -244,6 +328,35 @@ export const deploySubcommand = createSubcommand({
 			} catch (err) {
 				logger.fatal(`Failed to parse AGENTUITY_DEPLOYMENT: ${err}`);
 			}
+		}
+
+		// Start malware check async (runs in parallel with build)
+		if (deployment) {
+			malwareCheckPromise = (async () => {
+				try {
+					logger.debug('Starting malware dependency check');
+					const packages = await extractDependencies(projectDir, logger);
+					if (packages.length === 0) {
+						logger.debug('No packages to check for malware');
+						return null;
+					}
+					logger.debug('Checking %d packages for malware', packages.length);
+					const result = await projectDeploymentMalwareCheck(
+						apiClient,
+						deployment!.id,
+						packages
+					);
+					logger.debug(
+						'Malware check complete: action=%s, flagged=%d',
+						result.action,
+						result.summary.flagged
+					);
+					return result;
+				} catch (error) {
+					logger.warn('Malware check failed: %s', error);
+					return null;
+				}
+			})();
 		}
 
 		try {
@@ -446,6 +559,49 @@ export const deploySubcommand = createSubcommand({
 									capturedOutput.length > 0 ? capturedOutput : undefined
 								);
 							}
+						},
+					},
+					{
+						label: 'Security Scan',
+						run: async () => {
+							if (!malwareCheckPromise) {
+								return stepSkipped('malware check not started');
+							}
+
+							const result = await malwareCheckPromise;
+							if (!result) {
+								return stepSkipped('malware check unavailable');
+							}
+
+							if (result.action === 'block' && result.findings.length > 0) {
+								if (opts.reportFile) {
+									for (const finding of result.findings) {
+										collector.addGeneralError(
+											'deploy',
+											`Malicious package: ${finding.name}@${finding.version} (${finding.reason})`
+										);
+									}
+									await collector.forceWrite();
+								}
+
+								const packageList = result.findings
+									.map((f) => `• ${f.name}@${f.version} (${f.reason})`)
+									.join('\n');
+
+								// Pause step UI to cleanly render error box
+								pauseStepUI(true);
+
+								tui.newline();
+								tui.errorBox(
+									'Malicious Packages Detected',
+									`Your deployment was blocked because it contains known malicious packages:\n\n${packageList}\n\nRemove these packages from your project and try again.`
+								);
+								tui.newline();
+
+								process.exit(getExitCode(ErrorCode.MALWARE_DETECTED));
+							}
+
+							return stepSuccess([`Scanned ${result.summary.scanned} packages`]);
 						},
 					},
 					{

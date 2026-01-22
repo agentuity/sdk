@@ -11,7 +11,8 @@ export const deleteNamespaceSubcommand = createCommand({
 	description: 'Delete a vector namespace and all its vectors',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('vector delete-namespace staging'),

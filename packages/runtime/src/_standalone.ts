@@ -5,19 +5,112 @@ import type {
 	StreamStorage,
 	VectorStorage,
 	SandboxService,
+	QueueService,
+	Logger,
 } from '@agentuity/core';
-import type { AgentContext, AgentRegistry, AgentRuntimeState, AgentMetadata } from './agent';
-import { AGENT_RUNTIME, AGENT_IDS } from './_config';
-import type { Logger } from './logger';
+import { formatMessage } from './logger/util';
+import type {
+	AgentContext,
+	AgentRegistry,
+	AgentRuntimeState,
+	AgentMetadata,
+	AgentRunner,
+} from './agent';
+import { AGENT_RUNTIME, AGENT_IDS, isInsideAgentRuntime } from './_config';
 import type { Thread, Session } from './session';
 import { generateId } from './session';
 import WaitUntilHandler from './_waituntil';
-import { registerServices } from './_services';
+import { registerServices, createServices } from './_services';
 import { getAgentAsyncLocalStorage } from './_context';
-import { getLogger, getTracer } from './_server';
+import { getLogger, getTracer, setGlobalLogger, setGlobalTracer } from './_server';
 import { getAppState } from './app';
 import { getThreadProvider, getSessionProvider, getSessionEventProvider } from './_services';
 import * as runtimeConfig from './_config';
+
+/**
+ * Flag to track if standalone initialization has already been performed.
+ * Prevents duplicate initialization across multiple createAgentContext() calls.
+ */
+let standaloneInitialized = false;
+
+/**
+ * Create a minimal console-based logger for standalone mode.
+ * This logger outputs to console without OpenTelemetry integration.
+ */
+function createStandaloneLogger(): Logger {
+	const logLevel = (process.env.AGENTUITY_LOG_LEVEL || 'info') as
+		| 'trace'
+		| 'debug'
+		| 'info'
+		| 'warn'
+		| 'error';
+	const levels = ['trace', 'debug', 'info', 'warn', 'error'];
+	const currentLevelIndex = levels.indexOf(logLevel);
+
+	const shouldLog = (level: string) => levels.indexOf(level) >= currentLevelIndex;
+
+	const logger: Logger = {
+		trace: (message: unknown, ...args: unknown[]) => {
+			if (shouldLog('trace'))
+				console.debug('[TRACE]', formatMessage(false, undefined, message, args));
+		},
+		debug: (message: unknown, ...args: unknown[]) => {
+			if (shouldLog('debug'))
+				console.debug('[DEBUG]', formatMessage(false, undefined, message, args));
+		},
+		info: (message: unknown, ...args: unknown[]) => {
+			if (shouldLog('info'))
+				console.info('[INFO]', formatMessage(false, undefined, message, args));
+		},
+		warn: (message: unknown, ...args: unknown[]) => {
+			if (shouldLog('warn'))
+				console.warn('[WARN]', formatMessage(false, undefined, message, args));
+		},
+		error: (message: unknown, ...args: unknown[]) => {
+			if (shouldLog('error'))
+				console.error('[ERROR]', formatMessage(false, undefined, message, args));
+		},
+		fatal: (message: unknown, ...args: unknown[]): never => {
+			console.error('[FATAL]', formatMessage(false, undefined, message, args));
+			process.exit(1);
+		},
+		child: () => logger,
+	};
+
+	return logger;
+}
+
+/**
+ * Initialize standalone runtime globals.
+ * This sets up minimal logger, tracer, and services for standalone execution.
+ * Called automatically by createAgentContext() when not running inside agent runtime.
+ */
+function initializeStandaloneRuntime(): void {
+	if (standaloneInitialized) {
+		return;
+	}
+
+	const logger = createStandaloneLogger();
+	const tracer = trace.getTracer('standalone-agent');
+
+	// Set global state
+	setGlobalLogger(logger);
+	setGlobalTracer(tracer);
+
+	// Set minimal app state if not already set
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if (!(globalThis as any).__AGENTUITY_APP_STATE__) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(globalThis as any).__AGENTUITY_APP_STATE__ = {};
+	}
+
+	// Initialize services (will use local services since not authenticated)
+	const serverUrl = `http://127.0.0.1:${process.env.PORT || '3500'}`;
+	createServices(logger, undefined, serverUrl);
+
+	standaloneInitialized = true;
+	logger.debug('Standalone runtime initialized');
+}
 
 /**
  * Options for creating a standalone agent context.
@@ -103,6 +196,7 @@ export class StandaloneAgentContext<
 	stream!: StreamStorage;
 	vector!: VectorStorage;
 	sandbox!: SandboxService;
+	queue!: QueueService;
 	config: TConfig;
 	app: TAppState;
 	current!: AgentMetadata;
@@ -123,14 +217,28 @@ export class StandaloneAgentContext<
 	private readonly initialSessionId?: string;
 
 	constructor(options?: StandaloneContextOptions) {
-		const logger = getLogger();
-		const tracer = getTracer();
-		const app = getAppState();
+		// Auto-initialize if not inside agent runtime and globals are not set
+		let logger = getLogger();
+		let tracer = getTracer();
+		let app = getAppState();
 
-		if (!logger || !tracer || !app) {
-			throw new Error(
-				'Global state not initialized. Make sure createServer() has been called before createAgentContext().'
-			);
+		if (!logger || !tracer) {
+			// Check if we're inside the agent runtime (dev server or cloud)
+			if (isInsideAgentRuntime()) {
+				// Inside runtime but globals not set - this is an error
+				throw new Error(
+					'Global state not initialized. This should not happen inside the agent runtime. ' +
+						'Please report this issue.'
+				);
+			}
+
+			// Not inside runtime - auto-initialize for standalone use
+			initializeStandaloneRuntime();
+
+			// Re-fetch globals after initialization
+			logger = getLogger()!;
+			tracer = getTracer()!;
+			app = getAppState();
 		}
 
 		this.logger = logger;
@@ -392,7 +500,12 @@ export class StandaloneAgentContext<
 														: undefined,
 											})
 											.then(() => {})
-											.catch((ex) => this.logger.error(ex));
+											.catch((ex) =>
+												this.logger.error(
+													'session complete failed: %s',
+													ex instanceof Error ? ex.message : ex
+												)
+											);
 									}
 								})
 								.catch(async (ex) => {
@@ -428,7 +541,12 @@ export class StandaloneAgentContext<
 														: undefined,
 											})
 											.then(() => {})
-											.catch((ex) => this.logger.error(ex));
+											.catch((ex) =>
+												this.logger.error(
+													'session complete failed: %s',
+													ex instanceof Error ? ex.message : ex
+												)
+											);
 									}
 								})
 								.finally(() => {
@@ -453,7 +571,12 @@ export class StandaloneAgentContext<
 												: undefined,
 									})
 									.then(() => {})
-									.catch((ex) => this.logger.error(ex));
+									.catch((ex) =>
+										this.logger.error(
+											'session complete failed: %s',
+											ex instanceof Error ? ex.message : ex
+										)
+									);
 							}
 						}
 
@@ -484,7 +607,12 @@ export class StandaloneAgentContext<
 											: undefined,
 								})
 								.then(() => {})
-								.catch((ex) => this.logger.error(ex));
+								.catch((ex) =>
+									this.logger.error(
+										'session complete failed: %s',
+										ex instanceof Error ? ex.message : ex
+									)
+								);
 						}
 						throw ex;
 					} finally {
@@ -501,13 +629,58 @@ export class StandaloneAgentContext<
 			);
 		});
 	}
+
+	/**
+	 * Execute an agent with the given input within this context.
+	 *
+	 * This is a convenience method that wraps `invoke()` for cleaner syntax
+	 * when running a single agent.
+	 *
+	 * @param agent - The agent to execute (must have a `run` method)
+	 * @param input - Input to pass to the agent (if agent requires input)
+	 * @returns Promise that resolves to the agent's output
+	 *
+	 * @example
+	 * ```typescript
+	 * import { createAgentContext } from '@agentuity/runtime';
+	 * import myAgent from './agents/my-agent';
+	 *
+	 * const ctx = createAgentContext();
+	 * const result = await ctx.run(myAgent, { name: 'World' });
+	 * ```
+	 *
+	 * @example
+	 * ```typescript
+	 * // Agent without input
+	 * const result = await ctx.run(statusAgent);
+	 * ```
+	 *
+	 * @example
+	 * ```typescript
+	 * // Multiple agents in sequence
+	 * const ctx = createAgentContext();
+	 * const step1 = await ctx.run(preprocessAgent, rawData);
+	 * const step2 = await ctx.run(processAgent, step1);
+	 * const result = await ctx.run(postprocessAgent, step2);
+	 * ```
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	async run<TOutput>(agent: AgentRunner<any, any, any>, input?: unknown): Promise<TOutput> {
+		// Handle both agents with and without input
+		// The agent.run type varies based on whether input schema is defined
+		const runFn = agent.run as (input?: unknown) => Promise<TOutput>;
+		return this.invoke(() => runFn(input));
+	}
 }
 
 /**
  * Create a standalone agent context for executing agents outside of HTTP requests.
  *
- * This is useful for Discord bots, cron jobs, WebSocket callbacks, or any scenario
+ * This is useful for Discord bots, cron jobs, CLI scripts, sandboxes, or any scenario
  * where you need to run agents but don't have an HTTP request context.
+ *
+ * **Auto-initialization**: When running outside of the Agentuity runtime (dev server or cloud),
+ * this function automatically initializes minimal runtime globals. No manual setup required.
  *
  * @param options - Optional configuration for the context
  * @returns A StandaloneAgentContext instance
@@ -517,9 +690,9 @@ export class StandaloneAgentContext<
  * import { createAgentContext } from '@agentuity/runtime';
  * import myAgent from './agents/my-agent';
  *
- * // Simple usage:
+ * // Simple usage with ctx.run() (recommended):
  * const ctx = createAgentContext();
- * const result = await ctx.invoke(() => myAgent.run(input));
+ * const result = await ctx.run(myAgent, { name: 'World' });
  *
  * // Discord bot example:
  * client.on('messageCreate', async (message) => {
@@ -527,17 +700,20 @@ export class StandaloneAgentContext<
  *     sessionId: message.id,
  *     trigger: 'discord'
  *   });
- *   const response = await ctx.invoke(() =>
- *     chatAgent.run({ message: message.content })
- *   );
+ *   const response = await ctx.run(chatAgent, { message: message.content });
  *   await message.reply(response.text);
  * });
  *
  * // Cron job example:
  * cron.schedule('0 * * * *', async () => {
  *   const ctx = createAgentContext({ trigger: 'cron' });
- *   await ctx.invoke(() => cleanupAgent.run());
+ *   await ctx.run(cleanupAgent);
  * });
+ *
+ * // Multiple agents in sequence:
+ * const ctx = createAgentContext();
+ * const step1 = await ctx.run(preprocessAgent, rawData);
+ * const result = await ctx.run(processAgent, step1);
  * ```
  */
 export function createAgentContext<TAppState = Record<string, never>>(

@@ -115,7 +115,7 @@ export const addCommand = createSubcommand({
 	name: 'add',
 	aliases: ['create'],
 	description: 'Add an SSH public key to your account (reads from file or stdin)',
-	tags: ['mutating', 'creates-resource', 'slow', 'requires-auth'],
+	tags: ['mutating', 'creates-resource', 'slow', 'requires-auth', 'uses-stdin'],
 	idempotent: false,
 	requires: { apiClient: true, auth: true },
 	examples: [

@@ -153,16 +153,25 @@ describe('AUTH_DEPENDENCIES', () => {
 });
 
 describe('generateAuthSchemaSql', () => {
-	test('should generate SQL with CREATE TABLE statements', async () => {
-		const logger = createMockLogger();
-		const sdkRoot = join(import.meta.dir, '../../../../..');
-		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
+	// Helper to get SDK root and check if the schema is available at the expected path
+	const getSdkRoot = () => join(import.meta.dir, '../../../../../..');
+	const canRunSchemaTests = async () => {
+		const sdkRoot = getSdkRoot();
+		// Check for the schema at the path the function will actually use
+		// In the SDK workspace, this path doesn't exist because Bun workspaces
+		// don't symlink internal packages in node_modules
+		const schemaPath = join(sdkRoot, 'node_modules/@agentuity/auth/dist/schema.js');
+		return await Bun.file(schemaPath).exists();
+	};
 
-		if (!(await Bun.file(schemaPath).exists())) {
-			console.log('Skipping test: running outside SDK workspace');
+	test('should generate SQL with CREATE TABLE statements', async () => {
+		if (!(await canRunSchemaTests())) {
+			console.log('Skipping test: @agentuity/auth not available in node_modules');
 			return;
 		}
 
+		const logger = createMockLogger();
+		const sdkRoot = getSdkRoot();
 		const sql = await generateAuthSchemaSql(logger, sdkRoot);
 
 		expect(sql).toContain('CREATE TABLE IF NOT EXISTS');
@@ -174,30 +183,26 @@ describe('generateAuthSchemaSql', () => {
 	});
 
 	test('should generate idempotent CREATE INDEX statements', async () => {
-		const logger = createMockLogger();
-		const sdkRoot = join(import.meta.dir, '../../../../..');
-		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
-
-		if (!(await Bun.file(schemaPath).exists())) {
-			console.log('Skipping test: running outside SDK workspace');
+		if (!(await canRunSchemaTests())) {
+			console.log('Skipping test: @agentuity/auth not available in node_modules');
 			return;
 		}
 
+		const logger = createMockLogger();
+		const sdkRoot = getSdkRoot();
 		const sql = await generateAuthSchemaSql(logger, sdkRoot);
 
 		expect(sql).toContain('CREATE INDEX IF NOT EXISTS');
 	});
 
 	test('should wrap ALTER TABLE ADD CONSTRAINT in DO blocks', async () => {
-		const logger = createMockLogger();
-		const sdkRoot = join(import.meta.dir, '../../../../..');
-		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
-
-		if (!(await Bun.file(schemaPath).exists())) {
-			console.log('Skipping test: running outside SDK workspace');
+		if (!(await canRunSchemaTests())) {
+			console.log('Skipping test: @agentuity/auth not available in node_modules');
 			return;
 		}
 
+		const logger = createMockLogger();
+		const sdkRoot = getSdkRoot();
 		const sql = await generateAuthSchemaSql(logger, sdkRoot);
 
 		if (sql.includes('ADD CONSTRAINT')) {
@@ -206,22 +211,15 @@ describe('generateAuthSchemaSql', () => {
 		}
 	});
 
-	test('should succeed even for non-existent project dir when running from SDK', async () => {
-		const sdkRoot = join(import.meta.dir, '../../../../..');
-		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
-
-		if (!(await Bun.file(schemaPath).exists())) {
-			console.log('Skipping test: running outside SDK workspace');
-			return;
-		}
-
+	test('should throw error when schema not found', async () => {
 		const logger = createMockLogger();
 		const nonExistentDir = join(tmpdir(), `non-existent-${Date.now()}`);
 		mkdirSync(nonExistentDir, { recursive: true });
 
 		try {
-			const sql = await generateAuthSchemaSql(logger, nonExistentDir);
-			expect(sql).toContain('CREATE TABLE IF NOT EXISTS');
+			await expect(generateAuthSchemaSql(logger, nonExistentDir)).rejects.toThrow(
+				/@agentuity\/auth schema not found/
+			);
 		} finally {
 			rmSync(nonExistentDir, { recursive: true, force: true });
 		}

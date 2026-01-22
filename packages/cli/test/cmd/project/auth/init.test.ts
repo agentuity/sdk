@@ -43,8 +43,9 @@ describe('project auth init', () => {
 			expect(initSubcommand.requires?.org).toBe(true);
 		});
 
-		test('should require region', () => {
-			expect(initSubcommand.requires?.region).toBe(true);
+		test('should not require region (auto-discovered from database)', () => {
+			// Region is obtained from the selected database, not required upfront
+			expect(initSubcommand.requires?.region).toBeUndefined();
 		});
 
 		test('should not be idempotent', () => {

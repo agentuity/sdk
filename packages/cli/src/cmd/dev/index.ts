@@ -12,9 +12,10 @@ import { APIClient, getAPIBaseURL, getAppBaseURL, getGravityDevModeURL } from '.
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
-import { getDefaultConfigDir, saveConfig, loadProjectSDKKey } from '../../config';
+import { getDefaultConfigDir, saveConfig, loadProjectSDKKey, getAuth } from '../../config';
 import type { Config } from '../../types';
 import { typecheck } from '../build/typecheck';
+import { isTTY, hasLoggedInBefore } from '../../auth';
 import { createFileWatcher } from './file-watcher';
 import { regenerateSkillsAsync } from './skills';
 import { prepareDevLock, releaseLockSync } from './dev-lock';
@@ -171,11 +172,14 @@ export const command = createCommand({
 				.describe('The TCP port to start the dev server (also reads from PORT env)'),
 		}),
 	},
-	optional: { auth: 'Continue without an account (local only)', project: true },
+	optional: { project: true },
 
 	async handler(ctx) {
-		const { opts, logger, project, projectDir, auth } = ctx;
-		let { config } = ctx;
+		const { opts, logger, projectDir } = ctx;
+		let { config, project } = ctx;
+
+		// Get auth state - we handle auth ourselves based on project state
+		let auth = await getAuth();
 
 		const rootDir = resolve(projectDir);
 		const appTs = join(rootDir, 'app.ts');
@@ -208,6 +212,127 @@ export const command = createCommand({
 			originalExit(1);
 		}
 
+		// Handle authentication state based on project registration
+		if (project) {
+			// Registered project (has agentuity.json) - check if user needs to login
+			const isValidAuth = auth && auth.expires > new Date();
+			if (!isValidAuth) {
+				if (isTTY()) {
+					const hasProfile = await hasLoggedInBefore();
+					const message = hasProfile
+						? 'Your session has expired or you are not logged in.'
+						: 'This project is registered with Agentuity Cloud but you are not logged in.';
+
+					tui.warning(message);
+					tui.newline();
+
+					const shouldLogin = await tui.confirm(
+						hasProfile
+							? 'Would you like to login now?'
+							: 'Would you like to login or create an account?',
+						true
+					);
+
+					if (shouldLogin) {
+						tui.newline();
+
+						// Run login flow inline
+						const { loginCommand } = await import('../auth/login');
+
+						// Ensure apiClient is available for login handler
+						const loginCtx = ctx as unknown as Record<string, unknown>;
+						if (!loginCtx.apiClient) {
+							loginCtx.apiClient = new APIClient(getAPIBaseURL(config), logger, config);
+						}
+
+						if (loginCommand.handler) {
+							await loginCommand.handler(
+								loginCtx as Parameters<NonNullable<typeof loginCommand.handler>>[0]
+							);
+						}
+
+						// Refresh auth state after login
+						const freshAuth = await getAuth();
+						if (!freshAuth || freshAuth.expires <= new Date()) {
+							tui.fatal('Login was not completed successfully.', ErrorCode.AUTH_FAILED);
+						}
+						auth = freshAuth;
+						tui.newline();
+						tui.success('Login successful! Continuing with dev server...');
+						tui.newline();
+					} else {
+						// User chose not to login - show warning about disabled features
+						tui.newline();
+						tui.showLoggedOutMessage(getAppBaseURL(config), hasProfile);
+					}
+				} else {
+					// Non-TTY: fatal error with instruction
+					logger.fatal(
+						`Authentication required for this project.\n` +
+							`Run "${getCommand('auth login')}" to login to Agentuity`,
+						ErrorCode.AUTH_REQUIRED
+					);
+				}
+			}
+
+			// After auth is established, verify project access
+			if (auth && config) {
+				const { reconcileProject } = await import('../project/reconcile');
+				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
+
+				const result = await reconcileProject({
+					dir: rootDir,
+					auth,
+					apiClient,
+					config,
+					logger,
+					interactive: isTTY(),
+				});
+
+				if (result.status === 'error') {
+					tui.fatal(result.message!, ErrorCode.PROJECT_NOT_FOUND);
+				} else if (result.status === 'imported' && result.project) {
+					// Project was re-imported to user's org
+					project = result.project;
+					tui.newline();
+				} else if (result.status === 'skipped') {
+					// User declined import - can't continue with cloud features
+					tui.warning('Continuing in local-only mode.');
+					project = undefined;
+				}
+			}
+		} else {
+			// No agentuity.json - check if this is a valid project that needs importing
+			if (auth && config) {
+				const { reconcileProject } = await import('../project/reconcile');
+				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
+
+				const result = await reconcileProject({
+					dir: rootDir,
+					auth,
+					apiClient,
+					config,
+					logger,
+					interactive: isTTY(),
+				});
+
+				if (result.status === 'error') {
+					// Not a valid project - show local-only warning
+					tui.showLocalOnlyWarning();
+				} else if (result.status === 'imported' && result.project) {
+					// Project was imported - reload project config
+					project = result.project;
+					tui.newline();
+				} else if (result.status === 'skipped') {
+					// User declined import - continue in local-only mode
+					tui.showLocalOnlyWarning();
+				}
+			} else {
+				// Not authenticated - local-only mode
+				tui.showLocalOnlyWarning();
+			}
+		}
+
 		// Prepare dev lock: cleans up stale processes from previous sessions
 		// and creates a new lockfile for this session
 		const devLock = await prepareDevLock(rootDir, opts.port, logger);
@@ -229,7 +354,10 @@ export const command = createCommand({
 		try {
 			// Setup devmode and gravity (if using public URL)
 			const useMockService = process.env.DEVMODE_SYNC_SERVICE_MOCK === 'true';
-			const apiClient = auth ? new APIClient(getAPIBaseURL(config), logger, config) : null;
+			// Create apiClient with fresh auth API key (important after inline login)
+			const apiClient = auth
+				? new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config)
+				: null;
 			const syncService = apiClient
 				? createDevmodeSyncService({
 						logger,
@@ -852,6 +980,7 @@ export const command = createCommand({
 					}
 
 					process.env.AGENTUITY_SDK_DEV_MODE = 'true';
+					process.env.AGENTUITY_RUNTIME = 'yes';
 					process.env.AGENTUITY_ENV = 'development';
 					process.env.NODE_ENV = 'development';
 					process.env.AGENTUITY_PROJECT_DIR = rootDir;

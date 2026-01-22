@@ -104,19 +104,6 @@ export class CliClient {
 	}
 
 	/**
-	 * Append --region flag to args using region from agentuity.json.
-	 * Used for commands that require region but don't accept --dir.
-	 * The --region flag is a subcommand option, so it must come after the command.
-	 */
-	private withRegion(args: string[]): string[] {
-		const region = this.getProjectRegion();
-		if (region) {
-			return [...args, '--region', region];
-		}
-		return args;
-	}
-
-	/**
 	 * Get the environment variables for CLI execution.
 	 * Sets TERM_PROGRAM=vscode to ensure CLI disables interactive mode.
 	 */
@@ -295,6 +282,60 @@ export class CliClient {
 		return this.exec<WhoamiResponse>(['auth', 'whoami'], { format: 'json' });
 	}
 
+	// ==================== Org/Region Methods ====================
+
+	async orgList(): Promise<CliResult<OrgInfo[]>> {
+		const result = await this.exec<{ organizations: OrgInfo[] }>(['auth', 'whoami'], {
+			format: 'json',
+		});
+		if (result.success && result.data) {
+			// whoami includes organizations
+			const whoamiData = result.data as unknown as WhoamiResponse;
+			return {
+				success: true,
+				data: whoamiData.organizations || [],
+				exitCode: result.exitCode,
+			};
+		}
+		return { success: result.success, error: result.error, data: [], exitCode: result.exitCode };
+	}
+
+	async orgCurrent(): Promise<CliResult<string | null>> {
+		return this.exec<string | null>(['auth', 'org', 'current'], { format: 'json' });
+	}
+
+	async orgSelect(orgId: string): Promise<CliResult<OrgSelectResponse>> {
+		return this.exec<OrgSelectResponse>(['auth', 'org', 'select', orgId], { format: 'json' });
+	}
+
+	async orgUnselect(): Promise<CliResult<{ cleared: boolean }>> {
+		return this.exec<{ cleared: boolean }>(['auth', 'org', 'unselect'], { format: 'json' });
+	}
+
+	async regionList(): Promise<CliResult<RegionInfo[]>> {
+		// Regions are relatively static, return known regions
+		// The CLI will validate during selection
+		const regions: RegionInfo[] = [
+			{ region: 'usc', description: 'US Central' },
+			{ region: 'use', description: 'US East' },
+		];
+		return { success: true, data: regions, exitCode: 0 };
+	}
+
+	async regionCurrent(): Promise<CliResult<string | null>> {
+		return this.exec<string | null>(['cloud', 'region', 'current'], { format: 'json' });
+	}
+
+	async regionSelect(region: string): Promise<CliResult<RegionSelectResponse>> {
+		return this.exec<RegionSelectResponse>(['cloud', 'region', 'select', region], {
+			format: 'json',
+		});
+	}
+
+	async regionUnselect(): Promise<CliResult<{ cleared: boolean }>> {
+		return this.exec<{ cleared: boolean }>(['cloud', 'region', 'unselect'], { format: 'json' });
+	}
+
 	async listAgents(): Promise<CliResult<AgentListResponse>> {
 		return this.exec<AgentListResponse>(['cloud', 'agent', 'list'], { format: 'json' });
 	}
@@ -329,17 +370,24 @@ export class CliClient {
 		return this.exec<string>(['ai', 'prompt', 'llm'], { format: 'text' });
 	}
 
-	// Database methods (require region - pass --region from agentuity.json)
 	async listDatabases(): Promise<CliResult<DbListResponse>> {
-		return this.exec<DbListResponse>(this.withRegion(['cloud', 'db', 'list']), {
+		return this.exec<DbListResponse>(['cloud', 'db', 'list'], {
 			format: 'json',
 		});
 	}
 
 	async getDatabase(name: string): Promise<CliResult<DbInfo>> {
-		return this.exec<DbInfo>(this.withRegion(['cloud', 'db', 'get', name]), {
+		return this.exec<DbInfo>(['cloud', 'db', 'get', name], {
 			format: 'json',
 		});
+	}
+
+	async createDatabase(options: DbCreateOptions): Promise<CliResult<DbInfo>> {
+		const args = ['cloud', 'db', 'create', '--name', options.name];
+		if (options.description) {
+			args.push('--description', options.description);
+		}
+		return this.exec<DbInfo>(args, { format: 'json', timeout: 60000 });
 	}
 
 	async getDbLogs(
@@ -356,12 +404,11 @@ export class CliClient {
 		if (opts?.sessionId) {
 			args.push('--session-id', opts.sessionId);
 		}
-		return this.exec<DbQueryLog[]>(this.withRegion(args), { format: 'json', timeout: 60000 });
+		return this.exec<DbQueryLog[]>(args, { format: 'json', timeout: 60000 });
 	}
 
-	// Storage methods (require region - pass --region from agentuity.json)
 	async listStorageBuckets(): Promise<CliResult<StorageListResponse>> {
-		return this.exec<StorageListResponse>(this.withRegion(['cloud', 'storage', 'list']), {
+		return this.exec<StorageListResponse>(['cloud', 'storage', 'list'], {
 			format: 'json',
 		});
 	}
@@ -374,7 +421,7 @@ export class CliClient {
 		if (prefix) {
 			args.push(prefix);
 		}
-		return this.exec<StorageListResponse>(this.withRegion(args), { format: 'json' });
+		return this.exec<StorageListResponse>(args, { format: 'json' });
 	}
 
 	async getStorageFileMetadata(
@@ -382,7 +429,7 @@ export class CliClient {
 		filename: string
 	): Promise<CliResult<StorageFileMetadataResponse>> {
 		return this.exec<StorageFileMetadataResponse>(
-			this.withRegion(['cloud', 'storage', 'download', bucket, filename, '--metadata']),
+			['cloud', 'storage', 'download', bucket, filename, '--metadata'],
 			{ format: 'json' }
 		);
 	}
@@ -410,12 +457,215 @@ export class CliClient {
 		return this.exec<void>(['cloud', 'stream', 'delete', id], { format: 'json' });
 	}
 
+	// Queue methods
+	async listQueues(opts?: {
+		limit?: number;
+		offset?: number;
+	}): Promise<CliResult<QueueListResponse>> {
+		const args = ['cloud', 'queue', 'list'];
+		if (opts?.limit) {
+			args.push('--limit', String(opts.limit));
+		}
+		if (opts?.offset) {
+			args.push('--offset', String(opts.offset));
+		}
+		return this.exec<QueueListResponse>(args, { format: 'json' });
+	}
+
+	async getQueue(name: string): Promise<CliResult<QueueGetResponse>> {
+		return this.exec<QueueGetResponse>(['cloud', 'queue', 'get', name], { format: 'json' });
+	}
+
+	async getQueueStats(): Promise<CliResult<QueueStatsResponse>> {
+		return this.exec<QueueStatsResponse>(['cloud', 'queue', 'stats'], { format: 'json' });
+	}
+
+	async listQueueMessages(
+		queueName: string,
+		opts?: { limit?: number; offset?: number }
+	): Promise<CliResult<QueueMessagesResponse>> {
+		const args = ['cloud', 'queue', 'messages', queueName];
+		if (opts?.limit) {
+			args.push('--limit', String(opts.limit));
+		}
+		if (opts?.offset) {
+			args.push('--offset', String(opts.offset));
+		}
+		return this.exec<QueueMessagesResponse>(args, { format: 'json' });
+	}
+
+	async getQueueMessage(
+		queueName: string,
+		messageId: string
+	): Promise<CliResult<QueueMessageResponse>> {
+		return this.exec<QueueMessageResponse>(['cloud', 'queue', 'messages', queueName, messageId], {
+			format: 'json',
+		});
+	}
+
+	async publishQueueMessage(
+		queueName: string,
+		payload: string,
+		opts?: {
+			metadata?: string;
+			ttl?: number;
+			partitionKey?: string;
+			idempotencyKey?: string;
+		}
+	): Promise<CliResult<QueueMessage>> {
+		// Quote the payload to protect special characters from shell interpretation
+		const quotedPayload = `'${payload.replace(/'/g, "'\\''")}'`;
+		const args = ['cloud', 'queue', 'publish', queueName, quotedPayload];
+		if (opts?.metadata) {
+			const quotedMetadata = `'${opts.metadata.replace(/'/g, "'\\''")}'`;
+			args.push('--metadata', quotedMetadata);
+		}
+		if (opts?.ttl) {
+			args.push('--ttl', String(opts.ttl));
+		}
+		if (opts?.partitionKey) {
+			args.push('--partitionKey', opts.partitionKey);
+		}
+		if (opts?.idempotencyKey) {
+			args.push('--idempotencyKey', opts.idempotencyKey);
+		}
+		return this.exec<QueueMessage>(args, { format: 'json' });
+	}
+
+	async pauseQueue(name: string): Promise<CliResult<QueueDetails>> {
+		return this.exec<QueueDetails>(['cloud', 'queue', 'pause', name], { format: 'json' });
+	}
+
+	async resumeQueue(name: string): Promise<CliResult<QueueDetails>> {
+		return this.exec<QueueDetails>(['cloud', 'queue', 'resume', name], { format: 'json' });
+	}
+
+	async deleteQueue(name: string): Promise<CliResult<{ success: boolean }>> {
+		return this.exec<{ success: boolean }>(['cloud', 'queue', 'delete', name, '--confirm'], {
+			format: 'json',
+		});
+	}
+
+	async createQueue(
+		queueType: 'worker' | 'pubsub',
+		name: string,
+		opts?: { ttl?: number; description?: string }
+	): Promise<CliResult<QueueDetails>> {
+		const args = ['cloud', 'queue', 'create', queueType, '--name', name];
+		if (opts?.ttl) {
+			args.push('--ttl', String(opts.ttl));
+		}
+		if (opts?.description) {
+			args.push('--description', opts.description);
+		}
+		return this.exec<QueueDetails>(args, { format: 'json' });
+	}
+
+	async listDlqMessages(
+		queueName: string,
+		opts?: { limit?: number; offset?: number }
+	): Promise<CliResult<DlqMessagesResponse>> {
+		const args = ['cloud', 'queue', 'dlq', 'list', queueName];
+		if (opts?.limit) {
+			args.push('--limit', String(opts.limit));
+		}
+		if (opts?.offset) {
+			args.push('--offset', String(opts.offset));
+		}
+		return this.exec<DlqMessagesResponse>(args, { format: 'json' });
+	}
+
+	async replayDlqMessage(
+		queueName: string,
+		messageId: string
+	): Promise<CliResult<{ success: boolean; message: QueueMessage }>> {
+		return this.exec<{ success: boolean; message: QueueMessage }>(
+			['cloud', 'queue', 'dlq', 'replay', queueName, messageId],
+			{ format: 'json' }
+		);
+	}
+
+	async purgeDlq(queueName: string): Promise<CliResult<{ success: boolean; queue_name: string }>> {
+		return this.exec<{ success: boolean; queue_name: string }>(
+			['cloud', 'queue', 'dlq', 'purge', queueName, '--confirm'],
+			{ format: 'json' }
+		);
+	}
+
+	async listQueueDestinations(queueName: string): Promise<CliResult<QueueDestinationsResponse>> {
+		return this.exec<QueueDestinationsResponse>(
+			['cloud', 'queue', 'destinations', 'list', queueName],
+			{ format: 'json' }
+		);
+	}
+
+	async createQueueDestination(
+		queueName: string,
+		url: string,
+		opts?: { method?: string; timeout?: number }
+	): Promise<CliResult<QueueDestination>> {
+		const args = ['cloud', 'queue', 'destinations', 'create', queueName, '--url', url];
+		if (opts?.method) {
+			args.push('--method', opts.method);
+		}
+		if (opts?.timeout) {
+			args.push('--timeout', String(opts.timeout));
+		}
+		return this.exec<QueueDestination>(args, { format: 'json' });
+	}
+
+	async updateQueueDestination(
+		queueName: string,
+		destinationId: string,
+		opts: {
+			url?: string;
+			method?: string;
+			timeout?: number;
+			enabled?: boolean;
+			disabled?: boolean;
+		}
+	): Promise<CliResult<QueueDestination>> {
+		const args = ['cloud', 'queue', 'destinations', 'update', queueName, destinationId];
+		if (opts.url) {
+			args.push('--url', opts.url);
+		}
+		if (opts.method) {
+			args.push('--method', opts.method);
+		}
+		if (opts.timeout) {
+			args.push('--timeout', String(opts.timeout));
+		}
+		if (opts.enabled) {
+			args.push('--enabled');
+		}
+		if (opts.disabled) {
+			args.push('--disabled');
+		}
+		return this.exec<QueueDestination>(args, { format: 'json' });
+	}
+
+	async deleteQueueDestination(
+		queueName: string,
+		destinationId: string
+	): Promise<CliResult<{ success: boolean; queue_name: string; destination_id: string }>> {
+		return this.exec<{ success: boolean; queue_name: string; destination_id: string }>(
+			['cloud', 'queue', 'destinations', 'delete', queueName, destinationId],
+			{ format: 'json' }
+		);
+	}
+
 	// Profile methods
 	async getCurrentProfile(): Promise<CliResult<string>> {
 		return this.exec<string>(['profile', 'current'], { format: 'json' });
 	}
 
 	// Vector methods
+	async listVectorNamespaces(): Promise<CliResult<VectorNamespaceListResponse>> {
+		return this.exec<VectorNamespaceListResponse>(['cloud', 'vector', 'list-namespaces'], {
+			format: 'json',
+		});
+	}
+
 	async vectorSearch(
 		namespace: string,
 		query: string,
@@ -509,17 +759,6 @@ export class CliClient {
 
 	// ==================== Sandbox Methods ====================
 
-	/** Default region for sandbox operations when no agentuity.json is present */
-	private readonly defaultSandboxRegion = 'usc';
-
-	/**
-	 * Get the region for sandbox operations.
-	 * Uses region from agentuity.json if present, otherwise falls back to default.
-	 */
-	getSandboxRegion(): string {
-		return this.getProjectRegion() ?? this.defaultSandboxRegion;
-	}
-
 	/** Default home path in sandboxes */
 	static readonly SANDBOX_HOME = '/home/agentuity';
 
@@ -527,8 +766,26 @@ export class CliClient {
 	 * Create a new sandbox.
 	 */
 	async sandboxCreate(options: SandboxCreateOptions = {}): Promise<CliResult<SandboxInfo>> {
-		const args = ['cloud', 'sandbox', 'create', '--region', this.getSandboxRegion()];
+		const region = this.getProjectRegion() ?? 'usc';
+		const args = ['cloud', 'sandbox', 'create', '--region', region];
 
+		// New runtime/name/description options
+		if (options.runtime) {
+			args.push('--runtime', options.runtime);
+		}
+		if (options.runtimeId) {
+			args.push('--runtime-id', options.runtimeId);
+		}
+		if (options.name) {
+			args.push('--name', options.name);
+		}
+		if (options.description) {
+			args.push('--description', options.description);
+		}
+		if (options.projectId) {
+			args.push('--project-id', options.projectId);
+		}
+		// Existing options
 		if (options.memory) {
 			args.push('--memory', options.memory);
 		}
@@ -540,6 +797,9 @@ export class CliClient {
 		}
 		if (options.network) {
 			args.push('--network');
+		}
+		if (options.port !== undefined) {
+			args.push('--port', String(options.port));
 		}
 		if (options.idleTimeout) {
 			args.push('--idle-timeout', String(options.idleTimeout));
@@ -565,15 +825,39 @@ export class CliClient {
 				args.push('--metadata', `${key}=${value}`);
 			}
 		}
+		if (options.files && options.files.length > 0) {
+			for (const file of options.files) {
+				args.push('--file', `${file.path}:${file.content}`);
+			}
+		}
 
 		return this.exec<SandboxInfo>(args, { format: 'json', timeout: 120000 });
 	}
 
 	/**
+	 * List available sandbox runtimes.
+	 */
+	async sandboxRuntimeList(
+		params: SandboxRuntimeListParams = {}
+	): Promise<CliResult<SandboxRuntimeListResponse>> {
+		const args = ['cloud', 'sandbox', 'runtime', 'list'];
+
+		if (params.limit !== undefined) {
+			args.push('--limit', String(params.limit));
+		}
+		if (params.offset !== undefined) {
+			args.push('--offset', String(params.offset));
+		}
+
+		return this.exec<SandboxRuntimeListResponse>(args, { format: 'json' });
+	}
+
+	/**
 	 * List sandboxes with optional filtering.
+	 * Uses --all flag to list all sandboxes regardless of project context.
 	 */
 	async sandboxList(filter: SandboxListFilter = {}): Promise<CliResult<SandboxInfo[]>> {
-		const args = ['cloud', 'sandbox', 'list', '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'list', '--all'];
 
 		if (filter.status) {
 			args.push('--status', filter.status);
@@ -588,7 +872,6 @@ export class CliClient {
 			args.push('--offset', String(filter.offset));
 		}
 
-		// CLI returns { sandboxes: [...], total: N }, extract the array
 		const result = await this.exec<{ sandboxes: SandboxInfo[]; total: number }>(args, {
 			format: 'json',
 		});
@@ -602,28 +885,16 @@ export class CliClient {
 	 * Get detailed information about a sandbox.
 	 */
 	async sandboxGet(sandboxId: string): Promise<CliResult<SandboxInfo>> {
-		return this.exec<SandboxInfo>(
-			['cloud', 'sandbox', 'get', sandboxId, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<SandboxInfo>(['cloud', 'sandbox', 'get', sandboxId], { format: 'json' });
 	}
 
 	/**
 	 * Delete a sandbox.
 	 */
 	async sandboxDelete(sandboxId: string): Promise<CliResult<void>> {
-		return this.exec<void>(
-			[
-				'cloud',
-				'sandbox',
-				'delete',
-				sandboxId,
-				'--confirm',
-				'--region',
-				this.getSandboxRegion(),
-			],
-			{ format: 'json' }
-		);
+		return this.exec<void>(['cloud', 'sandbox', 'delete', sandboxId, '--confirm'], {
+			format: 'json',
+		});
 	}
 
 	/**
@@ -635,7 +906,7 @@ export class CliClient {
 		command: string[],
 		options: SandboxExecOptions = {}
 	): Promise<CliResult<ExecutionInfo>> {
-		const args = ['cloud', 'sandbox', 'exec', sandboxId, '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'exec', sandboxId];
 
 		if (options.timeout) {
 			args.push('--timeout', String(options.timeout));
@@ -655,13 +926,11 @@ export class CliClient {
 	 */
 	async sandboxLs(sandboxId: string, remotePath?: string): Promise<CliResult<SandboxFileInfo[]>> {
 		const args = ['cloud', 'sandbox', 'files', sandboxId];
-		// Only add path if specified (omit for root listing)
 		if (remotePath) {
 			args.push(remotePath);
 		}
-		args.push('-l', '--region', this.getSandboxRegion());
+		args.push('-l');
 
-		// CLI returns { files: [...], total: N }, extract the array and add name from path
 		const result = await this.exec<{
 			files: Array<Omit<SandboxFileInfo, 'name'>>;
 			total: number;
@@ -669,7 +938,7 @@ export class CliClient {
 		if (result.success && result.data) {
 			const files = (result.data.files || []).map((f) => ({
 				...f,
-				name: f.path.split('/').pop() || f.path, // Extract filename from path
+				name: f.path.split('/').pop() || f.path,
 			}));
 			return { success: true, data: files, exitCode: result.exitCode };
 		}
@@ -685,7 +954,7 @@ export class CliClient {
 		remotePath: string,
 		recursive = false
 	): Promise<CliResult<SandboxCpResult>> {
-		const args = ['cloud', 'sandbox', 'cp', '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'cp'];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -702,7 +971,7 @@ export class CliClient {
 		localPath: string,
 		recursive = false
 	): Promise<CliResult<SandboxCpResult>> {
-		const args = ['cloud', 'sandbox', 'cp', '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'cp'];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -718,15 +987,7 @@ export class CliClient {
 		archivePath: string,
 		destPath?: string
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'upload',
-			sandboxId,
-			archivePath,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'upload', sandboxId, archivePath];
 		if (destPath) {
 			args.push('--path', destPath);
 		}
@@ -741,15 +1002,7 @@ export class CliClient {
 		outputPath: string,
 		sourcePath?: string
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'download',
-			sandboxId,
-			outputPath,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'download', sandboxId, outputPath];
 		if (sourcePath) {
 			args.push('--path', sourcePath);
 		}
@@ -764,15 +1017,7 @@ export class CliClient {
 		remotePath: string,
 		recursive = false
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'mkdir',
-			sandboxId,
-			remotePath,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'mkdir', sandboxId, remotePath];
 		if (recursive) {
 			args.push('-p');
 		}
@@ -783,10 +1028,7 @@ export class CliClient {
 	 * Remove a file from a sandbox.
 	 */
 	async sandboxRm(sandboxId: string, remotePath: string): Promise<CliResult<void>> {
-		return this.exec<void>(
-			['cloud', 'sandbox', 'rm', sandboxId, remotePath, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<void>(['cloud', 'sandbox', 'rm', sandboxId, remotePath], { format: 'json' });
 	}
 
 	/**
@@ -797,15 +1039,7 @@ export class CliClient {
 		remotePath: string,
 		recursive = false
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'rmdir',
-			sandboxId,
-			remotePath,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'rmdir', sandboxId, remotePath];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -819,7 +1053,7 @@ export class CliClient {
 		sandboxId: string,
 		vars: Record<string, string>
 	): Promise<CliResult<SandboxEnvResult>> {
-		const args = ['cloud', 'sandbox', 'env', sandboxId, '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'env', sandboxId];
 		for (const [key, value] of Object.entries(vars)) {
 			args.push(`${key}=${value}`);
 		}
@@ -833,7 +1067,7 @@ export class CliClient {
 		sandboxId: string,
 		varNames: string[]
 	): Promise<CliResult<SandboxEnvResult>> {
-		const args = ['cloud', 'sandbox', 'env', sandboxId, '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'env', sandboxId];
 		for (const name of varNames) {
 			args.push('--delete', name);
 		}
@@ -844,10 +1078,9 @@ export class CliClient {
 	 * Get environment variables from a sandbox.
 	 */
 	async sandboxEnvGet(sandboxId: string): Promise<CliResult<SandboxEnvResult>> {
-		return this.exec<SandboxEnvResult>(
-			['cloud', 'sandbox', 'env', sandboxId, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<SandboxEnvResult>(['cloud', 'sandbox', 'env', sandboxId], {
+			format: 'json',
+		});
 	}
 
 	// ==================== Snapshot Methods ====================
@@ -856,15 +1089,7 @@ export class CliClient {
 	 * Create a snapshot of a sandbox.
 	 */
 	async snapshotCreate(sandboxId: string, tag?: string): Promise<CliResult<SnapshotInfo>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'snapshot',
-			'create',
-			sandboxId,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'snapshot', 'create', sandboxId];
 		if (tag) {
 			args.push('--tag', tag);
 		}
@@ -875,11 +1100,10 @@ export class CliClient {
 	 * List snapshots with optional sandbox filter.
 	 */
 	async snapshotList(sandboxId?: string): Promise<CliResult<SnapshotInfo[]>> {
-		const args = ['cloud', 'sandbox', 'snapshot', 'list', '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'snapshot', 'list'];
 		if (sandboxId) {
 			args.push('--sandbox', sandboxId);
 		}
-		// CLI returns { snapshots: [], total: N }
 		const result = await this.exec<{ snapshots: SnapshotInfo[]; total: number }>(args, {
 			format: 'json',
 		});
@@ -893,44 +1117,25 @@ export class CliClient {
 	 * Get detailed information about a snapshot.
 	 */
 	async snapshotGet(snapshotId: string): Promise<CliResult<SnapshotInfo>> {
-		return this.exec<SnapshotInfo>(
-			['cloud', 'sandbox', 'snapshot', 'get', snapshotId, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<SnapshotInfo>(['cloud', 'sandbox', 'snapshot', 'get', snapshotId], {
+			format: 'json',
+		});
 	}
 
 	/**
 	 * Delete a snapshot.
 	 */
 	async snapshotDelete(snapshotId: string): Promise<CliResult<void>> {
-		return this.exec<void>(
-			[
-				'cloud',
-				'sandbox',
-				'snapshot',
-				'delete',
-				snapshotId,
-				'--confirm',
-				'--region',
-				this.getSandboxRegion(),
-			],
-			{ format: 'json' }
-		);
+		return this.exec<void>(['cloud', 'sandbox', 'snapshot', 'delete', snapshotId, '--confirm'], {
+			format: 'json',
+		});
 	}
 
 	/**
 	 * Tag or untag a snapshot.
 	 */
 	async snapshotTag(snapshotId: string, tag: string | null): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'snapshot',
-			'tag',
-			snapshotId,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'snapshot', 'tag', snapshotId];
 		if (tag === null) {
 			args.push('--clear');
 		} else {
@@ -945,9 +1150,8 @@ export class CliClient {
 	 * List executions for a sandbox.
 	 */
 	async executionList(sandboxId: string): Promise<CliResult<ExecutionInfo[]>> {
-		// CLI returns { executions: [] }
 		const result = await this.exec<{ executions: ExecutionInfo[] }>(
-			['cloud', 'sandbox', 'execution', 'list', sandboxId, '--region', this.getSandboxRegion()],
+			['cloud', 'sandbox', 'execution', 'list', sandboxId],
 			{ format: 'json' }
 		);
 		if (result.success && result.data) {
@@ -960,10 +1164,9 @@ export class CliClient {
 	 * Get detailed information about an execution.
 	 */
 	async executionGet(executionId: string): Promise<CliResult<ExecutionInfo>> {
-		return this.exec<ExecutionInfo>(
-			['cloud', 'sandbox', 'execution', 'get', executionId, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<ExecutionInfo>(['cloud', 'sandbox', 'execution', 'get', executionId], {
+			format: 'json',
+		});
 	}
 
 	dispose(): void {
@@ -972,14 +1175,33 @@ export class CliClient {
 }
 
 // Auth types
+export interface OrgInfo {
+	id: string;
+	name: string;
+	slug?: string;
+}
+
 export interface WhoamiResponse {
 	userId: string;
 	firstName: string;
 	lastName: string;
-	organizations: Array<{
-		id: string;
-		name: string;
-	}>;
+	organizations: OrgInfo[];
+}
+
+export interface OrgSelectResponse {
+	orgId: string;
+	name: string;
+}
+
+// Region types
+export interface RegionInfo {
+	region: string;
+	description: string;
+}
+
+export interface RegionSelectResponse {
+	region: string;
+	description: string;
 }
 
 // Agent types
@@ -1026,10 +1248,17 @@ export interface KvGetResponse {
 export interface DbInfo {
 	name: string;
 	url: string;
+	description?: string | null;
+	region?: string;
 }
 
 export interface DbListResponse {
 	databases: DbInfo[];
+}
+
+export interface DbCreateOptions {
+	name: string;
+	description?: string;
 }
 
 export interface DbQueryLog {
@@ -1085,7 +1314,118 @@ export interface StreamListResponse {
 	total: number;
 }
 
+// Queue types
+export interface QueueInfo {
+	name: string;
+	queue_type: 'worker' | 'pubsub';
+	message_count: number;
+	dlq_count: number;
+	created_at: string;
+}
+
+export interface QueueListResponse {
+	queues: QueueInfo[];
+	total?: number;
+}
+
+export interface QueueDetails {
+	id: string;
+	name: string;
+	queue_type: 'worker' | 'pubsub';
+	description?: string;
+	message_count?: number;
+	dlq_count?: number;
+	next_offset?: number;
+	paused_at?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface QueueGetResponse {
+	type: 'queue';
+	queue: QueueDetails;
+}
+
+export interface QueueStatsResponse {
+	stats: unknown;
+}
+
+export interface QueueMessage {
+	id: string;
+	queue_id: string;
+	offset: number;
+	state: string;
+	payload: unknown;
+	metadata?: Record<string, unknown>;
+	partition_key?: string;
+	idempotency_key?: string;
+	delivery_attempts: number;
+	published_at?: string;
+	created_at?: string;
+	expires_at?: string;
+	delivered_at?: string;
+	acknowledged_at?: string;
+	size?: number;
+}
+
+export interface QueueMessagesResponse {
+	type: 'list';
+	data: {
+		messages: Array<{
+			id: string;
+			offset: number;
+			state?: string;
+			size?: number;
+			created_at?: string;
+		}>;
+		total?: number;
+	};
+}
+
+export interface QueueMessageResponse {
+	type: 'message';
+	message: QueueMessage;
+}
+
+export interface DlqMessage {
+	id: string;
+	offset: number;
+	failure_reason: string | null;
+	delivery_attempts: number;
+	moved_at: string;
+}
+
+export interface DlqMessagesResponse {
+	messages: DlqMessage[];
+	total?: number;
+}
+
+export interface QueueDestination {
+	id: string;
+	destination_type: string;
+	config: {
+		url: string;
+		method?: string;
+		timeout_ms?: number;
+	};
+	enabled: boolean;
+	created_at: string;
+	updated_at?: string;
+}
+
+export interface QueueDestinationsResponse {
+	destinations: Array<{
+		id: string;
+		destination_type: string;
+		url: string;
+		enabled: boolean;
+		created_at: string;
+	}>;
+}
+
 // Vector types
+export type VectorNamespaceListResponse = string[];
+
 export interface VectorSearchResult {
 	id: string;
 	key: string;
@@ -1261,6 +1601,46 @@ export interface SandboxResources {
 	disk?: string;
 }
 
+export interface SandboxRuntimeInfo {
+	id: string;
+	name: string;
+	iconUrl?: string;
+	brandColor?: string;
+	tags?: string[];
+}
+
+export interface SandboxSnapshotUserInfo {
+	id: string;
+	firstName?: string;
+	lastName?: string;
+}
+
+export interface SandboxSnapshotOrgInfo {
+	id: string;
+	name: string;
+	slug?: string;
+}
+
+export interface SandboxSnapshotInfoPublic {
+	id: string;
+	name?: string;
+	tag?: string | null;
+	fullName?: string;
+	public: true;
+	org: SandboxSnapshotOrgInfo;
+}
+
+export interface SandboxSnapshotInfoPrivate {
+	id: string;
+	name?: string;
+	tag?: string | null;
+	fullName?: string;
+	public: false;
+	user: SandboxSnapshotUserInfo;
+}
+
+export type SandboxSnapshotInfo = SandboxSnapshotInfoPublic | SandboxSnapshotInfoPrivate;
+
 export interface SandboxInfo {
 	sandboxId: string;
 	status: SandboxStatus;
@@ -1270,19 +1650,36 @@ export interface SandboxInfo {
 	resources?: SandboxResources;
 	stdoutStreamUrl?: string;
 	stderrStreamUrl?: string;
+	name?: string;
+	description?: string;
+	runtime?: SandboxRuntimeInfo;
+	snapshot?: SandboxSnapshotInfo;
+	// Network/URL fields
+	identifier?: string;
+	networkPort?: number;
+	url?: string;
 }
 
 export interface SandboxCreateOptions {
+	// New fields from sandbox improvements
+	runtime?: string;
+	runtimeId?: string;
+	name?: string;
+	description?: string;
+	projectId?: string; // Associate sandbox with a project
+	// Existing fields
 	memory?: string;
 	cpu?: string;
 	disk?: string;
 	network?: boolean;
+	port?: number; // 1024-65535, enables network automatically
 	idleTimeout?: number;
 	execTimeout?: number;
 	env?: Record<string, string>;
 	dependencies?: string[];
 	metadata?: Record<string, string>;
 	snapshot?: string;
+	files?: Array<{ path: string; content: string }>; // Files to write on creation (content is base64-encoded)
 }
 
 export interface SandboxListFilter {
@@ -1308,14 +1705,19 @@ export interface SandboxFileInfo {
 
 export interface SnapshotInfo {
 	snapshotId: string;
+	name?: string;
+	fullName?: string; // Full name with org slug (@slug/name:tag) for public snapshots
 	tag?: string | null;
 	sizeBytes: number;
 	fileCount: number;
 	createdAt: string;
 	parentSnapshotId?: string | null;
+	public?: boolean;
+	orgName?: string;
+	orgSlug?: string; // Organization slug for public snapshots
 	downloadUrl?: string;
 	sandboxId?: string; // Present in list context
-	files?: Array<{ path: string; size: number }>; // Present in get response
+	files?: Array<{ path: string; size: number; sha256: string; contentType: string; mode: number }>; // Present in get response
 }
 
 export interface ExecutionInfo {
@@ -1339,6 +1741,36 @@ export interface SandboxCpResult {
 
 export interface SandboxEnvResult {
 	env: Record<string, string>;
+}
+
+// Sandbox runtime types
+export interface SandboxRuntimeRequirements {
+	memory?: string;
+	cpu?: string;
+	disk?: string;
+	networkEnabled: boolean;
+}
+
+export interface SandboxRuntime {
+	id: string;
+	name: string;
+	description?: string;
+	iconUrl?: string;
+	brandColor?: string;
+	url?: string;
+	tags?: string[];
+	requirements?: SandboxRuntimeRequirements;
+	readme?: string;
+}
+
+export interface SandboxRuntimeListParams {
+	limit?: number;
+	offset?: number;
+}
+
+export interface SandboxRuntimeListResponse {
+	runtimes: SandboxRuntime[];
+	total: number;
 }
 
 // Singleton

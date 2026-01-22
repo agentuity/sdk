@@ -19,6 +19,7 @@ const DeploymentShowResponseSchema = z.object({
 	resourceStorage: z.string().nullable().optional().describe('the storage name'),
 	deploymentLogsURL: z.string().nullable().optional().describe('the url to the deployment logs'),
 	buildLogsURL: z.string().nullable().optional().describe('the url to the build logs'),
+	dnsRecords: z.array(z.string()).optional().describe('DNS records for custom domains'),
 	metadata: z
 		.object({
 			git: z
@@ -90,82 +91,91 @@ export const showSubcommand = createSubcommand({
 
 			// Skip TUI output in JSON mode
 			if (!options.json) {
-				const maxWidth = 18;
-				console.log(tui.bold('ID:'.padEnd(maxWidth)) + deployment.id);
-				console.log(tui.bold('Project:'.padEnd(maxWidth)) + projectId);
-				console.log(tui.bold('State:'.padEnd(maxWidth)) + (deployment.state || 'unknown'));
-				console.log(tui.bold('Active:'.padEnd(maxWidth)) + (deployment.active ? 'Yes' : 'No'));
-				console.log(
-					tui.bold('Created:'.padEnd(maxWidth)) +
-						new Date(deployment.createdAt).toLocaleString()
-				);
+				const tableData: Record<string, string> = {
+					ID: deployment.id,
+					Project: projectId,
+					State: deployment.state || 'unknown',
+					Active: deployment.active ? 'Yes' : 'No',
+					Created: new Date(deployment.createdAt).toLocaleString(),
+				};
 				if (deployment.updatedAt) {
-					console.log(
-						tui.bold('Updated:'.padEnd(maxWidth)) +
-							new Date(deployment.updatedAt).toLocaleString()
-					);
+					tableData['Updated'] = new Date(deployment.updatedAt).toLocaleString();
 				}
 				if (deployment.message) {
-					console.log(tui.bold('Message:'.padEnd(maxWidth)) + deployment.message);
+					tableData['Message'] = deployment.message;
 				}
 				if (deployment.tags.length > 0) {
-					console.log(tui.bold('Tags:'.padEnd(maxWidth)) + deployment.tags.join(', '));
+					tableData['Tags'] = deployment.tags.join(', ');
 				}
 				if (deployment.customDomains && deployment.customDomains.length > 0) {
-					console.log(
-						tui.bold('Domains:'.padEnd(maxWidth)) + deployment.customDomains.join(', ')
-					);
+					tableData['Domains'] = deployment.customDomains.join(', ');
 				}
 				if (deployment.cloudRegion) {
-					console.log(tui.bold('Region:'.padEnd(maxWidth)) + deployment.cloudRegion);
+					tableData['Region'] = deployment.cloudRegion;
 				}
 				if (deployment.resourceDb) {
-					console.log(tui.bold('Database:'.padEnd(maxWidth)) + deployment.resourceDb);
+					tableData['Database'] = deployment.resourceDb;
 				}
 				if (deployment.resourceStorage) {
-					console.log(tui.bold('Storage:'.padEnd(maxWidth)) + deployment.resourceStorage);
+					tableData['Storage'] = deployment.resourceStorage;
 				}
 				if (deployment.deploymentLogsURL) {
-					console.log(
-						tui.bold('Deployment Logs:'.padEnd(maxWidth)) +
-							tui.link(deployment.deploymentLogsURL)
-					);
+					tableData['Deployment Logs'] = tui.link(deployment.deploymentLogsURL);
 				}
 				if (deployment.buildLogsURL) {
-					console.log(
-						tui.bold('Build Logs:'.padEnd(maxWidth)) + tui.link(deployment.buildLogsURL)
-					);
+					tableData['Build Logs'] = tui.link(deployment.buildLogsURL);
 				}
+				if (deployment.dnsRecords && deployment.dnsRecords.length > 0) {
+					tableData['DNS Records'] = deployment.dnsRecords.join(', ');
+				}
+
+				tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 
 				// Git metadata
 				const git = deployment.metadata?.git;
 				if (git) {
-					tui.newline();
-					tui.info('Git Information');
-					if (git.repo) console.log(`  Repo:     ${git.repo}`);
-					if (git.branch) console.log(`  Branch:   ${git.branch}`);
-					if (git.commit) console.log(`  Commit:   ${git.commit}`);
-					if (git.message) console.log(`  Message:  ${git.message}`);
-					if (git.url) console.log(`  URL:      ${git.url}`);
-					if (git.trigger) console.log(`  Trigger:  ${git.trigger}`);
-					if (git.provider) console.log(`  Provider: ${git.provider}`);
-					if (git.event) console.log(`  Event:    ${git.event}`);
+					const gitData: Record<string, string> = {};
+					if (git.repo) gitData['Repo'] = git.repo;
+					if (git.branch) gitData['Branch'] = git.branch;
+					if (git.commit) gitData['Commit'] = git.commit;
+					if (git.message) gitData['Message'] = git.message;
+					if (git.url) gitData['URL'] = git.url;
+					if (git.trigger) gitData['Trigger'] = git.trigger;
+					if (git.provider) gitData['Provider'] = git.provider;
+					if (git.event) gitData['Event'] = git.event;
 					if (git.pull_request) {
-						console.log(`  PR:       #${git.pull_request.number}`);
-						if (git.pull_request.url) console.log(`  PR URL:   ${git.pull_request.url}`);
+						gitData['PR'] = `#${git.pull_request.number}`;
+						if (git.pull_request.url) gitData['PR URL'] = git.pull_request.url;
 					}
-					if (git.buildUrl) console.log(`  Build:    ${git.buildUrl}`);
+					if (git.buildUrl) gitData['Build'] = git.buildUrl;
+
+					if (Object.keys(gitData).length > 0) {
+						tui.newline();
+						tui.info('Git Information');
+						tui.table([gitData], Object.keys(gitData), {
+							layout: 'vertical',
+							padStart: '  ',
+						});
+					}
 				}
 
 				// Build metadata
 				const build = deployment.metadata?.build;
 				if (build) {
-					tui.newline();
-					tui.info('Build Information');
-					if (build.agentuity) console.log(`  Agentuity: ${build.agentuity}`);
-					if (build.bun) console.log(`  Bun:       ${build.bun}`);
-					if (build.platform) console.log(`  Platform:  ${build.platform}`);
-					if (build.arch) console.log(`  Arch:      ${build.arch}`);
+					const buildData: Record<string, string> = {};
+					if (build.agentuity) buildData['Agentuity'] = build.agentuity;
+					if (build.bun) buildData['Bun'] = build.bun;
+					if (build.platform) buildData['Platform'] = build.platform;
+					if (build.arch) buildData['Arch'] = build.arch;
+
+					if (Object.keys(buildData).length > 0) {
+						tui.newline();
+						tui.info('Build Information');
+						tui.table([buildData], Object.keys(buildData), {
+							layout: 'vertical',
+							padStart: '  ',
+						});
+					}
 				}
 			}
 
@@ -184,6 +194,7 @@ export const showSubcommand = createSubcommand({
 				resourceStorage: deployment.resourceStorage ?? undefined,
 				deploymentLogsURL: deployment.deploymentLogsURL ?? undefined,
 				buildLogsURL: deployment.buildLogsURL ?? undefined,
+				dnsRecords: deployment.dnsRecords ?? undefined,
 			};
 		} catch (ex) {
 			tui.fatal(`Failed to show deployment: ${ex}`);

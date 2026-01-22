@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
+import { getSandboxRegion, createSandboxClient } from '../util';
 import { getCommand } from '../../../../command-prefix';
 import { executionList } from '@agentuity/server';
 
@@ -25,7 +25,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List executions for a sandbox',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	examples: [
 		{
@@ -48,7 +48,8 @@ export const listSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, logger, orgId, config } = ctx;
+		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
 
 		const result = await executionList(client, {

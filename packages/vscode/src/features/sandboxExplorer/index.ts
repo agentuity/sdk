@@ -455,6 +455,59 @@ function registerCommands(
 
 // ==================== Command Implementations ====================
 
+interface RuntimePickItem extends vscode.QuickPickItem {
+	runtime?: string;
+	runtimeId?: string;
+}
+
+/**
+ * Show a quick pick to select a sandbox runtime.
+ * Returns undefined if cancelled, or the selected runtime info.
+ */
+async function pickSandboxRuntime(): Promise<{ runtime?: string; runtimeId?: string } | undefined> {
+	const cli = getCliClient();
+
+	// Show progress while loading runtimes
+	const result = await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: 'Loading runtimes...',
+			cancellable: false,
+		},
+		async () => cli.sandboxRuntimeList({ limit: 50 })
+	);
+
+	if (!result.success || !result.data || !result.data.runtimes.length) {
+		// Fall back to default runtime if listing fails
+		const choice = await vscode.window.showQuickPick<RuntimePickItem>(
+			[
+				{ label: 'Use default runtime (base:latest)', runtime: undefined },
+				{ label: 'Cancel', runtime: '__cancel__' },
+			],
+			{ placeHolder: 'Runtime selection (runtime list unavailable)' }
+		);
+		if (!choice || choice.runtime === '__cancel__') {
+			return undefined;
+		}
+		return {}; // no runtime specified => CLI default
+	}
+
+	const items: RuntimePickItem[] = result.data.runtimes.map((rt) => ({
+		label: rt.name,
+		description: rt.description,
+		detail: rt.tags?.length ? rt.tags.join(', ') : undefined,
+		runtime: rt.name,
+		runtimeId: rt.id,
+	}));
+
+	const picked = await vscode.window.showQuickPick(items, {
+		placeHolder: 'Select a sandbox runtime',
+	});
+
+	if (!picked) return undefined;
+	return { runtime: picked.runtime, runtimeId: picked.runtimeId };
+}
+
 async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 	const config = vscode.workspace.getConfiguration('agentuity');
 	const defaultMemory = config.get<string>('sandbox.defaultMemory', '512Mi');
@@ -464,8 +517,8 @@ async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 	// Quick pick for basic vs advanced
 	const mode = await vscode.window.showQuickPick(
 		[
-			{ label: 'Quick Create', description: 'Use default settings' },
-			{ label: 'Custom', description: 'Configure resources and options' },
+			{ label: 'Quick Create', description: 'bun:1 runtime with default settings' },
+			{ label: 'Custom', description: 'Configure runtime, resources and options' },
 		],
 		{ placeHolder: 'How do you want to create the sandbox?' }
 	);
@@ -475,6 +528,28 @@ async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 	let options: SandboxCreateOptions = {};
 
 	if (mode.label === 'Custom') {
+		// Name (optional)
+		const name = await vscode.window.showInputBox({
+			prompt: 'Sandbox name (optional)',
+			placeHolder: 'e.g., my-feature-env',
+		});
+		if (name === undefined) return;
+		options.name = name || undefined;
+
+		// Description (optional)
+		const description = await vscode.window.showInputBox({
+			prompt: 'Sandbox description (optional)',
+			placeHolder: 'e.g., Sandbox for feature-xyz integration tests',
+		});
+		if (description === undefined) return;
+		options.description = description || undefined;
+
+		// Runtime selection
+		const runtimeSelection = await pickSandboxRuntime();
+		if (runtimeSelection === undefined) return;
+		options.runtime = runtimeSelection.runtime;
+		options.runtimeId = runtimeSelection.runtimeId;
+
 		// Memory
 		const memory = await vscode.window.showInputBox({
 			prompt: 'Memory limit',
@@ -513,7 +588,9 @@ async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 			options.dependencies = deps.split(/\s+/).filter(Boolean);
 		}
 	} else {
+		// Quick create uses bun:1 runtime
 		options = {
+			runtime: 'bun:1',
 			memory: defaultMemory,
 			cpu: defaultCpu,
 			network: defaultNetwork,
@@ -531,7 +608,12 @@ async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 			const result = await cli.sandboxCreate(options);
 
 			if (result.success && result.data) {
-				vscode.window.showInformationMessage(`Sandbox created: ${result.data.sandboxId}`);
+				const info = result.data;
+				const displayName = info.name || info.sandboxId.slice(0, 12);
+				const runtimeDisplay = info.runtime?.name ?? info.runtime?.id ?? 'bun:1';
+				vscode.window.showInformationMessage(
+					`Sandbox "${displayName}" created with runtime ${runtimeDisplay}`
+				);
 				await provider.forceRefresh();
 			} else {
 				vscode.window.showErrorMessage(`Failed to create sandbox: ${result.error}`);
@@ -544,6 +626,23 @@ async function createSandboxFromSnapshot(
 	snapshotId: string,
 	provider: SandboxTreeDataProvider
 ): Promise<void> {
+	// Optional: prompt for name/description when creating from snapshot
+	const name = await vscode.window.showInputBox({
+		prompt: 'Sandbox name (optional)',
+		placeHolder: 'e.g., my-feature-env',
+	});
+	if (name === undefined) return;
+
+	const description = await vscode.window.showInputBox({
+		prompt: 'Sandbox description (optional)',
+		placeHolder: 'e.g., Restored from snapshot for testing',
+	});
+	if (description === undefined) return;
+
+	// Runtime selection
+	const runtimeSelection = await pickSandboxRuntime();
+	if (runtimeSelection === undefined) return;
+
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
@@ -552,10 +651,21 @@ async function createSandboxFromSnapshot(
 		},
 		async () => {
 			const cli = getCliClient();
-			const result = await cli.sandboxCreate({ snapshot: snapshotId });
+			const result = await cli.sandboxCreate({
+				snapshot: snapshotId,
+				name: name || undefined,
+				description: description || undefined,
+				runtime: runtimeSelection.runtime,
+				runtimeId: runtimeSelection.runtimeId,
+			});
 
 			if (result.success && result.data) {
-				vscode.window.showInformationMessage(`Sandbox created: ${result.data.sandboxId}`);
+				const info = result.data;
+				const displayName = info.name || info.sandboxId.slice(0, 12);
+				const runtimeDisplay = info.runtime?.name ?? info.runtime?.id ?? 'bun:1';
+				vscode.window.showInformationMessage(
+					`Sandbox "${displayName}" created from snapshot with runtime ${runtimeDisplay}`
+				);
 				await provider.forceRefresh();
 			} else {
 				vscode.window.showErrorMessage(`Failed to create sandbox: ${result.error}`);
@@ -702,9 +812,7 @@ function executeInTerminal(sandboxId: string, command: string): void {
 	}
 
 	terminal.show();
-	terminal.sendText(
-		`${cliPath} cloud sandbox exec ${sandboxId} --region ${cli.getSandboxRegion()} -- ${command}`
-	);
+	terminal.sendText(`${cliPath} cloud sandbox exec ${sandboxId} -- ${command}`);
 }
 
 function disposeTerminals(): void {
@@ -723,22 +831,19 @@ async function viewSandboxFile(sandboxId: string, filePath: string): Promise<voi
 		},
 		async () => {
 			const cli = getCliClient();
-			// Use a stable temp directory for sandbox files
 			const sandboxTmpDir = path.join(os.tmpdir(), 'agentuity-sandbox', sandboxId.slice(0, 12));
 			fs.mkdirSync(sandboxTmpDir, { recursive: true });
 
 			const fileName = path.basename(filePath);
 			const localPath = path.join(sandboxTmpDir, fileName);
 
-			// Build full remote path under sandbox home
 			const fullRemotePath = filePath.startsWith('/')
 				? filePath
 				: `${CliClient.SANDBOX_HOME}/${filePath}`;
 
-			const result = await cli.sandboxCpFromSandbox(sandboxId, fullRemotePath, localPath);
+			const result = await cli.sandboxCpFromSandbox(sandboxId, fullRemotePath, localPath, false);
 
 			if (result.success) {
-				// Track this file for save-back
 				sandboxFileMap.set(localPath, {
 					sandboxId,
 					remotePath: fullRemotePath,
@@ -760,7 +865,7 @@ async function uploadSavedFile(
 	provider: SandboxTreeDataProvider
 ): Promise<void> {
 	const cli = getCliClient();
-	const result = await cli.sandboxCpToSandbox(sandboxId, localPath, remotePath);
+	const result = await cli.sandboxCpToSandbox(sandboxId, localPath, remotePath, false);
 
 	if (result.success) {
 		vscode.window.showInformationMessage(`Saved to sandbox: ${path.basename(remotePath)}`);
@@ -1057,8 +1162,7 @@ async function viewEnv(sandboxId: string): Promise<void> {
 		},
 		async () => {
 			const cli = getCliClient();
-			// Use exec to run 'env' command to get actual runtime environment
-			const result = await cli.sandboxExec(sandboxId, ['env']);
+			const result = await cli.sandboxExec(sandboxId, ['env'], {});
 
 			if (result.success && result.data) {
 				const content = result.data.output || '(no environment variables)';
@@ -1332,32 +1436,42 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
 }
 
 async function uploadToSandbox(uri: vscode.Uri): Promise<void> {
-	const linked = getSandboxManager().getLinkedSandboxes();
+	const cli = getCliClient();
 
-	if (linked.length === 0) {
-		vscode.window.showWarningMessage('No sandbox linked. Link a sandbox first.');
+	// Fetch all sandboxes
+	const listResult = await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: 'Loading sandboxes...',
+			cancellable: false,
+		},
+		async () => cli.sandboxList()
+	);
+
+	if (!listResult.success || !listResult.data || listResult.data.length === 0) {
+		vscode.window.showWarningMessage('No sandboxes available. Create a sandbox first.');
 		return;
 	}
 
-	let sandboxId: string;
-	if (linked.length === 1) {
-		sandboxId = linked[0].sandboxId;
-	} else {
-		const picked = await vscode.window.showQuickPick(
-			linked.map((l) => ({
-				label: l.name || l.sandboxId,
-				description: l.sandboxId,
-				sandboxId: l.sandboxId,
-			})),
-			{ placeHolder: 'Select sandbox to upload to' }
-		);
-		if (!picked) return;
-		sandboxId = picked.sandboxId;
-	}
+	const sandboxes = listResult.data;
+
+	// Pick a sandbox
+	const picked = await vscode.window.showQuickPick(
+		sandboxes.map((s) => ({
+			label: s.name || s.sandboxId.slice(0, 12),
+			description: `${s.status} · ${s.runtime?.name ?? s.runtime?.id ?? 'base'}`,
+			detail: s.sandboxId,
+			sandbox: s,
+		})),
+		{ placeHolder: 'Select sandbox to upload to' }
+	);
+
+	if (!picked) return;
+	const selectedSandbox = picked.sandbox;
 
 	const remotePath = await vscode.window.showInputBox({
 		prompt: 'Remote path',
-		value: linked.find((l) => l.sandboxId === sandboxId)?.remotePath || DEFAULT_SANDBOX_PATH,
+		value: DEFAULT_SANDBOX_PATH,
 	});
 
 	if (!remotePath) return;
@@ -1369,11 +1483,21 @@ async function uploadToSandbox(uri: vscode.Uri): Promise<void> {
 			cancellable: false,
 		},
 		async () => {
-			const cli = getCliClient();
 			const stats = await vscode.workspace.fs.stat(uri);
 			const isDir = stats.type === vscode.FileType.Directory;
 
-			const result = await cli.sandboxCpToSandbox(sandboxId, uri.fsPath, remotePath, isDir);
+			// Build full remote path including filename
+			const fileName = path.basename(uri.fsPath);
+			const fullRemotePath = remotePath.endsWith('/')
+				? `${remotePath}${fileName}`
+				: `${remotePath}/${fileName}`;
+
+			const result = await cli.sandboxCpToSandbox(
+				selectedSandbox.sandboxId,
+				uri.fsPath,
+				fullRemotePath,
+				isDir
+			);
 
 			if (result.success) {
 				vscode.window.showInformationMessage(`Uploaded to ${remotePath}`);

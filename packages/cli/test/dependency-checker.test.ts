@@ -161,30 +161,9 @@ describe('dependency-checker', () => {
 		expect(result.upgraded.length + result.failed.length).toBeGreaterThan(0);
 	});
 
-	test('skips in non-TTY environment', async () => {
-		// Set stdin.isTTY to false
-		Object.defineProperty(process.stdin, 'isTTY', {
-			value: false,
-			writable: true,
-			configurable: true,
-		});
-
-		const packageJson = {
-			name: 'test-app',
-			dependencies: {
-				'@agentuity/core': 'latest',
-			},
-		};
-
-		writeFileSync(join(testDir, 'package.json'), JSON.stringify(packageJson, null, 2));
-
-		const logger = createMockLogger();
-		const result = await checkAndUpgradeDependencies(testDir, logger);
-
-		expect(result.upgraded).toEqual([]);
-		expect(result.skipped).toEqual([]);
-		expect(result.failed).toEqual([]);
-	});
+	// Note: checkAndUpgradeDependencies does NOT check TTY internally.
+	// The caller (vite-bundler, dev command) is responsible for deciding
+	// whether to call it based on TTY. The function always attempts upgrades.
 
 	test('handles missing package.json gracefully', async () => {
 		const logger = createMockLogger();

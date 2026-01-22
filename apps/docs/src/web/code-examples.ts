@@ -310,7 +310,7 @@ router.post("/generate", async (c) => {
   });
 
   // Write content in background
-  c.executionCtx?.waitUntil((async () => {
+  c.waitUntil(async () => {
     const { textStream } = streamText({
       model: openai("gpt-4"),
       prompt: "Generate a weekly report...",
@@ -320,7 +320,7 @@ router.post("/generate", async (c) => {
       await stream.write(chunk);
     }
     await stream.close();
-  })());
+  });
 
   // Return URL immediately - shareable with anyone
   return c.json({

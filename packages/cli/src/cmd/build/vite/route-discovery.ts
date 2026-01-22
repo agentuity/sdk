@@ -37,6 +37,10 @@ export interface RouteInfo {
 	agentDescription?: string;
 	inputSchemaVariable?: string;
 	outputSchemaVariable?: string;
+	inputSchemaImportPath?: string;
+	inputSchemaImportedName?: string;
+	outputSchemaImportPath?: string;
+	outputSchemaImportedName?: string;
 	inputSchemaCode?: string;
 	outputSchemaCode?: string;
 	stream?: boolean;
@@ -119,6 +123,18 @@ export async function discoverRoutes(
 							agentImportPath: route.config?.agentImportPath as string | undefined,
 							inputSchemaVariable: route.config?.inputSchemaVariable as string | undefined,
 							outputSchemaVariable: route.config?.outputSchemaVariable as string | undefined,
+							inputSchemaImportPath: route.config?.inputSchemaImportPath as
+								| string
+								| undefined,
+							inputSchemaImportedName: route.config?.inputSchemaImportedName as
+								| string
+								| undefined,
+							outputSchemaImportPath: route.config?.outputSchemaImportPath as
+								| string
+								| undefined,
+							outputSchemaImportedName: route.config?.outputSchemaImportedName as
+								| string
+								| undefined,
 							stream:
 								route.config?.stream !== undefined && route.config.stream !== null
 									? Boolean(route.config.stream)

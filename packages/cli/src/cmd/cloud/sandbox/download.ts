@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { writeFileSync } from 'node:fs';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { createSandboxClient, getSandboxRegion } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxDownloadArchive } from '@agentuity/server';
 
@@ -11,7 +11,7 @@ export const downloadSubcommand = createCommand({
 	aliases: ['dl'],
 	description: 'Download files from a sandbox as a compressed archive',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox download sbx_abc123 ./backup.tar.gz'),
@@ -35,9 +35,8 @@ export const downloadSubcommand = createCommand({
 			path: z.string().optional().describe('Path in sandbox to download (defaults to root)'),
 			format: z
 				.enum(['zip', 'tar.gz'])
-				.default('tar.gz')
 				.optional()
-				.describe('Archive format (zip or tar.gz)'),
+				.describe('Archive format (auto-detected from filename if not specified)'),
 		}),
 		response: z.object({
 			success: z.boolean(),
@@ -47,10 +46,12 @@ export const downloadSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, logger, orgId, config } = ctx;
 
+		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
-		const format = opts.format || 'tar.gz';
+
+		const format = opts.format ?? detectFormat(args.output);
 
 		const stream = await sandboxDownloadArchive(client, {
 			sandboxId: args.sandboxId,
@@ -91,6 +92,12 @@ function formatSize(bytes: number): string {
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 	return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function detectFormat(filename: string): 'zip' | 'tar.gz' {
+	const lower = filename.toLowerCase();
+	if (lower.endsWith('.zip')) return 'zip';
+	return 'tar.gz';
 }
 
 export default downloadSubcommand;

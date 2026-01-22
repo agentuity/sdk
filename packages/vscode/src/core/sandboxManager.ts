@@ -11,12 +11,22 @@ export const DEFAULT_SANDBOX_PATH = CliClient.SANDBOX_HOME;
 /**
  * Represents a sandbox linked to the current workspace.
  */
+export interface LinkedSandboxRuntime {
+	id: string;
+	name: string;
+	iconUrl?: string;
+	brandColor?: string;
+}
+
 export interface LinkedSandbox {
 	sandboxId: string;
 	name?: string;
 	linkedAt: string;
 	lastSyncedAt?: string;
 	remotePath: string;
+	description?: string;
+	runtime?: LinkedSandboxRuntime;
+	region?: string;
 }
 
 /**
@@ -80,11 +90,12 @@ export class SandboxManager {
 			throw new Error('No workspace folder open');
 		}
 
-		// Verify sandbox exists
+		// Verify sandbox exists and get its info
 		const result = await this.cliClient.sandboxGet(sandboxId);
-		if (!result.success) {
+		if (!result.success || !result.data) {
 			throw new Error(`Failed to verify sandbox: ${result.error}`);
 		}
+		const sandboxInfo = result.data;
 
 		const allLinked = this.context.workspaceState.get<Record<string, LinkedSandbox[]>>(
 			LINKED_SANDBOXES_KEY,
@@ -100,6 +111,7 @@ export class SandboxManager {
 				...workspaceLinks[existingIndex],
 				name: options.name ?? workspaceLinks[existingIndex].name,
 				remotePath: options.remotePath ?? workspaceLinks[existingIndex].remotePath,
+				region: sandboxInfo.region ?? workspaceLinks[existingIndex].region,
 			};
 		} else {
 			// Add new link
@@ -108,6 +120,7 @@ export class SandboxManager {
 				name: options.name,
 				linkedAt: new Date().toISOString(),
 				remotePath: options.remotePath ?? DEFAULT_SANDBOX_PATH,
+				region: sandboxInfo.region,
 			});
 		}
 
@@ -428,18 +441,61 @@ export class SandboxManager {
 	/**
 	 * Refresh sandbox info for all linked sandboxes.
 	 * Returns info about which sandboxes are still valid.
+	 * Also updates linked sandbox metadata with new fields from the API.
 	 */
 	async refreshLinkedSandboxes(): Promise<Map<string, SandboxInfo | null>> {
-		const linked = this.getLinkedSandboxes();
-		const results = new Map<string, SandboxInfo | null>();
+		const workspaceKey = this.getWorkspaceKey();
+		if (!workspaceKey) {
+			return new Map();
+		}
 
-		for (const link of linked) {
+		const allLinked = this.context.workspaceState.get<Record<string, LinkedSandbox[]>>(
+			LINKED_SANDBOXES_KEY,
+			{}
+		);
+		const workspaceLinks = allLinked[workspaceKey] || [];
+		const results = new Map<string, SandboxInfo | null>();
+		let needsUpdate = false;
+
+		for (const link of workspaceLinks) {
 			const result = await this.cliClient.sandboxGet(link.sandboxId);
 			if (result.success && result.data) {
-				results.set(link.sandboxId, result.data);
+				const info = result.data;
+				results.set(link.sandboxId, info);
+
+				// Update linked sandbox with new fields from API
+				const runtimeChanged =
+					info.runtime?.id !== link.runtime?.id ||
+					info.runtime?.name !== link.runtime?.name ||
+					info.runtime?.iconUrl !== link.runtime?.iconUrl ||
+					info.runtime?.brandColor !== link.runtime?.brandColor;
+				if (
+					info.name !== link.name ||
+					info.description !== link.description ||
+					runtimeChanged
+				) {
+					link.name = info.name ?? link.name;
+					link.description = info.description;
+					link.runtime = info.runtime
+						? {
+								id: info.runtime.id,
+								name: info.runtime.name,
+								iconUrl: info.runtime.iconUrl,
+								brandColor: info.runtime.brandColor,
+							}
+						: undefined;
+					needsUpdate = true;
+				}
 			} else {
 				results.set(link.sandboxId, null);
 			}
+		}
+
+		// Persist updated metadata if changed
+		if (needsUpdate) {
+			allLinked[workspaceKey] = workspaceLinks;
+			await this.context.workspaceState.update(LINKED_SANDBOXES_KEY, allLinked);
+			_onLinkedSandboxesChanged.fire(workspaceLinks);
 		}
 
 		return results;

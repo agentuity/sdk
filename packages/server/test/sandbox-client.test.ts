@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { Writable } from 'node:stream';
 import { SandboxClient } from '../src/api/sandbox/client';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
@@ -124,6 +125,70 @@ describe('SandboxClient', () => {
 
 			expect(sandbox.id).toBe('sandbox-456');
 		});
+
+		test('should create sandbox with projectId', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST') {
+					const body = JSON.parse(opts.body as string);
+					expect(body.projectId).toBe('proj_123');
+
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-789',
+								status: 'creating',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create({
+				projectId: 'proj_123',
+			});
+
+			expect(sandbox.id).toBe('sandbox-789');
+		});
+
+		test('should create sandbox with top-level files', async () => {
+			let requestBody: Record<string, unknown> | null = null;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST') {
+					requestBody = JSON.parse(opts.body as string);
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-files',
+								status: 'creating',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create({
+				files: [
+					{ path: 'index.ts', content: Buffer.from('console.log("hello")') },
+					{ path: 'config.json', content: Buffer.from('{"port": 3000}') },
+				],
+			});
+
+			expect(sandbox.id).toBe('sandbox-files');
+			expect(requestBody).not.toBeNull();
+			expect(requestBody!.files).toEqual({
+				'index.ts': Buffer.from('console.log("hello")').toString('base64'),
+				'config.json': Buffer.from('{"port": 3000}').toString('base64'),
+			});
+		});
 	});
 
 	describe('sandbox instance methods', () => {
@@ -187,6 +252,227 @@ describe('SandboxClient', () => {
 			expect(result.exitCode).toBe(0);
 		});
 
+		test('execute with files should send files as map in request body', async () => {
+			let requestBody: Record<string, unknown> | null = null;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					requestBody = JSON.parse(opts.body as string);
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-files-test',
+								status: 'queued',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('/execution/exec-files-test')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-files-test',
+								sandboxId: 'sandbox-123',
+								status: 'completed',
+								exitCode: 0,
+								durationMs: 100,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { sandboxId: 'sandbox-123', status: 'idle' },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			await sandbox.execute({
+				command: ['bun', 'run', 'script.ts'],
+				files: [
+					{ path: 'script.ts', content: Buffer.from('console.log("hello")') },
+					{ path: 'data.json', content: Buffer.from('{"key": "value"}') },
+				],
+			});
+
+			expect(requestBody).not.toBeNull();
+			expect(requestBody!.command).toEqual(['bun', 'run', 'script.ts']);
+			expect(requestBody!.files).toEqual({
+				'script.ts': Buffer.from('console.log("hello")').toString('base64'),
+				'data.json': Buffer.from('{"key": "value"}').toString('base64'),
+			});
+		});
+
+		test('execute with empty files array should not include files in request', async () => {
+			let requestBody: Record<string, unknown> | null = null;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					requestBody = JSON.parse(opts.body as string);
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-empty-files',
+								status: 'queued',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('/execution/exec-empty-files')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-empty-files',
+								sandboxId: 'sandbox-123',
+								status: 'completed',
+								exitCode: 0,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { sandboxId: 'sandbox-123', status: 'idle' },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			await sandbox.execute({
+				command: ['echo', 'hello'],
+				files: [],
+			});
+
+			expect(requestBody).not.toBeNull();
+			expect(requestBody!.command).toEqual(['echo', 'hello']);
+			expect(requestBody!.files).toBeUndefined();
+		});
+
+		test('execute with pipe should handle backpressure and receive all chunks', async () => {
+			const chunks = [
+				new Uint8Array([72, 101, 108, 108, 111]), // "Hello"
+				new Uint8Array([32, 87, 111, 114, 108, 100]), // " World"
+				new Uint8Array([33, 10]), // "!\n"
+			];
+			const receivedChunks: Buffer[] = [];
+
+			const slowWritable = new Writable({
+				highWaterMark: 1,
+				write(chunk, _encoding, callback) {
+					receivedChunks.push(Buffer.from(chunk));
+					setTimeout(callback, 5);
+				},
+			});
+
+			mockFetch(async (url, opts) => {
+				// Execute endpoint - must check before /sandbox/ since it also contains /sandbox/
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-pipe-test',
+								status: 'queued',
+								stdoutStreamUrl: 'https://stream.example.com/stdout/exec-pipe-test',
+								stderrStreamUrl: 'https://stream.example.com/stderr/exec-pipe-test',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				// Sandbox create endpoint
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-pipe-test',
+								status: 'idle',
+								stdoutStreamUrl: 'https://stream.example.com/stdout',
+								stderrStreamUrl: 'https://stream.example.com/stderr',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				// Stream endpoint
+				if (url.includes('stream.example.com/stdout')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < chunks.length) {
+								controller.enqueue(chunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				// Execution status endpoint
+				if (opts?.method === 'GET' && url.includes('/execution/exec-pipe-test')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-pipe-test',
+								sandboxId: 'sandbox-pipe-test',
+								status: 'completed',
+								exitCode: 0,
+								durationMs: 100,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			const result = await sandbox.execute({
+				command: ['echo', 'Hello World!'],
+				pipe: { stdout: slowWritable },
+			});
+
+			expect(result.status).toBe('completed');
+			expect(result.exitCode).toBe(0);
+			expect(receivedChunks.length).toBe(3);
+			const fullOutput = Buffer.concat(receivedChunks).toString();
+			expect(fullOutput).toBe('Hello World!\n');
+		});
+
 		test('get should call sandbox get API', async () => {
 			let getCalled = false;
 
@@ -205,6 +491,7 @@ describe('SandboxClient', () => {
 								status: 'running',
 								createdAt: '2025-01-01T00:00:00Z',
 								executions: 5,
+								org: { id: 'org-123', name: 'Test Org' },
 							},
 						}),
 						{ status: 200, headers: { 'content-type': 'application/json' } }
@@ -267,6 +554,164 @@ describe('SandboxClient', () => {
 		});
 	});
 
+	describe('run', () => {
+		test('should have run method available', () => {
+			const client = new SandboxClient({ logger: createMockLogger() });
+			expect(typeof client.run).toBe('function');
+		});
+
+		test('should throw error when stdin provided without API key', async () => {
+			delete process.env.AGENTUITY_SDK_KEY;
+			delete process.env.AGENTUITY_CLI_KEY;
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const { Readable } = await import('node:stream');
+			const stdin = new Readable({ read() {} });
+
+			await expect(client.run({ command: { exec: ['cat'] } }, { stdin })).rejects.toThrow(
+				'SandboxClient.run(): stdin streaming requires an API key'
+			);
+		});
+
+		test('should call sandbox create API with oneshot mode', async () => {
+			let createCalled = false;
+			let createBody: Record<string, unknown> | null = null;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					createCalled = true;
+					createBody = JSON.parse(opts.body as string);
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-run-123',
+								status: 'running',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-run-123')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-run-123',
+								status: 'terminated',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+
+			const abortController = new AbortController();
+			setTimeout(() => abortController.abort(), 100);
+
+			try {
+				await client.run(
+					{ command: { exec: ['echo', 'hello'] } },
+					{ signal: abortController.signal }
+				);
+			} catch {
+				// Expected to be aborted
+			}
+
+			expect(createCalled).toBe(true);
+			expect((createBody?.command as Record<string, unknown>)?.mode).toBe('oneshot');
+			expect((createBody?.command as Record<string, unknown>)?.exec).toEqual(['echo', 'hello']);
+		});
+
+		test('should return actual exit code from sandbox info', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-exit-test',
+								status: 'running',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-exit-test')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-exit-test',
+								status: 'terminated',
+								exitCode: 42,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run({ command: { exec: ['exit', '42'] } });
+
+			expect(result.sandboxId).toBe('sandbox-exit-test');
+			expect(result.exitCode).toBe(42);
+		});
+
+		test('should return exit code 1 for failed sandbox without explicit exit code', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-fail-test',
+								status: 'running',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-fail-test')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-fail-test',
+								status: 'failed',
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run({ command: { exec: ['false'] } });
+
+			expect(result.sandboxId).toBe('sandbox-fail-test');
+			expect(result.exitCode).toBe(1);
+		});
+	});
+
 	describe('client direct methods', () => {
 		test('get should fetch sandbox by ID', async () => {
 			mockFetch(async (url, opts) => {
@@ -279,6 +724,7 @@ describe('SandboxClient', () => {
 								status: 'idle',
 								createdAt: '2025-01-01T00:00:00Z',
 								executions: 0,
+								org: { id: 'org-123', name: 'Test Org' },
 							},
 						}),
 						{ status: 200, headers: { 'content-type': 'application/json' } }

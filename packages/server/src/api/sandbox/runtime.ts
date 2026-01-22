@@ -1,7 +1,16 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { throwSandboxError, API_VERSION } from './util';
 import type { ListRuntimesParams, ListRuntimesResponse, SandboxRuntime } from '@agentuity/core';
+
+const RuntimeRequirementsSchema = z
+	.object({
+		memory: z.string().optional().describe('Memory requirement (e.g., "1Gi")'),
+		cpu: z.string().optional().describe('CPU requirement (e.g., "1")'),
+		disk: z.string().optional().describe('Disk requirement (e.g., "500Mi")'),
+		networkEnabled: z.boolean().describe('Whether network access is enabled'),
+	})
+	.describe('Runtime resource requirements');
 
 const RuntimeInfoSchema = z
 	.object({
@@ -9,8 +18,11 @@ const RuntimeInfoSchema = z
 		name: z.string().describe('Runtime name (e.g., "bun:1", "python:3.14")'),
 		description: z.string().optional().describe('Optional description'),
 		iconUrl: z.string().optional().describe('URL for runtime icon'),
+		brandColor: z.string().optional().describe('Brand color for the runtime (hex color code)'),
 		url: z.string().optional().describe('URL for runtime documentation or homepage'),
 		tags: z.array(z.string()).optional().describe('Optional tags for categorization'),
+		requirements: RuntimeRequirementsSchema.optional().describe('Runtime resource requirements'),
+		readme: z.string().optional().describe('Readme content in markdown format'),
 	})
 	.describe('Information about a sandbox runtime');
 
@@ -61,17 +73,22 @@ export async function runtimeList(
 
 	if (resp.success) {
 		return {
-			runtimes: resp.data.runtimes.map((r): SandboxRuntime => ({
-				id: r.id,
-				name: r.name,
-				description: r.description,
-				iconUrl: r.iconUrl,
-				url: r.url,
-				tags: r.tags,
-			})),
+			runtimes: resp.data.runtimes.map(
+				(r): SandboxRuntime => ({
+					id: r.id,
+					name: r.name,
+					description: r.description,
+					iconUrl: r.iconUrl,
+					brandColor: r.brandColor,
+					url: r.url,
+					tags: r.tags,
+					requirements: r.requirements,
+					readme: r.readme,
+				})
+			),
 			total: resp.data.total,
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }

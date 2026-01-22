@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
+import { getSandboxRegion, createSandboxClient } from '../util';
 import { getCommand } from '../../../../command-prefix';
 import { snapshotCreate } from '@agentuity/server';
 
@@ -23,7 +23,7 @@ export const createSubcommand = createCommand({
 	name: 'create',
 	description: 'Create a snapshot from a sandbox',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox snapshot create sbx_abc123'),
@@ -34,8 +34,14 @@ export const createSubcommand = createCommand({
 			description: 'Create a tagged snapshot',
 		},
 		{
-			command: getCommand('cloud sandbox snapshot create sbx_abc123 --name "My Snapshot" --description "Initial setup"'),
+			command: getCommand(
+				'cloud sandbox snapshot create sbx_abc123 --name "My Snapshot" --description "Initial setup"'
+			),
 			description: 'Create a named snapshot with description',
+		},
+		{
+			command: getCommand('cloud sandbox snapshot create sbx_abc123 --public'),
+			description: 'Create a public snapshot',
 		},
 	],
 	schema: {
@@ -49,12 +55,17 @@ export const createSubcommand = createCommand({
 				.describe('Display name for the snapshot (letters, numbers, underscores, dashes only)'),
 			description: z.string().optional().describe('Description of the snapshot'),
 			tag: z.string().optional().describe('Tag for the snapshot (defaults to "latest")'),
+			public: z
+				.boolean()
+				.optional()
+				.default(false)
+				.describe('Make the snapshot publicly accessible'),
 		}),
 		response: SnapshotCreateResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, logger, orgId, config } = ctx;
 
 		if (opts.name && !SNAPSHOT_NAME_REGEX.test(opts.name)) {
 			logger.fatal(
@@ -64,7 +75,9 @@ export const createSubcommand = createCommand({
 
 		if (opts.tag) {
 			if (opts.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
-				logger.fatal(`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`);
+				logger.fatal(
+					`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`
+				);
 			}
 			if (!SNAPSHOT_TAG_REGEX.test(opts.tag)) {
 				logger.fatal(
@@ -73,6 +86,8 @@ export const createSubcommand = createCommand({
 			}
 		}
 
+		const profileName = config?.name;
+		const region = await getSandboxRegion(logger, auth, profileName, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
 
 		const snapshot = await snapshotCreate(client, {
@@ -80,17 +95,29 @@ export const createSubcommand = createCommand({
 			name: opts.name,
 			description: opts.description,
 			tag: opts.tag,
+			public: opts.public,
 			orgId,
 		});
 
 		if (!options.json) {
-			tui.success(`created snapshot ${tui.bold(snapshot.snapshotId)}`);
-			tui.info(`Name: ${snapshot.name}`);
-			if (snapshot.description) {
-				tui.info(`Description: ${snapshot.description}`);
-			}
-			tui.info(`Size: ${tui.formatBytes(snapshot.sizeBytes)}, Files: ${snapshot.fileCount}`);
-			tui.info(`Tag: ${snapshot.tag ?? 'latest'}`);
+			tui.success(`Created snapshot ${tui.bold(snapshot.snapshotId)}`);
+			console.log('');
+
+			tui.table(
+				[
+					{
+						Name: snapshot.name,
+						Description: snapshot.description ?? '-',
+						Tag: snapshot.tag ?? 'latest',
+						Size: tui.formatBytes(snapshot.sizeBytes),
+						Files: snapshot.fileCount.toFixed(),
+						Visibility: snapshot.public ? 'public' : 'private',
+						Created: snapshot.createdAt,
+					},
+				],
+				['Name', 'Description', 'Tag', 'Size', 'Files', 'Visibility', 'Created'],
+				{ layout: 'vertical', padStart: '  ' }
+			);
 		}
 
 		return {
