@@ -6,7 +6,7 @@
  * See src/run/README.md for architecture details.
  *
  * Demonstrates: LLM-as-Judge pattern - two models compete, judge picks winner
- * Uses OpenAI vs Anthropic with Groq as judge
+ * Uses OpenAI vs Anthropic with OpenAI as judge
  *
  * Usage: bun run src/run/model-arena.ts '{"prompt":"Write a haiku about coding"}'
  */
@@ -77,7 +77,9 @@ Model B: ${responseB.text.slice(0, 200)}`,
 
 	// Buffer all output (matches reference code style)
 	output.push(`[INFO] Model A (OpenAI gpt-5-nano): "${responseA.text}"`);
+	output.push('');
 	output.push(`[INFO] Model B (Anthropic claude-haiku-4-5): "${responseB.text}"`);
+	output.push('');
 	output.push(`[INFO] Judge result {"winner":"${judgment.winner}"}`);
 	output.push(`[INFO] Scores {"creativity":${judgment.scores.creativity},"clarity":${judgment.scores.clarity}}`);
 	output.push(`[INFO] Reasoning: ${judgment.reasoning}`);

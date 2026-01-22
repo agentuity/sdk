@@ -575,7 +575,9 @@ Model B: \${responseB.text.slice(0, 200)}\`,
 
 	// Buffer all output (matches reference code style)
 	output.push(\`[INFO] Model A (OpenAI gpt-5-nano): "\${responseA.text}"\`);
+	output.push("");
 	output.push(\`[INFO] Model B (Anthropic claude-haiku-4-5): "\${responseB.text}"\`);
+	output.push("");
 	output.push(\`[INFO] Judge result {"winner":"\${judgment.winner}"}\`);
 	output.push(\`[INFO] Scores {"creativity":\${judgment.scores.creativity},"clarity":\${judgment.scores.clarity}}\`);
 	output.push(\`[INFO] Reasoning: \${judgment.reasoning}\`);

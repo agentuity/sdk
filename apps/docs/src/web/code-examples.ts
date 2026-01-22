@@ -311,7 +311,7 @@ router.post("/generate", async (c) => {
   });
 
   // Write content in background
-  c.waitUntil(async () => {
+  c.var.waitUntil(async () => {
     const { textStream } = streamText({
       model: openai("gpt-4"),
       prompt: "Generate a weekly report...",

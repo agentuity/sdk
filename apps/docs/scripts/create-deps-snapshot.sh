@@ -1,11 +1,16 @@
 #!/bin/bash
 # Create SDK Explorer snapshot with dependencies and agents pre-installed.
 #
+# Why use this script instead of `agentuity cloud sandbox snapshot build`?
+# The declarative YAML build (agentuity-snapshot.yaml) respects .gitignore,
+# which excludes node_modules. This script works around that by creating a
+# sandbox, installing dependencies inside it, then snapshotting.
+#
 # Includes:
 # - npm dependencies (published versions, not workspace refs)
 # - src/agent/** (agent implementations)
 #
-# Excludes (injected at runtime via writeFiles):
+# Excludes (injected at runtime via sandboxRun files option):
 # - src/run/** (wrapper scripts)
 # - src/web/**, src/api/** (server-side code)
 #
