@@ -51,7 +51,7 @@ export const downloadSubcommand = createCommand({
 		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
 
-		let format: 'zip' | 'tar.gz' = opts.format ?? detectFormat(args.output);
+		const format = opts.format ?? detectFormat(args.output);
 
 		const stream = await sandboxDownloadArchive(client, {
 			sandboxId: args.sandboxId,
