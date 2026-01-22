@@ -5,7 +5,8 @@
  * See src/run/README.md for architecture details.
  *
  * Demonstrates: Raw text streaming using streamText
- * Tokens are written to stdout as they arrive, streaming live via SSE to frontend.
+ * Note: Sandbox buffers stdout, so output appears all at once.
+ * In a real server, tokens would stream to the client in real-time.
  *
  * Usage: bun run src/run/streaming.ts '{"prompt":"Tell me a story"}'
  */
@@ -18,38 +19,35 @@ interface Input {
 }
 
 const input: Input = JSON.parse(process.argv[2] ?? '{}');
-const prompt = input.prompt ?? "Write a short poem about coding.";
+const prompt = input.prompt ?? "Write a short poem about AI.";
 
 const ctx = createAgentContext();
-ctx.logger.info("Starting stream");
-
-console.log("---OUTPUT---");
+ctx.logger.info("Streaming started", { prompt });
 
 try {
-	console.log("[Starting streamText call]");
-
 	const { textStream } = streamText({
 		model: openai("gpt-5-nano"),
 		prompt,
 	});
 
-	console.log("[Got textStream, starting iteration]");
-	console.log("");
-
-	// Stream tokens directly to stdout - they flow live via SSE to the frontend
-	let chunkCount = 0;
+	// Collect streamed tokens (sandbox buffers stdout anyway)
+	let fullText = "";
+	let tokenCount = 0;
 	for await (const chunk of textStream) {
-		process.stdout.write(chunk);
-		chunkCount++;
+		fullText += chunk;
+		tokenCount++;
 	}
 
+	// Output everything at once
+	console.log("---OUTPUT---");
+	console.log(`Prompt: "${prompt}"`);
 	console.log("");
-	console.log(`[Stream complete: ${chunkCount} chunks]`);
+	console.log(fullText);
+	console.log("");
+	console.log(`[Streamed ${tokenCount} tokens]`);
 } catch (error) {
-	console.log("");
-	console.log(`[Stream error: ${error instanceof Error ? error.message : String(error)}]`);
-} finally {
-	console.log("[Script finished]");
+	console.log("---OUTPUT---");
+	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
 }
 
 // Ensure stdout is flushed before exit

@@ -57,6 +57,7 @@ interface DemoConfig {
 	sandboxScript?: string; // Script name for sandbox execution (must match backend PREBAKED_SCRIPTS)
 	sandboxInput?: unknown; // Input to pass when running the agent in sandbox
 	codeHighlights?: LineHighlight[]; // Lines to highlight in the code example
+	isRoute?: boolean; // True if this is a route demo (not an agent)
 }
 
 const DEMOS: DemoConfig[] = [
@@ -273,7 +274,8 @@ const DEMOS: DemoConfig[] = [
 		codeExample: CODE_EXAMPLES.streaming,
 		sandboxEnabled: true,
 		sandboxScript: "streaming",
-		sandboxInput: { prompt: "Write a short poem about coding." },
+		sandboxInput: { prompt: "Write a short poem about AI." },
+		isRoute: true,
 	},
 	{
 		id: "sse-stream",
@@ -307,6 +309,7 @@ const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: "sse-stream",
 		sandboxInput: { prompt: "Explain what Server-Sent Events are in 2-3 sentences." },
+		isRoute: true,
 	},
 	{
 		id: "durable-stream",
@@ -340,6 +343,7 @@ const DEMOS: DemoConfig[] = [
 		codeExample: CODE_EXAMPLES["durable-stream"],
 		sandboxEnabled: true,
 		sandboxScript: "durable-stream",
+		isRoute: true,
 	},
 	{
 		id: "agent-calls",
@@ -396,6 +400,7 @@ const DEMOS: DemoConfig[] = [
 		codeExample: CODE_EXAMPLES.cron,
 		sandboxEnabled: true,
 		sandboxScript: "cron",
+		isRoute: true,
 	},
 	// Examples - complete use cases
 	{
@@ -727,6 +732,7 @@ function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 								error={sandbox.state.error}
 								exitCode={testOutput ? 0 : sandbox.state.exitCode}
 								onClear={sandbox.reset}
+								isRoute={demo.isRoute}
 							/>
 						</>
 					) : (

@@ -9,9 +9,7 @@
  *     |
  * Backend (route.ts)
  *     |
- *     +-> getOrCreateSandbox() - Reuses or creates sandbox
- *     +-> client.writeFiles() - Injects script (SDK workaround)
- *     +-> sandbox.execute() - Runs script with stdout/stderr piping
+ *     +-> sandboxRun() - One-shot execution (create → run → destroy)
  *     |
  *     v  SSE events: status, stdout, done, error
  *     |
@@ -23,7 +21,7 @@
  *   - script: Name of script in src/run/ (e.g., "hello", "vector", "kv")
  *   - input: Optional base64-encoded JSON input (defaults per script)
  *
- * Wrapper scripts (src/run/*.ts) are injected at runtime via writeFiles(),
+ * Wrapper scripts (src/run/*.ts) are injected at runtime via command.files,
  * so changes don't require snapshot rebuilds. Only rebuild when deps change.
  *
  * Environment:
@@ -32,8 +30,7 @@
  *   - AGENTUITY_REGION: Optional. Defaults to 'usc'.
  */
 import { createRouter, sse } from '@agentuity/runtime';
-import type { Logger } from '@agentuity/runtime';
-import { SandboxClient, type SandboxInstance } from '@agentuity/server';
+import { APIClient, sandboxRun, getServiceUrls } from '@agentuity/server';
 import { Writable } from 'node:stream';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
@@ -42,59 +39,11 @@ const router = createRouter();
 
 const SNAPSHOT_ID = process.env.SANDBOX_SNAPSHOT_ID;
 
-// Persistent sandbox instance for interactive mode
-let sandboxInstance: SandboxInstance | null = null;
-
-// Idle timeout for sandbox before automatic termination
-const SANDBOX_IDLE_TIMEOUT = '10m';
-
-// Execution timeout for individual commands (2 min for LLM streaming demos)
+// Execution timeout for commands (2 min for LLM demos)
 const SANDBOX_EXEC_TIMEOUT = '2m';
 
 // AI Gateway base URL
 const AI_GATEWAY_URL = 'https://catalyst.agentuity.cloud/gateway';
-
-/**
- * Get existing sandbox or create a new one.
- * Validates sandbox is still alive before returning.
- *
- * @param client - SandboxClient instance
- * @param snapshotId - Pre-validated snapshot ID (must not be null)
- * @param env - Environment variables to inject into sandbox
- * @param logger - Optional logger for debugging
- * @returns Active sandbox instance
- */
-async function getOrCreateSandbox(
-	client: SandboxClient,
-	snapshotId: string,
-	env: Record<string, string>,
-	logger?: Logger
-): Promise<SandboxInstance> {
-	if (sandboxInstance) {
-		try {
-			const info = await sandboxInstance.get();
-			if (info.status === 'idle' || info.status === 'running') {
-				logger?.debug('Reusing existing sandbox', { sandboxId: sandboxInstance.id });
-				return sandboxInstance;
-			}
-		} catch {
-			// Sandbox no longer exists, will recreate
-			sandboxInstance = null;
-		}
-	}
-
-	logger?.info('Creating new sandbox');
-	sandboxInstance = await client.create({
-		runtime: 'agentuity:latest',
-		snapshot: snapshotId,
-		network: { enabled: true },
-		timeout: { idle: SANDBOX_IDLE_TIMEOUT },
-		env,
-	});
-
-	logger?.info('Sandbox created', { sandboxId: sandboxInstance.id });
-	return sandboxInstance;
-}
 
 // Default inputs for each script (paths derived from script name)
 const SCRIPT_DEFAULTS: Record<string, unknown> = {
@@ -102,7 +51,7 @@ const SCRIPT_DEFAULTS: Record<string, unknown> = {
 	vector: { query: 'ergonomic office chair', seedData: true },
 	kv: {},
 	'ai-gateway': { prompt: 'Explain AI agents in 1 sentence.' },
-	streaming: { prompt: 'Write a short poem about coding.' },
+	streaming: { prompt: 'Write a short poem about AI.' },
 	'sse-stream': { prompt: 'Explain what Server-Sent Events are in 2-3 sentences.' },
 	chat: { message: 'What is Agentuity?' },
 	'handler-context': {},
@@ -125,7 +74,8 @@ function cleanOutput(content: string): string {
 	// Strip ANSI escape codes (color codes like [0m, [32m, etc.)
 	let cleaned = content.replace(/\x1b\[[0-9;]*m/g, '');
 	// Strip timestamps from log lines (e.g., "2026-01-12T01:58:00.123Z ")
-	cleaned = cleaned.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s*/gm, '');
+	// Use [ \t]* instead of \s* to preserve newlines (empty lines)
+	cleaned = cleaned.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[ \t]*/gm, '');
 	// Unescape JSON quotes (\" -> ")
 	cleaned = cleaned.replace(/\\"/g, '"');
 	// Unescape newlines from JSON
@@ -140,7 +90,6 @@ router.get(
 			await stream.writeSSE({ event: 'error', data: 'SANDBOX_SNAPSHOT_ID not configured.' });
 			return;
 		}
-		// Capture validated snapshotId for use in executeInSandbox
 		const snapshotId = SNAPSHOT_ID;
 
 		const scriptName = c.req.query('script');
@@ -169,7 +118,19 @@ router.get(
 		const logger = c.var.logger;
 		const apiKey = process.env.AGENTUITY_SDK_KEY || process.env.AGENTUITY_CLI_KEY || '';
 		const region = process.env.AGENTUITY_REGION ?? 'usc';
-		const client = new SandboxClient({ apiKey, logger });
+
+		// Get service URLs and create API client
+		const serviceUrls = getServiceUrls(region);
+		const client = new APIClient(serviceUrls.sandbox, logger, apiKey);
+
+		// Track first output to send 'running' status
+		let sentRunning = false;
+		const sendRunningOnce = () => {
+			if (!sentRunning) {
+				sentRunning = true;
+				stream.writeSSE({ event: 'status', data: 'running' });
+			}
+		};
 
 		// Create a Writable stream that forwards cleaned output to SSE
 		// Note: SSE uses newlines as delimiters, so we encode \n as \\n
@@ -177,13 +138,20 @@ router.get(
 		const sseWritable = new Writable({
 			write(chunk, _encoding, callback) {
 				const text = cleanOutput(chunk.toString());
+				// Skip empty chunks (but not chunks with just whitespace/newlines)
+				if (text.length === 0) {
+					callback();
+					return;
+				}
+				// Send 'running' status on first output
+				sendRunningOnce();
 				// Encode newlines for SSE transport (decoded by frontend)
 				const encoded = text.replace(/\n/g, '\\n');
 				stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
 			},
 		});
 
-		// All demos use standalone scripts from src/run/
+		// Read the script to inject
 		const scriptPath = `src/run/${scriptName}.ts`;
 		let scriptContent: string;
 		try {
@@ -192,9 +160,8 @@ router.get(
 			await stream.writeSSE({ event: 'error', data: `Failed to read script: ${scriptPath}` });
 			return;
 		}
-		const execCommand = ['bun', 'run', scriptPath, JSON.stringify(input)];
-		const files = [{ path: scriptPath, content: Buffer.from(scriptContent) }];
 
+		// Build environment variables
 		const envVars: Record<string, string> = {
 			AGENTUITY_SDK_KEY: apiKey,
 			AGENTUITY_REGION: region,
@@ -212,59 +179,35 @@ router.get(
 		if (process.env.S3_ACCESS_KEY_ID) envVars.S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 		if (process.env.S3_SECRET_ACCESS_KEY) envVars.S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 
-		/**
-		 * Execute command in sandbox with retry on sandbox errors.
-		 * Creates a new sandbox if needed, or reuses an existing one.
-		 *
-		 * TODO: Consider migrating to SandboxClient.run() for simpler one-shot execution.
-		 * The run() method handles create/execute/destroy lifecycle automatically.
-		 * Current pattern with sandbox reuse is kept for faster subsequent runs.
-		 * Evaluate switching when run() supports sandbox reuse or when testing is complete.
-		 */
-		const executeInSandbox = async (retry = false): Promise<{ exitCode: number; sandboxId: string }> => {
-			await stream.writeSSE({ event: 'status', data: retry ? 'recreating' : 'creating' });
-
-			const sandbox = await getOrCreateSandbox(client, snapshotId, envVars, logger);
-
-			// Workaround: execute({files}) doesn't work, use writeFiles() instead
-			// See: https://github.com/agentuity/sdk/issues/675
-			if (files && files.length > 0) {
-				await client.writeFiles(sandbox.id, files);
-			}
-
-			await stream.writeSSE({ event: 'status', data: 'running' });
-
-			const result = await sandbox.execute({
-				command: execCommand,
-				timeout: SANDBOX_EXEC_TIMEOUT,
-				pipe: {
-					stdout: sseWritable,
-					stderr: sseWritable,
-				},
-			});
-
-			return { exitCode: result.exitCode ?? 0, sandboxId: sandbox.id };
-		};
+		await stream.writeSSE({ event: 'status', data: 'creating' });
 
 		try {
-			let result: { exitCode: number; sandboxId: string };
-			try {
-				result = await executeInSandbox();
-			} catch (error) {
-				// If sandbox is gone/terminated, clear instance and retry once
-				const msg = error instanceof Error ? error.message : '';
-				if (msg.includes('not found') || msg.includes('terminated')) {
-					logger?.warn('Sandbox gone, recreating', { error: msg });
-					sandboxInstance = null;
-					result = await executeInSandbox(true);
-				} else {
-					throw error;
-				}
-			}
+			// One-shot execution: create → run → destroy (automatic cleanup)
+			const result = await sandboxRun(client, {
+				options: {
+					runtime: 'agentuity:latest',
+					snapshot: snapshotId,
+					network: { enabled: true },
+					timeout: { idle: SANDBOX_EXEC_TIMEOUT },
+					env: envVars,
+					command: {
+						exec: ['bun', 'run', scriptPath, JSON.stringify(input)],
+						files: [{ path: scriptPath, content: Buffer.from(scriptContent) }],
+					},
+				},
+				region,
+				apiKey,
+				stdout: sseWritable,
+				stderr: sseWritable,
+				logger,
+			});
 
-			// execute() handles pipe completion automatically (SDK v0.1.23+)
-
-			logger?.info('Sandbox completed', { sandboxId: result.sandboxId, script: scriptName, exitCode: result.exitCode });
+			logger?.info('Sandbox completed', {
+				sandboxId: result.sandboxId,
+				script: scriptName,
+				exitCode: result.exitCode,
+				durationMs: result.durationMs,
+			});
 
 			await stream.writeSSE({
 				event: 'done',

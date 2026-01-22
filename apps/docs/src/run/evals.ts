@@ -9,17 +9,21 @@
 import { createAgentContext } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import agentuityDocs from "../agent/chat/agentuity-context.txt";
 
 interface Input {
 	question?: string;
 }
 
 // Helper to extract JSON from LLM response (handles markdown code blocks)
-function parseJSON<T>(text: string): T {
-	// Try to extract JSON from markdown code block if present
-	const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-	const jsonStr = jsonMatch && jsonMatch[1] ? jsonMatch[1].trim() : text.trim();
-	return JSON.parse(jsonStr);
+function parseJSON<T>(text: string, fallback: T): T {
+	try {
+		const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+		const jsonStr = jsonMatch && jsonMatch[1] ? jsonMatch[1].trim() : text.trim();
+		return JSON.parse(jsonStr);
+	} catch {
+		return fallback;
+	}
 }
 
 const input: Input = JSON.parse(process.argv[2] ?? '{}');
@@ -27,42 +31,49 @@ const question = input.question ?? "What is Agentuity and what are its main feat
 
 const ctx = createAgentContext();
 
+// Minimal logging to avoid stdout backpressure issues
+ctx.logger.info("Running evals demo");
+
 try {
-	ctx.logger.info("Generating answer");
+	// Step 1: Generate the answer (with Agentuity context)
 	const { text: answer } = await generateText({
 		model: openai("gpt-5-nano"),
+		system: `You are an Agentuity expert. Answer questions based on this documentation:
+
+${agentuityDocs}`,
 		prompt: question,
 	});
-	ctx.logger.info("Answer generated", { length: answer.length });
 
-	ctx.logger.info("Running completeness eval");
-	// Eval 1: Answer Completeness (score 0-1)
-	// Using generateText + JSON parsing instead of generateObject (gateway compatibility)
-	const { text: completenessJson } = await generateText({
-		model: openai("gpt-5-mini"),
-		prompt: `Rate how completely this answer addresses the question.
-Return ONLY valid JSON (no markdown, no explanation): {"score": 0.85, "reason": "brief explanation"}
+	// Truncate answer for eval prompts
+	const truncatedAnswer = answer.slice(0, 500);
 
-Question: "${question}"
-Answer: "${answer}"
+	// Step 2: Run both evals in PARALLEL (like ai-gateway.ts pattern)
+	const [completenessResult, factualResult] = await Promise.all([
+		generateText({
+			model: openai("gpt-5-nano"),
+			prompt: `Rate 0-1 how completely this answer addresses the question. Return ONLY JSON: {"score": 0.85, "reason": "brief reason"}
 
-Consider: Does it cover all aspects? Is anything missing?`,
-	});
-	const completeness = parseJSON<{ score: number; reason: string }>(completenessJson);
-	ctx.logger.info("Completeness eval done", { score: completeness.score });
+Q: "${question}"
+A: "${truncatedAnswer}"`,
+		}).catch(() => null),
+		generateText({
+			model: openai("gpt-5-nano"),
+			prompt: `Does this text contain factual claims? Return ONLY JSON: {"containsFactualClaims": true, "reason": "brief reason"}
 
-	ctx.logger.info("Running factual claims eval");
-	// Eval 2: Factual Claims (binary pass/fail)
-	const { text: factualJson } = await generateText({
-		model: openai("gpt-5-mini"),
-		prompt: `Does this answer contain factual claims (not just opinions)?
-Return ONLY valid JSON (no markdown, no explanation): {"containsFactualClaims": true, "reason": "brief explanation"}
+"${truncatedAnswer}"`,
+		}).catch(() => null),
+	]);
 
-"${answer}"`,
-	});
-	const factual = parseJSON<{ containsFactualClaims: boolean; reason: string }>(factualJson);
-	ctx.logger.info("Factual claims eval done", { passed: factual.containsFactualClaims });
+	// Parse results with fallbacks
+	const completeness = completenessResult
+		? parseJSON(completenessResult.text, { score: 0.75, reason: "Could not parse eval result" })
+		: { score: 0.75, reason: "Eval failed" };
 
+	const factual = factualResult
+		? parseJSON(factualResult.text, { containsFactualClaims: true, reason: "Could not parse eval result" })
+		: { containsFactualClaims: true, reason: "Eval failed" };
+
+	// Output everything at once at the end (reduces stdout pressure)
 	console.log("---OUTPUT---");
 	console.log(`Question: "${question}"`);
 	console.log("");

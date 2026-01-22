@@ -8,6 +8,7 @@ interface TerminalOutputProps {
 	error?: string | null;
 	exitCode?: number | null;
 	onClear?: () => void;
+	isRoute?: boolean;
 }
 
 // Strip timestamp prefix from sandbox output lines (e.g., "2026-01-16T17:46:32.005264730Z ")
@@ -21,7 +22,7 @@ const CREATING_MESSAGES = [
 	'Starting runtime',
 ];
 
-export function TerminalOutput({ output, status, error, exitCode, onClear }: TerminalOutputProps) {
+export function TerminalOutput({ output, status, error, exitCode, onClear, isRoute }: TerminalOutputProps) {
 	const outputRef = useRef<HTMLDivElement>(null);
 	const [creatingMessageIndex, setCreatingMessageIndex] = useState(0);
 	const cleanedOutput = useMemo(() => (output ? cleanOutput(output) : ''), [output]);
@@ -112,7 +113,7 @@ export function TerminalOutput({ output, status, error, exitCode, onClear }: Ter
 				)}
 				{status === 'running' && !output && (
 					<span data-loading="true" className="text-cyan-600 dark:text-cyan-400">
-						Executing agent
+						Executing {isRoute ? 'route' : 'agent'}
 					</span>
 				)}
 				{cleanedOutput && <span>{cleanedOutput}</span>}

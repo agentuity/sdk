@@ -56,8 +56,9 @@ await standaloneCtx.invoke(async () => {
 
 	// Session state demonstration
 	console.log("Session State (per-request only):");
-	ctx.session.state.set("request-time", new Date().toISOString());
+	const timestamp = new Date().toISOString();
+	ctx.session.state.set("request-time", timestamp);
 	const requestTime = ctx.session.state.get("request-time");
-	console.log(`  set("request-time", new Date().toISOString())`);
+	console.log(`  set("request-time", "${timestamp}")`);
 	console.log(`  get("request-time") -> ${requestTime}`);
 });
