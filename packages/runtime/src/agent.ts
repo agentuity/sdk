@@ -10,7 +10,6 @@ import {
 	type InferInput,
 	type InferOutput,
 	toCamelCase,
-	type EvalRunStartEvent,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import { TraceState } from '@opentelemetry/core';
@@ -27,7 +26,7 @@ import {
 	type RequestAgentContextArgs,
 } from './_context';
 import type { Logger } from './logger';
-import type { Eval, EvalContext, EvalHandlerResult, EvalRunResult, EvalFunction } from './eval';
+import type { Eval, EvalHandlerResult, EvalRunResult, EvalFunction } from './eval';
 import { internal } from './logger/internal';
 import { fireEvent } from './_events';
 import type { Thread, Session } from './session';
@@ -2065,7 +2064,9 @@ export function createAgent<
 													metadata: {},
 												},
 											});
-										} catch {}
+										} catch {
+											// Ignore errors sending eval run events
+										}
 									}
 								} finally {
 									evalSpan.end();
@@ -2096,7 +2097,9 @@ export function createAgent<
 											deploymentId: runtimeConfig.getDeploymentId() || undefined,
 											spanId: agentRunSpanId,
 										});
-									} catch {}
+									} catch {
+										// Ignore errors sending eval run events
+									}
 								}
 
 								let evalValidatedInput: any = validatedInput;
@@ -2134,7 +2137,9 @@ export function createAgent<
 											id: evalRunId,
 											result: { success: true, ...handlerResult },
 										});
-									} catch {}
+									} catch {
+										// Ignore errors sending eval run events
+									}
 								}
 							} catch (error) {
 								internal.error(`Error executing eval '${evalName}'`, { error });
