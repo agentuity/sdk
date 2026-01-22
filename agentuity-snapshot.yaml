@@ -10,7 +10,7 @@
 # Required: Schema version (must be 1)
 version: 1
 
-# This is a publically available snapshot
+# This is a publicly available snapshot
 public: true
 
 # Required: Runtime environment
