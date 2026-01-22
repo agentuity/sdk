@@ -24,6 +24,7 @@ export const ConfigSchema = zod.object({
 	devmode: zod
 		.object({
 			hostname: zod.string().optional().describe('Development mode hostname'),
+			privateKey: zod.string().optional().describe('Development mode private key (PEM)'),
 		})
 		.optional()
 		.describe('Development mode configuration'),

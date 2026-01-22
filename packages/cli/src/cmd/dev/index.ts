@@ -377,20 +377,34 @@ export const command = createCommand({
 			let gravityBin: string | undefined;
 			let gravityURL: string | undefined;
 			let appURL: string | undefined;
+			let savedPrivateKey: string | undefined = config?.devmode?.privateKey
+				? Buffer.from(config.devmode.privateKey, 'base64').toString('utf-8')
+				: undefined;
 
 			if (auth && project && opts.public) {
 				// Generate devmode endpoint for public URL
 				const endpoint = await tui.spinner({
 					message: 'Connecting to Gravity',
 					callback: () => {
-						return generateEndpoint(apiClient!, project.projectId, config?.devmode?.hostname);
+						return generateEndpoint(
+							apiClient!,
+							project.projectId,
+							config?.devmode?.hostname,
+							savedPrivateKey
+						);
 					},
 					clearOnSuccess: true,
 				});
 
+				if (endpoint.privateKey) {
+					savedPrivateKey = endpoint.privateKey;
+				}
 				const _config = { ...config } as Config;
 				_config.devmode = {
 					hostname: endpoint.hostname,
+					privateKey: savedPrivateKey
+						? Buffer.from(savedPrivateKey).toString('base64')
+						: undefined,
 				};
 				await saveConfig(_config);
 				config = _config;
@@ -1077,8 +1091,8 @@ export const command = createCommand({
 								project.orgId,
 								'--project-id',
 								project.projectId,
-								'--token',
-								process.env.AGENTUITY_SDK_KEY!, // set above
+								'--private-key',
+								Buffer.from(devmode.privateKey ?? savedPrivateKey ?? '').toString('base64'),
 								'--health-check',
 							],
 							{
