@@ -11,8 +11,10 @@ NC='\033[0m' # No Color
 
 MIN_BUN_VERSION="1.3.3"
 SETUP_TOKEN="-"
-# Respect BUN_INSTALL_BIN for custom global bin dir, fall back to BUN_INSTALL/bin, then ~/.bun/bin
-BUN_BIN_DIR="${BUN_INSTALL_BIN:-${BUN_INSTALL:-$HOME/.bun}/bin}"
+# BUN_EXEC_DIR: where the bun executable itself lives
+BUN_EXEC_DIR="${BUN_INSTALL:-$HOME/.bun}/bin"
+# BUN_INSTALL_BIN: where globally installed packages go (defaults to same as BUN_EXEC_DIR)
+BUN_INSTALL_BIN="${BUN_INSTALL_BIN:-$BUN_EXEC_DIR}"
 
 requested_version=${VERSION:-}
 force_install=false
@@ -107,8 +109,8 @@ ensure_bun_on_path() {
     return 0
   fi
 
-  if [ -f "$BUN_BIN_DIR/bun" ]; then
-    export PATH="$BUN_BIN_DIR:$PATH"
+  if [ -f "$BUN_EXEC_DIR/bun" ]; then
+    export PATH="$BUN_EXEC_DIR:$PATH"
     return 0
   fi
 
@@ -153,7 +155,7 @@ install_bun() {
   fi
   
   # Add Bun to PATH for current session
-  export PATH="$BUN_BIN_DIR:$PATH"
+  export PATH="$BUN_EXEC_DIR:$PATH"
   
   print_message success "Bun installed successfully"
 }
@@ -359,7 +361,7 @@ create_legacy_shim() {
     # Create a shim script that forwards to the bun-installed version
     cat > "$legacy_bin" << EOF
 #!/bin/sh
-exec "$BUN_BIN_DIR/agentuity" "\$@"
+exec "$BUN_INSTALL_BIN/agentuity" "\$@"
 EOF
     chmod 755 "$legacy_bin"
     print_message debug "Created compatibility shim at $legacy_bin"
@@ -387,7 +389,7 @@ add_to_path() {
 }
 
 configure_path() {
-  bun_bin_dir="$BUN_BIN_DIR"
+  bun_bin_dir="$BUN_INSTALL_BIN"
   modified_config_file=""
 
   # Check if bun bin is already on PATH
@@ -412,7 +414,8 @@ configure_path() {
     config_files="$HOME/.bashrc $HOME/.bash_profile $HOME/.profile $XDG_CONFIG_HOME/bash/.bashrc $XDG_CONFIG_HOME/bash/.bash_profile"
     ;;
   ash | sh)
-    config_files="$HOME/.ashrc $HOME/.profile /etc/profile"
+    # Only user-level files, avoid system-wide /etc/profile
+    config_files="$HOME/.profile $HOME/.ashrc"
     ;;
   *)
     config_files="$HOME/.bashrc $HOME/.bash_profile $XDG_CONFIG_HOME/bash/.bashrc $XDG_CONFIG_HOME/bash/.bash_profile"
@@ -421,7 +424,8 @@ configure_path() {
 
   config_file=""
   for file in $config_files; do
-    if [ -f "$file" ]; then
+    # Only select files that exist and are writable
+    if [ -f "$file" ] && [ -w "$file" ]; then
       config_file=$file
       break
     fi
@@ -464,8 +468,8 @@ configure_path() {
 # GitHub Actions PATH setup
 setup_github_actions() {
   if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" = "true" ]; then
-    printf "%s\n" "$BUN_BIN_DIR" >>"$GITHUB_PATH"
-    print_message info "Added $BUN_BIN_DIR to \$GITHUB_PATH"
+    printf "%s\n" "$BUN_INSTALL_BIN" >>"$GITHUB_PATH"
+    print_message info "Added $BUN_INSTALL_BIN to \$GITHUB_PATH"
   fi
 }
 
@@ -498,7 +502,7 @@ show_path_reminder() {
 }
 
 run_setup() {
-  agentuity_bin="$BUN_BIN_DIR/agentuity"
+  agentuity_bin="$BUN_INSTALL_BIN/agentuity"
 
   if [ -x "$agentuity_bin" ]; then
     if [ "$non_interactive" = true ]; then
