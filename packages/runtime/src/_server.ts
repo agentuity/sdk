@@ -35,7 +35,6 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'session',
 	'config',
 	'app',
-	'waitUntil',
 ] as const;
 
 export function getRouter() {
