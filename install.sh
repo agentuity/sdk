@@ -206,6 +206,9 @@ check_legacy_binary() {
 install_cli() {
   print_message debug "Installing Agentuity CLI..."
 
+  # Temporarily disable set -e for bun add to ensure proper error handling
+  set +e
+  
   if [ -n "$requested_version" ]; then
     # Normalize version (remove 'v' prefix if present)
     version=$(echo "$requested_version" | sed 's/^v//')
@@ -216,6 +219,7 @@ install_cli() {
     install_result=$?
     
     if [ $install_result -ne 0 ]; then
+      set -e
       print_message error "Failed to install @agentuity/cli@$version"
       printf "%s\n" "$install_output"
       exit 1
@@ -232,6 +236,7 @@ install_cli() {
     install_result=$?
     
     if [ $install_result -ne 0 ]; then
+      set -e
       print_message error "Failed to install @agentuity/cli"
       printf "%s\n" "$install_output"
       exit 1
@@ -241,6 +246,9 @@ install_cli() {
       printf "%s\n" "$install_output"
     fi
   fi
+  
+  # Re-enable set -e
+  set -e
 
   print_message debug "Agentuity CLI installed successfully!"
 }
@@ -249,7 +257,6 @@ install_cli() {
 create_legacy_shim() {
   legacy_dir="$HOME/.agentuity/bin"
   legacy_bin="$legacy_dir/agentuity"
-  bun_bin="$HOME/.bun/bin/agentuity"
 
   # Only create shim if ~/.agentuity/bin exists or was previously used
   if [ -d "$legacy_dir" ] || [ -f "$legacy_bin" ]; then

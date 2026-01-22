@@ -38,7 +38,13 @@ export const command = createCommand({
 						clearOnSuccess: true,
 						callback: async () => {
 							// Re-run the CLI with 'login' instead of 'setup'
-							const cmd = process.argv.map((x) => (x === 'setup' ? 'login' : x));
+							// Only replace the first occurrence of 'setup' to avoid replacing user data
+							const argv = process.argv;
+							const setupIndex = argv.indexOf('setup');
+							const cmd =
+								setupIndex >= 0
+									? [...argv.slice(0, setupIndex), 'login', ...argv.slice(setupIndex + 1)]
+									: argv;
 							const r = Bun.spawn({
 								cmd: cmd.concat('--json'),
 								stdout: 'pipe',

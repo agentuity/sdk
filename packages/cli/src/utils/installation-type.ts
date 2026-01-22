@@ -12,7 +12,8 @@ export type InstallationType = 'global' | 'local' | 'source';
  * @returns 'source' - Running from source code (development)
  */
 export function getInstallationType(): InstallationType {
-	const mainPath = Bun.main;
+	// Normalize path to POSIX separators for cross-platform compatibility
+	const mainPath = Bun.main.replace(/\\/g, '/');
 
 	// Global install: ~/.bun/install/global/node_modules/@agentuity/cli/...
 	if (mainPath.includes('/.bun/install/global/')) {

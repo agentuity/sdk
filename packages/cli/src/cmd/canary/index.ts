@@ -17,8 +17,12 @@ const CanaryResponseSchema = z.object({
 	message: z.string().describe('Status message'),
 });
 
-function isUrl(str: string): boolean {
-	return str.startsWith('http://') || str.startsWith('https://');
+function isHttpsUrl(str: string): boolean {
+	return str.startsWith('https://');
+}
+
+function isHttpUrl(str: string): boolean {
+	return str.startsWith('http://') && !str.startsWith('https://');
 }
 
 export const command = createCommand({
@@ -57,10 +61,20 @@ export const command = createCommand({
 		const targetIndex = canaryIndex >= 0 ? argv.indexOf(target, canaryIndex) : -1;
 		const forwardArgs = targetIndex >= 0 ? argv.slice(targetIndex + 1) : args.args.slice(1);
 
+		// Reject HTTP URLs for security
+		if (isHttpUrl(target)) {
+			tui.error('HTTP URLs are not allowed. Please use HTTPS.');
+			return {
+				executed: false,
+				version: '',
+				message: 'HTTP URLs are not allowed for security reasons',
+			};
+		}
+
 		let version: string;
 		let tarballUrl: string;
 
-		if (isUrl(target)) {
+		if (isHttpsUrl(target)) {
 			// Direct URL to tarball
 			tarballUrl = target;
 			// Extract version from URL if possible
