@@ -1,34 +1,20 @@
-import path from 'node:path';
 import { getPackageName } from './version';
+import { getInstallationType } from './utils/installation-type';
 
 let cachedPrefix: string | null = null;
 
 /**
  * Detects how the CLI is being invoked and returns the appropriate command prefix.
- * Returns "agentuity" if installed globally, or "bunx @agentuity/cli" if running via bunx.
+ * Returns "agentuity" if installed globally, or "bunx @agentuity/cli" if running locally.
  */
 export function getCommandPrefix(): string {
 	if (cachedPrefix) {
 		return cachedPrefix;
 	}
 
-	// Check if running from a globally installed package
-	// When installed globally, the process.argv[1] will be in a bin directory
-	const scriptPath = process.argv[1] || '';
-	const normalized = path.normalize(scriptPath);
+	const installationType = getInstallationType();
 
-	const isCompiledBinary =
-		process.argv[0] === 'bun' && scriptPath.startsWith('/$bunfs/root/agentuity-');
-
-	// If we have AGENTUITY_CLI_VERSION set we are running from compiled binary OR
-	// If the script is in node_modules/.bin or a global bin directory, it's likely global
-	const isGlobal =
-		isCompiledBinary ||
-		(normalized.includes(`${path.sep}bin${path.sep}`) &&
-			!normalized.includes(`${path.sep}node_modules${path.sep}`) &&
-			!normalized.includes(path.join('packages', 'cli', 'bin')));
-
-	if (isGlobal) {
+	if (installationType === 'global') {
 		cachedPrefix = 'agentuity';
 	} else {
 		// Running locally via bunx or from source
