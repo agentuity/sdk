@@ -11,7 +11,8 @@ NC='\033[0m' # No Color
 
 MIN_BUN_VERSION="1.3.3"
 SETUP_TOKEN="-"
-BUN_BIN_DIR="${BUN_INSTALL:-$HOME/.bun}/bin"
+# Respect BUN_INSTALL_BIN for custom global bin dir, fall back to BUN_INSTALL/bin, then ~/.bun/bin
+BUN_BIN_DIR="${BUN_INSTALL_BIN:-${BUN_INSTALL:-$HOME/.bun}/bin}"
 
 requested_version=${VERSION:-}
 force_install=false
@@ -471,11 +472,15 @@ setup_github_actions() {
 show_path_reminder() {
   _config_file="${1:-}"
   if [ "$path_modified" = true ] && [ -n "$_config_file" ]; then
-    # Determine the correct source command based on shell
-    _source_cmd="source $_config_file"
+    # Determine the correct source command based on shell config file
+    # Use POSIX ". file" for sh-compatible shells, "source file" for fish
     case "$_config_file" in
     *.fish)
       _source_cmd="source $_config_file"
+      ;;
+    *)
+      # POSIX-compatible dot notation for .profile, .bashrc, .zshrc, .ashrc, etc.
+      _source_cmd=". $_config_file"
       ;;
     esac
     
