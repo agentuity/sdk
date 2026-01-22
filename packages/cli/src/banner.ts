@@ -35,7 +35,7 @@ export function generateBanner(version?: string, compact?: true): string {
 
 	const docsLabel = ' Docs:           ';
 	const docsLink = LINKS
-		? link('https://agentuity.dev', 'preview.agentuity.dev', WHITE!)
+		? link('https://agentuity.dev', 'agentuity.dev', WHITE!)
 		: WHITE + 'https://agentuity.dev' + RESET;
 	const docsWidth = getDisplayWidth(stripAnsi(docsLink));
 	const docsPadding = width - docsLabel.length - docsWidth - 1;
