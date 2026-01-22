@@ -52,4 +52,4 @@ jobs:
               else
                 VERSION="${GITHUB_REF_NAME#v}"
               fi
-              agentuity cloud sandbox snapshot build --org-id $AGENTUITY_ORG_ID --confirm --metadata VERSION="$VERSION" -f agentuity-snapshot.yaml "$TMP_DIR"
+              agentuity cloud sandbox snapshot build --org-id $AGENTUITY_ORG_ID --confirm --metadata VERSION="$VERSION" --file agentuity-snapshot.yaml "$TMP_DIR"
