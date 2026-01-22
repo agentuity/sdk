@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/test-utils",
-	"version": "0.1.12",
+	"version": "0.1.24",
 	"license": "Apache-2.0",
 	"private": true,
 	"type": "module",

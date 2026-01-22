@@ -26,6 +26,12 @@ export {
 	type KeyValueStorageSetParams,
 	type KeyValueStats,
 	type KeyValueItemWithMetadata,
+	type CreateNamespaceParams,
+	type GetAllStatsParams,
+	type KeyValueStatsPaginated,
+	KV_MIN_TTL_SECONDS,
+	KV_MAX_TTL_SECONDS,
+	KV_DEFAULT_TTL_SECONDS,
 	KeyValueStorageService,
 } from './services/keyvalue';
 export {
@@ -61,9 +67,20 @@ export {
 	type VectorNamespaceStats,
 	type VectorItemStats,
 	type VectorNamespaceStatsWithSamples,
+	type VectorGetAllStatsParams,
+	type VectorStatsPaginated,
 	type VectorStorage,
 	VectorStorageService,
 } from './services/vector';
+export {
+	type QueueService,
+	type QueuePublishParams,
+	type QueuePublishResult,
+	QueueStorageService,
+	QueuePublishError,
+	QueueNotFoundError,
+	QueueValidationError,
+} from './services/queue';
 export {
 	type EvalRunEventProvider,
 	EvalRunStartEventSchema,
@@ -76,6 +93,7 @@ export {
 export {
 	type SandboxResources,
 	type SandboxStatus,
+	type SandboxRuntimeRequirements,
 	type SandboxRuntime,
 	type ExecutionStatus,
 	type StreamReader,
@@ -86,6 +104,12 @@ export {
 	type SandboxCreateOptions,
 	type Sandbox,
 	type SandboxInfo,
+	type SandboxRuntimeInfo,
+	type SandboxSnapshotInfo,
+	type SandboxSnapshotInfoPublic,
+	type SandboxSnapshotInfoPrivate,
+	type SandboxSnapshotUserInfo,
+	type SandboxSnapshotOrgInfo,
 	type SandboxUserInfo,
 	type SandboxAgentInfo,
 	type SandboxProjectInfo,

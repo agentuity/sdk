@@ -50,6 +50,7 @@ const DeploymentSchema = z.object({
 	resourceStorage: z.string().nullable().optional(),
 	deploymentLogsURL: z.string().nullable().optional(),
 	buildLogsURL: z.string().nullable().optional(),
+	dnsRecords: z.array(z.string()).optional(),
 });
 
 const DeploymentListResponseSchema = APIResponseSchema(z.array(DeploymentSchema));

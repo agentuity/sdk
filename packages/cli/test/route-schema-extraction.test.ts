@@ -890,4 +890,142 @@ export default router;
 			cleanup();
 		}
 	});
+
+	test('should track import path for imported schemas (issue #629)', async () => {
+		const content = `
+import { createRouter, validator } from '@agentuity/runtime';
+import { UserSchema } from '../../utils/schemas';
+
+const router = createRouter();
+router.post('/test', validator({ input: UserSchema }), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('UserSchema');
+			expect(routes[0].config?.inputSchemaImportPath).toBe('../../utils/schemas');
+			expect(routes[0].config?.inputSchemaImportedName).toBe('UserSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('should track aliased import for schemas (issue #629)', async () => {
+		const content = `
+import { createRouter, validator } from '@agentuity/runtime';
+import { UserSchema as US } from '../../utils/schemas';
+
+const router = createRouter();
+router.post('/test', validator({ input: US }), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('US');
+			expect(routes[0].config?.inputSchemaImportPath).toBe('../../utils/schemas');
+			// The importedName should be the original exported name, not the local alias
+			expect(routes[0].config?.inputSchemaImportedName).toBe('UserSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('should track import paths for both input and output schemas (issue #629)', async () => {
+		const content = `
+import { createRouter, validator } from '@agentuity/runtime';
+import { InputSchema } from '../schemas/input';
+import { OutputSchema } from '../schemas/output';
+
+const router = createRouter();
+router.post('/test', validator({ input: InputSchema, output: OutputSchema }), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('InputSchema');
+			expect(routes[0].config?.inputSchemaImportPath).toBe('../schemas/input');
+			expect(routes[0].config?.inputSchemaImportedName).toBe('InputSchema');
+			expect(routes[0].config?.outputSchemaVariable).toBe('OutputSchema');
+			expect(routes[0].config?.outputSchemaImportPath).toBe('../schemas/output');
+			expect(routes[0].config?.outputSchemaImportedName).toBe('OutputSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('should not set import path for locally defined schemas (issue #629)', async () => {
+		const content = `
+import { createRouter, validator } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export const LocalSchema = s.object({ name: s.string() });
+
+const router = createRouter();
+router.post('/test', validator({ input: LocalSchema }), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('LocalSchema');
+			// Should not have import path since schema is defined locally
+			expect(routes[0].config?.inputSchemaImportPath).toBeUndefined();
+			expect(routes[0].config?.inputSchemaImportedName).toBeUndefined();
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('should handle bare module imports for schemas (issue #629)', async () => {
+		const content = `
+import { createRouter, validator } from '@agentuity/runtime';
+import { SharedSchema } from '@company/schemas';
+
+const router = createRouter();
+router.post('/test', validator({ input: SharedSchema }), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('SharedSchema');
+			expect(routes[0].config?.inputSchemaImportPath).toBe('@company/schemas');
+			expect(routes[0].config?.inputSchemaImportedName).toBe('SharedSchema');
+		} finally {
+			cleanup();
+		}
+	});
 });

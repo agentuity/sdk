@@ -13,6 +13,8 @@ const DBListResponseSchema = z.object({
 				description: z.string().optional().describe('Database description'),
 				url: z.string().optional().describe('Database connection URL'),
 				cloud_region: z.string().optional().describe('Cloud region where database is hosted'),
+				org_id: z.string().optional().describe('Organization ID that owns this database'),
+				org_name: z.string().optional().describe('Organization name that owns this database'),
 			})
 		)
 		.describe('List of database resources'),
@@ -65,6 +67,10 @@ export const listSubcommand = createSubcommand({
 		const shouldShowCredentials = opts.showCredentials === true;
 		const shouldMask = !options.json && !shouldShowCredentials;
 
+		// Check if resources span multiple orgs
+		const uniqueOrgIds = new Set(resources.db.map((db) => db.org_id));
+		const showOrgColumn = uniqueOrgIds.size > 1;
+
 		if (!options.json) {
 			if (resources.db.length === 0) {
 				tui.info('No databases found');
@@ -73,12 +79,18 @@ export const listSubcommand = createSubcommand({
 					console.log(db.name);
 				}
 			} else {
-				const tableData = resources.db.map((db) => ({
-					Name: db.name,
-					Description: db.description ?? '',
-					Region: db.cloud_region,
-					URL: db.url ? (shouldMask ? tui.maskSecret(db.url) : db.url) : '',
-				}));
+				const tableData = resources.db.map((db) => {
+					const row: Record<string, string> = {
+						Name: db.name,
+					};
+					if (showOrgColumn) {
+						row.Organization = db.org_name || db.org_id;
+					}
+					row.Description = db.description ?? '';
+					row.Region = db.cloud_region;
+					row.URL = db.url ? (shouldMask ? tui.maskSecret(db.url) : db.url) : '';
+					return row;
+				});
 				tui.table(tableData);
 			}
 		}
@@ -89,6 +101,8 @@ export const listSubcommand = createSubcommand({
 				description: db.description ?? undefined,
 				url: db.url ?? undefined,
 				cloud_region: db.cloud_region,
+				org_id: db.org_id,
+				org_name: db.org_name,
 			})),
 		};
 	},

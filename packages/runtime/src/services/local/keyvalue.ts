@@ -6,6 +6,9 @@ import type {
 	KeyValueStorageSetParams,
 	KeyValueStats,
 	KeyValueItemWithMetadata,
+	CreateNamespaceParams,
+	GetAllStatsParams,
+	KeyValueStatsPaginated,
 } from '@agentuity/core';
 import { now } from './_util';
 
@@ -134,7 +137,9 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 		throw new Error('getStats not implemented for local storage');
 	}
 
-	async getAllStats(): Promise<Record<string, KeyValueStats>> {
+	async getAllStats(
+		_params?: GetAllStatsParams
+	): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated> {
 		throw new Error('getAllStats not implemented for local storage');
 	}
 
@@ -157,7 +162,7 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 		throw new Error('deleteNamespace not implemented for local storage');
 	}
 
-	async createNamespace(_name: string): Promise<void> {
+	async createNamespace(_name: string, _params?: CreateNamespaceParams): Promise<void> {
 		throw new Error('createNamespace not implemented for local storage');
 	}
 }

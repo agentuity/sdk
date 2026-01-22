@@ -19,7 +19,8 @@ export const setSubcommand = createCommand({
 	description: 'Set a key and value in the keyvalue storage',
 	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	examples: [
 		{
 			command: getCommand(

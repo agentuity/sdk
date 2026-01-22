@@ -4,7 +4,7 @@ import { APIClient } from '../api';
 import { sandboxCreate } from './create';
 import { sandboxDestroy } from './destroy';
 import { sandboxGet } from './get';
-import { SandboxResponseError, writeAndDrain } from './util';
+import { ExecutionCancelledError, ExecutionTimeoutError, writeAndDrain } from './util';
 import type { SandboxRunOptions, SandboxRunResult } from '@agentuity/core';
 import { getServiceUrls } from '../../config';
 
@@ -138,11 +138,12 @@ export async function sandboxRun(
 		// Poll for sandbox completion in parallel with streaming
 		let attempts = 0;
 		let finalStatus: 'terminated' | 'failed' | null = null;
+		let finalExitCode: number | undefined;
 
 		while (attempts < MAX_POLL_ATTEMPTS) {
 			if (signal?.aborted) {
 				abortController.abort();
-				throw new SandboxResponseError({
+				throw new ExecutionCancelledError({
 					message: 'Sandbox execution cancelled',
 					sandboxId,
 				});
@@ -156,11 +157,13 @@ export async function sandboxRun(
 
 				if (sandboxInfo.status === 'terminated') {
 					finalStatus = 'terminated';
+					finalExitCode = sandboxInfo.exitCode;
 					break;
 				}
 
 				if (sandboxInfo.status === 'failed') {
 					finalStatus = 'failed';
+					finalExitCode = sandboxInfo.exitCode;
 					break;
 				}
 			} catch {
@@ -179,7 +182,7 @@ export async function sandboxRun(
 		if (finalStatus === 'terminated') {
 			return {
 				sandboxId,
-				exitCode: 0,
+				exitCode: finalExitCode ?? 0,
 				durationMs: Date.now() - started,
 			};
 		}
@@ -187,12 +190,12 @@ export async function sandboxRun(
 		if (finalStatus === 'failed') {
 			return {
 				sandboxId,
-				exitCode: 1,
+				exitCode: finalExitCode ?? 1,
 				durationMs: Date.now() - started,
 			};
 		}
 
-		throw new SandboxResponseError({
+		throw new ExecutionTimeoutError({
 			message: 'Sandbox execution polling timed out',
 			sandboxId,
 		});

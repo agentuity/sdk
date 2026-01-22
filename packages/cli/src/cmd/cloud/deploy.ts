@@ -121,7 +121,38 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { project, apiClient, projectDir, config, options, logger, opts } = ctx;
+		let { project } = ctx;
+		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
+
+		// Verify project access and offer import if needed
+		const { reconcileProject } = await import('../project/reconcile');
+		const { isTTY } = await import('../../auth');
+
+		const reconcileResult = await reconcileProject({
+			dir: projectDir,
+			auth,
+			apiClient,
+			config: config!,
+			logger,
+			interactive: isTTY(),
+		});
+
+		if (reconcileResult.status === 'error') {
+			tui.fatal(reconcileResult.message!, ErrorCode.PROJECT_NOT_FOUND);
+		}
+
+		if (reconcileResult.status === 'skipped') {
+			tui.fatal(
+				'Project must be registered with Agentuity Cloud to deploy.',
+				ErrorCode.PROJECT_NOT_FOUND
+			);
+		}
+
+		if (reconcileResult.status === 'imported' && reconcileResult.project) {
+			// Project was imported - use the new project config
+			project = reconcileResult.project;
+			tui.newline();
+		}
 
 		// Initialize build report collector if reportFile is specified
 		const collector = new BuildReportCollector();

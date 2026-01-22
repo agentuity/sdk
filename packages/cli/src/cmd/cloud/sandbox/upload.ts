@@ -58,11 +58,13 @@ export const uploadSubcommand = createCommand({
 		const content = readFileSync(args.archive);
 		const bytes = content.length;
 
+		const format = opts.format ?? detectFormat(args.archive);
+
 		await sandboxUploadArchive(client, {
 			sandboxId: args.sandboxId,
 			archive: content,
 			path: opts.path || '.',
-			format: opts.format || '',
+			format,
 			orgId,
 		});
 
@@ -79,6 +81,12 @@ function formatSize(bytes: number): string {
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 	return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function detectFormat(filename: string): 'zip' | 'tar.gz' {
+	const lower = filename.toLowerCase();
+	if (lower.endsWith('.zip')) return 'zip';
+	return 'tar.gz';
 }
 
 export default uploadSubcommand;

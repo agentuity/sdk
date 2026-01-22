@@ -95,7 +95,8 @@ export class SandboxTreeItem extends vscode.TreeItem {
 
 		// Set description with status and runtime
 		const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-		const runtimeLabel = this.sandboxData.runtimeName ?? this.sandboxData.runtimeId ?? 'bun:1';
+		const runtimeLabel =
+			this.sandboxData.runtime?.name ?? this.sandboxData.runtime?.id ?? 'bun:1';
 		let desc = `${statusLabel} · ${runtimeLabel}`;
 		if (this.sandboxData.url) {
 			desc += ' 🌐';
@@ -158,7 +159,8 @@ export class SandboxTreeItem extends vscode.TreeItem {
 		lines.push(`Status: ${this.sandboxData.status}`);
 
 		// Runtime info
-		const runtimeDisplay = this.sandboxData.runtimeName ?? this.sandboxData.runtimeId ?? 'bun:1';
+		const runtimeDisplay =
+			this.sandboxData.runtime?.name ?? this.sandboxData.runtime?.id ?? 'bun:1';
 		lines.push(`Runtime: ${runtimeDisplay}`);
 
 		if (this.sandboxData.region) {
@@ -241,7 +243,10 @@ export class SandboxTreeItem extends vscode.TreeItem {
 	private setupSnapshotItem(): void {
 		if (!this.snapshotData) return;
 
-		this.iconPath = new vscode.ThemeIcon('device-camera');
+		// Use globe icon for public snapshots
+		this.iconPath = this.snapshotData.public
+			? new vscode.ThemeIcon('globe')
+			: new vscode.ThemeIcon('device-camera');
 
 		if (this.snapshotData.tag) {
 			this.contextValue = 'snapshot.tagged';
@@ -251,12 +256,20 @@ export class SandboxTreeItem extends vscode.TreeItem {
 			this.description = `${this.snapshotData.fileCount} files`;
 		}
 
+		// Add public indicator to description
+		if (this.snapshotData.public) {
+			this.description = `🌐 ${this.description}`;
+		}
+
 		this.tooltip = [
+			this.snapshotData.fullName ? `Name: ${this.snapshotData.fullName}` : '',
 			`ID: ${this.snapshotData.snapshotId}`,
 			`Size: ${this.formatFileSize(this.snapshotData.sizeBytes)}`,
 			`Files: ${this.snapshotData.fileCount}`,
 			`Created: ${new Date(this.snapshotData.createdAt).toLocaleString()}`,
 			this.snapshotData.tag ? `Tag: ${this.snapshotData.tag}` : '',
+			this.snapshotData.public ? '🌐 Public snapshot' : '',
+			this.snapshotData.orgSlug ? `Org: @${this.snapshotData.orgSlug}` : '',
 			'',
 			'Click to view snapshot details',
 		]

@@ -359,6 +359,29 @@ export async function saveOrgId(orgId: string): Promise<void> {
 	await saveConfig(config);
 }
 
+export async function clearOrgId(): Promise<void> {
+	const config = await getOrInitConfig();
+	if (config.preferences) {
+		delete (config.preferences as Record<string, unknown>).orgId;
+		await saveConfig(config);
+	}
+}
+
+export async function saveRegion(region: string): Promise<void> {
+	const config = await getOrInitConfig();
+	config.preferences = config.preferences || {};
+	(config.preferences as Record<string, unknown>).region = region;
+	await saveConfig(config);
+}
+
+export async function clearRegion(): Promise<void> {
+	const config = await getOrInitConfig();
+	if (config.preferences) {
+		delete (config.preferences as Record<string, unknown>).region;
+		await saveConfig(config);
+	}
+}
+
 export async function getAuth(): Promise<AuthData | null> {
 	const config = await loadConfig();
 	const profileName = config?.name || defaultProfileName;
@@ -590,26 +613,29 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	await Bun.write(envPath, content);
 	await chmod(envPath, 0o600);
 
-	// generate the vscode settings
+	// generate the vscode settings (only if they don't already exist)
 	const vscodeDir = join(dir, '.vscode');
-	mkdirSync(vscodeDir);
+	const settingsPath = join(vscodeDir, 'settings.json');
+	if (!(await Bun.file(settingsPath).exists())) {
+		mkdirSync(vscodeDir, { recursive: true });
 
-	const settings = {
-		'search.exclude': {
-			'**/.git/**': true,
-			'**/node_modules/**': true,
-			'**/bun.lock': true,
-			'**/.agentuity/**': true,
-		},
-		'json.schemas': [
-			{
-				fileMatch: ['agentuity.json'],
-				url: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
+		const settings = {
+			'search.exclude': {
+				'**/.git/**': true,
+				'**/node_modules/**': true,
+				'**/bun.lock': true,
+				'**/.agentuity/**': true,
 			},
-		],
-	};
+			'json.schemas': [
+				{
+					fileMatch: ['agentuity.json'],
+					url: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
+				},
+			],
+		};
 
-	await Bun.write(join(vscodeDir, 'settings.json'), JSON.stringify(settings, null, 2));
+		await Bun.write(settingsPath, JSON.stringify(settings, null, 2));
+	}
 }
 
 export async function updateProjectConfig(
@@ -707,10 +733,19 @@ export async function loadProjectSDKKey(
 	logger.trace(`[SDK_KEY] AGENTUITY_SDK_KEY not found in any file`);
 }
 
-export function getCatalystAPIClient(logger: Logger, auth: AuthData, region: string) {
+export function getCatalystAPIClient(
+	logger: Logger,
+	auth: AuthData,
+	region: string,
+	orgId?: string
+) {
 	const serviceUrls = getServiceUrls(region);
 	const catalystUrl = serviceUrls.catalyst;
-	return new ServerAPIClient(catalystUrl, logger, auth.apiKey);
+	const headers: Record<string, string> = {};
+	if (orgId) {
+		headers['x-agentuity-orgid'] = orgId;
+	}
+	return new ServerAPIClient(catalystUrl, logger, auth.apiKey, { headers });
 }
 
 interface RegionsCacheData {
@@ -721,13 +756,18 @@ interface RegionsCacheData {
 /**
  * Get the default region using priority ordering:
  * 1. AGENTUITY_REGION environment variable
- * 2. First entry in region-{profile}.json (nearest region, sorted by distance)
- * 3. 'local' for local profile, 'usc' otherwise
+ * 2. 'local' for local profile
+ * 3. Saved region preference (config.preferences.region)
+ * 4. First entry in region-{profile}.json (nearest region, sorted by distance)
+ * 5. 'usc' fallback
  *
  * Used for API calls that can hit any Catalyst instance (global database operations).
  * Note: This is NOT called when --region flag is provided (handled at command level).
  */
-export async function getDefaultRegion(profileName = 'production'): Promise<string> {
+export async function getDefaultRegion(
+	profileName = 'production',
+	config?: Config | null
+): Promise<string> {
 	// 1. Check environment variable first
 	if (process.env.AGENTUITY_REGION) {
 		return process.env.AGENTUITY_REGION;
@@ -738,7 +778,12 @@ export async function getDefaultRegion(profileName = 'production'): Promise<stri
 		return 'local';
 	}
 
-	// 3. Check cached regions file (sorted by distance)
+	// 3. Check saved region preference
+	if (config?.preferences?.region) {
+		return config.preferences.region;
+	}
+
+	// 4. Check cached regions file (sorted by distance)
 	try {
 		const cachePath = join(getDefaultConfigDir(), `regions-${profileName}.json`);
 		const file = Bun.file(cachePath);
@@ -752,21 +797,27 @@ export async function getDefaultRegion(profileName = 'production'): Promise<stri
 		// Fall through to default
 	}
 
-	// 4. Final fallback
+	// 5. Final fallback
 	return 'usc';
 }
 
 /**
  * Get a Catalyst API client for global database operations.
  * Uses the default region since the admin DB is global.
+ *
+ * @param logger - Logger instance
+ * @param auth - Authentication data
+ * @param profileName - Profile name (default: 'production')
+ * @param orgId - Optional organization ID for CLI key authentication
  */
 export async function getGlobalCatalystAPIClient(
 	logger: Logger,
 	auth: AuthData,
-	profileName = 'production'
+	profileName = 'production',
+	orgId?: string
 ) {
 	const region = await getDefaultRegion(profileName);
-	return getCatalystAPIClient(logger, auth, region);
+	return getCatalystAPIClient(logger, auth, region, orgId);
 }
 
 export function getIONHost(config: Config | null, region: string) {

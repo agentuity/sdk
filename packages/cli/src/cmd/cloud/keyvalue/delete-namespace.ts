@@ -8,9 +8,10 @@ export const deleteNamespaceSubcommand = createCommand({
 	name: 'delete-namespace',
 	aliases: ['rm-namespace'],
 	description: 'Delete a keyvalue namespace and all its keys',
-	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-project'],
+	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('kv delete-namespace staging'),

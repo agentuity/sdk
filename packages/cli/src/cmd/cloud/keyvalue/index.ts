@@ -35,6 +35,6 @@ export const command = createCommand({
 		createNamespaceSubcommand,
 		deleteNamespaceSubcommand,
 	],
-	requires: { auth: true, project: true },
+	requires: { auth: true },
 });
 export default command;

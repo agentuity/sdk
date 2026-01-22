@@ -14,6 +14,15 @@ export interface EnvVars {
 export const PUBLIC_VAR_PREFIXES = ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'] as const;
 
 /**
+ * Specific AGENTUITY_ keys that are allowed to be set by users.
+ * Note: There is also a whitelist in the API that must be kept in sync.
+ */
+export const AGENTUITY_ALLOWED_KEYS = [
+	'AGENTUITY_AUTH_SECRET',
+	'AGENTUITY_CLOUD_BASE_URL',
+] as const;
+
+/**
  * Check if a key is a public variable (exposed to frontend)
  */
 export function isPublicVarKey(key: string): boolean {
@@ -22,11 +31,20 @@ export function isPublicVarKey(key: string): boolean {
 }
 
 /**
- * Check if a key is a reserved AGENTUITY key (except AGENTUITY_PUBLIC_)
+ * Check if a key is a reserved AGENTUITY key (except AGENTUITY_PUBLIC_ and allowed keys)
  */
 export function isReservedAgentuityKey(key: string): boolean {
 	const upperKey = key.toUpperCase();
-	return upperKey.startsWith('AGENTUITY_') && !upperKey.startsWith('AGENTUITY_PUBLIC_');
+	if (!upperKey.startsWith('AGENTUITY_')) {
+		return false;
+	}
+	if (upperKey.startsWith('AGENTUITY_PUBLIC_')) {
+		return false;
+	}
+	if (AGENTUITY_ALLOWED_KEYS.includes(key as (typeof AGENTUITY_ALLOWED_KEYS)[number])) {
+		return false;
+	}
+	return true;
 }
 
 /**

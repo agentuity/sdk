@@ -1820,5 +1820,139 @@ describe('registry-generator', () => {
 			expect(content).toContain('"pathParams": [');
 			expect(content).toContain('"userId"');
 		});
+
+		test('should import schemas from shared files when inputSchemaImportPath is provided (issue #629)', async () => {
+			// Simulate a route that imports UserSchema from a shared utils file
+			// Route is at src/api/example/route.ts
+			// Schema is at src/utils/schemas.ts
+			// Import in route: import { UserSchema } from '../../utils/schemas'
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/example',
+					filename: './api/example/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'UserSchema',
+					inputSchemaImportPath: '../../utils/schemas', // as written in the route file
+					inputSchemaImportedName: 'UserSchema', // the exported name
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			expect(existsSync(routesPath)).toBe(true);
+			const content = await Bun.file(routesPath).text();
+
+			// Should import from the utils/schemas file, NOT from the route file
+			expect(content).toContain("from '../utils/schemas'");
+			// Should NOT import from the route file
+			expect(content).not.toContain("from '../api/example/route'");
+			// Should have the schema type export
+			expect(content).toContain('export type POSTApiExampleInput');
+		});
+
+		test('should handle aliased imports correctly (import { A as B })', async () => {
+			// Simulate: import { UserSchema as US } from '../../utils/schemas'
+			// then using US in validator({ input: US })
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/users',
+					filename: './api/users/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'US', // local name used in the route file
+					inputSchemaImportPath: '../../utils/schemas',
+					inputSchemaImportedName: 'UserSchema', // the actual exported name
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const content = await Bun.file(routesPath).text();
+
+			// Should import the actual exported name (UserSchema), not the local alias (US)
+			expect(content).toContain('UserSchema as UserSchema_');
+			expect(content).toContain("from '../utils/schemas'");
+		});
+
+		test('should handle bare module imports (non-relative) as-is', async () => {
+			// Simulate: import { SharedSchema } from '@company/schemas'
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/data',
+					filename: './api/data/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'SharedSchema',
+					inputSchemaImportPath: '@company/schemas', // bare module, not relative
+					inputSchemaImportedName: 'SharedSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const content = await Bun.file(routesPath).text();
+
+			// Should use the bare module path as-is
+			expect(content).toContain("from '@company/schemas'");
+		});
+
+		test('should fall back to route file for locally defined schemas', async () => {
+			// Simulate a schema defined directly in the route file (no import path)
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/local',
+					filename: './api/local/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'LocalSchema',
+					// No inputSchemaImportPath - schema is defined locally
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const content = await Bun.file(routesPath).text();
+
+			// Should import from the route file itself
+			expect(content).toContain("from '../api/local/route'");
+		});
+
+		test('should handle both input and output schemas from different files', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/mixed',
+					filename: './api/mixed/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'InputSchema',
+					inputSchemaImportPath: '../../schemas/input',
+					inputSchemaImportedName: 'InputSchema',
+					outputSchemaVariable: 'OutputSchema',
+					outputSchemaImportPath: '../../schemas/output',
+					outputSchemaImportedName: 'OutputSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const content = await Bun.file(routesPath).text();
+
+			// Should have imports from both schema files
+			expect(content).toContain("from '../schemas/input'");
+			expect(content).toContain("from '../schemas/output'");
+			expect(content).toContain('InputSchema as InputSchema_');
+			expect(content).toContain('OutputSchema as OutputSchema_');
+		});
 	});
 });

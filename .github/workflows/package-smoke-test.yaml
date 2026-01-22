@@ -30,6 +30,25 @@ jobs:
          - name: Run package smoke test
            run: bash scripts/test-package-install.sh
 
+   standalone-agent-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 5
+      name: Standalone Agent Test
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Run standalone agent test
+           run: bun run test:standalone
+
    integration-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 10
@@ -37,6 +56,7 @@ jobs:
       env:
          AGENTUITY_API_URL: https://api-v1.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
       steps:
          - uses: actions/checkout@v4
@@ -228,6 +248,66 @@ jobs:
 
          - name: Run storage CLI tests
            run: bun scripts/test-storage.ts
+
+   queue-sdk-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 10
+      name: Queue SDK Tests
+      env:
+         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
+         AGENTUITY_REGION: usc
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Setup test credentials
+           run: |
+              # Set SDK key for queue operations
+              echo "AGENTUITY_SDK_KEY=${{ secrets.INTEGRATION_SUITE_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
+
+         - name: Run queue SDK tests
+           run: bash scripts/test-queues.sh
+
+   queue-cli-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 10
+      name: Queue CLI Tests
+      env:
+         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
+         AGENTUITY_REGION: usc
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Setup test credentials
+           run: |
+              # Generate CLI API key for authentication
+              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "::add-mask::${APIKEY}"
+              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+
+         - name: Run queue CLI tests
+           run: bash scripts/test-queue.sh
 
    playwright-e2e-test:
       runs-on: blacksmith-4vcpu-ubuntu-2204

@@ -13,7 +13,7 @@ export interface SchemaArgument {
 
 export interface SchemaOption {
 	name: string;
-	type: 'string' | 'number' | 'boolean' | 'array';
+	type: 'string' | 'number' | 'boolean' | 'array' | 'optionalString';
 	required: boolean;
 	default?: unknown;
 	description?: string;

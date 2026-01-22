@@ -328,8 +328,9 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 	}
 }
 
-export async function setupProject(options: SetupOptions): Promise<void> {
+export async function setupProject(options: SetupOptions): Promise<{ success: boolean }> {
 	const { dest, projectName, dirName, noInstall, noBuild, logger } = options;
+	let hasError = false;
 
 	// Replace {{PROJECT_NAME}} in files
 	tui.info(`🔧 Setting up ${projectName}...`);
@@ -345,6 +346,7 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 		});
 		if (exitCode !== 0) {
 			logger.error('Failed to install dependencies');
+			hasError = true;
 		}
 	}
 
@@ -361,6 +363,7 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 			});
 			if (exitCode !== 0) {
 				logger.error('Template setup script failed');
+				hasError = true;
 			}
 		} finally {
 			// Always delete the setup script after running (or attempting to run)
@@ -382,12 +385,15 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 		});
 		if (exitCode !== 0) {
 			logger.error('Failed to build project');
+			hasError = true;
 		}
 	}
 
 	// Generate and write AGENTS.md files for the CLI and source folders
 	// Always overwrite during project setup to ensure fresh content
 	await writeAgentsDocs(dest);
+
+	return { success: !hasError };
 }
 
 export async function initGitRepo(dest: string): Promise<void> {

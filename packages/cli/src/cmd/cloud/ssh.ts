@@ -46,7 +46,7 @@ export const sshSubcommand = createSubcommand({
 	schema: { args, options },
 
 	async handler(ctx) {
-		const { apiClient, project, projectDir, args, config, opts, logger, auth, orgId } = ctx;
+		const { apiClient, project, projectDir, args, config, opts, logger, auth } = ctx;
 
 		let projectId = project?.projectId;
 		let identifier = args?.identifier;
@@ -70,6 +70,10 @@ export const sshSubcommand = createSubcommand({
 		// Look up region from identifier (project/deployment/sandbox)
 		const profileName = config?.name;
 		const targetIdentifier = identifier ?? projectId!;
+
+		// For sandbox identifiers, use saved org preference (no prompting)
+		const orgId = targetIdentifier.startsWith('sbx_') ? config?.preferences?.orgId : undefined;
+
 		const region = await getIdentifierRegion(
 			logger,
 			auth,

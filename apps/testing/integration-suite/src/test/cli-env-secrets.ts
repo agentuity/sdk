@@ -111,6 +111,85 @@ test('cli-env-secrets', 'env-set-blocks-reserved-agentuity-key', async () => {
 	);
 });
 
+// Test: Whitelisted AGENTUITY_AUTH_SECRET allowed for env set
+test('cli-env-secrets', 'env-set-allows-whitelisted-agentuity-auth-secret', async () => {
+	const authenticated = await isAuthenticated();
+	if (!authenticated) return;
+
+	const testValue = `auth_secret_test_${Date.now()}`;
+
+	// AGENTUITY_AUTH_SECRET is whitelisted, should be allowed
+	const result = await cliAgent.run({
+		command: `cloud env set AGENTUITY_AUTH_SECRET ${testValue}`,
+	});
+
+	const output = (result.stdout || '') + (result.stderr || '');
+
+	// Should NOT be blocked as reserved
+	assert(
+		!output.includes('reserved for system use'),
+		'Should NOT reject whitelisted AGENTUITY_AUTH_SECRET as reserved'
+	);
+
+	// Should succeed or at least get past validation
+	// Note: Due to _SECRET suffix, auto-detection may prompt and store as secret (default Y in non-TTY)
+	assert(
+		output.includes('set successfully') || output.includes('Setting') || result.success === true,
+		`Should allow AGENTUITY_AUTH_SECRET: ${output}`
+	);
+
+	// Cleanup
+	await cliAgent.run({
+		command: 'cloud env delete AGENTUITY_AUTH_SECRET',
+	});
+});
+
+// Test: Whitelisted AGENTUITY_AUTH_SECRET allowed for env set --secret
+test('cli-env-secrets', 'env-set-secret-allows-whitelisted-agentuity-auth-secret', async () => {
+	const authenticated = await isAuthenticated();
+	if (!authenticated) return;
+
+	const testValue = `auth_secret_test_${Date.now()}`;
+
+	// AGENTUITY_AUTH_SECRET is whitelisted, should be allowed as secret
+	const result = await cliAgent.run({
+		command: `cloud env set AGENTUITY_AUTH_SECRET ${testValue} --secret`,
+	});
+
+	const output = (result.stdout || '') + (result.stderr || '');
+
+	// Should NOT be blocked as reserved
+	assert(
+		!output.includes('reserved for system use'),
+		'Should NOT reject whitelisted AGENTUITY_AUTH_SECRET as reserved'
+	);
+
+	// Should succeed
+	assert(
+		output.includes('set successfully') ||
+			output.includes('Setting secret') ||
+			result.success === true,
+		`Should allow AGENTUITY_AUTH_SECRET as secret: ${output}`
+	);
+
+	// Verify it's stored as secret
+	const listResult = await cliAgent.run({
+		command: 'cloud env list',
+	});
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const lines = listOutput.split('\n');
+	const keyLine = lines.find((l) => l.includes('AGENTUITY_AUTH_SECRET'));
+	assert(
+		Boolean(keyLine && keyLine.includes('[secret]')),
+		`AGENTUITY_AUTH_SECRET should be listed as secret: ${keyLine || 'not found'}`
+	);
+
+	// Cleanup
+	await cliAgent.run({
+		command: 'cloud env delete AGENTUITY_AUTH_SECRET',
+	});
+});
+
 // Test: env list masks secrets by default
 test('cli-env-secrets', 'env-list-masks-secrets-by-default', async () => {
 	const authenticated = await isAuthenticated();

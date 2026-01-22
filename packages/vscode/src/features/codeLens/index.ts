@@ -5,8 +5,7 @@ import { AgentCodeLensProvider, type AgentCodeLensInfo } from './agentCodeLensPr
 import { getDevServerManager } from '../devServer';
 import { getCurrentProject } from '../../core/project';
 import { getAgentProvider } from '../agentExplorer';
-
-const SESSIONS_BASE_URL = 'https://app-v1.agentuity.com';
+import { getSessionsUrl } from '../../core/urls';
 
 interface BuildMetadataAgent {
 	id: string;
@@ -146,7 +145,7 @@ export function registerCodeLens(context: vscode.ExtensionContext): AgentCodeLen
 					return;
 				}
 
-				const url = `${SESSIONS_BASE_URL}/projects/${project.projectId}/sessions?agent=${agent.id}`;
+				const url = getSessionsUrl(project.projectId, agent.id);
 				await vscode.env.openExternal(vscode.Uri.parse(url));
 			}
 		)

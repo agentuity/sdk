@@ -28,6 +28,28 @@ export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'fa
 /**
  * Runtime information for a sandbox
  */
+export interface SandboxRuntimeRequirements {
+	/**
+	 * Memory requirement (e.g., "1Gi")
+	 */
+	memory?: string;
+
+	/**
+	 * CPU requirement (e.g., "1")
+	 */
+	cpu?: string;
+
+	/**
+	 * Disk requirement (e.g., "500Mi")
+	 */
+	disk?: string;
+
+	/**
+	 * Whether network access is enabled
+	 */
+	networkEnabled: boolean;
+}
+
 export interface SandboxRuntime {
 	/**
 	 * Unique runtime identifier
@@ -50,6 +72,11 @@ export interface SandboxRuntime {
 	iconUrl?: string;
 
 	/**
+	 * Brand color for the runtime (hex color code)
+	 */
+	brandColor?: string;
+
+	/**
 	 * URL for runtime documentation or homepage
 	 */
 	url?: string;
@@ -58,7 +85,147 @@ export interface SandboxRuntime {
 	 * Optional tags for categorization
 	 */
 	tags?: string[];
+
+	/**
+	 * Runtime requirements (memory, cpu, disk, network)
+	 */
+	requirements?: SandboxRuntimeRequirements;
+
+	/**
+	 * Readme content in markdown format
+	 */
+	readme?: string;
 }
+
+/**
+ * Runtime information included in sandbox responses
+ */
+export interface SandboxRuntimeInfo {
+	/**
+	 * Unique runtime identifier
+	 */
+	id: string;
+
+	/**
+	 * Runtime name (e.g., "bun:1", "python:3.14")
+	 */
+	name: string;
+
+	/**
+	 * URL for runtime icon
+	 */
+	iconUrl?: string;
+
+	/**
+	 * Brand color for the runtime (hex color code)
+	 */
+	brandColor?: string;
+
+	/**
+	 * Optional tags for categorization
+	 */
+	tags?: string[];
+}
+
+/**
+ * Snapshot user information (for private snapshots)
+ */
+export interface SandboxSnapshotUserInfo {
+	/**
+	 * User ID
+	 */
+	id: string;
+
+	/**
+	 * User's first name
+	 */
+	firstName?: string;
+
+	/**
+	 * User's last name
+	 */
+	lastName?: string;
+}
+
+/**
+ * Snapshot org information (for public snapshots)
+ */
+export interface SandboxSnapshotOrgInfo {
+	/**
+	 * Organization ID
+	 */
+	id: string;
+
+	/**
+	 * Organization name
+	 */
+	name: string;
+
+	/**
+	 * Organization slug
+	 */
+	slug?: string;
+}
+
+/**
+ * Base snapshot information
+ */
+interface SandboxSnapshotInfoBase {
+	/**
+	 * Unique snapshot identifier
+	 */
+	id: string;
+
+	/**
+	 * Snapshot name
+	 */
+	name?: string;
+
+	/**
+	 * Snapshot tag
+	 */
+	tag?: string;
+
+	/**
+	 * Full name with org slug (@slug/name:tag)
+	 */
+	fullName?: string;
+}
+
+/**
+ * Public snapshot information - includes org info
+ */
+export interface SandboxSnapshotInfoPublic extends SandboxSnapshotInfoBase {
+	/**
+	 * Public snapshot
+	 */
+	public: true;
+
+	/**
+	 * Organization that owns the public snapshot
+	 */
+	org: SandboxSnapshotOrgInfo;
+}
+
+/**
+ * Private snapshot information - includes user info
+ */
+export interface SandboxSnapshotInfoPrivate extends SandboxSnapshotInfoBase {
+	/**
+	 * Private snapshot
+	 */
+	public: false;
+
+	/**
+	 * User who created the private snapshot
+	 */
+	user: SandboxSnapshotUserInfo;
+}
+
+/**
+ * Snapshot information included in sandbox responses (discriminated union)
+ */
+export type SandboxSnapshotInfo = SandboxSnapshotInfoPublic | SandboxSnapshotInfoPrivate;
 
 /**
  * Execution status
@@ -134,6 +301,7 @@ export interface SandboxCommand {
 
 	/**
 	 * Files to create before execution
+	 * @deprecated Use top-level `files` option on `SandboxCreateOptions` instead
 	 */
 	files?: FileToWrite[];
 
@@ -235,6 +403,12 @@ export interface SandboxCreateOptions {
 	 * Command to execute (if provided, creates a sandbox with initial execution)
 	 */
 	command?: SandboxCommand;
+
+	/**
+	 * Files to write to the sandbox workspace on creation.
+	 * These files are written before any command is executed.
+	 */
+	files?: FileToWrite[];
 
 	/**
 	 * Snapshot ID or tag to restore from when creating the sandbox.
@@ -456,34 +630,24 @@ export interface SandboxInfo {
 	region?: string;
 
 	/**
-	 * Runtime ID
+	 * Runtime information
 	 */
-	runtimeId?: string;
+	runtime?: SandboxRuntimeInfo;
 
 	/**
-	 * Runtime name (e.g., "bun:1")
+	 * Snapshot information
 	 */
-	runtimeName?: string;
-
-	/**
-	 * Runtime icon URL
-	 */
-	runtimeIconUrl?: string;
-
-	/**
-	 * Snapshot ID this sandbox was created from
-	 */
-	snapshotId?: string;
-
-	/**
-	 * Snapshot tag this sandbox was created from (if the snapshot had a tag)
-	 */
-	snapshotTag?: string;
+	snapshot?: SandboxSnapshotInfo;
 
 	/**
 	 * Number of executions run in this sandbox
 	 */
 	executions: number;
+
+	/**
+	 * Exit code from the last execution (only available for terminated/failed sandboxes)
+	 */
+	exitCode?: number;
 
 	/**
 	 * URL to the stdout output stream
@@ -653,7 +817,8 @@ export interface ExecuteOptions {
 	command: string[];
 
 	/**
-	 * Files to create/update before execution
+	 * Files to create/update before execution.
+	 * @deprecated Use `sandbox.writeFiles()` before execute, or top-level `files` on `SandboxCreateOptions`
 	 */
 	files?: FileToWrite[];
 

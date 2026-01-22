@@ -50,6 +50,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	registerAiCommands(context);
 	registerSetupCommands(context);
 	registerDeployCommand(context);
+	registerOrgRegionCommands(context);
 
 	const walkthroughShown = context.globalState.get('agentuity.walkthroughShown', false);
 	if (!walkthroughShown) {
@@ -247,6 +248,90 @@ function registerDeployCommand(context: vscode.ExtensionContext): void {
 			const terminal = vscode.window.createTerminal('Agentuity Deploy');
 			terminal.sendText('agentuity cloud deploy');
 			terminal.show();
+		})
+	);
+}
+
+function registerOrgRegionCommands(context: vscode.ExtensionContext): void {
+	// Organization picker
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.org.select', async () => {
+			if (!(await requireAuth())) {
+				return;
+			}
+
+			const cli = getCliClient();
+			const result = await cli.orgList();
+
+			if (!result.success || !result.data || result.data.length === 0) {
+				vscode.window.showWarningMessage('No organizations found');
+				return;
+			}
+
+			const items = result.data.map((org) => ({
+				label: org.name,
+				description: org.id,
+				orgId: org.id,
+			}));
+
+			const selected = await vscode.window.showQuickPick(items, {
+				placeHolder: 'Select an organization',
+				title: 'Switch Organization',
+			});
+
+			if (!selected) {
+				return;
+			}
+
+			const selectResult = await cli.orgSelect(selected.orgId);
+			if (selectResult.success) {
+				vscode.window.showInformationMessage(`Switched to organization: ${selected.label}`);
+				// Refresh all explorers
+				void vscode.commands.executeCommand('agentuity.refresh');
+			} else {
+				vscode.window.showErrorMessage(`Failed to switch organization: ${selectResult.error}`);
+			}
+		})
+	);
+
+	// Region picker
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.region.select', async () => {
+			if (!(await requireAuth())) {
+				return;
+			}
+
+			const cli = getCliClient();
+			const result = await cli.regionList();
+
+			if (!result.success || !result.data || result.data.length === 0) {
+				vscode.window.showWarningMessage('No regions available');
+				return;
+			}
+
+			const items = result.data.map((region) => ({
+				label: region.description,
+				description: region.region,
+				region: region.region,
+			}));
+
+			const selected = await vscode.window.showQuickPick(items, {
+				placeHolder: 'Select a region',
+				title: 'Switch Region',
+			});
+
+			if (!selected) {
+				return;
+			}
+
+			const selectResult = await cli.regionSelect(selected.region);
+			if (selectResult.success) {
+				vscode.window.showInformationMessage(`Switched to region: ${selected.label}`);
+				// Refresh sandbox explorer since it's region-sensitive
+				void vscode.commands.executeCommand('agentuity.sandbox.refresh');
+			} else {
+				vscode.window.showErrorMessage(`Failed to switch region: ${selectResult.error}`);
+			}
 		})
 	);
 }

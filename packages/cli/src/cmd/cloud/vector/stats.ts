@@ -21,19 +21,31 @@ const VectorNamespaceStatsSchema = z.object({
 	lastUsed: z.number().optional().describe('Last used timestamp (ms)'),
 });
 
+const VectorStatsPaginatedSchema = z.object({
+	namespaces: z
+		.record(z.string(), VectorNamespaceStatsSchema)
+		.describe('Map of namespace names to their statistics'),
+	total: z.number().describe('Total number of namespaces across all pages'),
+	limit: z.number().describe('Number of namespaces requested per page'),
+	offset: z.number().describe('Number of namespaces skipped'),
+	hasMore: z.boolean().describe('Whether there are more namespaces available'),
+});
+
 const VectorStatsResponseSchema = z.union([
 	VectorNamespaceStatsSchema.extend({
 		namespace: z.string().describe('Namespace name'),
 		sampledResults: z.record(z.string(), VectorItemStatsSchema).optional(),
 	}),
 	z.record(z.string(), VectorNamespaceStatsSchema),
+	VectorStatsPaginatedSchema,
 ]);
 
 export const statsSubcommand = createCommand({
 	name: 'stats',
 	description: 'Get statistics for vector storage',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('vector stats'), description: 'Show stats for all namespaces' },
