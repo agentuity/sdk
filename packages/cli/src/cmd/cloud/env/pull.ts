@@ -111,14 +111,14 @@ export const pullSubcommand = createSubcommand({
 			skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
 		});
 
-		// Restore AGENTUITY_SDK_KEY to .env (preserve local if exists, otherwise use cloud)
+		// Restore AGENTUITY_SDK_KEY to .env (cloud is source of truth, fallback to local)
 		// The key was removed by the write above since it's in skipKeys, so we need to restore it
 		const dotEnvPath = join(projectDir, '.env');
 		const dotEnv = await readEnvFile(dotEnvPath);
 
-		// Use local SDK key if it exists, otherwise use cloud value (project scope only)
+		// Cloud is source of truth: use cloud api_key if available, otherwise fallback to local
 		// For org scope, only restore if local key exists (orgs don't have api_key)
-		const sdkKeyToWrite = localSdkKey || cloudApiKey;
+		const sdkKeyToWrite = cloudApiKey || localSdkKey;
 		if (sdkKeyToWrite) {
 			dotEnv.AGENTUITY_SDK_KEY = sdkKeyToWrite;
 			await writeEnvFile(dotEnvPath, dotEnv, {
@@ -129,7 +129,7 @@ export const pullSubcommand = createSubcommand({
 					return null;
 				},
 			});
-			if (!localSdkKey && cloudApiKey) {
+			if (cloudApiKey && cloudApiKey !== localSdkKey) {
 				tui.info(`Wrote AGENTUITY_SDK_KEY to ${dotEnvPath}`);
 			}
 		}
