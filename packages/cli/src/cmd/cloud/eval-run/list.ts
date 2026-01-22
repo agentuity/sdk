@@ -127,7 +127,11 @@ export const listSubcommand = createSubcommand({
 					Agent: r.agentIdentifier || '-',
 					Success: r.success ? '✓' : '✗',
 					Pending: r.pending ? '⏳' : '✓',
-					Reason: reason ? (reason.length > 30 ? reason.substring(0, 27) + '...' : reason) : '-',
+					Reason: reason
+						? reason.length > 30
+							? reason.substring(0, 27) + '...'
+							: reason
+						: '-',
 					Created: new Date(r.createdAt).toLocaleString(),
 				};
 			});

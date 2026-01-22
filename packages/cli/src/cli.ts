@@ -19,11 +19,7 @@ import { type RegionList, ValidationOutputError } from '@agentuity/server';
 import { fetchRegionsWithCache } from './regions';
 import enquirer from 'enquirer';
 import * as tui from './tui';
-import {
-	parseArgsSchema,
-	parseOptionsSchema,
-	buildValidationInputAsync,
-} from './schema-parser';
+import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser';
 import { defaultProfileName, loadProjectConfig } from './config';
 import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
 import { ErrorCode, ExitCode, createError, exitWithError } from './errors';

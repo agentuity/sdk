@@ -14,8 +14,14 @@ export const command = createCommand({
 		{ command: getCommand('ai cadence list'), description: 'List all Cadence loops' },
 		{ command: getCommand('ai cadence status lp_auth_impl'), description: 'Get loop status' },
 		{ command: getCommand('ai cadence pause lp_auth_impl'), description: 'Pause a running loop' },
-		{ command: getCommand('ai cadence resume lp_auth_impl'), description: 'Resume a paused loop' },
-		{ command: getCommand('ai cadence stop lp_auth_impl'), description: 'Stop and cancel a loop' },
+		{
+			command: getCommand('ai cadence resume lp_auth_impl'),
+			description: 'Resume a paused loop',
+		},
+		{
+			command: getCommand('ai cadence stop lp_auth_impl'),
+			description: 'Stop and cancel a loop',
+		},
 	],
 	subcommands: [
 		listSubcommand,

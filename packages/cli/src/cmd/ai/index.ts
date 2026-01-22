@@ -30,5 +30,12 @@ export const command = createCommand({
 			description: 'Generate Agent Skills from CLI schema',
 		},
 	],
-	subcommands: [opencodeCommand, cadenceCommand, capabilitiesCommand, promptCommand, schemaCommand, skillsCommand],
+	subcommands: [
+		opencodeCommand,
+		cadenceCommand,
+		capabilitiesCommand,
+		promptCommand,
+		schemaCommand,
+		skillsCommand,
+	],
 });
