@@ -1077,31 +1077,30 @@ export const command = createCommand({
 							devmode.id
 						);
 						const privateKeyPEM = devmode.privateKey ?? savedPrivateKey;
-						const gravityArgs = [
-							gravityBin,
-							'--endpoint-id',
-							devmode.id,
-							'--port',
-							opts.port.toString(),
-							'--url',
-							gravityURL,
-							'--log-level',
-							process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
-							'--org-id',
-							project.orgId,
-							'--project-id',
-							project.projectId,
-							'--health-check',
-						];
-						if (privateKeyPEM) {
-							gravityArgs.splice(
-								-1,
-								0,
-								'--private-key',
-								Buffer.from(privateKeyPEM).toString('base64')
+						if (!privateKeyPEM) {
+							throw new Error(
+								'No private key available for gravity connection. Please re-run to generate a new key.'
 							);
 						}
-						gravityProcess = Bun.spawn(gravityArgs,
+						gravityProcess = Bun.spawn(
+							[
+								gravityBin,
+								'--endpoint-id',
+								devmode.id,
+								'--port',
+								opts.port.toString(),
+								'--url',
+								gravityURL,
+								'--log-level',
+								process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
+								'--org-id',
+								project.orgId,
+								'--project-id',
+								project.projectId,
+								'--private-key',
+								Buffer.from(privateKeyPEM).toString('base64'),
+								'--health-check',
+							],
 							{
 								cwd: rootDir,
 								stdout: 'pipe',
