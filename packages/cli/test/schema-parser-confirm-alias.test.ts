@@ -59,7 +59,12 @@ describe('confirm flag aliasing', () => {
 		test('usesStdin option should be respected', async () => {
 			// When usesStdin is true, stdin confirmation should not be checked
 			// (This just verifies the parameter is accepted)
-			const input = await buildValidationInputAsync(schemaWithConfirm, [], { yes: true }, { usesStdin: true });
+			const input = await buildValidationInputAsync(
+				schemaWithConfirm,
+				[],
+				{ yes: true },
+				{ usesStdin: true }
+			);
 			expect(input.options.confirm).toBe(true);
 		});
 	});

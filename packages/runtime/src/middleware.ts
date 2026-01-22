@@ -464,7 +464,7 @@ export function createOtelMiddleware() {
 						} else if (isError) {
 							// Hono caught an error or response is 5xx - report as error
 							const errorMessage = honoError
-								? honoError.stack ?? honoError.message
+								? (honoError.stack ?? honoError.message)
 								: `HTTP ${responseStatus}`;
 							span.setStatus({
 								code: SpanStatusCode.ERROR,
@@ -483,10 +483,7 @@ export function createOtelMiddleware() {
 						if (ex instanceof Error) {
 							span.recordException(ex);
 						}
-						const errorMessage =
-							ex instanceof Error
-								? ex.stack ?? ex.message
-								: String(ex);
+						const errorMessage = ex instanceof Error ? (ex.stack ?? ex.message) : String(ex);
 						span.setStatus({
 							code: SpanStatusCode.ERROR,
 							message: ex instanceof Error ? ex.message : String(ex),

@@ -67,16 +67,17 @@ const listDlqSubcommand = createSubcommand({
 				tui.info('No messages in dead letter queue');
 			} else {
 				const tableData = result.messages.map((m: DeadLetterMessage) => {
-						const timestamp = m.moved_at ?? m.original_published_at ?? m.published_at ?? m.created_at;
-						return {
-							ID: m.id.substring(0, 8) + '...',
-							Offset: m.offset,
-							Reason: m.failure_reason?.substring(0, 30) || 'Unknown',
-							Attempts: m.delivery_attempts,
-							'Failed At': timestamp ? new Date(timestamp).toLocaleString() : 'N/A',
-						};
-					});
-					tui.table(tableData, ['ID', 'Offset', 'Reason', 'Attempts', 'Failed At']);
+					const timestamp =
+						m.moved_at ?? m.original_published_at ?? m.published_at ?? m.created_at;
+					return {
+						ID: m.id.substring(0, 8) + '...',
+						Offset: m.offset,
+						Reason: m.failure_reason?.substring(0, 30) || 'Unknown',
+						Attempts: m.delivery_attempts,
+						'Failed At': timestamp ? new Date(timestamp).toLocaleString() : 'N/A',
+					};
+				});
+				tui.table(tableData, ['ID', 'Offset', 'Reason', 'Attempts', 'Failed At']);
 			}
 		}
 

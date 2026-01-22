@@ -31,9 +31,17 @@ export function registerDataExplorer(context: vscode.ExtensionContext): DataTree
 			await vscode.commands.executeCommand('agentuity.queue.viewMessage', item);
 		} else if (item.itemType === 'queueItem' && item.queueInfo) {
 			await openQueueDetails(item);
-		} else if (item.itemType === 'message' && item.contextValue === 'loadMoreMessages' && item.parentName) {
+		} else if (
+			item.itemType === 'message' &&
+			item.contextValue === 'loadMoreMessages' &&
+			item.parentName
+		) {
 			provider.loadMoreMessages(item.parentName);
-		} else if (item.itemType === 'message' && item.contextValue === 'loadMoreDlqMessages' && item.parentName) {
+		} else if (
+			item.itemType === 'message' &&
+			item.contextValue === 'loadMoreDlqMessages' &&
+			item.parentName
+		) {
 			provider.loadMoreDlqMessages(item.parentName);
 		}
 	});

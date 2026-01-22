@@ -76,6 +76,21 @@ untrack_snapshot() {
 	CREATED_SNAPSHOTS=("${new_array[@]}")
 }
 
+# Delete a snapshot and untrack only on success
+# Returns 0 on success, 1 on failure (snapshot remains tracked for retry)
+delete_and_untrack_snapshot() {
+	local snap_id="$1"
+	if [ -z "$snap_id" ]; then
+		return 0
+	fi
+	if $CLI cloud sandbox snapshot delete "$snap_id" --confirm 2>/dev/null; then
+		untrack_snapshot "$snap_id"
+		return 0
+	else
+		return 1
+	fi
+}
+
 fail() {
 	echo -e "${RED}✗ $1${NC}"
 	echo -e "${RED}  Output: $2${NC}"
@@ -871,9 +886,9 @@ else
 fi
 
 # Delete the first snapshot before creating a named one
-$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
-untrack_snapshot "$SNAPSHOT_ID"
-SNAPSHOT_ID=""
+if delete_and_untrack_snapshot "$SNAPSHOT_ID"; then
+	SNAPSHOT_ID=""
+fi
 
 # ============================================
 section "SNAPSHOT name:tag Resolution Tests"
@@ -973,11 +988,10 @@ else
 fi
 
 # Clean up snapshots
-$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
-untrack_snapshot "$SNAPSHOT_ID"
-$CLI cloud sandbox snapshot delete "$LATEST_SNAP_ID" --confirm 2>/dev/null || true
-untrack_snapshot "$LATEST_SNAP_ID"
-SNAPSHOT_ID=""
+if delete_and_untrack_snapshot "$SNAPSHOT_ID"; then
+	SNAPSHOT_ID=""
+fi
+delete_and_untrack_snapshot "$LATEST_SNAP_ID"
 
 # ============================================
 section "SNAPSHOT BUILD Command Tests"
@@ -1075,9 +1089,9 @@ else
 fi
 
 # Clean up first build snapshot
-$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
-untrack_snapshot "$SNAPSHOT_ID"
-SNAPSHOT_ID=""
+if delete_and_untrack_snapshot "$SNAPSHOT_ID"; then
+	SNAPSHOT_ID=""
+fi
 
 # Test: Build with dependencies
 info "Test: snapshot build with dependencies"
@@ -1095,8 +1109,7 @@ DEP_SNAP_ID=$(echo "$DEP_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*
 track_snapshot "$DEP_SNAP_ID"
 if [ -n "$DEP_SNAP_ID" ] && [[ "$DEP_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with dependencies succeeds"
-	$CLI cloud sandbox snapshot delete "$DEP_SNAP_ID" --confirm 2>/dev/null || true
-	untrack_snapshot "$DEP_SNAP_ID"
+	delete_and_untrack_snapshot "$DEP_SNAP_ID"
 else
 	fail "snapshot build with dependencies failed" "$DEP_BUILD"
 fi
@@ -1118,8 +1131,7 @@ ENV_SNAP_ID=$(echo "$ENV_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*
 track_snapshot "$ENV_SNAP_ID"
 if [ -n "$ENV_SNAP_ID" ] && [[ "$ENV_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with env substitution succeeds"
-	$CLI cloud sandbox snapshot delete "$ENV_SNAP_ID" --confirm 2>/dev/null || true
-	untrack_snapshot "$ENV_SNAP_ID"
+	delete_and_untrack_snapshot "$ENV_SNAP_ID"
 else
 	fail "snapshot build with env substitution failed" "$ENV_BUILD"
 fi
@@ -1134,8 +1146,7 @@ else
 	MISSING_SNAP_ID=$(echo "$MISSING_ENV_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 	if [ -n "$MISSING_SNAP_ID" ]; then
 		track_snapshot "$MISSING_SNAP_ID"
-		$CLI cloud sandbox snapshot delete "$MISSING_SNAP_ID" --confirm 2>/dev/null || true
-		untrack_snapshot "$MISSING_SNAP_ID"
+		delete_and_untrack_snapshot "$MISSING_SNAP_ID"
 		fail "snapshot build should have failed with missing env variable" "$MISSING_ENV_BUILD"
 	else
 		fail "snapshot build error message not clear about missing variable" "$MISSING_ENV_BUILD"
@@ -1159,8 +1170,7 @@ META_SNAP_ID=$(echo "$META_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]
 track_snapshot "$META_SNAP_ID"
 if [ -n "$META_SNAP_ID" ] && [[ "$META_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with metadata succeeds"
-	$CLI cloud sandbox snapshot delete "$META_SNAP_ID" --confirm 2>/dev/null || true
-	untrack_snapshot "$META_SNAP_ID"
+	delete_and_untrack_snapshot "$META_SNAP_ID"
 else
 	fail "snapshot build with metadata failed" "$META_BUILD"
 fi
@@ -1179,8 +1189,7 @@ CUSTOM_SNAP_ID=$(echo "$CUSTOM_FILE_BUILD" | grep -o '"snapshotId"[[:space:]]*:[
 track_snapshot "$CUSTOM_SNAP_ID"
 if [ -n "$CUSTOM_SNAP_ID" ] && [[ "$CUSTOM_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with --file option succeeds"
-	$CLI cloud sandbox snapshot delete "$CUSTOM_SNAP_ID" --confirm 2>/dev/null || true
-	untrack_snapshot "$CUSTOM_SNAP_ID"
+	delete_and_untrack_snapshot "$CUSTOM_SNAP_ID"
 else
 	fail "snapshot build with --file option failed" "$CUSTOM_FILE_BUILD"
 fi
@@ -1200,8 +1209,7 @@ DESC_SNAP_ID=$(echo "$DESC_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]
 track_snapshot "$DESC_SNAP_ID"
 if [ -n "$DESC_SNAP_ID" ] && [[ "$DESC_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with --description succeeds"
-	$CLI cloud sandbox snapshot delete "$DESC_SNAP_ID" --confirm 2>/dev/null || true
-	untrack_snapshot "$DESC_SNAP_ID"
+	delete_and_untrack_snapshot "$DESC_SNAP_ID"
 else
 	fail "snapshot build with --description failed" "$DESC_BUILD"
 fi
@@ -1240,8 +1248,7 @@ else
 	INVALID_SNAP_ID=$(echo "$INVALID_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 	if [ -n "$INVALID_SNAP_ID" ]; then
 		track_snapshot "$INVALID_SNAP_ID"
-		$CLI cloud sandbox snapshot delete "$INVALID_SNAP_ID" --confirm 2>/dev/null || true
-		untrack_snapshot "$INVALID_SNAP_ID"
+		delete_and_untrack_snapshot "$INVALID_SNAP_ID"
 		fail "snapshot build should have failed with missing runtime" "$INVALID_BUILD"
 	else
 		fail "snapshot build error message not clear about missing runtime" "$INVALID_BUILD"
@@ -1266,8 +1273,7 @@ else
 	INVALID_DEP_SNAP_ID=$(echo "$INVALID_DEP_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 	if [ -n "$INVALID_DEP_SNAP_ID" ]; then
 		track_snapshot "$INVALID_DEP_SNAP_ID"
-		$CLI cloud sandbox snapshot delete "$INVALID_DEP_SNAP_ID" --confirm 2>/dev/null || true
-		untrack_snapshot "$INVALID_DEP_SNAP_ID"
+		delete_and_untrack_snapshot "$INVALID_DEP_SNAP_ID"
 		fail "snapshot build should have failed with invalid dependency" "$INVALID_DEP_BUILD"
 	else
 		fail "snapshot build error message not clear about invalid dependency" "$INVALID_DEP_BUILD"
@@ -1363,8 +1369,7 @@ track_snapshot "$CLEAN_SNAP_ID"
 if [ -n "$CLEAN_SNAP_ID" ] && [[ "$CLEAN_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build --public with clean files succeeds: $CLEAN_SNAP_ID"
 	# Clean up
-	$CLI cloud sandbox snapshot delete "$CLEAN_SNAP_ID" --confirm 2>/dev/null || true
-	untrack_snapshot "$CLEAN_SNAP_ID"
+	delete_and_untrack_snapshot "$CLEAN_SNAP_ID"
 else
 	fail "snapshot build --public with clean files failed" "$CLEAN_PUBLIC_BUILD"
 fi
