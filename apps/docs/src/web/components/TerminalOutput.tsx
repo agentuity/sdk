@@ -16,13 +16,16 @@ function cleanOutput(output: string): string {
 	return output.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*/gm, '');
 }
 
-const CREATING_MESSAGES = [
-	'Creating sandbox',
-	'Provisioning resources',
-	'Starting runtime',
-];
+const CREATING_MESSAGES = ['Creating sandbox', 'Provisioning resources', 'Starting runtime'];
 
-export function TerminalOutput({ output, status, error, exitCode, onClear, isRoute }: TerminalOutputProps) {
+export function TerminalOutput({
+	output,
+	status,
+	error,
+	exitCode,
+	onClear,
+	isRoute,
+}: TerminalOutputProps) {
 	const outputRef = useRef<HTMLDivElement>(null);
 	const [creatingMessageIndex, setCreatingMessageIndex] = useState(0);
 	const cleanedOutput = useMemo(() => (output ? cleanOutput(output) : ''), [output]);
@@ -35,9 +38,7 @@ export function TerminalOutput({ output, status, error, exitCode, onClear, isRou
 		}
 
 		const interval = setInterval(() => {
-			setCreatingMessageIndex((prev) =>
-				prev < CREATING_MESSAGES.length - 1 ? prev + 1 : prev
-			);
+			setCreatingMessageIndex((prev) => (prev < CREATING_MESSAGES.length - 1 ? prev + 1 : prev));
 		}, 3000);
 
 		return () => clearInterval(interval);
@@ -50,7 +51,10 @@ export function TerminalOutput({ output, status, error, exitCode, onClear, isRou
 		}
 	}, [output]);
 
-	const getStatusConfig = (status: TerminalStatus, exitCode: number | null | undefined): { dot: string; text: string } => {
+	const getStatusConfig = (
+		status: TerminalStatus,
+		exitCode: number | null | undefined
+	): { dot: string; text: string } => {
 		if (status === 'completed') {
 			if (exitCode !== null && exitCode !== undefined && exitCode !== 0) {
 				return { dot: 'bg-red-500', text: 'Failed' };

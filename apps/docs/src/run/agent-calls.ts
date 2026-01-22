@@ -6,18 +6,18 @@
  *
  * Usage: bun run src/run/agent-calls.ts '{"name":"World"}'
  */
-import { createAgentContext, getAgentContext } from "@agentuity/runtime";
-import helloAgent from "../agent/hello/agent";
+import { createAgentContext, getAgentContext } from '@agentuity/runtime';
+import helloAgent from '../agent/hello/agent';
 
 interface Input {
 	name?: string;
 }
 
-const input: Input = JSON.parse(process.argv[2] ?? "{}");
-const name = input.name ?? "Explorer";
+const input: Input = JSON.parse(process.argv[2] ?? '{}');
+const name = input.name ?? 'Explorer';
 
 const standaloneCtx = createAgentContext();
-standaloneCtx.logger.info("Agent calls demo");
+standaloneCtx.logger.info('Agent calls demo');
 
 // Must use invoke() to get proper execution context for waitUntil
 await standaloneCtx.invoke(async () => {
@@ -39,12 +39,12 @@ await standaloneCtx.invoke(async () => {
 	// Wait a moment for background task to complete (for demo purposes)
 	await new Promise((resolve) => setTimeout(resolve, 150));
 
-	console.log("---OUTPUT---");
-	console.log("Agent Invocation (agent.run):");
+	console.log('---OUTPUT---');
+	console.log('Agent Invocation (agent.run):');
 	console.log(`  Input: { name: "${name}" }`);
 	console.log(`  Result: ${JSON.stringify(greeting)}`);
-	console.log("");
-	console.log("Background Task (ctx.waitUntil):");
+	console.log('');
+	console.log('Background Task (ctx.waitUntil):');
 	console.log(`  Scheduled async work after main execution`);
-	console.log(`  Status: ${backgroundCompleted ? "completed" : "still running"}`);
+	console.log(`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`);
 });

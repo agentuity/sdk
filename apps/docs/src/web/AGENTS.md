@@ -13,7 +13,7 @@ Required files:
 
 SDK Explorer structure:
 
-```
+```text
 src/web/
 ├── App.tsx              # Main app with demo config and routing
 ├── frontend.tsx         # Entry point with HMR support

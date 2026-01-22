@@ -18,11 +18,16 @@ import helloAgent from "../agent/hello/agent";
 const input = JSON.parse(process.argv[2] ?? '{"name":"World"}');
 const ctx = createAgentContext();
 
-ctx.logger.info("Processing greeting", { name: input.name });
-const result = await ctx.invoke(() => helloAgent.run(input));
+try {
+	ctx.logger.info("Processing greeting", { name: input.name });
+	const result = await ctx.invoke(() => helloAgent.run(input));
 
-console.log("---OUTPUT---");
-console.log(result);
+	console.log("---OUTPUT---");
+	console.log(result);
+} catch (error) {
+	console.log("---OUTPUT---");
+	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
+}
 `,
 
 	vector: `\
@@ -94,21 +99,26 @@ const sessionData = {
 	preferences: { theme: "dark" },
 };
 
-ctx.logger.info("Setting key");
-await ctx.kv.set(bucket, key, sessionData, { ttl: 300 });
+try {
+	ctx.logger.info("Setting key");
+	await ctx.kv.set(bucket, key, sessionData, { ttl: 300 });
 
-ctx.logger.info("Getting key");
-const result = await ctx.kv.get(bucket, key);
+	ctx.logger.info("Getting key");
+	const result = await ctx.kv.get(bucket, key);
 
-await ctx.kv.delete(bucket, key);
-ctx.logger.info("Deleted key");
+	await ctx.kv.delete(bucket, key);
+	ctx.logger.info("Deleted key");
 
-console.log("---OUTPUT---");
-console.log(\`Set: "\${key}"\`);
-console.log(\`  visitorId: "\${sessionData.visitorId}"\`);
-console.log(\`  theme: "\${sessionData.preferences.theme}"\`);
-console.log(\`Get: \${result.exists ? "found" : "not found"}\`);
-console.log(\`Deleted: "\${key}"\`);
+	console.log("---OUTPUT---");
+	console.log(\`Set: "\${key}"\`);
+	console.log(\`  visitorId: "\${sessionData.visitorId}"\`);
+	console.log(\`  theme: "\${sessionData.preferences.theme}"\`);
+	console.log(\`Get: \${result.exists ? "found" : "not found"}\`);
+	console.log(\`Deleted: "\${key}"\`);
+} catch (error) {
+	console.log("---OUTPUT---");
+	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
+}
 `,
 
 	'ai-gateway': `\
@@ -249,29 +259,34 @@ const message = input.message ?? "What is Agentuity?";
 
 const ctx = createAgentContext();
 
-ctx.session.state.set("requestStart", Date.now());
+try {
+	ctx.session.state.set("requestStart", Date.now());
 
-const messages = ((await ctx.thread.state.get("messages")) as Array<{role: string, content: string}>) ?? [];
-const turnCount = ((await ctx.thread.state.get("turnCount")) as number) ?? 0;
-ctx.logger.info("Thread state retrieved", { messageCount: messages.length, turnCount });
+	const messages = ((await ctx.thread.state.get("messages")) as Array<{role: string, content: string}>) ?? [];
+	const turnCount = ((await ctx.thread.state.get("turnCount")) as number) ?? 0;
+	ctx.logger.info("Thread state retrieved", { messageCount: messages.length, turnCount });
 
-ctx.logger.info("Generating response");
-const { text } = await generateText({
-	model: openai("gpt-5-nano"),
-	system: \`You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).\\n\\n## Agentuity Documentation\\n\${agentuityDocs}\`,
-	messages: [...messages, { role: "user", content: message }],
-});
+	ctx.logger.info("Generating response");
+	const { text } = await generateText({
+		model: openai("gpt-5-nano"),
+		system: \`You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).\\n\\n## Agentuity Documentation\\n\${agentuityDocs}\`,
+		messages: [...messages, { role: "user", content: message }],
+	});
 
-await ctx.thread.state.push("messages", { role: "user", content: message }, 50);
-await ctx.thread.state.push("messages", { role: "assistant", content: text }, 50);
-await ctx.thread.state.set("turnCount", turnCount + 1);
+	await ctx.thread.state.push("messages", { role: "user", content: message }, 50);
+	await ctx.thread.state.push("messages", { role: "assistant", content: text }, 50);
+	await ctx.thread.state.set("turnCount", turnCount + 1);
 
-const elapsed = Date.now() - (ctx.session.state.get("requestStart") as number);
+	const elapsed = Date.now() - (ctx.session.state.get("requestStart") as number);
 
-console.log("---OUTPUT---");
-console.log(\`User: "\${message}"\`);
-console.log(\`Assistant: "\${text}"\`);
-console.log(\`Turn: \${turnCount + 1} (elapsed: \${elapsed}ms)\`);
+	console.log("---OUTPUT---");
+	console.log(\`User: "\${message}"\`);
+	console.log(\`Assistant: "\${text}"\`);
+	console.log(\`Turn: \${turnCount + 1} (elapsed: \${elapsed}ms)\`);
+} catch (error) {
+	console.log("---OUTPUT---");
+	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
+}
 `,
 
 	'handler-context': `\
@@ -285,39 +300,44 @@ import { createAgentContext, getAgentContext } from "@agentuity/runtime";
 const standaloneCtx = createAgentContext();
 
 await standaloneCtx.invoke(async () => {
-	const ctx = getAgentContext();
+	try {
+		const ctx = getAgentContext();
 
-	console.log("---OUTPUT---");
-	console.log("=== Handler Context Demo ===");
-	console.log("");
-	console.log("Identifiers:");
-	console.log(\`  sessionId: \${ctx.sessionId}\`);
-	console.log(\`  threadId: \${ctx.thread.id}\`);
-	console.log("");
-	console.log("Logger (writes to trace, shown above):");
-	ctx.logger.info("Processing request", { userId: "user-123" });
-	ctx.logger.debug("Debug details", { threadId: ctx.thread.id });
-	ctx.logger.warn("Example warning log");
-	ctx.logger.error("Example error log");
-	console.log("  ctx.logger.info(), .debug(), .warn(), .error() available");
-	console.log("");
-	console.log("Storage Access:");
-	console.log("  ctx.kv - Key-Value storage");
-	console.log("  ctx.vector - Vector storage");
-	console.log("  ctx.objectstore - Object storage (S3)");
-	console.log("");
-	console.log("Thread State (persists across requests):");
-	await ctx.thread.state.set("demo-key", { value: "test" });
-	const stored = await ctx.thread.state.get("demo-key");
-	console.log(\`  set("demo-key", {value: "test"})\`);
-	console.log(\`  get("demo-key") -> \${JSON.stringify(stored)}\`);
-	console.log("");
-	console.log("Session State (per-request only):");
-	const timestamp = new Date().toISOString();
-	ctx.session.state.set("request-time", timestamp);
-	const requestTime = ctx.session.state.get("request-time");
-	console.log(\`  set("request-time", "\${timestamp}")\`);
-	console.log(\`  get("request-time") -> \${requestTime}\`);
+		console.log("---OUTPUT---");
+		console.log("=== Handler Context Demo ===");
+		console.log("");
+		console.log("Identifiers:");
+		console.log(\`  sessionId: \${ctx.sessionId}\`);
+		console.log(\`  threadId: \${ctx.thread.id}\`);
+		console.log("");
+		console.log("Logger (writes to trace, shown above):");
+		ctx.logger.info("Processing request", { userId: "user-123" });
+		ctx.logger.debug("Debug details", { threadId: ctx.thread.id });
+		ctx.logger.warn("Example warning log");
+		ctx.logger.error("Example error log");
+		console.log("  ctx.logger.info(), .debug(), .warn(), .error() available");
+		console.log("");
+		console.log("Storage Access:");
+		console.log("  ctx.kv - Key-Value storage");
+		console.log("  ctx.vector - Vector storage");
+		console.log("  ctx.objectstore - Object storage (S3)");
+		console.log("");
+		console.log("Thread State (persists across requests):");
+		await ctx.thread.state.set("demo-key", { value: "test" });
+		const stored = await ctx.thread.state.get("demo-key");
+		console.log(\`  set("demo-key", {value: "test"})\`);
+		console.log(\`  get("demo-key") -> \${JSON.stringify(stored)}\`);
+		console.log("");
+		console.log("Session State (per-request only):");
+		const timestamp = new Date().toISOString();
+		ctx.session.state.set("request-time", timestamp);
+		const requestTime = ctx.session.state.get("request-time");
+		console.log(\`  set("request-time", "\${timestamp}")\`);
+		console.log(\`  get("request-time") -> \${requestTime}\`);
+	} catch (error) {
+		console.log("---OUTPUT---");
+		console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
+	}
 });
 `,
 
@@ -335,24 +355,29 @@ const ctx = createAgentContext();
 const filename = \`demo-\${Date.now()}.txt\`;
 const content = \`Hello from Object Storage!\\nTimestamp: \${new Date().toISOString()}\`;
 
-ctx.logger.info("Writing file");
-const file = s3.file(filename);
-await file.write(content);
+try {
+	ctx.logger.info("Writing file");
+	const file = s3.file(filename);
+	await file.write(content);
 
-ctx.logger.info("Reading file");
-const readContent = await file.text();
-const exists = await file.exists();
+	ctx.logger.info("Reading file");
+	const readContent = await file.text();
+	const exists = await file.exists();
 
-ctx.logger.info("Deleting file");
-await file.delete();
+	ctx.logger.info("Deleting file");
+	await file.delete();
 
-console.log("---OUTPUT---");
-console.log(\`Write: "\${filename}"\`);
-console.log(\`  Content: \${content.split("\\n")[0]}...\`);
-console.log(\`Read: "\${filename}"\`);
-console.log(\`  Content: \${readContent.split("\\n")[0]}...\`);
-console.log(\`Exists: \${exists}\`);
-console.log(\`Deleted: "\${filename}"\`);
+	console.log("---OUTPUT---");
+	console.log(\`Write: "\${filename}"\`);
+	console.log(\`  Content: \${content.split("\\n")[0]}...\`);
+	console.log(\`Read: "\${filename}"\`);
+	console.log(\`  Content: \${readContent.split("\\n")[0]}...\`);
+	console.log(\`Exists: \${exists}\`);
+	console.log(\`Deleted: "\${filename}"\`);
+} catch (error) {
+	console.log("---OUTPUT---");
+	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
+}
 `,
 
 	'durable-stream': `\
@@ -367,31 +392,36 @@ const input = JSON.parse(process.argv[2] ?? '{}');
 const content = input.content ?? "This is a durable stream demo.\\nContent persists with a shareable URL.";
 
 const ctx = createAgentContext();
-ctx.logger.info("Creating durable stream");
 
-console.log("---OUTPUT---");
+try {
+	ctx.logger.info("Creating durable stream");
 
-const streamName = \`demo-\${Date.now()}\`;
-const stream = await ctx.stream.create(streamName, {
-	contentType: "text/plain",
-	metadata: { created: new Date().toISOString() },
-});
+	const streamName = \`demo-\${Date.now()}\`;
+	const stream = await ctx.stream.create(streamName, {
+		contentType: "text/plain",
+		metadata: { created: new Date().toISOString() },
+	});
 
-console.log(\`Stream created: \${streamName}\`);
-console.log(\`Stream ID: \${stream.id}\`);
-console.log("");
+	console.log("---OUTPUT---");
+	console.log(\`Stream created: \${streamName}\`);
+	console.log(\`Stream ID: \${stream.id}\`);
+	console.log("");
 
-await stream.write(content);
-console.log("Content written:");
-console.log(\`  "\${content.split('\\n')[0]}..."\`);
-console.log("");
+	await stream.write(content);
+	console.log("Content written:");
+	console.log(\`  "\${content.split('\\n')[0]}..."\`);
+	console.log("");
 
-await stream.close();
-console.log("Stream closed");
-console.log("");
+	await stream.close();
+	console.log("Stream closed");
+	console.log("");
 
-console.log("Public URL (shareable):");
-console.log(\`  \${stream.url}\`);
+	console.log("Public URL (shareable):");
+	console.log(\`  \${stream.url}\`);
+} catch (error) {
+	console.log("---OUTPUT---");
+	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
+}
 `,
 
 	cron: `\
@@ -405,43 +435,48 @@ import { createAgentContext } from "@agentuity/runtime";
 const ctx = createAgentContext();
 const bucket = "v1-ks-cron";
 
-ctx.logger.info("Hourly task running");
+try {
+	ctx.logger.info("Hourly task running");
 
-console.log("---OUTPUT---");
-console.log("=== Hourly Data Sync (Simulated) ===");
-console.log(\`Triggered at: \${new Date().toISOString()}\`);
-console.log("");
+	console.log("---OUTPUT---");
+	console.log("=== Hourly Data Sync (Simulated) ===");
+	console.log(\`Triggered at: \${new Date().toISOString()}\`);
+	console.log("");
 
-console.log("Step 1: Fetching external data...");
-const mockData = {
-	lastUpdate: new Date().toISOString(),
-	recordCount: Math.floor(Math.random() * 1000) + 100,
-	source: "api.example.com",
-};
-console.log(\`  Fetched \${mockData.recordCount} records from \${mockData.source}\`);
-console.log("");
+	console.log("Step 1: Fetching external data...");
+	const mockData = {
+		lastUpdate: new Date().toISOString(),
+		recordCount: Math.floor(Math.random() * 1000) + 100,
+		source: "api.example.com",
+	};
+	console.log(\`  Fetched \${mockData.recordCount} records from \${mockData.source}\`);
+	console.log("");
 
-console.log("Step 2: Caching in KV storage...");
-await ctx.kv.set(bucket, "latest-sync", mockData, { ttl: 3600 });
-console.log(\`  Cached to "\${bucket}/latest-sync" (TTL: 1 hour)\`);
-console.log("");
+	console.log("Step 2: Caching in KV storage...");
+	await ctx.kv.set(bucket, "latest-sync", mockData, { ttl: 3600 });
+	console.log(\`  Cached to "\${bucket}/latest-sync" (TTL: 1 hour)\`);
+	console.log("");
 
-const cached = await ctx.kv.get(bucket, "latest-sync");
-console.log("Step 3: Verifying cache...");
-if (cached.exists) {
-	const data = cached.data as typeof mockData;
-	console.log(\`  Cache verified: \${data.recordCount} records\`);
-} else {
-	console.log("  Cache verification failed!");
+	const cached = await ctx.kv.get(bucket, "latest-sync");
+	console.log("Step 3: Verifying cache...");
+	if (cached.exists) {
+		const data = cached.data as typeof mockData;
+		console.log(\`  Cache verified: \${data.recordCount} records\`);
+	} else {
+		console.log("  Cache verification failed!");
+	}
+	console.log("");
+
+	console.log("Step 4: Cleaning up (demo only)...");
+	await ctx.kv.delete(bucket, "latest-sync");
+	console.log(\`  Deleted "\${bucket}/latest-sync"\`);
+	console.log("");
+
+	console.log("Cron job completed successfully");
+} catch (error) {
+	console.log("---OUTPUT---");
+	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
 }
-console.log("");
-
-console.log("Step 4: Cleaning up (demo only)...");
-await ctx.kv.delete(bucket, "latest-sync");
-console.log(\`  Deleted "\${bucket}/latest-sync"\`);
-console.log("");
-
-console.log("Cron job completed successfully");
 `,
 
 	'agent-calls': `\
@@ -511,36 +546,40 @@ const JudgmentSchema = z.object({
 	}),
 });
 
-ctx.logger.info("Generating responses in parallel");
+try {
+	ctx.logger.info("Generating responses in parallel");
 
-const [responseA, responseB] = await Promise.all([
-	generateText({ model: openai("gpt-5-nano"), prompt: userPrompt }),
-	generateText({ model: anthropic("claude-haiku-4-5"), prompt: userPrompt }),
-]);
+	const [responseA, responseB] = await Promise.all([
+		generateText({ model: openai("gpt-5-nano"), prompt: userPrompt }),
+		generateText({ model: anthropic("claude-haiku-4-5"), prompt: userPrompt }),
+	]);
 
-ctx.logger.info("Judging responses");
+	ctx.logger.info("Judging responses");
 
-const { object: judgment } = await generateObject({
-	model: openai("gpt-5-mini"),
-	schema: JudgmentSchema,
-	prompt: \`Compare these responses and pick a winner:\\n\\nModel A: \${responseA.text}\\nModel B: \${responseB.text}\\n\\nScore each on creativity and clarity (0-1).\`,
-});
+	const { object: judgment } = await generateObject({
+		model: openai("gpt-5-mini"),
+		schema: JudgmentSchema,
+		prompt: \`Compare these responses and pick a winner:\\n\\nModel A: \${responseA.text}\\nModel B: \${responseB.text}\\n\\nScore each on creativity and clarity (0-1).\`,
+	});
 
-console.log("---OUTPUT---");
-console.log("=== Model Arena Demo ===");
-console.log(\`Prompt: "\${userPrompt}"\`);
-console.log("");
-console.log("Model A (GPT-4o-mini):");
-console.log(\`  "\${responseA.text}"\`);
-console.log("");
-console.log("Model B (Claude Haiku):");
-console.log(\`  "\${responseB.text}"\`);
-console.log("");
-console.log("Judge Decision:");
-console.log(\`  Winner: \${judgment.winner === "model-a" ? "Model A (GPT-4o-mini)" : "Model B (Claude Haiku)"}\`);
-console.log(\`  Reasoning: \${judgment.reasoning}\`);
-console.log(\`  Creativity: A=\${(judgment.scores.creativity * 100).toFixed(0)}%\`);
-console.log(\`  Clarity: A=\${(judgment.scores.clarity * 100).toFixed(0)}%\`);
+	console.log("---OUTPUT---");
+	console.log("=== Model Arena Demo ===");
+	console.log(\`Prompt: "\${userPrompt}"\`);
+	console.log("");
+	console.log("Model A (gpt-5-nano):");
+	console.log(\`  "\${responseA.text}"\`);
+	console.log("");
+	console.log("Model B (claude-haiku-4-5):");
+	console.log(\`  "\${responseB.text}"\`);
+	console.log("");
+	console.log("Judge Decision:");
+	console.log(\`  Winner: \${judgment.winner === "model-a" ? "Model A (gpt-5-nano)" : "Model B (claude-haiku-4-5)"}\`);
+	console.log(\`  Reasoning: \${judgment.reasoning}\`);
+	console.log(\`  Scores: Creativity=\${(judgment.scores.creativity * 100).toFixed(0)}%, Clarity=\${(judgment.scores.clarity * 100).toFixed(0)}%\`);
+} catch (error) {
+	console.log("---OUTPUT---");
+	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
+}
 
 await new Promise<void>((resolve) => { process.stdout.write("", () => resolve()); });
 `,
@@ -620,7 +659,7 @@ await new Promise<void>((resolve) => { process.stdout.write("", () => resolve())
 /** Default inputs for each script */
 export const SCRIPT_DEFAULTS: Record<string, unknown> = {
 	hello: { name: 'World' },
-	vector: { query: 'ergonomic office chair', seedData: true },
+	vector: { query: 'ergonomic office chair' },
 	kv: {},
 	'ai-gateway': { prompt: 'Explain AI agents in 1 sentence.' },
 	streaming: { prompt: 'Write a short poem about AI.' },
@@ -628,7 +667,9 @@ export const SCRIPT_DEFAULTS: Record<string, unknown> = {
 	chat: { message: 'What is Agentuity?' },
 	'handler-context': {},
 	objectstore: {},
-	'durable-stream': { content: 'This is a durable stream demo.\nContent persists with a shareable URL.' },
+	'durable-stream': {
+		content: 'This is a durable stream demo.\nContent persists with a shareable URL.',
+	},
 	cron: {},
 	'agent-calls': { name: 'Explorer' },
 	'model-arena': { prompt: 'Explain AI agents in 1 sentence.' },

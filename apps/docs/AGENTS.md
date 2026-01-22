@@ -31,7 +31,7 @@ This app demonstrates:
 
 ## Directory Structure
 
-```
+```text
 apps/docs/
 ├── src/
 │   ├── agent/              # Agent implementations
@@ -102,7 +102,7 @@ The SDK Explorer includes a cloud sandbox system for executing demo scripts in i
 
 **Data Flow:**
 
-```
+```text
 Browser → useSandboxRunner hook
     → GET /api/sandbox/run?script=hello&input=base64JSON
     → route.ts reads script from SCRIPTS constant (scripts.ts)

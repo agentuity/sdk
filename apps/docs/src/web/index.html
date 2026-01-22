@@ -59,6 +59,24 @@
 				text-align: left;
 				animation: var(--animate-ellipsis);
 			}
+
+			/* Monaco editor line highlighting */
+			.line-highlight-subtle {
+				background-color: rgba(255, 255, 0, 0.1);
+			}
+
+			.line-highlight-important {
+				background-color: rgba(0, 255, 255, 0.15);
+			}
+
+			/* Dark mode variants */
+			.dark .line-highlight-subtle {
+				background-color: rgba(255, 255, 0, 0.08);
+			}
+
+			.dark .line-highlight-important {
+				background-color: rgba(0, 255, 255, 0.12);
+			}
 		</style>
 		<script type="module" src="./frontend.tsx" async></script>
 	</head>

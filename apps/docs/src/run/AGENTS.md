@@ -10,7 +10,7 @@ This folder contains standalone demo scripts that showcase Agentuity SDK feature
 
 ## Directory Structure
 
-```
+```text
 src/run/
 ├── AGENTS.md            # This file
 ├── hello.ts             # Basic agent invocation

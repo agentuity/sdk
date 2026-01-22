@@ -22,7 +22,7 @@ const agent = createAgent("hello", {
   },
 });`,
 
-	"handler-context": `// AgentContext provides access to all SDK capabilities.
+	'handler-context': `// AgentContext provides access to all SDK capabilities.
 // This shows the most commonly used properties and methods.
 
 handler: async (ctx, input) => {
@@ -76,7 +76,7 @@ handler: async (ctx, input) => {
   });
 }`,
 
-	"key-value": `// Key-Value storage: fast ephemeral data by exact key.
+	'key-value': `// Key-Value storage: fast ephemeral data by exact key.
 // Buckets auto-created. Keys should be unique per run.
 
 const bucket = "explorer-sandbox";
@@ -113,7 +113,7 @@ if (result.exists) {
 await ctx.kv.delete(bucket, key);
 ctx.logger.info("Cleaned up", { key });`,
 
-	"vector-storage": `// Vector storage: semantic search by meaning, not keywords.
+	'vector-storage': `// Vector storage: semantic search by meaning, not keywords.
 // Namespaces auto-created. Keys should be unique per run.
 
 const namespace = "explorer-sandbox";
@@ -152,7 +152,7 @@ for (const result of results) {
 await ctx.vector.delete(namespace, product.sku);
 ctx.logger.info("Cleaned up", { sku: product.sku });`,
 
-	"object-storage": `// Object storage for files, images, and binary data.
+	'object-storage': `// Object storage for files, images, and binary data.
 // Uses Bun's native S3 API - credentials are auto-injected by Agentuity.
 import { s3 } from "bun";
 
@@ -184,7 +184,7 @@ await file.delete();
 const existsAfter = await file.exists();
 ctx.logger.info("Cleaned up", { filename, existsAfter });`,
 
-	"sse-stream": `// Server-Sent Events (SSE) for real-time streaming to clients.
+	'sse-stream': `// Server-Sent Events (SSE) for real-time streaming to clients.
 // Perfect for LLM token streaming, progress updates, and live feeds.
 import { createRouter, sse } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
@@ -246,7 +246,7 @@ router.post("/stream", stream(async (c) => {
   return textStream;
 }));`,
 
-	"agent-calls": `// Agent calls: ctx.run() and ctx.waitUntil() patterns
+	'agent-calls': `// Agent calls: ctx.run() and ctx.waitUntil() patterns
 // Demonstrates: invoking agents, background tasks
 import { createAgentContext } from "@agentuity/runtime";
 import helloAgent from "@agent/hello";
@@ -295,7 +295,7 @@ router.post("/hourly-task", cron("0 * * * *", async (c) => {
 // "0 0 * * *"     daily at midnight
 // "0 9 * * 1"     Mondays at 9am`,
 
-	"durable-stream": `// Create durable content with shareable URLs.
+	'durable-stream': `// Create durable content with shareable URLs.
 // Unlike ephemeral streams, content persists forever.
 import { createRouter } from "@agentuity/runtime";
 import { streamText } from "ai";
@@ -374,7 +374,7 @@ ctx.logger.info("Thread state updated", { newTurnCount: turnCount + 1 });
 const elapsed = Date.now() - (ctx.session.state.get("requestStart") as number);
 ctx.logger.info("Request completed", { elapsedMs: elapsed });`,
 
-	"model-arena": `// LLM-as-Judge: Have one model evaluate outputs from other models.
+	'model-arena': `// LLM-as-Judge: Have one model evaluate outputs from other models.
 // Pattern: Generate responses in parallel, then use generateObject()
 // to get structured evaluation with guaranteed schema compliance.
 import { anthropic } from "@ai-sdk/anthropic";
@@ -421,7 +421,7 @@ Score each on creativity and clarity (0-1).\`,
 ctx.logger.info("Judge result", { winner: judgment.winner });
 ctx.logger.info("Scores", judgment.scores);`,
 
-	"ai-gateway": `// AI Gateway: One SDK key, any provider.
+	'ai-gateway': `// AI Gateway: One SDK key, any provider.
 // The Gateway handles authentication for all AI providers automatically.
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";

@@ -9,7 +9,7 @@
  *   bun run src/run/invoke.ts hello '{"name":"World"}'
  *   bun run src/run/invoke.ts vector '{"query":"ergonomic chair","seedData":true}'
  */
-import { createAgentContext } from "@agentuity/runtime";
+import { createAgentContext } from '@agentuity/runtime';
 
 const [agentName, inputJson] = process.argv.slice(2);
 
@@ -33,5 +33,5 @@ try {
 const ctx = createAgentContext();
 const result = await ctx.invoke(() => agent.run(input));
 
-console.log("---OUTPUT---");
+console.log('---OUTPUT---');
 console.log(JSON.stringify(result, null, 2));

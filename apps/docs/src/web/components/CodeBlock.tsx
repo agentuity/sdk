@@ -1,11 +1,11 @@
-import Editor, { type OnMount } from "@monaco-editor/react";
-import { useCallback, useState } from "react";
-import { useTheme } from "./ThemeContext";
+import Editor, { type OnMount } from '@monaco-editor/react';
+import { useCallback, useState } from 'react';
+import { useTheme } from './ThemeContext';
 
 // Line highlight configuration
 export interface LineHighlight {
 	lines: number | [number, number]; // Single line or [start, end] range
-	className?: "important" | "subtle"; // Style variant
+	className?: 'important' | 'subtle'; // Style variant
 }
 
 interface CodeBlockProps {
@@ -17,7 +17,14 @@ interface CodeBlockProps {
 	highlights?: LineHighlight[];
 }
 
-export function CodeBlock({ code, title, showRunButton, onRun, isRunning, highlights }: CodeBlockProps) {
+export function CodeBlock({
+	code,
+	title,
+	showRunButton,
+	onRun,
+	isRunning,
+	highlights,
+}: CodeBlockProps) {
 	const { resolvedTheme } = useTheme();
 	const [copied, setCopied] = useState(false);
 
@@ -33,12 +40,9 @@ export function CodeBlock({ code, title, showRunButton, onRun, isRunning, highli
 			if (!highlights?.length) return;
 
 			const decorations = highlights.map((h) => {
-				const [startLine, endLine] =
-					typeof h.lines === "number" ? [h.lines, h.lines] : h.lines;
+				const [startLine, endLine] = typeof h.lines === 'number' ? [h.lines, h.lines] : h.lines;
 				const styleClass =
-					h.className === "subtle"
-						? "line-highlight-subtle"
-						: "line-highlight-important";
+					h.className === 'subtle' ? 'line-highlight-subtle' : 'line-highlight-important';
 
 				return {
 					range: new monaco.Range(startLine, 1, endLine, 1),
@@ -59,7 +63,7 @@ export function CodeBlock({ code, title, showRunButton, onRun, isRunning, highli
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 h-12 border-b border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-900/50 flex-shrink-0">
 				<span className="text-sm text-zinc-500 dark:text-zinc-400">
-					{title || "Reference Code"}
+					{title || 'Reference Code'}
 				</span>
 				<div className="flex items-center gap-2">
 					{showRunButton && (
@@ -69,8 +73,8 @@ export function CodeBlock({ code, title, showRunButton, onRun, isRunning, highli
 							disabled={isRunning}
 							className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded transition-colors ${
 								isRunning
-									? "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
-									: "bg-cyan-500 dark:bg-cyan-500 text-black hover:bg-cyan-400 dark:hover:bg-cyan-400 cursor-pointer"
+									? 'bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed'
+									: 'bg-cyan-500 dark:bg-cyan-500 text-black hover:bg-cyan-400 dark:hover:bg-cyan-400 cursor-pointer'
 							}`}
 						>
 							{isRunning ? (
@@ -133,9 +137,7 @@ export function CodeBlock({ code, title, showRunButton, onRun, isRunning, highli
 										d="M5 13l4 4L19 7"
 									/>
 								</svg>
-								<span className="text-green-700 dark:text-green-400">
-									Copied!
-								</span>
+								<span className="text-green-700 dark:text-green-400">Copied!</span>
 							</>
 						) : (
 							<>
@@ -165,24 +167,24 @@ export function CodeBlock({ code, title, showRunButton, onRun, isRunning, highli
 				<Editor
 					value={code.trim()}
 					language="typescript"
-					theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+					theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
 					onMount={handleEditorMount}
 					options={{
 						readOnly: true,
 						minimap: { enabled: false },
 						scrollBeyondLastLine: false,
 						fontSize: 13,
-						lineNumbers: "on",
+						lineNumbers: 'on',
 						lineNumbersMinChars: 3,
 						glyphMargin: false,
 						folding: true,
-						renderLineHighlight: "line",
+						renderLineHighlight: 'line',
 						overviewRulerLanes: 0,
 						hideCursorInOverviewRuler: true,
 						overviewRulerBorder: false,
 						scrollbar: {
-							vertical: "auto",
-							horizontal: "auto",
+							vertical: 'auto',
+							horizontal: 'auto',
 							verticalScrollbarSize: 8,
 							horizontalScrollbarSize: 8,
 						},

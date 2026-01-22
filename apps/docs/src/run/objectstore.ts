@@ -10,37 +10,42 @@
  *
  * Usage: bun run src/run/objectstore.ts '{}'
  */
-import { createAgentContext } from "@agentuity/runtime";
-import { s3 } from "bun";
+import { createAgentContext } from '@agentuity/runtime';
+import { s3 } from 'bun';
 
 const ctx = createAgentContext();
 
 const filename = `demo-${Date.now()}.txt`;
 const content = `Hello from Object Storage!\nTimestamp: ${new Date().toISOString()}`;
 
-ctx.logger.info("Writing file");
+try {
+	ctx.logger.info('Writing file');
 
-// Write a file
-const file = s3.file(filename);
-await file.write(content);
+	// Write a file
+	const file = s3.file(filename);
+	await file.write(content);
 
-ctx.logger.info("Reading file");
+	ctx.logger.info('Reading file');
 
-// Read it back
-const readContent = await file.text();
+	// Read it back
+	const readContent = await file.text();
 
-// Check existence
-const exists = await file.exists();
+	// Check existence
+	const exists = await file.exists();
 
-ctx.logger.info("Deleting file");
+	ctx.logger.info('Deleting file');
 
-// Delete
-await file.delete();
+	// Delete
+	await file.delete();
 
-console.log("---OUTPUT---");
-console.log(`Write: "${filename}"`);
-console.log(`  Content: ${content.split("\n")[0]}...`);
-console.log(`Read: "${filename}"`);
-console.log(`  Content: ${readContent.split("\n")[0]}...`);
-console.log(`Exists: ${exists}`);
-console.log(`Deleted: "${filename}"`);
+	console.log('---OUTPUT---');
+	console.log(`Write: "${filename}"`);
+	console.log(`  Content: ${content.split('\n')[0]}...`);
+	console.log(`Read: "${filename}"`);
+	console.log(`  Content: ${readContent.split('\n')[0]}...`);
+	console.log(`Exists: ${exists}`);
+	console.log(`Deleted: "${filename}"`);
+} catch (error) {
+	console.log('---OUTPUT---');
+	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+}

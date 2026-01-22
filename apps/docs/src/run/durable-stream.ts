@@ -9,42 +9,48 @@
  *
  * Usage: bun run src/run/durable-stream.ts '{"content":"Hello world"}'
  */
-import { createAgentContext } from "@agentuity/runtime";
+import { createAgentContext } from '@agentuity/runtime';
 
 interface Input {
 	content?: string;
 }
 
 const input: Input = JSON.parse(process.argv[2] ?? '{}');
-const content = input.content ?? "This is a durable stream demo.\nContent persists with a shareable URL.";
+const content =
+	input.content ?? 'This is a durable stream demo.\nContent persists with a shareable URL.';
 
 const ctx = createAgentContext();
-ctx.logger.info("Creating durable stream");
 
-console.log("---OUTPUT---");
+try {
+	ctx.logger.info('Creating durable stream');
 
-// Create a durable stream
-const streamName = `demo-${Date.now()}`;
-const stream = await ctx.stream.create(streamName, {
-	contentType: "text/plain",
-	metadata: { created: new Date().toISOString() },
-});
+	// Create a durable stream
+	const streamName = `demo-${Date.now()}`;
+	const stream = await ctx.stream.create(streamName, {
+		contentType: 'text/plain',
+		metadata: { created: new Date().toISOString() },
+	});
 
-console.log(`Stream created: ${streamName}`);
-console.log(`Stream ID: ${stream.id}`);
-console.log("");
+	console.log('---OUTPUT---');
+	console.log(`Stream created: ${streamName}`);
+	console.log(`Stream ID: ${stream.id}`);
+	console.log('');
 
-// Write content
-await stream.write(content);
-console.log("Content written:");
-console.log(`  "${content.split('\n')[0]}..."`);
-console.log("");
+	// Write content
+	await stream.write(content);
+	console.log('Content written:');
+	console.log(`  "${content.split('\n')[0]}..."`);
+	console.log('');
 
-// Close the stream
-await stream.close();
-console.log("Stream closed");
-console.log("");
+	// Close the stream
+	await stream.close();
+	console.log('Stream closed');
+	console.log('');
 
-// The URL is shareable and permanent
-console.log("Public URL (shareable):");
-console.log(`  ${stream.url}`);
+	// The URL is shareable and permanent
+	console.log('Public URL (shareable):');
+	console.log(`  ${stream.url}`);
+} catch (error) {
+	console.log('---OUTPUT---');
+	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+}

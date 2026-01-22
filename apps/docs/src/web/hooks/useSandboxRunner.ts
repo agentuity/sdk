@@ -13,9 +13,7 @@ const VALID_STATUSES: Set<TerminalStatus> = new Set([
 
 /** Decode SSE-encoded newlines and clean output for display */
 function decodeAndClean(text: string): string {
-	return text
-		.replace(/\\n/g, '\n')
-		.replace(/---OUTPUT---\n?/g, '');
+	return text.replace(/\\n/g, '\n').replace(/---OUTPUT---\n?/g, '');
 }
 
 /** Validate that a status string is a valid TerminalStatus */
@@ -94,7 +92,10 @@ export function useSandboxRunner(): UseSandboxRunnerReturn {
 
 		// Add input parameter if provided
 		if (input !== undefined) {
-			const inputBase64 = btoa(JSON.stringify(input));
+			const json = JSON.stringify(input);
+			const bytes = new TextEncoder().encode(json);
+			const binary = String.fromCharCode(...bytes);
+			const inputBase64 = btoa(binary);
 			url += `&input=${encodeURIComponent(inputBase64)}`;
 		}
 

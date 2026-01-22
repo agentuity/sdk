@@ -10,39 +10,44 @@
  *
  * Usage: bun run src/run/kv.ts '{}'
  */
-import { createAgentContext } from "@agentuity/runtime";
+import { createAgentContext } from '@agentuity/runtime';
 
 const ctx = createAgentContext();
 
 // Unique key prefix for this run (isolation)
 const runId = Date.now().toString(36);
-const bucket = "explorer-sandbox";
+const bucket = 'explorer-sandbox';
 const key = `${runId}:session-001`;
 
 // Sample session data to store
 const sessionData = {
-	visitorId: "visitor-abc123",
+	visitorId: 'visitor-abc123',
 	lastActive: new Date().toISOString(),
-	preferences: { theme: "dark" },
+	preferences: { theme: 'dark' },
 };
 
-ctx.logger.info("Setting key");
+try {
+	ctx.logger.info('Setting key');
 
-// SET - store data with TTL
-await ctx.kv.set(bucket, key, sessionData, { ttl: 300 });
+	// SET - store data with TTL
+	await ctx.kv.set(bucket, key, sessionData, { ttl: 300 });
 
-ctx.logger.info("Getting key");
+	ctx.logger.info('Getting key');
 
-// GET - retrieve data
-const result = await ctx.kv.get(bucket, key);
+	// GET - retrieve data
+	const result = await ctx.kv.get(bucket, key);
 
-// DELETE - cleanup (before OUTPUT so it shows in logs)
-await ctx.kv.delete(bucket, key);
-ctx.logger.info("Deleted key");
+	// DELETE - cleanup (before OUTPUT so it shows in logs)
+	await ctx.kv.delete(bucket, key);
+	ctx.logger.info('Deleted key');
 
-console.log("---OUTPUT---");
-console.log(`Set: "${key}"`);
-console.log(`  visitorId: "${sessionData.visitorId}"`);
-console.log(`  theme: "${sessionData.preferences.theme}"`);
-console.log(`Get: ${result.exists ? "found" : "not found"}`);
-console.log(`Deleted: "${key}"`);
+	console.log('---OUTPUT---');
+	console.log(`Set: "${key}"`);
+	console.log(`  visitorId: "${sessionData.visitorId}"`);
+	console.log(`  theme: "${sessionData.preferences.theme}"`);
+	console.log(`Get: ${result.exists ? 'found' : 'not found'}`);
+	console.log(`Deleted: "${key}"`);
+} catch (error) {
+	console.log('---OUTPUT---');
+	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+}

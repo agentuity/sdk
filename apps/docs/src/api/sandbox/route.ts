@@ -112,7 +112,8 @@ router.get(
 		if (process.env.S3_BUCKET) envVars.S3_BUCKET = process.env.S3_BUCKET;
 		if (process.env.S3_ENDPOINT) envVars.S3_ENDPOINT = process.env.S3_ENDPOINT;
 		if (process.env.S3_ACCESS_KEY_ID) envVars.S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
-		if (process.env.S3_SECRET_ACCESS_KEY) envVars.S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
+		if (process.env.S3_SECRET_ACCESS_KEY)
+			envVars.S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 
 		await stream.writeSSE({ event: 'status', data: 'creating' });
 

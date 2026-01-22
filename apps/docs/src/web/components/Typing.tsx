@@ -1,5 +1,5 @@
 import { type MotionProps, motion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { twMerge } from 'tailwind-merge';
 
 interface TypingProps extends MotionProps {
@@ -22,15 +22,22 @@ export function Typing({
 	onComplete,
 	...props
 }: TypingProps) {
-	const MotionComponent = motion.create(Component, {
-		forwardMotionProps: true,
-	});
+	const MotionComponent = useMemo(
+		() => motion.create(Component, { forwardMotionProps: true }),
+		[Component]
+	);
 
 	const [displayedText, setDisplayedText] = useState<string>('');
 	const [started, setStarted] = useState(false);
 	const elementRef = useRef<HTMLElement | null>(null);
 	const onCompleteRef = useRef(onComplete);
 	const hasCompletedRef = useRef(false);
+
+	// Reset animation state when children changes
+	useEffect(() => {
+		hasCompletedRef.current = false;
+		setDisplayedText('');
+	}, [children]);
 
 	// Keep onComplete ref up to date
 	useEffect(() => {
@@ -45,11 +52,13 @@ export function Typing({
 			return () => clearTimeout(startTimeout);
 		}
 
+		let viewTimeout: ReturnType<typeof setTimeout> | null = null;
+
 		const observer = new IntersectionObserver(
 			(entries) => {
 				const entry = entries[0];
 				if (entry?.isIntersecting) {
-					setTimeout(() => {
+					viewTimeout = setTimeout(() => {
 						setStarted(true);
 					}, delay);
 					observer.disconnect();
@@ -62,7 +71,10 @@ export function Typing({
 			observer.observe(elementRef.current);
 		}
 
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+			if (viewTimeout) clearTimeout(viewTimeout);
+		};
 	}, [delay, startOnView]);
 
 	useEffect(() => {
