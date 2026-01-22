@@ -8,6 +8,7 @@ import {
 	type Logger,
 	StructuredError,
 } from '@agentuity/core';
+import { context, trace, SpanStatusCode } from '@opentelemetry/api';
 import { internal } from '../../logger/internal';
 
 const SessionResponseError = StructuredError('SessionResponseError');
@@ -54,22 +55,44 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			return;
 		}
 
-		internal.info('[session-http] sending start event: %s', event.id);
-		this.logger.debug('Sending session start event: %s', event.id);
-		const resp = await this.apiClient.post(
-			'/session/2025-03-17',
-			{ ...event, timestamp: Date.now() },
-			APIResponseSchemaNoData(),
-			SessionStartEventDelayedSchema
-		);
-		if (resp.success) {
-			internal.info('[session-http] start event sent successfully: %s', event.id);
-			this.logger.debug('Session start event sent successfully: %s', event.id);
-			this.startedSessions.add(event.id);
-			return;
+		const tracer = trace.getTracer('session');
+		const currentContext = context.active();
+		const span = tracer.startSpan('Session Start', {}, currentContext);
+
+		try {
+			internal.info('[session-http] sending start event: %s', event.id);
+			this.logger.debug('Sending session start event: %s', event.id);
+
+			const spanContext = trace.setSpan(currentContext, span);
+			const resp = await context.with(spanContext, () =>
+				this.apiClient.post(
+					'/session/2025-03-17',
+					{ ...event, timestamp: Date.now() },
+					APIResponseSchemaNoData(),
+					SessionStartEventDelayedSchema
+				)
+			);
+
+			if (resp.success) {
+				internal.info('[session-http] start event sent successfully: %s', event.id);
+				this.logger.debug('Session start event sent successfully: %s', event.id);
+				this.startedSessions.add(event.id);
+				span.setStatus({ code: SpanStatusCode.OK });
+				return;
+			}
+			internal.info('[session-http] start event failed: %s - %s', event.id, resp.message);
+			span.setStatus({ code: SpanStatusCode.ERROR, message: resp.message });
+			throw new SessionResponseError({ message: resp.message });
+		} catch (error) {
+			span.recordException(error as Error);
+			span.setStatus({
+				code: SpanStatusCode.ERROR,
+				message: error instanceof Error ? error.message : String(error),
+			});
+			throw error;
+		} finally {
+			span.end();
 		}
-		internal.info('[session-http] start event failed: %s - %s', event.id, resp.message);
-		throw new SessionResponseError({ message: resp.message });
 	}
 
 	/**
@@ -91,24 +114,46 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 		}
 		this.startedSessions.delete(event.id);
 
-		internal.info(
-			'[session-http] sending complete event: %s, userData: %s',
-			event.id,
-			event.userData ? `${event.userData.length} bytes` : 'none'
-		);
-		this.logger.debug('Sending session complete event: %s', event.id);
-		const resp = await this.apiClient.put(
-			'/session/2025-03-17',
-			{ ...event, timestamp: Date.now() },
-			APIResponseSchemaNoData(),
-			SessionCompleteEventDelayedSchema
-		);
-		if (resp.success) {
-			internal.info('[session-http] complete event sent successfully: %s', event.id);
-			this.logger.debug('Session complete event sent successfully: %s', event.id);
-			return;
+		const tracer = trace.getTracer('session');
+		const currentContext = context.active();
+		const span = tracer.startSpan('Session End', {}, currentContext);
+
+		try {
+			internal.info(
+				'[session-http] sending complete event: %s, userData: %s',
+				event.id,
+				event.userData ? `${event.userData.length} bytes` : 'none'
+			);
+			this.logger.debug('Sending session complete event: %s', event.id);
+
+			const spanContext = trace.setSpan(currentContext, span);
+			const resp = await context.with(spanContext, () =>
+				this.apiClient.put(
+					'/session/2025-03-17',
+					{ ...event, timestamp: Date.now() },
+					APIResponseSchemaNoData(),
+					SessionCompleteEventDelayedSchema
+				)
+			);
+
+			if (resp.success) {
+				internal.info('[session-http] complete event sent successfully: %s', event.id);
+				this.logger.debug('Session complete event sent successfully: %s', event.id);
+				span.setStatus({ code: SpanStatusCode.OK });
+				return;
+			}
+			internal.info('[session-http] complete event failed: %s - %s', event.id, resp.message);
+			span.setStatus({ code: SpanStatusCode.ERROR, message: resp.message });
+			throw new SessionResponseError({ message: resp.message });
+		} catch (error) {
+			span.recordException(error as Error);
+			span.setStatus({
+				code: SpanStatusCode.ERROR,
+				message: error instanceof Error ? error.message : String(error),
+			});
+			throw error;
+		} finally {
+			span.end();
 		}
-		internal.info('[session-http] complete event failed: %s - %s', event.id, resp.message);
-		throw new SessionResponseError({ message: resp.message });
 	}
 }
