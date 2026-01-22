@@ -209,8 +209,24 @@ function _wrapStream(stream, span, inputTokensField, outputTokensField) {
 	});
 }
 
-const _original_create = ${className}.prototype.create;
-${className}.prototype.create = function _agentuity_otel_create(body, options) {
+// Safely patch the class if it exists
+let _original_create;
+try {
+	if (typeof ${className} === 'undefined' || !${className}.prototype || typeof ${className}.prototype.create !== 'function') {
+		console.debug('[Agentuity OTel] Skipping patch: ${className}.prototype.create not found or not a function');
+	} else {
+		_original_create = ${className}.prototype.create;
+		${className}.prototype.create = _agentuity_otel_create;
+	}
+} catch (e) {
+	console.debug('[Agentuity OTel] Failed to patch ${className}:', e?.message || e);
+}
+
+function _agentuity_otel_create(body, options) {
+	// If patching failed, _original_create won't be set - this shouldn't happen but handle gracefully
+	if (!_original_create) {
+		throw new Error('[Agentuity OTel] ${className}.prototype.create was not properly patched');
+	}
 	const attributes = {
 		[_ATTR_GEN_AI_SYSTEM]: '${provider}',
 		[_ATTR_GEN_AI_OPERATION_NAME]: 'chat',
@@ -309,7 +325,7 @@ ${className}.prototype.create = function _agentuity_otel_create(body, options) {
 		span.end();
 		return result;
 	});
-};
+}
 `;
 }
 
