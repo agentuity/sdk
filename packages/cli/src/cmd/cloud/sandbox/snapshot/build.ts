@@ -165,7 +165,7 @@ function substituteVariables(
 }
 
 // Default patterns that are always excluded from snapshot builds
-const DEFAULT_EXCLUSIONS = ['.git/**'];
+const DEFAULT_EXCLUSIONS = ['.git/**', 'node_modules/**', '.agentuity/**', '.env*'];
 
 async function resolveFileGlobs(
 	directory: string,
@@ -448,7 +448,8 @@ export const buildSubcommand = createCommand({
 		const buildConfig = validationResult.data;
 
 		// Determine if snapshot is public: CLI flag takes precedence, otherwise use build file
-		const isPublic = opts.public === true || (opts.public === undefined && buildConfig.public === true);
+		const isPublic =
+			opts.public === true || (opts.public === undefined && buildConfig.public === true);
 
 		if (isPublic && !dryRun) {
 			if (!opts.confirm) {
@@ -515,7 +516,11 @@ export const buildSubcommand = createCommand({
 				finalEnv = substituteVariables(buildConfig.env, envSubstitutions, 'env');
 			}
 			if (buildConfig.metadata) {
-				finalMetadata = substituteVariables(buildConfig.metadata, metadataSubstitutions, 'metadata');
+				finalMetadata = substituteVariables(
+					buildConfig.metadata,
+					metadataSubstitutions,
+					'metadata'
+				);
 			}
 		} catch (err) {
 			logger.fatal(err instanceof Error ? err.message : String(err));

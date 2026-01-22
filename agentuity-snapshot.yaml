@@ -38,9 +38,7 @@ description: A snapshot with the Agentuity demo project which can be used for te
 # Supports glob patterns and negative patterns (prefix with !)
 # Files are placed in /home/agentuity/ in the sandbox
 files:
-  - "**/*"              # All files in the project
-  - "!node_modules/**"  # Exclude node_modules
-  - "!.agentuity/**"    # Exclude build_folder
+  - "**/*" # All files in the project
 
 # Optional: Environment variables
 # Use ${VAR} syntax for build-time substitution via --env flag
