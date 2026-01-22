@@ -387,6 +387,7 @@ add_to_path() {
 
 configure_path() {
   bun_bin_dir="$BUN_BIN_DIR"
+  modified_config_file=""
 
   # Check if bun bin is already on PATH
   case ":$PATH:" in
@@ -454,6 +455,9 @@ configure_path() {
     add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH" "bun"
     ;;
   esac
+  
+  # Export the config file that was modified for show_path_reminder
+  modified_config_file="$config_file"
 }
 
 # GitHub Actions PATH setup
@@ -465,7 +469,16 @@ setup_github_actions() {
 }
 
 show_path_reminder() {
-  if [ "$path_modified" = true ]; then
+  _config_file="${1:-}"
+  if [ "$path_modified" = true ] && [ -n "$_config_file" ]; then
+    # Determine the correct source command based on shell
+    _source_cmd="source $_config_file"
+    case "$_config_file" in
+    *.fish)
+      _source_cmd="source $_config_file"
+      ;;
+    esac
+    
     printf "\n"
     printf "${RED}╭────────────────────────────────────────────────────╮${NC}\n"
     printf "${RED}│${NC} ${RED}⚠  ACTION REQUIRED${NC}                                 ${RED}│${NC}\n"
@@ -474,7 +487,7 @@ show_path_reminder() {
     printf "${RED}│${NC}                                                    ${RED}│${NC}\n"
     printf "${RED}│ Please restart your terminal or run:               │${NC}\n"
     printf "${RED}│${NC}                                                    ${RED}│${NC}\n"
-    printf "${RED}│${NC} ${CYAN}source ~/.bashrc${NC}                                   ${RED}│${NC}\n"
+    printf "${RED}│${NC} ${CYAN}%s${NC}\n" "$_source_cmd"
     printf "${RED}╰────────────────────────────────────────────────────╯${NC}\n"
   fi
 }
@@ -565,8 +578,8 @@ main() {
   # Clear progress indicator
   clear_progress
 
-  # Show PATH reminder if needed
-  show_path_reminder
+  # Show PATH reminder if needed (pass the config file that was modified)
+  show_path_reminder "$modified_config_file"
 
   # Run setup
   run_setup
