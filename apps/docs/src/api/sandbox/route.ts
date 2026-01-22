@@ -58,7 +58,7 @@ const SCRIPT_DEFAULTS: Record<string, unknown> = {
 	objectstore: {},
 	'durable-stream': { content: 'This is a durable stream demo.\nContent persists with a shareable URL.' },
 	cron: {},
-	'agent-calls': { text: '  Hello!!!  World...  #testing   @demo  ' },
+	'agent-calls': { name: 'Explorer' },
 	'model-arena': { prompt: 'Explain AI agents in 1 sentence.' },
 	evals: { question: 'What is Agentuity and what are its main features?' },
 };
@@ -132,12 +132,25 @@ router.get(
 			}
 		};
 
+		// Track output to detect actual exit code from error messages
+		// sandboxRun returns hardcoded 0/1, but actual exit code is in output
+		let detectedExitCode: number | null = null;
+
 		// Create a Writable stream that forwards cleaned output to SSE
 		// Note: SSE uses newlines as delimiters, so we encode \n as \\n
 		// The frontend decodes this back to actual newlines
 		const sseWritable = new Writable({
 			write(chunk, _encoding, callback) {
-				const text = cleanOutput(chunk.toString());
+				const raw = chunk.toString();
+				const text = cleanOutput(raw);
+
+				// Detect exit code from sandbox error output
+				// Pattern: "[ERROR] [agentuity] process exited with error: exit status X"
+				const exitMatch = raw.match(/process exited with error: exit status (\d+)/);
+				if (exitMatch) {
+					detectedExitCode = parseInt(exitMatch[1], 10);
+				}
+
 				// Skip empty chunks (but not chunks with just whitespace/newlines)
 				if (text.length === 0) {
 					callback();
@@ -202,16 +215,19 @@ router.get(
 				logger,
 			});
 
+			// Use detected exit code from output if available, otherwise use sandboxRun result
+			const exitCode = detectedExitCode ?? result.exitCode;
+
 			logger?.info('Sandbox completed', {
 				sandboxId: result.sandboxId,
 				script: scriptName,
-				exitCode: result.exitCode,
+				exitCode,
 				durationMs: result.durationMs,
 			});
 
 			await stream.writeSSE({
 				event: 'done',
-				data: JSON.stringify({ exitCode: result.exitCode, status: 'completed' }),
+				data: JSON.stringify({ exitCode, status: 'completed' }),
 			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Unknown error';

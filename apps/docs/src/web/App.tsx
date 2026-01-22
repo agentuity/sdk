@@ -368,7 +368,7 @@ const DEMOS: DemoConfig[] = [
 		codeExample: CODE_EXAMPLES["agent-calls"],
 		sandboxEnabled: true,
 		sandboxScript: "agent-calls",
-		sandboxInput: { text: "  Hello!!!  World...  #testing   @demo  " },
+		sandboxInput: { name: "Explorer" },
 	},
 	{
 		id: "cron",
