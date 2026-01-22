@@ -11,17 +11,29 @@ Required files:
 - **index.html** (required) - HTML template
 - **public/** (optional) - Static assets (images, CSS, JS files)
 
-Example structure:
+SDK Explorer structure:
 
 ```
 src/web/
-├── App.tsx
-├── frontend.tsx
-├── index.html
-└── public/
-    ├── styles.css
-    ├── logo.svg
-    └── script.js
+├── App.tsx              # Main app with demo config and routing
+├── frontend.tsx         # Entry point with HMR support
+├── index.html           # HTML template
+├── code-examples.ts     # Educational code snippets for display
+├── test-outputs.ts      # Test mode output fixtures
+├── hooks/
+│   └── useSandboxRunner.ts  # SSE-based cloud sandbox execution
+├── components/
+│   ├── CodeBlock.tsx        # Monaco editor with run button
+│   ├── TerminalOutput.tsx   # Streaming output display
+│   ├── ThemeContext.tsx     # Theme provider
+│   ├── ThemeToggle.tsx      # Theme switcher
+│   ├── JsonDisplay.tsx      # JSON formatter
+│   ├── Typing.tsx           # Loading animation
+│   └── *Demo.tsx            # Demo components (HelloDemo, ChatDemo, etc.)
+├── public/
+│   └── favicon.ico
+└── status/
+    └── route.ts         # Health check endpoint
 ```
 
 ## Creating the Web App
@@ -93,7 +105,25 @@ createRoot(root).render(<App />);
 
 ## React Hooks
 
-### useAgent - Call Agents
+### useAPI - Call API Routes
+
+Most SDK Explorer demos use `useAPI` for HTTP calls to API routes:
+
+```typescript
+import { useAPI } from '@agentuity/react';
+
+function HelloDemo() {
+	const { run, running, data, error } = useAPI('POST /api/hello');
+
+	return (
+		<button onClick={() => run({ name: 'World' })} disabled={running}>
+			{running ? 'Running...' : 'Say Hello'}
+		</button>
+	);
+}
+```
+
+### useAgent - Call Agents Directly
 
 ```typescript
 import { useAgent } from '@agentuity/react';
@@ -142,6 +172,97 @@ function MyComponent() {
 			<p>Data: {data}</p>
 		</div>
 	);
+}
+```
+
+## SDK Explorer Components
+
+### useSandboxRunner Hook
+
+Custom hook for executing scripts in cloud sandboxes via SSE:
+
+```typescript
+import { useSandboxRunner } from './hooks/useSandboxRunner';
+
+function MyDemo() {
+	const { status, output, error, exitCode, run } = useSandboxRunner();
+
+	const handleRun = () => {
+		run('hello', { name: 'World' }); // script name, input object
+	};
+
+	return (
+		<div>
+			<button onClick={handleRun} disabled={status === 'running'}>
+				Run
+			</button>
+			<TerminalOutput status={status} output={output} exitCode={exitCode} />
+		</div>
+	);
+}
+```
+
+**State:**
+
+- `status`: 'idle' | 'creating' | 'recreating' | 'running' | 'completed' | 'error'
+- `output`: Streamed stdout content
+- `error`: Error message if failed
+- `exitCode`: Process exit code when completed
+
+### CodeBlock Component
+
+Monaco editor wrapper with copy and run buttons:
+
+```typescript
+import { CodeBlock } from './components/CodeBlock';
+
+<CodeBlock
+	code={codeString}
+	language="typescript"
+	onRun={() => sandbox.run('scriptName', input)}
+	isRunning={status === 'running'}
+	highlights={[
+		{ lines: [5, 10], className: 'important' },
+		{ lines: 15, className: 'subtle' },
+	]}
+/>;
+```
+
+### TerminalOutput Component
+
+Displays sandbox execution status and streaming output:
+
+```typescript
+import { TerminalOutput } from './components/TerminalOutput';
+
+<TerminalOutput
+	status={status} // 'idle' | 'creating' | 'running' | 'completed' | 'error'
+	output={output} // string
+	exitCode={exitCode} // number | null
+	isRoute={false} // affects status text ("Executing agent" vs "Calling route")
+/>;
+```
+
+## Demo Configuration (App.tsx)
+
+Demos are configured in the `DEMOS` array:
+
+```typescript
+interface DemoConfig {
+	id: string; // URL param: ?demo-id=hello
+	title: string; // Display name
+	subtitle: string; // Short tagline
+	description: string; // Landing page description
+	explanation: React.ReactNode; // Educational content
+	docsUrl?: string; // Link to docs
+	category: 'basics' | 'services' | 'io-patterns' | 'examples';
+	component: React.ComponentType; // Demo component
+	codeExample: string; // Code to display
+	sandboxEnabled?: boolean; // Can run in sandbox
+	sandboxScript?: string; // Script name in scripts.ts
+	sandboxInput?: unknown; // Default input
+	codeHighlights?: LineHighlight[];
+	isRoute?: boolean; // Route vs agent demo
 }
 ```
 

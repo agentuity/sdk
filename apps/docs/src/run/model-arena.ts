@@ -78,3 +78,8 @@ console.log(`  Winner: ${judgment.winner === "model-a" ? "Model A (GPT-4o-mini)"
 console.log(`  Reasoning: ${judgment.reasoning}`);
 console.log(`  Creativity: A=${(judgment.scores.creativity * 100).toFixed(0)}%`);
 console.log(`  Clarity: A=${(judgment.scores.clarity * 100).toFixed(0)}%`);
+
+// Ensure stdout is flushed before exit
+await new Promise<void>((resolve) => {
+	process.stdout.write("", () => resolve());
+});

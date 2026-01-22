@@ -7,6 +7,7 @@ Interactive showcase of the Agentuity v1 SDK. This app serves as:
 - Live documentation with working demos
 - Reference implementation for SDK patterns
 - Testing ground for new features
+- Cloud sandbox execution environment for live code demos
 
 **Location**: `sdk/apps/docs/`
 
@@ -21,34 +22,52 @@ Interactive showcase of the Agentuity v1 SDK. This app serves as:
 
 This app demonstrates:
 
-- Multiple agent implementations (hello, chat, kv, vector, evals, model-arena, etc.)
-- API routes for various patterns (REST, streaming, SSE, WebSocket)
-- React 19 frontend with interactive demos
+- Multiple agent implementations showcasing SDK patterns
+- API routes (REST, streaming, SSE, WebSocket)
+- Cloud sandbox execution for live code demos
+- React 19 frontend with interactive demo components
 - Tailwind CSS styling
-- AI SDK integration with multiple providers
+- AI SDK integration with multiple providers (OpenAI, Anthropic, Google, Groq)
 
 ## Directory Structure
 
 ```
 apps/docs/
 ├── src/
-│   ├── agent/           # Agent implementations
-│   │   ├── hello/       # Basic greeting agent
-│   │   ├── chat/        # Conversational agent with memory
-│   │   ├── kv/          # Key-value storage operations
-│   │   ├── vector/      # Semantic search agent
-│   │   ├── evals/       # Agent with quality evaluations
-│   │   └── model-arena/ # Multi-model comparison
-│   ├── api/             # HTTP routes
-│   ├── web/             # React frontend
-│   │   ├── App.tsx      # Main app with demo config
-│   │   ├── frontend.tsx # Entry point
-│   │   └── components/  # Demo components
-│   └── lib/             # Shared utilities
-├── app.ts               # Application entry point
-├── agentuity.config.ts  # Workbench and plugin config
-├── agentuity.json       # Project metadata
-└── package.json         # Dependencies and scripts
+│   ├── agent/              # Agent implementations
+│   │   ├── hello/          # Basic greeting agent
+│   │   ├── chat/           # Conversational agent with memory
+│   │   ├── context/        # AgentContext API exploration
+│   │   ├── kv/             # Key-value storage operations
+│   │   ├── vector/         # Semantic search agent
+│   │   ├── objectstore/    # S3/object storage agent
+│   │   ├── model-arena/    # Multi-model comparison with LLM-as-judge
+│   │   ├── evals/          # Agent with quality evaluations
+│   │   └── ...             # (see src/agent/AGENTS.md)
+│   ├── api/                # HTTP routes
+│   │   ├── hello/          # Basic greeting endpoint
+│   │   ├── chat/           # Chat endpoint
+│   │   ├── streaming/      # Raw text streaming
+│   │   ├── sse-stream/     # Server-Sent Events streaming
+│   │   ├── sandbox/        # Cloud sandbox execution
+│   │   └── ...             # (see src/api/AGENTS.md)
+│   ├── run/                # Standalone demo scripts
+│   │   ├── hello.ts        # Basic agent invocation
+│   │   ├── chat.ts         # Conversational demo
+│   │   ├── kv.ts           # KV storage demo
+│   │   └── ...             # (see src/run/AGENTS.md)
+│   ├── web/                # React frontend
+│   │   ├── App.tsx         # Main app with demo config
+│   │   ├── frontend.tsx    # Entry point with HMR
+│   │   ├── hooks/          # useSandboxRunner hook
+│   │   └── components/     # Demo components + utilities
+│   ├── generated/          # Auto-generated route types
+│   └── lib/                # Shared utilities
+├── app.ts                  # Application entry point
+├── agentuity.config.ts     # Workbench and plugin config
+├── agentuity.json          # Project metadata
+├── agentuity-snapshot.yaml # Sandbox snapshot configuration
+└── package.json            # Dependencies and scripts
 ```
 
 ## Web Frontend (src/web/)
@@ -76,6 +95,51 @@ The `src/web/` folder contains your React frontend, which is automatically bundl
 - React is bundled into the output (no CDN needed)
 - Supports hot module reloading in dev mode with `import.meta.hot`
 - Components can use all modern React features and TypeScript
+
+## Cloud Sandbox Architecture
+
+The SDK Explorer includes a cloud sandbox system for executing demo scripts in isolated environments.
+
+**Data Flow:**
+
+```
+Browser → useSandboxRunner hook
+    → GET /api/sandbox/run?script=hello&input=base64JSON
+    → route.ts reads script from SCRIPTS constant (scripts.ts)
+    → Sends script to cloud sandbox via sandboxRun()
+    → Streams output back via SSE (Server-Sent Events)
+    → TerminalOutput component displays results
+```
+
+**Why Scripts Are Inlined (scripts.ts):**
+
+- Server code uses Bun.build (not Vite)
+- Bun.build doesn't support `?raw` imports for file content
+- Scripts are stored as template literal strings in `scripts.ts`
+- This allows sending script content to sandboxes at runtime
+- **Source of truth**: `src/run/*.ts` files (copy changes to `scripts.ts`)
+
+**Key Components:**
+
+- `src/api/sandbox/route.ts` - SSE endpoint that executes scripts in sandboxes
+- `src/api/sandbox/scripts.ts` - Contains all 15 scripts as strings + default inputs
+- `src/run/*.ts` - Runnable script files (the source of truth)
+- `src/web/hooks/useSandboxRunner.ts` - React hook for sandbox execution
+- `src/web/components/TerminalOutput.tsx` - Displays streaming output
+
+**SSE Events:**
+
+- `status` - Sandbox status ('creating', 'running')
+- `stdout` - Streamed output chunks
+- `done` - Completion with `{ exitCode: number }`
+- `error` - Error message
+
+**Adding a New Demo Script:**
+
+1. Create the script in `src/run/newscript.ts`
+2. Add the script content to `SCRIPTS` in `src/api/sandbox/scripts.ts`
+3. Add default input to `SCRIPT_DEFAULTS` in the same file
+4. Add demo config to `DEMOS` array in `src/web/App.tsx`
 
 ## Workspace Integration
 
