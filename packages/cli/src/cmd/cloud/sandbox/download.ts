@@ -35,9 +35,8 @@ export const downloadSubcommand = createCommand({
 			path: z.string().optional().describe('Path in sandbox to download (defaults to root)'),
 			format: z
 				.enum(['zip', 'tar.gz'])
-				.default('tar.gz')
 				.optional()
-				.describe('Archive format (zip or tar.gz)'),
+				.describe('Archive format (auto-detected from filename if not specified)'),
 		}),
 		response: z.object({
 			success: z.boolean(),
@@ -51,7 +50,8 @@ export const downloadSubcommand = createCommand({
 
 		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
-		const format = opts.format || 'tar.gz';
+
+		let format: 'zip' | 'tar.gz' = opts.format ?? detectFormat(args.output);
 
 		const stream = await sandboxDownloadArchive(client, {
 			sandboxId: args.sandboxId,
@@ -92,6 +92,12 @@ function formatSize(bytes: number): string {
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 	return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function detectFormat(filename: string): 'zip' | 'tar.gz' {
+	const lower = filename.toLowerCase();
+	if (lower.endsWith('.zip')) return 'zip';
+	return 'tar.gz';
 }
 
 export default downloadSubcommand;
