@@ -1,0 +1,76 @@
+# yaml-language-server: $schema=https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json
+# SDK Docs Snapshot - includes agents and invoke scripts for sandbox execution
+# For documentation, see: https://agentuity.dev/Services/Sandbox
+
+version: 1
+runtime: agentuity:latest
+name: sdk-explorer
+description: SDK Explorer with pre-baked agents and standalone invoke scripts
+
+files:
+  # Agent implementations
+  - src/agent/**
+  # Note: src/run/** wrapper scripts are NOT included - they're injected at runtime
+  # via the files option in route.ts. This allows wrapper changes without rebuilds.
+  # Built app for agentuity dev support in sandbox
+  - .agentuity/**
+  # Project config
+  - agentuity.json
+  # Dependencies (frozen at build time - rebuild after bun update)
+  - node_modules/**
+  # Config files
+  - package.json
+  - tsconfig.json
+  # Exclude unnecessary files
+  - "!**/*.test.ts"
+  - "!src/web/**"
+  - "!src/api/**"
+  - "!src/generated/**"
+  - "!src/lib/**"
+  - "!claude/**"
+  # Exclude bloat from node_modules
+  - "!node_modules/.vite/**"
+  - "!node_modules/.cache/**"
+  - "!**/*.map"
+  - "!**/*.md"
+  - "!**/LICENSE*"
+  - "!**/CHANGELOG*"
+  - "!**/.eslint*"
+  - "!**/.prettier*"
+  - "!**/tsconfig.json"
+  - "!**/*.tsbuildinfo"
+  # Exclude type definitions (not needed at runtime)
+  - "!**/*.d.ts"
+  - "!**/*.d.ts.map"
+  - "!**/@types/**"
+  # Exclude dev-only packages (workbench, react, monaco, etc - not needed for agent execution)
+  - "!node_modules/@agentuity/workbench/**"
+  - "!node_modules/@agentuity/cli/**"
+  - "!node_modules/@agentuity/evals/**"
+  - "!node_modules/@agentuity/react/**"
+  - "!node_modules/@agentuity/auth/**"
+  - "!node_modules/@monaco-editor/**"
+  - "!node_modules/monaco-editor/**"
+  - "!node_modules/react/**"
+  - "!node_modules/react-dom/**"
+  - "!node_modules/@heroicons/**"
+  - "!node_modules/shiki/**"
+  - "!node_modules/@shikijs/**"
+  - "!node_modules/tailwindcss/**"
+  - "!node_modules/@tailwindcss/**"
+  - "!node_modules/motion/**"
+  - "!node_modules/react-markdown/**"
+  - "!node_modules/tailwind-merge/**"
+  - "!node_modules/vite/**"
+  - "!node_modules/@vitejs/**"
+
+env:
+  AGENTUITY_SDK_KEY: ${AGENTUITY_SDK_KEY}
+  S3_BUCKET: ${S3_BUCKET}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+  S3_ENDPOINT: ${S3_ENDPOINT}
+
+metadata:
+  project: sdk-docs
+  version: "1.0"
