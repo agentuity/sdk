@@ -95,6 +95,7 @@ Cadence enables the agent team to work autonomously on complex tasks across mult
 ```
 
 Lead will:
+
 1. Create loop state in KV storage (`agentuity-opencode-tasks`)
 2. Work iteratively — delegating to Scout, Builder, Reviewer
 3. Store checkpoints with Memory after each iteration
@@ -102,13 +103,13 @@ Lead will:
 
 ### Cadence Commands
 
-| Command                    | Description                |
-| -------------------------- | -------------------------- |
-| `/agentuity-cadence`       | Start a new Cadence loop   |
-| `/agentuity-cadence-status`| Check active loop status   |
-| `/agentuity-cadence-pause` | Pause the active loop      |
-| `/agentuity-cadence-resume`| Resume a paused loop       |
-| `/agentuity-cadence-stop`  | Cancel and stop the loop   |
+| Command                     | Description              |
+| --------------------------- | ------------------------ |
+| `/agentuity-cadence`        | Start a new Cadence loop |
+| `/agentuity-cadence-status` | Check active loop status |
+| `/agentuity-cadence-pause`  | Pause the active loop    |
+| `/agentuity-cadence-resume` | Resume a paused loop     |
+| `/agentuity-cadence-stop`   | Cancel and stop the loop |
 
 ### CLI Control (Headless)
 
@@ -131,6 +132,7 @@ agentuity ai cadence stop lp_auth_01
 ### How It Works
 
 Cadence is **agentic-first** — Lead's prompt drives the loop, not deterministic code. Lead:
+
 - Manages its own state in KV
 - Decides when to delegate and to whom
 - Stores checkpoints via Memory for context management

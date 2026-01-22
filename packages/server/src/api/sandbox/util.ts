@@ -195,7 +195,13 @@ export function throwSandboxError(
 		case 'SNAPSHOT_NOT_FOUND':
 			throw new SnapshotNotFoundError({ message: resp.message, snapshotId });
 		default:
-			throw new SandboxResponseError({ message: resp.message, sandboxId, executionId, sessionId, code });
+			throw new SandboxResponseError({
+				message: resp.message,
+				sandboxId,
+				executionId,
+				sessionId,
+				code,
+			});
 	}
 }
 

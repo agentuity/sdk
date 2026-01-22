@@ -33,12 +33,14 @@ import {
 	projectDeploymentUpdate,
 	projectDeploymentComplete,
 	projectDeploymentStatus,
+	projectDeploymentMalwareCheck,
 	validateResources,
 	type Deployment,
 	type BuildMetadata,
 	type DeploymentInstructions,
 	type DeploymentComplete,
 	type DeploymentStatusResult,
+	type MalwareCheckResult,
 	getAppBaseURL,
 } from '@agentuity/server';
 import {
@@ -56,6 +58,7 @@ import { typecheck } from '../build/typecheck';
 import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
 import { runForkedDeploy } from './deploy-fork';
 import { validateAptDependencies } from '../../utils/apt-validator';
+import { extractDependencies } from '../../utils/deps';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -167,6 +170,7 @@ export const deploySubcommand = createSubcommand({
 		let instructions: DeploymentInstructions | undefined;
 		let complete: DeploymentComplete | undefined;
 		let statusResult: DeploymentStatusResult | undefined;
+		let malwareCheckPromise: Promise<MalwareCheckResult | null> | undefined;
 		const logs: string[] = [];
 
 		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
@@ -324,6 +328,35 @@ export const deploySubcommand = createSubcommand({
 			} catch (err) {
 				logger.fatal(`Failed to parse AGENTUITY_DEPLOYMENT: ${err}`);
 			}
+		}
+
+		// Start malware check async (runs in parallel with build)
+		if (deployment) {
+			malwareCheckPromise = (async () => {
+				try {
+					logger.debug('Starting malware dependency check');
+					const packages = await extractDependencies(projectDir, logger);
+					if (packages.length === 0) {
+						logger.debug('No packages to check for malware');
+						return null;
+					}
+					logger.debug('Checking %d packages for malware', packages.length);
+					const result = await projectDeploymentMalwareCheck(
+						apiClient,
+						deployment!.id,
+						packages
+					);
+					logger.debug(
+						'Malware check complete: action=%s, flagged=%d',
+						result.action,
+						result.summary.flagged
+					);
+					return result;
+				} catch (error) {
+					logger.warn('Malware check failed: %s', error);
+					return null;
+				}
+			})();
 		}
 
 		try {
@@ -526,6 +559,48 @@ export const deploySubcommand = createSubcommand({
 									capturedOutput.length > 0 ? capturedOutput : undefined
 								);
 							}
+						},
+					},
+					{
+						label: 'Security Scan',
+						run: async () => {
+							if (!malwareCheckPromise) {
+								return stepSkipped('malware check not started');
+							}
+
+							const result = await malwareCheckPromise;
+							if (!result) {
+								return stepSkipped('malware check unavailable');
+							}
+
+							if (result.action === 'block' && result.findings.length > 0) {
+								const messages: string[] = [
+									'',
+									'Malicious packages detected in your dependencies:',
+									'',
+								];
+								for (const finding of result.findings) {
+									messages.push(
+										`  ${tui.bold(`${finding.name}@${finding.version}`)} - ${finding.reason}`
+									);
+								}
+								messages.push('');
+								messages.push('Remove these packages from your project and try again.');
+
+								if (opts.reportFile) {
+									for (const finding of result.findings) {
+										collector.addGeneralError(
+											'deploy',
+											`Malicious package: ${finding.name}@${finding.version} (${finding.reason})`
+										);
+									}
+									await collector.forceWrite();
+								}
+
+								return stepError(messages.join('\n'));
+							}
+
+							return stepSuccess([`Scanned ${result.summary.scanned} packages`]);
 						},
 					},
 					{
