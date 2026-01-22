@@ -626,7 +626,7 @@ const DEMOS: DemoConfig[] = [
 				to see what tools are available inside your handler.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Agents/creating-agents',
+		docsUrl: 'https://agentuity.dev/Agents/creating-agents',
 		category: 'basics',
 		component: HelloDemo,
 		codeExample: CODE_EXAMPLES.hello,
@@ -667,7 +667,7 @@ const DEMOS: DemoConfig[] = [
 				storage, thread state for conversations, and background task scheduling.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Reference/sdk-reference#context-api',
+		docsUrl: 'https://agentuity.dev/Reference/sdk-reference#context-api',
 		category: 'basics',
 		component: HandlerContextDemo,
 		codeExample: CODE_EXAMPLES['handler-context'],
@@ -697,7 +697,7 @@ const DEMOS: DemoConfig[] = [
 				instead.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Storage/key-value',
+		docsUrl: 'https://agentuity.dev/Services/Storage/key-value',
 		category: 'services',
 		component: KVExplorer,
 		codeExample: CODE_EXAMPLES['key-value'],
@@ -730,7 +730,7 @@ const DEMOS: DemoConfig[] = [
 				instead.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Storage/vector',
+		docsUrl: 'https://agentuity.dev/Services/Storage/vector',
 		category: 'services',
 		component: VectorSearch,
 		codeExample: CODE_EXAMPLES['vector-storage'],
@@ -759,7 +759,7 @@ const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Storage/object',
+		docsUrl: 'https://agentuity.dev/Services/Storage/object',
 		category: 'services',
 		component: ObjectStoreDemo,
 		codeExample: CODE_EXAMPLES['object-storage'],
@@ -780,7 +780,7 @@ const DEMOS: DemoConfig[] = [
 				with the Vercel AI SDK for streaming and structured output.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Agents/ai-gateway',
+		docsUrl: 'https://agentuity.dev/Agents/ai-gateway',
 		category: 'services',
 		component: AIGatewayDemo,
 		codeExample: CODE_EXAMPLES['ai-gateway'],
@@ -810,7 +810,7 @@ const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Agents/streaming-responses',
+		docsUrl: 'https://agentuity.dev/Agents/streaming-responses',
 		category: 'io-patterns',
 		component: StreamingDemo,
 		codeExample: CODE_EXAMPLES.streaming,
@@ -838,7 +838,7 @@ const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Routes/sse',
+		docsUrl: 'https://agentuity.dev/Routes/sse',
 		category: 'io-patterns',
 		component: SSEStreamDemo,
 		codeExample: CODE_EXAMPLES['sse-stream'],
@@ -867,7 +867,7 @@ const DEMOS: DemoConfig[] = [
 				create, list, and manage your streams.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Storage/durable-streams',
+		docsUrl: 'https://agentuity.dev/Services/Storage/durable-streams',
 		category: 'io-patterns',
 		component: PersistentStreamDemo,
 		codeExample: CODE_EXAMPLES['durable-stream'],
@@ -889,7 +889,7 @@ const DEMOS: DemoConfig[] = [
 				fire-and-forget background tasks.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Agents/calling-other-agents',
+		docsUrl: 'https://agentuity.dev/Agents/calling-other-agents',
 		category: 'io-patterns',
 		component: AgentCallsDemo,
 		codeExample: CODE_EXAMPLES['agent-calls'],
@@ -919,7 +919,7 @@ const DEMOS: DemoConfig[] = [
 				to cache results so you don't have to fetch them each time.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Routes/cron',
+		docsUrl: 'https://agentuity.dev/Routes/cron',
 		category: 'io-patterns',
 		component: CronDemo,
 		codeExample: CODE_EXAMPLES.cron,
@@ -948,7 +948,7 @@ const DEMOS: DemoConfig[] = [
 				for more on state management.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Learn/Cookbook/Patterns/chat-with-history',
+		docsUrl: 'https://agentuity.dev/Learn/Cookbook/Patterns/chat-with-history',
 		category: 'examples',
 		component: ChatDemo,
 		codeExample: CODE_EXAMPLES.chat,
@@ -976,7 +976,7 @@ const DEMOS: DemoConfig[] = [
 				prompts.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Agents/schema-libraries',
+		docsUrl: 'https://agentuity.dev/Agents/schema-libraries',
 		category: 'examples',
 		component: ModelArena,
 		codeExample: CODE_EXAMPLES['model-arena'],
@@ -999,7 +999,7 @@ const DEMOS: DemoConfig[] = [
 				over time.
 			</>
 		),
-		docsUrl: 'https://preview.agentuity.dev/v1/Build/Agents/evaluations',
+		docsUrl: 'https://agentuity.dev/Agents/evaluations',
 		category: 'examples',
 		component: EvalsDemo,
 		codeExample: CODE_EXAMPLES.evals,

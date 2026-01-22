@@ -188,7 +188,7 @@ function registerSetupCommands(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agentuity.installCli', () => {
 			void vscode.env.openExternal(
-				vscode.Uri.parse('https://agentuity.dev/Introduction/getting-started')
+				vscode.Uri.parse('https://agentuity.dev/Get-Started/quickstart')
 			);
 		})
 	);

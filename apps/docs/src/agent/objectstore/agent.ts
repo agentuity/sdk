@@ -15,7 +15,7 @@
  * - s3.presign(key, { expiresIn }) - Generate temporary shareable URL
  * - s3.list({ prefix }) - List files in a directory
  *
- * Docs: https://preview.agentuity.dev/v1/Build/Storage/object
+ * Docs: https://agentuity.dev/Services/Storage/object
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

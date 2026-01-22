@@ -13,7 +13,7 @@
  * This agent uses push() with maxRecords for automatic sliding window behavior,
  * keeping only the last MAX_MESSAGES to prevent unbounded growth.
  *
- * Docs: https://preview.agentuity.dev/v1/Learn/Cookbook/Patterns/chat-with-history
+ * Docs: https://agentuity.dev/Learn/Cookbook/Patterns/chat-with-history
  */
 
 import { createAgent } from '@agentuity/runtime';
