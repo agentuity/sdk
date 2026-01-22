@@ -24,9 +24,9 @@ export const createCommand = createSubcommand({
 	aliases: ['new'],
 	idempotent: false,
 	examples: [
-		{ command: getCommand('profile create production'), description: 'Create new item' },
+		{ command: getCommand('profile create production'), description: 'Create new profile' },
 		{ command: getCommand('profile create staging --switch'), description: 'Use switch option' },
-		{ command: getCommand('profile create development'), description: 'Create new item' },
+		{ command: getCommand('profile create development'), description: 'Create new profile' },
 	],
 	schema: {
 		args: z

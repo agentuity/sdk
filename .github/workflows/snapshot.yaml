@@ -43,7 +43,7 @@ jobs:
            run: |
               TMP_DIR=$(mktemp -d)
               echo "TMP_DIR=${TMP_DIR}" >> $GITHUB_ENV
-              agentuity project create --template default --dir "$TMP_DIR" --no-register
+              agentuity project create --template default --name demo-project --dir "$TMP_DIR" --no-register
 
          - name: Build Snapshot
            run: |
