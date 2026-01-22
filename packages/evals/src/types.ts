@@ -17,6 +17,6 @@ export type BaseEvalOptions = {
  * @template TEvalOutput - Eval's expected output type
  */
 export type EvalMiddleware<TAgentInput, TAgentOutput, TEvalInput, TEvalOutput> = {
-	transformInput: (agentInput: TAgentInput) => TEvalInput;
-	transformOutput: (agentOutput: TAgentOutput) => TEvalOutput;
+	transformInput?: (agentInput: TAgentInput) => TEvalInput;
+	transformOutput?: (agentOutput: TAgentOutput) => TEvalOutput;
 };
