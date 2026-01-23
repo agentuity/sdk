@@ -25,7 +25,8 @@ export const loginCommand = createSubcommand({
 		response: z.object({ success: z.boolean() }),
 	},
 	async handler(ctx) {
-		const { logger, config, apiClient, opts, options } = ctx;
+		const { logger, config, apiClient, options } = ctx;
+		const opts = ctx.opts ?? {};
 
 		if (opts.setupToken) {
 			const url = getAPIBaseURL(config);
