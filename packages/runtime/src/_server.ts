@@ -30,12 +30,12 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'stream',
 	'vector',
 	'sandbox',
+	'queue',
 	'state',
 	'thread',
 	'session',
 	'config',
 	'app',
-	'waitUntil',
 ] as const;
 
 export function getRouter() {

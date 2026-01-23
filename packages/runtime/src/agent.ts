@@ -1944,16 +1944,16 @@ export function createAgent<
 					// AFTER setting up its span context, making operations children of waitUntil
 					context.with(evalSpanContext, () => {
 						ctx.waitUntil(async () => {
+							const orgId = runtimeConfig.getOrganizationId();
+							const projectId = runtimeConfig.getProjectId();
+							const devMode = runtimeConfig.isDevMode() ?? false;
+							const evalRunEventProvider = getEvalRunEventProvider();
+
+							const shouldSendEvalRunEvents =
+								orgId && projectId && evalId !== '' && evalIdentifier !== '';
+
 							try {
 								internal.info(`[EVALRUN] Starting eval run tracking for '${evalName}'`);
-
-								const orgId = runtimeConfig.getOrganizationId();
-								const projectId = runtimeConfig.getProjectId();
-								const devMode = runtimeConfig.isDevMode() ?? false;
-								const evalRunEventProvider = getEvalRunEventProvider();
-
-								const shouldSendEvalRunEvents =
-									orgId && projectId && evalId !== '' && evalIdentifier !== '';
 
 								// Send eval run start event
 								if (shouldSendEvalRunEvents && evalRunEventProvider) {
@@ -2050,10 +2050,7 @@ export function createAgent<
 								internal.error(`Error executing eval '${evalName}'`, { error });
 
 								// Send error event
-								const orgId = runtimeConfig.getOrganizationId();
-								const projectId = runtimeConfig.getProjectId();
-								const evalRunEventProvider = getEvalRunEventProvider();
-								if (orgId && projectId && evalId && evalRunEventProvider) {
+								if (shouldSendEvalRunEvents && evalRunEventProvider) {
 									try {
 										await evalRunEventProvider.complete({
 											id: evalRunId,
@@ -2081,14 +2078,14 @@ export function createAgent<
 				} else {
 					// No tracer - execute without span
 					ctx.waitUntil(async () => {
-						try {
-							const orgId = runtimeConfig.getOrganizationId();
-							const projectId = runtimeConfig.getProjectId();
-							const devMode = runtimeConfig.isDevMode() ?? false;
-							const evalRunEventProvider = getEvalRunEventProvider();
-							const shouldSendEvalRunEvents =
-								orgId && projectId && evalId !== '' && evalIdentifier !== '';
+						const orgId = runtimeConfig.getOrganizationId();
+						const projectId = runtimeConfig.getProjectId();
+						const devMode = runtimeConfig.isDevMode() ?? false;
+						const evalRunEventProvider = getEvalRunEventProvider();
+						const shouldSendEvalRunEvents =
+							orgId && projectId && evalId !== '' && evalIdentifier !== '';
 
+						try {
 							if (shouldSendEvalRunEvents && evalRunEventProvider) {
 								try {
 									await evalRunEventProvider.start({
@@ -2171,13 +2168,10 @@ export function createAgent<
 							const errorMessage = error instanceof Error ? error.message : String(error);
 							internal.error(`Error executing eval '${evalName}'`, { error });
 
-							// Send error event to evalRunEventProvider (mirrors tracer path behavior)
-							const orgId = runtimeConfig.getOrganizationId();
-							const projectId = runtimeConfig.getProjectId();
-							const evalRunEventProviderForError = getEvalRunEventProvider();
-							if (orgId && projectId && evalId && evalRunEventProviderForError) {
+							// Send error event to match traced branch behavior
+							if (shouldSendEvalRunEvents && evalRunEventProvider) {
 								try {
-									await evalRunEventProviderForError.complete({
+									await evalRunEventProvider.complete({
 										id: evalRunId,
 										error: errorMessage,
 										result: {
