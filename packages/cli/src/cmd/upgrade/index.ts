@@ -121,11 +121,19 @@ export function getPlatformInfo(): { os: string; arch: string } {
  * @internal Exported for testing
  */
 export async function fetchLatestVersion(): Promise<string> {
+	const currentVersion = getVersion();
 	const response = await fetch('https://agentuity.sh/release/sdk/version', {
-		signal: AbortSignal.timeout(10000), // 10 second timeout
+		signal: AbortSignal.timeout(10_000), // 10 second timeout
+		headers: {
+			'User-Agent': `Agentuity CLI/${currentVersion}`,
+		},
 	});
 	if (!response.ok) {
-		throw new Error(`Failed to fetch version: ${response.statusText}`);
+		const body = await response.text();
+		if (response.status === 426) {
+			tui.fatal(body, ErrorCode.UPGRADE_REQUIRED);
+		}
+		throw new Error(`Failed to fetch version: ${body}`);
 	}
 
 	const version = await response.text();

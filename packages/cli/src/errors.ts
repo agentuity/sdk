@@ -79,6 +79,9 @@ export enum ErrorCode {
 
 	// Security errors
 	MALWARE_DETECTED = 'MALWARE_DETECTED',
+
+	// Upgrade of the software is required to continue
+	UPGRADE_REQUIRED = 'UPGRADE_REQUIRED',
 }
 
 /**
@@ -152,6 +155,7 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 		case ErrorCode.RUNTIME_ERROR:
 		case ErrorCode.INTERNAL_ERROR:
 		case ErrorCode.NOT_IMPLEMENTED:
+		case ErrorCode.UPGRADE_REQUIRED:
 		default:
 			return ExitCode.GENERAL_ERROR;
 	}
