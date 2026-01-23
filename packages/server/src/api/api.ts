@@ -508,10 +508,9 @@ export class APIClient {
 						// Skip version check if configured (only for soft upgrade prompts)
 						if (this.#config?.skipVersionCheck) {
 							this.#logger.debug('Skipping version check (configured to skip)');
+						} else {
 							throw new UpgradeRequiredError({ sessionId });
 						}
-
-						throw new UpgradeRequiredError({ sessionId });
 					}
 
 					// Handle Zod validation errors from the API
