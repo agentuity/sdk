@@ -2081,14 +2081,14 @@ export function createAgent<
 				} else {
 					// No tracer - execute without span
 					ctx.waitUntil(async () => {
-						try {
-							const orgId = runtimeConfig.getOrganizationId();
-							const projectId = runtimeConfig.getProjectId();
-							const devMode = runtimeConfig.isDevMode() ?? false;
-							const evalRunEventProvider = getEvalRunEventProvider();
-							const shouldSendEvalRunEvents =
-								orgId && projectId && evalId !== '' && evalIdentifier !== '';
+						const orgId = runtimeConfig.getOrganizationId();
+						const projectId = runtimeConfig.getProjectId();
+						const devMode = runtimeConfig.isDevMode() ?? false;
+						const evalRunEventProvider = getEvalRunEventProvider();
+						const shouldSendEvalRunEvents =
+							orgId && projectId && evalId !== '' && evalIdentifier !== '';
 
+						try {
 							if (shouldSendEvalRunEvents && evalRunEventProvider) {
 								try {
 									await evalRunEventProvider.start({
@@ -2119,12 +2119,24 @@ export function createAgent<
 							if (evalItem.inputSchema) {
 								const result =
 									await evalItem.inputSchema['~standard'].validate(validatedInput);
-								if (!result.issues) evalValidatedInput = result.value;
+								if (result.issues) {
+									throw new ValidationError({
+										issues: result.issues,
+										message: `Eval input validation failed`,
+									});
+								}
+								evalValidatedInput = result.value;
 							}
 							if (evalItem.outputSchema) {
 								const result =
 									await evalItem.outputSchema['~standard'].validate(validatedOutput);
-								if (!result.issues) evalValidatedOutput = result.value;
+								if (result.issues) {
+									throw new ValidationError({
+										issues: result.issues,
+										message: `Eval output validation failed`,
+									});
+								}
+								evalValidatedOutput = result.value;
 							}
 
 							let handlerResult: EvalHandlerResult;
@@ -2156,7 +2168,30 @@ export function createAgent<
 								}
 							}
 						} catch (error) {
+							const errorMessage = error instanceof Error ? error.message : String(error);
 							internal.error(`Error executing eval '${evalName}'`, { error });
+
+							// Send error event to match traced branch behavior
+							if (shouldSendEvalRunEvents && evalRunEventProvider) {
+								try {
+									await evalRunEventProvider.complete({
+										id: evalRunId,
+										error: errorMessage,
+										result: {
+											success: false,
+											passed: false,
+											error: errorMessage,
+											metadata: {},
+										},
+									});
+								} catch (e) {
+									internal.debug('Failed to send eval run complete event', {
+										evalRunId,
+										errorMessage,
+										error: e instanceof Error ? e.message : String(e),
+									});
+								}
+							}
 						}
 					});
 				}
