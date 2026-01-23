@@ -7,6 +7,25 @@
 import { z } from 'zod';
 import type { Logger } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
+import pkg from '../../package.json' with { type: 'json' };
+
+// Cache the package data
+let cachedPackage: typeof pkg | null = null;
+
+export function getPackage(): typeof pkg {
+	if (!cachedPackage) {
+		cachedPackage = pkg;
+	}
+	return cachedPackage;
+}
+
+function getVersion(): string {
+	return process.env.AGENTUITY_CLI_VERSION || getPackage().version || 'dev';
+}
+
+function getUserAgent(): string {
+	return `Agentuity SDK/${getVersion()}`;
+}
 
 export interface APIClientConfig {
 	skipVersionCheck?: boolean;
@@ -338,6 +357,8 @@ export class APIClient {
 
 		if (this.#config?.userAgent) {
 			headers['User-Agent'] = this.#config.userAgent;
+		} else {
+			headers['User-Agent'] = getUserAgent();
 		}
 
 		if (this.#apiKey) {
@@ -503,14 +524,17 @@ export class APIClient {
 						throw new UpgradeRequiredError({ sessionId });
 					}
 
-					// Check for UPGRADE_REQUIRED error code in response body
+					// Check for UPGRADE_REQUIRED error
 					if (errorData?.code === 'UPGRADE_REQUIRED') {
-						// Skip version check if configured (only for soft upgrade prompts)
+						// Skip version check if configured
 						if (this.#config?.skipVersionCheck) {
 							this.#logger.debug('Skipping version check (configured to skip)');
-						} else {
+							// Request is still rejected, but throw UpgradeRequiredError so callers
+							// can detect it and handle UI behavior (e.g., suppress banner) based on skip flag
 							throw new UpgradeRequiredError({ sessionId });
 						}
+
+						throw new UpgradeRequiredError({ sessionId });
 					}
 
 					// Handle Zod validation errors from the API
