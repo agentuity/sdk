@@ -733,10 +733,19 @@ export async function loadProjectSDKKey(
 	logger.trace(`[SDK_KEY] AGENTUITY_SDK_KEY not found in any file`);
 }
 
-export function getCatalystAPIClient(logger: Logger, auth: AuthData, region: string) {
+export function getCatalystAPIClient(
+	logger: Logger,
+	auth: AuthData,
+	region: string,
+	orgId?: string
+) {
 	const serviceUrls = getServiceUrls(region);
 	const catalystUrl = serviceUrls.catalyst;
-	return new ServerAPIClient(catalystUrl, logger, auth.apiKey);
+	const headers: Record<string, string> = {};
+	if (orgId) {
+		headers['x-agentuity-orgid'] = orgId;
+	}
+	return new ServerAPIClient(catalystUrl, logger, auth.apiKey, { headers });
 }
 
 interface RegionsCacheData {
@@ -795,14 +804,20 @@ export async function getDefaultRegion(
 /**
  * Get a Catalyst API client for global database operations.
  * Uses the default region since the admin DB is global.
+ *
+ * @param logger - Logger instance
+ * @param auth - Authentication data
+ * @param profileName - Profile name (default: 'production')
+ * @param orgId - Optional organization ID for CLI key authentication
  */
 export async function getGlobalCatalystAPIClient(
 	logger: Logger,
 	auth: AuthData,
-	profileName = 'production'
+	profileName = 'production',
+	orgId?: string
 ) {
 	const region = await getDefaultRegion(profileName);
-	return getCatalystAPIClient(logger, auth, region);
+	return getCatalystAPIClient(logger, auth, region, orgId);
 }
 
 export function getIONHost(config: Config | null, region: string) {

@@ -10,7 +10,8 @@ export const listNamespacesSubcommand = createCommand({
 	aliases: ['namespaces', 'ns'],
 	description: 'List all keyvalue namespaces',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	examples: [
 		{ command: getCommand('kv list-namespaces'), description: 'List all namespaces' },
 		{ command: getCommand('kv namespaces'), description: 'List namespaces (using alias)' },

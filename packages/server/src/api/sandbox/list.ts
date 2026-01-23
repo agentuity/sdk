@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { throwSandboxError, API_VERSION } from './util';
 import type {
 	ListSandboxesParams,
 	ListSandboxesResponse,
@@ -182,5 +182,5 @@ export async function sandboxList(
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }

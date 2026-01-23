@@ -88,9 +88,9 @@ export class DevServerManager {
 		const cli = getCliClient();
 		const env = cli.getCliEnv();
 
-		// Use bunx to run the local CLI package
-		const cliPath = 'bunx';
-		const args = ['agentuity', 'dev'];
+		// Use the CLI path from the client (respects local, global, and PATH installations)
+		const cliPath = cli.getCliPath();
+		const args = ['dev'];
 		const spawnOpts: Parameters<typeof spawn>[2] = {
 			cwd: project.rootPath,
 			shell: true,

@@ -5,6 +5,7 @@ import { createSessionHooks } from './hooks/session';
 import { createToolHooks } from './hooks/tools';
 import { createKeywordHooks } from './hooks/keyword';
 import { createParamsHooks } from './hooks/params';
+import { createCadenceHooks } from './hooks/cadence';
 import { z } from 'zod';
 import type { AgentRole } from '../types';
 
@@ -34,6 +35,7 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
 	const paramsHooks = createParamsHooks(ctx, coderConfig);
+	const cadenceHooks = createCadenceHooks(ctx, coderConfig);
 
 	const configHandler = createConfigHandler(coderConfig);
 
@@ -57,10 +59,12 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 		'chat.message': async (input: unknown, output: unknown) => {
 			await keywordHooks.onMessage(input, output);
 			await sessionHooks.onMessage(input, output);
+			await cadenceHooks.onMessage(input, output);
 		},
 		'chat.params': paramsHooks.onParams,
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
+		event: cadenceHooks.onEvent,
 	};
 }
 
@@ -151,11 +155,13 @@ $ARGUMENTS
 			template: `Memorialize this session. Summarize what was accomplished in this conversation:
 - Problem/task that was addressed
 - Key decisions and their rationale  
+- Corrections/mistakes (user corrected agent or agent corrected user)
 - Patterns and approaches used
 - Solutions implemented
+- Files and folders referenced
 - Open questions or follow-ups
 
-Save to vector storage using the coder-sessions namespace so the team can recall this work in future sessions.
+Save to vector storage using the agentuity-opencode-sessions namespace. Store any corrections prominently in agentuity-opencode-memory KV.
 
 $ARGUMENTS`,
 			agent: 'Agentuity Coder Memory',
@@ -241,6 +247,177 @@ $ARGUMENTS`,
 			agent: 'Agentuity Coder Expert',
 			subtask: true,
 			argumentHint: '"run bun test" or "create a sandbox with 2Gi memory"',
+		},
+
+		// ─────────────────────────────────────────────────────────────────────
+		// Agentuity Cadence Commands (Long-Running Tasks)
+		// ─────────────────────────────────────────────────────────────────────
+
+		'agentuity-cadence': {
+			name: 'agentuity-cadence',
+			description: '🔄 Start a long-running Cadence loop (autonomous task completion)',
+			template: `[CADENCE MODE]
+
+You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomous loop.
+
+## Your Team (use @mentions to invoke)
+- **@Agentuity Coder Scout**: Explore codebase, find patterns, research docs (read-only)
+- **@Agentuity Coder Builder**: Implement features, write code, run tests
+- **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
+- **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
+- **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
+
+## Task
+$ARGUMENTS
+
+## Cadence Workflow
+
+1. **Initialize loop state**:
+   - Generate loop ID (format: \`lp_short_name_01\`)
+   - Store in KV: \`agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...}'\`
+
+2. **Each iteration**:
+   - Ask @Agentuity Coder Memory for relevant context
+   - Use @Agentuity Coder Scout to understand what's needed
+   - Delegate implementation to @Agentuity Coder Builder
+   - Have @Agentuity Coder Reviewer verify the work
+   - Tell @Agentuity Coder Memory to store checkpoint
+
+3. **When truly complete**, output:
+\`\`\`
+<promise>DONE</promise>
+\`\`\`
+
+4. **Tell @Agentuity Coder Memory to memorialize** the completed session
+
+## Guidelines
+- **Always delegate** — use Scout for research, Builder for code, Reviewer for verification
+- Ask Memory for context at each iteration start
+- Store checkpoints at each iteration end
+- If stuck, ask Scout to re-evaluate before pausing
+- Use @Agentuity Coder Expert for sandbox/cloud operations
+- Respect max iterations (50 default)`,
+			agent: 'Agentuity Coder Lead',
+			argumentHint: 'build the new auth feature with tests',
+		},
+
+		'agentuity-cadence-status': {
+			name: 'agentuity-cadence-status',
+			description: '📊 Check status of active Cadence loops',
+			template: `Check the status of active Cadence loops.
+
+## Instructions
+
+1. Search for active loops:
+\`\`\`bash
+agentuity cloud kv search agentuity-opencode-tasks "loop:" --json
+\`\`\`
+
+2. For each loop found, get its state:
+\`\`\`bash
+agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state" --json
+\`\`\`
+
+3. Report status in a clear format:
+   - Loop ID
+   - Status (running/paused/completed/failed/cancelled)
+   - Current iteration / max iterations
+   - Original task (brief)
+   - Last update time
+
+$ARGUMENTS`,
+			agent: 'Agentuity Coder Lead',
+			argumentHint: '(optional: specific loop ID)',
+		},
+
+		'agentuity-cadence-pause': {
+			name: 'agentuity-cadence-pause',
+			description: '⏸️ Pause an active Cadence loop',
+			template: `Pause the active Cadence loop.
+
+## Instructions
+
+1. Find the active loop (or use the provided loop ID):
+\`\`\`bash
+agentuity cloud kv search agentuity-opencode-tasks "loop:" --json
+\`\`\`
+
+2. Update the loop status to paused:
+\`\`\`bash
+agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state" --json
+# Then update with status: "paused"
+agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...updated state with status: "paused"...}'
+\`\`\`
+
+3. Confirm the pause to the user.
+
+$ARGUMENTS`,
+			agent: 'Agentuity Coder Lead',
+			argumentHint: '(optional: specific loop ID)',
+		},
+
+		'agentuity-cadence-resume': {
+			name: 'agentuity-cadence-resume',
+			description: '▶️ Resume a paused Cadence loop',
+			template: `[CADENCE MODE]
+
+Resume a paused Cadence loop.
+
+## Instructions
+
+1. Find the paused loop (or use the provided loop ID):
+\`\`\`bash
+agentuity cloud kv search agentuity-opencode-tasks "loop:" --json
+\`\`\`
+
+2. Get the loop state and last checkpoint:
+\`\`\`bash
+agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state" --json
+\`\`\`
+
+3. Ask Memory for context:
+   - Get the last few checkpoints
+   - Get any handoff packet if available
+   - Get relevant corrections
+
+4. Update status to running and continue from where you left off:
+\`\`\`bash
+agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...updated state with status: "running"...}'
+\`\`\`
+
+5. Continue the Cadence loop following the iteration workflow.
+
+$ARGUMENTS`,
+			agent: 'Agentuity Coder Lead',
+			argumentHint: '(optional: specific loop ID)',
+		},
+
+		'agentuity-cadence-stop': {
+			name: 'agentuity-cadence-stop',
+			description: '⏹️ Stop and cancel a Cadence loop',
+			template: `Stop and cancel the Cadence loop.
+
+## Instructions
+
+1. Find the active loop (or use the provided loop ID):
+\`\`\`bash
+agentuity cloud kv search agentuity-opencode-tasks "loop:" --json
+\`\`\`
+
+2. Update the loop status to cancelled:
+\`\`\`bash
+agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state" --json
+# Then update with status: "cancelled"
+agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...updated state with status: "cancelled"...}'
+\`\`\`
+
+3. Ask Memory to store a final checkpoint noting the cancellation reason.
+
+4. Confirm the stop to the user.
+
+$ARGUMENTS`,
+			agent: 'Agentuity Coder Lead',
+			argumentHint: '(optional: specific loop ID)',
 		},
 	};
 }

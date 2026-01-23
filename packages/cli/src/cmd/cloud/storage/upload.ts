@@ -13,7 +13,7 @@ export const uploadSubcommand = createSubcommand({
 	name: 'upload',
 	aliases: ['put'],
 	description: 'Upload a file to storage bucket',
-	tags: ['write', 'requires-auth'],
+	tags: ['write', 'requires-auth', 'uses-stdin'],
 	requires: { auth: true },
 	optional: { org: true },
 	idempotent: false,

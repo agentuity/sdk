@@ -18,7 +18,8 @@ export const deleteSubcommand = createCommand({
 	aliases: ['del', 'rm'],
 	description: 'Delete one or more vectors by key',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{

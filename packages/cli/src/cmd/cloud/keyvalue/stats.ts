@@ -26,7 +26,8 @@ export const statsSubcommand = createCommand({
 	name: 'stats',
 	description: 'Get statistics for keyvalue storage',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('kv stats'), description: 'Show stats for all namespaces' },

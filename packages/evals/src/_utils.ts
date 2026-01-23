@@ -150,10 +150,10 @@ export function createPresetEval<
 			description: description ?? config.description,
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			handler: (async (ctx: EvalContext, input: any, output: any) => {
-				const evalInput = middleware
+				const evalInput = middleware?.transformInput
 					? middleware.transformInput(input)
 					: (input as InferSchemaOutput<TEvalInput>);
-				const evalOutput = middleware
+				const evalOutput = middleware?.transformOutput
 					? middleware.transformOutput(output)
 					: (output as InferSchemaOutput<TEvalOutput>);
 				return config.handler(ctx, evalInput, evalOutput, currentOptions);

@@ -16,7 +16,8 @@ export const getSubcommand = createCommand({
 	name: 'get',
 	description: 'Get a specific vector entry by key',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{

@@ -1,16 +1,15 @@
 import * as vscode from 'vscode';
 import { getCurrentProject } from '../../core/project';
-
-const WORKBENCH_BASE_URL = 'https://app-v1.agentuity.com';
+import { getAppUrl, getWorkbenchUrl } from '../../core/urls';
 
 export function registerWorkbenchCommands(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agentuity.workbench.open', async () => {
 			const project = getCurrentProject();
 
-			let url = WORKBENCH_BASE_URL;
+			let url = getAppUrl();
 			if (project) {
-				url = `${WORKBENCH_BASE_URL}/projects/${project.projectId}`;
+				url = getWorkbenchUrl(project.projectId);
 			}
 
 			await vscode.env.openExternal(vscode.Uri.parse(url));

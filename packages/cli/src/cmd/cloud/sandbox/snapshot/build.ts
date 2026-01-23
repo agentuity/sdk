@@ -138,7 +138,8 @@ function parseKeyValueArgs(args: string[] | undefined): Record<string, string> {
 
 function substituteVariables(
 	values: Record<string, string>,
-	variables: Record<string, string>
+	variables: Record<string, string>,
+	flagName: 'env' | 'metadata'
 ): Record<string, string> {
 	const result: Record<string, string> = {};
 	const varPattern = /\$\{([^}]+)\}/g;
@@ -152,7 +153,7 @@ function substituteVariables(
 			const varName = match[1];
 			if (!(varName in variables)) {
 				throw new Error(
-					`Variable "\${${varName}}" in "${key}" is not defined. Use --env ${varName}=value to provide it.`
+					`Variable "\${${varName}}" in "${key}" is not defined. Use --${flagName} ${varName}=value to provide it.`
 				);
 			}
 			substituted = substituted.replace(match[0], variables[varName]);
@@ -163,12 +164,15 @@ function substituteVariables(
 	return result;
 }
 
+// Default patterns that are always excluded from snapshot builds
+const DEFAULT_EXCLUSIONS = ['.git', '.git/**', 'node_modules/**', '.agentuity/**', '.env*'];
+
 async function resolveFileGlobs(
 	directory: string,
 	patterns: string[]
 ): Promise<Map<string, FileEntry>> {
 	const files = new Map<string, FileEntry>();
-	const exclusions: string[] = [];
+	const exclusions: string[] = [...DEFAULT_EXCLUSIONS];
 	const inclusions: string[] = [];
 
 	for (const pattern of patterns) {
@@ -199,18 +203,34 @@ async function resolveFileGlobs(
 		}
 	}
 
+	// Expand exclusion patterns to include nested variants
+	const expandedExclusions: string[] = [];
 	for (let pattern of exclusions) {
-		// If the pattern refers to a directory, auto-append /** to exclude all contents
-		const patternPath = join(directory, pattern);
-		try {
-			const stat = statSync(patternPath);
-			if (stat.isDirectory()) {
-				pattern = pattern.endsWith('/') ? `${pattern}**` : `${pattern}/**`;
+		// If pattern already contains glob wildcards, use it as-is
+		// Otherwise, check if it refers to a directory and auto-append /** to exclude all contents
+		const hasGlobChars = /[*?[\]]/.test(pattern);
+		if (!hasGlobChars) {
+			const patternPath = join(directory, pattern);
+			try {
+				const stat = statSync(patternPath);
+				if (stat.isDirectory()) {
+					pattern = pattern.endsWith('/') ? `${pattern}**` : `${pattern}/**`;
+				}
+			} catch {
+				// Path doesn't exist or can't be stat'd, use pattern as-is
 			}
-		} catch {
-			// Path doesn't exist or can't be stat'd, use pattern as-is
 		}
 
+		expandedExclusions.push(pattern);
+
+		// Add **/ prefix variant to match nested occurrences (e.g., .agentuity/** -> **/.agentuity/**)
+		// Skip if pattern already starts with **/ or is just a wildcard pattern
+		if (!pattern.startsWith('**/')) {
+			expandedExclusions.push(`**/${pattern}`);
+		}
+	}
+
+	for (const pattern of expandedExclusions) {
 		const glob = new Bun.Glob(pattern);
 		for await (const file of glob.scan({ cwd: directory, dot: true })) {
 			files.delete(file);
@@ -379,37 +399,6 @@ export const buildSubcommand = createCommand({
 		const { args, opts, options, auth, region, config, logger, orgId } = ctx;
 
 		const dryRun = options.dryRun === true;
-		const isPublic = opts.public === true;
-
-		if (isPublic && !dryRun) {
-			if (!opts.confirm) {
-				if (!tui.isTTYLike()) {
-					logger.fatal(
-						`Publishing a public snapshot requires confirmation.\n\n` +
-							`Public snapshots make all environment variables and files publicly accessible.\n\n` +
-							`To proceed, add the --confirm flag:\n` +
-							`  ${getCommand('cloud sandbox snapshot build . --public --confirm')}\n\n` +
-							`To preview what will be published, use --dry-run first:\n` +
-							`  ${getCommand('cloud sandbox snapshot build . --public --dry-run')}`
-					);
-				}
-
-				tui.warningBox(
-					'Public Snapshot',
-					`You are publishing a public snapshot.\n\n` +
-						`This will make all environment variables and\n` +
-						`files in the snapshot publicly accessible.\n\n` +
-						`Run with --dry-run to preview the contents.`
-				);
-				console.log('');
-
-				const confirmed = await tui.confirm('Proceed with public snapshot?', false);
-
-				if (!confirmed) {
-					logger.fatal('Aborted');
-				}
-			}
-		}
 
 		const directory = resolve(args.directory);
 		if (!existsSync(directory)) {
@@ -470,6 +459,40 @@ export const buildSubcommand = createCommand({
 
 		const buildConfig = validationResult.data;
 
+		// Determine if snapshot is public: CLI flag takes precedence, otherwise use build file
+		const isPublic =
+			opts.public === true || (opts.public === undefined && buildConfig.public === true);
+
+		if (isPublic && !dryRun) {
+			if (!opts.confirm) {
+				if (!tui.isTTYLike()) {
+					logger.fatal(
+						`Publishing a public snapshot requires confirmation.\n\n` +
+							`Public snapshots make all environment variables and files publicly accessible.\n\n` +
+							`To proceed, add the --confirm flag:\n` +
+							`  ${getCommand('cloud sandbox snapshot build . --public --confirm')}\n\n` +
+							`To preview what will be published, use --dry-run first:\n` +
+							`  ${getCommand('cloud sandbox snapshot build . --public --dry-run')}`
+					);
+				}
+
+				tui.warningBox(
+					'Public Snapshot',
+					`You are publishing a public snapshot.\n\n` +
+						`This will make all environment variables and\n` +
+						`files in the snapshot publicly accessible.\n\n` +
+						`Run with --dry-run to preview the contents.`
+				);
+				console.log('');
+
+				const confirmed = await tui.confirm('Proceed with public snapshot?', false);
+
+				if (!confirmed) {
+					logger.fatal('Aborted');
+				}
+			}
+		}
+
 		if (opts.tag) {
 			if (opts.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
 				logger.fatal(
@@ -502,10 +525,14 @@ export const buildSubcommand = createCommand({
 
 		try {
 			if (buildConfig.env) {
-				finalEnv = substituteVariables(buildConfig.env, envSubstitutions);
+				finalEnv = substituteVariables(buildConfig.env, envSubstitutions, 'env');
 			}
 			if (buildConfig.metadata) {
-				finalMetadata = substituteVariables(buildConfig.metadata, metadataSubstitutions);
+				finalMetadata = substituteVariables(
+					buildConfig.metadata,
+					metadataSubstitutions,
+					'metadata'
+				);
 			}
 		} catch (err) {
 			logger.fatal(err instanceof Error ? err.message : String(err));

@@ -243,7 +243,10 @@ export class SandboxTreeItem extends vscode.TreeItem {
 	private setupSnapshotItem(): void {
 		if (!this.snapshotData) return;
 
-		this.iconPath = new vscode.ThemeIcon('device-camera');
+		// Use globe icon for public snapshots
+		this.iconPath = this.snapshotData.public
+			? new vscode.ThemeIcon('globe')
+			: new vscode.ThemeIcon('device-camera');
 
 		if (this.snapshotData.tag) {
 			this.contextValue = 'snapshot.tagged';
@@ -253,12 +256,20 @@ export class SandboxTreeItem extends vscode.TreeItem {
 			this.description = `${this.snapshotData.fileCount} files`;
 		}
 
+		// Add public indicator to description
+		if (this.snapshotData.public) {
+			this.description = `🌐 ${this.description}`;
+		}
+
 		this.tooltip = [
+			this.snapshotData.fullName ? `Name: ${this.snapshotData.fullName}` : '',
 			`ID: ${this.snapshotData.snapshotId}`,
 			`Size: ${this.formatFileSize(this.snapshotData.sizeBytes)}`,
 			`Files: ${this.snapshotData.fileCount}`,
 			`Created: ${new Date(this.snapshotData.createdAt).toLocaleString()}`,
 			this.snapshotData.tag ? `Tag: ${this.snapshotData.tag}` : '',
+			this.snapshotData.public ? '🌐 Public snapshot' : '',
+			this.snapshotData.orgSlug ? `Org: @${this.snapshotData.orgSlug}` : '',
 			'',
 			'Click to view snapshot details',
 		]

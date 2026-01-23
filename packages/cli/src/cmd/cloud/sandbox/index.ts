@@ -21,7 +21,7 @@ import { getCommand } from '../../../command-prefix';
 export const command = createCommand({
 	name: 'sandbox',
 	aliases: ['sb'],
-	description: 'Manage sandboxes for isolated code execution',
+	description: 'Manage sandboxes for managed isolated code execution',
 	tags: ['slow', 'requires-auth'],
 	examples: [
 		{

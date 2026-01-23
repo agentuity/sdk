@@ -17,6 +17,9 @@ import streamCommand from './stream';
 import vectorCommand from './vector';
 import sandboxCommand from './sandbox';
 import { regionSubcommand } from './region';
+import { machineCommand } from './machine';
+import { evalCommand } from './eval';
+import { evalRunCommand } from './eval-run';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -37,6 +40,8 @@ export const command = createCommand({
 		vectorCommand,
 		sandboxCommand,
 		envCommand,
+		evalCommand,
+		evalRunCommand,
 		deploySubcommand,
 		dbCommand,
 		redisCommand,
@@ -47,5 +52,6 @@ export const command = createCommand({
 		scpSubcommand,
 		deploymentCommand,
 		regionSubcommand,
+		machineCommand,
 	],
 });

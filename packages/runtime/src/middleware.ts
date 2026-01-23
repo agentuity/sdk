@@ -60,7 +60,6 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'session',
 	'config',
 	'app',
-	'waitUntil',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -290,7 +289,7 @@ export function createOtelMiddleware() {
 		await context.with(extractedContext, async (): Promise<void> => {
 			const tracer = trace.getTracer('http-server');
 			await tracer.startActiveSpan(
-				`HTTP ${method}`,
+				`${method} ${url.pathname}`,
 				{
 					kind: SpanKind.SERVER,
 					attributes: {
@@ -373,8 +372,13 @@ export function createOtelMiddleware() {
 					}
 
 					// Factor out finalization logic so it can run synchronously or deferred
-					const finalizeSession = async (statusCode?: number) => {
-						internal.info('[session] saving session %s (thread: %s)', sessionId, thread.id);
+					const finalizeSession = async (statusCode?: number, error?: string) => {
+						internal.info(
+							'[session] saving session %s (thread: %s) (error: %s)',
+							sessionId,
+							thread.id,
+							error
+						);
 						await sessionProvider.save(session);
 						internal.info('[session] session saved, now saving thread');
 						await threadProvider.save(thread);
@@ -397,12 +401,16 @@ export function createOtelMiddleware() {
 									id: sessionId,
 									threadId: isEmpty ? null : thread.id,
 									statusCode: statusCode ?? c.res?.status ?? 200,
+									error,
 									agentIds: agentIds?.length ? agentIds : undefined,
 									userData,
 								});
 								internal.info('[session] session complete event sent');
 							} catch (ex) {
-								internal.info('[session] session complete event failed: %s', ex);
+								internal.info(
+									'[session] session complete event failed: %s',
+									ex instanceof Error ? ex.message : ex
+								);
 								// Silently ignore session complete errors - don't block response
 							}
 						}
@@ -418,6 +426,13 @@ export function createOtelMiddleware() {
 							| undefined;
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const isStreaming = Boolean((c as any).get(IS_STREAMING_RESPONSE_KEY));
+
+						// Check if Hono caught an error (c.error is set by Hono's error handler)
+						// or if the response status indicates an error
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const honoError = (c as any).error as Error | undefined;
+						const responseStatus = c.res?.status ?? 200;
+						const isError = honoError || responseStatus >= 500;
 
 						if (isStreaming && streamDone) {
 							// Defer session/thread saving until stream completes
@@ -445,8 +460,21 @@ export function createOtelMiddleware() {
 							});
 
 							span.setStatus({ code: SpanStatusCode.OK });
+						} else if (isError) {
+							// Hono caught an error or response is 5xx - report as error
+							const errorMessage = honoError
+								? (honoError.stack ?? honoError.message)
+								: `HTTP ${responseStatus}`;
+							span.setStatus({
+								code: SpanStatusCode.ERROR,
+								message: honoError?.message ?? errorMessage,
+							});
+							if (honoError) {
+								span.recordException(honoError);
+							}
+							await finalizeSession(responseStatus, errorMessage);
 						} else {
-							// Non-streaming: save session/thread synchronously (existing behavior)
+							// Non-streaming success: save session/thread synchronously
 							await finalizeSession();
 							span.setStatus({ code: SpanStatusCode.OK });
 						}
@@ -454,10 +482,14 @@ export function createOtelMiddleware() {
 						if (ex instanceof Error) {
 							span.recordException(ex);
 						}
+						const errorMessage = ex instanceof Error ? (ex.stack ?? ex.message) : String(ex);
 						span.setStatus({
 							code: SpanStatusCode.ERROR,
-							message: (ex as Error).message ?? String(ex),
+							message: ex instanceof Error ? ex.message : String(ex),
 						});
+
+						await finalizeSession(500, errorMessage);
+
 						throw ex;
 					} finally {
 						const headers: Record<string, string> = {};

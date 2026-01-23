@@ -19,7 +19,8 @@ const DlqListResponseSchema = z.object({
 			offset: z.number(),
 			failure_reason: z.string().nullable(),
 			delivery_attempts: z.number(),
-			moved_at: z.string(),
+			moved_at: z.string().nullable(),
+			created_at: z.string(),
 		})
 	),
 	total: z.number().optional(),
@@ -65,14 +66,18 @@ const listDlqSubcommand = createSubcommand({
 			if (result.messages.length === 0) {
 				tui.info('No messages in dead letter queue');
 			} else {
-				const tableData = result.messages.map((m: DeadLetterMessage) => ({
-					ID: m.id.substring(0, 8) + '...',
-					Offset: m.offset,
-					Reason: m.failure_reason?.substring(0, 30) || 'Unknown',
-					Attempts: m.delivery_attempts,
-					'Moved At': new Date(m.moved_at).toLocaleString(),
-				}));
-				tui.table(tableData, ['ID', 'Offset', 'Reason', 'Attempts', 'Moved At']);
+				const tableData = result.messages.map((m: DeadLetterMessage) => {
+					const timestamp =
+						m.moved_at ?? m.original_published_at ?? m.published_at ?? m.created_at;
+					return {
+						ID: m.id.substring(0, 8) + '...',
+						Offset: m.offset,
+						Reason: m.failure_reason?.substring(0, 30) || 'Unknown',
+						Attempts: m.delivery_attempts,
+						'Failed At': timestamp ? new Date(timestamp).toLocaleString() : 'N/A',
+					};
+				});
+				tui.table(tableData, ['ID', 'Offset', 'Reason', 'Attempts', 'Failed At']);
 			}
 		}
 
@@ -82,7 +87,8 @@ const listDlqSubcommand = createSubcommand({
 				offset: m.offset,
 				failure_reason: m.failure_reason ?? null,
 				delivery_attempts: m.delivery_attempts,
-				moved_at: m.moved_at,
+				moved_at: m.moved_at ?? null,
+				created_at: m.created_at,
 			})),
 			total: result.total,
 		};

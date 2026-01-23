@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { throwSandboxError, API_VERSION } from './util';
 import type { ListRuntimesParams, ListRuntimesResponse, SandboxRuntime } from '@agentuity/core';
 
 const RuntimeRequirementsSchema = z
@@ -90,5 +90,5 @@ export async function runtimeList(
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }

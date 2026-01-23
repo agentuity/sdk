@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchemaNoData } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { throwSandboxError, API_VERSION } from './util';
 
 const DestroyResponseSchema = APIResponseSchemaNoData();
 
@@ -37,5 +37,5 @@ export async function sandboxDestroy(
 		return;
 	}
 
-	throw new SandboxResponseError({ message: resp.message, sandboxId });
+	throwSandboxError(resp, { sandboxId });
 }

@@ -1,4 +1,5 @@
 import { createCommand } from '../../types';
+import cadenceCommand from './cadence';
 import capabilitiesCommand from './capabilities';
 import promptCommand from './prompt';
 import schemaCommand from './schema';
@@ -29,5 +30,12 @@ export const command = createCommand({
 			description: 'Generate Agent Skills from CLI schema',
 		},
 	],
-	subcommands: [opencodeCommand, capabilitiesCommand, promptCommand, schemaCommand, skillsCommand],
+	subcommands: [
+		opencodeCommand,
+		cadenceCommand,
+		capabilitiesCommand,
+		promptCommand,
+		schemaCommand,
+		skillsCommand,
+	],
 });

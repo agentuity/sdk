@@ -254,10 +254,119 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 	return options;
 }
 
+// Cache for stdin confirmation detection
+let stdinConfirmationChecked = false;
+let stdinConfirmation: boolean | null = null;
+
+/**
+ * Check if stdin contains a piped "yes" confirmation.
+ * This allows commands to be run with `echo "yes" | agentuity <command>` pattern.
+ * Only works when stdin is not a TTY (piped input) and command doesn't use stdin.
+ */
+async function checkStdinConfirmation(): Promise<boolean> {
+	if (stdinConfirmationChecked) {
+		return stdinConfirmation === true;
+	}
+	stdinConfirmationChecked = true;
+
+	// Only check if stdin is not a TTY (meaning input is piped)
+	if (process.stdin.isTTY) {
+		stdinConfirmation = null;
+		return false;
+	}
+
+	try {
+		// Read stdin with a short timeout to avoid blocking
+		const reader = process.stdin;
+		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+		let resolved = false;
+		const MAX_BYTES = 4096;
+
+		// Define handlers outside so we can remove them in all paths
+		let data = '';
+		const onData = (chunk: Buffer) => {
+			data += chunk.toString();
+			if (data.length >= MAX_BYTES) {
+				data = data.slice(0, MAX_BYTES);
+			}
+		};
+
+		let onEnd: (() => void) | null = null;
+		let onError: ((err: Error) => void) | null = null;
+
+		const cleanup = () => {
+			reader.removeListener('data', onData);
+			if (onEnd) {
+				reader.removeListener('end', onEnd);
+			}
+			if (onError) {
+				reader.removeListener('error', onError);
+			}
+			reader.pause();
+		};
+
+		const readPromise = new Promise<string>((resolve) => {
+			onEnd = () => {
+				if (resolved) return;
+				resolved = true;
+				if (timeoutId !== null) {
+					clearTimeout(timeoutId);
+					timeoutId = null;
+				}
+				cleanup();
+				resolve(data.trim().toLowerCase());
+			};
+			onError = (_err: Error) => {
+				if (resolved) return;
+				resolved = true;
+				stdinConfirmation = null;
+				if (timeoutId !== null) {
+					clearTimeout(timeoutId);
+					timeoutId = null;
+				}
+				cleanup();
+				resolve('');
+			};
+			reader.on('data', onData);
+			reader.on('end', onEnd);
+			reader.on('error', onError);
+		});
+
+		// Use a short timeout to avoid blocking
+		const timeoutPromise = new Promise<string>((resolve) => {
+			timeoutId = setTimeout(() => {
+				if (resolved) return;
+				resolved = true;
+				// Clean up listeners and pause stdin when timeout wins
+				cleanup();
+				resolve('');
+			}, 100);
+		});
+
+		const input = await Promise.race([readPromise, timeoutPromise]);
+		// Take first token/line to handle inputs like "yes\nanything"
+		const firstToken = input.split(/\s+/)[0] ?? '';
+		stdinConfirmation = firstToken === 'yes' || firstToken === 'y';
+		return stdinConfirmation;
+	} catch {
+		stdinConfirmation = null;
+		return false;
+	}
+}
+
+/**
+ * Reset stdin confirmation cache (for testing)
+ */
+export function resetStdinConfirmationCache(): void {
+	stdinConfirmationChecked = false;
+	stdinConfirmation = null;
+}
+
 export function buildValidationInput(
 	schemas: CommandSchemas,
 	rawArgs: unknown[],
-	rawOptions: Record<string, unknown>
+	rawOptions: Record<string, unknown>,
+	_options?: { usesStdin?: boolean }
 ): { args: Record<string, unknown>; options: Record<string, unknown> } {
 	const result = { args: {} as Record<string, unknown>, options: {} as Record<string, unknown> };
 
@@ -274,9 +383,48 @@ export function buildValidationInput(
 			// Only include the option if it has a value - omitting undefined allows Zod to apply defaults
 			// Commander.js converts kebab-case to camelCase, so we need to check both
 			const camelCaseName = opt.name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-			const value = rawOptions[opt.name] ?? rawOptions[camelCaseName];
+			let value = rawOptions[opt.name] ?? rawOptions[camelCaseName];
+
+			// Handle --yes alias for --confirm: if confirm is not set but yes is, use yes value
+			if (opt.name === 'confirm' && value === undefined && rawOptions.yes === true) {
+				value = true;
+			}
+
 			if (value !== undefined) {
 				result.options[opt.name] = value;
+			}
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Async version of buildValidationInput that also checks stdin for "yes" confirmation.
+ * Use this when the command has a confirm option and doesn't use stdin for other purposes.
+ */
+export async function buildValidationInputAsync(
+	schemas: CommandSchemas,
+	rawArgs: unknown[],
+	rawOptions: Record<string, unknown>,
+	options?: { usesStdin?: boolean }
+): Promise<{ args: Record<string, unknown>; options: Record<string, unknown> }> {
+	const result = buildValidationInput(schemas, rawArgs, rawOptions, options);
+
+	// Check for stdin confirmation if:
+	// 1. Command has a confirm option in schema
+	// 2. Command doesn't use stdin for other purposes
+	// 3. confirm is not already set via flags
+	if (schemas.options && !options?.usesStdin) {
+		// Use getShape() instead of parseOptionsSchema() to avoid re-evaluating function defaults
+		const shape = getShape(schemas.options);
+		const hasConfirmOption = Object.prototype.hasOwnProperty.call(shape, 'confirm');
+		const confirmValue = result.options.confirm;
+
+		if (hasConfirmOption && confirmValue === undefined) {
+			const stdinConfirmed = await checkStdinConfirmation();
+			if (stdinConfirmed) {
+				result.options.confirm = true;
 			}
 		}
 	}

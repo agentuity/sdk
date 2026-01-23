@@ -24,7 +24,6 @@ import {
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
-import { initialize } from '@traceloop/node-server-sdk';
 import type { Logger } from '../logger';
 import { ConsoleLogRecordExporter, DebugSpanExporter } from './console';
 import { instrumentFetch } from './fetch';
@@ -308,35 +307,8 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		instrumentationSDK.start();
 		hostMetrics?.start();
 
-		try {
-			const projectName = config.projectId || '';
-			const orgId = config.orgId || '';
-			const appName = `${orgId}:${projectName}`;
-
-			const traceloopHeaders: Record<string, string> = {};
-			if (bearerToken) {
-				traceloopHeaders.Authorization = `Bearer ${bearerToken}`;
-			}
-
-			initialize({
-				appName,
-				baseUrl: url,
-				headers: traceloopHeaders,
-				disableBatch: devmode,
-				propagator,
-				silenceInitializationMessage: true,
-				traceloopSyncEnabled: false,
-				tracingEnabled: false, // Disable traceloop's own tracing (equivalent to Python's telemetryEnabled: false)
-				// Note: JavaScript SDK doesn't support resourceAttributes like Python
-			});
-			logger.debug(`Telemetry initialized with app_name: ${appName}`);
-			logger.debug('Telemetry configured successfully');
-			logger.debug('Sending telemetry data to %s', url);
-		} catch (error) {
-			logger.warn('Telemetry not available, skipping automatic instrumentation', {
-				error: error instanceof Error ? error.message : String(error),
-			});
-		}
+		logger.debug('Telemetry configured successfully');
+		logger.debug('Sending telemetry data to %s', url);
 		running = true;
 	}
 

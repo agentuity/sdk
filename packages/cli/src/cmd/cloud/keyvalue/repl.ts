@@ -11,7 +11,7 @@ export const replSubcommand = createCommand({
 	description: 'Start an interactive repl for working with keyvalue database',
 	tags: ['slow', 'requires-auth'],
 	idempotent: false,
-	requires: { auth: true },
+	requires: { auth: true, region: true },
 	optional: { project: true },
 	examples: [{ command: getCommand('kv repl'), description: 'Start interactive KV session' }],
 

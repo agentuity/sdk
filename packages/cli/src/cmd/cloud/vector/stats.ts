@@ -44,7 +44,8 @@ export const statsSubcommand = createCommand({
 	name: 'stats',
 	description: 'Get statistics for vector storage',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('vector stats'), description: 'Show stats for all namespaces' },

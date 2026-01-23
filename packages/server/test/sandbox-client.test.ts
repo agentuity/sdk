@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { Writable } from 'node:stream';
 import { SandboxClient } from '../src/api/sandbox/client';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
@@ -152,6 +153,42 @@ describe('SandboxClient', () => {
 
 			expect(sandbox.id).toBe('sandbox-789');
 		});
+
+		test('should create sandbox with top-level files', async () => {
+			let requestBody: Record<string, unknown> | null = null;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST') {
+					requestBody = JSON.parse(opts.body as string);
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-files',
+								status: 'creating',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create({
+				files: [
+					{ path: 'index.ts', content: Buffer.from('console.log("hello")') },
+					{ path: 'config.json', content: Buffer.from('{"port": 3000}') },
+				],
+			});
+
+			expect(sandbox.id).toBe('sandbox-files');
+			expect(requestBody).not.toBeNull();
+			expect(requestBody!.files).toEqual({
+				'index.ts': Buffer.from('console.log("hello")').toString('base64'),
+				'config.json': Buffer.from('{"port": 3000}').toString('base64'),
+			});
+		});
 	});
 
 	describe('sandbox instance methods', () => {
@@ -213,6 +250,227 @@ describe('SandboxClient', () => {
 			expect(result.executionId).toBe('exec-789');
 			expect(result.status).toBe('completed');
 			expect(result.exitCode).toBe(0);
+		});
+
+		test('execute with files should send files as map in request body', async () => {
+			let requestBody: Record<string, unknown> | null = null;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					requestBody = JSON.parse(opts.body as string);
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-files-test',
+								status: 'queued',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('/execution/exec-files-test')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-files-test',
+								sandboxId: 'sandbox-123',
+								status: 'completed',
+								exitCode: 0,
+								durationMs: 100,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { sandboxId: 'sandbox-123', status: 'idle' },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			await sandbox.execute({
+				command: ['bun', 'run', 'script.ts'],
+				files: [
+					{ path: 'script.ts', content: Buffer.from('console.log("hello")') },
+					{ path: 'data.json', content: Buffer.from('{"key": "value"}') },
+				],
+			});
+
+			expect(requestBody).not.toBeNull();
+			expect(requestBody!.command).toEqual(['bun', 'run', 'script.ts']);
+			expect(requestBody!.files).toEqual({
+				'script.ts': Buffer.from('console.log("hello")').toString('base64'),
+				'data.json': Buffer.from('{"key": "value"}').toString('base64'),
+			});
+		});
+
+		test('execute with empty files array should not include files in request', async () => {
+			let requestBody: Record<string, unknown> | null = null;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					requestBody = JSON.parse(opts.body as string);
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-empty-files',
+								status: 'queued',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('/execution/exec-empty-files')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-empty-files',
+								sandboxId: 'sandbox-123',
+								status: 'completed',
+								exitCode: 0,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { sandboxId: 'sandbox-123', status: 'idle' },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			await sandbox.execute({
+				command: ['echo', 'hello'],
+				files: [],
+			});
+
+			expect(requestBody).not.toBeNull();
+			expect(requestBody!.command).toEqual(['echo', 'hello']);
+			expect(requestBody!.files).toBeUndefined();
+		});
+
+		test('execute with pipe should handle backpressure and receive all chunks', async () => {
+			const chunks = [
+				new Uint8Array([72, 101, 108, 108, 111]), // "Hello"
+				new Uint8Array([32, 87, 111, 114, 108, 100]), // " World"
+				new Uint8Array([33, 10]), // "!\n"
+			];
+			const receivedChunks: Buffer[] = [];
+
+			const slowWritable = new Writable({
+				highWaterMark: 1,
+				write(chunk, _encoding, callback) {
+					receivedChunks.push(Buffer.from(chunk));
+					setTimeout(callback, 5);
+				},
+			});
+
+			mockFetch(async (url, opts) => {
+				// Execute endpoint - must check before /sandbox/ since it also contains /sandbox/
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-pipe-test',
+								status: 'queued',
+								stdoutStreamUrl: 'https://stream.example.com/stdout/exec-pipe-test',
+								stderrStreamUrl: 'https://stream.example.com/stderr/exec-pipe-test',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				// Sandbox create endpoint
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-pipe-test',
+								status: 'idle',
+								stdoutStreamUrl: 'https://stream.example.com/stdout',
+								stderrStreamUrl: 'https://stream.example.com/stderr',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				// Stream endpoint
+				if (url.includes('stream.example.com/stdout')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < chunks.length) {
+								controller.enqueue(chunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				// Execution status endpoint
+				if (opts?.method === 'GET' && url.includes('/execution/exec-pipe-test')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-pipe-test',
+								sandboxId: 'sandbox-pipe-test',
+								status: 'completed',
+								exitCode: 0,
+								durationMs: 100,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			const result = await sandbox.execute({
+				command: ['echo', 'Hello World!'],
+				pipe: { stdout: slowWritable },
+			});
+
+			expect(result.status).toBe('completed');
+			expect(result.exitCode).toBe(0);
+			expect(receivedChunks.length).toBe(3);
+			const fullOutput = Buffer.concat(receivedChunks).toString();
+			expect(fullOutput).toBe('Hello World!\n');
 		});
 
 		test('get should call sandbox get API', async () => {
