@@ -537,15 +537,15 @@ clear_progress() {
 
 # Main installation flow
 main() {
-  # Show progress indicator
-  show_progress "Installing Agentuity CLI..."
-
-  # Check prerequisites first (before progress indicator)
+  # Check prerequisites first (may prompt interactively)
   check_bun
 
-  # Check for legacy installations
+  # Check for legacy installations (may prompt interactively)
   check_brew_install
   check_legacy_binary
+
+  # Show progress indicator after interactive checks complete
+  show_progress "Installing Agentuity CLI..."
 
   # Install the CLI
   install_cli
