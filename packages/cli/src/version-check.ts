@@ -1,4 +1,4 @@
-import type { Config, Logger, CommandDefinition } from './types';
+import type { Config, Logger, CommandDefinition, SubcommandDefinition } from './types';
 import { getInstallationType } from './utils/installation-type';
 import { fetchLatestVersion } from './cmd/upgrade';
 import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version';
@@ -7,6 +7,9 @@ import { saveConfig } from './config';
 import { $ } from 'bun';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+
+// Tags that indicate a command should skip the upgrade prompt
+const SKIP_UPGRADE_TAGS = ['read-only', 'fast'];
 
 /**
  * Check if we should skip the version check based on environment and config
@@ -21,6 +24,7 @@ function shouldSkipCheck(
 		skipVersionCheck?: boolean;
 	},
 	commandDef: CommandDefinition | undefined,
+	subcommandDef: SubcommandDefinition | undefined,
 	args: string[]
 ): boolean {
 	// Skip if not a global installation (can't auto-upgrade local/source installs)
@@ -63,6 +67,21 @@ function shouldSkipCheck(
 	// Skip if command explicitly opts out of upgrade check
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if (commandDef && (commandDef as any).skipUpgradeCheck === true) {
+		return true;
+	}
+
+	// Skip if subcommand explicitly opts out of upgrade check
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if (subcommandDef && (subcommandDef as any).skipUpgradeCheck === true) {
+		return true;
+	}
+
+	// Skip if command or subcommand has tags indicating it's read-only or fast
+	// These commands shouldn't be interrupted with upgrade prompts
+	const commandTags = commandDef?.tags ?? [];
+	const subcommandTags = subcommandDef?.tags ?? [];
+	const allTags = [...commandTags, ...subcommandTags];
+	if (allTags.some((tag) => SKIP_UPGRADE_TAGS.includes(tag))) {
 		return true;
 	}
 
@@ -192,10 +211,11 @@ export async function checkForUpdates(
 		skipVersionCheck?: boolean;
 	},
 	commandDef: CommandDefinition | undefined,
+	subcommandDef: SubcommandDefinition | undefined,
 	args: string[]
 ): Promise<void> {
 	// Determine if we should skip the check
-	if (shouldSkipCheck(config, options, commandDef, args)) {
+	if (shouldSkipCheck(config, options, commandDef, subcommandDef, args)) {
 		logger.trace('Skipping version check (disabled or not applicable)');
 		return;
 	}
