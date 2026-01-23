@@ -147,10 +147,16 @@ const commands = await discoverCommands();
 
 // Check for updates before running commands (may upgrade and re-exec)
 // Find the command being run to check if it opts out of upgrade check
-const commandName = preprocessedArgs.find((arg) => !arg.startsWith('-'));
+// Also find the subcommand if present (e.g., "auth whoami" -> command="auth", subcommand="whoami")
+const nonFlagArgs = preprocessedArgs.filter((arg) => !arg.startsWith('-'));
+const commandName = nonFlagArgs[0];
+const subcommandName = nonFlagArgs[1];
 const commandDef = commands.find((cmd) => cmd.name === commandName);
+const subcommandDef = subcommandName
+	? commandDef?.subcommands?.find((sub) => sub.name === subcommandName)
+	: undefined;
 
-await checkForUpdates(config, logger, earlyOpts, commandDef, preprocessedArgs);
+await checkForUpdates(config, logger, earlyOpts, commandDef, subcommandDef, preprocessedArgs);
 
 // Generate and store CLI schema globally for the schema command
 const cliSchema = generateCLISchema(program, commands, version);
