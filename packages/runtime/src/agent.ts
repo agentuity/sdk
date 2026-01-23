@@ -2119,12 +2119,24 @@ export function createAgent<
 							if (evalItem.inputSchema) {
 								const result =
 									await evalItem.inputSchema['~standard'].validate(validatedInput);
-								if (!result.issues) evalValidatedInput = result.value;
+								if (result.issues) {
+									throw new ValidationError({
+										issues: result.issues,
+										message: `Eval input validation failed`,
+									});
+								}
+								evalValidatedInput = result.value;
 							}
 							if (evalItem.outputSchema) {
 								const result =
 									await evalItem.outputSchema['~standard'].validate(validatedOutput);
-								if (!result.issues) evalValidatedOutput = result.value;
+								if (result.issues) {
+									throw new ValidationError({
+										issues: result.issues,
+										message: `Eval output validation failed`,
+									});
+								}
+								evalValidatedOutput = result.value;
 							}
 
 							let handlerResult: EvalHandlerResult;
