@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import type { Logger, WorkbenchConfig, AnalyticsConfig } from '../../types';
 import { discoverRoutes } from './vite/route-discovery';
 import { generateWebAnalyticsFile } from './webanalytics-generator';
+import { computeApiMountPath } from './vite/api-mount-path';
 
 interface GenerateEntryOptions {
 	rootDir: string;
@@ -107,21 +108,14 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 	let routeIndex = 0;
 
 	for (const routeFile of sortedRouteFiles) {
+		// Normalize path separators for cross-platform compatibility (Windows uses backslashes)
+		const normalizedRouteFile = routeFile.replace(/\\/g, '/');
 		// Convert src/api/auth/route.ts -> auth/route
-		const relativePath = routeFile.replace(/^src\/api\//, '').replace(/\.tsx?$/, '');
+		const relativePath = normalizedRouteFile.replace(/^src\/api\//, '').replace(/\.tsx?$/, '');
 
-		// Determine the mount path
-		// src/api/index.ts -> /api
-		// src/api/auth/route.ts -> /api/auth
-		// src/api/users/profile/route.ts -> /api/users/profile
-		let mountPath = '/api';
-		if (relativePath !== 'index') {
-			// Remove 'route' or 'index' from the end
-			const cleanPath = relativePath.replace(/\/(route|index)$/, '');
-			if (cleanPath) {
-				mountPath = `/api/${cleanPath}`;
-			}
-		}
+		// Determine the mount path using the shared helper
+		// This ensures consistency with route type generation in ast.ts
+		const mountPath = computeApiMountPath(relativePath);
 
 		const importName = `router_${routeIndex++}`;
 		routeImportsAndMounts.push(

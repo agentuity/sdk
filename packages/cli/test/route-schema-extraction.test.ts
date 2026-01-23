@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import { parseRoute } from '../src/cmd/build/ast';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -11,13 +11,18 @@ describe('Route Schema Extraction', () => {
 	const projectId = 'test-project';
 	const deploymentId = 'test-deployment';
 
-	function createTempFile(content: string): {
+	function createTempFile(
+		content: string,
+		filename = 'test.ts'
+	): {
 		tempDir: string;
 		path: string;
 		cleanup: () => void;
 	} {
 		const tempDir = mkdtempSync(join(tmpdir(), 'route-schema-test-'));
-		const filePath = join(tempDir, 'test.ts');
+		const apiDir = join(tempDir, 'src', 'api');
+		mkdirSync(apiDir, { recursive: true });
+		const filePath = join(apiDir, filename);
 		writeFileSync(filePath, content, 'utf-8');
 		return {
 			tempDir,
@@ -587,7 +592,7 @@ export const outputSchema = s.object({
 });
 
 const router = createRouter();
-router.get('/echo', websocket((c, ws) => {
+router.get('/', websocket((c, ws) => {
 	ws.onMessage((event) => {
 		ws.send(event.data);
 	});
@@ -601,7 +606,7 @@ export default router;
 			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
 			expect(routes).toHaveLength(1);
 			expect(routes[0].type).toBe('websocket');
-			expect(routes[0].path).toBe('/api/echo');
+			expect(routes[0].path).toBe('/api');
 			expect(routes[0].config?.hasValidator).toBeFalsy();
 			expect(routes[0].config?.inputSchemaVariable).toBe('inputSchema');
 			expect(routes[0].config?.outputSchemaVariable).toBe('outputSchema');
@@ -615,7 +620,7 @@ export default router;
 import { createRouter, websocket } from '@agentuity/runtime';
 
 const router = createRouter();
-router.get('/untyped', websocket((c, ws) => {
+router.get('/', websocket((c, ws) => {
 	ws.onMessage((event) => {
 		ws.send(event.data);
 	});
@@ -629,7 +634,7 @@ export default router;
 			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
 			expect(routes).toHaveLength(1);
 			expect(routes[0].type).toBe('websocket');
-			expect(routes[0].path).toBe('/api/untyped');
+			expect(routes[0].path).toBe('/api');
 			expect(routes[0].config?.hasValidator).toBeFalsy();
 			expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
 			expect(routes[0].config?.outputSchemaVariable).toBeUndefined();
@@ -649,7 +654,7 @@ export const outputSchema = s.object({
 });
 
 const router = createRouter();
-router.get('/events', sse((c, stream) => {
+router.get('/', sse((c, stream) => {
 	stream.writeSSE({ data: 'test' });
 }));
 
@@ -661,7 +666,7 @@ export default router;
 			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
 			expect(routes).toHaveLength(1);
 			expect(routes[0].type).toBe('sse');
-			expect(routes[0].path).toBe('/api/events');
+			expect(routes[0].path).toBe('/api');
 			expect(routes[0].config?.hasValidator).toBeFalsy();
 			expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
 			expect(routes[0].config?.outputSchemaVariable).toBe('outputSchema');
@@ -675,7 +680,7 @@ export default router;
 import { createRouter, sse } from '@agentuity/runtime';
 
 const router = createRouter();
-router.get('/stream', sse((c, stream) => {
+router.get('/', sse((c, stream) => {
 	stream.writeSSE({ data: 'test' });
 }));
 
@@ -687,7 +692,7 @@ export default router;
 			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
 			expect(routes).toHaveLength(1);
 			expect(routes[0].type).toBe('sse');
-			expect(routes[0].path).toBe('/api/stream');
+			expect(routes[0].path).toBe('/api');
 			expect(routes[0].config?.hasValidator).toBeFalsy();
 			expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
 			expect(routes[0].config?.outputSchemaVariable).toBeUndefined();
@@ -730,7 +735,7 @@ export default router;
 import { createRouter, stream } from '@agentuity/runtime';
 
 const router = createRouter();
-router.post('/data', stream((c) => {
+router.post('/', stream((c) => {
 	return new ReadableStream({
 		start(controller) {
 			controller.enqueue(new TextEncoder().encode('chunk1'));
@@ -747,7 +752,7 @@ export default router;
 			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
 			expect(routes).toHaveLength(1);
 			expect(routes[0].type).toBe('stream');
-			expect(routes[0].path).toBe('/api/data');
+			expect(routes[0].path).toBe('/api');
 			expect(routes[0].method).toBe('post');
 		} finally {
 			cleanup();
@@ -787,7 +792,7 @@ export default router;
 import { createRouter, cron } from '@agentuity/runtime';
 
 const router = createRouter();
-router.post('/job', cron('0 0 * * *', async (c) => {
+router.post('/', cron('0 0 * * *', async (c) => {
 	return c.json({ status: 'completed' });
 }));
 
@@ -799,7 +804,7 @@ export default router;
 			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
 			expect(routes).toHaveLength(1);
 			expect(routes[0].type).toBe('cron');
-			expect(routes[0].path).toBe('/api/job');
+			expect(routes[0].path).toBe('/api');
 			expect(routes[0].method).toBe('post');
 			expect(routes[0].config?.expression).toBe('0 0 * * *');
 		} finally {

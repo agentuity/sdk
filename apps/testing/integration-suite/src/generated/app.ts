@@ -233,7 +233,7 @@ app.route('/api/agent-ids', router_0);
 const { default: router_1 } = await import('../api/auth/route.js');
 app.route('/api/auth', router_1);
 const { default: router_2 } = await import('../api/custom-name/foobar.js');
-app.route('/api/custom-name/foobar', router_2);
+app.route('/api/custom-name', router_2);
 const { default: router_3 } = await import('../api/index.js');
 app.route('/api', router_3);
 const { default: router_4 } = await import('../api/middleware-test/route.js');

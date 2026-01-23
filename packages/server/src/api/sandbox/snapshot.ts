@@ -418,6 +418,18 @@ export async function snapshotLineage(
 
 // ===== Public Snapshot API =====
 
+const _SnapshotPublicListParamsSchema = z
+	.object({
+		limit: z
+			.number()
+			.optional()
+			.describe('Maximum number of snapshots to return (default: 50, max: 100)'),
+		offset: z.number().optional().describe('Number of snapshots to skip for pagination'),
+	})
+	.describe('Parameters for listing public snapshots');
+
+export type SnapshotPublicListParams = z.infer<typeof _SnapshotPublicListParamsSchema>;
+
 const _SnapshotPublicGetParamsSchema = z
 	.object({
 		snapshotRef: z
@@ -463,6 +475,46 @@ export async function snapshotPublicGet(
 	const resp = await client.get<z.infer<typeof SnapshotGetResponseSchema>>(
 		url,
 		SnapshotGetResponseSchema
+	);
+
+	if (resp.success) {
+		return resp.data;
+	}
+
+	throwSandboxError(resp, {});
+}
+
+/**
+ * Lists all public snapshots across the platform.
+ *
+ * Returns paginated list of snapshots that have been marked as public,
+ * regardless of which organization owns them.
+ *
+ * @param client - The API client to use for the request
+ * @param params - Optional parameters for pagination
+ * @returns Paginated list of public snapshots with total count
+ * @throws {SandboxResponseError} If the request fails
+ *
+ * @example
+ * // List first page of public snapshots
+ * const result = await snapshotPublicList(client);
+ * console.log(result.snapshots);
+ *
+ * @example
+ * // List with pagination
+ * const result = await snapshotPublicList(client, { limit: 20, offset: 40 });
+ */
+export async function snapshotPublicList(
+	client: APIClient,
+	params: SnapshotPublicListParams = {}
+): Promise<SnapshotListResponse> {
+	const { limit, offset } = params;
+	const queryString = buildQueryString({ limit, offset });
+	const url = `/sandbox/${API_VERSION}/snapshots/public${queryString}`;
+
+	const resp = await client.get<z.infer<typeof SnapshotListResponseSchema>>(
+		url,
+		SnapshotListResponseSchema
 	);
 
 	if (resp.success) {

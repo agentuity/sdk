@@ -1934,8 +1934,7 @@ export function createAgent<
 						'@agentuity/agentName': agentName,
 						'@agentuity/evalDescription':
 							evalMeta?.description || evalItem.metadata.description || '',
-						'@agentuity/evalFilename':
-							evalMeta?.filename || evalItem.metadata.filename || '',
+						'@agentuity/evalFilename': evalMeta?.filename || evalItem.metadata.filename || '',
 					});
 
 					const evalSpanContext = trace.setSpan(agentSpanContext, evalSpan);
@@ -1945,151 +1944,21 @@ export function createAgent<
 					// AFTER setting up its span context, making operations children of waitUntil
 					context.with(evalSpanContext, () => {
 						ctx.waitUntil(async () => {
-								try {
-									internal.info(`[EVALRUN] Starting eval run tracking for '${evalName}'`);
+							const orgId = runtimeConfig.getOrganizationId();
+							const projectId = runtimeConfig.getProjectId();
+							const devMode = runtimeConfig.isDevMode() ?? false;
+							const evalRunEventProvider = getEvalRunEventProvider();
 
-									const orgId = runtimeConfig.getOrganizationId();
-									const projectId = runtimeConfig.getProjectId();
-									const devMode = runtimeConfig.isDevMode() ?? false;
-									const evalRunEventProvider = getEvalRunEventProvider();
+							const shouldSendEvalRunEvents =
+								orgId && projectId && evalId !== '' && evalIdentifier !== '';
 
-									const shouldSendEvalRunEvents =
-										orgId && projectId && evalId !== '' && evalIdentifier !== '';
-
-									// Send eval run start event
-									if (shouldSendEvalRunEvents && evalRunEventProvider) {
-										try {
-											const deploymentId = runtimeConfig.getDeploymentId();
-											await evalRunEventProvider.start({
-												id: evalRunId,
-												sessionId: ctx.sessionId,
-												evalId,
-												evalIdentifier,
-												orgId: orgId!,
-												projectId: projectId!,
-												devmode: Boolean(devMode),
-												deploymentId: deploymentId || undefined,
-												spanId: agentRunSpanId,
-											});
-										} catch (error) {
-											internal.error(
-												`[EVALRUN] Error sending start event for '${evalName}'`,
-												{ error }
-											);
-										}
-									}
-
-									// Validate eval input/output if schemas exist
-									let evalValidatedInput: any = validatedInput;
-									let evalValidatedOutput: any = validatedOutput;
-
-									if (evalItem.inputSchema) {
-										const result =
-											await evalItem.inputSchema['~standard'].validate(validatedInput);
-										if (result.issues) {
-											throw new ValidationError({
-												issues: result.issues,
-												message: `Eval input validation failed`,
-											});
-										}
-										evalValidatedInput = result.value;
-									}
-
-									if (evalItem.outputSchema) {
-										const result =
-											await evalItem.outputSchema['~standard'].validate(validatedOutput);
-										if (result.issues) {
-											throw new ValidationError({
-												issues: result.issues,
-												message: `Eval output validation failed`,
-											});
-										}
-										evalValidatedOutput = result.value;
-									}
-
-									// Execute the eval handler
-									let handlerResult: EvalHandlerResult;
-									if (inputSchema && outputSchema) {
-										handlerResult = await (evalItem.handler as any)(
-											ctx,
-											evalValidatedInput,
-											evalValidatedOutput
-										);
-									} else if (inputSchema) {
-										handlerResult = await (evalItem.handler as any)(ctx, evalValidatedInput);
-									} else if (outputSchema) {
-										handlerResult = await (evalItem.handler as any)(ctx, evalValidatedOutput);
-									} else {
-										handlerResult = await (evalItem.handler as any)(ctx);
-									}
-
-									const result: EvalRunResult = { success: true, ...handlerResult };
-
-									// Send eval run complete event
-									if (shouldSendEvalRunEvents && evalRunEventProvider) {
-										try {
-											await evalRunEventProvider.complete({ id: evalRunId, result });
-										} catch (error) {
-											internal.error(
-												`[EVALRUN] Error sending complete event for '${evalName}'`,
-												{ error }
-											);
-										}
-									}
-
-									internal.debug(`Eval '${evalName}' completed successfully`);
-								} catch (error) {
-									const errorMessage =
-										error instanceof Error ? error.message : String(error);
-									evalSpan.recordException(error as Error);
-									evalSpan.setStatus({
-										code: SpanStatusCode.ERROR,
-										message: errorMessage,
-									});
-									internal.error(`Error executing eval '${evalName}'`, { error });
-
-									// Send error event
-									const orgId = runtimeConfig.getOrganizationId();
-									const projectId = runtimeConfig.getProjectId();
-									const evalRunEventProvider = getEvalRunEventProvider();
-									if (orgId && projectId && evalId && evalRunEventProvider) {
-										try {
-											await evalRunEventProvider.complete({
-												id: evalRunId,
-												error: errorMessage,
-												result: {
-													success: false,
-													passed: false,
-													error: errorMessage,
-													metadata: {},
-												},
-											});
-										} catch (e) {
-											internal.debug('Failed to send eval run complete event', {
-												evalRunId,
-												errorMessage,
-												error: e instanceof Error ? e.message : String(e),
-											});
-										}
-									}
-								} finally {
-									evalSpan.end();
-								}
-						});
-					});
-				} else {
-					// No tracer - execute without span
-					ctx.waitUntil(async () => {
 							try {
-								const orgId = runtimeConfig.getOrganizationId();
-								const projectId = runtimeConfig.getProjectId();
-								const devMode = runtimeConfig.isDevMode() ?? false;
-								const evalRunEventProvider = getEvalRunEventProvider();
-								const shouldSendEvalRunEvents =
-									orgId && projectId && evalId !== '' && evalIdentifier !== '';
+								internal.info(`[EVALRUN] Starting eval run tracking for '${evalName}'`);
 
+								// Send eval run start event
 								if (shouldSendEvalRunEvents && evalRunEventProvider) {
 									try {
+										const deploymentId = runtimeConfig.getDeploymentId();
 										await evalRunEventProvider.start({
 											id: evalRunId,
 											sessionId: ctx.sessionId,
@@ -2098,34 +1967,46 @@ export function createAgent<
 											orgId: orgId!,
 											projectId: projectId!,
 											devmode: Boolean(devMode),
-											deploymentId: runtimeConfig.getDeploymentId() || undefined,
+											deploymentId: deploymentId || undefined,
 											spanId: agentRunSpanId,
 										});
-									} catch (e) {
-										internal.debug('Failed to send eval run start event', {
-											evalRunId,
-											evalId,
-											evalIdentifier,
-											sessionId: ctx.sessionId,
-											error: e instanceof Error ? e.message : String(e),
-										});
+									} catch (error) {
+										internal.error(
+											`[EVALRUN] Error sending start event for '${evalName}'`,
+											{ error }
+										);
 									}
 								}
 
+								// Validate eval input/output if schemas exist
 								let evalValidatedInput: any = validatedInput;
 								let evalValidatedOutput: any = validatedOutput;
 
 								if (evalItem.inputSchema) {
 									const result =
 										await evalItem.inputSchema['~standard'].validate(validatedInput);
-									if (!result.issues) evalValidatedInput = result.value;
+									if (result.issues) {
+										throw new ValidationError({
+											issues: result.issues,
+											message: `Eval input validation failed`,
+										});
+									}
+									evalValidatedInput = result.value;
 								}
+
 								if (evalItem.outputSchema) {
 									const result =
 										await evalItem.outputSchema['~standard'].validate(validatedOutput);
-									if (!result.issues) evalValidatedOutput = result.value;
+									if (result.issues) {
+										throw new ValidationError({
+											issues: result.issues,
+											message: `Eval output validation failed`,
+										});
+									}
+									evalValidatedOutput = result.value;
 								}
 
+								// Execute the eval handler
 								let handlerResult: EvalHandlerResult;
 								if (inputSchema && outputSchema) {
 									handlerResult = await (evalItem.handler as any)(
@@ -2136,27 +2017,179 @@ export function createAgent<
 								} else if (inputSchema) {
 									handlerResult = await (evalItem.handler as any)(ctx, evalValidatedInput);
 								} else if (outputSchema) {
-									handlerResult = await (evalItem.handler as any)(ctx, evalValidatedOutput);
+									handlerResult = await (evalItem.handler as any)(
+										ctx,
+										evalValidatedOutput
+									);
 								} else {
 									handlerResult = await (evalItem.handler as any)(ctx);
 								}
 
+								const result: EvalRunResult = { success: true, ...handlerResult };
+
+								// Send eval run complete event
+								if (shouldSendEvalRunEvents && evalRunEventProvider) {
+									try {
+										await evalRunEventProvider.complete({ id: evalRunId, result });
+									} catch (error) {
+										internal.error(
+											`[EVALRUN] Error sending complete event for '${evalName}'`,
+											{ error }
+										);
+									}
+								}
+
+								internal.debug(`Eval '${evalName}' completed successfully`);
+							} catch (error) {
+								const errorMessage = error instanceof Error ? error.message : String(error);
+								evalSpan.recordException(error as Error);
+								evalSpan.setStatus({
+									code: SpanStatusCode.ERROR,
+									message: errorMessage,
+								});
+								internal.error(`Error executing eval '${evalName}'`, { error });
+
+								// Send error event
 								if (shouldSendEvalRunEvents && evalRunEventProvider) {
 									try {
 										await evalRunEventProvider.complete({
 											id: evalRunId,
-											result: { success: true, ...handlerResult },
+											error: errorMessage,
+											result: {
+												success: false,
+												passed: false,
+												error: errorMessage,
+												metadata: {},
+											},
 										});
 									} catch (e) {
 										internal.debug('Failed to send eval run complete event', {
 											evalRunId,
+											errorMessage,
 											error: e instanceof Error ? e.message : String(e),
 										});
 									}
 								}
-							} catch (error) {
-								internal.error(`Error executing eval '${evalName}'`, { error });
+							} finally {
+								evalSpan.end();
 							}
+						});
+					});
+				} else {
+					// No tracer - execute without span
+					ctx.waitUntil(async () => {
+						const orgId = runtimeConfig.getOrganizationId();
+						const projectId = runtimeConfig.getProjectId();
+						const devMode = runtimeConfig.isDevMode() ?? false;
+						const evalRunEventProvider = getEvalRunEventProvider();
+						const shouldSendEvalRunEvents =
+							orgId && projectId && evalId !== '' && evalIdentifier !== '';
+
+						try {
+							if (shouldSendEvalRunEvents && evalRunEventProvider) {
+								try {
+									await evalRunEventProvider.start({
+										id: evalRunId,
+										sessionId: ctx.sessionId,
+										evalId,
+										evalIdentifier,
+										orgId: orgId!,
+										projectId: projectId!,
+										devmode: Boolean(devMode),
+										deploymentId: runtimeConfig.getDeploymentId() || undefined,
+										spanId: agentRunSpanId,
+									});
+								} catch (e) {
+									internal.debug('Failed to send eval run start event', {
+										evalRunId,
+										evalId,
+										evalIdentifier,
+										sessionId: ctx.sessionId,
+										error: e instanceof Error ? e.message : String(e),
+									});
+								}
+							}
+
+							let evalValidatedInput: any = validatedInput;
+							let evalValidatedOutput: any = validatedOutput;
+
+							if (evalItem.inputSchema) {
+								const result =
+									await evalItem.inputSchema['~standard'].validate(validatedInput);
+								if (result.issues) {
+									throw new ValidationError({
+										issues: result.issues,
+										message: `Eval input validation failed`,
+									});
+								}
+								evalValidatedInput = result.value;
+							}
+							if (evalItem.outputSchema) {
+								const result =
+									await evalItem.outputSchema['~standard'].validate(validatedOutput);
+								if (result.issues) {
+									throw new ValidationError({
+										issues: result.issues,
+										message: `Eval output validation failed`,
+									});
+								}
+								evalValidatedOutput = result.value;
+							}
+
+							let handlerResult: EvalHandlerResult;
+							if (inputSchema && outputSchema) {
+								handlerResult = await (evalItem.handler as any)(
+									ctx,
+									evalValidatedInput,
+									evalValidatedOutput
+								);
+							} else if (inputSchema) {
+								handlerResult = await (evalItem.handler as any)(ctx, evalValidatedInput);
+							} else if (outputSchema) {
+								handlerResult = await (evalItem.handler as any)(ctx, evalValidatedOutput);
+							} else {
+								handlerResult = await (evalItem.handler as any)(ctx);
+							}
+
+							if (shouldSendEvalRunEvents && evalRunEventProvider) {
+								try {
+									await evalRunEventProvider.complete({
+										id: evalRunId,
+										result: { success: true, ...handlerResult },
+									});
+								} catch (e) {
+									internal.debug('Failed to send eval run complete event', {
+										evalRunId,
+										error: e instanceof Error ? e.message : String(e),
+									});
+								}
+							}
+						} catch (error) {
+							const errorMessage = error instanceof Error ? error.message : String(error);
+							internal.error(`Error executing eval '${evalName}'`, { error });
+
+							// Send error event to match traced branch behavior
+							if (shouldSendEvalRunEvents && evalRunEventProvider) {
+								try {
+									await evalRunEventProvider.complete({
+										id: evalRunId,
+										error: errorMessage,
+										result: {
+											success: false,
+											passed: false,
+											error: errorMessage,
+											metadata: {},
+										},
+									});
+								} catch (e) {
+									internal.debug('Failed to send eval run complete event', {
+										evalRunId,
+										errorMessage,
+										error: e instanceof Error ? e.message : String(e),
+									});
+								}
+							}
+						}
 					});
 				}
 			}

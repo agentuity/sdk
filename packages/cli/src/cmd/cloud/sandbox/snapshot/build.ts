@@ -165,7 +165,7 @@ function substituteVariables(
 }
 
 // Default patterns that are always excluded from snapshot builds
-const DEFAULT_EXCLUSIONS = ['.git/**', 'node_modules/**', '.agentuity/**', '.env*'];
+const DEFAULT_EXCLUSIONS = ['.git', '.git/**', 'node_modules/**', '.agentuity/**', '.env*'];
 
 async function resolveFileGlobs(
 	directory: string,
@@ -203,6 +203,8 @@ async function resolveFileGlobs(
 		}
 	}
 
+	// Expand exclusion patterns to include nested variants
+	const expandedExclusions: string[] = [];
 	for (let pattern of exclusions) {
 		// If pattern already contains glob wildcards, use it as-is
 		// Otherwise, check if it refers to a directory and auto-append /** to exclude all contents
@@ -219,6 +221,16 @@ async function resolveFileGlobs(
 			}
 		}
 
+		expandedExclusions.push(pattern);
+
+		// Add **/ prefix variant to match nested occurrences (e.g., .agentuity/** -> **/.agentuity/**)
+		// Skip if pattern already starts with **/ or is just a wildcard pattern
+		if (!pattern.startsWith('**/')) {
+			expandedExclusions.push(`**/${pattern}`);
+		}
+	}
+
+	for (const pattern of expandedExclusions) {
 		const glob = new Bun.Glob(pattern);
 		for await (const file of glob.scan({ cwd: directory, dot: true })) {
 			files.delete(file);
