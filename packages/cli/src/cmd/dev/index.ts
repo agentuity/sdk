@@ -15,6 +15,7 @@ import { getDevmodeDeploymentId } from '../build/ast';
 import { getDefaultConfigDir, saveConfig, loadProjectSDKKey, getAuth } from '../../config';
 import type { Config } from '../../types';
 import { typecheck } from '../build/typecheck';
+import { validateGravityRequiresUpgrade } from '../../runtime';
 import { isTTY, hasLoggedInBefore } from '../../auth';
 import { createFileWatcher } from './file-watcher';
 import { regenerateSkillsAsync } from './skills';
@@ -420,7 +421,8 @@ export const command = createCommand({
 				if (
 					config?.gravity?.version &&
 					existsSync(join(gravityDir, config.gravity.version, 'gravity')) &&
-					config?.gravity?.checked
+					config?.gravity?.checked &&
+					!validateGravityRequiresUpgrade(config.gravity.version)
 				) {
 					if (Date.now() - config.gravity.checked < 3.6e6) {
 						mustCheck = false;
