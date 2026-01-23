@@ -77,7 +77,7 @@ export const ValidationOutputError = StructuredError(
 
 export const UpgradeRequiredError = StructuredError(
 	'UpgradeRequiredError',
-	'Upgrade required to continue. Please see https://agentuity.dev/CLI/installation to download the latest version of the SDK.'
+	'Upgrade required to continue. Please run `agentuity upgrade` or see https://agentuity.dev/Get-Started/installation to download the latest version.'
 )<{
 	sessionId?: string | null;
 }>();
