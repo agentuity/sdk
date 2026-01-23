@@ -94,10 +94,13 @@ if (!skipLegacyCheck) {
 const version = getVersion();
 const program = await createCLI(version);
 
-// Parse options early to check for color scheme override
+// Parse options early to check for color scheme override and extract operands
 // Skip parseOptions if we have help flags to avoid "unknown option" error
+// parseOptions returns { operands, unknown } where operands are positional args (command names)
+let parsedOperands: string[] = [];
 if (!hasHelp) {
-	program.parseOptions(process.argv);
+	const parsed = program.parseOptions(process.argv);
+	parsedOperands = parsed.operands;
 }
 const earlyOpts = program.opts();
 
@@ -147,10 +150,11 @@ const commands = await discoverCommands();
 
 // Check for updates before running commands (may upgrade and re-exec)
 // Find the command being run to check if it opts out of upgrade check
+// Use parsedOperands from Commander's parseOptions which correctly separates
+// command names from option values (e.g., "--file myfile" won't treat "myfile" as a command)
 // Also find the subcommand if present (e.g., "auth whoami" -> command="auth", subcommand="whoami")
-const nonFlagArgs = preprocessedArgs.filter((arg) => !arg.startsWith('-'));
-const commandName = nonFlagArgs[0];
-const subcommandName = nonFlagArgs[1];
+const commandName = parsedOperands[0];
+const subcommandName = parsedOperands[1];
 const commandDef = commands.find((cmd) => cmd.name === commandName);
 const subcommandDef = subcommandName
 	? commandDef?.subcommands?.find((sub) => sub.name === subcommandName)
