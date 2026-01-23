@@ -535,32 +535,10 @@ clear_progress() {
   fi
 }
 
-# Show beta banner
-show_beta_banner() {
-  printf "\n"
-  printf "${RED}╭─────────────────────────────────────────────────────────────────────╮${NC}\n"
-  printf "${RED}│${NC}  ${RED}⚠  v1 BETA BUILD - READY FOR PRODUCTION TESTING${NC}                    ${RED}│${NC}\n"
-  printf "${RED}├─────────────────────────────────────────────────────────────────────┤${NC}\n"
-  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-  printf "${RED}│${NC}  This is a Beta build of the upcoming v1 production release.        ${RED}│${NC}\n"
-  printf "${RED}│${NC}  This build is ${RED}ready for production testing${NC}.                        ${RED}│${NC}\n"
-  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-  printf "${RED}│${NC}  Please report any issues:                                          ${RED}│${NC}\n"
-  printf "${RED}│${NC}    • Discord: ${CYAN}https://discord.gg/agentuity${NC}                          ${RED}│${NC}\n"
-  printf "${RED}│${NC}    • GitHub:  ${CYAN}https://github.com/agentuity/sdk/discussions${NC}          ${RED}│${NC}\n"
-  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-  printf "${RED}│${NC}  ${MUTED}Thank you for your assistance during this final testing period!${NC}    ${RED}│${NC}\n"
-  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-  printf "${RED}╰─────────────────────────────────────────────────────────────────────╯${NC}\n"
-  printf "\n"
-}
-
 # Main installation flow
 main() {
-  # Show beta banner (unless hidden via env var)
-  if [ "${AGENTUITY_HIDE_BANNER:-}" != "true" ]; then
-    show_beta_banner
-  fi
+  # Show progress indicator
+  show_progress "Installing Agentuity CLI..."
 
   # Check prerequisites first (before progress indicator)
   check_bun
@@ -568,9 +546,6 @@ main() {
   # Check for legacy installations
   check_brew_install
   check_legacy_binary
-
-  # Show progress indicator
-  show_progress "Installing Agentuity CLI..."
 
   # Install the CLI
   install_cli
