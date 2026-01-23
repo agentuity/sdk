@@ -7,6 +7,25 @@
 import { z } from 'zod';
 import type { Logger } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
+import pkg from '../../package.json' with { type: 'json' };
+
+// Cache the package data
+let cachedPackage: typeof pkg | null = null;
+
+export function getPackage(): typeof pkg {
+	if (!cachedPackage) {
+		cachedPackage = pkg;
+	}
+	return cachedPackage;
+}
+
+function getVersion(): string {
+	return process.env.AGENTUITY_CLI_VERSION || getPackage().version || 'dev';
+}
+
+function getUserAgent(): string {
+	return `Agentuity SDK/${getVersion()}`;
+}
 
 export interface APIClientConfig {
 	skipVersionCheck?: boolean;
@@ -77,7 +96,7 @@ export const ValidationOutputError = StructuredError(
 
 export const UpgradeRequiredError = StructuredError(
 	'UpgradeRequiredError',
-	'Upgrade required to continue. Please see https://agentuity.dev/CLI/installation to download the latest version of the SDK.'
+	'Upgrade required to continue. Please run `agentuity upgrade` or see https://agentuity.dev/Get-Started/installation to download the latest version.'
 )<{
 	sessionId?: string | null;
 }>();
@@ -338,6 +357,8 @@ export class APIClient {
 
 		if (this.#config?.userAgent) {
 			headers['User-Agent'] = this.#config.userAgent;
+		} else {
+			headers['User-Agent'] = getUserAgent();
 		}
 
 		if (this.#apiKey) {
@@ -497,6 +518,11 @@ export class APIClient {
 					this.#logger.debug('  Status:', response.status, response.statusText);
 					this.#logger.debug('  Headers:', JSON.stringify(sanitizedHeaders, null, 2));
 					this.#logger.debug('  Response:', responseBody);
+
+					// HTTP 426 always forces upgrade (cannot be skipped - emergency upgrade path)
+					if (response.status === 426) {
+						throw new UpgradeRequiredError({ sessionId });
+					}
 
 					// Check for UPGRADE_REQUIRED error
 					if (errorData?.code === 'UPGRADE_REQUIRED') {
