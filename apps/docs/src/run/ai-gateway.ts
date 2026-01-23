@@ -52,8 +52,3 @@ try {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
 }
-
-// Ensure stdout is flushed before exit
-await new Promise<void>((resolve) => {
-	process.stdout.write('', () => resolve());
-});

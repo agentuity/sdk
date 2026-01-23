@@ -350,14 +350,14 @@ export default router;
 
 ## Background Tasks
 
-Use `c.var.waitUntil()` to schedule work after the response is sent:
+Use `c.waitUntil()` to schedule work after the response is sent:
 
 ```typescript
 router.post('/background', async (c) => {
 	const body = await c.req.json();
 
 	// Schedule background work
-	c.var.waitUntil(async () => {
+	c.waitUntil(async () => {
 		// This runs after the response is sent
 		await someAsyncTask(body);
 	});

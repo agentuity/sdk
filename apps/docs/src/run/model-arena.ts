@@ -89,8 +89,3 @@ Model B: ${responseB.text.slice(0, 200)}`,
 
 // Print everything at once at the very end
 console.log(output.join('\n'));
-
-// Ensure stdout is flushed before exit
-await new Promise<void>((resolve) => {
-	process.stdout.write('', () => resolve());
-});

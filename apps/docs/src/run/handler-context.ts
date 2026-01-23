@@ -22,7 +22,6 @@ await standaloneCtx.invoke(async () => {
 		const ctx = getAgentContext();
 
 		console.log('---OUTPUT---');
-		console.log('=== Handler Context Demo ===');
 		console.log('');
 
 		// Identifiers

@@ -159,8 +159,6 @@ try {
 	console.log("---OUTPUT---");
 	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
 }
-
-await new Promise<void>((resolve) => { process.stdout.write("", () => resolve()); });
 `,
 
 	streaming: `\
@@ -198,8 +196,6 @@ try {
 	console.log("---OUTPUT---");
 	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
 }
-
-await new Promise<void>((resolve) => { process.stdout.write("", () => resolve()); });
 `,
 
 	'sse-stream': `\
@@ -237,8 +233,6 @@ try {
 	console.log("---OUTPUT---");
 	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
 }
-
-await new Promise<void>((resolve) => { process.stdout.write("", () => resolve()); });
 `,
 
 	chat: `\
@@ -302,7 +296,6 @@ await standaloneCtx.invoke(async () => {
 		const ctx = getAgentContext();
 
 		console.log("---OUTPUT---");
-		console.log("=== Handler Context Demo ===");
 		console.log("");
 		console.log("Identifiers:");
 		console.log(\`  sessionId: \${ctx.sessionId}\`);
@@ -421,8 +414,6 @@ try {
 	console.log("---OUTPUT---");
 	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
 }
-
-await new Promise<void>((resolve) => { process.stdout.write("", () => resolve()); });
 `,
 
 	cron: `\
@@ -587,8 +578,6 @@ Model B: \${responseB.text.slice(0, 200)}\`,
 
 // Print everything at once at the very end
 console.log(output.join("\\n"));
-
-await new Promise<void>((resolve) => { process.stdout.write("", () => resolve()); });
 `,
 
 	evals: `\
@@ -658,8 +647,6 @@ try {
 	console.log("---OUTPUT---");
 	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
 }
-
-await new Promise<void>((resolve) => { process.stdout.write("", () => resolve()); });
 `,
 };
 

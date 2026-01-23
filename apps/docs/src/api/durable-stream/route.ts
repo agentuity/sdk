@@ -94,7 +94,7 @@ router.post('/create', async (c) => {
 	};
 
 	// Start generation in background
-	c.var.waitUntil(generateInBackground());
+	c.waitUntil(generateInBackground());
 
 	// Return immediately - URL will return content once stream is closed
 	return c.json({

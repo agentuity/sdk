@@ -31,7 +31,6 @@ const question = input.question ?? 'What is Agentuity and what are its main feat
 
 const ctx = createAgentContext();
 
-// Minimal logging to avoid stdout backpressure issues
 ctx.logger.info('Running evals demo');
 
 try {
@@ -76,7 +75,6 @@ A: "${truncatedAnswer}"`,
 			})
 		: { containsFactualClaims: true, reason: 'Eval failed' };
 
-	// Output everything at once at the end (reduces stdout pressure)
 	console.log('---OUTPUT---');
 	console.log(`Question: "${question}"`);
 	console.log('');
@@ -93,8 +91,3 @@ A: "${truncatedAnswer}"`,
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
 }
-
-// Ensure stdout is flushed before exit
-await new Promise<void>((resolve) => {
-	process.stdout.write('', () => resolve());
-});
