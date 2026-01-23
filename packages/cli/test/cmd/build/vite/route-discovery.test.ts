@@ -31,13 +31,15 @@ describe('route-discovery', () => {
 	});
 
 	test('should discover basic API route', async () => {
+		// Following convention: src/api/users.ts is mounted at /api (directory-based)
+		// So router.get('/') maps to /api
 		const routeCode = `
 import { createRouter } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const router = createRouter();
 
-router.get('/users', async (c) => {
+router.get('/', async (c) => {
 	return c.json({ users: [] });
 });
 
@@ -48,14 +50,16 @@ export default router;
 		const { routes } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
 
 		expect(routes.length).toBeGreaterThan(0);
-		// parseRoute adds /api prefix to all routes
-		const userRoute = routes.find((r) => r.path === '/api/users');
+		// src/api/users.ts is mounted at /api (directory-based), and router.get('/') maps to /api
+		const userRoute = routes.find((r) => r.path === '/api');
 		expect(userRoute).toBeDefined();
 		expect(userRoute!.method).toBe('get');
 		expect(userRoute!.type).toBe('api');
 	});
 
 	test('should discover route with validator', async () => {
+		// Following convention: src/api/create.ts is mounted at /api (directory-based)
+		// So router.post('/') maps to /api
 		const routeCode = `
 import { createRouter, validator } from '@agentuity/runtime';
 import { z } from 'zod';
@@ -63,7 +67,7 @@ import { z } from 'zod';
 const router = createRouter();
 
 router.post(
-	'/create',
+	'/',
 	validator({
 		input: z.object({ name: z.string() }),
 		output: z.object({ id: z.string() }),
@@ -86,8 +90,8 @@ export default router;
 		);
 
 		expect(routes.length).toBeGreaterThan(0);
-		// parseRoute adds /api prefix to all routes
-		const createRoute = routeInfoList.find((r) => r.path === '/api/create');
+		// src/api/create.ts is mounted at /api (directory-based), and router.post('/') maps to /api
+		const createRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(createRoute).toBeDefined();
 		expect(createRoute!.hasValidator).toBe(true);
 		expect(createRoute!.method).toBe('POST');
@@ -114,13 +118,15 @@ export default createAgent('test-agent', {
 		writeFileSync(join(agentDir, 'test.ts'), agentCode);
 
 		// Create route using agent validator
+		// Following convention: src/api/chat.ts is mounted at /api (directory-based)
+		// So router.post('/') maps to /api
 		const routeCode = `
 import { createRouter } from '@agentuity/runtime';
 import testAgent from '../agent/test';
 
 const router = createRouter();
 
-router.post('/chat', testAgent.validator(), async (c) => {
+router.post('/', testAgent.validator(), async (c) => {
 	const data = c.req.valid('json');
 	return c.json({ response: data.prompt });
 });
@@ -137,8 +143,8 @@ export default router;
 		);
 
 		expect(routes.length).toBeGreaterThan(0);
-		// parseRoute adds /api prefix to all routes
-		const chatRoute = routeInfoList.find((r) => r.path === '/api/chat');
+		// src/api/chat.ts is mounted at /api (directory-based), and router.post('/') maps to /api
+		const chatRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(chatRoute).toBeDefined();
 		expect(chatRoute!.hasValidator).toBe(true);
 		expect(chatRoute!.agentVariable).toBe('testAgent');
@@ -149,6 +155,8 @@ export default router;
 		const usersDir = join(apiDir, 'users');
 		mkdirSync(usersDir);
 
+		// list.ts is in src/api/users/, so it mounts at /api/users
+		// router.get('/list') -> /api/users/list
 		const listRouteCode = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -162,6 +170,8 @@ export default router;
 `;
 		writeFileSync(join(usersDir, 'list.ts'), listRouteCode);
 
+		// create.ts is in src/api/users/, so it mounts at /api/users
+		// router.post('/create') -> /api/users/create
 		const createRouteCode = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -181,7 +191,8 @@ export default router;
 	});
 
 	test('should discover routes in api/index.ts', async () => {
-		// Create index.ts with routes
+		// Create index.ts with routes - index.ts is mounted at /api (directory-based)
+		// So router.get('/index-route') maps to /api/index-route
 		const indexCode = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -195,13 +206,14 @@ export default router;
 `;
 		writeFileSync(join(apiDir, 'index.ts'), indexCode);
 
-		// Create another route
+		// Create another route - other.ts is also mounted at /api (directory-based)
+		// So router.get('/') maps to /api
 		const otherCode = `
 import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.get('/other', async (c) => {
+router.get('/', async (c) => {
 	return c.json({ message: 'other' });
 });
 
@@ -211,11 +223,11 @@ export default router;
 
 		const { routes } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
 
-		// Should find both /api/index-route AND /api/other
+		// Should find /api/index-route from index.ts and /api from other.ts
 		const indexRoute = routes.find((r) => r.path === '/api/index-route');
 		expect(indexRoute).toBeDefined();
 
-		const otherRoute = routes.find((r) => r.path === '/api/other');
+		const otherRoute = routes.find((r) => r.path === '/api');
 		expect(otherRoute).toBeDefined();
 	});
 
@@ -235,13 +247,14 @@ export default router;
 	});
 
 	test('should skip files without router', async () => {
-		// Create valid route
+		// Create valid route - valid.ts is mounted at /api (directory-based)
+		// So router.get('/') maps to /api
 		const validCode = `
 import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.get('/valid', async (c) => {
+router.get('/', async (c) => {
 	return c.json({ ok: true });
 });
 
@@ -261,7 +274,7 @@ export function helper() {
 
 		// Should only find valid route (with /api prefix)
 		expect(routes.length).toBeGreaterThan(0);
-		const validRoute = routes.find((r) => r.path === '/api/valid');
+		const validRoute = routes.find((r) => r.path === '/api');
 		expect(validRoute).toBeDefined();
 	});
 
@@ -295,16 +308,18 @@ export default router;
 	});
 
 	test('should discover different HTTP methods', async () => {
+		// resource.ts is mounted at /api (directory-based)
+		// So router.get('/') maps to /api
 		const routeCode = `
 import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.get('/resource', async (c) => c.json({}));
-router.post('/resource', async (c) => c.json({}));
-router.put('/resource', async (c) => c.json({}));
-router.delete('/resource', async (c) => c.json({}));
-router.patch('/resource', async (c) => c.json({}));
+router.get('/', async (c) => c.json({}));
+router.post('/', async (c) => c.json({}));
+router.put('/', async (c) => c.json({}));
+router.delete('/', async (c) => c.json({}));
+router.patch('/', async (c) => c.json({}));
 
 export default router;
 `;
@@ -312,10 +327,8 @@ export default router;
 
 		const { routes } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
 
-		// All routes should have /api/resource path with different methods
-		const methods = new Set(
-			routes.filter((r) => r.path === '/api/resource').map((r) => r.method)
-		);
+		// All routes should have /api path with different methods
+		const methods = new Set(routes.filter((r) => r.path === '/api').map((r) => r.method));
 		expect(methods.has('get')).toBe(true);
 		expect(methods.has('post')).toBe(true);
 		expect(methods.has('put')).toBe(true);
@@ -421,6 +434,8 @@ export interface User {
 	});
 
 	test('should handle files with multiple routers exported', async () => {
+		// multi.ts is mounted at /api (directory-based)
+		// So router.get('/public') maps to /api/public
 		const routeCode = `
 import { createRouter } from '@agentuity/runtime';
 

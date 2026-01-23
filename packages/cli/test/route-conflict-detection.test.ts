@@ -3,6 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const TEST_DIR = '/tmp/agentuity-cli-test-route-conflicts';
+const API_DIR = join(TEST_DIR, 'src', 'api');
 
 /**
  * Tests for route conflict detection during build
@@ -11,7 +12,7 @@ const TEST_DIR = '/tmp/agentuity-cli-test-route-conflicts';
 describe('Route Conflict Detection', () => {
 	beforeEach(() => {
 		rmSync(TEST_DIR, { recursive: true, force: true });
-		mkdirSync(TEST_DIR, { recursive: true });
+		mkdirSync(API_DIR, { recursive: true });
 	});
 
 	afterEach(() => {
@@ -20,7 +21,7 @@ describe('Route Conflict Detection', () => {
 
 	test('should detect duplicate route paths in same file', async () => {
 		const { parseRoute } = await import('../src/cmd/build/ast');
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
 import { createRouter } from '@agentuity/runtime';
@@ -49,7 +50,7 @@ export default router;
 
 	test('should detect duplicate methods with different cases', async () => {
 		const { parseRoute } = await import('../src/cmd/build/ast');
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
 import { createRouter } from '@agentuity/runtime';
@@ -77,7 +78,7 @@ export default router;
 
 	test('should allow same path with different HTTP methods', async () => {
 		const { parseRoute } = await import('../src/cmd/build/ast');
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
 import { createRouter } from '@agentuity/runtime';
@@ -103,7 +104,7 @@ export default router;
 
 	test('should detect conflicting param names', async () => {
 		const { parseRoute } = await import('../src/cmd/build/ast');
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
 import { createRouter } from '@agentuity/runtime';
@@ -127,7 +128,7 @@ export default router;
 
 	test('should detect wildcard conflicts', async () => {
 		const { parseRoute } = await import('../src/cmd/build/ast');
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
 import { createRouter } from '@agentuity/runtime';
@@ -153,7 +154,7 @@ export default router;
 
 	test('should handle routes with different path separators', async () => {
 		const { parseRoute } = await import('../src/cmd/build/ast');
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
 import { createRouter } from '@agentuity/runtime';
@@ -202,21 +203,24 @@ export default router;
 	test('should detect cross-file route conflicts', async () => {
 		const { parseRoute } = await import('../src/cmd/build/ast');
 
-		// Create two files with potentially conflicting routes
-		const file1 = join(TEST_DIR, 'route1.ts');
-		const file2 = join(TEST_DIR, 'route2.ts');
+		// Create two files with conflicting routes - both mounted at /api (directory-based)
+		// route1.ts and route2.ts are both in src/api/, so both mount at /api
+		const file1 = join(API_DIR, 'route1.ts');
+		const file2 = join(API_DIR, 'route2.ts');
 
+		// Both files use '/' which means they mount at /api (same mount path)
+		// This creates a conflict since both have GET /api
 		const code1 = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
-router.get('/shared', (c) => c.json({ from: 'file1' }));
+router.get('/', (c) => c.json({ from: 'file1' }));
 export default router;
 		`;
 
 		const code2 = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
-router.get('/shared', (c) => c.json({ from: 'file2' }));
+router.get('/', (c) => c.json({ from: 'file2' }));
 export default router;
 		`;
 
@@ -226,19 +230,19 @@ export default router;
 		const routes1 = await parseRoute(TEST_DIR, file1, 'proj_1', 'dep_1');
 		const routes2 = await parseRoute(TEST_DIR, file2, 'proj_1', 'dep_1');
 
-		// Both parse successfully individually
+		// Both parse successfully individually - both are at /api (directory-based mount)
 		expect(routes1).toHaveLength(1);
 		expect(routes2).toHaveLength(1);
+		expect(routes1[0].path).toBe('/api');
+		expect(routes2[0].path).toBe('/api');
 
-		// But when combined, there's a conflict
-		// This validation should happen in plugin.ts when collecting all routes
+		// With directory-based convention, these DO conflict since they're both at /api
 		const allRoutes = [...routes1, ...routes2];
 		const methodPaths = allRoutes.map((r) => `${r.method.toUpperCase()} ${r.path}`);
 		const duplicates = methodPaths.filter((p, i) => methodPaths.indexOf(p) !== i);
 
 		expect(duplicates).toHaveLength(1);
-		// Path will have /api/{folder} prefix
-		expect(duplicates[0]).toContain('GET /api');
+		expect(duplicates[0]).toBe('GET /api');
 	});
 
 	test('should handle mount path prefix conflicts', () => {

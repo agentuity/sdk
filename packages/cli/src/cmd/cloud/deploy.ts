@@ -13,6 +13,7 @@ import {
 	getDefaultConfigDir,
 	loadProjectSDKKey,
 	updateProjectConfig,
+	getGlobalCatalystAPIClient,
 } from '../../config';
 import { getProjectGithubStatus } from '../git/api';
 import { runGitLink } from '../git/link';
@@ -341,8 +342,10 @@ export const deploySubcommand = createSubcommand({
 						return null;
 					}
 					logger.debug('Checking %d packages for malware', packages.length);
+					// Use Catalyst client directly for malware check (security routes are on Catalyst)
+					const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 					const result = await projectDeploymentMalwareCheck(
-						apiClient,
+						catalystClient,
 						deployment!.id,
 						packages
 					);

@@ -11,6 +11,11 @@ import type { LogLevel } from '../../types';
 import { existsSync, mkdirSync } from 'node:fs';
 import JSON5 from 'json5';
 import { formatSchemaCode } from './format-schema';
+import {
+	computeApiMountPath,
+	joinMountAndRoute,
+	extractRelativeApiPath,
+} from './vite/api-mount-path';
 
 const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel);
 
@@ -1492,26 +1497,18 @@ export async function parseRoute(
 
 	const rel = relative(rootDir, filename);
 
-	// For src/api/index.ts, we don't want to add the folder name since it's the root API router
-	const isRootApi = filename.includes('src/api/index.ts');
-
-	// For nested routes, use the full path from src/api/ instead of just the immediate parent
-	// e.g., src/api/v1/users/route.ts -> routeName = "v1/users"
-	//       src/api/auth/route.ts -> routeName = "auth"
-	//       src/api/test.ts -> routeName = "" (file directly in src/api/)
-	let routeName = '';
-	if (!isRootApi) {
-		const apiMatch = filename.match(/src\/api\/(.+?)\/[^/]+\.ts$/);
-		if (apiMatch) {
-			// File in subdirectory: src/api/auth/route.ts -> "auth"
-			routeName = apiMatch[1];
-		}
-		// For files directly in src/api/ (e.g., test.ts), routeName stays empty
-		// This prevents double /api prefix since these files often define full paths
-	}
+	// Compute the API mount path using the shared helper
+	// This ensures consistency between route type generation (here) and runtime mounting (entry-generator.ts)
+	// Examples:
+	//   src/api/index.ts           -> basePath = '/api'
+	//   src/api/sessions.ts        -> basePath = '/api/sessions'
+	//   src/api/auth/route.ts      -> basePath = '/api/auth'
+	//   src/api/users/profile/route.ts -> basePath = '/api/users/profile'
+	const srcDir = join(rootDir, 'src');
+	const relativeApiPath = extractRelativeApiPath(filename, srcDir);
+	const basePath = computeApiMountPath(relativeApiPath);
 
 	const routes: RouteDefinition = [];
-	const routePrefix = '/api';
 
 	try {
 		for (const body of ast.body) {
@@ -1593,9 +1590,7 @@ export async function parseRoute(
 
 								// Create a route entry for each method
 								for (const httpMethod of methods) {
-									const thepath = `${routePrefix}/${routeName}/${pathSuffix}`
-										.replaceAll(/\/{2,}/g, '/')
-										.replaceAll(/\/$/g, '');
+									const thepath = joinMountAndRoute(basePath, pathSuffix);
 									const id = generateRouteId(
 										projectId,
 										deploymentId,
@@ -1692,9 +1687,7 @@ export async function parseRoute(
 
 								// Create a route entry for each supported method
 								for (const httpMethod of SUPPORTED_HTTP_METHODS) {
-									const thepath = `${routePrefix}/${routeName}/${pathSuffix}`
-										.replaceAll(/\/{2,}/g, '/')
-										.replaceAll(/\/$/g, '');
+									const thepath = joinMountAndRoute(basePath, pathSuffix);
 									const id = generateRouteId(
 										projectId,
 										deploymentId,
@@ -1888,9 +1881,7 @@ export async function parseRoute(
 								});
 							}
 						}
-						const thepath = `${routePrefix}/${routeName}/${suffix}`
-							.replaceAll(/\/{2,}/g, '/')
-							.replaceAll(/\/$/g, '');
+						const thepath = joinMountAndRoute(basePath, suffix);
 						const id = generateRouteId(
 							projectId,
 							deploymentId,

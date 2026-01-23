@@ -143,7 +143,7 @@ if [ -z "$requested_version" ]; then
     http_response=$(curl --fail --location --connect-timeout 5 --max-time 30 --retry 2 -s -w "\n%{http_code}" https://agentuity.sh/release/sdk/version)
     http_code=$(echo "$http_response" | tail -n1)
     specific_version=$(echo "$http_response" | sed '$d')
-    
+
     if [ "$http_code" != "200" ]; then
       printf "${RED}Failed to fetch version information (HTTP $http_code)${NC}\n"
       printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
@@ -157,7 +157,7 @@ if [ -z "$requested_version" ]; then
       exit 1
     fi
   fi
-  
+
   if [ -z "$specific_version" ]; then
     printf "${RED}Failed to fetch version information (empty response)${NC}\n"
     printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
@@ -781,25 +781,6 @@ check_legacy_binaries
 
 # Check for musl/Alpine and handle gcompat
 check_musl_and_gcompat
-
-# NOTE: we will remove this once we are in production!
-if [ "${AGENTUITY_HIDE_BANNER:-}" != "true" ]; then
-  printf "\n"
-  printf "${RED}╭─────────────────────────────────────────────────────────────────────╮${NC}\n"
-  printf "${RED}│${NC}  ${RED}⚠  v1 BETA BUILD - READY FOR PRODUCTION TESTING${NC}                    ${RED}│${NC}\n"
-  printf "${RED}├─────────────────────────────────────────────────────────────────────┤${NC}\n"
-  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-  printf "${RED}│${NC}  This is a Beta build of the upcoming v1 production release.       ${RED}│${NC}\n"
-  printf "${RED}│${NC}  This build is ${RED}ready for production testing${NC}.                        ${RED}│${NC}\n"
-  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-  printf "${RED}│${NC}  Please report any issues:                                          ${RED}│${NC}\n"
-  printf "${RED}│${NC}    • Discord: ${CYAN}https://discord.gg/agentuity${NC}                          ${RED}│${NC}\n"
-  printf "${RED}│${NC}    • GitHub:  ${CYAN}https://github.com/agentuity/sdk/discussions${NC}          ${RED}│${NC}\n"
-  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-  printf "${RED}│${NC}  ${MUTED}Thank you for your assistance during this final testing period!${NC}    ${RED}│${NC}\n"
-  printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-  printf "${RED}╰─────────────────────────────────────────────────────────────────────╯${NC}\n"
-fi
 
 if [ "$force_install" = false ]; then
   check_version

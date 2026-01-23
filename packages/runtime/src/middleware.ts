@@ -55,12 +55,12 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'stream',
 	'vector',
 	'sandbox',
+	'queue',
 	'state',
 	'thread',
 	'session',
 	'config',
 	'app',
-	'waitUntil',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -112,6 +112,7 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 		c.set('stream', services.stream);
 		c.set('vector', services.vector);
 		c.set('sandbox', services.sandbox);
+		c.set('queue', services.queue);
 
 		installContextPropertyHelpers(c);
 
