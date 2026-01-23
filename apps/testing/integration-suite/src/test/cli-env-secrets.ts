@@ -316,33 +316,29 @@ test('cli-env-secrets', 'env-set-allows-vite-prefix', async () => {
 	const testKey = trackKey(`VITE_${uniqueId('TEST')}`);
 	const testValue = 'vite_test_value';
 
-	// 1. Set the VITE_ prefixed var
 	const result = await cliAgent.run({
 		command: 'cloud env set',
 		args: [testKey, testValue],
 	});
 
-	// Should succeed and not be blocked
-	const setOutput = (result.stdout || '') + (result.stderr || '');
+	// Should get past validation
 	assert(
 		Boolean(
-			result.success || setOutput.includes('Setting') || setOutput.includes('set successfully')
+			result.success ||
+				result.stdout?.includes('Setting') ||
+				result.stdout?.includes('set successfully')
 		),
-		`Should allow VITE_ as env var: ${setOutput}`
+		'Should allow VITE_ as env var'
 	);
 
-	// 2. Get to verify it was actually added (more reliable than list)
-	const getResult = await cliAgent.run({
-		command: 'cloud env get',
-		args: [testKey],
+	// Verify with list
+	const listResult = await cliAgent.run({
+		command: 'cloud env list',
 	});
-	const getOutput = (getResult.stdout || '') + (getResult.stderr || '');
-	assert(
-		Boolean(getResult.success || getOutput.includes(testValue)),
-		`Get should find ${testKey}: ${getOutput}`
-	);
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	assert(Boolean(listOutput.includes(testKey)), `List should include ${testKey}`);
 
-	// 3. Cleanup
+	// Cleanup
 	await cliAgent.run({
 		command: 'cloud env delete',
 		args: [testKey],
@@ -357,33 +353,29 @@ test('cli-env-secrets', 'env-set-allows-public-prefix', async () => {
 	const testKey = trackKey(`PUBLIC_${uniqueId('TEST')}`);
 	const testValue = 'public_test_value';
 
-	// 1. Set the PUBLIC_ prefixed var
 	const result = await cliAgent.run({
 		command: 'cloud env set',
 		args: [testKey, testValue],
 	});
 
-	// Should succeed and not be blocked
-	const setOutput = (result.stdout || '') + (result.stderr || '');
+	// Should get past validation
 	assert(
 		Boolean(
-			result.success || setOutput.includes('Setting') || setOutput.includes('set successfully')
+			result.success ||
+				result.stdout?.includes('Setting') ||
+				result.stdout?.includes('set successfully')
 		),
-		`Should allow PUBLIC_ as env var: ${setOutput}`
+		'Should allow PUBLIC_ as env var'
 	);
 
-	// 2. Get to verify it was actually added (more reliable than list)
-	const getResult = await cliAgent.run({
-		command: 'cloud env get',
-		args: [testKey],
+	// Verify with list
+	const listResult = await cliAgent.run({
+		command: 'cloud env list',
 	});
-	const getOutput = (getResult.stdout || '') + (getResult.stderr || '');
-	assert(
-		Boolean(getResult.success || getOutput.includes(testValue)),
-		`Get should find ${testKey}: ${getOutput}`
-	);
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	assert(Boolean(listOutput.includes(testKey)), `List should include ${testKey}`);
 
-	// 3. Cleanup
+	// Cleanup
 	await cliAgent.run({
 		command: 'cloud env delete',
 		args: [testKey],
@@ -542,37 +534,31 @@ test('cli-env-secrets', 'env-set-no-warning-for-normal-vars', async () => {
 		args: [testKey, testValue],
 	});
 
-	const setOutput = (result.stdout || '') + (result.stderr || '');
-
 	// Should NOT contain secret detection warning
 	assert(
-		!setOutput.includes('looks like it should be a secret'),
+		!result.stdout?.includes('looks like it should be a secret') &&
+			!result.stderr?.includes('looks like it should be a secret'),
 		'Should not warn about normal env var'
 	);
 
 	// Should proceed to setting the variable
 	assert(
 		Boolean(
-			setOutput.includes('Setting') || setOutput.includes('set successfully') || result.success
+			result.stdout?.includes('Setting') ||
+				result.stdout?.includes('set successfully') ||
+				result.success
 		),
-		`Should attempt to set the variable: ${setOutput}`
+		'Should attempt to set the variable'
 	);
 
-	// Verify with get - should return the value and NOT be marked as secret
-	const getResult = await cliAgent.run({
-		command: 'cloud env get',
-		args: [testKey],
+	// Verify with list - should NOT be a secret
+	const listResult = await cliAgent.run({
+		command: 'cloud env list',
 	});
-	const getOutput = (getResult.stdout || '') + (getResult.stderr || '');
-
-	// Should find the key
-	assert(
-		Boolean(getResult.success || getOutput.includes(testValue)),
-		`Get should find ${testKey}: ${getOutput}`
-	);
-
-	// Should NOT be marked as [secret]
-	assert(!getOutput.includes('[secret]'), `${testKey} should NOT be a secret: ${getOutput}`);
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const lines = listOutput.split('\n');
+	const keyLine = lines.find((l) => l.includes(testKey));
+	assert(Boolean(keyLine && !keyLine.includes('[secret]')), `${testKey} should NOT be a secret`);
 
 	// Cleanup
 	await cliAgent.run({
