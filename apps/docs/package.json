@@ -11,7 +11,8 @@
 		"start": "bun .agentuity/app.js",
 		"deploy": "bun ../../packages/cli/bin/cli.ts deploy --dir .",
 		"typecheck": "bunx tsc --noEmit",
-		"snapshot": "./scripts/build-snapshot.sh"
+		"snapshot": "./scripts/build-snapshot.sh",
+		"generate:scripts": "bun run scripts/generate-sandbox-scripts.ts"
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",

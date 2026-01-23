@@ -545,15 +545,6 @@ function LandingPage({ onSelectDemo }: { onSelectDemo: (id: DemoId) => void }) {
 
 	return (
 		<div className="max-w-6xl mx-auto px-6 py-12">
-			{/* Header */}
-			<header className="flex items-center gap-4 mb-12">
-				<AgentuityLogo className="h-10 w-auto" />
-				<div className="flex-1">
-					<h1 className="text-3xl font-thin text-zinc-900 dark:text-white">SDK Explorer</h1>
-					<p className="text-zinc-500 text-sm">Agentuity v1 SDK</p>
-				</div>
-			</header>
-
 			{/* Basics Section */}
 			<section className="mb-12">
 				<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-6">Basics</h2>
