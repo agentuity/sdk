@@ -498,13 +498,16 @@ export class APIClient {
 					this.#logger.debug('  Headers:', JSON.stringify(sanitizedHeaders, null, 2));
 					this.#logger.debug('  Response:', responseBody);
 
-					// Check for UPGRADE_REQUIRED error
+					// HTTP 426 always forces upgrade (cannot be skipped - emergency upgrade path)
+					if (response.status === 426) {
+						throw new UpgradeRequiredError({ sessionId });
+					}
+
+					// Check for UPGRADE_REQUIRED error code in response body
 					if (errorData?.code === 'UPGRADE_REQUIRED') {
-						// Skip version check if configured
+						// Skip version check if configured (only for soft upgrade prompts)
 						if (this.#config?.skipVersionCheck) {
 							this.#logger.debug('Skipping version check (configured to skip)');
-							// Request is still rejected, but throw UpgradeRequiredError so callers
-							// can detect it and handle UI behavior (e.g., suppress banner) based on skip flag
 							throw new UpgradeRequiredError({ sessionId });
 						}
 
