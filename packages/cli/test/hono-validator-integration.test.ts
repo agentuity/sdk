@@ -49,7 +49,7 @@ export const createUserSchema = s.object({
 const router = createRouter();
 
 router.post(
-	'/users',
+	'/',
 	validator('json', (value, c) => {
 		const result = createUserSchema['~standard'].validate(value);
 		if (result.issues) {
@@ -75,7 +75,8 @@ export default router;
 		);
 
 		expect(routes.length).toBeGreaterThan(0);
-		const usersRoute = routeInfoList.find((r) => r.path === '/api/users');
+		// users.ts is in src/api/, so it mounts at /api with router.post('/') -> /api
+		const usersRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(usersRoute).toBeDefined();
 		expect(usersRoute!.hasValidator).toBe(true);
 		expect(usersRoute!.inputSchemaVariable).toBe('createUserSchema');
@@ -91,7 +92,7 @@ export default router;
 			"import type { createUserSchema as createUserSchema_0 } from '../api/users'"
 		);
 		expect(routesContent).toContain('InferInput<typeof createUserSchema_0>');
-		expect(routesContent).toContain('export type POSTApiUsersInput');
+		expect(routesContent).toContain('export type POSTApiInput');
 	});
 
 	test("validator('json', callback) with schema.validate() - should extract schema", async () => {
@@ -103,7 +104,7 @@ export const mySchema = { validate: (v: unknown) => v };
 
 const router = createRouter();
 
-router.post('/data', validator('json', (value, c) => {
+router.post('/', validator('json', (value, c) => {
 	const result = mySchema.validate(value);
 	return result;
 }), async (c) => {
@@ -121,7 +122,8 @@ export default router;
 			logger
 		);
 
-		const dataRoute = routeInfoList.find((r) => r.path === '/api/data');
+		// data.ts is in src/api/, so it mounts at /api with router.post('/') -> /api
+		const dataRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(dataRoute).toBeDefined();
 		expect(dataRoute!.hasValidator).toBe(true);
 		expect(dataRoute!.inputSchemaVariable).toBe('mySchema');
@@ -169,6 +171,8 @@ export default router;
 			logger
 		);
 
+		// multi.ts is in src/api/, so it mounts at /api
+		// router.post('/users') -> /api/users, router.post('/orders') -> /api/orders
 		const usersRoute = routeInfoList.find((r) => r.path === '/api/users');
 		const ordersRoute = routeInfoList.find((r) => r.path === '/api/orders');
 
@@ -198,7 +202,7 @@ export const querySchema = { validate: (v: unknown) => v };
 
 const router = createRouter();
 
-router.get('/search', validator('query', (value, c) => {
+router.get('/', validator('query', (value, c) => {
 	const result = querySchema.validate(value);
 	return result;
 }), async (c) => {
@@ -216,7 +220,8 @@ export default router;
 			logger
 		);
 
-		const searchRoute = routeInfoList.find((r) => r.path === '/api/search');
+		// search.ts is in src/api/, so it mounts at /api with router.get('/') -> /api
+		const searchRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(searchRoute).toBeDefined();
 		expect(searchRoute!.hasValidator).toBe(true);
 		expect(searchRoute!.inputSchemaVariable).toBeUndefined();
@@ -238,7 +243,7 @@ export const headerSchema = { validate: (v: unknown) => v };
 
 const router = createRouter();
 
-router.get('/protected', validator('header', (value, c) => {
+router.get('/', validator('header', (value, c) => {
 	const result = headerSchema.validate(value);
 	return result;
 }), async (c) => {
@@ -256,7 +261,8 @@ export default router;
 			logger
 		);
 
-		const protectedRoute = routeInfoList.find((r) => r.path === '/api/protected');
+		// protected.ts is in src/api/, so it mounts at /api with router.get('/') -> /api
+		const protectedRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(protectedRoute).toBeDefined();
 		expect(protectedRoute!.hasValidator).toBe(true);
 		expect(protectedRoute!.inputSchemaVariable).toBeUndefined();
@@ -287,7 +293,7 @@ import testAgent from '../agent/test';
 
 const router = createRouter();
 
-router.post('/chat', testAgent.validator(), async (c) => {
+router.post('/', testAgent.validator(), async (c) => {
 	const data = c.req.valid('json');
 	return c.json({ response: data.prompt });
 });
@@ -303,7 +309,8 @@ export default router;
 			logger
 		);
 
-		const chatRoute = routeInfoList.find((r) => r.path === '/api/chat');
+		// chat.ts is in src/api/, so it mounts at /api with router.post('/') -> /api
+		const chatRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(chatRoute).toBeDefined();
 		expect(chatRoute!.hasValidator).toBe(true);
 		expect(chatRoute!.agentVariable).toBe('testAgent');
@@ -315,7 +322,7 @@ import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.get('/health', async (c) => {
+router.get('/', async (c) => {
 	return c.json({ status: 'ok' });
 });
 
@@ -330,7 +337,8 @@ export default router;
 			logger
 		);
 
-		const healthRoute = routeInfoList.find((r) => r.path === '/api/health');
+		// health.ts is in src/api/, so it mounts at /api with router.get('/') -> /api
+		const healthRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(healthRoute).toBeDefined();
 		expect(healthRoute!.hasValidator).toBeFalsy();
 		expect(healthRoute!.inputSchemaVariable).toBeUndefined();
@@ -341,7 +349,7 @@ export default router;
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();
 
-		expect(routesContent).toContain("'GET /api/health'");
+		expect(routesContent).toContain("'GET /api':");
 		expect(routesContent).toContain('inputSchema: never');
 		expect(routesContent).toContain('outputSchema: never');
 	});
@@ -368,7 +376,7 @@ import { productSchema } from '../../schemas/product';
 
 const router = createRouter();
 
-router.post('/products', validator('json', (value, c) => {
+router.post('/', validator('json', (value, c) => {
 	const result = productSchema['~standard'].validate(value);
 	if (result.issues) return c.json({ error: 'Invalid' }, 400);
 	return result.value;
@@ -385,7 +393,8 @@ export default router;
 			logger
 		);
 
-		const productsRoute = routeInfoList.find((r) => r.path === '/api/products');
+		// products.ts is in src/api/, so it mounts at /api with router.post('/') -> /api
+		const productsRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(productsRoute).toBeDefined();
 		expect(productsRoute!.hasValidator).toBe(true);
 		expect(productsRoute!.inputSchemaVariable).toBe('productSchema');
@@ -401,7 +410,7 @@ export const itemSchema = s.object({ id: s.string() });
 
 const router = createRouter();
 
-router.post('/items', validator('json', (value, c) => {
+router.post('/', validator('json', (value, c) => {
 	const validate = () => {
 		return itemSchema['~standard'].validate(value);
 	};
@@ -421,7 +430,8 @@ export default router;
 			logger
 		);
 
-		const itemsRoute = routeInfoList.find((r) => r.path === '/api/items');
+		// items.ts is in src/api/, so it mounts at /api with router.post('/') -> /api
+		const itemsRoute = routeInfoList.find((r) => r.path === '/api');
 		expect(itemsRoute).toBeDefined();
 		expect(itemsRoute!.hasValidator).toBe(true);
 		expect(itemsRoute!.inputSchemaVariable).toBe('itemSchema');

@@ -1,14 +1,17 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { parseRoute } from '../src/cmd/build/ast';
 
 describe('Validator Stream Flag Extraction', () => {
 	let tempDir: string;
+	let apiDir: string;
 
 	beforeEach(() => {
 		tempDir = mkdtempSync(join(tmpdir(), 'validator-stream-test-'));
+		apiDir = join(tempDir, 'src', 'api');
+		mkdirSync(apiDir, { recursive: true });
 	});
 
 	afterEach(() => {
@@ -26,7 +29,7 @@ export const OutputSchema = s.object({ result: s.string() });
 
 const router = createRouter();
 
-router.post('/search',
+router.post('/',
 	validator({
 		input: InputSchema,
 		output: OutputSchema,
@@ -40,14 +43,14 @@ router.post('/search',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
 
 		expect(routes).toHaveLength(1);
 		expect(routes[0].method).toBe('post');
-		expect(routes[0].path).toBe('/api/search');
+		expect(routes[0].path).toBe('/api');
 		expect(routes[0].config?.hasValidator).toBe(true);
 		expect(routes[0].config?.stream).toBe(true);
 		expect(routes[0].config?.inputSchemaVariable).toBe('InputSchema');
@@ -76,7 +79,7 @@ router.get('/items',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -105,7 +108,7 @@ router.get('/data',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -142,7 +145,7 @@ router.put('/stream-put',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -183,7 +186,7 @@ router.post('/agent-stream', streamAgent.validator(), async (c) => {
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
