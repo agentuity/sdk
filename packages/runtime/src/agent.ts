@@ -2168,7 +2168,33 @@ export function createAgent<
 								}
 							}
 						} catch (error) {
+							const errorMessage = error instanceof Error ? error.message : String(error);
 							internal.error(`Error executing eval '${evalName}'`, { error });
+
+							// Send error event to evalRunEventProvider (mirrors tracer path behavior)
+							const orgId = runtimeConfig.getOrganizationId();
+							const projectId = runtimeConfig.getProjectId();
+							const evalRunEventProviderForError = getEvalRunEventProvider();
+							if (orgId && projectId && evalId && evalRunEventProviderForError) {
+								try {
+									await evalRunEventProviderForError.complete({
+										id: evalRunId,
+										error: errorMessage,
+										result: {
+											success: false,
+											passed: false,
+											error: errorMessage,
+											metadata: {},
+										},
+									});
+								} catch (e) {
+									internal.debug('Failed to send eval run complete event', {
+										evalRunId,
+										errorMessage,
+										error: e instanceof Error ? e.message : String(e),
+									});
+								}
+							}
 						}
 					});
 				}
