@@ -13,7 +13,7 @@
  * The judge uses generateObject() with a Zod schema for type-safe structured
  * output - the model is forced to return valid JSON matching your schema.
  *
- * Docs: https://preview.agentuity.dev/v1/Build/Agents/schema-libraries
+ * Docs: https://agentuity.dev/Agents/schema-libraries
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

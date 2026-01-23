@@ -4,7 +4,6 @@ import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { StructuredError } from '@agentuity/core';
-import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
@@ -737,18 +736,8 @@ export const deploySubcommand = createSubcommand({
 									return stepError(errorMsg);
 								}
 
-								// Workaround for Bun crash in compiled executables (https://github.com/agentuity/sdk/issues/191)
-								// Use limited concurrency (1 at a time) for executables to avoid parallel fetch crash
-								const isExecutable = isRunningFromExecutable();
-								const concurrency = isExecutable ? 1 : Math.min(4, build.assets.length);
-
-								if (isExecutable) {
-									ctx.logger.trace(
-										`Running from executable - using limited concurrency (${concurrency} uploads at a time)`
-									);
-								}
-
 								// Process assets in batches with limited concurrency
+								const concurrency = Math.min(4, build.assets.length);
 								for (let i = 0; i < build.assets.length; i += concurrency) {
 									const batch = build.assets.slice(i, i + concurrency);
 									const promises: Promise<Response>[] = [];

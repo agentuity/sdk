@@ -12,7 +12,7 @@
  * - ctx.kv / ctx.vector / ctx.objectstore - Storage services
  * - ctx.logger - Structured logging
  *
- * Docs: https://preview.agentuity.dev/v1/Reference/sdk-reference#context-api
+ * Docs: https://agentuity.dev/Reference/sdk-reference#context-api
  */
 import { createAgent, getAgents } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

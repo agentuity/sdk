@@ -16,7 +16,7 @@
  *
  * See eval.ts for the evaluation definitions.
  *
- * Docs: https://preview.agentuity.dev/v1/Build/Agents/evaluations
+ * Docs: https://agentuity.dev/Agents/evaluations
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

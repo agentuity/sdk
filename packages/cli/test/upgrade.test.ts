@@ -1,38 +1,19 @@
 import { describe, test, expect } from 'bun:test';
-import { isRunningFromExecutable, getPlatformInfo, PermissionError } from '../src/cmd/upgrade';
+import { getInstallationType, isGlobalInstall } from '../src/cmd/upgrade';
 
 describe('upgrade command', () => {
-	test('isRunningFromExecutable returns false when running from bun script', () => {
-		const result = isRunningFromExecutable();
+	test('getInstallationType returns source when running from test', () => {
+		const result = getInstallationType();
+		expect(typeof result).toBe('string');
+		// When running tests from source, should return 'source'
+		expect(result).toBe('source');
+	});
+
+	test('isGlobalInstall returns false when running from source', () => {
+		const result = isGlobalInstall();
 		expect(typeof result).toBe('boolean');
 		expect(result).toBe(false);
 	});
-
-	test('getPlatformInfo returns valid platform info', () => {
-		const platform = getPlatformInfo();
-		expect(platform).toHaveProperty('os');
-		expect(platform).toHaveProperty('arch');
-		expect(['darwin', 'linux']).toContain(platform.os);
-		expect(['x64', 'arm64']).toContain(platform.arch);
-	});
-
-	test.skipIf(process.platform !== 'darwin' || process.arch !== 'arm64')(
-		'getPlatformInfo returns darwin arm64',
-		() => {
-			const platform = getPlatformInfo();
-			expect(platform.os).toBe('darwin');
-			expect(platform.arch).toBe('arm64');
-		}
-	);
-
-	test.skipIf(process.platform !== 'linux' || process.arch !== 'x64')(
-		'getPlatformInfo returns linux x64',
-		() => {
-			const platform = getPlatformInfo();
-			expect(platform.os).toBe('linux');
-			expect(platform.arch).toBe('x64');
-		}
-	);
 
 	test('should validate version format', () => {
 		const validVersions = ['v1.2.3', '1.2.3', 'v0.0.1', '10.20.30'];
@@ -88,35 +69,5 @@ describe('upgrade command', () => {
 
 			expect(needsUpgrade).toBe(shouldUpgrade);
 		}
-	});
-
-	test('should construct correct download URL', () => {
-		const version = 'v1.2.3';
-		const os = 'darwin';
-		const arch = 'arm64';
-		const url = `https://agentuity.sh/release/sdk/${version}/${os}/${arch}`;
-
-		expect(url).toBe('https://agentuity.sh/release/sdk/v1.2.3/darwin/arm64');
-	});
-
-	test('PermissionError has correct properties', () => {
-		const error = new PermissionError({
-			binaryPath: '/usr/local/bin/agentuity',
-			reason: 'Cannot write to file',
-			message: 'Permission denied: Cannot write to file',
-		});
-		expect(error.name).toBe('PermissionError');
-		expect(error.binaryPath).toBe('/usr/local/bin/agentuity');
-		expect(error.reason).toBe('Cannot write to file');
-		expect(error.message).toBe('Permission denied: Cannot write to file');
-	});
-
-	test('PermissionError is an instance of Error', () => {
-		const error = new PermissionError({
-			binaryPath: '/usr/local/bin/agentuity',
-			reason: 'test',
-		});
-		expect(error instanceof Error).toBe(true);
-		expect(error instanceof PermissionError).toBe(true);
 	});
 });
