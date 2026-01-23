@@ -31,7 +31,7 @@ jobs:
            uses: oven-sh/setup-bun@v2
 
          - name: Install Agentuity CLI
-           run: curl -fsSL https://v1.agentuity.sh | sh
+           run: curl -fsSL https://agentuity.sh | sh
 
          - name: Generate CLI Auth Token
            run: |
