@@ -60,7 +60,6 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'session',
 	'config',
 	'app',
-	'waitUntil',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
