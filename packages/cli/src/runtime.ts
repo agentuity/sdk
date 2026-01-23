@@ -1,6 +1,7 @@
 import { semver } from 'bun';
 
 const MIN_BUN_VERSION = '1.3.0';
+const MIN_GRAVITY_VERSION = '>=1.0.6';
 
 export function isBun(): boolean {
 	return typeof Bun !== 'undefined';
@@ -19,4 +20,14 @@ export function validateRuntime(): void {
 		console.error(`Current Bun version: ${bunVersion}`);
 		process.exit(1);
 	}
+}
+
+/**
+ * Returns true if the gravity binary requires an upgrade
+ *
+ * @param version current version
+ * @returns
+ */
+export function validateGravityRequiresUpgrade(version: string): boolean {
+	return semver.satisfies(version, MIN_GRAVITY_VERSION) === false;
 }
