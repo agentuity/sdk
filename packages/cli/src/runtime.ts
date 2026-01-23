@@ -1,12 +1,15 @@
 import { semver } from 'bun';
 
-const MIN_BUN_VERSION = '1.3.0';
+const MIN_BUN_VERSION = '>=1.3.3';
 const MIN_GRAVITY_VERSION = '>=1.0.6';
 
 export function isBun(): boolean {
 	return typeof Bun !== 'undefined';
 }
 
+/**
+ * Validate if you're running a compatible minimum version of Bun
+ */
 export function validateRuntime(): void {
 	if (!isBun()) {
 		console.error('Error: This CLI requires Bun runtime');
@@ -15,8 +18,8 @@ export function validateRuntime(): void {
 	}
 
 	const bunVersion = Bun.version;
-	if (semver.satisfies(bunVersion, `>=${MIN_BUN_VERSION}`) === false) {
-		console.error(`Error: This CLI requires Bun ${MIN_BUN_VERSION} or higher`);
+	if (semver.satisfies(bunVersion, MIN_BUN_VERSION) === false) {
+		console.error(`Error: This CLI requires Bun ${MIN_BUN_VERSION}`);
 		console.error(`Current Bun version: ${bunVersion}`);
 		process.exit(1);
 	}
