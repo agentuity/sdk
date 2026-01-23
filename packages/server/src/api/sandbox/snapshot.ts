@@ -420,7 +420,10 @@ export async function snapshotLineage(
 
 const _SnapshotPublicListParamsSchema = z
 	.object({
-		limit: z.number().optional().describe('Maximum number of snapshots to return (default: 50, max: 100)'),
+		limit: z
+			.number()
+			.optional()
+			.describe('Maximum number of snapshots to return (default: 50, max: 100)'),
 		offset: z.number().optional().describe('Number of snapshots to skip for pagination'),
 	})
 	.describe('Parameters for listing public snapshots');

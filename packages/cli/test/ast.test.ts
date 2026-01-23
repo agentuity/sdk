@@ -4,11 +4,12 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 const TEST_DIR = '/tmp/agentuity-cli-test-routes';
+const API_DIR = join(TEST_DIR, 'src', 'api');
 
 describe('parseRoute - Crash Prevention Scenarios', () => {
 	const setup = () => {
 		rmSync(TEST_DIR, { recursive: true, force: true });
-		mkdirSync(TEST_DIR, { recursive: true });
+		mkdirSync(API_DIR, { recursive: true });
 	};
 
 	const cleanup = () => {
@@ -17,7 +18,7 @@ describe('parseRoute - Crash Prevention Scenarios', () => {
 
 	test('should handle files with interface definitions', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
@@ -42,7 +43,7 @@ export default router;
 
 	test('should handle non-call expression statements', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
@@ -65,7 +66,7 @@ export default router;
 
 	test('should handle variable access identifiers', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
@@ -86,7 +87,7 @@ export default router;
 
 	test('should handle direct function calls (not member expressions)', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
@@ -108,7 +109,7 @@ export default router;
 
 	test('should skip wildcard use() middleware without error', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 import { clerkMiddleware } from '@clerk/clerk-sdk-node';
@@ -133,7 +134,7 @@ export default router;
 
 	test('should handle on and all methods, and skip route/use methods', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 import { authMiddleware, loggerMiddleware } from './middleware';
@@ -161,7 +162,7 @@ export default router;
 		// post('/users') → 1 route
 		expect(routes).toHaveLength(8);
 
-		// Group routes by path
+		// Group routes by path - file is route.ts in src/api/, so mount is /api
 		const routesByPath = routes.reduce<Record<string, string[]>>((acc, r) => {
 			acc[r.path] ??= [];
 			acc[r.path].push(r.method);
@@ -183,7 +184,7 @@ export default router;
 
 	test('should support on() with array of methods and wildcard path', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -209,7 +210,7 @@ export default router;
 
 	test('should skip unsupported HTTP methods in on()', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -233,7 +234,7 @@ export default router;
 
 	test('should handle mixed complex scenarios', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -277,7 +278,7 @@ export default router;
 	});
 	test('should reject invalid router method', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 

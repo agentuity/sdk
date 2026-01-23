@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { parseRoute } from '../src/cmd/build/ast';
@@ -11,9 +11,12 @@ import { parseRoute } from '../src/cmd/build/ast';
  */
 describe('AST Stream Flag Extraction - Edge Cases', () => {
 	let tempDir: string;
+	let apiDir: string;
 
 	beforeEach(() => {
 		tempDir = mkdtempSync(join(tmpdir(), 'ast-stream-test-'));
+		apiDir = join(tempDir, 'src', 'api');
+		mkdirSync(apiDir, { recursive: true });
 	});
 
 	afterEach(() => {
@@ -35,7 +38,7 @@ router.post('/test', validator({ output: OutputSchema, stream: true }), async (c
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -59,7 +62,7 @@ router.post('/test', validator({ output: OutputSchema, stream: false }), async (
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -85,7 +88,7 @@ router.post('/test', validator({ output: OutputSchema, stream: true }), async (c
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -109,7 +112,7 @@ router.post('/test', validator({ output: OutputSchema, stream: true }), async (c
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -133,7 +136,7 @@ router.post('/test', validator({ output: OutputSchema, stream: !false }), async 
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -156,7 +159,7 @@ router.post('/test', validator({ output: OutputSchema, stream: !true }), async (
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -187,7 +190,7 @@ router.post('/search',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -219,7 +222,7 @@ router.post('/process',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -250,7 +253,7 @@ router.get('/events',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -278,7 +281,7 @@ router.delete('/delete-stream', validator({ stream: true }), async (c) => new Re
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -305,7 +308,7 @@ router.post('/normal2', validator({ output: Schema, stream: false }), async (c) 
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -349,7 +352,7 @@ router.post('/test', myAgent.validator(), async (c) => {
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -391,7 +394,7 @@ router.post('/test',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -417,7 +420,7 @@ router.post('/test', validator({ "output": OutputSchema, "stream": true }), asyn
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -444,7 +447,7 @@ router.post('/v5', validator({ output: Schema, stream: false }), async (c) => c.
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -478,7 +481,7 @@ router.post('/inline-stream',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -514,7 +517,7 @@ router.post('/protected',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -544,7 +547,7 @@ router.post('/test',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -576,7 +579,7 @@ router.post('/complex',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -602,7 +605,7 @@ router.post('/stream-only',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -629,7 +632,7 @@ router.post('/no-stream',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
@@ -656,7 +659,7 @@ router.post('/empty-options',
 
 export default router;
 `;
-		const filename = join(tempDir, 'route.ts');
+		const filename = join(apiDir, 'route.ts');
 		writeFileSync(filename, code, 'utf-8');
 
 		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
