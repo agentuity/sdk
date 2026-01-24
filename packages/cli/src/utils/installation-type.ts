@@ -12,10 +12,25 @@ export type InstallationType = 'global' | 'local' | 'source';
  * @returns 'source' - Running from source code (development)
  */
 export function getInstallationType(): InstallationType {
-	// Normalize path to POSIX separators for cross-platform compatibility
+	// Normalize paths to POSIX separators for cross-platform compatibility
 	const mainPath = Bun.main.replace(/\\/g, '/');
+	// Bun.argv[1] contains the original invocation path (before symlink resolution)
+	const invokedPath = (Bun.argv[1] ?? '').replace(/\\/g, '/');
 
-	// Global install: ~/.bun/install/global/node_modules/@agentuity/cli/...
+	// Get bun's global bin directory from BUN_INSTALL or default to ~/.bun/bin
+	const bunInstall = (process.env.BUN_INSTALL ?? `${process.env.HOME ?? process.env.USERPROFILE}/.bun`).replace(
+		/\\/g,
+		'/'
+	);
+	const globalBinDir = `${bunInstall}/bin/`;
+
+	// Global install: invoked from bun's global bin directory (e.g., ~/.bun/bin/agentuity)
+	// This handles symlinks created by `bun add -g @agentuity/cli`
+	if (invokedPath.startsWith(globalBinDir)) {
+		return 'global';
+	}
+
+	// Also check the resolved path for explicit global install locations
 	if (mainPath.includes('/.bun/install/global/')) {
 		return 'global';
 	}
