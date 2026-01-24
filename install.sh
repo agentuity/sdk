@@ -13,8 +13,9 @@ MIN_BUN_VERSION="1.3.3"
 SETUP_TOKEN="-"
 # BUN_EXEC_DIR: where the bun executable itself lives
 BUN_EXEC_DIR="${BUN_INSTALL:-$HOME/.bun}/bin"
-# BUN_INSTALL_BIN: where globally installed packages go (defaults to same as BUN_EXEC_DIR)
-BUN_INSTALL_BIN="${BUN_INSTALL_BIN:-$BUN_EXEC_DIR}"
+# BUN_INSTALL_BIN: where globally installed packages go
+# Try to detect from bun itself, fall back to BUN_EXEC_DIR
+BUN_INSTALL_BIN="${BUN_INSTALL_BIN:-}"
 
 requested_version=${VERSION:-}
 force_install=false
@@ -101,6 +102,28 @@ print_message() {
   esac
 
   printf "${_pm_color}${_pm_message}${NC}\n"
+}
+
+# Detect where bun installs global packages
+detect_bun_global_bin() {
+  # If already set by user, don't override
+  if [ -n "$BUN_INSTALL_BIN" ]; then
+    return 0
+  fi
+  
+  # Try to get the global bin path from bun itself
+  if command -v bun >/dev/null 2>&1; then
+    detected_bin=$(bun pm bin -g 2>/dev/null || echo "")
+    if [ -n "$detected_bin" ]; then
+      BUN_INSTALL_BIN="$detected_bin"
+      print_message debug "Detected bun global bin: $BUN_INSTALL_BIN"
+      return 0
+    fi
+  fi
+  
+  # Fall back to BUN_EXEC_DIR
+  BUN_INSTALL_BIN="$BUN_EXEC_DIR"
+  print_message debug "Using default bun bin: $BUN_INSTALL_BIN"
 }
 
 # Ensure bun is on PATH
@@ -358,10 +381,19 @@ create_legacy_shim() {
   if [ -d "$legacy_dir" ] || [ -f "$legacy_bin" ]; then
     mkdir -p "$legacy_dir"
 
-    # Create a shim script that forwards to the bun-installed version
+    # Create a self-healing shim that auto-reinstalls if binary is missing
     cat > "$legacy_bin" << EOF
 #!/bin/sh
-exec "$BUN_INSTALL_BIN/agentuity" "\$@"
+BUN_BIN="$BUN_INSTALL_BIN/agentuity"
+if [ ! -x "\$BUN_BIN" ]; then
+  echo "Agentuity CLI not found. Reinstalling..." >&2
+  curl -fsSL https://agentuity.sh | sh -s -- -y
+  if [ ! -x "\$BUN_BIN" ]; then
+    echo "Failed to reinstall CLI. Please run: curl -fsSL https://agentuity.sh | sh" >&2
+    exit 1
+  fi
+fi
+exec "\$BUN_BIN" "\$@"
 EOF
     chmod 755 "$legacy_bin"
     print_message debug "Created compatibility shim at $legacy_bin"
@@ -502,7 +534,18 @@ show_path_reminder() {
 }
 
 run_setup() {
-  agentuity_bin="$BUN_INSTALL_BIN/agentuity"
+  # Ensure the bun bin directory is on PATH for this session
+  case ":$PATH:" in
+  *":$BUN_INSTALL_BIN:"*) ;;
+  *) export PATH="$BUN_INSTALL_BIN:$PATH" ;;
+  esac
+
+  # Try to find the agentuity binary
+  if command -v agentuity >/dev/null 2>&1; then
+    agentuity_bin=$(command -v agentuity)
+  else
+    agentuity_bin="$BUN_INSTALL_BIN/agentuity"
+  fi
 
   if [ -x "$agentuity_bin" ]; then
     if [ "$non_interactive" = true ]; then
@@ -539,6 +582,9 @@ clear_progress() {
 main() {
   # Check prerequisites first (may prompt interactively)
   check_bun
+
+  # Detect where bun installs global packages (after bun is available)
+  detect_bun_global_bin
 
   # Check for legacy installations (may prompt interactively)
   check_brew_install

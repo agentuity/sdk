@@ -153,4 +153,74 @@ describe('useAuth', () => {
 		expect(screen.getByTestId('has-set-auth-header').textContent).toBe('true');
 		expect(screen.getByTestId('has-set-auth-loading').textContent).toBe('true');
 	});
+
+	test('authHeader prop is available synchronously to child components', async () => {
+		// This test verifies the fix for GitHub issue #732
+		// The bug: useAPI hook receives null authHeader on initial mount
+		// because useEffect runs after the initial render
+		let capturedAuthHeader: string | null | undefined;
+
+		function ChildComponent() {
+			const { authHeader } = useAuth();
+			// Capture the authHeader on first render
+			if (capturedAuthHeader === undefined) {
+				capturedAuthHeader = authHeader;
+			}
+			return <div data-testid="auth-header">{authHeader ?? 'null'}</div>;
+		}
+
+		// Simulate the common pattern: parent has auth token ready
+		render(
+			<AgentuityProvider authHeader="Bearer test-token">
+				<ChildComponent />
+			</AgentuityProvider>
+		);
+
+		// The authHeader should be available on the FIRST render, not after an effect
+		expect(capturedAuthHeader).toBe('Bearer test-token');
+		expect(screen.getByTestId('auth-header').textContent).toBe('Bearer test-token');
+	});
+
+	test('authHeader prop change is available synchronously via useLayoutEffect', async () => {
+		// This test verifies that when authHeader prop changes,
+		// child components see the new value before their effects run
+		const authHeaders: (string | null | undefined)[] = [];
+
+		function ChildComponent() {
+			const { authHeader } = useAuth();
+
+			// Track all authHeader values seen during renders
+			React.useEffect(() => {
+				authHeaders.push(authHeader);
+			}, [authHeader]);
+
+			return <div data-testid="auth-header">{authHeader ?? 'null'}</div>;
+		}
+
+		const { rerender } = render(
+			<AgentuityProvider authHeader={null}>
+				<ChildComponent />
+			</AgentuityProvider>
+		);
+
+		// Initial render with null
+		await waitFor(() => {
+			expect(authHeaders).toContain(null);
+		});
+
+		// Update the authHeader prop
+		rerender(
+			<AgentuityProvider authHeader="Bearer new-token">
+				<ChildComponent />
+			</AgentuityProvider>
+		);
+
+		// The effect should see the new token, not null
+		await waitFor(() => {
+			expect(authHeaders).toContain('Bearer new-token');
+		});
+
+		// Verify the DOM shows the new token
+		expect(screen.getByTestId('auth-header').textContent).toBe('Bearer new-token');
+	});
 });
