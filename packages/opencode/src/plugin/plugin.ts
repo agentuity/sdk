@@ -65,6 +65,7 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
 		event: cadenceHooks.onEvent,
+		'experimental.session.compacting': cadenceHooks.onCompacting,
 	};
 }
 
@@ -301,124 +302,6 @@ $ARGUMENTS
 			argumentHint: 'build the new auth feature with tests',
 		},
 
-		'agentuity-cadence-status': {
-			name: 'agentuity-cadence-status',
-			description: '📊 Check status of active Cadence loops',
-			template: `Check the status of active Cadence loops.
-
-## Instructions
-
-1. Search for active loops:
-\`\`\`bash
-agentuity cloud kv search agentuity-opencode-tasks "loop:" --json
-\`\`\`
-
-2. For each loop found, get its state:
-\`\`\`bash
-agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state" --json
-\`\`\`
-
-3. Report status in a clear format:
-   - Loop ID
-   - Status (running/paused/completed/failed/cancelled)
-   - Current iteration / max iterations
-   - Original task (brief)
-   - Last update time
-
-$ARGUMENTS`,
-			agent: 'Agentuity Coder Lead',
-			argumentHint: '(optional: specific loop ID)',
-		},
-
-		'agentuity-cadence-pause': {
-			name: 'agentuity-cadence-pause',
-			description: '⏸️ Pause an active Cadence loop',
-			template: `Pause the active Cadence loop.
-
-## Instructions
-
-1. Find the active loop (or use the provided loop ID):
-\`\`\`bash
-agentuity cloud kv search agentuity-opencode-tasks "loop:" --json
-\`\`\`
-
-2. Update the loop status to paused:
-\`\`\`bash
-agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state" --json
-# Then update with status: "paused"
-agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...updated state with status: "paused"...}'
-\`\`\`
-
-3. Confirm the pause to the user.
-
-$ARGUMENTS`,
-			agent: 'Agentuity Coder Lead',
-			argumentHint: '(optional: specific loop ID)',
-		},
-
-		'agentuity-cadence-resume': {
-			name: 'agentuity-cadence-resume',
-			description: '▶️ Resume a paused Cadence loop',
-			template: `[CADENCE MODE]
-
-Resume a paused Cadence loop.
-
-## Instructions
-
-1. Find the paused loop (or use the provided loop ID):
-\`\`\`bash
-agentuity cloud kv search agentuity-opencode-tasks "loop:" --json
-\`\`\`
-
-2. Get the loop state and last checkpoint:
-\`\`\`bash
-agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state" --json
-\`\`\`
-
-3. Ask Memory for context:
-   - Get the last few checkpoints
-   - Get any handoff packet if available
-   - Get relevant corrections
-
-4. Update status to running and continue from where you left off:
-\`\`\`bash
-agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...updated state with status: "running"...}'
-\`\`\`
-
-5. Continue the Cadence loop following the iteration workflow.
-
-$ARGUMENTS`,
-			agent: 'Agentuity Coder Lead',
-			argumentHint: '(optional: specific loop ID)',
-		},
-
-		'agentuity-cadence-stop': {
-			name: 'agentuity-cadence-stop',
-			description: '⏹️ Stop and cancel a Cadence loop',
-			template: `Stop and cancel the Cadence loop.
-
-## Instructions
-
-1. Find the active loop (or use the provided loop ID):
-\`\`\`bash
-agentuity cloud kv search agentuity-opencode-tasks "loop:" --json
-\`\`\`
-
-2. Update the loop status to cancelled:
-\`\`\`bash
-agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state" --json
-# Then update with status: "cancelled"
-agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...updated state with status: "cancelled"...}'
-\`\`\`
-
-3. Ask Memory to store a final checkpoint noting the cancellation reason.
-
-4. Confirm the stop to the user.
-
-$ARGUMENTS`,
-			agent: 'Agentuity Coder Lead',
-			argumentHint: '(optional: specific loop ID)',
-		},
 	};
 }
 

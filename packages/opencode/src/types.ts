@@ -123,11 +123,30 @@ export interface PluginClient {
 	tui?: {
 		showToast?: (options: { body: { message: string } }) => void;
 	};
+	session?: {
+		prompt?: (options: {
+			path: { id: string };
+			body: {
+				parts: Array<{ type: 'text'; text: string }>;
+				agent?: string;
+			};
+			noReply?: boolean;
+		}) => Promise<unknown>;
+	};
 }
 
 export interface PluginContext {
 	directory: string;
 	client: PluginClient;
+}
+
+export interface CompactingInput {
+	sessionID: string;
+}
+
+export interface CompactingOutput {
+	context: string[];
+	prompt?: string;
 }
 
 export interface PluginHooks {
@@ -139,6 +158,10 @@ export interface PluginHooks {
 	'tool.execute.before'?: (input: unknown, output: unknown) => Promise<void>;
 	'tool.execute.after'?: (input: unknown, output: unknown) => Promise<void>;
 	event?: (input: unknown) => Promise<void>;
+	'experimental.session.compacting'?: (
+		input: CompactingInput,
+		output: CompactingOutput
+	) => Promise<void>;
 }
 
 export interface CommandDefinition {

@@ -78,15 +78,16 @@ interface CadenceLoop {
 
 ## TUI Commands
 
-All commands are freeform — Lead interprets intent:
+Use `/agentuity-cadence` to start a Cadence loop. Control is via natural language:
 
-| Command | Example                                                                 |
-| ------- | ----------------------------------------------------------------------- |
-| Start   | `/agentuity-cadence start build the auth feature, run tests in sandbox` |
-| Status  | `/agentuity-cadence status`                                             |
-| Pause   | `/agentuity-cadence pause`                                              |
-| Resume  | `/agentuity-cadence resume`                                             |
-| Stop    | `/agentuity-cadence stop`                                               |
+| Action | How |
+| ------ | --- |
+| Start  | `/agentuity-cadence build the auth feature with tests` |
+| Status | "what's the status?" or "how's it going?" |
+| Pause  | "pause" or "hold on" |
+| Resume | "continue" or "resume" |
+| Stop   | "stop" or Ctrl+C |
+| Extend | "continue for 50 more iterations" or "go until done" |
 
 ## CLI Commands
 
@@ -151,9 +152,10 @@ This is **agent-driven** — Lead's prompt tells it how to orchestrate, not besp
 
 ## Default Configuration
 
-- **Max iterations**: 50 (Lead can adjust based on task complexity)
+- **Max iterations**: 50 (users can adjust dynamically: "continue for 100 more")
 - **Completion tag**: `<promise>DONE</promise>`
 - **Recovery attempts**: 1 recovery prompt before surfacing to user
+- **Status tag**: `CADENCE_STATUS loopId={id} iteration={N} maxIterations={max} status={status}`
 
 ## Usage Examples
 

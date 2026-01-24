@@ -101,15 +101,18 @@ Lead will:
 3. Store checkpoints with Memory after each iteration
 4. Output `<promise>DONE</promise>` when complete
 
-### Cadence Commands
+### Cadence Control
 
-| Command                     | Description              |
-| --------------------------- | ------------------------ |
-| `/agentuity-cadence`        | Start a new Cadence loop |
-| `/agentuity-cadence-status` | Check active loop status |
-| `/agentuity-cadence-pause`  | Pause the active loop    |
-| `/agentuity-cadence-resume` | Resume a paused loop     |
-| `/agentuity-cadence-stop`   | Cancel and stop the loop |
+Start with `/agentuity-cadence`, then use natural language:
+
+| Action | How |
+| ------ | --- |
+| Start  | `/agentuity-cadence build the auth feature` |
+| Status | "what's the status?" |
+| Pause  | "pause" |
+| Resume | "continue" |
+| Extend | "continue for 50 more iterations" |
+| Stop   | "stop" or Ctrl+C |
 
 ### CLI Control (Headless)
 
