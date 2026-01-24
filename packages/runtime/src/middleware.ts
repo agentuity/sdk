@@ -544,10 +544,9 @@ export function createOtelMiddleware() {
 									span.setAttribute('http.status_code', capturedResponseStatus);
 									span.end();
 									internal.info('[request] %s %s - stream span ended (session: %s)', method, url.pathname, sessionId);
-									
-									// Final cleanup - decrement running counter
-									const logger = c.get('logger');
-									await handler.waitUntilAll(logger, sessionId);
+									// Note: We don't call waitUntilAll() here because this waitUntil callback
+									// IS the final cleanup task. Calling waitUntilAll() would deadlock since
+									// it would wait for this very promise to complete.
 								}
 							});
 						} else {
@@ -575,28 +574,27 @@ export function createOtelMiddleware() {
 							// Defer session finalization to run AFTER response is sent
 							// Use noSpan: true since finalizeSession creates its own Session End span
 							handler.waitUntil(async () => {
+								// Wait for the snapshot of pending tasks (evals, etc.) captured BEFORE this waitUntil was added
+								if (hasPendingTasks) {
+									internal.info('[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)', 
+										method, url.pathname, pendingPromises.length, sessionId);
+									const logger = c.get('logger');
+									await handler.waitForPromises(pendingPromises, logger, sessionId);
+									internal.info('[request] %s %s - all waitUntil tasks complete (session: %s)', method, url.pathname, sessionId);
+								}
+								
+								// Finalize session - this is the actual work
+								internal.info('[request] %s %s - starting session finalization (session: %s)', method, url.pathname, sessionId);
 								try {
-									// Wait for the snapshot of pending tasks (evals, etc.) captured BEFORE this waitUntil was added
-									if (hasPendingTasks) {
-										internal.info('[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)', 
-											method, url.pathname, pendingPromises.length, sessionId);
-										const logger = c.get('logger');
-										await handler.waitForPromises(pendingPromises, logger, sessionId);
-										internal.info('[request] %s %s - all waitUntil tasks complete (session: %s)', method, url.pathname, sessionId);
-									}
-									
-									// Finalize session - this is the actual work
-									internal.info('[request] %s %s - starting session finalization (session: %s)', method, url.pathname, sessionId);
 									await finalizeSession(capturedResponseStatus >= 500 ? capturedResponseStatus : undefined, capturedErrorMessage);
 									internal.info('[request] %s %s - session finalization complete (session: %s)', method, url.pathname, sessionId);
 								} catch (ex) {
 									internal.error('[request] %s %s - session finalization failed: %s (session: %s)', 
 										method, url.pathname, ex, sessionId);
-								} finally {
-									// Final cleanup - decrement running counter
-									const logger = c.get('logger');
-									await handler.waitUntilAll(logger, sessionId);
 								}
+								// Note: We don't call waitUntilAll() here because this waitUntil callback
+								// IS the final cleanup task. Calling waitUntilAll() would deadlock since
+								// it would wait for this very promise to complete.
 							}, { noSpan: true });
 						}
 					} catch (ex) {
@@ -629,11 +627,10 @@ export function createOtelMiddleware() {
 							} catch (finalizeEx) {
 								internal.error('[request] %s %s - error session finalization failed: %s (session: %s)', 
 									method, url.pathname, finalizeEx, sessionId);
-							} finally {
-								// Final cleanup - decrement running counter
-								const logger = c.get('logger');
-								await handler.waitUntilAll(logger, sessionId);
 							}
+							// Note: We don't call waitUntilAll() here because this waitUntil callback
+							// IS the final cleanup task. Calling waitUntilAll() would deadlock since
+							// it would wait for this very promise to complete.
 						}, { noSpan: true });
 
 						throw ex;
