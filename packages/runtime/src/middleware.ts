@@ -510,7 +510,8 @@ export function createOtelMiddleware() {
 							
 							// Use waitUntil to handle stream completion and finalization
 							// This runs AFTER the response is sent to the client
-							// Use noSpan: true since we manage the request span manually for streaming
+							// Note: We intentionally do NOT use noSpan here - the waitUntil span helps
+							// track the streaming finalization work in telemetry
 							handler.waitUntil(async () => {
 								// Track if stream ended with error so we can update finalization status
 								let streamError: unknown = undefined;
@@ -559,7 +560,7 @@ export function createOtelMiddleware() {
 									// IS the final cleanup task. Calling waitUntilAll() would deadlock since
 									// it would wait for this very promise to complete.
 								}
-							}, { noSpan: true });
+							});
 						} else {
 							// Non-streaming: record duration immediately
 							const durationNs = Math.round(handlerDurationMs * 1_000_000);
