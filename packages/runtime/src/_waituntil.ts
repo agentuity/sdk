@@ -53,42 +53,47 @@ export default class WaitUntilHandler {
 				this.started = Date.now(); /// this first execution marks the start time
 			}
 
-			if (skipSpan) {
-				// Execute without creating a span (used for coordination tasks)
-				// Still propagate context so downstream async operations inherit the original context
-				try {
-					internal.debug('starting waituntil (no span)');
-					await context.with(currentContext, async () => {
-						const resolvedPromise = typeof promise === 'function' ? promise() : promise;
-						return await Promise.resolve(resolvedPromise);
-					});
-					internal.debug('completed waituntil (no span)');
-				} catch (ex: unknown) {
-					// Log the error but don't re-throw - background tasks should never crash the server
-					internal.error('Background task error: %s', ex);
+			try {
+				if (skipSpan) {
+					// Execute without creating a span (used for coordination tasks)
+					// Still propagate context so downstream async operations inherit the original context
+					try {
+						internal.debug('starting waituntil (no span)');
+						await context.with(currentContext, async () => {
+							const resolvedPromise = typeof promise === 'function' ? promise() : promise;
+							return await Promise.resolve(resolvedPromise);
+						});
+						internal.debug('completed waituntil (no span)');
+					} catch (ex: unknown) {
+						// Log the error but don't re-throw - background tasks should never crash the server
+						internal.error('Background task error: %s', ex);
+					}
+				} else {
+					// Execute with a span (default behavior)
+					const span = this.tracer.startSpan('waitUntil', {}, currentContext);
+					const spanContext = trace.setSpan(currentContext, span);
+					try {
+						internal.debug('starting waituntil');
+						await context.with(spanContext, async () => {
+							const resolvedPromise = typeof promise === 'function' ? promise() : promise;
+							return await Promise.resolve(resolvedPromise);
+						});
+						internal.debug('completed waituntil');
+						span.setStatus({ code: SpanStatusCode.OK });
+					} catch (ex: unknown) {
+						span.recordException(ex as Error);
+						span.setStatus({ code: SpanStatusCode.ERROR });
+						// Log the error but don't re-throw - background tasks should never crash the server
+						internal.error('Background task error: %s', ex);
+					} finally {
+						span.end();
+					}
 				}
-			} else {
-				// Execute with a span (default behavior)
-				const span = this.tracer.startSpan('waitUntil', {}, currentContext);
-				const spanContext = trace.setSpan(currentContext, span);
-				try {
-					internal.debug('starting waituntil');
-					await context.with(spanContext, async () => {
-						const resolvedPromise = typeof promise === 'function' ? promise() : promise;
-						return await Promise.resolve(resolvedPromise);
-					});
-					internal.debug('completed waituntil');
-					span.setStatus({ code: SpanStatusCode.OK });
-				} catch (ex: unknown) {
-					span.recordException(ex as Error);
-					span.setStatus({ code: SpanStatusCode.ERROR });
-					// Log the error but don't re-throw - background tasks should never crash the server
-					internal.error('Background task error: %s', ex);
-				} finally {
-					span.end();
-				}
+			} finally {
+				// Decrement running counter when promise completes (success or failure)
+				running--;
+				internal.debug('waituntil completed, running: %d', running);
 			}
-			// NOTE: we only decrement when the promise is removed from the array in waitUntilAll
 		})();
 
 		// Store the executing promise for cleanup tracking
@@ -169,7 +174,8 @@ export default class WaitUntilHandler {
 		} catch (ex) {
 			logger.error('error sending session completed', ex);
 		} finally {
-			running -= this.promises.length;
+			// Note: running counter is decremented by each promise when it completes,
+			// so we don't decrement here. Just clear the array.
 			this.promises.length = 0;
 		}
 	}

@@ -510,11 +510,16 @@ export function createOtelMiddleware() {
 							
 							// Use waitUntil to handle stream completion and finalization
 							// This runs AFTER the response is sent to the client
+							// Use noSpan: true since we manage the request span manually for streaming
 							handler.waitUntil(async () => {
+								// Track if stream ended with error so we can update finalization status
+								let streamError: unknown = undefined;
+								
 								try {
 									await streamDone;
 									internal.info('[request] %s %s - stream completed (session: %s)', method, url.pathname, sessionId);
 								} catch (ex) {
+									streamError = ex;
 									internal.info('[request] %s %s - stream ended with error: %s (session: %s)', 
 										method, url.pathname, ex, sessionId);
 								}
@@ -524,6 +529,12 @@ export function createOtelMiddleware() {
 								const durationNs = Math.round(streamDurationMs * 1_000_000);
 								internal.info('[request] %s %s - recording stream duration: %sms (session: %s)', 
 									method, url.pathname, streamDurationMs.toFixed(2), sessionId);
+								
+								// Determine final status - use stream error if present
+								const finalStatus = streamError ? 500 : capturedResponseStatus;
+								const finalErrorMessage = streamError 
+									? (streamError instanceof Error ? (streamError.stack ?? streamError.message) : String(streamError))
+									: capturedErrorMessage;
 								
 								try {
 									// Wait for pending tasks (evals, etc.) captured BEFORE this waitUntil was added
@@ -536,19 +547,19 @@ export function createOtelMiddleware() {
 									}
 									
 									// Finalize session after stream completes and evals finish
-									await finalizeSession(capturedResponseStatus >= 500 ? capturedResponseStatus : undefined, capturedErrorMessage);
+									await finalizeSession(finalStatus >= 500 ? finalStatus : undefined, finalErrorMessage);
 									internal.info('[request] %s %s - stream session finalization complete (session: %s)', method, url.pathname, sessionId);
 								} finally {
 									// Set span attributes and end span AFTER all work is done
 									span.setAttribute('@agentuity/request.duration', durationNs);
-									span.setAttribute('http.status_code', capturedResponseStatus);
+									span.setAttribute('http.status_code', finalStatus);
 									span.end();
 									internal.info('[request] %s %s - stream span ended (session: %s)', method, url.pathname, sessionId);
 									// Note: We don't call waitUntilAll() here because this waitUntil callback
 									// IS the final cleanup task. Calling waitUntilAll() would deadlock since
 									// it would wait for this very promise to complete.
 								}
-							});
+							}, { noSpan: true });
 						} else {
 							// Non-streaming: record duration immediately
 							const durationNs = Math.round(handlerDurationMs * 1_000_000);
@@ -619,9 +630,27 @@ export function createOtelMiddleware() {
 						// Capture error message for use in waitUntil callback
 						const capturedErrorMessage = errorMessage;
 						
+						// Capture pending promises BEFORE adding finalization waitUntil to avoid deadlock
+						const pendingPromises = handler.getPendingSnapshot();
+						const hasPendingTasks = pendingPromises.length > 0;
+						
+						if (hasPendingTasks) {
+							internal.info('[request] %s %s - %d pending waitUntil tasks to wait for after error (session: %s)', 
+								method, url.pathname, pendingPromises.length, sessionId);
+						}
+						
 						// Still defer finalization even on error
 						// Use noSpan: true since finalizeSession creates its own Session End span
 						handler.waitUntil(async () => {
+							// Wait for pending tasks (evals, etc.) captured BEFORE this waitUntil was added
+							if (hasPendingTasks) {
+								internal.info('[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)', 
+									method, url.pathname, pendingPromises.length, sessionId);
+								const logger = c.get('logger');
+								await handler.waitForPromises(pendingPromises, logger, sessionId);
+								internal.info('[request] %s %s - all waitUntil tasks complete (session: %s)', method, url.pathname, sessionId);
+							}
+							
 							try {
 								await finalizeSession(500, capturedErrorMessage);
 							} catch (finalizeEx) {
