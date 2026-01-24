@@ -55,10 +55,13 @@ export default class WaitUntilHandler {
 
 			if (skipSpan) {
 				// Execute without creating a span (used for coordination tasks)
+				// Still propagate context so downstream async operations inherit the original context
 				try {
 					internal.debug('starting waituntil (no span)');
-					const resolvedPromise = typeof promise === 'function' ? promise() : promise;
-					await Promise.resolve(resolvedPromise);
+					await context.with(currentContext, async () => {
+						const resolvedPromise = typeof promise === 'function' ? promise() : promise;
+						return await Promise.resolve(resolvedPromise);
+					});
 					internal.debug('completed waituntil (no span)');
 				} catch (ex: unknown) {
 					// Log the error but don't re-throw - background tasks should never crash the server
