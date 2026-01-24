@@ -1,24 +1,46 @@
-import type { PluginContext, CoderConfig } from '../../types';
+import type { PluginContext, CoderConfig, CompactingInput, CompactingOutput } from '../../types';
 
 export interface CadenceHooks {
 	onMessage: (input: unknown, output: unknown) => Promise<void>;
 	onEvent: (input: unknown) => Promise<void>;
+	onCompacting: (input: CompactingInput, output: CompactingOutput) => Promise<void>;
 }
 
 const COMPLETION_PATTERN = /<promise>\s*DONE\s*<\/promise>/i;
 
+// Ultrawork trigger keywords - case insensitive matching
+const ULTRAWORK_TRIGGERS = [
+	'ultrawork',
+	'ultrathink',
+	'ulw',
+	'just do it',
+	'work hard',
+	'plan hard',
+	'take a long time',
+	'as long as you need',
+	'go deep',
+	'be thorough',
+];
+
+// Track Cadence state per session for context injection
+interface CadenceSessionState {
+	startedAt: string;
+	iterationEstimate: number;
+	lastActivity: string;
+}
+
 /**
  * Cadence hooks track which sessions are in long-running Cadence mode.
  *
- * The actual continuation logic is agentic - Lead manages its own state and
- * continuation via KV storage and the Cadence mode instructions in its prompt.
- * These hooks primarily:
- * 1. Detect when Cadence mode starts (via command or [CADENCE MODE] tag)
+ * These hooks handle:
+ * 1. Detect when Cadence mode starts (via command, [CADENCE MODE] tag, or ultrawork triggers)
  * 2. Detect when Cadence completes (via <promise>DONE</promise>)
- * 3. Clean up on session abort/error
+ * 3. Inject context during compaction (experimental.session.compacting)
+ * 4. Trigger continuation after compaction (session.compacted)
+ * 5. Clean up on session abort/error
  */
 export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): CadenceHooks {
-	const activeCadenceSessions = new Set<string>();
+	const activeCadenceSessions = new Map<string, CadenceSessionState>();
 
 	const log = (msg: string) => {
 		ctx.client.app.log({
@@ -41,13 +63,27 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 			// Check if this is a Cadence start command
 			if (isCadenceStart(messageText)) {
 				log(`Cadence started for session ${sessionId}`);
-				activeCadenceSessions.add(sessionId);
+				activeCadenceSessions.set(sessionId, {
+					startedAt: new Date().toISOString(),
+					iterationEstimate: 1,
+					lastActivity: 'started',
+				});
 				return;
 			}
 
 			// Check if this session is in Cadence mode
-			if (!activeCadenceSessions.has(sessionId)) {
+			const state = activeCadenceSessions.get(sessionId);
+			if (!state) {
 				return;
+			}
+
+			// Update last activity
+			state.lastActivity = new Date().toISOString();
+
+			// Try to extract iteration from message
+			const iterMatch = messageText.match(/iteration[:\s]+(\d+)/i);
+			if (iterMatch) {
+				state.iterationEstimate = parseInt(iterMatch[1], 10);
 			}
 
 			// Check for completion signal
@@ -72,9 +108,48 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 
 			log(`Event received: ${event.type}`);
 
+			// Handle session.compacted - trigger continuation after compaction completes
+			if (event.type === 'session.compacted') {
+				const sessionId = event.sessionId;
+				if (!sessionId) return;
+
+				const state = activeCadenceSessions.get(sessionId);
+				if (!state) return;
+
+				log(`Compaction completed for Cadence session ${sessionId} - triggering continuation`);
+				showToast(ctx, '🔄 Context compacted, resuming Cadence...');
+
+				// Inject continuation prompt if session.prompt is available
+				try {
+					await ctx.client.session?.prompt?.({
+						path: { id: sessionId },
+						body: {
+							parts: [
+								{
+									type: 'text',
+									text: `[CADENCE CONTINUATION]
+
+Context was just compacted. Resume the Cadence loop:
+
+1. Ask Memory for the latest checkpoint and any compaction snapshots
+2. Review the current iteration state from KV
+3. Continue with the next step in the iteration workflow
+4. Do NOT restart from the beginning - pick up where you left off
+
+Continue executing the task.`,
+								},
+							],
+							agent: 'Agentuity Coder Lead',
+						},
+					});
+				} catch (err) {
+					log(`Failed to inject continuation prompt: ${err}`);
+					// Continuation will rely on auto-generated "Continue if you have next steps"
+				}
+			}
+
 			// Handle session.idle - log for debugging/monitoring
-			// Actual continuation is agentic: Lead manages its own state via KV
-			if (event.type === 'session.idle') {
+			if (event.type === 'session.idle' || event.type === 'session.status') {
 				const sessionId = event.sessionId;
 				if (!sessionId) return;
 
@@ -91,6 +166,48 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 					activeCadenceSessions.delete(sessionId);
 				}
 			}
+		},
+
+		/**
+		 * Called during context compaction to inject Cadence state.
+		 * This ensures the compaction summary includes critical loop state.
+		 */
+		async onCompacting(input: CompactingInput, output: CompactingOutput): Promise<void> {
+			const sessionId = input.sessionID;
+			const state = activeCadenceSessions.get(sessionId);
+
+			if (!state) {
+				// Not a Cadence session, nothing to inject
+				return;
+			}
+
+			log(`Injecting Cadence context during compaction for session ${sessionId}`);
+			showToast(ctx, '💾 Compacting Cadence context...');
+
+			// Inject Cadence state into the compaction context
+			output.context.push(`
+## CADENCE MODE ACTIVE
+
+This session is running in Cadence mode (long-running autonomous loop).
+
+**Cadence State:**
+- Started: ${state.startedAt}
+- Estimated iteration: ${state.iterationEstimate}
+- Last activity: ${state.lastActivity}
+
+**CRITICAL: After compaction, you MUST:**
+1. Ask @Agentuity Coder Memory for the latest checkpoint and compaction snapshots
+2. Read the loop state from KV: \`agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state"\`
+3. Continue the iteration workflow from where you left off
+4. Do NOT restart the task from the beginning
+
+**Memory Keys to Query:**
+- \`loop:{loopId}:state\` - Current loop state
+- \`loop:{loopId}:checkpoint:{N}\` - Iteration checkpoints
+- \`loop:{loopId}:compaction:{N}\` - Compaction snapshots
+
+Resume the Cadence loop after this compaction completes.
+`);
 		},
 	};
 }
@@ -130,12 +247,21 @@ function extractEvent(input: unknown): { type: string; sessionId?: string } | un
 	const inp = input as { event?: { type?: string; properties?: Record<string, unknown> } };
 	if (!inp.event || typeof inp.event.type !== 'string') return undefined;
 
-	const sessionId = inp.event.properties?.sessionId as string | undefined;
+	const sessionId =
+		(inp.event.properties?.sessionId as string | undefined) ??
+		(inp.event.properties?.sessionID as string | undefined);
 	return { type: inp.event.type, sessionId };
 }
 
 function isCadenceStart(text: string): boolean {
-	return text.includes('[CADENCE MODE]') || text.includes('agentuity-cadence');
+	// Explicit cadence triggers
+	if (text.includes('[CADENCE MODE]') || text.includes('agentuity-cadence')) {
+		return true;
+	}
+
+	// Check for ultrawork triggers (case insensitive)
+	const lowerText = text.toLowerCase();
+	return ULTRAWORK_TRIGGERS.some((trigger) => lowerText.includes(trigger));
 }
 
 function isCadenceStop(text: string): boolean {

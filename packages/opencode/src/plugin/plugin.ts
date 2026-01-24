@@ -65,6 +65,7 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
 		event: cadenceHooks.onEvent,
+		'experimental.session.compacting': cadenceHooks.onCompacting,
 	};
 }
 
