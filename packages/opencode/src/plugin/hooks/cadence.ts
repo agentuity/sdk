@@ -62,9 +62,10 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 			const messageText = extractMessageText(output);
 			if (!messageText) return;
 
-			// Check if this is a Cadence start command
-			if (isCadenceStart(messageText)) {
-				log(`Cadence started for session ${sessionId}`);
+			// Check if this is a Cadence start command or ultrawork trigger
+			const cadenceType = getCadenceTriggerType(messageText);
+			if (cadenceType && !activeCadenceSessions.has(sessionId)) {
+				log(`Cadence started for session ${sessionId} via ${cadenceType}`);
 				const state: CadenceSessionState = {
 					startedAt: new Date().toISOString(),
 					iteration: 1,
@@ -72,6 +73,12 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 					lastActivity: 'started',
 				};
 				activeCadenceSessions.set(sessionId, state);
+
+				// If triggered by ultrawork keywords, inject [CADENCE MODE] tag
+				if (cadenceType === 'ultrawork') {
+					injectCadenceTag(output);
+				}
+
 				await injectStatusMessage(ctx, sessionId, state);
 				return;
 			}
@@ -290,15 +297,35 @@ function extractEvent(input: unknown): { type: string; sessionId?: string } | un
 	return { type: inp.event.type, sessionId };
 }
 
-function isCadenceStart(text: string): boolean {
+type CadenceTriggerType = 'explicit' | 'ultrawork' | null;
+
+function getCadenceTriggerType(text: string): CadenceTriggerType {
 	// Explicit cadence triggers
 	if (text.includes('[CADENCE MODE]') || text.includes('agentuity-cadence')) {
-		return true;
+		return 'explicit';
 	}
 
 	// Check for ultrawork triggers (case insensitive)
 	const lowerText = text.toLowerCase();
-	return ULTRAWORK_TRIGGERS.some((trigger) => lowerText.includes(trigger));
+	if (ULTRAWORK_TRIGGERS.some((trigger) => lowerText.includes(trigger))) {
+		return 'ultrawork';
+	}
+
+	return null;
+}
+
+function injectCadenceTag(output: unknown): void {
+	if (typeof output !== 'object' || output === null) return;
+
+	const out = output as { parts?: Array<{ type?: string; text?: string }> };
+	if (!out.parts || !Array.isArray(out.parts)) return;
+
+	for (const part of out.parts) {
+		if (part.type === 'text' && part.text) {
+			part.text = `[CADENCE MODE]\n\n${part.text}`;
+			return;
+		}
+	}
 }
 
 function isCadenceStop(text: string): boolean {
