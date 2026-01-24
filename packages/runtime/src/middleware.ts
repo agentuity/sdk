@@ -29,6 +29,7 @@ import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
 import { internal } from './logger/internal';
 import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './handlers/sse';
+import { loadBuildMetadata } from './_metadata';
 
 const SESSION_HEADER = 'x-session-id';
 const THREAD_HEADER = 'x-thread-id';
@@ -321,6 +322,7 @@ export function createOtelMiddleware() {
 
 					if (projectId) traceState = traceState.set('pid', projectId);
 					if (orgId) traceState = traceState.set('oid', orgId);
+					if (deploymentId) traceState = traceState.set('did', deploymentId);
 					if (isDevMode) traceState = traceState.set('d', '1');
 
 					// Update the active context with the new trace state
@@ -353,8 +355,23 @@ export function createOtelMiddleware() {
 					const sessionEventProvider = getSessionEventProvider();
 					if (sessionEventProvider) {
 						try {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							const routeId = (c as any).var?.routeId || '';
+							// Look up routeId from build metadata by matching method and path
+							// We need to do this here because the router wrapper hasn't run yet
+							const metadata = loadBuildMetadata();
+							const methodUpper = c.req.method.toUpperCase();
+							const requestPath = c.req.path;
+							
+							// Try matching by request path, then by path ending (handles /api/translate matching /translate)
+							let route = metadata?.routes?.find(
+								(r) => r.method.toUpperCase() === methodUpper && r.path === requestPath
+							);
+							if (!route) {
+								route = metadata?.routes?.find(
+									(r) => r.method.toUpperCase() === methodUpper && requestPath.endsWith(r.path)
+								);
+							}
+							const routeId = route?.id || '';
+							
 							await sessionEventProvider.start({
 								id: sessionId,
 								threadId: thread.id,

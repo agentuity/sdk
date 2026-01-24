@@ -402,6 +402,9 @@ export class StandaloneAgentContext<
 					if (orgId) {
 						traceState = traceState.set('oid', orgId);
 					}
+					if (deploymentId) {
+						traceState = traceState.set('did', deploymentId);
+					}
 					if (isDevMode) {
 						traceState = traceState.set('d', '1');
 					}
