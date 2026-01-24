@@ -643,7 +643,11 @@ Each iteration follows this pattern:
 2. **Ask Memory (Corrections Gate)** — "Return ONLY corrections/gotchas relevant to this iteration (CLI flags, region config, ctx API signatures, runtime detection)." If Memory returns a correction, you MUST paste it into CONTEXT of the next delegation.
 3. **Plan this iteration** — What's the next concrete step?
 4. **Delegate** — Scout/Builder/Reviewer as needed
-5. **Update KV loop state** — Increment iteration counter, update phase status:
+5. **Emit status tag** — Output a structured status line (plugin tracks this):
+   \`\`\`
+   CADENCE_STATUS loopId={loopId} iteration={N} maxIterations={max} status={running|paused}
+   \`\`\`
+6. **Update KV loop state** — Increment iteration counter, update phase status:
    \`\`\`bash
    agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{
      "iteration": N+1,
@@ -652,8 +656,22 @@ Each iteration follows this pattern:
      ...
    }'
    \`\`\`
-6. **Store checkpoint** — Tell Memory: "Store checkpoint for iteration {N}: what changed, what's next"
-7. **Decide** — Complete? Output \`<promise>DONE</promise>\`. More work? Continue.
+7. **Store checkpoint** — Tell Memory: "Store checkpoint for iteration {N}: what changed, what's next"
+8. **Decide** — Complete? Output \`<promise>DONE</promise>\`. More work? Continue.
+
+### Dynamic Iteration Limits
+
+Users can adjust the iteration limit during a running loop:
+
+| User Says | Your Action |
+|-----------|-------------|
+| "continue for N more iterations" | \`maxIterations = currentIteration + N\`, persist to KV |
+| "set max iterations to N" | \`maxIterations = N\`, persist to KV |
+| "go until done" / "as long as you need" | \`maxIterations = 200\` (high limit), persist to KV |
+
+When maxIterations changes, immediately update KV and confirm: "Updated max iterations to {N}."
+
+At each iteration boundary, check: if \`iteration >= maxIterations\`, pause and ask user if they want to continue.
 
 ### Completion Signal
 

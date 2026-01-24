@@ -25,7 +25,9 @@ const ULTRAWORK_TRIGGERS = [
 // Track Cadence state per session for context injection
 interface CadenceSessionState {
 	startedAt: string;
-	iterationEstimate: number;
+	loopId?: string;
+	iteration: number;
+	maxIterations: number;
 	lastActivity: string;
 }
 
@@ -65,7 +67,8 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 				log(`Cadence started for session ${sessionId}`);
 				const state: CadenceSessionState = {
 					startedAt: new Date().toISOString(),
-					iterationEstimate: 1,
+					iteration: 1,
+					maxIterations: 50,
 					lastActivity: 'started',
 				};
 				activeCadenceSessions.set(sessionId, state);
@@ -82,12 +85,36 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 			// Update last activity
 			state.lastActivity = new Date().toISOString();
 
-			// Try to extract iteration from message
+			// Try to extract structured CADENCE_STATUS tag first
+			// Format: CADENCE_STATUS loopId={id} iteration={N} maxIterations={max} status={status}
+			const statusMatch = messageText.match(
+				/CADENCE_STATUS\s+loopId=(\S+)\s+iteration=(\d+)\s+maxIterations=(\d+)\s+status=(\S+)/i
+			);
+			if (statusMatch) {
+				const [, loopId, iteration, maxIterations] = statusMatch;
+				const newIteration = parseInt(iteration, 10);
+				const newMax = parseInt(maxIterations, 10);
+				const changed =
+					state.loopId !== loopId ||
+					state.iteration !== newIteration ||
+					state.maxIterations !== newMax;
+
+				state.loopId = loopId;
+				state.iteration = newIteration;
+				state.maxIterations = newMax;
+
+				if (changed) {
+					await injectStatusMessage(ctx, sessionId, state);
+				}
+				return;
+			}
+
+			// Fallback: try to extract iteration from loose "iteration: N" pattern
 			const iterMatch = messageText.match(/iteration[:\s]+(\d+)/i);
 			if (iterMatch) {
 				const newIteration = parseInt(iterMatch[1], 10);
-				if (newIteration !== state.iterationEstimate) {
-					state.iterationEstimate = newIteration;
+				if (newIteration !== state.iteration) {
+					state.iteration = newIteration;
 					await injectStatusMessage(ctx, sessionId, state);
 				}
 			}
@@ -190,6 +217,8 @@ Continue executing the task.`,
 			log(`Injecting Cadence context during compaction for session ${sessionId}`);
 			showToast(ctx, '💾 Compacting Cadence context...');
 
+			const loopIdStr = state.loopId ?? '{loopId}';
+
 			// Inject Cadence state into the compaction context
 			output.context.push(`
 ## CADENCE MODE ACTIVE
@@ -197,20 +226,22 @@ Continue executing the task.`,
 This session is running in Cadence mode (long-running autonomous loop).
 
 **Cadence State:**
+- Loop ID: ${state.loopId ?? 'unknown'}
 - Started: ${state.startedAt}
-- Estimated iteration: ${state.iterationEstimate}
+- Iteration: ${state.iteration} / ${state.maxIterations}
 - Last activity: ${state.lastActivity}
 
 **CRITICAL: After compaction, you MUST:**
 1. Ask @Agentuity Coder Memory for the latest checkpoint and compaction snapshots
-2. Read the loop state from KV: \`agentuity cloud kv get agentuity-opencode-tasks "loop:{loopId}:state"\`
-3. Continue the iteration workflow from where you left off
-4. Do NOT restart the task from the beginning
+2. Read the loop state from KV: \`agentuity cloud kv get agentuity-opencode-tasks "loop:${loopIdStr}:state"\`
+3. Emit CADENCE_STATUS tag with current state
+4. Continue the iteration workflow from where you left off
+5. Do NOT restart the task from the beginning
 
 **Memory Keys to Query:**
-- \`loop:{loopId}:state\` - Current loop state
-- \`loop:{loopId}:checkpoint:{N}\` - Iteration checkpoints
-- \`loop:{loopId}:compaction:{N}\` - Compaction snapshots
+- \`loop:${loopIdStr}:state\` - Current loop state
+- \`loop:${loopIdStr}:checkpoint:{N}\` - Iteration checkpoints
+- \`loop:${loopIdStr}:compaction:{N}\` - Compaction snapshots
 
 Resume the Cadence loop after this compaction completes.
 `);
@@ -293,7 +324,8 @@ async function injectStatusMessage(
 ): Promise<void> {
 	try {
 		const elapsed = getElapsedTime(state.startedAt);
-		const status = `⚡ **Cadence** · iteration ${state.iterationEstimate} · ${elapsed}`;
+		const loopInfo = state.loopId ? ` · ${state.loopId}` : '';
+		const status = `⚡ **Cadence** · ${state.iteration}/${state.maxIterations}${loopInfo} · ${elapsed}`;
 
 		await ctx.client.session?.prompt?.({
 			path: { id: sessionId },
