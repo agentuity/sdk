@@ -490,6 +490,15 @@ export function createOtelMiddleware() {
 							internal.info('[request] %s %s - streaming response, deferring finalization (session: %s)', 
 								method, url.pathname, sessionId);
 							
+							// Capture pending promises BEFORE adding finalization waitUntil to avoid deadlock
+							const pendingPromises = handler.getPendingSnapshot();
+							const hasPendingTasks = pendingPromises.length > 0;
+							
+							if (hasPendingTasks) {
+								internal.info('[request] %s %s - %d pending waitUntil tasks to wait for after stream (session: %s)', 
+									method, url.pathname, pendingPromises.length, sessionId);
+							}
+							
 							// Use waitUntil to handle stream completion and finalization
 							// This runs AFTER the response is sent to the client
 							handler.waitUntil(async () => {
@@ -508,7 +517,16 @@ export function createOtelMiddleware() {
 								span.setAttribute('@agentuity/request.duration', durationNs);
 								span.setAttribute('http.status_code', responseStatus);
 								
-								// Finalize session after stream completes
+								// Wait for pending tasks (evals, etc.) captured BEFORE this waitUntil was added
+								if (hasPendingTasks) {
+									internal.info('[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)', 
+										method, url.pathname, pendingPromises.length, sessionId);
+									const logger = c.get('logger');
+									await handler.waitForPromises(pendingPromises, logger, sessionId);
+									internal.info('[request] %s %s - all waitUntil tasks complete (session: %s)', method, url.pathname, sessionId);
+								}
+								
+								// Finalize session after stream completes and evals finish
 								await finalizeSession(responseStatus >= 500 ? responseStatus : undefined, errorMessage);
 								internal.info('[request] %s %s - stream session finalization complete (session: %s)', method, url.pathname, sessionId);
 							});
@@ -520,16 +538,25 @@ export function createOtelMiddleware() {
 							span.setAttribute('@agentuity/request.duration', durationNs);
 							span.setAttribute('http.status_code', responseStatus);
 							
+							// Capture pending promises BEFORE adding finalization waitUntil to avoid deadlock.
+							// If we called waitUntilAll inside waitUntil, it would wait for itself.
+							const pendingPromises = handler.getPendingSnapshot();
+							const hasPendingTasks = pendingPromises.length > 0;
+							
+							if (hasPendingTasks) {
+								internal.info('[request] %s %s - %d pending waitUntil tasks to wait for (session: %s)', 
+									method, url.pathname, pendingPromises.length, sessionId);
+							}
+							
 							// Defer session finalization to run AFTER response is sent
-							// Use noSpan: true because this waitUntil is just for coordination (waiting for evals)
-							// The actual work (session finalization) creates its own span via finalizeSession
+							// Use noSpan: true since finalizeSession creates its own Session End span
 							handler.waitUntil(async () => {
-								// Wait for any pending background tasks (evals, etc.)
-								if (handler.hasPending()) {
-									internal.info('[request] %s %s - waiting for pending waitUntil tasks (session: %s)', 
-										method, url.pathname, sessionId);
+								// Wait for the snapshot of pending tasks (evals, etc.) captured BEFORE this waitUntil was added
+								if (hasPendingTasks) {
+									internal.info('[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)', 
+										method, url.pathname, pendingPromises.length, sessionId);
 									const logger = c.get('logger');
-									await handler.waitUntilAll(logger, sessionId);
+									await handler.waitForPromises(pendingPromises, logger, sessionId);
 									internal.info('[request] %s %s - all waitUntil tasks complete (session: %s)', method, url.pathname, sessionId);
 								}
 								

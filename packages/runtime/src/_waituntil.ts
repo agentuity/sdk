@@ -96,6 +96,42 @@ export default class WaitUntilHandler {
 		return this.promises.length > 0;
 	}
 
+	/**
+	 * Returns a snapshot of currently pending promises.
+	 * This allows waiting for specific promises without including promises added later.
+	 * Useful to avoid deadlock when the caller will add their own promise via waitUntil.
+	 */
+	public getPendingSnapshot(): Promise<void>[] {
+		return [...this.promises];
+	}
+
+	/**
+	 * Wait for a specific set of promises to complete.
+	 * Unlike waitUntilAll, this doesn't mark the handler as "all called" and
+	 * allows additional waitUntil calls afterward.
+	 */
+	public async waitForPromises(promises: Promise<void>[], logger: Logger, sessionId: string): Promise<void> {
+		if (promises.length === 0) {
+			internal.debug('No promises to wait for in snapshot');
+			return;
+		}
+
+		internal.debug(`⏳ Waiting for ${promises.length} snapshot promises to complete (session: ${sessionId})...`);
+		try {
+			const results = await Promise.allSettled(promises);
+			
+			// Log any failures
+			const failures = results.filter((r) => r.status === 'rejected');
+			if (failures.length > 0) {
+				logger.error('%d background task(s) failed during execution', failures.length);
+			}
+
+			internal.debug('✅ Snapshot promises completed (session: %s)', sessionId);
+		} catch (ex) {
+			logger.error('error waiting for snapshot promises', ex);
+		}
+	}
+
 	public async waitUntilAll(logger: Logger, sessionId: string): Promise<void> {
 		internal.debug(`🔍 waitUntilAll() called for session ${sessionId} (count: %d)`, running);
 
