@@ -502,7 +502,18 @@ show_path_reminder() {
 }
 
 run_setup() {
-  agentuity_bin="$BUN_INSTALL_BIN/agentuity"
+  # Ensure the bun bin directory is on PATH for this session
+  case ":$PATH:" in
+  *":$BUN_INSTALL_BIN:"*) ;;
+  *) export PATH="$BUN_INSTALL_BIN:$PATH" ;;
+  esac
+
+  # Try to find the agentuity binary
+  if command -v agentuity >/dev/null 2>&1; then
+    agentuity_bin=$(command -v agentuity)
+  else
+    agentuity_bin="$BUN_INSTALL_BIN/agentuity"
+  fi
 
   if [ -x "$agentuity_bin" ]; then
     if [ "$non_interactive" = true ]; then
