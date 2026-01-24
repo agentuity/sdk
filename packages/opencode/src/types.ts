@@ -131,7 +131,7 @@ export interface PluginClient {
 				agent?: string;
 			};
 			noReply?: boolean;
-		}) => Promise<void>;
+		}) => Promise<unknown>;
 	};
 }
 

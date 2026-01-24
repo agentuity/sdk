@@ -63,11 +63,13 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 			// Check if this is a Cadence start command
 			if (isCadenceStart(messageText)) {
 				log(`Cadence started for session ${sessionId}`);
-				activeCadenceSessions.set(sessionId, {
+				const state: CadenceSessionState = {
 					startedAt: new Date().toISOString(),
 					iterationEstimate: 1,
 					lastActivity: 'started',
-				});
+				};
+				activeCadenceSessions.set(sessionId, state);
+				await injectStatusMessage(ctx, sessionId, state);
 				return;
 			}
 
@@ -83,7 +85,11 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 			// Try to extract iteration from message
 			const iterMatch = messageText.match(/iteration[:\s]+(\d+)/i);
 			if (iterMatch) {
-				state.iterationEstimate = parseInt(iterMatch[1], 10);
+				const newIteration = parseInt(iterMatch[1], 10);
+				if (newIteration !== state.iterationEstimate) {
+					state.iterationEstimate = newIteration;
+					await injectStatusMessage(ctx, sessionId, state);
+				}
 			}
 
 			// Check for completion signal
@@ -278,4 +284,35 @@ function showToast(ctx: PluginContext, message: string): void {
 	} catch {
 		// Toast may not be available
 	}
+}
+
+async function injectStatusMessage(
+	ctx: PluginContext,
+	sessionId: string,
+	state: CadenceSessionState
+): Promise<void> {
+	try {
+		const elapsed = getElapsedTime(state.startedAt);
+		const status = `⚡ **Cadence** · iteration ${state.iterationEstimate} · ${elapsed}`;
+
+		await ctx.client.session?.prompt?.({
+			path: { id: sessionId },
+			body: {
+				parts: [{ type: 'text', text: status }],
+			},
+			noReply: true,
+		});
+	} catch {
+		// Status injection may not be available
+	}
+}
+
+function getElapsedTime(startedAt: string): string {
+	const start = new Date(startedAt).getTime();
+	const now = Date.now();
+	const seconds = Math.floor((now - start) / 1000);
+
+	if (seconds < 60) return `${seconds}s`;
+	if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+	return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
 }
