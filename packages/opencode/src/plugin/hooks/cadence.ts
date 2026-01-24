@@ -66,11 +66,12 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 			const cadenceType = getCadenceTriggerType(messageText);
 			if (cadenceType && !activeCadenceSessions.has(sessionId)) {
 				log(`Cadence started for session ${sessionId} via ${cadenceType}`);
+				const now = new Date().toISOString();
 				const state: CadenceSessionState = {
-					startedAt: new Date().toISOString(),
+					startedAt: now,
 					iteration: 1,
 					maxIterations: 50,
-					lastActivity: 'started',
+					lastActivity: now,
 				};
 				activeCadenceSessions.set(sessionId, state);
 
@@ -367,10 +368,15 @@ async function injectStatusMessage(
 }
 
 function getElapsedTime(startedAt: string): string {
+	if (!startedAt) return '-';
+
 	const start = new Date(startedAt).getTime();
+	if (isNaN(start)) return '-';
+
 	const now = Date.now();
 	const seconds = Math.floor((now - start) / 1000);
 
+	if (seconds < 0) return '-';
 	if (seconds < 60) return `${seconds}s`;
 	if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
 	return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
