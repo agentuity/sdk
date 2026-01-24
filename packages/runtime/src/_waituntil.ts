@@ -35,36 +35,55 @@ export default class WaitUntilHandler {
 		this.promises = [];
 	}
 
-	public waitUntil(promise: Promise<void> | (() => void | Promise<void>)): void {
+	public waitUntil(
+		promise: Promise<void> | (() => void | Promise<void>),
+		options?: { noSpan?: boolean }
+	): void {
 		if (this.hasCalledWaitUntilAll) {
 			throw new WaitUntilInvalidStateError();
 		}
 		running++;
 		internal.debug('wait until called, running: %d', running);
 		const currentContext = context.active();
+		const skipSpan = options?.noSpan === true;
 
 		// Start execution immediately, don't defer it
 		const executingPromise = (async () => {
 			if (this.started === undefined) {
 				this.started = Date.now(); /// this first execution marks the start time
 			}
-			const span = this.tracer.startSpan('waitUntil', {}, currentContext);
-			const spanContext = trace.setSpan(currentContext, span);
-			try {
-				internal.debug('starting waituntil');
-				await context.with(spanContext, async () => {
+
+			if (skipSpan) {
+				// Execute without creating a span (used for coordination tasks)
+				try {
+					internal.debug('starting waituntil (no span)');
 					const resolvedPromise = typeof promise === 'function' ? promise() : promise;
-					return await Promise.resolve(resolvedPromise);
-				});
-				internal.debug('completed waituntil');
-				span.setStatus({ code: SpanStatusCode.OK });
-			} catch (ex: unknown) {
-				span.recordException(ex as Error);
-				span.setStatus({ code: SpanStatusCode.ERROR });
-				// Log the error but don't re-throw - background tasks should never crash the server
-				internal.error('Background task error: %s', ex);
-			} finally {
-				span.end();
+					await Promise.resolve(resolvedPromise);
+					internal.debug('completed waituntil (no span)');
+				} catch (ex: unknown) {
+					// Log the error but don't re-throw - background tasks should never crash the server
+					internal.error('Background task error: %s', ex);
+				}
+			} else {
+				// Execute with a span (default behavior)
+				const span = this.tracer.startSpan('waitUntil', {}, currentContext);
+				const spanContext = trace.setSpan(currentContext, span);
+				try {
+					internal.debug('starting waituntil');
+					await context.with(spanContext, async () => {
+						const resolvedPromise = typeof promise === 'function' ? promise() : promise;
+						return await Promise.resolve(resolvedPromise);
+					});
+					internal.debug('completed waituntil');
+					span.setStatus({ code: SpanStatusCode.OK });
+				} catch (ex: unknown) {
+					span.recordException(ex as Error);
+					span.setStatus({ code: SpanStatusCode.ERROR });
+					// Log the error but don't re-throw - background tasks should never crash the server
+					internal.error('Background task error: %s', ex);
+				} finally {
+					span.end();
+				}
 			}
 			// NOTE: we only decrement when the promise is removed from the array in waitUntilAll
 		})();
