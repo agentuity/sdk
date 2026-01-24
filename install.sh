@@ -381,10 +381,19 @@ create_legacy_shim() {
   if [ -d "$legacy_dir" ] || [ -f "$legacy_bin" ]; then
     mkdir -p "$legacy_dir"
 
-    # Create a shim script that forwards to the bun-installed version
+    # Create a self-healing shim that auto-reinstalls if binary is missing
     cat > "$legacy_bin" << EOF
 #!/bin/sh
-exec "$BUN_INSTALL_BIN/agentuity" "\$@"
+BUN_BIN="$BUN_INSTALL_BIN/agentuity"
+if [ ! -x "\$BUN_BIN" ]; then
+  echo "Agentuity CLI not found. Reinstalling..." >&2
+  curl -fsSL https://agentuity.sh | sh -s -- -y
+  if [ ! -x "\$BUN_BIN" ]; then
+    echo "Failed to reinstall CLI. Please run: curl -fsSL https://agentuity.sh | sh" >&2
+    exit 1
+  fi
+fi
+exec "\$BUN_BIN" "\$@"
 EOF
     chmod 755 "$legacy_bin"
     print_message debug "Created compatibility shim at $legacy_bin"
