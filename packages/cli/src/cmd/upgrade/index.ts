@@ -138,7 +138,7 @@ export const command = createCommand({
 		// Check if we can upgrade based on installation type
 		if (installationType === 'source') {
 			tui.error('Upgrade is not available when running from source.');
-			tui.info('You are running the CLI from source code (development mode).');
+			tui.warning('You are running the CLI from source code (development mode).');
 			tui.info('Use git to update the source code instead.');
 			return {
 				upgraded: false,
@@ -150,10 +150,10 @@ export const command = createCommand({
 
 		if (installationType === 'local') {
 			tui.error('Upgrade is not available for local project installations.');
-			tui.info('The CLI is installed as a project dependency.');
+			tui.warning('The CLI is installed as a project dependency.');
 			tui.newline();
-			tui.info('To upgrade, update your package.json or run:');
-			tui.info(`  ${tui.muted('bun add @agentuity/cli@latest')}`);
+			console.log('To upgrade, update your package.json or run:');
+			console.log(`  ${tui.muted('bun add @agentuity/cli@latest')}`);
 			return {
 				upgraded: false,
 				from: currentVersion,
