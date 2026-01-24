@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { createContext, useContext, type Context } from 'react';
 import { defaultBaseUrl } from '@agentuity/frontend';
 import { setGlobalBaseUrl, setGlobalAuthHeader } from './client';
@@ -48,8 +48,10 @@ export const AgentuityProvider = ({
 		setGlobalAuthHeader(authHeader);
 	}, [authHeader]);
 
-	// Sync authHeader prop changes to state
-	useEffect(() => {
+	// Sync authHeader prop changes to state synchronously
+	// useLayoutEffect ensures the state is updated before child effects run,
+	// preventing race conditions where useAPI makes requests before auth is set (issue #732)
+	useLayoutEffect(() => {
 		if (authHeaderProp !== undefined) {
 			setAuthHeaderState(authHeaderProp);
 		}
