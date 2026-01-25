@@ -35,38 +35,65 @@ export default class WaitUntilHandler {
 		this.promises = [];
 	}
 
-	public waitUntil(promise: Promise<void> | (() => void | Promise<void>)): void {
+	public waitUntil(
+		promise: Promise<void> | (() => void | Promise<void>),
+		options?: { noSpan?: boolean }
+	): void {
 		if (this.hasCalledWaitUntilAll) {
 			throw new WaitUntilInvalidStateError();
 		}
 		running++;
 		internal.debug('wait until called, running: %d', running);
 		const currentContext = context.active();
+		const skipSpan = options?.noSpan === true;
 
 		// Start execution immediately, don't defer it
 		const executingPromise = (async () => {
 			if (this.started === undefined) {
 				this.started = Date.now(); /// this first execution marks the start time
 			}
-			const span = this.tracer.startSpan('waitUntil', {}, currentContext);
-			const spanContext = trace.setSpan(currentContext, span);
+
 			try {
-				internal.debug('starting waituntil');
-				await context.with(spanContext, async () => {
-					const resolvedPromise = typeof promise === 'function' ? promise() : promise;
-					return await Promise.resolve(resolvedPromise);
-				});
-				internal.debug('completed waituntil');
-				span.setStatus({ code: SpanStatusCode.OK });
-			} catch (ex: unknown) {
-				span.recordException(ex as Error);
-				span.setStatus({ code: SpanStatusCode.ERROR });
-				// Log the error but don't re-throw - background tasks should never crash the server
-				internal.error('Background task error: %s', ex);
+				if (skipSpan) {
+					// Execute without creating a span (used for coordination tasks)
+					// Still propagate context so downstream async operations inherit the original context
+					try {
+						internal.debug('starting waituntil (no span)');
+						await context.with(currentContext, async () => {
+							const resolvedPromise = typeof promise === 'function' ? promise() : promise;
+							return await Promise.resolve(resolvedPromise);
+						});
+						internal.debug('completed waituntil (no span)');
+					} catch (ex: unknown) {
+						// Log the error but don't re-throw - background tasks should never crash the server
+						internal.error('Background task error: %s', ex);
+					}
+				} else {
+					// Execute with a span (default behavior)
+					const span = this.tracer.startSpan('waitUntil', {}, currentContext);
+					const spanContext = trace.setSpan(currentContext, span);
+					try {
+						internal.debug('starting waituntil');
+						await context.with(spanContext, async () => {
+							const resolvedPromise = typeof promise === 'function' ? promise() : promise;
+							return await Promise.resolve(resolvedPromise);
+						});
+						internal.debug('completed waituntil');
+						span.setStatus({ code: SpanStatusCode.OK });
+					} catch (ex: unknown) {
+						span.recordException(ex as Error);
+						span.setStatus({ code: SpanStatusCode.ERROR });
+						// Log the error but don't re-throw - background tasks should never crash the server
+						internal.error('Background task error: %s', ex);
+					} finally {
+						span.end();
+					}
+				}
 			} finally {
-				span.end();
+				// Decrement running counter when promise completes (success or failure)
+				running--;
+				internal.debug('waituntil completed, running: %d', running);
 			}
-			// NOTE: we only decrement when the promise is removed from the array in waitUntilAll
 		})();
 
 		// Store the executing promise for cleanup tracking
@@ -75,6 +102,42 @@ export default class WaitUntilHandler {
 
 	public hasPending(): boolean {
 		return this.promises.length > 0;
+	}
+
+	/**
+	 * Returns a snapshot of currently pending promises.
+	 * This allows waiting for specific promises without including promises added later.
+	 * Useful to avoid deadlock when the caller will add their own promise via waitUntil.
+	 */
+	public getPendingSnapshot(): Promise<void>[] {
+		return [...this.promises];
+	}
+
+	/**
+	 * Wait for a specific set of promises to complete.
+	 * Unlike waitUntilAll, this doesn't mark the handler as "all called" and
+	 * allows additional waitUntil calls afterward.
+	 */
+	public async waitForPromises(promises: Promise<void>[], logger: Logger, sessionId: string): Promise<void> {
+		if (promises.length === 0) {
+			internal.debug('No promises to wait for in snapshot');
+			return;
+		}
+
+		internal.debug(`⏳ Waiting for ${promises.length} snapshot promises to complete (session: ${sessionId})...`);
+		try {
+			const results = await Promise.allSettled(promises);
+			
+			// Log any failures
+			const failures = results.filter((r) => r.status === 'rejected');
+			if (failures.length > 0) {
+				logger.error('%d background task(s) failed during execution', failures.length);
+			}
+
+			internal.debug('✅ Snapshot promises completed (session: %s)', sessionId);
+		} catch (ex) {
+			logger.error('error waiting for snapshot promises', ex);
+		}
 	}
 
 	public async waitUntilAll(logger: Logger, sessionId: string): Promise<void> {
@@ -111,7 +174,8 @@ export default class WaitUntilHandler {
 		} catch (ex) {
 			logger.error('error sending session completed', ex);
 		} finally {
-			running -= this.promises.length;
+			// Note: running counter is decremented by each promise when it completes,
+			// so we don't decrement here. Just clear the array.
 			this.promises.length = 0;
 		}
 	}
