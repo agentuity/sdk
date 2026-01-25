@@ -80,7 +80,7 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 					injectCadenceTag(output);
 				}
 
-				await injectStatusMessage(ctx, sessionId, state);
+				showToast(ctx, `⚡ Cadence started · ${state.iteration}/${state.maxIterations}`);
 				return;
 			}
 
@@ -112,7 +112,8 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 				state.maxIterations = newMax;
 
 				if (changed) {
-					await injectStatusMessage(ctx, sessionId, state);
+					const loopInfo = state.loopId ? ` · ${state.loopId}` : '';
+					showToast(ctx, `⚡ Cadence · ${state.iteration}/${state.maxIterations}${loopInfo}`);
 				}
 				return;
 			}
@@ -123,7 +124,8 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 				const newIteration = parseInt(iterMatch[1], 10);
 				if (newIteration !== state.iteration) {
 					state.iteration = newIteration;
-					await injectStatusMessage(ctx, sessionId, state);
+					const loopInfo = state.loopId ? ` · ${state.loopId}` : '';
+					showToast(ctx, `⚡ Cadence · ${state.iteration}/${state.maxIterations}${loopInfo}`);
 				}
 			}
 
@@ -343,41 +345,4 @@ function showToast(ctx: PluginContext, message: string): void {
 	} catch {
 		// Toast may not be available
 	}
-}
-
-async function injectStatusMessage(
-	ctx: PluginContext,
-	sessionId: string,
-	state: CadenceSessionState
-): Promise<void> {
-	try {
-		const elapsed = getElapsedTime(state.startedAt);
-		const loopInfo = state.loopId ? ` · ${state.loopId}` : '';
-		const status = `⚡ **Cadence** · ${state.iteration}/${state.maxIterations}${loopInfo} · ${elapsed}`;
-
-		await ctx.client.session?.prompt?.({
-			path: { id: sessionId },
-			body: {
-				parts: [{ type: 'text', text: status }],
-			},
-			noReply: true,
-		});
-	} catch {
-		// Status injection may not be available
-	}
-}
-
-function getElapsedTime(startedAt: string): string {
-	if (!startedAt) return '-';
-
-	const start = new Date(startedAt).getTime();
-	if (isNaN(start)) return '-';
-
-	const now = Date.now();
-	const seconds = Math.floor((now - start) / 1000);
-
-	if (seconds < 0) return '-';
-	if (seconds < 60) return `${seconds}s`;
-	if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-	return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
 }
