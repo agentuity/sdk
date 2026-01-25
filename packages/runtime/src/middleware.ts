@@ -361,15 +361,32 @@ export function createOtelMiddleware() {
 							// We need to do this here because the router wrapper hasn't run yet
 							const metadata = loadBuildMetadata();
 							const methodUpper = c.req.method.toUpperCase();
-							const requestPath = c.req.path;
 							
-							// Try matching by request path, then by path ending (handles /api/translate matching /translate)
+							// Normalize paths: trim trailing slashes for consistent matching
+							const normalizePath = (p: string) => {
+								const decoded = decodeURIComponent(p);
+								return decoded.endsWith('/') && decoded.length > 1 ? decoded.slice(0, -1) : decoded;
+							};
+							const requestPath = normalizePath(c.req.path);
+							
+							// Helper to check if requestPath ends with routePath at a segment boundary
+							// e.g., "/api/translate" matches "/translate" but "/api/translate-v2" does not
+							const matchesAtSegmentBoundary = (reqPath: string, routePath: string) => {
+								if (reqPath === routePath) return true;
+								if (!reqPath.endsWith(routePath)) return false;
+								// Check that the character before the match is a path separator
+								const charBeforeMatch = reqPath[reqPath.length - routePath.length - 1];
+								return charBeforeMatch === '/';
+							};
+							
+							// Try matching by exact normalized path first
 							let route = metadata?.routes?.find(
-								(r) => r.method.toUpperCase() === methodUpper && r.path === requestPath
+								(r) => r.method.toUpperCase() === methodUpper && normalizePath(r.path) === requestPath
 							);
+							// Fall back to segment-boundary matching (handles /api/translate matching /translate)
 							if (!route) {
 								route = metadata?.routes?.find(
-									(r) => r.method.toUpperCase() === methodUpper && requestPath.endsWith(r.path)
+									(r) => r.method.toUpperCase() === methodUpper && matchesAtSegmentBoundary(requestPath, normalizePath(r.path))
 								);
 							}
 							const routeId = route?.id || '';
@@ -554,6 +571,20 @@ export function createOtelMiddleware() {
 									// Set span attributes and end span AFTER all work is done
 									span.setAttribute('@agentuity/request.duration', durationNs);
 									span.setAttribute('http.status_code', finalStatus);
+									
+									// Set span status based on whether there was an error
+									if (streamError) {
+										span.setStatus({
+											code: SpanStatusCode.ERROR,
+											message: finalErrorMessage ?? 'Stream ended with error',
+										});
+										if (streamError instanceof Error) {
+											span.recordException(streamError);
+										}
+									} else {
+										span.setStatus({ code: SpanStatusCode.OK });
+									}
+									
 									span.end();
 									internal.info('[request] %s %s - stream span ended (session: %s)', method, url.pathname, sessionId);
 									// Note: We don't call waitUntilAll() here because this waitUntil callback
