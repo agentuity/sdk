@@ -72,7 +72,8 @@ export const downloadCommand = createSubcommand({
 			apiClient,
 			profileName,
 			identifier,
-			orgId
+			orgId,
+			config
 		);
 
 		const hostname = getIONHost(config, region);

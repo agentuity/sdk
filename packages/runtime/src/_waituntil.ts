@@ -118,16 +118,22 @@ export default class WaitUntilHandler {
 	 * Unlike waitUntilAll, this doesn't mark the handler as "all called" and
 	 * allows additional waitUntil calls afterward.
 	 */
-	public async waitForPromises(promises: Promise<void>[], logger: Logger, sessionId: string): Promise<void> {
+	public async waitForPromises(
+		promises: Promise<void>[],
+		logger: Logger,
+		sessionId: string
+	): Promise<void> {
 		if (promises.length === 0) {
 			internal.debug('No promises to wait for in snapshot');
 			return;
 		}
 
-		internal.debug(`⏳ Waiting for ${promises.length} snapshot promises to complete (session: ${sessionId})...`);
+		internal.debug(
+			`⏳ Waiting for ${promises.length} snapshot promises to complete (session: ${sessionId})...`
+		);
 		try {
 			const results = await Promise.allSettled(promises);
-			
+
 			// Log any failures
 			const failures = results.filter((r) => r.status === 'rejected');
 			if (failures.length > 0) {

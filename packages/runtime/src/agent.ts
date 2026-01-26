@@ -2441,16 +2441,16 @@ const runWithSpan = async <
 		// context's trace state is automatically restored.
 		const currentSpanContext = span.spanContext();
 		let updatedTraceState = currentSpanContext.traceState ?? new TraceState();
-		
+
 		// Add agent ID
 		updatedTraceState = updatedTraceState.set('aid', agent.metadata.id);
-		
+
 		// Add deployment ID, project ID, org ID, and devmode if available
 		const deploymentId = runtimeConfig.getDeploymentId();
 		const projectId = runtimeConfig.getProjectId();
 		const orgId = runtimeConfig.getOrganizationId();
 		const isDevMode = runtimeConfig.isDevMode();
-		
+
 		if (deploymentId) updatedTraceState = updatedTraceState.set('did', deploymentId);
 		if (projectId) updatedTraceState = updatedTraceState.set('pid', projectId);
 		if (orgId) updatedTraceState = updatedTraceState.set('oid', orgId);

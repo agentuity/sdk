@@ -301,7 +301,6 @@ $ARGUMENTS
 			agent: 'Agentuity Coder Lead',
 			argumentHint: 'build the new auth feature with tests',
 		},
-
 	};
 }
 
