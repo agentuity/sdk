@@ -474,6 +474,16 @@ Formatting Instructions:
 	}
 }
 
+async function isVersionPublished(pkgName: string, version: string): Promise<boolean> {
+	try {
+		const result = await $`npm view ${pkgName}@${version} version`.quiet().text();
+		return result.trim() === version;
+	} catch {
+		// Package or version doesn't exist
+		return false;
+	}
+}
+
 async function buildVSCodeExtension(version: string): Promise<string> {
 	console.log('\n🧩 Building VS Code extension...\n');
 
@@ -657,6 +667,12 @@ async function main() {
 			const pkgJson = await readJSON(join(pkg.path, 'package.json'));
 			const pkgName = pkgJson.name;
 			console.log(`\n📦 Publishing ${pkgName}...`);
+
+			// Check if version is already published
+			if (await isVersionPublished(pkgName, newVersion)) {
+				console.log(`⊘ Skipped ${pkgName}@${newVersion} (already published)`);
+				continue;
+			}
 
 			const maxRetries = 3;
 			let lastErr: unknown;
