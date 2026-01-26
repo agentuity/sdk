@@ -342,26 +342,16 @@ export interface SandboxTimeoutConfig {
 }
 
 /**
- * Options for creating a sandbox
+ * Base options shared by all sandbox creation variants.
+ * This interface contains fields that are valid regardless of whether
+ * the sandbox is created from a runtime or a snapshot.
  */
-export interface SandboxCreateOptions {
+interface SandboxCreateOptionsBase {
 	/**
 	 * Project ID to associate the sandbox with.
 	 * If not provided, the sandbox will not be tied to a specific project.
 	 */
 	projectId?: string;
-
-	/**
-	 * Runtime name (e.g., "bun:1", "python:3.14").
-	 * If not specified, defaults to "bun:1".
-	 */
-	runtime?: string;
-
-	/**
-	 * Runtime ID (e.g., "srt_xxx").
-	 * Alternative to specifying runtime by name.
-	 */
-	runtimeId?: string;
 
 	/**
 	 * Optional sandbox name.
@@ -411,12 +401,6 @@ export interface SandboxCreateOptions {
 	files?: FileToWrite[];
 
 	/**
-	 * Snapshot ID or tag to restore from when creating the sandbox.
-	 * The sandbox will start with the filesystem state from the snapshot.
-	 */
-	snapshot?: string;
-
-	/**
 	 * Apt packages to install when creating the sandbox.
 	 * These are installed via `apt install` before executing any commands.
 	 */
@@ -428,6 +412,103 @@ export interface SandboxCreateOptions {
 	 */
 	metadata?: Record<string, unknown>;
 }
+
+/**
+ * Options for creating a sandbox from a runtime.
+ * Use this when you want to start with a fresh runtime environment.
+ *
+ * @example
+ * ```typescript
+ * const sandbox = await ctx.sandbox.create({
+ *   runtime: 'bun:1',
+ *   resources: { memory: '1Gi' }
+ * });
+ * ```
+ */
+export interface SandboxCreateFromRuntime extends SandboxCreateOptionsBase {
+	/**
+	 * Runtime name (e.g., "bun:1", "python:3.14").
+	 * If not specified, defaults to "bun:1".
+	 */
+	runtime?: string;
+
+	/**
+	 * Runtime ID (e.g., "srt_xxx").
+	 * Alternative to specifying runtime by name.
+	 */
+	runtimeId?: string;
+
+	/**
+	 * Cannot specify snapshot when using runtime.
+	 * Snapshots include their own runtime configuration.
+	 */
+	snapshot?: never;
+}
+
+/**
+ * Options for creating a sandbox from a snapshot.
+ * Use this when you want to restore a sandbox from a previously saved state.
+ * The snapshot includes its own runtime, so runtime/runtimeId cannot be specified.
+ *
+ * @example
+ * ```typescript
+ * const sandbox = await ctx.sandbox.create({
+ *   snapshot: 'my-snapshot:latest',
+ *   resources: { memory: '1Gi' }
+ * });
+ * ```
+ */
+export interface SandboxCreateFromSnapshot extends SandboxCreateOptionsBase {
+	/**
+	 * Snapshot ID or tag to restore from when creating the sandbox.
+	 * The sandbox will start with the filesystem state from the snapshot.
+	 */
+	snapshot: string;
+
+	/**
+	 * Cannot specify runtime when using snapshot.
+	 * Snapshots include their own runtime configuration.
+	 */
+	runtime?: never;
+
+	/**
+	 * Cannot specify runtimeId when using snapshot.
+	 * Snapshots include their own runtime configuration.
+	 */
+	runtimeId?: never;
+}
+
+/**
+ * Options for creating a sandbox.
+ *
+ * This is a discriminated union type that enforces mutual exclusivity between
+ * snapshot and runtime options. You can either:
+ * - Create from a runtime (optionally specifying `runtime` or `runtimeId`)
+ * - Create from a snapshot (specifying `snapshot`)
+ *
+ * You cannot specify both `snapshot` and `runtime`/`runtimeId` because
+ * snapshots include their own runtime configuration.
+ *
+ * @example
+ * ```typescript
+ * // Create from runtime (default)
+ * const sandbox1 = await ctx.sandbox.create({
+ *   runtime: 'bun:1'
+ * });
+ *
+ * // Create from snapshot
+ * const sandbox2 = await ctx.sandbox.create({
+ *   snapshot: 'my-snapshot:latest'
+ * });
+ *
+ * // TypeScript error: cannot specify both
+ * const sandbox3 = await ctx.sandbox.create({
+ *   runtime: 'bun:1',
+ *   snapshot: 'my-snapshot' // Error!
+ * });
+ * ```
+ */
+export type SandboxCreateOptions = SandboxCreateFromRuntime | SandboxCreateFromSnapshot;
 
 /**
  * A sandbox instance with methods for interaction
