@@ -106,19 +106,26 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 	 * @param event SessionCompleteEvent
 	 */
 	async complete(event: SessionCompleteEvent): Promise<void> {
-		// Only send complete if we successfully sent a start event
-		// This prevents sending orphaned complete events when start was skipped
-		if (!this.startedSessions.has(event.id)) {
-			internal.info('[session-http] skipping complete event - no matching start: %s', event.id);
-			return;
-		}
-		this.startedSessions.delete(event.id);
-
+		// Always create the "Session End" span for telemetry purposes.
+		// This span is used by Catalyst to detect when a session has completed,
+		// so it must always be emitted even if we don't send the HTTP event.
 		const tracer = trace.getTracer('session');
 		const currentContext = context.active();
 		const span = tracer.startSpan('Session End', {}, currentContext);
 
 		try {
+			// Only send HTTP complete event if we successfully sent a start event.
+			// This prevents sending orphaned complete events when start was skipped.
+			// However, we still create the span above for telemetry.
+			if (!this.startedSessions.has(event.id)) {
+				internal.info(
+					'[session-http] skipping HTTP complete event (no matching start), but emitting Session End span: %s',
+					event.id
+				);
+				span.setStatus({ code: SpanStatusCode.OK });
+				return;
+			}
+
 			internal.info(
 				'[session-http] sending complete event: %s, userData: %s',
 				event.id,
@@ -137,6 +144,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			);
 
 			if (resp.success) {
+				this.startedSessions.delete(event.id);
 				internal.info('[session-http] complete event sent successfully: %s', event.id);
 				this.logger.debug('Session complete event sent successfully: %s', event.id);
 				span.setStatus({ code: SpanStatusCode.OK });
