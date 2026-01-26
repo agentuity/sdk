@@ -221,7 +221,7 @@ run_scenario_from_path "/tmp/test-symlink" "" "/tmp/test-symlink/.bun/node_modul
 ln -sf ../node_modules/@agentuity/cli/bin/cli.ts /tmp/test-symlink/.bun/bin/agentuity
 
 # Run via symlink - Bun.main should resolve to the actual file
-result=$(HOME=/tmp/test-symlink BUN_INSTALL="" bun /tmp/test-symlink/.bun/bin/agentuity 2>/dev/null)
+result=$(env -u BUN_INSTALL HOME=/tmp/test-symlink bun /tmp/test-symlink/.bun/bin/agentuity 2>/dev/null)
 run_test "Symlinked global binary" "global" "$result"
 
 echo ""
