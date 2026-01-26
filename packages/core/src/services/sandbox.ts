@@ -342,7 +342,27 @@ export interface SandboxTimeoutConfig {
 }
 
 /**
- * Options for creating a sandbox
+ * Options for creating a sandbox.
+ *
+ * **Important:** `snapshot` and `runtime`/`runtimeId` are mutually exclusive.
+ * - If you specify `snapshot`, do not specify `runtime` or `runtimeId` (the snapshot's runtime will be used)
+ * - If you specify `runtime` or `runtimeId`, do not specify `snapshot`
+ *
+ * This constraint is enforced at runtime by the API. Specifying both will result in an error:
+ * "cannot specify both snapshot and runtime; snapshot includes its own runtime"
+ *
+ * @example
+ * ```typescript
+ * // Create from runtime (default)
+ * const sandbox1 = await ctx.sandbox.create({
+ *   runtime: 'bun:1'
+ * });
+ *
+ * // Create from snapshot (runtime is inherited from snapshot)
+ * const sandbox2 = await ctx.sandbox.create({
+ *   snapshot: 'my-snapshot:latest'
+ * });
+ * ```
  */
 export interface SandboxCreateOptions {
 	/**
@@ -354,12 +374,16 @@ export interface SandboxCreateOptions {
 	/**
 	 * Runtime name (e.g., "bun:1", "python:3.14").
 	 * If not specified, defaults to "bun:1".
+	 *
+	 * **Note:** Cannot be specified together with `snapshot`.
 	 */
 	runtime?: string;
 
 	/**
 	 * Runtime ID (e.g., "srt_xxx").
 	 * Alternative to specifying runtime by name.
+	 *
+	 * **Note:** Cannot be specified together with `snapshot`.
 	 */
 	runtimeId?: string;
 
@@ -413,6 +437,9 @@ export interface SandboxCreateOptions {
 	/**
 	 * Snapshot ID or tag to restore from when creating the sandbox.
 	 * The sandbox will start with the filesystem state from the snapshot.
+	 *
+	 * **Note:** Cannot be specified together with `runtime` or `runtimeId`.
+	 * When using a snapshot, the snapshot's runtime will be used automatically.
 	 */
 	snapshot?: string;
 

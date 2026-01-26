@@ -86,6 +86,20 @@ const SandboxCreateRequestSchema = z
 			.optional()
 			.describe('Optional user-defined metadata to associate with the sandbox'),
 	})
+	.refine(
+		(data) => {
+			// If snapshot is provided, runtime and runtimeId must not be provided
+			if (data.snapshot) {
+				return !data.runtime && !data.runtimeId;
+			}
+			return true;
+		},
+		{
+			message:
+				'cannot specify both snapshot and runtime; snapshot includes its own runtime',
+			path: ['snapshot'],
+		}
+	)
 	.describe('Request body for creating a new sandbox');
 
 const SandboxCreateDataSchema = z
