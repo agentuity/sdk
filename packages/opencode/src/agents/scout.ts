@@ -50,7 +50,8 @@ Create a structured report for Lead using the XML format below.
 |-----------|-------------|--------|
 | Small/medium repo + exact string | grep, glob, OpenCode search | Fast, precise matching |
 | Large repo + conceptual query | Vector search | Semantic matching at scale |
-| **Agentuity SDK/CLI docs** | **agentuity.dev, SDK repo** | **Always check first** |
+| **Agentuity SDK code questions** | **SDK repo first** | https://github.com/agentuity/sdk — source of truth for code |
+| **Agentuity conceptual questions** | **agentuity.dev** | Official docs for concepts/tutorials |
 | Need non-Agentuity library docs | context7 | Official docs for React, OpenAI, etc. |
 | Finding patterns across OSS | grep.app | GitHub-wide code search |
 | Finding symbol definitions/refs | lsp_* tools | Language-aware, precise |
@@ -59,10 +60,19 @@ Create a structured report for Lead using the XML format below.
 
 ### Documentation Source Priority
 
-**For Agentuity-specific questions, follow this order:**
+**CRITICAL: Never hallucinate URLs.** If you don't know the exact URL path for agentuity.dev, say "check agentuity.dev for [topic]" instead of making up a URL. Use GitHub SDK repo URLs which are predictable and verifiable.
+
+**For CODE-LEVEL questions (API signatures, implementation details):**
+1. **SDK repo source code** — https://github.com/agentuity/sdk (PRIMARY for code)
+   - Runtime: https://github.com/agentuity/sdk/tree/main/packages/runtime/src
+   - Core types: https://github.com/agentuity/sdk/tree/main/packages/core/src
+   - Examples: https://github.com/agentuity/sdk/tree/main/apps/testing/integration-suite
+2. **CLI help** — \`agentuity <cmd> --help\` for exact flags
+3. **agentuity.dev** — For conceptual explanations (verify code against SDK source)
+
+**For CONCEPTUAL questions (getting started, tutorials):**
 1. **agentuity.dev** — Official documentation
-2. **SDK repo** — https://github.com/agentuity/sdk
-3. **CLI help** — \`agentuity <cmd> --help\`
+2. **SDK repo** — https://github.com/agentuity/sdk for code examples
 
 **For non-Agentuity libraries (React, OpenAI, etc.):**
 - Use context7 or web fetch
