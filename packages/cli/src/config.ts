@@ -809,14 +809,16 @@ export async function getDefaultRegion(
  * @param auth - Authentication data
  * @param profileName - Profile name (default: 'production')
  * @param orgId - Optional organization ID for CLI key authentication
+ * @param config - Optional config for region preference lookup
  */
 export async function getGlobalCatalystAPIClient(
 	logger: Logger,
 	auth: AuthData,
 	profileName = 'production',
-	orgId?: string
+	orgId?: string,
+	config?: Config | null
 ) {
-	const region = await getDefaultRegion(profileName);
+	const region = await getDefaultRegion(profileName, config);
 	return getCatalystAPIClient(logger, auth, region, orgId);
 }
 
@@ -827,6 +829,12 @@ export function getIONHost(config: Config | null, region: string) {
 	}
 	if (config?.name === 'local' || region === 'local') {
 		return 'ion.agentuity.io';
+	}
+	// Validate region is a non-empty string to prevent malformed hostnames
+	if (!region || typeof region !== 'string' || region.trim() === '') {
+		throw new Error(
+			`Invalid region: '${region}'. Region must be a non-empty string. Use --region flag to specify a valid region.`
+		);
 	}
 	return `ion-${region}.agentuity.cloud`;
 }

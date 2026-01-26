@@ -80,14 +80,14 @@ interface CadenceLoop {
 
 Use `/agentuity-cadence` to start a Cadence loop. Control is via natural language:
 
-| Action | How |
-| ------ | --- |
+| Action | How                                                    |
+| ------ | ------------------------------------------------------ |
 | Start  | `/agentuity-cadence build the auth feature with tests` |
-| Status | "what's the status?" or "how's it going?" |
-| Pause  | "pause" or "hold on" |
-| Resume | "continue" or "resume" |
-| Stop   | "stop" or Ctrl+C |
-| Extend | "continue for 50 more iterations" or "go until done" |
+| Status | "what's the status?" or "how's it going?"              |
+| Pause  | "pause" or "hold on"                                   |
+| Resume | "continue" or "resume"                                 |
+| Stop   | "stop" or Ctrl+C                                       |
+| Extend | "continue for 50 more iterations" or "go until done"   |
 
 ## CLI Commands
 

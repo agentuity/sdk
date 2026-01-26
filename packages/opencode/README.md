@@ -105,14 +105,14 @@ Lead will:
 
 Start with `/agentuity-cadence`, then use natural language:
 
-| Action | How |
-| ------ | --- |
+| Action | How                                         |
+| ------ | ------------------------------------------- |
 | Start  | `/agentuity-cadence build the auth feature` |
-| Status | "what's the status?" |
-| Pause  | "pause" |
-| Resume | "continue" |
-| Extend | "continue for 50 more iterations" |
-| Stop   | "stop" or Ctrl+C |
+| Status | "what's the status?"                        |
+| Pause  | "pause"                                     |
+| Resume | "continue"                                  |
+| Extend | "continue for 50 more iterations"           |
+| Stop   | "stop" or Ctrl+C                            |
 
 ### CLI Control (Headless)
 
