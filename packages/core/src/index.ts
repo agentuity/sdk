@@ -102,8 +102,6 @@ export {
 	type SandboxNetworkConfig,
 	type SandboxTimeoutConfig,
 	type SandboxCreateOptions,
-	type SandboxCreateFromRuntime,
-	type SandboxCreateFromSnapshot,
 	type Sandbox,
 	type SandboxInfo,
 	type SandboxRuntimeInfo,
