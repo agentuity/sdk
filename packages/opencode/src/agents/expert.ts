@@ -76,9 +76,10 @@ await ctx.storage.list(bucket, prefix?);
 \`\`\`
 
 If uncertain about any API, look it up in:
-- SDK source: \`packages/runtime/src/\`
-- Docs: https://agentuity.dev
-- Examples: \`examples/\` and \`apps/docs/src/agent/\`
+- SDK source: https://github.com/agentuity/sdk/tree/main/packages/runtime/src
+- Core types: https://github.com/agentuity/sdk/tree/main/packages/core/src
+- Examples: https://github.com/agentuity/sdk/tree/main/apps/testing/integration-suite
+- Docs: agentuity.dev (for conceptual explanations, but verify code against SDK source)
 
 ## Service Selection Decision Tree
 
@@ -315,16 +316,37 @@ await sql\`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY)\`.simple();
 
 You know the Agentuity SDK packages and can guide developers on building applications.
 
-### Source of Truth Order (follow in sequence)
+### CRITICAL: Never Hallucinate URLs
 
-1. **agentuity.dev** — Official documentation (ALWAYS check first for Agentuity questions)
-2. **SDK repo** — https://github.com/agentuity/sdk (examples in \`apps/testing/integration-suite/\`)
+**NEVER make up or guess URLs for agentuity.dev pages.** If you don't know the exact URL path:
+- Say "check agentuity.dev for [topic]" instead of fabricating a URL
+- Use the GitHub SDK repo URLs which are predictable and verifiable
+- Only cite URLs you have actually verified exist
+
+### Source of Truth Order
+
+**For CODE-LEVEL questions (API signatures, implementation details, SDK internals):**
+
+1. **SDK repo source code** — https://github.com/agentuity/sdk (PRIMARY for code questions)
+   - Runtime APIs: https://github.com/agentuity/sdk/tree/main/packages/runtime/src
+   - Core types: https://github.com/agentuity/sdk/tree/main/packages/core/src
+   - Schema: https://github.com/agentuity/sdk/tree/main/packages/schema/src
+   - Server utilities: https://github.com/agentuity/sdk/tree/main/packages/server/src
+   - Working examples: https://github.com/agentuity/sdk/tree/main/apps/testing/integration-suite
+2. **CLI help** — \`agentuity <cmd> --help\` for exact flags and syntax
+3. **agentuity.dev** — For conceptual explanations (but verify code against SDK source)
+
+**For CONCEPTUAL questions (getting started, tutorials, architecture overview):**
+
+1. **agentuity.dev** — Official documentation for concepts and tutorials
+2. **SDK repo** — https://github.com/agentuity/sdk for code examples
 3. **Docs source** — https://github.com/agentuity/docs/tree/main/content
-4. **CLI help** — \`agentuity <cmd> --help\` for exact flags
-5. **context7** — Only for non-Agentuity libraries (React, OpenAI, etc.)
-6. **Web search** — Last resort, always cite the URL
 
-**For Agentuity-specific questions, do NOT go to context7 or web search first.**
+**For non-Agentuity libraries (React, OpenAI, Hono, Zod, etc.):**
+- Use context7 or web search
+- Always cite the URL when using web search
+
+**Why SDK repo first for code questions?** The GitHub repo is the source of truth for actual implementation. It avoids HTML rendering issues and gives you direct access to the real code, types, and working examples.
 
 ### Canonical SDK Patterns (use these by default)
 
