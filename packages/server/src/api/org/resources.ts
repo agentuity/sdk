@@ -11,6 +11,9 @@ const OrgS3Resource = z.object({
 	cloud_region: z.string().describe('the cloud region where this resource is provisioned'),
 	org_id: z.string().describe('the organization ID that owns this resource'),
 	org_name: z.string().describe('the organization name that owns this resource'),
+	bucket_type: z.string().describe('the bucket type (user or snapshots)'),
+	internal: z.boolean().describe('whether this is a system-managed bucket'),
+	description: z.string().nullable().optional().describe('optional description of the bucket'),
 });
 
 const OrgDBResource = z.object({

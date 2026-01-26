@@ -20,6 +20,9 @@ const StorageListResponseSchema = z.object({
 				cloud_region: z.string().optional().describe('Cloud region where bucket is hosted'),
 				org_id: z.string().optional().describe('Organization ID that owns this bucket'),
 				org_name: z.string().optional().describe('Organization name that owns this bucket'),
+				bucket_type: z.string().optional().describe('Bucket type (user or snapshots)'),
+				internal: z.boolean().optional().describe('Whether this is a system-managed bucket'),
+				description: z.string().optional().describe('Optional description of the bucket'),
 			})
 		)
 		.optional()
@@ -241,6 +244,9 @@ export const listSubcommand = createSubcommand({
 				cloud_region: s3.cloud_region,
 				org_id: s3.org_id,
 				org_name: s3.org_name,
+				bucket_type: s3.bucket_type,
+				internal: s3.internal,
+				description: s3.description ?? undefined,
 			})),
 		};
 	},
