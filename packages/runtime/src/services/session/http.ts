@@ -125,7 +125,6 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 				span.setStatus({ code: SpanStatusCode.OK });
 				return;
 			}
-			this.startedSessions.delete(event.id);
 
 			internal.info(
 				'[session-http] sending complete event: %s, userData: %s',
@@ -145,6 +144,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			);
 
 			if (resp.success) {
+				this.startedSessions.delete(event.id);
 				internal.info('[session-http] complete event sent successfully: %s', event.id);
 				this.logger.debug('Session complete event sent successfully: %s', event.id);
 				span.setStatus({ code: SpanStatusCode.OK });
