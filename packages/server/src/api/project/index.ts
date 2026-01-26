@@ -9,3 +9,4 @@ export * from './exists';
 export * from './get';
 export * from './list';
 export * from './malware';
+export * from './update-region';
