@@ -103,7 +103,9 @@ INNEREOF
     if [ -n "$bun_install" ]; then
         HOME="$home_dir" BUN_INSTALL="$bun_install" bun "$script_path" 2>/dev/null
     else
-        HOME="$home_dir" BUN_INSTALL="" bun "$script_path" 2>/dev/null
+        # Unset BUN_INSTALL so the script uses the default (~/.bun)
+        unset BUN_INSTALL
+        HOME="$home_dir" bun "$script_path" 2>/dev/null
     fi
 }
 
