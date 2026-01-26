@@ -21,7 +21,12 @@ export type {
 } from './execution';
 export { SandboxResponseError, writeAndDrain } from './util';
 export { SandboxClient } from './client';
-export type { SandboxClientOptions, SandboxClientRunIO, SandboxInstance, ExecuteOptions } from './client';
+export type {
+	SandboxClientOptions,
+	SandboxClientRunIO,
+	SandboxInstance,
+	ExecuteOptions,
+} from './client';
 export {
 	sandboxWriteFiles,
 	sandboxReadFile,

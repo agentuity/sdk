@@ -19,10 +19,7 @@ type OrgEnvUpdateResponse = z.infer<typeof OrgEnvUpdateResponseSchema>;
  * Requires admin/owner role.
  * Keys starting with 'AGENTUITY_' (except AGENTUITY_PUBLIC_) are filtered out.
  */
-export async function orgEnvUpdate(
-	client: APIClient,
-	request: OrgEnvUpdateRequest
-): Promise<void> {
+export async function orgEnvUpdate(client: APIClient, request: OrgEnvUpdateRequest): Promise<void> {
 	const { id, env, secrets } = request;
 
 	const resp = await client.request<OrgEnvUpdateResponse, Omit<OrgEnvUpdateRequest, 'id'>>(

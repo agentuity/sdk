@@ -21,7 +21,10 @@ export const getSubcommand = createSubcommand({
 		{ command: getCommand('env get NODE_ENV'), description: 'Get environment variable' },
 		{ command: getCommand('env get API_KEY'), description: 'Get a secret value' },
 		{ command: getCommand('env get API_KEY --no-mask'), description: 'Show unmasked value' },
-		{ command: getCommand('env get OPENAI_API_KEY --org'), description: 'Get org-level variable' },
+		{
+			command: getCommand('env get OPENAI_API_KEY --org'),
+			description: 'Get org-level variable',
+		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
@@ -34,7 +37,9 @@ export const getSubcommand = createSubcommand({
 			org: z
 				.union([z.boolean(), z.string()])
 				.optional()
-				.describe('get from organization level (use --org for default org, or --org <orgId> for specific org)'),
+				.describe(
+					'get from organization level (use --org for default org, or --org <orgId> for specific org)'
+				),
 		}),
 		response: EnvGetResponseSchema,
 	},
@@ -46,7 +51,9 @@ export const getSubcommand = createSubcommand({
 
 		// Require project context if not using org scope
 		if (!useOrgScope && !project) {
-			tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
+			tui.fatal(
+				'Project context required. Run from a project directory or use --org for organization scope.'
+			);
 		}
 
 		let value: string | undefined;

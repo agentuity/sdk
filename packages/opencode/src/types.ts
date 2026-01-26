@@ -91,9 +91,7 @@ export interface PluginClient {
 		}) => void;
 	};
 	tui?: {
-		showToast?: (options: {
-			body: { message: string };
-		}) => void;
+		showToast?: (options: { body: { message: string } }) => void;
 	};
 }
 

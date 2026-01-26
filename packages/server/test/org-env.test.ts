@@ -126,13 +126,10 @@ describe('org env API', () => {
 				expect(init?.method).toBe('PUT');
 				const body = JSON.parse(init?.body as string);
 				expect(body.env).toEqual({ NEW_VAR: 'value' });
-				return new Response(
-					JSON.stringify({ success: true }),
-					{
-						status: 200,
-						headers: { 'content-type': 'application/json' },
-					}
-				);
+				return new Response(JSON.stringify({ success: true }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				});
 			});
 
 			const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
@@ -146,13 +143,10 @@ describe('org env API', () => {
 				expect(init?.method).toBe('PUT');
 				const body = JSON.parse(init?.body as string);
 				expect(body.secrets).toEqual({ API_KEY: 'secret-value' });
-				return new Response(
-					JSON.stringify({ success: true }),
-					{
-						status: 200,
-						headers: { 'content-type': 'application/json' },
-					}
-				);
+				return new Response(JSON.stringify({ success: true }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				});
 			});
 
 			const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
@@ -165,13 +159,10 @@ describe('org env API', () => {
 				const body = JSON.parse(init?.body as string);
 				expect(body.env).toEqual({ LOG_LEVEL: 'debug' });
 				expect(body.secrets).toEqual({ DB_PASSWORD: 'password123' });
-				return new Response(
-					JSON.stringify({ success: true }),
-					{
-						status: 200,
-						headers: { 'content-type': 'application/json' },
-					}
-				);
+				return new Response(JSON.stringify({ success: true }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				});
 			});
 
 			const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
@@ -213,13 +204,10 @@ describe('org env API', () => {
 				expect(init?.method).toBe('DELETE');
 				const body = JSON.parse(init?.body as string);
 				expect(body.env).toEqual(['OLD_VAR']);
-				return new Response(
-					JSON.stringify({ success: true }),
-					{
-						status: 200,
-						headers: { 'content-type': 'application/json' },
-					}
-				);
+				return new Response(JSON.stringify({ success: true }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				});
 			});
 
 			const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
@@ -233,13 +221,10 @@ describe('org env API', () => {
 				expect(init?.method).toBe('DELETE');
 				const body = JSON.parse(init?.body as string);
 				expect(body.secrets).toEqual(['OLD_SECRET']);
-				return new Response(
-					JSON.stringify({ success: true }),
-					{
-						status: 200,
-						headers: { 'content-type': 'application/json' },
-					}
-				);
+				return new Response(JSON.stringify({ success: true }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				});
 			});
 
 			const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
@@ -252,13 +237,10 @@ describe('org env API', () => {
 				const body = JSON.parse(init?.body as string);
 				expect(body.env).toEqual(['VAR1', 'VAR2']);
 				expect(body.secrets).toEqual(['SECRET1']);
-				return new Response(
-					JSON.stringify({ success: true }),
-					{
-						status: 200,
-						headers: { 'content-type': 'application/json' },
-					}
-				);
+				return new Response(JSON.stringify({ success: true }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				});
 			});
 
 			const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
@@ -287,9 +269,7 @@ describe('org env API', () => {
 
 			const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
 
-			await expect(
-				orgEnvDelete(client, { id: 'org-123', env: ['VAR'] })
-			).rejects.toThrow();
+			await expect(orgEnvDelete(client, { id: 'org-123', env: ['VAR'] })).rejects.toThrow();
 		});
 	});
 });

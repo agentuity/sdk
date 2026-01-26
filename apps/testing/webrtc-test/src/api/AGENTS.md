@@ -5,9 +5,11 @@ This folder contains REST API routes for your Agentuity application. Each API is
 ## Directory Structure
 
 Each API folder must contain:
+
 - **route.ts** (required) - HTTP route definitions using Hono router
 
 Example structure:
+
 ```
 src/api/
 ├── index.ts         (optional, mounted at /api)
@@ -67,9 +69,9 @@ const validator = createRouter.validator({
 router.post('/', validator, async (c) => {
 	const data = c.req.valid('json');
 	// data is fully typed: { name: string, email: string, age: number }
-	return c.json({ 
-		success: true, 
-		user: data 
+	return c.json({
+		success: true,
+		user: data,
 	});
 });
 
@@ -88,7 +90,7 @@ const router = createRouter();
 router.get('/', async (c) => {
 	// Call an agent from the agents/ folder
 	const result = await c.agent.hello.run({ name: 'API Caller', age: 42 });
-	
+
 	return c.json({
 		success: true,
 		agentResult: result,
@@ -98,10 +100,10 @@ router.get('/', async (c) => {
 router.post('/with-input', async (c) => {
 	const body = await c.req.json();
 	const { name, age } = body;
-	
+
 	// Call agent with dynamic input
 	const result = await c.agent.simple.run({ name, age });
-	
+
 	return c.json({
 		success: true,
 		agentResult: result,
@@ -124,7 +126,7 @@ router.get('/log-test', (c) => {
 	c.var.logger.warn('Warning message');
 	c.var.logger.debug('Debug message');
 	c.var.logger.trace('Trace message');
-	
+
 	return c.text('Check logs');
 });
 
@@ -151,12 +153,24 @@ The route handler receives a Hono context object with:
 ```typescript
 const router = createRouter();
 
-router.get('/path', (c) => { /* ... */ });
-router.post('/path', (c) => { /* ... */ });
-router.put('/path', (c) => { /* ... */ });
-router.patch('/path', (c) => { /* ... */ });
-router.delete('/path', (c) => { /* ... */ });
-router.options('/path', (c) => { /* ... */ });
+router.get('/path', (c) => {
+	/* ... */
+});
+router.post('/path', (c) => {
+	/* ... */
+});
+router.put('/path', (c) => {
+	/* ... */
+});
+router.patch('/path', (c) => {
+	/* ... */
+});
+router.delete('/path', (c) => {
+	/* ... */
+});
+router.options('/path', (c) => {
+	/* ... */
+});
 ```
 
 ## Path Parameters

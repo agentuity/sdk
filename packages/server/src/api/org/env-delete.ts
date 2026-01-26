@@ -18,10 +18,7 @@ type OrgEnvDeleteResponse = z.infer<typeof OrgEnvDeleteResponseSchema>;
  * Provide arrays of keys to delete.
  * Requires admin/owner role.
  */
-export async function orgEnvDelete(
-	client: APIClient,
-	request: OrgEnvDeleteRequest
-): Promise<void> {
+export async function orgEnvDelete(client: APIClient, request: OrgEnvDeleteRequest): Promise<void> {
 	const { id, env, secrets } = request;
 
 	const resp = await client.request<OrgEnvDeleteResponse, Omit<OrgEnvDeleteRequest, 'id'>>(

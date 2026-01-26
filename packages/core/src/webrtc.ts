@@ -70,12 +70,139 @@ export type SignalMsg = SignalMessage;
  * - connected → signaling: peer left
  * - connected → idle: hangup or WebSocket closed
  */
-export type WebRTCConnectionState = 'idle' | 'connecting' | 'signaling' | 'negotiating' | 'connected';
+export type WebRTCConnectionState =
+	| 'idle'
+	| 'connecting'
+	| 'signaling'
+	| 'negotiating'
+	| 'connected';
 
 /**
  * Reasons for disconnection.
  */
 export type WebRTCDisconnectReason = 'hangup' | 'error' | 'peer-left' | 'timeout';
+
+// =============================================================================
+// Data Channel Types
+// =============================================================================
+
+/**
+ * Configuration for creating a data channel.
+ */
+export interface DataChannelConfig {
+	/** Unique label for the channel */
+	label: string;
+	/** Whether messages are ordered (default: true) */
+	ordered?: boolean;
+	/** Maximum retransmit time in milliseconds */
+	maxPacketLifeTime?: number;
+	/** Maximum number of retransmissions */
+	maxRetransmits?: number;
+	/** Sub-protocol name */
+	protocol?: string;
+}
+
+/**
+ * Message types for data channel communication.
+ */
+export type DataChannelMessage =
+	| { type: 'string'; data: string }
+	| { type: 'binary'; data: ArrayBuffer }
+	| { type: 'json'; data: unknown };
+
+/**
+ * Data channel state.
+ */
+export type DataChannelState = 'connecting' | 'open' | 'closing' | 'closed';
+
+// =============================================================================
+// Connection Quality / Stats Types
+// =============================================================================
+
+/**
+ * Normalized connection quality summary.
+ * Derived from RTCPeerConnection.getStats() for easy consumption.
+ */
+export interface ConnectionQualitySummary {
+	/** Round-trip time in milliseconds */
+	rtt?: number;
+	/** Packet loss percentage (0-100) */
+	packetLossPercent?: number;
+	/** Jitter in milliseconds (audio) */
+	jitter?: number;
+	/** Current bitrate in bits per second */
+	bitrate?: {
+		audio?: { inbound?: number; outbound?: number };
+		video?: { inbound?: number; outbound?: number };
+	};
+	/** Video metrics */
+	video?: {
+		framesPerSecond?: number;
+		framesDropped?: number;
+		frameWidth?: number;
+		frameHeight?: number;
+	};
+	/** ICE candidate pair info */
+	candidatePair?: {
+		localType?: string;
+		remoteType?: string;
+		protocol?: string;
+		usingRelay?: boolean;
+	};
+	/** Timestamp when stats were collected */
+	timestamp: number;
+}
+
+/**
+ * Recording options for MediaRecorder.
+ */
+export interface RecordingOptions {
+	/** MIME type for recording (default: 'video/webm;codecs=vp9,opus' or 'audio/webm;codecs=opus') */
+	mimeType?: string;
+	/** Audio bits per second */
+	audioBitsPerSecond?: number;
+	/** Video bits per second */
+	videoBitsPerSecond?: number;
+}
+
+/**
+ * Recording handle for controlling an active recording.
+ */
+export interface RecordingHandle {
+	/** Stop recording and get the blob */
+	stop(): Promise<Blob>;
+	/** Pause recording */
+	pause(): void;
+	/** Resume recording */
+	resume(): void;
+	/** Current recording state */
+	readonly state: RecordingState;
+}
+
+/**
+ * Recording state.
+ */
+export type RecordingState = 'inactive' | 'recording' | 'paused';
+
+// =============================================================================
+// Track Source Types
+// =============================================================================
+
+/**
+ * Abstract track source interface for custom media sources.
+ * Implementations can provide camera, screen share, or custom tracks.
+ *
+ * Note: This interface is implemented in @agentuity/frontend where
+ * browser APIs (MediaStream) are available.
+ */
+export interface TrackSource {
+	/** Get the media stream from this source (returns browser MediaStream) */
+	getStream(): Promise<unknown>;
+	/** Stop the source and release resources */
+	stop(): void;
+	/** Source type identifier */
+	readonly type: 'user-media' | 'display-media' | 'custom';
+}
 
 // =============================================================================
 // Backend Signaling Callbacks

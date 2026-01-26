@@ -36,8 +36,10 @@ test('cli-org-env-secrets', 'org-env-set-creates-variable', async () => {
 	});
 
 	const output = (result.stdout || '') + (result.stderr || '');
-	console.log(`[DEBUG] Set result - exitCode: ${result.exitCode}, stdout: ${result.stdout?.slice(0, 200)}, stderr: ${result.stderr?.slice(0, 200)}`);
-	
+	console.log(
+		`[DEBUG] Set result - exitCode: ${result.exitCode}, stdout: ${result.stdout?.slice(0, 200)}, stderr: ${result.stderr?.slice(0, 200)}`
+	);
+
 	assert(
 		Boolean(result.success || output.includes('set successfully')),
 		`Org env set should succeed: ${output}`
@@ -94,10 +96,12 @@ test('cli-org-env-secrets', 'org-env-get-retrieves-variable', async () => {
 	const setResult = await cliAgent.run({
 		command: `cloud env set ${testKey} ${testValue} --org`,
 	});
-	console.log(`[DEBUG] get-test: Set result - exitCode: ${setResult.exitCode}, success: ${setResult.success}`);
+	console.log(
+		`[DEBUG] get-test: Set result - exitCode: ${setResult.exitCode}, success: ${setResult.success}`
+	);
 	console.log(`[DEBUG] get-test: Set stdout: ${setResult.stdout?.slice(0, 300)}`);
 	console.log(`[DEBUG] get-test: Set stderr: ${setResult.stderr?.slice(0, 300)}`);
-	
+
 	assert(setResult.success, `Set should succeed before get: ${setResult.stderr}`);
 
 	// Get the variable
@@ -105,7 +109,9 @@ test('cli-org-env-secrets', 'org-env-get-retrieves-variable', async () => {
 	const getResult = await cliAgent.run({
 		command: `cloud env get ${testKey} --org`,
 	});
-	console.log(`[DEBUG] get-test: Get result - exitCode: ${getResult.exitCode}, success: ${getResult.success}`);
+	console.log(
+		`[DEBUG] get-test: Get result - exitCode: ${getResult.exitCode}, success: ${getResult.success}`
+	);
 	console.log(`[DEBUG] get-test: Get stdout: ${getResult.stdout?.slice(0, 300)}`);
 	console.log(`[DEBUG] get-test: Get stderr: ${getResult.stderr?.slice(0, 300)}`);
 
@@ -132,9 +138,11 @@ test('cli-org-env-secrets', 'org-env-list-shows-variables', async () => {
 	const setResult = await cliAgent.run({
 		command: `cloud env set ${testKey} ${testValue} --org`,
 	});
-	console.log(`[DEBUG] Set result - exitCode: ${setResult.exitCode}, stdout: ${setResult.stdout?.slice(0, 300)}`);
+	console.log(
+		`[DEBUG] Set result - exitCode: ${setResult.exitCode}, stdout: ${setResult.stdout?.slice(0, 300)}`
+	);
 	console.log(`[DEBUG] Set stderr: ${setResult.stderr?.slice(0, 300)}`);
-	
+
 	assert(setResult.success, `Set should succeed before list: ${setResult.stderr}`);
 
 	// List org variables
@@ -142,7 +150,9 @@ test('cli-org-env-secrets', 'org-env-list-shows-variables', async () => {
 	const listResult = await cliAgent.run({
 		command: 'cloud env list --org',
 	});
-	console.log(`[DEBUG] List result - exitCode: ${listResult.exitCode}, stdout: ${listResult.stdout?.slice(0, 500)}`);
+	console.log(
+		`[DEBUG] List result - exitCode: ${listResult.exitCode}, stdout: ${listResult.stdout?.slice(0, 500)}`
+	);
 
 	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
 	assert(listOutput.includes(testKey), `Should list key: ${listOutput}`);
@@ -166,20 +176,26 @@ test('cli-org-env-secrets', 'org-env-delete-removes-variable', async () => {
 	const setResult = await cliAgent.run({
 		command: `cloud env set ${testKey} ${testValue} --org`,
 	});
-	console.log(`[DEBUG] delete-test: Set result - exitCode: ${setResult.exitCode}, success: ${setResult.success}, stdout: ${setResult.stdout?.slice(0, 200)}`);
+	console.log(
+		`[DEBUG] delete-test: Set result - exitCode: ${setResult.exitCode}, success: ${setResult.success}, stdout: ${setResult.stdout?.slice(0, 200)}`
+	);
 
 	// Verify the variable was set before trying to delete
 	const verifyResult = await cliAgent.run({
 		command: `cloud env get ${testKey} --org`,
 	});
-	console.log(`[DEBUG] delete-test: Verify after set - exitCode: ${verifyResult.exitCode}, success: ${verifyResult.success}`);
-	
+	console.log(
+		`[DEBUG] delete-test: Verify after set - exitCode: ${verifyResult.exitCode}, success: ${verifyResult.success}`
+	);
+
 	// Delete the variable
 	console.log(`[DEBUG] delete-test: Deleting ${testKey}`);
 	const deleteResult = await cliAgent.run({
 		command: `cloud env delete ${testKey} --org`,
 	});
-	console.log(`[DEBUG] delete-test: Delete result - exitCode: ${deleteResult.exitCode}, success: ${deleteResult.success}, stdout: ${deleteResult.stdout?.slice(0, 200)}`);
+	console.log(
+		`[DEBUG] delete-test: Delete result - exitCode: ${deleteResult.exitCode}, success: ${deleteResult.success}, stdout: ${deleteResult.stdout?.slice(0, 200)}`
+	);
 
 	const deleteOutput = (deleteResult.stdout || '') + (deleteResult.stderr || '');
 	assert(
@@ -207,9 +223,11 @@ test('cli-org-env-secrets', 'org-env-list-no-mask-shows-secrets', async () => {
 	const setResult = await cliAgent.run({
 		command: `cloud env set ${testKey} ${testValue} --secret --org`,
 	});
-	console.log(`[DEBUG] no-mask-test: Set result - exitCode: ${setResult.exitCode}, success: ${setResult.success}`);
+	console.log(
+		`[DEBUG] no-mask-test: Set result - exitCode: ${setResult.exitCode}, success: ${setResult.success}`
+	);
 	console.log(`[DEBUG] no-mask-test: Set stdout: ${setResult.stdout?.slice(0, 300)}`);
-	
+
 	assert(setResult.success, `Set secret should succeed: ${setResult.stderr}`);
 
 	// List with --no-mask
@@ -594,17 +612,21 @@ test('cli-org-env-secrets', 'org-env-list-env-only-filter', async () => {
 	const setEnvResult = await cliAgent.run({
 		command: `cloud env set ${envKey} env_value --org`,
 	});
-	console.log(`[DEBUG] env-only-test: Set env result - exitCode: ${setEnvResult.exitCode}, success: ${setEnvResult.success}`);
+	console.log(
+		`[DEBUG] env-only-test: Set env result - exitCode: ${setEnvResult.exitCode}, success: ${setEnvResult.success}`
+	);
 	console.log(`[DEBUG] env-only-test: Set env stdout: ${setEnvResult.stdout?.slice(0, 300)}`);
-	
+
 	assert(setEnvResult.success, `Set env var should succeed: ${setEnvResult.stderr}`);
-	
+
 	console.log(`[DEBUG] env-only-test: Setting secret ${secretKey}`);
 	const setSecretResult = await cliAgent.run({
 		command: `cloud env set ${secretKey} secret_value --secret --org`,
 	});
-	console.log(`[DEBUG] env-only-test: Set secret result - exitCode: ${setSecretResult.exitCode}, success: ${setSecretResult.success}`);
-	
+	console.log(
+		`[DEBUG] env-only-test: Set secret result - exitCode: ${setSecretResult.exitCode}, success: ${setSecretResult.success}`
+	);
+
 	assert(setSecretResult.success, `Set secret should succeed: ${setSecretResult.stderr}`);
 
 	// List with --env-only filter
@@ -614,7 +636,7 @@ test('cli-org-env-secrets', 'org-env-list-env-only-filter', async () => {
 	});
 	console.log(`[DEBUG] env-only-test: List result - exitCode: ${listResult.exitCode}`);
 	console.log(`[DEBUG] env-only-test: List stdout: ${listResult.stdout?.slice(0, 500)}`);
-	
+
 	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
 
 	assert(listOutput.includes(envKey), `Should include env var: ${listOutput}`);

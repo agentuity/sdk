@@ -2,16 +2,28 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'r
 import {
 	WebRTCManager,
 	buildUrl,
-	type WebRTCStatus,
 	type WebRTCManagerOptions,
-	type WebRTCConnectionState,
 	type WebRTCClientCallbacks,
+	type TrackSource,
 } from '@agentuity/frontend';
+import type {
+	WebRTCConnectionState,
+	DataChannelConfig,
+	DataChannelState,
+	ConnectionQualitySummary,
+	RecordingHandle,
+	RecordingOptions,
+} from '@agentuity/core';
 
-export type { WebRTCClientCallbacks };
+export type {
+	WebRTCClientCallbacks,
+	DataChannelConfig,
+	DataChannelState,
+	ConnectionQualitySummary,
+};
 import { AgentuityContext } from './context';
 
-export type { WebRTCStatus, WebRTCConnectionState };
+export type { WebRTCConnectionState };
 
 /**
  * Options for useWebRTCCall hook
@@ -21,12 +33,23 @@ export interface UseWebRTCCallOptions {
 	roomId: string;
 	/** WebSocket signaling URL (e.g., '/call/signal' or full URL) */
 	signalUrl: string;
-	/** Whether this peer is "polite" in perfect negotiation (default: true for first joiner) */
+	/** Whether this peer is "polite" in perfect negotiation */
 	polite?: boolean;
 	/** ICE servers configuration */
 	iceServers?: RTCIceServer[];
-	/** Media constraints for getUserMedia */
-	media?: MediaStreamConstraints;
+	/**
+	 * Media source configuration.
+	 * - `false`: Data-only mode (no media)
+	 * - `MediaStreamConstraints`: Use getUserMedia with these constraints
+	 * - `TrackSource`: Use a custom track source
+	 * Default: { video: true, audio: true }
+	 */
+	media?: MediaStreamConstraints | TrackSource | false;
+	/**
+	 * Data channels to create when connection is established.
+	 * Only the offerer (late joiner) creates channels; the answerer receives them.
+	 */
+	dataChannels?: DataChannelConfig[];
 	/** Whether to auto-connect on mount (default: true) */
 	autoConnect?: boolean;
 	/**
@@ -42,22 +65,24 @@ export interface UseWebRTCCallOptions {
 export interface UseWebRTCCallResult {
 	/** Ref to attach to local video element */
 	localVideoRef: React.RefObject<HTMLVideoElement | null>;
-	/** Ref to attach to remote video element */
-	remoteVideoRef: React.RefObject<HTMLVideoElement | null>;
-	/** Current connection state (new state machine) */
+	/** Current connection state */
 	state: WebRTCConnectionState;
-	/** @deprecated Use `state` instead. Current connection status */
-	status: WebRTCStatus;
 	/** Current error if any */
 	error: Error | null;
 	/** Local peer ID assigned by server */
 	peerId: string | null;
-	/** Remote peer ID */
-	remotePeerId: string | null;
+	/** Remote peer IDs */
+	remotePeerIds: string[];
+	/** Remote streams keyed by peer ID */
+	remoteStreams: Map<string, MediaStream>;
 	/** Whether audio is muted */
 	isAudioMuted: boolean;
 	/** Whether video is muted */
 	isVideoMuted: boolean;
+	/** Whether this is a data-only connection (no media) */
+	isDataOnly: boolean;
+	/** Whether screen sharing is active */
+	isScreenSharing: boolean;
 	/** Manually start the connection (if autoConnect is false) */
 	connect: () => void;
 	/** End the call */
@@ -66,48 +91,82 @@ export interface UseWebRTCCallResult {
 	muteAudio: (muted: boolean) => void;
 	/** Mute or unmute video */
 	muteVideo: (muted: boolean) => void;
+
+	// Screen sharing
+	/** Start screen sharing */
+	startScreenShare: (options?: DisplayMediaStreamOptions) => Promise<void>;
+	/** Stop screen sharing */
+	stopScreenShare: () => Promise<void>;
+
+	// Data channel methods
+	/** Create a new data channel to all peers */
+	createDataChannel: (config: DataChannelConfig) => Map<string, RTCDataChannel>;
+	/** Get all open data channel labels */
+	getDataChannelLabels: () => string[];
+	/** Get the state of a data channel for a specific peer */
+	getDataChannelState: (peerId: string, label: string) => DataChannelState | null;
+	/** Send a string message to all peers */
+	sendString: (label: string, data: string) => boolean;
+	/** Send a string message to a specific peer */
+	sendStringTo: (peerId: string, label: string, data: string) => boolean;
+	/** Send binary data to all peers */
+	sendBinary: (label: string, data: ArrayBuffer | Uint8Array) => boolean;
+	/** Send binary data to a specific peer */
+	sendBinaryTo: (peerId: string, label: string, data: ArrayBuffer | Uint8Array) => boolean;
+	/** Send JSON data to all peers */
+	sendJSON: (label: string, data: unknown) => boolean;
+	/** Send JSON data to a specific peer */
+	sendJSONTo: (peerId: string, label: string, data: unknown) => boolean;
+	/** Close a specific data channel on all peers */
+	closeDataChannel: (label: string) => boolean;
+
+	// Stats
+	/** Get quality summary for a peer */
+	getQualitySummary: (peerId: string) => Promise<ConnectionQualitySummary | null>;
+	/** Get quality summaries for all peers */
+	getAllQualitySummaries: () => Promise<Map<string, ConnectionQualitySummary>>;
+
+	// Recording
+	/** Start recording a stream */
+	startRecording: (streamId: string, options?: RecordingOptions) => RecordingHandle | null;
+	/** Check if a stream is being recorded */
+	isRecording: (streamId: string) => boolean;
+	/** Stop all recordings */
+	stopAllRecordings: () => Promise<Map<string, Blob>>;
 }
 
 /**
- * Map new state to legacy status for backwards compatibility
- */
-function stateToStatus(state: WebRTCConnectionState): WebRTCStatus {
-	if (state === 'idle') return 'disconnected';
-	if (state === 'negotiating') return 'connecting';
-	return state as WebRTCStatus;
-}
-
-/**
- * React hook for WebRTC peer-to-peer audio/video calls.
+ * React hook for WebRTC peer-to-peer audio/video/data calls.
  *
- * Handles WebRTC signaling, media capture, and peer connection management.
+ * Supports multi-peer mesh networking, screen sharing, recording, and stats.
  *
  * @example
  * ```tsx
  * function VideoCall({ roomId }: { roomId: string }) {
  *   const {
  *     localVideoRef,
- *     remoteVideoRef,
  *     state,
+ *     remotePeerIds,
+ *     remoteStreams,
  *     hangup,
  *     muteAudio,
  *     isAudioMuted,
+ *     startScreenShare,
  *   } = useWebRTCCall({
  *     roomId,
  *     signalUrl: '/call/signal',
  *     callbacks: {
- *       onStateChange: (from, to, reason) => {
- *         console.log(`State: ${from} → ${to}`, reason);
- *       },
- *       onConnect: () => console.log('Connected!'),
- *       onDisconnect: (reason) => console.log('Disconnected:', reason),
+ *       onStateChange: (from, to, reason) => console.log(`${from} → ${to}`, reason),
+ *       onRemoteStream: (peerId, stream) => console.log(`Got stream from ${peerId}`),
  *     },
  *   });
  *
  *   return (
  *     <div>
  *       <video ref={localVideoRef} autoPlay muted playsInline />
- *       <video ref={remoteVideoRef} autoPlay playsInline />
+ *       {remotePeerIds.map((peerId) => (
+ *         <RemoteVideo key={peerId} stream={remoteStreams.get(peerId)} />
+ *       ))}
  *       <p>State: {state}</p>
  *       <button onClick={() => muteAudio(!isAudioMuted)}>
  *         {isAudioMuted ? 'Unmute' : 'Mute'}
@@ -118,40 +177,33 @@ function stateToStatus(state: WebRTCConnectionState): WebRTCStatus {
  * }
  * ```
  */
-
-// maybe use video/audio one then also a Raw one.
 export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResult {
 	const context = useContext(AgentuityContext);
 
 	const managerRef = useRef<WebRTCManager | null>(null);
 	const localVideoRef = useRef<HTMLVideoElement | null>(null);
-	const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
 	const [state, setState] = useState<WebRTCConnectionState>('idle');
 	const [error, setError] = useState<Error | null>(null);
 	const [peerId, setPeerId] = useState<string | null>(null);
-	const [remotePeerId, setRemotePeerId] = useState<string | null>(null);
+	const [remotePeerIds, setRemotePeerIds] = useState<string[]>([]);
+	const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
 	const [isAudioMuted, setIsAudioMuted] = useState(false);
 	const [isVideoMuted, setIsVideoMuted] = useState(false);
+	const [isScreenSharing, setIsScreenSharing] = useState(false);
 
-	// Store user callbacks in a ref to avoid recreating manager
 	const userCallbacksRef = useRef(options.callbacks);
 	userCallbacksRef.current = options.callbacks;
 
-	// Build full signaling URL
 	const signalUrl = useMemo(() => {
-		// If it's already a full URL, use as-is
 		if (options.signalUrl.startsWith('ws://') || options.signalUrl.startsWith('wss://')) {
 			return options.signalUrl;
 		}
-
-		// Build from context base URL
 		const base = context?.baseUrl ?? window.location.origin;
 		const wsBase = base.replace(/^http(s?):/, 'ws$1:');
 		return buildUrl(wsBase, options.signalUrl);
 	}, [context?.baseUrl, options.signalUrl]);
 
-	// Create manager options - use refs to avoid recreating manager on state changes
 	const managerOptions = useMemo((): WebRTCManagerOptions => {
 		return {
 			signalUrl,
@@ -159,13 +211,15 @@ export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResul
 			polite: options.polite,
 			iceServers: options.iceServers,
 			media: options.media,
+			dataChannels: options.dataChannels,
 			callbacks: {
 				onStateChange: (from, to, reason) => {
 					setState(to);
 					if (managerRef.current) {
 						const managerState = managerRef.current.getState();
 						setPeerId(managerState.peerId);
-						setRemotePeerId(managerState.remotePeerId);
+						setRemotePeerIds(managerState.remotePeerIds);
+						setIsScreenSharing(managerState.isScreenSharing);
 					}
 					userCallbacksRef.current?.onStateChange?.(from, to, reason);
 				},
@@ -181,52 +235,84 @@ export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResul
 					}
 					userCallbacksRef.current?.onLocalStream?.(stream);
 				},
-				onRemoteStream: (stream) => {
-					if (remoteVideoRef.current) {
-						remoteVideoRef.current.srcObject = stream;
-					}
-					userCallbacksRef.current?.onRemoteStream?.(stream);
+				onRemoteStream: (remotePeerId, stream) => {
+					setRemoteStreams((prev) => {
+						const next = new Map(prev);
+						next.set(remotePeerId, stream);
+						return next;
+					});
+					userCallbacksRef.current?.onRemoteStream?.(remotePeerId, stream);
 				},
-				onTrackAdded: (track, stream) => {
-					userCallbacksRef.current?.onTrackAdded?.(track, stream);
+				onTrackAdded: (remotePeerId, track, stream) => {
+					userCallbacksRef.current?.onTrackAdded?.(remotePeerId, track, stream);
 				},
-				onTrackRemoved: (track) => {
-					userCallbacksRef.current?.onTrackRemoved?.(track);
+				onTrackRemoved: (remotePeerId, track) => {
+					userCallbacksRef.current?.onTrackRemoved?.(remotePeerId, track);
 				},
 				onPeerJoined: (id) => {
-					setRemotePeerId(id);
+					setRemotePeerIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
 					userCallbacksRef.current?.onPeerJoined?.(id);
 				},
 				onPeerLeft: (id) => {
-					setRemotePeerId((current) => (current === id ? null : current));
+					setRemotePeerIds((prev) => prev.filter((p) => p !== id));
+					setRemoteStreams((prev) => {
+						const next = new Map(prev);
+						next.delete(id);
+						return next;
+					});
 					userCallbacksRef.current?.onPeerLeft?.(id);
 				},
-				onNegotiationStart: () => {
-					userCallbacksRef.current?.onNegotiationStart?.();
+				onNegotiationStart: (remotePeerId) => {
+					userCallbacksRef.current?.onNegotiationStart?.(remotePeerId);
 				},
-				onNegotiationComplete: () => {
-					userCallbacksRef.current?.onNegotiationComplete?.();
+				onNegotiationComplete: (remotePeerId) => {
+					userCallbacksRef.current?.onNegotiationComplete?.(remotePeerId);
 				},
-				onIceCandidate: (candidate) => {
-					userCallbacksRef.current?.onIceCandidate?.(candidate);
+				onIceCandidate: (remotePeerId, candidate) => {
+					userCallbacksRef.current?.onIceCandidate?.(remotePeerId, candidate);
 				},
-				onIceStateChange: (iceState) => {
-					userCallbacksRef.current?.onIceStateChange?.(iceState);
+				onIceStateChange: (remotePeerId, iceState) => {
+					userCallbacksRef.current?.onIceStateChange?.(remotePeerId, iceState);
 				},
 				onError: (err, currentState) => {
 					setError(err);
 					userCallbacksRef.current?.onError?.(err, currentState);
 				},
+				onDataChannelOpen: (remotePeerId, label) => {
+					userCallbacksRef.current?.onDataChannelOpen?.(remotePeerId, label);
+				},
+				onDataChannelClose: (remotePeerId, label) => {
+					userCallbacksRef.current?.onDataChannelClose?.(remotePeerId, label);
+				},
+				onDataChannelMessage: (remotePeerId, label, data) => {
+					userCallbacksRef.current?.onDataChannelMessage?.(remotePeerId, label, data);
+				},
+				onDataChannelError: (remotePeerId, label, err) => {
+					userCallbacksRef.current?.onDataChannelError?.(remotePeerId, label, err);
+				},
+				onScreenShareStart: () => {
+					setIsScreenSharing(true);
+					userCallbacksRef.current?.onScreenShareStart?.();
+				},
+				onScreenShareStop: () => {
+					setIsScreenSharing(false);
+					userCallbacksRef.current?.onScreenShareStop?.();
+				},
 			},
 		};
-	}, [signalUrl, options.roomId, options.polite, options.iceServers, options.media]);
+	}, [
+		signalUrl,
+		options.roomId,
+		options.polite,
+		options.iceServers,
+		options.media,
+		options.dataChannels,
+	]);
 
-	// Initialize manager
 	useEffect(() => {
 		const manager = new WebRTCManager(managerOptions);
 		managerRef.current = manager;
 
-		// Auto-connect if enabled (default: true)
 		if (options.autoConnect !== false) {
 			manager.connect();
 		}
@@ -243,6 +329,8 @@ export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResul
 
 	const hangup = useCallback(() => {
 		managerRef.current?.hangup();
+		setRemotePeerIds([]);
+		setRemoteStreams(new Map());
 	}, []);
 
 	const muteAudio = useCallback((muted: boolean) => {
@@ -255,19 +343,108 @@ export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResul
 		setIsVideoMuted(muted);
 	}, []);
 
+	const startScreenShare = useCallback(async (opts?: DisplayMediaStreamOptions) => {
+		await managerRef.current?.startScreenShare(opts);
+	}, []);
+
+	const stopScreenShare = useCallback(async () => {
+		await managerRef.current?.stopScreenShare();
+	}, []);
+
+	const createDataChannel = useCallback((config: DataChannelConfig) => {
+		return managerRef.current?.createDataChannel(config) ?? new Map();
+	}, []);
+
+	const getDataChannelLabels = useCallback(() => {
+		return managerRef.current?.getDataChannelLabels() ?? [];
+	}, []);
+
+	const getDataChannelState = useCallback((remotePeerId: string, label: string) => {
+		return managerRef.current?.getDataChannelState(remotePeerId, label) ?? null;
+	}, []);
+
+	const sendString = useCallback((label: string, data: string) => {
+		return managerRef.current?.sendString(label, data) ?? false;
+	}, []);
+
+	const sendStringTo = useCallback((remotePeerId: string, label: string, data: string) => {
+		return managerRef.current?.sendStringTo(remotePeerId, label, data) ?? false;
+	}, []);
+
+	const sendBinary = useCallback((label: string, data: ArrayBuffer | Uint8Array) => {
+		return managerRef.current?.sendBinary(label, data) ?? false;
+	}, []);
+
+	const sendBinaryTo = useCallback(
+		(remotePeerId: string, label: string, data: ArrayBuffer | Uint8Array) => {
+			return managerRef.current?.sendBinaryTo(remotePeerId, label, data) ?? false;
+		},
+		[]
+	);
+
+	const sendJSON = useCallback((label: string, data: unknown) => {
+		return managerRef.current?.sendJSON(label, data) ?? false;
+	}, []);
+
+	const sendJSONTo = useCallback((remotePeerId: string, label: string, data: unknown) => {
+		return managerRef.current?.sendJSONTo(remotePeerId, label, data) ?? false;
+	}, []);
+
+	const closeDataChannel = useCallback((label: string) => {
+		return managerRef.current?.closeDataChannel(label) ?? false;
+	}, []);
+
+	const getQualitySummary = useCallback(async (remotePeerId: string) => {
+		return managerRef.current?.getQualitySummary(remotePeerId) ?? null;
+	}, []);
+
+	const getAllQualitySummaries = useCallback(async () => {
+		return managerRef.current?.getAllQualitySummaries() ?? new Map();
+	}, []);
+
+	const startRecording = useCallback((streamId: string, opts?: RecordingOptions) => {
+		return managerRef.current?.startRecording(streamId, opts) ?? null;
+	}, []);
+
+	const isRecordingFn = useCallback((streamId: string) => {
+		return managerRef.current?.isRecording(streamId) ?? false;
+	}, []);
+
+	const stopAllRecordings = useCallback(async () => {
+		return managerRef.current?.stopAllRecordings() ?? new Map();
+	}, []);
+
 	return {
 		localVideoRef,
-		remoteVideoRef,
 		state,
-		status: stateToStatus(state),
 		error,
 		peerId,
-		remotePeerId,
+		remotePeerIds,
+		remoteStreams,
 		isAudioMuted,
 		isVideoMuted,
+		isDataOnly: options.media === false,
+		isScreenSharing,
 		connect,
 		hangup,
 		muteAudio,
 		muteVideo,
+		startScreenShare,
+		stopScreenShare,
+		createDataChannel,
+		getDataChannelLabels,
+		getDataChannelState,
+		sendString,
+		sendStringTo,
+		sendBinary,
+		sendBinaryTo,
+		sendJSON,
+		sendJSONTo,
+		closeDataChannel,
+		getQualitySummary,
+		getAllQualitySummaries,
+		startRecording,
+		isRecording: isRecordingFn,
+		stopAllRecordings,
 	};
 }

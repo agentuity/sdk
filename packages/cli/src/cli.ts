@@ -1533,7 +1533,11 @@ async function registerSubcommand(
 					!normalized.requiresRegion &&
 					(options as Record<string, unknown>).register === false;
 
-				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient && !skipRegion) {
+				if (
+					(normalized.requiresRegion || normalized.optionalRegion) &&
+					ctx.apiClient &&
+					!skipRegion
+				) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
 					const regions = await tui.spinner({
 						message: 'Fetching cloud regions',

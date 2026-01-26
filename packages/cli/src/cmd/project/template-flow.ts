@@ -337,9 +337,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			logger.debug(
 				`Resources for org ${orgId} in region ${region}: ${resources.db.length} databases, ${resources.s3.length} storage buckets`
 			);
-			logger.debug(
-				`Database names: ${resources.db.map((d) => d.name).join(', ') || '(none)'}`
-			);
+			logger.debug(`Database names: ${resources.db.map((d) => d.name).join(', ') || '(none)'}`);
 			logger.debug(
 				`Storage buckets: ${resources.s3.map((b) => b.bucket_name).join(', ') || '(none)'}`
 			);

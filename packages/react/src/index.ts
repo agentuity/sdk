@@ -33,7 +33,6 @@ export {
 	useWebRTCCall,
 	type UseWebRTCCallOptions,
 	type UseWebRTCCallResult,
-	type WebRTCStatus,
 	type WebRTCConnectionState,
 	type WebRTCClientCallbacks,
 } from './webrtc';
@@ -90,7 +89,9 @@ export {
 	type EventStreamManagerOptions,
 	type EventStreamManagerState,
 	WebRTCManager,
-	type WebRTCCallbacks,
+	UserMediaSource,
+	DisplayMediaSource,
+	CustomStreamSource,
 	type WebRTCManagerOptions,
 	type WebRTCManagerState,
 	type WebRTCDisconnectReason,

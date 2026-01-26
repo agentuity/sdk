@@ -5,12 +5,14 @@ This folder contains your React-based web application that communicates with you
 ## Directory Structure
 
 Required files:
+
 - **App.tsx** (required) - Main React application component
 - **frontend.tsx** (required) - Frontend entry point with client-side rendering
 - **index.html** (required) - HTML template
 - **public/** (optional) - Static assets (images, CSS, JS files)
 
 Example structure:
+
 ```
 src/web/
 ├── App.tsx
@@ -38,21 +40,21 @@ export function App() {
 		<div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
 			<AgentuityProvider>
 				<h1>Welcome to Agentuity</h1>
-				
+
 				<input
 					type="text"
 					value={name}
 					onChange={(e) => setName(e.target.value)}
 					disabled={running}
 				/>
-				
-				<button 
+
+				<button
 					onClick={() => run({ name })}
 					disabled={running}
 				>
 					{running ? 'Running...' : 'Say Hello'}
 				</button>
-				
+
 				<div>{greeting ?? 'Waiting for response'}</div>
 			</AgentuityProvider>
 		</div>
@@ -77,15 +79,15 @@ createRoot(root).render(<App />);
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>My Agentuity App</title>
-</head>
-<body>
-	<div id="root"></div>
-	<script type="module" src="/web/frontend.tsx"></script>
-</body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>My Agentuity App</title>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="/web/frontend.tsx"></script>
+	</body>
 </html>
 ```
 
@@ -98,7 +100,7 @@ import { useAgent } from '@agentuity/react';
 
 function MyComponent() {
 	const { run, running, data, error } = useAgent('myAgent');
-	
+
 	return (
 		<button onClick={() => run({ input: 'value' })}>
 			{running ? 'Running...' : 'Call Agent'}
@@ -114,7 +116,7 @@ import { useAgentWebsocket } from '@agentuity/react';
 
 function MyComponent() {
 	const { connected, send, data } = useAgentWebsocket('websocket');
-	
+
 	return (
 		<div>
 			<p>Status: {connected ? 'Connected' : 'Disconnected'}</p>
@@ -132,7 +134,7 @@ import { useAgentEventStream } from '@agentuity/react';
 
 function MyComponent() {
 	const { connected, data, error } = useAgentEventStream('sse');
-	
+
 	return (
 		<div>
 			<p>Connected: {connected ? 'Yes' : 'No'}</p>
@@ -153,7 +155,7 @@ export function App() {
 	const [count, setCount] = useState(0);
 	const { run, data: agentResult } = useAgent('simple');
 	const { connected, send, data: wsMessage } = useAgentWebsocket('websocket');
-	
+
 	useEffect(() => {
 		// Send WebSocket message every second
 		const interval = setInterval(() => {
@@ -166,21 +168,21 @@ export function App() {
 		<div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
 			<AgentuityProvider>
 				<h1>My Agentuity App</h1>
-				
+
 				<div>
 					<p>Count: {count}</p>
 					<button onClick={() => setCount(c => c + 1)}>
 						Increment
 					</button>
 				</div>
-				
+
 				<div>
 					<button onClick={() => run({ name: 'Jeff', age: 30 })}>
 						Call Agent
 					</button>
 					<p>{agentResult}</p>
 				</div>
-				
+
 				<div>
 					<strong>WebSocket:</strong>
 					{connected ? JSON.stringify(wsMessage) : 'Not connected'}
@@ -206,7 +208,7 @@ Reference them in your HTML or components:
 
 ```html
 <!-- In index.html -->
-<link rel="stylesheet" href="/public/styles.css">
+<link rel="stylesheet" href="/public/styles.css" />
 <script src="/public/script.js"></script>
 ```
 
@@ -240,7 +242,7 @@ body {
 Import in `index.html`:
 
 ```html
-<link rel="stylesheet" href="/public/styles.css">
+<link rel="stylesheet" href="/public/styles.css" />
 ```
 
 ### Style Tag in Component

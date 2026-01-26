@@ -119,6 +119,12 @@ declare module '@agentuity/frontend' {
 				stream: false;
 				params: { userId: string };
 			};
+	'GET /api/webrtc/signal': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	}
 	
 	/**
@@ -200,6 +206,14 @@ declare module '@agentuity/frontend' {
 				get: { input: never; output: never; type: 'api'; params: { userId: string }; paramsTuple: [string] };
 			};
 		};
+		webrtc: {
+			signal: {
+				/**
+				 * Route: GET /api/webrtc/signal
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
 	}
 }
 
@@ -230,6 +244,12 @@ declare module '@agentuity/react' {
 				outputSchema: never;
 				stream: false;
 				params: { userId: string };
+			};
+	'GET /api/webrtc/signal': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
 			};
 	}
 	export interface WebSocketRouteRegistry {
@@ -293,6 +313,14 @@ declare module '@agentuity/react' {
 				get: { input: never; output: never; type: 'api'; params: { userId: string }; paramsTuple: [string] };
 			};
 		};
+		webrtc: {
+			signal: {
+				/**
+				 * Route: GET /api/webrtc/signal
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
 	}
 }
 
@@ -350,6 +378,14 @@ const _rpcRouteMetadata = {
 								"pathParams": [
 										"userId"
 								]
+						}
+				}
+		},
+		"webrtc": {
+				"signal": {
+						"get": {
+								"type": "api",
+								"path": "/api/webrtc/signal"
 						}
 				}
 		}

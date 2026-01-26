@@ -354,7 +354,8 @@ describe('WebRTCRoomManager', () => {
 		test('should call onPeerLeave when peer disconnects', () => {
 			const events: string[] = [];
 			const callbacks: WebRTCSignalingCallbacks = {
-				onPeerLeave: (peerId, roomId, reason) => events.push(`peer-leave:${peerId}:${roomId}:${reason}`),
+				onPeerLeave: (peerId, roomId, reason) =>
+					events.push(`peer-leave:${peerId}:${roomId}:${reason}`),
 			};
 			const manager = new WebRTCRoomManager({ callbacks });
 			const ws = createMockWs();
@@ -383,7 +384,8 @@ describe('WebRTCRoomManager', () => {
 		test('should call onMessage for SDP messages', () => {
 			const events: string[] = [];
 			const callbacks: WebRTCSignalingCallbacks = {
-				onMessage: (type, from, to, roomId) => events.push(`message:${type}:${from}:${to}:${roomId}`),
+				onMessage: (type, from, to, roomId) =>
+					events.push(`message:${type}:${from}:${to}:${roomId}`),
 			};
 			const manager = new WebRTCRoomManager({ callbacks });
 			const ws1 = createMockWs();
@@ -402,7 +404,8 @@ describe('WebRTCRoomManager', () => {
 		test('should call onMessage for ICE messages', () => {
 			const events: string[] = [];
 			const callbacks: WebRTCSignalingCallbacks = {
-				onMessage: (type, from, to, roomId) => events.push(`message:${type}:${from}:${to}:${roomId}`),
+				onMessage: (type, from, to, roomId) =>
+					events.push(`message:${type}:${from}:${to}:${roomId}`),
 			};
 			const manager = new WebRTCRoomManager({ callbacks });
 			const ws1 = createMockWs();

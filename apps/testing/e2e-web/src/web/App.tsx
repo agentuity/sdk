@@ -5,6 +5,7 @@ import { RpcPage } from './RpcPage';
 import { RpcTestPage } from './RpcTestPage';
 import { PathParamsPage } from './PathParamsPage';
 import { AnalyticsTestPage } from './AnalyticsTestPage';
+import { WebRTCTestPage } from './WebRTCTestPage';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 
@@ -30,6 +31,10 @@ export function App() {
 
 	if (path === '/analytics') {
 		return <AnalyticsTestPage />;
+	}
+
+	if (path === '/webrtc') {
+		return <WebRTCTestPage />;
 	}
 
 	const [name, setName] = useState('World');
