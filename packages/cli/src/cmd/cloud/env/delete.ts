@@ -6,7 +6,6 @@ import {
 	findExistingEnvFile,
 	readEnvFile,
 	writeEnvFile,
-	filterAgentuitySdkKeys,
 	isReservedAgentuityKey,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
@@ -141,9 +140,8 @@ export const deleteSubcommand = createSubcommand({
 				const currentEnv = await readEnvFile(envFilePath);
 				delete currentEnv[args.key];
 
-				// Filter out AGENTUITY_ keys before writing
-				const filteredEnv = filterAgentuitySdkKeys(currentEnv);
-				await writeEnvFile(envFilePath, filteredEnv);
+				// Write the updated env, preserveExisting: false since we already have the full state
+				await writeEnvFile(envFilePath, currentEnv, { preserveExisting: false });
 			}
 
 			const successMsg = envFilePath

@@ -4,9 +4,7 @@ import * as tui from '../../../tui';
 import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server';
 import {
 	findExistingEnvFile,
-	readEnvFile,
 	writeEnvFile,
-	filterAgentuitySdkKeys,
 	looksLikeSecret,
 	isReservedAgentuityKey,
 	isPublicVarKey,
@@ -145,12 +143,8 @@ export const setSubcommand = createSubcommand({
 			let envFilePath: string | undefined;
 			if (projectDir) {
 				envFilePath = await findExistingEnvFile(projectDir);
-				const currentEnv = await readEnvFile(envFilePath);
-				currentEnv[args.key] = args.value;
-
-				// Filter out AGENTUITY_ keys before writing
-				const filteredEnv = filterAgentuitySdkKeys(currentEnv);
-				await writeEnvFile(envFilePath, filteredEnv);
+				// Write only the new key - writeEnvFile preserves existing keys by default
+				await writeEnvFile(envFilePath, { [args.key]: args.value });
 			}
 
 			const successMsg = envFilePath
