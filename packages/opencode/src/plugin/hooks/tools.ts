@@ -18,7 +18,8 @@ const CLOUD_TOOL_PREFIXES = [
  * Defaults to 'production' for safety, but can be overridden via AGENTUITY_CODER_PROFILE.
  */
 function getCoderProfile(): string {
-	return process.env.AGENTUITY_CODER_PROFILE ?? 'production';
+	const profile = process.env.AGENTUITY_CODER_PROFILE?.trim();
+	return profile || 'production';
 }
 
 /** Cloud service detection for bash commands */
@@ -77,8 +78,8 @@ export function createToolHooks(ctx: PluginContext, config: CoderConfig): ToolHo
 
 					// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
 					if (/AGENTUITY_PROFILE=\S+/.test(command)) {
-						// Replace existing AGENTUITY_PROFILE to enforce our profile
-						modifiedCommand = command.replace(/AGENTUITY_PROFILE=\S+/, `AGENTUITY_PROFILE=${profile}`);
+						// Replace all existing AGENTUITY_PROFILE occurrences to enforce our profile
+						modifiedCommand = command.replace(/AGENTUITY_PROFILE=\S+/g, `AGENTUITY_PROFILE=${profile}`);
 					} else {
 						// Prepend AGENTUITY_PROFILE
 						modifiedCommand = `AGENTUITY_PROFILE=${profile} ${command}`;
