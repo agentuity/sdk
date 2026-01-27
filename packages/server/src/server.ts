@@ -20,7 +20,17 @@ interface ServiceAdapterConfig {
 	) => Promise<void>;
 }
 
-const sensitiveHeaders = new Set(['authorization', 'x-api-key']);
+/**
+ * Headers that contain sensitive information and should be redacted in debug logs.
+ * Includes authentication tokens, API keys, cookies, and proxy credentials.
+ */
+const sensitiveHeaders = new Set([
+	'authorization',
+	'x-api-key',
+	'cookie',
+	'set-cookie',
+	'proxy-authorization',
+]);
 
 /**
  * Check if API debug logging is enabled and return the output destination.
@@ -69,7 +79,20 @@ function formatRequestBody(body: unknown): string {
 }
 
 /**
- * Format headers as a readable string for CI debug logging
+ * Format a sensitive header value, preserving Bearer prefix if present.
+ */
+function redactSensitiveHeader(key: string, value: string): string {
+	const _k = key.toLowerCase();
+	// Handle Bearer tokens in authorization and proxy-authorization headers
+	if ((_k === 'authorization' || _k === 'proxy-authorization') && value.startsWith('Bearer ')) {
+		return `Bearer ${redact(value.substring(7))}`;
+	}
+	return redact(value);
+}
+
+/**
+ * Format headers as a readable string for debug logging.
+ * Sensitive headers (auth tokens, cookies, API keys) are redacted.
  */
 function formatHeaders(headers: Headers | Record<string, string>): string {
 	const entries: string[] = [];
@@ -77,11 +100,7 @@ function formatHeaders(headers: Headers | Record<string, string>): string {
 		headers.forEach((value, key) => {
 			const _k = key.toLowerCase();
 			if (sensitiveHeaders.has(_k)) {
-				if (_k === 'authorization' && value.startsWith('Bearer ')) {
-					entries.push(`  ${key}: Bearer ${redact(value.substring(7))}`);
-				} else {
-					entries.push(`  ${key}: ${redact(value)}`);
-				}
+				entries.push(`  ${key}: ${redactSensitiveHeader(key, value)}`);
 			} else {
 				entries.push(`  ${key}: ${value}`);
 			}
@@ -90,11 +109,7 @@ function formatHeaders(headers: Headers | Record<string, string>): string {
 		for (const [key, value] of Object.entries(headers)) {
 			const _k = key.toLowerCase();
 			if (sensitiveHeaders.has(_k)) {
-				if (_k === 'authorization' && value.startsWith('Bearer ')) {
-					entries.push(`  ${key}: Bearer ${redact(value.substring(7))}`);
-				} else {
-					entries.push(`  ${key}: ${redact(value)}`);
-				}
+				entries.push(`  ${key}: ${redactSensitiveHeader(key, value)}`);
 			} else {
 				entries.push(`  ${key}: ${value}`);
 			}
@@ -198,11 +213,7 @@ const redactHeaders = (kv: Record<string, string>): string => {
 		const _k = k.toLowerCase();
 		const v = kv[k];
 		if (sensitiveHeaders.has(_k)) {
-			if (_k === 'authorization' && v.startsWith('Bearer ')) {
-				values.push(`${_k}=Bearer ${redact(v.substring(7))}`);
-			} else {
-				values.push(`${_k}=${redact(v)}`);
-			}
+			values.push(`${_k}=${redactSensitiveHeader(k, v)}`);
 		} else {
 			values.push(`${_k}=${v}`);
 		}
