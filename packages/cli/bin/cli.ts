@@ -7,7 +7,7 @@ import { loadConfig } from '../src/config';
 import { discoverCommands } from '../src/cmd';
 import { detectColorScheme } from '../src/terminal';
 import { setColorScheme } from '../src/tui';
-import { getVersion } from '../src/version';
+import { getVersion, getPackageName } from '../src/version';
 import { checkLegacyCLI } from '../src/legacy-check';
 import type { CommandContext, LogLevel } from '../src/types';
 import { generateCLISchema } from '../src/schema-generator';
@@ -16,6 +16,37 @@ import type { GlobalOptions } from '../src/types';
 import { ensureBunOnPath } from '../src/bun-path';
 import { checkForUpdates } from '../src/version-check';
 import { closeDatabase } from '../src/cache';
+import { createInternalLogger } from '../src/internal-logger';
+import { createCompositeLogger } from '../src/composite-logger';
+import { getAuth } from '../src/config';
+
+/**
+ * Extract --dir flag from process.argv before command parsing
+ * Handles both --dir=<path> and --dir <path> formats
+ * Returns undefined if not present
+ */
+function getProjectDirFromArgs(): string | undefined {
+	const args = process.argv;
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+
+		// Handle --dir=<path>
+		if (arg.startsWith('--dir=')) {
+			return arg.slice(6);
+		}
+
+		// Handle --dir <path>
+		if (arg === '--dir' && i + 1 < args.length) {
+			const nextArg = args[i + 1];
+			// Make sure next arg isn't another flag
+			if (!nextArg.startsWith('-')) {
+				return nextArg;
+			}
+		}
+	}
+
+	return undefined;
+}
 
 // Cleanup TTY state before exit
 function cleanupTTY() {
@@ -123,8 +154,79 @@ if (process.env.DEBUG_COLORS) {
 // In quiet or JSON mode, suppress most logging
 const effectiveLogLevel =
 	earlyOpts.quiet || earlyOpts.json ? 'error' : (earlyOpts.logLevel as LogLevel) || 'info';
-const logger = new ConsoleLogger(effectiveLogLevel, earlyOpts.logTimestamp || false, colorScheme);
-logger.setShowPrefix(earlyOpts.logPrefix !== false);
+const consoleLogger = new ConsoleLogger(
+	effectiveLogLevel,
+	earlyOpts.logTimestamp || false,
+	colorScheme
+);
+consoleLogger.setShowPrefix(earlyOpts.logPrefix !== false);
+
+// Extract the command being run from process.argv (skip flags and their values)
+// We need to do this early to check if we should skip internal logging
+const commandArgs: string[] = [];
+let skipNext = false;
+for (const arg of preprocessedArgs) {
+	if (skipNext) {
+		skipNext = false;
+		continue;
+	}
+	if (arg.startsWith('--')) {
+		// Check if this flag takes a value (contains '=' or is known to take a value)
+		if (!arg.includes('=')) {
+			// Skip the next arg if it's not a flag (it's the value for this flag)
+			const nextIdx = preprocessedArgs.indexOf(arg) + 1;
+			if (nextIdx < preprocessedArgs.length && !preprocessedArgs[nextIdx].startsWith('-')) {
+				skipNext = true;
+			}
+		}
+	} else if (arg.startsWith('-') && arg.length === 2) {
+		// Short flag, might have a value
+		skipNext = true;
+	} else if (!arg.startsWith('-')) {
+		commandArgs.push(arg);
+	}
+}
+
+// Check if we should skip internal logging based on command or help flags
+// We need to check the commands first to see if skipInternalLogging is set
+const earlyCommandName = commandArgs[0];
+const earlySubcommandName = commandArgs[1];
+const commands = await discoverCommands();
+const earlyCommandDef = commands.find((cmd) => cmd.name === earlyCommandName);
+const earlySubcommandDef = earlySubcommandName
+	? earlyCommandDef?.subcommands?.find((sub) => sub.name === earlySubcommandName)
+	: undefined;
+
+// Skip internal logging if:
+// 1. Help flag is present
+// 2. No command provided (shows help)
+// 3. Command has skipInternalLogging set
+// 4. Subcommand has skipInternalLogging set
+const shouldSkipInternalLogging =
+	hasHelp ||
+	commandArgs.length === 0 ||
+	earlyCommandDef?.skipInternalLogging ||
+	earlySubcommandDef?.skipInternalLogging;
+
+// Create internal logger for trace/debug logging (always at trace level)
+const internalLogger = createInternalLogger(version, getPackageName());
+
+// Disable or initialize the internal logger based on command flags
+if (shouldSkipInternalLogging) {
+	internalLogger.disable();
+} else {
+	const command = commandArgs.length > 0 ? commandArgs.join(' ') : 'help';
+	// Extract --dir from argv if present (for project context in logs)
+	const projectDirArg = getProjectDirFromArgs();
+	// Filter out command/subcommand names from args to avoid duplication
+	// commandArgs contains the command path (e.g., ['auth', 'whoami'])
+	// We want args to contain only the actual arguments, not the command itself
+	const filteredArgs = preprocessedArgs.filter((arg) => !commandArgs.includes(arg));
+	internalLogger.init(command, filteredArgs, undefined, projectDirArg);
+}
+
+// Create composite logger that writes to both console and internal log
+const logger = createCompositeLogger(consoleLogger, internalLogger);
 
 // Set version check skip flag from CLI option
 if (earlyOpts.skipVersionCheck) {
@@ -132,6 +234,16 @@ if (earlyOpts.skipVersionCheck) {
 }
 
 const config = await loadConfig(earlyOpts.config);
+
+// Update internal logger with userId if available from auth (keychain or config)
+try {
+	const auth = await getAuth();
+	if (auth?.userId) {
+		internalLogger.setUserId(auth.userId);
+	}
+} catch {
+	// Ignore auth errors - user might not be logged in
+}
 
 const ctx = {
 	config,
@@ -145,8 +257,6 @@ if (earlyOpts.json && !earlyOpts.errorFormat) {
 	earlyOpts.errorFormat = 'json';
 }
 setOutputOptions(earlyOpts as GlobalOptions);
-
-const commands = await discoverCommands();
 
 // Check for updates before running commands (may upgrade and re-exec)
 // Find the command being run to check if it opts out of upgrade check

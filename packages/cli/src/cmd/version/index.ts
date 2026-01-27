@@ -11,6 +11,7 @@ export const command = createCommand({
 	name: 'version',
 	description: 'Display version information',
 	skipUpgradeCheck: true,
+	skipInternalLogging: true,
 	tags: ['read-only', 'fast'],
 	examples: [
 		{ command: getCommand('version'), description: 'Show the CLI semantic version' },

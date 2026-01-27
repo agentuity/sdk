@@ -457,6 +457,7 @@ export function createSubcommand<
 	banner?: true;
 	aliases?: string[];
 	toplevel?: boolean;
+	skipInternalLogging?: boolean;
 	requires?: R;
 	optional?: O;
 	examples?: CommandExample[];
@@ -503,6 +504,7 @@ export function createCommand<
 	executable?: boolean;
 	skipUpgradeCheck?: boolean;
 	passThroughArgs?: boolean;
+	skipInternalLogging?: boolean;
 	requires?: R;
 	optional?: O;
 	examples?: CommandExample[];
@@ -545,6 +547,7 @@ type CommandDefBase =
 			skipUpgradeCheck?: boolean;
 			passThroughArgs?: boolean;
 			skipSkill?: boolean;
+			skipInternalLogging?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -564,6 +567,7 @@ type CommandDefBase =
 			skipUpgradeCheck?: boolean;
 			passThroughArgs?: boolean;
 			skipSkill?: boolean;
+			skipInternalLogging?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -583,6 +587,7 @@ type SubcommandDefBase =
 			toplevel?: boolean;
 			banner?: boolean;
 			skipSkill?: boolean;
+			skipInternalLogging?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -600,6 +605,7 @@ type SubcommandDefBase =
 			toplevel?: boolean;
 			banner?: boolean;
 			skipSkill?: boolean;
+			skipInternalLogging?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];

@@ -18,6 +18,13 @@ export {
 } from './errors';
 export { wrapLogger, CLILogger } from './cli-logger';
 export {
+	InternalLogger,
+	createInternalLogger,
+	getLatestLogSession,
+	getLogsDirPath,
+} from './internal-logger';
+export { CompositeLogger, createCompositeLogger } from './composite-logger';
+export {
 	isJSONMode,
 	isQuietMode,
 	shouldDisableProgress,
