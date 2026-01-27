@@ -100,6 +100,11 @@ export interface StreamInfo {
 	 * the size of the stream in bytes
 	 */
 	sizeBytes: number;
+
+	/**
+	 * ISO 8601 timestamp when stream expires, or undefined if stream never expires
+	 */
+	expiresAt?: string;
 }
 
 /**
@@ -731,6 +736,7 @@ export class StreamStorageService implements StreamStorage {
 				metadata: Record<string, string>;
 				url: string;
 				size_bytes: number;
+				expires_at?: string;
 			}>;
 			total: number;
 		}>(url, {
@@ -744,7 +750,7 @@ export class StreamStorageService implements StreamStorage {
 			},
 		});
 		if (res.ok) {
-			// Transform snake_case to camelCase for sizeBytes
+			// Transform snake_case to camelCase for sizeBytes and expiresAt
 			return {
 				success: res.data.success,
 				message: res.data.message,
@@ -754,6 +760,7 @@ export class StreamStorageService implements StreamStorage {
 					metadata: s.metadata,
 					url: s.url,
 					sizeBytes: s.size_bytes,
+					...(s.expires_at && { expiresAt: s.expires_at }),
 				})),
 				total: res.data.total,
 			};
@@ -773,6 +780,7 @@ export class StreamStorageService implements StreamStorage {
 			metadata: Record<string, string>;
 			url: string;
 			size_bytes: number;
+			expires_at?: string;
 		}>(url, {
 			method: 'POST',
 			signal,
@@ -792,6 +800,7 @@ export class StreamStorageService implements StreamStorage {
 				metadata: res.data.metadata,
 				url: res.data.url,
 				sizeBytes: res.data.size_bytes,
+				...(res.data.expires_at && { expiresAt: res.data.expires_at }),
 			};
 		}
 		throw await toServiceException('POST', url, res.response);
