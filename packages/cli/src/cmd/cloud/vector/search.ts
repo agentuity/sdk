@@ -8,6 +8,7 @@ const VectorSearchResultSchema = z.object({
 	key: z.string().describe('Vector key'),
 	similarity: z.number().describe('Similarity score (0-1)'),
 	metadata: z.record(z.string(), z.unknown()).optional().describe('Vector metadata'),
+	expiresAt: z.string().optional().describe('Expiration time as ISO 8601 timestamp'),
 });
 
 const VectorSearchResponseSchema = z.object({
@@ -163,6 +164,7 @@ export const searchSubcommand = createCommand({
 				key: r.key,
 				similarity: r.similarity,
 				metadata: r.metadata,
+				expiresAt: r.expiresAt,
 			})),
 			count: results.length,
 		};
