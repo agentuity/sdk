@@ -5,7 +5,7 @@
  */
 
 import { test } from './suite';
-import { assert, assertEqual, assertDefined, uniqueId } from './helpers';
+import { assert, assertEqual, assertDefined } from './helpers';
 
 import streamCrudAgent from '@agents/storage/stream/crud';
 import streamMetadataAgent from '@agents/storage/stream/metadata';
@@ -13,7 +13,7 @@ import streamTypesAgent from '@agents/storage/stream/types';
 
 // Test: Create stream, write, and close
 test('storage-stream', 'create-write-close', async () => {
-	const name = uniqueId('stream-basic');
+	const name = 'testing';
 
 	const result = await streamCrudAgent.run({
 		operation: 'create-write-close',
@@ -30,7 +30,7 @@ test('storage-stream', 'create-write-close', async () => {
 
 // Test: Create, write, and read back data
 test('storage-stream', 'create-write-read', async () => {
-	const name = uniqueId('stream-read');
+	const name = 'testing';
 	const testData = 'Test data for reading';
 
 	const result = await streamCrudAgent.run({
@@ -47,7 +47,7 @@ test('storage-stream', 'create-write-read', async () => {
 
 // Test: Download stream by ID
 test('storage-stream', 'download', async () => {
-	const name = uniqueId('stream-download');
+	const name = 'testing';
 	const testData = 'Data to download';
 
 	const createResult = await streamCrudAgent.run({
@@ -69,7 +69,7 @@ test('storage-stream', 'download', async () => {
 
 // Test: Delete stream
 test('storage-stream', 'delete', async () => {
-	const name = uniqueId('stream-delete');
+	const name = 'testing';
 
 	const createResult = await streamCrudAgent.run({
 		operation: 'create-write-close',
@@ -89,7 +89,7 @@ test('storage-stream', 'delete', async () => {
 
 // Test: Create stream with metadata
 test('storage-stream', 'metadata', async () => {
-	const name = uniqueId('stream-metadata');
+	const name = 'testing';
 	const metadata = {
 		author: 'test-user',
 		version: '1.0',
@@ -114,7 +114,7 @@ test('storage-stream', 'metadata', async () => {
 
 // Test: Get stream info
 test('storage-stream', 'get-info', async () => {
-	const name = uniqueId('stream-info');
+	const name = 'testing';
 
 	const createResult = await streamCrudAgent.run({
 		operation: 'create-write-close',
@@ -139,7 +139,7 @@ test('storage-stream', 'get-info', async () => {
 
 // Test: List streams
 test('storage-stream', 'list', async () => {
-	const baseName = uniqueId('stream-list');
+	const baseName = 'testing';
 
 	await Promise.all([
 		streamCrudAgent.run({
@@ -166,7 +166,7 @@ test('storage-stream', 'list', async () => {
 
 // Test: String type stream
 test('storage-stream', 'type-string', async () => {
-	const name = uniqueId('stream-string');
+	const name = 'testing';
 	const testString = 'Hello, World!';
 
 	const result = await streamTypesAgent.run({
@@ -182,7 +182,7 @@ test('storage-stream', 'type-string', async () => {
 
 // Test: Binary type stream
 test('storage-stream', 'type-binary', async () => {
-	const name = uniqueId('stream-binary');
+	const name = 'testing';
 	const testData = 'Binary data test';
 
 	const result = await streamTypesAgent.run({
@@ -198,7 +198,7 @@ test('storage-stream', 'type-binary', async () => {
 
 // Test: JSON object stream
 test('storage-stream', 'type-json', async () => {
-	const name = uniqueId('stream-json');
+	const name = 'testing';
 	const testObject = {
 		id: 123,
 		name: 'Test Object',
@@ -222,7 +222,7 @@ test('storage-stream', 'type-json', async () => {
 
 // Test: Concurrent stream operations
 test('storage-stream', 'concurrent-operations', async () => {
-	const names = Array.from({ length: 5 }, (_, i) => uniqueId(`stream-concurrent-${i}`));
+	const names = Array.from({ length: 5 }, () => 'testing');
 
 	const results = await Promise.all(
 		names.map((name, i) =>
@@ -242,7 +242,7 @@ test('storage-stream', 'concurrent-operations', async () => {
 
 // Test: Stream size validation
 test('storage-stream', 'size-validation', async () => {
-	const name = uniqueId('stream-size');
+	const name = 'testing';
 	const testData = 'A'.repeat(100);
 
 	const createResult = await streamCrudAgent.run({

@@ -54,6 +54,7 @@ const binaryStorageAgent = createAgent('storage-binary-upload-download', {
 						size: binaryData.length.toString(),
 						uploadedAt: new Date().toISOString(),
 					},
+					ttl: 1800,
 				});
 
 				// Write data

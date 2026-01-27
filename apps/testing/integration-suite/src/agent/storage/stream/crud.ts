@@ -27,7 +27,7 @@ const streamCrudAgent = createAgent('storage-stream-crud', {
 				if (!name) throw new Error('Name required for create operation');
 				if (!data) throw new Error('Data required for write operation');
 
-				const stream = await ctx.stream.create(name);
+				const stream = await ctx.stream.create(name, { ttl: 1800 });
 				await stream.write(data);
 				await stream.close();
 
@@ -43,7 +43,7 @@ const streamCrudAgent = createAgent('storage-stream-crud', {
 				if (!name) throw new Error('Name required for create operation');
 				if (!data) throw new Error('Data required for write operation');
 
-				const stream = await ctx.stream.create(name);
+				const stream = await ctx.stream.create(name, { ttl: 1800 });
 				await stream.write(data);
 				await stream.close();
 
