@@ -9,7 +9,7 @@
  */
 
 import { test } from '@test/suite';
-import { assert, assertEqual, uniqueId } from '@test/helpers';
+import { assert, assertEqual, uniqueId, testRunId } from '@test/helpers';
 import cliAgent from '@agents/cli/agent';
 import { isAuthenticated } from '@test/helpers/cli';
 
@@ -656,55 +656,18 @@ test('cli-org-env-secrets', 'zzz-cleanup-all-org-env-vars', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	// Get all org env vars and delete any that match our test patterns
-	const listResult = await cliAgent.run({
-		command: 'cloud env list --org',
+	// Only delete org env vars created by THIS test run (identified by testRunId)
+	// This prevents concurrent CI runs from interfering with each other
+	const keysToDelete = [...createdOrgEnvVars];
+
+	if (keysToDelete.length === 0) {
+		return;
+	}
+
+	// Delete all test org env vars from this run in a single batch operation
+	await cliAgent.run({
+		command: `cloud env delete ${keysToDelete.join(' ')} --org`,
 	});
-	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
-	const lines = listOutput.split('\n');
-
-	// Patterns that indicate test-created org env vars
-	const testPatterns = [
-		/^ORG_ENV_TEST_/,
-		/^ORG_SECRET_TEST_/,
-		/^ORG_GET_TEST_/,
-		/^ORG_LIST_TEST_/,
-		/^ORG_DELETE_TEST_/,
-		/^ORG_NOMASK_TEST_/,
-		/^ORG_MASK_TEST_/,
-		/^AGENTUITY_PUBLIC_ORG_TEST_/,
-		/^ORG_OVERWRITE_TEST_/,
-		/^ORG_CONVERT_TEST_/,
-		/^ORG_TOSECRET_TEST_/,
-		/^ORG_FILTER_/,
-		/^ORG_ENVONLY_/,
-	];
-
-	const keysToDelete: string[] = [];
-	for (const line of lines) {
-		// Extract key name from line
-		const match = line.match(/^([A-Z][A-Z0-9_]*)/);
-		if (match) {
-			const key = match[1];
-			if (testPatterns.some((pattern) => pattern.test(key))) {
-				keysToDelete.push(key);
-			}
-		}
-	}
-
-	// Also add any tracked keys that might have been missed
-	for (const key of createdOrgEnvVars) {
-		if (!keysToDelete.includes(key)) {
-			keysToDelete.push(key);
-		}
-	}
-
-	// Delete all test org env vars
-	for (const key of keysToDelete) {
-		await cliAgent.run({
-			command: `cloud env delete ${key} --org`,
-		});
-	}
 
 	// Clear the tracking array
 	createdOrgEnvVars.length = 0;

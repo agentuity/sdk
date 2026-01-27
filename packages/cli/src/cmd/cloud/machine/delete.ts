@@ -49,7 +49,7 @@ export const deleteSubcommand = createSubcommand({
 			if (!opts.confirm) {
 				if (process.stdin.isTTY) {
 					tui.newline();
-					tui.warn(`You are about to delete machine ${tui.bold(machine.id)}`);
+					tui.warning(`You are about to delete machine ${tui.bold(machine.id)}`);
 					if (machine.orgName) {
 						tui.info(`Organization: ${machine.orgName}`);
 					}
