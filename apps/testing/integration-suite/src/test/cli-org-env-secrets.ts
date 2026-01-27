@@ -660,12 +660,14 @@ test('cli-org-env-secrets', 'zzz-cleanup-all-org-env-vars', async () => {
 	// This prevents concurrent CI runs from interfering with each other
 	const keysToDelete = [...createdOrgEnvVars];
 
-	// Delete all test org env vars from this run
-	for (const key of keysToDelete) {
-		await cliAgent.run({
-			command: `cloud env delete ${key} --org`,
-		});
+	if (keysToDelete.length === 0) {
+		return;
 	}
+
+	// Delete all test org env vars from this run in a single batch operation
+	await cliAgent.run({
+		command: `cloud env delete ${keysToDelete.join(' ')} --org`,
+	});
 
 	// Clear the tracking array
 	createdOrgEnvVars.length = 0;
