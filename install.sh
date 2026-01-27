@@ -373,16 +373,20 @@ install_cli() {
 }
 
 # Create a shim in ~/.agentuity/bin for backward compatibility
+# Only creates shim if the legacy directory is on PATH; otherwise cleans up
 create_legacy_shim() {
   legacy_dir="$HOME/.agentuity/bin"
   legacy_bin="$legacy_dir/agentuity"
 
-  # Only create shim if ~/.agentuity/bin exists or was previously used
-  if [ -d "$legacy_dir" ] || [ -f "$legacy_bin" ]; then
-    mkdir -p "$legacy_dir"
+  # Check if ~/.agentuity/bin is on PATH
+  case ":$PATH:" in
+  *":$legacy_dir:"*)
+    # Legacy dir IS on PATH - create/maintain the shim for backward compatibility
+    if [ -d "$legacy_dir" ] || [ -f "$legacy_bin" ]; then
+      mkdir -p "$legacy_dir"
 
-    # Create a self-healing shim that auto-reinstalls if binary is missing
-    cat > "$legacy_bin" << EOF
+      # Create a self-healing shim that auto-reinstalls if binary is missing
+      cat > "$legacy_bin" << EOF
 #!/bin/sh
 BUN_BIN="$BUN_INSTALL_BIN/agentuity"
 if [ ! -x "\$BUN_BIN" ]; then
@@ -395,9 +399,22 @@ if [ ! -x "\$BUN_BIN" ]; then
 fi
 exec "\$BUN_BIN" "\$@"
 EOF
-    chmod 755 "$legacy_bin"
-    print_message debug "Created compatibility shim at $legacy_bin"
-  fi
+      chmod 755 "$legacy_bin"
+      print_message debug "Created compatibility shim at $legacy_bin"
+    fi
+    ;;
+  *)
+    # Legacy dir is NOT on PATH - clean up if it exists
+    if [ -f "$legacy_bin" ]; then
+      rm -f "$legacy_bin"
+      print_message debug "Removed legacy binary at $legacy_bin (not on PATH)"
+    fi
+    # Remove the directory only if it's empty
+    if [ -d "$legacy_dir" ]; then
+      rmdir "$legacy_dir" 2>/dev/null && print_message debug "Removed empty legacy directory $legacy_dir" || true
+    fi
+    ;;
+  esac
 }
 
 # Add bun bin to PATH in shell config
