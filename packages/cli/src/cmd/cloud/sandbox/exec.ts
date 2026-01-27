@@ -7,8 +7,8 @@ import { getCommand } from '../../../command-prefix';
 import { sandboxExecute, executionGet, writeAndDrain } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
 
-const POLL_INTERVAL_MS = 500;
-const MAX_POLL_ATTEMPTS = 7200;
+// Server-side long-poll wait duration (max 5 minutes supported by server)
+const EXECUTION_WAIT_DURATION = '5m';
 
 const SandboxExecResponseSchema = z.object({
 	executionId: z.string().describe('Unique execution identifier'),
@@ -115,41 +115,14 @@ export const execSubcommand = createCommand({
 				}
 			}
 
-			let attempts = 0;
-			let finalExecution = execution;
-
-			while (attempts < MAX_POLL_ATTEMPTS) {
-				if (abortController.signal.aborted) {
-					throw new Error('Execution cancelled');
-				}
-
-				await sleep(POLL_INTERVAL_MS);
-				attempts++;
-
-				try {
-					const execInfo = await executionGet(client, {
-						executionId: execution.executionId,
-						orgId,
-					});
-
-					if (
-						execInfo.status === 'completed' ||
-						execInfo.status === 'failed' ||
-						execInfo.status === 'timeout' ||
-						execInfo.status === 'cancelled'
-					) {
-						finalExecution = {
-							executionId: execInfo.executionId,
-							status: execInfo.status,
-							exitCode: execInfo.exitCode,
-							durationMs: execInfo.durationMs,
-						};
-						break;
-					}
-				} catch {
-					continue;
-				}
-			}
+			// Use server-side long-polling to wait for execution completion
+			// This is more efficient than client-side polling and provides immediate
+			// error detection if the sandbox is terminated
+			const finalExecution = await executionGet(client, {
+				executionId: execution.executionId,
+				orgId,
+				wait: EXECUTION_WAIT_DURATION,
+			});
 
 			// Wait for all streams to reach EOF (Pulse blocks until true EOF)
 			await Promise.all(streamPromises);
@@ -246,10 +219,6 @@ function createCaptureStream(onChunk: (chunk: string) => void): NodeJS.WritableS
 			callback();
 		},
 	});
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export default execSubcommand;
