@@ -128,9 +128,10 @@ const program = await createCLI(version);
 // Parse options early to check for color scheme override and extract operands
 // Skip parseOptions if we have help flags to avoid "unknown option" error
 // parseOptions returns { operands, unknown } where operands are positional args (command names)
+// Pass only user args (slice(2) to skip node path and script path) per Commander v14 expectations
 let parsedOperands: string[] = [];
 if (!hasHelp) {
-	const parsed = program.parseOptions(process.argv);
+	const parsed = program.parseOptions(process.argv.slice(2));
 	parsedOperands = parsed.operands;
 }
 const earlyOpts = program.opts();
@@ -167,7 +168,7 @@ consoleLogger.setShowPrefix(earlyOpts.logPrefix !== false);
 // For help mode, parsedOperands is empty so we fall back to extracting from preprocessedArgs.
 const commandArgs = hasHelp
 	? preprocessedArgs.filter((arg) => !arg.startsWith('-'))
-	: parsedOperands.slice(2); // Skip first two elements (node path and script path)
+	: parsedOperands;
 
 // Check if we should skip internal logging based on command or help flags
 // We need to check the commands first to see if skipInternalLogging is set
