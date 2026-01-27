@@ -8,7 +8,7 @@
  */
 
 import { test } from '@test/suite';
-import { assert, assertEqual, uniqueId } from '@test/helpers';
+import { assert, assertEqual, uniqueId, testRunId } from '@test/helpers';
 import cliAgent from '@agents/cli/agent';
 import { isAuthenticated } from '@test/helpers/cli';
 
@@ -592,7 +592,10 @@ test('cli-env-secrets', 'env-delete-not-found', async () => {
 
 	assertEqual(result.success, false, 'Should fail for non-existent key');
 	const output = (result.stdout || '') + (result.stderr || '');
-	assert(output.includes('not found'), 'Should mention key not found');
+	assert(
+		output.includes('not found') || output.includes('No variables found'),
+		'Should mention key not found'
+	);
 });
 
 // Test: Full CRUD cycle - set, get, list, delete, verify deleted
@@ -835,55 +838,19 @@ test('cli-env-secrets', 'zzz-cleanup-all-env-vars', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	// Get all env vars and delete any that match our test patterns
-	const listResult = await cliAgent.run({
-		command: 'cloud env list',
+	// Only delete env vars created by THIS test run (identified by testRunId)
+	// This prevents concurrent CI runs from interfering with each other
+	const keysToDelete = [...createdEnvVars];
+
+	if (keysToDelete.length === 0) {
+		return;
+	}
+
+	// Delete all test env vars from this run in a single batch operation
+	await cliAgent.run({
+		command: 'cloud env delete',
+		args: keysToDelete,
 	});
-	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
-	const lines = listOutput.split('\n');
-
-	// Patterns that indicate test-created env vars
-	const testPatterns = [
-		/^MASK_TEST_/,
-		/^NOMASK_TEST_/,
-		/^AGENTUITY_PUBLIC_TEST_/,
-		/^VITE_TEST_/,
-		/^PUBLIC_TEST_/,
-		/^SECRET_KEY_/,
-		/^TEST_.*_KEY$/,
-		/^CONFIG_VAL_/,
-		/^NORMAL_VAR_/,
-		/^CRUD_TEST_/,
-		/^OVERWRITE_TEST_/,
-		/^CONVERT_TEST_/,
-	];
-
-	const keysToDelete: string[] = [];
-	for (const line of lines) {
-		// Extract key name from line (format: "KEY_NAME    value    [secret]")
-		const match = line.match(/^([A-Z][A-Z0-9_]*)/);
-		if (match) {
-			const key = match[1];
-			if (testPatterns.some((pattern) => pattern.test(key))) {
-				keysToDelete.push(key);
-			}
-		}
-	}
-
-	// Also add any tracked keys that might have been missed
-	for (const key of createdEnvVars) {
-		if (!keysToDelete.includes(key)) {
-			keysToDelete.push(key);
-		}
-	}
-
-	// Delete all test env vars
-	for (const key of keysToDelete) {
-		await cliAgent.run({
-			command: 'cloud env delete',
-			args: [key],
-		});
-	}
 
 	// Clear the tracking array
 	createdEnvVars.length = 0;

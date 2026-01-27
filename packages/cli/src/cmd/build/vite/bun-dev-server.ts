@@ -15,6 +15,9 @@ export interface BunDevServerOptions {
 	deploymentId?: string;
 	logger: Logger;
 	vitePort: number; // Port of already-running Vite asset server
+	inspect?: boolean; // Enable bun debugger
+	inspectWait?: boolean; // Enable bun debugger and wait for connection
+	inspectBrk?: boolean; // Enable bun debugger with breakpoint at first line
 }
 
 export interface BunDevServerResult {
@@ -30,17 +33,15 @@ export interface BunDevServerResult {
  *
  * The bundle is loaded here to ensure AI Gateway routing patches are active.
  * Vite port is read from process.env.VITE_PORT at runtime.
+ *
+ * When debugger flags (inspect, inspectWait, inspectBrk) are passed, bun is spawned
+ * as a subprocess to enable passing the debugger CLI flags.
  */
 export async function startBunDevServer(options: BunDevServerOptions): Promise<BunDevServerResult> {
-	const { rootDir, port = 3500, logger, vitePort } = options;
+	const { rootDir, port = 3500, logger, vitePort, inspect, inspectWait, inspectBrk } = options;
 
 	logger.debug('Starting Bun dev server (Vite already running on port %d)...', vitePort);
 
-	// Load the bundled app - this will start Bun.serve() internally
-	// IMPORTANT: We must import the bundled .agentuity/app.js (NOT src/generated/app.ts)
-	// because the bundled version has LLM provider patches applied that enable AI Gateway routing.
-	// Importing the source file directly would bypass these patches.
-	logger.debug('📦 Loading bundled app (Bun server will start)...');
 	const appPath = `${rootDir}/.agentuity/app.js`;
 
 	// Verify bundle exists before attempting to load
@@ -54,29 +55,45 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 	// Set PORT env var so the generated app uses the correct port
 	process.env.PORT = String(port);
 
-	// Import the generated app with cache-busting query parameter.
-	// Bun's module cache is keyed by the full specifier including query string,
-	// so adding a unique timestamp forces a fresh import on each reload.
-	const cacheBuster = `?t=${Date.now()}`;
-	try {
-		await import(appPath + cacheBuster);
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error('Failed to import generated app from %s: %s', appPath, errorMessage);
-		throw new Error(`Failed to load generated app: ${errorMessage}`);
-	}
+	// Check if any debugger flag is enabled
+	const useDebugger = inspect || inspectWait || inspectBrk;
 
-	// Wait for server to actually start listening
-	// The generated app sets (globalThis as any).__AGENTUITY_SERVER__ when server starts
-	const maxRetries = 50; // Increased retries for slower systems
-	const retryDelay = 100; // ms
-	let serverReady = false;
+	if (useDebugger) {
+		// Spawn bun as subprocess with debugger flag
+		logger.debug('📦 Spawning bun with debugger enabled...');
 
-	for (let i = 0; i < maxRetries; i++) {
-		// Check if global server object exists
+		// Determine which debugger flag to use (priority: inspectBrk > inspectWait > inspect)
+		let debugFlag: string;
+		if (inspectBrk) {
+			debugFlag = '--inspect-brk';
+		} else if (inspectWait) {
+			debugFlag = '--inspect-wait';
+		} else {
+			debugFlag = '--inspect';
+		}
+
+		logger.debug('Using debugger flag: %s', debugFlag);
+
+		const bunProcess = Bun.spawn(['bun', debugFlag, 'run', appPath], {
+			cwd: rootDir,
+			stdout: 'inherit',
+			stderr: 'inherit',
+			env: {
+				...process.env,
+				PORT: String(port),
+			},
+		});
+
+		// Store the process globally so it can be killed on shutdown
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		if ((globalThis as any).__AGENTUITY_SERVER__) {
-			// Server object exists, now verify it's actually listening by making a request
+		(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = bunProcess;
+
+		// Wait for server to actually start listening
+		const maxRetries = 50;
+		const retryDelay = 100;
+		let serverReady = false;
+
+		for (let i = 0; i < maxRetries; i++) {
 			try {
 				await fetch(`http://127.0.0.1:${port}/`, {
 					method: 'HEAD',
@@ -88,19 +105,79 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 			} catch {
 				// Connection refused or timeout - server not ready yet
 			}
+			// Wait before next check
+			await new Promise((resolve) => setTimeout(resolve, retryDelay));
 		}
-		// Wait before next check
-		await new Promise((resolve) => setTimeout(resolve, retryDelay));
-	}
 
-	if (!serverReady) {
-		throw new Error(
-			`Bun server failed to start on port ${port} after ${maxRetries * retryDelay}ms`
-		);
-	}
+		if (!serverReady) {
+			// Kill the subprocess if server didn't start
+			try {
+				bunProcess.kill();
+			} catch (err) {
+				logger.debug('Error killing subprocess during startup failure: %s', err);
+			}
+			throw new Error(
+				`Bun server failed to start on port ${port} after ${maxRetries * retryDelay}ms`
+			);
+		}
 
-	logger.debug(`Bun dev server started on http://127.0.0.1:${port}`);
-	logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
+		logger.debug(`Bun dev server started on http://127.0.0.1:${port} with debugger enabled`);
+		logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
+	} else {
+		// Load the bundled app - this will start Bun.serve() internally
+		// IMPORTANT: We must import the bundled .agentuity/app.js (NOT src/generated/app.ts)
+		// because the bundled version has LLM provider patches applied that enable AI Gateway routing.
+		// Importing the source file directly would bypass these patches.
+		logger.debug('📦 Loading bundled app (Bun server will start)...');
+
+		// Import the generated app with cache-busting query parameter.
+		// Bun's module cache is keyed by the full specifier including query string,
+		// so adding a unique timestamp forces a fresh import on each reload.
+		const cacheBuster = `?t=${Date.now()}`;
+		try {
+			await import(appPath + cacheBuster);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			logger.error('Failed to import generated app from %s: %s', appPath, errorMessage);
+			throw new Error(`Failed to load generated app: ${errorMessage}`);
+		}
+
+		// Wait for server to actually start listening
+		// The generated app sets (globalThis as any).__AGENTUITY_SERVER__ when server starts
+		const maxRetries = 50; // Increased retries for slower systems
+		const retryDelay = 100; // ms
+		let serverReady = false;
+
+		for (let i = 0; i < maxRetries; i++) {
+			// Check if global server object exists
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			if ((globalThis as any).__AGENTUITY_SERVER__) {
+				// Server object exists, now verify it's actually listening by making a request
+				try {
+					await fetch(`http://127.0.0.1:${port}/`, {
+						method: 'HEAD',
+						signal: AbortSignal.timeout(1000),
+					});
+					// Any response (even 404) means server is listening
+					serverReady = true;
+					break;
+				} catch {
+					// Connection refused or timeout - server not ready yet
+				}
+			}
+			// Wait before next check
+			await new Promise((resolve) => setTimeout(resolve, retryDelay));
+		}
+
+		if (!serverReady) {
+			throw new Error(
+				`Bun server failed to start on port ${port} after ${maxRetries * retryDelay}ms`
+			);
+		}
+
+		logger.debug(`Bun dev server started on http://127.0.0.1:${port}`);
+		logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
+	}
 
 	return {
 		bunServerPort: port,
