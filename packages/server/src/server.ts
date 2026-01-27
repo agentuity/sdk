@@ -7,6 +7,7 @@ import type {
 	HttpMethod,
 } from '@agentuity/core';
 import { ServiceException, toServiceException, fromResponse } from '@agentuity/core';
+import { appendFileSync } from 'node:fs';
 
 interface ServiceAdapterConfig {
 	headers: Record<string, string>;
@@ -19,7 +20,168 @@ interface ServiceAdapterConfig {
 	) => Promise<void>;
 }
 
-const sensitiveHeaders = new Set(['authorization', 'x-api-key']);
+/**
+ * Headers that contain sensitive information and should be redacted in debug logs.
+ * Includes authentication tokens, API keys, cookies, and proxy credentials.
+ */
+const sensitiveHeaders = new Set([
+	'authorization',
+	'x-api-key',
+	'cookie',
+	'set-cookie',
+	'proxy-authorization',
+]);
+
+/**
+ * Check if API debug logging is enabled and return the output destination.
+ * Returns:
+ * - 'console' if CI=1/true or AGENTUITY_API_DEBUG=1/true
+ * - file path string if AGENTUITY_API_DEBUG is set to a path
+ * - null if debug logging is disabled (including AGENTUITY_API_DEBUG=0/false)
+ */
+function getDebugOutput(): 'console' | string | null {
+	const apiDebug = process.env.AGENTUITY_API_DEBUG?.trim();
+	if (apiDebug) {
+		const normalized = apiDebug.toLowerCase();
+		// Check if explicitly disabled
+		if (normalized === '0' || normalized === 'false') {
+			return null;
+		}
+		// Check if it's a truthy value (console output)
+		if (normalized === '1' || normalized === 'true') {
+			return 'console';
+		}
+		// Treat any other non-empty value as a file path
+		return apiDebug;
+	}
+	// Fall back to CI environment check
+	if (process.env.CI === '1' || process.env.CI === 'true') {
+		return 'console';
+	}
+	return null;
+}
+
+/**
+ * Format request body for CI debug logging
+ */
+function formatRequestBody(body: unknown): string {
+	if (body === undefined || body === null) {
+		return '[no body]';
+	}
+	if (typeof body === 'string') {
+		return body;
+	}
+	if (body instanceof Uint8Array) {
+		return `[binary data: ${body.length} bytes]`;
+	}
+	if (body instanceof ArrayBuffer) {
+		return `[binary data: ${body.byteLength} bytes]`;
+	}
+	if (body instanceof ReadableStream) {
+		return '[stream]';
+	}
+	return String(body);
+}
+
+/**
+ * Format a sensitive header value, preserving Bearer prefix if present.
+ */
+function redactSensitiveHeader(key: string, value: string): string {
+	const _k = key.toLowerCase();
+	// Handle Bearer tokens in authorization and proxy-authorization headers
+	if ((_k === 'authorization' || _k === 'proxy-authorization') && value.startsWith('Bearer ')) {
+		return `Bearer ${redact(value.substring(7))}`;
+	}
+	return redact(value);
+}
+
+/**
+ * Format headers as a readable string for debug logging.
+ * Sensitive headers (auth tokens, cookies, API keys) are redacted.
+ */
+function formatHeaders(headers: Headers | Record<string, string>): string {
+	const entries: string[] = [];
+	if (headers instanceof Headers) {
+		headers.forEach((value, key) => {
+			const _k = key.toLowerCase();
+			if (sensitiveHeaders.has(_k)) {
+				entries.push(`  ${key}: ${redactSensitiveHeader(key, value)}`);
+			} else {
+				entries.push(`  ${key}: ${value}`);
+			}
+		});
+	} else {
+		for (const [key, value] of Object.entries(headers)) {
+			const _k = key.toLowerCase();
+			if (sensitiveHeaders.has(_k)) {
+				entries.push(`  ${key}: ${redactSensitiveHeader(key, value)}`);
+			} else {
+				entries.push(`  ${key}: ${value}`);
+			}
+		}
+	}
+	return entries.join('\n');
+}
+
+/**
+ * Log detailed debug information when API requests fail.
+ * Output destination is determined by AGENTUITY_API_DEBUG or CI environment variables.
+ */
+function logAPIDebug(
+	url: string,
+	method: string,
+	requestHeaders: Record<string, string>,
+	requestBody: unknown,
+	response: Response,
+	responseBody: string
+): void {
+	const output = getDebugOutput();
+	if (!output) {
+		return;
+	}
+
+	const separator = '='.repeat(60);
+	const timestamp = new Date().toISOString();
+	const lines = [
+		'',
+		separator,
+		`API DEBUG: Request Failed [${timestamp}]`,
+		separator,
+		'',
+		'>>> REQUEST',
+		`URL: ${url}`,
+		`Method: ${method}`,
+		'Headers:',
+		formatHeaders(requestHeaders),
+		'Body:',
+		`  ${formatRequestBody(requestBody)}`,
+		'',
+		'<<< RESPONSE',
+		`Status: ${response.status} ${response.statusText}`,
+		'Headers:',
+		formatHeaders(response.headers),
+		'Body:',
+		`  ${responseBody || '[empty]'}`,
+		'',
+		separator,
+		'',
+	];
+
+	const content = lines.join('\n');
+
+	if (output === 'console') {
+		console.error(content);
+	} else {
+		// Append to file
+		try {
+			appendFileSync(output, content + '\n');
+		} catch {
+			// If file write fails, fall back to console.error
+			console.error(`[API DEBUG] Failed to write to ${output}, falling back to console`);
+			console.error(content);
+		}
+	}
+}
 
 /**
  * Redacts the middle of a string while keeping a prefix and suffix visible.
@@ -56,11 +218,7 @@ const redactHeaders = (kv: Record<string, string>): string => {
 		const _k = k.toLowerCase();
 		const v = kv[k];
 		if (sensitiveHeaders.has(_k)) {
-			if (_k === 'authorization' && v.startsWith('Bearer ')) {
-				values.push(`${_k}=Bearer ${redact(v.substring(7))}`);
-			} else {
-				values.push(`${_k}=${redact(v)}`);
-			}
+			values.push(`${_k}=${redactSensitiveHeader(k, v)}`);
 		} else {
 			values.push(`${_k}=${v}`);
 		}
@@ -129,11 +287,19 @@ class ServerFetchAdapter implements FetchAdapter {
 			};
 		}
 		if (res.status === 404) {
+			// Log debug info for 404 errors if debugging is enabled
+			if (getDebugOutput()) {
+				const responseBody = await res.clone().text();
+				logAPIDebug(url, method, headers, options.body, res, responseBody);
+			}
 			return {
 				ok: false,
 				response: res,
 			} as FetchErrorResponse;
 		}
+		// Clone response to read body for debug logging before toServiceException consumes it
+		const responseBody = getDebugOutput() ? await res.clone().text() : '';
+		logAPIDebug(url, method, headers, options.body, res, responseBody);
 		const err = await toServiceException(method, url, res);
 		throw err;
 	}

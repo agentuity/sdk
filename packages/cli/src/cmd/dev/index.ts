@@ -18,7 +18,6 @@ import { typecheck } from '../build/typecheck';
 import { validateGravityRequiresUpgrade } from '../../runtime';
 import { isTTY, hasLoggedInBefore } from '../../auth';
 import { createFileWatcher } from './file-watcher';
-import { regenerateSkillsAsync } from './skills';
 import { prepareDevLock, releaseLockSync } from './dev-lock';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
 import { ErrorCode } from '../../errors';
@@ -541,11 +540,7 @@ export const command = createCommand({
 				centerTitle: false,
 			});
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const cliVersion = ((global as any).__CLI_SCHEMA__?.version as string) ?? '';
-			if (cliVersion) {
-				regenerateSkillsAsync(rootDir, cliVersion, logger).catch(() => {});
-			}
+	
 
 			// Start Vite asset server ONCE before restart loop
 			// Vite handles frontend HMR independently and stays running across backend restarts
@@ -1013,7 +1008,7 @@ export const command = createCommand({
 					}
 				} catch (error) {
 					tui.error(`Failed to build dev bundle: ${error}`);
-					tui.warn('Waiting for file changes to retry...');
+					tui.warning('Waiting for file changes to retry...');
 
 					// Resume watcher to detect changes for retry
 					fileWatcher.resume();
@@ -1038,7 +1033,7 @@ export const command = createCommand({
 						if (sdkKey) {
 							process.env.AGENTUITY_SDK_KEY = sdkKey;
 						} else if (project) {
-							tui.warn(
+							tui.warning(
 								'AGENTUITY_SDK_KEY not found in .env file. Numerous features will be unavailable.'
 							);
 							tui.bullet(
@@ -1102,7 +1097,7 @@ export const command = createCommand({
 					}
 				} catch (error) {
 					tui.error(`Failed to start dev server: ${error}`);
-					tui.warn('Waiting for file changes to retry...');
+					tui.warning('Waiting for file changes to retry...');
 
 					// Wait for next restart trigger or shutdown
 					await new Promise<void>((resolve) => {
@@ -1329,7 +1324,7 @@ export const command = createCommand({
 					await Bun.sleep(500);
 				} catch (error) {
 					tui.error(`Error during server operation: ${error}`);
-					tui.warn('Waiting for file changes to retry...');
+					tui.warning('Waiting for file changes to retry...');
 
 					// Cleanup on error (Vite stays running)
 					await cleanupForRestart();
