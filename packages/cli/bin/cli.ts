@@ -201,10 +201,18 @@ if (shouldSkipInternalLogging) {
 	const command = commandArgs.length > 0 ? commandArgs.join(' ') : 'help';
 	// Extract --dir from argv if present (for project context in logs)
 	const projectDirArg = getProjectDirFromArgs();
-	// Filter out command/subcommand names from args to avoid duplication
-	// commandArgs contains the command path (e.g., ['auth', 'whoami'])
-	// We want args to contain only the actual arguments, not the command itself
-	const filteredArgs = preprocessedArgs.filter((arg) => !commandArgs.includes(arg));
+	// Filter out command/subcommand names from args by position, not by value.
+	// The first N entries of preprocessedArgs that are not flags are the command tokens.
+	// Skip the leading command tokens to get only the actual arguments.
+	let commandTokensToSkip = commandArgs.length;
+	const filteredArgs: string[] = [];
+	for (const arg of preprocessedArgs) {
+		if (commandTokensToSkip > 0 && !arg.startsWith('-') && commandArgs.includes(arg)) {
+			commandTokensToSkip--;
+		} else {
+			filteredArgs.push(arg);
+		}
+	}
 	internalLogger.init(command, filteredArgs, undefined, projectDirArg);
 }
 
