@@ -81,6 +81,7 @@ async function killLingeringGravityProcesses(logger: {
 /**
  * Stop the existing Bun server if one is running.
  * Waits for the port to become available before returning (with timeout).
+ * Handles both in-process server and subprocess (when debugger is enabled).
  */
 async function stopBunServer(
 	port: number,
@@ -88,6 +89,48 @@ async function stopBunServer(
 ): Promise<void> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const globalAny = globalThis as any;
+
+	// Check for subprocess first (used when debugger flags are enabled)
+	const bunSubprocess = globalAny.__AGENTUITY_BUN_SUBPROCESS__ as ProcessLike | undefined;
+	if (bunSubprocess) {
+		logger.debug('Stopping Bun subprocess...');
+		try {
+			bunSubprocess.kill('SIGTERM');
+			// After SIGTERM, wait and check multiple times before giving up
+			let attempts = 0;
+			while (bunSubprocess.exitCode === null && attempts < 3) {
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				attempts++;
+			}
+			if (bunSubprocess.exitCode === null) {
+				bunSubprocess.kill('SIGKILL');
+			}
+			logger.debug('Bun subprocess killed');
+		} catch (err) {
+			logger.debug('Error killing Bun subprocess: %s', err);
+		}
+		globalAny.__AGENTUITY_BUN_SUBPROCESS__ = undefined;
+
+		// Wait for port to become available
+		const MAX_WAIT_ITERATIONS = 10;
+		for (let i = 0; i < MAX_WAIT_ITERATIONS; i++) {
+			try {
+				await fetch(`http://127.0.0.1:${port}/`, {
+					method: 'HEAD',
+					signal: AbortSignal.timeout(150),
+				});
+				// Still responding, wait a bit more
+				await new Promise((r) => setTimeout(r, 50));
+			} catch {
+				// Connection refused or timeout => server is down
+				logger.debug('Bun subprocess stopped');
+				break;
+			}
+		}
+		return;
+	}
+
+	// Handle in-process server
 	const server = globalAny.__AGENTUITY_SERVER__ as BunServer | undefined;
 	if (!server) {
 		logger.debug('No Bun server to stop');
@@ -171,6 +214,15 @@ export const command = createCommand({
 				.max(MAX_PORT)
 				.default(getDefaultPort())
 				.describe('The TCP port to start the dev server (also reads from PORT env)'),
+			inspect: z.boolean().optional().describe('Enable bun debugger on available port'),
+			inspectWait: z
+				.boolean()
+				.optional()
+				.describe('Enable bun debugger and wait for connection before executing'),
+			inspectBrk: z
+				.boolean()
+				.optional()
+				.describe('Enable bun debugger with breakpoint at first line'),
 		}),
 	},
 	optional: { project: true },
@@ -1026,16 +1078,19 @@ export const command = createCommand({
 
 					logger.debug('Set VITE_PORT=%s for asset proxying', process.env.VITE_PORT);
 
-					// Start Bun dev server (Vite already running, just start backend)
-					await startBunDevServer({
-						rootDir,
-						port: opts.port,
-						projectId: project?.projectId,
-						orgId: project?.orgId,
-						deploymentId,
-						logger,
-						vitePort, // Pass port of already-running Vite server
-					});
+				// Start Bun dev server (Vite already running, just start backend)
+				await startBunDevServer({
+					rootDir,
+					port: opts.port,
+					projectId: project?.projectId,
+					orgId: project?.orgId,
+					deploymentId,
+					logger,
+					vitePort, // Pass port of already-running Vite server
+					inspect: opts.inspect,
+					inspectWait: opts.inspectWait,
+					inspectBrk: opts.inspectBrk,
+				});
 
 					// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
 					// Give it 2 seconds to ensure app initialization completes
