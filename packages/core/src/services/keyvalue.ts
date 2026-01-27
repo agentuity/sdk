@@ -1,6 +1,5 @@
 import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException, toPayload } from './_util';
-import { StructuredError } from '../error';
 
 /**
  * Minimum TTL value in seconds (1 minute)
@@ -253,8 +252,6 @@ export interface KeyValueStorage {
 	 */
 	createNamespace(name: string, params?: CreateNamespaceParams): Promise<void>;
 }
-
-const KeyValueInvalidTTLError = StructuredError('KeyValueInvalidTTLError');
 
 export class KeyValueStorageService implements KeyValueStorage {
 	#adapter: FetchAdapter;
