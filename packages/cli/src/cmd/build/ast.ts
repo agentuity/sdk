@@ -141,6 +141,9 @@ export function getDevmodeDeploymentId(projectId: string, endpointId: string): s
 	return `devmode_${hashSHA1(projectId, endpointId)}`;
 }
 
+// getAgentId generates the deployment-specific agent ID (becomes database PK agent.id)
+// This ID changes with each deployment and uses the agentid_ prefix
+// Hash includes deploymentId so it's unique per deployment
 function getAgentId(
 	projectId: string,
 	deploymentId: string,
@@ -172,6 +175,9 @@ function generateRouteId(
 	return `route_${hashSHA1(projectId, deploymentId, type, method, filename, path, version)}`;
 }
 
+// generateStableAgentId generates the stable identifier (becomes database agent.identifier)
+// This uses the agent_ prefix and is the same across all deployments
+// Hash only includes projectId + name, no deploymentId
 function generateStableAgentId(projectId: string, name: string): string {
 	return `agent_${hashSHA1(projectId, name)}`.substring(0, 64);
 }
