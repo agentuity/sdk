@@ -16,12 +16,13 @@ import kvIsolationAgent from '@agents/storage/kv/isolation';
 // Test: KV Set operation
 test('storage-kv', 'set', async () => {
 	const key = uniqueId('kv-set');
-	const namespace = uniqueId('ns-set');
+	const namespace = 'testing';
 	const result = await kvCrudAgent.run({
 		operation: 'set',
 		key,
 		namespace,
 		value: 'test-value',
+		ttl: 1800,
 	});
 
 	assertDefined(result, 'Result should be defined');
@@ -34,7 +35,7 @@ test('storage-kv', 'set', async () => {
 // Test: KV Get operation
 test('storage-kv', 'get', async () => {
 	const key = uniqueId('kv-get');
-	const namespace = uniqueId('ns-get');
+	const namespace = 'testing';
 
 	// Set a value first
 	await kvCrudAgent.run({
@@ -42,6 +43,7 @@ test('storage-kv', 'get', async () => {
 		key,
 		namespace,
 		value: 'retrieved-value',
+		ttl: 1800,
 	});
 
 	// Get it back
@@ -60,7 +62,7 @@ test('storage-kv', 'get', async () => {
 // Test: KV Get non-existent key
 test('storage-kv', 'get-missing', async () => {
 	const key = uniqueId('kv-missing');
-	const namespace = uniqueId('ns-get-missing');
+	const namespace = 'testing';
 
 	const result = await kvCrudAgent.run({
 		operation: 'get',
@@ -77,7 +79,7 @@ test('storage-kv', 'get-missing', async () => {
 // Test: KV Delete operation
 test('storage-kv', 'delete', async () => {
 	const key = uniqueId('kv-delete');
-	const namespace = uniqueId('ns-delete');
+	const namespace = 'testing';
 
 	// Set a value
 	await kvCrudAgent.run({
@@ -85,6 +87,7 @@ test('storage-kv', 'delete', async () => {
 		key,
 		namespace,
 		value: 'to-be-deleted',
+		ttl: 1800,
 	});
 
 	// Delete it
@@ -113,7 +116,7 @@ test('storage-kv', 'delete', async () => {
 // Test: KV Has operation
 test('storage-kv', 'has', async () => {
 	const key = uniqueId('kv-has');
-	const namespace = uniqueId('ns-has');
+	const namespace = 'testing';
 
 	// Check non-existent key
 	const notExistsResult = await kvCrudAgent.run({
@@ -130,6 +133,7 @@ test('storage-kv', 'has', async () => {
 		key,
 		namespace,
 		value: 'exists',
+		ttl: 1800,
 	});
 
 	// Check existing key
@@ -145,13 +149,14 @@ test('storage-kv', 'has', async () => {
 // Test: KV String type
 test('storage-kv', 'type-string', async () => {
 	const key = uniqueId('kv-string');
-	const namespace = uniqueId('ns-type-string');
+	const namespace = 'testing';
 
 	await kvTypesAgent.run({
 		operation: 'set-string',
 		key,
 		namespace,
 		value: 'hello world',
+		ttl: 1800,
 	});
 
 	const result = await kvTypesAgent.run({
@@ -170,13 +175,14 @@ test('storage-kv', 'type-string', async () => {
 // Test: KV Number type
 test('storage-kv', 'type-number', async () => {
 	const key = uniqueId('kv-number');
-	const namespace = uniqueId('ns-type-number');
+	const namespace = 'testing';
 
 	await kvTypesAgent.run({
 		operation: 'set-number',
 		key,
 		namespace,
 		value: 123,
+		ttl: 1800,
 	});
 
 	const result = await kvTypesAgent.run({
@@ -193,13 +199,14 @@ test('storage-kv', 'type-number', async () => {
 // Test: KV Boolean type (true)
 test('storage-kv', 'type-boolean-true', async () => {
 	const key = uniqueId('kv-bool-true');
-	const namespace = uniqueId('ns-type-boolean-true');
+	const namespace = 'testing';
 
 	await kvTypesAgent.run({
 		operation: 'set-boolean',
 		key,
 		namespace,
 		value: true,
+		ttl: 1800,
 	});
 
 	const result = await kvTypesAgent.run({
@@ -216,13 +223,14 @@ test('storage-kv', 'type-boolean-true', async () => {
 // Test: KV Boolean type (false)
 test('storage-kv', 'type-boolean-false', async () => {
 	const key = uniqueId('kv-bool-false');
-	const namespace = uniqueId('ns-type-boolean-false');
+	const namespace = 'testing';
 
 	await kvTypesAgent.run({
 		operation: 'set-boolean',
 		key,
 		namespace,
 		value: false,
+		ttl: 1800,
 	});
 
 	const result = await kvTypesAgent.run({
@@ -239,7 +247,7 @@ test('storage-kv', 'type-boolean-false', async () => {
 // Test: KV Isolation between calls
 test('storage-kv', 'isolation', async () => {
 	const baseKey = uniqueId('kv-isolation');
-	const namespace = uniqueId('ns-isolation');
+	const namespace = 'testing';
 
 	// Make two concurrent calls with different keys
 	const [result1, result2] = await Promise.all([
@@ -247,11 +255,13 @@ test('storage-kv', 'isolation', async () => {
 			key: `${baseKey}-1`,
 			namespace,
 			value: 'value-1',
+			ttl: 1800,
 		}),
 		kvIsolationAgent.run({
 			key: `${baseKey}-2`,
 			namespace,
 			value: 'value-2',
+			ttl: 1800,
 		}),
 	]);
 
@@ -271,7 +281,7 @@ test('storage-kv', 'isolation', async () => {
 // Test: KV Overwrite value
 test('storage-kv', 'overwrite', async () => {
 	const key = uniqueId('kv-overwrite');
-	const namespace = uniqueId('ns-overwrite');
+	const namespace = 'testing';
 
 	// Set initial value
 	await kvCrudAgent.run({
@@ -279,6 +289,7 @@ test('storage-kv', 'overwrite', async () => {
 		key,
 		namespace,
 		value: 'original',
+		ttl: 1800,
 	});
 
 	// Overwrite it
@@ -287,6 +298,7 @@ test('storage-kv', 'overwrite', async () => {
 		key,
 		namespace,
 		value: 'updated',
+		ttl: 1800,
 	});
 
 	// Verify new value
@@ -302,7 +314,7 @@ test('storage-kv', 'overwrite', async () => {
 // Test: KV Concurrent operations
 test('storage-kv', 'concurrent-operations', async () => {
 	const keys = Array.from({ length: 5 }, (_, i) => uniqueId(`kv-concurrent-${i}`));
-	const namespace = uniqueId('ns-concurrent-operations');
+	const namespace = 'testing';
 
 	// Set multiple values concurrently
 	await Promise.all(
@@ -312,6 +324,7 @@ test('storage-kv', 'concurrent-operations', async () => {
 				key,
 				namespace,
 				value: `value-${i}`,
+				ttl: 1800,
 			})
 		)
 	);

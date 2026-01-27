@@ -9,6 +9,7 @@ const kvTypesAgent = createAgent('storage-kv-types', {
 			key: s.string(),
 			value: s.any().optional(),
 			namespace: s.string().optional(),
+			ttl: s.number().optional(),
 		}),
 		output: s.object({
 			operation: s.string(),
@@ -19,24 +20,24 @@ const kvTypesAgent = createAgent('storage-kv-types', {
 		}),
 	},
 	handler: async (ctx, input) => {
-		const { operation, key, value, namespace = 'test' } = input;
+		const { operation, key, value, namespace = 'test', ttl } = input;
 
 		switch (operation) {
 			case 'set-string':
-				await ctx.kv.set(namespace, key, String(value));
+				await ctx.kv.set(namespace, key, String(value), ttl ? { ttl } : undefined);
 				return { operation, key, value, valueType: 'string', success: true };
 
 			case 'set-object':
 				// Store object as JSON
-				await ctx.kv.set(namespace, key, value, { contentType: 'application/json' });
+				await ctx.kv.set(namespace, key, value, { contentType: 'application/json', ...(ttl ? { ttl } : {}) });
 				return { operation, key, value, valueType: 'object', success: true };
 
 			case 'set-number':
-				await ctx.kv.set(namespace, key, Number(value));
+				await ctx.kv.set(namespace, key, Number(value), ttl ? { ttl } : undefined);
 				return { operation, key, value: Number(value), valueType: 'number', success: true };
 
 			case 'set-boolean':
-				await ctx.kv.set(namespace, key, Boolean(value));
+				await ctx.kv.set(namespace, key, Boolean(value), ttl ? { ttl } : undefined);
 				return { operation, key, value: Boolean(value), valueType: 'boolean', success: true };
 
 			case 'get': {

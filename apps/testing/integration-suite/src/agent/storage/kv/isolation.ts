@@ -8,6 +8,7 @@ const kvIsolationAgent = createAgent('storage-kv-isolation', {
 			key: s.string(),
 			value: s.string(),
 			namespace: s.string().optional(),
+			ttl: s.number().optional(),
 		}),
 		output: s.object({
 			key: s.string(),
@@ -17,10 +18,10 @@ const kvIsolationAgent = createAgent('storage-kv-isolation', {
 		}),
 	},
 	handler: async (ctx, input) => {
-		const { namespace = 'test' } = input;
+		const { namespace = 'test', ttl } = input;
 
 		// Set a value
-		await ctx.kv.set(namespace, input.key, input.value);
+		await ctx.kv.set(namespace, input.key, input.value, ttl ? { ttl } : undefined);
 
 		// Immediately get it back
 		const result = await ctx.kv.get<string>(namespace, input.key);
