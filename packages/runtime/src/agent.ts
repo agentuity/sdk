@@ -1621,8 +1621,8 @@ export function createAgent<
 		(agentCtx as any).current = agent.metadata;
 
 		const attrs = {
-			'@agentuity/agentId': agent.metadata.id,
-			'@agentuity/agentInstanceId': agent.metadata.agentId,
+			'@agentuity/agentId': agent.metadata.agentId, // stable ID (agent_*) - consistent across deployments
+			'@agentuity/agentInstanceId': agent.metadata.id, // deployment-specific ID (agentid_*) - changes per deployment
 			'@agentuity/agentDescription': agent.metadata.description,
 			'@agentuity/agentName': agent.metadata.name,
 			'@agentuity/threadId': agentCtx.thread.id,
@@ -2418,8 +2418,8 @@ const runWithSpan = async <
 
 	// Set agent attributes on the span immediately after creation
 	span.setAttributes({
-		'@agentuity/agentId': agent.metadata.id,
-		'@agentuity/agentInstanceId': agent.metadata.agentId,
+		'@agentuity/agentId': agent.metadata.agentId, // stable ID (agent_*) - consistent across deployments
+		'@agentuity/agentInstanceId': agent.metadata.id, // deployment-specific ID (agentid_*) - changes per deployment
 		'@agentuity/agentDescription': agent.metadata.description,
 		'@agentuity/agentName': agent.metadata.name,
 		'@agentuity/threadId': ctx.var.thread.id,
