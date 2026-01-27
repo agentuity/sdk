@@ -35,6 +35,12 @@ export interface DataResultFound<T> {
 	 * the data was found
 	 */
 	exists: true;
+
+	/**
+	 * the expiration time of the data as an ISO 8601 timestamp.
+	 * undefined if the key does not expire.
+	 */
+	expiresAt?: string;
 }
 
 /**
@@ -55,9 +61,16 @@ export type DataResult<T> = DataResultFound<T> | DataResultNotFound;
 
 export interface KeyValueStorageSetParams {
 	/**
-	 * the number of milliseconds to keep the value in the cache
+	 * Time-to-live in seconds for the key. Controls when the key expires and is automatically deleted.
+	 * - `undefined` (not provided): Key inherits the namespace's default TTL (7 days if not configured)
+	 * - `null` or `0`: Key never expires
+	 * - positive number (≥60): Key expires after the specified number of seconds (max 90 days)
+	 *
+	 * @remarks
+	 * TTL values below 60 seconds are clamped to 60 seconds by the server.
+	 * TTL values above 7,776,000 seconds (90 days) are clamped to 90 days.
 	 */
-	ttl?: number;
+	ttl?: number | null;
 	/**
 	 * the content type of the value
 	 */
@@ -270,10 +283,12 @@ export class KeyValueStorageService implements KeyValueStorage {
 			},
 		});
 		if (res.ok) {
+			const expiresAt = res.response.headers.get('x-expires-at') ?? undefined;
 			return {
 				data: res.data,
 				contentType: res.response.headers.get('content-type') ?? 'application/octet-stream',
 				exists: true,
+				...(expiresAt && { expiresAt }),
 			};
 		}
 		if (res.response.status === 404) {
@@ -292,8 +307,10 @@ export class KeyValueStorageService implements KeyValueStorage {
 	 *
 	 * @remarks
 	 * TTL behavior:
-	 * - If TTL is not specified, the key inherits the namespace's default TTL
-	 * - TTL values below 60 seconds are clamped to 60 seconds
+	 * - If TTL is not specified (undefined), the key inherits the namespace's default TTL
+	 * - If TTL is null or 0, the key will not expire
+	 * - If TTL is a positive number, the key expires after that many seconds
+	 * - TTL values below 60 seconds are clamped to 60 seconds by the server
 	 * - TTL values above 7,776,000 seconds (90 days) are clamped to 90 days
 	 * - If the namespace doesn't exist, it is auto-created with a 7-day default TTL
 	 */
@@ -303,14 +320,13 @@ export class KeyValueStorageService implements KeyValueStorage {
 		value: T,
 		params?: KeyValueStorageSetParams
 	): Promise<void> {
+		// TTL handling: only include if explicitly provided
+		// null or 0 = no expiration (send 0 to server), positive = TTL in seconds
+		// undefined = not sent, server uses namespace default
 		let ttlstr = '';
-		if (params?.ttl) {
-			if (params.ttl < 60) {
-				throw new KeyValueInvalidTTLError({
-					message: `ttl for keyvalue set must be at least 60 seconds, got ${params.ttl}`,
-				});
-			}
-			ttlstr = `/${params.ttl}`;
+		if (params?.ttl !== undefined) {
+			const ttlValue = params.ttl === null ? 0 : params.ttl;
+			ttlstr = `/${ttlValue}`;
 		}
 		const url = buildUrl(
 			this.#baseUrl,

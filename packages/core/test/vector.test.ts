@@ -321,6 +321,75 @@ describe('VectorStorageService', () => {
 				},
 			});
 		});
+
+		test('should not include ttl in body when not specified (uses server default)', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }] } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert('my-vectors', { key: 'k1', document: 'test' });
+
+			const body = JSON.parse(calls[0].options.body as string);
+			// TTL should not be in the body when not specified (server uses 30-day default)
+			expect(body[0].ttl).toBeUndefined();
+		});
+
+		test('should include custom ttl in body', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }] } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert('my-vectors', { key: 'k1', document: 'test', ttl: 3600 });
+
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body[0].ttl).toBe(3600);
+		});
+
+		test('should send ttl=0 when ttl is null (no expiration)', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }] } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert('my-vectors', { key: 'k1', document: 'test', ttl: null });
+
+			const body = JSON.parse(calls[0].options.body as string);
+			// null should be converted to 0 (no expiration)
+			expect(body[0].ttl).toBe(0);
+		});
+
+		test('should send ttl=0 when ttl is 0 (no expiration)', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }] } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert('my-vectors', { key: 'k1', document: 'test', ttl: 0 });
+
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body[0].ttl).toBe(0);
+		});
+
+		test('should handle multiple documents with different TTLs', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }, { id: 'vec-2' }, { id: 'vec-3' }] } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert(
+				'my-vectors',
+				{ key: 'k1', document: 'doc1', ttl: 3600 },      // Custom TTL
+				{ key: 'k2', document: 'doc2', ttl: null },      // No expiration
+				{ key: 'k3', document: 'doc3' }                   // Server default
+			);
+
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body[0].ttl).toBe(3600);
+			expect(body[1].ttl).toBe(0);
+			expect(body[2].ttl).toBeUndefined();
+		});
 	});
 
 	describe('Get Operation', () => {

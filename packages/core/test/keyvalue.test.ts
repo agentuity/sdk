@@ -61,6 +61,49 @@ describe('KeyValueStorageService', () => {
 
 			expect(calls[0].options?.signal).toBeDefined();
 		});
+
+		test('should return expiresAt when X-Expires-At header is present', async () => {
+			const mockData = { foo: 'bar' };
+			const expiresAt = '2026-02-01T12:00:00Z';
+			const { adapter } = createMockAdapter([
+				{
+					ok: true,
+					data: mockData,
+					status: 200,
+					headers: { 'x-expires-at': expiresAt },
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const result = await service.get('mystore', 'mykey');
+
+			expect(result.exists).toBe(true);
+			if (result.exists) {
+				expect(result.data).toEqual(mockData);
+				expect(result.expiresAt).toBe(expiresAt);
+			}
+		});
+
+		test('should not include expiresAt when X-Expires-At header is absent (no expiration)', async () => {
+			const mockData = { foo: 'bar' };
+			const { adapter } = createMockAdapter([
+				{
+					ok: true,
+					data: mockData,
+					status: 200,
+					// No x-expires-at header means no expiration
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const result = await service.get('mystore', 'mykey');
+
+			expect(result.exists).toBe(true);
+			if (result.exists) {
+				expect(result.data).toEqual(mockData);
+				expect(result.expiresAt).toBeUndefined();
+			}
+		});
 	});
 
 	describe('set', () => {
@@ -117,14 +160,43 @@ describe('KeyValueStorageService', () => {
 			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey/3600`);
 		});
 
-		test('should throw error when ttl is less than 60 seconds', async () => {
-			const { adapter } = createMockAdapter([{ ok: true }]);
+		test('should not include ttl in url when not specified (uses namespace default)', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true }]);
 
 			const service = new KeyValueStorageService(baseUrl, adapter);
+			await service.set('mystore', 'mykey', 'value');
 
-			await expect(service.set('mystore', 'mykey', 'value', { ttl: 30 })).rejects.toThrow(
-				'ttl for keyvalue set must be at least 60 seconds, got 30'
-			);
+			// TTL should not be in the URL when not specified (server uses namespace default)
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey`);
+		});
+
+		test('should send ttl=0 when ttl is null (no expiration)', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			await service.set('mystore', 'mykey', 'value', { ttl: null });
+
+			// null should be converted to 0 (no expiration)
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey/0`);
+		});
+
+		test('should send ttl=0 when ttl is 0 (no expiration)', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			await service.set('mystore', 'mykey', 'value', { ttl: 0 });
+
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey/0`);
+		});
+
+		test('should send low ttl values to server (server clamps to minimum)', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			await service.set('mystore', 'mykey', 'value', { ttl: 30 });
+
+			// Low TTL values are sent to server, which clamps them to minimum (60 seconds)
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey/30`);
 		});
 
 		test('should use custom contentType when provided', async () => {
