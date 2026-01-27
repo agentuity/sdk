@@ -6,6 +6,7 @@ import { createToolHooks } from './hooks/tools';
 import { createKeywordHooks } from './hooks/keyword';
 import { createParamsHooks } from './hooks/params';
 import { createCadenceHooks } from './hooks/cadence';
+import { createSessionMemoryHooks } from './hooks/session-memory';
 import { z } from 'zod';
 import type { AgentRole } from '../types';
 
@@ -37,6 +38,10 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 	const paramsHooks = createParamsHooks(ctx, coderConfig);
 	const cadenceHooks = createCadenceHooks(ctx, coderConfig);
 
+	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
+	// Orchestration (deciding which module handles which session) happens below in the hooks
+	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig);
+
 	const configHandler = createConfigHandler(coderConfig);
 
 	// Get the tool helper from Open Code context if available
@@ -64,8 +69,23 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 		'chat.params': paramsHooks.onParams,
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
-		event: cadenceHooks.onEvent,
-		'experimental.session.compacting': cadenceHooks.onCompacting,
+		event: async (input: unknown) => {
+			// Orchestrate: route to appropriate module based on session type
+			const sessionId = extractSessionIdFromEvent(input);
+			if (sessionId && cadenceHooks.isActiveCadenceSession(sessionId)) {
+				await cadenceHooks.onEvent(input);
+			} else {
+				await sessionMemoryHooks.onEvent(input);
+			}
+		},
+		'experimental.session.compacting': async (input, output) => {
+			// Orchestrate: route to appropriate module based on session type
+			if (cadenceHooks.isActiveCadenceSession(input.sessionID)) {
+				await cadenceHooks.onCompacting(input, output);
+			} else {
+				await sessionMemoryHooks.onCompacting(input, output);
+			}
+		},
 	};
 }
 
@@ -336,4 +356,20 @@ Use this to:
 	return {
 		coder_delegate: coderDelegate,
 	};
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper Functions
+// ─────────────────────────────────────────────────────────────────────────────
+
+function extractSessionIdFromEvent(input: unknown): string | undefined {
+	if (typeof input !== 'object' || input === null) return undefined;
+
+	const inp = input as { event?: { properties?: Record<string, unknown> } };
+	if (!inp.event?.properties) return undefined;
+
+	return (
+		(inp.event.properties.sessionId as string | undefined) ??
+		(inp.event.properties.sessionID as string | undefined)
+	);
 }

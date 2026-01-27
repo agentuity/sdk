@@ -4,6 +4,8 @@ export interface CadenceHooks {
 	onMessage: (input: unknown, output: unknown) => Promise<void>;
 	onEvent: (input: unknown) => Promise<void>;
 	onCompacting: (input: CompactingInput, output: CompactingOutput) => Promise<void>;
+	/** Check if a session is currently in Cadence mode */
+	isActiveCadenceSession: (sessionId: string) => boolean;
 }
 
 const COMPLETION_PATTERN = /<promise>\s*DONE\s*<\/promise>/i;
@@ -255,6 +257,14 @@ This session is running in Cadence mode (long-running autonomous loop).
 
 Resume the Cadence loop after this compaction completes.
 `);
+		},
+
+		/**
+		 * Check if a session is currently in Cadence mode.
+		 * Used by session-memory hooks to avoid double-handling.
+		 */
+		isActiveCadenceSession(sessionId: string): boolean {
+			return activeCadenceSessions.has(sessionId);
 		},
 	};
 }

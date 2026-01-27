@@ -79,7 +79,10 @@ export function createToolHooks(ctx: PluginContext, config: CoderConfig): ToolHo
 					// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
 					if (/AGENTUITY_PROFILE=\S+/.test(command)) {
 						// Replace all existing AGENTUITY_PROFILE occurrences to enforce our profile
-						modifiedCommand = command.replace(/AGENTUITY_PROFILE=\S+/g, `AGENTUITY_PROFILE=${profile}`);
+						modifiedCommand = command.replace(
+							/AGENTUITY_PROFILE=\S+/g,
+							`AGENTUITY_PROFILE=${profile}`
+						);
 					} else {
 						// Prepend AGENTUITY_PROFILE
 						modifiedCommand = `AGENTUITY_PROFILE=${profile} ${command}`;
