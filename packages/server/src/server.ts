@@ -22,6 +22,114 @@ interface ServiceAdapterConfig {
 const sensitiveHeaders = new Set(['authorization', 'x-api-key']);
 
 /**
+ * Check if running in CI environment
+ */
+function isCI(): boolean {
+	return process.env.CI === '1' || process.env.CI === 'true';
+}
+
+/**
+ * Format request body for CI debug logging
+ */
+function formatRequestBody(body: unknown): string {
+	if (body === undefined || body === null) {
+		return '[no body]';
+	}
+	if (typeof body === 'string') {
+		return body;
+	}
+	if (body instanceof Uint8Array) {
+		return `[binary data: ${body.length} bytes]`;
+	}
+	if (body instanceof ArrayBuffer) {
+		return `[binary data: ${body.byteLength} bytes]`;
+	}
+	if (body instanceof ReadableStream) {
+		return '[stream]';
+	}
+	return String(body);
+}
+
+/**
+ * Format headers as a readable string for CI debug logging
+ */
+function formatHeaders(headers: Headers | Record<string, string>): string {
+	const entries: string[] = [];
+	if (headers instanceof Headers) {
+		headers.forEach((value, key) => {
+			const _k = key.toLowerCase();
+			if (sensitiveHeaders.has(_k)) {
+				if (_k === 'authorization' && value.startsWith('Bearer ')) {
+					entries.push(`  ${key}: Bearer ${redact(value.substring(7))}`);
+				} else {
+					entries.push(`  ${key}: ${redact(value)}`);
+				}
+			} else {
+				entries.push(`  ${key}: ${value}`);
+			}
+		});
+	} else {
+		for (const [key, value] of Object.entries(headers)) {
+			const _k = key.toLowerCase();
+			if (sensitiveHeaders.has(_k)) {
+				if (_k === 'authorization' && value.startsWith('Bearer ')) {
+					entries.push(`  ${key}: Bearer ${redact(value.substring(7))}`);
+				} else {
+					entries.push(`  ${key}: ${redact(value)}`);
+				}
+			} else {
+				entries.push(`  ${key}: ${value}`);
+			}
+		}
+	}
+	return entries.join('\n');
+}
+
+/**
+ * Log detailed debug information for CI environments when API requests fail
+ */
+function logCIDebug(
+	url: string,
+	method: string,
+	requestHeaders: Record<string, string>,
+	requestBody: unknown,
+	response: Response,
+	responseBody: string
+): void {
+	if (!isCI()) {
+		return;
+	}
+
+	const separator = '='.repeat(60);
+	const lines = [
+		'',
+		separator,
+		'CI DEBUG: API Request Failed',
+		separator,
+		'',
+		'>>> REQUEST',
+		`URL: ${url}`,
+		`Method: ${method}`,
+		'Headers:',
+		formatHeaders(requestHeaders),
+		'Body:',
+		`  ${formatRequestBody(requestBody)}`,
+		'',
+		'<<< RESPONSE',
+		`Status: ${response.status} ${response.statusText}`,
+		'Headers:',
+		formatHeaders(response.headers),
+		'Body:',
+		`  ${responseBody || '[empty]'}`,
+		'',
+		separator,
+		'',
+	];
+
+	console.error(lines.join('\n'));
+}
+
+/**
  * Redacts the middle of a string while keeping a prefix and suffix visible.
  * Ensures that if the string is too short, everything is redacted.
  *
@@ -129,11 +237,19 @@ class ServerFetchAdapter implements FetchAdapter {
 			};
 		}
 		if (res.status === 404) {
+			// Log CI debug info for 404 errors
+			if (isCI()) {
+				const responseBody = await res.clone().text();
+				logCIDebug(url, method, headers, options.body, res, responseBody);
+			}
 			return {
 				ok: false,
 				response: res,
 			} as FetchErrorResponse;
 		}
+		// Clone response to read body for CI debug logging before toServiceException consumes it
+		const responseBody = isCI() ? await res.clone().text() : '';
+		logCIDebug(url, method, headers, options.body, res, responseBody);
 		const err = await toServiceException(method, url, res);
 		throw err;
 	}
