@@ -39,6 +39,7 @@ export {
 	type RoutePathParams,
 	type UseAPIOptions,
 	type UseAPIResult,
+	type InvokeOptions,
 } from './api';
 export { useJsonMemo } from './memo';
 
