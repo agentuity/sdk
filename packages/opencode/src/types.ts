@@ -1,5 +1,13 @@
 import { z } from 'zod';
 
+// Re-export types from @opencode-ai/plugin
+export type {
+	Plugin,
+	PluginInput,
+	Hooks as PluginHooks,
+	ToolDefinition,
+} from '@opencode-ai/plugin';
+
 export const AgentRoleSchema = z.enum(['lead', 'scout', 'builder', 'reviewer', 'memory', 'expert']);
 export type AgentRole = z.infer<typeof AgentRoleSchema>;
 
@@ -114,55 +122,7 @@ export interface McpConfig {
 	headers?: Record<string, string>;
 }
 
-export interface PluginClient {
-	app: {
-		log: (options: {
-			body: { service: string; level: string; message: string; extra?: unknown };
-		}) => void;
-	};
-	tui?: {
-		showToast?: (options: { body: { message: string } }) => void;
-	};
-	session?: {
-		prompt?: (options: {
-			path: { id: string };
-			body: {
-				parts: Array<{ type: 'text'; text: string }>;
-				agent?: string;
-			};
-			noReply?: boolean;
-		}) => Promise<unknown>;
-	};
-}
-
-export interface PluginContext {
-	directory: string;
-	client: PluginClient;
-}
-
-export interface CompactingInput {
-	sessionID: string;
-}
-
-export interface CompactingOutput {
-	context: string[];
-	prompt?: string;
-}
-
-export interface PluginHooks {
-	agents?: Record<string, AgentConfig>;
-	tool?: Record<string, unknown>; // Open Code tool format (created via tool() helper)
-	config?: (config: Record<string, unknown>) => Promise<void>;
-	'chat.message'?: (input: unknown, output: unknown) => Promise<void>;
-	'chat.params'?: (input: unknown, output: unknown) => Promise<void>;
-	'tool.execute.before'?: (input: unknown, output: unknown) => Promise<void>;
-	'tool.execute.after'?: (input: unknown, output: unknown) => Promise<void>;
-	event?: (input: unknown) => Promise<void>;
-	'experimental.session.compacting'?: (
-		input: CompactingInput,
-		output: CompactingOutput
-	) => Promise<void>;
-}
+// Note: PluginInput and PluginHooks are now imported from @opencode-ai/plugin above.
 
 export interface CommandDefinition {
 	name: string;
@@ -175,8 +135,4 @@ export interface CommandDefinition {
 	subtask?: boolean;
 }
 
-export interface ToolDefinition {
-	description: string;
-	args: unknown; // Zod schema or JSON schema
-	execute: (args: unknown, context: unknown) => Promise<unknown>;
-}
+// ToolDefinition is re-exported from @opencode-ai/plugin above

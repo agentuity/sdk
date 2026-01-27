@@ -1,4 +1,5 @@
-import type { PluginContext, CoderConfig } from '../../types';
+import type { PluginInput } from '@opencode-ai/plugin';
+import type { CoderConfig } from '../../types';
 
 export interface ParamsHooks {
 	onParams: (input: unknown, output: unknown) => Promise<void>;
@@ -94,7 +95,7 @@ function detectMode(
 	return null;
 }
 
-export function createParamsHooks(ctx: PluginContext, _config: CoderConfig): ParamsHooks {
+export function createParamsHooks(ctx: PluginInput, _config: CoderConfig): ParamsHooks {
 	return {
 		async onParams(input: unknown, output: unknown): Promise<void> {
 			// Input contains: sessionID, agent, model, provider, message
@@ -138,8 +139,11 @@ export function createParamsHooks(ctx: PluginContext, _config: CoderConfig): Par
 			};
 
 			try {
-				ctx.client.tui?.showToast?.({
-					body: { message: modeMessages[detected.mode] || `${detected.mode} mode activated` },
+				ctx.client.tui.showToast({
+					body: {
+						message: modeMessages[detected.mode] || `${detected.mode} mode activated`,
+						variant: 'info',
+					},
 				});
 			} catch {
 				// Toast may not be available in all contexts (e.g., headless)

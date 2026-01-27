@@ -1,4 +1,5 @@
-import type { PluginContext, PluginHooks, AgentConfig, CommandDefinition } from '../types';
+import type { PluginInput, Hooks } from '@opencode-ai/plugin';
+import type { AgentConfig, CommandDefinition } from '../types';
 import { agents } from '../agents';
 import { loadCoderConfig, getDefaultConfig, mergeConfig } from '../config';
 import { createSessionHooks } from './hooks/session';
@@ -20,7 +21,7 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	expert: '@Agentuity Coder Expert',
 };
 
-export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks> {
+export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	ctx.client.app.log({
 		body: {
 			service: 'agentuity-coder',
@@ -53,7 +54,9 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 
 	// Show startup toast (fire and forget, don't block)
 	try {
-		ctx.client.tui?.showToast?.({ body: { message: '🚀 Agentuity Coder ready' } });
+		ctx.client.tui.showToast({
+			body: { message: '🚀 Agentuity Coder ready', variant: 'success' },
+		});
 	} catch {
 		// Toast may not be available
 	}
@@ -69,13 +72,16 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 		'chat.params': paramsHooks.onParams,
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
-		event: async (input: unknown) => {
+		event: async (input) => {
 			// Orchestrate: route to appropriate module based on session type
 			const sessionId = extractSessionIdFromEvent(input);
 			if (sessionId && cadenceHooks.isActiveCadenceSession(sessionId)) {
 				await cadenceHooks.onEvent(input);
-			} else {
-				await sessionMemoryHooks.onEvent(input);
+			} else if (sessionId) {
+				// Non-Cadence sessions - handle session.compacted for checkpointing
+				await sessionMemoryHooks.onEvent(
+					input as { event: { type: string; properties?: Record<string, unknown> } }
+				);
 			}
 		},
 		'experimental.session.compacting': async (input, output) => {
@@ -324,7 +330,7 @@ $ARGUMENTS
 	};
 }
 
-function createTools(tool: (schema: (s: typeof z) => unknown) => unknown): Record<string, unknown> {
+function createTools(tool: (schema: (s: typeof z) => unknown) => unknown): Hooks['tool'] {
 	const coderDelegate = tool((s) => ({
 		description: `Delegate a task to a specialized Agentuity Coder agent.
 
@@ -353,9 +359,11 @@ Use this to:
 		},
 	}));
 
+	// Type assertion needed because the tool() helper returns unknown
+	// but the runtime type is correct (it's created by OpenCode's tool helper)
 	return {
 		coder_delegate: coderDelegate,
-	};
+	} as Hooks['tool'];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

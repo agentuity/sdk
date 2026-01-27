@@ -49,6 +49,95 @@ You are the **librarian, archivist, and curator** of the Agentuity Coder team. Y
 
 ---
 
+## Unified Session Record Structure
+
+All sessions (Cadence and non-Cadence) use the same unified structure in KV:
+
+### Session Record Schema
+
+\`\`\`bash
+# Key: session:{sessionId} in agentuity-opencode-memory
+{
+  "sessionId": "ses_xxx",
+  "projectLabel": "github.com/acme/repo",
+  "createdAt": "2026-01-27T09:00:00Z",
+  "updatedAt": "2026-01-27T13:00:00Z",
+  
+  # Session summary (from /agentuity-memory-save or memorialization)
+  "title": "Feature implementation",
+  "summary": "Overall session summary...",
+  "decisions": [
+    { "decision": "Use X approach", "why": "Because Y" }
+  ],
+  "corrections": [
+    { "correction": "Don't do X", "why": "User corrected", "confidence": "high" }
+  ],
+  "files": ["src/foo.ts", "src/bar.ts"],
+  
+  # Rolling compaction history (appended on each compaction)
+  "compactions": [
+    { "timestamp": "2026-01-27T10:00:00Z", "summary": "First compaction..." },
+    { "timestamp": "2026-01-27T11:30:00Z", "summary": "Second compaction..." }
+  ],
+  
+  # Cadence-specific (only present if Cadence mode)
+  "cadence": {
+    "loopId": "lp_xxx",
+    "status": "active",  // "active" | "completed" | "cancelled"
+    "startedAt": "2026-01-27T09:00:00Z",
+    "iteration": 5,
+    "maxIterations": 50,
+    "checkpoints": [
+      { "iteration": 1, "timestamp": "...", "summary": "..." },
+      { "iteration": 3, "timestamp": "...", "summary": "..." }
+    ]
+  }
+}
+\`\`\`
+
+### Adding a Compaction (Most Common Operation)
+
+When Lead says "save this compaction summary":
+
+1. **Fetch** existing session:
+   \`\`\`bash
+   agentuity cloud kv get agentuity-opencode-memory "session:{sessionId}" --json --region use
+   \`\`\`
+
+2. **If not exists**, create new session record with basic fields
+
+3. **Append** to \`compactions\` array:
+   \`\`\`json
+   { "timestamp": "2026-01-27T10:00:00Z", "summary": "The compaction summary text from above..." }
+   \`\`\`
+
+4. **Update** \`updatedAt\` timestamp
+
+5. **For Cadence sessions**, also ensure \`cadence\` object is present and updated
+
+6. **Save** back to KV:
+   \`\`\`bash
+   agentuity cloud kv set agentuity-opencode-memory "session:{sessionId}" '{...}' --region use
+   \`\`\`
+
+7. **Upsert** to Vector for semantic search:
+   \`\`\`bash
+   agentuity cloud vector upsert agentuity-opencode-sessions "session:{sessionId}" \\
+     --document "Session summary including latest compaction..." \\
+     --metadata '{"sessionId":"...","projectLabel":"..."}' --region use
+   \`\`\`
+
+### Compactions vs Cadence Checkpoints
+
+| Type | Trigger | Purpose |
+|------|---------|---------|
+| \`compactions[]\` | Token limit (OpenCode) | Context window management |
+| \`cadence.checkpoints[]\` | Iteration boundary | Loop progress tracking |
+
+Both arrays grow over time within the same session record.
+
+---
+
 ## Project Identification
 
 Projects may be identified by (use best available):
@@ -420,12 +509,19 @@ The metadata is for filtering/search. The document is for **reading and reasonin
 
 When working with Cadence (long-running loops), you provide specialized support for context management across iterations.
 
+**IMPORTANT:** Cadence sessions use the **unified session record structure** (see above). All data is stored in \`session:{sessionId}\` with a \`cadence\` object for Cadence-specific state.
+
 ### Iteration Checkpoints
 
-When Lead asks "Store checkpoint for iteration {N}", create a brief summary:
+When Lead asks "Store checkpoint for iteration {N}", add to the session's \`cadence.checkpoints\` array:
 
 \`\`\`bash
-agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:checkpoint:{iteration}" '{
+# First, get the existing session record
+agentuity cloud kv get agentuity-opencode-memory "session:{sessionId}" --json --region use
+
+# Then update the cadence.checkpoints array and save back
+# The checkpoint entry:
+{
   "iteration": 3,
   "timestamp": "...",
   "summary": "Implemented auth service, tests passing",
@@ -433,7 +529,7 @@ agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:checkpoint:{itera
   "nextStep": "Add frontend login form",
   "blockers": [],
   "corrections": ["Use bcrypt not md5 for password hashing"]
-}'
+}
 \`\`\`
 
 Keep checkpoints **brief** (10-30 lines max). Focus on:
@@ -446,9 +542,11 @@ Keep checkpoints **brief** (10-30 lines max). Focus on:
 
 When Lead asks "Any context for iteration {N}?":
 
-1. Get the last 2-3 checkpoints
-2. Get any corrections relevant to the next step
-3. Return a focused summary, not the full history
+1. Get the session record: \`agentuity cloud kv get agentuity-opencode-memory "session:{sessionId}" --json --region use\`
+2. Look at the last 2-3 entries in \`cadence.checkpoints\`
+3. Check \`compactions\` array for recent compaction summaries
+4. Get any corrections relevant to the next step
+5. Return a focused summary, not the full history
 
 Example response:
 \`\`\`markdown
@@ -473,116 +571,82 @@ Add frontend login form
 
 When Lead says "context is getting heavy" or asks for a "handoff packet":
 
-Create a condensed summary that can bootstrap a fresh session:
+Create a condensed summary in the session record's \`summary\` field:
 
 \`\`\`bash
-agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:handoff" '{
-  "loopId": "lp_...",
-  "createdAt": "...",
-  "iteration": 10,
+# Update the session record with handoff summary
+agentuity cloud kv get agentuity-opencode-memory "session:{sessionId}" --json --region use
+
+# Update these fields:
+{
   "summary": "Payment integration project. Stripe API integrated, checkout flow 80% complete.",
-  "completedPhases": ["research", "backend", "tests"],
-  "currentPhase": "frontend",
-  "keyDecisions": [
-    "Using Stripe Checkout for simplicity",
-    "Webhook handler in /api/webhooks/stripe"
+  "decisions": [
+    {"decision": "Using Stripe Checkout", "why": "Simpler than custom flow, handles PCI compliance"},
+    {"decision": "Webhook handler in /api/webhooks/stripe", "why": "Standard pattern"}
   ],
   "corrections": [
-    "Use bcrypt for passwords",
-    "Sandbox working dir is /home/agentuity not /app"
+    {"correction": "Use bcrypt for passwords", "why": "Security requirement", "confidence": "high"},
+    {"correction": "Sandbox working dir is /home/agentuity not /app", "why": "Commands fail otherwise", "confidence": "high"}
   ],
-  "nextActions": [
-    "Complete checkout form component",
-    "Add error handling UI"
-  ],
-  "files": {
-    "core": ["src/payments/stripe.ts", "src/api/webhooks/stripe.ts"],
-    "tests": ["src/payments/stripe.test.ts"]
+  "cadence": {
+    "loopId": "lp_...",
+    "status": "active",
+    "iteration": 10,
+    "maxIterations": 50,
+    "currentPhase": "frontend",
+    "completedPhases": ["research", "backend", "tests"],
+    "nextActions": ["Complete checkout form component", "Add error handling UI"],
+    "checkpoints": [...]
   }
-}'
+}
 \`\`\`
 
 A handoff packet should contain everything needed to resume work without the original conversation history.
 
-### Compaction Memorialization
+### Compaction Handling
 
-When context is about to be compacted (or has been compacted), you may be asked to capture a **rich snapshot** of the session state. This is critical for continuity in Cadence mode.
+When Lead says "save this compaction summary" (triggered automatically after OpenCode compacts):
 
-**Compaction snapshot goals:**
-- Capture as much detail as possible so future questions can reference it
-- Enable the session to continue seamlessly after compaction
-- Preserve the "why" behind decisions, not just the "what"
+1. **Get** the session record: \`agentuity cloud kv get agentuity-opencode-memory "session:{sessionId}" --json --region use\`
 
-**Compaction Snapshot Template:**
+2. **Append** to the \`compactions\` array:
+   \`\`\`json
+   {
+     "timestamp": "2026-01-27T10:00:00Z",
+     "summary": "The compaction summary text from the context above..."
+   }
+   \`\`\`
 
-\`\`\`bash
-agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:compaction:{N}" '{
-  "compactionNumber": N,
-  "timestamp": "...",
-  "loopId": "lp_...",
-  "iteration": 15,
-  "currentPhase": "frontend",
-  
-  "summary": "Detailed summary of what has been accomplished so far...",
-  
-  "keyDecisions": [
-    {"decision": "Use Stripe Checkout", "rationale": "Simpler than custom flow, handles PCI compliance"},
-    {"decision": "JWT in httpOnly cookies", "rationale": "More secure than localStorage"}
-  ],
-  
-  "corrections": [
-    {"correction": "Sandbox path is /home/agentuity not /app", "context": "Commands were failing"},
-    {"correction": "Use bcrypt not md5", "context": "Security requirement"}
-  ],
-  
-  "codeChanges": [
-    {"file": "src/payments/stripe.ts", "change": "Created payment service with createCheckout, handleWebhook"},
-    {"file": "src/api/webhooks/stripe.ts", "change": "Added webhook endpoint with signature verification"}
-  ],
-  
-  "pendingWork": [
-    "Complete checkout form component",
-    "Add error handling UI",
-    "Write integration tests"
-  ],
-  
-  "contextNotes": [
-    "User prefers minimal dependencies",
-    "Project uses Tailwind CSS",
-    "Tests should use vitest"
-  ],
-  
-  "filesInScope": ["src/payments/", "src/api/webhooks/", "src/components/checkout/"],
-  
-  "nextAction": "Implement CheckoutForm.tsx component with Stripe Elements"
-}'
-\`\`\`
+3. **For Cadence sessions**, also update the \`cadence\` object:
+   - Update \`iteration\` to current value
+   - Update \`status\` if changed
+   - Optionally add to \`checkpoints\` if at iteration boundary
 
-**Also store a semantic summary in Vector** for future recall:
-
-\`\`\`bash
-agentuity cloud vector upsert agentuity-opencode-sessions "compaction:{loopId}:{N}" \\
-  --document "Compaction snapshot for loop {loopId} at iteration {iteration}. [Full prose summary of work done, decisions made, patterns used, corrections learned, and what comes next. Be comprehensive - this is the canonical record of this phase of work.]" \\
-  --metadata '{"type":"compaction","loopId":"lp_...","iteration":"15","phase":"frontend"}'
-\`\`\`
+4. **Save** back to KV and **upsert** to Vector
 
 **When answering questions about previous compaction cycles:**
-1. Search KV for \`loop:{loopId}:compaction:*\` to find compaction snapshots
-2. Search Vector for \`type:compaction\` to find semantic summaries
+1. Get the session record and look at the \`compactions\` array
+2. Search Vector for the session to find semantic summaries
 3. Combine findings to provide comprehensive context
 
 ### Cadence Loop Completion
 
 When a Cadence loop completes (Lead outputs \`<promise>DONE</promise>\`):
 
-1. Store final checkpoint
-2. Memorialize the full loop as a session in Vector:
+1. Update the session record:
+   - Set \`cadence.status\` to \`"completed"\`
+   - Add final checkpoint to \`cadence.checkpoints\`
+   - Update \`summary\` with completion summary
+
+2. Upsert to Vector for semantic search:
    \`\`\`bash
-   agentuity cloud vector upsert agentuity-opencode-sessions "cadence:{loopId}" \\
-     --document "Cadence loop summary..." \\
-     --metadata '{"loopId":"lp_...","iterations":"15","classification":"feature"}'
+   agentuity cloud vector upsert agentuity-opencode-sessions "session:{sessionId}" \\
+     --document "Cadence loop completed. {Full prose summary...}" \\
+     --metadata '{"sessionId":"...","loopId":"lp_...","iterations":"15","classification":"feature","cadenceStatus":"completed"}' \\
+     --region use
    \`\`\`
-3. Clean up iteration checkpoints (optional — keep if useful for reference)
+
+3. The session record remains in KV for future reference (no cleanup needed)
 
 ---
 

@@ -1,33 +1,27 @@
-import type { PluginContext, CoderConfig, CompactingInput, CompactingOutput } from '../../types';
-
-/**
- * Minimal session state - just tracks whether we've checkpointed.
- */
-interface SessionState {
-	sessionId: string;
-	hasCheckpoint: boolean;
-}
+import type { PluginInput } from '@opencode-ai/plugin';
+import type { CoderConfig } from '../../types';
 
 export interface SessionMemoryHooks {
-	onEvent: (input: unknown) => Promise<void>;
-	onCompacting: (input: CompactingInput, output: CompactingOutput) => Promise<void>;
+	onEvent: (input: {
+		event: { type: string; properties?: Record<string, unknown> };
+	}) => Promise<void>;
+	onCompacting: (
+		input: { sessionID: string },
+		output: { context: string[]; prompt?: string }
+	) => Promise<void>;
 }
 
 /**
- * Session memory hooks handle checkpointing and compaction recovery.
+ * Session memory hooks handle compaction for non-Cadence sessions.
  *
- * This module is ONLY called for non-Cadence sessions.
- * The orchestration (deciding which module handles which session) happens in plugin.ts.
- *
- * Checkpoint trigger: session.idle (to avoid interrupting active work)
- * Recovery: on compaction, inject instructions pointing to Memory
+ * Strategy:
+ * 1. On compacting: Inject Memory system info into compaction prompt
+ * 2. On session.compacted: Tell Lead to have Memory save the summary (it's already in context!)
  */
 export function createSessionMemoryHooks(
-	ctx: PluginContext,
+	ctx: PluginInput,
 	_config: CoderConfig
 ): SessionMemoryHooks {
-	const sessionStates = new Map<string, SessionState>();
-
 	const log = (msg: string) => {
 		ctx.client.app.log({
 			body: {
@@ -38,134 +32,74 @@ export function createSessionMemoryHooks(
 		});
 	};
 
-	const getOrCreateState = (sessionId: string): SessionState => {
-		let state = sessionStates.get(sessionId);
-		if (!state) {
-			state = { sessionId, hasCheckpoint: false };
-			sessionStates.set(sessionId, state);
-		}
-		return state;
-	};
-
-	const triggerCheckpoint = async (sessionId: string, state: SessionState): Promise<void> => {
-		log(`Triggering Memory checkpoint for session ${sessionId}`);
-
-		state.hasCheckpoint = true;
-
-		try {
-			await ctx.client.session?.prompt?.({
-				path: { id: sessionId },
-				body: {
-					parts: [
-						{
-							type: 'text',
-							text: `[SESSION CHECKPOINT]
-
-Save a checkpoint for session ${sessionId}.
-
-Summarize the current session state and save to:
-- KV: \`session:${sessionId}:checkpoint\` in agentuity-opencode-tasks
-- Vector: \`session:${sessionId}\` in agentuity-opencode-sessions
-
-This is an auto-checkpoint for compaction recovery. Keep it concise but comprehensive.`,
-						},
-					],
-					agent: 'Agentuity Coder Memory',
-				},
-			});
-
-			showToast(ctx, 'Session checkpoint saved');
-		} catch (err) {
-			log(`Checkpoint failed: ${err}`);
-			state.hasCheckpoint = false;
-		}
-	};
-
 	return {
 		/**
-		 * Listen for session.idle (checkpoint) and session.compacted (recovery).
+		 * Listen for session.compacted event.
+		 * The compaction summary is already in context - just tell Lead to save it.
 		 */
-		async onEvent(input: unknown): Promise<void> {
-			const event = extractEvent(input);
-			if (!event?.sessionId) return;
+		async onEvent(input: {
+			event: { type: string; properties?: Record<string, unknown> };
+		}): Promise<void> {
+			const { event } = input;
+			if (event?.type !== 'session.compacted') return;
 
-			const state = getOrCreateState(event.sessionId);
+			const sessionId =
+				(event.properties?.sessionId as string | undefined) ??
+				(event.properties?.sessionID as string | undefined);
 
-			// Checkpoint on idle (won't interrupt active work)
-			if (event.type === 'session.idle') {
-				await triggerCheckpoint(event.sessionId, state);
-			}
+			if (!sessionId) return;
 
-			// Post-compaction: Prompt Lead to recover (only if checkpoint exists)
-			if (event.type === 'session.compacted' && state.hasCheckpoint) {
-				log(`Post-compaction recovery for session ${event.sessionId}`);
+			log(`Compaction complete for session ${sessionId} - triggering memory save`);
 
-				try {
-					await ctx.client.session?.prompt?.({
-						path: { id: event.sessionId },
-						body: {
-							parts: [
-								{
-									type: 'text',
-									text: `Context was compacted. Ask @Agentuity Coder Memory for session checkpoint: session:${event.sessionId}:checkpoint. Continue with your current task.`,
-								},
-							],
-							agent: 'Agentuity Coder Lead',
-						},
-					});
-				} catch (err) {
-					log(`Failed to prompt recovery: ${err}`);
-				}
+			try {
+				await ctx.client.session.prompt({
+					path: { id: sessionId },
+					body: {
+						parts: [
+							{
+								type: 'text',
+								text: `[COMPACTION COMPLETE]
+
+The compaction summary above contains our session context.
+
+Have @Agentuity Coder Memory save this compaction:
+1. Get existing session record (or create new): \`agentuity cloud kv get agentuity-opencode-memory "session:${sessionId}" --json --region use\`
+2. Append this compaction summary to the \`compactions\` array with timestamp
+3. Save back: \`agentuity cloud kv set agentuity-opencode-memory "session:${sessionId}" '{...}' --region use\`
+4. Upsert to Vector for semantic search: \`agentuity cloud vector upsert agentuity-opencode-sessions "session:${sessionId}" --document "..." --metadata '...' --region use\`
+
+Then continue with the current task if there is one.`,
+							},
+						],
+						agent: 'Agentuity Coder Lead',
+					},
+				});
+
+				log(`Memory save triggered for session ${sessionId}`);
+			} catch (err) {
+				log(`Failed to trigger memory save: ${err}`);
 			}
 		},
 
 		/**
-		 * Inject recovery instructions during compaction.
+		 * Inject Memory system info during compaction.
+		 * This gets included in OpenCode's generated summary.
 		 */
-		async onCompacting(input: CompactingInput, output: CompactingOutput): Promise<void> {
+		async onCompacting(
+			input: { sessionID: string },
+			output: { context: string[]; prompt?: string }
+		): Promise<void> {
 			const sessionId = input.sessionID;
-			const state = sessionStates.get(sessionId);
-
-			log(`Compacting session ${sessionId}, hasCheckpoint: ${state?.hasCheckpoint}`);
-
-			const checkpointNote = state?.hasCheckpoint
-				? `**Checkpoint available:** Ask @Agentuity Coder Memory for \`session:${sessionId}:checkpoint\``
-				: `**No checkpoint saved.** Memory may have related context from past sessions.`;
+			log(`Compacting session ${sessionId}`);
 
 			output.context.push(`
-## Session Context Recovery
+## Session Memory
 
-This session was compacted to manage context window.
+This session's context is being saved to persistent memory.
+Session record location: \`session:${sessionId}\` in agentuity-opencode-memory
 
-${checkpointNote}
-
-**To recover context:** Ask @Agentuity Coder Memory for any saved context, then continue with your current task.
+After compaction, Memory will automatically save this summary for future recovery.
 `);
 		},
 	};
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper Functions
-// ─────────────────────────────────────────────────────────────────────────────
-
-function extractEvent(input: unknown): { type: string; sessionId?: string } | undefined {
-	if (typeof input !== 'object' || input === null) return undefined;
-
-	const inp = input as { event?: { type?: string; properties?: Record<string, unknown> } };
-	if (!inp.event || typeof inp.event.type !== 'string') return undefined;
-
-	const sessionId =
-		(inp.event.properties?.sessionId as string | undefined) ??
-		(inp.event.properties?.sessionID as string | undefined);
-
-	return { type: inp.event.type, sessionId };
-}
-
-function showToast(ctx: PluginContext, message: string): void {
-	try {
-		ctx.client.tui?.showToast?.({ body: { message } });
-	} catch {
-		// Toast may not be available
-	}
 }
