@@ -174,15 +174,22 @@ export const deleteSubcommand = createSubcommand({
 				});
 			});
 
-			// Update local .env file only if we have a project directory
+			// Update local .env file only if we have a project directory and an existing .env file
 			let envFilePath: string | undefined;
 			if (projectDir) {
 				envFilePath = await findExistingEnvFile(projectDir);
-				const currentEnv = await readEnvFile(envFilePath);
-				for (const key of [...secretKeys, ...envKeys]) {
-					delete currentEnv[key];
+				if (envFilePath) {
+					const currentEnv = await readEnvFile(envFilePath);
+					const originalKeyCount = Object.keys(currentEnv).length;
+					for (const key of [...secretKeys, ...envKeys]) {
+						delete currentEnv[key];
+					}
+					// Only write if we actually removed keys (avoid creating empty file)
+					const keysRemoved = originalKeyCount > Object.keys(currentEnv).length;
+					if (keysRemoved) {
+						await writeEnvFile(envFilePath, currentEnv, { preserveExisting: false });
+					}
 				}
-				await writeEnvFile(envFilePath, currentEnv, { preserveExisting: false });
 			}
 
 			const deletedKeys = [...secretKeys, ...envKeys];
