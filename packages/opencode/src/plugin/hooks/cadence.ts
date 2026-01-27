@@ -186,6 +186,38 @@ The compaction summary above contains our Cadence session context.
    - Ensure \`cadence\` object exists with: loopId="${state.loopId ?? 'unknown'}", iteration=${state.iteration}, maxIterations=${state.maxIterations}, status="active"
    - Save back to KV and upsert to Vector
 
+After saving the compaction:
+1. Read back the session record from KV
+2. Return to Lead the PREVIOUS compactions only (not the one just saved - Lead already has the current compaction in context)
+3. Format as a readable summary with timestamps
+4. Include "what's next" - the Cadence iteration to continue
+
+Response format:
+\`\`\`
+## Prior Session History: ${sessionId}
+
+### Compaction 1 (timestamp)
+[summary]
+
+### Compaction 2 (timestamp)
+[summary]
+
+(Current compaction already in your context)
+
+## What's Next
+Continue Cadence iteration ${state.iteration} of ${state.maxIterations}
+\`\`\`
+
+If no prior compactions exist:
+\`\`\`
+## Prior Session History: ${sessionId}
+
+No prior compactions - this is the first one.
+
+## What's Next
+Continue Cadence iteration ${state.iteration} of ${state.maxIterations}
+\`\`\`
+
 2. Then continue the Cadence loop:
    - Review the compaction summary above for context
    - Continue with iteration ${state.iteration}

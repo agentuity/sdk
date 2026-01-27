@@ -68,6 +68,38 @@ Have @Agentuity Coder Memory save this compaction:
 3. Save back: \`agentuity cloud kv set agentuity-opencode-memory "session:${sessionId}" '{...}' --region use\`
 4. Upsert to Vector for semantic search: \`agentuity cloud vector upsert agentuity-opencode-sessions "session:${sessionId}" --document "..." --metadata '...' --region use\`
 
+After saving the compaction:
+1. Read back the session record from KV
+2. Return to Lead the PREVIOUS compactions only (not the one just saved - Lead already has the current compaction in context)
+3. Format as a readable summary with timestamps
+4. Include "what's next" - the user's pending request if there is one
+
+Response format:
+\`\`\`
+## Prior Session History: ${sessionId}
+
+### Compaction 1 (timestamp)
+[summary]
+
+### Compaction 2 (timestamp)
+[summary]
+
+(Current compaction already in your context)
+
+## What's Next
+[User's pending request if there is one]
+\`\`\`
+
+If no prior compactions exist:
+\`\`\`
+## Prior Session History: ${sessionId}
+
+No prior compactions - this is the first one.
+
+## What's Next
+[User's pending request if there is one]
+\`\`\`
+
 Then continue with the current task if there is one.`,
 							},
 						],
