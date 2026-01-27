@@ -161,31 +161,13 @@ const consoleLogger = new ConsoleLogger(
 );
 consoleLogger.setShowPrefix(earlyOpts.logPrefix !== false);
 
-// Extract the command being run from process.argv (skip flags and their values)
-// We need to do this early to check if we should skip internal logging
-const commandArgs: string[] = [];
-let skipNext = false;
-for (const arg of preprocessedArgs) {
-	if (skipNext) {
-		skipNext = false;
-		continue;
-	}
-	if (arg.startsWith('--')) {
-		// Check if this flag takes a value (contains '=' or is known to take a value)
-		if (!arg.includes('=')) {
-			// Skip the next arg if it's not a flag (it's the value for this flag)
-			const nextIdx = preprocessedArgs.indexOf(arg) + 1;
-			if (nextIdx < preprocessedArgs.length && !preprocessedArgs[nextIdx].startsWith('-')) {
-				skipNext = true;
-			}
-		}
-	} else if (arg.startsWith('-') && arg.length === 2) {
-		// Short flag, might have a value
-		skipNext = true;
-	} else if (!arg.startsWith('-')) {
-		commandArgs.push(arg);
-	}
-}
+// Use the parsed operands from Commander.js parseOptions() which correctly
+// separates command names from option values. parsedOperands contains only
+// positional arguments (command/subcommand names), not flag values.
+// For help mode, parsedOperands is empty so we fall back to extracting from preprocessedArgs.
+const commandArgs = hasHelp
+	? preprocessedArgs.filter((arg) => !arg.startsWith('-'))
+	: parsedOperands.slice(2); // Skip first two elements (node path and script path)
 
 // Check if we should skip internal logging based on command or help flags
 // We need to check the commands first to see if skipInternalLogging is set

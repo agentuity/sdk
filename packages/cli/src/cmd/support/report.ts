@@ -159,6 +159,10 @@ async function openBrowser(url: string, logger: import('../../types').Logger): P
 		});
 
 		await proc.exited;
+
+		if (proc.exitCode !== 0) {
+			throw new Error(`Browser process exited with code ${proc.exitCode}`);
+		}
 	} catch (error) {
 		logger.error('Failed to open browser', { error });
 		throw new Error('Failed to open browser. Please open the URL manually.');
@@ -324,8 +328,6 @@ export default createSubcommand({
 				}
 			}
 		} catch (error) {
-			logger.error('Failed to create report', { error });
-
 			if (isJsonMode) {
 				console.log(
 					JSON.stringify({
@@ -337,7 +339,7 @@ export default createSubcommand({
 				tui.error('Failed to create report');
 				tui.output(error instanceof Error ? error.message : 'Unknown error');
 			}
-			process.exit(1);
+			logger.fatal('Failed to create report', { error });
 		}
 	},
 });

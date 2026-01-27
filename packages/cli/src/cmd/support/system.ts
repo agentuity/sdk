@@ -103,7 +103,7 @@ export default createSubcommand({
 		};
 
 		if (isJsonMode) {
-			console.log(JSON.stringify(systemInfo, null, 2));
+			tui.json(systemInfo);
 		} else {
 			// Display in vertical table format
 			tui.info(tui.bold('System Information'));
