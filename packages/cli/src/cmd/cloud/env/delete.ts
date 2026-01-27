@@ -124,7 +124,7 @@ export const deleteSubcommand = createSubcommand({
 
 			const deletedKeys = [...secretKeys, ...envKeys];
 			if (notFoundKeys.length > 0) {
-				tui.warn(`Variables not found (skipped): ${notFoundKeys.join(', ')}`);
+				tui.warning(`Variables not found (skipped): ${notFoundKeys.join(', ')}`);
 			}
 			tui.success(
 				`Deleted ${deletedKeys.length} organization variable(s): ${deletedKeys.join(', ')}`
@@ -187,7 +187,7 @@ export const deleteSubcommand = createSubcommand({
 
 			const deletedKeys = [...secretKeys, ...envKeys];
 			if (notFoundKeys.length > 0) {
-				tui.warn(`Variables not found (skipped): ${notFoundKeys.join(', ')}`);
+				tui.warning(`Variables not found (skipped): ${notFoundKeys.join(', ')}`);
 			}
 
 			const locationMsg = envFilePath ? ` (cloud + ${envFilePath})` : ' (cloud only)';
