@@ -104,11 +104,11 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 
 		// Calculate expiration
 		// TTL handling: null or 0 = no expiration, positive = TTL in seconds
-		// undefined = use default (30 days for consistency with cloud)
+		// undefined = use default (7 days for consistency with cloud namespace default)
 		let expiresAt: number | null = null;
 		if (params?.ttl === undefined) {
-			// Default to 30 days (matching cloud behavior)
-			expiresAt = now() + 30 * 24 * 60 * 60 * 1000;
+			// Default to 7 days (matching cloud namespace default behavior)
+			expiresAt = now() + 7 * 24 * 60 * 60 * 1000;
 		} else if (params.ttl !== null && params.ttl > 0) {
 			expiresAt = now() + params.ttl * 1000;
 		}

@@ -132,7 +132,10 @@ export const upsertSubcommand = createCommand({
 				tui.fatal('Invalid JSON in input file/stdin');
 			}
 
-			// Validate documents
+			// Validate documents and apply TTL from command line if not set in document
+			// Handle TTL: 0 means no expiration (null in API), undefined means use default
+			const cliTtl = opts.ttl === 0 ? null : opts.ttl;
+
 			for (const doc of documents) {
 				if (!doc.key || typeof doc.key !== 'string') {
 					tui.fatal('Each document must have a non-empty "key" property');
@@ -141,6 +144,10 @@ export const upsertSubcommand = createCommand({
 					tui.fatal(
 						`Document with key "${doc.key}" must have either "document" or "embeddings" property`
 					);
+				}
+				// Apply CLI TTL to documents that don't have their own TTL set
+				if (cliTtl !== undefined && doc.ttl === undefined) {
+					doc.ttl = cliTtl;
 				}
 			}
 		} else {
