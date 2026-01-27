@@ -37,15 +37,14 @@ export const command = createCommand({
 						message: 'Validating your identity',
 						clearOnSuccess: true,
 						callback: async () => {
-							// For compiled binaries, process.argv contains virtual paths (/$bunfs/root/...)
-							// Use process.execPath which has the actual binary path
-							const isCompiledBinary = process.argv[1]?.startsWith('/$bunfs/');
-							const cmd = isCompiledBinary
-								? [
-										process.execPath,
-										...process.argv.slice(2).map((x) => (x === 'setup' ? 'login' : x)),
-									]
-								: process.argv.map((x) => (x === 'setup' ? 'login' : x));
+							// Re-run the CLI with 'login' instead of 'setup'
+							// Only replace the first occurrence of 'setup' to avoid replacing user data
+							const argv = process.argv;
+							const setupIndex = argv.indexOf('setup');
+							const cmd =
+								setupIndex >= 0
+									? [...argv.slice(0, setupIndex), 'login', ...argv.slice(setupIndex + 1)]
+									: argv;
 							const r = Bun.spawn({
 								cmd: cmd.concat('--json'),
 								stdout: 'pipe',

@@ -7,6 +7,25 @@
 import { z } from 'zod';
 import type { Logger } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
+import pkg from '../../package.json' with { type: 'json' };
+
+// Cache the package data
+let cachedPackage: typeof pkg | null = null;
+
+export function getPackage(): typeof pkg {
+	if (!cachedPackage) {
+		cachedPackage = pkg;
+	}
+	return cachedPackage;
+}
+
+function getVersion(): string {
+	return process.env.AGENTUITY_CLI_VERSION || getPackage().version || 'dev';
+}
+
+function getUserAgent(): string {
+	return `Agentuity SDK/${getVersion()}`;
+}
 
 export interface APIClientConfig {
 	skipVersionCheck?: boolean;
@@ -77,7 +96,7 @@ export const ValidationOutputError = StructuredError(
 
 export const UpgradeRequiredError = StructuredError(
 	'UpgradeRequiredError',
-	'Upgrade required to continue. Please see https://agentuity.dev/CLI/installation to download the latest version of the SDK.'
+	'Upgrade required to continue. Please run `agentuity upgrade` or see https://agentuity.dev/Get-Started/installation to download the latest version.'
 )<{
 	sessionId?: string | null;
 }>();
@@ -86,6 +105,15 @@ export const MaxRetriesError = StructuredError(
 	'MaxRetriesError',
 	'Max Retries attempted and continued failures exhausted.'
 );
+
+export const MisdirectedRequestError = StructuredError(
+	'MisdirectedRequestError',
+	'The request was sent to the wrong regional server.'
+)<{
+	url: string;
+	region: string;
+	sessionId?: string | null;
+}>();
 
 export class APIClient {
 	#baseUrl: string;
@@ -338,6 +366,8 @@ export class APIClient {
 
 		if (this.#config?.userAgent) {
 			headers['User-Agent'] = this.#config.userAgent;
+		} else {
+			headers['User-Agent'] = getUserAgent();
 		}
 
 		if (this.#apiKey) {
@@ -411,6 +441,67 @@ export class APIClient {
 				}
 
 				const sessionId = response.headers.get('x-session-id');
+
+				// Handle 421 Misdirected Request - the resource is in a different region
+				// We need to retry against the correct regional Catalyst
+				// Only handle this for Catalyst URLs (not the main API)
+				if (response.status === 421 && this.#isCatalystUrl()) {
+					const targetRegion = response.headers.get('x-agentuity-region');
+					if (targetRegion && canRetry) {
+						const regionalUrl = this.#buildRegionalUrl(targetRegion, endpoint);
+						this.#logger.debug(
+							`Got 421 Misdirected Request, resource is in region ${targetRegion}, retrying against ${regionalUrl} (sessionId: ${sessionId ?? null})`
+						);
+
+						// Retry the request against the correct regional Catalyst
+						let requestBody:
+							| Uint8Array
+							| ArrayBuffer
+							| ReadableStream<Uint8Array>
+							| string
+							| Blob
+							| undefined;
+						if (body !== undefined) {
+							if (contentType && contentType !== 'application/json') {
+								requestBody = body as
+									| Uint8Array
+									| ArrayBuffer
+									| ReadableStream<Uint8Array>
+									| string
+									| Blob;
+							} else {
+								requestBody = JSON.stringify(body);
+							}
+						}
+
+						const regionalResponse = await fetch(regionalUrl, {
+							method,
+							headers,
+							body: requestBody,
+							signal,
+						});
+
+						// If the regional request also fails with 421, throw MisdirectedRequestError
+						if (regionalResponse.status === 421) {
+							throw new MisdirectedRequestError({
+								url: regionalUrl,
+								region: targetRegion,
+								sessionId: regionalResponse.headers.get('x-session-id'),
+							});
+						}
+
+						// For all other responses (success or error), assign to response
+						// and let the normal flow handle it (error handling, validation, etc.)
+						response = regionalResponse;
+					} else {
+						// No region header or can't retry - throw error
+						throw new MisdirectedRequestError({
+							url,
+							region: targetRegion ?? 'unknown',
+							sessionId,
+						});
+					}
+				}
 
 				// Check if we should retry on specific status codes (409, 501, 503)
 				const retryableStatuses = [409, 501, 503];
@@ -497,6 +588,11 @@ export class APIClient {
 					this.#logger.debug('  Status:', response.status, response.statusText);
 					this.#logger.debug('  Headers:', JSON.stringify(sanitizedHeaders, null, 2));
 					this.#logger.debug('  Response:', responseBody);
+
+					// HTTP 426 always forces upgrade (cannot be skipped - emergency upgrade path)
+					if (response.status === 426) {
+						throw new UpgradeRequiredError({ sessionId });
+					}
 
 					// Check for UPGRADE_REQUIRED error
 					if (errorData?.code === 'UPGRADE_REQUIRED') {
@@ -605,6 +701,38 @@ export class APIClient {
 
 	#sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	/**
+	 * Check if the base URL is a Catalyst URL.
+	 * We only handle 421 Misdirected Request for Catalyst URLs, not the main API.
+	 */
+	#isCatalystUrl(): boolean {
+		try {
+			const url = new URL(this.#baseUrl);
+			return url.hostname.includes('catalyst');
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Build a URL for a specific regional Catalyst instance.
+	 * Used when retrying requests that received 421 Misdirected Request.
+	 */
+	#buildRegionalUrl(region: string, endpoint: string): string {
+		// Determine the domain suffix based on region
+		const isLocal = region === 'local' || region === 'l';
+		const domainSuffix = isLocal ? 'agentuity.io' : 'agentuity.cloud';
+
+		// Build the regional Catalyst URL
+		// For local: https://catalyst.agentuity.io
+		// For production: https://catalyst-{region}.agentuity.cloud
+		const baseUrl = isLocal
+			? `https://catalyst.${domainSuffix}`
+			: `https://catalyst-${region}.${domainSuffix}`;
+
+		return `${baseUrl}${endpoint}`;
 	}
 
 	#getRateLimitDelay(response: Response): number | null {

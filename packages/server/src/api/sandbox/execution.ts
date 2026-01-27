@@ -53,24 +53,46 @@ export interface ExecutionInfo {
 export interface ExecutionGetParams {
 	executionId: string;
 	orgId?: string;
+	/**
+	 * Optional wait duration for long-polling. If specified, the server will hold
+	 * the connection open until the execution reaches a terminal state (completed,
+	 * failed, timeout, cancelled) or the wait duration expires.
+	 *
+	 * Format: duration string like "30s", "1m", "5m"
+	 * Maximum: 5 minutes (server will cap at this value)
+	 *
+	 * If not specified, returns immediately with current status.
+	 */
+	wait?: string;
 }
 
 /**
  * Retrieves detailed information about a specific execution.
  *
  * @param client - The API client to use for the request
- * @param params - Parameters including the execution ID
+ * @param params - Parameters including the execution ID and optional wait duration
  * @returns Detailed execution information including status, timing, and errors
  * @throws {SandboxResponseError} If the execution is not found or request fails
+ *
+ * @example
+ * // Immediate return (current behavior)
+ * const info = await executionGet(client, { executionId: 'exec_123' });
+ *
+ * @example
+ * // Long-poll: wait up to 60 seconds for completion
+ * const info = await executionGet(client, { executionId: 'exec_123', wait: '60s' });
  */
 export async function executionGet(
 	client: APIClient,
 	params: ExecutionGetParams
 ): Promise<ExecutionInfo> {
-	const { executionId, orgId } = params;
+	const { executionId, orgId, wait } = params;
 	const queryParams = new URLSearchParams();
 	if (orgId) {
 		queryParams.set('orgId', orgId);
+	}
+	if (wait) {
+		queryParams.set('wait', wait);
 	}
 	const queryString = queryParams.toString();
 	const url = `/sandbox/${API_VERSION}/execution/${executionId}${queryString ? `?${queryString}` : ''}`;

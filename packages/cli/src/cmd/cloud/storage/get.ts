@@ -15,6 +15,9 @@ const StorageGetResponseSchema = z.object({
 	endpoint: z.string().optional().describe('S3 endpoint URL'),
 	org_id: z.string().optional().describe('Organization ID that owns this bucket'),
 	org_name: z.string().optional().describe('Organization name that owns this bucket'),
+	bucket_type: z.string().optional().describe('Bucket type (user or snapshots)'),
+	internal: z.boolean().optional().describe('Whether this is a system-managed bucket'),
+	description: z.string().optional().describe('Optional description of the bucket'),
 });
 
 export const getSubcommand = createSubcommand({
@@ -134,6 +137,9 @@ export const getSubcommand = createSubcommand({
 			endpoint: bucket.endpoint ?? undefined,
 			org_id: bucket.org_id,
 			org_name: bucket.org_name,
+			bucket_type: bucket.bucket_type,
+			internal: bucket.internal,
+			description: bucket.description ?? undefined,
 		};
 	},
 });

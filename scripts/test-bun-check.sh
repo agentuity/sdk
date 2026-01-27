@@ -68,8 +68,8 @@ test_no_bun_ci_mode() {
   fi
   
   print_info "Verifying agentuity was installed..."
-  if ! docker exec "$container_name" test -f /root/.agentuity/bin/agentuity; then
-    print_error "Agentuity binary not found"
+  if ! docker exec "$container_name" test -f /root/.bun/bin/agentuity; then
+    print_error "Agentuity binary not found at /root/.bun/bin/agentuity"
     docker rm -f "$container_name" >/dev/null 2>&1
     return 1
   fi
@@ -109,8 +109,8 @@ test_bun_install_prompt() {
   fi
   
   print_info "Verifying agentuity was installed..."
-  if ! docker exec "$container_name" test -f /root/.agentuity/bin/agentuity; then
-    print_error "Agentuity binary not found - installation did not continue after Bun install"
+  if ! docker exec "$container_name" test -f /root/.bun/bin/agentuity; then
+    print_error "Agentuity binary not found at /root/.bun/bin/agentuity"
     docker rm -f "$container_name" >/dev/null 2>&1
     return 1
   fi

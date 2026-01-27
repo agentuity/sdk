@@ -124,6 +124,15 @@ export {
 	type SandboxRunResult,
 	type SandboxService,
 	type FileToWrite,
+	// Snapshot types
+	type SnapshotFileInfo,
+	type SnapshotOrgInfo,
+	type SnapshotUserInfo,
+	type SnapshotInfo,
+	type SnapshotCreateOptions,
+	type SnapshotListParams,
+	type SnapshotListResponse,
+	type SnapshotService,
 	SandboxError,
 } from './services/sandbox';
 export { buildUrl, toServiceException, toPayload, fromResponse } from './services/_util';

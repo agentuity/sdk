@@ -72,7 +72,7 @@ async function handleChatRequest(
 		stream.markdown('The Agentuity CLI is required. Install it with:\n\n');
 		stream.markdown('```bash\nbun install -g @agentuity/cli\n```\n\n');
 		stream.markdown(
-			'Or visit the [Getting Started Guide](https://agentuity.dev/Introduction/getting-started)'
+			'Or visit the [Getting Started Guide](https://agentuity.dev/Get-Started/quickstart)'
 		);
 		stream.button({
 			title: 'Install CLI',
@@ -388,7 +388,7 @@ async function handleListAgents(stream: vscode.ChatResponseStream): Promise<vsco
 		stream.markdown('## No Agents Found\n\n');
 		stream.markdown('Create a new agent by adding a file in `src/agent/`.\n\n');
 		stream.markdown(
-			'Check the [documentation](https://agentuity.dev/Introduction/getting-started) for examples.'
+			'Check the [documentation](https://agentuity.dev/Get-Started/quickstart) for examples.'
 		);
 		return { metadata: { command: 'agents' } };
 	}

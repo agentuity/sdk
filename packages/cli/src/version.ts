@@ -16,7 +16,7 @@ export function getPackage(): typeof pkg {
 }
 
 export function getVersion(): string {
-	return process.env.AGENTUITY_CLI_VERSION || getPackage().version || 'dev';
+	return getPackage().version || 'dev';
 }
 
 export function getPackageName(): string {

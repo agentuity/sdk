@@ -1,15 +1,8 @@
 import { z } from 'zod';
-import { join } from 'node:path';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectGet, orgEnvGet } from '@agentuity/server';
-import {
-	findExistingEnvFile,
-	readEnvFile,
-	writeEnvFile,
-	mergeEnvVars,
-	isReservedAgentuityKey,
-} from '../../../env-util';
+import { findExistingEnvFile, readEnvFile, writeEnvFile, mergeEnvVars } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 import { resolveOrgId, isOrgScope } from './org-util';
 
@@ -93,7 +86,7 @@ export const pullSubcommand = createSubcommand({
 		const targetEnvPath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(targetEnvPath);
 
-		// Preserve local AGENTUITY_SDK_KEY before writing (since it will be skipped in the first write)
+		// Preserve local AGENTUITY_SDK_KEY
 		const localSdkKey = localEnv.AGENTUITY_SDK_KEY;
 
 		// Merge: cloud values override local if force=true, otherwise keep local
@@ -106,32 +99,25 @@ export const pullSubcommand = createSubcommand({
 			mergedEnv = mergeEnvVars(cloudEnv, localEnv);
 		}
 
-		// Write to .env (skip reserved AGENTUITY_ keys, except AGENTUITY_PUBLIC_)
-		await writeEnvFile(targetEnvPath, mergedEnv, {
-			skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
-		});
-
-		// Restore AGENTUITY_SDK_KEY to .env (cloud is source of truth, fallback to local)
-		// The key was removed by the write above since it's in skipKeys, so we need to restore it
-		const dotEnvPath = join(projectDir, '.env');
-		const dotEnv = await readEnvFile(dotEnvPath);
-
-		// Cloud is source of truth: use cloud api_key if available, otherwise fallback to local
-		// For org scope, only restore if local key exists (orgs don't have api_key)
+		// Determine the SDK key to use: cloud api_key is source of truth, fallback to local
 		const sdkKeyToWrite = cloudApiKey || localSdkKey;
 		if (sdkKeyToWrite) {
-			dotEnv.AGENTUITY_SDK_KEY = sdkKeyToWrite;
-			await writeEnvFile(dotEnvPath, dotEnv, {
-				addComment: (key) => {
-					if (key === 'AGENTUITY_SDK_KEY') {
-						return 'AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
-					}
-					return null;
-				},
-			});
-			if (cloudApiKey && cloudApiKey !== localSdkKey) {
-				tui.info(`Wrote AGENTUITY_SDK_KEY to ${dotEnvPath}`);
-			}
+			mergedEnv.AGENTUITY_SDK_KEY = sdkKeyToWrite;
+		}
+
+		// Write to .env in a single operation, preserveExisting: false since we have the full merged state
+		await writeEnvFile(targetEnvPath, mergedEnv, {
+			preserveExisting: false,
+			addComment: (key) => {
+				if (key === 'AGENTUITY_SDK_KEY') {
+					return 'AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
+				}
+				return null;
+			},
+		});
+
+		if (cloudApiKey && cloudApiKey !== localSdkKey) {
+			tui.info(`Wrote AGENTUITY_SDK_KEY to ${targetEnvPath}`);
 		}
 
 		const count = Object.keys(cloudEnv).length;

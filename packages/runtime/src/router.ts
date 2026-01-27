@@ -2,6 +2,7 @@
 import { type Context, Hono, type Schema, type Env as HonoEnv } from 'hono';
 import { returnResponse } from './_util';
 import type { Env } from './app';
+import { loadBuildMetadata } from './_metadata';
 
 // Re-export both Env types
 export type { Env };
@@ -163,8 +164,34 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 				return _originalInvoker(path, ...args);
 			}
 
-			// Wrap the handler to add our response conversion
+			// Wrap the handler to add our response conversion and set routeId
 			const wrapper = async (c: Context): Promise<Response> => {
+				// Look up the route ID from build metadata by matching method and path
+				// Try both the registered path and the actual request path (which may include base path)
+				const metadata = loadBuildMetadata();
+				const methodUpper = method.toUpperCase();
+				const requestPath = c.req.routePath || c.req.path;
+
+				// Try matching by registered path first, then by request path, then by path ending
+				let route = metadata?.routes?.find(
+					(r) => r.method.toUpperCase() === methodUpper && r.path === path
+				);
+				if (!route) {
+					route = metadata?.routes?.find(
+						(r) => r.method.toUpperCase() === methodUpper && r.path === requestPath
+					);
+				}
+				if (!route) {
+					// Try matching by path ending (handles /api/translate matching /translate)
+					route = metadata?.routes?.find(
+						(r) => r.method.toUpperCase() === methodUpper && r.path.endsWith(path)
+					);
+				}
+
+				if (route?.id) {
+					(c as any).set('routeId', route.id);
+				}
+
 				let result = handler(c);
 				if (result instanceof Promise) result = await result;
 				// If handler returns a Response, return it unchanged

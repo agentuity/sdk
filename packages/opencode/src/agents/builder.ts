@@ -70,7 +70,9 @@ If unsure about \`ctx.kv\`, \`ctx.vector\`, \`ctx.storage\`, or other ctx.* APIs
   - \`ctx.kv.get(namespace, key)\` → returns \`{ exists, data }\`
   - \`ctx.kv.set(namespace, key, value, { ttl: seconds })\`
   - \`ctx.kv.delete(namespace, key)\`
-- Cite the source (docs URL or SDK file) for the API shape you use
+- Cite the source (SDK repo URL or file path) for the API shape you use
+- **For code questions, check SDK source first:** https://github.com/agentuity/sdk/tree/main/packages/runtime/src
+- **NEVER hallucinate URLs** — if you don't know the exact agentuity.dev path, say "check agentuity.dev for [topic]"
 
 ## Implementation Workflow
 

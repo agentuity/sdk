@@ -2,7 +2,7 @@ import type { Logger } from '@agentuity/core';
 import { projectGet, sandboxGet, deploymentGet, type APIClient } from '@agentuity/server';
 import { getResourceRegion, setResourceRegion } from '../../cache';
 import { getGlobalCatalystAPIClient } from '../../config';
-import type { AuthData } from '../../types';
+import type { AuthData, Config } from '../../types';
 import * as tui from '../../tui';
 import { ErrorCode } from '../../errors';
 
@@ -35,7 +35,8 @@ export async function getIdentifierRegion(
 	apiClient: APIClient,
 	profileName = 'production',
 	identifier: string,
-	orgId?: string
+	orgId?: string,
+	config?: Config | null
 ): Promise<string> {
 	const identifierType = getIdentifierType(identifier);
 
@@ -57,8 +58,14 @@ export async function getIdentifierRegion(
 		const deployment = await deploymentGet(apiClient, identifier);
 		region = deployment.cloudRegion ?? null;
 	} else {
-		// sandbox
-		const globalClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		// sandbox - pass config to getGlobalCatalystAPIClient for proper region resolution
+		const globalClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			orgId,
+			config
+		);
 		const sandbox = await sandboxGet(globalClient, { sandboxId: identifier, orgId });
 		region = sandbox.region ?? null;
 	}
@@ -66,6 +73,14 @@ export async function getIdentifierRegion(
 	if (!region) {
 		tui.fatal(
 			`Could not determine region for ${identifierType} '${identifier}'. Use --region flag to specify.`,
+			ErrorCode.RESOURCE_NOT_FOUND
+		);
+	}
+
+	// Validate region is a non-empty string
+	if (typeof region !== 'string' || region.trim() === '') {
+		tui.fatal(
+			`Invalid region returned for ${identifierType} '${identifier}': '${region}'. Use --region flag to specify a valid region.`,
 			ErrorCode.RESOURCE_NOT_FOUND
 		);
 	}

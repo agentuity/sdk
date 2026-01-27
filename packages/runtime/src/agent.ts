@@ -2435,12 +2435,26 @@ const runWithSpan = async <
 		// Create a new context with the span and updated trace state including agent id
 		const spanContext = trace.setSpan(currentContext, span);
 
-		// Update trace state with agent identifier (aid) so downstream API calls (e.g., sandbox)
-		// can associate operations with this agent. The trace state is scoped to this execution,
-		// so when the agent finishes, the parent context's trace state is automatically restored.
+		// Update trace state with agent identifier (aid) and other context so downstream API calls
+		// (e.g., sandbox, AI gateway) can associate operations with this agent and session.
+		// The trace state is scoped to this execution, so when the agent finishes, the parent
+		// context's trace state is automatically restored.
 		const currentSpanContext = span.spanContext();
-		const existingTraceState = currentSpanContext.traceState ?? new TraceState();
-		const updatedTraceState = existingTraceState.set('aid', agent.metadata.id);
+		let updatedTraceState = currentSpanContext.traceState ?? new TraceState();
+
+		// Add agent ID
+		updatedTraceState = updatedTraceState.set('aid', agent.metadata.id);
+
+		// Add deployment ID, project ID, org ID, and devmode if available
+		const deploymentId = runtimeConfig.getDeploymentId();
+		const projectId = runtimeConfig.getProjectId();
+		const orgId = runtimeConfig.getOrganizationId();
+		const isDevMode = runtimeConfig.isDevMode();
+
+		if (deploymentId) updatedTraceState = updatedTraceState.set('did', deploymentId);
+		if (projectId) updatedTraceState = updatedTraceState.set('pid', projectId);
+		if (orgId) updatedTraceState = updatedTraceState.set('oid', orgId);
+		if (isDevMode) updatedTraceState = updatedTraceState.set('d', '1');
 
 		// Create context with both the span and the updated trace state
 		const contextWithAgentId = trace.setSpanContext(spanContext, {

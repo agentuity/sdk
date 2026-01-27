@@ -12,6 +12,7 @@ import {
 	generateAuthSchemaSql,
 	getGeneratedSqlDir,
 } from './shared';
+import { readEnvFile, writeEnvFile } from '../../../env-util';
 import enquirer from 'enquirer';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -96,32 +97,23 @@ export const initSubcommand = createSubcommand({
 
 		const databaseName = dbInfo.name;
 
-		// Update .env with database URL
+		// Update .env with database URL using proper parsing
 		const envPath = path.join(projectDir, '.env');
-		let envContent = '';
-
-		if (fs.existsSync(envPath)) {
-			envContent = fs.readFileSync(envPath, 'utf-8');
-			if (!envContent.endsWith('\n') && envContent.length > 0) {
-				envContent += '\n';
-			}
-		}
+		const existingEnv = await readEnvFile(envPath);
 
 		// Check if DATABASE_URL already exists
-		const hasDatabaseUrl = envContent.match(/^DATABASE_URL=/m);
+		const hasDatabaseUrl = 'DATABASE_URL' in existingEnv;
 
 		if (dbInfo.url !== databaseUrl || !hasDatabaseUrl) {
 			if (hasDatabaseUrl) {
 				// DATABASE_URL exists, use AUTH_DATABASE_URL instead
-				envContent += `AUTH_DATABASE_URL="${dbInfo.url}"\n`;
-				fs.writeFileSync(envPath, envContent);
+				await writeEnvFile(envPath, { AUTH_DATABASE_URL: dbInfo.url });
 				tui.success('AUTH_DATABASE_URL added to .env');
 				tui.warning(
 					`DATABASE_URL already exists. Update your ${tui.bold('src/auth.ts')} to use AUTH_DATABASE_URL.`
 				);
 			} else {
-				envContent += `DATABASE_URL="${dbInfo.url}"\n`;
-				fs.writeFileSync(envPath, envContent);
+				await writeEnvFile(envPath, { DATABASE_URL: dbInfo.url });
 				tui.success('DATABASE_URL added to .env');
 			}
 		} else {
@@ -129,18 +121,14 @@ export const initSubcommand = createSubcommand({
 		}
 
 		// Add AGENTUITY_AUTH_SECRET if not present
-		// Re-read envContent to get latest state
-		envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
-		if (!envContent.endsWith('\n') && envContent.length > 0) {
-			envContent += '\n';
-		}
+		// Re-read env to get latest state
+		const currentEnv = await readEnvFile(envPath);
 
 		const hasAuthSecret =
-			envContent.match(/^AGENTUITY_AUTH_SECRET=/m) || envContent.match(/^BETTER_AUTH_SECRET=/m);
+			'AGENTUITY_AUTH_SECRET' in currentEnv || 'BETTER_AUTH_SECRET' in currentEnv;
 		if (!hasAuthSecret) {
 			const devSecret = `dev-${crypto.randomUUID()}-CHANGE-ME`;
-			envContent += `AGENTUITY_AUTH_SECRET="${devSecret}"\n`;
-			fs.writeFileSync(envPath, envContent);
+			await writeEnvFile(envPath, { AGENTUITY_AUTH_SECRET: devSecret });
 			tui.success('AGENTUITY_AUTH_SECRET added to .env (development default)');
 			tui.warning(
 				`Replace ${tui.bold('AGENTUITY_AUTH_SECRET')} with a secure value before deploying.`

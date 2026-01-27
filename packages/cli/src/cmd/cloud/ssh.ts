@@ -80,7 +80,8 @@ export const sshSubcommand = createSubcommand({
 			apiClient,
 			profileName,
 			targetIdentifier,
-			orgId
+			orgId,
+			config
 		);
 
 		const hostname = getIONHost(config, region);

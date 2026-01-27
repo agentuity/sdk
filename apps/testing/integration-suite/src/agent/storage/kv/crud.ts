@@ -9,6 +9,7 @@ const kvCrudAgent = createAgent('storage-kv-crud', {
 			key: s.string(),
 			value: s.string().optional(),
 			namespace: s.string().optional(),
+			ttl: s.number().optional(),
 		}),
 		output: s.object({
 			operation: s.string(),
@@ -19,12 +20,12 @@ const kvCrudAgent = createAgent('storage-kv-crud', {
 		}),
 	},
 	handler: async (ctx, input) => {
-		const { operation, key, value, namespace = 'test' } = input;
+		const { operation, key, value, namespace = 'test', ttl } = input;
 
 		switch (operation) {
 			case 'set':
 				if (!value) throw new Error('Value required for set operation');
-				await ctx.kv.set(namespace, key, value);
+				await ctx.kv.set(namespace, key, value, ttl ? { ttl } : undefined);
 				return { operation, key, value, success: true };
 
 			case 'get': {

@@ -1408,6 +1408,7 @@ export class ThreadWebSocketClient {
 				this.ws = new WebSocket(this.wsUrl);
 
 				this.ws.addEventListener('open', () => {
+					internal.info('WebSocket connected');
 					// Send authentication (do NOT clear timeout yet - wait for auth response)
 					this.ws?.send(JSON.stringify({ authorization: this.apiKey }));
 				});

@@ -504,6 +504,73 @@ agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:handoff" '{
 
 A handoff packet should contain everything needed to resume work without the original conversation history.
 
+### Compaction Memorialization
+
+When context is about to be compacted (or has been compacted), you may be asked to capture a **rich snapshot** of the session state. This is critical for continuity in Cadence mode.
+
+**Compaction snapshot goals:**
+- Capture as much detail as possible so future questions can reference it
+- Enable the session to continue seamlessly after compaction
+- Preserve the "why" behind decisions, not just the "what"
+
+**Compaction Snapshot Template:**
+
+\`\`\`bash
+agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:compaction:{N}" '{
+  "compactionNumber": N,
+  "timestamp": "...",
+  "loopId": "lp_...",
+  "iteration": 15,
+  "currentPhase": "frontend",
+  
+  "summary": "Detailed summary of what has been accomplished so far...",
+  
+  "keyDecisions": [
+    {"decision": "Use Stripe Checkout", "rationale": "Simpler than custom flow, handles PCI compliance"},
+    {"decision": "JWT in httpOnly cookies", "rationale": "More secure than localStorage"}
+  ],
+  
+  "corrections": [
+    {"correction": "Sandbox path is /home/agentuity not /app", "context": "Commands were failing"},
+    {"correction": "Use bcrypt not md5", "context": "Security requirement"}
+  ],
+  
+  "codeChanges": [
+    {"file": "src/payments/stripe.ts", "change": "Created payment service with createCheckout, handleWebhook"},
+    {"file": "src/api/webhooks/stripe.ts", "change": "Added webhook endpoint with signature verification"}
+  ],
+  
+  "pendingWork": [
+    "Complete checkout form component",
+    "Add error handling UI",
+    "Write integration tests"
+  ],
+  
+  "contextNotes": [
+    "User prefers minimal dependencies",
+    "Project uses Tailwind CSS",
+    "Tests should use vitest"
+  ],
+  
+  "filesInScope": ["src/payments/", "src/api/webhooks/", "src/components/checkout/"],
+  
+  "nextAction": "Implement CheckoutForm.tsx component with Stripe Elements"
+}'
+\`\`\`
+
+**Also store a semantic summary in Vector** for future recall:
+
+\`\`\`bash
+agentuity cloud vector upsert agentuity-opencode-sessions "compaction:{loopId}:{N}" \\
+  --document "Compaction snapshot for loop {loopId} at iteration {iteration}. [Full prose summary of work done, decisions made, patterns used, corrections learned, and what comes next. Be comprehensive - this is the canonical record of this phase of work.]" \\
+  --metadata '{"type":"compaction","loopId":"lp_...","iteration":"15","phase":"frontend"}'
+\`\`\`
+
+**When answering questions about previous compaction cycles:**
+1. Search KV for \`loop:{loopId}:compaction:*\` to find compaction snapshots
+2. Search Vector for \`type:compaction\` to find semantic summaries
+3. Combine findings to provide comprehensive context
+
 ### Cadence Loop Completion
 
 When a Cadence loop completes (Lead outputs \`<promise>DONE</promise>\`):

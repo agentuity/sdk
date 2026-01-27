@@ -3,7 +3,6 @@ import cadenceCommand from './cadence';
 import capabilitiesCommand from './capabilities';
 import promptCommand from './prompt';
 import schemaCommand from './schema';
-import skillsCommand from './skills';
 import opencodeCommand from './opencode';
 import { getCommand } from '../../command-prefix';
 
@@ -25,10 +24,6 @@ export const command = createCommand({
 			command: getCommand('ai schema show'),
 			description: 'Output CLI schema for AI consumption',
 		},
-		{
-			command: getCommand('ai skills generate --output ./skills'),
-			description: 'Generate Agent Skills from CLI schema',
-		},
 	],
 	subcommands: [
 		opencodeCommand,
@@ -36,6 +31,5 @@ export const command = createCommand({
 		capabilitiesCommand,
 		promptCommand,
 		schemaCommand,
-		skillsCommand,
 	],
 });

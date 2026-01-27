@@ -4,7 +4,6 @@ import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { StructuredError } from '@agentuity/core';
-import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
@@ -36,6 +35,8 @@ import {
 	projectDeploymentStatus,
 	projectDeploymentMalwareCheck,
 	validateResources,
+	projectGet,
+	projectUpdateRegion,
 	type Deployment,
 	type BuildMetadata,
 	type DeploymentInstructions,
@@ -119,6 +120,11 @@ export const deploySubcommand = createSubcommand({
 					.optional()
 					.default(false)
 					.describe('Internal: run as forked child process'),
+				confirm: z
+					.boolean()
+					.optional()
+					.default(false)
+					.describe('Confirm region change without prompting (for non-TTY environments)'),
 			})
 		),
 		response: DeployResponseSchema,
@@ -156,6 +162,73 @@ export const deploySubcommand = createSubcommand({
 			// Project was imported - use the new project config
 			project = reconcileResult.project;
 			tui.newline();
+		}
+
+		// Check if local region differs from server region and handle confirmation
+		const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+		if (project.region) {
+			try {
+				const serverProject = await projectGet(apiClient, {
+					id: project.projectId,
+					keys: false,
+				});
+				const serverRegion = serverProject.cloudRegion;
+
+				if (serverRegion && serverRegion !== project.region) {
+					logger.debug(
+						'Region mismatch detected: local=%s, server=%s',
+						project.region,
+						serverRegion
+					);
+
+					if (hasTTY) {
+						// Interactive mode: prompt for confirmation
+						tui.newline();
+						tui.warning(
+							`Region change detected: ${tui.bold(serverRegion)} → ${tui.bold(project.region)}`
+						);
+						const confirmChange = await tui.confirm(
+							'Do you want to update the project region?',
+							false
+						);
+
+						if (!confirmChange) {
+							tui.newline();
+							tui.fatal(
+								'Deployment cancelled. Update the region in agentuity.json or keep the current region.',
+								ErrorCode.CONFIG_INVALID
+							);
+						}
+					} else {
+						// Non-interactive mode: require --confirm flag
+						if (!opts.confirm) {
+							tui.fatal(
+								`Region change detected (${serverRegion} → ${project.region}). Use --confirm flag to proceed with region change in non-interactive mode.`,
+								ErrorCode.CONFIG_INVALID
+							);
+						}
+						logger.debug('Region change confirmed via --confirm flag');
+					}
+
+					// Update the region on the server
+					await tui.spinner({
+						message: 'Updating project region...',
+						type: 'simple',
+						callback: async () => {
+							await projectUpdateRegion(apiClient, project.projectId, project.region);
+						},
+					});
+					tui.success(`Project region updated to ${tui.bold(project.region)}`);
+					tui.newline();
+				}
+			} catch (err) {
+				// If it's a fatal error we threw, re-throw it
+				if (err instanceof Error && err.message.includes('Region change detected')) {
+					throw err;
+				}
+				// Log other errors as non-fatal and continue (e.g., network issues fetching project)
+				logger.trace('Failed to check project region: %s', err);
+			}
 		}
 
 		// Initialize build report collector if reportFile is specified
@@ -367,7 +440,6 @@ export const deploySubcommand = createSubcommand({
 
 			// Check GitHub status and prompt for setup if not linked
 			// Skip in non-TTY environments (CI, automated runs) to prevent hanging
-			const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
 			if (!useExistingDeployment && !project.skipGitSetup && hasTTY) {
 				try {
 					const githubStatus = await getProjectGithubStatus(apiClient, project.projectId);
@@ -737,18 +809,8 @@ export const deploySubcommand = createSubcommand({
 									return stepError(errorMsg);
 								}
 
-								// Workaround for Bun crash in compiled executables (https://github.com/agentuity/sdk/issues/191)
-								// Use limited concurrency (1 at a time) for executables to avoid parallel fetch crash
-								const isExecutable = isRunningFromExecutable();
-								const concurrency = isExecutable ? 1 : Math.min(4, build.assets.length);
-
-								if (isExecutable) {
-									ctx.logger.trace(
-										`Running from executable - using limited concurrency (${concurrency} uploads at a time)`
-									);
-								}
-
 								// Process assets in batches with limited concurrency
+								const concurrency = Math.min(4, build.assets.length);
 								for (let i = 0; i < build.assets.length; i += concurrency) {
 									const batch = build.assets.slice(i, i + concurrency);
 									const promises: Promise<Response>[] = [];

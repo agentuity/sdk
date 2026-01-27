@@ -62,6 +62,10 @@ export const runSubcommand = createSubcommand({
 
 		// Build the task prompt with any mode prefixes
 		let taskPrompt = task;
+
+		// Always add non-interactive tag for headless execution
+		taskPrompt = `[NON-INTERACTIVE: Running headlessly without user input. Do NOT use Interview Mode. Make reasonable assumptions and document them. Continue autonomously until complete.] ${taskPrompt}`;
+
 		if (sandbox) {
 			taskPrompt = `[SANDBOX MODE: Execute all code in an Agentuity cloud sandbox, not locally] ${taskPrompt}`;
 		}

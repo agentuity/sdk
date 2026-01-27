@@ -188,7 +188,7 @@ function registerSetupCommands(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agentuity.installCli', () => {
 			void vscode.env.openExternal(
-				vscode.Uri.parse('https://agentuity.dev/Introduction/getting-started')
+				vscode.Uri.parse('https://agentuity.dev/Get-Started/quickstart')
 			);
 		})
 	);
@@ -198,32 +198,6 @@ function registerSetupCommands(context: vscode.ExtensionContext): void {
 			const terminal = vscode.window.createTerminal('Agentuity');
 			terminal.sendText('agentuity project new');
 			terminal.show();
-		})
-	);
-
-	context.subscriptions.push(
-		vscode.commands.registerCommand('agentuity.generateSkills', async () => {
-			const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-			if (!workspaceFolder) {
-				vscode.window.showErrorMessage('No workspace folder open');
-				return;
-			}
-
-			const outputPath = await vscode.window.showInputBox({
-				prompt: 'Output directory for generated skills',
-				value: workspaceFolder.uri.fsPath,
-				placeHolder: '/path/to/output',
-			});
-
-			if (!outputPath) {
-				return;
-			}
-
-			const terminal = vscode.window.createTerminal('Agentuity Skills');
-			terminal.sendText(`agentuity ai skills generate --output "${outputPath}"`);
-			terminal.show();
-
-			vscode.window.showInformationMessage('Generating AI skills...');
 		})
 	);
 }

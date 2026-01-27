@@ -342,7 +342,27 @@ export interface SandboxTimeoutConfig {
 }
 
 /**
- * Options for creating a sandbox
+ * Options for creating a sandbox.
+ *
+ * **Important:** `snapshot` and `runtime`/`runtimeId` are mutually exclusive.
+ * - If you specify `snapshot`, do not specify `runtime` or `runtimeId` (the snapshot's runtime will be used)
+ * - If you specify `runtime` or `runtimeId`, do not specify `snapshot`
+ *
+ * This constraint is enforced at runtime by the API. Specifying both will result in an error:
+ * "cannot specify both snapshot and runtime; snapshot includes its own runtime"
+ *
+ * @example
+ * ```typescript
+ * // Create from runtime (default)
+ * const sandbox1 = await ctx.sandbox.create({
+ *   runtime: 'bun:1'
+ * });
+ *
+ * // Create from snapshot (runtime is inherited from snapshot)
+ * const sandbox2 = await ctx.sandbox.create({
+ *   snapshot: 'my-snapshot:latest'
+ * });
+ * ```
  */
 export interface SandboxCreateOptions {
 	/**
@@ -354,12 +374,16 @@ export interface SandboxCreateOptions {
 	/**
 	 * Runtime name (e.g., "bun:1", "python:3.14").
 	 * If not specified, defaults to "bun:1".
+	 *
+	 * **Note:** Cannot be specified together with `snapshot`.
 	 */
 	runtime?: string;
 
 	/**
 	 * Runtime ID (e.g., "srt_xxx").
 	 * Alternative to specifying runtime by name.
+	 *
+	 * **Note:** Cannot be specified together with `snapshot`.
 	 */
 	runtimeId?: string;
 
@@ -413,6 +437,9 @@ export interface SandboxCreateOptions {
 	/**
 	 * Snapshot ID or tag to restore from when creating the sandbox.
 	 * The sandbox will start with the filesystem state from the snapshot.
+	 *
+	 * **Note:** Cannot be specified together with `runtime` or `runtimeId`.
+	 * When using a snapshot, the snapshot's runtime will be used automatically.
 	 */
 	snapshot?: string;
 
@@ -877,6 +904,318 @@ export interface Execution {
 	stderrStreamUrl?: string;
 }
 
+// ===== Snapshot Types =====
+
+/**
+ * Information about a file in a snapshot
+ */
+export interface SnapshotFileInfo {
+	/**
+	 * File path within the snapshot
+	 */
+	path: string;
+
+	/**
+	 * File size in bytes
+	 */
+	size: number;
+
+	/**
+	 * SHA256 hash of the file contents
+	 */
+	sha256: string;
+
+	/**
+	 * MIME type of the file
+	 */
+	contentType: string;
+
+	/**
+	 * Unix file mode/permissions (e.g., 0o644)
+	 */
+	mode: number;
+}
+
+/**
+ * Organization information for snapshots
+ */
+export interface SnapshotOrgInfo {
+	/**
+	 * Organization ID
+	 */
+	id: string;
+
+	/**
+	 * Organization name
+	 */
+	name: string;
+
+	/**
+	 * Organization slug for building full name
+	 */
+	slug?: string | null;
+}
+
+/**
+ * User information for snapshots
+ */
+export interface SnapshotUserInfo {
+	/**
+	 * User ID
+	 */
+	id: string;
+
+	/**
+	 * User first name
+	 */
+	firstName?: string | null;
+
+	/**
+	 * User last name
+	 */
+	lastName?: string | null;
+}
+
+/**
+ * Detailed information about a snapshot
+ */
+export interface SnapshotInfo {
+	/**
+	 * Unique identifier for the snapshot
+	 */
+	snapshotId: string;
+
+	/**
+	 * Runtime ID associated with this snapshot
+	 */
+	runtimeId?: string | null;
+
+	/**
+	 * Display name for the snapshot (URL-safe: letters, numbers, underscores, dashes)
+	 */
+	name: string;
+
+	/**
+	 * Full name with org slug for public snapshots (@slug/name:tag)
+	 */
+	fullName?: string;
+
+	/**
+	 * Description of the snapshot
+	 */
+	description?: string | null;
+
+	/**
+	 * Build message for the snapshot
+	 */
+	message?: string | null;
+
+	/**
+	 * Tag for the snapshot (defaults to "latest")
+	 */
+	tag?: string | null;
+
+	/**
+	 * Total size of the snapshot in bytes
+	 */
+	sizeBytes: number;
+
+	/**
+	 * Number of files in the snapshot
+	 */
+	fileCount: number;
+
+	/**
+	 * ID of the parent snapshot (for incremental snapshots)
+	 */
+	parentSnapshotId?: string | null;
+
+	/**
+	 * Whether the snapshot is publicly accessible
+	 */
+	public?: boolean;
+
+	/**
+	 * Organization name (for public snapshots)
+	 */
+	orgName?: string;
+
+	/**
+	 * Organization slug (for public snapshots)
+	 */
+	orgSlug?: string;
+
+	/**
+	 * Organization details (for public snapshots)
+	 */
+	org?: SnapshotOrgInfo | null;
+
+	/**
+	 * User who pushed the snapshot (for private snapshots)
+	 */
+	user?: SnapshotUserInfo | null;
+
+	/**
+	 * ISO timestamp when the snapshot was created
+	 */
+	createdAt: string;
+
+	/**
+	 * URL to download the snapshot archive
+	 */
+	downloadUrl?: string;
+
+	/**
+	 * List of files in the snapshot
+	 */
+	files?: SnapshotFileInfo[] | null;
+
+	/**
+	 * User-defined metadata key-value pairs
+	 */
+	userMetadata?: Record<string, string> | null;
+}
+
+/**
+ * Options for creating a snapshot
+ */
+export interface SnapshotCreateOptions {
+	/**
+	 * Display name for the snapshot (letters, numbers, underscores, dashes only)
+	 */
+	name?: string;
+
+	/**
+	 * Description of the snapshot
+	 */
+	description?: string;
+
+	/**
+	 * Tag for the snapshot (defaults to "latest")
+	 */
+	tag?: string;
+
+	/**
+	 * Make the snapshot publicly accessible
+	 */
+	public?: boolean;
+}
+
+/**
+ * Parameters for listing snapshots
+ */
+export interface SnapshotListParams {
+	/**
+	 * Filter by sandbox ID
+	 */
+	sandboxId?: string;
+
+	/**
+	 * Maximum number of snapshots to return
+	 */
+	limit?: number;
+
+	/**
+	 * Number of snapshots to skip for pagination
+	 */
+	offset?: number;
+}
+
+/**
+ * Response from listing snapshots
+ */
+export interface SnapshotListResponse {
+	/**
+	 * List of snapshot entries
+	 */
+	snapshots: SnapshotInfo[];
+
+	/**
+	 * Total number of snapshots matching the query
+	 */
+	total: number;
+}
+
+/**
+ * Service for managing sandbox snapshots
+ */
+export interface SnapshotService {
+	/**
+	 * Create a snapshot from a sandbox's current state
+	 *
+	 * @param sandboxId - ID of the sandbox to snapshot
+	 * @param options - Optional snapshot configuration
+	 * @returns The created snapshot information
+	 *
+	 * @example
+	 * ```typescript
+	 * const snapshot = await ctx.sandbox.snapshot.create(sandbox.id, {
+	 *   name: 'after-install',
+	 *   tag: 'v1.0',
+	 *   description: 'State after installing dependencies'
+	 * });
+	 * ```
+	 */
+	create(sandboxId: string, options?: SnapshotCreateOptions): Promise<SnapshotInfo>;
+
+	/**
+	 * Get detailed information about a snapshot
+	 *
+	 * @param snapshotId - ID of the snapshot to retrieve
+	 * @returns Snapshot information including files and download URL
+	 *
+	 * @example
+	 * ```typescript
+	 * const details = await ctx.sandbox.snapshot.get(snapshot.snapshotId);
+	 * console.log(`Snapshot has ${details.fileCount} files`);
+	 * ```
+	 */
+	get(snapshotId: string): Promise<SnapshotInfo>;
+
+	/**
+	 * List snapshots with optional filtering
+	 *
+	 * @param params - Optional filter and pagination parameters
+	 * @returns Paginated list of snapshots
+	 *
+	 * @example
+	 * ```typescript
+	 * const { snapshots, total } = await ctx.sandbox.snapshot.list({ limit: 10 });
+	 * ```
+	 */
+	list(params?: SnapshotListParams): Promise<SnapshotListResponse>;
+
+	/**
+	 * Delete a snapshot
+	 *
+	 * @param snapshotId - ID of the snapshot to delete
+	 *
+	 * @example
+	 * ```typescript
+	 * await ctx.sandbox.snapshot.delete(snapshot.snapshotId);
+	 * ```
+	 */
+	delete(snapshotId: string): Promise<void>;
+
+	/**
+	 * Add or update a tag on a snapshot
+	 *
+	 * @param snapshotId - ID of the snapshot to tag
+	 * @param tag - New tag name, or null to remove the tag
+	 * @returns Updated snapshot information
+	 *
+	 * @example
+	 * ```typescript
+	 * // Add a tag
+	 * await ctx.sandbox.snapshot.tag(snapshot.snapshotId, 'production');
+	 *
+	 * // Remove a tag
+	 * await ctx.sandbox.snapshot.tag(snapshot.snapshotId, null);
+	 * ```
+	 */
+	tag(snapshotId: string, tag: string | null): Promise<SnapshotInfo>;
+}
+
 /**
  * Options for one-shot sandbox execution
  */
@@ -983,6 +1322,32 @@ export interface SandboxService {
 	 * @param sandboxId - sandbox identifier
 	 */
 	destroy(sandboxId: string): Promise<void>;
+
+	/**
+	 * Snapshot management operations for creating and managing sandbox snapshots
+	 *
+	 * @example
+	 * ```typescript
+	 * // Create a snapshot of a sandbox
+	 * const snapshot = await ctx.sandbox.snapshot.create(sandbox.id, {
+	 *   name: 'after-install',
+	 *   tag: 'v1.0'
+	 * });
+	 *
+	 * // List all snapshots
+	 * const { snapshots } = await ctx.sandbox.snapshot.list();
+	 *
+	 * // Get snapshot details
+	 * const details = await ctx.sandbox.snapshot.get(snapshot.snapshotId);
+	 *
+	 * // Tag a snapshot
+	 * await ctx.sandbox.snapshot.tag(snapshot.snapshotId, 'production');
+	 *
+	 * // Delete a snapshot
+	 * await ctx.sandbox.snapshot.delete(snapshot.snapshotId);
+	 * ```
+	 */
+	snapshot: SnapshotService;
 }
 
 /**
