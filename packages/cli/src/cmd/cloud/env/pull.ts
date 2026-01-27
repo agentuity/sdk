@@ -2,12 +2,7 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectGet, orgEnvGet } from '@agentuity/server';
-import {
-	findExistingEnvFile,
-	readEnvFile,
-	writeEnvFile,
-	mergeEnvVars,
-} from '../../../env-util';
+import { findExistingEnvFile, readEnvFile, writeEnvFile, mergeEnvVars } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 import { resolveOrgId, isOrgScope } from './org-util';
 

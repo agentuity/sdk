@@ -95,8 +95,7 @@ const SandboxCreateRequestSchema = z
 			return true;
 		},
 		{
-			message:
-				'cannot specify both snapshot and runtime; snapshot includes its own runtime',
+			message: 'cannot specify both snapshot and runtime; snapshot includes its own runtime',
 			path: ['snapshot'],
 		}
 	)

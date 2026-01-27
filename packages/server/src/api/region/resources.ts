@@ -14,7 +14,11 @@ const ResourceListResponse = z.object({
 			env: z.record(z.string(), z.string()).describe('environment variables for the resource'),
 			bucket_type: z.string().describe('the bucket type (user or snapshots)'),
 			internal: z.boolean().describe('whether this is a system-managed bucket'),
-			description: z.string().nullable().optional().describe('optional description of the bucket'),
+			description: z
+				.string()
+				.nullable()
+				.optional()
+				.describe('optional description of the bucket'),
 		})
 	),
 	db: z.array(

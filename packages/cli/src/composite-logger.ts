@@ -6,7 +6,7 @@
  * and the internal trace logger (always at trace level for debugging).
  */
 
-import type { Logger, LogLevel } from '@agentuity/core';
+import type { Logger } from '@agentuity/core';
 
 /**
  * A logger that delegates to multiple child loggers

@@ -1,8 +1,7 @@
 import { createSubcommand } from '../../types';
 import { z } from 'zod';
-import { existsSync, readFileSync, createReadStream } from 'node:fs';
-import { writeFile, mkdir } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { getLatestLogSession } from '../../internal-logger';
 import * as tui from '../../tui';
@@ -32,8 +31,6 @@ const ReportUploadDataSchema = z.object({
 });
 
 const ReportUploadResponseSchema = APIResponseSchema(ReportUploadDataSchema);
-
-type ReportUploadResponse = z.infer<typeof ReportUploadResponseSchema>;
 
 /**
  * Create a zip file containing session and logs
@@ -86,11 +83,17 @@ async function uploadReport(
 /**
  * Create GitHub issue URL with pre-filled template
  */
+interface SessionData {
+	cli?: { version?: string };
+	system?: { bunVersion?: string; platform?: string; arch?: string };
+	command?: string;
+}
+
 function createGitHubIssueUrl(
 	description: string,
 	reportUrl: string,
 	reportId: string,
-	sessionData: any
+	sessionData: SessionData
 ): string {
 	const title = 'CLI Issue Report';
 
@@ -310,14 +313,14 @@ export default createSubcommand({
 								'Please review the pre-filled issue and click "Submit new issue" when ready.'
 							)
 						);
-					} catch (error) {
+					} catch {
 						tui.warning('Could not open browser automatically');
 						tui.output('Please open this URL in your browser:');
-						tui.output(tui.colorInfo(githubUrl));
+						tui.output(tui.link(githubUrl));
 					}
 				} else {
 					tui.output('To create the GitHub issue, open:');
-					tui.output(tui.colorInfo(githubUrl));
+					tui.output(tui.link(githubUrl));
 				}
 			}
 		} catch (error) {

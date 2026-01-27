@@ -9,7 +9,15 @@
  * The logger automatically cleans up old logs, keeping only the most recent execution.
  */
 
-import { appendFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import {
+	appendFileSync,
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	rmSync,
+	writeFileSync,
+	readFileSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
 import { homedir, platform, arch, cpus, totalmem } from 'node:os';
 import type { Logger, LogLevel } from '@agentuity/core';
@@ -96,13 +104,6 @@ function maskEnvironment(): Record<string, string> {
  */
 function getLogsDir(): string {
 	return join(homedir(), '.config', 'agentuity', 'logs');
-}
-
-/**
- * Get the path for a specific log file
- */
-function getLogFilePath(sessionId: string, filename: string): string {
-	return join(getLogsDir(), sessionId, filename);
 }
 
 /**
@@ -319,7 +320,7 @@ export class InternalLogger implements Logger {
 		process.exit(1);
 	}
 
-	child(opts: Record<string, unknown>): Logger {
+	child(_opts: Record<string, unknown>): Logger {
 		// Return the same logger - we don't need separate child loggers for internal logging
 		return this;
 	}

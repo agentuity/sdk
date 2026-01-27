@@ -168,7 +168,10 @@ export const deploySubcommand = createSubcommand({
 		const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
 		if (project.region) {
 			try {
-				const serverProject = await projectGet(apiClient, { id: project.projectId, keys: false });
+				const serverProject = await projectGet(apiClient, {
+					id: project.projectId,
+					keys: false,
+				});
 				const serverRegion = serverProject.cloudRegion;
 
 				if (serverRegion && serverRegion !== project.region) {

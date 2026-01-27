@@ -5,6 +5,7 @@ The Agentuity CLI includes a comprehensive internal logging system that captures
 ## Overview
 
 Every CLI command execution creates a log session that captures:
+
 - **Session metadata**: Command, arguments, environment variables (masked), system info, CLI version
 - **Trace logs**: All log messages at trace/debug/info/warn/error levels in JSON Lines format
 
@@ -18,8 +19,8 @@ These logs are automatically stored and cleaned up, keeping only the most recent
    - Captures all log messages at trace level
    - Writes to `~/.config/agentuity/logs/<session-id>/`
    - Creates two files per session:
-     - `session.json` - Command metadata and environment
-     - `logs.jsonl` - JSON Lines format log entries
+      - `session.json` - Command metadata and environment
+      - `logs.jsonl` - JSON Lines format log entries
    - Automatically masks sensitive environment variables (API keys, secrets, tokens, etc.)
    - Cleans up old log directories (keeps only the most recent)
 
@@ -36,6 +37,7 @@ These logs are automatically stored and cleaned up, keeping only the most recent
 ### Integration
 
 The CLI entry point (`bin/cli.ts`) creates a composite logger that combines:
+
 - Console logger (respects user's log level)
 - Internal logger (always at trace level)
 
@@ -44,6 +46,7 @@ This means every log message goes to both destinations, but the console only sho
 ### Opt-Out of Internal Logging
 
 Some commands opt out of internal logging by setting `skipInternalLogging: true` in their definition. This is useful for:
+
 - Help commands (--help flag automatically skips logging)
 - Support commands (viewing logs shouldn't create more logs)
 - Commands that would create noise or circular dependencies
@@ -104,22 +107,22 @@ The logger is available in the command context:
 
 ```typescript
 export default createSubcommand({
-  name: 'mycommand',
-  description: 'My command',
-  handler: async (ctx) => {
-    // These will go to both console and internal log
-    ctx.logger.info('Starting operation...');
-    ctx.logger.debug('Debug details: %s', someVariable);
-    ctx.logger.trace('Trace-level details: %o', complexObject);
-    
-    try {
-      // ... do work
-      ctx.logger.info('Operation completed successfully');
-    } catch (error) {
-      ctx.logger.error('Operation failed: %s', error);
-      throw error;
-    }
-  },
+	name: 'mycommand',
+	description: 'My command',
+	handler: async (ctx) => {
+		// These will go to both console and internal log
+		ctx.logger.info('Starting operation...');
+		ctx.logger.debug('Debug details: %s', someVariable);
+		ctx.logger.trace('Trace-level details: %o', complexObject);
+
+		try {
+			// ... do work
+			ctx.logger.info('Operation completed successfully');
+		} catch (error) {
+			ctx.logger.error('Operation failed: %s', error);
+			throw error;
+		}
+	},
 });
 ```
 
@@ -131,7 +134,7 @@ import { getLatestLogSession, getLogsDirPath } from '@agentuity/cli';
 // Get the latest log session directory
 const sessionDir = getLatestLogSession();
 if (sessionDir) {
-  console.log('Latest logs:', sessionDir);
+	console.log('Latest logs:', sessionDir);
 }
 
 // Get the logs directory
@@ -145,27 +148,27 @@ console.log('All logs stored in:', logsDir);
 
 ```json
 {
-  "sessionId": "uuid-v4",
-  "command": "cloud deploy",
-  "args": ["--region", "us-east-1"],
-  "timestamp": "2026-01-26T23:00:00.000Z",
-  "cli": {
-    "version": "0.1.34",
-    "name": "@agentuity/cli"
-  },
-  "system": {
-    "platform": "darwin",
-    "arch": "arm64",
-    "cpus": 10,
-    "memory": 17179869184,
-    "nodeVersion": "v20.0.0"
-  },
-  "environment": {
-    "AGENTUITY_API_KEY": "ak_1...xyz",
-    "PATH": "/usr/local/bin:/usr/bin",
-    "SECRET_TOKEN": "***MASKED***"
-  },
-  "cwd": "/Users/user/my-project"
+	"sessionId": "uuid-v4",
+	"command": "cloud deploy",
+	"args": ["--region", "us-east-1"],
+	"timestamp": "2026-01-26T23:00:00.000Z",
+	"cli": {
+		"version": "0.1.34",
+		"name": "@agentuity/cli"
+	},
+	"system": {
+		"platform": "darwin",
+		"arch": "arm64",
+		"cpus": 10,
+		"memory": 17179869184,
+		"nodeVersion": "v20.0.0"
+	},
+	"environment": {
+		"AGENTUITY_API_KEY": "ak_1...xyz",
+		"PATH": "/usr/local/bin:/usr/bin",
+		"SECRET_TOKEN": "***MASKED***"
+	},
+	"cwd": "/Users/user/my-project"
 }
 ```
 
@@ -184,6 +187,7 @@ Each line is a JSON object:
 ### Sensitive Data Masking
 
 The internal logger automatically masks sensitive environment variables:
+
 - `AGENTUITY_API_KEY`, `AGENTUITY_SDK_KEY`
 - `API_KEY`, `SECRET*`, `TOKEN*`, `PASSWORD*`, `PRIVATE_KEY`
 - `AWS_*`, `GCP_*`, `AZURE_*`
@@ -231,6 +235,7 @@ agentuity support logs show
 ## Future Enhancements
 
 Potential future improvements:
+
 - `agentuity support logs clean` - Manually clean old logs
 - `agentuity support logs history` - Keep last N sessions instead of just 1
 - `AGENTUITY_LOG_RETENTION` - Configure how many sessions to keep

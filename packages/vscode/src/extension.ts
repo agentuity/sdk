@@ -200,7 +200,6 @@ function registerSetupCommands(context: vscode.ExtensionContext): void {
 			terminal.show();
 		})
 	);
-
 }
 
 function registerDeployCommand(context: vscode.ExtensionContext): void {

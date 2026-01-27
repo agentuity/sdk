@@ -198,7 +198,9 @@ export const deleteSubcommand = createSubcommand({
 			}
 
 			const locationMsg = envFilePath ? ` (cloud + ${envFilePath})` : ' (cloud only)';
-			tui.success(`Deleted ${deletedKeys.length} variable(s): ${deletedKeys.join(', ')}${locationMsg}`);
+			tui.success(
+				`Deleted ${deletedKeys.length} variable(s): ${deletedKeys.join(', ')}${locationMsg}`
+			);
 
 			return {
 				success: true,

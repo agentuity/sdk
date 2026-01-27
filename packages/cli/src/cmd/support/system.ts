@@ -59,7 +59,7 @@ export default createSubcommand({
 	},
 	handler: async (ctx) => {
 		const isJsonMode = ctx.options.json;
-		
+
 		// Get userId from auth (keychain or config)
 		let userId = 'not authenticated';
 		try {
