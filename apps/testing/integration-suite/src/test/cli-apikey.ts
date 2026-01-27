@@ -29,8 +29,20 @@ test('cli-apikey', 'list-command', async () => {
 	});
 
 	// Should execute successfully
-	assertEqual(result.exitCode, 0, 'List command should exit 0');
-	assertDefined(result.json, 'List command should return JSON');
+	assertEqual(
+		result.exitCode,
+		0,
+		`List command should exit 0. stdout="${result.stdout?.slice(0, 200)}", stderr="${result.stderr?.slice(0, 200)}"`
+	);
+
+	// Provide detailed diagnostics if JSON parsing failed
+	const jsonError = (result as any).jsonParseError;
+	assertDefined(
+		result.json,
+		`List command should return JSON. exitCode=${result.exitCode}, ` +
+			`stdout="${result.stdout?.slice(0, 200)}", stderr="${result.stderr?.slice(0, 200)}", ` +
+			`jsonParseError="${jsonError || 'none'}"`
+	);
 	assert(Array.isArray(result.json), 'List command should return array');
 	assert(result.json.length >= 0, 'List should return valid array');
 });

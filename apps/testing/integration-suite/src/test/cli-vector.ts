@@ -44,8 +44,19 @@ test('cli-vector', 'upsert-command', async () => {
 	});
 
 	// Command should succeed
-	assert(result.exitCode === 0, `Upsert command failed with exit code ${result.exitCode}`);
-	assert(result.json !== undefined, 'Upsert should return JSON output');
+	assert(
+		result.exitCode === 0,
+		`Upsert command failed with exit code ${result.exitCode}. stdout="${result.stdout?.slice(0, 200)}", stderr="${result.stderr?.slice(0, 200)}"`
+	);
+
+	// Provide detailed diagnostics if JSON parsing failed
+	const jsonError = (result as any).jsonParseError;
+	assert(
+		result.json !== undefined,
+		`Upsert should return JSON output. exitCode=${result.exitCode}, ` +
+			`stdout="${result.stdout?.slice(0, 200)}", stderr="${result.stderr?.slice(0, 200)}", ` +
+			`jsonParseError="${jsonError || 'none'}"`
+	);
 });
 
 // Test 3: Search command
@@ -160,11 +171,17 @@ test('cli-vector', 'stats-namespace-command', async () => {
 	// Command should succeed
 	assert(
 		result.exitCode === 0,
-		`Stats namespace command failed with exit code ${result.exitCode}`
+		`Stats namespace command failed with exit code ${result.exitCode}. stdout="${result.stdout?.slice(0, 200)}", stderr="${result.stderr?.slice(0, 200)}"`
 	);
 
-	// JSON output should contain namespace stats structure
-	assert(result.json !== undefined, 'Stats namespace should return JSON output');
+	// Provide detailed diagnostics if JSON parsing failed
+	const jsonError = (result as any).jsonParseError;
+	assert(
+		result.json !== undefined,
+		`Stats namespace should return JSON output. exitCode=${result.exitCode}, ` +
+			`stdout="${result.stdout?.slice(0, 200)}", stderr="${result.stderr?.slice(0, 200)}", ` +
+			`jsonParseError="${jsonError || 'none'}"`
+	);
 	assert(typeof result.json === 'object', 'Stats namespace JSON should be an object');
 	assert('namespace' in result.json, 'Stats should include namespace field');
 	assert('count' in result.json, 'Stats should include count field');
@@ -186,7 +203,14 @@ test('cli-vector', 'list-namespaces-command', async () => {
 
 	// Command should succeed or return valid error (API might not be available in all test environments)
 	if (result.exitCode === 0) {
-		assert(result.json !== undefined, 'List namespaces should return JSON output');
+		// Provide detailed diagnostics if JSON parsing failed
+		const jsonError = (result as any).jsonParseError;
+		assert(
+			result.json !== undefined,
+			`List namespaces should return JSON output. exitCode=${result.exitCode}, ` +
+				`stdout="${result.stdout?.slice(0, 200)}", stderr="${result.stderr?.slice(0, 200)}", ` +
+				`jsonParseError="${jsonError || 'none'}"`
+		);
 		assert(Array.isArray(result.json), 'List namespaces should return an array');
 	} else {
 		// If the command fails, ensure there's some output explaining why
