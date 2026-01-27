@@ -201,8 +201,25 @@ export default createSubcommand({
 		const sessionData = JSON.parse(readFileSync(sessionFile, 'utf-8'));
 		const cliVersion = sessionData.cli?.version || 'unknown';
 
-		// Get issue description
+		// Get issue description from:
+		// 1. --description flag
+		// 2. stdin (if piped/not a TTY)
+		// 3. Interactive prompt (if TTY)
 		let description = opts.description;
+
+		if (!description && !process.stdin.isTTY) {
+			// Read description from stdin (piped input)
+			try {
+				const chunks: Buffer[] = [];
+				for await (const chunk of process.stdin) {
+					chunks.push(chunk);
+				}
+				description = Buffer.concat(chunks).toString('utf-8').trim();
+			} catch (error) {
+				logger.trace('Failed to read stdin', { error });
+			}
+		}
+
 		if (!description && !isJsonMode && process.stdin.isTTY) {
 			// Prompt user for description
 			tui.info(tui.bold('Create a CLI Bug Report'));
@@ -240,7 +257,9 @@ export default createSubcommand({
 			if (isJsonMode) {
 				console.log(JSON.stringify({ success: false, error: 'Description is required' }));
 			} else {
-				tui.error('Description is required. Use --description flag in non-interactive mode.');
+				tui.error(
+					'Description is required. Use --description flag or pipe input via stdin.'
+				);
 			}
 			return;
 		}
