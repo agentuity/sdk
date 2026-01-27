@@ -64,7 +64,7 @@ export const uninstallSubcommand = createSubcommand({
 				}
 			} catch (error) {
 				if (!jsonMode) {
-					tui.warn(`Failed to parse Open Code config: ${error}`);
+					tui.warning(`Failed to parse Open Code config: ${error}`);
 				}
 			}
 		}

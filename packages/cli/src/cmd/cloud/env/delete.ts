@@ -14,24 +14,30 @@ import { resolveOrgId, isOrgScope } from './org-util';
 
 const EnvDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
-	key: z.string().describe('Variable key that was deleted'),
+	keys: z.array(z.string()).describe('Variable keys that were deleted'),
 	path: z
 		.string()
 		.optional()
-		.describe('Local file path where variable was removed (project scope only)'),
-	secret: z.boolean().describe('Whether a secret was deleted'),
-	scope: z.enum(['project', 'org']).describe('The scope from which the variable was deleted'),
+		.describe('Local file path where variables were removed (project scope only)'),
+	secrets: z.array(z.string()).describe('Keys that were secrets'),
+	env: z.array(z.string()).describe('Keys that were environment variables'),
+	scope: z.enum(['project', 'org']).describe('The scope from which the variables were deleted'),
+	notFound: z.array(z.string()).optional().describe('Keys that were not found'),
 });
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	aliases: ['del', 'remove', 'rm'],
-	description: 'Delete an environment variable or secret',
+	description: 'Delete one or more environment variables or secrets',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,
 	examples: [
-		{ command: getCommand('env delete OLD_FEATURE_FLAG'), description: 'Delete variable' },
+		{ command: getCommand('env delete OLD_FEATURE_FLAG'), description: 'Delete a variable' },
 		{ command: getCommand('env rm API_KEY'), description: 'Delete a secret' },
+		{
+			command: getCommand('env rm KEY1 KEY2 KEY3'),
+			description: 'Delete multiple variables at once',
+		},
 		{
 			command: getCommand('env rm OPENAI_API_KEY --org'),
 			description: 'Delete org-level secret',
@@ -41,7 +47,7 @@ export const deleteSubcommand = createSubcommand({
 	optional: { project: true },
 	schema: {
 		args: z.object({
-			key: z.string().describe('the variable or secret key to delete'),
+			key: z.array(z.string()).describe('the variable or secret key(s) to delete'),
 		}),
 		options: z.object({
 			org: z
@@ -57,6 +63,7 @@ export const deleteSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, project, projectDir, apiClient, config, opts } = ctx;
 		const useOrgScope = isOrgScope(opts?.org);
+		const keys = args.key;
 
 		// Require project context if not using org scope
 		if (!useOrgScope && !project) {
@@ -65,10 +72,11 @@ export const deleteSubcommand = createSubcommand({
 			);
 		}
 
-		// Validate key doesn't start with reserved AGENTUITY_ prefix (except AGENTUITY_PUBLIC_)
-		if (isReservedAgentuityKey(args.key)) {
+		// Validate no keys start with reserved AGENTUITY_ prefix (except AGENTUITY_PUBLIC_)
+		const reservedKeys = keys.filter(isReservedAgentuityKey);
+		if (reservedKeys.length > 0) {
 			tui.fatal(
-				'Cannot delete AGENTUITY_ prefixed variables. These are reserved for system use.'
+				`Cannot delete AGENTUITY_ prefixed variables: ${reservedKeys.join(', ')}. These are reserved for system use.`
 			);
 		}
 
@@ -76,85 +84,130 @@ export const deleteSubcommand = createSubcommand({
 			// Organization scope
 			const orgId = await resolveOrgId(apiClient, config, opts!.org!);
 
-			// First, determine if this key exists in env or secrets
-			const orgData = await tui.spinner('Checking organization variable', () => {
+			// First, determine which keys exist in env or secrets
+			const orgData = await tui.spinner('Checking organization variables', () => {
 				return orgEnvGet(apiClient, { id: orgId, mask: true });
 			});
 
-			const isSecret = orgData.secrets?.[args.key] !== undefined;
-			const isEnv = orgData.env?.[args.key] !== undefined;
+			const secretKeys: string[] = [];
+			const envKeys: string[] = [];
+			const notFoundKeys: string[] = [];
 
-			if (!isSecret && !isEnv) {
+			for (const key of keys) {
+				if (orgData.secrets?.[key] !== undefined) {
+					secretKeys.push(key);
+				} else if (orgData.env?.[key] !== undefined) {
+					envKeys.push(key);
+				} else {
+					notFoundKeys.push(key);
+				}
+			}
+
+			// If all keys are not found, fail
+			if (secretKeys.length === 0 && envKeys.length === 0) {
 				tui.fatal(
-					`Variable '${args.key}' not found in organization`,
+					`No variables found in organization: ${keys.join(', ')}`,
 					ErrorCode.RESOURCE_NOT_FOUND
 				);
 			}
 
-			// Delete from cloud
-			const label = isSecret ? 'secret' : 'environment variable';
-			await tui.spinner(`Deleting organization ${label} from cloud`, () => {
+			// Delete from cloud (batch operation)
+			const totalToDelete = secretKeys.length + envKeys.length;
+			const label = totalToDelete === 1 ? 'variable' : 'variables';
+			await tui.spinner(`Deleting ${totalToDelete} organization ${label} from cloud`, () => {
 				return orgEnvDelete(apiClient, {
 					id: orgId,
-					...(isSecret ? { secrets: [args.key] } : { env: [args.key] }),
+					...(secretKeys.length > 0 ? { secrets: secretKeys } : {}),
+					...(envKeys.length > 0 ? { env: envKeys } : {}),
 				});
 			});
 
+			const deletedKeys = [...secretKeys, ...envKeys];
+			if (notFoundKeys.length > 0) {
+				tui.warning(`Variables not found (skipped): ${notFoundKeys.join(', ')}`);
+			}
 			tui.success(
-				`Organization ${isSecret ? 'secret' : 'environment variable'} '${args.key}' deleted successfully`
+				`Deleted ${deletedKeys.length} organization variable(s): ${deletedKeys.join(', ')}`
 			);
 
 			return {
 				success: true,
-				key: args.key,
-				secret: isSecret,
+				keys: deletedKeys,
+				secrets: secretKeys,
+				env: envKeys,
 				scope: 'org' as const,
+				...(notFoundKeys.length > 0 ? { notFound: notFoundKeys } : {}),
 			};
 		} else {
-			// Project scope (existing behavior)
-			const projectData = await tui.spinner('Checking variable', () => {
+			// Project scope
+			const projectData = await tui.spinner('Checking variables', () => {
 				return projectGet(apiClient, { id: project!.projectId, mask: true });
 			});
 
-			const isSecret = projectData.secrets?.[args.key] !== undefined;
-			const isEnv = projectData.env?.[args.key] !== undefined;
+			const secretKeys: string[] = [];
+			const envKeys: string[] = [];
+			const notFoundKeys: string[] = [];
 
-			if (!isSecret && !isEnv) {
-				tui.fatal(`Variable '${args.key}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
+			for (const key of keys) {
+				if (projectData.secrets?.[key] !== undefined) {
+					secretKeys.push(key);
+				} else if (projectData.env?.[key] !== undefined) {
+					envKeys.push(key);
+				} else {
+					notFoundKeys.push(key);
+				}
 			}
 
-			// Delete from cloud using the correct field
-			const label = isSecret ? 'secret' : 'environment variable';
-			await tui.spinner(`Deleting ${label} from cloud`, () => {
+			// If all keys are not found, fail
+			if (secretKeys.length === 0 && envKeys.length === 0) {
+				tui.fatal(`No variables found: ${keys.join(', ')}`, ErrorCode.RESOURCE_NOT_FOUND);
+			}
+
+			// Delete from cloud (batch operation)
+			const totalToDelete = secretKeys.length + envKeys.length;
+			const label = totalToDelete === 1 ? 'variable' : 'variables';
+			await tui.spinner(`Deleting ${totalToDelete} ${label} from cloud`, () => {
 				return projectEnvDelete(apiClient, {
 					id: project!.projectId,
-					...(isSecret ? { secrets: [args.key] } : { env: [args.key] }),
+					...(secretKeys.length > 0 ? { secrets: secretKeys } : {}),
+					...(envKeys.length > 0 ? { env: envKeys } : {}),
 				});
 			});
 
-			// Update local .env file only if we have a project directory
-			// (not when using --project-id without being in a project folder)
+			// Update local .env file only if we have a project directory and an existing .env file
 			let envFilePath: string | undefined;
 			if (projectDir) {
 				envFilePath = await findExistingEnvFile(projectDir);
-				const currentEnv = await readEnvFile(envFilePath);
-				delete currentEnv[args.key];
-
-				// Write the updated env, preserveExisting: false since we already have the full state
-				await writeEnvFile(envFilePath, currentEnv, { preserveExisting: false });
+				if (envFilePath) {
+					const currentEnv = await readEnvFile(envFilePath);
+					const originalKeyCount = Object.keys(currentEnv).length;
+					for (const key of [...secretKeys, ...envKeys]) {
+						delete currentEnv[key];
+					}
+					// Only write if we actually removed keys (avoid creating empty file)
+					const keysRemoved = originalKeyCount > Object.keys(currentEnv).length;
+					if (keysRemoved) {
+						await writeEnvFile(envFilePath, currentEnv, { preserveExisting: false });
+					}
+				}
 			}
 
-			const successMsg = envFilePath
-				? `${isSecret ? 'Secret' : 'Environment variable'} '${args.key}' deleted successfully (cloud + ${envFilePath})`
-				: `${isSecret ? 'Secret' : 'Environment variable'} '${args.key}' deleted successfully (cloud only)`;
-			tui.success(successMsg);
+			const deletedKeys = [...secretKeys, ...envKeys];
+			if (notFoundKeys.length > 0) {
+				tui.warning(`Variables not found (skipped): ${notFoundKeys.join(', ')}`);
+			}
+
+			const locationMsg = envFilePath ? ` (cloud + ${envFilePath})` : ' (cloud only)';
+			tui.success(`Deleted ${deletedKeys.length} variable(s): ${deletedKeys.join(', ')}${locationMsg}`);
 
 			return {
 				success: true,
-				key: args.key,
+				keys: deletedKeys,
 				path: envFilePath,
-				secret: isSecret,
+				secrets: secretKeys,
+				env: envKeys,
 				scope: 'project' as const,
+				...(notFoundKeys.length > 0 ? { notFound: notFoundKeys } : {}),
 			};
 		}
 	},
