@@ -120,12 +120,14 @@ When Lead says "save this compaction summary":
    agentuity cloud kv set agentuity-opencode-memory "session:{sessionId}" '{...}' --region use
    \`\`\`
 
-7. **Upsert** to Vector for semantic search:
+7. **Upsert FULL document to Vector** for semantic search:
    \`\`\`bash
    agentuity cloud vector upsert agentuity-opencode-sessions "session:{sessionId}" \\
-     --document "Session summary including latest compaction..." \\
+     --document "<full formatted document>" \\
      --metadata '{"sessionId":"...","projectLabel":"..."}' --region use
    \`\`\`
+
+   **IMPORTANT:** Format the full session record as a readable markdown document for \`--document\`. Include ALL content: title, project, summary, every decision, every file, and every compaction summary. This enables semantic search across all session details. Do NOT use a condensed one-liner.
 
 ### Compactions vs Cadence Checkpoints
 
@@ -184,11 +186,19 @@ agentuity cloud kv delete agentuity-opencode-memory "pattern:auth-flow"
 
 ## Vector Storage Commands
 
+**CRITICAL: Vector documents must be FULL content, not summaries.**
+
+The \`--document\` parameter is what gets embedded for semantic search. Format the complete session record as a readable markdown document so searches can match against any detail (decisions, file names, compaction summaries, corrections, etc.).
+
+❌ WRONG: \`--document "Implemented auth feature. Tests pass."\`
+✅ RIGHT: Full markdown document with title, project, summary, all decisions, all files, all compactions
+
 \`\`\`bash
 # Upsert a session memory (semantic searchable)
 # Note: metadata values must be string, boolean, or number (not arrays - use pipe-delimited strings)
+# IMPORTANT: Format the full session record as a readable markdown document for --document
 agentuity cloud vector upsert agentuity-opencode-sessions "session:ses_abc123" \\
-  --document "Session summary text..." \\
+  --document "<full formatted markdown document with all session content>" \\
   --metadata '{"sessionId":"ses_abc123","projectLabel":"github.com/org/repo","importance":"high","hasCorrections":"true","files":"src/a.ts|src/b.ts"}'
 
 # Semantic search for past sessions
@@ -344,10 +354,11 @@ Agents Involved: {Lead, Scout, Builder, etc.}
 1. Extract key information from the session
 2. Build summary using the template above
 3. **Identify corrections/mistakes** — these are high-value
-4. Upsert to Vector:
+4. **Upsert FULL document to Vector** (not a condensed summary):
    \`\`\`bash
+   # Build the full document with ALL session content
    agentuity cloud vector upsert agentuity-opencode-sessions "session:{sessionId}" \\
-     --document "{summary text}" \\
+     --document "{FULL summary text - include all sections: PROBLEM, CONTEXT, DECISIONS, CORRECTIONS, SOLUTIONS, PATTERNS, FILES, TOOLS, OPEN QUESTIONS}" \\
      --metadata '{...}'
    \`\`\`
 5. Store session pointer in KV:
@@ -638,13 +649,15 @@ When a Cadence loop completes (Lead outputs \`<promise>DONE</promise>\`):
    - Add final checkpoint to \`cadence.checkpoints\`
    - Update \`summary\` with completion summary
 
-2. Upsert to Vector for semantic search:
+2. **Upsert FULL session document to Vector** (not just a one-liner):
    \`\`\`bash
    agentuity cloud vector upsert agentuity-opencode-sessions "session:{sessionId}" \\
-     --document "Cadence loop completed. {Full prose summary...}" \\
+     --document "<full formatted markdown document with all session content including cadence state>" \\
      --metadata '{"sessionId":"...","loopId":"lp_...","iterations":"15","classification":"feature","cadenceStatus":"completed"}' \\
      --region use
    \`\`\`
+   
+   Format the full session record as a readable markdown document. Include: title, project, summary, all decisions, all files, all compactions, and all cadence checkpoints.
 
 3. The session record remains in KV for future reference (no cleanup needed)
 
