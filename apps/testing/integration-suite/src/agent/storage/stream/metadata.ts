@@ -45,6 +45,7 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 				const stream = await ctx.stream.create(name, {
 					metadata,
 					contentType,
+					ttl: 1800,
 				});
 
 				await stream.write('test data with metadata');

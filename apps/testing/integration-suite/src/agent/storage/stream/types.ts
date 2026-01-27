@@ -27,6 +27,7 @@ const streamTypesAgent = createAgent('storage-stream-types', {
 
 				const stream = await ctx.stream.create(name, {
 					contentType: 'text/plain',
+					ttl: 1800,
 				});
 
 				await stream.write(data);
@@ -64,6 +65,7 @@ const streamTypesAgent = createAgent('storage-stream-types', {
 
 				const stream = await ctx.stream.create(name, {
 					contentType: 'application/octet-stream',
+					ttl: 1800,
 				});
 
 				const encoder = new TextEncoder();
@@ -103,6 +105,7 @@ const streamTypesAgent = createAgent('storage-stream-types', {
 
 				const stream = await ctx.stream.create(name, {
 					contentType: 'application/json',
+					ttl: 1800,
 				});
 
 				await stream.write(data);
