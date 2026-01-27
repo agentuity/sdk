@@ -540,8 +540,6 @@ export const command = createCommand({
 				centerTitle: false,
 			});
 
-	
-
 			// Start Vite asset server ONCE before restart loop
 			// Vite handles frontend HMR independently and stays running across backend restarts
 			let viteServer: ServerLike | null = null;
@@ -1073,19 +1071,19 @@ export const command = createCommand({
 
 					logger.debug('Set VITE_PORT=%s for asset proxying', process.env.VITE_PORT);
 
-				// Start Bun dev server (Vite already running, just start backend)
-				await startBunDevServer({
-					rootDir,
-					port: opts.port,
-					projectId: project?.projectId,
-					orgId: project?.orgId,
-					deploymentId,
-					logger,
-					vitePort, // Pass port of already-running Vite server
-					inspect: opts.inspect,
-					inspectWait: opts.inspectWait,
-					inspectBrk: opts.inspectBrk,
-				});
+					// Start Bun dev server (Vite already running, just start backend)
+					await startBunDevServer({
+						rootDir,
+						port: opts.port,
+						projectId: project?.projectId,
+						orgId: project?.orgId,
+						deploymentId,
+						logger,
+						vitePort, // Pass port of already-running Vite server
+						inspect: opts.inspect,
+						inspectWait: opts.inspectWait,
+						inspectBrk: opts.inspectBrk,
+					});
 
 					// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
 					// Give it 2 seconds to ensure app initialization completes
