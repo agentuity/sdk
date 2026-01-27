@@ -30,6 +30,19 @@ jobs:
          - name: Run package smoke test
            run: bash scripts/test-package-install.sh
 
+   installation-type-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 5
+      name: Installation Type Detection Test
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Run installation type detection tests
+           run: bash packages/cli/scripts/test-installation-type.sh
+
    standalone-agent-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 5

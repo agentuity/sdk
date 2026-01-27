@@ -282,9 +282,11 @@ jobs:
                       curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1
                       export PATH="$HOME/.bun/bin:$PATH"
                       
-                      # Create legacy directory to trigger shim creation
+                      # Create legacy directory and add to PATH to trigger shim creation
+                      # The install script only creates the shim if ~/.agentuity/bin is on PATH
                       mkdir -p "$HOME/.agentuity/bin"
                       touch "$HOME/.agentuity/bin/agentuity"
+                      export PATH="$HOME/.agentuity/bin:$PATH"
                       
                       # Install CLI
                       ./install.sh -y > /dev/null 2>&1
@@ -302,6 +304,38 @@ jobs:
                       fi
                       
                       echo "✅ Legacy shim created and works"
+                    '
+
+               - name: Legacy shim cleanup when not on PATH
+                 test: |
+                    docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
+                      apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
+                      
+                      # Install Bun
+                      curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1
+                      export PATH="$HOME/.bun/bin:$PATH"
+                      
+                      # Create legacy directory but do NOT add to PATH
+                      # The install script should clean this up
+                      mkdir -p "$HOME/.agentuity/bin"
+                      touch "$HOME/.agentuity/bin/agentuity"
+                      
+                      # Install CLI
+                      ./install.sh -y > /dev/null 2>&1
+                      
+                      # Verify legacy binary was removed (since not on PATH)
+                      if [ -f "$HOME/.agentuity/bin/agentuity" ]; then
+                        echo "❌ Legacy binary should have been cleaned up (not on PATH)"
+                        exit 1
+                      fi
+                      
+                      # Verify main CLI still works
+                      if ! "$HOME/.bun/bin/agentuity" --version > /dev/null 2>&1; then
+                        echo "❌ Main CLI does not work"
+                        exit 1
+                      fi
+                      
+                      echo "✅ Legacy cleanup works correctly"
                     '
 
       steps:
