@@ -71,6 +71,60 @@ describe('StreamStorageService', () => {
 			expect(stream.compressed).toBe(true);
 		});
 
+		test('should create stream with default TTL when not specified', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-default-ttl' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream');
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			// TTL should not be in the body when not specified (server uses 30-day default)
+			expect(body.ttl).toBeUndefined();
+		});
+
+		test('should create stream with custom TTL', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-custom-ttl' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream', { ttl: 3600 });
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			expect(body.ttl).toBe(3600);
+		});
+
+		test('should create stream with no expiration when TTL is null', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-no-expire-null' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream', { ttl: null });
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			// null should be converted to 0 (no expiration)
+			expect(body.ttl).toBe(0);
+		});
+
+		test('should create stream with no expiration when TTL is 0', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-no-expire-zero' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream', { ttl: 0 });
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			expect(body.ttl).toBe(0);
+		});
+
 		test('should throw error for empty stream name', async () => {
 			const { adapter } = createMockAdapter([]);
 

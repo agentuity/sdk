@@ -35,6 +35,16 @@ export interface CreateStreamProps {
 	 * compression for this to work or must be able to uncompress the raw data it receives.
 	 */
 	compress?: true;
+
+	/**
+	 * optional time-to-live in seconds for the stream. Controls when the stream expires and is automatically deleted.
+	 * - `undefined` (not provided): Stream expires after 30 days (default)
+	 * - `null` or `0`: Stream never expires
+	 * - positive number: Stream expires after the specified number of seconds
+	 *
+	 * @default 2592000 (30 days)
+	 */
+	ttl?: number | null;
 }
 
 /**
@@ -178,17 +188,27 @@ export interface StreamStorage {
 	 * Create a new stream for writing data that can be read multiple times
 	 *
 	 * @param name - the name of the stream (1-254 characters). Use names to group and organize streams.
-	 * @param props - optional properties including metadata, content type, and compression
+	 * @param props - optional properties including metadata, content type, compression, and TTL
 	 * @returns a Promise that resolves to the created Stream
 	 *
 	 * @example
 	 * ```typescript
-	 * // Create a simple text stream
+	 * // Create a simple text stream (expires in 30 days by default)
 	 * const stream = await streams.create('agent-logs');
 	 * await stream.write('Starting agent execution\n');
 	 * await stream.write('Processing data...\n');
 	 * await stream.close();
 	 * console.log('Stream URL:', stream.url);
+	 *
+	 * // Create a stream with custom TTL (expires in 1 hour)
+	 * const tempStream = await streams.create('temp-data', {
+	 *   ttl: 3600  // 1 hour in seconds
+	 * });
+	 *
+	 * // Create a stream that never expires
+	 * const permanentStream = await streams.create('permanent-data', {
+	 *   ttl: null  // or ttl: 0
+	 * });
 	 *
 	 * // Create a compressed JSON stream with metadata
 	 * const dataStream = await streams.create('data-export', {
@@ -633,6 +653,10 @@ export class StreamStorageService implements StreamStorage {
 			name,
 			...(props?.metadata && { metadata: props.metadata }),
 			...(props?.contentType && { contentType: props.contentType }),
+			// TTL handling: only include if explicitly provided
+			// null or 0 = no expiration, positive = TTL in seconds
+			// undefined = not sent, server uses default (30 days)
+			...(props?.ttl !== undefined && { ttl: props.ttl === null ? 0 : props.ttl }),
 		});
 		const res = await this.#adapter.invoke<{ id: string }>(url, {
 			method: 'POST',
