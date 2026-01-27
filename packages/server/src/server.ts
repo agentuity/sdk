@@ -37,13 +37,18 @@ const sensitiveHeaders = new Set([
  * Returns:
  * - 'console' if CI=1/true or AGENTUITY_API_DEBUG=1/true
  * - file path string if AGENTUITY_API_DEBUG is set to a path
- * - null if debug logging is disabled
+ * - null if debug logging is disabled (including AGENTUITY_API_DEBUG=0/false)
  */
 function getDebugOutput(): 'console' | string | null {
-	const apiDebug = process.env.AGENTUITY_API_DEBUG;
+	const apiDebug = process.env.AGENTUITY_API_DEBUG?.trim();
 	if (apiDebug) {
-		// Check if it's a truthy value (console output) or a file path
-		if (apiDebug === '1' || apiDebug === 'true') {
+		const normalized = apiDebug.toLowerCase();
+		// Check if explicitly disabled
+		if (normalized === '0' || normalized === 'false') {
+			return null;
+		}
+		// Check if it's a truthy value (console output)
+		if (normalized === '1' || normalized === 'true') {
 			return 'console';
 		}
 		// Treat any other non-empty value as a file path
