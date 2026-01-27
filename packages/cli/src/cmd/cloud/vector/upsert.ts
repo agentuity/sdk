@@ -77,11 +77,11 @@ export const upsertSubcommand = createCommand({
 				.describe('path to JSON file containing vectors, or "-" for stdin'),
 			ttl: z.coerce
 				.number()
-				.refine((val) => val === 0 || val >= 60, {
-					message: 'TTL must be 0 (no expiration) or at least 60 seconds',
+				.refine((val) => val >= 0, {
+					message: 'TTL must be a non-negative number of seconds',
 				})
 				.optional()
-				.describe('TTL in seconds (min 60, default 30 days, 0 for no expiration)'),
+				.describe('TTL in seconds (0 for no expiration, values 1-59 clamped to 60 by server)'),
 		}),
 		response: VectorUpsertResponseSchema,
 	},

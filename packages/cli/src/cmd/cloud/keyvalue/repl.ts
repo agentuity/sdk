@@ -39,8 +39,8 @@ export const replSubcommand = createCommand({
 						z.string().min(1),
 						z.coerce
 							.number()
-							.refine((val) => val === 0 || val >= 60, {
-								message: 'TTL must be 0 (no expiration) or at least 60 seconds',
+							.refine((val) => val >= 0, {
+								message: 'TTL must be a non-negative number of seconds',
 							})
 							.optional(),
 					]),
