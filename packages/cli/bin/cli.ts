@@ -214,6 +214,9 @@ if (shouldSkipInternalLogging) {
 		}
 	}
 	internalLogger.init(command, filteredArgs, undefined, projectDirArg);
+
+	// Set session ID in environment so forked child processes can share the same log file
+	process.env.AGENTUITY_INTERNAL_SESSION_ID = internalLogger.getSessionId();
 }
 
 // Create composite logger that writes to both console and internal log

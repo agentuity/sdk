@@ -110,6 +110,14 @@ function getLogsDir(): string {
  * Clean up old log directories, keeping only the most recent one
  */
 function cleanupOldLogs(currentSessionId: string): void {
+	// Skip cleanup when inheriting a parent's session ID to avoid
+	// deleting the parent's session directory (race condition).
+	// This applies to forked deploy processes and any subprocess
+	// that inherits AGENTUITY_INTERNAL_SESSION_ID.
+	if (process.env.AGENTUITY_INTERNAL_SESSION_ID) {
+		return;
+	}
+
 	const logsDir = getLogsDir();
 	if (!existsSync(logsDir)) {
 		return;
@@ -153,7 +161,15 @@ export class InternalLogger implements Logger {
 		private cliVersion: string,
 		private cliName: string
 	) {
-		this.sessionId = randomUUID();
+		// When a parent session ID is set in the environment, use it to ensure
+		// all CLI invocations (parent and any subprocesses) write to the same log file.
+		// This prevents race conditions where child processes delete parent's logs.
+		const parentSessionId = process.env.AGENTUITY_INTERNAL_SESSION_ID;
+		if (parentSessionId) {
+			this.sessionId = parentSessionId;
+		} else {
+			this.sessionId = randomUUID();
+		}
 		this.sessionDir = join(getLogsDir(), this.sessionId);
 		this.sessionFile = join(this.sessionDir, 'session.json');
 		this.logsFile = join(this.sessionDir, 'logs.jsonl');
@@ -170,11 +186,19 @@ export class InternalLogger implements Logger {
 		if (this.disabled) return;
 
 		try {
-			// Create logs directory
+			// Create logs directory (may already exist if we're a child process)
 			mkdirSync(this.sessionDir, { recursive: true, mode: 0o700 });
 
 			// Clean up old logs (keep only this session)
+			// This is skipped for child processes to avoid deleting parent's session
 			cleanupOldLogs(this.sessionId);
+
+			// When inheriting a parent's session ID, skip session.json creation
+			// (parent already created it) but enable logging
+			if (process.env.AGENTUITY_INTERNAL_SESSION_ID) {
+				this.initialized = true;
+				return;
+			}
 
 			// Determine project directory: use provided projectDir, or fall back to cwd
 			let workingDir = projectDir || process.cwd();
