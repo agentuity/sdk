@@ -15,6 +15,10 @@ SANDBOX_ID=""
 # Get commit SHA for sandbox descriptions
 COMMIT_SHA=$(git -C "$SDK_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 SANDBOX_DESC="Automated test-sandbox.sh for commit $COMMIT_SHA"
+
+# Generate a unique run ID to avoid conflicts between concurrent CI runs
+# Combines timestamp with random hex to ensure uniqueness even if runs start in the same second
+RUN_ID="$(date +%s)-$(head -c 6 /dev/urandom | xxd -p)"
 SNAPSHOT_ID=""
 # Array to track all created snapshot IDs for cleanup
 CREATED_SNAPSHOTS=()
@@ -191,8 +195,8 @@ else
 	pass "Using org ID: $ORG_ID"
 
 	# Set up org-level env and secret for testing
-	ORG_TEST_KEY="SANDBOX_TEST_ORG_VAR_$(date +%s)"
-	ORG_SECRET_KEY="SANDBOX_TEST_ORG_SECRET_$(date +%s)"
+	ORG_TEST_KEY="SANDBOX_TEST_ORG_VAR_${RUN_ID}"
+	ORG_SECRET_KEY="SANDBOX_TEST_ORG_SECRET_${RUN_ID}"
 	ORG_TEST_VALUE="org_env_test_value"
 	ORG_SECRET_VALUE="org_secret_test_value"
 
@@ -852,7 +856,7 @@ fi
 
 # Test: Tag snapshot
 info "Test: snapshot tag"
-TEST_TAG="test-$(date +%s)"
+TEST_TAG="test-${RUN_ID}"
 TAG_OUTPUT=$($CLI cloud sandbox snapshot tag "$SNAPSHOT_ID" "$TEST_TAG" 2>&1) || true
 if echo "$TAG_OUTPUT" | grep -qi "tagged\|$TEST_TAG"; then
 	pass "snapshot tag succeeds"
@@ -895,7 +899,7 @@ section "SNAPSHOT name:tag Resolution Tests"
 # ============================================
 
 # Create snapshot with explicit name and tag
-SNAP_NAME="test-snap-$(date +%s)"
+SNAP_NAME="test-snap-${RUN_ID}"
 SNAP_TAG="v1"
 info "Test: snapshot create with --name and --tag"
 NAMED_SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "$SNAP_NAME" --tag "$SNAP_TAG" --json 2>&1) || true
@@ -975,7 +979,7 @@ fi
 
 # Test: Error handling for non-existent snapshot name:tag
 info "Test: sandbox create --snapshot with non-existent name:tag"
-NONEXIST_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "nonexistent-snap-$(date +%s):v999" --json 2>&1) || true
+NONEXIST_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "nonexistent-snap-${RUN_ID}:v999" --json 2>&1) || true
 if echo "$NONEXIST_OUTPUT" | grep -qi "not found\|error\|failed"; then
 	pass "non-existent snapshot name:tag returns error"
 else
