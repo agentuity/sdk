@@ -7,6 +7,7 @@ import type {
 	HttpMethod,
 } from '@agentuity/core';
 import { ServiceException, toServiceException, fromResponse } from '@agentuity/core';
+import { appendFileSync } from 'node:fs';
 
 interface ServiceAdapterConfig {
 	headers: Record<string, string>;
@@ -22,10 +23,27 @@ interface ServiceAdapterConfig {
 const sensitiveHeaders = new Set(['authorization', 'x-api-key']);
 
 /**
- * Check if running in CI environment
+ * Check if API debug logging is enabled and return the output destination.
+ * Returns:
+ * - 'console' if CI=1/true or AGENTUITY_API_DEBUG=1/true
+ * - file path string if AGENTUITY_API_DEBUG is set to a path
+ * - null if debug logging is disabled
  */
-function isCI(): boolean {
-	return process.env.CI === '1' || process.env.CI === 'true';
+function getDebugOutput(): 'console' | string | null {
+	const apiDebug = process.env.AGENTUITY_API_DEBUG;
+	if (apiDebug) {
+		// Check if it's a truthy value (console output) or a file path
+		if (apiDebug === '1' || apiDebug === 'true') {
+			return 'console';
+		}
+		// Treat any other non-empty value as a file path
+		return apiDebug;
+	}
+	// Fall back to CI environment check
+	if (process.env.CI === '1' || process.env.CI === 'true') {
+		return 'console';
+	}
+	return null;
 }
 
 /**
@@ -86,9 +104,10 @@ function formatHeaders(headers: Headers | Record<string, string>): string {
 }
 
 /**
- * Log detailed debug information for CI environments when API requests fail
+ * Log detailed debug information when API requests fail.
+ * Output destination is determined by AGENTUITY_API_DEBUG or CI environment variables.
  */
-function logCIDebug(
+function logAPIDebug(
 	url: string,
 	method: string,
 	requestHeaders: Record<string, string>,
@@ -96,15 +115,17 @@ function logCIDebug(
 	response: Response,
 	responseBody: string
 ): void {
-	if (!isCI()) {
+	const output = getDebugOutput();
+	if (!output) {
 		return;
 	}
 
 	const separator = '='.repeat(60);
+	const timestamp = new Date().toISOString();
 	const lines = [
 		'',
 		separator,
-		'CI DEBUG: API Request Failed',
+		`API DEBUG: Request Failed [${timestamp}]`,
 		separator,
 		'',
 		'>>> REQUEST',
@@ -126,7 +147,20 @@ function logCIDebug(
 		'',
 	];
 
-	console.error(lines.join('\n'));
+	const content = lines.join('\n');
+
+	if (output === 'console') {
+		console.error(content);
+	} else {
+		// Append to file
+		try {
+			appendFileSync(output, content + '\n');
+		} catch {
+			// If file write fails, fall back to console.error
+			console.error(`[API DEBUG] Failed to write to ${output}, falling back to console`);
+			console.error(content);
+		}
+	}
 }
 
 /**
@@ -237,19 +271,19 @@ class ServerFetchAdapter implements FetchAdapter {
 			};
 		}
 		if (res.status === 404) {
-			// Log CI debug info for 404 errors
-			if (isCI()) {
+			// Log debug info for 404 errors if debugging is enabled
+			if (getDebugOutput()) {
 				const responseBody = await res.clone().text();
-				logCIDebug(url, method, headers, options.body, res, responseBody);
+				logAPIDebug(url, method, headers, options.body, res, responseBody);
 			}
 			return {
 				ok: false,
 				response: res,
 			} as FetchErrorResponse;
 		}
-		// Clone response to read body for CI debug logging before toServiceException consumes it
-		const responseBody = isCI() ? await res.clone().text() : '';
-		logCIDebug(url, method, headers, options.body, res, responseBody);
+		// Clone response to read body for debug logging before toServiceException consumes it
+		const responseBody = getDebugOutput() ? await res.clone().text() : '';
+		logAPIDebug(url, method, headers, options.body, res, responseBody);
 		const err = await toServiceException(method, url, res);
 		throw err;
 	}
