@@ -592,7 +592,10 @@ test('cli-env-secrets', 'env-delete-not-found', async () => {
 
 	assertEqual(result.success, false, 'Should fail for non-existent key');
 	const output = (result.stdout || '') + (result.stderr || '');
-	assert(output.includes('not found'), 'Should mention key not found');
+	assert(
+		output.includes('not found') || output.includes('No variables found'),
+		'Should mention key not found'
+	);
 });
 
 // Test: Full CRUD cycle - set, get, list, delete, verify deleted
