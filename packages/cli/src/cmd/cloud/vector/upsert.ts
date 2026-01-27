@@ -18,6 +18,7 @@ const VectorUpsertResponseSchema = z.object({
 		)
 		.describe('Upsert results with key-to-id mappings'),
 	durationMs: z.number().describe('Operation duration in milliseconds'),
+	ttl: z.number().optional().describe('TTL in seconds if set'),
 });
 
 export const upsertSubcommand = createCommand({
@@ -44,6 +45,12 @@ export const upsertSubcommand = createCommand({
 			description: 'Upsert with pre-computed embeddings',
 		},
 		{
+			command: getCommand(
+				'vector upsert products doc1 --document "Limited time offer" --ttl 86400'
+			),
+			description: 'Upsert with 24h TTL',
+		},
+		{
 			command: getCommand('vector upsert products --file vectors.json'),
 			description: 'Bulk upsert from JSON file',
 		},
@@ -68,6 +75,13 @@ export const upsertSubcommand = createCommand({
 				.string()
 				.optional()
 				.describe('path to JSON file containing vectors, or "-" for stdin'),
+			ttl: z.coerce
+				.number()
+				.refine((val) => val === 0 || val >= 60, {
+					message: 'TTL must be 0 (no expiration) or at least 60 seconds',
+				})
+				.optional()
+				.describe('TTL in seconds (min 60, default 30 days, 0 for no expiration)'),
 		}),
 		response: VectorUpsertResponseSchema,
 	},
@@ -152,12 +166,16 @@ export const upsertSubcommand = createCommand({
 				}
 			}
 
+			// Handle TTL: 0 means no expiration (null in API), undefined means use default
+			const ttl = opts.ttl === 0 ? null : opts.ttl;
+
 			if (opts.document) {
 				documents = [
 					{
 						key: args.key,
 						document: opts.document,
 						metadata,
+						ttl,
 					},
 				];
 			} else if (opts.embeddings) {
@@ -176,6 +194,7 @@ export const upsertSubcommand = createCommand({
 						key: args.key,
 						embeddings,
 						metadata,
+						ttl,
 					},
 				];
 			}
@@ -210,6 +229,7 @@ export const upsertSubcommand = createCommand({
 			count: results.length,
 			results,
 			durationMs,
+			ttl: opts.ttl,
 		};
 	},
 });

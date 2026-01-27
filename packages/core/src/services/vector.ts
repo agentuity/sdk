@@ -4,6 +4,21 @@ import { safeStringify } from '../json';
 import { StructuredError } from '../error';
 
 /**
+ * Minimum TTL value in seconds (1 minute)
+ */
+export const VECTOR_MIN_TTL_SECONDS = 60;
+
+/**
+ * Maximum TTL value in seconds (90 days)
+ */
+export const VECTOR_MAX_TTL_SECONDS = 7776000;
+
+/**
+ * Default TTL value in seconds (30 days) - used when no TTL is specified
+ */
+export const VECTOR_DEFAULT_TTL_SECONDS = 2592000;
+
+/**
  * Base properties shared by all vector upsert operations
  */
 export interface VectorUpsertBase {
@@ -21,7 +36,11 @@ export interface VectorUpsertBase {
 	 * Time-to-live in seconds for the vector. Controls when the vector expires and is automatically deleted.
 	 * - `undefined` (not provided): Vector expires after 30 days (default)
 	 * - `null` or `0`: Vector never expires
-	 * - positive number: Vector expires after the specified number of seconds
+	 * - positive number (≥60): Vector expires after the specified number of seconds (max 90 days)
+	 *
+	 * @remarks
+	 * TTL values below 60 seconds are clamped to 60 seconds by the server.
+	 * TTL values above 7,776,000 seconds (90 days) are clamped to 90 days.
 	 *
 	 * @default 2592000 (30 days)
 	 */

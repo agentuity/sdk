@@ -50,6 +50,9 @@ export {
 	type ListStreamsResponse,
 	type Stream,
 	type StreamStorage,
+	STREAM_MIN_TTL_SECONDS,
+	STREAM_MAX_TTL_SECONDS,
+	STREAM_DEFAULT_TTL_SECONDS,
 	StreamStorageService,
 } from './services/stream';
 export {
@@ -70,6 +73,9 @@ export {
 	type VectorGetAllStatsParams,
 	type VectorStatsPaginated,
 	type VectorStorage,
+	VECTOR_MIN_TTL_SECONDS,
+	VECTOR_MAX_TTL_SECONDS,
+	VECTOR_DEFAULT_TTL_SECONDS,
 	VectorStorageService,
 } from './services/vector';
 export {
