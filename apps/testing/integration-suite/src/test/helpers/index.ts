@@ -7,14 +7,20 @@
  * Includes a run ID to ensure uniqueness across different test runs
  */
 let idCounter = 0;
-const runId = Math.random().toString(36).substring(2, 10);
+
+/**
+ * Unique identifier for this test run.
+ * Used to isolate test data between concurrent CI runs.
+ * Exported so cleanup functions can filter to only this run's data.
+ */
+export const testRunId = Math.random().toString(36).substring(2, 10);
 
 export function uniqueId(prefix = 'test'): string {
 	const timestamp = Date.now();
 	const random = Math.random().toString(36).substring(2, 15);
 	const counter = (idCounter++).toString(36);
 	// Use underscores instead of hyphens for valid env var names
-	return `${prefix}_${runId}_${timestamp}_${counter}_${random}`;
+	return `${prefix}_${testRunId}_${timestamp}_${counter}_${random}`;
 }
 
 /**
