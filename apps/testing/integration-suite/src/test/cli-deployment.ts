@@ -59,7 +59,14 @@ test('cli-deployment', 'list-before-deploy', async () => {
 
 	// If successful, validate JSON response
 	if (result.exitCode === 0) {
-		assertDefined(result.json, 'List should return JSON when successful');
+		// Provide detailed diagnostics if JSON parsing failed
+		const jsonError = (result as any).jsonParseError;
+		assertDefined(
+			result.json,
+			`List should return JSON when successful. exitCode=${result.exitCode}, ` +
+				`stdout="${result.stdout?.slice(0, 200)}", stderr="${result.stderr?.slice(0, 200)}", ` +
+				`jsonParseError="${jsonError || 'none'}"`
+		);
 		assert(Array.isArray(result.json), 'List should return array');
 	} else {
 		// Command failed - ensure it's not a silent failure
