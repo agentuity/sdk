@@ -389,6 +389,24 @@ export class InternalLogger implements Logger {
 	}
 
 	/**
+	 * Update the session with detected agent name
+	 */
+	setDetectedAgent(agent: string): void {
+		if (!this.initialized || this.disabled) return;
+
+		try {
+			// Read existing session data
+			const existingData = JSON.parse(readFileSync(this.sessionFile, 'utf-8'));
+			existingData.detectedAgent = agent;
+			// Write updated session data
+			writeFileSync(this.sessionFile, JSON.stringify(existingData, null, 2));
+		} catch (err) {
+			// Ignore errors - this is a best-effort update
+			console.debug(`Failed to update detectedAgent in session: ${err}`);
+		}
+	}
+
+	/**
 	 * Disable the internal logger (prevents init and logging)
 	 */
 	disable(): void {
