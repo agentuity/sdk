@@ -4,6 +4,9 @@ import { getCommand } from '../../../command-prefix';
 import { saveOrgId, clearOrgId } from '../../../config';
 import * as tui from '../../../tui';
 import { listOrganizations } from '@agentuity/server';
+import { enrollSubcommand } from './enroll';
+import { unenrollSubcommand } from './unenroll';
+import { statusSubcommand } from './status';
 
 const selectCommand = createSubcommand({
 	name: 'select',
@@ -160,11 +163,24 @@ const currentCommand = createSubcommand({
 
 export const orgSubcommand = createCommand({
 	name: 'org',
-	description: 'Manage default organization preference',
+	aliases: ['machine', 'organization'],
+	description: 'Manage organization preferences and machine authentication',
 	tags: ['fast'],
 	examples: [
 		{ command: getCommand('auth org select'), description: 'Set default organization' },
 		{ command: getCommand('auth org current'), description: 'Show current default' },
+		{
+			command: getCommand('auth org enroll --file ./public-key.pem'),
+			description: 'Enroll an organization',
+		},
+		{ command: getCommand('auth org status'), description: 'Show org auth status' },
 	],
-	subcommands: [selectCommand, unselectCommand, currentCommand],
+	subcommands: [
+		selectCommand,
+		unselectCommand,
+		currentCommand,
+		enrollSubcommand,
+		unenrollSubcommand,
+		statusSubcommand,
+	],
 });

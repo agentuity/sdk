@@ -1,28 +1,28 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { machineAuthSetup } from '@agentuity/server';
+import { orgAuthEnroll } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { readFileSync } from 'fs';
 
-const MachineSetupResponseSchema = z.object({
-	success: z.boolean().describe('Whether the setup succeeded'),
+const EnrollResponseSchema = z.object({
+	success: z.boolean().describe('Whether the enrollment succeeded'),
 	orgId: z.string().describe('The organization ID'),
 });
 
-export const setupSubcommand = createSubcommand({
-	name: 'setup',
+export const enrollSubcommand = createSubcommand({
+	name: 'enroll',
 	description:
-		'Set up machine authentication by uploading a public key for self-hosted infrastructure',
+		'Configure your organization for self-hosted infrastructure by uploading a public key',
 	tags: ['mutating', 'slow', 'requires-auth', 'uses-stdin'],
 	examples: [
 		{
-			command: `${getCommand('auth machine setup')} --file ./public-key.pem`,
+			command: `${getCommand('auth org enroll')} --file ./public-key.pem`,
 			description: 'Upload ECDSA P-256 public key from file',
 		},
 		{
-			command: `cat public-key.pem | ${getCommand('auth machine setup')}`,
+			command: `cat public-key.pem | ${getCommand('auth org enroll')}`,
 			description: 'Upload public key from stdin',
 		},
 	],
@@ -32,7 +32,7 @@ export const setupSubcommand = createSubcommand({
 		options: z.object({
 			file: z.string().optional().describe('Path to the public key file (PEM format)'),
 		}),
-		response: MachineSetupResponseSchema,
+		response: EnrollResponseSchema,
 	},
 	async handler(ctx) {
 		const { apiClient, opts, options, logger, orgId } = ctx;
@@ -83,13 +83,13 @@ export const setupSubcommand = createSubcommand({
 
 			const result = await tui.spinner({
 				type: 'simple',
-				message: 'Setting up machine authentication...',
-				callback: () => machineAuthSetup(apiClient, orgId, publicKey),
+				message: 'Enrolling organization...',
+				callback: () => orgAuthEnroll(apiClient, orgId, publicKey),
 				clearOnSuccess: true,
 			});
 
 			if (!options.json) {
-				tui.success(`Machine authentication configured for organization ${result.orgId}`);
+				tui.success(`Organization ${result.orgId} enrolled for self-hosted infrastructure.`);
 				tui.newline();
 				tui.info(
 					'Your self-hosted machines can now authenticate using the corresponding private key.'
@@ -98,7 +98,7 @@ export const setupSubcommand = createSubcommand({
 
 			return { success: true, orgId: result.orgId };
 		} catch (ex) {
-			tui.fatal(`Failed to set up machine authentication: ${ex}`, ErrorCode.API_ERROR);
+			tui.fatal(`Failed to enroll organization: ${ex}`, ErrorCode.API_ERROR);
 		}
 	},
 });
