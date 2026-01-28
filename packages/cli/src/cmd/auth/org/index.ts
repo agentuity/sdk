@@ -143,9 +143,9 @@ export const orgSubcommand = createCommand({
 		{ command: getCommand('auth org current'), description: 'Show current default' },
 		{
 			command: getCommand('auth org enroll --file ./public-key.pem'),
-			description: 'Enroll a machine',
+			description: 'Enroll an organization',
 		},
-		{ command: getCommand('auth org status'), description: 'Show machine auth status' },
+		{ command: getCommand('auth org status'), description: 'Show org auth status' },
 	],
 	subcommands: [
 		selectCommand,

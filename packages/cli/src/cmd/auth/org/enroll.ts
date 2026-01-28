@@ -83,7 +83,7 @@ export const enrollSubcommand = createSubcommand({
 
 			const result = await tui.spinner({
 				type: 'simple',
-				message: 'Enrolling machine...',
+				message: 'Enrolling organization...',
 				callback: () => orgAuthEnroll(apiClient, orgId, publicKey),
 				clearOnSuccess: true,
 			});
