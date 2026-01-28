@@ -257,9 +257,7 @@ export default createSubcommand({
 			if (isJsonMode) {
 				console.log(JSON.stringify({ success: false, error: 'Description is required' }));
 			} else {
-				tui.error(
-					'Description is required. Use --description flag or pipe input via stdin.'
-				);
+				tui.error('Description is required. Use --description flag or pipe input via stdin.');
 			}
 			return;
 		}

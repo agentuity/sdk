@@ -258,7 +258,10 @@ describe('Issue #767: Static path string version - dynamic params in invoke()', 
 		await waitFor(() => expect(result.current.invoke).toBeDefined());
 
 		await act(async () => {
-			await result.current.invoke({ name: 'Patched Name' }, { params: { itemId: 'patch-item' } });
+			await result.current.invoke(
+				{ name: 'Patched Name' },
+				{ params: { itemId: 'patch-item' } }
+			);
 		});
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -434,7 +437,9 @@ describe('Issue #767: Edge cases', () => {
 		await waitFor(() => expect(result.current.invoke).toBeDefined());
 
 		await act(async () => {
-			await result.current.invoke(undefined, { params: { itemId: 'item with spaces & symbols!' } });
+			await result.current.invoke(undefined, {
+				params: { itemId: 'item with spaces & symbols!' },
+			});
 		});
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -644,7 +649,9 @@ describe('Issue #767: RPC client - existing dynamic params behavior', () => {
 			'rpc-msg-2'
 		);
 
-		expect(capturedUrl).toBe('http://localhost:3000/api/conversations/rpc-conv-1/messages/rpc-msg-2');
+		expect(capturedUrl).toBe(
+			'http://localhost:3000/api/conversations/rpc-conv-1/messages/rpc-msg-2'
+		);
 		expect(result?.conversationId).toBe('rpc-conv-1');
 		expect(result?.messageId).toBe('rpc-msg-2');
 	});
@@ -681,7 +688,9 @@ describe('Issue #767: RPC client - existing dynamic params behavior', () => {
 		const client = createClient<TestRegistry>({}, metadata);
 
 		// RPC client: positional path param, then options object with input
-		const result = await client.items.$itemId.put('rpc-put-item', { input: { name: 'RPC Update' } });
+		const result = await client.items.$itemId.put('rpc-put-item', {
+			input: { name: 'RPC Update' },
+		});
 
 		expect(capturedUrl).toBe('http://localhost:3000/api/items/rpc-put-item');
 		expect(capturedMethod).toBe('PUT');

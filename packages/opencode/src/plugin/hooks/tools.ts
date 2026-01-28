@@ -1,4 +1,5 @@
-import type { PluginContext, CoderConfig } from '../../types';
+import type { PluginInput } from '@opencode-ai/plugin';
+import type { CoderConfig } from '../../types';
 import { checkAuth } from '../../services/auth';
 
 export interface ToolHooks {
@@ -33,7 +34,7 @@ const CLOUD_SERVICES: Record<string, { name: string; emoji: string }> = {
 	'agentuity cloud scp': { name: 'File Transfer', emoji: '📤' },
 };
 
-export function createToolHooks(ctx: PluginContext, config: CoderConfig): ToolHooks {
+export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHooks {
 	const blockedCommands = config.blockedCommands ?? [];
 
 	return {
@@ -79,7 +80,10 @@ export function createToolHooks(ctx: PluginContext, config: CoderConfig): ToolHo
 					// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
 					if (/AGENTUITY_PROFILE=\S+/.test(command)) {
 						// Replace all existing AGENTUITY_PROFILE occurrences to enforce our profile
-						modifiedCommand = command.replace(/AGENTUITY_PROFILE=\S+/g, `AGENTUITY_PROFILE=${profile}`);
+						modifiedCommand = command.replace(
+							/AGENTUITY_PROFILE=\S+/g,
+							`AGENTUITY_PROFILE=${profile}`
+						);
 					} else {
 						// Prepend AGENTUITY_PROFILE
 						modifiedCommand = `AGENTUITY_PROFILE=${profile} ${command}`;
@@ -90,8 +94,11 @@ export function createToolHooks(ctx: PluginContext, config: CoderConfig): ToolHo
 					const service = detectCloudService(command);
 					if (service) {
 						try {
-							ctx.client.tui?.showToast?.({
-								body: { message: `${service.emoji} Agentuity ${service.name}` },
+							ctx.client.tui.showToast({
+								body: {
+									message: `${service.emoji} Agentuity ${service.name}`,
+									variant: 'info',
+								},
 							});
 						} catch {
 							// Toast may not be available
