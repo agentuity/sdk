@@ -7,7 +7,7 @@
 import { adversarial } from '@agentuity/evals';
 import { s } from '@agentuity/schema';
 import OpenAI from 'openai';
-import agent, { type AgentInput, type AgentOutput } from './agent';
+import agent, { type AgentInput, type AgentOutput } from './index';
 
 const client = new OpenAI();
 

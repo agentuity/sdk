@@ -1955,4 +1955,107 @@ describe('registry-generator', () => {
 			expect(content).toContain('OutputSchema as OutputSchema_');
 		});
 	});
+
+	describe('agent import path patterns (issue #789)', () => {
+		test('should generate correct import for new pattern: bare @agent/hello with index.ts (issue #789)', async () => {
+			// New pattern: agent code is directly in index.ts
+			// src/agent/hello/index.ts contains the agent code
+			// Route imports via @agent/hello (bare import)
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello', // bare import, resolves to index.ts
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should generate import that resolves to index.js
+			expect(routesContent).toContain("import type helloAgent from '../agent/hello/index.js'");
+			// Should have proper type exports
+			expect(routesContent).toContain('export type POSTApiHelloInput');
+			expect(routesContent).toContain('export type POSTApiHelloOutput');
+		});
+
+		test('should generate correct import for old pattern: explicit @agent/hello/agent with agent.ts (issue #789)', async () => {
+			// Old pattern: agent code is in agent.ts with barrel index.ts
+			// src/agent/hello/agent.ts contains the agent code
+			// src/agent/hello/index.ts re-exports from agent.ts
+			// Route imports via @agent/hello/agent (explicit import)
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello/agent', // explicit import to agent.ts
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should generate import that resolves to agent.js
+			expect(routesContent).toContain("import type helloAgent from '../agent/hello/agent.js'");
+			// Should have proper type exports
+			expect(routesContent).toContain('export type POSTApiHelloInput');
+			expect(routesContent).toContain('export type POSTApiHelloOutput');
+		});
+
+		test('should support both patterns in the same project (backwards compatibility)', async () => {
+			// Mixed project: some agents use new pattern (index.ts), some use old pattern (agent.ts)
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/new-agent',
+					filename: './api/new-agent/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'newAgent',
+					agentImportPath: '@agent/new-agent', // new pattern: bare import
+				},
+				{
+					method: 'post',
+					path: '/api/old-agent',
+					filename: './api/old-agent/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'oldAgent',
+					agentImportPath: '@agent/old-agent/agent', // old pattern: explicit import
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// New pattern should resolve to index.js
+			expect(routesContent).toContain("import type newAgent from '../agent/new-agent/index.js'");
+			// Old pattern should resolve to agent.js
+			expect(routesContent).toContain("import type oldAgent from '../agent/old-agent/agent.js'");
+
+			// Both should have proper type exports
+			expect(routesContent).toContain('export type POSTApiNewAgentInput');
+			expect(routesContent).toContain('export type POSTApiNewAgentOutput');
+			expect(routesContent).toContain('export type POSTApiOldAgentInput');
+			expect(routesContent).toContain('export type POSTApiOldAgentOutput');
+
+			// Both routes should be in the registry
+			expect(routesContent).toContain("'POST /api/new-agent'");
+			expect(routesContent).toContain("'POST /api/old-agent'");
+		});
+	});
 });
