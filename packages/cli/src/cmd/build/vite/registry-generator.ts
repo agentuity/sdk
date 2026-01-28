@@ -719,9 +719,30 @@ export async function generateRouteRegistry(
 				const withoutSrc = normalized.startsWith('src/') ? normalized.substring(4) : normalized;
 				// Make it relative from src/generated/
 				resolvedPath = `../${withoutSrc}`;
-				// Add .js extension if not already present
-				if (!resolvedPath.endsWith('.js')) {
-					resolvedPath = resolvedPath.replace(/\.tsx?$/, '') + '.js';
+				// Check if this is a directory import (no file extension) vs a file import
+				// Directory imports like '../agent/translate' should resolve to '../agent/translate/index.js'
+				// File imports like '../agent/translate/agent' should resolve to '../agent/translate/agent.js'
+				const hasExtension = /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(resolvedPath);
+				if (!hasExtension) {
+					// No extension - check if it's a directory or a file
+					// Try to resolve the actual path on disk to determine
+					const absolutePath = join(srcDir, withoutSrc);
+					const isDirectory =
+						existsSync(absolutePath) ||
+						existsSync(join(absolutePath, 'index.ts')) ||
+						existsSync(join(absolutePath, 'index.tsx'));
+					const isFile = existsSync(`${absolutePath}.ts`) || existsSync(`${absolutePath}.tsx`);
+
+					if (isDirectory && !isFile) {
+						// It's a directory import, add /index.js
+						resolvedPath = `${resolvedPath}/index.js`;
+					} else {
+						// It's a file import (or we can't determine), add .js
+						resolvedPath = `${resolvedPath}.js`;
+					}
+				} else {
+					// Has extension - replace with .js
+					resolvedPath = resolvedPath.replace(/\.tsx?$/, '.js');
 				}
 			}
 

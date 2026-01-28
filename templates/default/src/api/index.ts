@@ -4,7 +4,7 @@
  */
 
 import { createRouter, validator } from '@agentuity/runtime';
-import translate, { AgentOutput, type HistoryEntry } from '../agent/translate/agent';
+import translate, { AgentOutput, type HistoryEntry } from '../agent/translate';
 
 const api = createRouter();
 
