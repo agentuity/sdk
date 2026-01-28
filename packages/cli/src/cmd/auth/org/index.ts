@@ -75,7 +75,8 @@ const selectCommand = createSubcommand({
 const unselectCommand = createSubcommand({
 	name: 'unselect',
 	description: 'Clear the default organization preference',
-	tags: ['fast'],
+	tags: ['fast', 'requires-auth'],
+	requires: { auth: true, apiClient: true },
 	examples: [
 		{ command: getCommand('auth org unselect'), description: 'Clear default organization' },
 	],
@@ -106,27 +107,54 @@ const unselectCommand = createSubcommand({
 const currentCommand = createSubcommand({
 	name: 'current',
 	description: 'Show the current default organization',
-	tags: ['read-only', 'fast'],
+	tags: ['read-only', 'fast', 'requires-auth'],
 	idempotent: true,
+	requires: { auth: true, apiClient: true },
 	examples: [
-		{ command: getCommand('auth org current'), description: 'Show default organization' },
+		{ command: getCommand('auth org current'), description: 'Show default organization ID' },
+		{ command: getCommand('auth org current --name'), description: 'Show default organization name' },
 		{ command: getCommand('auth org current --json'), description: 'Show output in JSON format' },
 	],
 	schema: {
-		response: z.string().nullable().describe('The current organization ID or null if not set'),
+		options: z.object({
+			name: z.boolean().optional().describe('Show organization name instead of ID'),
+		}),
+		response: z
+			.object({
+				id: z.string().nullable().describe('The current organization ID or null if not set'),
+				name: z.string().nullable().describe('The current organization name or null if not set or not found'),
+			})
+			.describe('The current organization details'),
 	},
 
 	async handler(ctx) {
-		const { options, config } = ctx;
+		const { options, config, apiClient, opts } = ctx;
 		const orgId = config?.preferences?.orgId || null;
 
+		let orgName: string | null = null;
+
+		// Fetch org name if we have an orgId and either --name or --json is requested
+		if (orgId && (opts.name || options.json)) {
+			const orgs = await listOrganizations(apiClient);
+			const org = orgs.find((o) => o.id === orgId);
+			orgName = org?.name ?? null;
+		}
+
 		if (!options.json) {
-			if (orgId) {
-				console.log(orgId);
+			if (opts.name) {
+				// --name flag: print only the org name
+				if (orgName) {
+					console.log(orgName);
+				}
+			} else {
+				// Default behavior: print only the org ID
+				if (orgId) {
+					console.log(orgId);
+				}
 			}
 		}
 
-		return orgId;
+		return { id: orgId, name: orgName };
 	},
 });
 
