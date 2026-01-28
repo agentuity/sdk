@@ -23,6 +23,7 @@ import {
 	splitEnvAndSecrets,
 } from '../../env-util';
 import { fetchRegionsWithCache } from '../../regions';
+import { getCachedProject, setCachedProject } from '../../cache';
 
 export interface ReconcileResult {
 	status: 'valid' | 'imported' | 'skipped' | 'error';
@@ -468,7 +469,13 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 	if (projectConfig) {
 		// 2. Validate access to existing project
 		try {
-			const project = await projectGet(apiClient, { id: projectConfig.projectId, keys: false });
+			// Check cache first to avoid duplicate API calls
+			const profile = config?.name ?? 'default';
+			let project = getCachedProject(profile, projectConfig.projectId);
+			if (!project) {
+				project = await projectGet(apiClient, { id: projectConfig.projectId, keys: false });
+				setCachedProject(profile, projectConfig.projectId, project);
+			}
 
 			// 3. Check if orgId matches user's orgs
 			const userOrgs = await listOrganizations(apiClient);
@@ -542,7 +549,13 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 
 	if (projectConfig) {
 		try {
-			const project = await projectGet(apiClient, { id: projectConfig.projectId, keys: false });
+			// Check cache first to avoid duplicate API calls
+			const profile = config?.name ?? 'default';
+			let project = getCachedProject(profile, projectConfig.projectId);
+			if (!project) {
+				project = await projectGet(apiClient, { id: projectConfig.projectId, keys: false });
+				setCachedProject(profile, projectConfig.projectId, project);
+			}
 			const userOrgs = await listOrganizations(apiClient);
 			const hasAccess = userOrgs.some((org) => org.id === project.orgId);
 

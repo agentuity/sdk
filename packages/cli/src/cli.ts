@@ -27,6 +27,7 @@ import { getCommand } from './command-prefix';
 import { isValidateMode, outputValidation, type ValidationResult } from './output';
 import { StructuredError } from '@agentuity/core';
 import { setProgram } from './program-ref';
+import { getCachedProject, setCachedProject } from './cache';
 
 /**
  * Check if an error is a CLI input validation error (Zod error from schema parsing),
@@ -1052,8 +1053,14 @@ async function registerSubcommand(
 							},
 						};
 						const apiClient = createAPIClient(baseCtx, configWithAuth as Config);
-						const { projectGet } = await import('@agentuity/server');
-						const projectDetails = await projectGet(apiClient, { id: projectId, mask: true });
+						// Check cache first to avoid duplicate API calls
+						const profile = baseCtx.config?.name ?? 'default';
+						let projectDetails = getCachedProject(profile, projectId);
+						if (!projectDetails) {
+							const { projectGet } = await import('@agentuity/server');
+							projectDetails = await projectGet(apiClient, { id: projectId, mask: true });
+							setCachedProject(profile, projectId, projectDetails);
+						}
 						project = {
 							projectId: projectDetails.id,
 							orgId: projectDetails.orgId,
