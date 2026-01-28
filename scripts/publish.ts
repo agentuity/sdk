@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { $ } from 'bun';
 import * as readline from 'node:readline';
@@ -511,13 +511,29 @@ async function buildTemplatesTarball(version: string): Promise<string> {
 	const tempDir = join('/tmp', `sdk-v${version}`);
 	const templatesSubdir = join(tempDir, 'templates');
 
+	// Validate templates directory exists
+	try {
+		const stats = await stat(templatesDir);
+		if (!stats.isDirectory()) {
+			throw new Error(`Templates path is not a directory: ${templatesDir}`);
+		}
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+			throw new Error(`Templates directory not found: ${templatesDir}`);
+		}
+		throw err;
+	}
+
 	try {
 		// Clean up any existing temp directory and tarball
 		await $`rm -rf ${tempDir} ${tarballPath}`.quiet().nothrow();
 
-		// Create temp directory with sdk-v{version}/templates structure and copy templates
+		// Create temp directory with sdk-v{version}/templates structure
 		await $`mkdir -p ${templatesSubdir}`;
-		await $`cp -r ${templatesDir}/* ${templatesSubdir}/`;
+
+		// Copy all contents including dotfiles using trailing dot syntax
+		// cp -r source/. dest/ copies all files including hidden ones
+		await $`cp -r ${templatesDir}/. ${templatesSubdir}/`;
 
 		// Create tarball from /tmp with sdk-v{version} as root directory
 		await $`tar -czf ${tarballPath} -C /tmp sdk-v${version}`;
