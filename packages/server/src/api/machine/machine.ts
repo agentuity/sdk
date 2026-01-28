@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { APIResponseSchema, APIResponseSchemaNoData, APIClient } from '../api';
 import { MachineResponseError } from './util';
 
+// TODO: The old /cli/auth/machine/* endpoints should be aliased to redirect
+// to /cli/auth/org/* in the backend (app repo). Remove aliases in follow-up PR.
+
 const MachineSchema = z.object({
 	id: z.string(),
 	instanceId: z.string().nullable().optional(),
@@ -97,24 +100,53 @@ export async function machineDeployments(
 	throw new MachineResponseError({ message: resp.message });
 }
 
-const MachineAuthSetupResponseSchema = APIResponseSchema(
+const OrgAuthEnrollResponseSchema = APIResponseSchema(
 	z.object({
 		orgId: z.string(),
 	})
 );
 
-export async function machineAuthSetup(
+export async function orgAuthEnroll(
 	client: APIClient,
 	orgId: string,
 	publicKey: string
 ): Promise<{ orgId: string }> {
 	const resp = await client.post(
-		'/cli/auth/machine/setup',
+		'/cli/auth/org/enroll',
 		{ orgId, publicKey },
-		MachineAuthSetupResponseSchema
+		OrgAuthEnrollResponseSchema
 	);
 	if (resp.success) {
 		return resp.data;
 	}
 	throw new MachineResponseError({ message: resp.message });
+}
+
+const OrgAuthStatusResponseSchema = APIResponseSchema(
+	z.object({
+		publicKey: z.string().nullable(),
+	})
+);
+
+export async function orgAuthStatus(
+	client: APIClient,
+	orgId: string
+): Promise<{ publicKey: string | null }> {
+	const resp = await client.get(`/cli/auth/org/status/${orgId}`, OrgAuthStatusResponseSchema);
+	if (resp.success) {
+		return resp.data;
+	}
+	throw new MachineResponseError({ message: resp.message });
+}
+
+const OrgAuthUnenrollResponseSchema = APIResponseSchemaNoData();
+
+export async function orgAuthUnenroll(client: APIClient, orgId: string): Promise<void> {
+	const resp = await client.delete(
+		`/cli/auth/org/unenroll/${orgId}`,
+		OrgAuthUnenrollResponseSchema
+	);
+	if (!resp.success) {
+		throw new MachineResponseError({ message: resp.message });
+	}
 }

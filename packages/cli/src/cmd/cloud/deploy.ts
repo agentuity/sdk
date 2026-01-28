@@ -61,6 +61,7 @@ import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '
 import { runForkedDeploy } from './deploy-fork';
 import { validateAptDependencies } from '../../utils/apt-validator';
 import { extractDependencies } from '../../utils/deps';
+import { getCachedProject, setCachedProject } from '../../cache';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -168,10 +169,16 @@ export const deploySubcommand = createSubcommand({
 		const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
 		if (project.region) {
 			try {
-				const serverProject = await projectGet(apiClient, {
-					id: project.projectId,
-					keys: false,
-				});
+				// Check cache first to avoid duplicate API calls
+				const profile = config?.name ?? 'default';
+				let serverProject = getCachedProject(profile, project.projectId);
+				if (!serverProject) {
+					serverProject = await projectGet(apiClient, {
+						id: project.projectId,
+						keys: false,
+					});
+					setCachedProject(profile, project.projectId, serverProject);
+				}
 				const serverRegion = serverProject.cloudRegion;
 
 				if (serverRegion && serverRegion !== project.region) {

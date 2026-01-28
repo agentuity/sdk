@@ -29,7 +29,10 @@ const kvTypesAgent = createAgent('storage-kv-types', {
 
 			case 'set-object':
 				// Store object as JSON
-				await ctx.kv.set(namespace, key, value, { contentType: 'application/json', ...(ttl ? { ttl } : {}) });
+				await ctx.kv.set(namespace, key, value, {
+					contentType: 'application/json',
+					...(ttl ? { ttl } : {}),
+				});
 				return { operation, key, value, valueType: 'object', success: true };
 
 			case 'set-number':

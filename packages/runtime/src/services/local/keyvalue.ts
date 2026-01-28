@@ -65,6 +65,8 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 			data,
 			contentType: row.content_type,
 			exists: true,
+			// Include expiresAt if set (convert from Unix timestamp to ISO string)
+			...(row.expires_at && { expiresAt: new Date(row.expires_at).toISOString() }),
 		};
 	}
 
@@ -74,11 +76,6 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 		value: T,
 		params?: KeyValueStorageSetParams
 	): Promise<void> {
-		// Validate TTL
-		if (params?.ttl && params.ttl < 60) {
-			throw new Error(`ttl must be at least 60 seconds, got ${params.ttl}`);
-		}
-
 		// Serialize value
 		let buffer: Buffer;
 		let contentType = params?.contentType || 'application/octet-stream';
@@ -106,7 +103,16 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 		}
 
 		// Calculate expiration
-		const expiresAt = params?.ttl ? now() + params.ttl * 1000 : null;
+		// TTL handling: null or 0 = no expiration, positive = TTL in seconds
+		// undefined = use default (7 days for consistency with cloud namespace default)
+		let expiresAt: number | null = null;
+		if (params?.ttl === undefined) {
+			// Default to 7 days (matching cloud namespace default behavior)
+			expiresAt = now() + 7 * 24 * 60 * 60 * 1000;
+		} else if (params.ttl !== null && params.ttl > 0) {
+			expiresAt = now() + params.ttl * 1000;
+		}
+		// else: ttl is null or 0, so expiresAt stays null (no expiration)
 		const timestamp = now();
 
 		// UPSERT

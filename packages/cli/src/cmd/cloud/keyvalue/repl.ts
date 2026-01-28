@@ -37,7 +37,12 @@ export const replSubcommand = createCommand({
 						z.string().min(1),
 						z.string().min(1),
 						z.string().min(1),
-						z.coerce.number().min(60).optional(),
+						z.coerce
+							.number()
+							.refine((val) => val >= 0, {
+								message: 'TTL must be a non-negative number of seconds',
+							})
+							.optional(),
 					]),
 					argNames: ['namespace', 'key', 'value', 'ttl'],
 				},

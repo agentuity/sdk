@@ -1,9 +1,16 @@
-import type { PluginContext, CoderConfig, CompactingInput, CompactingOutput } from '../../types';
+import type { PluginInput } from '@opencode-ai/plugin';
+import type { CoderConfig } from '../../types';
+
+/** Compacting hook input/output types */
+type CompactingInput = { sessionID: string };
+type CompactingOutput = { context: string[]; prompt?: string };
 
 export interface CadenceHooks {
 	onMessage: (input: unknown, output: unknown) => Promise<void>;
 	onEvent: (input: unknown) => Promise<void>;
 	onCompacting: (input: CompactingInput, output: CompactingOutput) => Promise<void>;
+	/** Check if a session is currently in Cadence mode */
+	isActiveCadenceSession: (sessionId: string) => boolean;
 }
 
 const COMPLETION_PATTERN = /<promise>\s*DONE\s*<\/promise>/i;
@@ -41,7 +48,7 @@ interface CadenceSessionState {
  * 4. Trigger continuation after compaction (session.compacted)
  * 5. Clean up on session abort/error
  */
-export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): CadenceHooks {
+export function createCadenceHooks(ctx: PluginInput, _config: CoderConfig): CadenceHooks {
 	const activeCadenceSessions = new Map<string, CadenceSessionState>();
 
 	const log = (msg: string) => {
@@ -151,7 +158,7 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 
 			log(`Event received: ${event.type}`);
 
-			// Handle session.compacted - trigger continuation after compaction completes
+			// Handle session.compacted - save compaction AND continue loop
 			if (event.type === 'session.compacted') {
 				const sessionId = event.sessionId;
 				if (!sessionId) return;
@@ -159,10 +166,9 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 				const state = activeCadenceSessions.get(sessionId);
 				if (!state) return;
 
-				log(`Compaction completed for Cadence session ${sessionId} - triggering continuation`);
-				showToast(ctx, '🔄 Context compacted, resuming Cadence...');
+				log(`Compaction completed for Cadence session ${sessionId} - saving and continuing`);
+				showToast(ctx, '🔄 Compaction saved, resuming Cadence...');
 
-				// Inject continuation prompt if session.prompt is available
 				try {
 					await ctx.client.session?.prompt?.({
 						path: { id: sessionId },
@@ -170,24 +176,59 @@ export function createCadenceHooks(ctx: PluginContext, _config: CoderConfig): Ca
 							parts: [
 								{
 									type: 'text',
-									text: `[CADENCE CONTINUATION]
+									text: `[CADENCE COMPACTION COMPLETE]
 
-Context was just compacted. Resume the Cadence loop:
+The compaction summary above contains our Cadence session context.
 
-1. Ask Memory for the latest checkpoint and any compaction snapshots
-2. Review the current iteration state from KV
-3. Continue with the next step in the iteration workflow
-4. Do NOT restart from the beginning - pick up where you left off
+1. Have @Agentuity Coder Memory save this compaction:
+   - Get existing session: \`agentuity cloud kv get agentuity-opencode-memory "session:${sessionId}" --json --region use\`
+   - Append compaction to \`compactions\` array with timestamp
+   - Ensure \`cadence\` object exists with: loopId="${state.loopId ?? 'unknown'}", iteration=${state.iteration}, maxIterations=${state.maxIterations}, status="active"
+   - Save back to KV and upsert to Vector
 
-Continue executing the task.`,
+After saving the compaction:
+1. Read back the session record from KV
+2. Return to Lead the PREVIOUS compactions only (not the one just saved - Lead already has the current compaction in context)
+3. Format as a readable summary with timestamps
+4. Include "what's next" - the Cadence iteration to continue
+
+Response format:
+\`\`\`
+## Prior Session History: ${sessionId}
+
+### Compaction 1 (timestamp)
+[summary]
+
+### Compaction 2 (timestamp)
+[summary]
+
+(Current compaction already in your context)
+
+## What's Next
+Continue Cadence iteration ${state.iteration} of ${state.maxIterations}
+\`\`\`
+
+If no prior compactions exist:
+\`\`\`
+## Prior Session History: ${sessionId}
+
+No prior compactions - this is the first one.
+
+## What's Next
+Continue Cadence iteration ${state.iteration} of ${state.maxIterations}
+\`\`\`
+
+2. Then continue the Cadence loop:
+   - Review the compaction summary above for context
+   - Continue with iteration ${state.iteration}
+   - Do NOT restart from the beginning - pick up where we left off`,
 								},
 							],
 							agent: 'Agentuity Coder Lead',
 						},
 					});
 				} catch (err) {
-					log(`Failed to inject continuation prompt: ${err}`);
-					// Continuation will rely on auto-generated "Continue if you have next steps"
+					log(`Failed to save compaction and continue: ${err}`);
 				}
 			}
 
@@ -227,34 +268,32 @@ Continue executing the task.`,
 			log(`Injecting Cadence context during compaction for session ${sessionId}`);
 			showToast(ctx, '💾 Compacting Cadence context...');
 
-			const loopIdStr = state.loopId ?? '{loopId}';
-
-			// Inject Cadence state into the compaction context
 			output.context.push(`
 ## CADENCE MODE ACTIVE
 
 This session is running in Cadence mode (long-running autonomous loop).
 
 **Cadence State:**
+- Session ID: ${sessionId}
 - Loop ID: ${state.loopId ?? 'unknown'}
 - Started: ${state.startedAt}
 - Iteration: ${state.iteration} / ${state.maxIterations}
 - Last activity: ${state.lastActivity}
 
-**CRITICAL: After compaction, you MUST:**
-1. Ask @Agentuity Coder Memory for the latest checkpoint and compaction snapshots
-2. Read the loop state from KV: \`agentuity cloud kv get agentuity-opencode-tasks "loop:${loopIdStr}:state"\`
-3. Emit CADENCE_STATUS tag with current state
-4. Continue the iteration workflow from where you left off
-5. Do NOT restart the task from the beginning
+**Session Record Location:**
+\`session:${sessionId}\` in agentuity-opencode-memory
 
-**Memory Keys to Query:**
-- \`loop:${loopIdStr}:state\` - Current loop state
-- \`loop:${loopIdStr}:checkpoint:{N}\` - Iteration checkpoints
-- \`loop:${loopIdStr}:compaction:{N}\` - Compaction snapshots
-
-Resume the Cadence loop after this compaction completes.
+After compaction, Memory will save this summary and update the cadence state.
+Then Lead will continue the loop from iteration ${state.iteration}.
 `);
+		},
+
+		/**
+		 * Check if a session is currently in Cadence mode.
+		 * Used by session-memory hooks to avoid double-handling.
+		 */
+		isActiveCadenceSession(sessionId: string): boolean {
+			return activeCadenceSessions.has(sessionId);
 		},
 	};
 }
@@ -339,9 +378,9 @@ function isCadenceStop(text: string): boolean {
 	);
 }
 
-function showToast(ctx: PluginContext, message: string): void {
+function showToast(ctx: PluginInput, message: string): void {
 	try {
-		ctx.client.tui?.showToast?.({ body: { message } });
+		ctx.client.tui.showToast({ body: { message, variant: 'info' } });
 	} catch {
 		// Toast may not be available
 	}

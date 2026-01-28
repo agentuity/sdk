@@ -8,6 +8,7 @@ const KVGetResponseSchema = z.object({
 	exists: z.boolean().describe('Whether the key exists'),
 	data: z.union([z.string(), z.any()]).optional().describe('Value data (string or binary)'),
 	contentType: z.string().optional().describe('Content type'),
+	expiresAt: z.string().optional().describe('Expiration time as ISO 8601 timestamp'),
 });
 
 export const getSubcommand = createCommand({
@@ -49,8 +50,11 @@ export const getSubcommand = createCommand({
 						const b = res.data as ArrayBuffer;
 						tui.info(`Read ${b.byteLength} bytes (${res.contentType})`);
 					}
+					const expiresInfo = res.expiresAt
+						? `, expires ${new Date(res.expiresAt).toLocaleString()}`
+						: '';
 					tui.success(
-						`retrieved in ${(Date.now() - started).toFixed(1)}ms (${res.contentType})`
+						`retrieved in ${(Date.now() - started).toFixed(1)}ms (${res.contentType}${expiresInfo})`
 					);
 				} else {
 					tui.warning(`${args.key} returned empty data for ${args.namespace}`);
@@ -64,6 +68,7 @@ export const getSubcommand = createCommand({
 			exists: res.exists,
 			data: res.data,
 			contentType: res.exists ? res.contentType : undefined,
+			expiresAt: res.exists ? res.expiresAt : undefined,
 		};
 	},
 });

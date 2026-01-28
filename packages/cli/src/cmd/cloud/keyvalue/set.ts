@@ -42,7 +42,13 @@ export const setSubcommand = createCommand({
 			namespace: z.string().min(1).max(64).describe('the namespace name'),
 			key: z.string().min(1).max(64).describe('the key name'),
 			value: z.string().min(1).describe('the value'),
-			ttl: z.coerce.number().min(60).optional().describe('the optional expiration in seconds'),
+			ttl: z.coerce
+				.number()
+				.refine((val) => val >= 0, {
+					message: 'TTL must be a non-negative number of seconds',
+				})
+				.optional()
+				.describe('TTL in seconds (0 for no expiration, values 1-59 clamped to 60 by server)'),
 		}),
 		response: KVSetResponseSchema,
 	},

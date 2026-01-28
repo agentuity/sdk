@@ -1,4 +1,5 @@
-import type { PluginContext, CoderConfig } from '../../types';
+import type { PluginInput } from '@opencode-ai/plugin';
+import type { CoderConfig } from '../../types';
 
 export interface KeywordHooks {
 	onMessage: (input: unknown, output: unknown) => Promise<void>;
@@ -35,7 +36,7 @@ Run \`agentuity ai schema show\` to see all available CLI commands.
 </coder-mode>
 `;
 
-export function createKeywordHooks(ctx: PluginContext, _config: CoderConfig): KeywordHooks {
+export function createKeywordHooks(ctx: PluginInput, _config: CoderConfig): KeywordHooks {
 	const activatedSessions = new Set<string>();
 
 	const log = (msg: string) => {

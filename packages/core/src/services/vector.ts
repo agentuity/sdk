@@ -4,6 +4,21 @@ import { safeStringify } from '../json';
 import { StructuredError } from '../error';
 
 /**
+ * Minimum TTL value in seconds (1 minute)
+ */
+export const VECTOR_MIN_TTL_SECONDS = 60;
+
+/**
+ * Maximum TTL value in seconds (90 days)
+ */
+export const VECTOR_MAX_TTL_SECONDS = 7776000;
+
+/**
+ * Default TTL value in seconds (30 days) - used when no TTL is specified
+ */
+export const VECTOR_DEFAULT_TTL_SECONDS = 2592000;
+
+/**
  * Base properties shared by all vector upsert operations
  */
 export interface VectorUpsertBase {
@@ -16,6 +31,20 @@ export interface VectorUpsertBase {
 	 * the metadata to upsert
 	 */
 	metadata?: Record<string, unknown>;
+
+	/**
+	 * Time-to-live in seconds for the vector. Controls when the vector expires and is automatically deleted.
+	 * - `undefined` (not provided): Vector expires after 30 days (default)
+	 * - `null` or `0`: Vector never expires
+	 * - positive number (≥60): Vector expires after the specified number of seconds (max 90 days)
+	 *
+	 * @remarks
+	 * TTL values below 60 seconds are clamped to 60 seconds by the server.
+	 * TTL values above 7,776,000 seconds (90 days) are clamped to 90 days.
+	 *
+	 * @default 2592000 (30 days)
+	 */
+	ttl?: number | null;
 }
 
 /**
@@ -113,6 +142,12 @@ export interface VectorSearchResult<T extends Record<string, unknown> = Record<s
 	 * the distance of the vector object from the query from 0-1. The larger the number, the more similar the vector object is to the query.
 	 */
 	similarity: number;
+
+	/**
+	 * the expiration time of the vector as an ISO 8601 timestamp.
+	 * undefined if the vector does not expire.
+	 */
+	expiresAt?: string;
 }
 
 /**
@@ -248,6 +283,12 @@ export interface VectorItemStats {
 	 * Note: This is only tracked in cloud storage; local development returns undefined.
 	 */
 	count?: number;
+
+	/**
+	 * the expiration time of the vector as an ISO 8601 timestamp.
+	 * undefined if the vector does not expire.
+	 */
+	expiresAt?: string;
 }
 
 /**
@@ -684,9 +725,18 @@ export class VectorStorageService implements VectorStorage {
 		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000);
 
+		// Transform documents to handle TTL: null → 0 for "no expiration"
+		const requestDocs = documents.map((doc) => ({
+			...doc,
+			// TTL handling: only include if explicitly provided
+			// null or 0 = no expiration (send 0 to server), positive = TTL in seconds
+			// undefined = not sent, server uses default (30 days)
+			...(doc.ttl !== undefined && { ttl: doc.ttl === null ? 0 : doc.ttl }),
+		}));
+
 		const res = await this.#adapter.invoke<VectorUpsertResponse>(url, {
 			method: 'PUT',
-			body: safeStringify(documents),
+			body: safeStringify(requestDocs),
 			contentType: 'application/json',
 			signal,
 			telemetry: {

@@ -422,6 +422,19 @@ export type CommandContextFromSpecs<
 	config: Config | null;
 	logger: Logger;
 	options: GlobalOptions;
+	/**
+	 * Check if the CLI is being executed from a known coding agent.
+	 * Returns the agent name if detected, undefined otherwise.
+	 *
+	 * @example
+	 * ```typescript
+	 * const agent = await ctx.isExecutingFromAgent();
+	 * if (agent) {
+	 *   logger.debug(`Running from agent: ${agent}`);
+	 * }
+	 * ```
+	 */
+	isExecutingFromAgent: () => Promise<string | undefined>;
 } & AddArgs<A> &
 	AddOpts<Op> &
 	AddAuth<AuthMode<R, O>> &
