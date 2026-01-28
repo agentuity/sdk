@@ -13,7 +13,7 @@ const RUN_DIR = 'src/run';
 const OUTPUT_FILE = 'src/api/sandbox/scripts.ts';
 
 // Files to exclude from sandbox scripts (not meant for sandbox execution)
-const EXCLUDED_FILES = ['invoke.ts', 'AGENTS.md', 'README.md'];
+const EXCLUDED_FILES = ['invoke.ts'];
 
 interface ScriptInfo {
 	name: string;

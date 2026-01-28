@@ -10,7 +10,7 @@ Each API folder must contain:
 
 Current routes in this SDK Explorer:
 
-```
+```text
 src/api/
 ├── index.ts             # Empty router (mounted at /api)
 ├── hello/               # Basic greeting endpoint
@@ -255,6 +255,7 @@ Use the `sse()` middleware for streaming responses with named events:
 ```typescript
 import { createRouter, sse } from '@agentuity/runtime';
 import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 const router = createRouter();
 

@@ -32,7 +32,7 @@ const JudgmentSchema = z.object({
 const input: Input = JSON.parse(process.argv[2] ?? '{}');
 const userPrompt = input.prompt ?? 'Write a creative one-liner about programming.';
 
-const ctx = createAgentContext();
+const _ctx = createAgentContext();
 
 // Collect all output, print at the very end
 const output: string[] = [];

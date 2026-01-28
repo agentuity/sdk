@@ -342,6 +342,8 @@ import { createAgentContext } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
+type Message = { role: "user" | "assistant"; content: string };
+
 const ctx = createAgentContext();
 const message = "What is Agentuity?";
 
@@ -378,11 +380,15 @@ ctx.logger.info("Request completed", { elapsedMs: elapsed });`,
 	'model-arena': `// LLM-as-Judge: Have one model evaluate outputs from other models.
 // Pattern: Generate responses in parallel, then use generateObject()
 // to get structured evaluation with guaranteed schema compliance.
+import { createAgentContext } from "@agentuity/runtime";
 import { anthropic } from "@ai-sdk/anthropic";
 import { groq } from "@ai-sdk/groq";
 import { openai } from "@ai-sdk/openai";
 import { generateText, generateObject } from "ai";
 import { z } from "zod";
+
+const ctx = createAgentContext();
+const userPrompt = "Write a haiku about coding";
 
 // Define evaluation criteria as a Zod schema
 // generateObject() guarantees the LLM returns exactly this shape

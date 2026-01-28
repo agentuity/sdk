@@ -16,7 +16,7 @@ Optional supporting files:
 
 Example structure:
 
-```
+```text
 src/agent/
 ├── hello/
 │   └── agent.ts
