@@ -9,3 +9,5 @@ export {
 	type ResourceType,
 	type ResourceInfo,
 } from './resource-region';
+
+export { getCachedProject, setCachedProject, clearProjectCache } from './project-cache';
