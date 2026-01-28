@@ -14,7 +14,7 @@ env:
    CI: true
    AGENTUITY_API_URL: https://api-v1.agentuity.com
    AGENTUITY_APP_URL: https://app-v1.agentuity.com
-   AGENTUITY_ORG_ID: org_2u8RgDTwcZWrZrZ3sZh24T5FCtz
+   AGENTUITY_ORG_ID: org_38uEd1JNXIe89KMPaOwx1WJW43o
    AGENTUITY_REGION: usc
 
 jobs:
