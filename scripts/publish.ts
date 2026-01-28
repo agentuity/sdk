@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { $ } from 'bun';
 import * as readline from 'node:readline';
@@ -56,6 +56,7 @@ Description:
   GitHub Release:
     - Creates/updates GitHub release with generated release notes
     - Builds and uploads VS Code extension (.vsix) for manual installation
+    - Builds and uploads templates tarball (templates-{version}.tar.gz)
     - Marks pre-releases appropriately on GitHub
 
 Required Tools:
@@ -501,11 +502,61 @@ async function buildVSCodeExtension(version: string): Promise<string> {
 	}
 }
 
+async function buildTemplatesTarball(version: string): Promise<string> {
+	console.log('\n📦 Building templates tarball...\n');
+
+	const templatesDir = join(rootDir, 'templates');
+	const tarballName = `templates-${version}.tar.gz`;
+	const tarballPath = join('/tmp', tarballName);
+	const tempDir = join('/tmp', `sdk-v${version}`);
+	const templatesSubdir = join(tempDir, 'templates');
+
+	// Validate templates directory exists
+	try {
+		const stats = await stat(templatesDir);
+		if (!stats.isDirectory()) {
+			throw new Error(`Templates path is not a directory: ${templatesDir}`);
+		}
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+			throw new Error(`Templates directory not found: ${templatesDir}`);
+		}
+		throw err;
+	}
+
+	try {
+		// Clean up any existing temp directory and tarball
+		await $`rm -rf ${tempDir} ${tarballPath}`.quiet().nothrow();
+
+		// Create temp directory with sdk-v{version}/templates structure
+		await $`mkdir -p ${templatesSubdir}`;
+
+		// Copy all contents including dotfiles using trailing dot syntax
+		// cp -r source/. dest/ copies all files including hidden ones
+		await $`cp -r ${templatesDir}/. ${templatesSubdir}/`;
+
+		// Create tarball from /tmp with sdk-v{version} as root directory
+		await $`tar -czf ${tarballPath} -C /tmp sdk-v${version}`;
+
+		// Clean up temp directory
+		await $`rm -rf ${tempDir}`;
+
+		console.log(`✓ Built templates tarball: ${tarballName}`);
+		return tarballPath;
+	} catch (err) {
+		// Clean up on error
+		await $`rm -rf ${tempDir} ${tarballPath}`.quiet().nothrow();
+		console.error('✗ Failed to build templates tarball:', err);
+		throw err;
+	}
+}
+
 async function createOrUpdateGitHubRelease(
 	version: string,
 	releaseNotes: string,
 	isPrerelease: boolean,
-	vsixPath?: string
+	vsixPath?: string,
+	templatesTarballPath?: string
 ) {
 	const tag = `v${version}`;
 	console.log(`\n🏷️  Creating GitHub release ${tag}...\n`);
@@ -549,6 +600,19 @@ async function createOrUpdateGitHubRelease(
 		console.log(`   Uploading ${assetName}...`);
 		try {
 			await $`gh release upload ${tag} ${vsixPath} --clobber`.cwd(rootDir);
+			console.log(`   ✓ Uploaded ${assetName}`);
+		} catch (err) {
+			console.error(`✗ Failed to upload ${assetName}:`, err);
+			throw err;
+		}
+	}
+
+	// Upload templates tarball if provided
+	if (templatesTarballPath) {
+		const assetName = templatesTarballPath.split('/').pop();
+		console.log(`   Uploading ${assetName}...`);
+		try {
+			await $`gh release upload ${tag} ${templatesTarballPath} --clobber`.cwd(rootDir);
 			console.log(`   ✓ Uploaded ${assetName}`);
 		} catch (err) {
 			console.error(`✗ Failed to upload ${assetName}:`, err);
@@ -654,9 +718,18 @@ async function main() {
 		// Build VS Code extension
 		const vsixPath = await buildVSCodeExtension(newVersion);
 
+		// Build templates tarball
+		const templatesTarballPath = await buildTemplatesTarball(newVersion);
+
 		// Create GitHub release before npm publish (skip in dry-run)
 		if (!isDryRun) {
-			await createOrUpdateGitHubRelease(newVersion, releaseNotes, isPreReleaseVersion, vsixPath);
+			await createOrUpdateGitHubRelease(
+				newVersion,
+				releaseNotes,
+				isPreReleaseVersion,
+				vsixPath,
+				templatesTarballPath
+			);
 		}
 
 		const publishable = await getPublishablePackages();
