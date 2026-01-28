@@ -1058,7 +1058,8 @@ async function registerSubcommand(
 						let projectDetails = getCachedProject(profile, projectId);
 						if (!projectDetails) {
 							const { projectGet } = await import('@agentuity/server');
-							projectDetails = await projectGet(apiClient, { id: projectId, mask: true });
+							// Use keys: false to match other callers and ensure cache consistency
+							projectDetails = await projectGet(apiClient, { id: projectId, keys: false });
 							setCachedProject(profile, projectId, projectDetails);
 						}
 						project = {
