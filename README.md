@@ -25,7 +25,7 @@ curl -fsSL https://agentuity.sh | sh
 
 <p>&nbsp;</p>
 
-Visit [https://agentuity.com/](https://agentuity.com/) to learn more about Agentuity and create a free account or signup in the CLI after installation.
+Visit [https://agentuity.com/](https://agentuity.com/) to learn more about Agentuity and create a free account or sign up in the CLI after installation.
 
 # Documentation
 
@@ -52,8 +52,8 @@ The structure of this mono repository:
 - `packages/react` - React package for the Browser
 - `packages/runtime` - Server-side package for the Agent runtime
 - `packages/schema` - Schema validation library similar to zod and arktype
-- `packages/server` - Runtime-agnostic server side SDK (Node.js & Bun)
-- `packages/test-utils` - Internal test utilities that can be used package packages
+- `packages/server` - Runtime-agnostic server-side SDK (Node.js & Bun)
+- `packages/test-utils` - Internal test utilities that can be used by packages
 - `packages/vscode` - VS Code extension for Agentuity
 - `packages/workbench` - Workbench UI component
 
