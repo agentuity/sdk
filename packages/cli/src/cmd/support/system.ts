@@ -7,6 +7,7 @@ import { getLatestLogSession } from '../../internal-logger';
 import * as tui from '../../tui';
 import { getVersion, getPackageName } from '../../version';
 import { getAuth } from '../../config';
+import { isExecutingFromAgent } from '../../agent-detection';
 
 const argsSchema = z.object({});
 
@@ -75,6 +76,9 @@ export default createSubcommand({
 			}
 		}
 
+		// Get detected agent (if any)
+		const detectedAgent = await isExecutingFromAgent();
+
 		// Gather system information
 		const systemInfo = {
 			cli: {
@@ -100,6 +104,7 @@ export default createSubcommand({
 			user: {
 				userId: userId,
 			},
+			agent: detectedAgent || null,
 		};
 
 		if (isJsonMode) {
@@ -122,6 +127,7 @@ export default createSubcommand({
 				{ Property: 'Home Directory', Value: systemInfo.paths.home },
 				{ Property: 'Config Directory', Value: systemInfo.paths.configDir },
 				{ Property: 'User ID', Value: systemInfo.user.userId },
+				{ Property: 'Detected Agent', Value: systemInfo.agent || 'none' },
 			];
 
 			tui.table(tableData, ['Property', 'Value'], { layout: 'vertical' });

@@ -19,6 +19,12 @@ import { closeDatabase } from '../src/cache';
 import { createInternalLogger } from '../src/internal-logger';
 import { createCompositeLogger } from '../src/composite-logger';
 import { getAuth } from '../src/config';
+import {
+	startAgentDetection,
+	isExecutingFromAgent,
+	onAgentDetected,
+	flushAgentDetection,
+} from '../src/agent-detection';
 
 /**
  * Extract --dir flag from process.argv before command parsing
@@ -79,6 +85,10 @@ process.on('SIGTERM', () => {
 
 validateRuntime();
 await ensureBunOnPath();
+
+// Start agent detection early (non-blocking) so it runs in the background
+// while the rest of CLI initialization happens
+startAgentDetection();
 
 // Preprocess arguments to convert --help=json to --help json
 // Commander.js doesn't support --option=value syntax for optional values
@@ -217,6 +227,13 @@ if (shouldSkipInternalLogging) {
 
 	// Set session ID in environment so forked child processes can share the same log file
 	process.env.AGENTUITY_INTERNAL_SESSION_ID = internalLogger.getSessionId();
+
+	// Register callback to update session with detected agent (non-blocking)
+	onAgentDetected((agent) => {
+		if (agent) {
+			internalLogger.setDetectedAgent(agent);
+		}
+	});
 }
 
 // Create composite logger that writes to both console and internal log
@@ -243,6 +260,7 @@ const ctx = {
 	config,
 	logger,
 	options: earlyOpts,
+	isExecutingFromAgent,
 };
 
 // Set global output options for utilities to use
@@ -275,6 +293,8 @@ await registerCommands(program, commands, ctx as unknown as CommandContext);
 
 try {
 	await program.parseAsync(process.argv);
+	// Flush agent detection to ensure it's written to session logs before exit
+	await flushAgentDetection();
 } catch (error) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
