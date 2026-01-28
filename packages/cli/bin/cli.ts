@@ -1,4 +1,13 @@
 #!/usr/bin/env bun
+
+// Fast-path for version command - check before loading heavy modules
+const versionArgs = process.argv.slice(2);
+if (versionArgs.length === 1 && ['version', '-v', '--version', '-V'].includes(versionArgs[0])) {
+	const { getVersion } = await import('../src/version');
+	console.log(getVersion());
+	process.exit(0);
+}
+
 import { ConsoleLogger } from '@agentuity/server';
 import { isStructuredError } from '@agentuity/core';
 import { createCLI, registerCommands } from '../src/cli';
@@ -8,7 +17,7 @@ import { discoverCommands } from '../src/cmd';
 import { detectColorScheme } from '../src/terminal';
 import { setColorScheme } from '../src/tui';
 import { getVersion, getPackageName } from '../src/version';
-import { checkLegacyCLI } from '../src/legacy-check';
+
 import type { CommandContext, LogLevel } from '../src/types';
 import { generateCLISchema } from '../src/schema-generator';
 import { setOutputOptions } from '../src/output';
@@ -123,14 +132,7 @@ if (
 	exit(0);
 }
 
-// Check for legacy CLI and warn user (skip via flag or env var)
-// Env var is preferred for programmatic use (e.g., test runners) since Commander.js
-// would fail on unknown CLI flags
-const skipLegacyCheck =
-	process.argv.includes('--skip-legacy-check') || process.env.AGENTUITY_SKIP_LEGACY_CHECK === '1';
-if (!skipLegacyCheck) {
-	await checkLegacyCLI();
-}
+
 
 const version = getVersion();
 const program = await createCLI(version);
