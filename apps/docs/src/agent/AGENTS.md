@@ -71,7 +71,7 @@ The first argument is the agent name, followed by the configuration object.
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { google } from '@ai-sdk/google';
 
 const agent = createAgent('chat', {
 	description: 'Conversational agent with AI responses',
@@ -81,7 +81,7 @@ const agent = createAgent('chat', {
 	},
 	handler: async (ctx, { message }) => {
 		const { text } = await generateText({
-			model: openai('gpt-4o-mini'),
+			model: google('gemini-3-flash-preview'),
 			prompt: message,
 		});
 		return text;

@@ -35,7 +35,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -45,7 +45,7 @@
     },
     "apps/docs": {
       "name": "docs",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/evals": "workspace:*",
@@ -89,7 +89,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "0.1.36",
+      "version": "0.1.37",
     },
     "apps/testing/auth-package-app": {
       "name": "auth-package-app",
@@ -308,7 +308,7 @@
     },
     "packages/auth": {
       "name": "@agentuity/auth",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "better-auth": "^1.4.9",
         "drizzle-orm": "^0.45.0",
@@ -332,7 +332,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -372,7 +372,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "zod": "^4.3.5",
       },
@@ -386,7 +386,7 @@
     },
     "packages/evals": {
       "name": "@agentuity/evals",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/runtime": "workspace:*",
@@ -403,7 +403,7 @@
     },
     "packages/frontend": {
       "name": "@agentuity/frontend",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -416,7 +416,7 @@
     },
     "packages/opencode": {
       "name": "@agentuity/opencode",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@opencode-ai/plugin": "^1.1.36",
@@ -431,7 +431,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/frontend": "workspace:*",
@@ -450,7 +450,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/auth": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -491,7 +491,7 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -504,7 +504,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
@@ -520,7 +520,7 @@
     },
     "packages/test-utils": {
       "name": "@agentuity/test-utils",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -530,7 +530,7 @@
     },
     "packages/vscode": {
       "name": "agentuity-vscode",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
         "tar": "^7.4.3",
@@ -544,7 +544,7 @@
     },
     "packages/workbench": {
       "name": "@agentuity/workbench",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
@@ -986,9 +986,9 @@
 
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
 
-    "@opencode-ai/plugin": ["@opencode-ai/plugin@1.1.36", "", { "dependencies": { "@opencode-ai/sdk": "1.1.36", "zod": "4.1.8" } }, "sha512-b2XWeFZN7UzgwkkzTIi6qSntkpEA9En2zvpqakQzZAGQm6QBdGAlv6r1u5hEnmF12Gzyj5umTMWr5GzVbP/oAA=="],
+    "@opencode-ai/plugin": ["@opencode-ai/plugin@1.1.39", "", { "dependencies": { "@opencode-ai/sdk": "1.1.39", "zod": "4.1.8" } }, "sha512-PAdVYNZeRW9pCi4+t+Dp88hoPgEIiS5uJT31hUXLhZEfBvgaLNP38WhXwRNWbwSaNXudWOu/a5DzYNbU84uvHQ=="],
 
-    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.1.36", "", {}, "sha512-feNHWnbxhg03TI2QrWnw3Chc0eYrWSDSmHIy/ejpSVfcKlfXREw1Tpg0L4EjrpeSc4jB1eM673dh+WM/Ko2SFQ=="],
+    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.1.39", "", {}, "sha512-EUYBZAci0bzG9+a7JVINmqAqis71ipG2/D3juvmvvKFyu0YBIT/6b+g3+p82Eb5CU2dujxpPdJJCaexZ1389eQ=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 

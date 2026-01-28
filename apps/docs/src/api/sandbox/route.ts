@@ -8,12 +8,12 @@
 import { createRouter, sse } from '@agentuity/runtime';
 import { APIClient, sandboxRun, getServiceUrls } from '@agentuity/server';
 import { Writable } from 'node:stream';
-import { SCRIPTS, SCRIPT_DEFAULTS } from './scripts';
+import { SCRIPT_NAMES, SCRIPT_DEFAULTS } from './scripts';
 
 const router = createRouter();
 
 const SNAPSHOT_ID = process.env.SANDBOX_SNAPSHOT_ID;
-const SANDBOX_EXEC_TIMEOUT = '2m';
+const SANDBOX_EXEC_TIMEOUT = '2m'; // Max execution time per request
 const AI_GATEWAY_URL = 'https://catalyst.agentuity.cloud/gateway';
 
 // ANSI escape sequence regex for stripping terminal colors
@@ -30,20 +30,23 @@ function cleanOutput(content: string): string {
 router.get(
 	'/run',
 	sse(async (c, stream) => {
+		// Validate config
 		if (!SNAPSHOT_ID) {
 			await stream.writeSSE({ event: 'error', data: 'SANDBOX_SNAPSHOT_ID not configured.' });
 			return;
 		}
 
+		// Validate script name
 		const scriptName = c.req.query('script');
-		if (!scriptName || !(scriptName in SCRIPTS)) {
+		if (!scriptName || !SCRIPT_NAMES.has(scriptName)) {
 			await stream.writeSSE({
 				event: 'error',
-				data: `Unknown script: ${scriptName}. Available: ${Object.keys(SCRIPTS).join(', ')}`,
+				data: `Unknown script: ${scriptName}. Available: ${[...SCRIPT_NAMES].join(', ')}`,
 			});
 			return;
 		}
 
+		// Parse input
 		const inputBase64 = c.req.query('input');
 		let input: unknown;
 		if (inputBase64) {
@@ -60,47 +63,12 @@ router.get(
 		const logger = c.var.logger;
 		const apiKey = process.env.AGENTUITY_SDK_KEY || process.env.AGENTUITY_CLI_KEY || '';
 		const region = process.env.AGENTUITY_REGION ?? 'usc';
+		const orgId = process.env.AGENTUITY_ORG_ID;
 
 		const serviceUrls = getServiceUrls(region);
 		const client = new APIClient(serviceUrls.sandbox, logger, apiKey);
 
-		let sentRunning = false;
-		const sendRunningOnce = () => {
-			if (!sentRunning) {
-				sentRunning = true;
-				stream.writeSSE({ event: 'status', data: 'running' });
-			}
-		};
-
-		let detectedExitCode: number | null = null;
-
-		const sseWritable = new Writable({
-			write(chunk, _encoding, callback) {
-				const raw = chunk.toString();
-				const text = cleanOutput(raw);
-
-				const exitMatch = raw.match(/process exited with error: exit status (\d+)/);
-				if (exitMatch) {
-					detectedExitCode = parseInt(exitMatch[1], 10);
-				}
-
-				if (text.length === 0) {
-					callback();
-					return;
-				}
-				sendRunningOnce();
-				const encoded = text.replace(/\n/g, '\\n');
-				stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
-			},
-		});
-
-		const scriptPath = `src/run/${scriptName}.ts`;
-		const scriptContent = SCRIPTS[scriptName];
-		if (!scriptContent) {
-			await stream.writeSSE({ event: 'error', data: `Script not found: ${scriptName}` });
-			return;
-		}
-
+		// Build env vars for sandbox
 		const envVars: Record<string, string> = {
 			AGENTUITY_SDK_KEY: apiKey,
 			AGENTUITY_REGION: region,
@@ -120,21 +88,52 @@ router.get(
 		if (process.env.S3_SECRET_ACCESS_KEY)
 			envVars.S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 
+		// SSE writable stream for output
+		let sentRunning = false;
+		let detectedExitCode: number | null = null;
+
+		const sseWritable = new Writable({
+			write(chunk, _encoding, callback) {
+				const raw = chunk.toString();
+				const text = cleanOutput(raw);
+
+				const exitMatch = raw.match(/process exited with error: exit status (\d+)/);
+				if (exitMatch) {
+					detectedExitCode = parseInt(exitMatch[1], 10);
+				}
+
+				if (text.length === 0) {
+					callback();
+					return;
+				}
+
+				if (!sentRunning) {
+					sentRunning = true;
+					stream.writeSSE({ event: 'status', data: 'running' });
+				}
+
+				const encoded = text.replace(/\n/g, '\\n');
+				stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
+			},
+		});
+
+		const scriptPath = `src/run/${scriptName}.ts`;
+		const command = ['bun', 'run', scriptPath, JSON.stringify(input)];
+
 		await stream.writeSSE({ event: 'status', data: 'creating' });
 
 		try {
+			logger?.info('Running sandbox script', { script: scriptName, snapshot: SNAPSHOT_ID });
+
 			const result = await sandboxRun(client, {
 				options: {
-					runtime: 'agentuity:latest',
 					snapshot: SNAPSHOT_ID,
+					command: { exec: command },
 					network: { enabled: true },
-					timeout: { idle: SANDBOX_EXEC_TIMEOUT },
+					timeout: { execution: SANDBOX_EXEC_TIMEOUT },
 					env: envVars,
-					command: {
-						exec: ['bun', 'run', scriptPath, JSON.stringify(input)],
-						files: [{ path: scriptPath, content: Buffer.from(scriptContent) }],
-					},
 				},
+				orgId,
 				region,
 				apiKey,
 				stdout: sseWritable,
@@ -145,8 +144,8 @@ router.get(
 			const exitCode = detectedExitCode ?? result.exitCode;
 
 			logger?.info('Sandbox completed', {
-				sandboxId: result.sandboxId,
 				script: scriptName,
+				sandboxId: result.sandboxId,
 				exitCode,
 				durationMs: result.durationMs,
 			});

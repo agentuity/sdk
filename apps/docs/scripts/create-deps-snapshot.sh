@@ -9,9 +9,9 @@
 # Includes:
 # - npm dependencies (published versions, not workspace refs)
 # - src/agent/** (agent implementations)
+# - src/run/** (standalone run scripts, baked into snapshot)
 #
-# Excludes (injected at runtime via sandboxRun files option):
-# - src/run/** (wrapper scripts)
+# Excludes:
 # - src/web/**, src/api/** (server-side code)
 #
 # Usage:
@@ -80,12 +80,16 @@ agentuity cloud sandbox exec --org-id "$AGENTUITY_ORG_ID" "$SANDBOX_ID" -- bun i
 echo "Uploading agent source files..."
 agentuity cloud sandbox cp --org-id "$AGENTUITY_ORG_ID" -r src/agent "$SANDBOX_ID":/home/agentuity/src/agent
 
+echo "Uploading run scripts..."
+agentuity cloud sandbox cp --org-id "$AGENTUITY_ORG_ID" -r src/run "$SANDBOX_ID":/home/agentuity/src/run
+
 echo "Creating snapshot..."
 agentuity cloud sandbox snapshot create "$SANDBOX_ID" \
   --org-id "$AGENTUITY_ORG_ID" \
   --name sdk-explorer \
-  --description "SDK Explorer with agents and dependencies pre-installed" \
-  --tag latest
+  --description "SDK Explorer with agents, run scripts, and dependencies pre-installed" \
+  --tag latest \
+  --public
 
 echo ""
 echo "========================================"

@@ -139,22 +139,13 @@ Thread ID: thrd_xyz789abc
 User: What is Agentuity?
 Assistant: Agentuity is a platform for building and deploying AI agents. It provides an SDK with built-in storage (KV, Vector, Object), AI gateway for multiple providers, streaming support, and evaluation tools.`,
 
-	'model-arena': `[INFO] Generating responses in parallel
-[INFO] Judge result {"winner":"model-a"}
-[INFO] Scores {"creativity":0.9,"clarity":0.8}
----OUTPUT---
-=== Model Arena Demo ===
-Prompt: "Write a creative one-liner about programming."
+	'model-arena': `[INFO] Model A (OpenAI gpt-5-nano): "Code is poetry written in logic, where semicolons are the punctuation of dreams."
 
-Step 1: Generating response (GPT-4o-mini)...
-Response: "Code is poetry written in logic, where semicolons are the punctuation of dreams."
+[INFO] Model B (Anthropic claude-haiku-4-5): "Programming is the art of teaching rocks to think, one boolean at a time."
 
-Step 2: Judging response...
-Judgment:
-  Overall: 85%
-  Creativity: 90%
-  Clarity: 80%
-  Feedback: Creative metaphor connecting code to poetry, though the semicolon reference is a bit cliched.`,
+[INFO] Judge (Groq gpt-oss-120b) {"winner":"model-b"}
+[INFO] Scores {"creativity":0.85,"clarity":0.9}
+[INFO] Reasoning: Model B offers a more vivid and humorous metaphor with unexpected imagery, while Model A relies on a more conventional poetry comparison.`,
 
 	evals: `[INFO] Running evaluations
 ---OUTPUT---

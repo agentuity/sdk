@@ -6,12 +6,13 @@ version: 1
 runtime: agentuity:latest
 name: sdk-explorer
 description: SDK Explorer with pre-baked agents and standalone invoke scripts
+public: true
 
 files:
    # Agent implementations
    - src/agent/**
-   # Note: src/run/** wrapper scripts are NOT included - they're injected at runtime
-   # via the files option in route.ts. This allows wrapper changes without rebuilds.
+   # Standalone run scripts (baked into snapshot for faster execution)
+   - src/run/**
    # Built app for agentuity dev support in sandbox
    - .agentuity/**
    # Project config
@@ -64,7 +65,7 @@ files:
    - '!node_modules/vite/**'
    - '!node_modules/@vitejs/**'
 
-# Environment variables are passed at runtime via sandboxRun(), not baked in
+# Environment variables are passed at runtime via sandboxCreate(), not baked in
 # This keeps secrets out of the snapshot and allows flexibility
 # env:
 #   AGENTUITY_SDK_KEY: ${AGENTUITY_SDK_KEY}

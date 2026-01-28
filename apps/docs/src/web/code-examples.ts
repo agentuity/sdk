@@ -313,7 +313,7 @@ router.post("/generate", async (c) => {
   // Write content in background
   c.var.waitUntil(async () => {
     const { textStream } = streamText({
-      model: openai("gpt-4"),
+      model: openai("gpt-5-nano"),
       prompt: "Generate a weekly report...",
     });
 
@@ -379,6 +379,7 @@ ctx.logger.info("Request completed", { elapsedMs: elapsed });`,
 // Pattern: Generate responses in parallel, then use generateObject()
 // to get structured evaluation with guaranteed schema compliance.
 import { anthropic } from "@ai-sdk/anthropic";
+import { groq } from "@ai-sdk/groq";
 import { openai } from "@ai-sdk/openai";
 import { generateText, generateObject } from "ai";
 import { z } from "zod";
@@ -406,16 +407,15 @@ const [responseA, responseB] = await Promise.all([
   }),
 ]);
 
-// Use gpt-5-mini for structured evaluation (better schema adherence)
+// Use Groq/GPT-OSS-120B for fast structured evaluation
 const { object: judgment } = await generateObject({
-  model: openai("gpt-5-mini"),
+  model: groq("openai/gpt-oss-120b"),
   schema: JudgmentSchema,
-  prompt: \`Compare these responses and pick a winner:
+  prompt: \`Compare these responses and pick a winner.
+Score each on creativity and clarity (0-1).
 
 Model A: \${responseA.text}
-Model B: \${responseB.text}
-
-Score each on creativity and clarity (0-1).\`,
+Model B: \${responseB.text}\`,
 });
 
 // TypeScript knows the exact shape (fully typed, no parsing needed)

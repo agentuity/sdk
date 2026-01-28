@@ -105,25 +105,18 @@ The SDK Explorer includes a cloud sandbox system for executing demo scripts in i
 ```text
 Browser → useSandboxRunner hook
     → GET /api/sandbox/run?script=hello&input=base64JSON
-    → route.ts reads script from SCRIPTS constant (scripts.ts)
-    → Sends script to cloud sandbox via sandboxRun()
+    → route.ts validates script name against SCRIPT_NAMES
+    → Reuses or creates cloud sandbox via sandboxCreate() + sandboxExecute()
+    → Scripts are pre-baked into the sandbox snapshot
     → Streams output back via SSE (Server-Sent Events)
     → TerminalOutput component displays results
 ```
 
-**Why Scripts Are Inlined (scripts.ts):**
-
-- Server code uses Bun.build (not Vite)
-- Bun.build doesn't support `?raw` imports for file content
-- Scripts are stored as template literal strings in `scripts.ts`
-- This allows sending script content to sandboxes at runtime
-- **Source of truth**: `src/run/*.ts` files (copy changes to `scripts.ts`)
-
 **Key Components:**
 
 - `src/api/sandbox/route.ts` - SSE endpoint that executes scripts in sandboxes
-- `src/api/sandbox/scripts.ts` - Contains all 15 scripts as strings + default inputs
-- `src/run/*.ts` - Runnable script files (the source of truth)
+- `src/api/sandbox/scripts.ts` - Script names and default inputs (generated)
+- `src/run/*.ts` - Runnable script files (baked into the sandbox snapshot)
 - `src/web/hooks/useSandboxRunner.ts` - React hook for sandbox execution
 - `src/web/components/TerminalOutput.tsx` - Displays streaming output
 
@@ -137,8 +130,8 @@ Browser → useSandboxRunner hook
 **Adding a New Demo Script:**
 
 1. Create the script in `src/run/newscript.ts`
-2. Add the script content to `SCRIPTS` in `src/api/sandbox/scripts.ts`
-3. Add default input to `SCRIPT_DEFAULTS` in the same file
+2. Run `bun run generate:scripts` to regenerate script metadata
+3. Rebuild the sandbox snapshot to include the new script
 4. Add demo config to `DEMOS` array in `src/web/App.tsx`
 
 ## Workspace Integration

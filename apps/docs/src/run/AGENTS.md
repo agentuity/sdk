@@ -154,17 +154,12 @@ bun run src/run/model-arena.ts '{"prompt":"Write a haiku about coding"}'
 
 ## Relationship to Sandbox
 
-Scripts in this folder are **source of truth** for the cloud sandbox system:
+Scripts in this folder are **baked into the sandbox snapshot** for fast execution:
 
-1. **scripts.ts** (`src/api/sandbox/scripts.ts`) contains all scripts as template literal strings
-2. When users click "Run" in the web UI, the script content is sent to a cloud sandbox
-3. The sandbox executes: `bun run src/run/{scriptName}.ts {jsonInput}`
-
-**Why scripts are duplicated:**
-
-- Server code uses Bun.build (not Vite)
-- Bun.build doesn't support `?raw` imports for reading file content
-- Scripts must be stored as strings to send to sandboxes at runtime
+1. Scripts are included in the snapshot via `create-deps-snapshot.sh` (uploaded to `/home/agentuity/src/run/`)
+2. **scripts.ts** (`src/api/sandbox/scripts.ts`) contains script names and default inputs for validation
+3. When users click "Run" in the web UI, the sandbox executes: `bun run src/run/{scriptName}.ts {jsonInput}`
+4. No file injection at runtime — scripts are already on disk in the snapshot
 
 ## Adding a New Script
 
@@ -186,26 +181,17 @@ await invoke(async (ctx) => {
 });
 ```
 
-2. **Add to scripts.ts:**
+2. **Regenerate script metadata:**
 
-```typescript
-// src/api/sandbox/scripts.ts
-export const SCRIPTS: Record<string, string> = {
-	// ... existing scripts
-	newscript: `
-// Copy your script content here as a template literal
-import { invoke } from '@agentuity/runtime';
-// ...
-`,
-};
-
-export const SCRIPT_DEFAULTS: Record<string, unknown> = {
-	// ... existing defaults
-	newscript: { data: 'default value' },
-};
+```bash
+bun run generate:scripts
 ```
 
-3. **Add demo to App.tsx** (if adding to web UI):
+This updates `src/api/sandbox/scripts.ts` with the new script name and default input.
+
+3. **Rebuild the sandbox snapshot** to include the new script (see `scripts/create-deps-snapshot.sh`).
+
+4. **Add demo to App.tsx** (if adding to web UI):
 
 ```typescript
 // src/web/App.tsx - Add to DEMOS array
@@ -302,4 +288,4 @@ await ctx.kv.delete(key);
 - Always cleanup demo data after use
 - Use `---OUTPUT---` markers for sandbox-compatible output
 - Parse input from `process.argv[2]` with sensible defaults
-- When updating a script, also update its copy in `scripts.ts`
+- When updating a script, run `bun run generate:scripts` and rebuild the snapshot
