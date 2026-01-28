@@ -305,7 +305,7 @@ const router = createRouter();
 
 router.post("/generate", async (c) => {
   // Create stream - returns a public URL
-  const stream = await c.var.stream?.create("report", {
+  const stream = await c.var.stream.create("report", {
     contentType: "text/plain",
     metadata: { created: new Date().toISOString() },
   });
@@ -332,7 +332,7 @@ router.post("/generate", async (c) => {
 
 // List all generated reports
 router.get("/list", async (c) => {
-  const { streams } = await c.var.stream?.list({ name: "report" });
+  const { streams } = await c.var.stream.list({ name: "report" });
   return c.json(streams);
 });`,
 

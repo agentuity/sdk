@@ -454,7 +454,7 @@ const DEMOS: DemoConfig[] = [
 				prompts.
 			</>
 		),
-		docsUrl: 'https://agentuity.dev/Agents/schema-libraries',
+		docsUrl: 'https://agentuity.dev/Agents/ai-gateway',
 		category: 'examples',
 		component: ModelArena,
 		codeExample: CODE_EXAMPLES['model-arena'],

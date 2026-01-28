@@ -18,7 +18,15 @@ interface Input {
 	prompt?: string;
 }
 
-const input: Input = JSON.parse(process.argv[2] ?? '{}');
+function parseJSON<T>(text: string, fallback: T): T {
+	try {
+		return JSON.parse(text);
+	} catch {
+		return fallback;
+	}
+}
+
+const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const prompt = input.prompt ?? 'Explain AI agents in 1 sentence.';
 
 const ctx = createAgentContext();

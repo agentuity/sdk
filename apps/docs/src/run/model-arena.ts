@@ -20,6 +20,14 @@ interface Input {
 	prompt?: string;
 }
 
+function parseJSON<T>(text: string, fallback: T): T {
+	try {
+		return JSON.parse(text);
+	} catch {
+		return fallback;
+	}
+}
+
 const JudgmentSchema = z.object({
 	winner: z.enum(['model-a', 'model-b']),
 	reasoning: z.string(),
@@ -29,7 +37,7 @@ const JudgmentSchema = z.object({
 	}),
 });
 
-const input: Input = JSON.parse(process.argv[2] ?? '{}');
+const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const userPrompt = input.prompt ?? 'Write a creative one-liner about programming.';
 
 const _ctx = createAgentContext();
