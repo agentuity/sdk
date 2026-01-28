@@ -508,18 +508,19 @@ async function buildTemplatesTarball(version: string): Promise<string> {
 	const templatesDir = join(rootDir, 'templates');
 	const tarballName = `templates-${version}.tar.gz`;
 	const tarballPath = join('/tmp', tarballName);
-	const tempDir = join('/tmp', `templates-${version}`);
+	const tempDir = join('/tmp', `sdk-v${version}`);
+	const templatesSubdir = join(tempDir, 'templates');
 
 	try {
 		// Clean up any existing temp directory and tarball
 		await $`rm -rf ${tempDir} ${tarballPath}`.quiet().nothrow();
 
-		// Create temp directory with versioned name and copy templates
-		await $`mkdir -p ${tempDir}`;
-		await $`cp -r ${templatesDir}/* ${tempDir}/`;
+		// Create temp directory with sdk-v{version}/templates structure and copy templates
+		await $`mkdir -p ${templatesSubdir}`;
+		await $`cp -r ${templatesDir}/* ${templatesSubdir}/`;
 
-		// Create tarball from /tmp with the versioned directory as root
-		await $`tar -czf ${tarballPath} -C /tmp templates-${version}`;
+		// Create tarball from /tmp with sdk-v{version} as root directory
+		await $`tar -czf ${tarballPath} -C /tmp sdk-v${version}`;
 
 		// Clean up temp directory
 		await $`rm -rf ${tempDir}`;
