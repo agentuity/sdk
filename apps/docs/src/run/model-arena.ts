@@ -11,7 +11,7 @@
  */
 import { createAgentContext } from '@agentuity/runtime';
 import { anthropic } from '@ai-sdk/anthropic';
-import { groq } from '@ai-sdk/groq';
+import { createGroq } from '@ai-sdk/groq';
 import { openai } from '@ai-sdk/openai';
 import { generateText, generateObject } from 'ai';
 import { z } from 'zod';
@@ -36,6 +36,9 @@ const JudgmentSchema = z.object({
 		clarity: z.number(),
 	}),
 });
+
+// Explicit baseURL needed because run scripts bypass CLI patching
+const groq = createGroq({ baseURL: process.env.GROQ_BASE_URL });
 
 const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const userPrompt = input.prompt ?? 'Write a creative one-liner about programming.';
@@ -79,6 +82,7 @@ Model B: ${responseB.text.slice(0, 200)}`,
 	output.push(`[INFO] Reasoning: ${judgment.reasoning}`);
 } catch (error) {
 	output.push(`[ERROR] ${error instanceof Error ? error.message : String(error)}`);
+	process.exitCode = 1;
 }
 
 // Print everything at once at the very end

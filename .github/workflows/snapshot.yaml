@@ -79,6 +79,10 @@ jobs:
            working-directory: apps/docs
            run: bun install
 
+         - name: Bundle Run Scripts
+           working-directory: apps/docs
+           run: bun run scripts/bundle-run-scripts.ts
+
          - name: Build SDK Explorer Snapshot
            working-directory: apps/docs
            run: |

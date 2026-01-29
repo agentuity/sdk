@@ -117,7 +117,7 @@ router.get(
 			},
 		});
 
-		const scriptPath = `src/run/${scriptName}.ts`;
+		const scriptPath = `dist/run/${scriptName}.js`;
 		const command = ['bun', 'run', scriptPath, JSON.stringify(input)];
 
 		await stream.writeSSE({ event: 'status', data: 'creating' });

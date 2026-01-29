@@ -1,74 +1,15 @@
 # yaml-language-server: $schema=https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json
-# SDK Docs Snapshot - includes agents and invoke scripts for sandbox execution
+# SDK Explorer Snapshot - pre-bundled standalone run scripts (no node_modules needed)
 # For documentation, see: https://agentuity.dev/Services/Sandbox
 
 version: 1
 runtime: agentuity:latest
 name: sdk-explorer
-description: SDK Explorer with pre-baked agents and standalone invoke scripts
+description: SDK Explorer with pre-bundled standalone run scripts
 public: true
 
 files:
-   # Agent implementations
-   - src/agent/**
-   # Standalone run scripts (baked into snapshot for faster execution)
-   - src/run/**
-   # Built app for agentuity dev support in sandbox
-   - .agentuity/**
-   # Project config
-   - agentuity.json
-   # Dependencies (frozen at build time - rebuild after bun update)
-   - node_modules/**
-   # Config files
-   - package.json
-   - tsconfig.json
-   # Exclude unnecessary files
-   - '!**/*.test.ts'
-   - '!src/web/**'
-   - '!src/api/**'
-   - '!src/generated/**'
-   - '!src/lib/**'
-   - '!claude/**'
-   # Exclude bloat from node_modules
-   - '!node_modules/.vite/**'
-   - '!node_modules/.cache/**'
-   - '!**/*.map'
-   - '!**/*.md'
-   - '!**/LICENSE*'
-   - '!**/CHANGELOG*'
-   - '!**/.eslint*'
-   - '!**/.prettier*'
-   - '!node_modules/**/tsconfig.json'
-   - '!**/*.tsbuildinfo'
-   # Exclude type definitions (not needed at runtime)
-   - '!**/*.d.ts'
-   - '!**/*.d.ts.map'
-   - '!**/@types/**'
-   # Exclude dev-only packages (workbench, react, monaco, etc - not needed for agent execution)
-   - '!node_modules/@agentuity/workbench/**'
-   - '!node_modules/@agentuity/cli/**'
-   - '!node_modules/@agentuity/evals/**'
-   - '!node_modules/@agentuity/react/**'
-   - '!node_modules/@agentuity/auth/**'
-   - '!node_modules/@monaco-editor/**'
-   - '!node_modules/monaco-editor/**'
-   - '!node_modules/react/**'
-   - '!node_modules/react-dom/**'
-   - '!node_modules/@heroicons/**'
-   - '!node_modules/shiki/**'
-   - '!node_modules/@shikijs/**'
-   - '!node_modules/tailwindcss/**'
-   - '!node_modules/@tailwindcss/**'
-   - '!node_modules/motion/**'
-   - '!node_modules/react-markdown/**'
-   - '!node_modules/tailwind-merge/**'
-   - '!node_modules/vite/**'
-   - '!node_modules/@vitejs/**'
-
-# Environment variables are passed at runtime via sandboxCreate(), not baked in
-# This keeps secrets out of the snapshot and allows flexibility
-# env:
-#   AGENTUITY_SDK_KEY: ${AGENTUITY_SDK_KEY}
+   - dist/run/**
 
 metadata:
    project: sdk-docs
