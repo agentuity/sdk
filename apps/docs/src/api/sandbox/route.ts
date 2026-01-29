@@ -34,7 +34,7 @@ const AI_GATEWAY_URL = 'https://catalyst.agentuity.cloud/gateway';
 const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
-const COOKIE_SECRET = process.env.AGENTUITY_SDK_KEY || 'agentuity';
+const COOKIE_SECRET = process.env.AGENTUITY_SDK_KEY;
 
 // ANSI escape sequence regex for stripping terminal colors
 const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*m/g;
@@ -113,7 +113,9 @@ router.get(
 
 		// --- Interactive session path ---
 		try {
-			const threadId = await getSignedCookie(c, COOKIE_SECRET, 'atid');
+			const threadId = COOKIE_SECRET
+				? await getSignedCookie(c, COOKIE_SECRET, 'atid')
+				: undefined;
 
 			if (threadId && typeof threadId === 'string') {
 				const ctx = createAgentContext();

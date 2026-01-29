@@ -45,32 +45,32 @@ import { AgentuityProvider, useAgent } from '@agentuity/react';
 import { useState } from 'react';
 
 export function App() {
-	const [name, setName] = useState('World');
-	const { run, running, data: greeting } = useAgent('hello');
+    const [name, setName] = useState('World');
+    const { run, running, data: greeting } = useAgent('hello');
 
-	return (
-		<div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-			<AgentuityProvider>
-				<h1>Welcome to Agentuity</h1>
+    return (
+        <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
+            <AgentuityProvider>
+                <h1>Welcome to Agentuity</h1>
 
-				<input
-					type="text"
-					value={name}
-					onChange={(e) => setName(e.target.value)}
-					disabled={running}
-				/>
+                <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={running}
+                />
 
-				<button
-					onClick={() => run({ name })}
-					disabled={running}
-				>
-					{running ? 'Running...' : 'Say Hello'}
-				</button>
+                <button
+                    onClick={() => run({ name })}
+                    disabled={running}
+                >
+                    {running ? 'Running...' : 'Say Hello'}
+                </button>
 
-				<div>{greeting ?? 'Waiting for response'}</div>
-			</AgentuityProvider>
-		</div>
-	);
+                <div>{greeting ?? 'Waiting for response'}</div>
+            </AgentuityProvider>
+        </div>
+    );
 }
 ```
 
@@ -91,15 +91,15 @@ createRoot(root).render(<App />);
 ```html
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>My Agentuity App</title>
-	</head>
-	<body>
-		<div id="root"></div>
-		<script type="module" src="/web/frontend.tsx"></script>
-	</body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>My Agentuity App</title>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/web/frontend.tsx"></script>
+    </body>
 </html>
 ```
 
@@ -113,13 +113,13 @@ Most SDK Explorer demos use `useAPI` for HTTP calls to API routes:
 import { useAPI } from '@agentuity/react';
 
 function HelloDemo() {
-	const { run, running, data, error } = useAPI('POST /api/hello');
+    const { run, running, data, error } = useAPI('POST /api/hello');
 
-	return (
-		<button onClick={() => run({ name: 'World' })} disabled={running}>
-			{running ? 'Running...' : 'Say Hello'}
-		</button>
-	);
+    return (
+        <button onClick={() => run({ name: 'World' })} disabled={running}>
+            {running ? 'Running...' : 'Say Hello'}
+        </button>
+    );
 }
 ```
 
@@ -129,13 +129,13 @@ function HelloDemo() {
 import { useAgent } from '@agentuity/react';
 
 function MyComponent() {
-	const { run, running, data, error } = useAgent('myAgent');
+    const { run, running, data, error } = useAgent('myAgent');
 
-	return (
-		<button onClick={() => run({ input: 'value' })}>
-			{running ? 'Running...' : 'Call Agent'}
-		</button>
-	);
+    return (
+        <button onClick={() => run({ input: 'value' })}>
+            {running ? 'Running...' : 'Call Agent'}
+        </button>
+    );
 }
 ```
 
@@ -145,15 +145,15 @@ function MyComponent() {
 import { useAgentWebsocket } from '@agentuity/react';
 
 function MyComponent() {
-	const { connected, send, data } = useAgentWebsocket('websocket');
+    const { connected, send, data } = useAgentWebsocket('websocket');
 
-	return (
-		<div>
-			<p>Status: {connected ? 'Connected' : 'Disconnected'}</p>
-			<button onClick={() => send('Hello')}>Send Message</button>
-			<p>Received: {data}</p>
-		</div>
-	);
+    return (
+        <div>
+            <p>Status: {connected ? 'Connected' : 'Disconnected'}</p>
+            <button onClick={() => send('Hello')}>Send Message</button>
+            <p>Received: {data}</p>
+        </div>
+    );
 }
 ```
 
@@ -163,15 +163,15 @@ function MyComponent() {
 import { useAgentEventStream } from '@agentuity/react';
 
 function MyComponent() {
-	const { connected, data, error } = useAgentEventStream('sse');
+    const { connected, data, error } = useAgentEventStream('sse');
 
-	return (
-		<div>
-			<p>Connected: {connected ? 'Yes' : 'No'}</p>
-			{error && <p>Error: {error.message}</p>}
-			<p>Data: {data}</p>
-		</div>
-	);
+    return (
+        <div>
+            <p>Connected: {connected ? 'Yes' : 'No'}</p>
+            {error && <p>Error: {error.message}</p>}
+            <p>Data: {data}</p>
+        </div>
+    );
 }
 ```
 
@@ -185,29 +185,36 @@ Custom hook for executing scripts in cloud sandboxes via SSE:
 import { useSandboxRunner } from './hooks/useSandboxRunner';
 
 function MyDemo() {
-	const { status, output, error, exitCode, run } = useSandboxRunner();
+    const { state, run } = useSandboxRunner();
 
-	const handleRun = () => {
-		run('hello', { name: 'World' }); // script name, input object
-	};
+    const handleRun = () => {
+        run('hello', { name: 'World' }); // script name, input object
+    };
 
-	return (
-		<div>
-			<button onClick={handleRun} disabled={status === 'running'}>
-				Run
-			</button>
-			<TerminalOutput status={status} output={output} exitCode={exitCode} />
-		</div>
-	);
+    return (
+        <div>
+            <button onClick={handleRun} disabled={state.status === 'running'}>
+                Run
+            </button>
+            <TerminalOutput
+                status={state.status}
+                output={state.output}
+                exitCode={state.exitCode}
+            />
+        </div>
+    );
 }
 ```
 
-**State:**
+**Returns:**
 
-- `status`: 'idle' | 'creating' | 'recreating' | 'running' | 'completed' | 'error'
-- `output`: Streamed stdout content
-- `error`: Error message if failed
-- `exitCode`: Process exit code when completed
+- `state.status`: 'idle' | 'creating' | 'recreating' | 'running' | 'completed' | 'error'
+- `state.output`: Streamed stdout content
+- `state.error`: Error message if failed
+- `state.exitCode`: Process exit code when completed
+- `run(script, input)`: Execute a script in the sandbox
+- `stop()`: Stop the current execution
+- `reset()`: Reset state to idle
 
 ### CodeBlock Component
 
@@ -217,14 +224,15 @@ Monaco editor wrapper with copy and run buttons:
 import { CodeBlock } from './components/CodeBlock';
 
 <CodeBlock
-	code={codeString}
-	language="typescript"
-	onRun={() => sandbox.run('scriptName', input)}
-	isRunning={status === 'running'}
-	highlights={[
-		{ lines: [5, 10], className: 'important' },
-		{ lines: 15, className: 'subtle' },
-	]}
+    code={codeString}
+    title="Example"
+    showRunButton={true}
+    onRun={() => sandbox.run('scriptName', input)}
+    isRunning={state.status === 'running'}
+    highlights={[
+        { lines: [5, 10], className: 'important' },
+        { lines: 15, className: 'subtle' },
+    ]}
 />;
 ```
 
@@ -236,10 +244,10 @@ Displays sandbox execution status and streaming output:
 import { TerminalOutput } from './components/TerminalOutput';
 
 <TerminalOutput
-	status={status} // 'idle' | 'creating' | 'running' | 'completed' | 'error'
-	output={output} // string
-	exitCode={exitCode} // number | null
-	isRoute={false} // affects status text ("Executing agent" vs "Calling route")
+    status={status} // 'idle' | 'creating' | 'running' | 'completed' | 'error'
+    output={output} // string
+    exitCode={exitCode} // number | null
+    isRoute={false} // affects status text ("Executing agent" vs "Calling route")
 />;
 ```
 
@@ -249,20 +257,20 @@ Demos are configured in the `DEMOS` array:
 
 ```typescript
 interface DemoConfig {
-	id: string; // URL param: ?demo-id=hello
-	title: string; // Display name
-	subtitle: string; // Short tagline
-	description: string; // Landing page description
-	explanation: React.ReactNode; // Educational content
-	docsUrl?: string; // Link to docs
-	category: 'basics' | 'services' | 'io-patterns' | 'examples';
-	component: React.ComponentType; // Demo component
-	codeExample: string; // Code to display
-	sandboxEnabled?: boolean; // Can run in sandbox
-	sandboxScript?: string; // Script name in scripts.ts
-	sandboxInput?: unknown; // Default input
-	codeHighlights?: LineHighlight[];
-	isRoute?: boolean; // Route vs agent demo
+    id: string; // URL param: ?demo-id=hello
+    title: string; // Display name
+    subtitle: string; // Short tagline
+    description: string; // Landing page description
+    explanation: React.ReactNode; // Educational content
+    docsUrl?: string; // Link to docs
+    category: 'basics' | 'services' | 'io-patterns' | 'examples';
+    component: React.ComponentType; // Demo component
+    codeExample: string; // Code to display
+    sandboxEnabled?: boolean; // Can run in sandbox
+    sandboxScript?: string; // Script name in scripts.ts
+    sandboxInput?: unknown; // Default input
+    codeHighlights?: LineHighlight[];
+    isRoute?: boolean; // Route vs agent demo
 }
 ```
 
@@ -273,44 +281,44 @@ import { AgentuityProvider, useAgent, useAgentWebsocket } from '@agentuity/react
 import { useEffect, useState } from 'react';
 
 export function App() {
-	const [count, setCount] = useState(0);
-	const { run, data: agentResult } = useAgent('simple');
-	const { connected, send, data: wsMessage } = useAgentWebsocket('websocket');
+    const [count, setCount] = useState(0);
+    const { run, data: agentResult } = useAgent('simple');
+    const { connected, send, data: wsMessage } = useAgentWebsocket('websocket');
 
-	useEffect(() => {
-		// Send WebSocket message every second
-		const interval = setInterval(() => {
-			send(`Message at ${new Date().toISOString()}`);
-		}, 1000);
-		return () => clearInterval(interval);
-	}, [send]);
+    useEffect(() => {
+        // Send WebSocket message every second
+        const interval = setInterval(() => {
+            send(`Message at ${new Date().toISOString()}`);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [send]);
 
-	return (
-		<div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-			<AgentuityProvider>
-				<h1>My Agentuity App</h1>
+    return (
+        <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
+            <AgentuityProvider>
+                <h1>My Agentuity App</h1>
 
-				<div>
-					<p>Count: {count}</p>
-					<button onClick={() => setCount(c => c + 1)}>
-						Increment
-					</button>
-				</div>
+                <div>
+                    <p>Count: {count}</p>
+                    <button onClick={() => setCount(c => c + 1)}>
+                        Increment
+                    </button>
+                </div>
 
-				<div>
-					<button onClick={() => run({ name: 'Jeff', age: 30 })}>
-						Call Agent
-					</button>
-					<p>{agentResult}</p>
-				</div>
+                <div>
+                    <button onClick={() => run({ name: 'Jeff', age: 30 })}>
+                        Call Agent
+                    </button>
+                    <p>{agentResult}</p>
+                </div>
 
-				<div>
-					<strong>WebSocket:</strong>
-					{connected ? JSON.stringify(wsMessage) : 'Not connected'}
-				</div>
-			</AgentuityProvider>
-		</div>
-	);
+                <div>
+                    <strong>WebSocket:</strong>
+                    {connected ? JSON.stringify(wsMessage) : 'Not connected'}
+                </div>
+            </AgentuityProvider>
+        </div>
+    );
 }
 ```
 
@@ -344,7 +352,7 @@ Reference them in your HTML or components:
 
 ```typescript
 <div style={{ backgroundColor: '#000', color: '#fff', padding: '1rem' }}>
-	Styled content
+    Styled content
 </div>
 ```
 
@@ -354,9 +362,9 @@ Create `public/styles.css`:
 
 ```css
 body {
-	background-color: #09090b;
-	color: #fff;
-	font-family: sans-serif;
+    background-color: #09090b;
+    color: #fff;
+    font-family: sans-serif;
 }
 ```
 
@@ -370,16 +378,16 @@ Import in `index.html`:
 
 ```typescript
 <div>
-	<button className="glow-btn">Click me</button>
-	<style>{`
-		.glow-btn {
-			background: linear-gradient(to right, #155e75, #3b82f6);
-			border: none;
-			padding: 0.75rem 1.5rem;
-			color: white;
-			cursor: pointer;
-		}
-	`}</style>
+    <button className="glow-btn">Click me</button>
+    <style>{`
+        .glow-btn {
+            background: linear-gradient(to right, #155e75, #3b82f6);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            cursor: pointer;
+        }
+    `}</style>
 </div>
 ```
 

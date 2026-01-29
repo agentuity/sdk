@@ -170,14 +170,14 @@ Scripts in this folder are **baked into the sandbox snapshot** for fast executio
 import { invoke } from '@agentuity/runtime';
 
 await invoke(async (ctx) => {
-	const input = JSON.parse(process.argv[2] || '{}');
+    const input = JSON.parse(process.argv[2] || '{}');
 
-	// Your SDK demonstration code here
-	const result = await ctx.kv.set('key', { value: input.data });
+    // Your SDK demonstration code here
+    const result = await ctx.kv.set('key', { value: input.data });
 
-	console.log('---OUTPUT---');
-	console.log(JSON.stringify({ success: true, result }, null, 2));
-	console.log('---OUTPUT---');
+    console.log('---OUTPUT---');
+    console.log(JSON.stringify({ success: true, result }, null, 2));
+    console.log('---OUTPUT---');
 });
 ```
 
@@ -256,14 +256,14 @@ import { createAgentContext, getAgentContext } from '@agentuity/runtime';
 const ctx = createAgentContext();
 
 await ctx.invoke(async () => {
-	const innerCtx = getAgentContext();
+    const innerCtx = getAgentContext();
 
-	// Schedule background work
-	innerCtx.waitUntil(
-		(async () => {
-			// This runs after main execution
-		})()
-	);
+    // Schedule background work
+    innerCtx.waitUntil(
+        (async () => {
+            // This runs after main execution
+        })()
+    );
 });
 ```
 
