@@ -82,6 +82,13 @@ router.get(
 
 		const logger = c.var.logger;
 		const apiKey = process.env.AGENTUITY_SDK_KEY || process.env.AGENTUITY_CLI_KEY || '';
+		if (!apiKey) {
+			await stream.writeSSE({
+				event: 'error',
+				data: 'AGENTUITY_SDK_KEY or AGENTUITY_CLI_KEY not configured.',
+			});
+			return;
+		}
 		const region = process.env.AGENTUITY_REGION ?? 'usc';
 		const orgId = process.env.AGENTUITY_ORG_ID;
 
