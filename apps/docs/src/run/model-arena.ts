@@ -88,4 +88,3 @@ Model B: ${responseB.text.slice(0, 200)}`,
 // Print everything at once at the very end
 console.log('---OUTPUT---');
 console.log(output.join('\n'));
-console.log('---OUTPUT---');

@@ -174,6 +174,7 @@ router.get(
 		await stream.writeSSE({ event: 'status', data: 'creating' });
 
 		let detectedExitCode: number | null = null;
+		let sentRunningStatus = false;
 		const sseWritable = new Writable({
 			write(chunk, _encoding, callback) {
 				const raw = chunk.toString();
@@ -185,9 +186,17 @@ router.get(
 				}
 
 				if (text.length > 0) {
-					stream.writeSSE({ event: 'status', data: 'running' });
 					const encoded = text.replace(/\n/g, '\\n');
-					stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
+					// Send 'running' status once on first output, then stdout
+					if (!sentRunningStatus) {
+						sentRunningStatus = true;
+						stream
+							.writeSSE({ event: 'status', data: 'running' })
+							.then(() => stream.writeSSE({ event: 'stdout', data: encoded }))
+							.then(() => callback(), callback);
+					} else {
+						stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
+					}
 				} else {
 					callback();
 				}
