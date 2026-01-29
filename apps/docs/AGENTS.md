@@ -106,11 +106,23 @@ The SDK Explorer includes a cloud sandbox system for executing demo scripts in i
 Browser → useSandboxRunner hook
     → GET /api/sandbox/run?script=hello&input=base64JSON
     → route.ts validates script name against SCRIPT_NAMES
-    → Reuses or creates cloud sandbox via sandboxCreate() + sandboxExecute()
+    → Interactive session: Looks up sandbox ID from KV (keyed by atid cookie)
+    → If found: Reuses existing sandbox via sandboxExecute()
+    → If not found: Creates new sandbox with mode: 'interactive', stores ID in KV
+    → Fallback: If interactive path fails, falls back to one-shot sandboxRun()
     → Scripts are pre-baked into the sandbox snapshot
-    → Streams output back via SSE (Server-Sent Events)
+    → Returns output via SSE (Server-Sent Events)
     → TerminalOutput component displays results
 ```
+
+**Session Reuse:**
+
+- Thread ID from `atid` cookie identifies the user session
+- KV bucket `explorer-sessions` stores `threadId → sandboxId` mapping
+- Sandbox created without initial command (stays in `idle` state until executed)
+- 10-min idle timeout for automatic cleanup
+- KV TTL refreshed on each use to keep active sessions alive
+- If sandbox expires or KV fails, falls back to one-shot execution
 
 **Key Components:**
 
