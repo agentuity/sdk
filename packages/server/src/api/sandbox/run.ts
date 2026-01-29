@@ -11,13 +11,13 @@ import { getServiceUrls } from '../../config';
 
 /**
  * Creates a Writable stream that captures all chunks to a buffer array
- * and optionally tees (forwards) them to a user-provided stream.
+ * and optionally tees (forwards) them to one or more user-provided streams.
  *
  * @param chunks - Array to collect Buffer chunks into
- * @param userStream - Optional user-provided Writable to forward chunks to
+ * @param userStreams - Optional user-provided Writable stream(s) to forward chunks to
  * @returns A Writable stream that captures and optionally forwards data
  */
-function createTeeWritable(chunks: Buffer[], userStream?: Writable): Writable {
+function createTeeWritable(chunks: Buffer[], ...userStreams: (Writable | undefined)[]): Writable {
 	const tee = new PassThrough();
 
 	// Always capture chunks to the buffer
@@ -25,9 +25,11 @@ function createTeeWritable(chunks: Buffer[], userStream?: Writable): Writable {
 		chunks.push(chunk);
 	});
 
-	// If user provided a stream, pipe to it with proper backpressure handling
-	if (userStream) {
-		tee.pipe(userStream);
+	// Pipe to all provided user streams with proper backpressure handling
+	for (const userStream of userStreams) {
+		if (userStream) {
+			tee.pipe(userStream);
+		}
 	}
 
 	return tee;
@@ -129,10 +131,11 @@ export async function sandboxRun(
 			stdoutStreamUrl && stderrStreamUrl && stdoutStreamUrl === stderrStreamUrl;
 
 		if (isCombinedOutput) {
-			// Stream combined output - capture to stdoutChunks, optionally tee to user's stdout
+			// Stream combined output - capture to stdoutChunks, tee to both user's stdout AND stderr
 			if (stdoutStreamUrl) {
 				logger?.debug('using combined output stream (stdout === stderr)');
-				const teeStream = createTeeWritable(stdoutChunks, stdout);
+				// Tee to both stdout and stderr so both user streams receive real-time data
+				const teeStream = createTeeWritable(stdoutChunks, stdout, stderr);
 				const combinedPromise = streamUrlToWritable(
 					stdoutStreamUrl,
 					teeStream,
