@@ -6,9 +6,10 @@
 
 import { adversarial } from '@agentuity/evals';
 import { s } from '@agentuity/schema';
-import { groq } from '@ai-sdk/groq';
-import { generateText, jsonSchema, Output } from 'ai';
+import Groq from 'groq-sdk';
 import agent, { type AgentInput, type AgentOutput } from './index';
+
+const groq = new Groq();
 
 /**
  * Preset Eval (score type): Adversarial
@@ -31,13 +32,15 @@ export const adversarialEval = agent.createEval(
 /**
  * Custom Eval (binary type): Language Match
  * Verifies the translation is in the requested target language.
- * Uses Groq via AI Gateway for fast, structured language detection.
+ * Uses Groq SDK via AI Gateway for fast, structured language detection.
  */
 const LanguageCheckSchema = s.object({
 	detectedLanguage: s.string().describe('The detected language of the text'),
 	isCorrectLanguage: s.boolean().describe('Whether the text is in the target language'),
 	reason: s.string().describe('Brief explanation'),
 });
+
+type LanguageCheck = s.infer<typeof LanguageCheckSchema>;
 
 export const languageMatchEval = agent.createEval('language-match', {
 	description: 'Verifies the translation is in the requested target language',
@@ -59,24 +62,37 @@ export const languageMatchEval = agent.createEval('language-match', {
 
 		const targetLanguage = input.toLanguage ?? 'Spanish';
 
-		// Use @agentuity/schema (lightweight validation) converted to JSON Schema for AI SDK.
-		// additionalProperties: false is required for structured output.
-		const { output: result } = await generateText({
-			model: groq('openai/gpt-oss-120b'),
-			output: Output.object({
-				schema: jsonSchema<s.infer<typeof LanguageCheckSchema>>({
-					...s.toJSONSchema(LanguageCheckSchema),
-					additionalProperties: false,
-				}),
-			}),
-			prompt: `Determine if the following text is written in ${targetLanguage}.
+		// Use Groq SDK with JSON schema for structured output
+		const jsonSchema = {
+			...s.toJSONSchema(LanguageCheckSchema),
+			additionalProperties: false,
+		};
+
+		const completion = await groq.chat.completions.create({
+			model: 'openai/gpt-oss-120b',
+			response_format: {
+				type: 'json_schema',
+				json_schema: {
+					name: 'language_check',
+					schema: jsonSchema as Record<string, unknown>,
+					strict: true,
+				},
+			},
+			messages: [
+				{
+					role: 'user',
+					content: `Determine if the following text is written in ${targetLanguage}.
 
 Text to analyze:
 
 "${output.translation}"
 
 Is this text written in ${targetLanguage}?`,
+				},
+			],
 		});
+
+		const result = JSON.parse(completion.choices[0]?.message?.content ?? '{}') as LanguageCheck;
 
 		ctx.logger.info('[EVAL] language-match: Completed', {
 			passed: result.isCorrectLanguage,
