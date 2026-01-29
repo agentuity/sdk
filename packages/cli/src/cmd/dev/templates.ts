@@ -19,9 +19,6 @@ export default createAgent('${name}', {
 });
 `;
 
-const newAgentIndexTemplate = (_name: string) => `export { default } from './agent';
-`;
-
 const newRouteTemplate = () => {
 	return `import { createRouter } from '@agentuity/runtime';
 
@@ -58,8 +55,7 @@ export function createAgentTemplates(dir: string) {
 		return;
 	}
 	const agentName = toPascalCase(name);
-	writeFileSync(join(dir, 'agent.ts'), newAgentTemplate(agentName));
-	writeFileSync(join(dir, 'index.ts'), newAgentIndexTemplate(agentName));
+	writeFileSync(join(dir, 'index.ts'), newAgentTemplate(agentName));
 }
 
 export function createAPITemplates(dir: string) {
