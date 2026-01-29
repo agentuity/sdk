@@ -710,6 +710,548 @@ describe('SandboxClient', () => {
 			expect(result.sandboxId).toBe('sandbox-fail-test');
 			expect(result.exitCode).toBe(1);
 		});
+
+		test('should return captured stdout in result', async () => {
+			const stdoutChunks = [
+				new Uint8Array([72, 101, 108, 108, 111]), // "Hello"
+				new Uint8Array([32, 87, 111, 114, 108, 100, 33, 10]), // " World!\n"
+			];
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-stdout-capture',
+								status: 'running',
+								stdoutStreamUrl: 'https://stream.example.com/stdout/capture-test',
+								stderrStreamUrl: 'https://stream.example.com/stderr/capture-test',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (url.includes('stream.example.com/stdout')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < stdoutChunks.length) {
+								controller.enqueue(stdoutChunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				if (url.includes('stream.example.com/stderr')) {
+					// Empty stderr stream
+					return new Response(
+						new ReadableStream({
+							start(c) {
+								c.close();
+							},
+						}),
+						{ status: 200 }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-stdout-capture')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-stdout-capture',
+								status: 'terminated',
+								exitCode: 0,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run({ command: { exec: ['echo', 'Hello World!'] } });
+
+			expect(result.sandboxId).toBe('sandbox-stdout-capture');
+			expect(result.exitCode).toBe(0);
+			expect(result.stdout).toBe('Hello World!\n');
+			expect(result.stderr).toBe('');
+		});
+
+		test('should return captured stderr in result', async () => {
+			const stderrChunks = [
+				new Uint8Array([69, 114, 114, 111, 114, 58, 32]), // "Error: "
+				new Uint8Array([102, 97, 105, 108, 101, 100, 10]), // "failed\n"
+			];
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-stderr-capture',
+								status: 'running',
+								stdoutStreamUrl: 'https://stream.example.com/stdout/stderr-test',
+								stderrStreamUrl: 'https://stream.example.com/stderr/stderr-test',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (url.includes('stream.example.com/stdout')) {
+					// Empty stdout stream
+					return new Response(
+						new ReadableStream({
+							start(c) {
+								c.close();
+							},
+						}),
+						{ status: 200 }
+					);
+				}
+
+				if (url.includes('stream.example.com/stderr')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < stderrChunks.length) {
+								controller.enqueue(stderrChunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-stderr-capture')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-stderr-capture',
+								status: 'terminated',
+								exitCode: 1,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run({ command: { exec: ['some-failing-command'] } });
+
+			expect(result.sandboxId).toBe('sandbox-stderr-capture');
+			expect(result.exitCode).toBe(1);
+			expect(result.stdout).toBe('');
+			expect(result.stderr).toBe('Error: failed\n');
+		});
+
+		test('should capture output while also streaming to user-provided stdout', async () => {
+			const stdoutChunks = [
+				new Uint8Array([84, 101, 115, 116, 32]), // "Test "
+				new Uint8Array([111, 117, 116, 112, 117, 116, 10]), // "output\n"
+			];
+			const receivedChunks: Buffer[] = [];
+
+			const userWritable = new Writable({
+				write(chunk, _encoding, callback) {
+					receivedChunks.push(Buffer.from(chunk));
+					callback();
+				},
+			});
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-tee-stdout',
+								status: 'running',
+								stdoutStreamUrl: 'https://stream.example.com/stdout/tee-test',
+								stderrStreamUrl: 'https://stream.example.com/stderr/tee-test',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (url.includes('stream.example.com/stdout')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < stdoutChunks.length) {
+								controller.enqueue(stdoutChunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				if (url.includes('stream.example.com/stderr')) {
+					return new Response(
+						new ReadableStream({
+							start(c) {
+								c.close();
+							},
+						}),
+						{ status: 200 }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-tee-stdout')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-tee-stdout',
+								status: 'terminated',
+								exitCode: 0,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run(
+				{ command: { exec: ['echo', 'Test output'] } },
+				{ stdout: userWritable }
+			);
+
+			// Verify captured output in result
+			expect(result.stdout).toBe('Test output\n');
+
+			// Verify user stream also received the output (tee behavior)
+			const userOutput = Buffer.concat(receivedChunks).toString();
+			expect(userOutput).toBe('Test output\n');
+		});
+
+		test('should capture output while also streaming to user-provided stderr', async () => {
+			const stderrChunks = [
+				new Uint8Array([87, 97, 114, 110, 105, 110, 103, 58, 32]), // "Warning: "
+				new Uint8Array([116, 101, 115, 116, 10]), // "test\n"
+			];
+			const receivedChunks: Buffer[] = [];
+
+			const userWritable = new Writable({
+				write(chunk, _encoding, callback) {
+					receivedChunks.push(Buffer.from(chunk));
+					callback();
+				},
+			});
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-tee-stderr',
+								status: 'running',
+								stdoutStreamUrl: 'https://stream.example.com/stdout/tee-stderr-test',
+								stderrStreamUrl: 'https://stream.example.com/stderr/tee-stderr-test',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (url.includes('stream.example.com/stdout')) {
+					return new Response(
+						new ReadableStream({
+							start(c) {
+								c.close();
+							},
+						}),
+						{ status: 200 }
+					);
+				}
+
+				if (url.includes('stream.example.com/stderr')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < stderrChunks.length) {
+								controller.enqueue(stderrChunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-tee-stderr')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-tee-stderr',
+								status: 'terminated',
+								exitCode: 0,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run(
+				{ command: { exec: ['some-command'] } },
+				{ stderr: userWritable }
+			);
+
+			// Verify captured output in result
+			expect(result.stderr).toBe('Warning: test\n');
+
+			// Verify user stream also received the output (tee behavior)
+			const userOutput = Buffer.concat(receivedChunks).toString();
+			expect(userOutput).toBe('Warning: test\n');
+		});
+
+		test('should handle combined output (stdout === stderr)', async () => {
+			const combinedChunks = [
+				new Uint8Array([79, 117, 116, 58, 32]), // "Out: "
+				new Uint8Array([109, 105, 120, 101, 100, 10]), // "mixed\n"
+			];
+
+			// Use the same URL for both stdout and stderr to simulate combined output
+			const combinedStreamUrl = 'https://stream.example.com/combined/test';
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-combined',
+								status: 'running',
+								stdoutStreamUrl: combinedStreamUrl,
+								stderrStreamUrl: combinedStreamUrl, // Same URL = combined output
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (url.includes('stream.example.com/combined')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < combinedChunks.length) {
+								controller.enqueue(combinedChunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-combined')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-combined',
+								status: 'terminated',
+								exitCode: 0,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run({ command: { exec: ['some-command'] } });
+
+			expect(result.sandboxId).toBe('sandbox-combined');
+			expect(result.exitCode).toBe(0);
+			// When combined, both stdout and stderr should have the same content
+			expect(result.stdout).toBe('Out: mixed\n');
+			expect(result.stderr).toBe('Out: mixed\n');
+		});
+
+		test('should return empty strings when no output', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-empty-output',
+								status: 'running',
+								stdoutStreamUrl: 'https://stream.example.com/stdout/empty',
+								stderrStreamUrl: 'https://stream.example.com/stderr/empty',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (
+					url.includes('stream.example.com/stdout') ||
+					url.includes('stream.example.com/stderr')
+				) {
+					// Empty streams - close immediately
+					return new Response(
+						new ReadableStream({
+							start(c) {
+								c.close();
+							},
+						}),
+						{ status: 200 }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-empty-output')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-empty-output',
+								status: 'terminated',
+								exitCode: 0,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run({ command: { exec: ['true'] } });
+
+			expect(result.sandboxId).toBe('sandbox-empty-output');
+			expect(result.exitCode).toBe(0);
+			expect(result.stdout).toBe('');
+			expect(result.stderr).toBe('');
+		});
+
+		test('should handle multi-chunk output', async () => {
+			// Simulate large output split across many chunks
+			const chunks: Uint8Array[] = [];
+			for (let i = 0; i < 10; i++) {
+				chunks.push(new Uint8Array(Buffer.from(`Line ${i}\n`)));
+			}
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-multi-chunk',
+								status: 'running',
+								stdoutStreamUrl: 'https://stream.example.com/stdout/multi',
+								stderrStreamUrl: 'https://stream.example.com/stderr/multi',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (url.includes('stream.example.com/stdout')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < chunks.length) {
+								controller.enqueue(chunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				if (url.includes('stream.example.com/stderr')) {
+					return new Response(
+						new ReadableStream({
+							start(c) {
+								c.close();
+							},
+						}),
+						{ status: 200 }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-multi-chunk')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-multi-chunk',
+								status: 'terminated',
+								exitCode: 0,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run({ command: { exec: ['generate-output'] } });
+
+			expect(result.sandboxId).toBe('sandbox-multi-chunk');
+			expect(result.exitCode).toBe(0);
+
+			// Verify all chunks were captured and concatenated
+			const expectedOutput = Array.from({ length: 10 }, (_, i) => `Line ${i}`).join('\n') + '\n';
+			expect(result.stdout).toBe(expectedOutput);
+			expect(result.stderr).toBe('');
+		});
 	});
 
 	describe('client direct methods', () => {
