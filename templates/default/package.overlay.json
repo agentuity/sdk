@@ -1,7 +1,9 @@
 {
 	"dependencies": {
 		"@agentuity/evals": "latest",
-		"openai": "latest"
+		"openai": "latest",
+		"@ai-sdk/groq": "^3.0.16",
+		"ai": "^6.0.59"
 	},
 	"devDependencies": {
 		"@tailwindcss/vite": "^4.1.18",
