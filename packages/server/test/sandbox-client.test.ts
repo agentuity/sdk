@@ -1112,6 +1112,97 @@ describe('SandboxClient', () => {
 			expect(result.stderr).toBe('Out: mixed\n');
 		});
 
+		test('should tee combined output to both user stdout and stderr streams', async () => {
+			const combinedChunks = [
+				new Uint8Array([67, 111, 109, 98, 105, 110, 101, 100, 10]), // "Combined\n"
+			];
+
+			const stdoutReceivedChunks: Buffer[] = [];
+			const stderrReceivedChunks: Buffer[] = [];
+
+			const userStdout = new Writable({
+				write(chunk, _encoding, callback) {
+					stdoutReceivedChunks.push(Buffer.from(chunk));
+					callback();
+				},
+			});
+
+			const userStderr = new Writable({
+				write(chunk, _encoding, callback) {
+					stderrReceivedChunks.push(Buffer.from(chunk));
+					callback();
+				},
+			});
+
+			const combinedStreamUrl = 'https://stream.example.com/combined/both-streams';
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-combined-both',
+								status: 'running',
+								stdoutStreamUrl: combinedStreamUrl,
+								stderrStreamUrl: combinedStreamUrl, // Same URL = combined output
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (url.includes('stream.example.com/combined')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < combinedChunks.length) {
+								controller.enqueue(combinedChunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-combined-both')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-combined-both',
+								status: 'terminated',
+								exitCode: 0,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run(
+				{ command: { exec: ['some-command'] } },
+				{ stdout: userStdout, stderr: userStderr }
+			);
+
+			// Verify captured output in result
+			expect(result.stdout).toBe('Combined\n');
+			expect(result.stderr).toBe('Combined\n');
+
+			// Verify BOTH user streams received the combined output
+			const stdoutOutput = Buffer.concat(stdoutReceivedChunks).toString();
+			const stderrOutput = Buffer.concat(stderrReceivedChunks).toString();
+			expect(stdoutOutput).toBe('Combined\n');
+			expect(stderrOutput).toBe('Combined\n');
+		});
+
 		test('should return empty strings when no output', async () => {
 			mockFetch(async (url, opts) => {
 				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
