@@ -59,6 +59,8 @@ CORE_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-core-*.tgz)
 SCHEMA_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-schema-*.tgz)
 FRONTEND_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-frontend-*.tgz)
 REACT_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-react-*.tgz)
+POSTGRES_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-postgres-*.tgz)
+DRIZZLE_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-drizzle-*.tgz)
 AUTH_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-auth-*.tgz)
 EVALS_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-evals-*.tgz)
 RUNTIME_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-runtime-*.tgz)
@@ -68,7 +70,7 @@ WORKBENCH_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-workbench-*.tgz)
 
 echo ""
 log_info "Using tarballs:"
-for pkg in $CORE_PKG $SCHEMA_PKG $FRONTEND_PKG $REACT_PKG $AUTH_PKG $EVALS_PKG $RUNTIME_PKG $SERVER_PKG $CLI_PKG $WORKBENCH_PKG; do
+for pkg in $CORE_PKG $SCHEMA_PKG $FRONTEND_PKG $REACT_PKG $POSTGRES_PKG $DRIZZLE_PKG $AUTH_PKG $EVALS_PKG $RUNTIME_PKG $SERVER_PKG $CLI_PKG $WORKBENCH_PKG; do
     log_success "  $pkg"
 done
 
@@ -99,6 +101,8 @@ bun add --no-save \
   "$PACKAGES_DIR/$SCHEMA_PKG" \
   "$PACKAGES_DIR/$FRONTEND_PKG" \
   "$PACKAGES_DIR/$REACT_PKG" \
+  "$PACKAGES_DIR/$POSTGRES_PKG" \
+  "$PACKAGES_DIR/$DRIZZLE_PKG" \
   "$PACKAGES_DIR/$AUTH_PKG" \
   "$PACKAGES_DIR/$EVALS_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
@@ -157,7 +161,7 @@ log_info "Step 5: Installing packed packages..."
 
 # Remove ALL Agentuity dependencies from package.json before installing from tarballs
 cat package.json | \
-  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/frontend"], .dependencies["@agentuity/react"], .dependencies["@agentuity/auth"], .dependencies["@agentuity/evals"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"], .devDependencies["@agentuity/cli"], .devDependencies["@agentuity/core"], .devDependencies["@agentuity/schema"], .devDependencies["@agentuity/frontend"], .devDependencies["@agentuity/react"], .devDependencies["@agentuity/auth"], .devDependencies["@agentuity/evals"], .devDependencies["@agentuity/runtime"], .devDependencies["@agentuity/server"], .devDependencies["@agentuity/workbench"])' \
+  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/frontend"], .dependencies["@agentuity/react"], .dependencies["@agentuity/postgres"], .dependencies["@agentuity/drizzle"], .dependencies["@agentuity/auth"], .dependencies["@agentuity/evals"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"], .devDependencies["@agentuity/cli"], .devDependencies["@agentuity/core"], .devDependencies["@agentuity/schema"], .devDependencies["@agentuity/frontend"], .devDependencies["@agentuity/react"], .devDependencies["@agentuity/postgres"], .devDependencies["@agentuity/drizzle"], .devDependencies["@agentuity/auth"], .devDependencies["@agentuity/evals"], .devDependencies["@agentuity/runtime"], .devDependencies["@agentuity/server"], .devDependencies["@agentuity/workbench"])' \
   > package.json.tmp && mv package.json.tmp package.json
 
 # Install Agentuity packages from tarballs FIRST (all at once so interdependencies resolve)
@@ -167,6 +171,8 @@ bun add --no-save \
   "$PACKAGES_DIR/$SCHEMA_PKG" \
   "$PACKAGES_DIR/$FRONTEND_PKG" \
   "$PACKAGES_DIR/$REACT_PKG" \
+  "$PACKAGES_DIR/$POSTGRES_PKG" \
+  "$PACKAGES_DIR/$DRIZZLE_PKG" \
   "$PACKAGES_DIR/$AUTH_PKG" \
   "$PACKAGES_DIR/$EVALS_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
@@ -226,7 +232,7 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo -e "${GREEN}🎉 All tests passed!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-log_success "Built and packed all 10 packages"
+log_success "Built and packed all 12 packages"
 log_success "CLI runs from packed tarball without missing TypeScript"
 log_success "Created new project using CLI with --template-dir"
 log_success "Installed packed packages as if from npm registry"
