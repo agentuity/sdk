@@ -3,6 +3,7 @@ import type { PostgresConfig, ConnectionStats, TransactionOptions, ReserveOption
 import {
 	ConnectionClosedError,
 	ReconnectFailedError,
+	QueryTimeoutError,
 	UnsupportedOperationError,
 	isRetryableError,
 } from './errors';
@@ -95,7 +96,11 @@ export class PostgresClient {
 
 		// If preconnect is enabled, establish connection immediately
 		if (this._config.preconnect) {
-			this._connectPromise = this._warmConnection();
+			const p = this._warmConnection();
+			// Attach no-op catch to suppress unhandled rejection warnings
+			// Later awaits will still observe the real rejection
+			p.catch(() => {});
+			this._connectPromise = p;
 		}
 	}
 
@@ -323,8 +328,8 @@ export class PostgresClient {
 		if (this._config.password) bunOptions.password = this._config.password;
 		if (this._config.database) bunOptions.database = this._config.database;
 		if (this._config.max) bunOptions.max = this._config.max;
-		if (this._config.idleTimeout) bunOptions.idleTimeout = this._config.idleTimeout;
-		if (this._config.connectionTimeout)
+		if (this._config.idleTimeout !== undefined) bunOptions.idleTimeout = this._config.idleTimeout;
+		if (this._config.connectionTimeout !== undefined)
 			bunOptions.connectionTimeout = this._config.connectionTimeout;
 
 		// Handle TLS configuration
@@ -668,11 +673,26 @@ export class PostgresClient {
 			}
 		};
 
-		if (timeoutMs) {
-			const timeout = new Promise<never>((_, reject) => {
-				setTimeout(() => reject(new Error('Connection timeout')), timeoutMs);
+		if (timeoutMs !== undefined) {
+			let timerId: ReturnType<typeof setTimeout> | undefined;
+			const timeoutPromise = new Promise<never>((_, reject) => {
+				timerId = setTimeout(
+					() =>
+						reject(
+							new QueryTimeoutError({
+								timeoutMs,
+							})
+						),
+					timeoutMs
+				);
 			});
-			await Promise.race([connectOperation(), timeout]);
+			try {
+				await Promise.race([connectOperation(), timeoutPromise]);
+			} finally {
+				if (timerId !== undefined) {
+					clearTimeout(timerId);
+				}
+			}
 		} else {
 			await connectOperation();
 		}
