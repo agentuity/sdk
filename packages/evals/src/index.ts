@@ -6,7 +6,12 @@ export {
 	type DefaultEvalOutput,
 	type GenerateEvalResultOptions,
 } from './_utils';
-export { DEFAULT_EVAL_MODEL, type BaseEvalOptions, type EvalMiddleware } from './types';
+export {
+	DEFAULT_EVAL_MODEL,
+	type BaseEvalOptions,
+	type EvalLifecycleHooks,
+	type EvalMiddleware,
+} from './types';
 
 // Evals (each file contains both the prompt and the eval)
 export { politeness, politenessPrompt } from './politeness';
