@@ -692,6 +692,60 @@ test('cli-env-secrets', 'env-set-overwrite', async () => {
 	});
 });
 
+// Test: Re-setting a secret without --secret flag should preserve secret status
+test('cli-env-secrets', 'env-secret-preserves-status-on-update', async () => {
+	const authenticated = await isAuthenticated();
+	if (!authenticated) return;
+
+	const testKey = trackKey(uniqueId('SECRET_PRESERVE_TEST'));
+	const value1 = 'secret_value_1';
+	const value2 = 'secret_value_2';
+
+	// Set as secret
+	const setSecretResult = await cliAgent.run({
+		command: `cloud env set ${testKey} ${value1} --secret`,
+	});
+	assert(
+		Boolean(setSecretResult.success || setSecretResult.stdout?.includes('Secret')),
+		`Set as secret should succeed: ${setSecretResult.stderr}`
+	);
+
+	// Verify it's a secret
+	const listBefore = await cliAgent.run({
+		command: 'cloud env list',
+	});
+	const listBeforeOutput = (listBefore.stdout || '') + (listBefore.stderr || '');
+	const linesBefore = listBeforeOutput.split('\n');
+	const keyLineBefore = linesBefore.find((l) => l.includes(testKey));
+	assert(
+		Boolean(keyLineBefore && keyLineBefore.includes('[secret]')),
+		`Should be listed as secret initially: ${keyLineBefore || 'key not found'}`
+	);
+
+	// Re-set same key with new value but WITHOUT --secret flag
+	await cliAgent.run({
+		command: `cloud env set ${testKey} ${value2}`,
+	});
+
+	// Verify it's STILL a secret (secret status should be preserved)
+	const listAfter = await cliAgent.run({
+		command: 'cloud env list',
+	});
+	const listAfterOutput = (listAfter.stdout || '') + (listAfter.stderr || '');
+	const linesAfter = listAfterOutput.split('\n');
+	const keyLineAfter = linesAfter.find((l) => l.includes(testKey));
+	assert(
+		Boolean(keyLineAfter && keyLineAfter.includes('[secret]')),
+		`Should still be a secret after update without --secret flag: ${keyLineAfter || 'key not found'}`
+	);
+
+	// Cleanup
+	await cliAgent.run({
+		command: 'cloud env delete',
+		args: [testKey],
+	});
+});
+
 // Test: Reserved AGENTUITY_ key blocked for env delete
 test('cli-env-secrets', 'env-delete-blocks-reserved-agentuity-key', async () => {
 	const authenticated = await isAuthenticated();
