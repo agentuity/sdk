@@ -165,7 +165,12 @@ function tryRegisterRuntimeHook(): void {
 	// Try to dynamically import the runtime and register our shutdown hook
 	// This is done asynchronously to avoid blocking client creation
 	// and to handle the case where runtime is not available
-	import('@agentuity/runtime')
+	// Using Function constructor to avoid TypeScript trying to resolve the module at build time
+	const dynamicImport = new Function('specifier', 'return import(specifier)') as (
+		specifier: string
+	) => Promise<{ registerShutdownHook?: (hook: () => Promise<void> | void) => void }>;
+
+	dynamicImport('@agentuity/runtime')
 		.then((runtime) => {
 			if (typeof runtime.registerShutdownHook === 'function') {
 				runtime.registerShutdownHook(async () => {
