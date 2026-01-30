@@ -716,7 +716,7 @@ async function openStreamDetails(item: DataTreeItem): Promise<void> {
 	const content = JSON.stringify(
 		{
 			id: stream.id,
-			name: stream.name,
+			namespace: stream.namespace,
 			url: stream.url,
 			sizeBytes: stream.sizeBytes,
 			metadata: stream.metadata,
@@ -725,7 +725,7 @@ async function openStreamDetails(item: DataTreeItem): Promise<void> {
 		2
 	);
 
-	await openReadonlyDocument(content, 'json', `stream-${stream.name}`);
+	await openReadonlyDocument(content, 'json', `stream-${stream.namespace}`);
 }
 
 async function openQueueDetails(item: DataTreeItem): Promise<void> {

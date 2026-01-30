@@ -32,9 +32,9 @@ export class LocalStreamStorage implements StreamStorage {
 		}
 	}
 
-	async create(name: string, props?: CreateStreamProps): Promise<Stream> {
-		if (!name || name.length < 1 || name.length > 254) {
-			throw new Error('Stream name must be between 1 and 254 characters');
+	async create(namespace: string, props?: CreateStreamProps): Promise<Stream> {
+		if (!namespace || namespace.length < 1 || namespace.length > 254) {
+			throw new Error('Stream namespace must be between 1 and 254 characters');
 		}
 
 		const id = randomUUID();
@@ -52,7 +52,7 @@ export class LocalStreamStorage implements StreamStorage {
 		stmt.run(
 			this.#projectPath,
 			id,
-			name,
+			namespace,
 			metadata,
 			props?.contentType || 'application/octet-stream',
 			timestamp
@@ -82,10 +82,10 @@ export class LocalStreamStorage implements StreamStorage {
 		`;
 		const queryParams: (string | number)[] = [this.#projectPath];
 
-		// Add filters
-		if (params?.name) {
+		// Add filters (map namespace to name for the database)
+		if (params?.namespace) {
 			query += ` AND name = ?`;
-			queryParams.push(params.name);
+			queryParams.push(params.namespace);
 		}
 
 		if (params?.metadata) {
@@ -119,9 +119,10 @@ export class LocalStreamStorage implements StreamStorage {
 			size_bytes: number;
 		}>;
 
+		// Map name to namespace for the SDK interface
 		const streams: StreamInfo[] = rows.map((row) => ({
 			id: row.id,
-			name: row.name,
+			namespace: row.name,
 			metadata: row.metadata ? JSON.parse(row.metadata) : {},
 			url: `${this.#serverUrl}/_agentuity/local/stream/${row.id}`,
 			sizeBytes: row.size_bytes,
@@ -157,9 +158,10 @@ export class LocalStreamStorage implements StreamStorage {
 		const metadata = row.metadata ? JSON.parse(row.metadata) : {};
 		const url = `${this.#serverUrl}/_agentuity/local/stream/${id}`;
 
+		// Map name to namespace for the SDK interface
 		return {
 			id: row.id,
-			name: row.name,
+			namespace: row.name,
 			metadata,
 			url,
 			sizeBytes: row.size_bytes,

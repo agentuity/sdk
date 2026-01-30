@@ -6,7 +6,7 @@ import { getCommand } from '../../../command-prefix';
 
 const StreamInfoSchema = z.object({
 	id: z.string().describe('Stream ID'),
-	name: z.string().describe('Stream name'),
+	namespace: z.string().describe('Stream namespace'),
 	metadata: z.record(z.string(), z.string()).describe('Stream metadata'),
 	url: z.string().describe('Public URL'),
 	sizeBytes: z.number().describe('Size in bytes'),
@@ -30,7 +30,10 @@ export const listSubcommand = createCommand({
 			command: getCommand('cloud stream ls --size 50'),
 			description: 'List 50 most recent streams',
 		},
-		{ command: getCommand('cloud stream list --name agent-logs'), description: 'Filter by name' },
+		{
+			command: getCommand('cloud stream list --namespace agent-logs'),
+			description: 'Filter by namespace',
+		},
 		{
 			command: getCommand('cloud stream list --metadata type=export'),
 			description: 'Filter by metadata',
@@ -41,7 +44,7 @@ export const listSubcommand = createCommand({
 		options: z.object({
 			size: z.number().optional().describe('maximum number of streams to return (default: 100)'),
 			offset: z.number().optional().describe('number of streams to skip for pagination'),
-			name: z.string().optional().describe('filter by stream name'),
+			namespace: z.string().optional().describe('filter by stream namespace'),
 			metadata: z
 				.string()
 				.optional()
@@ -95,7 +98,7 @@ export const listSubcommand = createCommand({
 		const result = await storage.list({
 			limit: opts.size,
 			offset: opts.offset,
-			name: opts.name,
+			namespace: opts.namespace,
 			metadata: metadataFilter,
 		});
 
@@ -115,7 +118,7 @@ export const listSubcommand = createCommand({
 				const metadataStr =
 					Object.keys(stream.metadata).length > 0 ? JSON.stringify(stream.metadata) : '-';
 				return {
-					Name: stream.name,
+					Namespace: stream.namespace,
 					ID: stream.id,
 					Size: tui.formatBytes(sizeBytes),
 					Metadata:
@@ -125,7 +128,7 @@ export const listSubcommand = createCommand({
 			});
 
 			tui.table(tableData, [
-				{ name: 'Name', alignment: 'left' },
+				{ name: 'Namespace', alignment: 'left' },
 				{ name: 'ID', alignment: 'left' },
 				{ name: 'Size', alignment: 'right' },
 				{ name: 'Metadata', alignment: 'left' },
