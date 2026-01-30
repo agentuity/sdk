@@ -1,5 +1,6 @@
 import type { Logger } from '@agentuity/core';
 import type { Readable, Writable } from 'node:stream';
+import { PassThrough } from 'node:stream';
 import { APIClient } from '../api';
 import { sandboxCreate } from './create';
 import { sandboxDestroy } from './destroy';
@@ -7,6 +8,32 @@ import { sandboxGet } from './get';
 import { ExecutionCancelledError, ExecutionTimeoutError, writeAndDrain } from './util';
 import type { SandboxRunOptions, SandboxRunResult } from '@agentuity/core';
 import { getServiceUrls } from '../../config';
+
+/**
+ * Creates a Writable stream that captures all chunks to a buffer array
+ * and optionally tees (forwards) them to one or more user-provided streams.
+ *
+ * @param chunks - Array to collect Buffer chunks into
+ * @param userStreams - Optional user-provided Writable stream(s) to forward chunks to
+ * @returns A Writable stream that captures and optionally forwards data
+ */
+function createTeeWritable(chunks: Buffer[], ...userStreams: (Writable | undefined)[]): Writable {
+	const tee = new PassThrough();
+
+	// Always capture chunks to the buffer
+	tee.on('data', (chunk: Buffer) => {
+		chunks.push(chunk);
+	});
+
+	// Pipe to all provided user streams with proper backpressure handling
+	for (const userStream of userStreams) {
+		if (userStream) {
+			tee.pipe(userStream);
+		}
+	}
+
+	return tee;
+}
 
 const POLL_INTERVAL_MS = 500;
 const MAX_POLL_ATTEMPTS = 7200;
@@ -82,6 +109,10 @@ export async function sandboxRun(
 	const abortController = new AbortController();
 	const streamPromises: Promise<void>[] = [];
 
+	// Create capture buffers for stdout/stderr
+	const stdoutChunks: Buffer[] = [];
+	const stderrChunks: Buffer[] = [];
+
 	try {
 		// Start stdin streaming if we have stdin and a stream URL
 		if (stdin && stdinStreamUrl && apiKey) {
@@ -100,34 +131,38 @@ export async function sandboxRun(
 			stdoutStreamUrl && stderrStreamUrl && stdoutStreamUrl === stderrStreamUrl;
 
 		if (isCombinedOutput) {
-			// Stream combined output to stdout only to avoid duplicates
-			if (stdout) {
+			// Stream combined output - capture to stdoutChunks, tee to both user's stdout AND stderr
+			if (stdoutStreamUrl) {
 				logger?.debug('using combined output stream (stdout === stderr)');
+				// Tee to both stdout and stderr so both user streams receive real-time data
+				const teeStream = createTeeWritable(stdoutChunks, stdout, stderr);
 				const combinedPromise = streamUrlToWritable(
 					stdoutStreamUrl,
-					stdout,
+					teeStream,
 					abortController.signal,
 					logger
 				);
 				streamPromises.push(combinedPromise);
 			}
 		} else {
-			// Start stdout streaming
-			if (stdoutStreamUrl && stdout) {
+			// Start stdout streaming with capture
+			if (stdoutStreamUrl) {
+				const teeStream = createTeeWritable(stdoutChunks, stdout);
 				const stdoutPromise = streamUrlToWritable(
 					stdoutStreamUrl,
-					stdout,
+					teeStream,
 					abortController.signal,
 					logger
 				);
 				streamPromises.push(stdoutPromise);
 			}
 
-			// Start stderr streaming
-			if (stderrStreamUrl && stderr) {
+			// Start stderr streaming with capture
+			if (stderrStreamUrl) {
+				const teeStream = createTeeWritable(stderrChunks, stderr);
 				const stderrPromise = streamUrlToWritable(
 					stderrStreamUrl,
-					stderr,
+					teeStream,
 					abortController.signal,
 					logger
 				);
@@ -179,11 +214,20 @@ export async function sandboxRun(
 		await Promise.allSettled(streamPromises);
 		logger?.debug('streams completed');
 
+		// Build captured output strings
+		const capturedStdout = Buffer.concat(stdoutChunks).toString('utf-8');
+		// For combined output, stderr is the same as stdout; otherwise use stderrChunks
+		const capturedStderr = isCombinedOutput
+			? capturedStdout
+			: Buffer.concat(stderrChunks).toString('utf-8');
+
 		if (finalStatus === 'terminated') {
 			return {
 				sandboxId,
 				exitCode: finalExitCode ?? 0,
 				durationMs: Date.now() - started,
+				stdout: capturedStdout,
+				stderr: capturedStderr,
 			};
 		}
 
@@ -192,6 +236,8 @@ export async function sandboxRun(
 				sandboxId,
 				exitCode: finalExitCode ?? 1,
 				durationMs: Date.now() - started,
+				stdout: capturedStdout,
+				stderr: capturedStderr,
 			};
 		}
 

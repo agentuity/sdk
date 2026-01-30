@@ -780,7 +780,7 @@ export class VectorStorageService implements VectorStorage {
 			this.#baseUrl,
 			`/vector/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(key)}`
 		);
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const res = await this.#adapter.invoke<VectorGetResponse>(url, {
 			method: 'GET',
@@ -995,7 +995,7 @@ export class VectorStorageService implements VectorStorage {
 		}
 
 		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/stats/${encodeURIComponent(name)}`);
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const res = await this.#adapter.invoke<VectorStatsResponse>(url, {
 			method: 'GET',
@@ -1034,7 +1034,7 @@ export class VectorStorageService implements VectorStorage {
 			this.#baseUrl,
 			`/vector/2025-03-17/stats${queryString ? `?${queryString}` : ''}`
 		);
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const res = await this.#adapter.invoke<
 			Record<string, VectorNamespaceStats> | VectorStatsPaginated
@@ -1056,7 +1056,7 @@ export class VectorStorageService implements VectorStorage {
 
 	async getNamespaces(): Promise<string[]> {
 		const url = buildUrl(this.#baseUrl, '/vector/2025-03-17/namespaces');
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<string[]>(url, {
 			method: 'GET',
 			signal,
