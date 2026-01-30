@@ -85,6 +85,9 @@ jobs:
 
          - name: Build SDK Explorer Snapshot
            working-directory: apps/docs
+           env:
+              # SDK Explorer uses Agentuity Inc org (public snapshot for docs site)
+              AGENTUITY_ORG_ID: org_2u8RgDTwcZWrZrZ3sZh24T5FCtz
            run: |
               if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
                 VERSION="${{ inputs.version }}"
