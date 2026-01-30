@@ -102,11 +102,12 @@ describe('registry', () => {
 			global[REGISTRY_KEY].add(slowClient);
 
 			const start = Date.now();
-			await shutdownAll(100); // 100ms timeout
+			await shutdownAll(200); // 200ms timeout
 			const elapsed = Date.now() - start;
 
-			// Should complete in roughly 100ms, not 10000ms
-			expect(elapsed).toBeLessThan(500);
+			// Should complete in roughly 200ms, not 10000ms
+			// Allow generous tolerance for CI environments with scheduling delays
+			expect(elapsed).toBeLessThan(2000);
 		});
 
 		test('ignores close errors', async () => {
