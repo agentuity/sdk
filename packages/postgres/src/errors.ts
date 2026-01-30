@@ -42,6 +42,17 @@ export const TransactionError = StructuredError('TransactionError')<{
 }>();
 
 /**
+ * Error thrown when an operation is not supported.
+ */
+export const UnsupportedOperationError = StructuredError(
+	'UnsupportedOperationError',
+	'This operation is not supported'
+)<{
+	operation: string;
+	reason?: string;
+}>();
+
+/**
  * Error codes that indicate a retryable connection error.
  */
 const RETRYABLE_ERROR_CODES = new Set([

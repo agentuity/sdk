@@ -186,14 +186,15 @@ try {
 
 ## Raw SQL Access
 
-For advanced use cases, access the underlying Bun.SQL instance:
+For advanced use cases, you can execute unparameterized queries:
 
 ```typescript
-// Get raw Bun.SQL instance
-const bunSql = sql.raw;
-
 // Execute unsafe (unparameterized) queries - use with caution!
+// This bypasses SQL injection protection
 const result = await sql.unsafe('SELECT * FROM users WHERE id = 1');
+
+// Access the underlying Bun.SQL instance for advanced operations
+const rawSql = sql.raw;
 ```
 
 ## API Reference

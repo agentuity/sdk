@@ -1,6 +1,11 @@
 import { SQL as BunSQL, type SQLQuery, type SQL } from 'bun';
 import type { PostgresConfig, ConnectionStats, TransactionOptions, ReserveOptions } from './types';
-import { ConnectionClosedError, ReconnectFailedError, isRetryableError } from './errors';
+import {
+	ConnectionClosedError,
+	ReconnectFailedError,
+	UnsupportedOperationError,
+	isRetryableError,
+} from './errors';
 import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect';
 import { Transaction, ReservedConnection } from './transaction';
 
@@ -40,12 +45,14 @@ type BunPostgresOptions = SQL.PostgresOrMySQLOptions;
 export class PostgresClient {
 	private _sql: InstanceType<typeof BunSQL> | null = null;
 	private _config: PostgresConfig;
-	private _connected = false;
+	private _initialized = false; // SQL client created (lazy connection)
+	private _connected = false; // Actual TCP connection verified
 	private _reconnecting = false;
 	private _closed = false;
 	private _shuttingDown = false;
 	private _signalHandlers: { signal: string; handler: () => void }[] = [];
 	private _reconnectPromise: Promise<void> | null = null;
+	private _connectPromise: Promise<void> | null = null;
 
 	private _stats: ConnectionStats = {
 		connected: false,
@@ -61,6 +68,11 @@ export class PostgresClient {
 	/**
 	 * Creates a new PostgresClient.
 	 *
+	 * Note: By default, the actual TCP connection is established lazily on first query.
+	 * The `connected` property will be `false` until a query is executed or
+	 * `waitForConnection()` is called. Set `preconnect: true` in config to
+	 * establish the connection immediately.
+	 *
 	 * @param config - Connection configuration. Can be a connection URL string or a config object.
 	 *                 If not provided, uses `process.env.DATABASE_URL`.
 	 */
@@ -71,11 +83,16 @@ export class PostgresClient {
 			this._config = config ?? {};
 		}
 
-		// Initialize connection
-		this._connect();
+		// Initialize the SQL client (lazy - doesn't establish TCP connection yet)
+		this._initializeSql();
 
 		// Register shutdown signal handlers to prevent reconnection during app shutdown
 		this._registerShutdownHandlers();
+
+		// If preconnect is enabled, establish connection immediately
+		if (this._config.preconnect) {
+			this._connectPromise = this._warmConnection();
+		}
 	}
 
 	/**
@@ -177,32 +194,26 @@ export class PostgresClient {
 	/**
 	 * Reserve an exclusive connection from the pool.
 	 *
-	 * Use this when you need to execute multiple statements that must run
-	 * on the same connection (e.g., SET LOCAL, LISTEN/NOTIFY).
+	 * **Note:** This feature is not currently supported because Bun's SQL driver
+	 * does not expose connection-level pooling APIs. The underlying driver manages
+	 * connections internally and does not allow reserving a specific connection.
 	 *
-	 * @param options - Reserve options
-	 * @returns A ReservedConnection object
+	 * @param _options - Reserve options (unused)
+	 * @throws {UnsupportedOperationError} Always throws - this operation is not supported
 	 *
 	 * @example
 	 * ```typescript
+	 * // This will throw UnsupportedOperationError
 	 * const conn = await client.reserve();
-	 * try {
-	 *   await conn`SET LOCAL timezone = 'UTC'`;
-	 *   const result = await conn`SELECT NOW()`;
-	 * } finally {
-	 *   conn.release();
-	 * }
 	 * ```
 	 */
 	async reserve(_options?: ReserveOptions): Promise<ReservedConnection> {
-		const sql = this._ensureConnected();
-
-		// Bun.SQL doesn't have explicit connection reservation,
-		// but we can create a new SQL instance for exclusive use
-		// For now, we return a wrapper around the main SQL instance
-		// In a real implementation, this would acquire a dedicated connection
-
-		return new ReservedConnection(sql);
+		throw new UnsupportedOperationError({
+			operation: 'reserve',
+			reason:
+				"Bun's SQL driver does not expose connection-level pooling APIs. " +
+				'Use transactions (begin/commit) for operations that require session-level state.',
+		});
 	}
 
 	/**
@@ -279,10 +290,12 @@ export class PostgresClient {
 	}
 
 	/**
-	 * Creates the internal Bun.SQL connection.
+	 * Initializes the internal Bun.SQL client.
+	 * Note: This creates the SQL client but doesn't establish the TCP connection yet.
+	 * Bun's SQL driver uses lazy connections - the actual TCP connection is made on first query.
 	 */
-	private _connect(): void {
-		if (this._closed) {
+	private _initializeSql(): void {
+		if (this._closed || this._initialized) {
 			return;
 		}
 
@@ -322,9 +335,39 @@ export class PostgresClient {
 		};
 
 		this._sql = new BunSQL(bunOptions);
+		this._initialized = true;
+		// Note: _connected remains false until we verify the connection with a query
+	}
+
+	/**
+	 * Warms the connection by executing a test query.
+	 * This establishes the actual TCP connection and verifies it's working.
+	 */
+	private async _warmConnection(): Promise<void> {
+		if (this._closed || this._connected) {
+			return;
+		}
+
+		if (!this._sql) {
+			this._initializeSql();
+		}
+
+		// Execute a test query to establish the TCP connection
+		// If this fails, the error will propagate to the caller
+		await this._sql!`SELECT 1`;
 		this._connected = true;
 		this._stats.totalConnections++;
 		this._stats.lastConnectedAt = new Date();
+	}
+
+	/**
+	 * Re-initializes the SQL client for reconnection.
+	 * Used internally during the reconnection loop.
+	 */
+	private _reinitializeSql(): void {
+		this._initialized = false;
+		this._connected = false;
+		this._initializeSql();
 	}
 
 	/**
@@ -409,11 +452,9 @@ export class PostgresClient {
 					this._sql = null;
 				}
 
-				// Attempt to reconnect
-				this._connect();
-
-				// Test the connection with a simple query
-				await this._sql!`SELECT 1`;
+				// Attempt to reconnect - reinitialize and warm the connection
+				this._reinitializeSql();
+				await this._warmConnection();
 
 				// Success!
 				this._reconnecting = false;
@@ -440,8 +481,12 @@ export class PostgresClient {
 	}
 
 	/**
-	 * Ensures the client is connected and returns the SQL instance.
+	 * Ensures the client is initialized and returns the SQL instance.
 	 * This is the synchronous version - use _ensureConnectedAsync when you can await.
+	 *
+	 * Note: This returns the SQL instance even if `_connected` is false because
+	 * Bun's SQL uses lazy connections. The actual connection will be established
+	 * on first query. Use this for synchronous access to the SQL instance.
 	 */
 	private _ensureConnected(): InstanceType<typeof BunSQL> {
 		if (this._closed) {
@@ -450,9 +495,9 @@ export class PostgresClient {
 			});
 		}
 
-		if (!this._sql || !this._connected) {
+		if (!this._sql) {
 			throw new ConnectionClosedError({
-				message: 'Not connected to database',
+				message: 'SQL client not initialized',
 				wasReconnecting: this._reconnecting,
 			});
 		}
@@ -463,6 +508,7 @@ export class PostgresClient {
 	/**
 	 * Ensures the client is connected and returns the SQL instance.
 	 * If reconnection is in progress, waits for it to complete.
+	 * If connection hasn't been established yet, warms it first.
 	 */
 	private async _ensureConnectedAsync(): Promise<InstanceType<typeof BunSQL>> {
 		if (this._closed) {
@@ -471,16 +517,27 @@ export class PostgresClient {
 			});
 		}
 
+		// If preconnect is in progress, wait for it
+		if (this._connectPromise) {
+			await this._connectPromise;
+			this._connectPromise = null;
+		}
+
 		// If reconnection is in progress, wait for it to complete
 		if (this._reconnecting && this._reconnectPromise) {
 			await this._reconnectPromise;
 		}
 
-		if (!this._sql || !this._connected) {
+		if (!this._sql) {
 			throw new ConnectionClosedError({
-				message: 'Not connected to database',
+				message: 'SQL client not initialized',
 				wasReconnecting: false,
 			});
+		}
+
+		// If not yet connected, warm the connection
+		if (!this._connected) {
+			await this._warmConnection();
 		}
 
 		return this._sql;
@@ -498,16 +555,27 @@ export class PostgresClient {
 
 		for (let attempt = 0; attempt <= maxRetries; attempt++) {
 			try {
-				// Wait for connection if reconnecting
+				// Wait for preconnect if in progress
+				if (this._connectPromise) {
+					await this._connectPromise;
+					this._connectPromise = null;
+				}
+
+				// Wait for reconnection if in progress
 				if (this._reconnecting && this._reconnectPromise) {
 					await this._reconnectPromise;
 				}
 
-				if (!this._sql || !this._connected) {
+				if (!this._sql) {
 					throw new ConnectionClosedError({
-						message: 'Not connected to database',
+						message: 'SQL client not initialized',
 						wasReconnecting: this._reconnecting,
 					});
+				}
+
+				// If not yet connected, warm the connection
+				if (!this._connected) {
+					await this._warmConnection();
 				}
 
 				return await operation();
@@ -536,7 +604,12 @@ export class PostgresClient {
 
 	/**
 	 * Wait for the connection to be established.
-	 * Useful when you want to wait for reconnection to complete.
+	 * If the connection hasn't been established yet (lazy connection), this will
+	 * warm the connection by executing a test query.
+	 * If reconnection is in progress, waits for it to complete.
+	 *
+	 * @param timeoutMs - Optional timeout in milliseconds
+	 * @throws {ConnectionClosedError} If the client has been closed or connection fails
 	 */
 	async waitForConnection(timeoutMs?: number): Promise<void> {
 		if (this._connected && this._sql) {
@@ -549,21 +622,37 @@ export class PostgresClient {
 			});
 		}
 
-		if (this._reconnecting && this._reconnectPromise) {
-			if (timeoutMs) {
-				const timeout = new Promise<never>((_, reject) => {
-					setTimeout(() => reject(new Error('Connection timeout')), timeoutMs);
-				});
-				await Promise.race([this._reconnectPromise, timeout]);
-			} else {
+		const connectOperation = async () => {
+			// Wait for preconnect if in progress
+			if (this._connectPromise) {
+				await this._connectPromise;
+				this._connectPromise = null;
+			}
+
+			// Wait for reconnection if in progress
+			if (this._reconnecting && this._reconnectPromise) {
 				await this._reconnectPromise;
 			}
-		}
 
-		if (!this._connected || !this._sql) {
-			throw new ConnectionClosedError({
-				message: 'Not connected to database',
+			// If still not connected, warm the connection
+			if (!this._connected && this._sql) {
+				await this._warmConnection();
+			}
+
+			if (!this._connected || !this._sql) {
+				throw new ConnectionClosedError({
+					message: 'Failed to establish connection',
+				});
+			}
+		};
+
+		if (timeoutMs) {
+			const timeout = new Promise<never>((_, reject) => {
+				setTimeout(() => reject(new Error('Connection timeout')), timeoutMs);
 			});
+			await Promise.race([connectOperation(), timeout]);
+		} else {
+			await connectOperation();
 		}
 	}
 }

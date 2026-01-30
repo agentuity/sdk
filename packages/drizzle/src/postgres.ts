@@ -49,14 +49,18 @@ import type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
 export function createPostgresDrizzle<
 	TSchema extends Record<string, unknown> = Record<string, never>,
 >(config?: PostgresDrizzleConfig<TSchema>): PostgresDrizzle<TSchema> {
-	// Build postgres client configuration
-	const clientConfig = config?.connection ?? {};
+	// Build postgres client configuration by cloning the connection config
+	// to avoid mutating the caller's object
+	const clientConfig = config?.connection ? { ...config.connection } : {};
 
-	// Use connectionString if provided, otherwise fall back to DATABASE_URL
-	if (config?.connectionString) {
-		clientConfig.url = config.connectionString;
-	} else if (!clientConfig.url && process.env.DATABASE_URL) {
-		clientConfig.url = process.env.DATABASE_URL;
+	// Use connectionString only if no url is already present on the cloned config
+	// This ensures connection (when provided) keeps precedence over connectionString
+	if (!clientConfig.url) {
+		if (config?.connectionString) {
+			clientConfig.url = config.connectionString;
+		} else if (process.env.DATABASE_URL) {
+			clientConfig.url = process.env.DATABASE_URL;
+		}
 	}
 
 	// Add reconnection configuration
@@ -72,9 +76,12 @@ export function createPostgresDrizzle<
 	// Create the postgres client
 	const client: CallablePostgresClient = postgres(clientConfig);
 
-	// Call onConnect callback if provided
+	// Wait for connection before calling onConnect callback
+	// This ensures the callback executes only after the connection is established
 	if (config?.onConnect) {
-		config.onConnect();
+		client.waitForConnection().then(() => {
+			config.onConnect!();
+		});
 	}
 
 	// Create Drizzle instance using the client's raw SQL connection

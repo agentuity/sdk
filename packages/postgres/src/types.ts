@@ -185,6 +185,19 @@ export interface PostgresConfig {
 	reconnect?: ReconnectConfig;
 
 	/**
+	 * Whether to establish a connection immediately on client creation.
+	 * If true, the client will execute a test query (SELECT 1) to verify
+	 * the connection is working. If false (default), the connection is
+	 * established lazily on first query.
+	 *
+	 * Note: Even with preconnect=false, the underlying Bun.SQL client is
+	 * created immediately, but the actual TCP connection is deferred.
+	 *
+	 * @default false
+	 */
+	preconnect?: boolean;
+
+	/**
 	 * Callback invoked when the connection is closed.
 	 */
 	onclose?: (error?: Error) => void;

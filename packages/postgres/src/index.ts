@@ -60,6 +60,7 @@ export {
 	ReconnectFailedError,
 	QueryTimeoutError,
 	TransactionError,
+	UnsupportedOperationError,
 	isRetryableError,
 } from './errors';
 

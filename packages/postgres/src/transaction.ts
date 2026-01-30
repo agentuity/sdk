@@ -59,7 +59,10 @@ export class Transaction {
 	 * Create a savepoint within this transaction.
 	 *
 	 * @param name - Optional name for the savepoint. If not provided, a unique name is generated.
+	 *               If provided, must be a valid SQL identifier (alphanumeric and underscores only,
+	 *               starting with a letter or underscore).
 	 * @returns A Savepoint object that can be used to rollback to this point.
+	 * @throws {TransactionError} If the provided name is not a valid SQL identifier.
 	 *
 	 * @example
 	 * ```typescript
@@ -79,6 +82,16 @@ export class Transaction {
 		this._ensureActive('savepoint');
 
 		const savepointName = name ?? `sp_${++this._savepointCounter}`;
+
+		// Validate savepoint name to prevent SQL injection
+		// Must be a valid SQL identifier: starts with letter or underscore, contains only alphanumeric and underscores
+		const validIdentifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+		if (!validIdentifierPattern.test(savepointName)) {
+			throw new TransactionError({
+				message: `Invalid savepoint name "${savepointName}": must be a valid SQL identifier (alphanumeric and underscores only, starting with a letter or underscore)`,
+				phase: 'savepoint',
+			});
+		}
 
 		try {
 			await this._sql`SAVEPOINT ${this._sql.unsafe(savepointName)}`;
@@ -189,11 +202,20 @@ export class Savepoint {
 	/**
 	 * Rollback to this savepoint.
 	 * All changes made after this savepoint was created will be undone.
+	 *
+	 * @throws {TransactionError} If the savepoint has been released or already rolled back.
 	 */
 	async rollback(): Promise<void> {
 		if (this._released) {
 			throw new TransactionError({
 				message: `Cannot rollback: savepoint "${this._name}" has been released`,
+				phase: 'savepoint',
+			});
+		}
+
+		if (this._rolledBack) {
+			throw new TransactionError({
+				message: `Cannot rollback: savepoint "${this._name}" has already been rolled back`,
 				phase: 'savepoint',
 			});
 		}
