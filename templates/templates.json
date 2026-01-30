@@ -5,6 +5,12 @@
 			"name": "Default Template",
 			"description": "Showcases core Agentuity features using OpenAI SDK",
 			"directory": "default"
+		},
+		{
+			"id": "svelte",
+			"name": "Svelte Template",
+			"description": "Agentuity project with Svelte UI",
+			"directory": "svelte"
 		}
 	]
 }

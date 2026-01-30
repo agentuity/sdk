@@ -14,6 +14,37 @@ import { beaconPlugin } from './beacon-plugin';
 import type { BuildReportCollector } from '../../../build-report';
 
 /**
+ * Detect if a project uses Svelte by checking for .svelte files in src/web
+ * or svelte dependency in package.json
+ */
+async function detectSvelteProject(rootDir: string): Promise<boolean> {
+	// Check for .svelte files in src/web directory
+	const webDir = join(rootDir, 'src', 'web');
+	if (existsSync(webDir)) {
+		const svelteFiles = [...new Bun.Glob('**/*.svelte').scanSync(webDir)];
+		if (svelteFiles.length > 0) {
+			return true;
+		}
+	}
+
+	// Check package.json for svelte dependency
+	const packageJsonPath = join(rootDir, 'package.json');
+	if (existsSync(packageJsonPath)) {
+		try {
+			const packageJson = JSON.parse(await Bun.file(packageJsonPath).text());
+			const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+			if (deps.svelte || deps['@sveltejs/vite-plugin-svelte']) {
+				return true;
+			}
+		} catch {
+			// Ignore parse errors
+		}
+	}
+
+	return false;
+}
+
+/**
  * Vite plugin to flatten the output structure for index.html
  *
  * When root is set to the project root (for TanStack Router compatibility),
@@ -119,20 +150,26 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		return;
 	}
 
-	// Dynamically import vite and react plugin
+	// Detect if project uses Svelte by checking for .svelte files or svelte in package.json
+	const isSvelteProject = await detectSvelteProject(rootDir);
+
+	// Dynamically import vite and framework plugin
 	// Try project's node_modules first (for custom vite configs), fall back to CLI's
 	const projectRequire = createRequire(join(rootDir, 'package.json'));
 	let vitePath = 'vite';
-	let reactPluginPath = '@vitejs/plugin-react';
+	let frameworkPluginPath = isSvelteProject
+		? '@sveltejs/vite-plugin-svelte'
+		: '@vitejs/plugin-react';
 	try {
 		vitePath = projectRequire.resolve('vite');
-		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+		frameworkPluginPath = projectRequire.resolve(frameworkPluginPath);
 	} catch {
 		// Project doesn't have vite, use CLI's bundled version
 	}
 	const { build: viteBuild } = await import(vitePath);
-	const reactModule = await import(reactPluginPath);
-	const react = reactModule.default;
+	const frameworkModule = await import(frameworkPluginPath);
+	// Svelte plugin exports { svelte }, React plugin exports default
+	const frameworkPlugin = isSvelteProject ? frameworkModule.svelte : frameworkModule.default;
 
 	// For client/workbench, use inline config (no agentuity plugin needed)
 	let viteConfig: InlineConfig;
@@ -151,7 +188,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
 		const plugins = [
-			react(),
+			frameworkPlugin(),
 			browserEnvPlugin(),
 			flattenHtmlOutputPlugin(clientOutDir),
 			// Emit analytics beacon as hashed CDN asset (prod builds only)
@@ -228,10 +265,14 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			);
 		}
 
+		// Workbench always uses React (it's a React-based UI)
+		const reactModule = await import('@vitejs/plugin-react');
+		const reactPlugin = reactModule.default;
+
 		viteConfig = {
 			root: join(rootDir, '.agentuity/workbench-src'), // Use generated workbench source
 			base, // All workbench assets are under the configured route
-			plugins: [react()],
+			plugins: [reactPlugin()],
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 			define: {
 				// Merge user-defined constants

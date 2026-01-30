@@ -589,6 +589,8 @@ export async function generateRouteRegistry(
 	let hasReactDependency = false;
 	let hasFrontendDependency = false;
 
+	let hasSvelteDependency = false;
+
 	try {
 		const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 		hasReactDependency = !!(
@@ -598,6 +600,10 @@ export async function generateRouteRegistry(
 		hasFrontendDependency = !!(
 			packageJson.dependencies?.['@agentuity/frontend'] ||
 			packageJson.devDependencies?.['@agentuity/frontend']
+		);
+		hasSvelteDependency = !!(
+			packageJson.dependencies?.['@agentuity/svelte'] ||
+			packageJson.devDependencies?.['@agentuity/svelte']
 		);
 	} catch {
 		// If we can't read package.json, assume no frontend dependencies
@@ -1136,7 +1142,27 @@ ${rpcRegistryType}
 }
 `
 		: ''
+}${
+		hasSvelteDependency
+			? `
+// Augment @agentuity/svelte for Svelte projects
+declare module '@agentuity/svelte' {
+\texport interface RouteRegistry {
+${apiRouteEntries}
+\t}
+\texport interface WebSocketRouteRegistry {
+${websocketRouteEntries}
+\t}
+\texport interface SSERouteRegistry {
+${sseRouteEntries}
+\t}
+\texport interface RPCRouteRegistry {
+${rpcRegistryType}
+\t}
 }
+`
+			: ''
+	}
 /**
  * Runtime metadata for RPC routes.
  * Contains route type information for client routing decisions.

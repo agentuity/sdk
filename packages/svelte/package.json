@@ -1,0 +1,45 @@
+{
+	"name": "@agentuity/svelte",
+	"version": "0.1.38",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"dist",
+		"src"
+	],
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*"
+	},
+	"devDependencies": {
+		"@agentuity/test-utils": "workspace:*",
+		"@types/bun": "latest",
+		"bun-types": "latest",
+		"typescript": "^5.9.0"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false
+}
