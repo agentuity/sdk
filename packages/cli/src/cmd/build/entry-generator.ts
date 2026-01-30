@@ -84,6 +84,7 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		`  createWorkbenchRouter,`,
 		`  bootstrapRuntimeEnv,`,
 		`  patchBunS3ForStorageDev,`,
+		`  runShutdown,`,
 	];
 
 	const imports = [
@@ -376,6 +377,24 @@ if (typeof Bun !== 'undefined') {
 	otel.logger.info(\`Server listening on http://127.0.0.1:\${port}\`);
 	if (isDevelopment() && process.env.VITE_PORT) {
 		otel.logger.debug(\`Proxying Vite assets from port \${process.env.VITE_PORT}\`);
+	}
+
+	// Register signal handlers for graceful shutdown (production only)
+	// Dev mode has its own handlers in devmode.ts
+	if (!isDevelopment()) {
+		const handleShutdown = async (signal: string) => {
+			otel.logger.info(\`Received \${signal}, initiating graceful shutdown...\`);
+			try {
+				await runShutdown();
+				otel.logger.info('Shutdown complete');
+			} catch (err) {
+				otel.logger.error(\`Error during shutdown: \${err instanceof Error ? err.message : String(err)}\`);
+			}
+			process.exit(0);
+		};
+
+		process.once('SIGTERM', () => handleShutdown('SIGTERM'));
+		process.once('SIGINT', () => handleShutdown('SIGINT'));
 	}
 }
 

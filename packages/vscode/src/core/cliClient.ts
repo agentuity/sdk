@@ -1303,7 +1303,7 @@ export interface StorageFileMetadataResponse {
 // Stream types
 export interface StreamInfo {
 	id: string;
-	name: string;
+	namespace: string;
 	metadata: Record<string, string>;
 	url: string;
 	sizeBytes: number;

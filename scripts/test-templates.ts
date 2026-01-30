@@ -158,6 +158,8 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 		'schema',
 		'frontend',
 		'react',
+		'postgres',
+		'drizzle',
 		'auth',
 		'runtime',
 		'server',

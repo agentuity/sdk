@@ -454,7 +454,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 					}
 					return result.data.streams.map((stream) => {
 						const item = new DataTreeItem(
-							stream.name || stream.id,
+							stream.namespace || stream.id,
 							vscode.TreeItemCollapsibleState.None,
 							'streamItem',
 							'stream',

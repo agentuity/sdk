@@ -109,7 +109,7 @@ echo ""
 echo "✅ Local SDK packages linked successfully!"
 echo ""
 echo "Installed packages:"
-for pkg in core schema frontend server react runtime cli workbench auth; do
+for pkg in core schema frontend server react postgres drizzle runtime cli workbench auth; do
 	if [ -d "node_modules/@agentuity/$pkg" ]; then
 		echo "  ✓ @agentuity/$pkg"
 	fi

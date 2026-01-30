@@ -6,7 +6,7 @@ import { getCommand } from '../../../command-prefix';
 
 const GetStreamResponseSchema = z.object({
 	id: z.string().describe('Stream ID'),
-	name: z.string().describe('Stream name'),
+	namespace: z.string().describe('Stream namespace'),
 	metadata: z.record(z.string(), z.string()).describe('Stream metadata'),
 	url: z.string().describe('Public URL'),
 	sizeBytes: z.number().describe('Size in bytes'),
@@ -70,7 +70,7 @@ export const getSubcommand = createCommand({
 				const stream = await storage.get(args.id);
 				return {
 					id: args.id,
-					name: stream.name ?? '',
+					namespace: stream.namespace ?? '',
 					metadata: stream.metadata ?? {},
 					url: stream.url ?? '',
 					sizeBytes: stats.size,
@@ -91,10 +91,10 @@ export const getSubcommand = createCommand({
 
 			const sizeBytes = stream.sizeBytes ?? 0;
 
-			console.log(`Name:     ${tui.bold(stream.name ?? 'unknown')}`);
-			console.log(`ID:       ${stream.id}`);
-			console.log(`Size:     ${tui.formatBytes(sizeBytes)}`);
-			console.log(`URL:      ${tui.link(stream.url ?? 'unknown')}`);
+			console.log(`Namespace: ${tui.bold(stream.namespace ?? 'unknown')}`);
+			console.log(`ID:        ${stream.id}`);
+			console.log(`Size:      ${tui.formatBytes(sizeBytes)}`);
+			console.log(`URL:       ${tui.link(stream.url ?? 'unknown')}`);
 			if (stream.metadata && Object.keys(stream.metadata).length > 0) {
 				console.log(`Metadata:`);
 				for (const [key, value] of Object.entries(stream.metadata)) {
@@ -106,7 +106,7 @@ export const getSubcommand = createCommand({
 
 		return {
 			id: stream.id,
-			name: stream.name,
+			namespace: stream.namespace,
 			metadata: stream.metadata,
 			url: stream.url,
 			sizeBytes: stream.sizeBytes,

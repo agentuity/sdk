@@ -125,24 +125,24 @@ describe('StreamStorageService', () => {
 			expect(body.ttl).toBe(0);
 		});
 
-		test('should throw error for empty stream name', async () => {
+		test('should throw error for empty stream namespace', async () => {
 			const { adapter } = createMockAdapter([]);
 
 			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.create('')).rejects.toThrow(
-				'Stream name must be between 1 and 254 characters'
+				'Stream namespace must be between 1 and 254 characters'
 			);
 		});
 
-		test('should throw error for stream name too long', async () => {
+		test('should throw error for stream namespace too long', async () => {
 			const { adapter } = createMockAdapter([]);
 
 			const service = new StreamStorageService(baseUrl, adapter);
-			const longName = 'a'.repeat(255);
+			const longNamespace = 'a'.repeat(255);
 
-			await expect(service.create(longName)).rejects.toThrow(
-				'Stream name must be between 1 and 254 characters'
+			await expect(service.create(longNamespace)).rejects.toThrow(
+				'Stream namespace must be between 1 and 254 characters'
 			);
 		});
 
@@ -197,13 +197,14 @@ describe('StreamStorageService', () => {
 			expect(calls[0].options?.method).toBe('POST');
 		});
 
-		test('should list streams with name filter', async () => {
+		test('should list streams with namespace filter', async () => {
 			const mockResponse = { success: true, streams: [], total: 0 };
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
 			const service = new StreamStorageService(baseUrl, adapter);
-			await service.list({ name: 'test-stream' });
+			await service.list({ namespace: 'test-stream' });
 
+			// namespace is mapped to name in the API request
 			const body = JSON.parse(calls[0].options?.body as string);
 			expect(body.name).toBe('test-stream');
 		});
@@ -578,7 +579,7 @@ describe('StreamStorageService', () => {
 			const result = await service.get('stream-123');
 
 			expect(result.id).toBe('stream-123');
-			expect(result.name).toBe('test-stream');
+			expect(result.namespace).toBe('test-stream');
 			expect(result.metadata).toEqual({ type: 'video' });
 			expect(result.sizeBytes).toBe(2048);
 			expect(calls[0].url).toBe(`${baseUrl}/stream-123/info`);
@@ -853,7 +854,7 @@ describe('StreamStorageService', () => {
 
 			expect(calls[0].options?.telemetry).toBeDefined();
 			expect(calls[0].options?.telemetry?.name).toBe('agentuity.stream.create');
-			expect(calls[0].options?.telemetry?.attributes?.name).toBe('test-stream');
+			expect(calls[0].options?.telemetry?.attributes?.namespace).toBe('test-stream');
 		});
 
 		test('should include telemetry for list operation', async () => {
@@ -861,11 +862,11 @@ describe('StreamStorageService', () => {
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
 			const service = new StreamStorageService(baseUrl, adapter);
-			await service.list({ name: 'test', limit: 10 });
+			await service.list({ namespace: 'test', limit: 10 });
 
 			expect(calls[0].options?.telemetry).toBeDefined();
 			expect(calls[0].options?.telemetry?.name).toBe('agentuity.stream.list');
-			expect(calls[0].options?.telemetry?.attributes?.name).toBe('test');
+			expect(calls[0].options?.telemetry?.attributes?.namespace).toBe('test');
 			expect(calls[0].options?.telemetry?.attributes?.limit).toBe('10');
 		});
 

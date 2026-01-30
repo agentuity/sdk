@@ -267,7 +267,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 			this.#baseUrl,
 			`/kv/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(key)}`
 		);
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<T>(url, {
 			method: 'GET',
 			signal,
@@ -376,7 +376,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 
 	async getStats(name: string): Promise<KeyValueStats> {
 		const url = buildUrl(this.#baseUrl, `/kv/2025-03-17/stats/${encodeURIComponent(name)}`);
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<KeyValueStats>(url, {
 			method: 'GET',
 			signal,
@@ -406,7 +406,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 			this.#baseUrl,
 			`/kv/2025-03-17/stats${queryString ? `?${queryString}` : ''}`
 		);
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<
 			Record<string, KeyValueStats> | KeyValueStatsPaginated
 		>(url, {
@@ -425,7 +425,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 
 	async getNamespaces(): Promise<string[]> {
 		const url = buildUrl(this.#baseUrl, '/kv/2025-03-17/namespaces');
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<string[]>(url, {
 			method: 'GET',
 			signal,
@@ -499,7 +499,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 
 	async createNamespace(name: string, params?: CreateNamespaceParams): Promise<void> {
 		const url = buildUrl(this.#baseUrl, `/kv/2025-03-17/${encodeURIComponent(name)}`);
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const body =
 			params?.defaultTTLSeconds !== undefined

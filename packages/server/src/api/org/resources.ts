@@ -25,6 +25,7 @@ const OrgDBResource = z.object({
 	cloud_region: z.string().describe('the cloud region where this resource is provisioned'),
 	org_id: z.string().describe('the organization ID that owns this resource'),
 	org_name: z.string().describe('the organization name that owns this resource'),
+	internal: z.boolean().describe('whether this is a system-managed database (KV/Vector/Queue)'),
 });
 
 const OrgResourceListResponse = z.object({
