@@ -306,8 +306,8 @@
       "name": "@agentuity/auth",
       "version": "0.1.39",
       "dependencies": {
+        "@agentuity/drizzle": "workspace:*",
         "better-auth": "^1.4.9",
-        "drizzle-orm": "^0.45.0",
       },
       "devDependencies": {
         "@agentuity/react": "workspace:*",
@@ -380,6 +380,21 @@
         "typescript": "^5.9.0",
       },
     },
+    "packages/drizzle": {
+      "name": "@agentuity/drizzle",
+      "version": "0.1.39",
+      "dependencies": {
+        "@agentuity/postgres": "workspace:*",
+        "better-auth": "^1.4.9",
+        "drizzle-orm": "^0.45.0",
+      },
+      "devDependencies": {
+        "@agentuity/test-utils": "workspace:*",
+        "@types/bun": "latest",
+        "bun-types": "latest",
+        "typescript": "^5.9.0",
+      },
+    },
     "packages/evals": {
       "name": "@agentuity/evals",
       "version": "0.1.39",
@@ -417,6 +432,19 @@
         "@agentuity/core": "workspace:*",
         "@opencode-ai/plugin": "^1.1.36",
         "zod": "^4.3.5",
+      },
+      "devDependencies": {
+        "@agentuity/test-utils": "workspace:*",
+        "@types/bun": "latest",
+        "bun-types": "latest",
+        "typescript": "^5.9.0",
+      },
+    },
+    "packages/postgres": {
+      "name": "@agentuity/postgres",
+      "version": "0.1.39",
+      "dependencies": {
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
         "@agentuity/test-utils": "workspace:*",
@@ -620,11 +648,15 @@
 
     "@agentuity/core": ["@agentuity/core@workspace:packages/core"],
 
+    "@agentuity/drizzle": ["@agentuity/drizzle@workspace:packages/drizzle"],
+
     "@agentuity/evals": ["@agentuity/evals@workspace:packages/evals"],
 
     "@agentuity/frontend": ["@agentuity/frontend@workspace:packages/frontend"],
 
     "@agentuity/opencode": ["@agentuity/opencode@workspace:packages/opencode"],
+
+    "@agentuity/postgres": ["@agentuity/postgres@workspace:packages/postgres"],
 
     "@agentuity/react": ["@agentuity/react@workspace:packages/react"],
 

@@ -1,0 +1,48 @@
+{
+	"name": "@agentuity/drizzle",
+	"version": "0.1.39",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"description": "Drizzle ORM integration with resilient PostgreSQL connections for Agentuity projects",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"src",
+		"dist"
+	],
+	"exports": {
+		".": "./dist/index.js"
+	},
+	"typesVersions": {
+		"*": {
+			".": [
+				"./dist/index.d.ts"
+			]
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"dependencies": {
+		"@agentuity/postgres": "workspace:*",
+		"drizzle-orm": "^0.45.0",
+		"better-auth": "^1.4.9"
+	},
+	"devDependencies": {
+		"@agentuity/test-utils": "workspace:*",
+		"@types/bun": "latest",
+		"bun-types": "latest",
+		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false
+}
