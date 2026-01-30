@@ -6,17 +6,9 @@ import {
 	type PackageRef,
 	type AliasMap,
 } from '../src/utils/deps';
+import { createMockLogger } from '@agentuity/test-utils';
 
-// Mock logger for testing
-const mockLogger = {
-	debug: () => {},
-	info: () => {},
-	warn: () => {},
-	error: () => {},
-	trace: () => {},
-	fatal: () => {},
-	child: () => mockLogger,
-};
+const mockLogger = createMockLogger();
 
 describe('deps', () => {
 	describe('parseBunPmLsOutput', () => {
