@@ -85,6 +85,18 @@ async function closePane(action: Extract<PaneAction, { type: 'close' }>): Promis
 }
 
 /**
+ * Close a pane by its ID
+ * Exported for use by TmuxSessionManager when sessions complete
+ */
+export async function closePaneById(paneId: string): Promise<ActionResult> {
+	const result = await runTmuxCommand(['kill-pane', '-t', paneId]);
+	if (!result.success) {
+		return { success: false, error: result.output };
+	}
+	return { success: true };
+}
+
+/**
  * Replace an existing pane with a new session
  * Pane self-destructs when command exits (session complete, server died, etc.)
  */

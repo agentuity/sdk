@@ -11,7 +11,12 @@ import { POLL_INTERVAL_MS, SESSION_MISSING_GRACE_MS, SESSION_TIMEOUT_MS } from '
 import { getCurrentPaneId, getTmuxPath, isInsideTmux } from './utils';
 import { queryWindowState } from './state-query';
 import { decideSpawnActions } from './decision-engine';
-import { executeActions, closeAgentsWindow, closeAgentsWindowSync } from './executor';
+import {
+	executeActions,
+	closeAgentsWindow,
+	closeAgentsWindowSync,
+	closePaneById,
+} from './executor';
 
 /**
  * Check if the OpenCode server is running by hitting the health endpoint
@@ -154,9 +159,9 @@ export class TmuxSessionManager {
 	/**
 	 * Handle a session being deleted
 	 *
-	 * Note: Panes self-destruct when their command exits (via `; tmux kill-pane`),
-	 * so we only need to update internal state here. No need to explicitly kill
-	 * the pane - it will close itself when the opencode attach process ends.
+	 * Explicitly kills the pane when a background session completes.
+	 * We can't rely on `opencode attach` exiting because it's an interactive
+	 * terminal that keeps running even after the session goes idle.
 	 */
 	async onSessionDeleted(event: { sessionId: string }): Promise<void> {
 		if (!this.isEnabled()) return;
@@ -165,7 +170,13 @@ export class TmuxSessionManager {
 		const session = this.sessions.get(event.sessionId);
 		if (!session) return;
 
-		// Just update internal state - pane self-destructs when command exits
+		// Kill the pane explicitly - opencode attach won't exit on its own
+		const result = await closePaneById(session.paneId);
+		if (!result.success) {
+			this.log(`Failed to close pane ${session.paneId}: ${result.error}`);
+		}
+
+		// Update internal state
 		this.sessions.delete(event.sessionId);
 
 		if (this.sessions.size === 0) {
