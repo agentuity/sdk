@@ -75,6 +75,61 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 	const cleanLogsFile = join(tmpdir(), `agentuity-deploy-${deploymentId}-logs.txt`);
 	let outputBuffer = '';
 	let proc: Subprocess | null = null;
+	let cancelled = false;
+
+	// Signal handler to forward signals to child process and report cancellation
+	const handleSignal = async (signal: NodeJS.Signals) => {
+		if (cancelled) return;
+		cancelled = true;
+
+		logger.debug('Received %s, forwarding to child process', signal);
+
+		// Kill the child process if it's still running
+		if (proc && proc.exitCode === null) {
+			try {
+				proc.kill(signal);
+			} catch (err) {
+				logger.debug('Failed to kill child process: %s', err);
+			}
+		}
+
+		// Report deployment as cancelled
+		const cancelMessage = 'Deployment cancelled by user';
+		try {
+			await projectDeploymentFail(apiClient, deploymentId, {
+				error: cancelMessage,
+				diagnostics: {
+					success: false,
+					errors: [
+						{
+							type: 'general',
+							scope: 'deploy',
+							message: cancelMessage,
+							code: 'DEPLOY_CANCELLED',
+						},
+					],
+					warnings: [],
+					diagnostics: [],
+					error: cancelMessage,
+				},
+			});
+		} catch (err) {
+			logger.debug('Failed to report cancellation: %s', err);
+		}
+
+		// Exit with standard SIGINT exit code
+		process.exit(130);
+	};
+
+	// Install signal handlers
+	const sigintHandler = () => {
+		void handleSignal('SIGINT');
+	};
+	const sigtermHandler = () => {
+		void handleSignal('SIGTERM');
+	};
+	process.on('SIGINT', sigintHandler);
+	process.on('SIGTERM', sigtermHandler);
 
 	try {
 		const childArgs = [
@@ -282,6 +337,10 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			},
 		};
 	} finally {
+		// Clean up signal handlers
+		process.off('SIGINT', sigintHandler);
+		process.off('SIGTERM', sigtermHandler);
+
 		// Clean up temp files
 		for (const file of [reportFile, cleanLogsFile]) {
 			if (existsSync(file)) {
