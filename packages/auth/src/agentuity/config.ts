@@ -9,7 +9,7 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
-import { drizzle } from 'drizzle-orm/bun-sql';
+import { createPostgresDrizzle } from '@agentuity/drizzle';
 import * as authSchema from '../schema';
 
 // Re-export plugin types for convenience
@@ -390,9 +390,12 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	// Handle database configuration
 	let database = restOptions.database;
 
-	// ConnectionString provided - create Bun SQL connection + drizzle internally
+	// ConnectionString provided - create resilient Drizzle connection internally
 	if (connectionString && !database) {
-		const db = drizzle(connectionString, { schema: authSchema });
+		const { db } = createPostgresDrizzle({
+			connectionString,
+			schema: authSchema,
+		});
 		database = drizzleAdapter(db, {
 			provider: 'pg',
 			schema: authSchema,
