@@ -26,6 +26,16 @@ export const adversarialEval = agent.createEval(
 				response: output.translation,
 			}),
 		},
+		// Lifecycle hooks for observability: log eval start/completion with relevant metadata
+		onStart: (ctx, input) => {
+			ctx.logger.info('[EVAL] adversarial: Starting', { toLanguage: input.toLanguage });
+		},
+		onComplete: (ctx, input, output, result) => {
+			ctx.logger.info('[EVAL] adversarial: Completed', {
+				passed: result.passed,
+				reason: result.reason,
+			});
+		},
 	})
 );
 
@@ -45,10 +55,7 @@ type LanguageCheck = s.infer<typeof LanguageCheckSchema>;
 export const languageMatchEval = agent.createEval('language-match', {
 	description: 'Verifies the translation is in the requested target language',
 	handler: async (ctx, input, output) => {
-		ctx.logger.info('[EVAL] language-match: Starting', {
-			targetLanguage: input.toLanguage,
-			translationLength: output.translation.length,
-		});
+		ctx.logger.info('[EVAL] language-match: Starting', { targetLanguage: input.toLanguage });
 
 		// Skip if no translation produced
 		if (!output.translation || output.translation.trim() === '') {
@@ -62,11 +69,8 @@ export const languageMatchEval = agent.createEval('language-match', {
 
 		const targetLanguage = input.toLanguage ?? 'Spanish';
 
-		// Use Groq SDK with JSON schema for structured output
-		const jsonSchema = {
-			...s.toJSONSchema(LanguageCheckSchema),
-			additionalProperties: false,
-		};
+		// Generate JSON schema with strict mode for structured output
+		const jsonSchema = s.toJSONSchema(LanguageCheckSchema, { strict: true });
 
 		const completion = await groq.chat.completions.create({
 			model: 'openai/gpt-oss-120b',
@@ -92,12 +96,18 @@ Is this text written in ${targetLanguage}?`,
 			],
 		});
 
-		const result = JSON.parse(completion.choices[0]?.message?.content ?? '{}') as LanguageCheck;
+		const content = completion.choices[0]?.message?.content;
+		if (!content) {
+			ctx.logger.warn('[EVAL] language-match: No response from language check');
+			return {
+				passed: false,
+				reason: 'No response from language check',
+			};
+		}
 
-		ctx.logger.info('[EVAL] language-match: Completed', {
-			passed: result.isCorrectLanguage,
-			detectedLanguage: result.detectedLanguage,
-		});
+		const result = JSON.parse(content) as LanguageCheck;
+
+		ctx.logger.info('[EVAL] language-match: Completed', { passed: result.isCorrectLanguage });
 
 		return {
 			passed: result.isCorrectLanguage,
