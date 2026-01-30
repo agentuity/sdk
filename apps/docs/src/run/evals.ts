@@ -8,23 +8,24 @@
  */
 import { createAgentContext } from '@agentuity/runtime';
 import { openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { generateObject, generateText } from 'ai';
+import { z } from 'zod';
 import agentuityDocs from '../agent/chat/agentuity-context.txt';
 
 interface Input {
 	question?: string;
 }
 
-// Helper to extract JSON from LLM response (handles markdown code blocks)
-function parseJSON<T>(text: string, fallback: T): T {
-	try {
-		const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-		const jsonStr = jsonMatch && jsonMatch[1] ? jsonMatch[1].trim() : text.trim();
-		return JSON.parse(jsonStr);
-	} catch {
-		return fallback;
-	}
-}
+// Schemas for structured eval output
+const CompletenessSchema = z.object({
+	score: z.number().min(0).max(1).describe('How completely the response addresses the question (0-1)'),
+	reason: z.string().describe('Brief explanation of the score'),
+});
+
+const FactualClaimsSchema = z.object({
+	containsFactualClaims: z.boolean().describe('Whether the text contains factual claims'),
+	reason: z.string().describe('Brief explanation'),
+});
 
 const input: Input = JSON.parse(process.argv[2] ?? '{}');
 const question = input.question ?? 'What is Agentuity and what are its main features?';
@@ -46,34 +47,31 @@ ${agentuityDocs}`,
 	// Truncate answer for eval prompts
 	const truncatedAnswer = answer.slice(0, 500);
 
-	// Step 2: Run both evals in PARALLEL (like ai-gateway.ts pattern)
+	// Step 2: Run both evals in PARALLEL with structured output
 	const [completenessResult, factualResult] = await Promise.all([
-		generateText({
+		generateObject({
 			model: openai('gpt-5-nano'),
-			prompt: `Rate 0-1 how completely this answer addresses the question. Return ONLY JSON: {"score": 0.85, "reason": "brief reason"}
+			schema: CompletenessSchema,
+			prompt: `Rate how completely this answer addresses the question.
 
-Q: "${question}"
-A: "${truncatedAnswer}"`,
+Question: "${question}"
+Answer: "${truncatedAnswer}"
+
+Score from 0 (completely misses the point) to 1 (fully addresses all aspects).`,
 		}).catch(() => null),
-		generateText({
+		generateObject({
 			model: openai('gpt-5-nano'),
-			prompt: `Does this text contain factual claims? Return ONLY JSON: {"containsFactualClaims": true, "reason": "brief reason"}
+			schema: FactualClaimsSchema,
+			prompt: `Does this text contain factual claims (real facts, statistics, actual capabilities, or verifiable information)?
 
+Text to analyze:
 "${truncatedAnswer}"`,
 		}).catch(() => null),
 	]);
 
-	// Parse results with fallbacks
-	const completeness = completenessResult
-		? parseJSON(completenessResult.text, { score: 0.75, reason: 'Could not parse eval result' })
-		: { score: 0.75, reason: 'Eval failed' };
-
-	const factual = factualResult
-		? parseJSON(factualResult.text, {
-				containsFactualClaims: true,
-				reason: 'Could not parse eval result',
-			})
-		: { containsFactualClaims: true, reason: 'Eval failed' };
+	// Extract results with fallbacks
+	const completeness = completenessResult?.object ?? { score: 0.75, reason: 'Eval failed' };
+	const factual = factualResult?.object ?? { containsFactualClaims: true, reason: 'Eval failed' };
 
 	console.log('---OUTPUT---');
 	console.log(`Question: "${question}"`);

@@ -5,7 +5,7 @@
  *
  * Interactive sessions: The first request from a browser session creates a
  * long-lived sandbox (10 min idle timeout). Subsequent requests reuse it via
- * KV-stored sandboxId keyed by the `atid` cookie thread ID. If the interactive
+ * KV-stored sandboxId keyed by the thread ID (from ctx.thread.id). If the interactive
  * path fails for any reason, falls back to one-shot `sandboxRun()`.
  *
  * Usage: GET /run?script=<name>&input=<base64JSON>
@@ -21,7 +21,6 @@ import {
 	SandboxNotFoundError,
 	SandboxTerminatedError,
 } from '@agentuity/server';
-import { getSignedCookie } from 'hono/cookie';
 import { Writable } from 'node:stream';
 import { SCRIPT_NAMES, SCRIPT_DEFAULTS } from './scripts';
 
@@ -34,7 +33,6 @@ const AI_GATEWAY_URL = 'https://catalyst.agentuity.cloud/gateway';
 const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
-const COOKIE_SECRET = process.env.AGENTUITY_SDK_KEY;
 
 // ANSI escape sequence regex for stripping terminal colors
 const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*m/g;
@@ -120,11 +118,9 @@ router.get(
 
 		// --- Interactive session path ---
 		try {
-			const threadId = COOKIE_SECRET
-				? await getSignedCookie(c, COOKIE_SECRET, 'atid')
-				: undefined;
+			const threadId = c.var.thread?.id;
 
-			if (threadId && typeof threadId === 'string') {
+			if (threadId) {
 				const ctx = createAgentContext();
 				const kvResult = await ctx.kv.get<string>(SESSION_BUCKET, threadId);
 
