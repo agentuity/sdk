@@ -117,8 +117,15 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			logger.debug('Failed to report cancellation: %s', err);
 		}
 
-		// Exit with standard SIGINT exit code
-		process.exit(130);
+		// Exit with signal-specific exit code
+		const signalExitCodes: Record<string, number> = {
+			SIGINT: 130, // 128 + 2
+			SIGTERM: 143, // 128 + 15
+			SIGHUP: 129, // 128 + 1
+			SIGQUIT: 131, // 128 + 3
+		};
+		const exitCode = signalExitCodes[signal] ?? 128;
+		process.exit(exitCode);
 	};
 
 	// Install signal handlers
