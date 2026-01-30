@@ -15,6 +15,34 @@ import type { AgentRole } from '../types';
 import { BackgroundManager } from '../background';
 import { TmuxSessionManager } from '../tmux';
 
+// Sandbox environment detection
+const SANDBOX_ID = process.env.AGENTUITY_SANDBOX_ID;
+const IN_SANDBOX = !!SANDBOX_ID;
+
+// Sandbox context injected into Lead, Builder, and Sr Builder prompts
+const SANDBOX_CONTEXT = IN_SANDBOX
+	? `
+## Sandbox Environment
+
+You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
+
+**Permissions:** All file operations are allowed without prompts.
+
+**File Locations:**
+- Working directory: \`/home/agentuity\`
+- Temp files: \`/home/agentuity/tmp/\` (preferred over \`/tmp/\`)
+- Artifacts: \`/home/agentuity/.agentuity/\`
+
+**Tips:**
+- No permission prompts - you can read/write freely
+- Sandbox is isolated - safe to experiment
+- Use \`/home/agentuity/\` paths for all file operations
+`
+	: '';
+
+// Agents that should receive sandbox context in their prompts
+const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'sr-builder'];
+
 // Agent display names for @mentions
 const AGENT_MENTIONS: Record<AgentRole, string> = {
 	lead: '@Agentuity Coder Lead',
@@ -162,6 +190,17 @@ function createConfigHandler(
 		// Validate merged configs and warn about mismatches
 		validateAndWarnConfigs(mergedAgents);
 
+		// In sandbox, allow all permissions without prompts
+		if (IN_SANDBOX) {
+			config.permission = {
+				'*': 'allow',
+				external_directory: {
+					'/home/agentuity/**': 'allow',
+					'*': 'allow',
+				},
+			};
+		}
+
 		config.command = {
 			...(config.command as Record<string, CommandDefinition> | undefined),
 			...commands,
@@ -184,11 +223,18 @@ function createAgentConfigs(
 			}
 		}
 
+		// Inject sandbox context into specific agents when running in sandbox
+		const shouldInjectSandbox =
+			IN_SANDBOX && SANDBOX_AWARE_AGENTS.includes(agent.role as AgentRole);
+		const prompt = shouldInjectSandbox
+			? `${agent.systemPrompt}\n${SANDBOX_CONTEXT}`
+			: agent.systemPrompt;
+
 		// Use agent defaults directly - user overrides happen in createConfigHandler
 		result[agent.displayName] = {
 			description: agent.description,
 			model: agent.defaultModel,
-			prompt: agent.systemPrompt,
+			prompt,
 			mode: agent.mode ?? 'subagent',
 			...(Object.keys(tools).length > 0 ? { tools } : {}),
 			...(agent.variant ? { variant: agent.variant } : {}),
