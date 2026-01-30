@@ -158,6 +158,7 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 		'schema',
 		'frontend',
 		'react',
+		'svelte',
 		'auth',
 		'runtime',
 		'server',
