@@ -659,7 +659,7 @@ export class StreamStorageService implements StreamStorage {
 			throw new StreamNameInvalidError();
 		}
 		const url = this.#baseUrl;
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000) // 30s timeout for Neon cold starts;
 		const attributes: Record<string, string> = {
 			name,
 		};

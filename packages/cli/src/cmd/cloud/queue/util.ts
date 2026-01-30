@@ -26,9 +26,10 @@ export async function createQueueAPIClient(ctx: QueueContext): Promise<APIClient
 
 /**
  * Creates QueueApiOptions from the CLI context.
- * Prioritizes explicit orgId on context, then falls back to global --org-id option.
+ * Prioritizes explicit orgId on context, then falls back to global --org-id option,
+ * and finally to the preferred org from the profile configuration.
  */
 export function getQueueApiOptions(ctx: QueueContext): QueueApiOptions | undefined {
-	const orgId = ctx.orgId ?? ctx.options.orgId;
+	const orgId = ctx.orgId ?? ctx.options.orgId ?? ctx.config?.preferences?.orgId;
 	return orgId ? { orgId } : undefined;
 }
