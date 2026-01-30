@@ -104,7 +104,7 @@ test('storage-stream', 'metadata', async () => {
 	});
 
 	assertDefined(result.streamId);
-	assertEqual(result.name, name);
+	assertEqual(result.namespace, name);
 	assertDefined(result.metadata);
 	assertEqual(result.metadata?.author, 'test-user');
 	assertEqual(result.metadata?.version, '1.0');
@@ -130,7 +130,7 @@ test('storage-stream', 'get-info', async () => {
 	});
 
 	assertEqual(infoResult.streamId, createResult.streamId);
-	assertEqual(infoResult.name, name);
+	assertEqual(infoResult.namespace, name);
 	assertDefined(infoResult.url);
 	assertDefined(infoResult.sizeBytes);
 	assert(infoResult.sizeBytes! > 0, 'Size should be greater than 0');

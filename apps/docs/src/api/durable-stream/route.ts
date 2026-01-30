@@ -112,13 +112,13 @@ router.get('/list', async (c) => {
 		return c.json({ error: 'Stream service not available' }, 500);
 	}
 
-	const result = await c.var.stream.list({ name: STREAM_NAME, limit: 10 });
+	const result = await c.var.stream.list({ namespace: STREAM_NAME, limit: 10 });
 
 	return c.json({
 		total: result.total,
 		streams: result.streams.map((s) => ({
 			id: s.id,
-			name: s.name,
+			namespace: s.namespace,
 			url: s.url,
 			sizeBytes: s.sizeBytes,
 			metadata: s.metadata,
