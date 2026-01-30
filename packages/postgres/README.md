@@ -118,19 +118,32 @@ await savepoint.rollback();
 await tx.commit(); // Only Alice is committed
 ```
 
-## Reserved Connections
+## Graceful Shutdown
 
-For operations that must run on the same connection:
+The client automatically detects application shutdown signals (SIGTERM, SIGINT) and prevents reconnection attempts during shutdown:
 
 ```typescript
-const conn = await sql.reserve();
+// Automatic: SIGTERM/SIGINT will prevent reconnection
 
-try {
-	await conn`SET LOCAL timezone = 'UTC'`;
-	const result = await conn`SELECT NOW()`;
-} finally {
-	conn.release();
-}
+// Manual: For graceful shutdown with connection draining
+process.on('SIGTERM', async () => {
+	sql.shutdown(); // Prevent reconnection
+	// Wait for in-flight queries to complete...
+	await sql.close(); // Then close
+	process.exit(0);
+});
+```
+
+## Waiting for Connection
+
+If you need to ensure the connection is established before proceeding:
+
+```typescript
+// Wait for connection (useful after reconnection)
+await sql.waitForConnection();
+
+// With timeout
+await sql.waitForConnection(5000); // 5 second timeout
 ```
 
 ## Connection Stats
@@ -212,14 +225,16 @@ The main client class with the following methods:
 
 - `query(strings, ...values)` - Execute a parameterized query
 - `begin(options?)` - Start a transaction
-- `reserve(options?)` - Reserve an exclusive connection
 - `close()` - Close all connections
+- `shutdown()` - Signal shutdown (prevents reconnection)
+- `waitForConnection(timeoutMs?)` - Wait for connection to be established
 - `unsafe(query)` - Execute an unparameterized query
 
 Properties:
 
 - `connected` - Whether currently connected
 - `reconnecting` - Whether reconnection is in progress
+- `shuttingDown` - Whether shutdown has been signaled
 - `stats` - Connection statistics
 - `raw` - Underlying Bun.SQL instance
 
@@ -239,12 +254,43 @@ Returned by `transaction.savepoint()`:
 - `rollback()` - Rollback to this savepoint
 - `release()` - Release the savepoint
 
-### `ReservedConnection`
+## Global Registry and Runtime Integration
 
-Returned by `reserve()`:
+All PostgreSQL clients are automatically registered in a global registry. When used with `@agentuity/runtime`, clients are automatically closed during graceful shutdown.
 
-- `query(strings, ...values)` - Execute query on reserved connection
-- `release()` - Release connection back to pool
+### Manual Shutdown (without runtime)
+
+```typescript
+import { shutdownAll, getClientCount } from '@agentuity/postgres';
+
+// Check how many clients are active
+console.log(`Active clients: ${getClientCount()}`);
+
+// Shut down all clients (with optional timeout)
+process.on('SIGTERM', async () => {
+	await shutdownAll(5000); // 5 second timeout
+	process.exit(0);
+});
+```
+
+### With @agentuity/runtime
+
+When using `@agentuity/runtime`, postgres clients are automatically closed during graceful shutdown - no additional code needed:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+import { postgres } from '@agentuity/postgres';
+
+// Create postgres client - it auto-registers with the runtime
+const sql = postgres();
+
+const app = await createApp({
+	// ... your app config
+});
+
+// When the runtime shuts down (SIGTERM/SIGINT), all postgres
+// clients are automatically closed via the shutdown hook system
+```
 
 ## License
 

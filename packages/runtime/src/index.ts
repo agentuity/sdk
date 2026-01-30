@@ -36,11 +36,13 @@ export {
 	type PrivateVariables,
 	type Env,
 	type AppResult,
+	type ShutdownHook,
 	createApp,
 	getApp,
 	getAppState,
 	getAppConfig,
 	runShutdown,
+	registerShutdownHook,
 	fireEvent,
 } from './app';
 

@@ -463,13 +463,86 @@ export function setAppConfig<TAppState = any>(config: AppConfig<TAppState> | und
 }
 
 /**
- * Run the global shutdown function
- * Called by generated entry file on cleanup
+ * Symbol used to store shutdown hooks in globalThis.
+ */
+const SHUTDOWN_HOOKS_KEY = Symbol.for('@agentuity/runtime:shutdown-hooks');
+
+/**
+ * A shutdown hook function.
+ */
+export type ShutdownHook = () => Promise<void> | void;
+
+/**
+ * Gets the global shutdown hooks registry.
+ */
+function getShutdownHooks(): ShutdownHook[] {
+	const global = globalThis as Record<symbol, ShutdownHook[]>;
+	if (!global[SHUTDOWN_HOOKS_KEY]) {
+		global[SHUTDOWN_HOOKS_KEY] = [];
+	}
+	return global[SHUTDOWN_HOOKS_KEY];
+}
+
+/**
+ * Registers a shutdown hook to be called during graceful shutdown.
+ *
+ * Hooks are called in reverse order of registration (LIFO) after the
+ * app's shutdown callback and agent shutdowns have completed.
+ *
+ * This is useful for packages like @agentuity/postgres to register
+ * their own cleanup logic without requiring explicit wiring in each app.
+ *
+ * @param hook - The function to call during shutdown
+ * @returns A function to unregister the hook
+ *
+ * @example
+ * ```typescript
+ * import { registerShutdownHook } from '@agentuity/runtime';
+ *
+ * // Register a cleanup function
+ * const unregister = registerShutdownHook(async () => {
+ *   await myResource.close();
+ * });
+ *
+ * // Later, if needed, unregister it
+ * unregister();
+ * ```
+ */
+export function registerShutdownHook(hook: ShutdownHook): () => void {
+	const hooks = getShutdownHooks();
+	hooks.push(hook);
+
+	return () => {
+		const index = hooks.indexOf(hook);
+		if (index !== -1) {
+			hooks.splice(index, 1);
+		}
+	};
+}
+
+/**
+ * Run the global shutdown function and all registered shutdown hooks.
+ * Called by generated entry file on cleanup.
+ *
+ * Shutdown order:
+ * 1. App's shutdown callback (if defined)
+ * 2. Registered shutdown hooks (in reverse order - LIFO)
  */
 export async function runShutdown(): Promise<void> {
+	// Run app's shutdown callback first
 	const shutdown = (globalThis as any).__AGENTUITY_SHUTDOWN__;
 	if (shutdown) {
 		const state = getAppState();
 		await shutdown(state);
+	}
+
+	// Run registered shutdown hooks in reverse order (LIFO)
+	const hooks = getShutdownHooks();
+	for (let i = hooks.length - 1; i >= 0; i--) {
+		try {
+			await hooks[i]();
+		} catch {
+			// Ignore errors during shutdown hooks
+		}
 	}
 }

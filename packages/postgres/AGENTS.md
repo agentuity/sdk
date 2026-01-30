@@ -73,7 +73,13 @@ try {
 }
 ```
 
-## Reconnection Behavior
+## Connection Behavior
+
+### Lazy Connections
+
+By default, the actual TCP connection is established lazily on first query. The `connected` property will be `false` until a query is executed or `waitForConnection()` is called. Set `preconnect: true` in config to establish the connection immediately.
+
+### Automatic Reconnection
 
 The client automatically reconnects when:
 
@@ -82,6 +88,29 @@ The client automatically reconnects when:
 - PostgreSQL server restarts
 
 Reconnection uses exponential backoff with jitter to prevent thundering herd.
+
+### Graceful Shutdown
+
+The client detects SIGTERM/SIGINT signals and prevents reconnection during shutdown. You can also call `shutdown()` manually to prevent reconnection while allowing in-flight queries to complete.
+
+## Global Registry
+
+All clients are automatically registered in a global registry for coordinated shutdown:
+
+```typescript
+import { shutdownAll, getClientCount, hasActiveClients } from '@agentuity/postgres';
+
+// Check active clients
+console.log(getClientCount());
+console.log(hasActiveClients());
+
+// Shutdown all clients
+await shutdownAll(5000); // 5 second timeout
+```
+
+## Runtime Integration
+
+When `@agentuity/runtime` is available, the package automatically registers a shutdown hook. This means all postgres clients are closed during graceful shutdown without any additional code.
 
 ## Testing
 

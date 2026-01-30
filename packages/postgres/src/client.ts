@@ -8,6 +8,7 @@ import {
 } from './errors';
 import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect';
 import { Transaction, ReservedConnection } from './transaction';
+import { registerClient, unregisterClient } from './registry';
 
 /**
  * Bun SQL options for PostgreSQL connections.
@@ -88,6 +89,9 @@ export class PostgresClient {
 
 		// Register shutdown signal handlers to prevent reconnection during app shutdown
 		this._registerShutdownHandlers();
+
+		// Register this client in the global registry for coordinated shutdown
+		registerClient(this);
 
 		// If preconnect is enabled, establish connection immediately
 		if (this._config.preconnect) {
@@ -236,6 +240,9 @@ export class PostgresClient {
 
 		// Remove signal handlers
 		this._removeShutdownHandlers();
+
+		// Unregister from global registry
+		unregisterClient(this);
 
 		if (this._sql) {
 			await this._sql.close();

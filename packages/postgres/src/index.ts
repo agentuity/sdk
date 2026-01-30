@@ -66,3 +66,6 @@ export {
 
 // Reconnection utilities
 export { computeBackoff, sleep, mergeReconnectConfig, DEFAULT_RECONNECT_CONFIG } from './reconnect';
+
+// Global registry for coordinated shutdown
+export { shutdownAll, getClientCount, getClients, hasActiveClients } from './registry';

@@ -33,7 +33,16 @@
 	"dependencies": {
 		"@agentuity/core": "workspace:*"
 	},
+	"peerDependencies": {
+		"@agentuity/runtime": "workspace:*"
+	},
+	"peerDependenciesMeta": {
+		"@agentuity/runtime": {
+			"optional": true
+		}
+	},
 	"devDependencies": {
+		"@agentuity/runtime": "workspace:*",
 		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
