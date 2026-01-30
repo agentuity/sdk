@@ -75,6 +75,77 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 	const cleanLogsFile = join(tmpdir(), `agentuity-deploy-${deploymentId}-logs.txt`);
 	let outputBuffer = '';
 	let proc: Subprocess | null = null;
+	let cancelled = false;
+
+	// Signal handler to forward signals to child process and report cancellation
+	const handleSignal = async (signal: NodeJS.Signals) => {
+		if (cancelled) return;
+		cancelled = true;
+
+		logger.debug('Received %s, forwarding to child process', signal);
+
+		// Kill the child process if it's still running
+		if (proc && proc.exitCode === null) {
+			try {
+				proc.kill(signal);
+			} catch (err) {
+				logger.debug('Failed to kill child process: %s', err);
+			}
+		}
+
+		// Report deployment as cancelled (with timeout to ensure prompt exit)
+		const cancelMessage = 'Deployment cancelled by user';
+		const timeoutMs = 3000; // 3 second timeout
+		const timeoutPromise = new Promise<void>((resolve) => {
+			setTimeout(() => {
+				logger.debug('API call to report cancellation timed out after %dms', timeoutMs);
+				resolve();
+			}, timeoutMs);
+		});
+
+		const apiCallPromise = projectDeploymentFail(apiClient, deploymentId, {
+			error: cancelMessage,
+			diagnostics: {
+				success: false,
+				errors: [
+					{
+						type: 'general',
+						scope: 'deploy',
+						message: cancelMessage,
+						code: 'DEPLOY_CANCELLED',
+					},
+				],
+				warnings: [],
+				diagnostics: [],
+				error: cancelMessage,
+			},
+		}).catch((err) => {
+			logger.debug('Failed to report cancellation: %s', err);
+		});
+
+		// Race API call against timeout to ensure prompt exit
+		await Promise.race([apiCallPromise, timeoutPromise]);
+
+		// Exit with signal-specific exit code
+		const signalExitCodes: Record<string, number> = {
+			SIGINT: 130, // 128 + 2
+			SIGTERM: 143, // 128 + 15
+			SIGHUP: 129, // 128 + 1
+			SIGQUIT: 131, // 128 + 3
+		};
+		const exitCode = signalExitCodes[signal] ?? 128;
+		process.exit(exitCode);
+	};
+
+	// Install signal handlers
+	const sigintHandler = () => {
+		void handleSignal('SIGINT');
+	};
+	const sigtermHandler = () => {
+		void handleSignal('SIGTERM');
+	};
+	process.on('SIGINT', sigintHandler);
+	process.on('SIGTERM', sigtermHandler);
 
 	try {
 		const childArgs = [
@@ -282,6 +353,10 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			},
 		};
 	} finally {
+		// Clean up signal handlers
+		process.off('SIGINT', sigintHandler);
+		process.off('SIGTERM', sigtermHandler);
+
 		// Clean up temp files
 		for (const file of [reportFile, cleanLogsFile]) {
 			if (existsSync(file)) {
