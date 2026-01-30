@@ -38,7 +38,7 @@ router.post('/create', async (c) => {
 
 	// Auto-rotate: if at limit, delete the oldest stream
 	const existing = await c.var.stream.list({
-		name: STREAM_NAME,
+		namespace: STREAM_NAME,
 		limit: MAX_STREAMS,
 	});
 	if (existing.total >= MAX_STREAMS && existing.streams.length > 0) {
