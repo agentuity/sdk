@@ -85,30 +85,45 @@ mkdir -p "$CLI_TEST_DIR"
 cd "$CLI_TEST_DIR"
 
 # Minimal package.json with no TypeScript so we don't accidentally rely on it
-cat > package.json << 'EOF'
+# Include overrides to force bun to use local tarballs for all @agentuity packages
+cat > package.json << EOF
 {
   "name": "cli-typescript-smoke-test",
   "version": "1.0.0",
   "private": true,
-  "dependencies": {}
+  "dependencies": {
+    "@agentuity/core": "file:$PACKAGES_DIR/$CORE_PKG",
+    "@agentuity/schema": "file:$PACKAGES_DIR/$SCHEMA_PKG",
+    "@agentuity/frontend": "file:$PACKAGES_DIR/$FRONTEND_PKG",
+    "@agentuity/react": "file:$PACKAGES_DIR/$REACT_PKG",
+    "@agentuity/postgres": "file:$PACKAGES_DIR/$POSTGRES_PKG",
+    "@agentuity/drizzle": "file:$PACKAGES_DIR/$DRIZZLE_PKG",
+    "@agentuity/auth": "file:$PACKAGES_DIR/$AUTH_PKG",
+    "@agentuity/evals": "file:$PACKAGES_DIR/$EVALS_PKG",
+    "@agentuity/runtime": "file:$PACKAGES_DIR/$RUNTIME_PKG",
+    "@agentuity/server": "file:$PACKAGES_DIR/$SERVER_PKG",
+    "@agentuity/cli": "file:$PACKAGES_DIR/$CLI_PKG",
+    "@agentuity/workbench": "file:$PACKAGES_DIR/$WORKBENCH_PKG"
+  },
+  "overrides": {
+    "@agentuity/core": "file:$PACKAGES_DIR/$CORE_PKG",
+    "@agentuity/schema": "file:$PACKAGES_DIR/$SCHEMA_PKG",
+    "@agentuity/frontend": "file:$PACKAGES_DIR/$FRONTEND_PKG",
+    "@agentuity/react": "file:$PACKAGES_DIR/$REACT_PKG",
+    "@agentuity/postgres": "file:$PACKAGES_DIR/$POSTGRES_PKG",
+    "@agentuity/drizzle": "file:$PACKAGES_DIR/$DRIZZLE_PKG",
+    "@agentuity/auth": "file:$PACKAGES_DIR/$AUTH_PKG",
+    "@agentuity/evals": "file:$PACKAGES_DIR/$EVALS_PKG",
+    "@agentuity/runtime": "file:$PACKAGES_DIR/$RUNTIME_PKG",
+    "@agentuity/server": "file:$PACKAGES_DIR/$SERVER_PKG",
+    "@agentuity/cli": "file:$PACKAGES_DIR/$CLI_PKG",
+    "@agentuity/workbench": "file:$PACKAGES_DIR/$WORKBENCH_PKG"
+  }
 }
 EOF
 
 log_info "Installing CLI and dependencies from packed tarballs..."
-# Add all packages at once with --no-save so Bun can resolve interdependencies from provided tarballs
-bun add --no-save \
-  "$PACKAGES_DIR/$CORE_PKG" \
-  "$PACKAGES_DIR/$SCHEMA_PKG" \
-  "$PACKAGES_DIR/$FRONTEND_PKG" \
-  "$PACKAGES_DIR/$REACT_PKG" \
-  "$PACKAGES_DIR/$POSTGRES_PKG" \
-  "$PACKAGES_DIR/$DRIZZLE_PKG" \
-  "$PACKAGES_DIR/$AUTH_PKG" \
-  "$PACKAGES_DIR/$EVALS_PKG" \
-  "$PACKAGES_DIR/$RUNTIME_PKG" \
-  "$PACKAGES_DIR/$SERVER_PKG" \
-  "$PACKAGES_DIR/$CLI_PKG" \
-  "$PACKAGES_DIR/$WORKBENCH_PKG"
+bun install
 
 export AGENTUITY_SKIP_VERSION_CHECK=1
 
@@ -159,29 +174,55 @@ log_success "Project created"
 echo ""
 log_info "Step 5: Installing packed packages..."
 
-# Remove ALL Agentuity dependencies from package.json before installing from tarballs
+# Update package.json to use tarball file references and add overrides
+# This ensures bun resolves all @agentuity packages from local tarballs, not npm
+log_info "Rewriting package.json to use tarball dependencies with overrides..."
 cat package.json | \
-  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/frontend"], .dependencies["@agentuity/react"], .dependencies["@agentuity/postgres"], .dependencies["@agentuity/drizzle"], .dependencies["@agentuity/auth"], .dependencies["@agentuity/evals"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"], .devDependencies["@agentuity/cli"], .devDependencies["@agentuity/core"], .devDependencies["@agentuity/schema"], .devDependencies["@agentuity/frontend"], .devDependencies["@agentuity/react"], .devDependencies["@agentuity/postgres"], .devDependencies["@agentuity/drizzle"], .devDependencies["@agentuity/auth"], .devDependencies["@agentuity/evals"], .devDependencies["@agentuity/runtime"], .devDependencies["@agentuity/server"], .devDependencies["@agentuity/workbench"])' \
-  > package.json.tmp && mv package.json.tmp package.json
+  jq --arg core "file:$PACKAGES_DIR/$CORE_PKG" \
+     --arg schema "file:$PACKAGES_DIR/$SCHEMA_PKG" \
+     --arg frontend "file:$PACKAGES_DIR/$FRONTEND_PKG" \
+     --arg react "file:$PACKAGES_DIR/$REACT_PKG" \
+     --arg postgres "file:$PACKAGES_DIR/$POSTGRES_PKG" \
+     --arg drizzle "file:$PACKAGES_DIR/$DRIZZLE_PKG" \
+     --arg auth "file:$PACKAGES_DIR/$AUTH_PKG" \
+     --arg evals "file:$PACKAGES_DIR/$EVALS_PKG" \
+     --arg runtime "file:$PACKAGES_DIR/$RUNTIME_PKG" \
+     --arg server "file:$PACKAGES_DIR/$SERVER_PKG" \
+     --arg cli "file:$PACKAGES_DIR/$CLI_PKG" \
+     --arg workbench "file:$PACKAGES_DIR/$WORKBENCH_PKG" \
+  '
+    # Update dependencies to use file references
+    .dependencies["@agentuity/core"] = $core |
+    .dependencies["@agentuity/schema"] = $schema |
+    .dependencies["@agentuity/frontend"] = $frontend |
+    .dependencies["@agentuity/react"] = $react |
+    .dependencies["@agentuity/postgres"] = $postgres |
+    .dependencies["@agentuity/drizzle"] = $drizzle |
+    .dependencies["@agentuity/auth"] = $auth |
+    .dependencies["@agentuity/evals"] = $evals |
+    .dependencies["@agentuity/runtime"] = $runtime |
+    .dependencies["@agentuity/server"] = $server |
+    .dependencies["@agentuity/cli"] = $cli |
+    .dependencies["@agentuity/workbench"] = $workbench |
+    # Add overrides to force transitive dependencies to use local tarballs
+    .overrides = {
+      "@agentuity/core": $core,
+      "@agentuity/schema": $schema,
+      "@agentuity/frontend": $frontend,
+      "@agentuity/react": $react,
+      "@agentuity/postgres": $postgres,
+      "@agentuity/drizzle": $drizzle,
+      "@agentuity/auth": $auth,
+      "@agentuity/evals": $evals,
+      "@agentuity/runtime": $runtime,
+      "@agentuity/server": $server,
+      "@agentuity/cli": $cli,
+      "@agentuity/workbench": $workbench
+    }
+  ' > package.json.tmp && mv package.json.tmp package.json
 
-# Install Agentuity packages from tarballs FIRST (all at once so interdependencies resolve)
-log_info "Installing @agentuity packages from tarballs..."
-bun add --no-save \
-  "$PACKAGES_DIR/$CORE_PKG" \
-  "$PACKAGES_DIR/$SCHEMA_PKG" \
-  "$PACKAGES_DIR/$FRONTEND_PKG" \
-  "$PACKAGES_DIR/$REACT_PKG" \
-  "$PACKAGES_DIR/$POSTGRES_PKG" \
-  "$PACKAGES_DIR/$DRIZZLE_PKG" \
-  "$PACKAGES_DIR/$AUTH_PKG" \
-  "$PACKAGES_DIR/$EVALS_PKG" \
-  "$PACKAGES_DIR/$RUNTIME_PKG" \
-  "$PACKAGES_DIR/$SERVER_PKG" \
-  "$PACKAGES_DIR/$CLI_PKG" \
-  "$PACKAGES_DIR/$WORKBENCH_PKG"
-
-# Now install other dependencies (react, react-dom, etc.)
-log_info "Installing other dependencies..."
+# Install all dependencies (bun will use overrides for @agentuity packages)
+log_info "Installing all dependencies..."
 bun install
 
 # Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
