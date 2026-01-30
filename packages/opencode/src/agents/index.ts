@@ -8,6 +8,7 @@ import { reviewerAgent } from './reviewer';
 import { memoryAgent } from './memory';
 import { expertAgent } from './expert';
 import { plannerAgent } from './planner';
+import { runnerAgent } from './runner';
 
 export type { AgentDefinition, AgentRegistry } from './types';
 
@@ -20,6 +21,7 @@ export const agents: Record<AgentRole, AgentDefinition> = {
 	memory: memoryAgent,
 	expert: expertAgent,
 	planner: plannerAgent,
+	runner: runnerAgent,
 };
 
 export function getAgent(role: AgentRole): AgentDefinition {

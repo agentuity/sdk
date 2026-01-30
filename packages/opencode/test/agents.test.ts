@@ -3,8 +3,8 @@ import { agents, getAgentByRole, getAgentById } from '../src/agents';
 
 describe('Agents', () => {
 	describe('agent definitions', () => {
-		it('exports all 8 agents', () => {
-			expect(Object.keys(agents)).toHaveLength(8);
+		it('exports all 9 agents', () => {
+			expect(Object.keys(agents)).toHaveLength(9);
 			expect(agents.lead).toBeDefined();
 			expect(agents.scout).toBeDefined();
 			expect(agents.builder).toBeDefined();
@@ -13,6 +13,7 @@ describe('Agents', () => {
 			expect(agents.memory).toBeDefined();
 			expect(agents.expert).toBeDefined();
 			expect(agents.planner).toBeDefined();
+			expect(agents.runner).toBeDefined();
 		});
 
 		it('each agent has required properties', () => {
@@ -49,6 +50,7 @@ describe('Agents', () => {
 			expect(getAgentByRole('memory')?.id).toBe('ag-memory');
 			expect(getAgentByRole('expert')?.id).toBe('ag-expert');
 			expect(getAgentByRole('planner')?.id).toBe('ag-planner');
+			expect(getAgentByRole('runner')?.id).toBe('ag-runner');
 		});
 	});
 
@@ -62,6 +64,7 @@ describe('Agents', () => {
 			expect(getAgentById('ag-memory')?.role).toBe('memory');
 			expect(getAgentById('ag-expert')?.role).toBe('expert');
 			expect(getAgentById('ag-planner')?.role).toBe('planner');
+			expect(getAgentById('ag-runner')?.role).toBe('runner');
 		});
 
 		it('returns undefined for unknown id', () => {
@@ -112,6 +115,17 @@ describe('Agents', () => {
 			expect(agents.builder.defaultModel).not.toBe(agents['sr-builder'].defaultModel);
 			expect(agents.builder.defaultModel).toContain('anthropic/');
 			expect(agents['sr-builder'].defaultModel).toContain('openai/');
+		});
+
+		it('Runner agent is read-only and fast', () => {
+			expect(agents.runner.tools?.exclude).toContain('write');
+			expect(agents.runner.tools?.exclude).toContain('edit');
+			expect(agents.runner.tools?.exclude).toContain('task');
+			expect(agents.runner.defaultModel).toBe('anthropic/claude-haiku-4-5-20251001');
+			expect(agents.runner.temperature).toBe(0.1);
+			expect(agents.runner.systemPrompt).toContain('lint');
+			expect(agents.runner.systemPrompt).toContain('build');
+			expect(agents.runner.systemPrompt).toContain('test');
 		});
 	});
 });

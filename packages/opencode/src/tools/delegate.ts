@@ -4,7 +4,7 @@ import type { AgentRole } from '../types';
 // Schema for the delegate tool
 export const DelegateArgsSchema = z.object({
 	agent: z
-		.enum(['scout', 'builder', 'sr-builder', 'reviewer', 'memory', 'expert', 'planner'])
+		.enum(['scout', 'builder', 'sr-builder', 'reviewer', 'memory', 'expert', 'planner', 'runner'])
 		.describe('The agent to delegate to'),
 	task: z.string().describe('Clear description of the task to delegate'),
 	context: z.string().optional().describe('Additional context from previous tasks'),
@@ -26,6 +26,7 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
 	planner: '@Agentuity Coder Planner',
+	runner: '@Agentuity Coder Runner',
 };
 
 export const delegateTool = {
@@ -40,6 +41,7 @@ Use this to:
 - Memory: Store context, remember decisions across sessions
 - Expert: Get help with Agentuity CLI and cloud services
 - Planner: Strategic advisor for complex architecture and deep planning (read-only)
+- Runner: Run lint/build/test/typecheck/format/clean/install commands, returns structured results
 
 The task will be executed by the specified agent and the result returned.`,
 

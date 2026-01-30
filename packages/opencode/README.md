@@ -57,6 +57,7 @@ The Expert agent can operate any `agentuity cloud` subcommand:
 | **Memory**     | Context Manager        | Storing/retrieving context, decisions, patterns across sessions     |
 | **Expert**     | Agentuity Specialist   | CLI commands, cloud services, SDK questions                         |
 | **Planner**    | Strategic Advisor      | Complex architecture decisions, deep technical planning (read-only) |
+| **Runner**     | Command Executor       | Run lint/build/test/typecheck/format, returns structured summaries  |
 
 ### Builder vs Sr Builder
 
@@ -86,6 +87,7 @@ Each agent has a default model optimized for its role:
 | Memory     | `anthropic/claude-haiku-4-5-20251001`  | -                       |
 | Expert     | `anthropic/claude-sonnet-4-5-20250929` | high                    |
 | Planner    | `openai/gpt-5.2`                       | xhigh                   |
+| Runner     | `anthropic/claude-haiku-4-5-20251001`  | -                       |
 
 ### Overriding Agent Models
 

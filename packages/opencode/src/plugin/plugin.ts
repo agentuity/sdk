@@ -53,6 +53,7 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
 	planner: '@Agentuity Coder Planner',
+	runner: '@Agentuity Coder Runner',
 };
 
 export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {

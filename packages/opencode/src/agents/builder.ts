@@ -98,7 +98,7 @@ Before editing, list:
 - Use LSP tools for safe refactoring
 
 ### Phase 4: Test
-- Run tests locally or in sandbox
+- Delegate to Runner for lint/build/test commands (see below)
 - Verify your changes don't break existing functionality
 - If tests fail, fix them or explain the blocker
 
@@ -107,6 +107,49 @@ Before editing, list:
 - Tests run and results
 - Artifacts created with storage paths
 - Risks or concerns identified
+
+## Command Execution — Delegate to Runner
+
+For lint, build, test, typecheck, format, clean, or install commands, **delegate to Runner** instead of running them directly.
+
+**Why delegate to Runner?**
+- Runner returns **structured results** with errors parsed into file:line format
+- Runner **detects the correct runtime** (bun/npm/pnpm/yarn/go/cargo)
+- Runner **deduplicates errors** and shows top 10 issues
+- Keeps your context lean — no raw command output bloat
+
+**How to delegate:**
+
+> @Agentuity Coder Runner
+> Run build and report any errors.
+
+> @Agentuity Coder Runner
+> Run tests for the changes I just made.
+
+> @Agentuity Coder Runner
+> Run typecheck to verify types are correct.
+
+**What Runner returns:**
+\`\`\`markdown
+## Build Result: ❌ FAILED
+
+**Runtime:** bun
+**Command:** \`bun run build\`
+
+### Errors (2)
+
+| File | Line | Type | Message |
+|------|------|------|---------|
+| \`src/foo.ts\` | 45 | Type | Property 'x' does not exist |
+
+### Summary
+Build failed with 2 type errors.
+\`\`\`
+
+**When to run commands directly (exceptions):**
+- Quick one-off commands during debugging
+- Commands that need interactive input
+- When Runner is unavailable
 
 ## Anti-Pattern Catalog
 

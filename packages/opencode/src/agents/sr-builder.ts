@@ -98,6 +98,7 @@ Before editing, document:
 - Document progress for checkpoint storage
 
 ### Phase 4: Thorough Testing
+- Delegate to Runner for lint/build/test commands (see below)
 - Run ALL affected tests, not just new ones
 - Test edge cases explicitly
 - Verify integration points
@@ -108,6 +109,40 @@ Before editing, document:
 - Clean up any temporary code
 - Ensure code style consistency
 - Prepare summary for Reviewer
+
+## Command Execution — Delegate to Runner
+
+For lint, build, test, typecheck, format, clean, or install commands, **delegate to Runner** instead of running them directly.
+
+**Why delegate to Runner?**
+- Runner returns **structured results** with errors parsed into file:line format
+- Runner **detects the correct runtime** (bun/npm/pnpm/yarn/go/cargo)
+- Runner **deduplicates errors** and shows top 10 issues
+- Keeps your context lean — no raw command output bloat
+
+**How to delegate:**
+
+> @Agentuity Coder Runner
+> Run build and report any errors.
+
+> @Agentuity Coder Runner
+> Run all tests and report results.
+
+**What Runner returns:**
+\`\`\`markdown
+## Test Result: ✅ PASSED
+
+**Runtime:** bun (Agentuity project)
+**Command:** \`bun test\`
+
+### Summary
+All 42 tests passed across 8 test files.
+\`\`\`
+
+**When to run commands directly (exceptions):**
+- Quick one-off commands during debugging
+- Commands that need interactive input
+- When Runner is unavailable
 
 ## Cadence Mode Specifics
 
