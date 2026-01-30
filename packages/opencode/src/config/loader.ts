@@ -12,11 +12,6 @@ interface CLIConfig {
 	preferences?: {
 		orgId?: string;
 	};
-	coder?: {
-		source?: 'npm' | 'local';
-		path?: string;
-		org?: string;
-	};
 }
 
 async function getProfilePath(): Promise<string> {
@@ -48,6 +43,24 @@ export async function getConfigPath(): Promise<string> {
 	return getProfilePath();
 }
 
+/**
+ * Load plugin configuration.
+ *
+ * This primarily loads the orgId from the Agentuity CLI profile.
+ * Agent model configuration should be done via OpenCode's native opencode.json.
+ *
+ * Users can override agent models in their opencode.json:
+ * ```json
+ * {
+ *   "agent": {
+ *     "Agentuity Coder Sr Builder": {
+ *       "model": "openai/gpt-5.2-codex",
+ *       "reasoningEffort": "xhigh"
+ *     }
+ *   }
+ * }
+ * ```
+ */
 export async function loadCoderConfig(): Promise<CoderConfig> {
 	try {
 		const configPath = await getProfilePath();
@@ -60,6 +73,8 @@ export async function loadCoderConfig(): Promise<CoderConfig> {
 		const content = await configFile.text();
 		const cliConfig = YAML.parse(content) as CLIConfig;
 
+		// Only extract orgId from CLI config
+		// Agent model overrides should be done via opencode.json
 		const coderConfig: CoderConfig = {
 			org: cliConfig.preferences?.orgId,
 		};
@@ -86,41 +101,22 @@ const DEFAULT_BLOCKED_COMMANDS = [
 	'auth token', // Don't leak auth tokens
 ];
 
+/**
+ * Get default configuration.
+ *
+ * Note: Agent model defaults are defined in agent definition files (src/agents/).
+ * Users can override agent models via opencode.json.
+ */
 export function getDefaultConfig(): CoderConfig {
 	return {
-		agents: {
-			lead: { model: 'anthropic/claude-opus-4-5-20251101' },
-			scout: { model: 'anthropic/claude-haiku-4-5-20251001' },
-			builder: { model: 'anthropic/claude-opus-4-5-20251101' },
-			reviewer: { model: 'anthropic/claude-haiku-4-5-20251001' },
-			memory: { model: 'anthropic/claude-haiku-4-5-20251001' },
-			expert: { model: 'anthropic/claude-opus-4-5-20251101' },
-		},
 		disabledMcps: [],
 		blockedCommands: DEFAULT_BLOCKED_COMMANDS,
 	};
 }
 
 export function mergeConfig(base: CoderConfig, override: CoderConfig): CoderConfig {
-	// Deep merge agents: for each agent, merge base and override properties
-	const mergedAgents: CoderConfig['agents'] = {};
-	const allAgentKeys = new Set([
-		...Object.keys(base.agents ?? {}),
-		...Object.keys(override.agents ?? {}),
-	]);
-
-	for (const key of allAgentKeys) {
-		const baseAgent = base.agents?.[key as keyof typeof base.agents];
-		const overrideAgent = override.agents?.[key as keyof typeof override.agents];
-		mergedAgents[key as keyof typeof mergedAgents] = {
-			...baseAgent,
-			...overrideAgent,
-		};
-	}
-
 	return {
 		org: override.org ?? base.org,
-		agents: mergedAgents,
 		disabledMcps: override.disabledMcps ?? base.disabledMcps,
 		blockedCommands: override.blockedCommands ?? base.blockedCommands,
 	};

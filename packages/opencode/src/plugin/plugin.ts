@@ -1,7 +1,7 @@
 import type { PluginInput, Hooks } from '@opencode-ai/plugin';
 import type { AgentConfig, CommandDefinition } from '../types';
 import { agents } from '../agents';
-import { loadCoderConfig, getDefaultConfig, mergeConfig } from '../config';
+import { loadCoderConfig, getDefaultConfig, mergeConfig, validateAndWarnConfigs } from '../config';
 import { createSessionHooks } from './hooks/session';
 import { createToolHooks } from './hooks/tools';
 import { createKeywordHooks } from './hooks/keyword';
@@ -16,9 +16,11 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	lead: '@Agentuity Coder Lead',
 	scout: '@Agentuity Coder Scout',
 	builder: '@Agentuity Coder Builder',
+	'sr-builder': '@Agentuity Coder Sr Builder',
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
+	planner: '@Agentuity Coder Planner',
 };
 
 export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
@@ -102,10 +104,31 @@ function createConfigHandler(
 		const agentConfigs = createAgentConfigs(coderConfig);
 		const commands = createCommands();
 
-		config.agent = {
-			...(config.agent as Record<string, AgentConfig> | undefined),
-			...agentConfigs,
-		};
+		// Merge agent configs: our defaults first, then user's opencode.json overrides on top
+		// This allows users to customize any agent via their opencode.json
+		const userAgentConfigs = config.agent as Record<string, AgentConfig> | undefined;
+		const mergedAgents: Record<string, AgentConfig> = { ...agentConfigs };
+
+		// Deep merge user overrides on top of our defaults
+		if (userAgentConfigs) {
+			for (const [name, userConfig] of Object.entries(userAgentConfigs)) {
+				if (mergedAgents[name]) {
+					// Merge user config on top of our default
+					mergedAgents[name] = {
+						...mergedAgents[name],
+						...userConfig,
+					};
+				} else {
+					// User defined a new agent not in our defaults
+					mergedAgents[name] = userConfig;
+				}
+			}
+		}
+
+		config.agent = mergedAgents;
+
+		// Validate merged configs and warn about mismatches
+		validateAndWarnConfigs(mergedAgents);
 
 		config.command = {
 			...(config.command as Record<string, CommandDefinition> | undefined),
@@ -115,13 +138,11 @@ function createConfigHandler(
 }
 
 function createAgentConfigs(
-	config: ReturnType<typeof getDefaultConfig>
+	_config: ReturnType<typeof getDefaultConfig>
 ): Record<string, AgentConfig> {
 	const result: Record<string, AgentConfig> = {};
 
 	for (const agent of Object.values(agents)) {
-		const modelConfig = config.agents?.[agent.role];
-
 		// Convert tools.exclude to Open Code format (tool: false)
 		const tools: Record<string, boolean> = {};
 		if (agent.tools?.exclude) {
@@ -130,16 +151,18 @@ function createAgentConfigs(
 			}
 		}
 
+		// Use agent defaults directly - user overrides happen in createConfigHandler
 		result[agent.displayName] = {
 			description: agent.description,
-			model: modelConfig?.model ?? agent.defaultModel,
+			model: agent.defaultModel,
 			prompt: agent.systemPrompt,
 			mode: agent.mode ?? 'subagent',
 			...(Object.keys(tools).length > 0 ? { tools } : {}),
-			// Pass through thinking/reasoning settings
 			...(agent.variant ? { variant: agent.variant } : {}),
 			...(agent.temperature !== undefined ? { temperature: agent.temperature } : {}),
 			...(agent.maxSteps !== undefined ? { maxSteps: agent.maxSteps } : {}),
+			...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}),
+			...(agent.thinking ? { thinking: agent.thinking } : {}),
 		};
 	}
 
@@ -289,10 +312,12 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 
 ## Your Team (use @mentions to invoke)
 - **@Agentuity Coder Scout**: Explore codebase, find patterns, research docs (read-only)
-- **@Agentuity Coder Builder**: Implement features, write code, run tests
+- **@Agentuity Coder Sr Builder**: Complex autonomous implementation (GPT Codex with high reasoning) — **USE THIS FOR CADENCE**
+- **@Agentuity Coder Builder**: Quick fixes, simple changes (for minor iterations only)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
+- **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
 
 ## Task
 $ARGUMENTS
@@ -306,7 +331,8 @@ $ARGUMENTS
 2. **Each iteration**:
    - Ask @Agentuity Coder Memory for relevant context
    - Use @Agentuity Coder Scout to understand what's needed
-   - Delegate implementation to @Agentuity Coder Builder
+   - For complex planning, consult @Agentuity Coder Planner
+   - Delegate implementation to **@Agentuity Coder Sr Builder** (preferred for Cadence)
    - Have @Agentuity Coder Reviewer verify the work
    - Tell @Agentuity Coder Memory to store checkpoint
 
@@ -318,10 +344,11 @@ $ARGUMENTS
 4. **Tell @Agentuity Coder Memory to memorialize** the completed session
 
 ## Guidelines
-- **Always delegate** — use Scout for research, Builder for code, Reviewer for verification
+- **Use Sr Builder for implementation** — Sr Builder has GPT Codex with maximum reasoning, ideal for autonomous work
+- Use regular Builder only for trivial fixes within an iteration
 - Ask Memory for context at each iteration start
 - Store checkpoints at each iteration end
-- If stuck, ask Scout to re-evaluate before pausing
+- If stuck on architecture, consult Planner before trying more approaches
 - Use @Agentuity Coder Expert for sandbox/cloud operations
 - Respect max iterations (50 default)`,
 			agent: 'Agentuity Coder Lead',
@@ -336,13 +363,15 @@ function createTools(tool: (schema: (s: typeof z) => unknown) => unknown): Hooks
 
 Use this to:
 - Scout: Explore codebase, find patterns, research documentation
-- Builder: Implement features, write code, run tests
+- Builder: Implement features, write code, run tests (interactive work)
+- Sr Builder: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
 - Reviewer: Review changes, catch issues, apply fixes
 - Memory: Store context, remember decisions across sessions
-- Expert: Get help with Agentuity CLI and cloud services`,
+- Expert: Get help with Agentuity CLI and cloud services
+- Planner: Strategic advisor for complex architecture and deep planning (read-only)`,
 		args: s.object({
 			agent: s
-				.enum(['scout', 'builder', 'reviewer', 'memory', 'expert'])
+				.enum(['scout', 'builder', 'sr-builder', 'reviewer', 'memory', 'expert', 'planner'])
 				.describe('Which agent to delegate to'),
 			task: s.string().describe('Clear description of the task'),
 			context: s.string().optional().describe('Additional context from previous tasks'),

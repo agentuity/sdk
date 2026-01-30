@@ -47,14 +47,82 @@ The Expert agent can operate any `agentuity cloud` subcommand:
 
 ## Agent Team
 
-| Agent        | Role                                            |
-| ------------ | ----------------------------------------------- |
-| **Lead**     | Orchestrates tasks, delegates to team           |
-| **Scout**    | Explores codebases, finds patterns (read-only)  |
-| **Builder**  | Implements features, runs tests, uses sandboxes |
-| **Reviewer** | Reviews code, catches issues, applies fixes     |
-| **Memory**   | Maintains context via KV/Vector storage         |
-| **Expert**   | CLI, SDK, and cloud services specialist         |
+| Agent          | Role                   | When to Use                                                         |
+| -------------- | ---------------------- | ------------------------------------------------------------------- |
+| **Lead**       | Orchestrator           | Automatically coordinates all work                                  |
+| **Scout**      | Explorer               | Finding files, patterns, codebase analysis (read-only)              |
+| **Builder**    | Implementer            | Interactive code changes, quick fixes, guided implementation        |
+| **Sr Builder** | Autonomous Implementer | Cadence mode, complex multi-file features, long-running tasks       |
+| **Reviewer**   | Code Reviewer          | Reviewing changes, catching issues, suggesting fixes                |
+| **Memory**     | Context Manager        | Storing/retrieving context, decisions, patterns across sessions     |
+| **Expert**     | Agentuity Specialist   | CLI commands, cloud services, SDK questions                         |
+| **Planner**    | Strategic Advisor      | Complex architecture decisions, deep technical planning (read-only) |
+
+### Builder vs Sr Builder
+
+| Aspect        | Builder                  | Sr Builder                     |
+| ------------- | ------------------------ | ------------------------------ |
+| **Mode**      | Interactive              | Autonomous                     |
+| **Best for**  | Quick fixes, guided work | Cadence mode, complex features |
+| **Model**     | Claude Opus 4.5          | GPT 5.2 Codex                  |
+| **Reasoning** | High                     | Maximum (xhigh)                |
+| **Context**   | Session-based            | Checkpoint-based               |
+
+**Use Builder when:** You're working interactively, making quick changes, or need guidance.
+
+**Use Sr Builder when:** Running Cadence mode, implementing complex multi-file features, or need autonomous execution with deep reasoning.
+
+## Model Configuration
+
+Each agent has a default model optimized for its role:
+
+| Agent      | Default Model                          | Reasoning Level         |
+| ---------- | -------------------------------------- | ----------------------- |
+| Lead       | `anthropic/claude-opus-4-5-20251101`   | max (extended thinking) |
+| Scout      | `anthropic/claude-haiku-4-5-20251001`  | -                       |
+| Builder    | `anthropic/claude-opus-4-5-20251101`   | high                    |
+| Sr Builder | `openai/gpt-5.2-codex`                 | xhigh                   |
+| Reviewer   | `anthropic/claude-sonnet-4-5-20250929` | high                    |
+| Memory     | `anthropic/claude-haiku-4-5-20251001`  | -                       |
+| Expert     | `anthropic/claude-sonnet-4-5-20250929` | high                    |
+| Planner    | `openai/gpt-5.2`                       | xhigh                   |
+
+### Overriding Agent Models
+
+You can override any agent's model via `opencode.json`:
+
+```json
+{
+	"agent": {
+		"Agentuity Coder Builder": {
+			"model": "anthropic/claude-sonnet-4-5-20250514"
+		},
+		"Agentuity Coder Sr Builder": {
+			"model": "openai/gpt-5.2-codex",
+			"reasoningEffort": "xhigh"
+		}
+	}
+}
+```
+
+Run `opencode models` to see all available models.
+
+### Configuration Options
+
+**For OpenAI models:**
+
+- `reasoningEffort`: `"low"` | `"medium"` | `"high"` | `"xhigh"` — controls reasoning depth
+
+**For Anthropic models:**
+
+- `variant`: `"low"` | `"medium"` | `"high"` | `"max"` — controls extended thinking level
+- `thinking`: `{ "type": "enabled", "budgetTokens": 10000 }` — explicit thinking config
+
+**General:**
+
+- `model`: The model identifier (e.g., `"anthropic/claude-sonnet-4-5-20250514"`)
+- `temperature`: Number between 0-1 (lower = more deterministic)
+- `maxSteps`: Maximum tool use steps per turn
 
 ## Security
 
@@ -87,6 +155,17 @@ Add to your `opencode.json` for enhanced Scout/Expert capabilities:
 ## Cadence: Long-Running Autonomous Sessions
 
 Cadence enables the agent team to work autonomously on complex tasks across multiple iterations until completion.
+
+### Recommended Agent for Cadence
+
+**Sr Builder** is the recommended agent for Cadence mode. It uses GPT 5.2 Codex with maximum reasoning effort (`xhigh`), optimized for:
+
+- Long-running autonomous tasks
+- Complex multi-file features
+- Deep analysis before implementation
+- Checkpoint-based progress tracking
+
+For quick fixes during a Cadence session, Builder can still be used for minor iterations.
 
 ### Starting a Cadence Loop
 

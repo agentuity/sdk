@@ -115,7 +115,10 @@ const currentCommand = createSubcommand({
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{ command: getCommand('auth org current'), description: 'Show default organization ID' },
-		{ command: getCommand('auth org current --name'), description: 'Show default organization name' },
+		{
+			command: getCommand('auth org current --name'),
+			description: 'Show default organization name',
+		},
 		{ command: getCommand('auth org current --json'), description: 'Show output in JSON format' },
 	],
 	schema: {
@@ -125,7 +128,10 @@ const currentCommand = createSubcommand({
 		response: z
 			.object({
 				id: z.string().nullable().describe('The current organization ID or null if not set'),
-				name: z.string().nullable().describe('The current organization name or null if not set or not found'),
+				name: z
+					.string()
+					.nullable()
+					.describe('The current organization name or null if not set or not found'),
 			})
 			.describe('The current organization details'),
 	},

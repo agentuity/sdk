@@ -8,7 +8,16 @@ export type {
 	ToolDefinition,
 } from '@opencode-ai/plugin';
 
-export const AgentRoleSchema = z.enum(['lead', 'scout', 'builder', 'reviewer', 'memory', 'expert']);
+export const AgentRoleSchema = z.enum([
+	'lead',
+	'scout',
+	'builder',
+	'sr-builder',
+	'reviewer',
+	'memory',
+	'expert',
+	'planner',
+]);
 export type AgentRole = z.infer<typeof AgentRoleSchema>;
 
 export const TaskStatusSchema = z.enum(['pending', 'running', 'completed', 'failed', 'cancelled']);
@@ -64,6 +73,10 @@ export interface AgentConfig {
 	temperature?: number;
 	/** Maximum agentic steps before forcing text response */
 	maxSteps?: number;
+	/** Reasoning effort for OpenAI models */
+	reasoningEffort?: ReasoningEffort;
+	/** Extended thinking configuration for Anthropic models */
+	thinking?: ThinkingConfig;
 }
 
 export interface AgentContext {
@@ -86,30 +99,55 @@ export interface CoderTask {
 	error?: string;
 }
 
+/** Extended thinking configuration for Anthropic models */
+export const ThinkingConfigSchema = z.object({
+	type: z.enum(['enabled', 'disabled']),
+	budgetTokens: z.number().optional(),
+});
+export type ThinkingConfig = z.infer<typeof ThinkingConfigSchema>;
+
+/** Reasoning effort for OpenAI models */
+export const ReasoningEffortSchema = z.enum(['low', 'medium', 'high', 'xhigh']);
+export type ReasoningEffort = z.infer<typeof ReasoningEffortSchema>;
+
+/** Model variant for Anthropic thinking levels */
+export const ModelVariantSchema = z.enum(['low', 'medium', 'high', 'max']);
+export type ModelVariant = z.infer<typeof ModelVariantSchema>;
+
+/** Enhanced agent model configuration */
+export interface AgentModelConfig {
+	/** Model ID in provider/model-id format */
+	model?: string;
+	/** Temperature for response creativity (0.0-2.0) */
+	temperature?: number;
+	/** Model variant for Anthropic thinking levels */
+	variant?: ModelVariant;
+	/** Reasoning effort for OpenAI models */
+	reasoningEffort?: ReasoningEffort;
+	/** Extended thinking configuration for Anthropic models */
+	thinking?: ThinkingConfig;
+	/** Maximum agentic steps before forcing text response */
+	maxSteps?: number;
+}
+
+export const AgentModelConfigSchema = z.object({
+	model: z.string().optional(),
+	temperature: z.number().min(0).max(2).optional(),
+	variant: ModelVariantSchema.optional(),
+	reasoningEffort: ReasoningEffortSchema.optional(),
+	thinking: ThinkingConfigSchema.optional(),
+	maxSteps: z.number().optional(),
+});
+
 export interface CoderConfig {
 	org?: string;
-	agents?: Partial<Record<AgentRole, AgentModelConfig>>;
 	disabledMcps?: string[];
 	/** CLI command patterns to block for security (e.g., 'cloud secrets', 'auth token') */
 	blockedCommands?: string[];
 }
 
-export interface AgentModelConfig {
-	model?: string;
-	temperature?: number;
-}
-
 export const CoderConfigSchema = z.object({
 	org: z.string().optional(),
-	agents: z
-		.record(
-			AgentRoleSchema,
-			z.object({
-				model: z.string().optional(),
-				temperature: z.number().min(0).max(2).optional(),
-			})
-		)
-		.optional(),
 	disabledMcps: z.array(z.string()).optional(),
 	blockedCommands: z.array(z.string()).optional(),
 });

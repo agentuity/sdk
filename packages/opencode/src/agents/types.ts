@@ -1,4 +1,4 @@
-import type { AgentRole } from '../types';
+import type { AgentRole, ReasoningEffort, ThinkingConfig } from '../types';
 
 export interface AgentDefinition {
 	/** Internal role key for config lookup */
@@ -21,6 +21,10 @@ export interface AgentDefinition {
 	temperature?: number;
 	/** Maximum agentic steps before forcing text response */
 	maxSteps?: number;
+	/** Reasoning effort for OpenAI models */
+	reasoningEffort?: ReasoningEffort;
+	/** Extended thinking configuration for Anthropic models */
+	thinking?: ThinkingConfig;
 }
 
 export interface AgentRegistry {
