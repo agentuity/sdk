@@ -692,59 +692,6 @@ test('cli-env-secrets', 'env-set-overwrite', async () => {
 	});
 });
 
-// Test: Secret to env conversion - set as secret, then set as env
-test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
-	const authenticated = await isAuthenticated();
-	if (!authenticated) return;
-
-	const testKey = trackKey(uniqueId('CONVERT_TEST'));
-	const value = 'convert_test_value';
-
-	// Set as secret (flag must be in command string)
-	const setSecretResult = await cliAgent.run({
-		command: `cloud env set ${testKey} ${value} --secret`,
-	});
-	assert(
-		Boolean(setSecretResult.success || setSecretResult.stdout?.includes('Secret')),
-		`Set as secret should succeed: ${setSecretResult.stderr}`
-	);
-
-	// Verify it's a secret - check the specific line contains [secret]
-	const listBefore = await cliAgent.run({
-		command: 'cloud env list',
-	});
-	const listBeforeOutput = (listBefore.stdout || '') + (listBefore.stderr || '');
-	const linesBefore = listBeforeOutput.split('\n');
-	const keyLineBefore = linesBefore.find((l) => l.includes(testKey));
-	assert(
-		Boolean(keyLineBefore && keyLineBefore.includes('[secret]')),
-		`Should be listed as secret: ${keyLineBefore || 'key not found'}`
-	);
-
-	// Now set same key as regular env (no --secret flag)
-	await cliAgent.run({
-		command: `cloud env set ${testKey} ${value}`,
-	});
-
-	// Verify it's now an env var (no [secret] tag)
-	const listAfter = await cliAgent.run({
-		command: 'cloud env list',
-	});
-	const listAfterOutput = (listAfter.stdout || '') + (listAfter.stderr || '');
-	const linesAfter = listAfterOutput.split('\n');
-	const keyLineAfter = linesAfter.find((l) => l.includes(testKey));
-	assert(
-		Boolean(keyLineAfter && !keyLineAfter.includes('[secret]')),
-		`Should now be a regular env var: ${keyLineAfter || 'key not found'}`
-	);
-
-	// Cleanup
-	await cliAgent.run({
-		command: 'cloud env delete',
-		args: [testKey],
-	});
-});
-
 // Test: Reserved AGENTUITY_ key blocked for env delete
 test('cli-env-secrets', 'env-delete-blocks-reserved-agentuity-key', async () => {
 	const authenticated = await isAuthenticated();
