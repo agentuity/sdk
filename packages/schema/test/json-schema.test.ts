@@ -62,6 +62,121 @@ describe('JSON Schema Conversion', () => {
 		});
 	});
 
+	describe('toJSONSchema with strict option', () => {
+		test('should add additionalProperties: false to object schemas when strict is true', () => {
+			const schema = s.object({ name: s.string() });
+			const jsonSchema = s.toJSONSchema(schema, { strict: true });
+
+			expect(jsonSchema.type).toBe('object');
+			expect(jsonSchema.additionalProperties).toBe(false);
+		});
+
+		test('should add additionalProperties: false to nested objects when strict is true', () => {
+			const schema = s.object({
+				user: s.object({
+					name: s.string(),
+					address: s.object({ city: s.string() }),
+				}),
+			});
+			const jsonSchema = s.toJSONSchema(schema, { strict: true });
+
+			expect(jsonSchema.additionalProperties).toBe(false);
+			expect(jsonSchema.properties?.user?.additionalProperties).toBe(false);
+			expect(jsonSchema.properties?.user?.properties?.address?.additionalProperties).toBe(false);
+		});
+
+		test('should add additionalProperties: false to objects in arrays when strict is true', () => {
+			const schema = s.array(s.object({ id: s.number() }));
+			const jsonSchema = s.toJSONSchema(schema, { strict: true });
+
+			expect(jsonSchema.type).toBe('array');
+			expect(jsonSchema.items?.additionalProperties).toBe(false);
+		});
+
+		test('should add additionalProperties: false to objects in unions when strict is true', () => {
+			const schema = s.union(
+				s.object({ type: s.literal('a'), value: s.string() }),
+				s.object({ type: s.literal('b'), count: s.number() })
+			);
+			const jsonSchema = s.toJSONSchema(schema, { strict: true });
+
+			expect(jsonSchema.anyOf?.[0]?.additionalProperties).toBe(false);
+			expect(jsonSchema.anyOf?.[1]?.additionalProperties).toBe(false);
+		});
+
+		test('should NOT add additionalProperties when strict is false', () => {
+			const schema = s.object({ name: s.string() });
+			const jsonSchema = s.toJSONSchema(schema, { strict: false });
+
+			expect(jsonSchema.additionalProperties).toBeUndefined();
+		});
+
+		test('should NOT add additionalProperties when options is undefined (default behavior)', () => {
+			const schema = s.object({ name: s.string() });
+			const jsonSchema = s.toJSONSchema(schema);
+
+			expect(jsonSchema.additionalProperties).toBeUndefined();
+		});
+
+		test('should handle optional fields with nested objects in strict mode', () => {
+			const schema = s.object({
+				required: s.string(),
+				optional: s.optional(s.object({ nested: s.string() })),
+			});
+			const jsonSchema = s.toJSONSchema(schema, { strict: true });
+
+			expect(jsonSchema.additionalProperties).toBe(false);
+			expect(jsonSchema.properties?.optional?.additionalProperties).toBe(false);
+			expect(jsonSchema.required).toContain('required');
+			expect(jsonSchema.required).not.toContain('optional');
+		});
+
+		test('should handle nullable fields with nested objects in strict mode', () => {
+			const schema = s.object({
+				nullable: s.nullable(s.object({ nested: s.number() })),
+			});
+			const jsonSchema = s.toJSONSchema(schema, { strict: true });
+
+			expect(jsonSchema.additionalProperties).toBe(false);
+			// Nullable uses anyOf, so check the non-null branch
+			expect(jsonSchema.properties?.nullable?.anyOf?.[0]?.additionalProperties).toBe(false);
+		});
+
+		test('should NOT add additionalProperties: false to record schemas (they have their own additionalProperties)', () => {
+			const schema = s.record(s.string(), s.number());
+			const jsonSchema = s.toJSONSchema(schema, { strict: true });
+
+			expect(jsonSchema.type).toBe('object');
+			// Record schemas use additionalProperties for the value schema, not false
+			expect(jsonSchema.additionalProperties).toEqual({ type: 'number' });
+		});
+
+		test('should handle deeply nested structures in strict mode', () => {
+			const schema = s.object({
+				level1: s.object({
+					level2: s.array(
+						s.object({
+							level3: s.object({
+								value: s.string(),
+							}),
+						})
+					),
+				}),
+			});
+			const jsonSchema = s.toJSONSchema(schema, { strict: true });
+
+			expect(jsonSchema.additionalProperties).toBe(false);
+			expect(jsonSchema.properties?.level1?.additionalProperties).toBe(false);
+			expect(jsonSchema.properties?.level1?.properties?.level2?.items?.additionalProperties).toBe(
+				false
+			);
+			expect(
+				jsonSchema.properties?.level1?.properties?.level2?.items?.properties?.level3
+					?.additionalProperties
+			).toBe(false);
+		});
+	});
+
 	describe('fromJSONSchema', () => {
 		test('should convert primitive types', () => {
 			const stringSchema = s.fromJSONSchema({ type: 'string' });
