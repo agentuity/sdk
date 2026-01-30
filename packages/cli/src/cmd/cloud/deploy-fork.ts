@@ -93,29 +93,38 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			}
 		}
 
-		// Report deployment as cancelled
+		// Report deployment as cancelled (with timeout to ensure prompt exit)
 		const cancelMessage = 'Deployment cancelled by user';
-		try {
-			await projectDeploymentFail(apiClient, deploymentId, {
+		const timeoutMs = 3000; // 3 second timeout
+		const timeoutPromise = new Promise<void>((resolve) => {
+			setTimeout(() => {
+				logger.debug('API call to report cancellation timed out after %dms', timeoutMs);
+				resolve();
+			}, timeoutMs);
+		});
+
+		const apiCallPromise = projectDeploymentFail(apiClient, deploymentId, {
+			error: cancelMessage,
+			diagnostics: {
+				success: false,
+				errors: [
+					{
+						type: 'general',
+						scope: 'deploy',
+						message: cancelMessage,
+						code: 'DEPLOY_CANCELLED',
+					},
+				],
+				warnings: [],
+				diagnostics: [],
 				error: cancelMessage,
-				diagnostics: {
-					success: false,
-					errors: [
-						{
-							type: 'general',
-							scope: 'deploy',
-							message: cancelMessage,
-							code: 'DEPLOY_CANCELLED',
-						},
-					],
-					warnings: [],
-					diagnostics: [],
-					error: cancelMessage,
-				},
-			});
-		} catch (err) {
+			},
+		}).catch((err) => {
 			logger.debug('Failed to report cancellation: %s', err);
-		}
+		});
+
+		// Race API call against timeout to ensure prompt exit
+		await Promise.race([apiCallPromise, timeoutPromise]);
 
 		// Exit with signal-specific exit code
 		const signalExitCodes: Record<string, number> = {
