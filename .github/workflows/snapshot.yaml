@@ -53,3 +53,45 @@ jobs:
                 VERSION="${GITHUB_REF_NAME#v}"
               fi
               agentuity cloud sandbox snapshot build --org-id $AGENTUITY_ORG_ID --confirm --metadata VERSION="$VERSION" --file agentuity-snapshot.yaml "$TMP_DIR"
+
+   build-sdk-explorer-snapshot:
+      runs-on: blacksmith-4vcpu-ubuntu-2204
+      timeout-minutes: 15
+      name: Build SDK Explorer Snapshot
+      env:
+         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install Agentuity CLI
+           run: curl -fsSL https://agentuity.sh | sh
+
+         - name: Generate CLI Auth Token
+           run: |
+              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "::add-mask::${APIKEY}"
+              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+
+         - name: Install Dependencies
+           working-directory: apps/docs
+           run: bun install
+
+         - name: Bundle Run Scripts
+           working-directory: apps/docs
+           run: bun run scripts/bundle-run-scripts.ts
+
+         - name: Build SDK Explorer Snapshot
+           working-directory: apps/docs
+           env:
+              # SDK Explorer uses Agentuity Inc org (public snapshot for docs site)
+              AGENTUITY_ORG_ID: org_2u8RgDTwcZWrZrZ3sZh24T5FCtz
+           run: |
+              if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                VERSION="${{ inputs.version }}"
+              else
+                VERSION="${GITHUB_REF_NAME#v}"
+              fi
+              agentuity cloud sandbox snapshot build --org-id $AGENTUITY_ORG_ID --confirm --metadata VERSION="$VERSION" .

@@ -363,6 +363,12 @@ declare module '@agentuity/frontend' {
 				stream: false;
 				params: never;
 			};
+	'/api/sandbox/run': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'/api/sse-stream/stream': {
 				inputSchema: never;
 				outputSchema: never;
@@ -590,6 +596,569 @@ declare module '@agentuity/frontend' {
 				 * Route: POST /api/object-storage/seed
 				 */
 				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		sandbox: {
+			run: {
+				/**
+				 * Route: GET /api/sandbox/run
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+		};
+		sseStream: {
+			/**
+			 * Route: GET /api/sse-stream
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			stream: {
+				/**
+				 * Route: GET /api/sse-stream/stream
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+		};
+		streaming: {
+			/**
+			 * Route: GET /api/streaming
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			stream: {
+				/**
+				 * Route: POST /api/streaming/stream
+				 */
+				stream: { input: never; output: never; type: 'stream'; params: never; paramsTuple: [] };
+			};
+		};
+		vectorStorage: {
+			search: {
+				/**
+				 * Route: POST /api/vector-storage/search
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			seed: {
+				/**
+				 * Route: POST /api/vector-storage/seed
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			status: {
+				/**
+				 * Route: GET /api/vector-storage/status
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		websocket: {
+			connect: {
+				/**
+				 * Route: GET /api/websocket/connect
+				 */
+				websocket: { input: never; output: never; type: 'websocket'; params: never; paramsTuple: [] };
+			};
+			/**
+			 * Route: GET /api/websocket
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
+	}
+}
+
+// Backward compatibility: also augment @agentuity/react for older versions
+// that define RouteRegistry locally instead of re-exporting from @agentuity/frontend
+declare module '@agentuity/react' {
+	export interface RouteRegistry {
+	'GET /api/agent-calls': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/agent-calls/background': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/agent-calls/chain': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/agent-calls/process': {
+				inputSchema: POSTApiAgentCallsProcessInputSchema;
+				outputSchema: POSTApiAgentCallsProcessOutputSchema;
+				stream: typeof textProcessorAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'POST /api/agent-calls/sync': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/ai-gateway': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/ai-gateway/compare': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: true;
+				params: never;
+			};
+	'POST /api/chat': {
+				inputSchema: POSTApiChatInputSchema;
+				outputSchema: POSTApiChatOutputSchema;
+				stream: typeof chatAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'GET /api/chat': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/context/agents': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/context/background': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/context/full': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/context/logger': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/context/services': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/context/session': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/context/state': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/durable-stream/create': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/durable-stream/list': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/durable-stream/progress/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'GET /api/evals': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/evals': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/evals/session/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'GET /api/hello': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/hello': {
+				inputSchema: POSTApiHelloInputSchema;
+				outputSchema: POSTApiHelloOutputSchema;
+				stream: typeof helloAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'GET /api/key-value/get/:key': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { key: string };
+			};
+	'GET /api/key-value/keys': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/key-value/seed': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/model-arena': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/object-storage': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/object-storage/download/:filename': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { filename: string };
+			};
+	'GET /api/object-storage/list': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/object-storage/presign/:filename': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { filename: string };
+			};
+	'POST /api/object-storage/seed': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/sse-stream': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/streaming': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/streaming/stream': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: true;
+				params: never;
+			};
+	'POST /api/vector-storage/search': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/vector-storage/seed': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/vector-storage/status': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/websocket': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface WebSocketRouteRegistry {
+	'/api/websocket/connect': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface SSERouteRegistry {
+	'/api/model-arena/stream': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sandbox/run': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse-stream/stream': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface RPCRouteRegistry {
+		agentCalls: {
+			background: {
+				/**
+				 * Route: POST /api/agent-calls/background
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			chain: {
+				/**
+				 * Route: POST /api/agent-calls/chain
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			/**
+			 * Route: GET /api/agent-calls
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			process: {
+				/**
+				 * Route: POST /api/agent-calls/process
+				 */
+				post: { input: POSTApiAgentCallsProcessInput; output: POSTApiAgentCallsProcessOutput; type: 'api'; params: never; paramsTuple: [] };
+			};
+			sync: {
+				/**
+				 * Route: POST /api/agent-calls/sync
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		aiGateway: {
+			compare: {
+				/**
+				 * Route: POST /api/ai-gateway/compare
+				 */
+				stream: { input: never; output: never; type: 'stream'; params: never; paramsTuple: [] };
+			};
+			/**
+			 * Route: GET /api/ai-gateway
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
+		chat: {
+			/**
+			 * Route: GET /api/chat
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			/**
+			 * Route: POST /api/chat
+			 */
+			post: { input: POSTApiChatInput; output: POSTApiChatOutput; type: 'api'; params: never; paramsTuple: [] };
+		};
+		context: {
+			agents: {
+				/**
+				 * Route: GET /api/context/agents
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			background: {
+				/**
+				 * Route: GET /api/context/background
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			full: {
+				/**
+				 * Route: GET /api/context/full
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			logger: {
+				/**
+				 * Route: GET /api/context/logger
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			services: {
+				/**
+				 * Route: GET /api/context/services
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			session: {
+				/**
+				 * Route: GET /api/context/session
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			state: {
+				/**
+				 * Route: GET /api/context/state
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		durableStream: {
+			create: {
+				/**
+				 * Route: POST /api/durable-stream/create
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			list: {
+				/**
+				 * Route: GET /api/durable-stream/list
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			progress: {
+				id: {
+					/**
+					 * Route: GET /api/durable-stream/progress/:id
+					 */
+					get: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
+			};
+		};
+		evals: {
+			/**
+			 * Route: GET /api/evals
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			/**
+			 * Route: POST /api/evals
+			 */
+			post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			session: {
+				id: {
+					/**
+					 * Route: GET /api/evals/session/:id
+					 */
+					get: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
+			};
+		};
+		hello: {
+			/**
+			 * Route: GET /api/hello
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			/**
+			 * Route: POST /api/hello
+			 */
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; params: never; paramsTuple: [] };
+		};
+		keyValue: {
+			get: {
+				key: {
+					/**
+					 * Route: GET /api/key-value/get/:key
+					 */
+					get: { input: never; output: never; type: 'api'; params: { key: string }; paramsTuple: [string] };
+				};
+			};
+			keys: {
+				/**
+				 * Route: GET /api/key-value/keys
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			seed: {
+				/**
+				 * Route: POST /api/key-value/seed
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		modelArena: {
+			/**
+			 * Route: GET /api/model-arena
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			stream: {
+				/**
+				 * Route: GET /api/model-arena/stream
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+		};
+		objectStorage: {
+			download: {
+				filename: {
+					/**
+					 * Route: GET /api/object-storage/download/:filename
+					 */
+					get: { input: never; output: never; type: 'api'; params: { filename: string }; paramsTuple: [string] };
+				};
+			};
+			/**
+			 * Route: GET /api/object-storage
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			list: {
+				/**
+				 * Route: GET /api/object-storage/list
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			presign: {
+				filename: {
+					/**
+					 * Route: POST /api/object-storage/presign/:filename
+					 */
+					post: { input: never; output: never; type: 'api'; params: { filename: string }; paramsTuple: [string] };
+				};
+			};
+			seed: {
+				/**
+				 * Route: POST /api/object-storage/seed
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		sandbox: {
+			run: {
+				/**
+				 * Route: GET /api/sandbox/run
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
 			};
 		};
 		sseStream: {
@@ -883,6 +1452,14 @@ const _rpcRouteMetadata = {
 						"post": {
 								"type": "api",
 								"path": "/api/object-storage/seed"
+						}
+				}
+		},
+		"sandbox": {
+				"run": {
+						"eventstream": {
+								"type": "sse",
+								"path": "/api/sandbox/run"
 						}
 				}
 		},

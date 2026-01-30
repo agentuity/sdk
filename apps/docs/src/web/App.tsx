@@ -1,10 +1,12 @@
 import { AgentuityProvider } from '@agentuity/react';
 import { BookOpenIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
-import { Component, type ReactNode, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { CODE_EXAMPLES } from './code-examples';
+import { TEST_OUTPUTS } from './test-outputs';
 import { AgentCallsDemo } from './components/AgentCallsDemo';
 import { AIGatewayDemo } from './components/AIGatewayDemo';
 import { ChatDemo } from './components/ChatDemo';
-import { CodeBlock } from './components/CodeBlock';
+import { CodeBlock, type LineHighlight } from './components/CodeBlock';
 import { CronDemo } from './components/CronDemo';
 import { EvalsDemo } from './components/EvalsDemo';
 import { HandlerContextDemo } from './components/HandlerContextDemo';
@@ -15,60 +17,10 @@ import { ObjectStoreDemo } from './components/ObjectStoreDemo';
 import { PersistentStreamDemo } from './components/PersistentStreamDemo';
 import { SSEStreamDemo } from './components/SSEStreamDemo';
 import { StreamingDemo } from './components/StreamingDemo';
+import { TerminalOutput } from './components/TerminalOutput';
 import { ThemeProvider } from './components/ThemeContext';
-import { ThemeToggle } from './components/ThemeToggle';
 import { VectorSearch } from './components/VectorSearch';
-
-// Error boundary to catch demo component crashes
-interface ErrorBoundaryProps {
-	children: React.ReactNode;
-	fallback?: React.ReactNode;
-}
-
-interface ErrorBoundaryState {
-	hasError: boolean;
-	error: Error | null;
-}
-
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-	constructor(props: ErrorBoundaryProps) {
-		super(props);
-		this.state = { hasError: false, error: null };
-	}
-
-	static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-		return { hasError: true, error };
-	}
-
-	handleReset = () => {
-		this.setState({ hasError: false, error: null });
-	};
-
-	override render(): ReactNode {
-		if (this.state.hasError) {
-			return (
-				this.props.fallback || (
-					<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
-						<h3 className="text-red-700 dark:text-red-400 font-medium mb-2">
-							Something went wrong
-						</h3>
-						<p className="text-red-600 dark:text-red-300 text-sm mb-4">
-							{this.state.error?.message || 'An error occurred while rendering this demo.'}
-						</p>
-						<button
-							type="button"
-							onClick={this.handleReset}
-							className="bg-red-600 hover:bg-red-500 text-white text-sm px-4 py-2 rounded cursor-pointer"
-						>
-							Try Again
-						</button>
-					</div>
-				)
-			);
-		}
-		return this.props.children;
-	}
-}
+import { useSandboxRunner } from './hooks/useSandboxRunner';
 
 // Demo IDs for navigation
 type DemoId =
@@ -98,506 +50,12 @@ interface DemoConfig {
 	category: 'basics' | 'services' | 'io-patterns' | 'examples';
 	component: React.ComponentType;
 	codeExample: string;
+	sandboxEnabled?: boolean; // Whether code can be run in a cloud sandbox
+	sandboxScript?: string; // Script name for sandbox execution (must match backend PREBAKED_SCRIPTS)
+	sandboxInput?: unknown; // Input to pass when running the agent in sandbox
+	codeHighlights?: LineHighlight[]; // Lines to highlight in the code example
+	isRoute?: boolean; // True if this is a route demo (not an agent)
 }
-
-// Code examples for each demo
-const CODE_EXAMPLES = {
-	hello: `import { createAgent } from "@agentuity/runtime";
-import { s } from "@agentuity/schema";
-
-// The simplest agent - receives a name, returns a greeting.
-// This demonstrates the minimal structure for an Agentuity agent.
-const agent = createAgent("hello", {
-  // Description shown in Workbench and agent registry
-  description: "Simple greeting agent",
-
-  // Schema defines input/output types - TypeScript infers handler types
-  schema: {
-    input: s.object({ name: s.string() }),
-    output: s.string(),
-  },
-
-  // Handler receives typed input based on schema
-  // _ctx provides logging, storage, thread state, etc.
-  handler: async (_ctx, { name }) => {
-    return \`Hello, \${name}! Welcome to Agentuity.\`;
-  },
-});
-
-export default agent;`,
-
-	'handler-context': `// AgentContext provides access to all SDK capabilities.
-// This shows the most commonly used properties and methods.
-
-handler: async (ctx, input) => {
-
-  /***************
-   * Identifiers *
-   ***************/
-
-  ctx.sessionId;      // Unique execution ID (sess_...)
-  ctx.thread.id;      // Thread ID for conversation continuity (thrd_...)
-
-  /***********
-   * Logging *
-   ***********/
-
-  ctx.logger.info("Processing request", { userId: input.userId });
-  ctx.logger.debug("Debug details", { threadId: ctx.thread.id });
-  ctx.logger.error("Something failed", { error: "message" });
-
-  /***********
-   * Storage *
-   ***********/
-
-  // Key-Value: fast ephemeral data (see KV Storage demo)
-  await ctx.kv.get("bucket", "key");
-  await ctx.kv.set("bucket", "key", { data: "value" }, { ttl: 3600 });
-
-  // Vector: semantic search (see Vector Search demo)
-  await ctx.vector.search("namespace", { query: "search text", limit: 5 });
-
-  /********************
-   * State Management *
-   ********************/
-
-  // Session state - resets each request
-  ctx.session.state.set("requestTime", Date.now());
-
-  // Thread state - persists across requests (1 hour, cookie-based)
-  const visits = ((await ctx.thread.state.get("visits")) as number) || 0;
-  await ctx.thread.state.set("visits", visits + 1);
-
-  /*******************
-   * Background Tasks *
-   *******************/
-
-  // Fire-and-forget: continues after response is sent
-  ctx.waitUntil(async () => {
-    await sendAnalytics();
-    await updateCache();
-  });
-}`,
-
-	'key-value': `// Key-Value storage for fast, ephemeral data.
-// Perfect for session state, caching, and temporary data.
-
-// Buckets are auto-created if they don't exist
-const bucket = "user-sessions";
-const key = \`session:\${userId}\`;
-
-// Store data with optional TTL
-await ctx.kv.set(bucket, key, {
-  visitorId: "abc-123",
-  lastActive: new Date().toISOString(),
-  preferences: { theme: "dark" },
-}, {
-  ttl: 3600, // Expires in 1 hour (minimum 60 seconds)
-});
-
-// Retrieve data - returns { exists, data } discriminated union
-const result = await ctx.kv.get(bucket, key);
-
-if (result.exists) {
-  ctx.logger.info("Session found", { data: result.data });
-} else {
-  ctx.logger.info("Session not found");
-}
-
-// Delete when done
-await ctx.kv.delete(bucket, key);
-
-// List all keys in a bucket
-const allKeys = await ctx.kv.getKeys(bucket);
-ctx.logger.info("Active sessions", { count: allKeys.length });`,
-
-	'vector-storage': `// Vector storage enables semantic search - find by meaning, not keywords.
-// Ideal for product search, RAG systems, and knowledge bases.
-
-// Namespaces are auto-created if they don't exist
-const namespace = "products";
-
-// Upsert: document text is converted to embeddings automatically
-await ctx.vector.upsert<ProductMetadata>(namespace, {
-  key: "chair-001",
-  // The document field is what gets searched semantically
-  document: "Ergonomic office chair with lumbar support and adjustable armrests",
-  // Metadata is returned with search results for display/filtering
-  metadata: {
-    sku: "chair-001",
-    name: "ErgoMax Pro",
-    price: 299,
-    description: "Premium ergonomic chair",
-  },
-});
-
-// Semantic search - "comfortable chair" matches "ergonomic" and "lumbar support"
-const results = await ctx.vector.search<ProductMetadata>(namespace, {
-  query: "comfortable chair for working from home",
-  limit: 3,         // Return top 3 matches
-  similarity: 0.3,  // Minimum similarity threshold (0-1)
-});
-
-// Results include similarity scores and metadata
-for (const result of results) {
-  ctx.logger.info("Match found", {
-    name: result.metadata?.name,
-    price: result.metadata?.price,
-    similarity: result.similarity.toFixed(2),
-  });
-}`,
-
-	'object-storage': `// Object storage for files, images, and binary data.
-// Uses Bun's native S3 API - credentials are auto-injected by Agentuity.
-import { s3 } from "bun";
-
-// Create a file reference
-const file = s3.file("documents/report.pdf");
-
-// Write content
-await file.write("Hello, World!");
-await file.write(jsonData, { type: "application/json" });
-
-// Read content
-const text = await file.text();
-const json = await file.json();
-const bytes = await file.bytes();
-
-// Check existence and delete
-if (await file.exists()) {
-  await file.delete();
-}`,
-
-	'sse-stream': `// Server-Sent Events (SSE) for real-time streaming to clients.
-// Perfect for LLM token streaming, progress updates, and live feeds.
-import { createRouter, sse } from "@agentuity/runtime";
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-
-const router = createRouter();
-
-// sse() middleware with flattened (c, stream) signature
-router.get("/stream", sse(async (c, stream) => {
-  const prompt = c.req.query("prompt") ?? "Tell me a story";
-
-  c.var.logger?.info("SSE stream started", { prompt });
-
-  const { textStream } = streamText({
-    model: openai("gpt-5-nano"),
-    prompt,
-  });
-
-  // Stream tokens as they arrive from the LLM
-  let tokenCount = 0;
-  for await (const chunk of textStream) {
-    await stream.writeSSE({
-      event: "token",      // Event type (client listens for this)
-      data: chunk,         // The actual content
-      id: String(tokenCount++),  // Optional: enables client reconnection
-    });
-  }
-
-  // Signal completion
-  await stream.writeSSE({
-    event: "done",
-    data: JSON.stringify({ totalTokens: tokenCount }),
-  });
-
-  // Stream closes automatically when handler returns
-}));`,
-
-	streaming: `// Raw streaming for simple text responses.
-// Simpler than SSE - just returns a ReadableStream directly.
-import { createRouter, stream } from "@agentuity/runtime";
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-
-const router = createRouter();
-
-// stream() middleware wraps your handler and pipes the ReadableStream
-// Clients consume with fetch + getReader()
-router.post("/stream", stream(async (c) => {
-  const { prompt } = await c.req.json();
-
-  c.var.logger?.info("Streaming started", { prompt });
-
-  const { textStream } = streamText({
-    model: openai("gpt-5-nano"),
-    prompt,
-  });
-
-  // Return the stream directly - Agentuity handles the response
-  return textStream;
-}));`,
-
-	'agent-calls': `// Agent invocation patterns using agent.run()
-// This pattern works identically from routes OR other agents.
-// Import agents and call them - fully type-safe.
-import textProcessor from "@agent/text-processor";
-
-/******************
- * Synchronous Call *
- ******************/
-
-// Wait for result - fully typed based on agent's schema
-const result = await textProcessor.run({
-  text: "Hello world",
-  operation: "clean",
-});
-ctx.logger.info("Cleaned text", { result });
-
-/*********************
- * Fire-and-Forget *
- *********************/
-
-// Background task - continues after response is sent
-ctx.waitUntil(async () => {
-  await textProcessor.run({ text, operation: "analyze" });
-  ctx.logger.info("Background analysis completed");
-});
-
-return { status: "accepted" }; // Returns immediately
-
-/******************
- * Chained Calls *
- ******************/
-
-// Pipeline: output of one agent feeds into the next
-const step1 = await textProcessor.run({ text, operation: "clean" });
-const step2 = await textProcessor.run({
-  text: step1.result,
-  operation: "analyze",
-});
-
-/*****************************
- * Agent-to-Agent (same pattern!) *
- *****************************/
-
-// In another agent's handler, the pattern is identical:
-// import otherAgent from "@agent/other-agent";
-// const result = await otherAgent.run({ ... });
-// The agent.run() API is the same whether called from
-// a route handler or from within another agent.`,
-
-	cron: `// Schedule tasks with the cron() middleware.
-// Platform triggers POST requests on your schedule.
-import { createRouter, cron } from "@agentuity/runtime";
-
-const router = createRouter();
-
-// Runs every hour at minute 0
-router.post("/hourly-task", cron("0 * * * *", async (c) => {
-  c.var.logger?.info("Hourly task running");
-
-  // Fetch data, update cache, send notifications, etc.
-  const data = await fetch("https://api.example.com/data")
-    .then(r => r.json());
-
-  await c.var.kv?.set("cache", "latest", data, { ttl: 3600 });
-
-  return c.json({ success: true, timestamp: new Date() });
-}));
-
-// Cron expressions: minute hour day month weekday
-// "* * * * *"     every minute
-// "0 * * * *"     every hour
-// "0 0 * * *"     daily at midnight
-// "0 9 * * 1"     Mondays at 9am`,
-
-	'durable-stream': `// Create durable content with shareable URLs.
-// Unlike ephemeral streams, content persists forever.
-import { createRouter } from "@agentuity/runtime";
-import { streamText } from "ai";
-
-const router = createRouter();
-
-router.post("/generate", async (c) => {
-  // Create stream - returns a public URL
-  const stream = await c.var.stream?.create("report", {
-    contentType: "text/plain",
-    metadata: { created: new Date().toISOString() },
-  });
-
-  // Write content in background
-  c.waitUntil(async () => {
-    const { textStream } = streamText({
-      model: openai("gpt-4"),
-      prompt: "Generate a weekly report...",
-    });
-
-    for await (const chunk of textStream) {
-      await stream.write(chunk);
-    }
-    await stream.close();
-  });
-
-  // Return URL immediately - shareable with anyone
-  return c.json({
-    url: stream.url,    // Public, permanent URL
-    id: stream.id,
-  });
-});
-
-// List all generated reports
-router.get("/list", async (c) => {
-  const { streams } = await c.var.stream?.list({ name: "report" });
-  return c.json(streams);
-});`,
-
-	chat: `// Multi-turn conversation using thread state for memory.
-// Thread state persists across requests (expires after 1 hour of inactivity).
-import { createAgent } from "@agentuity/runtime";
-import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-const MAX_MESSAGES = 50; // Sliding window for bounded memory
-
-const agent = createAgent("chat", {
-  handler: async (ctx, input) => {
-    // Get current messages (empty array if first request)
-    const messages = (await ctx.thread.state.get("messages")) as Message[] ?? [];
-    const turnCount = (await ctx.thread.state.get("turnCount")) as number ?? 0;
-
-    // Generate response with full conversation context
-    const { text } = await generateText({
-      model: openai("gpt-5-nano"),
-      system: "You are a helpful assistant.",
-      messages: [...messages, { role: "user", content: input.message }],
-    });
-
-    // Use push() with maxRecords for automatic sliding window
-    await ctx.thread.state.push("messages", { role: "user", content: input.message }, MAX_MESSAGES);
-    await ctx.thread.state.push("messages", { role: "assistant", content: text }, MAX_MESSAGES);
-    await ctx.thread.state.set("turnCount", turnCount + 1);
-
-    return { response: text };
-  },
-});`,
-
-	'model-arena': `// LLM-as-Judge: Have one model evaluate outputs from other models.
-// Pattern: Generate responses in parallel, then use generateObject()
-// to get structured evaluation with guaranteed schema compliance.
-import { anthropic } from "@ai-sdk/anthropic";
-import { openai } from "@ai-sdk/openai";
-import { groq } from "@ai-sdk/groq";
-import { generateText, generateObject } from "ai";
-import { z } from "zod";
-
-// Define evaluation criteria as a Zod schema
-// generateObject() guarantees the LLM returns exactly this shape
-const JudgmentSchema = z.object({
-  winner: z.enum(["model-a", "model-b"]),
-  reasoning: z.string(),
-  scores: z.object({
-    creativity: z.number().min(0).max(1),
-    clarity: z.number().min(0).max(1),
-  }),
-});
-
-// Generate competing responses in parallel
-const [responseA, responseB] = await Promise.all([
-  generateText({
-    model: openai("gpt-5-nano"),
-    prompt: userPrompt,
-  }),
-  generateText({
-    model: anthropic("claude-haiku-4-5"),
-    prompt: userPrompt,
-  }),
-]);
-
-// Use GPT-OSS via Groq for fast structured evaluation
-const { object: judgment } = await generateObject({
-  model: groq("openai/gpt-oss-120b"),
-  schema: JudgmentSchema,
-  prompt: \`Compare these responses and pick a winner:
-
-Model A: \${responseA.text}
-Model B: \${responseB.text}
-
-Score each on creativity and clarity (0-1).\`,
-});
-
-// TypeScript knows the exact shape (fully typed, no parsing needed)
-ctx.logger.info("Judge result", { winner: judgment.winner });
-ctx.logger.info("Scores", judgment.scores);`,
-
-	'ai-gateway': `// AI Gateway: One SDK key, any provider.
-// The Gateway handles authentication for all AI providers automatically.
-import { anthropic } from "@ai-sdk/anthropic";
-import { google } from "@ai-sdk/google";
-import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
-
-// Call OpenAI - no API key configuration needed
-const openaiResult = await generateText({
-  model: openai("gpt-5-nano"),
-  prompt: "Tell me a short story about AI",
-});
-
-// Call Anthropic - same simple pattern
-const claudeResult = await generateText({
-  model: anthropic("claude-haiku-4-5"),
-  prompt: "Tell me a short story about AI",
-});
-
-// Call Google - Gateway routes to the right provider
-const geminiResult = await generateText({
-  model: google("gemini-2.5-flash-lite"),
-  prompt: "Tell me a short story about AI",
-});
-
-// That's it! The Gateway:
-// - Routes requests to the correct provider
-// - Handles authentication automatically
-// - Tracks usage and costs in your dashboard`,
-
-	evals: `// Evals run automatically after your agent responds.
-// Define evaluations in a separate file alongside your agent.
-import { answerCompleteness } from "@agentuity/evals";
-import { generateObject } from "ai";
-import { z } from "zod";
-import agent, { PROMPT } from "./agent";
-
-// Preset eval: Answer Completeness (score 0-1)
-// Uses middleware to transform agent I/O to match eval format
-export const completenessEval = agent.createEval(
-  answerCompleteness({
-    middleware: {
-      transformInput: () => ({ request: PROMPT }),
-      transformOutput: (output) => ({ response: output.content }),
-    },
-  })
-);
-
-// Custom eval: Factual Claims (binary pass/fail)
-// Uses generateObject with Zod schema for structured output
-const FactualCheckSchema = z.object({
-  containsFactualClaims: z.boolean(),
-  reason: z.string(),
-});
-
-export const factualClaimsEval = agent.createEval("factual-claims", {
-  description: "Verifies the response contains factual claims",
-  handler: async (ctx, _input, output) => {
-    const { object: result } = await generateObject({
-      model: openai("gpt-5-nano"),
-      schema: FactualCheckSchema,
-      prompt: \`Does this text contain factual claims? "\${output.content}"\`,
-    });
-
-    return {
-      passed: result.containsFactualClaims,
-      reason: result.reason,
-    };
-  },
-});`,
-};
 
 const DEMOS: DemoConfig[] = [
 	// Basics - fundamental concepts
@@ -630,6 +88,9 @@ const DEMOS: DemoConfig[] = [
 		category: 'basics',
 		component: HelloDemo,
 		codeExample: CODE_EXAMPLES.hello,
+		sandboxEnabled: true,
+		sandboxScript: 'hello',
+		sandboxInput: { name: 'World' },
 	},
 	{
 		id: 'handler-context',
@@ -643,34 +104,17 @@ const DEMOS: DemoConfig[] = [
 				<span className="bg-cyan-50 dark:bg-zinc-800 px-1 rounded">
 					logging, storage access, session info, and more
 				</span>
-				. Think of it as your agent's toolbox. The context gives you access to{' '}
-				<a
-					href="?key-value"
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
-				>
-					KV
-				</a>
-				,{' '}
-				<a
-					href="?vector-storage"
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
-				>
-					Vector
-				</a>
-				, and{' '}
-				<a
-					href="?object-storage"
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
-				>
-					Object
-				</a>{' '}
-				storage, thread state for conversations, and background task scheduling.
+				. Think of it as your agent's toolbox. Click the buttons below to see live responses
+				from the API routes. The reference code on the right shows a simplified standalone
+				example you can run in the sandbox.
 			</>
 		),
 		docsUrl: 'https://agentuity.dev/Reference/sdk-reference#context-api',
 		category: 'basics',
 		component: HandlerContextDemo,
 		codeExample: CODE_EXAMPLES['handler-context'],
+		sandboxEnabled: true,
+		sandboxScript: 'handler-context',
 	},
 	// Services - storage and AI gateway
 	{
@@ -701,6 +145,8 @@ const DEMOS: DemoConfig[] = [
 		category: 'services',
 		component: KVExplorer,
 		codeExample: CODE_EXAMPLES['key-value'],
+		sandboxEnabled: true,
+		sandboxScript: 'kv',
 	},
 	{
 		id: 'vector-storage',
@@ -734,6 +180,13 @@ const DEMOS: DemoConfig[] = [
 		category: 'services',
 		component: VectorSearch,
 		codeExample: CODE_EXAMPLES['vector-storage'],
+		sandboxEnabled: true,
+		sandboxScript: 'vector',
+		sandboxInput: { query: 'comfortable chair' },
+		codeHighlights: [
+			{ lines: 16, className: 'important' }, // document field - what gets searched
+			{ lines: [21, 22], className: 'important' }, // search call with query
+		],
 	},
 	{
 		id: 'object-storage',
@@ -763,6 +216,8 @@ const DEMOS: DemoConfig[] = [
 		category: 'services',
 		component: ObjectStoreDemo,
 		codeExample: CODE_EXAMPLES['object-storage'],
+		sandboxEnabled: true,
+		sandboxScript: 'objectstore',
 	},
 	{
 		id: 'ai-gateway',
@@ -784,6 +239,9 @@ const DEMOS: DemoConfig[] = [
 		category: 'services',
 		component: AIGatewayDemo,
 		codeExample: CODE_EXAMPLES['ai-gateway'],
+		sandboxEnabled: true,
+		sandboxScript: 'ai-gateway',
+		sandboxInput: { prompt: 'Explain AI agents in 1 sentence.' },
 	},
 	// I/O Patterns - streaming and real-time
 	{
@@ -814,6 +272,10 @@ const DEMOS: DemoConfig[] = [
 		category: 'io-patterns',
 		component: StreamingDemo,
 		codeExample: CODE_EXAMPLES.streaming,
+		sandboxEnabled: true,
+		sandboxScript: 'streaming',
+		sandboxInput: { prompt: 'Write a short poem about AI.' },
+		isRoute: true,
 	},
 	{
 		id: 'sse-stream',
@@ -842,6 +304,10 @@ const DEMOS: DemoConfig[] = [
 		category: 'io-patterns',
 		component: SSEStreamDemo,
 		codeExample: CODE_EXAMPLES['sse-stream'],
+		sandboxEnabled: true,
+		sandboxScript: 'sse-stream',
+		sandboxInput: { prompt: 'Explain what Server-Sent Events are in 2-3 sentences.' },
+		isRoute: true,
 	},
 	{
 		id: 'durable-stream',
@@ -871,6 +337,9 @@ const DEMOS: DemoConfig[] = [
 		category: 'io-patterns',
 		component: PersistentStreamDemo,
 		codeExample: CODE_EXAMPLES['durable-stream'],
+		sandboxEnabled: true,
+		sandboxScript: 'durable-stream',
+		isRoute: true,
 	},
 	{
 		id: 'agent-calls',
@@ -893,6 +362,9 @@ const DEMOS: DemoConfig[] = [
 		category: 'io-patterns',
 		component: AgentCallsDemo,
 		codeExample: CODE_EXAMPLES['agent-calls'],
+		sandboxEnabled: true,
+		sandboxScript: 'agent-calls',
+		sandboxInput: { name: 'Explorer' },
 	},
 	{
 		id: 'cron',
@@ -923,6 +395,9 @@ const DEMOS: DemoConfig[] = [
 		category: 'io-patterns',
 		component: CronDemo,
 		codeExample: CODE_EXAMPLES.cron,
+		sandboxEnabled: true,
+		sandboxScript: 'cron',
+		isRoute: true,
 	},
 	// Examples - complete use cases
 	{
@@ -952,6 +427,9 @@ const DEMOS: DemoConfig[] = [
 		category: 'examples',
 		component: ChatDemo,
 		codeExample: CODE_EXAMPLES.chat,
+		sandboxEnabled: true,
+		sandboxScript: 'chat',
+		sandboxInput: { message: 'What is Agentuity?' },
 	},
 	{
 		id: 'model-arena',
@@ -976,10 +454,13 @@ const DEMOS: DemoConfig[] = [
 				prompts.
 			</>
 		),
-		docsUrl: 'https://agentuity.dev/Agents/schema-libraries',
+		docsUrl: 'https://agentuity.dev/Agents/ai-gateway',
 		category: 'examples',
 		component: ModelArena,
 		codeExample: CODE_EXAMPLES['model-arena'],
+		sandboxEnabled: true,
+		sandboxScript: 'model-arena',
+		sandboxInput: { prompt: 'Write a creative one-liner about programming.' },
 	},
 	{
 		id: 'evals',
@@ -1003,6 +484,9 @@ const DEMOS: DemoConfig[] = [
 		category: 'examples',
 		component: EvalsDemo,
 		codeExample: CODE_EXAMPLES.evals,
+		sandboxEnabled: true,
+		sandboxScript: 'evals',
+		sandboxInput: { question: 'What is Agentuity and what are its main features?' },
 	},
 ];
 
@@ -1060,16 +544,6 @@ function LandingPage({ onSelectDemo }: { onSelectDemo: (id: DemoId) => void }) {
 
 	return (
 		<div className="max-w-6xl mx-auto px-6 py-12">
-			{/* Header */}
-			<header className="flex items-center gap-4 mb-12">
-				<AgentuityLogo className="h-10 w-auto" />
-				<div className="flex-1">
-					<h1 className="text-3xl font-thin text-zinc-900 dark:text-white">SDK Explorer</h1>
-					<p className="text-zinc-500 text-sm">Agentuity v1 SDK</p>
-				</div>
-				<ThemeToggle />
-			</header>
-
 			{/* Basics Section */}
 			<section className="mb-12">
 				<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-6">Basics</h2>
@@ -1116,8 +590,35 @@ function LandingPage({ onSelectDemo }: { onSelectDemo: (id: DemoId) => void }) {
 }
 
 // Demo view with split layout: demo on left, code on right
+// Toggle TEST_MODE to preview terminal UI without running sandbox
+const TEST_MODE = false;
+
 function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 	const DemoComponent = demo.component;
+	const sandbox = useSandboxRunner();
+
+	// In test mode, show test output immediately on mount
+	const testOutput =
+		TEST_MODE && demo.sandboxScript ? (TEST_OUTPUTS[demo.sandboxScript] ?? null) : null;
+
+	const handleRun = useCallback(() => {
+		if (!TEST_MODE && demo.sandboxScript) {
+			sandbox.run(demo.sandboxScript, demo.sandboxInput);
+		}
+	}, [demo.sandboxScript, demo.sandboxInput, sandbox.run]);
+
+	// Reset sandbox state when navigating away
+	useEffect(() => {
+		return () => {
+			sandbox.reset();
+		};
+	}, [sandbox.reset]);
+
+	const isRunning = sandbox.state.status === 'creating' || sandbox.state.status === 'running';
+
+	// Use test output if in test mode, otherwise use real sandbox output
+	const output = testOutput ?? sandbox.state.output;
+	const status = testOutput ? 'completed' : sandbox.state.status;
 
 	return (
 		<div className="min-h-screen flex flex-col">
@@ -1131,7 +632,6 @@ function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 					<ChevronLeftIcon className="w-4 h-4 mr-1.5" />
 					<span>Back to Explorer</span>
 				</button>
-				<ThemeToggle />
 			</header>
 
 			{/* Split layout: top/bottom on mobile, left/right on desktop */}
@@ -1146,15 +646,21 @@ function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 								{demo.title}
 							</h2>
 							{demo.docsUrl && (
-								<a
-									href={demo.docsUrl}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex items-center gap-1.5 text-zinc-500 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors"
+								<button
+									type="button"
+									onClick={() => {
+										// Ask parent to navigate via postMessage
+										const url = demo.docsUrl as string;
+										const path = url.startsWith('http')
+											? new URL(url).pathname + new URL(url).hash
+											: url;
+										window.parent.postMessage({ type: 'NAVIGATE', path }, '*');
+									}}
+									className="flex items-center gap-1.5 text-zinc-500 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors cursor-pointer"
 								>
 									<BookOpenIcon className="w-5 h-5" />
 									<span className="text-sm">Docs</span>
-								</a>
+								</button>
 							)}
 						</div>
 						{/* Description body */}
@@ -1166,14 +672,37 @@ function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 					</div>
 
 					{/* Interactive demo component */}
-					<ErrorBoundary>
-						<DemoComponent />
-					</ErrorBoundary>
+					<DemoComponent />
 				</div>
 
 				{/* Bottom (mobile) / Right (desktop): Code example */}
-				<div className="flex-1 lg:h-full overflow-auto p-4 min-w-0">
-					<CodeBlock code={demo.codeExample} title="Example Code" />
+				<div className="flex-1 lg:h-full overflow-auto p-4 min-w-0 flex flex-col gap-4">
+					{demo.sandboxEnabled ? (
+						<>
+							<CodeBlock
+								code={demo.codeExample}
+								title="Reference Code"
+								showRunButton
+								onRun={handleRun}
+								isRunning={isRunning}
+								highlights={demo.codeHighlights}
+							/>
+							<TerminalOutput
+								output={output}
+								status={status}
+								error={sandbox.state.error}
+								exitCode={testOutput ? 0 : sandbox.state.exitCode}
+								onClear={sandbox.reset}
+								isRoute={demo.isRoute}
+							/>
+						</>
+					) : (
+						<CodeBlock
+							code={demo.codeExample}
+							title="Reference Code"
+							highlights={demo.codeHighlights}
+						/>
+					)}
 				</div>
 			</div>
 		</div>

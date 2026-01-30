@@ -1,3 +1,4 @@
+import { CodeBracketIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { JsonDisplay } from './JsonDisplay';
 
@@ -13,32 +14,85 @@ const endpoints = [
 		id: 'session',
 		label: 'Session',
 		description: 'Session & thread IDs, state',
+		explanation: (
+			<>
+				Access per-request state via <code>ctx.session.state</code> and the unique session ID
+				via <code>ctx.session.id</code>. State resets after each request.
+			</>
+		),
+		codeHint: 'ctx.session',
 	},
 	{
 		id: 'services',
 		label: 'Services',
 		description: 'Available storage & observability',
+		explanation: (
+			<>
+				Check which services are available: <code>ctx.kv</code>, <code>ctx.vector</code>,{' '}
+				<code>ctx.logger</code>, <code>ctx.tracer</code>. All are initialized automatically.
+			</>
+		),
+		codeHint: 'ctx.kv, ctx.vector, ctx.logger',
 	},
-	{ id: 'agents', label: 'Agents', description: 'Agent registry info' },
+	{
+		id: 'agents',
+		label: 'Agents',
+		description: 'Agent registry info',
+		explanation: (
+			<>
+				List all registered agents and invoke them with <code>agent.run(input)</code>. Both
+				routes and agents can call <i>other</i> agents for complex workflows.
+			</>
+		),
+		codeHint: 'ctx.agents',
+	},
 	{
 		id: 'state',
 		label: 'State',
 		description: 'State management (call multiple times!)',
+		explanation: (
+			<>
+				Thread state persists across requests (via cookies). Use <code>ctx.thread.state</code>{' '}
+				to store conversation history or user preferences.
+			</>
+		),
+		codeHint: 'ctx.thread.state',
 	},
 	{
 		id: 'full',
 		label: 'Full Context',
 		description: 'Complete context dump from route',
+		explanation: (
+			<>
+				Direct access to the full context object showing session, thread, and all available
+				properties.
+			</>
+		),
+		codeHint: 'ctx',
 	},
 	{
 		id: 'logger',
 		label: 'Logger',
 		description: 'Log at different levels (check console)',
+		explanation: (
+			<>
+				Structured logging with <code>ctx.logger.info()</code>, <code>.warn()</code>,{' '}
+				<code>.error()</code>, <code>.trace()</code>. Logs appear in the Agentuity console.
+			</>
+		),
+		codeHint: 'ctx.logger.info()',
 	},
 	{
 		id: 'background',
 		label: 'Background',
 		description: 'waitUntil demo (5s delay in logs)',
+		explanation: (
+			<>
+				Run tasks after the response is sent with <code>ctx.waitUntil(promise)</code>. Perfect
+				for analytics, cleanup, or slow operations.
+			</>
+		),
+		codeHint: 'ctx.waitUntil()',
 	},
 ];
 
@@ -179,6 +233,32 @@ export function HandlerContextDemo() {
 					))}
 				</div>
 			</div>
+
+			{/* Explanation for selected endpoint */}
+			{lastEndpoint && (() => {
+				const selectedEndpoint = endpoints.find((ep) => ep.id === lastEndpoint);
+				return (
+					<div className="bg-cyan-50/50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-900 rounded-lg p-4">
+						<div className="flex items-center justify-between mb-2">
+							<code className="text-cyan-700 dark:text-cyan-400 font-mono text-sm">
+								{selectedEndpoint?.codeHint}
+							</code>
+							<a
+								href="https://github.com/agentuity/sdk/blob/main/apps/docs/src/agent/context/agent.ts"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-xs text-zinc-500 hover:text-cyan-600 dark:hover:text-cyan-400 flex items-center gap-1"
+							>
+								<CodeBracketIcon className="w-3.5 h-3.5" />
+								View Code
+							</a>
+						</div>
+						<p className="text-zinc-600 dark:text-zinc-400 text-sm">
+							{selectedEndpoint?.explanation}
+						</p>
+					</div>
+				);
+			})()}
 
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
 				<h3 className="text-zinc-600 dark:text-zinc-400 text-sm font-normal m-0 mb-4">
