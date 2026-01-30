@@ -36,6 +36,19 @@ export interface JSONSchema {
 	anyOf?: JSONSchema[];
 	oneOf?: JSONSchema[];
 	allOf?: JSONSchema[];
+	additionalProperties?: JSONSchema | boolean;
+}
+
+/**
+ * Options for toJSONSchema conversion.
+ */
+export interface ToJSONSchemaOptions {
+	/**
+	 * When true, adds `additionalProperties: false` to all object schemas.
+	 * Required for LLM structured output compatibility (OpenAI, Groq, etc.).
+	 * @default false
+	 */
+	strict?: boolean;
 }
 
 /**
@@ -43,6 +56,7 @@ export interface JSONSchema {
  * Supports primitives, objects, arrays, unions, literals, optional, and nullable types.
  *
  * @param schema - The schema to convert
+ * @param options - Conversion options
  * @returns JSON Schema object
  *
  * @example
@@ -54,9 +68,13 @@ export interface JSONSchema {
  *
  * const jsonSchema = s.toJSONSchema(userSchema);
  * // { type: 'object', properties: {...}, required: [...] }
+ *
+ * // For LLM structured output compatibility (OpenAI, Groq, etc.):
+ * const strictSchema = s.toJSONSchema(userSchema, { strict: true });
+ * // { type: 'object', properties: {...}, required: [...], additionalProperties: false }
  * ```
  */
-export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
+export function toJSONSchema(schema: Schema<any, any>, options?: ToJSONSchemaOptions): JSONSchema {
 	const result: JSONSchema = {};
 
 	// Add description if available
@@ -113,7 +131,7 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 		result.required = [];
 
 		for (const [key, fieldSchema] of Object.entries(shape) as Array<[string, Schema<any, any>]>) {
-			result.properties[key] = toJSONSchema(fieldSchema);
+			result.properties[key] = toJSONSchema(fieldSchema, options);
 
 			// If the field is not optional, add it to required
 			if (!isSchemaType(fieldSchema, 'OptionalSchema')) {
@@ -126,6 +144,10 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 			delete result.required;
 		}
 
+		if (options?.strict) {
+			result.additionalProperties = false;
+		}
+
 		return result;
 	}
 
@@ -133,14 +155,14 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 	if (isSchemaType(schema, 'ArraySchema')) {
 		result.type = 'array';
 		const itemSchema = (schema as any).itemSchema;
-		result.items = toJSONSchema(itemSchema);
+		result.items = toJSONSchema(itemSchema, options);
 		return result;
 	}
 
 	// Optional types
 	if (isSchemaType(schema, 'OptionalSchema')) {
 		const innerSchema = (schema as any).schema;
-		const innerJSON = toJSONSchema(innerSchema);
+		const innerJSON = toJSONSchema(innerSchema, options);
 		// Optional is typically handled at the object level via required array
 		return innerJSON;
 	}
@@ -148,7 +170,7 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 	// Nullable types
 	if (isSchemaType(schema, 'NullableSchema')) {
 		const innerSchema = (schema as any).schema;
-		const innerJSON = toJSONSchema(innerSchema);
+		const innerJSON = toJSONSchema(innerSchema, options);
 		// Nullable can be represented as anyOf with null
 		return {
 			anyOf: [innerJSON, { type: 'null' }],
@@ -159,7 +181,7 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 	// Union types
 	if (isSchemaType(schema, 'UnionSchema')) {
 		const schemas = (schema as any).schemas as Schema<any, any>[];
-		result.anyOf = schemas.map((schema) => toJSONSchema(schema));
+		result.anyOf = schemas.map((schema) => toJSONSchema(schema, options));
 		return result;
 	}
 
@@ -169,7 +191,7 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 		// Record schemas have additionalProperties
 		const valueSchema = (schema as any).valueSchema;
 		if (valueSchema) {
-			(result as any).additionalProperties = toJSONSchema(valueSchema);
+			(result as any).additionalProperties = toJSONSchema(valueSchema, options);
 		}
 		return result;
 	}
