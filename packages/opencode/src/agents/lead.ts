@@ -882,10 +882,9 @@ agentuity cloud queue publish agentuity-cadence-work '{
 }'
 \`\`\`
 
-Check on child teams:
+Check on child teams by querying KV state directly:
 \`\`\`bash
-agentuity ai cadence list
-agentuity ai cadence status lp_child
+agentuity cloud kv get agentuity-opencode-tasks "loop:lp_child:state" --json
 \`\`\`
 
 ### Context Management
