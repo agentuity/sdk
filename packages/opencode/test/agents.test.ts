@@ -3,14 +3,17 @@ import { agents, getAgentByRole, getAgentById } from '../src/agents';
 
 describe('Agents', () => {
 	describe('agent definitions', () => {
-		it('exports all 6 agents', () => {
-			expect(Object.keys(agents)).toHaveLength(6);
+		it('exports all 9 agents', () => {
+			expect(Object.keys(agents)).toHaveLength(9);
 			expect(agents.lead).toBeDefined();
 			expect(agents.scout).toBeDefined();
 			expect(agents.builder).toBeDefined();
+			expect(agents.architect).toBeDefined();
 			expect(agents.reviewer).toBeDefined();
 			expect(agents.memory).toBeDefined();
 			expect(agents.expert).toBeDefined();
+			expect(agents.planner).toBeDefined();
+			expect(agents.runner).toBeDefined();
 		});
 
 		it('each agent has required properties', () => {
@@ -42,9 +45,12 @@ describe('Agents', () => {
 			expect(getAgentByRole('lead')?.id).toBe('ag-lead');
 			expect(getAgentByRole('scout')?.id).toBe('ag-scout');
 			expect(getAgentByRole('builder')?.id).toBe('ag-builder');
+			expect(getAgentByRole('architect')?.id).toBe('ag-architect');
 			expect(getAgentByRole('reviewer')?.id).toBe('ag-reviewer');
 			expect(getAgentByRole('memory')?.id).toBe('ag-memory');
 			expect(getAgentByRole('expert')?.id).toBe('ag-expert');
+			expect(getAgentByRole('planner')?.id).toBe('ag-planner');
+			expect(getAgentByRole('runner')?.id).toBe('ag-runner');
 		});
 	});
 
@@ -53,9 +59,12 @@ describe('Agents', () => {
 			expect(getAgentById('ag-lead')?.role).toBe('lead');
 			expect(getAgentById('ag-scout')?.role).toBe('scout');
 			expect(getAgentById('ag-builder')?.role).toBe('builder');
+			expect(getAgentById('ag-architect')?.role).toBe('architect');
 			expect(getAgentById('ag-reviewer')?.role).toBe('reviewer');
 			expect(getAgentById('ag-memory')?.role).toBe('memory');
 			expect(getAgentById('ag-expert')?.role).toBe('expert');
+			expect(getAgentById('ag-planner')?.role).toBe('planner');
+			expect(getAgentById('ag-runner')?.role).toBe('runner');
 		});
 
 		it('returns undefined for unknown id', () => {
@@ -84,6 +93,39 @@ describe('Agents', () => {
 		it('Memory agent cannot write files', () => {
 			expect(agents.memory.tools?.exclude).toContain('write');
 			expect(agents.memory.tools?.exclude).toContain('edit');
+		});
+
+		it('Planner agent is read-only with high reasoning', () => {
+			expect(agents.planner.tools?.exclude).toContain('write');
+			expect(agents.planner.tools?.exclude).toContain('edit');
+			expect(agents.planner.tools?.exclude).toContain('bash');
+			expect(agents.planner.reasoningEffort).toBe('xhigh');
+			expect(agents.planner.temperature).toBe(0.1);
+		});
+
+		it('Architect agent has GPT Codex with xhigh reasoning', () => {
+			const architect = agents.architect;
+			expect(architect.defaultModel).toBe('openai/gpt-5.2-codex');
+			expect(architect.reasoningEffort).toBe('xhigh');
+			expect(architect.temperature).toBe(0.1);
+			expect(architect.systemPrompt).toContain('Cadence');
+		});
+
+		it('Builder and Architect have different default models', () => {
+			expect(agents.builder.defaultModel).not.toBe(agents.architect.defaultModel);
+			expect(agents.builder.defaultModel).toContain('anthropic/');
+			expect(agents.architect.defaultModel).toContain('openai/');
+		});
+
+		it('Runner agent is read-only and fast', () => {
+			expect(agents.runner.tools?.exclude).toContain('write');
+			expect(agents.runner.tools?.exclude).toContain('edit');
+			expect(agents.runner.tools?.exclude).toContain('task');
+			expect(agents.runner.defaultModel).toBe('anthropic/claude-haiku-4-5-20251001');
+			expect(agents.runner.temperature).toBe(0.1);
+			expect(agents.runner.systemPrompt).toContain('lint');
+			expect(agents.runner.systemPrompt).toContain('build');
+			expect(agents.runner.systemPrompt).toContain('test');
 		});
 	});
 });
