@@ -1,5 +1,7 @@
 import type { PluginInput, Hooks } from '@opencode-ai/plugin';
+import { tool } from '@opencode-ai/plugin';
 import type { AgentConfig, CommandDefinition } from '../types';
+import { loadAllSkills, type LoadedSkill } from '../skills';
 import { agents } from '../agents';
 import { loadCoderConfig, getDefaultConfig, mergeConfig, validateAndWarnConfigs } from '../config';
 import { createSessionHooks } from './hooks/session';
@@ -10,6 +12,8 @@ import { createCadenceHooks } from './hooks/cadence';
 import { createSessionMemoryHooks } from './hooks/session-memory';
 import { z } from 'zod';
 import type { AgentRole } from '../types';
+import { BackgroundManager } from '../background';
+import { TmuxSessionManager } from '../tmux';
 
 // Agent display names for @mentions
 const AGENT_MENTIONS: Record<AgentRole, string> = {
@@ -40,6 +44,30 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
 	const paramsHooks = createParamsHooks(ctx, coderConfig);
 	const cadenceHooks = createCadenceHooks(ctx, coderConfig);
+	const tmuxManager = coderConfig.tmux?.enabled
+		? new TmuxSessionManager(ctx, coderConfig.tmux, {
+				onLog: (message) =>
+					ctx.client.app.log({
+						body: {
+							service: 'agentuity-coder',
+							level: 'info',
+							message,
+						},
+					}),
+			})
+		: undefined;
+	const backgroundManager = new BackgroundManager(ctx, coderConfig.background, {
+		onSubagentSessionCreated: tmuxManager
+			? (event) => {
+					void tmuxManager.onSessionCreated(event);
+				}
+			: undefined,
+		onSubagentSessionDeleted: tmuxManager
+			? (event) => {
+					void tmuxManager.onSessionDeleted(event);
+				}
+			: undefined,
+	});
 
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
 	// Orchestration (deciding which module handles which session) happens below in the hooks
@@ -47,12 +75,10 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 
 	const configHandler = createConfigHandler(coderConfig);
 
-	// Get the tool helper from Open Code context if available
-	const toolHelper = (ctx as { tool?: unknown }).tool as
-		| ((schema: (s: typeof z) => unknown) => unknown)
-		| undefined;
+	// Create plugin tools using the @opencode-ai/plugin tool helper
+	const tools = createTools(backgroundManager);
 
-	const tools = toolHelper ? createTools(toolHelper) : undefined;
+	registerShutdownHandler(backgroundManager, tmuxManager);
 
 	// Show startup toast (fire and forget, don't block)
 	try {
@@ -75,6 +101,10 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
 		event: async (input) => {
+			const event = extractEventFromInput(input);
+			if (event) {
+				backgroundManager.handleEvent(event);
+			}
 			// Orchestrate: route to appropriate module based on session type
 			const sessionId = extractSessionIdFromEvent(input);
 			if (sessionId && cadenceHooks.isActiveCadenceSession(sessionId)) {
@@ -103,6 +133,8 @@ function createConfigHandler(
 	return async (config: Record<string, unknown>) => {
 		const agentConfigs = createAgentConfigs(coderConfig);
 		const commands = createCommands();
+		const loadedSkills = await loadAllSkills(coderConfig.skills);
+		const skillCommands = createSkillCommands(loadedSkills);
 
 		// Merge agent configs: our defaults first, then user's opencode.json overrides on top
 		// This allows users to customize any agent via their opencode.json
@@ -133,6 +165,7 @@ function createConfigHandler(
 		config.command = {
 			...(config.command as Record<string, CommandDefinition> | undefined),
 			...commands,
+			...skillCommands,
 		};
 	};
 }
@@ -357,8 +390,45 @@ $ARGUMENTS
 	};
 }
 
-function createTools(tool: (schema: (s: typeof z) => unknown) => unknown): Hooks['tool'] {
-	const coderDelegate = tool((s) => ({
+function createSkillCommands(skills: LoadedSkill[]): Record<string, CommandDefinition> {
+	const commands: Record<string, CommandDefinition> = {};
+
+	for (const skill of skills) {
+		const baseDir = normalizeBaseDir(skill.resolvedPath);
+		commands[skill.name] = {
+			name: skill.name,
+			description: skill.metadata.description,
+			template: `<skill-instruction>
+Base directory for this skill: ${baseDir}/
+File references (@path) in this skill are relative to this directory.
+
+${skill.content}
+</skill-instruction>
+
+<user-request>
+$ARGUMENTS
+</user-request>`,
+			...(skill.metadata.agent ? { agent: skill.metadata.agent } : {}),
+			...(skill.metadata.model ? { model: skill.metadata.model } : {}),
+			...(skill.metadata['argument-hint']
+				? { argumentHint: skill.metadata['argument-hint'] }
+				: {}),
+			...(skill.metadata.subtask ? { subtask: true } : {}),
+		};
+	}
+
+	return commands;
+}
+
+function normalizeBaseDir(path: string): string {
+	return path.replace(/[\\/]+$/, '');
+}
+
+function createTools(backgroundManager: BackgroundManager): Hooks['tool'] {
+	// Use the schema from @opencode-ai/plugin's tool helper to avoid Zod version mismatches
+	const s = tool.schema;
+
+	const coderDelegate = tool({
 		description: `Delegate a task to a specialized Agentuity Coder agent.
 
 Use this to:
@@ -369,30 +439,119 @@ Use this to:
 - Memory: Store context, remember decisions across sessions
 - Expert: Get help with Agentuity CLI and cloud services
 - Planner: Strategic advisor for complex architecture and deep planning (read-only)`,
-		args: s.object({
+		args: {
 			agent: s
 				.enum(['scout', 'builder', 'sr-builder', 'reviewer', 'memory', 'expert', 'planner'])
 				.describe('Which agent to delegate to'),
 			task: s.string().describe('Clear description of the task'),
 			context: s.string().optional().describe('Additional context from previous tasks'),
-		}),
-		execute: async (args: { agent: AgentRole; task: string; context?: string }) => {
-			const mention = AGENT_MENTIONS[args.agent];
+		},
+		async execute(args) {
+			const mention = AGENT_MENTIONS[args.agent as AgentRole];
 			let prompt = `${mention}\n\n## Task\n${args.task}`;
 			if (args.context) {
 				prompt = `${mention}\n\n## Context\n${args.context}\n\n## Task\n${args.task}`;
 			}
-			return {
-				output: `To delegate this task, use the Task tool with this prompt:\n\n${prompt}\n\nThe ${args.agent} agent will handle this task.`,
-			};
+			return `To delegate this task, use the Task tool with this prompt:\n\n${prompt}\n\nThe ${args.agent} agent will handle this task.`;
 		},
-	}));
+	});
 
-	// Type assertion needed because the tool() helper returns unknown
-	// but the runtime type is correct (it's created by OpenCode's tool helper)
+	const backgroundTask = tool({
+		description: `Launch a task to run in the background. Use this for parallel execution of multiple independent tasks.
+
+IMPORTANT: Use this tool instead of the 'task' tool when:
+- You need to run multiple agents in parallel
+- Tasks are independent and don't need sequential execution
+- The user asks for "parallel", "background", or "concurrent" work`,
+		args: {
+			agent: s
+				.enum([
+					'lead',
+					'scout',
+					'builder',
+					'sr-builder',
+					'reviewer',
+					'memory',
+					'expert',
+					'planner',
+				])
+				.describe('Agent role to run the task'),
+			task: s.string().describe('Task prompt to run in the background'),
+			description: s.string().optional().describe('Short description of the task'),
+		},
+		async execute(args, context) {
+			const parentSessionId = context.sessionID;
+			if (!parentSessionId) {
+				return JSON.stringify({
+					taskId: 'unknown',
+					status: 'error',
+					message: 'Missing session context for background task.',
+				});
+			}
+
+			const agentName = resolveAgentName(args.agent as AgentRole);
+			const bgTask = await backgroundManager.launch({
+				description: args.description ?? args.task,
+				prompt: args.task,
+				agent: agentName,
+				parentSessionId,
+				parentMessageId: context.messageID,
+			});
+			return JSON.stringify({
+				taskId: bgTask.id,
+				status: bgTask.status,
+				message:
+					bgTask.status === 'error'
+						? (bgTask.error ?? 'Failed to launch background task.')
+						: 'Background task launched.',
+			});
+		},
+	});
+
+	const backgroundOutput = tool({
+		description: 'Retrieve output for a background task.',
+		args: {
+			task_id: s.string().describe('Background task ID'),
+		},
+		async execute(args) {
+			const bgTask = backgroundManager.getTask(args.task_id);
+			if (!bgTask) {
+				return JSON.stringify({
+					taskId: args.task_id,
+					status: 'error',
+					error: 'Task not found.',
+				});
+			}
+			return JSON.stringify({
+				taskId: bgTask.id,
+				status: bgTask.status,
+				result: bgTask.result,
+				error: bgTask.error,
+			});
+		},
+	});
+
+	const backgroundCancel = tool({
+		description: 'Cancel a running background task.',
+		args: {
+			task_id: s.string().describe('Background task ID'),
+		},
+		async execute(args) {
+			const success = backgroundManager.cancel(args.task_id);
+			return JSON.stringify({
+				taskId: args.task_id,
+				success,
+				message: success ? 'Background task cancelled.' : 'Unable to cancel task.',
+			});
+		},
+	});
+
 	return {
 		coder_delegate: coderDelegate,
-	} as Hooks['tool'];
+		background_task: backgroundTask,
+		background_output: backgroundOutput,
+		background_cancel: backgroundCancel,
+	};
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -409,4 +568,36 @@ function extractSessionIdFromEvent(input: unknown): string | undefined {
 		(inp.event.properties.sessionId as string | undefined) ??
 		(inp.event.properties.sessionID as string | undefined)
 	);
+}
+
+function resolveAgentName(role: AgentRole): string {
+	const agent = agents[role];
+	return agent?.displayName ?? role;
+}
+
+function extractEventFromInput(
+	input: unknown
+): { type: string; properties?: Record<string, unknown> } | undefined {
+	if (typeof input !== 'object' || input === null) return undefined;
+	const inp = input as { event?: { type?: string; properties?: Record<string, unknown> } };
+	if (!inp.event || typeof inp.event.type !== 'string') return undefined;
+	return { type: inp.event.type, properties: inp.event.properties };
+}
+
+function registerShutdownHandler(
+	manager: BackgroundManager,
+	tmuxManager?: TmuxSessionManager
+): void {
+	if (typeof process === 'undefined') return;
+	const shutdown = () => {
+		manager.shutdown();
+		if (tmuxManager) {
+			// Use sync version to ensure cleanup completes before process exits
+			tmuxManager.cleanupSync();
+		}
+	};
+	process.once('beforeExit', shutdown);
+	process.once('SIGINT', shutdown);
+	process.once('SIGTERM', shutdown);
+	process.once('exit', shutdown); // Also handle exit event for extra safety
 }

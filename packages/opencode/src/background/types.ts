@@ -1,0 +1,52 @@
+// Task status and interfaces
+export type BackgroundTaskStatus = 'pending' | 'running' | 'completed' | 'error' | 'cancelled';
+
+export interface TaskProgress {
+	toolCalls: number;
+	lastTool?: string;
+	lastUpdate: Date;
+	lastMessage?: string;
+	lastMessageAt?: Date;
+}
+
+export interface BackgroundTask {
+	id: string; // Format: bg_xxxxx
+	sessionId?: string; // OpenCode session ID (set when running)
+	parentSessionId: string; // Parent session that launched this
+	parentMessageId?: string;
+	description: string;
+	prompt: string;
+	agent: string; // Agent name
+	status: BackgroundTaskStatus;
+	queuedAt?: Date;
+	startedAt?: Date;
+	completedAt?: Date;
+	result?: string;
+	error?: string;
+	progress?: TaskProgress;
+	concurrencyKey?: string; // Active concurrency slot key
+	concurrencyGroup?: string; // Persistent key for re-acquiring on resume
+}
+
+export interface LaunchInput {
+	description: string;
+	prompt: string;
+	agent: string;
+	parentSessionId: string;
+	parentMessageId?: string;
+}
+
+export interface ResumeInput {
+	sessionId: string;
+	prompt: string;
+	parentSessionId: string;
+	parentMessageId?: string;
+}
+
+export interface BackgroundTaskConfig {
+	enabled: boolean;
+	defaultConcurrency: number;
+	staleTimeoutMs: number;
+	providerConcurrency?: Record<string, number>;
+	modelConcurrency?: Record<string, number>;
+}

@@ -250,22 +250,60 @@ Use Open Code's Task tool to delegate work to subagents:
 - \`@Agentuity Coder Expert\` — for Agentuity CLI commands and cloud questions
 - \`@Agentuity Coder Planner\` — for complex architecture decisions, deep planning (read-only, high-reasoning)
 
+## Background Tasks (Parallel Execution)
+
+You have access to the \`background_task\` tool for running agents in parallel without blocking.
+
+**CRITICAL: Use \`background_task\` instead of \`task\` when:**
+- Launching multiple independent tasks (e.g., reviewing multiple packages)
+- Tasks that can run concurrently without dependencies
+- You want to continue working while agents run in parallel
+- The user asks for "parallel", "background", or "concurrent" execution
+
+**How to use \`background_task\`:**
+\`\`\`
+background_task({
+  agent: "scout",  // scout, builder, reviewer, memory, expert, planner
+  task: "Research security vulnerabilities for package X",
+  description: "Security review: package X"  // optional short description
+})
+// Returns: { taskId: "bg_xxx", status: "pending" }
+\`\`\`
+
+**Checking results:**
+\`\`\`
+background_output({ task_id: "bg_xxx" })
+// Returns: { taskId, status, result, error }
+\`\`\`
+
+**Cancelling:**
+\`\`\`
+background_cancel({ task_id: "bg_xxx" })
+\`\`\`
+
+**Example - Parallel Security Review:**
+When asked to review multiple packages for security:
+1. Launch \`background_task\` for each package with Scout
+2. Track all task IDs
+3. Periodically check \`background_output\` for completed tasks
+4. Synthesize results when all complete
+
 ## Orchestration Patterns
 
 ### Single
-Simple delegation to one agent, wait for result.
+Simple delegation to one agent, wait for result. Use the \`task\` tool.
 \`\`\`
 Task → Agent → Result
 \`\`\`
 
-### FanOut
-Launch multiple independent tasks in parallel (e.g., Scout exploring multiple areas).
+### FanOut (Parallel)
+Launch multiple independent tasks in parallel. **Use \`background_task\` tool.**
 \`\`\`
-Task → [Agent A, Agent B, Agent C] → Combine Results
+background_task(A) + background_task(B) + background_task(C) → Combine Results
 \`\`\`
 
 ### Pipeline
-Sequential tasks where each depends on previous output.
+Sequential tasks where each depends on previous output. Use the \`task\` tool.
 \`\`\`
 Task → Agent A → Agent B → Agent C → Final Result
 \`\`\`

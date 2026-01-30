@@ -13,6 +13,7 @@ export type {
 	AgentContext,
 	CoderTask,
 	CoderConfig,
+	BackgroundTaskConfig,
 	McpConfig,
 	TaskStatus,
 } from './types';

@@ -1,17 +1,37 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { YAML } from 'bun';
-import type { CoderConfig } from '../types';
+import type { CoderConfig, SkillsConfig } from '../types';
+import type { BackgroundTaskConfig } from '../background/types';
 import { CoderConfigSchema } from '../types';
+import type { TmuxConfig } from '../tmux/types';
+import { MIN_PANE_WIDTH } from '../tmux/types';
 
 const CONFIG_DIR = join(homedir(), '.config', 'agentuity');
 const DEFAULT_PROFILE = 'production.yaml';
+
+interface CLICoderConfig {
+	tmux?: {
+		enabled?: boolean;
+		maxPanes?: number;
+		mainPaneMinWidth?: number;
+		agentPaneMinWidth?: number;
+	};
+	background?: {
+		enabled?: boolean;
+		defaultConcurrency?: number;
+		staleTimeoutMs?: number;
+		providerConcurrency?: Record<string, number>;
+		modelConcurrency?: Record<string, number>;
+	};
+}
 
 interface CLIConfig {
 	name?: string;
 	preferences?: {
 		orgId?: string;
 	};
+	coder?: CLICoderConfig;
 }
 
 async function getProfilePath(): Promise<string> {
@@ -73,10 +93,28 @@ export async function loadCoderConfig(): Promise<CoderConfig> {
 		const content = await configFile.text();
 		const cliConfig = YAML.parse(content) as CLIConfig;
 
-		// Only extract orgId from CLI config
+		// Extract orgId from CLI config preferences
+		// Extract coder settings (tmux, background) from CLI config coder section
 		// Agent model overrides should be done via opencode.json
 		const coderConfig: CoderConfig = {
 			org: cliConfig.preferences?.orgId,
+			tmux: cliConfig.coder?.tmux
+				? {
+						enabled: cliConfig.coder.tmux.enabled ?? false,
+						maxPanes: cliConfig.coder.tmux.maxPanes ?? 4,
+						mainPaneMinWidth: cliConfig.coder.tmux.mainPaneMinWidth ?? 100,
+						agentPaneMinWidth: cliConfig.coder.tmux.agentPaneMinWidth ?? MIN_PANE_WIDTH,
+					}
+				: undefined,
+			background: cliConfig.coder?.background
+				? {
+						enabled: cliConfig.coder.background.enabled ?? true,
+						defaultConcurrency: cliConfig.coder.background.defaultConcurrency ?? 1,
+						staleTimeoutMs: cliConfig.coder.background.staleTimeoutMs ?? 30 * 60 * 1000,
+						providerConcurrency: cliConfig.coder.background.providerConcurrency,
+						modelConcurrency: cliConfig.coder.background.modelConcurrency,
+					}
+				: undefined,
 		};
 
 		const result = CoderConfigSchema.safeParse(coderConfig);
@@ -101,6 +139,27 @@ const DEFAULT_BLOCKED_COMMANDS = [
 	'auth token', // Don't leak auth tokens
 ];
 
+const DEFAULT_BACKGROUND_CONFIG: BackgroundTaskConfig = {
+	enabled: true,
+	defaultConcurrency: 1,
+	staleTimeoutMs: 30 * 60 * 1000,
+	providerConcurrency: {},
+	modelConcurrency: {},
+};
+
+const DEFAULT_SKILLS_CONFIG: SkillsConfig = {
+	enabled: true,
+	paths: [],
+	disabled: [],
+};
+
+const DEFAULT_TMUX_CONFIG: TmuxConfig = {
+	enabled: false,
+	maxPanes: 4,
+	mainPaneMinWidth: 100,
+	agentPaneMinWidth: MIN_PANE_WIDTH,
+};
+
 /**
  * Get default configuration.
  *
@@ -111,6 +170,9 @@ export function getDefaultConfig(): CoderConfig {
 	return {
 		disabledMcps: [],
 		blockedCommands: DEFAULT_BLOCKED_COMMANDS,
+		background: DEFAULT_BACKGROUND_CONFIG,
+		skills: DEFAULT_SKILLS_CONFIG,
+		tmux: DEFAULT_TMUX_CONFIG,
 	};
 }
 
@@ -119,5 +181,49 @@ export function mergeConfig(base: CoderConfig, override: CoderConfig): CoderConf
 		org: override.org ?? base.org,
 		disabledMcps: override.disabledMcps ?? base.disabledMcps,
 		blockedCommands: override.blockedCommands ?? base.blockedCommands,
+		background: mergeBackgroundConfig(base.background, override.background),
+		skills: mergeSkillsConfig(base.skills, override.skills),
+		tmux: mergeTmuxConfig(base.tmux, override.tmux),
+	};
+}
+
+function mergeBackgroundConfig(
+	base?: BackgroundTaskConfig,
+	override?: BackgroundTaskConfig
+): BackgroundTaskConfig | undefined {
+	if (!base && !override) return undefined;
+	return {
+		enabled: override?.enabled ?? base?.enabled ?? true,
+		defaultConcurrency: override?.defaultConcurrency ?? base?.defaultConcurrency ?? 1,
+		staleTimeoutMs: override?.staleTimeoutMs ?? base?.staleTimeoutMs ?? 30 * 60 * 1000,
+		providerConcurrency: {
+			...(base?.providerConcurrency ?? {}),
+			...(override?.providerConcurrency ?? {}),
+		},
+		modelConcurrency: {
+			...(base?.modelConcurrency ?? {}),
+			...(override?.modelConcurrency ?? {}),
+		},
+	};
+}
+
+function mergeSkillsConfig(base?: SkillsConfig, override?: SkillsConfig): SkillsConfig | undefined {
+	if (!base && !override) return undefined;
+	const paths = new Set([...(base?.paths ?? []), ...(override?.paths ?? [])]);
+	const disabled = new Set([...(base?.disabled ?? []), ...(override?.disabled ?? [])]);
+	return {
+		enabled: override?.enabled ?? base?.enabled ?? true,
+		paths: paths.size > 0 ? Array.from(paths) : undefined,
+		disabled: disabled.size > 0 ? Array.from(disabled) : undefined,
+	};
+}
+
+function mergeTmuxConfig(base?: TmuxConfig, override?: TmuxConfig): TmuxConfig | undefined {
+	if (!base && !override) return undefined;
+	return {
+		enabled: override?.enabled ?? base?.enabled ?? false,
+		maxPanes: override?.maxPanes ?? base?.maxPanes ?? 4,
+		mainPaneMinWidth: override?.mainPaneMinWidth ?? base?.mainPaneMinWidth ?? 100,
+		agentPaneMinWidth: override?.agentPaneMinWidth ?? base?.agentPaneMinWidth ?? MIN_PANE_WIDTH,
 	};
 }
