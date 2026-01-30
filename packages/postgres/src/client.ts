@@ -526,7 +526,12 @@ export class PostgresClient {
 
 		// If preconnect is in progress, wait for it
 		if (this._connectPromise) {
-			await this._connectPromise;
+			try {
+				await this._connectPromise;
+			} catch (err) {
+				this._connectPromise = null;
+				throw err;
+			}
 			this._connectPromise = null;
 		}
 
@@ -564,7 +569,12 @@ export class PostgresClient {
 			try {
 				// Wait for preconnect if in progress
 				if (this._connectPromise) {
-					await this._connectPromise;
+					try {
+						await this._connectPromise;
+					} catch (err) {
+						this._connectPromise = null;
+						throw err;
+					}
 					this._connectPromise = null;
 				}
 
@@ -632,7 +642,12 @@ export class PostgresClient {
 		const connectOperation = async () => {
 			// Wait for preconnect if in progress
 			if (this._connectPromise) {
-				await this._connectPromise;
+				try {
+					await this._connectPromise;
+				} catch (err) {
+					this._connectPromise = null;
+					throw err;
+				}
 				this._connectPromise = null;
 			}
 

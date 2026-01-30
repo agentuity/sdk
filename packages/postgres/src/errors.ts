@@ -38,7 +38,7 @@ export const QueryTimeoutError = StructuredError('QueryTimeoutError', 'Query tim
  * Error thrown when a transaction fails.
  */
 export const TransactionError = StructuredError('TransactionError')<{
-	phase?: 'begin' | 'commit' | 'rollback' | 'savepoint';
+	phase?: 'begin' | 'commit' | 'rollback' | 'savepoint' | 'query';
 }>();
 
 /**

@@ -120,11 +120,18 @@ export async function shutdownAll(timeoutMs?: number): Promise<void> {
 	});
 
 	// Wait for all to close, with optional timeout
-	if (timeoutMs) {
+	if (timeoutMs !== undefined) {
+		let timer: ReturnType<typeof setTimeout> | undefined;
 		const timeout = new Promise<void>((resolve) => {
-			setTimeout(resolve, timeoutMs);
+			timer = setTimeout(resolve, timeoutMs);
 		});
-		await Promise.race([Promise.all(closePromises), timeout]);
+		try {
+			await Promise.race([Promise.all(closePromises), timeout]);
+		} finally {
+			if (timer !== undefined) {
+				clearTimeout(timer);
+			}
+		}
 	} else {
 		await Promise.all(closePromises);
 	}
