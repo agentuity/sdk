@@ -1,6 +1,6 @@
 {
 	"name": "docs",
-	"version": "0.1.40",
+	"version": "0.1.41",
 	"license": "Apache-2.0",
 	"private": true,
 	"module": ".agentuity/app.js",
