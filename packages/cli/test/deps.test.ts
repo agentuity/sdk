@@ -1,5 +1,14 @@
 import { describe, test, expect } from 'bun:test';
-import { parseBunPmLsOutput, type PackageRef } from '../src/utils/deps';
+import {
+	parseBunPmLsOutput,
+	parseBunLockFile,
+	resolveAliases,
+	type PackageRef,
+	type AliasMap,
+} from '../src/utils/deps';
+import { createMockLogger } from '@agentuity/test-utils';
+
+const mockLogger = createMockLogger();
 
 describe('deps', () => {
 	describe('parseBunPmLsOutput', () => {
@@ -191,6 +200,273 @@ describe('deps', () => {
 			expect(result.length).toBe(1001); // project + 1000 packages
 			expect(result).toContainEqual({ name: 'package-0', version: '0.0.0' });
 			expect(result).toContainEqual({ name: 'package-999', version: '999.0.0' });
+		});
+	});
+
+	describe('parseBunLockFile', () => {
+		test('parses valid bun.lock with packages', () => {
+			const content = JSON.stringify({
+				lockfileVersion: 1,
+				packages: {
+					lodash: ['lodash@4.17.21', '', {}, 'sha512-...'],
+					express: ['express@4.18.2', '', {}, 'sha512-...'],
+				},
+			});
+
+			const result = parseBunLockFile(content);
+
+			expect(result).not.toBeNull();
+			expect(result?.lockfileVersion).toBe(1);
+			expect(result?.packages).toBeDefined();
+			expect(result?.packages?.lodash).toBeDefined();
+			expect(result?.packages?.express).toBeDefined();
+		});
+
+		test('parses bun.lock with npm aliases', () => {
+			const content = JSON.stringify({
+				lockfileVersion: 1,
+				packages: {
+					'tailwind-merge-v2': ['tailwind-merge@2.6.0', '', {}, 'sha512-...'],
+					'tailwind-merge-v3': ['tailwind-merge@3.0.1', '', {}, 'sha512-...'],
+					lodash: ['lodash@4.17.21', '', {}, 'sha512-...'],
+				},
+			});
+
+			const result = parseBunLockFile(content);
+
+			expect(result).not.toBeNull();
+			expect(result?.packages?.['tailwind-merge-v2']?.[0]).toBe('tailwind-merge@2.6.0');
+			expect(result?.packages?.['tailwind-merge-v3']?.[0]).toBe('tailwind-merge@3.0.1');
+		});
+
+		test('returns null for invalid JSON', () => {
+			const content = 'not valid json {{{';
+			const result = parseBunLockFile(content);
+			expect(result).toBeNull();
+		});
+
+		test('returns null for empty string', () => {
+			const result = parseBunLockFile('');
+			expect(result).toBeNull();
+		});
+
+		test('handles bun.lock without packages field', () => {
+			const content = JSON.stringify({
+				lockfileVersion: 1,
+			});
+
+			const result = parseBunLockFile(content);
+
+			expect(result).not.toBeNull();
+			expect(result?.packages).toBeUndefined();
+		});
+
+		test('handles bun.lock with trailing commas (JSONC format)', () => {
+			// Real bun.lock files use JSONC format with trailing commas
+			const content = `{
+  "lockfileVersion": 1,
+  "packages": {
+    "lodash": ["lodash@4.17.21", "", {}, "sha512-..."],
+    "tailwind-merge-v2": ["tailwind-merge@2.6.0", "", {}, "sha512-..."],
+  },
+}`;
+
+			const result = parseBunLockFile(content);
+
+			expect(result).not.toBeNull();
+			expect(result?.lockfileVersion).toBe(1);
+			expect(result?.packages?.lodash).toBeDefined();
+			expect(result?.packages?.['tailwind-merge-v2']?.[0]).toBe('tailwind-merge@2.6.0');
+		});
+
+		test('handles complex bun.lock with nested trailing commas', () => {
+			const content = `{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "lodash": "4.17.21",
+        "tailwind-merge-v2": "npm:tailwind-merge@2.6.0",
+      },
+    },
+  },
+  "packages": {
+    "lodash": ["lodash@4.17.21", "", {}, "sha512-..."],
+    "tailwind-merge-v2": ["tailwind-merge@2.6.0", "", {}, "sha512-..."],
+  },
+}`;
+
+			const result = parseBunLockFile(content);
+
+			expect(result).not.toBeNull();
+			expect(result?.packages?.lodash).toBeDefined();
+			expect(result?.packages?.['tailwind-merge-v2']).toBeDefined();
+		});
+	});
+
+	describe('resolveAliases', () => {
+		test('resolves simple npm alias to actual package name', () => {
+			const packages: PackageRef[] = [
+				{ name: 'tailwind-merge-v2', version: '2.6.0' },
+				{ name: 'lodash', version: '4.17.21' },
+			];
+
+			const aliasMap: AliasMap = new Map([
+				['tailwind-merge-v2@2.6.0', { name: 'tailwind-merge', version: '2.6.0' }],
+			]);
+
+			const result = resolveAliases(packages, aliasMap, mockLogger);
+
+			expect(result).toContainEqual({ name: 'tailwind-merge', version: '2.6.0' });
+			expect(result).toContainEqual({ name: 'lodash', version: '4.17.21' });
+			expect(result.find((p) => p.name === 'tailwind-merge-v2')).toBeUndefined();
+		});
+
+		test('resolves multiple npm aliases', () => {
+			const packages: PackageRef[] = [
+				{ name: 'tailwind-merge-v2', version: '2.6.0' },
+				{ name: 'tailwind-merge-v3', version: '3.0.1' },
+				{ name: 'lodash', version: '4.17.21' },
+			];
+
+			const aliasMap: AliasMap = new Map([
+				['tailwind-merge-v2@2.6.0', { name: 'tailwind-merge', version: '2.6.0' }],
+				['tailwind-merge-v3@3.0.1', { name: 'tailwind-merge', version: '3.0.1' }],
+			]);
+
+			const result = resolveAliases(packages, aliasMap, mockLogger);
+
+			expect(result).toContainEqual({ name: 'tailwind-merge', version: '2.6.0' });
+			expect(result).toContainEqual({ name: 'tailwind-merge', version: '3.0.1' });
+			expect(result).toContainEqual({ name: 'lodash', version: '4.17.21' });
+			expect(result.find((p) => p.name === 'tailwind-merge-v2')).toBeUndefined();
+			expect(result.find((p) => p.name === 'tailwind-merge-v3')).toBeUndefined();
+		});
+
+		test('keeps non-aliased packages unchanged', () => {
+			const packages: PackageRef[] = [
+				{ name: 'lodash', version: '4.17.21' },
+				{ name: 'express', version: '4.18.2' },
+			];
+
+			const aliasMap: AliasMap = new Map();
+
+			const result = resolveAliases(packages, aliasMap, mockLogger);
+
+			expect(result).toEqual(packages);
+		});
+
+		test('handles scoped package aliases', () => {
+			const packages: PackageRef[] = [
+				{ name: '@my-alias/utils', version: '1.0.0' },
+				{ name: 'lodash', version: '4.17.21' },
+			];
+
+			const aliasMap: AliasMap = new Map([
+				['@my-alias/utils@1.0.0', { name: '@actual/utils', version: '1.0.0' }],
+			]);
+
+			const result = resolveAliases(packages, aliasMap, mockLogger);
+
+			expect(result).toContainEqual({ name: '@actual/utils', version: '1.0.0' });
+			expect(result).toContainEqual({ name: 'lodash', version: '4.17.21' });
+			expect(result.find((p) => p.name === '@my-alias/utils')).toBeUndefined();
+		});
+
+		test('deduplicates when alias resolves to existing package', () => {
+			const packages: PackageRef[] = [
+				{ name: 'tailwind-merge-v2', version: '2.6.0' },
+				{ name: 'tailwind-merge', version: '2.6.0' }, // Already have the actual package
+			];
+
+			const aliasMap: AliasMap = new Map([
+				['tailwind-merge-v2@2.6.0', { name: 'tailwind-merge', version: '2.6.0' }],
+			]);
+
+			const result = resolveAliases(packages, aliasMap, mockLogger);
+
+			const tailwindMergeEntries = result.filter((p) => p.name === 'tailwind-merge');
+			expect(tailwindMergeEntries.length).toBe(1);
+			expect(tailwindMergeEntries[0]).toEqual({ name: 'tailwind-merge', version: '2.6.0' });
+		});
+
+		test('handles empty package list', () => {
+			const packages: PackageRef[] = [];
+			const aliasMap: AliasMap = new Map([
+				['tailwind-merge-v2@2.6.0', { name: 'tailwind-merge', version: '2.6.0' }],
+			]);
+
+			const result = resolveAliases(packages, aliasMap, mockLogger);
+
+			expect(result).toEqual([]);
+		});
+
+		test('handles empty alias map', () => {
+			const packages: PackageRef[] = [
+				{ name: 'lodash', version: '4.17.21' },
+				{ name: 'express', version: '4.18.2' },
+			];
+
+			const aliasMap: AliasMap = new Map();
+
+			const result = resolveAliases(packages, aliasMap, mockLogger);
+
+			expect(result).toEqual(packages);
+		});
+	});
+
+	describe('npm alias scenarios (issue #805)', () => {
+		test('flowbite-react tailwind-merge aliases are resolved correctly', () => {
+			// This is the exact scenario from the issue
+			const packages: PackageRef[] = [
+				{ name: 'flowbite-react', version: '0.12.16' },
+				{ name: 'tailwind-merge-v2', version: '2.6.0' },
+				{ name: 'tailwind-merge-v3', version: '3.0.1' },
+				{ name: 'react', version: '18.2.0' },
+			];
+
+			const aliasMap: AliasMap = new Map([
+				['tailwind-merge-v2@2.6.0', { name: 'tailwind-merge', version: '2.6.0' }],
+				['tailwind-merge-v3@3.0.1', { name: 'tailwind-merge', version: '3.0.1' }],
+			]);
+
+			const result = resolveAliases(packages, aliasMap, mockLogger);
+
+			// Should have tailwind-merge (both versions), flowbite-react, and react
+			expect(result).toContainEqual({ name: 'tailwind-merge', version: '2.6.0' });
+			expect(result).toContainEqual({ name: 'tailwind-merge', version: '3.0.1' });
+			expect(result).toContainEqual({ name: 'flowbite-react', version: '0.12.16' });
+			expect(result).toContainEqual({ name: 'react', version: '18.2.0' });
+
+			// Should NOT have the alias names
+			expect(result.find((p) => p.name === 'tailwind-merge-v2')).toBeUndefined();
+			expect(result.find((p) => p.name === 'tailwind-merge-v3')).toBeUndefined();
+		});
+
+		test('string-width-cjs alias pattern is resolved correctly', () => {
+			// Another common npm alias pattern from @isaacs/cliui
+			const packages: PackageRef[] = [
+				{ name: 'string-width-cjs', version: '4.2.3' },
+				{ name: 'strip-ansi-cjs', version: '6.0.1' },
+				{ name: 'wrap-ansi-cjs', version: '7.0.0' },
+			];
+
+			const aliasMap: AliasMap = new Map([
+				['string-width-cjs@4.2.3', { name: 'string-width', version: '4.2.3' }],
+				['strip-ansi-cjs@6.0.1', { name: 'strip-ansi', version: '6.0.1' }],
+				['wrap-ansi-cjs@7.0.0', { name: 'wrap-ansi', version: '7.0.0' }],
+			]);
+
+			const result = resolveAliases(packages, aliasMap, mockLogger);
+
+			expect(result).toContainEqual({ name: 'string-width', version: '4.2.3' });
+			expect(result).toContainEqual({ name: 'strip-ansi', version: '6.0.1' });
+			expect(result).toContainEqual({ name: 'wrap-ansi', version: '7.0.0' });
+
+			// Should NOT have the alias names
+			expect(result.find((p) => p.name === 'string-width-cjs')).toBeUndefined();
+			expect(result.find((p) => p.name === 'strip-ansi-cjs')).toBeUndefined();
+			expect(result.find((p) => p.name === 'wrap-ansi-cjs')).toBeUndefined();
 		});
 	});
 });
