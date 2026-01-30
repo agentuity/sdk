@@ -197,6 +197,9 @@ export class PostgresClient {
 		// Execute BEGIN
 		const connection = await sql.unsafe(beginStatement);
 
+		// Mark as connected since we successfully executed a statement
+		this._connected = true;
+
 		return new Transaction(sql, connection);
 	}
 
