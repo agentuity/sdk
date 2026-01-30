@@ -2,6 +2,7 @@ import { SQL as BunSQL, type SQLQuery, type SQL } from 'bun';
 import type { PostgresConfig, ConnectionStats, TransactionOptions, ReserveOptions } from './types';
 import {
 	ConnectionClosedError,
+	PostgresError,
 	ReconnectFailedError,
 	QueryTimeoutError,
 	UnsupportedOperationError,
@@ -173,7 +174,9 @@ export class PostgresClient {
 	 * ```
 	 */
 	async begin(options?: TransactionOptions): Promise<Transaction> {
-		const sql = this._ensureConnected();
+		// Use async ensure to wait for connection/reconnect completion
+		// This ensures _warmConnection() updates connection stats before we proceed
+		const sql = await this._ensureConnectedAsync();
 
 		// Build BEGIN statement with options
 		let beginStatement = 'BEGIN';
@@ -196,9 +199,6 @@ export class PostgresClient {
 
 		// Execute BEGIN
 		const connection = await sql.unsafe(beginStatement);
-
-		// Mark as connected since we successfully executed a statement
-		this._connected = true;
 
 		return new Transaction(sql, connection);
 	}
@@ -477,7 +477,12 @@ export class PostgresClient {
 				this._config.onreconnected?.();
 				return;
 			} catch (error) {
-				lastError = error instanceof Error ? error : new Error(String(error));
+				lastError =
+					error instanceof Error
+						? error
+						: new PostgresError({
+								message: String(error),
+							});
 				this._stats.failedReconnects++;
 				attempt++;
 			}
@@ -487,12 +492,15 @@ export class PostgresClient {
 		this._reconnecting = false;
 		this._reconnectPromise = null;
 
-		const finalError = new ReconnectFailedError({
-			attempts: attempt,
-			lastError,
-		});
+		// Only invoke callback if not explicitly closed/shutdown to avoid noisy/misleading callbacks
+		if (!this._closed && !this._shuttingDown) {
+			const finalError = new ReconnectFailedError({
+				attempts: attempt,
+				lastError,
+			});
 
-		this._config.onreconnectfailed?.(finalError);
+			this._config.onreconnectfailed?.(finalError);
+		}
 	}
 
 	/**
