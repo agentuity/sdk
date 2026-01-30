@@ -462,7 +462,7 @@ Agents spawn in a dedicated "Agents" window with a tiled grid layout:
 
 With `maxPanes: 6`, agents arrange in a tiled grid:
 
-```
+```text
 ┌─────────┬─────────┬─────────┐
 │ Scout 1 │ Scout 2 │ Builder │
 ├─────────┼─────────┼─────────┤

@@ -1,6 +1,18 @@
 import type { PaneAction, WindowState, TmuxConfig } from './types';
 import { runTmuxCommand, runTmuxCommandSync } from './utils';
 
+/**
+ * Escape a string for safe use in shell commands.
+ * Wraps in single quotes and escapes any internal single quotes.
+ */
+function shellEscape(str: string): string {
+	// Replace single quotes with '\'' (end quote, escaped quote, start quote)
+	return `'${str.replace(/'/g, "'\\''")}'`;
+}
+
+/** Maximum retries for recursive spawn attempts to prevent infinite loops */
+const MAX_SPAWN_RETRIES = 3;
+
 export interface ActionResult {
 	success: boolean;
 	paneId?: string;
@@ -81,7 +93,10 @@ async function replacePane(
 	ctx: { serverUrl: string }
 ): Promise<ActionResult> {
 	// Pane kills itself when opencode attach exits (for any reason)
-	const command = `opencode attach ${ctx.serverUrl} --session ${action.newSessionId}; tmux kill-pane`;
+	// Use shellEscape to prevent shell injection via session IDs
+	const escapedServerUrl = shellEscape(ctx.serverUrl);
+	const escapedSessionId = shellEscape(action.newSessionId);
+	const command = `opencode attach ${escapedServerUrl} --session ${escapedSessionId}; tmux kill-pane`;
 	const result = await runTmuxCommand(['respawn-pane', '-k', '-t', action.paneId, command]);
 	if (!result.success) {
 		return { success: false, error: result.output };
@@ -98,13 +113,27 @@ async function replacePane(
  *
  * This keeps the main pane untouched while grouping all agent panes together.
  * Tip: Click a pane to select it, then press Ctrl-b z to zoom/unzoom.
+ *
+ * @param retryCount - Internal counter to prevent infinite recursion (default 0)
  */
 async function spawnInAgentsWindow(
 	action: Extract<PaneAction, { type: 'spawn' }>,
-	ctx: { serverUrl: string }
+	ctx: { serverUrl: string },
+	retryCount = 0
 ): Promise<ActionResult> {
+	// Prevent infinite recursion if tmux keeps failing
+	if (retryCount >= MAX_SPAWN_RETRIES) {
+		return {
+			success: false,
+			error: `Failed to spawn agent pane after ${MAX_SPAWN_RETRIES} attempts`,
+		};
+	}
+
 	// Pane kills itself when opencode attach exits (session complete, server died, etc.)
-	const command = `opencode attach ${ctx.serverUrl} --session ${action.sessionId}; tmux kill-pane`;
+	// Use shellEscape to prevent shell injection via session IDs
+	const escapedServerUrl = shellEscape(ctx.serverUrl);
+	const escapedSessionId = shellEscape(action.sessionId);
+	const command = `opencode attach ${escapedServerUrl} --session ${escapedSessionId}; tmux kill-pane`;
 	const layout = 'tiled'; // Always use tiled layout for grid arrangement
 
 	// Check if we have a cached agents window ID and if it still exists
@@ -164,15 +193,16 @@ async function spawnInAgentsWindow(
 	]);
 
 	if (!listResult.success || !listResult.output) {
-		// Fallback: create new window
+		// Fallback: create new window (with retry counter)
 		agentsWindowId = undefined;
-		return spawnInAgentsWindow(action, ctx);
+		return spawnInAgentsWindow(action, ctx, retryCount + 1);
 	}
 
 	const targetPaneId = listResult.output.split('\n')[0]?.trim();
 	if (!targetPaneId) {
+		// Fallback: create new window (with retry counter)
 		agentsWindowId = undefined;
-		return spawnInAgentsWindow(action, ctx);
+		return spawnInAgentsWindow(action, ctx, retryCount + 1);
 	}
 
 	// Split within the agents window

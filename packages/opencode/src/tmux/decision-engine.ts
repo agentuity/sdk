@@ -92,8 +92,8 @@ export function decideSpawnActions(
 		} else {
 			// Find a remaining pane to split (not the one being closed)
 			const remainingPanes = state.agentPanes.filter((p) => p.paneId !== oldestMapping.paneId);
-			if (remainingPanes.length > 0) {
-				const targetPane = pickBestSplitPane(remainingPanes);
+			const targetPane = pickBestSplitPane(remainingPanes);
+			if (targetPane) {
 				const splitDirection = chooseSplitDirection(targetPane, config.agentPaneMinWidth);
 				actions.push({
 					type: 'spawn',
@@ -137,6 +137,9 @@ export function decideSpawnActions(
 	}
 
 	const targetPane = pickBestSplitPane(state.agentPanes);
+	if (!targetPane) {
+		return { canSpawn: false, actions: [], reason: 'No suitable pane to split.' };
+	}
 	const splitDirection = chooseSplitDirection(targetPane, config.agentPaneMinWidth);
 	if (!canSplitPane(targetPane, splitDirection, config.agentPaneMinWidth)) {
 		return { canSpawn: false, actions: [], reason: 'No suitable pane to split.' };
@@ -174,7 +177,12 @@ export function calculateCapacity(
 	};
 }
 
-function pickBestSplitPane(panes: WindowState['agentPanes']): WindowState['agentPanes'][number] {
+function pickBestSplitPane(
+	panes: WindowState['agentPanes']
+): WindowState['agentPanes'][number] | undefined {
+	if (panes.length === 0) {
+		return undefined;
+	}
 	return panes.reduce((best, pane) => {
 		const bestArea = best.width * best.height;
 		const area = pane.width * pane.height;

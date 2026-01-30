@@ -169,7 +169,7 @@ function createConfigHandler(
 		const userAgentConfigs = config.agent as Record<string, AgentConfig> | undefined;
 		const mergedAgents: Record<string, AgentConfig> = { ...agentConfigs };
 
-		// Deep merge user overrides on top of our defaults
+		// Shallow merge user overrides on top of our defaults (nested objects like tools are replaced, not merged)
 		if (userAgentConfigs) {
 			for (const [name, userConfig] of Object.entries(userAgentConfigs)) {
 				if (mergedAgents[name]) {
@@ -492,7 +492,16 @@ Use this to:
 - Planner: Strategic advisor for complex architecture and deep planning (read-only)`,
 		args: {
 			agent: s
-				.enum(['scout', 'builder', 'sr-builder', 'reviewer', 'memory', 'expert', 'planner'])
+				.enum([
+					'scout',
+					'builder',
+					'sr-builder',
+					'reviewer',
+					'memory',
+					'expert',
+					'planner',
+					'runner',
+				])
 				.describe('Which agent to delegate to'),
 			task: s.string().describe('Clear description of the task'),
 			context: s.string().optional().describe('Additional context from previous tasks'),
@@ -525,6 +534,7 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'memory',
 					'expert',
 					'planner',
+					'runner',
 				])
 				.describe('Agent role to run the task'),
 			task: s.string().describe('Task prompt to run in the background'),

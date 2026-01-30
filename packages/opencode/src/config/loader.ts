@@ -100,19 +100,14 @@ export async function loadCoderConfig(): Promise<CoderConfig> {
 			org: cliConfig.preferences?.orgId,
 			tmux: cliConfig.coder?.tmux
 				? {
-						enabled: cliConfig.coder.tmux.enabled ?? false,
-						maxPanes: cliConfig.coder.tmux.maxPanes ?? 4,
-						mainPaneMinWidth: cliConfig.coder.tmux.mainPaneMinWidth ?? 100,
-						agentPaneMinWidth: cliConfig.coder.tmux.agentPaneMinWidth ?? MIN_PANE_WIDTH,
+						...DEFAULT_TMUX_CONFIG,
+						...cliConfig.coder.tmux,
 					}
 				: undefined,
 			background: cliConfig.coder?.background
 				? {
-						enabled: cliConfig.coder.background.enabled ?? true,
-						defaultConcurrency: cliConfig.coder.background.defaultConcurrency ?? 1,
-						staleTimeoutMs: cliConfig.coder.background.staleTimeoutMs ?? 30 * 60 * 1000,
-						providerConcurrency: cliConfig.coder.background.providerConcurrency,
-						modelConcurrency: cliConfig.coder.background.modelConcurrency,
+						...DEFAULT_BACKGROUND_CONFIG,
+						...cliConfig.coder.background,
 					}
 				: undefined,
 		};

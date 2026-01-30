@@ -1,3 +1,13 @@
+import { StructuredError } from '@agentuity/core';
+
+/**
+ * Error thrown when a concurrency waiter is cancelled.
+ */
+export const ConcurrencyCancelledError = StructuredError(
+	'ConcurrencyCancelledError',
+	'Concurrency waiter cancelled'
+)<{ key?: string }>();
+
 type Waiter = {
 	resolve: () => void;
 	reject: (error: Error) => void;
@@ -15,10 +25,12 @@ export class ConcurrencyManager {
 	private queues = new Map<string, Waiter[]>();
 
 	constructor(config?: Partial<ConcurrencyConfig>) {
-		this.defaultLimit = config?.defaultLimit ?? 1;
+		// Clamp defaultLimit to at least 1 to prevent deadlocks
+		this.defaultLimit = Math.max(1, config?.defaultLimit ?? 1);
 		if (config?.limits) {
 			for (const [key, value] of Object.entries(config.limits)) {
-				this.limits.set(key, value);
+				// Clamp each limit to at least 1
+				this.limits.set(key, Math.max(1, value));
 			}
 		}
 	}
@@ -61,7 +73,7 @@ export class ConcurrencyManager {
 		if (!queue || queue.length === 0) return;
 
 		for (const waiter of queue) {
-			waiter.reject(new Error('Cancelled'));
+			waiter.reject(new ConcurrencyCancelledError({ key }));
 		}
 		this.queues.delete(key);
 	}
