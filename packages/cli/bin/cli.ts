@@ -132,8 +132,6 @@ if (
 	exit(0);
 }
 
-
-
 const version = getVersion();
 const program = await createCLI(version);
 

@@ -167,6 +167,8 @@ async function linkLocalPackages(): Promise<boolean> {
 		'schema',
 		'frontend',
 		'react',
+		'postgres',
+		'drizzle',
 		'auth',
 		'runtime',
 		'server',
