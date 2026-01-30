@@ -71,6 +71,13 @@ export interface QueuePublishParams {
 	 * If not specified, uses the current agent context.
 	 */
 	agentId?: string;
+
+	/**
+	 * Whether to publish synchronously.
+	 * When true, the API waits for the message to be fully persisted before returning.
+	 * When false (default), the API returns immediately with a pending message.
+	 */
+	sync?: boolean;
 }
 
 /**
@@ -320,9 +327,10 @@ export class QueueStorageService implements QueueService {
 			});
 		}
 
+		const basePath = `/queue/messages/publish/2026-01-15/${encodeURIComponent(queueName)}`;
 		const url = buildUrl(
 			this.#baseUrl,
-			`/queue/messages/publish/2026-01-15/${encodeURIComponent(queueName)}`
+			params?.sync ? `${basePath}?sync=true` : basePath
 		);
 
 		const requestBody: Record<string, unknown> = {
