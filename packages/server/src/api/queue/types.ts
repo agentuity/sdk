@@ -415,6 +415,13 @@ export interface QueueApiOptions {
 	 * Required when using user authentication (CLI) instead of SDK key.
 	 */
 	orgId?: string;
+
+	/**
+	 * Whether to publish synchronously.
+	 * When true, the API waits for the message to be fully persisted before returning.
+	 * When false (default), the API returns immediately with a pending message.
+	 */
+	sync?: boolean;
 }
 
 // ============================================================================

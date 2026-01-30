@@ -96,7 +96,9 @@ export async function publishMessage(
 		validateTTL(params.ttl_seconds);
 	}
 
-	const url = queueApiPath('messages/publish', queueName);
+	const url = options?.sync
+		? queueApiPathWithQuery('messages/publish', 'sync=true', queueName)
+		: queueApiPath('messages/publish', queueName);
 	const resp = await client.post(
 		url,
 		params,
