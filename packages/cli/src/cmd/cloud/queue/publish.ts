@@ -38,6 +38,7 @@ export const publishSubcommand = createCommand({
 			partitionKey: z.string().optional().describe('Partition key for ordering'),
 			idempotencyKey: z.string().optional().describe('Idempotency key to prevent duplicates'),
 			ttl: z.coerce.number().optional().describe('Message TTL in seconds'),
+			sync: z.boolean().optional().describe('Publish synchronously (wait for persistence)'),
 		}),
 		response: MessageSchema,
 	},
@@ -62,6 +63,11 @@ export const publishSubcommand = createCommand({
 			}
 		}
 
+		const apiOptions = getQueueApiOptions(ctx) ?? {};
+		if (opts.sync) {
+			apiOptions.sync = true;
+		}
+
 		const message = await publishMessage(
 			client,
 			args.queue_name,
@@ -72,7 +78,7 @@ export const publishSubcommand = createCommand({
 				idempotency_key: opts.idempotencyKey,
 				ttl_seconds: opts.ttl,
 			},
-			getQueueApiOptions(ctx)
+			apiOptions
 		);
 
 		if (!options.json) {
