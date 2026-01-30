@@ -129,11 +129,10 @@ describe('registry', () => {
 	});
 
 	describe('client registration', () => {
-		test('PostgresClient registers itself on creation', () => {
-			// Note: We can't easily test this without a real database connection
-			// because the PostgresClient constructor tries to connect.
-			// This is tested implicitly through integration tests.
-			expect(true).toBe(true);
+		test.skip('PostgresClient registers itself on creation', () => {
+			// Requires a real database connection because the PostgresClient
+			// constructor tries to connect. This behavior is verified through
+			// integration tests that have access to a PostgreSQL instance.
 		});
 	});
 });
