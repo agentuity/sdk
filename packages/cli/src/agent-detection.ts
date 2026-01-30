@@ -151,7 +151,9 @@ function detectParentAgent(): Promise<string | undefined> {
 			return;
 		}
 
-		walkTree(ppid, 0).then(resolve).catch(() => resolve(undefined));
+		walkTree(ppid, 0)
+			.then(resolve)
+			.catch(() => resolve(undefined));
 	});
 }
 

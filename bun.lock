@@ -447,11 +447,18 @@
         "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
+        "@agentuity/runtime": "workspace:*",
         "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
       },
+      "peerDependencies": {
+        "@agentuity/runtime": "workspace:*",
+      },
+      "optionalPeers": [
+        "@agentuity/runtime",
+      ],
     },
     "packages/react": {
       "name": "@agentuity/react",

@@ -374,15 +374,18 @@ describe('VectorStorageService', () => {
 
 		test('should handle multiple documents with different TTLs', async () => {
 			const { adapter, calls } = createMockAdapter([
-				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }, { id: 'vec-2' }, { id: 'vec-3' }] } },
+				{
+					ok: true,
+					data: { success: true, data: [{ id: 'vec-1' }, { id: 'vec-2' }, { id: 'vec-3' }] },
+				},
 			]);
 
 			const service = new VectorStorageService(baseUrl, adapter);
 			await service.upsert(
 				'my-vectors',
-				{ key: 'k1', document: 'doc1', ttl: 3600 },      // Custom TTL
-				{ key: 'k2', document: 'doc2', ttl: null },      // No expiration
-				{ key: 'k3', document: 'doc3' }                   // Server default
+				{ key: 'k1', document: 'doc1', ttl: 3600 }, // Custom TTL
+				{ key: 'k2', document: 'doc2', ttl: null }, // No expiration
+				{ key: 'k3', document: 'doc3' } // Server default
 			);
 
 			const body = JSON.parse(calls[0].options.body as string);
