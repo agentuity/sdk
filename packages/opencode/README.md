@@ -47,21 +47,21 @@ The Expert agent can operate any `agentuity cloud` subcommand:
 
 ## Agent Team
 
-| Agent          | Role                   | When to Use                                                         |
-| -------------- | ---------------------- | ------------------------------------------------------------------- |
-| **Lead**       | Orchestrator           | Automatically coordinates all work                                  |
-| **Scout**      | Explorer               | Finding files, patterns, codebase analysis (read-only)              |
-| **Builder**    | Implementer            | Interactive code changes, quick fixes, guided implementation        |
-| **Sr Builder** | Autonomous Implementer | Cadence mode, complex multi-file features, long-running tasks       |
-| **Reviewer**   | Code Reviewer          | Reviewing changes, catching issues, suggesting fixes                |
-| **Memory**     | Context Manager        | Storing/retrieving context, decisions, patterns across sessions     |
-| **Expert**     | Agentuity Specialist   | CLI commands, cloud services, SDK questions                         |
-| **Planner**    | Strategic Advisor      | Complex architecture decisions, deep technical planning (read-only) |
-| **Runner**     | Command Executor       | Run lint/build/test/typecheck/format, returns structured summaries  |
+| Agent         | Role                   | When to Use                                                         |
+| ------------- | ---------------------- | ------------------------------------------------------------------- |
+| **Lead**      | Orchestrator           | Automatically coordinates all work                                  |
+| **Scout**     | Explorer               | Finding files, patterns, codebase analysis (read-only)              |
+| **Builder**   | Implementer            | Interactive code changes, quick fixes, guided implementation        |
+| **Architect** | Autonomous Implementer | Cadence mode, complex multi-file features, long-running tasks       |
+| **Reviewer**  | Code Reviewer          | Reviewing changes, catching issues, suggesting fixes                |
+| **Memory**    | Context Manager        | Storing/retrieving context, decisions, patterns across sessions     |
+| **Expert**    | Agentuity Specialist   | CLI commands, cloud services, SDK questions                         |
+| **Planner**   | Strategic Advisor      | Complex architecture decisions, deep technical planning (read-only) |
+| **Runner**    | Command Executor       | Run lint/build/test/typecheck/format, returns structured summaries  |
 
-### Builder vs Sr Builder
+### Builder vs Architect
 
-| Aspect        | Builder                  | Sr Builder                     |
+| Aspect        | Builder                  | Architect                      |
 | ------------- | ------------------------ | ------------------------------ |
 | **Mode**      | Interactive              | Autonomous                     |
 | **Best for**  | Quick fixes, guided work | Cadence mode, complex features |
@@ -71,23 +71,23 @@ The Expert agent can operate any `agentuity cloud` subcommand:
 
 **Use Builder when:** You're working interactively, making quick changes, or need guidance.
 
-**Use Sr Builder when:** Running Cadence mode, implementing complex multi-file features, or need autonomous execution with deep reasoning.
+**Use Architect when:** Running Cadence mode, implementing complex multi-file features, or need autonomous execution with deep reasoning.
 
 ## Model Configuration
 
 Each agent has a default model optimized for its role:
 
-| Agent      | Default Model                          | Reasoning Level         |
-| ---------- | -------------------------------------- | ----------------------- |
-| Lead       | `anthropic/claude-opus-4-5-20251101`   | max (extended thinking) |
-| Scout      | `anthropic/claude-haiku-4-5-20251001`  | -                       |
-| Builder    | `anthropic/claude-opus-4-5-20251101`   | high                    |
-| Sr Builder | `openai/gpt-5.2-codex`                 | xhigh                   |
-| Reviewer   | `anthropic/claude-sonnet-4-5-20250929` | high                    |
-| Memory     | `anthropic/claude-haiku-4-5-20251001`  | -                       |
-| Expert     | `anthropic/claude-sonnet-4-5-20250929` | high                    |
-| Planner    | `openai/gpt-5.2`                       | xhigh                   |
-| Runner     | `anthropic/claude-haiku-4-5-20251001`  | -                       |
+| Agent     | Default Model                          | Reasoning Level         |
+| --------- | -------------------------------------- | ----------------------- |
+| Lead      | `anthropic/claude-opus-4-5-20251101`   | max (extended thinking) |
+| Scout     | `anthropic/claude-haiku-4-5-20251001`  | -                       |
+| Builder   | `anthropic/claude-opus-4-5-20251101`   | high                    |
+| Architect | `openai/gpt-5.2-codex`                 | xhigh                   |
+| Reviewer  | `anthropic/claude-sonnet-4-5-20250929` | high                    |
+| Memory    | `anthropic/claude-haiku-4-5-20251001`  | -                       |
+| Expert    | `anthropic/claude-sonnet-4-5-20250929` | high                    |
+| Planner   | `openai/gpt-5.2`                       | xhigh                   |
+| Runner    | `anthropic/claude-haiku-4-5-20251001`  | -                       |
 
 ### Overriding Agent Models
 
@@ -99,7 +99,7 @@ You can override any agent's model via `opencode.json`:
 		"Agentuity Coder Builder": {
 			"model": "anthropic/claude-sonnet-4-5-20250514"
 		},
-		"Agentuity Coder Sr Builder": {
+		"Agentuity Coder Architect": {
 			"model": "openai/gpt-5.2-codex",
 			"reasoningEffort": "xhigh"
 		}
@@ -177,7 +177,7 @@ Cadence enables the agent team to work autonomously on complex tasks across mult
 
 ### Recommended Agent for Cadence
 
-**Sr Builder** is the recommended agent for Cadence mode. It uses GPT 5.2 Codex with maximum reasoning effort (`xhigh`), optimized for:
+**Architect** is the recommended agent for Cadence mode. It uses GPT 5.2 Codex with maximum reasoning effort (`xhigh`), optimized for:
 
 - Long-running autonomous tasks
 - Complex multi-file features
@@ -472,7 +472,7 @@ With `maxPanes: 6`, agents arrange in a tiled grid:
 
 ### Requirements
 
-- **OpenCode must be started with `--port` flag** (or use the `oc` alias above)
+- **OpenCode must be started with `--port` flag**
 - Must be running inside a tmux session (`TMUX` env var present)
 - tmux binary must be in PATH
 - Sufficient window size for panes (based on min width config)

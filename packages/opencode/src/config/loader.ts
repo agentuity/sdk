@@ -73,7 +73,7 @@ export async function getConfigPath(): Promise<string> {
  * ```json
  * {
  *   "agent": {
- *     "Agentuity Coder Sr Builder": {
+ *     "Agentuity Coder Architect": {
  *       "model": "openai/gpt-5.2-codex",
  *       "reasoningEffort": "xhigh"
  *     }

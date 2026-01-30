@@ -3,7 +3,7 @@ import type { AgentDefinition, AgentRegistry } from './types';
 import { leadAgent } from './lead';
 import { scoutAgent } from './scout';
 import { builderAgent } from './builder';
-import { srBuilderAgent } from './sr-builder';
+import { architectAgent } from './architect';
 import { reviewerAgent } from './reviewer';
 import { memoryAgent } from './memory';
 import { expertAgent } from './expert';
@@ -16,7 +16,7 @@ export const agents: Record<AgentRole, AgentDefinition> = {
 	lead: leadAgent,
 	scout: scoutAgent,
 	builder: builderAgent,
-	'sr-builder': srBuilderAgent,
+	architect: architectAgent,
 	reviewer: reviewerAgent,
 	memory: memoryAgent,
 	expert: expertAgent,

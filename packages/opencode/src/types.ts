@@ -19,7 +19,7 @@ export const AgentRoleSchema = z.enum([
 	'lead',
 	'scout',
 	'builder',
-	'sr-builder',
+	'architect',
 	'reviewer',
 	'memory',
 	'expert',

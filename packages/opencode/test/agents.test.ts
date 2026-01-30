@@ -8,7 +8,7 @@ describe('Agents', () => {
 			expect(agents.lead).toBeDefined();
 			expect(agents.scout).toBeDefined();
 			expect(agents.builder).toBeDefined();
-			expect(agents['sr-builder']).toBeDefined();
+			expect(agents.architect).toBeDefined();
 			expect(agents.reviewer).toBeDefined();
 			expect(agents.memory).toBeDefined();
 			expect(agents.expert).toBeDefined();
@@ -45,7 +45,7 @@ describe('Agents', () => {
 			expect(getAgentByRole('lead')?.id).toBe('ag-lead');
 			expect(getAgentByRole('scout')?.id).toBe('ag-scout');
 			expect(getAgentByRole('builder')?.id).toBe('ag-builder');
-			expect(getAgentByRole('sr-builder')?.id).toBe('ag-sr-builder');
+			expect(getAgentByRole('architect')?.id).toBe('ag-architect');
 			expect(getAgentByRole('reviewer')?.id).toBe('ag-reviewer');
 			expect(getAgentByRole('memory')?.id).toBe('ag-memory');
 			expect(getAgentByRole('expert')?.id).toBe('ag-expert');
@@ -59,7 +59,7 @@ describe('Agents', () => {
 			expect(getAgentById('ag-lead')?.role).toBe('lead');
 			expect(getAgentById('ag-scout')?.role).toBe('scout');
 			expect(getAgentById('ag-builder')?.role).toBe('builder');
-			expect(getAgentById('ag-sr-builder')?.role).toBe('sr-builder');
+			expect(getAgentById('ag-architect')?.role).toBe('architect');
 			expect(getAgentById('ag-reviewer')?.role).toBe('reviewer');
 			expect(getAgentById('ag-memory')?.role).toBe('memory');
 			expect(getAgentById('ag-expert')?.role).toBe('expert');
@@ -103,18 +103,18 @@ describe('Agents', () => {
 			expect(agents.planner.temperature).toBe(0.1);
 		});
 
-		it('Sr Builder agent has GPT Codex with xhigh reasoning', () => {
-			const srBuilder = agents['sr-builder'];
-			expect(srBuilder.defaultModel).toBe('openai/gpt-5.2-codex');
-			expect(srBuilder.reasoningEffort).toBe('xhigh');
-			expect(srBuilder.temperature).toBe(0.1);
-			expect(srBuilder.systemPrompt).toContain('Cadence');
+		it('Architect agent has GPT Codex with xhigh reasoning', () => {
+			const architect = agents.architect;
+			expect(architect.defaultModel).toBe('openai/gpt-5.2-codex');
+			expect(architect.reasoningEffort).toBe('xhigh');
+			expect(architect.temperature).toBe(0.1);
+			expect(architect.systemPrompt).toContain('Cadence');
 		});
 
-		it('Builder and Sr Builder have different default models', () => {
-			expect(agents.builder.defaultModel).not.toBe(agents['sr-builder'].defaultModel);
+		it('Builder and Architect have different default models', () => {
+			expect(agents.builder.defaultModel).not.toBe(agents.architect.defaultModel);
 			expect(agents.builder.defaultModel).toContain('anthropic/');
-			expect(agents['sr-builder'].defaultModel).toContain('openai/');
+			expect(agents.architect.defaultModel).toContain('openai/');
 		});
 
 		it('Runner agent is read-only and fast', () => {

@@ -4,7 +4,7 @@ import type { AgentRole } from '../types';
 // Schema for the delegate tool
 export const DelegateArgsSchema = z.object({
 	agent: z
-		.enum(['scout', 'builder', 'sr-builder', 'reviewer', 'memory', 'expert', 'planner', 'runner'])
+		.enum(['scout', 'builder', 'architect', 'reviewer', 'memory', 'expert', 'planner', 'runner'])
 		.describe('The agent to delegate to'),
 	task: z.string().describe('Clear description of the task to delegate'),
 	context: z.string().optional().describe('Additional context from previous tasks'),
@@ -21,7 +21,7 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	lead: '@Agentuity Coder Lead',
 	scout: '@Agentuity Coder Scout',
 	builder: '@Agentuity Coder Builder',
-	'sr-builder': '@Agentuity Coder Sr Builder',
+	architect: '@Agentuity Coder Architect',
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
@@ -36,7 +36,7 @@ export const delegateTool = {
 Use this to:
 - Scout: Explore codebase, find patterns, research documentation
 - Builder: Implement features, write code, run tests (interactive work)
-- Sr Builder: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
+- Architect: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
 - Reviewer: Review changes, catch issues, apply fixes  
 - Memory: Store context, remember decisions across sessions
 - Expert: Get help with Agentuity CLI and cloud services

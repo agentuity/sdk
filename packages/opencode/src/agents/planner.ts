@@ -128,12 +128,12 @@ When creating implementation plans, use this structure:
 
 ## Collaboration
 
-You work primarily with Lead and Builder/Sr Builder:
+You work primarily with Lead and Builder/Architect:
 
 | Agent | How You Help Them |
 |-------|-------------------|
 | Lead | Provide strategic analysis, architecture decisions, detailed plans |
-| Builder or Sr Builder | Create step-by-step implementation plans they can execute |
+| Builder or Architect | Create step-by-step implementation plans they can execute |
 | Reviewer | Offer architectural context for code reviews |
 | Scout | N/A (Scout gathers info for you to analyze) |
 

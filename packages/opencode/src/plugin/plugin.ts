@@ -18,7 +18,7 @@ import { TmuxSessionManager } from '../tmux';
 const SANDBOX_ID = process.env.AGENTUITY_SANDBOX_ID;
 const IN_SANDBOX = !!SANDBOX_ID;
 
-// Sandbox context injected into Lead, Builder, and Sr Builder prompts
+// Sandbox context injected into Lead, Builder, and Architect prompts
 const SANDBOX_CONTEXT = IN_SANDBOX
 	? `
 ## Sandbox Environment
@@ -40,14 +40,14 @@ You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
 	: '';
 
 // Agents that should receive sandbox context in their prompts
-const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'sr-builder'];
+const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'architect'];
 
 // Agent display names for @mentions
 const AGENT_MENTIONS: Record<AgentRole, string> = {
 	lead: '@Agentuity Coder Lead',
 	scout: '@Agentuity Coder Scout',
 	builder: '@Agentuity Coder Builder',
-	'sr-builder': '@Agentuity Coder Sr Builder',
+	architect: '@Agentuity Coder Architect',
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
@@ -260,7 +260,7 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 ## Your Team (use @mentions to invoke)
 - **@Agentuity Coder Scout**: Explore codebase, find patterns, research docs (read-only)
 - **@Agentuity Coder Builder**: Implement features, write code, run tests
-- **@Agentuity Coder Sr Builder**: Complex autonomous tasks, Cadence mode (GPT Codex)
+- **@Agentuity Coder Architect**: Complex autonomous tasks, Cadence mode (GPT Codex)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
@@ -272,7 +272,7 @@ $ARGUMENTS
 
 ## Guidelines
 1. Use @Agentuity Coder Scout first to understand context
-2. Delegate implementation to @Agentuity Coder Builder (or Sr Builder for complex work)
+2. Delegate implementation to @Agentuity Coder Builder (or Architect for complex work)
 3. Delegate lint/build/test commands to @Agentuity Coder Runner for structured results
 4. Have @Agentuity Coder Reviewer check the work
 5. Use @Agentuity Coder Expert for Agentuity CLI questions
@@ -395,7 +395,7 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 
 ## Your Team (use @mentions to invoke)
 - **@Agentuity Coder Scout**: Explore codebase, find patterns, research docs (read-only)
-- **@Agentuity Coder Sr Builder**: Complex autonomous implementation (GPT Codex with high reasoning) — **USE THIS FOR CADENCE**
+- **@Agentuity Coder Architect**: Complex autonomous implementation (GPT Codex with high reasoning) — **USE THIS FOR CADENCE**
 - **@Agentuity Coder Builder**: Quick fixes, simple changes (for minor iterations only)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
@@ -416,7 +416,7 @@ $ARGUMENTS
    - Ask @Agentuity Coder Memory for relevant context
    - Use @Agentuity Coder Scout to understand what's needed
    - For complex planning, consult @Agentuity Coder Planner
-   - Delegate implementation to **@Agentuity Coder Sr Builder** (preferred for Cadence)
+   - Delegate implementation to **@Agentuity Coder Architect** (preferred for Cadence)
    - Have @Agentuity Coder Reviewer verify the work
    - Tell @Agentuity Coder Memory to store checkpoint
 
@@ -428,7 +428,7 @@ $ARGUMENTS
 4. **Tell @Agentuity Coder Memory to memorialize** the completed session
 
 ## Guidelines
-- **Use Sr Builder for implementation** — Sr Builder has GPT Codex with maximum reasoning, ideal for autonomous work
+- **Use Architect for implementation** — Architect has GPT Codex with maximum reasoning, ideal for autonomous work
 - Use regular Builder only for trivial fixes within an iteration
 - Ask Memory for context at each iteration start
 - Store checkpoints at each iteration end
@@ -485,7 +485,7 @@ function createTools(backgroundManager: BackgroundManager): Hooks['tool'] {
 Use this to:
 - Scout: Explore codebase, find patterns, research documentation
 - Builder: Implement features, write code, run tests (interactive work)
-- Sr Builder: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
+- Architect: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
 - Reviewer: Review changes, catch issues, apply fixes
 - Memory: Store context, remember decisions across sessions
 - Expert: Get help with Agentuity CLI and cloud services
@@ -495,7 +495,7 @@ Use this to:
 				.enum([
 					'scout',
 					'builder',
-					'sr-builder',
+					'architect',
 					'reviewer',
 					'memory',
 					'expert',
@@ -529,7 +529,7 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'lead',
 					'scout',
 					'builder',
-					'sr-builder',
+					'architect',
 					'reviewer',
 					'memory',
 					'expert',
