@@ -1,5 +1,11 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, afterEach } from 'bun:test';
+import { mockFetch } from '@agentuity/test-utils';
 import { getInstallationType, isGlobalInstall } from '../src/cmd/upgrade';
+import {
+	isVersionAvailableOnNpm,
+	isVersionAvailableOnNpmQuick,
+	waitForNpmAvailability,
+} from '../src/cmd/upgrade/npm-availability';
 
 describe('upgrade command', () => {
 	test('getInstallationType returns source when running from test', () => {
@@ -69,5 +75,47 @@ describe('upgrade command', () => {
 
 			expect(needsUpgrade).toBe(shouldUpgrade);
 		}
+	});
+
+	describe('npm availability integration', () => {
+		const originalFetch = globalThis.fetch;
+
+		afterEach(() => {
+			globalThis.fetch = originalFetch;
+		});
+
+		test('isVersionAvailableOnNpm is exported and callable', async () => {
+			mockFetch(async () => new Response(null, { status: 200 }));
+
+			const result = await isVersionAvailableOnNpm('1.0.0');
+			expect(typeof result).toBe('boolean');
+			expect(result).toBe(true);
+		});
+
+		test('waitForNpmAvailability is exported and callable', async () => {
+			mockFetch(async () => new Response(null, { status: 200 }));
+
+			const result = await waitForNpmAvailability('1.0.0', {
+				maxAttempts: 1,
+				initialDelayMs: 1,
+			});
+			expect(typeof result).toBe('boolean');
+			expect(result).toBe(true);
+		});
+
+		test('npm availability check handles unavailable versions gracefully', async () => {
+			mockFetch(async () => new Response(null, { status: 404 }));
+
+			const result = await isVersionAvailableOnNpm('99.99.99');
+			expect(result).toBe(false);
+		});
+
+		test('isVersionAvailableOnNpmQuick is exported for implicit version checks', async () => {
+			mockFetch(async () => new Response(null, { status: 200 }));
+
+			const result = await isVersionAvailableOnNpmQuick('1.0.0');
+			expect(typeof result).toBe('boolean');
+			expect(result).toBe(true);
+		});
 	});
 });
