@@ -370,24 +370,35 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 		}
 	}
 
-	// Scan public/ directory for static files
-	const publicDir = join(rootDir, 'public');
-	if (existsSync(publicDir)) {
+	// Scan client directory for static files copied from public/
+	// Vite copies src/web/public/* to .agentuity/client/* (at root, not in public/ subfolder)
+	// We need to find these files and add them to assets for CDN upload
+	const clientDir = join(agentuityDir, 'client');
+	if (existsSync(clientDir)) {
 		try {
-			function scanDirectory(dir: string, prefix: string = '') {
+			function scanClientDirectory(dir: string, prefix: string = '') {
 				const entries = readdirSync(dir, { withFileTypes: true });
 				for (const entry of entries) {
 					const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
 					const fullPath = join(dir, entry.name);
 
+					// Skip directories we already process (assets from manifest, .vite metadata)
 					if (entry.isDirectory()) {
-						scanDirectory(fullPath, relativePath);
+						if (entry.name === 'assets' || entry.name === '.vite') {
+							continue;
+						}
+						scanClientDirectory(fullPath, relativePath);
 					} else if (entry.isFile()) {
+						// Skip files we already added from manifest (index.html is the entry point)
+						if (entry.name === 'index.html') {
+							continue;
+						}
+
 						const stats = statSync(fullPath);
 						// Skip empty files
 						if (stats.size === 0) continue;
 
-						const assetPath = `public/${relativePath}`;
+						const assetPath = `client/${relativePath}`;
 						if (!seenAssets.has(assetPath)) {
 							seenAssets.add(assetPath);
 							const contentType = getContentType(entry.name);
@@ -406,10 +417,10 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 				}
 			}
 
-			scanDirectory(publicDir);
-			logger.trace(`Found ${assets.length} total assets (including public/)`);
+			scanClientDirectory(clientDir);
+			logger.trace(`Found ${assets.length} total assets (including static files)`);
 		} catch (error) {
-			logger.warn(`Failed to scan public directory: ${error}`);
+			logger.warn(`Failed to scan client directory for static files: ${error}`);
 		}
 	}
 
