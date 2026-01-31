@@ -1,6 +1,7 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
 import { checkAuth } from '../../services/auth';
+import { entityId, getEntityContext } from '../../agents/memory/entities';
 
 export interface ToolHooks {
 	before: (input: unknown, output: unknown) => Promise<void>;
@@ -110,6 +111,28 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 
 		async after(_input: unknown, _output: unknown): Promise<void> {},
 	};
+}
+
+export async function getEntityContextForSession(): Promise<{
+	userId?: string;
+	orgId?: string;
+	projectId?: string;
+	repoId?: string;
+}> {
+	try {
+		const ctx = await getEntityContext();
+		return {
+			userId: ctx.user?.id ? entityId('user', ctx.user.id) : undefined,
+			orgId: ctx.org?.id ? entityId('org', ctx.org.id) : undefined,
+			projectId: ctx.project?.id ? entityId('project', ctx.project.id) : undefined,
+			repoId:
+				ctx.repo?.url || ctx.repo?.path
+					? entityId('repo', ctx.repo.url || ctx.repo.path)
+					: undefined,
+		};
+	} catch {
+		return {};
+	}
 }
 
 function extractToolName(input: unknown): string | undefined {

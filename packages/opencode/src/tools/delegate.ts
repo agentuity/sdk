@@ -4,7 +4,18 @@ import type { AgentRole } from '../types';
 // Schema for the delegate tool
 export const DelegateArgsSchema = z.object({
 	agent: z
-		.enum(['scout', 'builder', 'architect', 'reviewer', 'memory', 'expert', 'planner', 'runner'])
+		.enum([
+			'scout',
+			'builder',
+			'architect',
+			'reviewer',
+			'memory',
+			'reasoner',
+			'expert',
+			'planner',
+			'runner',
+			'product',
+		])
 		.describe('The agent to delegate to'),
 	task: z.string().describe('Clear description of the task to delegate'),
 	context: z.string().optional().describe('Additional context from previous tasks'),
@@ -27,6 +38,8 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	expert: '@Agentuity Coder Expert',
 	planner: '@Agentuity Coder Planner',
 	runner: '@Agentuity Coder Runner',
+	reasoner: '@Agentuity Coder Reasoner',
+	product: '@Agentuity Coder Product',
 };
 
 export const delegateTool = {
@@ -37,11 +50,13 @@ Use this to:
 - Scout: Explore codebase, find patterns, research documentation
 - Builder: Implement features, write code, run tests (interactive work)
 - Architect: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
-- Reviewer: Review changes, catch issues, apply fixes  
+- Reviewer: Review changes, catch issues, apply fixes
 - Memory: Store context, remember decisions across sessions
+- Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
 - Expert: Get help with Agentuity CLI and cloud services
 - Planner: Strategic advisor for complex architecture and deep planning (read-only)
 - Runner: Run lint/build/test/typecheck/format/clean/install commands, returns structured results
+- Product: Drive clarity on requirements, validate features, track progress, Cadence briefings
 
 The task will be executed by the specified agent and the result returned.`,
 
