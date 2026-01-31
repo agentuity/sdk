@@ -10,6 +10,21 @@ export function App() {
 		>
 			<h1>Cloud Deployment Test</h1>
 			<p>This page is used to verify analytics beacon injection in production deployments.</p>
+			{/* Public asset test - this path should be transformed to CDN URL in production */}
+			<img
+				id="public-asset-test"
+				src="/public/test-asset.txt"
+				alt="Public asset test"
+				style={{ display: 'none' }}
+				onError={() => {
+					const el = document.getElementById('public-asset-status');
+					if (el) el.innerHTML = '❌ Public asset failed to load';
+				}}
+				onLoad={() => {
+					const el = document.getElementById('public-asset-status');
+					if (el) el.innerHTML = '✅ Public asset loaded successfully';
+				}}
+			/>
 			<div
 				id="analytics-status"
 				style={{
@@ -22,6 +37,7 @@ export function App() {
 				<h2>Analytics Status</h2>
 				<p id="config-status">Checking analytics config...</p>
 				<p id="beacon-status">Checking beacon script...</p>
+				<p id="public-asset-status">Checking public asset...</p>
 			</div>
 			<script
 				dangerouslySetInnerHTML={{
