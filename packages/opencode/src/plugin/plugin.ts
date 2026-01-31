@@ -106,7 +106,17 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	// Create plugin tools using the @opencode-ai/plugin tool helper
 	const tools = createTools(backgroundManager);
 
-	registerShutdownHandler(backgroundManager, tmuxManager);
+	// Create a logger for shutdown handler
+	const shutdownLogger = (message: string) =>
+		ctx.client.app.log({
+			body: {
+				service: 'agentuity-coder',
+				level: 'info',
+				message: `[shutdown] ${message}`,
+			},
+		});
+
+	registerShutdownHandler(backgroundManager, tmuxManager, shutdownLogger);
 
 	// Show startup toast (fire and forget, don't block)
 	try {
@@ -647,18 +657,59 @@ function extractEventFromInput(
 
 function registerShutdownHandler(
 	manager: BackgroundManager,
-	tmuxManager?: TmuxSessionManager
+	tmuxManager?: TmuxSessionManager,
+	logger?: (msg: string) => void
 ): void {
-	if (typeof process === 'undefined') return;
-	const shutdown = () => {
-		manager.shutdown();
-		if (tmuxManager) {
-			// Use sync version to ensure cleanup completes before process exits
-			tmuxManager.cleanupSync();
+	if (typeof process === 'undefined') {
+		logger?.('[shutdown] process is undefined, cannot register handlers');
+		return;
+	}
+
+	const log = logger ?? (() => {});
+	let shutdownCalled = false;
+
+	log(
+		`Registering shutdown handlers (PID: ${process.pid}, tmuxManager: ${tmuxManager ? 'yes' : 'no'})`
+	);
+	log(`Current tracked sessions in tmuxManager: ${tmuxManager ? 'checking...' : 'N/A'}`);
+
+	const shutdown = (signal?: string) => {
+		// Prevent multiple shutdown calls
+		if (shutdownCalled) {
+			log(`Shutdown already in progress, ignoring ${signal ?? 'unknown'} signal`);
+			return;
 		}
+		shutdownCalled = true;
+
+		log(`Shutdown triggered by ${signal ?? 'unknown'} signal`);
+
+		try {
+			log('Shutting down background manager...');
+			manager.shutdown();
+			log('Background manager shutdown complete');
+		} catch (error) {
+			log(`Background manager shutdown error: ${error}`);
+		}
+
+		if (tmuxManager) {
+			try {
+				log('Cleaning up tmux sessions...');
+				// Use sync version to ensure cleanup completes before process exits
+				tmuxManager.cleanupSync();
+				log('Tmux cleanup complete');
+			} catch (error) {
+				log(`Tmux cleanup error: ${error}`);
+			}
+		}
+
+		log('Shutdown complete');
 	};
-	process.once('beforeExit', shutdown);
-	process.once('SIGINT', shutdown);
-	process.once('SIGTERM', shutdown);
-	process.once('exit', shutdown); // Also handle exit event for extra safety
+
+	process.once('beforeExit', () => shutdown('beforeExit'));
+	process.once('SIGINT', () => shutdown('SIGINT'));
+	process.once('SIGTERM', () => shutdown('SIGTERM'));
+	process.once('SIGHUP', () => shutdown('SIGHUP')); // Handle tmux pane close
+	process.once('exit', () => shutdown('exit')); // Also handle exit event for extra safety
+
+	log('Shutdown handlers registered for: beforeExit, SIGINT, SIGTERM, SIGHUP, exit');
 }
