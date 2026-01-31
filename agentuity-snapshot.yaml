@@ -16,7 +16,7 @@ public: true
 # Required: Runtime environment
 # Format: name:tag (e.g., bun:1, node:20, python:3.12)
 # Run 'agentuity cloud sandbox runtime list' to see available runtimes
-runtime: agentuity:latest 
+runtime: agentuity:latest
 
 # Optional: Snapshot name (alphanumeric, underscores, dashes only)
 # If not provided, a unique name will be auto-generated

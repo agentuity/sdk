@@ -8,12 +8,14 @@ describe('auth org commands', () => {
 		});
 
 		test('should have description', () => {
-			expect(orgSubcommand.description).toBe('Manage default organization preference');
+			expect(orgSubcommand.description).toBe(
+				'Manage organization preferences and machine authentication'
+			);
 		});
 
 		test('should have subcommands', () => {
 			expect(orgSubcommand.subcommands).toBeDefined();
-			expect(orgSubcommand.subcommands?.length).toBe(3);
+			expect(orgSubcommand.subcommands?.length).toBe(6);
 		});
 
 		test('should have examples', () => {
@@ -53,8 +55,8 @@ describe('auth org commands', () => {
 			expect(unselectCommand).toBeDefined();
 		});
 
-		test('should not require auth', () => {
-			expect(unselectCommand?.requires?.auth).toBeUndefined();
+		test('should require auth', () => {
+			expect(unselectCommand?.requires?.auth).toBe(true);
 		});
 
 		test('should have response schema', () => {
@@ -69,8 +71,8 @@ describe('auth org commands', () => {
 			expect(currentCommand).toBeDefined();
 		});
 
-		test('should not require auth', () => {
-			expect(currentCommand?.requires?.auth).toBeUndefined();
+		test('should require auth', () => {
+			expect(currentCommand?.requires?.auth).toBe(true);
 		});
 
 		test('should be idempotent', () => {
@@ -83,6 +85,42 @@ describe('auth org commands', () => {
 
 		test('should have response schema', () => {
 			expect(currentCommand?.schema?.response).toBeDefined();
+		});
+	});
+
+	describe('enroll subcommand', () => {
+		const enrollCommand = orgSubcommand.subcommands?.find((c) => c.name === 'enroll');
+
+		test('should exist', () => {
+			expect(enrollCommand).toBeDefined();
+		});
+
+		test('should require auth', () => {
+			expect(enrollCommand?.requires?.auth).toBe(true);
+		});
+	});
+
+	describe('unenroll subcommand', () => {
+		const unenrollCommand = orgSubcommand.subcommands?.find((c) => c.name === 'unenroll');
+
+		test('should exist', () => {
+			expect(unenrollCommand).toBeDefined();
+		});
+
+		test('should require auth', () => {
+			expect(unenrollCommand?.requires?.auth).toBe(true);
+		});
+	});
+
+	describe('status subcommand', () => {
+		const statusCommand = orgSubcommand.subcommands?.find((c) => c.name === 'status');
+
+		test('should exist', () => {
+			expect(statusCommand).toBeDefined();
+		});
+
+		test('should require auth', () => {
+			expect(statusCommand?.requires?.auth).toBe(true);
 		});
 	});
 });

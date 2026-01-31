@@ -18,7 +18,11 @@ interface Input {
 
 // Schemas for structured eval output
 const CompletenessSchema = z.object({
-	score: z.number().min(0).max(1).describe('How completely the response addresses the question (0-1)'),
+	score: z
+		.number()
+		.min(0)
+		.max(1)
+		.describe('How completely the response addresses the question (0-1)'),
 	reason: z.string().describe('Brief explanation of the score'),
 });
 

@@ -78,7 +78,9 @@ Model B: ${responseB.text.slice(0, 200)}`,
 	output.push(`[INFO] Model B (Anthropic claude-haiku-4-5): "${responseB.text}"`);
 	output.push('');
 	output.push(`[INFO] Judge (Groq gpt-oss-120b) {"winner":"${judgment.winner}"}`);
-	output.push(`[INFO] Scores {"creativity":${judgment.scores.creativity},"clarity":${judgment.scores.clarity}}`);
+	output.push(
+		`[INFO] Scores {"creativity":${judgment.scores.creativity},"clarity":${judgment.scores.clarity}}`
+	);
 	output.push(`[INFO] Reasoning: ${judgment.reasoning}`);
 } catch (error) {
 	output.push(`[ERROR] ${error instanceof Error ? error.message : String(error)}`);

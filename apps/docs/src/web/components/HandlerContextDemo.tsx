@@ -235,30 +235,31 @@ export function HandlerContextDemo() {
 			</div>
 
 			{/* Explanation for selected endpoint */}
-			{lastEndpoint && (() => {
-				const selectedEndpoint = endpoints.find((ep) => ep.id === lastEndpoint);
-				return (
-					<div className="bg-cyan-50/50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-900 rounded-lg p-4">
-						<div className="flex items-center justify-between mb-2">
-							<code className="text-cyan-700 dark:text-cyan-400 font-mono text-sm">
-								{selectedEndpoint?.codeHint}
-							</code>
-							<a
-								href="https://github.com/agentuity/sdk/blob/main/apps/docs/src/agent/context/agent.ts"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="text-xs text-zinc-500 hover:text-cyan-600 dark:hover:text-cyan-400 flex items-center gap-1"
-							>
-								<CodeBracketIcon className="w-3.5 h-3.5" />
-								View Code
-							</a>
+			{lastEndpoint &&
+				(() => {
+					const selectedEndpoint = endpoints.find((ep) => ep.id === lastEndpoint);
+					return (
+						<div className="bg-cyan-50/50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-900 rounded-lg p-4">
+							<div className="flex items-center justify-between mb-2">
+								<code className="text-cyan-700 dark:text-cyan-400 font-mono text-sm">
+									{selectedEndpoint?.codeHint}
+								</code>
+								<a
+									href="https://github.com/agentuity/sdk/blob/main/apps/docs/src/agent/context/agent.ts"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="text-xs text-zinc-500 hover:text-cyan-600 dark:hover:text-cyan-400 flex items-center gap-1"
+								>
+									<CodeBracketIcon className="w-3.5 h-3.5" />
+									View Code
+								</a>
+							</div>
+							<p className="text-zinc-600 dark:text-zinc-400 text-sm">
+								{selectedEndpoint?.explanation}
+							</p>
 						</div>
-						<p className="text-zinc-600 dark:text-zinc-400 text-sm">
-							{selectedEndpoint?.explanation}
-						</p>
-					</div>
-				);
-			})()}
+					);
+				})()}
 
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
 				<h3 className="text-zinc-600 dark:text-zinc-400 text-sm font-normal m-0 mb-4">
