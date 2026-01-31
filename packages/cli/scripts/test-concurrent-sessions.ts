@@ -80,7 +80,7 @@ async function main() {
 	
 	const startTime = Date.now();
 	const promises = Array.from({ length: NUM_CONCURRENT }, (_, i) => runCLI(i + 1));
-	const results = await Promise.all(promises);
+	await Promise.all(promises);
 	const elapsed = Date.now() - startTime;
 	
 	console.log();
