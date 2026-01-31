@@ -81,8 +81,15 @@ function getProcessInfo(pid: number): Promise<{ command: string; ppid: number } 
 				return;
 			}
 
-			const ppid = parseInt(match[1], 10);
-			const command = match[2].toLowerCase();
+			const ppidStr = match[1];
+			const commandStr = match[2];
+			if (!ppidStr || !commandStr) {
+				resolve(undefined);
+				return;
+			}
+
+			const ppid = parseInt(ppidStr, 10);
+			const command = commandStr.toLowerCase();
 
 			if (isNaN(ppid) || ppid <= 1 || !command) {
 				resolve(undefined);

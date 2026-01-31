@@ -13,7 +13,7 @@ export function parseFrontmatter<T = Record<string, unknown>>(
 		return { data: {} as T, body: content.trim() };
 	}
 
-	const frontmatter = match[1];
+	const frontmatter = match[1] ?? '';
 	const body = content.slice(match[0].length).trim();
 
 	try {

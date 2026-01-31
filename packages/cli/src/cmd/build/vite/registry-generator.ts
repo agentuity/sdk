@@ -374,7 +374,11 @@ function generateRPCRegistryType(
 
 		// Add path segments - sanitize for valid TypeScript property names
 		for (let i = 0; i < pathParts.length; i++) {
-			const part = sanitizePathSegment(pathParts[i]);
+			const rawPart = pathParts[i];
+			if (!rawPart) {
+				continue;
+			}
+			const part = sanitizePathSegment(rawPart);
 			// Skip empty segments (e.g., wildcards like '*' that sanitize to '')
 			if (!part) {
 				continue;
@@ -561,7 +565,10 @@ function generateRPCRuntimeMetadata(
 		const sorted: MetadataNode = {};
 		for (const key of Object.keys(obj).sort()) {
 			const value = obj[key];
-			if (value && typeof value === 'object' && !('type' in value)) {
+			if (value === undefined) {
+				continue;
+			}
+			if (typeof value === 'object' && !('type' in value)) {
 				sorted[key] = sortObject(value as MetadataNode);
 			} else {
 				sorted[key] = value;
@@ -640,9 +647,11 @@ export async function generateRouteRegistry(
 			const match = route.agentImportPath.match(/@agent[s]?\/([^/]+)/);
 			if (match) {
 				const agentName = match[1];
-				const metadata = agentNameMap.get(agentName);
-				if (metadata) {
-					agentMetadataMap.set(route.agentVariable, metadata);
+				if (agentName) {
+					const metadata = agentNameMap.get(agentName);
+					if (metadata) {
+						agentMetadataMap.set(route.agentVariable, metadata);
+					}
 				}
 			}
 		}

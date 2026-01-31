@@ -117,7 +117,8 @@ export async function selectOrCreateDatabase(options: {
 		}
 
 		if (!region) {
-			region = databases.length > 0 ? databases[0].cloud_region : 'usc';
+			const firstDb = databases[0];
+			region = firstDb ? firstDb.cloud_region : 'usc';
 			logger.trace(`[auth init] Using fallback region: ${region}`);
 		}
 
@@ -129,11 +130,11 @@ export async function selectOrCreateDatabase(options: {
 			callback: async () => createResources(regionalClient, orgId, region, [{ type: 'db' }]),
 		});
 
-		if (created.length === 0) {
+		const newDb = created[0];
+		if (!newDb) {
 			tui.fatal('Failed to create database');
 		}
 
-		const newDb = created[0];
 		tui.success(`Created database: ${tui.bold(newDb.name)}`);
 
 		// Fetch updated list to get the URL
@@ -142,6 +143,8 @@ export async function selectOrCreateDatabase(options: {
 
 		if (!dbInfo?.url) {
 			tui.fatal('Failed to retrieve database connection URL');
+			// TypeScript doesn't know fatal never returns, so we need this
+			throw new Error('Unreachable');
 		}
 
 		return { name: newDb.name, url: dbInfo.url, region };
@@ -150,6 +153,8 @@ export async function selectOrCreateDatabase(options: {
 	const selectedDb = databases.find((d) => d.name === response.database);
 	if (!selectedDb?.url) {
 		tui.fatal('Failed to retrieve database connection URL');
+		// TypeScript doesn't know fatal never returns, so we need this
+		throw new Error('Unreachable');
 	}
 
 	return { name: selectedDb.name, url: selectedDb.url, region: selectedDb.cloud_region };

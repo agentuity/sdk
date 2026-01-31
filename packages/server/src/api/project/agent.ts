@@ -72,10 +72,11 @@ export async function projectAgentGet(
 	);
 
 	if (resp.success) {
-		if (resp.data.length === 0) {
+		const agent = resp.data[0];
+		if (resp.data.length === 0 || agent === undefined) {
 			throw new AgentNotFoundError({ id: agentId, message: `Agent not found: ${agentId}` });
 		}
-		return resp.data[0];
+		return agent;
 	}
 	throw new ProjectResponseError({ message: resp.message });
 }

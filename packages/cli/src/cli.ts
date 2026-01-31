@@ -270,7 +270,9 @@ function handleValidationError(
 			// Build a clear, actionable error message
 			const errorMessages = formattedIssues.map((i) => i.formatted);
 			const primaryMessage =
-				errorMessages.length === 1 ? errorMessages[0] : 'Invalid options or arguments';
+				errorMessages.length === 1 && errorMessages[0]
+					? errorMessages[0]
+					: 'Invalid options or arguments';
 
 			exitWithError(
 				{
@@ -668,8 +670,9 @@ export async function createCLI(version: string): Promise<Command> {
 }
 
 async function getRegion(regions: RegionList): Promise<string> {
-	if (regions.length === 1) {
-		return regions[0].region;
+	const firstRegion = regions[0];
+	if (regions.length === 1 && firstRegion) {
+		return firstRegion.region;
 	} else {
 		const response = await enquirer.prompt<{ region: string }>({
 			type: 'select',
@@ -739,8 +742,9 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 	}
 
 	// Auto-select if only one region available
-	if (regions.length === 1) {
-		region = regions[0].region;
+	const singleRegion = regions[0];
+	if (regions.length === 1 && singleRegion) {
+		region = singleRegion.region;
 		if (!process.stdin.isTTY) {
 			logger.trace('auto-selected region (non-TTY): %s', region);
 		}

@@ -65,22 +65,25 @@ function buildFileTree(files: SnapshotFileInfo[]): TreeNode {
 		const parts = file.path.split('/');
 		let current = root;
 
-		for (let i = 0; i < parts.length; i++) {
-			const part = parts[i];
-			if (!current.children.has(part)) {
-				current.children.set(part, {
-					name: part,
-					isFile: i === parts.length - 1,
-					children: new Map(),
-				});
-			}
-			current = current.children.get(part)!;
-
-			if (i === parts.length - 1) {
-				current.size = file.size;
-				current.isFile = true;
-			}
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i];
+		if (!part) continue;
+		if (!current.children.has(part)) {
+			current.children.set(part, {
+				name: part,
+				isFile: i === parts.length - 1,
+				children: new Map(),
+			});
 		}
+		const child = current.children.get(part);
+		if (!child) continue;
+		current = child;
+
+		if (i === parts.length - 1) {
+			current.size = file.size;
+			current.isFile = true;
+		}
+	}
 	}
 
 	return root;
@@ -100,7 +103,9 @@ function printTreeNode(node: TreeNode, prefix: string): void {
 	});
 
 	for (let i = 0; i < entries.length; i++) {
-		const [, child] = entries[i];
+		const entry = entries[i];
+		if (!entry) continue;
+		const [, child] = entry;
 		const isLast = i === entries.length - 1;
 		const connector = tui.muted(isLast ? '└── ' : '├── ');
 		const sizeStr =
@@ -146,17 +151,21 @@ function substituteVariables(
 
 	for (const [key, value] of Object.entries(values)) {
 		let substituted = value;
-		let match: RegExpExecArray | null;
 
 		varPattern.lastIndex = 0;
-		while ((match = varPattern.exec(value)) !== null) {
+		let match = varPattern.exec(value);
+		while (match !== null) {
 			const varName = match[1];
-			if (!(varName in variables)) {
+			if (!varName || !(varName in variables)) {
 				throw new Error(
 					`Variable "\${${varName}}" in "${key}" is not defined. Use --${flagName} ${varName}=value to provide it.`
 				);
 			}
-			substituted = substituted.replace(match[0], variables[varName]);
+			const varValue = variables[varName];
+			if (varValue !== undefined) {
+				substituted = substituted.replace(match[0], varValue);
+			}
+			match = varPattern.exec(value);
 		}
 		result[key] = substituted;
 	}
@@ -638,15 +647,15 @@ export const buildSubcommand = createCommand({
 					}
 				}
 
-				if (finalEnv && Object.keys(finalEnv).length > 0) {
-					console.log('');
-					tui.info('Environment:');
-					for (const key of Object.keys(finalEnv)) {
-						console.log(`  ${tui.muted('•')} ${key}=${tui.maskSecret(finalEnv[key])}`);
-					}
+			if (finalEnv && Object.keys(finalEnv).length > 0) {
+				console.log('');
+				tui.info('Environment:');
+				for (const [envKey, envValue] of Object.entries(finalEnv)) {
+					console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
 				}
+			}
 
-				if (fileList.length > 0) {
+			if (fileList.length > 0) {
 					console.log('');
 					tui.info('Files:');
 					printFileTree(fileList);
@@ -940,15 +949,15 @@ export const buildSubcommand = createCommand({
 					}
 				}
 
-				if (finalEnv && Object.keys(finalEnv).length > 0) {
-					console.log('');
-					tui.info('Environment:');
-					for (const key of Object.keys(finalEnv)) {
-						console.log(`  ${tui.muted('•')} ${key}=${tui.maskSecret(finalEnv[key])}`);
-					}
+			if (finalEnv && Object.keys(finalEnv).length > 0) {
+				console.log('');
+				tui.info('Environment:');
+				for (const [envKey, envValue] of Object.entries(finalEnv)) {
+					console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
 				}
+			}
 
-				if (finalMetadata && Object.keys(finalMetadata).length > 0) {
+			if (finalMetadata && Object.keys(finalMetadata).length > 0) {
 					console.log('');
 					tui.info('Metadata:');
 					for (const key of Object.keys(finalMetadata)) {

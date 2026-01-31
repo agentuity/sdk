@@ -86,7 +86,7 @@ export class ValidationError extends Error {
 		}
 	}
 
-	toString(): string {
+	override toString(): string {
 		return `${this.name}: ${this.message}`;
 	}
 }

@@ -36,10 +36,10 @@ export function detectGitInfo(): DetectedGitInfo {
 			// https://github.com/owner/repo.git
 			// git@github.com:owner/repo.git
 			const httpsMatch = url.match(/github\.com\/([^/]+\/[^/]+?)(?:\.git)?$/);
-			if (httpsMatch) repo = httpsMatch[1];
+			if (httpsMatch?.[1]) repo = httpsMatch[1];
 
 			const sshMatch = url.match(/github\.com:([^/]+\/[^/]+?)(?:\.git)?$/);
-			if (sshMatch) repo = sshMatch[1];
+			if (sshMatch?.[1]) repo = sshMatch[1];
 		}
 
 		// Detect current branch

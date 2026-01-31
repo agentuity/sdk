@@ -49,10 +49,16 @@ export async function generateAssetServerConfig(
 		const tsconfig = JSON.parse(await Bun.file(tsconfigPath).text());
 		const paths = tsconfig?.compilerOptions?.paths || {};
 		alias = Object.fromEntries(
-			Object.entries(paths).map(([key, value]) => {
-				const pathArray = value as string[];
-				return [key.replace('/*', ''), join(rootDir, pathArray[0].replace('/*', ''))];
-			})
+			Object.entries(paths)
+				.filter(([, value]) => {
+					const pathArray = value as string[];
+					return pathArray.length > 0 && pathArray[0] !== undefined;
+				})
+				.map(([key, value]) => {
+					const pathArray = value as string[];
+					const firstPath = pathArray[0] ?? '';
+					return [key.replace('/*', ''), join(rootDir, firstPath.replace('/*', ''))];
+				})
 		);
 	} catch {
 		// No tsconfig or no paths - that's fine

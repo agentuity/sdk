@@ -17,6 +17,7 @@ export class CookieJar {
 		// Parse cookie: "name=value; Path=/; ..."
 		const parts = cookieHeader.split(';');
 		const nameValue = parts[0];
+		if (!nameValue) return;
 
 		// Split only on first '=' to preserve '=' in cookie value
 		const equalIndex = nameValue.indexOf('=');

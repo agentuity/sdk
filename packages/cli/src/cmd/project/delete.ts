@@ -144,9 +144,10 @@ export const deleteSubcommand = createSubcommand({
 
 		// Confirm deletion
 		if (!skipConfirm) {
+			const firstProject = projectsToDelete[0];
 			const projectDisplay =
-				projectsToDelete.length === 1
-					? formatProjectDisplay(projectsToDelete[0])
+				projectsToDelete.length === 1 && firstProject
+					? formatProjectDisplay(firstProject)
 					: projectsToDelete.map((p) => `\n  • ${formatProjectDisplay(p)}`).join('');
 			tui.warning(`You are about to delete: ${tui.bold(projectDisplay)}`);
 

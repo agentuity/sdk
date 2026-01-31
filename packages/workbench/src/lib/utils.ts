@@ -39,7 +39,7 @@ export function parseTokensHeader(header: string): Record<string, number> {
  * @returns Total number of tokens
  */
 export function getTotalTokens(tokens: Record<string, number>): number {
-	return Object.keys(tokens).reduce((sum, key) => sum + tokens[key], 0);
+	return Object.keys(tokens).reduce((sum, key) => sum + (tokens[key] ?? 0), 0);
 }
 
 export const getProcessEnv = (key: string): string | undefined => {

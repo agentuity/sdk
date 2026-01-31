@@ -32,7 +32,7 @@ export function stripHashComment(content: string): string {
  */
 export function extractHash(content: string): string | null {
 	const match = content.match(HASH_REGEX);
-	return match ? match[1] : null;
+	return match?.[1] ?? null;
 }
 
 /**

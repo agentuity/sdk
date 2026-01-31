@@ -217,6 +217,9 @@ const redactHeaders = (kv: Record<string, string>): string => {
 	for (const k of Object.keys(kv)) {
 		const _k = k.toLowerCase();
 		const v = kv[k];
+		if (v === undefined) {
+			continue;
+		}
 		if (sensitiveHeaders.has(_k)) {
 			values.push(`${_k}=${redactSensitiveHeader(k, v)}`);
 		} else {

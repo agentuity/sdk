@@ -40,11 +40,13 @@ const vectorCrudAgent = createAgent('storage-vector-crud', {
 					metadata,
 				});
 
+				const firstResult = results[0];
+				if (!firstResult) throw new Error('No result returned from upsert');
 				return {
 					operation,
 					success: true,
-					id: results[0].id,
-					key: results[0].key,
+					id: firstResult.id,
+					key: firstResult.key,
 				};
 			}
 

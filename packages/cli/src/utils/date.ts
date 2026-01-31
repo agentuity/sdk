@@ -36,7 +36,11 @@ export function parseExpiresAt(input: string): string {
 		});
 	}
 
-	const [, amount, unit] = match;
+	const amount = match[1];
+	const unit = match[2];
+	if (!amount || !unit) {
+		throw new Error(`Invalid relative date format: ${input}`);
+	}
 	const num = parseInt(amount, 10);
 	const now = new Date();
 

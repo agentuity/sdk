@@ -129,9 +129,12 @@ async function getSourceContext(
 		}
 
 		const currentOriginal = lines[lineNumber - 1];
+		if (currentOriginal === undefined) {
+			return null;
+		}
 		const current = expandTabs(currentOriginal);
-		const beforeRaw = lineNumber > 1 ? lines[lineNumber - 2] : null;
-		const afterRaw = lineNumber < lines.length ? lines[lineNumber] : null;
+		const beforeRaw = lineNumber > 1 ? (lines[lineNumber - 2] ?? null) : null;
+		const afterRaw = lineNumber < lines.length ? (lines[lineNumber] ?? null) : null;
 		const before = beforeRaw !== null && beforeRaw.trim() !== '' ? expandTabs(beforeRaw) : null;
 		const after = afterRaw !== null && afterRaw.trim() !== '' ? expandTabs(afterRaw) : null;
 
