@@ -99,7 +99,8 @@ async function queryTerminalBackground(): Promise<RGBColor | null> {
 
 				// Parse RGB values - they can be different bit depths
 				// Normalize to 8-bit (0-255) by taking the most significant bits
-				const parseColorValue = (hex: string): number => {
+				const parseColorValue = (hex: string | undefined): number => {
+					if (!hex) return 0;
 					if (hex.length === 4) {
 						// 16-bit: RRRR -> take first 2 chars
 						return parseInt(hex.slice(0, 2), 16);

@@ -789,8 +789,9 @@ export async function getDefaultRegion(
 		const file = Bun.file(cachePath);
 		if (await file.exists()) {
 			const data: RegionsCacheData = await file.json();
-			if (data.regions && data.regions.length > 0) {
-				return data.regions[0].region;
+			const firstRegion = data.regions?.[0];
+			if (firstRegion) {
+				return firstRegion.region;
 			}
 		}
 	} catch {

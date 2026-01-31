@@ -373,7 +373,10 @@ export function buildValidationInput(
 	if (schemas.args) {
 		const parsed = parseArgsSchema(schemas.args);
 		for (let i = 0; i < parsed.names.length; i++) {
-			result.args[parsed.names[i]] = rawArgs[i];
+			const name = parsed.names[i];
+			if (name !== undefined) {
+				result.args[name] = rawArgs[i];
+			}
 		}
 	}
 

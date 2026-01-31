@@ -54,7 +54,7 @@ export async function download(gravityDir: string): Promise<GravityClient> {
 	})) as { release: string; assetFileNames: string[] };
 
 	const versionTok = res.release.split('@');
-	const version = versionTok[1];
+	const version = versionTok[1] ?? 'unknown';
 	const releaseFilename = join(gravityDir, version, 'gravity');
 	const mustDownload = !existsSync(releaseFilename);
 
@@ -76,7 +76,11 @@ export async function download(gravityDir: string): Promise<GravityClient> {
 				false,
 				''
 			)) as string[];
-			return res[0] as string;
+			const file = res[0];
+			if (!file) {
+				throw new Error('No file downloaded from release');
+			}
+			return file;
 		},
 		clearOnSuccess: true,
 	});
@@ -105,6 +109,10 @@ export async function download(gravityDir: string): Promise<GravityClient> {
 
 	if (existsSync(outputdir)) {
 		rmSync(outputdir, { recursive: true });
+	}
+
+	if (!existsSync(releaseFilename)) {
+		throw new Error(`Failed to extract gravity binary to ${releaseFilename}`);
 	}
 
 	return { filename: releaseFilename, version };

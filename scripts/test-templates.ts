@@ -362,9 +362,11 @@ async function installDependencies(
 
 	// Log the package.json to verify file:// paths
 	logInfo('Package.json @agentuity dependencies:');
-	Object.keys(packageJson.dependencies || {})
-		.filter((k) => k.startsWith('@agentuity'))
-		.forEach((k) => logInfo(`  ${k}: ${packageJson.dependencies[k]}`));
+	for (const k of Object.keys(packageJson.dependencies || {}).filter((k) =>
+		k.startsWith('@agentuity')
+	)) {
+		logInfo(`  ${k}: ${packageJson.dependencies[k]}`);
+	}
 
 	// Delete lockfile to ensure fresh resolution
 	const lockfilePath = join(projectDir, 'bun.lock');
@@ -418,8 +420,33 @@ async function installDependencies(
 	return { success: true };
 }
 
+async function buildProjectDev(projectDir: string): Promise<{ success: boolean; error?: string }> {
+	// Use local CLI bin to ensure we test the current code
+	// Test dev build mode first (this is what users run with `agentuity dev`)
+	const result = await runCommand(['bun', CLI_BIN, 'build', '--dev'], projectDir, undefined, 120000);
+	if (!result.success) {
+		// Log full error output for debugging
+		if (result.stderr) {
+			console.error('\n' + result.stderr);
+		}
+		if (result.stdout) {
+			console.log('\n' + result.stdout);
+		}
+		return { success: false, error: result.stderr || result.stdout };
+	}
+
+	// Verify build output exists
+	const agentuityDir = join(projectDir, '.agentuity');
+	if (!existsSync(agentuityDir)) {
+		return { success: false, error: 'Build output directory (.agentuity) not found' };
+	}
+
+	return { success: true };
+}
+
 async function buildProject(projectDir: string): Promise<{ success: boolean; error?: string }> {
 	// Use local CLI bin to ensure we test the current code
+	// Test production build mode (this is what users run with `agentuity build`)
 	const result = await runCommand(['bun', CLI_BIN, 'build'], projectDir, undefined, 120000);
 	if (!result.success) {
 		// Log full error output for debugging
@@ -637,22 +664,39 @@ async function testTemplate(
 		}
 		logSuccess('Dependencies installed');
 
-		// Step 3: Build project
-		logStep('Building project...');
+		// Step 3a: Build project in dev mode (tests `agentuity build --dev` / `agentuity dev`)
+		logStep('Building project (dev mode)...');
+		stepStart = Date.now();
+		const buildDevResult = await buildProjectDev(projectDir);
+		result.steps.push({
+			name: 'Build project (dev)',
+			passed: buildDevResult.success,
+			error: buildDevResult.error,
+			duration: Date.now() - stepStart,
+		});
+		if (!buildDevResult.success) {
+			result.passed = false;
+			logError(`Failed to build project (dev mode): ${buildDevResult.error}`);
+			return result;
+		}
+		logSuccess('Project built (dev mode)');
+
+		// Step 3b: Build project in production mode (tests `agentuity build`)
+		logStep('Building project (production)...');
 		stepStart = Date.now();
 		const buildResult = await buildProject(projectDir);
 		result.steps.push({
-			name: 'Build project',
+			name: 'Build project (production)',
 			passed: buildResult.success,
 			error: buildResult.error,
 			duration: Date.now() - stepStart,
 		});
 		if (!buildResult.success) {
 			result.passed = false;
-			logError(`Failed to build project: ${buildResult.error}`);
+			logError(`Failed to build project (production): ${buildResult.error}`);
 			return result;
 		}
-		logSuccess('Project built');
+		logSuccess('Project built (production)');
 
 		// Step 3.5: Verify CSS for Tailwind template
 		if (template.id === 'tailwind') {

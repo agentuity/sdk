@@ -12,6 +12,7 @@ import { loadAgentuityConfig, getWorkbenchConfig } from './config-loader';
 
 // Re-export plugins
 export { browserEnvPlugin } from './browser-env-plugin';
+export { publicAssetPathPlugin } from './public-asset-path-plugin';
 
 export interface AgentuityPluginOptions {
 	dev?: boolean;

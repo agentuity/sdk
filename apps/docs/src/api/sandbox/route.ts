@@ -136,7 +136,10 @@ router.get(
 						await sendOutput(stream, output);
 						return;
 					} catch (err) {
-						if (err instanceof SandboxNotFoundError || err instanceof SandboxTerminatedError) {
+						if (
+							err instanceof SandboxNotFoundError ||
+							err instanceof SandboxTerminatedError
+						) {
 							logger?.info('Sandbox expired, creating new one', { sandboxId, threadId });
 							// Fall through to create new sandbox
 						} else {
@@ -198,7 +201,9 @@ router.get(
 							.then(() => stream.writeSSE({ event: 'stdout', data: encoded }))
 							.then(() => callback(), callback);
 					} else {
-						stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
+						stream
+							.writeSSE({ event: 'stdout', data: encoded })
+							.then(() => callback(), callback);
 					}
 				} else {
 					callback();
@@ -226,7 +231,11 @@ router.get(
 			});
 
 			const exitCode = detectedExitCode ?? result.exitCode;
-			logger?.info('Sandbox completed', { script: scriptName, sandboxId: result.sandboxId, exitCode });
+			logger?.info('Sandbox completed', {
+				script: scriptName,
+				sandboxId: result.sandboxId,
+				exitCode,
+			});
 
 			await stream.writeSSE({
 				event: 'done',

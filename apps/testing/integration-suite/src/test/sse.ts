@@ -39,9 +39,9 @@ test('sse', 'receive-multiple-messages', async () => {
 	const messages = await client.receiveMultiple(3);
 
 	assertEqual(messages.length, 3);
-	assertEqual(messages[0].data, 'Message 1');
-	assertEqual(messages[1].data, 'Message 2');
-	assertEqual(messages[2].data, 'Message 3');
+	assertEqual(messages[0]?.data, 'Message 1');
+	assertEqual(messages[1]?.data, 'Message 2');
+	assertEqual(messages[2]?.data, 'Message 3');
 
 	client.close();
 });
@@ -107,9 +107,9 @@ test('sse', 'query-parameters', async () => {
 
 	assertEqual(messages.length, 3);
 
-	const data0 = JSON.parse(messages[0].data);
-	const data1 = JSON.parse(messages[1].data);
-	const data2 = JSON.parse(messages[2].data);
+	const data0 = JSON.parse(messages[0]?.data ?? '{}');
+	const data1 = JSON.parse(messages[1]?.data ?? '{}');
+	const data2 = JSON.parse(messages[2]?.data ?? '{}');
 
 	assertEqual(data0.count, 0);
 	assertEqual(data1.count, 1);
@@ -205,7 +205,9 @@ test('sse', 'event-ordering', async () => {
 
 	// Verify messages are in order
 	for (let i = 0; i < 10; i++) {
-		const data = JSON.parse(messages[i].data);
+		const msg = messages[i];
+		if (!msg) throw new Error(`Missing message at index ${i}`);
+		const data = JSON.parse(msg.data);
 		assertEqual(data.count, i, `Message ${i} should have count ${i}`);
 	}
 
@@ -225,9 +227,9 @@ test('sse', 'pending-messages', async () => {
 	const pending = client.getPendingMessages();
 
 	assertEqual(pending.length, 3);
-	assertEqual(pending[0].data, 'Message 1');
-	assertEqual(pending[1].data, 'Message 2');
-	assertEqual(pending[2].data, 'Message 3');
+	assertEqual(pending[0]?.data, 'Message 1');
+	assertEqual(pending[1]?.data, 'Message 2');
+	assertEqual(pending[2]?.data, 'Message 3');
 
 	// Pending messages should be cleared
 	const morePending = client.getPendingMessages();

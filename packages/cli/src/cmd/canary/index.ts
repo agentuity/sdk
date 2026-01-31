@@ -58,6 +58,14 @@ export const command = createCommand({
 
 		// Get target from parsed args, but get forward args from raw argv
 		const target = args.args[0];
+		if (!target) {
+			tui.error('Usage: agentuity canary <version> [commands...]');
+			return {
+				executed: false,
+				version: '',
+				message: 'No target specified',
+			};
+		}
 		const targetIndex = canaryIndex >= 0 ? argv.indexOf(target, canaryIndex) : -1;
 		const forwardArgs = targetIndex >= 0 ? argv.slice(targetIndex + 1) : args.args.slice(1);
 
@@ -79,7 +87,7 @@ export const command = createCommand({
 			tarballUrl = target;
 			// Extract version from URL if possible
 			const match = target.match(/agentuity-cli-(\d+\.\d+\.\d+-[a-f0-9]+)\.tgz/);
-			version = match ? match[1] : 'custom';
+			version = match?.[1] ?? 'custom';
 		} else {
 			// Version string - construct URL
 			version = target;

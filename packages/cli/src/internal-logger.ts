@@ -434,12 +434,13 @@ export function getLatestLogSession(): string | null {
 		const entries = readdirSync(logsDir, { withFileTypes: true });
 		const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
 
-		if (dirs.length === 0) {
+		const firstDir = dirs[0];
+		if (!firstDir) {
 			return null;
 		}
 
 		// Return the first directory (should be the only one due to cleanup)
-		return join(logsDir, dirs[0]);
+		return join(logsDir, firstDir);
 	} catch {
 		return null;
 	}

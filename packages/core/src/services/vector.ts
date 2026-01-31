@@ -750,10 +750,13 @@ export class VectorStorageService implements VectorStorage {
 
 		if (res.ok) {
 			if (res.data.success) {
-				return res.data.data.map((o, index) => ({
-					key: documents[index].key,
-					id: o.id,
-				}));
+				return res.data.data.map((o, index) => {
+					const doc = documents[index];
+					return {
+						key: doc ? doc.key : '',
+						id: o.id,
+					};
+				});
 			}
 			throw new VectorStorageResponseError({
 				status: res.response.status,
@@ -836,8 +839,9 @@ export class VectorStorageService implements VectorStorage {
 
 		const resultMap = new Map<string, VectorSearchResultWithDocument<T>>();
 		results.forEach((result, index) => {
-			if (result.exists) {
-				resultMap.set(keys[index], result.data);
+			const key = keys[index];
+			if (result.exists && key) {
+				resultMap.set(key, result.data);
 			}
 		});
 
@@ -939,10 +943,11 @@ export class VectorStorageService implements VectorStorage {
 		let url: string;
 		let body: string | undefined;
 
-		if (keys.length === 1) {
+		const firstKey = keys[0];
+		if (keys.length === 1 && firstKey) {
 			url = buildUrl(
 				this.#baseUrl,
-				`/vector/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(keys[0])}`
+				`/vector/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(firstKey)}`
 			);
 		} else {
 			url = buildUrl(this.#baseUrl, `/vector/2025-03-17/${encodeURIComponent(name)}`);

@@ -24,7 +24,8 @@ const createMockContext = () => {
 			logger: {
 				info: (message: string, data?: unknown) => logs.push({ level: 'info', message, data }),
 				warn: (message: string, data?: unknown) => logs.push({ level: 'warn', message, data }),
-				error: (message: string, data?: unknown) => logs.push({ level: 'error', message, data }),
+				error: (message: string, data?: unknown) =>
+					logs.push({ level: 'error', message, data }),
 			},
 		} as unknown as EvalContext,
 		logs,
@@ -140,7 +141,8 @@ describe('EvalLifecycleHooks', () => {
 		const evalConfig = adversarial<typeof _AgentInputSchema, typeof _AgentOutputSchema>({
 			name: 'custom-adversarial',
 			onStart: (ctx) => ctx.logger.info('Starting custom eval'),
-			onComplete: (ctx, _input, _output, result) => ctx.logger.info('Done', { passed: result.passed }),
+			onComplete: (ctx, _input, _output, result) =>
+				ctx.logger.info('Done', { passed: result.passed }),
 			middleware: {
 				transformInput: (input) => ({ request: input.text }),
 				transformOutput: (output) => ({ response: output.response }),

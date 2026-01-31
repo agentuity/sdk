@@ -173,7 +173,8 @@ export class SSETestClient {
 			// Check existing messages
 			const index = this.messages.findIndex((msg) => msg.event === eventType);
 			if (index !== -1) {
-				return this.messages.splice(index, 1)[0];
+				const message = this.messages.splice(index, 1)[0];
+				if (message) return message;
 			}
 
 			if (Date.now() - startTime > timeoutMs) {

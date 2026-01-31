@@ -47,17 +47,17 @@ import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 const agent = createAgent('hello', {
-    description: 'Simple greeting agent',
-    schema: {
-        input: s.object({
-            name: s.string(),
-        }),
-        output: s.string(),
-    },
-    handler: async (ctx, { name }) => {
-        ctx.logger.info('Greeting', { name });
-        return `Hello, ${name}!`;
-    },
+	description: 'Simple greeting agent',
+	schema: {
+		input: s.object({
+			name: s.string(),
+		}),
+		output: s.string(),
+	},
+	handler: async (ctx, { name }) => {
+		ctx.logger.info('Greeting', { name });
+		return `Hello, ${name}!`;
+	},
 });
 
 export default agent;
@@ -74,18 +74,18 @@ import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 
 const agent = createAgent('chat', {
-    description: 'Conversational agent with AI responses',
-    schema: {
-        input: s.object({ message: s.string() }),
-        output: s.string(),
-    },
-    handler: async (ctx, { message }) => {
-        const { text } = await generateText({
-            model: google('gemini-3-flash-preview'),
-            prompt: message,
-        });
-        return text;
-    },
+	description: 'Conversational agent with AI responses',
+	schema: {
+		input: s.object({ message: s.string() }),
+		output: s.string(),
+	},
+	handler: async (ctx, { message }) => {
+		const { text } = await generateText({
+			model: google('gemini-3-flash-preview'),
+			prompt: message,
+		});
+		return text;
+	},
 });
 
 export default agent;
@@ -98,25 +98,25 @@ import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 const agent = createAgent('stateful', {
-    description: 'Agent with persistent state',
-    schema: {
-        input: s.object({ message: s.string() }),
-        output: s.object({ response: s.string(), turnCount: s.number() }),
-    },
-    handler: async (ctx, { message }) => {
-        // Thread state persists across requests (conversation history)
-        const history = (await ctx.thread.state.get<string[]>('history')) || [];
-        history.push(message);
-        await ctx.thread.state.set('history', history);
+	description: 'Agent with persistent state',
+	schema: {
+		input: s.object({ message: s.string() }),
+		output: s.object({ response: s.string(), turnCount: s.number() }),
+	},
+	handler: async (ctx, { message }) => {
+		// Thread state persists across requests (conversation history)
+		const history = (await ctx.thread.state.get<string[]>('history')) || [];
+		history.push(message);
+		await ctx.thread.state.set('history', history);
 
-        // Session state is ephemeral (per-request metadata)
-        await ctx.session.state.set('lastMessage', message);
+		// Session state is ephemeral (per-request metadata)
+		await ctx.session.state.set('lastMessage', message);
 
-        return {
-            response: `You said: ${message}`,
-            turnCount: history.length,
-        };
-    },
+		return {
+			response: `You said: ${message}`,
+			turnCount: history.length,
+		};
+	},
 });
 
 export default agent;
@@ -150,9 +150,9 @@ import helloAgent from '../../agent/hello/agent';
 const router = createRouter();
 
 router.post('/', helloAgent.validator(), async (c) => {
-    const data = c.req.valid('json');
-    const text = await helloAgent.run(data);
-    return c.text(text);
+	const data = c.req.valid('json');
+	const text = await helloAgent.run(data);
+	return c.text(text);
 });
 
 export default router;
@@ -182,9 +182,9 @@ Use `ctx.agent.{name}.run()` for agent-to-agent communication:
 
 ```typescript
 handler: async (ctx, input) => {
-    // Call another agent via ctx.agent
-    const result = await ctx.agent.otherAgent.run({ data: input.value });
-    return `Other agent returned: ${result}`;
+	// Call another agent via ctx.agent
+	const result = await ctx.agent.otherAgent.run({ data: input.value });
+	return `Other agent returned: ${result}`;
 };
 ```
 
@@ -194,9 +194,9 @@ handler: async (ctx, input) => {
 
 ```typescript
 handler: async (c, input) => {
-    await c.kv.set('user:123', { name: 'Alice', age: 30 });
-    const user = await c.kv.get('user:123');
-    return user;
+	await c.kv.set('user:123', { name: 'Alice', age: 30 });
+	const user = await c.kv.get('user:123');
+	return user;
 };
 ```
 
@@ -204,13 +204,13 @@ handler: async (c, input) => {
 
 ```typescript
 handler: async (c, input) => {
-    const stream = await c.stream.create('output', {
-        metadata: { createdBy: 'my-agent' },
-        contentType: 'text/plain',
-    });
-    await stream.write('Hello from stream');
-    await stream.close();
-    return { streamId: stream.id, url: stream.url };
+	const stream = await c.stream.create('output', {
+		metadata: { createdBy: 'my-agent' },
+		contentType: 'text/plain',
+	});
+	await stream.write('Hello from stream');
+	await stream.close();
+	return { streamId: stream.id, url: stream.url };
 };
 ```
 
@@ -218,8 +218,8 @@ handler: async (c, input) => {
 
 ```typescript
 handler: async (c, input) => {
-    const result = await c.agent.otherAgent.run({ data: input.value });
-    return `Other agent returned: ${result}`;
+	const result = await c.agent.otherAgent.run({ data: input.value });
+	return `Other agent returned: ${result}`;
 };
 ```
 
@@ -246,20 +246,20 @@ import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 const agent = createAgent('team', {
-    description: 'Team manager agent',
-    schema: {
-        input: s.object({ action: s.union([s.literal('info'), s.literal('count')]) }),
-        output: s.object({
-            message: s.string(),
-            timestamp: s.string(),
-        }),
-    },
-    handler: async (ctx, { action }) => {
-        return {
-            message: 'Team parent agent - manages members and tasks',
-            timestamp: new Date().toISOString(),
-        };
-    },
+	description: 'Team manager agent',
+	schema: {
+		input: s.object({ action: s.union([s.literal('info'), s.literal('count')]) }),
+		output: s.object({
+			message: s.string(),
+			timestamp: s.string(),
+		}),
+	},
+	handler: async (ctx, { action }) => {
+		return {
+			message: 'Team parent agent - manages members and tasks',
+			timestamp: new Date().toISOString(),
+		};
+	},
 });
 
 export default agent;
@@ -272,30 +272,30 @@ import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 const agent = createAgent('team.members', {
-    description: 'Team members subagent',
-    schema: {
-        input: s.object({
-            action: s.union([s.literal('list'), s.literal('add'), s.literal('remove')]),
-            name: s.optional(s.string()),
-        }),
-        output: s.object({
-            members: s.array(s.string()),
-            parentInfo: s.optional(s.string()),
-        }),
-    },
-    handler: async (ctx, { action, name }) => {
-        // Access parent agent
-        const parentResult = await ctx.agent.team.run({ action: 'info' });
-        const parentInfo = `Parent says: ${parentResult.message}`;
+	description: 'Team members subagent',
+	schema: {
+		input: s.object({
+			action: s.union([s.literal('list'), s.literal('add'), s.literal('remove')]),
+			name: s.optional(s.string()),
+		}),
+		output: s.object({
+			members: s.array(s.string()),
+			parentInfo: s.optional(s.string()),
+		}),
+	},
+	handler: async (ctx, { action, name }) => {
+		// Access parent agent
+		const parentResult = await ctx.agent.team.run({ action: 'info' });
+		const parentInfo = `Parent says: ${parentResult.message}`;
 
-        // Subagent logic here
-        let members = ['Alice', 'Bob'];
-        if (action === 'add' && name) {
-            members.push(name);
-        }
+		// Subagent logic here
+		let members = ['Alice', 'Bob'];
+		if (action === 'add' && name) {
+			members.push(name);
+		}
 
-        return { members, parentInfo };
-    },
+		return { members, parentInfo };
+	},
 });
 
 export default agent;
@@ -315,12 +315,12 @@ import tasksAgent from '../../agent/team/tasks/agent';
 const router = createRouter();
 
 router.get('/', async (c) => {
-    // Call agents directly
-    const teamInfo = await teamAgent.run({ action: 'info' });
-    const members = await membersAgent.run({ action: 'list' });
-    const tasks = await tasksAgent.run({ action: 'list' });
+	// Call agents directly
+	const teamInfo = await teamAgent.run({ action: 'info' });
+	const members = await membersAgent.run({ action: 'list' });
+	const tasks = await tasksAgent.run({ action: 'list' });
 
-    return c.json({ teamInfo, members, tasks });
+	return c.json({ teamInfo, members, tasks });
 });
 
 export default router;

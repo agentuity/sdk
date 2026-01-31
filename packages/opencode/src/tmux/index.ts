@@ -11,5 +11,7 @@ export {
 	cleanupOwnedResources,
 	cleanupOwnedResourcesSync,
 	findOwnedAgentPanes,
+	getPanePid,
+	getPanePidSync,
 } from './executor';
 export { TmuxSessionManager } from './manager';

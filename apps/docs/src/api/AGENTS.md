@@ -43,17 +43,17 @@ const router = createRouter();
 
 // GET /api/status
 router.get('/', (c) => {
-    return c.json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0',
-    });
+	return c.json({
+		status: 'ok',
+		timestamp: new Date().toISOString(),
+		version: '1.0.0',
+	});
 });
 
 // POST /api/status
 router.post('/', async (c) => {
-    const body = await c.req.json();
-    return c.json({ received: body });
+	const body = await c.req.json();
+	return c.json({ received: body });
 });
 
 export default router;
@@ -68,22 +68,22 @@ import { s } from '@agentuity/schema';
 const router = createRouter();
 
 const createUserSchema = s.object({
-    name: s.string(),
-    email: s.string(),
-    age: s.number(),
+	name: s.string(),
+	email: s.string(),
+	age: s.number(),
 });
 
 const validator = createRouter.validator({
-    input: createUserSchema,
+	input: createUserSchema,
 });
 
 router.post('/', validator, async (c) => {
-    const data = c.req.valid('json');
-    // data is fully typed: { name: string, email: string, age: number }
-    return c.json({
-        success: true,
-        user: data,
-    });
+	const data = c.req.valid('json');
+	// data is fully typed: { name: string, email: string, age: number }
+	return c.json({
+		success: true,
+		user: data,
+	});
 });
 
 export default router;
@@ -100,24 +100,24 @@ import helloAgent from '../../agent/hello/agent';
 const router = createRouter();
 
 router.get('/', async (c) => {
-    // Call the imported agent directly
-    const result = await helloAgent.run({ name: 'API Caller' });
+	// Call the imported agent directly
+	const result = await helloAgent.run({ name: 'API Caller' });
 
-    return c.json({
-        success: true,
-        agentResult: result,
-    });
+	return c.json({
+		success: true,
+		agentResult: result,
+	});
 });
 
 // Use agent.validator() for automatic request validation
 router.post('/', helloAgent.validator(), async (c) => {
-    const data = c.req.valid('json'); // Already typed & validated
-    const result = await helloAgent.run(data);
+	const data = c.req.valid('json'); // Already typed & validated
+	const result = await helloAgent.run(data);
 
-    return c.json({
-        success: true,
-        agentResult: result,
-    });
+	return c.json({
+		success: true,
+		agentResult: result,
+	});
 });
 
 export default router;
@@ -131,13 +131,13 @@ import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
 
 router.get('/log-test', (c) => {
-    c.var.logger.info('Info message');
-    c.var.logger.error('Error message');
-    c.var.logger.warn('Warning message');
-    c.var.logger.debug('Debug message');
-    c.var.logger.trace('Trace message');
+	c.var.logger.info('Info message');
+	c.var.logger.error('Error message');
+	c.var.logger.warn('Warning message');
+	c.var.logger.debug('Debug message');
+	c.var.logger.trace('Trace message');
 
-    return c.text('Check logs');
+	return c.text('Check logs');
 });
 
 export default router;
@@ -164,22 +164,22 @@ The route handler receives a Hono context object with:
 const router = createRouter();
 
 router.get('/path', (c) => {
-    /* ... */
+	/* ... */
 });
 router.post('/path', (c) => {
-    /* ... */
+	/* ... */
 });
 router.put('/path', (c) => {
-    /* ... */
+	/* ... */
 });
 router.patch('/path', (c) => {
-    /* ... */
+	/* ... */
 });
 router.delete('/path', (c) => {
-    /* ... */
+	/* ... */
 });
 router.options('/path', (c) => {
-    /* ... */
+	/* ... */
 });
 ```
 
@@ -188,15 +188,15 @@ router.options('/path', (c) => {
 ```typescript
 // GET /api/users/:id
 router.get('/:id', (c) => {
-    const id = c.req.param('id');
-    return c.json({ userId: id });
+	const id = c.req.param('id');
+	return c.json({ userId: id });
 });
 
 // GET /api/posts/:postId/comments/:commentId
 router.get('/:postId/comments/:commentId', (c) => {
-    const postId = c.req.param('postId');
-    const commentId = c.req.param('commentId');
-    return c.json({ postId, commentId });
+	const postId = c.req.param('postId');
+	const commentId = c.req.param('commentId');
+	return c.json({ postId, commentId });
 });
 ```
 
@@ -205,9 +205,9 @@ router.get('/:postId/comments/:commentId', (c) => {
 ```typescript
 // GET /api/search?q=hello&limit=10
 router.get('/search', (c) => {
-    const query = c.req.query('q');
-    const limit = c.req.query('limit') || '20';
-    return c.json({ query, limit: parseInt(limit) });
+	const query = c.req.query('q');
+	const limit = c.req.query('limit') || '20';
+	return c.json({ query, limit: parseInt(limit) });
 });
 ```
 
@@ -216,15 +216,15 @@ router.get('/search', (c) => {
 ```typescript
 // JSON body
 router.post('/', async (c) => {
-    const body = await c.req.json();
-    return c.json({ received: body });
+	const body = await c.req.json();
+	return c.json({ received: body });
 });
 
 // Form data
 router.post('/upload', async (c) => {
-    const formData = await c.req.formData();
-    const file = formData.get('file');
-    return c.json({ fileName: file?.name });
+	const formData = await c.req.formData();
+	const file = formData.get('file');
+	return c.json({ fileName: file?.name });
 });
 ```
 
@@ -234,19 +234,19 @@ router.post('/upload', async (c) => {
 import myAgent from '../../agent/my-agent/agent';
 
 router.get('/', async (c) => {
-    try {
-        const result = await myAgent.run({ data: 'test' });
-        return c.json({ success: true, result });
-    } catch (error) {
-        c.var.logger.error('Agent call failed:', error);
-        return c.json(
-            {
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-            },
-            500
-        );
-    }
+	try {
+		const result = await myAgent.run({ data: 'test' });
+		return c.json({ success: true, result });
+	} catch (error) {
+		c.var.logger.error('Agent call failed:', error);
+		return c.json(
+			{
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			},
+			500
+		);
+	}
 });
 ```
 
@@ -262,26 +262,26 @@ import { openai } from '@ai-sdk/openai';
 const router = createRouter();
 
 router.get('/stream', (c) =>
-    sse(async (c, stream) => {
-        const { textStream } = streamText({
-            model: openai('gpt-5-nano'),
-            prompt: 'Tell me a story',
-        });
+	sse(async (c, stream) => {
+		const { textStream } = streamText({
+			model: openai('gpt-5-nano'),
+			prompt: 'Tell me a story',
+		});
 
-        let chunkCount = 0;
-        for await (const chunk of textStream) {
-            await stream.writeSSE({
-                event: 'token',
-                data: chunk,
-                id: String(chunkCount++),
-            });
-        }
+		let chunkCount = 0;
+		for await (const chunk of textStream) {
+			await stream.writeSSE({
+				event: 'token',
+				data: chunk,
+				id: String(chunkCount++),
+			});
+		}
 
-        await stream.writeSSE({
-            event: 'done',
-            data: JSON.stringify({ totalTokens: chunkCount }),
-        });
-    })
+		await stream.writeSSE({
+			event: 'done',
+			data: JSON.stringify({ totalTokens: chunkCount }),
+		});
+	})
 );
 
 export default router;
@@ -306,13 +306,13 @@ import { streamText } from 'ai';
 const router = createRouter();
 
 router.post('/stream', (c) =>
-    stream(async () => {
-        const { textStream } = streamText({
-            model: openai('gpt-5-nano'),
-            prompt: 'Hello',
-        });
-        return textStream; // Returns ReadableStream directly
-    })
+	stream(async () => {
+		const { textStream } = streamText({
+			model: openai('gpt-5-nano'),
+			prompt: 'Hello',
+		});
+		return textStream; // Returns ReadableStream directly
+	})
 );
 
 export default router;
@@ -330,20 +330,20 @@ import { createRouter, websocket } from '@agentuity/runtime';
 const router = createRouter();
 
 router.get('/connect', (c) =>
-    websocket((c, ws) => {
-        ws.onOpen(() => {
-            ws.send(JSON.stringify({ type: 'system', message: 'Connected' }));
-        });
+	websocket((c, ws) => {
+		ws.onOpen(() => {
+			ws.send(JSON.stringify({ type: 'system', message: 'Connected' }));
+		});
 
-        ws.onMessage(async (event) => {
-            const data = typeof event.data === 'string' ? event.data : '';
-            ws.send(JSON.stringify({ type: 'echo', message: data }));
-        });
+		ws.onMessage(async (event) => {
+			const data = typeof event.data === 'string' ? event.data : '';
+			ws.send(JSON.stringify({ type: 'echo', message: data }));
+		});
 
-        ws.onClose(() => {
-            console.log('Client disconnected');
-        });
-    })
+		ws.onClose(() => {
+			console.log('Client disconnected');
+		});
+	})
 );
 
 export default router;
@@ -357,16 +357,16 @@ Use `c.waitUntil()` to schedule work after the response is sent:
 
 ```typescript
 router.post('/background', async (c) => {
-    const body = await c.req.json();
+	const body = await c.req.json();
 
-    // Schedule background work
-    c.waitUntil(async () => {
-        // This runs after the response is sent
-        await someAsyncTask(body);
-    });
+	// Schedule background work
+	c.waitUntil(async () => {
+		// This runs after the response is sent
+		await someAsyncTask(body);
+	});
 
-    // Return immediately
-    return c.json({ status: 'accepted' });
+	// Return immediately
+	return c.json({ status: 'accepted' });
 });
 ```
 
@@ -434,7 +434,7 @@ return c.redirect('/new-path');
 
 // Headers
 return c.json({ data: 'value' }, 200, {
-    'X-Custom-Header': 'value',
+	'X-Custom-Header': 'value',
 });
 ```
 

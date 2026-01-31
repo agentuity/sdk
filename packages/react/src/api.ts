@@ -307,10 +307,12 @@ export type UseAPIResult<TRoute extends RouteKey> =
  */
 function parseRouteKey(routeKey: string): { method: string; path: string } {
 	const parts = routeKey.split(' ');
-	if (parts.length !== 2) {
+	const method = parts[0];
+	const path = parts[1];
+	if (parts.length !== 2 || !method || !path) {
 		throw new Error(`Invalid route key format: "${routeKey}". Expected "METHOD /path"`);
 	}
-	return { method: parts[0], path: parts[1] };
+	return { method, path };
 }
 
 /**

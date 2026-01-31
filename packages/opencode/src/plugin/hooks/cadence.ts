@@ -107,6 +107,7 @@ export function createCadenceHooks(ctx: PluginInput, _config: CoderConfig): Cade
 			);
 			if (statusMatch) {
 				const [, loopId, iteration, maxIterations] = statusMatch;
+				if (!iteration || !maxIterations) return;
 				const newIteration = parseInt(iteration, 10);
 				const newMax = parseInt(maxIterations, 10);
 				const changed =
@@ -127,7 +128,7 @@ export function createCadenceHooks(ctx: PluginInput, _config: CoderConfig): Cade
 
 			// Fallback: try to extract iteration from loose "iteration: N" pattern
 			const iterMatch = messageText.match(/iteration[:\s]+(\d+)/i);
-			if (iterMatch) {
+			if (iterMatch && iterMatch[1]) {
 				const newIteration = parseInt(iterMatch[1], 10);
 				if (newIteration !== state.iteration) {
 					state.iteration = newIteration;

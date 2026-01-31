@@ -212,7 +212,8 @@ function safeStringify(obj: unknown): string {
 			return parsed.origin + parsed.pathname;
 		} catch {
 			// If URL parsing fails, try simple string split
-			return url.split('?')[0];
+			const parts = url.split('?');
+			return parts[0] ?? url;
 		}
 	}
 
@@ -557,8 +558,9 @@ function safeStringify(obj: unknown): string {
 		try {
 			new PerformanceObserver((list) => {
 				const entries = list.getEntries();
-				if (entries.length) {
-					pv.lcp = Math.round(entries[entries.length - 1].startTime);
+				const lastEntry = entries[entries.length - 1];
+				if (lastEntry) {
+					pv.lcp = Math.round(lastEntry.startTime);
 				}
 			}).observe({ type: 'largest-contentful-paint', buffered: true });
 		} catch {

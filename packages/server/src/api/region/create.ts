@@ -81,11 +81,17 @@ export function validateBucketName(name: string): { valid: boolean; error?: stri
 		return { valid: false, error: 'bucket name cannot contain adjacent periods' };
 	}
 	const firstChar = name[0];
-	if (!((firstChar >= 'a' && firstChar <= 'z') || (firstChar >= '0' && firstChar <= '9'))) {
+	if (
+		firstChar === undefined ||
+		!((firstChar >= 'a' && firstChar <= 'z') || (firstChar >= '0' && firstChar <= '9'))
+	) {
 		return { valid: false, error: 'bucket name must start with a lowercase letter or number' };
 	}
 	const lastChar = name[name.length - 1];
-	if (!((lastChar >= 'a' && lastChar <= 'z') || (lastChar >= '0' && lastChar <= '9'))) {
+	if (
+		lastChar === undefined ||
+		!((lastChar >= 'a' && lastChar <= 'z') || (lastChar >= '0' && lastChar <= '9'))
+	) {
 		return { valid: false, error: 'bucket name must end with a lowercase letter or number' };
 	}
 	if (name.startsWith('xn--')) {

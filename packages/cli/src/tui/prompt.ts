@@ -347,6 +347,10 @@ export class PromptFlow {
 				} else if (key.name === 'return') {
 					cleanup();
 					const selected = choices[selectedIndex];
+					if (!selected) {
+						reject(new Error('No selection available'));
+						return;
+					}
 
 					// Clear all lines (message + all choices)
 					const totalLines = choices.length + 1;
@@ -462,8 +466,8 @@ export class PromptFlow {
 
 					// Sort indices to get consistent order for both values and labels
 					const sortedIndices = Array.from(selected).sort((a, b) => a - b);
-					const values = sortedIndices.map((i) => choices[i].value);
-					const labels = sortedIndices.map((i) => choices[i].label);
+					const values = sortedIndices.map((i) => choices[i]?.value).filter((v) => v !== undefined);
+					const labels = sortedIndices.map((i) => choices[i]?.label).filter((l) => l !== undefined);
 
 					// Clear all lines (message + all choices)
 					const totalLines = choices.length + 1;

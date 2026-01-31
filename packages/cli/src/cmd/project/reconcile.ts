@@ -217,8 +217,9 @@ async function selectRegion(regions: RegionList, defaultRegion?: string): Promis
 		throw new Error('No cloud regions available');
 	}
 
-	if (regions.length === 1) {
-		return regions[0].region;
+	const firstRegion = regions[0];
+	if (regions.length === 1 && firstRegion) {
+		return firstRegion.region;
 	}
 
 	// Build options from API regions
@@ -228,18 +229,21 @@ async function selectRegion(regions: RegionList, defaultRegion?: string): Promis
 	}));
 
 	// Move default to top if found
-	const defaultValue = defaultRegion ?? regions[0].region;
+	const defaultValue = defaultRegion ?? firstRegion?.region ?? '';
 	const defaultIndex = options.findIndex((r) => r.value === defaultValue);
 	if (defaultIndex > 0) {
 		const [defaultItem] = options.splice(defaultIndex, 1);
-		options.unshift(defaultItem);
+		if (defaultItem) {
+			options.unshift(defaultItem);
+		}
 	}
 
 	const prompt = createPrompt();
+	const firstOption = options[0];
 	return prompt.select({
 		message: 'Select a region:',
 		options,
-		initial: options[0].value,
+		initial: firstOption?.value ?? '',
 	});
 }
 

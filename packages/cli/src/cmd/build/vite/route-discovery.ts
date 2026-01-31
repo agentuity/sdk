@@ -213,7 +213,7 @@ export function detectRouteConflicts(
 	// Check for exact duplicates
 	for (const [methodPath, routeList] of methodPathMap.entries()) {
 		if (routeList.length > 1) {
-			const [method] = methodPath.split(' ', 2);
+			const [method = 'UNKNOWN'] = methodPath.split(' ', 2);
 			conflicts.push({
 				type: 'duplicate',
 				routes: routeList.map((r) => ({ method, path: r.path, filename: r.filename })),

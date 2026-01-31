@@ -28,7 +28,9 @@ const ResourceListResponse = z.object({
 			password: z.string().nullable().optional().describe('the database password'),
 			url: z.string().nullable().optional().describe('the full database connection URL'),
 			env: z.record(z.string(), z.string()).describe('environment variables for the resource'),
-			internal: z.boolean().describe('whether this is a system-managed database (KV/Vector/Queue)'),
+			internal: z
+				.boolean()
+				.describe('whether this is a system-managed database (KV/Vector/Queue)'),
 		})
 	),
 	redis: z

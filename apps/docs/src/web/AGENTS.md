@@ -91,15 +91,15 @@ createRoot(root).render(<App />);
 ```html
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>My Agentuity App</title>
-    </head>
-    <body>
-        <div id="root"></div>
-        <script type="module" src="/web/frontend.tsx"></script>
-    </body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>My Agentuity App</title>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="/web/frontend.tsx"></script>
+	</body>
 </html>
 ```
 
@@ -257,20 +257,20 @@ Demos are configured in the `DEMOS` array:
 
 ```typescript
 interface DemoConfig {
-    id: string; // URL param: ?demo-id=hello
-    title: string; // Display name
-    subtitle: string; // Short tagline
-    description: string; // Landing page description
-    explanation: React.ReactNode; // Educational content
-    docsUrl?: string; // Link to docs
-    category: 'basics' | 'services' | 'io-patterns' | 'examples';
-    component: React.ComponentType; // Demo component
-    codeExample: string; // Code to display
-    sandboxEnabled?: boolean; // Can run in sandbox
-    sandboxScript?: string; // Script name in scripts.ts
-    sandboxInput?: unknown; // Default input
-    codeHighlights?: LineHighlight[];
-    isRoute?: boolean; // Route vs agent demo
+	id: string; // URL param: ?demo-id=hello
+	title: string; // Display name
+	subtitle: string; // Short tagline
+	description: string; // Landing page description
+	explanation: React.ReactNode; // Educational content
+	docsUrl?: string; // Link to docs
+	category: 'basics' | 'services' | 'io-patterns' | 'examples';
+	component: React.ComponentType; // Demo component
+	codeExample: string; // Code to display
+	sandboxEnabled?: boolean; // Can run in sandbox
+	sandboxScript?: string; // Script name in scripts.ts
+	sandboxInput?: unknown; // Default input
+	codeHighlights?: LineHighlight[];
+	isRoute?: boolean; // Route vs agent demo
 }
 ```
 
@@ -362,9 +362,9 @@ Create `public/styles.css`:
 
 ```css
 body {
-    background-color: #09090b;
-    color: #fff;
-    font-family: sans-serif;
+	background-color: #09090b;
+	color: #fff;
+	font-family: sans-serif;
 }
 ```
 
