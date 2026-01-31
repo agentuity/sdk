@@ -1,13 +1,34 @@
 import { createSubcommand } from '../../types';
 import { z } from 'zod';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
-import { getLatestLogSession } from '../../internal-logger';
+import { getLogSessionsInCurrentWindow } from '../../internal-logger';
 import * as tui from '../../tui';
 import { randomBytes } from 'node:crypto';
 import AdmZip from 'adm-zip';
 import { APIResponseSchema } from '@agentuity/server';
+import { StructuredError } from '@agentuity/core';
+
+// Structured errors for this module
+const NoSessionDirectoriesError = StructuredError(
+	'NoSessionDirectoriesError',
+	'No session directories provided'
+);
+
+const ReportUploadError = StructuredError('ReportUploadError')<{
+	statusText: string;
+	status?: number;
+}>();
+
+const UploadUrlCreationError = StructuredError('UploadUrlCreationError');
+
+const BrowserOpenError = StructuredError(
+	'BrowserOpenError',
+	'Failed to open browser. Please open the URL manually.'
+)<{
+	exitCode?: number | null;
+}>();
 
 const argsSchema = z.object({});
 
@@ -33,22 +54,34 @@ const ReportUploadDataSchema = z.object({
 const ReportUploadResponseSchema = APIResponseSchema(ReportUploadDataSchema);
 
 /**
- * Create a zip file containing session and logs
+ * Create a zip file containing session and logs from multiple session directories
  */
-async function createReportZip(sessionDir: string): Promise<string> {
-	const sessionFile = join(sessionDir, 'session.json');
-	const logsFile = join(sessionDir, 'logs.jsonl');
-
-	if (!existsSync(sessionFile) || !existsSync(logsFile)) {
-		throw new Error('Session files not found');
+async function createReportZip(sessionDirs: string[]): Promise<string> {
+	if (sessionDirs.length === 0) {
+		throw NoSessionDirectoriesError();
 	}
 
 	// Create zip in temp directory
 	const tempZip = join(tmpdir(), `agentuity-report-${randomBytes(8).toString('hex')}.zip`);
 
 	const zip = new AdmZip();
-	zip.addLocalFile(sessionFile);
-	zip.addLocalFile(logsFile);
+
+	for (const sessionDir of sessionDirs) {
+		const sessionFile = join(sessionDir, 'session.json');
+		const logsFile = join(sessionDir, 'logs.jsonl');
+
+		// Extract session ID from directory name cross-platform
+		const sessionId = basename(sessionDir) || 'unknown';
+
+		// Add files with session ID prefix to avoid conflicts
+		if (await Bun.file(sessionFile).exists()) {
+			zip.addLocalFile(sessionFile, sessionId);
+		}
+		if (await Bun.file(logsFile).exists()) {
+			zip.addLocalFile(logsFile, sessionId);
+		}
+	}
+
 	zip.writeZip(tempZip);
 
 	return tempZip;
@@ -76,7 +109,11 @@ async function uploadReport(
 	if (!response.ok) {
 		const errorText = await response.text();
 		logger.error('Upload failed', { status: response.status, error: errorText });
-		throw new Error(`Upload failed: ${response.statusText}`);
+		throw new ReportUploadError({
+			message: `Upload failed: ${response.statusText}`,
+			statusText: response.statusText,
+			status: response.status,
+		});
 	}
 }
 
@@ -161,11 +198,11 @@ async function openBrowser(url: string, logger: import('../../types').Logger): P
 		await proc.exited;
 
 		if (proc.exitCode !== 0) {
-			throw new Error(`Browser process exited with code ${proc.exitCode}`);
+			throw new BrowserOpenError({ exitCode: proc.exitCode });
 		}
 	} catch (error) {
 		logger.error('Failed to open browser', { error });
-		throw new Error('Failed to open browser. Please open the URL manually.');
+		throw new BrowserOpenError({ exitCode: null, cause: error });
 	}
 }
 
@@ -184,9 +221,9 @@ export default createSubcommand({
 		const { opts, logger, apiClient } = ctx;
 		const isJsonMode = ctx.options.json;
 
-		// Get the latest log session
-		const sessionDir = getLatestLogSession();
-		if (!sessionDir) {
+		// Get all log sessions in the current time window (current + previous bucket)
+		const sessionDirs = getLogSessionsInCurrentWindow();
+		if (sessionDirs.length === 0) {
 			if (isJsonMode) {
 				console.log(JSON.stringify({ success: false, error: 'No CLI logs found' }));
 			} else {
@@ -196,10 +233,27 @@ export default createSubcommand({
 			return;
 		}
 
-		// Read session data to get CLI version
-		const sessionFile = join(sessionDir, 'session.json');
-		const sessionData = JSON.parse(readFileSync(sessionFile, 'utf-8'));
-		const cliVersion = sessionData.cli?.version || 'unknown';
+		// Use the first (most recent) session for metadata
+		const primarySessionDir = sessionDirs[0]!;
+		const sessionFile = join(primarySessionDir, 'session.json');
+
+		// Safely read session data with fallback for corrupt/missing session.json
+		let sessionData: SessionData = {};
+		let cliVersion = 'unknown';
+		try {
+			if (await Bun.file(sessionFile).exists()) {
+				sessionData = JSON.parse(readFileSync(sessionFile, 'utf-8'));
+				cliVersion = sessionData.cli?.version || 'unknown';
+			}
+		} catch {
+			// Fall back to defaults if session.json is corrupt or unreadable
+			logger.trace('Failed to read session.json, using defaults');
+		}
+
+		// Log how many sessions we're including
+		if (!isJsonMode && sessionDirs.length > 1) {
+			tui.info(`Found ${sessionDirs.length} session(s) in the current time window`);
+		}
 
 		// Get issue description from:
 		// 1. --description flag
@@ -281,11 +335,11 @@ export default createSubcommand({
 			// Debug: log the response
 			logger.debug('Upload response received', { uploadResponse });
 
-			if (!uploadResponse.success) {
-				const errorMsg = uploadResponse.message || 'Failed to create upload URL';
-				logger.error('Upload URL creation failed', { uploadResponse, errorMsg });
-				throw new Error(errorMsg);
-			}
+		if (!uploadResponse.success) {
+			const errorMsg = uploadResponse.message || 'Failed to create upload URL';
+			logger.error('Upload URL creation failed', { uploadResponse, errorMsg });
+			throw new UploadUrlCreationError({ message: errorMsg });
+		}
 
 			const { presigned_url, url: reportUrl, report_id: reportId } = uploadResponse.data;
 
@@ -294,7 +348,7 @@ export default createSubcommand({
 				tui.info('Creating report archive...');
 			}
 
-			const zipPath = await createReportZip(sessionDir);
+			const zipPath = await createReportZip(sessionDirs);
 
 			// Step 3: Upload to S3
 			if (!isJsonMode) {

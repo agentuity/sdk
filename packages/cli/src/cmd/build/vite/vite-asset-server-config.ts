@@ -99,12 +99,13 @@ export async function generateAssetServerConfig(
 				credentials: true,
 			},
 
-			// HMR configuration - client must connect to Vite asset server directly
-			// Do NOT set port/clientPort - let Vite use the actual server port it binds to
-			// (important when strictPort: false and Vite falls back to an alternate port)
+			// HMR configuration for development with tunnel support (*.agentuity.live)
+			// Do NOT set host/protocol - let Vite auto-detect from page origin
+			// This allows HMR to work both locally and through the Gravity tunnel
+			// The Bun server proxies /__vite_hmr WebSocket connections to Vite
 			hmr: {
-				protocol: 'ws',
-				host: '127.0.0.1',
+				// Use a dedicated path for HMR WebSocket to enable proxying
+				path: '/__vite_hmr',
 			},
 
 			// Don't open browser - Bun server will be the entry point

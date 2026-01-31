@@ -8,11 +8,12 @@ import type { Logger } from '../../../../src/types';
 /**
  * Test suite for HMR port configuration
  *
- * This verifies that the HMR configuration does not hardcode port values,
- * allowing Vite to automatically use the actual server port when it falls
- * back to an alternate port due to port conflicts.
+ * This verifies that the HMR configuration supports both local development
+ * and remote access through tunnels (*.agentuity.live).
  *
- * GitHub Issue: https://github.com/agentuity/sdk/issues/542
+ * GitHub Issues:
+ * - https://github.com/agentuity/sdk/issues/542 (port fallback)
+ * - https://github.com/agentuity/sdk/issues/832 (tunnel HMR support)
  */
 describe('Vite HMR Port Configuration', () => {
 	const mockLogger: Logger = {
@@ -27,7 +28,7 @@ describe('Vite HMR Port Configuration', () => {
 		child: () => mockLogger,
 	};
 
-	test('HMR config should not hardcode port values', async () => {
+	test('HMR config should use path-based routing for tunnel support', async () => {
 		const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-hmr-test-'));
 		try {
 			// Create minimal project structure
@@ -48,14 +49,17 @@ describe('Vite HMR Port Configuration', () => {
 
 			const hmrConfig = config.server?.hmr as Record<string, unknown>;
 
-			// HMR port and clientPort should NOT be set
-			// This allows Vite to use the actual server port when it falls back
+			// HMR should use a dedicated path for WebSocket proxying through tunnels
+			// This allows the Bun server to proxy HMR connections to Vite
+			expect(hmrConfig.path).toBe('/__vite_hmr');
+
+			// HMR port, clientPort, host, and protocol should NOT be set
+			// This allows Vite to auto-detect from the page origin, enabling
+			// HMR to work both locally and through the Gravity tunnel
 			expect(hmrConfig.port).toBeUndefined();
 			expect(hmrConfig.clientPort).toBeUndefined();
-
-			// These should still be set for proper HMR routing
-			expect(hmrConfig.protocol).toBe('ws');
-			expect(hmrConfig.host).toBe('127.0.0.1');
+			expect(hmrConfig.host).toBeUndefined();
+			expect(hmrConfig.protocol).toBeUndefined();
 		} finally {
 			rmSync(tempDir, { recursive: true, force: true });
 		}
