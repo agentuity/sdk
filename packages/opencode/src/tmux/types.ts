@@ -12,6 +12,17 @@ export interface TmuxPaneInfo {
 }
 
 /**
+ * Ownership tags stored in tmux user options
+ */
+export interface TmuxOwnershipTags {
+	isOpencode: boolean; // @agentuity.opencode = "1"
+	serverKey: string; // @agentuity.opencode.server
+	ownerPid: number; // @agentuity.opencode.ownerPid
+	instanceId: string; // @agentuity.opencode.instance
+	sessionId?: string; // @agentuity.opencode.session (pane-level)
+}
+
+/**
  * Current state of the tmux window
  */
 export interface WindowState {

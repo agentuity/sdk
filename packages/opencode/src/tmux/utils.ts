@@ -83,3 +83,42 @@ export function getTmuxPathSync(): string | null {
 		return null;
 	}
 }
+
+/**
+ * Get the tmux session ID for a given pane.
+ * This is used to ensure windows are created in the correct tmux session
+ * when multiple opencode instances run in different sessions.
+ */
+export async function getTmuxSessionId(paneId: string): Promise<string | undefined> {
+	const result = await runTmuxCommand(['display', '-p', '-t', paneId, '#{session_id}']);
+	if (!result.success || !result.output) return undefined;
+	return result.output.trim() || undefined;
+}
+
+/**
+ * Get the tmux session ID synchronously (for shutdown scenarios)
+ */
+export function getTmuxSessionIdSync(paneId: string): string | undefined {
+	const result = runTmuxCommandSync(['display', '-p', '-t', paneId, '#{session_id}']);
+	if (!result.success || !result.output) return undefined;
+	return result.output.trim() || undefined;
+}
+
+/**
+ * Canonicalize server URL for consistent ownership tagging.
+ * Normalizes loopback addresses (127.0.0.1, ::1) to localhost.
+ *
+ * @throws Error if URL is invalid
+ */
+export function canonicalizeServerUrl(url: string): string {
+	try {
+		const parsed = new URL(url);
+		let host = parsed.hostname.toLowerCase();
+		if (host === '127.0.0.1' || host === '::1') {
+			host = 'localhost';
+		}
+		return `${parsed.protocol}//${host}:${parsed.port}`;
+	} catch (error) {
+		throw new Error(`Invalid server URL: ${url}`, { cause: error });
+	}
+}
