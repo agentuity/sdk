@@ -328,10 +328,7 @@ export class QueueStorageService implements QueueService {
 		}
 
 		const basePath = `/queue/messages/publish/2026-01-15/${encodeURIComponent(queueName)}`;
-		const url = buildUrl(
-			this.#baseUrl,
-			params?.sync ? `${basePath}?sync=true` : basePath
-		);
+		const url = buildUrl(this.#baseUrl, params?.sync ? `${basePath}?sync=true` : basePath);
 
 		const requestBody: Record<string, unknown> = {
 			payload: typeof payload === 'string' ? payload : body,

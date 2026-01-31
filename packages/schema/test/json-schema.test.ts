@@ -167,9 +167,9 @@ describe('JSON Schema Conversion', () => {
 
 			expect(jsonSchema.additionalProperties).toBe(false);
 			expect(jsonSchema.properties?.level1?.additionalProperties).toBe(false);
-			expect(jsonSchema.properties?.level1?.properties?.level2?.items?.additionalProperties).toBe(
-				false
-			);
+			expect(
+				jsonSchema.properties?.level1?.properties?.level2?.items?.additionalProperties
+			).toBe(false);
 			expect(
 				jsonSchema.properties?.level1?.properties?.level2?.items?.properties?.level3
 					?.additionalProperties
