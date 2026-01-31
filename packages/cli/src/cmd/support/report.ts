@@ -1,13 +1,34 @@
 import { createSubcommand } from '../../types';
 import { z } from 'zod';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { getLogSessionsInCurrentWindow } from '../../internal-logger';
 import * as tui from '../../tui';
 import { randomBytes } from 'node:crypto';
 import AdmZip from 'adm-zip';
 import { APIResponseSchema } from '@agentuity/server';
+import { StructuredError } from '@agentuity/core';
+
+// Structured errors for this module
+const NoSessionDirectoriesError = StructuredError(
+	'NoSessionDirectoriesError',
+	'No session directories provided'
+);
+
+const ReportUploadError = StructuredError('ReportUploadError')<{
+	statusText: string;
+	status?: number;
+}>();
+
+const UploadUrlCreationError = StructuredError('UploadUrlCreationError');
+
+const BrowserOpenError = StructuredError(
+	'BrowserOpenError',
+	'Failed to open browser. Please open the URL manually.'
+)<{
+	exitCode?: number | null;
+}>();
 
 const argsSchema = z.object({});
 
@@ -37,7 +58,7 @@ const ReportUploadResponseSchema = APIResponseSchema(ReportUploadDataSchema);
  */
 async function createReportZip(sessionDirs: string[]): Promise<string> {
 	if (sessionDirs.length === 0) {
-		throw new Error('No session directories provided');
+		throw NoSessionDirectoriesError();
 	}
 
 	// Create zip in temp directory
@@ -49,14 +70,14 @@ async function createReportZip(sessionDirs: string[]): Promise<string> {
 		const sessionFile = join(sessionDir, 'session.json');
 		const logsFile = join(sessionDir, 'logs.jsonl');
 
-		// Extract session ID from directory name for organizing files in zip
-		const sessionId = sessionDir.split('/').pop() || 'unknown';
+		// Extract session ID from directory name cross-platform
+		const sessionId = basename(sessionDir) || 'unknown';
 
 		// Add files with session ID prefix to avoid conflicts
-		if (existsSync(sessionFile)) {
+		if (await Bun.file(sessionFile).exists()) {
 			zip.addLocalFile(sessionFile, sessionId);
 		}
-		if (existsSync(logsFile)) {
+		if (await Bun.file(logsFile).exists()) {
 			zip.addLocalFile(logsFile, sessionId);
 		}
 	}
@@ -88,7 +109,11 @@ async function uploadReport(
 	if (!response.ok) {
 		const errorText = await response.text();
 		logger.error('Upload failed', { status: response.status, error: errorText });
-		throw new Error(`Upload failed: ${response.statusText}`);
+		throw new ReportUploadError({
+			message: `Upload failed: ${response.statusText}`,
+			statusText: response.statusText,
+			status: response.status,
+		});
 	}
 }
 
@@ -173,11 +198,11 @@ async function openBrowser(url: string, logger: import('../../types').Logger): P
 		await proc.exited;
 
 		if (proc.exitCode !== 0) {
-			throw new Error(`Browser process exited with code ${proc.exitCode}`);
+			throw new BrowserOpenError({ exitCode: proc.exitCode });
 		}
 	} catch (error) {
 		logger.error('Failed to open browser', { error });
-		throw new Error('Failed to open browser. Please open the URL manually.');
+		throw new BrowserOpenError({ exitCode: null, cause: error });
 	}
 }
 
@@ -301,11 +326,11 @@ export default createSubcommand({
 			// Debug: log the response
 			logger.debug('Upload response received', { uploadResponse });
 
-			if (!uploadResponse.success) {
-				const errorMsg = uploadResponse.message || 'Failed to create upload URL';
-				logger.error('Upload URL creation failed', { uploadResponse, errorMsg });
-				throw new Error(errorMsg);
-			}
+		if (!uploadResponse.success) {
+			const errorMsg = uploadResponse.message || 'Failed to create upload URL';
+			logger.error('Upload URL creation failed', { uploadResponse, errorMsg });
+			throw new UploadUrlCreationError({ message: errorMsg });
+		}
 
 			const { presigned_url, url: reportUrl, report_id: reportId } = uploadResponse.data;
 
