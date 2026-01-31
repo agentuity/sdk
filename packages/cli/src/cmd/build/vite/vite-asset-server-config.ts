@@ -131,6 +131,7 @@ export async function generateAssetServerConfig(
 			}
 			const reactPlugin = (await import(reactPluginPath)).default();
 			const { browserEnvPlugin } = await import('./browser-env-plugin');
+			const { publicAssetPathPlugin } = await import('./public-asset-path-plugin');
 			return [
 				// User-defined plugins from agentuity.config.ts (e.g., Tailwind CSS)
 				...userPlugins,
@@ -138,6 +139,8 @@ export async function generateAssetServerConfig(
 				reactPlugin,
 				// Browser env plugin to map process.env to import.meta.env
 				browserEnvPlugin(),
+				// Warn about incorrect public asset paths in dev mode
+				publicAssetPathPlugin({ warnInDev: true }),
 			];
 		})(),
 

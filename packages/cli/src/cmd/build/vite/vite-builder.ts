@@ -11,6 +11,7 @@ import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
 import { beaconPlugin } from './beacon-plugin';
+import { publicAssetPathPlugin } from './public-asset-path-plugin';
 import type { BuildReportCollector } from '../../../build-report';
 
 /**
@@ -153,6 +154,8 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const plugins = [
 			react(),
 			browserEnvPlugin(),
+			// Fix incorrect public asset paths (e.g., '/src/web/public/...' → '/public/...')
+			publicAssetPathPlugin(),
 			flattenHtmlOutputPlugin(clientOutDir),
 			// Emit analytics beacon as hashed CDN asset (prod builds only)
 			beaconPlugin({ enabled: analyticsEnabled && !dev }),
