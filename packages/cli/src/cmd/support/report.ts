@@ -235,11 +235,20 @@ export default createSubcommand({
 
 		// Use the first (most recent) session for metadata
 		const primarySessionDir = sessionDirs[0]!;
-
-		// Read session data from the primary session to get CLI version
 		const sessionFile = join(primarySessionDir, 'session.json');
-		const sessionData = JSON.parse(readFileSync(sessionFile, 'utf-8'));
-		const cliVersion = sessionData.cli?.version || 'unknown';
+
+		// Safely read session data with fallback for corrupt/missing session.json
+		let sessionData: SessionData = {};
+		let cliVersion = 'unknown';
+		try {
+			if (await Bun.file(sessionFile).exists()) {
+				sessionData = JSON.parse(readFileSync(sessionFile, 'utf-8'));
+				cliVersion = sessionData.cli?.version || 'unknown';
+			}
+		} catch {
+			// Fall back to defaults if session.json is corrupt or unreadable
+			logger.trace('Failed to read session.json, using defaults');
+		}
 
 		// Log how many sessions we're including
 		if (!isJsonMode && sessionDirs.length > 1) {
