@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { $ } from 'bun';
 import * as tui from '../../tui';
 
-const CANARY_BASE_URL = 'https://agentuity-sdk-objects.t3.storage.dev/npm';
+const CANARY_BASE_URL = 'https://agentuity-sdk-objects.t3.storageapi.dev/npm';
 
 const CanaryArgsSchema = z.object({
 	args: z
