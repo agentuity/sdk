@@ -74,6 +74,11 @@ After saving the compaction:
 3. Format as a readable summary with timestamps
 4. Include "what's next" - the user's pending request if there is one
 
+After saving the compaction, Memory should consider triggering Reasoner:
+- If significant patterns, decisions, or corrections emerged
+- Use: agentuity_background_task({ agent: "reasoner", task: "Extract conclusions from session...", description: "Reason about session" })
+- Reasoner will update entity representations with new conclusions
+
 Response format:
 \`\`\`
 ## Prior Session History: ${sessionId}

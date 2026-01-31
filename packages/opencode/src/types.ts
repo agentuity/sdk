@@ -25,6 +25,8 @@ export const AgentRoleSchema = z.enum([
 	'expert',
 	'planner',
 	'runner',
+	'reasoner',
+	'product',
 ]);
 export type AgentRole = z.infer<typeof AgentRoleSchema>;
 

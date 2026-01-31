@@ -182,6 +182,10 @@ agentuity cloud sandbox create --json --runtime bun:1 --network
 | Cloud service setup needed | Ask Expert agent |
 | Past implementation exists | Consult Memory agent |
 | Implementation complete | Request Reviewer |
+| **Unsure if implementation matches product intent** | Ask Lead (Lead will consult Product) |
+| **Need to validate against PRD or past decisions** | Ask Lead (Lead will consult Product) |
+
+**Note on Product questions:** Don't ask Product directly. Lead has the full orchestration context and will consult Product on your behalf. This is especially important in Cadence mode where Lead tracks the overall loop state and can provide Product with the right context.
 
 ## Output Format
 

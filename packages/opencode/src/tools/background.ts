@@ -60,7 +60,7 @@ export function createBackgroundTools(manager: BackgroundManager): {
 	};
 } {
 	const backgroundTaskTool = {
-		name: 'background_task',
+		name: 'agentuity_background_task',
 		description: 'Launch a task to run in the background.',
 		args: BackgroundTaskArgsSchema,
 		async execute(
@@ -92,7 +92,7 @@ export function createBackgroundTools(manager: BackgroundManager): {
 	};
 
 	const backgroundOutputTool = {
-		name: 'background_output',
+		name: 'agentuity_background_output',
 		description: 'Retrieve output for a background task.',
 		args: BackgroundOutputArgsSchema,
 		async execute(args: BackgroundOutputArgs): Promise<{
@@ -119,7 +119,7 @@ export function createBackgroundTools(manager: BackgroundManager): {
 	};
 
 	const backgroundCancelTool = {
-		name: 'background_cancel',
+		name: 'agentuity_background_cancel',
 		description: 'Cancel a running background task.',
 		args: BackgroundCancelArgsSchema,
 		async execute(args: BackgroundCancelArgs): Promise<{

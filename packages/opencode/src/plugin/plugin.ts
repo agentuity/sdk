@@ -53,6 +53,8 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	expert: '@Agentuity Coder Expert',
 	planner: '@Agentuity Coder Planner',
 	runner: '@Agentuity Coder Runner',
+	reasoner: '@Agentuity Coder Reasoner',
+	product: '@Agentuity Coder Product',
 };
 
 export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
@@ -278,21 +280,24 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 - **@Agentuity Coder Architect**: Complex autonomous tasks, Cadence mode (GPT Codex)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions
+- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
 - **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
+- **@Agentuity Coder Product**: Clarify requirements, validate features, track progress
 
 ## Task
 $ARGUMENTS
 
 ## Guidelines
 1. Use @Agentuity Coder Scout first to understand context
-2. Delegate implementation to @Agentuity Coder Builder (or Architect for complex work)
-3. Delegate lint/build/test commands to @Agentuity Coder Runner for structured results
-4. Have @Agentuity Coder Reviewer check the work
-5. Use @Agentuity Coder Expert for Agentuity CLI questions
-6. Only use cloud services when genuinely helpful
-7. **When done, tell @Agentuity Coder Memory to memorialize the session**
+2. Use @Agentuity Coder Product to clarify requirements if unclear
+3. Delegate implementation to @Agentuity Coder Builder (or Architect for complex work)
+4. Delegate lint/build/test commands to @Agentuity Coder Runner for structured results
+5. Have @Agentuity Coder Reviewer check the work
+6. Use @Agentuity Coder Expert for Agentuity CLI questions
+7. Only use cloud services when genuinely helpful
+8. **When done, tell @Agentuity Coder Memory to memorialize the session**
 </coder-mode>`,
 			agent: 'Agentuity Coder Lead',
 			argumentHint: '"task description"',
@@ -414,9 +419,11 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 - **@Agentuity Coder Builder**: Quick fixes, simple changes (for minor iterations only)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
+- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
 - **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
+- **@Agentuity Coder Product**: Clarify requirements, validate features, track progress, Cadence briefings
 
 ## Task
 $ARGUMENTS
@@ -503,8 +510,10 @@ Use this to:
 - Architect: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
 - Reviewer: Review changes, catch issues, apply fixes
 - Memory: Store context, remember decisions across sessions
+- Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
 - Expert: Get help with Agentuity CLI and cloud services
-- Planner: Strategic advisor for complex architecture and deep planning (read-only)`,
+- Planner: Strategic advisor for complex architecture and deep planning (read-only)
+- Runner: Execute lint/build/test/typecheck/format commands, returns structured results`,
 		args: {
 			agent: s
 				.enum([
@@ -513,6 +522,7 @@ Use this to:
 					'architect',
 					'reviewer',
 					'memory',
+					'reasoner',
 					'expert',
 					'planner',
 					'runner',
@@ -547,9 +557,11 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'architect',
 					'reviewer',
 					'memory',
+					'reasoner',
 					'expert',
 					'planner',
 					'runner',
+					'product',
 				])
 				.describe('Agent role to run the task'),
 			task: s.string().describe('Task prompt to run in the background'),
@@ -623,10 +635,10 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 	});
 
 	return {
-		coder_delegate: coderDelegate,
-		background_task: backgroundTask,
-		background_output: backgroundOutput,
-		background_cancel: backgroundCancel,
+		agentuity_coder_delegate: coderDelegate,
+		agentuity_background_task: backgroundTask,
+		agentuity_background_output: backgroundOutput,
+		agentuity_background_cancel: backgroundCancel,
 	};
 }
 

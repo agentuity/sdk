@@ -9,6 +9,8 @@ import { memoryAgent } from './memory';
 import { expertAgent } from './expert';
 import { plannerAgent } from './planner';
 import { runnerAgent } from './runner';
+import { reasonerAgent } from './reasoner';
+import { productAgent } from './product';
 
 export type { AgentDefinition, AgentRegistry } from './types';
 
@@ -22,6 +24,8 @@ export const agents: Record<AgentRole, AgentDefinition> = {
 	expert: expertAgent,
 	planner: plannerAgent,
 	runner: runnerAgent,
+	reasoner: reasonerAgent,
+	product: productAgent,
 };
 
 export function getAgent(role: AgentRole): AgentDefinition {
