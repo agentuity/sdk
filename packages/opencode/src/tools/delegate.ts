@@ -43,7 +43,7 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 };
 
 export const delegateTool = {
-	name: 'coder_delegate',
+	name: 'agentuity_coder_delegate',
 	description: `Delegate a task to a specialized Agentuity Coder agent.
 
 Use this to:

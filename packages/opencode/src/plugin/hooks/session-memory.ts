@@ -76,7 +76,7 @@ After saving the compaction:
 
 After saving the compaction, Memory should consider triggering Reasoner:
 - If significant patterns, decisions, or corrections emerged
-- Use: background_task({ agent: "reasoner", task: "Extract conclusions from session...", description: "Reason about session" })
+- Use: agentuity_background_task({ agent: "reasoner", task: "Extract conclusions from session...", description: "Reason about session" })
 - Reasoner will update entity representations with new conclusions
 
 Response format:

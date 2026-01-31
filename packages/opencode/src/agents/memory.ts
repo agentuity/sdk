@@ -204,10 +204,10 @@ You have a sub-agent called **Reasoner** that extracts structured conclusions fr
 
 ### How to Delegate to Reasoner
 
-Use background_task to run Reasoner without blocking:
+Use agentuity_background_task to run Reasoner without blocking:
 
 \`\`\`
-background_task({
+agentuity_background_task({
   agent: "reasoner",
   task: "Extract conclusions from this session content:\n\n[session content here]\n\nEntities to update: entity:user:usr_123, entity:project:prj_456",
   description: "Reason about session"

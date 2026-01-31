@@ -635,10 +635,10 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 	});
 
 	return {
-		coder_delegate: coderDelegate,
-		background_task: backgroundTask,
-		background_output: backgroundOutput,
-		background_cancel: backgroundCancel,
+		agentuity_coder_delegate: coderDelegate,
+		agentuity_background_task: backgroundTask,
+		agentuity_background_output: backgroundOutput,
+		agentuity_background_cancel: backgroundCancel,
 	};
 }
 

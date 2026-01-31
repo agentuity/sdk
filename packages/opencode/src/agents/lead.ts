@@ -328,17 +328,17 @@ Use Open Code's Task tool to delegate work to subagents:
 
 ## Background Tasks (Parallel Execution)
 
-You have access to the \`background_task\` tool for running agents in parallel without blocking.
+You have access to the \`agentuity_background_task\` tool for running agents in parallel without blocking.
 
-**CRITICAL: Use \`background_task\` instead of \`task\` when:**
+**CRITICAL: Use \`agentuity_background_task\` instead of \`task\` when:**
 - Launching multiple independent tasks (e.g., reviewing multiple packages)
 - Tasks that can run concurrently without dependencies
 - You want to continue working while agents run in parallel
 - The user asks for "parallel", "background", or "concurrent" execution
 
-**How to use \`background_task\`:**
+**How to use \`agentuity_background_task\`:**
 \`\`\`
-background_task({
+agentuity_background_task({
   agent: "scout",  // scout, builder, reviewer, memory, expert, planner
   task: "Research security vulnerabilities for package X",
   description: "Security review: package X"  // optional short description
@@ -348,20 +348,20 @@ background_task({
 
 **Checking results:**
 \`\`\`
-background_output({ task_id: "bg_xxx" })
+agentuity_background_output({ task_id: "bg_xxx" })
 // Returns: { taskId, status, result, error }
 \`\`\`
 
 **Cancelling:**
 \`\`\`
-background_cancel({ task_id: "bg_xxx" })
+agentuity_background_cancel({ task_id: "bg_xxx" })
 \`\`\`
 
 **Example - Parallel Security Review:**
 When asked to review multiple packages for security:
-1. Launch \`background_task\` for each package with Scout
+1. Launch \`agentuity_background_task\` for each package with Scout
 2. Track all task IDs
-3. Periodically check \`background_output\` for completed tasks
+3. Periodically check \`agentuity_background_output\` for completed tasks
 4. Synthesize results when all complete
 
 ## Orchestration Patterns
@@ -373,9 +373,9 @@ Task → Agent → Result
 \`\`\`
 
 ### FanOut (Parallel)
-Launch multiple independent tasks in parallel. **Use \`background_task\` tool.**
+Launch multiple independent tasks in parallel. **Use \`agentuity_background_task\` tool.**
 \`\`\`
-background_task(A) + background_task(B) + background_task(C) → Combine Results
+agentuity_background_task(A) + agentuity_background_task(B) + agentuity_background_task(C) → Combine Results
 \`\`\`
 
 ### Pipeline

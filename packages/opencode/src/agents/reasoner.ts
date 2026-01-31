@@ -69,10 +69,10 @@ You can (and should) query the Memory agent to retrieve relevant context while r
 
 ### How to Query
 
-Use \`coder_delegate\` to ask Memory:
+Use \`agentuity_coder_delegate\` to ask Memory:
 
 \`\`\`
-coder_delegate({
+agentuity_coder_delegate({
   agent: "memory",
   task: "What auth patterns and corrections do we have?",
   context: "Reasoning about auth implementation in session data"
