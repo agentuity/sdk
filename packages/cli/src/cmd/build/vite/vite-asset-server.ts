@@ -119,7 +119,9 @@ export async function startViteAssetServer(
 		);
 	}
 	logger.debug(`Asset server will handle: HMR, React transformation, source maps`);
-	logger.debug(`HMR WebSocket configured to connect to ws://127.0.0.1:${actualPort}`);
+	logger.debug(
+		`HMR WebSocket configured at /__vite_hmr (proxied through Bun server for tunnel support)`
+	);
 
 	return { server, port: actualPort };
 }

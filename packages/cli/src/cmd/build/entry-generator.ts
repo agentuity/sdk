@@ -174,6 +174,107 @@ if (isDevelopment() && process.env.VITE_PORT) {
 		}
 	};
 
+	// HMR WebSocket proxy - enables hot reload through tunnels (*.agentuity.live)
+	// This proxies the Vite HMR WebSocket connection from the Bun server to Vite
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const viteHmrWebsocket = (globalThis as any).__AGENTUITY_VITE_HMR_WEBSOCKET__ = {
+		// Map of client WebSocket -> Vite WebSocket
+		connections: new Map<WebSocket, WebSocket>(),
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		open(clientWs: any) {
+			// Get the query string from ws.data (set during upgrade)
+			const queryString = clientWs.data?.queryString || '';
+			const viteWsUrl = \`ws://127.0.0.1:\${VITE_ASSET_PORT}/__vite_hmr\${queryString}\`;
+			otel.logger.debug('[HMR Proxy] Client connected, opening connection to Vite at %s', viteWsUrl);
+
+			// Connect to Vite with the 'vite-hmr' subprotocol (required by Vite)
+			const viteWs = new WebSocket(viteWsUrl, ['vite-hmr']);
+
+			viteWs.onopen = () => {
+				otel.logger.debug('[HMR Proxy] Connected to Vite HMR server');
+			};
+
+			viteWs.onmessage = (event) => {
+				// Forward messages from Vite to client
+				if (clientWs.readyState === WebSocket.OPEN) {
+					clientWs.send(event.data);
+				}
+			};
+
+			viteWs.onerror = (error) => {
+				otel.logger.error('[HMR Proxy] Vite WebSocket error: %s', error);
+			};
+
+			viteWs.onclose = () => {
+				otel.logger.debug('[HMR Proxy] Vite WebSocket closed');
+				viteHmrWebsocket.connections.delete(clientWs);
+				if (clientWs.readyState === WebSocket.OPEN) {
+					clientWs.close();
+				}
+			};
+
+			viteHmrWebsocket.connections.set(clientWs, viteWs);
+		},
+
+		message(clientWs: WebSocket, message: string | Buffer) {
+			// Forward messages from client to Vite
+			const viteWs = viteHmrWebsocket.connections.get(clientWs);
+			if (viteWs && viteWs.readyState === WebSocket.OPEN) {
+				viteWs.send(message);
+			}
+		},
+
+		close(clientWs: WebSocket) {
+			otel.logger.debug('[HMR Proxy] Client WebSocket closed');
+			const viteWs = viteHmrWebsocket.connections.get(clientWs);
+			if (viteWs) {
+				viteWs.close();
+				viteHmrWebsocket.connections.delete(clientWs);
+			}
+		},
+	};
+
+	// Register HMR WebSocket route - must be before other routes
+	app.get('/__vite_hmr', (c: Context) => {
+		const upgradeHeader = c.req.header('upgrade');
+		if (upgradeHeader?.toLowerCase() === 'websocket') {
+			// Get the Bun server from context using Hono's pattern
+			// When app.fetch(req, server) is called, Hono stores server as c.env
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const server = 'server' in (c.env as any) ? (c.env as any).server : c.env;
+			
+			if (server?.upgrade) {
+				// Extract query string to forward to Vite (includes token parameter)
+				const url = new URL(c.req.url);
+				const queryString = url.search; // Includes the '?' prefix
+				
+				// Get the requested WebSocket subprotocol (Vite uses 'vite-hmr')
+				const requestedProtocol = c.req.header('sec-websocket-protocol');
+				
+				const success = server.upgrade(c.req.raw, {
+					data: { type: 'vite-hmr', queryString },
+					// Echo back the requested subprotocol so the browser accepts the connection
+					headers: requestedProtocol ? {
+						'Sec-WebSocket-Protocol': requestedProtocol,
+					} : undefined,
+				});
+				if (success) {
+					otel.logger.debug('[HMR Proxy] WebSocket upgrade successful (protocol: %s)', requestedProtocol || 'none');
+					return new Response(null);
+				}
+				otel.logger.error('[HMR Proxy] WebSocket upgrade returned false');
+			} else {
+				otel.logger.error('[HMR Proxy] Server upgrade method not available. c.env type: %s, keys: %s', 
+					typeof c.env, 
+					Object.keys(c.env || {}).join(', '));
+			}
+			return c.text('WebSocket upgrade failed', 500);
+		}
+		// Non-WebSocket request to HMR endpoint - proxy to Vite
+		return proxyToVite(c);
+	});
+
 	// Vite client scripts and HMR
 	app.get('/@vite/*', proxyToVite);
 	app.get('/@react-refresh', proxyToVite);
@@ -358,13 +459,48 @@ if (typeof Bun !== 'undefined') {
 	enableProcessExitProtection();
 
 	const port = parseInt(process.env.PORT || '3500', 10);
+
+	// Create custom WebSocket handler that supports both regular WebSockets and HMR proxy
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const hmrHandler = (globalThis as any).__AGENTUITY_VITE_HMR_WEBSOCKET__;
+	const customWebsocket = {
+		...websocket,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		open(ws: any) {
+			// Check if this is an HMR connection
+			if (ws.data?.type === 'vite-hmr' && hmrHandler) {
+				hmrHandler.open(ws);
+			} else if (websocket.open) {
+				websocket.open(ws);
+			}
+		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		message(ws: any, message: string | Buffer) {
+			// Check if this is an HMR connection
+			if (ws.data?.type === 'vite-hmr' && hmrHandler) {
+				hmrHandler.message(ws, message);
+			} else if (websocket.message) {
+				websocket.message(ws, message);
+			}
+		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		close(ws: any, code?: number, reason?: string) {
+			// Check if this is an HMR connection
+			if (ws.data?.type === 'vite-hmr' && hmrHandler) {
+				hmrHandler.close(ws);
+			} else if (websocket.close) {
+				websocket.close(ws, code, reason);
+			}
+		},
+	};
+
 	const server = Bun.serve({
 		fetch: (req, server) => {
 			// Get timeout from config on each request (0 = no timeout)
 			server.timeout(req, getAppConfig()?.requestTimeout ?? 0);
 			return app.fetch(req, server);
 		},
-		websocket,
+		websocket: customWebsocket,
 		port,
 		hostname: '127.0.0.1',
 		development: isDevelopment(),
