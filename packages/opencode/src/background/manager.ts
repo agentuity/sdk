@@ -31,6 +31,7 @@ export interface BackgroundManagerCallbacks {
 		title: string;
 	}) => void;
 	onSubagentSessionDeleted?: (event: { sessionId: string }) => void;
+	onShutdown?: () => void | Promise<void>;
 }
 
 export class BackgroundManager {
@@ -182,6 +183,11 @@ export class BackgroundManager {
 		this.shuttingDown = true;
 		this.concurrency.clear();
 		this.notifications.clear();
+		try {
+			void this.callbacks?.onShutdown?.();
+		} catch {
+			// Ignore shutdown callback errors
+		}
 	}
 
 	private indexTask(task: BackgroundTask): void {

@@ -95,6 +95,11 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 					void tmuxManager.onSessionDeleted(event);
 				}
 			: undefined,
+		onShutdown: tmuxManager
+			? () => {
+					void tmuxManager.cleanup();
+				}
+			: undefined,
 	});
 
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
