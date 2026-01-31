@@ -233,17 +233,33 @@ export async function checkForUpdates(
 		const currentVersion = getVersion();
 		const latestVersion = await fetchLatestVersion();
 
-		// Update the timestamp since we successfully checked
-		await updateCheckTimestamp(config, logger);
-
 		// Compare versions
 		const normalizedCurrent = currentVersion.replace(/^v/, '');
 		const normalizedLatest = latestVersion.replace(/^v/, '');
 
 		if (normalizedCurrent === normalizedLatest) {
+			// Update timestamp - we confirmed we're on latest version
+			await updateCheckTimestamp(config, logger);
 			logger.trace('Already on latest version: %s', currentVersion);
 			return;
 		}
+
+		// Quick npm availability check before prompting (short timeout, no retries)
+		// This avoids blocking the user's command if npm is slow or version not yet available
+		const { isVersionAvailableOnNpmQuick } = await import('./cmd/upgrade/npm-availability');
+		const isAvailable = await isVersionAvailableOnNpmQuick(latestVersion);
+
+		if (!isAvailable) {
+			// Don't update timestamp - we want to check again soon since npm may propagate
+			logger.debug(
+				'Version %s not yet available on npm, skipping upgrade prompt',
+				latestVersion
+			);
+			return;
+		}
+
+		// Update timestamp - npm availability confirmed, we can proceed with prompt
+		await updateCheckTimestamp(config, logger);
 
 		// New version available - prompt user
 		const shouldUpgrade = await promptUpgrade(currentVersion, latestVersion);

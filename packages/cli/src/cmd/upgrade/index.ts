@@ -185,6 +185,31 @@ export const command = createCommand({
 				};
 			}
 
+			// Verify the version is available on npm before proceeding
+			const isAvailable = await tui.spinner({
+				message: 'Verifying npm availability...',
+				clearOnSuccess: true,
+				callback: async () => {
+					const { waitForNpmAvailability } = await import('./npm-availability');
+					return await waitForNpmAvailability(latestVersion, {
+						maxAttempts: 6,
+						initialDelayMs: 2000,
+					});
+				},
+			});
+
+			if (!isAvailable) {
+				tui.warning('The new version is not yet available on npm.');
+				tui.info('This can happen right after a release. Please try again in a few minutes.');
+				tui.info(`You can also run: ${tui.muted('bun add -g @agentuity/cli@latest')}`);
+				return {
+					upgraded: false,
+					from: currentVersion,
+					to: latestVersion,
+					message: 'Version not yet available on npm',
+				};
+			}
+
 			// Show version info
 			if (!force) {
 				tui.info(`Current version: ${tui.muted(normalizedCurrent)}`);
