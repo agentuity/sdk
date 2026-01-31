@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { getLatestLogSession } from '../../internal-logger';
+import { getLogSessionsInCurrentWindow } from '../../internal-logger';
 import * as tui from '../../tui';
 import { randomBytes } from 'node:crypto';
 import AdmZip from 'adm-zip';
@@ -33,22 +33,34 @@ const ReportUploadDataSchema = z.object({
 const ReportUploadResponseSchema = APIResponseSchema(ReportUploadDataSchema);
 
 /**
- * Create a zip file containing session and logs
+ * Create a zip file containing session and logs from multiple session directories
  */
-async function createReportZip(sessionDir: string): Promise<string> {
-	const sessionFile = join(sessionDir, 'session.json');
-	const logsFile = join(sessionDir, 'logs.jsonl');
-
-	if (!existsSync(sessionFile) || !existsSync(logsFile)) {
-		throw new Error('Session files not found');
+async function createReportZip(sessionDirs: string[]): Promise<string> {
+	if (sessionDirs.length === 0) {
+		throw new Error('No session directories provided');
 	}
 
 	// Create zip in temp directory
 	const tempZip = join(tmpdir(), `agentuity-report-${randomBytes(8).toString('hex')}.zip`);
 
 	const zip = new AdmZip();
-	zip.addLocalFile(sessionFile);
-	zip.addLocalFile(logsFile);
+
+	for (const sessionDir of sessionDirs) {
+		const sessionFile = join(sessionDir, 'session.json');
+		const logsFile = join(sessionDir, 'logs.jsonl');
+
+		// Extract session ID from directory name for organizing files in zip
+		const sessionId = sessionDir.split('/').pop() || 'unknown';
+
+		// Add files with session ID prefix to avoid conflicts
+		if (existsSync(sessionFile)) {
+			zip.addLocalFile(sessionFile, sessionId);
+		}
+		if (existsSync(logsFile)) {
+			zip.addLocalFile(logsFile, sessionId);
+		}
+	}
+
 	zip.writeZip(tempZip);
 
 	return tempZip;
@@ -184,9 +196,9 @@ export default createSubcommand({
 		const { opts, logger, apiClient } = ctx;
 		const isJsonMode = ctx.options.json;
 
-		// Get the latest log session
-		const sessionDir = getLatestLogSession();
-		if (!sessionDir) {
+		// Get all log sessions in the current time window (current + previous bucket)
+		const sessionDirs = getLogSessionsInCurrentWindow();
+		if (sessionDirs.length === 0) {
 			if (isJsonMode) {
 				console.log(JSON.stringify({ success: false, error: 'No CLI logs found' }));
 			} else {
@@ -196,10 +208,18 @@ export default createSubcommand({
 			return;
 		}
 
-		// Read session data to get CLI version
-		const sessionFile = join(sessionDir, 'session.json');
+		// Use the first (most recent) session for metadata
+		const primarySessionDir = sessionDirs[0]!;
+
+		// Read session data from the primary session to get CLI version
+		const sessionFile = join(primarySessionDir, 'session.json');
 		const sessionData = JSON.parse(readFileSync(sessionFile, 'utf-8'));
 		const cliVersion = sessionData.cli?.version || 'unknown';
+
+		// Log how many sessions we're including
+		if (!isJsonMode && sessionDirs.length > 1) {
+			tui.info(`Found ${sessionDirs.length} session(s) in the current time window`);
+		}
 
 		// Get issue description from:
 		// 1. --description flag
@@ -294,7 +314,7 @@ export default createSubcommand({
 				tui.info('Creating report archive...');
 			}
 
-			const zipPath = await createReportZip(sessionDir);
+			const zipPath = await createReportZip(sessionDirs);
 
 			// Step 3: Upload to S3
 			if (!isJsonMode) {

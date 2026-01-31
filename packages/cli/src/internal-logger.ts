@@ -45,6 +45,9 @@ const SENSITIVE_ENV_PATTERNS = [
 
 interface SessionMetadata {
 	sessionId: string;
+	bucket: number;
+	pid: number;
+	ppid: number;
 	command: string;
 	args: string[];
 	timestamp: string;
@@ -107,9 +110,30 @@ function getLogsDir(): string {
 }
 
 /**
- * Clean up old log directories, keeping only the most recent one
+ * Calculate the current 5-minute bucket number
+ * Each bucket represents a 5-minute window (300000ms)
  */
-function cleanupOldLogs(currentSessionId: string): void {
+function getCurrentBucket(): number {
+	return Math.floor(Date.now() / 300000);
+}
+
+/**
+ * Parse bucket number from directory name
+ * Directory format: {bucket}-{uuid}
+ * Returns null for legacy directories (uuid-only format)
+ */
+function parseBucketFromDirName(dirName: string): number | null {
+	const match = dirName.match(/^(\d+)-/);
+	if (match && match[1]) {
+		return parseInt(match[1], 10);
+	}
+	return null;
+}
+
+/**
+ * Clean up old log directories, keeping only directories in the current bucket
+ */
+function cleanupOldLogs(currentBucket: number): void {
 	// Skip cleanup when inheriting a parent's session ID to avoid
 	// deleting the parent's session directory (race condition).
 	// This applies to forked deploy processes and any subprocess
@@ -125,19 +149,24 @@ function cleanupOldLogs(currentSessionId: string): void {
 
 	try {
 		const entries = readdirSync(logsDir, { withFileTypes: true });
-		const dirs = entries
-			.filter((e) => e.isDirectory())
-			.map((e) => e.name)
-			.filter((name) => name !== currentSessionId);
+		const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
 
-		// Remove all directories except the current one
+		// Remove directories with bucket < currentBucket (old buckets)
+		// Also remove legacy directories (no bucket prefix) for backward compatibility
 		for (const dir of dirs) {
-			const dirPath = join(logsDir, dir);
-			try {
-				rmSync(dirPath, { recursive: true, force: true });
-			} catch (err) {
-				// Ignore errors during cleanup
-				console.debug(`Failed to remove old log directory ${dir}: ${err}`);
+			const bucket = parseBucketFromDirName(dir);
+
+			// Delete if:
+			// 1. Legacy directory (no bucket prefix) - clean up old format
+			// 2. Bucket is older than current bucket
+			if (bucket === null || bucket < currentBucket) {
+				const dirPath = join(logsDir, dir);
+				try {
+					rmSync(dirPath, { recursive: true, force: true });
+				} catch (err) {
+					// Ignore errors during cleanup
+					console.debug(`Failed to remove old log directory ${dir}: ${err}`);
+				}
 			}
 		}
 	} catch (err) {
@@ -154,6 +183,7 @@ export class InternalLogger implements Logger {
 	private sessionDir: string;
 	private sessionFile: string;
 	private logsFile: string;
+	private bucket: number;
 	private initialized = false;
 	private disabled = false;
 
@@ -161,16 +191,23 @@ export class InternalLogger implements Logger {
 		private cliVersion: string,
 		private cliName: string
 	) {
+		// Calculate current 5-minute bucket
+		this.bucket = getCurrentBucket();
+
 		// When a parent session ID is set in the environment, use it to ensure
 		// all CLI invocations (parent and any subprocesses) write to the same log file.
 		// This prevents race conditions where child processes delete parent's logs.
 		const parentSessionId = process.env.AGENTUITY_INTERNAL_SESSION_ID;
 		if (parentSessionId) {
 			this.sessionId = parentSessionId;
+			// Parent session ID already includes bucket prefix, use as-is for directory name
+			this.sessionDir = join(getLogsDir(), parentSessionId);
 		} else {
-			this.sessionId = randomUUID();
+			// Generate new session ID with bucket prefix: {bucket}-{uuid}
+			const uuid = randomUUID();
+			this.sessionId = `${this.bucket}-${uuid}`;
+			this.sessionDir = join(getLogsDir(), this.sessionId);
 		}
-		this.sessionDir = join(getLogsDir(), this.sessionId);
 		this.sessionFile = join(this.sessionDir, 'session.json');
 		this.logsFile = join(this.sessionDir, 'logs.jsonl');
 	}
@@ -189,9 +226,9 @@ export class InternalLogger implements Logger {
 			// Create logs directory (may already exist if we're a child process)
 			mkdirSync(this.sessionDir, { recursive: true, mode: 0o700 });
 
-			// Clean up old logs (keep only this session)
+			// Clean up old logs (directories with bucket < current bucket)
 			// This is skipped for child processes to avoid deleting parent's session
-			cleanupOldLogs(this.sessionId);
+			cleanupOldLogs(this.bucket);
 
 			// When inheriting a parent's session ID, skip session.json creation
 			// (parent already created it) but enable logging
@@ -232,6 +269,9 @@ export class InternalLogger implements Logger {
 			// Gather session metadata
 			const sessionMetadata: SessionMetadata = {
 				sessionId: this.sessionId,
+				bucket: this.bucket,
+				pid: process.pid,
+				ppid: process.ppid,
 				command,
 				args,
 				timestamp: new Date().toISOString(),
@@ -422,28 +462,52 @@ export function createInternalLogger(cliVersion: string, cliName: string): Inter
 }
 
 /**
- * Get the latest log session directory (if any)
+ * Get all log session directories in the current time window
+ * Returns directories from current bucket AND previous bucket (to handle boundary cases)
  */
-export function getLatestLogSession(): string | null {
+export function getLogSessionsInCurrentWindow(): string[] {
 	const logsDir = getLogsDir();
 	if (!existsSync(logsDir)) {
-		return null;
+		return [];
 	}
 
 	try {
+		const currentBucket = getCurrentBucket();
+		const previousBucket = currentBucket - 1;
+
 		const entries = readdirSync(logsDir, { withFileTypes: true });
 		const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
 
-		const firstDir = dirs[0];
-		if (!firstDir) {
-			return null;
-		}
+		// Filter to directories in current or previous bucket
+		const validDirs = dirs.filter((dir) => {
+			const bucket = parseBucketFromDirName(dir);
+			// Include current bucket, previous bucket, and legacy directories (for backward compat)
+			return bucket === currentBucket || bucket === previousBucket || bucket === null;
+		});
 
-		// Return the first directory (should be the only one due to cleanup)
-		return join(logsDir, firstDir);
+		// Sort by bucket (descending) then by name to get most recent first
+		validDirs.sort((a, b) => {
+			const bucketA = parseBucketFromDirName(a) ?? 0;
+			const bucketB = parseBucketFromDirName(b) ?? 0;
+			if (bucketA !== bucketB) {
+				return bucketB - bucketA; // Higher bucket first
+			}
+			return b.localeCompare(a); // Then by name descending
+		});
+
+		return validDirs.map((dir) => join(logsDir, dir));
 	} catch {
-		return null;
+		return [];
 	}
+}
+
+/**
+ * Get the latest log session directory (if any)
+ * For backward compatibility, returns the first session in the current window
+ */
+export function getLatestLogSession(): string | null {
+	const sessions = getLogSessionsInCurrentWindow();
+	return sessions[0] ?? null;
 }
 
 /**
