@@ -468,8 +468,8 @@ else
 			fi
 			echo ""
 			
-			# Test 3c: List sessions with filters
-			echo "Test 3c: Test session filters..."
+			# Test 3d: List sessions with filters
+			echo "Test 3d: Test session filters..."
 			
 			# Test success filter
 			SESSION_SUCCESS_OUTPUT="$TEMP_DIR/session-success.txt"
@@ -522,8 +522,8 @@ else
 			echo -e "${GREEN}✓${NC} All session filters validated"
 			echo ""
 			
-			# Test 3d: Get session logs
-			echo "Test 3c: Get session logs..."
+			# Test 3e: Get session logs
+			echo "Test 3e: Get session logs..."
 			SESSION_LOGS_OUTPUT="$TEMP_DIR/session-logs.txt"
 			set +e
 			bun "$BIN_SCRIPT" cloud session logs "$SESSION_ID" > "$SESSION_LOGS_OUTPUT" 2>&1

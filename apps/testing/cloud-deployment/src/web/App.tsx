@@ -10,21 +10,6 @@ export function App() {
 		>
 			<h1>Cloud Deployment Test</h1>
 			<p>This page is used to verify analytics beacon injection in production deployments.</p>
-			{/* Public asset test - this path should be transformed to CDN URL in production */}
-			<img
-				id="public-asset-test"
-				src="/public/test-asset.txt"
-				alt="Public asset test"
-				style={{ display: 'none' }}
-				onError={() => {
-					const el = document.getElementById('public-asset-status');
-					if (el) el.innerHTML = '❌ Public asset failed to load';
-				}}
-				onLoad={() => {
-					const el = document.getElementById('public-asset-status');
-					if (el) el.innerHTML = '✅ Public asset loaded successfully';
-				}}
-			/>
 			<div
 				id="analytics-status"
 				style={{
@@ -45,6 +30,7 @@ export function App() {
 						(function() {
 							var configStatus = document.getElementById('config-status');
 							var beaconStatus = document.getElementById('beacon-status');
+							var publicAssetStatus = document.getElementById('public-asset-status');
 							
 							// Check for analytics config
 							if (window.__AGENTUITY_ANALYTICS__) {
@@ -62,6 +48,25 @@ export function App() {
 								}
 							});
 							beaconStatus.innerHTML = hasBeacon ? '✅ Beacon script found' : '❌ Beacon script not found';
+							
+							// Check public asset via fetch (txt files can't use img onLoad)
+							fetch('/public/test-asset.txt')
+								.then(function(res) {
+									if (res.ok) {
+										return res.text();
+									}
+									throw new Error('HTTP ' + res.status);
+								})
+								.then(function(text) {
+									if (text.indexOf('AGENTUITY_PUBLIC_ASSET_TEST_OK') !== -1) {
+										publicAssetStatus.innerHTML = '✅ Public asset loaded successfully';
+									} else {
+										publicAssetStatus.innerHTML = '❌ Public asset content mismatch';
+									}
+								})
+								.catch(function(err) {
+									publicAssetStatus.innerHTML = '❌ Public asset failed to load: ' + err.message;
+								});
 						})();
 					`,
 				}}
