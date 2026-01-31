@@ -103,7 +103,7 @@ Return structured JSON with conclusions for each relevant entity:
 {
   "entities": [
     {
-      "entityId": "entity:user:usr_123",
+      "entityId": "entity:user:user_123",
       "conclusions": {
         "explicit": [...],
         "deductive": [...],

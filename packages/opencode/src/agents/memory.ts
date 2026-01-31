@@ -70,7 +70,7 @@ Store entity representations in KV with this flexible structure:
 
 \`\`\`json
 {
-  "entityId": "entity:user:usr_abc123",
+  "entityId": "entity:user:user_abc123",
   "entityType": "user",
   "metadata": { /* agent-controlled, add fields as needed */ },
   "conclusions": {
@@ -82,7 +82,7 @@ Store entity representations in KV with this flexible structure:
   "corrections": [...],
   "patterns": [...],
   "relationships": [...],
-  "recentSessions": ["ses_xxx", "ses_yyy"],
+  "recentSessions": ["sess_xxx", "sess_yyy"],
   "createdAt": "...",
   "updatedAt": "...",
   "lastReasonedAt": "..."
@@ -102,10 +102,10 @@ Get entity IDs from:
 
 \`\`\`bash
 # Store entity representation
-agentuity cloud kv set agentuity-opencode-memory "entity:user:usr_123" '{...}' --region use
+agentuity cloud kv set agentuity-opencode-memory "entity:user:user_123" '{...}' --region use
 
 # Get entity representation
-agentuity cloud kv get agentuity-opencode-memory "entity:user:usr_123" --json --region use
+agentuity cloud kv get agentuity-opencode-memory "entity:user:user_123" --json --region use
 
 # Search for entities
 agentuity cloud kv search agentuity-opencode-memory "entity:agent" --json --region use
@@ -209,7 +209,7 @@ Use agentuity_background_task to run Reasoner without blocking:
 \`\`\`
 agentuity_background_task({
   agent: "reasoner",
-  task: "Extract conclusions from this session content:\n\n[session content here]\n\nEntities to update: entity:user:usr_123, entity:project:prj_456",
+  task: "Extract conclusions from this session content:\n\n[session content here]\n\nEntities to update: entity:user:user_123, entity:project:prj_456",
   description: "Reason about session"
 })
 \`\`\`
@@ -259,14 +259,14 @@ When recalling context, you can query across sessions:
 \`\`\`bash
 # Search all sessions for a user
 agentuity cloud vector search agentuity-opencode-sessions "user preferences" \\
-  --metadata "userId=usr_123" --limit 10 --json --region use
+  --metadata "userId=user_123" --limit 10 --json --region use
 
 # Search all sessions in a repo
 agentuity cloud vector search agentuity-opencode-sessions "authentication patterns" \\
   --metadata "projectLabel=github.com/org/repo" --limit 10 --json --region use
 
 # Get user's entity representation (cross-project)
-agentuity cloud kv get agentuity-opencode-memory "entity:user:usr_123" --json --region use
+agentuity cloud kv get agentuity-opencode-memory "entity:user:user_123" --json --region use
 
 # Get org-level patterns
 agentuity cloud kv get agentuity-opencode-memory "entity:org:org_xyz" --json --region use
@@ -278,8 +278,8 @@ Entity representations include \`recentSessions\` - the last N session IDs where
 
 \`\`\`json
 {
-  "entityId": "entity:user:usr_123",
-  "recentSessions": ["ses_abc", "ses_def", "ses_ghi"],
+  "entityId": "entity:user:user_123",
+  "recentSessions": ["sess_abc", "sess_def", "sess_ghi"],
   ...
 }
 \`\`\`
@@ -307,19 +307,19 @@ When saving a session, update the relevant entities' \`recentSessions\` arrays:
 
 \`\`\`bash
 # 1. Get entity
-agentuity cloud kv get agentuity-opencode-memory "entity:user:usr_123" --json --region use
+agentuity cloud kv get agentuity-opencode-memory "entity:user:user_123" --json --region use
 
 # 2. Prepend new session ID to recentSessions (keep last 20)
 # 3. Save back
-agentuity cloud kv set agentuity-opencode-memory "entity:user:usr_123" '{...}' --region use
+agentuity cloud kv set agentuity-opencode-memory "entity:user:user_123" '{...}' --region use
 \`\`\`
 
 ### Cross-Project Recall Example
 
 When Lead asks "What do we know about this user across all their projects?":
 
-1. Get user entity: \`agentuity cloud kv get agentuity-opencode-memory "entity:user:usr_123" --json --region use\`
-2. Search Vector for user's sessions: \`agentuity cloud vector search agentuity-opencode-sessions "user preferences" --metadata "userId=usr_123" --limit 10 --json --region use\`
+1. Get user entity: \`agentuity cloud kv get agentuity-opencode-memory "entity:user:user_123" --json --region use\`
+2. Search Vector for user's sessions: \`agentuity cloud vector search agentuity-opencode-sessions "user preferences" --metadata "userId=user_123" --limit 10 --json --region use\`
 3. Compile findings from conclusions, corrections, patterns
 4. Return formatted response with cross-project insights
 
@@ -334,7 +334,7 @@ All sessions (Cadence and non-Cadence) use the same unified structure in KV:
 \`\`\`bash
 # Key: session:{sessionId} in agentuity-opencode-memory
 {
-  "sessionId": "ses_xxx",
+  "sessionId": "sess_xxx",
   "projectLabel": "github.com/acme/repo",
   "createdAt": "2026-01-27T09:00:00Z",
   "updatedAt": "2026-01-27T13:00:00Z",
@@ -473,9 +473,9 @@ The \`--document\` parameter is what gets embedded for semantic search. Format t
 # Upsert a session memory (semantic searchable)
 # Note: metadata values must be string, boolean, or number (not arrays - use pipe-delimited strings)
 # IMPORTANT: Format the full session record as a readable markdown document for --document
-agentuity cloud vector upsert agentuity-opencode-sessions "session:ses_abc123" \\
+agentuity cloud vector upsert agentuity-opencode-sessions "session:sess_abc123" \\
   --document "<full formatted markdown document with all session content>" \\
-  --metadata '{"sessionId":"ses_abc123","projectLabel":"github.com/org/repo","importance":"high","hasCorrections":"true","files":"src/a.ts|src/b.ts"}'
+  --metadata '{"sessionId":"sess_abc123","projectLabel":"github.com/org/repo","importance":"high","hasCorrections":"true","files":"src/a.ts|src/b.ts"}'
 
 # Semantic search for past sessions
 agentuity cloud vector search agentuity-opencode-sessions "auth login bug" --limit 5 --json
@@ -485,10 +485,10 @@ agentuity cloud vector search agentuity-opencode-sessions "performance optimizat
   --metadata "projectLabel=github.com/org/repo" --limit 5 --json
 
 # Get specific session
-agentuity cloud vector get agentuity-opencode-sessions "session:ses_abc123" --json
+agentuity cloud vector get agentuity-opencode-sessions "session:sess_abc123" --json
 
 # Delete session memory
-agentuity cloud vector delete agentuity-opencode-sessions "session:ses_abc123"
+agentuity cloud vector delete agentuity-opencode-sessions "session:sess_abc123"
 \`\`\`
 
 ---
@@ -554,7 +554,7 @@ When returning memory context to other agents, use this format:
 - **Probably outdated:** last confirmed [date]; verify before applying.
 
 ## Sources
-- 🔍 Vector: \`session:ses_123\`
+- 🔍 Vector: \`session:sess_123\`
 - 🗄️ KV: \`decision:auth-tokens\`, \`correction:sandbox-path\`
 \`\`\`
 
@@ -611,7 +611,7 @@ Agents Involved: {Lead, Scout, Builder, etc.}
 
 \`\`\`json
 {
-  "sessionId": "ses_abc123",
+  "sessionId": "sess_abc123",
   "projectId": "proj_123",
   "projectLabel": "github.com/acme/payments",
   "classification": "feature",

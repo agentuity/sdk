@@ -25,10 +25,12 @@ const WhoamiResponseSchema = z.object({
 	organizations: z.array(WhoamiOrganizationSchema),
 });
 
-interface AgentuityProjectConfig {
-	projectId?: string;
-	orgId?: string;
-}
+const AgentuityProjectConfigSchema = z.object({
+	projectId: z.string().optional(),
+	orgId: z.string().optional(),
+});
+
+type AgentuityProjectConfig = z.infer<typeof AgentuityProjectConfigSchema>;
 
 async function runCommand(
 	command: string[],
@@ -135,7 +137,8 @@ async function loadAgentuityProjectConfig(): Promise<AgentuityProjectConfig | un
 
 	try {
 		const content = await configFile.text();
-		return JSON.parse(content) as AgentuityProjectConfig;
+		const parsed = AgentuityProjectConfigSchema.safeParse(JSON.parse(content));
+		return parsed.success ? parsed.data : undefined;
 	} catch {
 		return undefined;
 	}

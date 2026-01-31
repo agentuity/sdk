@@ -711,7 +711,7 @@ agentuity cloud storage upload ag-abc123 ./file.txt --key opencode/{projectLabel
 Namespaces are created automatically when you first upsert:
 \`\`\`bash
 # Upsert a session (namespace auto-created if needed)
-agentuity cloud vector upsert agentuity-opencode-sessions "session:ses_abc123" \\
+agentuity cloud vector upsert agentuity-opencode-sessions "session:sess_abc123" \\
   --document "Session summary..." \\
   --metadata '{"projectLabel":"github.com/org/repo","hasCorrections":"true"}'
 
@@ -719,7 +719,7 @@ agentuity cloud vector upsert agentuity-opencode-sessions "session:ses_abc123" \
 agentuity cloud vector search agentuity-opencode-sessions "authentication flow" --limit 5 --json
 
 # Get specific session
-agentuity cloud vector get agentuity-opencode-sessions "session:ses_abc123" --json
+agentuity cloud vector get agentuity-opencode-sessions "session:sess_abc123" --json
 \`\`\`
 
 ### Sandbox — Ephemeral by Default
