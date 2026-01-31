@@ -34,10 +34,6 @@ The actual orchestration logic lives in **Lead's system prompt** when in Cadence
 │  └── /agentuity-cadence start <freeform task>              │
 │      Routes to Lead with Cadence mode enabled               │
 ├─────────────────────────────────────────────────────────────┤
-│  CLI Commands (headless control)                            │
-│  └── agentuity cadence list|status|pause|resume|stop        │
-│      Updates KV state, agents respect it                    │
-├─────────────────────────────────────────────────────────────┤
 │  Plugin Hooks                                               │
 │  └── session.idle → Check if Cadence active → Prompt Lead   │
 ├─────────────────────────────────────────────────────────────┤
@@ -88,20 +84,6 @@ Use `/agentuity-cadence` to start a Cadence loop. Control is via natural languag
 | Resume | "continue" or "resume"                                 |
 | Stop   | "stop" or Ctrl+C                                       |
 | Extend | "continue for 50 more iterations" or "go until done"   |
-
-## CLI Commands
-
-For controlling headless/sandboxed runs:
-
-```bash
-agentuity ai cadence list [--project <label>]     # Active loops
-agentuity ai cadence status <loopId>              # Loop details
-agentuity ai cadence pause <loopId>               # Pause loop
-agentuity ai cadence resume <loopId>              # Resume loop
-agentuity ai cadence stop <loopId>                # Cancel loop
-```
-
-These update KV state. Lead checks state at each iteration boundary and respects pause/stop.
 
 ## Completion Signal
 
@@ -188,11 +170,6 @@ This is **agent-driven** — Lead's prompt tells it how to orchestrate, not besp
 ```bash
 # Start in background
 agentuity ai opencode run "/agentuity-cadence start build the feature"
-
-# Check on it
-agentuity ai cadence list
-agentuity ai cadence status lp_abc123
-
-# Stop if needed
-agentuity ai cadence stop lp_abc123
 ```
+
+Control is via natural language within the session, or by managing KV state directly.

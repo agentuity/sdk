@@ -1,5 +1,4 @@
 import { createCommand } from '../../types';
-import cadenceCommand from './cadence';
 import capabilitiesCommand from './capabilities';
 import promptCommand from './prompt';
 import schemaCommand from './schema';
@@ -25,11 +24,5 @@ export const command = createCommand({
 			description: 'Output CLI schema for AI consumption',
 		},
 	],
-	subcommands: [
-		opencodeCommand,
-		cadenceCommand,
-		capabilitiesCommand,
-		promptCommand,
-		schemaCommand,
-	],
+	subcommands: [opencodeCommand, capabilitiesCommand, promptCommand, schemaCommand],
 });

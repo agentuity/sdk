@@ -212,23 +212,16 @@ Start with `/agentuity-cadence`, then use natural language:
 | Extend | "continue for 50 more iterations"           |
 | Stop   | "stop" or Ctrl+C                            |
 
-### CLI Control (Headless)
+### Headless Execution
 
 For running Cadence in sandboxes or background:
 
 ```bash
 # Start headless
 agentuity ai opencode run "/agentuity-cadence build the auth feature"
-
-# Monitor
-agentuity ai cadence list
-agentuity ai cadence status lp_auth_01
-
-# Control
-agentuity ai cadence pause lp_auth_01
-agentuity ai cadence resume lp_auth_01
-agentuity ai cadence stop lp_auth_01
 ```
+
+Control is via natural language within the session, or by managing KV state directly.
 
 ### How It Works
 

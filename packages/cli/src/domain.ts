@@ -104,7 +104,7 @@ export async function checkCustomDomainForDNS(
 	config?: Config | null
 ): Promise<DNSResult[]> {
 	const suffix = config?.overrides?.api_url?.includes('agentuity.io') ? LOCAL_DNS : PRODUCTION_DNS;
-	const id = Bun.hash.xxHash64(projectId).toString(16);
+	const id = Bun.hash.xxHash64(projectId).toString(16).padStart(16, '0');
 	const proxy = `p${id}.${suffix}`;
 
 	return Promise.all(
