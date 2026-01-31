@@ -277,27 +277,27 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	});
 
 	// Vite client scripts and HMR
-	app.get('/@vite/*', proxyToVite);
-	app.get('/@react-refresh', proxyToVite);
+	app.get('/@vite/*', (c: Context) => proxyToVite(c));
+	app.get('/@react-refresh', (c: Context) => proxyToVite(c));
 
 	// Source files for HMR
-	app.get('/src/web/*', proxyToVite);
-	app.get('/src/*', proxyToVite); // Catch-all for other source files
+	app.get('/src/web/*', (c: Context) => proxyToVite(c));
+	app.get('/src/*', (c: Context) => proxyToVite(c)); // Catch-all for other source files
 
 	// Workbench source files (in .agentuity/workbench-src/)
-	app.get('/.agentuity/workbench-src/*', proxyToVite);
+	app.get('/.agentuity/workbench-src/*', (c: Context) => proxyToVite(c));
 
 	// Node modules (Vite transforms these)
-	app.get('/node_modules/*', proxyToVite);
+	app.get('/node_modules/*', (c: Context) => proxyToVite(c));
 
 	// Scoped packages (e.g., @agentuity/*, @types/*)
-	app.get('/@*', proxyToVite);
+	app.get('/@*', (c: Context) => proxyToVite(c));
 
 	// File system access (for Vite's @fs protocol)
-	app.get('/@fs/*', proxyToVite);
+	app.get('/@fs/*', (c: Context) => proxyToVite(c));
 
 	// Module resolution (for Vite's @id protocol)
-	app.get('/@id/*', proxyToVite);
+	app.get('/@id/*', (c: Context) => proxyToVite(c));
 
 	// Static assets - Vite serves src/web/public/* at root, but code uses /public/* paths
 	// In production, the plugin transforms /public/foo.svg to CDN URLs
@@ -308,11 +308,11 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	});
 
 	// Any .js, .jsx, .ts, .tsx files (catch remaining modules)
-	app.get('/*.js', proxyToVite);
-	app.get('/*.jsx', proxyToVite);
-	app.get('/*.ts', proxyToVite);
-	app.get('/*.tsx', proxyToVite);
-	app.get('/*.css', proxyToVite);
+	app.get('/*.js', (c: Context) => proxyToVite(c));
+	app.get('/*.jsx', (c: Context) => proxyToVite(c));
+	app.get('/*.ts', (c: Context) => proxyToVite(c));
+	app.get('/*.tsx', (c: Context) => proxyToVite(c));
+	app.get('/*.css', (c: Context) => proxyToVite(c));
 }
 `;
 
