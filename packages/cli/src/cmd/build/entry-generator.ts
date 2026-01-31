@@ -243,15 +243,15 @@ if (isDevelopment() && process.env.VITE_PORT) {
 			// When app.fetch(req, server) is called, Hono stores server as c.env
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const server = 'server' in (c.env as any) ? (c.env as any).server : c.env;
-			
+
 			if (server?.upgrade) {
 				// Extract query string to forward to Vite (includes token parameter)
 				const url = new URL(c.req.url);
 				const queryString = url.search; // Includes the '?' prefix
-				
+
 				// Get the requested WebSocket subprotocol (Vite uses 'vite-hmr')
 				const requestedProtocol = c.req.header('sec-websocket-protocol');
-				
+
 				const success = server.upgrade(c.req.raw, {
 					data: { type: 'vite-hmr', queryString },
 					// Echo back the requested subprotocol so the browser accepts the connection
@@ -265,8 +265,8 @@ if (isDevelopment() && process.env.VITE_PORT) {
 				}
 				otel.logger.error('[HMR Proxy] WebSocket upgrade returned false');
 			} else {
-				otel.logger.error('[HMR Proxy] Server upgrade method not available. c.env type: %s, keys: %s', 
-					typeof c.env, 
+				otel.logger.error('[HMR Proxy] Server upgrade method not available. c.env type: %s, keys: %s',
+					typeof c.env,
 					Object.keys(c.env || {}).join(', '));
 			}
 			return c.text('WebSocket upgrade failed', 500);
