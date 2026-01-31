@@ -50,20 +50,21 @@ function createIncorrectPatterns(): PathPattern[] {
 
 /**
  * Patterns that need rewriting for production CDN
+ * Both patterns simply replace the prefix while preserving the rest of the path naturally.
  */
 function createPublicPatterns(): PathPattern[] {
 	return [
-		// './public/...' (relative public path)
+		// './public/...' (relative public path) - replace prefix, keep rest
 		{
 			regex: /(['"`])\.\/public\//g,
 			description: './public/',
 			replacement: '$1{base}',
 		},
-		// '/public/...' (absolute public path)
+		// '/public/...' (absolute public path) - replace prefix, keep rest
 		{
-			regex: /(['"`])\/public\/([^'"`\s]+)/g,
+			regex: /(['"`])\/public\//g,
 			description: '/public/',
-			replacement: '$1{base}$2',
+			replacement: '$1{base}',
 		},
 	];
 }
