@@ -30,6 +30,8 @@ export interface PublicAssetPathPluginOptions {
 interface PathPattern {
 	regex: RegExp;
 	description: string;
+	/** Replacement template - use {base} for the target base URL */
+	replacement: string;
 }
 
 /**
@@ -41,6 +43,7 @@ function createIncorrectPatterns(): PathPattern[] {
 		{
 			regex: /(['"`])(?:\.?\/)?src\/web\/public\//g,
 			description: 'src/web/public/',
+			replacement: '$1{base}',
 		},
 	];
 }
@@ -54,11 +57,13 @@ function createPublicPatterns(): PathPattern[] {
 		{
 			regex: /(['"`])\.\/public\//g,
 			description: './public/',
+			replacement: '$1{base}',
 		},
 		// '/public/...' (absolute public path)
 		{
 			regex: /(['"`])\/public\/([^'"`\s]+)/g,
 			description: '/public/',
+			replacement: '$1{base}$2',
 		},
 	];
 }
@@ -154,18 +159,19 @@ export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}
 			// Transform incorrect source paths (src/web/public/) → CDN
 			if (hasIncorrectSourcePaths) {
 				const patterns = createIncorrectPatterns();
-				for (const { regex } of patterns) {
+				for (const { regex, replacement } of patterns) {
 					const replaceRegex = new RegExp(regex.source, regex.flags);
-					transformed = transformed.replace(replaceRegex, `$1${targetBase}`);
+					transformed = transformed.replace(replaceRegex, replacement.replace('{base}', targetBase));
 				}
 			}
 
 			// Transform public paths → CDN
 			if (hasPublicPaths) {
-				// ./public/foo → {targetBase}foo
-				transformed = transformed.replace(/(['"`])\.\/public\//g, `$1${targetBase}`);
-				// /public/foo → {targetBase}foo
-				transformed = transformed.replace(/(['"`])\/public\/([^'"`\s]+)/g, `$1${targetBase}$2`);
+				const publicPatterns = createPublicPatterns();
+				for (const { regex, replacement } of publicPatterns) {
+					const replaceRegex = new RegExp(regex.source, regex.flags);
+					transformed = transformed.replace(replaceRegex, replacement.replace('{base}', targetBase));
+				}
 			}
 
 			// Return transformed code if changed
