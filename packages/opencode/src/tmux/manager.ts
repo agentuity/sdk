@@ -1,5 +1,6 @@
 import type { PluginInput } from '@opencode-ai/plugin';
-import { spawn, spawnSync } from 'bun';
+import { spawnSync } from 'bun';
+import { randomUUID } from 'node:crypto';
 import type {
 	PaneAction,
 	TmuxConfig,
@@ -9,7 +10,13 @@ import type {
 	SessionMapping,
 } from './types';
 import { POLL_INTERVAL_MS, SESSION_MISSING_GRACE_MS, SESSION_TIMEOUT_MS } from './types';
-import { getCurrentPaneId, getTmuxPath, isInsideTmux } from './utils';
+import {
+	canonicalizeServerUrl,
+	getCurrentPaneId,
+	getTmuxPath,
+	getTmuxSessionId,
+	isInsideTmux,
+} from './utils';
 import { queryWindowState } from './state-query';
 import { decideSpawnActions } from './decision-engine';
 import {
@@ -18,8 +25,11 @@ import {
 	closeAgentsWindowSync,
 	closePaneById,
 	killProcessByPid,
-	killOrphanedAttachProcesses,
-	killOrphanedAttachProcessesSync,
+	getPanePid,
+	getPanePidSync,
+	cleanupOwnedResources,
+	cleanupOwnedResourcesSync,
+	findOwnedAgentPanes,
 } from './executor';
 
 /**
@@ -55,6 +65,16 @@ export class TmuxSessionManager {
 	private pendingSessions = new Set<string>();
 	private pollInterval?: ReturnType<typeof setInterval>;
 	private sourcePaneId: string | undefined;
+	private tmuxSessionId: string | undefined;
+	private instanceId = randomUUID().slice(0, 8);
+	private ownerPid = process.pid;
+	private serverKey: string | undefined;
+	private statusMissingSince = new Map<string, number>();
+	/**
+	 * Operation queue to serialize tmux mutations.
+	 * This prevents race conditions when multiple sessions are created rapidly.
+	 */
+	private tmuxOpQueue: Promise<void> = Promise.resolve();
 
 	constructor(
 		private ctx: PluginInput,
@@ -62,6 +82,20 @@ export class TmuxSessionManager {
 		private callbacks?: TmuxSessionManagerCallbacks
 	) {
 		this.sourcePaneId = getCurrentPaneId();
+	}
+
+	/**
+	 * Enqueue a tmux operation to ensure sequential execution.
+	 * This prevents race conditions when multiple sessions are created/deleted rapidly.
+	 */
+	private enqueue<T>(fn: () => Promise<T>): Promise<T> {
+		const result = this.tmuxOpQueue.then(fn, fn); // Run even if previous failed
+		// Update queue but don't propagate errors to next operation
+		this.tmuxOpQueue = result.then(
+			() => {},
+			() => {}
+		);
+		return result;
 	}
 
 	/**
@@ -74,8 +108,22 @@ export class TmuxSessionManager {
 	/**
 	 * Handle a new background session being created
 	 * This is called by BackgroundManager when a background task starts
+	 *
+	 * Operations are queued to prevent race conditions when multiple sessions
+	 * are created rapidly.
 	 */
 	async onSessionCreated(event: {
+		sessionId: string;
+		parentId: string;
+		title: string;
+	}): Promise<void> {
+		return this.enqueue(() => this.doSessionCreated(event));
+	}
+
+	/**
+	 * Internal implementation of session creation (runs within the queue)
+	 */
+	private async doSessionCreated(event: {
 		sessionId: string;
 		parentId: string;
 		title: string;
@@ -108,6 +156,14 @@ export class TmuxSessionManager {
 			if (!this.sourcePaneId) {
 				this.log('Unable to determine source pane id.');
 				return;
+			}
+
+			// Get the tmux session ID for this pane (cached after first lookup)
+			if (!this.tmuxSessionId) {
+				this.tmuxSessionId = await getTmuxSessionId(this.sourcePaneId);
+				if (this.tmuxSessionId) {
+					this.log(`Resolved tmux session ID: ${this.tmuxSessionId}`);
+				}
 			}
 
 			const state = await queryWindowState(this.sourcePaneId);
@@ -150,10 +206,19 @@ export class TmuxSessionManager {
 				return;
 			}
 
+			const serverKey = canonicalizeServerUrl(serverUrl);
+			this.serverKey = serverKey;
+
 			const result = await executeActions(decision.actions, {
 				config: this.config,
 				serverUrl,
 				windowState: state,
+				ownership: {
+					instanceId: this.instanceId,
+					ownerPid: this.ownerPid,
+					serverKey,
+					tmuxSessionId: this.tmuxSessionId,
+				},
 			});
 
 			if (!result.success) {
@@ -162,6 +227,7 @@ export class TmuxSessionManager {
 			}
 
 			this.applyActionResults(decision.actions, result.results);
+			await this.refreshMissingPids();
 			this.log(
 				`Successfully spawned pane for ${event.sessionId}. Tracking ${this.sessions.size} sessions. PIDs: ${this.getTrackedPids().join(', ') || 'none'}`
 			);
@@ -188,8 +254,17 @@ export class TmuxSessionManager {
 	 * Explicitly kills the pane when a background session completes.
 	 * We can't rely on `opencode attach` exiting because it's an interactive
 	 * terminal that keeps running even after the session goes idle.
+	 *
+	 * Operations are queued to prevent race conditions.
 	 */
 	async onSessionDeleted(event: { sessionId: string }): Promise<void> {
+		return this.enqueue(() => this.doSessionDeleted(event));
+	}
+
+	/**
+	 * Internal implementation of session deletion (runs within the queue)
+	 */
+	private async doSessionDeleted(event: { sessionId: string }): Promise<void> {
 		this.log(`onSessionDeleted called for ${event.sessionId}`);
 
 		if (!this.isEnabled()) {
@@ -218,6 +293,7 @@ export class TmuxSessionManager {
 
 		// Update internal state
 		this.sessions.delete(event.sessionId);
+		this.statusMissingSince.delete(event.sessionId);
 		this.log(`Removed session from tracking. Now tracking ${this.sessions.size} sessions.`);
 
 		if (this.sessions.size === 0) {
@@ -235,27 +311,30 @@ export class TmuxSessionManager {
 		this.log('Starting cleanup...');
 		this.stopPolling();
 
-		let pidCleanupFailed = false;
 		for (const session of this.sessions.values()) {
-			if (!session.pid) continue;
-			this.log(`Killing process ${session.pid} for session ${session.sessionId}`);
-			const success = await killProcessByPid(session.pid);
+			let pid = session.pid;
+			if (!pid) {
+				pid = await getPanePid(session.paneId);
+				if (pid) {
+					session.pid = pid;
+				}
+			}
+			if (!pid) continue;
+			this.log(`Killing process ${pid} for session ${session.sessionId}`);
+			const success = await killProcessByPid(pid);
 			if (!success) {
-				this.log(`Failed to kill process ${session.pid} for session ${session.sessionId}`);
-				pidCleanupFailed = true;
+				this.log(`Failed to kill process ${pid} for session ${session.sessionId}`);
 			}
 		}
 
-		// Kill the entire agents window - this closes all panes at once
-		await closeAgentsWindow();
-		this.sessions.clear();
-
-		// Fallback: if PID-based cleanup failed, use pkill to catch any orphans
-		if (pidCleanupFailed) {
-			this.log('PID-based cleanup had failures, running fallback cleanup...');
-			const serverUrl = this.getServerUrl();
-			await killOrphanedAttachProcesses(serverUrl, (msg) => this.log(msg));
+		const serverKey = this.getServerKey();
+		if (serverKey) {
+			await cleanupOwnedResources(serverKey, this.instanceId);
+		} else {
+			await closeAgentsWindow();
 		}
+		this.sessions.clear();
+		this.statusMissingSince.clear();
 
 		this.log('Cleanup complete');
 	}
@@ -270,30 +349,27 @@ export class TmuxSessionManager {
 		this.log('Starting sync cleanup...');
 		this.stopPolling();
 
-		let pidCleanupFailed = false;
 		for (const session of this.sessions.values()) {
-			if (!session.pid) continue;
-			this.log(`Killing process ${session.pid} for session ${session.sessionId}`);
-			this.killProcessByPidSync(session.pid);
-			// Check if process is still alive after kill attempt
-			try {
-				process.kill(session.pid, 0);
-				pidCleanupFailed = true; // Process still exists
-			} catch {
-				// Process is dead, good
+			let pid = session.pid;
+			if (!pid) {
+				pid = getPanePidSync(session.paneId);
+				if (pid) {
+					session.pid = pid;
+				}
 			}
+			if (!pid) continue;
+			this.log(`Killing process ${pid} for session ${session.sessionId}`);
+			this.killProcessByPidSync(pid);
 		}
 
-		// Kill the entire agents window synchronously
-		closeAgentsWindowSync();
+		const serverKey = this.getServerKey();
+		if (serverKey) {
+			cleanupOwnedResourcesSync(serverKey, this.instanceId);
+		} else {
+			closeAgentsWindowSync();
+		}
 		this.sessions.clear();
-
-		// Fallback: if PID-based cleanup failed, use pkill to catch any orphans
-		if (pidCleanupFailed) {
-			this.log('PID-based cleanup had failures, running fallback cleanup...');
-			const serverUrl = this.getServerUrl();
-			killOrphanedAttachProcessesSync(serverUrl, (msg) => this.log(msg));
-		}
+		this.statusMissingSince.clear();
 
 		this.log('Sync cleanup complete');
 	}
@@ -321,30 +397,73 @@ export class TmuxSessionManager {
 	 * Poll active sessions for status changes
 	 */
 	private async pollSessions(): Promise<void> {
+		return this.enqueue(() => this.doPollSessions());
+	}
+
+	/**
+	 * Poll active sessions for status changes
+	 */
+	private async doPollSessions(): Promise<void> {
 		if (!this.isEnabled()) return;
 		if (!this.sourcePaneId) return;
 
 		const state = await queryWindowState(this.sourcePaneId);
 		if (!state) return;
+		const statusMap = await this.fetchSessionStatuses();
 
 		const now = Date.now();
+		const sessionsToClose: TrackedSession[] = [];
 		for (const session of this.sessions.values()) {
 			const pane = findPane(state, session.paneId);
 			if (pane) {
 				session.lastSeenAt = new Date();
-				continue;
+				if (!session.pid) {
+					const pid = await getPanePid(session.paneId);
+					if (pid) {
+						session.pid = pid;
+					}
+				}
+			} else {
+				const missingFor = now - session.lastSeenAt.getTime();
+				if (missingFor > SESSION_MISSING_GRACE_MS) {
+					if (session.pid) {
+						await killProcessByPid(session.pid);
+					}
+					this.sessions.delete(session.sessionId);
+					this.statusMissingSince.delete(session.sessionId);
+					continue;
+				}
 			}
 
-			const missingFor = now - session.lastSeenAt.getTime();
-			if (missingFor > SESSION_MISSING_GRACE_MS) {
-				this.sessions.delete(session.sessionId);
-				continue;
+			const status = statusMap[session.sessionId];
+			if (status) {
+				this.statusMissingSince.delete(session.sessionId);
+			} else if (!this.statusMissingSince.has(session.sessionId)) {
+				this.statusMissingSince.set(session.sessionId, now);
 			}
 
+			const statusMissingAt = this.statusMissingSince.get(session.sessionId);
+			const missingTooLong =
+				statusMissingAt !== undefined && now - statusMissingAt > SESSION_MISSING_GRACE_MS;
 			const age = now - session.createdAt.getTime();
-			if (age > SESSION_TIMEOUT_MS) {
-				this.sessions.delete(session.sessionId);
+			const isTimedOut = age > SESSION_TIMEOUT_MS;
+			const isIdle = status?.type === 'idle';
+
+			if (isIdle || missingTooLong || isTimedOut) {
+				sessionsToClose.push(session);
 			}
+		}
+
+		for (const session of sessionsToClose) {
+			this.log(`Closing idle session ${session.sessionId} (pane: ${session.paneId})`);
+			const result = await closePaneById(session.paneId, session.pid);
+			if (!result.success) {
+				this.log(
+					`Failed to close pane ${session.paneId} for session ${session.sessionId}: ${result.error}`
+				);
+			}
+			this.sessions.delete(session.sessionId);
+			this.statusMissingSince.delete(session.sessionId);
 		}
 
 		if (this.sessions.size === 0) {
@@ -374,6 +493,20 @@ export class TmuxSessionManager {
 		return typeof serverUrl === 'string' ? serverUrl : serverUrl.toString();
 	}
 
+	private getServerKey(): string | undefined {
+		if (this.serverKey) return this.serverKey;
+		const serverUrl = this.getServerUrl();
+		if (!serverUrl) return undefined;
+		try {
+			const serverKey = canonicalizeServerUrl(serverUrl);
+			this.serverKey = serverKey;
+			return serverKey;
+		} catch (error) {
+			this.log(`Failed to canonicalize server URL "${serverUrl}": ${error}`);
+			return undefined;
+		}
+	}
+
 	private applyActionResults(
 		actions: PaneAction[],
 		results: Array<{ action: PaneAction; result: { paneId?: string; pid?: number } }>
@@ -387,6 +520,7 @@ export class TmuxSessionManager {
 					break;
 				case 'replace':
 					this.sessions.delete(action.oldSessionId);
+					this.statusMissingSince.delete(action.oldSessionId);
 					this.sessions.set(action.newSessionId, {
 						sessionId: action.newSessionId,
 						paneId: action.paneId,
@@ -413,6 +547,30 @@ export class TmuxSessionManager {
 		}
 	}
 
+	private async refreshMissingPids(): Promise<void> {
+		for (const session of this.sessions.values()) {
+			if (session.pid) continue;
+			const pid = await getPanePid(session.paneId);
+			if (pid) {
+				session.pid = pid;
+			}
+		}
+	}
+
+	private async fetchSessionStatuses(): Promise<Record<string, { type?: string }>> {
+		try {
+			const result = await this.ctx.client.session.status({
+				path: undefined,
+				throwOnError: false,
+			});
+			const data = unwrapResponse<Record<string, { type?: string }>>(result);
+			if (!data || typeof data !== 'object') return {};
+			return data;
+		} catch {
+			return {};
+		}
+	}
+
 	/**
 	 * Find and report orphaned processes (does NOT kill them by default).
 	 * Call this manually if you need to identify orphaned processes after a crash.
@@ -424,56 +582,31 @@ export class TmuxSessionManager {
 	 */
 	async reportOrphanedProcesses(): Promise<number[]> {
 		if (!this.isEnabled()) return [];
-		const serverUrl = this.getServerUrl();
-		if (!serverUrl) return [];
+		const serverKey = this.getServerKey();
+		if (!serverKey) return [];
 
 		const trackedSessionIds = new Set(this.sessions.keys());
-		const orphanedPids = await this.findOrphanedAttachPids(serverUrl, trackedSessionIds);
+		const panes = await findOwnedAgentPanes(serverKey);
+		const orphanedPanes = panes.filter((pane) => {
+			if (!pane.sessionId) return false;
+			return !trackedSessionIds.has(pane.sessionId);
+		});
 
-		if (orphanedPids.length > 0) {
+		if (orphanedPanes.length > 0) {
+			const sessionIds = orphanedPanes
+				.map((pane) => pane.sessionId)
+				.filter((sessionId): sessionId is string => !!sessionId);
 			this.log(
-				`Found ${orphanedPids.length} potentially orphaned processes: ${orphanedPids.join(', ')}`
+				`Found ${orphanedPanes.length} potentially orphaned sessions: ${sessionIds.join(', ')}`
 			);
 			this.log(
-				'These may be user-initiated sessions. Run "pkill -f opencode\\ attach" to clean them up manually if needed.'
+				'These may be user-initiated sessions. Close their tmux panes manually if needed.'
 			);
 		}
 
-		return orphanedPids;
-	}
-
-	private async findOrphanedAttachPids(
-		serverUrl: string,
-		trackedSessionIds: Set<string>
-	): Promise<number[]> {
-		try {
-			const proc = spawn(['ps', 'aux'], { stdout: 'pipe', stderr: 'pipe' });
-			await proc.exited;
-			const output = await new Response(proc.stdout).text();
-			const lines = output.split('\n');
-			const matches: number[] = [];
-
-			for (const line of lines) {
-				if (!line.includes('opencode attach')) continue;
-				if (!line.includes(serverUrl)) continue;
-				const parts = line.trim().split(/\s+/);
-				const pid = Number(parts[1]);
-				if (!Number.isFinite(pid) || pid <= 0) continue;
-				if (pid === process.pid) continue;
-				const sessionId = this.extractSessionId(line);
-				if (sessionId && trackedSessionIds.has(sessionId)) continue;
-				matches.push(pid);
-			}
-
-			return matches;
-		} catch {
-			return [];
-		}
-	}
-
-	private extractSessionId(line: string): string | undefined {
-		const match = line.match(/--session\s+(['"]?)([^'";\s]+)\1/);
-		return match?.[2];
+		return orphanedPanes
+			.map((pane) => pane.panePid)
+			.filter((pid): pid is number => typeof pid === 'number');
 	}
 
 	/**
@@ -543,35 +676,45 @@ export class TmuxSessionManager {
 	 *
 	 * @param serverUrl - Optional server URL to filter processes
 	 * @param logger - Optional logging function
+	 * @param instanceId - Ownership instance id to target cleanup
 	 * @returns Object with cleanup results
 	 */
 	static async cleanupOrphans(
 		serverUrl?: string,
-		logger?: (msg: string) => void
+		logger?: (msg: string) => void,
+		instanceId?: string
 	): Promise<{ killed: number; windowClosed: boolean }> {
 		const log = logger ?? (() => {});
 
 		log('Starting orphan cleanup...');
 
-		// First, try to close the agents window (recovers from persisted file)
-		let windowClosed = false;
+		let serverKey: string | undefined;
 		try {
-			await closeAgentsWindow();
-			windowClosed = true;
-			log('Closed agents window');
+			serverKey = serverUrl ? canonicalizeServerUrl(serverUrl) : undefined;
 		} catch {
-			log('No agents window to close');
+			serverKey = undefined;
+		}
+		if (!serverKey || !instanceId) {
+			log('No server URL or instance ID provided; skipping ownership cleanup.');
+			return { killed: 0, windowClosed: false };
 		}
 
-		// Then kill any orphaned processes
-		const killed = await killOrphanedAttachProcesses(serverUrl, log);
-
-		log(`Orphan cleanup complete: ${killed} processes killed, window closed: ${windowClosed}`);
-		return { killed, windowClosed };
+		const result = await cleanupOwnedResources(serverKey, instanceId);
+		log(
+			`Orphan cleanup complete: ${result.panesClosed} panes closed, window closed: ${result.windowClosed}`
+		);
+		return { killed: result.panesClosed, windowClosed: result.windowClosed };
 	}
 }
 
 function findPane(state: WindowState, paneId: string): TmuxPaneInfo | undefined {
 	if (state.mainPane?.paneId === paneId) return state.mainPane;
 	return state.agentPanes.find((pane) => pane.paneId === paneId);
+}
+
+function unwrapResponse<T>(result: unknown): T | undefined {
+	if (typeof result === 'object' && result !== null && 'data' in result) {
+		return (result as { data?: T }).data;
+	}
+	return result as T;
 }

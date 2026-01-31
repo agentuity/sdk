@@ -149,13 +149,22 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			analyticsEnabled = false,
 		} = options;
 
+		// Determine CDN base URL for production builds
+		// Use CDN for all non-dev builds with a deploymentId (including local region)
+		const isLocalRegion = options.region === 'local';
+		const cdnDomain = isLocalRegion
+			? 'localstack-static-assets.t3.storage.dev'
+			: 'cdn.agentuity.com';
+		const cdnBaseUrl =
+			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
+
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
 		const plugins = [
 			react(),
 			browserEnvPlugin(),
-			// Fix incorrect public asset paths (e.g., '/src/web/public/...' → '/public/...')
-			publicAssetPathPlugin(),
+			// Fix incorrect public asset paths and rewrite to CDN URLs
+			publicAssetPathPlugin({ cdnBaseUrl }),
 			flattenHtmlOutputPlugin(clientOutDir),
 			// Emit analytics beacon as hashed CDN asset (prod builds only)
 			beaconPlugin({ enabled: analyticsEnabled && !dev }),
@@ -177,15 +186,6 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			);
 		}
 
-		// Determine CDN base URL for production builds
-		// Use CDN for all non-dev builds with a deploymentId (including local region)
-		const isLocalRegion = options.region === 'local';
-		const cdnDomain = isLocalRegion
-			? 'localstack-static-assets.t3.storage.dev'
-			: 'cdn.agentuity.com';
-		const cdnBaseUrl =
-			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
-
 		viteConfig = {
 			// Use project root as Vite root so plugins (e.g., TanStack Router) resolve paths
 			// from the repo root, matching where agentuity.config.ts is located
@@ -203,16 +203,17 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 					? JSON.stringify(workbenchRoute)
 					: 'undefined',
 			},
-			build: {
-				outDir: clientOutDir,
-				rollupOptions: {
-					input: htmlPath,
-				},
-				manifest: true,
-				emptyOutDir: true,
-				// Disable copying public files - Vite already includes them in assets with hashing
-				copyPublicDir: false,
+		build: {
+			outDir: clientOutDir,
+			rollupOptions: {
+				input: htmlPath,
 			},
+			manifest: true,
+			emptyOutDir: true,
+			// Copy public files to output for CDN upload (production builds only)
+			// In dev mode, Vite serves them directly from src/web/public/
+			copyPublicDir: !dev,
+		},
 			logLevel: 'warn',
 		};
 	} else if (mode === 'workbench') {
