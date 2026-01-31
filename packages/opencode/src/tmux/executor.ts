@@ -1,5 +1,17 @@
 import type { PaneAction, WindowState, TmuxConfig } from './types';
 import { runTmuxCommand, runTmuxCommandSync } from './utils';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { spawn, spawnSync } from 'bun';
+
+/**
+ * Path to persist the agents window ID for crash recovery.
+ * Uses ~/.config/agentuity/coder/cache/ which is consistent with other Agentuity paths
+ * and likely exists for any Agentuity user.
+ */
+const CACHE_DIR = join(homedir(), '.config', 'agentuity', 'coder', 'cache');
+const AGENTS_WINDOW_FILE = join(CACHE_DIR, 'agents-window-id');
 
 /**
  * Escape a string for safe use in shell commands.
@@ -17,13 +29,140 @@ export interface ActionResult {
 	success: boolean;
 	paneId?: string;
 	windowId?: string;
+	pid?: number;
 	error?: string;
+}
+
+const PROCESS_TERM_WAIT_MS = 1000;
+
+function isProcessAlive(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		return code !== 'ESRCH';
+	}
+}
+
+async function getPanePid(paneId: string): Promise<number | undefined> {
+	if (!paneId) return undefined;
+	const result = await runTmuxCommand(['display', '-p', '-t', paneId, '#{pane_pid}']);
+	if (!result.success) return undefined;
+	const pid = Number(result.output.trim());
+	if (!Number.isFinite(pid) || pid <= 0) return undefined;
+	return pid;
+}
+
+/**
+ * Kill a process and all its children (the entire process tree).
+ *
+ * This is necessary because we spawn `bash -c "opencode attach ...; tmux kill-pane"`
+ * and #{pane_pid} returns the bash PID, not the opencode attach PID.
+ * We need to kill the children (opencode attach) not just the parent (bash).
+ */
+export async function killProcessByPid(pid: number): Promise<boolean> {
+	if (!Number.isFinite(pid) || pid <= 0) return false;
+
+	// First, kill all child processes
+	try {
+		const proc = spawn(['pkill', '-TERM', '-P', String(pid)], {
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+		await proc.exited;
+	} catch {
+		// Ignore errors - children may not exist
+	}
+
+	// Then kill the parent
+	try {
+		process.kill(pid, 'SIGTERM');
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		if (code === 'ESRCH') return true;
+		return false;
+	}
+
+	await new Promise((resolve) => setTimeout(resolve, PROCESS_TERM_WAIT_MS));
+
+	// Check if parent and children are dead
+	if (!isProcessAlive(pid)) return true;
+
+	// Force kill children
+	try {
+		const proc = spawn(['pkill', '-KILL', '-P', String(pid)], {
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+		await proc.exited;
+	} catch {
+		// Ignore errors
+	}
+
+	// Force kill parent
+	try {
+		process.kill(pid, 'SIGKILL');
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		if (code === 'ESRCH') return true;
+		return false;
+	}
+
+	return !isProcessAlive(pid);
 }
 
 /**
  * State for separate-window mode - tracks the dedicated "Agents" window
  */
 let agentsWindowId: string | undefined;
+
+/**
+ * Ensure the cache directory exists
+ */
+function ensureCacheDir(): void {
+	if (!existsSync(CACHE_DIR)) {
+		mkdirSync(CACHE_DIR, { recursive: true });
+	}
+}
+
+/**
+ * Persist the agents window ID to disk for crash recovery
+ */
+function persistAgentsWindowId(windowId: string): void {
+	try {
+		ensureCacheDir();
+		writeFileSync(AGENTS_WINDOW_FILE, windowId, 'utf-8');
+	} catch {
+		// Ignore write errors - persistence is best-effort
+	}
+}
+
+/**
+ * Load the agents window ID from disk (for crash recovery)
+ */
+function loadPersistedAgentsWindowId(): string | undefined {
+	try {
+		if (!existsSync(AGENTS_WINDOW_FILE)) return undefined;
+		const windowId = readFileSync(AGENTS_WINDOW_FILE, 'utf-8').trim();
+		return windowId || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Clear the persisted agents window ID
+ */
+function clearPersistedAgentsWindowId(): void {
+	try {
+		if (existsSync(AGENTS_WINDOW_FILE)) {
+			unlinkSync(AGENTS_WINDOW_FILE);
+		}
+	} catch {
+		// Ignore delete errors
+	}
+}
 
 /**
  * Execute a single pane action
@@ -77,18 +216,23 @@ export async function executeActions(
  * Uses: tmux kill-pane -t <paneId>
  */
 async function closePane(action: Extract<PaneAction, { type: 'close' }>): Promise<ActionResult> {
-	const result = await runTmuxCommand(['kill-pane', '-t', action.paneId]);
-	if (!result.success) {
-		return { success: false, error: result.output };
-	}
-	return { success: true };
+	return closePaneById(action.paneId);
 }
 
 /**
  * Close a pane by its ID
  * Exported for use by TmuxSessionManager when sessions complete
  */
-export async function closePaneById(paneId: string): Promise<ActionResult> {
+export async function closePaneById(paneId: string, pid?: number): Promise<ActionResult> {
+	let resolvedPid = pid;
+	if (!resolvedPid) {
+		resolvedPid = await getPanePid(paneId);
+	}
+
+	if (resolvedPid) {
+		await killProcessByPid(resolvedPid);
+	}
+
 	const result = await runTmuxCommand(['kill-pane', '-t', paneId]);
 	if (!result.success) {
 		return { success: false, error: result.output };
@@ -113,7 +257,8 @@ async function replacePane(
 	if (!result.success) {
 		return { success: false, error: result.output };
 	}
-	return { success: true, paneId: action.paneId };
+	const pid = await getPanePid(action.paneId);
+	return { success: true, paneId: action.paneId, pid };
 }
 
 /**
@@ -186,12 +331,18 @@ async function spawnInAgentsWindow(
 		const [windowId, paneId] = output.split(':');
 		agentsWindowId = windowId;
 
+		// Persist for crash recovery
+		if (agentsWindowId) {
+			persistAgentsWindowId(agentsWindowId);
+		}
+
 		// Apply initial layout (useful when more panes are added later)
 		if (agentsWindowId && layout) {
 			await runTmuxCommand(['select-layout', '-t', agentsWindowId, layout]);
 		}
 
-		return { success: true, paneId, windowId };
+		const pid = paneId ? await getPanePid(paneId) : undefined;
+		return { success: true, paneId, windowId, pid };
 	}
 
 	// Agents window exists - split within it
@@ -240,10 +391,12 @@ async function spawnInAgentsWindow(
 		await runTmuxCommand(['select-layout', '-t', agentsWindowId, layout]);
 	}
 
+	const pid = paneId ? await getPanePid(paneId) : undefined;
 	return {
 		success: true,
 		paneId: paneId || undefined,
 		windowId: agentsWindowId,
+		pid,
 	};
 }
 
@@ -252,6 +405,7 @@ async function spawnInAgentsWindow(
  */
 export function resetAgentsWindow(): void {
 	agentsWindowId = undefined;
+	clearPersistedAgentsWindowId();
 }
 
 /**
@@ -259,11 +413,14 @@ export function resetAgentsWindow(): void {
  * This kills the entire window, which closes all panes within it
  */
 export async function closeAgentsWindow(): Promise<void> {
-	if (!agentsWindowId) return;
+	// Try to recover window ID from disk if not in memory
+	const windowId = agentsWindowId ?? loadPersistedAgentsWindowId();
+	if (!windowId) return;
 
 	// Kill the entire window (closes all panes within it)
-	await runTmuxCommand(['kill-window', '-t', agentsWindowId]);
+	await runTmuxCommand(['kill-window', '-t', windowId]);
 	agentsWindowId = undefined;
+	clearPersistedAgentsWindowId();
 }
 
 /**
@@ -271,16 +428,191 @@ export async function closeAgentsWindow(): Promise<void> {
  * Uses spawnSync to ensure it completes before process exit
  */
 export function closeAgentsWindowSync(): void {
-	if (!agentsWindowId) return;
+	// Try to recover window ID from disk if not in memory
+	const windowId = agentsWindowId ?? loadPersistedAgentsWindowId();
+	if (!windowId) return;
 
 	// Kill the entire window synchronously
-	runTmuxCommandSync(['kill-window', '-t', agentsWindowId]);
+	runTmuxCommandSync(['kill-window', '-t', windowId]);
 	agentsWindowId = undefined;
+	clearPersistedAgentsWindowId();
 }
 
 /**
  * Get the current agents window ID (for testing/debugging)
+ * Also checks persisted file for crash recovery
  */
 export function getAgentsWindowId(): string | undefined {
-	return agentsWindowId;
+	return agentsWindowId ?? loadPersistedAgentsWindowId();
+}
+
+/**
+ * Kill all orphaned opencode attach processes for a given server URL.
+ * This is a fallback cleanup method when PID-based cleanup fails.
+ *
+ * @param serverUrl - The server URL to match (optional, kills all if not provided)
+ * @param logger - Optional logging function for debug output
+ * @returns Number of processes killed
+ */
+export async function killOrphanedAttachProcesses(
+	serverUrl?: string,
+	logger?: (msg: string) => void
+): Promise<number> {
+	const log = logger ?? (() => {});
+
+	try {
+		// Use pkill with pattern matching for opencode attach
+		const { spawn } = await import('bun');
+
+		// First, find matching processes to log what we're killing
+		const psProc = spawn(['ps', 'aux'], { stdout: 'pipe', stderr: 'pipe' });
+		await psProc.exited;
+		const psOutput = await new Response(psProc.stdout).text();
+		const lines = psOutput.split('\n');
+
+		const matchingPids: number[] = [];
+		for (const line of lines) {
+			if (!line.includes('opencode attach')) continue;
+			if (serverUrl && !line.includes(serverUrl)) continue;
+			// Don't kill ourselves
+			if (line.includes(String(process.pid))) continue;
+
+			const parts = line.trim().split(/\s+/);
+			const pid = Number(parts[1]);
+			if (Number.isFinite(pid) && pid > 0) {
+				matchingPids.push(pid);
+			}
+		}
+
+		if (matchingPids.length === 0) {
+			log('No orphaned opencode attach processes found');
+			return 0;
+		}
+
+		log(`Found ${matchingPids.length} orphaned processes: ${matchingPids.join(', ')}`);
+
+		// Kill each process individually for better control
+		let killed = 0;
+		for (const pid of matchingPids) {
+			try {
+				// Try SIGTERM first
+				process.kill(pid, 'SIGTERM');
+				log(`Sent SIGTERM to PID ${pid}`);
+				killed++;
+			} catch (error) {
+				const code = (error as NodeJS.ErrnoException).code;
+				if (code !== 'ESRCH') {
+					log(`Failed to kill PID ${pid}: ${code}`);
+				}
+			}
+		}
+
+		// Wait a bit then SIGKILL any survivors
+		await new Promise((resolve) => setTimeout(resolve, PROCESS_TERM_WAIT_MS));
+
+		for (const pid of matchingPids) {
+			if (!isProcessAlive(pid)) continue;
+			try {
+				process.kill(pid, 'SIGKILL');
+				log(`Sent SIGKILL to PID ${pid}`);
+			} catch {
+				// Ignore errors on SIGKILL
+			}
+		}
+
+		log(`Cleanup complete: killed ${killed} processes`);
+		return killed;
+	} catch (error) {
+		log(`Fallback cleanup failed: ${error}`);
+		return 0;
+	}
+}
+
+/**
+ * Synchronous version of killOrphanedAttachProcesses for shutdown handlers.
+ * Uses spawnSync to ensure completion before process exit.
+ *
+ * @param serverUrl - The server URL to match (optional, kills all if not provided)
+ * @param logger - Optional logging function for debug output
+ * @returns Number of processes killed
+ */
+export function killOrphanedAttachProcessesSync(
+	serverUrl?: string,
+	logger?: (msg: string) => void
+): number {
+	const log = logger ?? (() => {});
+
+	try {
+		// Find matching processes
+		const psResult = spawnSync(['ps', 'aux'], { timeout: 2000 });
+		if (psResult.exitCode !== 0) {
+			log('Failed to list processes');
+			return 0;
+		}
+
+		const psOutput = psResult.stdout?.toString() ?? '';
+		const lines = psOutput.split('\n');
+
+		const matchingPids: number[] = [];
+		for (const line of lines) {
+			if (!line.includes('opencode attach')) continue;
+			if (serverUrl && !line.includes(serverUrl)) continue;
+			// Don't kill ourselves
+			if (line.includes(String(process.pid))) continue;
+
+			const parts = line.trim().split(/\s+/);
+			const pid = Number(parts[1]);
+			if (Number.isFinite(pid) && pid > 0) {
+				matchingPids.push(pid);
+			}
+		}
+
+		if (matchingPids.length === 0) {
+			log('No orphaned opencode attach processes found');
+			return 0;
+		}
+
+		log(`Found ${matchingPids.length} orphaned processes: ${matchingPids.join(', ')}`);
+
+		// Kill each process
+		let killed = 0;
+		for (const pid of matchingPids) {
+			try {
+				process.kill(pid, 'SIGTERM');
+				log(`Sent SIGTERM to PID ${pid}`);
+				killed++;
+			} catch (error) {
+				const code = (error as NodeJS.ErrnoException).code;
+				if (code !== 'ESRCH') {
+					log(`Failed to kill PID ${pid}: ${code}`);
+				}
+			}
+		}
+
+		// Brief wait using SharedArrayBuffer (sync sleep)
+		try {
+			const buffer = new SharedArrayBuffer(4);
+			const view = new Int32Array(buffer);
+			Atomics.wait(view, 0, 0, PROCESS_TERM_WAIT_MS);
+		} catch {
+			// Ignore sleep errors
+		}
+
+		// SIGKILL survivors
+		for (const pid of matchingPids) {
+			if (!isProcessAlive(pid)) continue;
+			try {
+				process.kill(pid, 'SIGKILL');
+				log(`Sent SIGKILL to PID ${pid}`);
+			} catch {
+				// Ignore errors
+			}
+		}
+
+		log(`Cleanup complete: killed ${killed} processes`);
+		return killed;
+	} catch (error) {
+		log(`Fallback cleanup failed: ${error}`);
+		return 0;
+	}
 }

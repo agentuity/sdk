@@ -27,6 +27,7 @@ export interface WindowState {
 export interface TrackedSession {
 	sessionId: string; // OpenCode session ID
 	paneId: string; // Tmux pane ID
+	pid?: number; // Process ID for direct killing
 	description: string; // Task description
 	createdAt: Date;
 	lastSeenAt: Date;

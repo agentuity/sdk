@@ -7,5 +7,8 @@ export {
 	executeActions,
 	closeAgentsWindow,
 	closeAgentsWindowSync,
+	getAgentsWindowId,
+	killOrphanedAttachProcesses,
+	killOrphanedAttachProcessesSync,
 } from './executor';
 export { TmuxSessionManager } from './manager';
