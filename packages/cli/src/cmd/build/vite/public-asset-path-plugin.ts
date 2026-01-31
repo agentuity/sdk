@@ -1,20 +1,21 @@
 /**
  * Vite plugin to fix incorrect public asset paths
  *
- * Developers sometimes accidentally use source paths or relative paths instead
- * of the correct absolute root path. This plugin:
+ * Developers should use /public/ paths for static assets from src/web/public/.
+ * In production, these paths are transformed to CDN URLs.
  *
- * 1. During build: Rewrites all public asset paths to root paths (/)
- * 2. During dev: Warns about incorrect paths so developers can fix them
+ * This plugin:
+ * 1. During build: Rewrites /public/* paths to CDN URLs
+ * 2. During dev: Warns only about incorrect source paths (src/web/public/)
  *
- * Patterns handled (all rewritten to root path in production):
- * - '/src/web/public/foo.svg'  → '/foo.svg'
- * - './src/web/public/foo.svg' → '/foo.svg'
- * - 'src/web/public/foo.svg'   → '/foo.svg'
- * - './public/foo.svg'         → '/foo.svg'
- * - '/public/foo.svg'          → '/foo.svg'
+ * Supported patterns (work in dev, rewritten to CDN in production):
+ * - '/public/foo.svg'   → CDN URL (recommended)
+ * - './public/foo.svg'  → CDN URL
  *
- * Vite's base config then rewrites these to CDN URLs (e.g., https://cdn.example.com/deploy/client/foo.svg)
+ * Incorrect patterns (warned in dev, rewritten in production):
+ * - '/src/web/public/foo.svg'  → CDN URL
+ * - './src/web/public/foo.svg' → CDN URL
+ * - 'src/web/public/foo.svg'   → CDN URL
  */
 
 import type { Plugin } from 'vite';
@@ -32,20 +33,32 @@ interface PathPattern {
 }
 
 /**
- * Create fresh regex instances for each transform call
- * (RegExp with global flag maintains state via lastIndex)
+ * Patterns that are incorrect - reference source paths directly
  */
-function createPatterns(): PathPattern[] {
+function createIncorrectPatterns(): PathPattern[] {
 	return [
 		// '/src/web/public/...' or './src/web/public/...' or 'src/web/public/...'
 		{
 			regex: /(['"`])(?:\.?\/)?src\/web\/public\//g,
 			description: 'src/web/public/',
 		},
-		// './public/...' (relative public path - should be absolute)
+	];
+}
+
+/**
+ * Patterns that need rewriting for production CDN
+ */
+function createPublicPatterns(): PathPattern[] {
+	return [
+		// './public/...' (relative public path)
 		{
 			regex: /(['"`])\.\/public\//g,
 			description: './public/',
+		},
+		// '/public/...' (absolute public path)
+		{
+			regex: /(['"`])\/public\/([^'"`\s]+)/g,
+			description: '/public/',
 		},
 	];
 }
@@ -53,21 +66,17 @@ function createPatterns(): PathPattern[] {
 /**
  * Vite plugin that fixes public asset paths and rewrites to CDN URLs
  *
- * Rewrites all public asset paths to CDN URLs in production, or root paths
- * if no CDN base URL is provided.
+ * Rewrites all public asset paths to CDN URLs in production.
  *
  * @example
  * // In vite config:
  * plugins: [publicAssetPathPlugin({ cdnBaseUrl: 'https://cdn.example.com/deploy/client/' })]
  *
- * // Transforms in production with CDN:
- * // '/src/web/public/logo.svg'  → 'https://cdn.example.com/deploy/client/logo.svg'
- * // './src/web/public/logo.svg' → 'https://cdn.example.com/deploy/client/logo.svg'
- * // '/public/logo.svg'          → 'https://cdn.example.com/deploy/client/logo.svg'
+ * // In code, use /public/ paths:
+ * <img src="/public/logo.svg" />
  *
- * // Transforms in production without CDN:
- * // '/src/web/public/logo.svg'  → '/logo.svg'
- * // '/public/logo.svg'          → '/logo.svg'
+ * // Transforms in production:
+ * // '/public/logo.svg' → 'https://cdn.example.com/deploy/client/logo.svg'
  */
 export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}): Plugin {
 	const { warnInDev = true, cdnBaseUrl } = options;
@@ -89,17 +98,18 @@ export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}
 			}
 
 			// Quick check: does the code contain any patterns we care about?
-			const hasIncorrectPaths = code.includes('src/web/public/') || code.includes('./public/');
-			const hasPublicPaths = code.includes('/public/');
+			const hasIncorrectSourcePaths = code.includes('src/web/public/');
+			const hasPublicPaths = code.includes('/public/') || code.includes('./public/');
 
-			if (!hasIncorrectPaths && !hasPublicPaths) {
+			if (!hasIncorrectSourcePaths && !hasPublicPaths) {
 				return null;
 			}
 
-			// In dev mode, optionally warn about incorrect paths but don't transform
+			// In dev mode, only warn about incorrect source paths (src/web/public/)
+			// /public/ and ./public/ paths work correctly in dev mode
 			if (isDev) {
-				if (warnInDev && hasIncorrectPaths) {
-					const patterns = createPatterns();
+				if (warnInDev && hasIncorrectSourcePaths) {
+					const patterns = createIncorrectPatterns();
 					const foundPatterns: string[] = [];
 
 					for (const { regex, description } of patterns) {
@@ -121,37 +131,42 @@ export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}
 							this.warn(
 								`Found incorrect asset path(s) in ${id}:\n` +
 									newWarnings.map((p) => `  - '${p}' should be '/public/'`).join('\n') +
-									`\nUse absolute '/public/...' paths for production compatibility.`
+									`\nUse '/public/...' paths for static assets.`
 							);
 						}
 					}
 				}
 				// In dev mode, never transform - Vite serves from source paths
+				// and the Bun server proxies /public/* to Vite
 				return null;
 			}
 
-		// Build mode: transform paths
-		let transformed = code;
+			// Build mode: transform paths to CDN URLs
+			let transformed = code;
 
-		// Determine target URL: CDN base if provided, otherwise root
-		const targetBase = cdnBaseUrl ? (cdnBaseUrl.endsWith('/') ? cdnBaseUrl : `${cdnBaseUrl}/`) : '/';
+			// Determine target URL: CDN base if provided, otherwise root
+			const targetBase = cdnBaseUrl
+				? cdnBaseUrl.endsWith('/')
+					? cdnBaseUrl
+					: `${cdnBaseUrl}/`
+				: '/';
 
-		// First, fix incorrect source paths (src/web/public/, ./public/) → targetBase
-		if (hasIncorrectPaths) {
-			const patterns = createPatterns();
-			for (const { regex } of patterns) {
-				const replaceRegex = new RegExp(regex.source, regex.flags);
-				transformed = transformed.replace(replaceRegex, `$1${targetBase}`);
+			// Transform incorrect source paths (src/web/public/) → CDN
+			if (hasIncorrectSourcePaths) {
+				const patterns = createIncorrectPatterns();
+				for (const { regex } of patterns) {
+					const replaceRegex = new RegExp(regex.source, regex.flags);
+					transformed = transformed.replace(replaceRegex, `$1${targetBase}`);
+				}
 			}
-		}
 
-		// Then, rewrite /public/foo → {targetBase}foo
-		if (hasPublicPaths) {
-			// Match '/public/...' paths in strings (single, double, or backtick quotes)
-			// Captures: $1 = quote char, $2 = path after /public/
-			const publicPathRegex = /(['"`])\/public\/([^'"`\s]+)/g;
-			transformed = transformed.replace(publicPathRegex, `$1${targetBase}$2`);
-		}
+			// Transform public paths → CDN
+			if (hasPublicPaths) {
+				// ./public/foo → {targetBase}foo
+				transformed = transformed.replace(/(['"`])\.\/public\//g, `$1${targetBase}`);
+				// /public/foo → {targetBase}foo
+				transformed = transformed.replace(/(['"`])\/public\/([^'"`\s]+)/g, `$1${targetBase}$2`);
+			}
 
 			// Return transformed code if changed
 			if (transformed !== code) {
