@@ -539,8 +539,10 @@ export async function runShutdown(): Promise<void> {
 	// Run registered shutdown hooks in reverse order (LIFO)
 	const hooks = getShutdownHooks();
 	for (let i = hooks.length - 1; i >= 0; i--) {
+		const hook = hooks[i];
+		if (!hook) continue;
 		try {
-			await hooks[i]();
+			await hook();
 		} catch {
 			// Ignore errors during shutdown hooks
 		}

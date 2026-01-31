@@ -2079,8 +2079,9 @@ export function checkRouteConflicts(content: string, workbenchEndpoint: string):
 				node.expression.name.text === 'get'
 			) {
 				// Check if first argument is the workbench endpoint
-				if (node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0])) {
-					if (node.arguments[0].text === workbenchEndpoint) {
+				const firstArg = node.arguments[0];
+				if (node.arguments.length > 0 && firstArg && ts.isStringLiteral(firstArg)) {
+					if (firstArg.text === workbenchEndpoint) {
 						hasConflict = true;
 					}
 				}
@@ -2135,8 +2136,8 @@ export function extractAppStateType(content: string): string | null {
 
 			if (callExpr) {
 				// Check if it has a config object argument
-				if (callExpr.arguments.length > 0) {
-					const configArg = callExpr.arguments[0];
+				const configArg = callExpr.arguments[0];
+				if (callExpr.arguments.length > 0 && configArg) {
 					if (ts.isObjectLiteralExpression(configArg)) {
 						// Find setup property
 						for (const prop of configArg.properties) {
@@ -2637,9 +2638,9 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 				if (ts.isIdentifier(node.name)) {
 					// Extract configuration from the first argument (if any)
 					let varConfig: WorkbenchConfig;
-					if (node.initializer.arguments.length > 0) {
-						const configArg = node.initializer.arguments[0];
-						varConfig = parseConfigObject(configArg) || { route: '/workbench' };
+					const firstInitArg = node.initializer.arguments[0];
+					if (node.initializer.arguments.length > 0 && firstInitArg) {
+						varConfig = parseConfigObject(firstInitArg) || { route: '/workbench' };
 					} else {
 						// Default config if no arguments provided
 						varConfig = { route: '/workbench' };
@@ -2655,10 +2656,10 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 				node.expression.text === 'createApp' &&
 				node.arguments.length > 0
 			) {
-				const configArg = node.arguments[0];
-				if (ts.isObjectLiteralExpression(configArg)) {
+				const createAppConfigArg = node.arguments[0];
+				if (createAppConfigArg && ts.isObjectLiteralExpression(createAppConfigArg)) {
 					// Find the services property
-					for (const prop of configArg.properties) {
+					for (const prop of createAppConfigArg.properties) {
 						if (
 							ts.isPropertyAssignment(prop) &&
 							ts.isIdentifier(prop.name) &&
@@ -2740,9 +2741,9 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 						node.expression.text === 'createApp' &&
 						node.arguments.length > 0
 					) {
-						const configArg = node.arguments[0];
-						if (ts.isObjectLiteralExpression(configArg)) {
-							for (const prop of configArg.properties) {
+						const checkConfigArg = node.arguments[0];
+						if (checkConfigArg && ts.isObjectLiteralExpression(checkConfigArg)) {
+							for (const prop of checkConfigArg.properties) {
 								if (
 									ts.isPropertyAssignment(prop) &&
 									ts.isIdentifier(prop.name) &&

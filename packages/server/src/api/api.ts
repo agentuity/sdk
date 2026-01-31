@@ -375,14 +375,22 @@ export class APIClient {
 		}
 
 		if (this.#config?.headers) {
-			Object.keys(this.#config.headers).forEach(
-				(key) => (headers[key] = this.#config!.headers![key])
-			);
+			Object.keys(this.#config.headers).forEach((key) => {
+				const value = this.#config?.headers?.[key];
+				if (value !== undefined) {
+					headers[key] = value;
+				}
+			});
 		}
 
 		// Apply per-request extra headers (e.g., x-agentuity-orgid for CLI auth)
 		if (extraHeaders) {
-			Object.keys(extraHeaders).forEach((key) => (headers[key] = extraHeaders[key]));
+			Object.keys(extraHeaders).forEach((key) => {
+				const value = extraHeaders[key];
+				if (value !== undefined) {
+					headers[key] = value;
+				}
+			});
 		}
 
 		const canRetry = !(body instanceof ReadableStream); // we cannot safely retry a ReadableStream as body

@@ -27,6 +27,9 @@ export async function applyPatch(
 	if (patch.functions) {
 		for (const fn of Object.keys(patch.functions)) {
 			const mod = patch.functions[fn];
+			if (!mod) {
+				continue;
+			}
 			let fnname = `function ${fn}`;
 			let index = contents.indexOf(fnname);
 			let isConstVariable = false;

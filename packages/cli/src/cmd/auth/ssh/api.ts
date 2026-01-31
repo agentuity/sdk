@@ -42,10 +42,10 @@ const InvalidSSHConfigurationError = StructuredError(
 export function computeSSHKeyFingerprint(publicKey: string): string {
 	// Parse the key (format: "ssh-ed25519 AAAAC3... [comment]")
 	const parts = publicKey.trim().split(/\s+/);
-	if (parts.length < 2) {
+	const keyData = parts[1]; // Base64-encoded key data
+	if (parts.length < 2 || !keyData) {
 		throw new InvalidSSHConfigurationError();
 	}
-	const keyData = parts[1]; // Base64-encoded key data
 	const buffer = Buffer.from(keyData, 'base64');
 	const fingerprint = createHash('sha256').update(buffer).digest('base64');
 	return `SHA256:${fingerprint.replace(/=+$/, '')}`;

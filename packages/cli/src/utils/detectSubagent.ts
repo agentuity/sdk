@@ -25,7 +25,7 @@ export function detectSubagent(
 	// Path structure assumption: ['agent', 'parent', 'child', 'agent.ts' | 'route.ts' | 'route']
 	// Currently hardcoded to 4 segments - consider making configurable in the future
 	const isSubagent = pathParts.length === 4 && pathParts[0] === 'agent';
-	const parentName = isSubagent ? pathParts[1] : null;
+	const parentName = isSubagent ? (pathParts[1] ?? null) : null;
 
 	return { isSubagent, parentName };
 }

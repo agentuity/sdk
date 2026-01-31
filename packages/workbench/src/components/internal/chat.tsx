@@ -102,8 +102,9 @@ export function Chat({
 								  }
 								| undefined;
 
-							if (parts.length === 1 && parts[0].type === 'text') {
-								const text = parts[0].text;
+							const firstPart = parts[0];
+							if (parts.length === 1 && firstPart?.type === 'text') {
+								const text = firstPart.text;
 
 								if (text.startsWith('{') && text.includes('"__agentError"')) {
 									try {

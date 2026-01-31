@@ -1177,10 +1177,10 @@ export const command = createCommand({
 										const text = new TextDecoder().decode(chunk);
 										const trimmed = text.trim();
 
-										// Check for heartbeat port announcement
-										const match = trimmed.match(/^HEARTBEAT_PORT=(\d+)$/m);
-										if (match) {
-											const heartbeatPort = parseInt(match[1], 10);
+								// Check for heartbeat port announcement
+								const match = trimmed.match(/^HEARTBEAT_PORT=(\d+)$/m);
+								if (match?.[1]) {
+									const heartbeatPort = parseInt(match[1], 10);
 											logger.debug('Gravity heartbeat port detected: %d', heartbeatPort);
 
 											// Start sending heartbeats every 5 seconds

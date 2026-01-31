@@ -79,8 +79,9 @@ async function fetchDNSRecord(name: string, type: string): Promise<string | null
 	});
 	if (res.ok) {
 		const result = (await res.json()) as CFRecord;
-		if (result?.Answer?.length) {
-			return result.Answer[0].data.replace(/\.$/, ''); // DNS records end with . so we remove that
+		const firstAnswer = result?.Answer?.[0];
+		if (firstAnswer) {
+			return firstAnswer.data.replace(/\.$/, ''); // DNS records end with . so we remove that
 		}
 	}
 	return null;

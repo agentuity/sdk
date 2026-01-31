@@ -485,7 +485,9 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 	const targetWidth = maxWidth - ellipsis.length;
 
 	for (let i = 0; i < segments.length; i++) {
-		const segment = segments[i].segment;
+		const seg = segments[i];
+		if (!seg) continue;
+		const segment = seg.segment;
 		const segmentWidth = Bun.stringWidth(segment);
 
 		if (currentWidth + segmentWidth > targetWidth) {
@@ -493,7 +495,7 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 		}
 
 		currentWidth += segmentWidth;
-		cutIndex = segments[i].index + segment.length;
+		cutIndex = seg.index + segment.length;
 	}
 
 	// Now reconstruct with ANSI codes preserved
@@ -1027,8 +1029,9 @@ export function wrapText(text: string, maxWidth: number): string[] {
 		// ensure each wrapped line ends with reset (only for this paragraph's lines)
 		if (leadingCodes && hasReset) {
 			for (let i = paragraphStart; i < allLines.length; i++) {
-				if (!endsWithReset(allLines[i])) {
-					allLines[i] += getColor('reset');
+				const line = allLines[i];
+				if (line !== undefined && !endsWithReset(line)) {
+					allLines[i] = line + getColor('reset');
 				}
 			}
 		}
@@ -1252,9 +1255,9 @@ export async function spinner<T>(
 			process.stderr.write(`\x1b[${linesRendered}A`);
 		}
 
-		const colorDef = spinnerColors[frameIndex % spinnerColors.length];
-		const color = colorDef[currentColorScheme];
-		const frame = `${color}${bold}${frames[frameIndex % frames.length]}${reset}`;
+		const colorDef = spinnerColors[frameIndex % spinnerColors.length] ?? spinnerColors[0];
+		const color = colorDef?.[currentColorScheme] ?? '';
+		const frame = `${color}${bold}${frames[frameIndex % frames.length] ?? ''}${reset}`;
 
 		// Add progress indicator or countdown timer if available
 		let indicator = '';
@@ -1780,7 +1783,7 @@ export async function selectOrganization(
 	}
 
 	// Auto-select if only one org (regardless of TTY mode)
-	if (orgs.length === 1) {
+	if (orgs.length === 1 && orgs[0]) {
 		return orgs[0].id;
 	}
 
@@ -1798,11 +1801,14 @@ export async function selectOrganization(
 	if (isNonInteractive) {
 		// In non-interactive mode with multiple orgs, auto-select first org
 		// This allows scripts and CI/CD to work without explicit org selection
-		warning(
-			`Multiple organizations found. Auto-selecting first org: ${orgs[0].name}. ` +
-				`Set AGENTUITY_CLOUD_ORG_ID or use --org-id to specify a different org.`
-		);
-		return orgs[0].id;
+		const firstOrg = orgs[0];
+		if (firstOrg) {
+			warning(
+				`Multiple organizations found. Auto-selecting first org: ${firstOrg.name}. ` +
+					`Set AGENTUITY_CLOUD_ORG_ID or use --org-id to specify a different org.`
+			);
+			return firstOrg.id;
+		}
 	}
 
 	// Interactive mode with no saved preference - prompt user
@@ -1888,8 +1894,9 @@ export async function showProfileList(
 	// If non-interactive, return initial or first
 	if (!process.stdin.isTTY) {
 		if (initial) return initial;
-		if (profiles.length === 1) {
-			return profiles[0].name;
+		const firstProfile = profiles[0];
+		if (profiles.length === 1 && firstProfile) {
+			return firstProfile.name;
 		}
 		fatal(
 			'Profile selection required but cannot prompt in non-interactive environment. ' +
@@ -2017,6 +2024,7 @@ function renderVerticalTable<T extends Record<string, unknown>>(
 
 	for (let i = 0; i < data.length; i++) {
 		const row = data[i];
+		if (!row) continue;
 
 		for (const colName of columnNames) {
 			const value = row[colName];
@@ -2071,10 +2079,11 @@ export function table<T extends Record<string, unknown>>(
 		colAligns = columnConfigs.map((col) => col.alignment || 'left');
 	} else {
 		// Simple mode: determine column names from data or columns parameter
+		const firstRow = data[0];
 		columnNames = columns
 			? (columns as (keyof T)[]).map((c) => String(c))
-			: data.length > 0
-				? Object.keys(data[0])
+			: data.length > 0 && firstRow
+				? Object.keys(firstRow)
 				: [];
 		colAligns = columnNames.map(() => 'left' as const);
 	}

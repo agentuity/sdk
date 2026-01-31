@@ -17,7 +17,8 @@ export function playSound(): void {
 			return;
 	}
 
-	if (process.stdout.isTTY && Bun.which(command[0])) {
+	const executable = command[0];
+	if (process.stdout.isTTY && executable && Bun.which(executable)) {
 		try {
 			Bun.spawn(command, {
 				stdio: ['ignore', 'ignore', 'ignore'],

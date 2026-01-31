@@ -27,25 +27,31 @@ export function validateCPUSpec(input: string): ResourceValidationResult {
 	// Match millicores format: "500m", "1000m"
 	const milliMatch = trimmed.match(/^([0-9]+)m$/);
 	if (milliMatch) {
-		const value = parseInt(milliMatch[1], 10);
-		if (value <= 0) {
-			return { valid: false, error: `Invalid CPU value "${input}": must be greater than 0` };
+		const matchedValue = milliMatch[1];
+		if (matchedValue !== undefined) {
+			const value = parseInt(matchedValue, 10);
+			if (value <= 0) {
+				return { valid: false, error: `Invalid CPU value "${input}": must be greater than 0` };
+			}
+			return { valid: true, value };
 		}
-		return { valid: true, value };
 	}
 
 	// Match cores format: "1", "2", "0.5"
 	const coreMatch = trimmed.match(/^([0-9]*\.?[0-9]+)$/);
 	if (coreMatch) {
-		const cores = parseFloat(coreMatch[1]);
-		const millicores = Math.round(cores * 1000);
-		if (isNaN(millicores) || millicores <= 0) {
-			return {
-				valid: false,
-				error: `Invalid CPU value "${input}": must be at least 1m (0.001 cores)`,
-			};
+		const matchedValue = coreMatch[1];
+		if (matchedValue !== undefined) {
+			const cores = parseFloat(matchedValue);
+			const millicores = Math.round(cores * 1000);
+			if (isNaN(millicores) || millicores <= 0) {
+				return {
+					valid: false,
+					error: `Invalid CPU value "${input}": must be at least 1m (0.001 cores)`,
+				};
+			}
+			return { valid: true, value: millicores };
 		}
-		return { valid: true, value: millicores };
 	}
 
 	return {
@@ -91,9 +97,11 @@ export function validateMemorySpec(
 
 	// Match unit format: "500Mi", "1Gi", "2G", "1.5Gi", "0.5G"
 	const unitMatch = trimmed.match(/^([0-9]*\.?[0-9]+)([A-Za-z]{1,2})$/);
-	if (unitMatch) {
-		const amount = parseFloat(unitMatch[1]);
-		const unit = unitMatch[2];
+	if (unitMatch !== null && unitMatch.length >= 3) {
+		const amountStr = unitMatch[1] ?? '';
+		const unit = unitMatch[2] ?? '';
+
+		const amount = parseFloat(amountStr);
 
 		if (isNaN(amount) || amount <= 0) {
 			return {
@@ -122,8 +130,9 @@ export function validateMemorySpec(
 
 	// Match raw bytes: "1073741824"
 	const bytesMatch = trimmed.match(/^([0-9]+)$/);
-	if (bytesMatch) {
-		const value = parseInt(bytesMatch[1], 10);
+	if (bytesMatch !== null && bytesMatch.length >= 2) {
+		const matchedValue = bytesMatch[1] ?? '';
+		const value = parseInt(matchedValue, 10);
 		if (value <= 0) {
 			return {
 				valid: false,

@@ -252,12 +252,15 @@ export function fromJSONSchema(jsonSchema: JSONSchema): Schema<any, any> {
 			const nullIndex = jsonSchema.anyOf.findIndex((s) => s.type === 'null');
 			if (nullIndex !== -1) {
 				const otherIndex = nullIndex === 0 ? 1 : 0;
-				const innerSchema = fromJSONSchema(jsonSchema.anyOf[otherIndex]);
-				const schema = nullable(innerSchema);
-				if (jsonSchema.description) {
-					schema.describe(jsonSchema.description);
+				const otherSchema = jsonSchema.anyOf[otherIndex];
+				if (otherSchema) {
+					const innerSchema = fromJSONSchema(otherSchema);
+					const schema = nullable(innerSchema);
+					if (jsonSchema.description) {
+						schema.describe(jsonSchema.description);
+					}
+					return schema;
 				}
-				return schema;
 			}
 		}
 

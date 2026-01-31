@@ -101,7 +101,10 @@ export function generateSignupOTP(): string {
 	const array = new Uint8Array(5);
 	crypto.getRandomValues(array);
 	for (let i = 0; i < 5; i++) {
-		result += chars[array[i] % chars.length];
+		const charIndex = array[i];
+		if (charIndex !== undefined) {
+			result += chars[charIndex % chars.length];
+		}
 	}
 	return result;
 }

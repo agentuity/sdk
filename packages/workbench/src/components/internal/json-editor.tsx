@@ -37,8 +37,9 @@ function normalizeColorForMonaco(color: string | undefined, isDark: boolean): st
 		magenta: 'a626a4',
 	};
 
-	if (colorMap[normalized.toLowerCase()]) {
-		normalized = colorMap[normalized.toLowerCase()];
+	const mappedColor = colorMap[normalized.toLowerCase()];
+	if (mappedColor) {
+		normalized = mappedColor;
 	}
 
 	// Validate it's a proper hex color (3 or 6 characters)

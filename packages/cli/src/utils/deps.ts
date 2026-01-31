@@ -58,9 +58,11 @@ export function parseBunPmLsOutput(output: string): PackageRef[] {
 		if (match) {
 			const name = match[1];
 			const version = match[2];
-			const key = `${name}@${version}`;
-			if (!packages.has(key)) {
-				packages.set(key, { name, version });
+			if (name && version) {
+				const key = `${name}@${version}`;
+				if (!packages.has(key)) {
+					packages.set(key, { name, version });
+				}
 			}
 		}
 	}

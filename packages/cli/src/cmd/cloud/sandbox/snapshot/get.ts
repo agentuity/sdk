@@ -183,22 +183,25 @@ function buildFileTree(files: SnapshotFileInfo[]): TreeNode {
 		const parts = file.path.split('/');
 		let current = root;
 
-		for (let i = 0; i < parts.length; i++) {
-			const part = parts[i];
-			if (!current.children.has(part)) {
-				current.children.set(part, {
-					name: part,
-					isFile: i === parts.length - 1,
-					children: new Map(),
-				});
-			}
-			current = current.children.get(part)!;
-
-			if (i === parts.length - 1) {
-				current.size = file.size;
-				current.isFile = true;
-			}
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i];
+		if (!part) continue;
+		if (!current.children.has(part)) {
+			current.children.set(part, {
+				name: part,
+				isFile: i === parts.length - 1,
+				children: new Map(),
+			});
 		}
+		const child = current.children.get(part);
+		if (!child) continue;
+		current = child;
+
+		if (i === parts.length - 1) {
+			current.size = file.size;
+			current.isFile = true;
+		}
+	}
 	}
 
 	return root;
@@ -218,7 +221,9 @@ function printTreeNode(node: TreeNode, prefix: string): void {
 	});
 
 	for (let i = 0; i < entries.length; i++) {
-		const [, child] = entries[i];
+		const entry = entries[i];
+		if (!entry) continue;
+		const [, child] = entry;
 		const isLast = i === entries.length - 1;
 		const connector = tui.muted(isLast ? '└── ' : '├── ');
 		const sizeStr =
@@ -237,6 +242,7 @@ function printSandboxTree(sandboxes: SandboxInfo[]): void {
 	const sorted = [...sandboxes].sort((a, b) => a.sandboxId.localeCompare(b.sandboxId));
 	for (let i = 0; i < sorted.length; i++) {
 		const sandbox = sorted[i];
+		if (!sandbox) continue;
 		const isLast = i === sorted.length - 1;
 		const connector = tui.muted(isLast ? '└── ' : '├── ');
 		const statusColor = sandbox.status === 'running' ? tui.success : tui.muted;

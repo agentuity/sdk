@@ -32,6 +32,9 @@ export async function queryWindowState(sourcePaneId: string): Promise<WindowStat
 		const parts = line.split(',');
 		if (parts.length < 9) continue;
 
+		const paneId = parts[0];
+		if (!paneId) continue;
+
 		const windowWidthValue = Number(parts[parts.length - 2]);
 		const windowHeightValue = Number(parts[parts.length - 1]);
 		const isActiveValue = parts[parts.length - 3] === '1';
@@ -46,7 +49,7 @@ export async function queryWindowState(sourcePaneId: string): Promise<WindowStat
 		}
 
 		const paneInfo: TmuxPaneInfo = {
-			paneId: parts[0],
+			paneId,
 			width,
 			height,
 			left,
