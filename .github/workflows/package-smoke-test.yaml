@@ -176,6 +176,7 @@ jobs:
               name: deployment-logs
               path: ~/.config/agentuity/logs/
               if-no-files-found: ignore
+              retention-days: 1
 
          - name: Cleanup
            if: always()
@@ -353,7 +354,7 @@ jobs:
            with:
               name: playwright-report
               path: playwright-report/
-              retention-days: 7
+              retention-days: 1
 
    framework-demo-test:
       runs-on: blacksmith-4vcpu-ubuntu-2204
@@ -393,4 +394,4 @@ jobs:
            with:
               name: framework-demo-playwright-report
               path: playwright-report/
-              retention-days: 7
+              retention-days: 1
