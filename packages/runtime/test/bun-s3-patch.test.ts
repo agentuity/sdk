@@ -10,10 +10,20 @@ describe('isAgentuityStorageEndpoint', () => {
 		expect(isAgentuityStorageEndpoint('storage.dev')).toBe(true);
 	});
 
+	test('returns true for storageapi.dev', () => {
+		expect(isAgentuityStorageEndpoint('storageapi.dev')).toBe(true);
+	});
+
 	test('returns true for subdomains of storage.dev', () => {
 		expect(isAgentuityStorageEndpoint('t3.storage.dev')).toBe(true);
 		expect(isAgentuityStorageEndpoint('ag-rx8t16b5r9e6.t3.storage.dev')).toBe(true);
 		expect(isAgentuityStorageEndpoint('foo.bar.storage.dev')).toBe(true);
+	});
+
+	test('returns true for subdomains of storageapi.dev', () => {
+		expect(isAgentuityStorageEndpoint('t3.storageapi.dev')).toBe(true);
+		expect(isAgentuityStorageEndpoint('ag-rx8t16b5r9e6.t3.storageapi.dev')).toBe(true);
+		expect(isAgentuityStorageEndpoint('foo.bar.storageapi.dev')).toBe(true);
 	});
 
 	test('returns true for https URLs with storage.dev', () => {
@@ -22,8 +32,15 @@ describe('isAgentuityStorageEndpoint', () => {
 		expect(isAgentuityStorageEndpoint('https://ag-rx8t16b5r9e6.t3.storage.dev')).toBe(true);
 	});
 
+	test('returns true for https URLs with storageapi.dev', () => {
+		expect(isAgentuityStorageEndpoint('https://storageapi.dev')).toBe(true);
+		expect(isAgentuityStorageEndpoint('https://t3.storageapi.dev')).toBe(true);
+		expect(isAgentuityStorageEndpoint('https://ag-rx8t16b5r9e6.t3.storageapi.dev')).toBe(true);
+	});
+
 	test('returns true for URLs with paths', () => {
 		expect(isAgentuityStorageEndpoint('https://ag-123.t3.storage.dev/some/path')).toBe(true);
+		expect(isAgentuityStorageEndpoint('https://ag-123.t3.storageapi.dev/some/path')).toBe(true);
 	});
 
 	test('returns false for non-storage.dev endpoints', () => {
@@ -36,6 +53,11 @@ describe('isAgentuityStorageEndpoint', () => {
 	test('returns false for domains that contain but do not end with storage.dev', () => {
 		expect(isAgentuityStorageEndpoint('storage.dev.example.com')).toBe(false);
 		expect(isAgentuityStorageEndpoint('notstorage.dev')).toBe(false);
+	});
+
+	test('returns false for domains that contain but do not end with storageapi.dev', () => {
+		expect(isAgentuityStorageEndpoint('storageapi.dev.example.com')).toBe(false);
+		expect(isAgentuityStorageEndpoint('notstorageapi.dev')).toBe(false);
 	});
 
 	test('returns false for empty or whitespace strings', () => {

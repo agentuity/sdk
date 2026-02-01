@@ -165,7 +165,7 @@ async function uploadPackagesToS3(version: string, dryRun: boolean) {
 }
 
 function printTable(version: string, packages: PackageInfo[]) {
-	const npmBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/npm/${version}`;
+	const npmBaseUrl = `https://agentuity-sdk-objects.t3.storageapi.dev/npm/${version}`;
 
 	console.log('\n📋 Package Summary:\n');
 	console.log('| Package | Version | URL |');

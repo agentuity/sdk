@@ -1,7 +1,7 @@
 /**
  * Bun S3 monkey-patch for Agentuity storage endpoints
  *
- * Agentuity storage uses virtual-hosted-style URLs (e.g., ag-{id}.t3.storage.dev).
+ * Agentuity storage uses virtual-hosted-style URLs (e.g., ag-{id}.t3.storageapi.dev).
  * Bun's default s3 export uses path-style addressing, causing bucket path mismatch.
  *
  * This module patches Bun.S3Client.prototype methods to automatically set
@@ -22,7 +22,7 @@
 const PATCHED_SYMBOL = Symbol.for('agentuity.s3.patched');
 
 /**
- * Check if an endpoint is an Agentuity storage endpoint (*.storage.dev)
+ * Check if an endpoint is an Agentuity storage endpoint (*.storage.dev or *.storageapi.dev)
  */
 export function isAgentuityStorageEndpoint(raw: string): boolean {
 	let host = raw.trim();
@@ -35,7 +35,12 @@ export function isAgentuityStorageEndpoint(raw: string): boolean {
 		// raw value wasn't a URL string; treat it as host already
 	}
 
-	return host === 'storage.dev' || host.endsWith('.storage.dev');
+	return (
+		host === 'storage.dev' ||
+		host.endsWith('.storage.dev') ||
+		host === 'storageapi.dev' ||
+		host.endsWith('.storageapi.dev')
+	);
 }
 
 /**

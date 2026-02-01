@@ -49,7 +49,7 @@ jobs:
               script: |
                  const version = '${{ steps.pack.outputs.prerelease_version }}';
                  const packagesJson = ${{ steps.pack.outputs.packages_json }};
-                 const npmBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/npm/${version}`;
+                 const npmBaseUrl = `https://agentuity-sdk-objects.t3.storageapi.dev/npm/${version}`;
 
                  // Build packages table
                  let packagesTable = '| Package | Version | URL |\n| --- | --- | --- |\n';
