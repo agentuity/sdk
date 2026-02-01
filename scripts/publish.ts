@@ -508,7 +508,9 @@ async function buildTemplatesTarball(version: string): Promise<string> {
 	const templatesDir = join(rootDir, 'templates');
 	const tarballName = `templates-${version}.tar.gz`;
 	const tarballPath = join('/tmp', tarballName);
-	const tempDir = join('/tmp', `sdk-v${version}`);
+	// Use sdk-main as the directory prefix to match what the CLI expects
+	// The CLI constructs the prefix as `sdk-${branch}` where branch defaults to 'main'
+	const tempDir = join('/tmp', 'sdk-main');
 	const templatesSubdir = join(tempDir, 'templates');
 
 	// Validate templates directory exists
@@ -526,26 +528,27 @@ async function buildTemplatesTarball(version: string): Promise<string> {
 
 	try {
 		// Clean up any existing temp directory and tarball
-		await $`rm -rf ${tempDir} ${tarballPath}`.quiet().nothrow();
+		// Use explicit /tmp/sdk-main path to ensure we always clean up the fixed location
+		await $`rm -rf /tmp/sdk-main ${tarballPath}`.quiet().nothrow();
 
-		// Create temp directory with sdk-v{version}/templates structure
+		// Create temp directory with sdk-main/templates structure
 		await $`mkdir -p ${templatesSubdir}`;
 
 		// Copy all contents including dotfiles using trailing dot syntax
 		// cp -r source/. dest/ copies all files including hidden ones
 		await $`cp -r ${templatesDir}/. ${templatesSubdir}/`;
 
-		// Create tarball from /tmp with sdk-v{version} as root directory
-		await $`tar -czf ${tarballPath} -C /tmp sdk-v${version}`;
+		// Create tarball from /tmp with sdk-main as root directory
+		await $`tar -czf ${tarballPath} -C /tmp sdk-main`;
 
 		// Clean up temp directory
-		await $`rm -rf ${tempDir}`;
+		await $`rm -rf /tmp/sdk-main`;
 
 		console.log(`✓ Built templates tarball: ${tarballName}`);
 		return tarballPath;
 	} catch (err) {
 		// Clean up on error
-		await $`rm -rf ${tempDir} ${tarballPath}`.quiet().nothrow();
+		await $`rm -rf /tmp/sdk-main ${tarballPath}`.quiet().nothrow();
 		console.error('✗ Failed to build templates tarball:', err);
 		throw err;
 	}
