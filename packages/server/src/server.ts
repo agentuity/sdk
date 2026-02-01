@@ -238,16 +238,24 @@ class ServerFetchAdapter implements FetchAdapter {
 		this.#config = config;
 		this.#logger = logger;
 	}
-	private async _invoke<T>(url: string, options: FetchRequest): Promise<FetchResponse<T>> {
-		// Append query params if configured
+
+	/**
+	 * Build the final URL with query params appended.
+	 * This is extracted so both invoke() and _invoke() use the same URL.
+	 */
+	#buildUrl(url: string): string {
 		if (this.#config.queryParams && Object.keys(this.#config.queryParams).length > 0) {
 			const urlObj = new URL(url);
 			for (const [key, value] of Object.entries(this.#config.queryParams)) {
 				urlObj.searchParams.set(key, value);
 			}
-			url = urlObj.toString();
+			return urlObj.toString();
 		}
+		return url;
+	}
 
+	private async _invoke<T>(url: string, options: FetchRequest): Promise<FetchResponse<T>> {
+		// URL already has query params appended by invoke() or direct caller
 		const headers: Record<string, string> = {
 			...options.headers,
 			...this.#config.headers,
@@ -320,20 +328,23 @@ class ServerFetchAdapter implements FetchAdapter {
 		url: string,
 		options: FetchRequest = { method: 'POST' }
 	): Promise<FetchResponse<T>> {
+		// Build final URL with query params BEFORE hooks, so hooks receive the actual URL
+		const finalUrl = this.#buildUrl(url);
+
 		if (this.#config.onBefore) {
 			let result: FetchResponse<T> | undefined = undefined;
 			let err: Error | undefined = undefined;
-			await this.#config.onBefore(url, options, async () => {
+			await this.#config.onBefore(finalUrl, options, async () => {
 				try {
-					result = await this._invoke(url, options);
+					result = await this._invoke(finalUrl, options);
 					if (this.#config.onAfter) {
-						await this.#config.onAfter(url, options, result);
+						await this.#config.onAfter(finalUrl, options, result);
 					}
 				} catch (ex) {
 					err = ex as Error;
 					if (this.#config.onAfter && err instanceof ServiceException) {
 						await this.#config.onAfter(
-							url,
+							finalUrl,
 							options,
 							{
 								ok: false,
@@ -351,7 +362,7 @@ class ServerFetchAdapter implements FetchAdapter {
 			}
 			return result as unknown as FetchResponse<T>;
 		} else {
-			return await this._invoke(url, options);
+			return await this._invoke(finalUrl, options);
 		}
 	}
 }

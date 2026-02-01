@@ -703,7 +703,7 @@ Returns the public URL that can be copied and used anywhere.`,
 				.optional()
 				.describe('Optional metadata key-value pairs'),
 			compress: s.boolean().optional().describe('Enable gzip compression'),
-			region: s.string().optional().describe('Cloud region (use, usc, usw). Default: use'),
+			region: s.string().optional().describe('Cloud region (use, usc, usw). Default: usc'),
 		},
 		async execute(args) {
 			// Check auth first
