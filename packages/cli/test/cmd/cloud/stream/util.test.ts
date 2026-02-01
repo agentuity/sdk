@@ -1,5 +1,4 @@
-import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
-import { createMockLogger } from '@agentuity/test-utils';
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 
 /**
  * Tests for the stream util auth selection logic.
