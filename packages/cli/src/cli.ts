@@ -1198,9 +1198,12 @@ async function registerSubcommand(
 						// Recreate apiClient with auth credentials
 						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 					}
+					// Auto-select org when --confirm flag is used
+					const autoSelectOrg = options.confirm === true;
 					if (normalized.requiresOrg) {
 						ctx.orgId = await requireOrg(
-							ctx as CommandContext & { apiClient: APIClientType }
+							ctx as CommandContext & { apiClient: APIClientType },
+							autoSelectOrg
 						);
 					}
 					// Skip org handling if --no-register is set (org only needed for registration)
@@ -1212,7 +1215,8 @@ async function registerSubcommand(
 
 					if (normalized.optionalOrg && ctx.auth && !skipOrg) {
 						ctx.orgId = await selectOptionalOrg(
-							ctx as CommandContext & { apiClient: APIClientType }
+							ctx as CommandContext & { apiClient: APIClientType },
+							autoSelectOrg
 						);
 					}
 					// Skip region handling if --no-register is set (region only needed for registration)
@@ -1302,8 +1306,13 @@ async function registerSubcommand(
 					// Recreate apiClient with auth credentials
 					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 				}
+				// Auto-select org when --confirm flag is used
+				const autoSelectOrg2 = options.confirm === true;
 				if (normalized.requiresOrg) {
-					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
+					ctx.orgId = await requireOrg(
+						ctx as CommandContext & { apiClient: APIClientType },
+						autoSelectOrg2
+					);
 				}
 				// Skip org handling if --no-register is set (org only needed for registration)
 				const skipOrg =
@@ -1314,7 +1323,8 @@ async function registerSubcommand(
 
 				if (normalized.optionalOrg && ctx.auth && !skipOrg) {
 					ctx.orgId = await selectOptionalOrg(
-						ctx as CommandContext & { apiClient: APIClientType }
+						ctx as CommandContext & { apiClient: APIClientType },
+						autoSelectOrg2
 					);
 				}
 				// Skip region handling if --no-register is set (region only needed for registration)
@@ -1454,9 +1464,12 @@ async function registerSubcommand(
 						!!ctx.apiClient,
 						!!auth
 					);
+					// Auto-select org when --confirm flag is used
+					const autoSelectOrg3 = options.confirm === true;
 					if (normalized.requiresOrg && ctx.apiClient) {
 						ctx.orgId = await requireOrg(
-							ctx as CommandContext & { apiClient: APIClientType }
+							ctx as CommandContext & { apiClient: APIClientType },
+							autoSelectOrg3
 						);
 					}
 					// Skip org handling if --no-register is set (org only needed for registration)
@@ -1468,7 +1481,8 @@ async function registerSubcommand(
 
 					if (normalized.optionalOrg && ctx.apiClient && auth && !skipOrg) {
 						ctx.orgId = await selectOptionalOrg(
-							ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
+							ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData },
+							autoSelectOrg3
 						);
 						baseCtx.logger.trace('selected orgId: %s', ctx.orgId);
 					}
@@ -1551,8 +1565,13 @@ async function registerSubcommand(
 					// Recreate apiClient with auth credentials if auth was provided
 					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 				}
+				// Auto-select org when --confirm flag is used
+				const autoSelectOrg4 = options.confirm === true;
 				if (normalized.requiresOrg && ctx.apiClient) {
-					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
+					ctx.orgId = await requireOrg(
+						ctx as CommandContext & { apiClient: APIClientType },
+						autoSelectOrg4
+					);
 				}
 				// Skip org handling if --no-register is set (org only needed for registration)
 				// For non-schema commands, check options directly (Commander passes all options)
@@ -1563,7 +1582,8 @@ async function registerSubcommand(
 
 				if (normalized.optionalOrg && ctx.apiClient && !skipOrg) {
 					ctx.orgId = await selectOptionalOrg(
-						ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
+						ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData },
+						autoSelectOrg4
 					);
 				}
 				// Skip region handling if --no-register is set (region only needed for registration)
@@ -1656,14 +1676,18 @@ async function registerSubcommand(
 					if (normalized.requiresAPIClient && !ctx.apiClient) {
 						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 					}
+					// Auto-select org when --confirm flag is used
+					const autoSelectOrg5 = options.confirm === true;
 					if (normalized.requiresOrg && ctx.apiClient) {
 						ctx.orgId = await requireOrg(
-							ctx as CommandContext & { apiClient: APIClientType }
+							ctx as CommandContext & { apiClient: APIClientType },
+							autoSelectOrg5
 						);
 					}
 					if (normalized.optionalOrg && ctx.apiClient && ctx.auth) {
 						ctx.orgId = await requireOrg(
-							ctx as CommandContext & { apiClient: APIClientType }
+							ctx as CommandContext & { apiClient: APIClientType },
+							autoSelectOrg5
 						);
 					}
 					await executeOrValidate(
@@ -1697,11 +1721,19 @@ async function registerSubcommand(
 				if (normalized.requiresAPIClient && !ctx.apiClient) {
 					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 				}
+				// Auto-select org when --confirm flag is used
+				const autoSelectOrg6 = options.confirm === true;
 				if (normalized.requiresOrg && ctx.apiClient) {
-					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
+					ctx.orgId = await requireOrg(
+						ctx as CommandContext & { apiClient: APIClientType },
+						autoSelectOrg6
+					);
 				}
 				if (normalized.optionalOrg && ctx.apiClient && ctx.auth) {
-					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
+					ctx.orgId = await requireOrg(
+						ctx as CommandContext & { apiClient: APIClientType },
+						autoSelectOrg6
+					);
 				}
 				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
