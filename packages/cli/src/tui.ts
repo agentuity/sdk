@@ -1764,9 +1764,18 @@ export async function prompt(message: string): Promise<string> {
 	});
 }
 
+/**
+ * Select an organization from a list.
+ *
+ * @param orgs - List of organizations to choose from
+ * @param initial - Preferred org ID to pre-select (from saved preferences)
+ * @param autoSelect - If true, auto-select preferred org without prompting (for --confirm or non-interactive)
+ * @returns The selected organization ID
+ */
 export async function selectOrganization(
 	orgs: OrganizationList,
-	initial?: string
+	initial?: string,
+	autoSelect?: boolean
 ): Promise<string> {
 	if (orgs.length === 0) {
 		fatal(
@@ -1775,6 +1784,7 @@ export async function selectOrganization(
 		);
 	}
 
+	// 1. Environment variable always takes precedence
 	if (process.env.AGENTUITY_CLOUD_ORG_ID) {
 		const org = orgs.find((o) => o.id === process.env.AGENTUITY_CLOUD_ORG_ID);
 		if (org) {
@@ -1782,41 +1792,59 @@ export async function selectOrganization(
 		}
 	}
 
-	// Auto-select if only one org (regardless of TTY mode)
+	// 2. Auto-select if only one org (regardless of TTY mode or autoSelect)
 	if (orgs.length === 1 && orgs[0]) {
 		return orgs[0].id;
 	}
 
-	// Use saved preference if available (regardless of TTY mode)
-	// This allows consistent behavior without prompting on every command
-	if (initial) {
-		const initialOrg = orgs.find((o) => o.id === initial);
-		if (initialOrg) {
-			return initialOrg.id;
+	// 3. Auto-select mode (--confirm flag or explicit autoSelect)
+	// Use preferred org if set, otherwise fall back to first org
+	if (autoSelect) {
+		if (initial) {
+			const initialOrg = orgs.find((o) => o.id === initial);
+			if (initialOrg) {
+				return initialOrg.id;
+			}
 		}
-	}
-
-	// Check for non-interactive environment (check both stdin and stdout)
-	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
-	if (isNonInteractive) {
-		// In non-interactive mode with multiple orgs, auto-select first org
-		// This allows scripts and CI/CD to work without explicit org selection
+		// Fall back to first org with warning
 		const firstOrg = orgs[0];
 		if (firstOrg) {
 			warning(
 				`Multiple organizations found. Auto-selecting first org: ${firstOrg.name}. ` +
-					`Set AGENTUITY_CLOUD_ORG_ID or use --org-id to specify a different org.`
+					`Set AGENTUITY_CLOUD_ORG_ID, use --org-id, or run 'agentuity auth org select' to set a default.`
 			);
 			return firstOrg.id;
 		}
 	}
 
-	// Interactive mode with no saved preference - prompt user
+	// 4. Check for non-interactive environment (check both stdin and stdout)
+	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
+	if (isNonInteractive) {
+		// In non-interactive mode, use preferred org if set
+		if (initial) {
+			const initialOrg = orgs.find((o) => o.id === initial);
+			if (initialOrg) {
+				return initialOrg.id;
+			}
+		}
+		// Fall back to first org with warning
+		const firstOrg = orgs[0];
+		if (firstOrg) {
+			warning(
+				`Multiple organizations found. Auto-selecting first org: ${firstOrg.name}. ` +
+					`Set AGENTUITY_CLOUD_ORG_ID, use --org-id, or run 'agentuity auth org select' to set a default.`
+			);
+			return firstOrg.id;
+		}
+	}
+
+	// 5. Interactive mode - show selector with preferred org pre-selected
+	const initialIndex = initial ? orgs.findIndex((o) => o.id === initial) : 0;
 	const response = await enquirer.prompt<{ action: string }>({
 		type: 'select',
 		name: 'action',
 		message: 'Select an organization',
-		initial: 0,
+		initial: initialIndex >= 0 ? initialIndex : 0,
 		choices: orgs.map((o) => ({ message: o.name, name: o.id })),
 	});
 

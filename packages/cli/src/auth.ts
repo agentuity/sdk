@@ -228,7 +228,8 @@ export async function optionalAuth(
 }
 
 export async function requireOrg(
-	ctx: CommandContext & { apiClient: APIClientType }
+	ctx: CommandContext & { apiClient: APIClientType },
+	autoSelect?: boolean
 ): Promise<string> {
 	const { options, config, apiClient } = ctx;
 
@@ -252,7 +253,8 @@ export async function requireOrg(
 
 	// Use selectOrganization which handles single org and prompting
 	// Pass the saved preference as initial selection
-	const orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
+	// Pass autoSelect to skip prompting when --confirm is used
+	const orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId, autoSelect);
 
 	// Save selected org to config if different
 	if (orgId !== config?.preferences?.orgId) {
@@ -263,7 +265,8 @@ export async function requireOrg(
 }
 
 export async function optionalOrg(
-	ctx: CommandContext & { apiClient?: APIClientType; auth?: AuthData }
+	ctx: CommandContext & { apiClient?: APIClientType; auth?: AuthData },
+	autoSelect?: boolean
 ): Promise<string | undefined> {
 	const { options, config, apiClient, auth } = ctx;
 
@@ -297,8 +300,9 @@ export async function optionalOrg(
 		return undefined;
 	}
 
-	// Always prompt for org selection (use saved preference as initial/default)
-	const orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
+	// Prompt for org selection (use saved preference as initial/default)
+	// Pass autoSelect to skip prompting when --confirm is used
+	const orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId, autoSelect);
 
 	// Save selected org to config if different
 	if (orgId !== config?.preferences?.orgId) {
