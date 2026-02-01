@@ -1,5 +1,6 @@
 import type { PluginInput, Hooks } from '@opencode-ai/plugin';
 import { tool } from '@opencode-ai/plugin';
+import { StructuredError } from '@agentuity/core';
 import type { AgentConfig, CommandDefinition } from '../types';
 import { loadAllSkills, type LoadedSkill } from '../skills';
 import { agents } from '../agents';
@@ -14,6 +15,25 @@ import type { AgentRole } from '../types';
 import { BackgroundManager } from '../background';
 import { TmuxSessionManager } from '../tmux';
 import { checkAuth } from '../services/auth';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Memory Share Tool Errors
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MemoryShareAuthError = StructuredError(
+	'MemoryShareAuthError',
+	'Authentication required to share memory content'
+)<{ reason: string }>();
+
+const MemoryShareCLIError = StructuredError(
+	'MemoryShareCLIError',
+	'CLI command failed to create stream'
+)<{ exitCode: number; stderr: string }>();
+
+const MemoryShareError = StructuredError(
+	'MemoryShareError',
+	'Failed to create public memory share'
+)<{ reason: string }>();
 
 // Sandbox environment detection
 const SANDBOX_ID = process.env.AGENTUITY_SANDBOX_ID;
@@ -709,9 +729,12 @@ Returns the public URL that can be copied and used anywhere.`,
 			// Check auth first
 			const authResult = await checkAuth();
 			if (!authResult.ok) {
+				const err = new MemoryShareAuthError({ reason: authResult.error });
 				return JSON.stringify({
 					success: false,
-					error: authResult.error,
+					error: err.message,
+					errorTag: err._tag,
+					details: { reason: authResult.error },
 				});
 			}
 
@@ -763,9 +786,15 @@ Returns the public URL that can be copied and used anywhere.`,
 				]);
 
 				if (exitCode !== 0) {
+					const err = new MemoryShareCLIError({
+						exitCode,
+						stderr: stderr || `CLI exited with code ${exitCode}`,
+					});
 					return JSON.stringify({
 						success: false,
-						error: stderr || `CLI exited with code ${exitCode}`,
+						error: err.message,
+						errorTag: err._tag,
+						details: { exitCode, stderr },
 					});
 				}
 
@@ -781,9 +810,13 @@ Returns the public URL that can be copied and used anywhere.`,
 					expiresAt: result.expiresAt,
 				});
 			} catch (error) {
+				const reason = error instanceof Error ? error.message : 'Failed to create stream';
+				const err = new MemoryShareError({ reason });
 				return JSON.stringify({
 					success: false,
-					error: error instanceof Error ? error.message : 'Failed to create stream',
+					error: err.message,
+					errorTag: err._tag,
+					details: { reason },
 				});
 			}
 		},
