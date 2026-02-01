@@ -19,7 +19,7 @@ const CLOUD_TOOL_PREFIXES = [
  * Get the Agentuity profile to use for CLI commands.
  * Defaults to 'production' for safety, but can be overridden via AGENTUITY_CODER_PROFILE.
  */
-function getCoderProfile(): string {
+export function getCoderProfile(): string {
 	const profile = process.env.AGENTUITY_CODER_PROFILE?.trim();
 	return profile || 'production';
 }

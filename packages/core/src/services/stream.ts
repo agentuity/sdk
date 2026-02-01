@@ -674,10 +674,15 @@ export class StreamStorageService implements StreamStorage {
 			attributes['stream.content_type'] = props.contentType;
 		}
 		// Map namespace to name for the API (backend still uses 'name')
+		// Note: Pulse expects content-type in the headers object, not as a separate contentType field
+		const headers: Record<string, string> = {};
+		if (props?.contentType) {
+			headers['content-type'] = props.contentType;
+		}
 		const body = JSON.stringify({
 			name: namespace,
 			...(props?.metadata && { metadata: props.metadata }),
-			...(props?.contentType && { contentType: props.contentType }),
+			...(Object.keys(headers).length > 0 && { headers }),
 			// TTL handling: only include if explicitly provided
 			// null or 0 = no expiration, positive = TTL in seconds
 			// undefined = not sent, server uses default (30 days)

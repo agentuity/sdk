@@ -22,7 +22,8 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List recent streams with optional filtering',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud stream list'), description: 'List all streams' },
