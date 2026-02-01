@@ -3,8 +3,8 @@ import { agents, getAgentByRole, getAgentById } from '../src/agents';
 
 describe('Agents', () => {
 	describe('agent definitions', () => {
-		it('exports all 9 agents', () => {
-			expect(Object.keys(agents)).toHaveLength(9);
+		it('exports all 11 agents', () => {
+			expect(Object.keys(agents)).toHaveLength(11);
 			expect(agents.lead).toBeDefined();
 			expect(agents.scout).toBeDefined();
 			expect(agents.builder).toBeDefined();
@@ -14,6 +14,8 @@ describe('Agents', () => {
 			expect(agents.expert).toBeDefined();
 			expect(agents.planner).toBeDefined();
 			expect(agents.runner).toBeDefined();
+			expect(agents.product).toBeDefined();
+			expect(agents.reasoner).toBeDefined();
 		});
 
 		it('each agent has required properties', () => {
@@ -51,6 +53,8 @@ describe('Agents', () => {
 			expect(getAgentByRole('expert')?.id).toBe('ag-expert');
 			expect(getAgentByRole('planner')?.id).toBe('ag-planner');
 			expect(getAgentByRole('runner')?.id).toBe('ag-runner');
+			expect(getAgentByRole('product')?.id).toBe('ag-product');
+			expect(getAgentByRole('reasoner')?.id).toBe('ag-reasoner');
 		});
 	});
 
@@ -65,6 +69,8 @@ describe('Agents', () => {
 			expect(getAgentById('ag-expert')?.role).toBe('expert');
 			expect(getAgentById('ag-planner')?.role).toBe('planner');
 			expect(getAgentById('ag-runner')?.role).toBe('runner');
+			expect(getAgentById('ag-product')?.role).toBe('product');
+			expect(getAgentById('ag-reasoner')?.role).toBe('reasoner');
 		});
 
 		it('returns undefined for unknown id', () => {
@@ -126,6 +132,33 @@ describe('Agents', () => {
 			expect(agents.runner.systemPrompt).toContain('lint');
 			expect(agents.runner.systemPrompt).toContain('build');
 			expect(agents.runner.systemPrompt).toContain('test');
+		});
+
+		it('Product agent is read-only with high reasoning', () => {
+			expect(agents.product.tools?.exclude).toContain('write');
+			expect(agents.product.tools?.exclude).toContain('edit');
+			expect(agents.product.tools?.exclude).toContain('bash');
+			expect(agents.product.mode).toBe('subagent');
+			expect(agents.product.defaultModel).toBe('openai/gpt-5.2');
+			expect(agents.product.reasoningEffort).toBe('high');
+			expect(agents.product.temperature).toBe(0.3);
+			// Phase 2: Clarity features
+			expect(agents.product.systemPrompt).toContain('Clarity Interview Workflow');
+			expect(agents.product.systemPrompt).toContain('Validation Gates');
+			// Phase 3: Cadence integration
+			expect(agents.product.systemPrompt).toContain('Cadence Briefing Format');
+			expect(agents.product.systemPrompt).toContain('agentuity cloud kv');
+			// Phase 4: PRD generation
+			expect(agents.product.systemPrompt).toContain('PRD Template');
+		});
+
+		it('Reasoner agent is subagent-only with restricted tools', () => {
+			expect(agents.reasoner.mode).toBe('subagent');
+			expect(agents.reasoner.tools?.exclude).toContain('write');
+			expect(agents.reasoner.tools?.exclude).toContain('edit');
+			expect(agents.reasoner.tools?.exclude).toContain('task');
+			expect(agents.reasoner.defaultModel).toBe('openai/gpt-5.2');
+			expect(agents.reasoner.temperature).toBe(0.3);
 		});
 	});
 });

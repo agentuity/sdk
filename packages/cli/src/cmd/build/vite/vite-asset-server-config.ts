@@ -68,7 +68,9 @@ export async function generateAssetServerConfig(
 		root: rootDir,
 		base: '/',
 		clearScreen: false,
-		publicDir: false, // Don't serve public dir - Bun server handles that
+		// Serve public assets from src/web/public/ at root path (e.g., /favicon.png)
+		// The Bun server proxies /public/* requests to Vite, rewriting to root paths
+		publicDir: join(rootDir, 'src', 'web', 'public'),
 
 		resolve: {
 			alias,

@@ -329,6 +329,10 @@ Record in KV so Memory can recall: \`agentuity cloud kv set agentuity-opencode-t
 | Sandbox issues | Ask Expert agent |
 | Similar past implementation | Consult Memory agent |
 | Non-trivial changes completed | Request Reviewer |
+| **Unsure if implementation matches product intent** | Ask Lead (Lead will consult Product) |
+| **Need to understand feature's original purpose** | Ask Lead (Lead will consult Product) |
+
+**Note on Product questions:** Don't ask Product directly. Lead has the full orchestration context and will consult Product on your behalf, ensuring Product gets the right context to give you an accurate answer.
 
 ## Memory Collaboration
 

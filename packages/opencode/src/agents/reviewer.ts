@@ -273,6 +273,15 @@ Before finalizing your review, confirm:
 - Known issues or workarounds documented
 - Historical context for why code is written a way
 
+### When to Escalate Product Questions to Lead
+If during review you encounter:
+- **Behavior seems correct technically but wrong functionally**
+- **Feature implementation doesn't match your understanding of intent**
+- **Edge case handling unclear from product perspective**
+- **Changes affect user-facing behavior in unclear ways**
+
+**Don't ask Product directly.** Instead, note the concern in your review and escalate to Lead: "This needs product validation — [describe the concern]." Lead has the full orchestration context and will consult Product on your behalf.
+
 ## Memory Collaboration
 
 Memory agent is the team's knowledge expert. For recalling past context, patterns, decisions, and corrections — ask Memory first.

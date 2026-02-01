@@ -342,7 +342,7 @@ Agent: ${task.agent}
 Status: ${task.status}
 Task ID: ${task.id}
 
-Use the background_output tool with task_id "${task.id}" to view the result.`;
+Use the agentuity_background_output tool with task_id "${task.id}" to view the result.`;
 
 		try {
 			await this.ctx.client.session.prompt({

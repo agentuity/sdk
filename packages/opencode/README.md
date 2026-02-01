@@ -262,17 +262,17 @@ Run agents in the background while continuing other work. Background agents exec
 
 ### Tools
 
-| Tool                | Description                                 |
-| ------------------- | ------------------------------------------- |
-| `background_task`   | Launch an agent task in the background      |
-| `background_output` | Retrieve the result of a completed task     |
-| `background_cancel` | Cancel a running or pending background task |
+| Tool                          | Description                                 |
+| ----------------------------- | ------------------------------------------- |
+| `agentuity_background_task`   | Launch an agent task in the background      |
+| `agentuity_background_output` | Retrieve the result of a completed task     |
+| `agentuity_background_cancel` | Cancel a running or pending background task |
 
 ### Usage
 
 ```typescript
 // Launch a background task
-background_task({
+agentuity_background_task({
 	agent: 'scout',
 	task: 'Find all authentication implementations in this codebase',
 });
@@ -281,11 +281,11 @@ background_task({
 // Continue working on other things...
 
 // When notified of completion, retrieve results
-background_output({ task_id: 'bg_abc123' });
+agentuity_background_output({ task_id: 'bg_abc123' });
 // Returns: { taskId: 'bg_abc123', status: 'completed', result: '...' }
 
 // Cancel if needed
-background_cancel({ task_id: 'bg_abc123' });
+agentuity_background_cancel({ task_id: 'bg_abc123' });
 ```
 
 ### Concurrency Control
@@ -383,7 +383,7 @@ sequenceDiagram
     participant Tmux
 
     User->>Lead: "Run Scout in background"
-    Lead->>BM: background_task(scout, "find APIs")
+    Lead->>BM: agentuity_background_task(scout, "find APIs")
     BM->>SDK: session.create()
     SDK->>Server: POST /session
     Server-->>SDK: { id: "ses_abc123" }

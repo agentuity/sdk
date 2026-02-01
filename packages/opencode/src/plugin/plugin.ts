@@ -1,11 +1,12 @@
 import type { PluginInput, Hooks } from '@opencode-ai/plugin';
 import { tool } from '@opencode-ai/plugin';
+import { StructuredError } from '@agentuity/core';
 import type { AgentConfig, CommandDefinition } from '../types';
 import { loadAllSkills, type LoadedSkill } from '../skills';
 import { agents } from '../agents';
 import { loadCoderConfig, getDefaultConfig, mergeConfig, validateAndWarnConfigs } from '../config';
 import { createSessionHooks } from './hooks/session';
-import { createToolHooks } from './hooks/tools';
+import { createToolHooks, getCoderProfile } from './hooks/tools';
 import { createKeywordHooks } from './hooks/keyword';
 import { createParamsHooks } from './hooks/params';
 import { createCadenceHooks } from './hooks/cadence';
@@ -13,6 +14,26 @@ import { createSessionMemoryHooks } from './hooks/session-memory';
 import type { AgentRole } from '../types';
 import { BackgroundManager } from '../background';
 import { TmuxSessionManager } from '../tmux';
+import { checkAuth } from '../services/auth';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Memory Share Tool Errors
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MemoryShareAuthError = StructuredError(
+	'MemoryShareAuthError',
+	'Authentication required to share memory content'
+)<{ reason: string }>();
+
+const MemoryShareCLIError = StructuredError(
+	'MemoryShareCLIError',
+	'CLI command failed to create stream'
+)<{ exitCode: number; stderr: string }>();
+
+const MemoryShareError = StructuredError(
+	'MemoryShareError',
+	'Failed to create public memory share'
+)<{ reason: string }>();
 
 // Sandbox environment detection
 const SANDBOX_ID = process.env.AGENTUITY_SANDBOX_ID;
@@ -53,6 +74,8 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	expert: '@Agentuity Coder Expert',
 	planner: '@Agentuity Coder Planner',
 	runner: '@Agentuity Coder Runner',
+	reasoner: '@Agentuity Coder Reasoner',
+	product: '@Agentuity Coder Product',
 };
 
 export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
@@ -278,21 +301,24 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 - **@Agentuity Coder Architect**: Complex autonomous tasks, Cadence mode (GPT Codex)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions
+- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
 - **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
+- **@Agentuity Coder Product**: Clarify requirements, validate features, track progress
 
 ## Task
 $ARGUMENTS
 
 ## Guidelines
 1. Use @Agentuity Coder Scout first to understand context
-2. Delegate implementation to @Agentuity Coder Builder (or Architect for complex work)
-3. Delegate lint/build/test commands to @Agentuity Coder Runner for structured results
-4. Have @Agentuity Coder Reviewer check the work
-5. Use @Agentuity Coder Expert for Agentuity CLI questions
-6. Only use cloud services when genuinely helpful
-7. **When done, tell @Agentuity Coder Memory to memorialize the session**
+2. Use @Agentuity Coder Product to clarify requirements if unclear
+3. Delegate implementation to @Agentuity Coder Builder (or Architect for complex work)
+4. Delegate lint/build/test commands to @Agentuity Coder Runner for structured results
+5. Have @Agentuity Coder Reviewer check the work
+6. Use @Agentuity Coder Expert for Agentuity CLI questions
+7. Only use cloud services when genuinely helpful
+8. **When done, tell @Agentuity Coder Memory to memorialize the session**
 </coder-mode>`,
 			agent: 'Agentuity Coder Lead',
 			argumentHint: '"task description"',
@@ -314,6 +340,46 @@ Save to vector storage using the agentuity-opencode-sessions namespace. Store an
 $ARGUMENTS`,
 			agent: 'Agentuity Coder Memory',
 			argumentHint: '(optional additional context)',
+		},
+
+		'agentuity-memory-share': {
+			name: 'agentuity-memory-share',
+			description: '🔗 Share memory content publicly with a shareable URL',
+			template: `Create a public shareable link for memory content.
+
+The user wants to share: $ARGUMENTS
+
+## Your Task
+
+1. **Understand what to share** — Based on the user's request, determine what content to share:
+   - A summary of the current session
+   - The latest compaction
+   - Specific decisions or corrections
+   - A custom selection of context
+   - If the request implies context not in the current chat, pull from memory stores (KV/Vector)
+
+2. **Prepare the content** — Format the content appropriately:
+   - Use clear markdown formatting
+   - Include relevant context (what this is, when it was created)
+   - Be conservative with sensitive information (no secrets, credentials, etc.)
+   - Keep it focused and useful for the recipient
+
+3. **Share it** — Call the \`agentuity_memory_share\` tool with:
+   - \`content\`: The formatted content to share
+   - \`ttl_seconds\`: Only if the user specified a duration (otherwise use default 30-day expiration)
+   - \`metadata\`: Optional tags like \`type=summary\` or \`source=session\`
+   - \`content_type\`: Usually \`text/markdown\` (default)
+
+4. **Return the URL** — Give the user the public URL they can share anywhere.
+
+## Guidelines
+- The URL works without authentication — anyone with the link can view it
+- Content is stored in Agentuity Cloud Streams with automatic expiration
+- Don't include secrets, API keys, or sensitive credentials in shared content
+- If unsure what to share, ask the user for clarification`,
+			agent: 'Agentuity Coder Memory',
+			argumentHint:
+				'"share a summary of this session" or "share the auth decisions with 1 hour TTL"',
 		},
 
 		// ─────────────────────────────────────────────────────────────────────
@@ -414,9 +480,11 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 - **@Agentuity Coder Builder**: Quick fixes, simple changes (for minor iterations only)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
+- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
 - **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
+- **@Agentuity Coder Product**: Clarify requirements, validate features, track progress, Cadence briefings
 
 ## Task
 $ARGUMENTS
@@ -503,8 +571,10 @@ Use this to:
 - Architect: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
 - Reviewer: Review changes, catch issues, apply fixes
 - Memory: Store context, remember decisions across sessions
+- Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
 - Expert: Get help with Agentuity CLI and cloud services
-- Planner: Strategic advisor for complex architecture and deep planning (read-only)`,
+- Planner: Strategic advisor for complex architecture and deep planning (read-only)
+- Runner: Execute lint/build/test/typecheck/format commands, returns structured results`,
 		args: {
 			agent: s
 				.enum([
@@ -513,6 +583,7 @@ Use this to:
 					'architect',
 					'reviewer',
 					'memory',
+					'reasoner',
 					'expert',
 					'planner',
 					'runner',
@@ -547,9 +618,11 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'architect',
 					'reviewer',
 					'memory',
+					'reasoner',
 					'expert',
 					'planner',
 					'runner',
+					'product',
 				])
 				.describe('Agent role to run the task'),
 			task: s.string().describe('Task prompt to run in the background'),
@@ -622,11 +695,149 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 		},
 	});
 
+	const memoryShare = tool({
+		description: `Share memory content publicly via Agentuity Cloud Streams.
+
+Creates a public URL that can be shared with anyone - no authentication required to access.
+The content is stored in Agentuity's durable stream storage with optional TTL.
+
+Use this when:
+- User wants to share context with another agent/session
+- User wants to export a summary, compaction, or session for external use
+- User explicitly asks to "share" or "make public" some memory content
+
+Returns the public URL that can be copied and used anywhere.`,
+		args: {
+			content: s.string().describe('The content to share publicly'),
+			namespace: s
+				.string()
+				.optional()
+				.describe('Stream namespace (default: agentuity-opencode-shares)'),
+			ttl_seconds: s
+				.number()
+				.optional()
+				.describe('TTL in seconds (60-7776000, or omit for 30-day default)'),
+			content_type: s.string().optional().describe('Content type (default: text/markdown)'),
+			metadata: s
+				.record(s.string(), s.string())
+				.optional()
+				.describe('Optional metadata key-value pairs'),
+			compress: s.boolean().optional().describe('Enable gzip compression'),
+			region: s.string().optional().describe('Cloud region (use, usc, usw). Default: usc'),
+		},
+		async execute(args) {
+			// Get the profile first - this ensures checkAuth() and CLI use the same profile
+			const profile = getCoderProfile();
+			const originalProfile = process.env.AGENTUITY_PROFILE;
+
+			try {
+				// Set profile before auth check so checkAuth reads the correct config
+				process.env.AGENTUITY_PROFILE = profile;
+
+				// Check auth first
+				const authResult = await checkAuth();
+				if (!authResult.ok) {
+					const err = new MemoryShareAuthError({ reason: authResult.error });
+					return JSON.stringify({
+						success: false,
+						error: err.message,
+						errorTag: err._tag,
+						details: { reason: authResult.error },
+					});
+				}
+
+				// Build CLI command
+				const namespace = args.namespace ?? 'agentuity-opencode-shares';
+				const contentType = args.content_type ?? 'text/markdown';
+
+				const cliArgs = ['agentuity', '--json', 'cloud', 'stream', 'create', namespace, '-'];
+				cliArgs.push('--content-type', contentType);
+				cliArgs.push('--region', args.region ?? 'usc');
+
+				if (args.ttl_seconds !== undefined) {
+					cliArgs.push('--ttl', String(args.ttl_seconds));
+				}
+
+				if (args.compress) {
+					cliArgs.push('--compress');
+				}
+
+				if (args.metadata && Object.keys(args.metadata).length > 0) {
+					const metadataStr = Object.entries(args.metadata)
+						.map(([k, v]) => `${k}=${v}`)
+						.join(',');
+					cliArgs.push('--metadata', metadataStr);
+				}
+				const proc = Bun.spawn(cliArgs, {
+					stdin: 'pipe',
+					stdout: 'pipe',
+					stderr: 'pipe',
+					env: {
+						...process.env,
+						AGENTUITY_PROFILE: profile,
+					},
+				});
+
+				// Write content to stdin (Bun's FileSink API)
+				proc.stdin.write(new TextEncoder().encode(args.content));
+				proc.stdin.end();
+
+				const [stdout, stderr, exitCode] = await Promise.all([
+					new Response(proc.stdout).text(),
+					new Response(proc.stderr).text(),
+					proc.exited,
+				]);
+
+				if (exitCode !== 0) {
+					const err = new MemoryShareCLIError({
+						exitCode,
+						stderr: stderr || `CLI exited with code ${exitCode}`,
+					});
+					return JSON.stringify({
+						success: false,
+						error: err.message,
+						errorTag: err._tag,
+						details: { exitCode, stderr },
+					});
+				}
+
+				// Parse JSON response from CLI
+				const result = JSON.parse(stdout);
+
+				return JSON.stringify({
+					success: true,
+					url: result.url,
+					id: result.id,
+					namespace: result.namespace,
+					sizeBytes: result.sizeBytes,
+					expiresAt: result.expiresAt,
+				});
+			} catch (error) {
+				const reason = error instanceof Error ? error.message : 'Failed to create stream';
+				const err = new MemoryShareError({ reason });
+				return JSON.stringify({
+					success: false,
+					error: err.message,
+					errorTag: err._tag,
+					details: { reason },
+				});
+			} finally {
+				// Restore original profile
+				if (originalProfile !== undefined) {
+					process.env.AGENTUITY_PROFILE = originalProfile;
+				} else {
+					delete process.env.AGENTUITY_PROFILE;
+				}
+			}
+		},
+	});
+
 	return {
-		coder_delegate: coderDelegate,
-		background_task: backgroundTask,
-		background_output: backgroundOutput,
-		background_cancel: backgroundCancel,
+		agentuity_coder_delegate: coderDelegate,
+		agentuity_background_task: backgroundTask,
+		agentuity_background_output: backgroundOutput,
+		agentuity_background_cancel: backgroundCancel,
+		agentuity_memory_share: memoryShare,
 	};
 }
 

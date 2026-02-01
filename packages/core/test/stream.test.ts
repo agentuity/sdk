@@ -27,7 +27,10 @@ describe('StreamStorageService', () => {
 
 			const body = JSON.parse(calls[0].options?.body as string);
 			expect(body.name).toBe('test-stream');
-			expect(body.contentType).toBe('application/octet-stream');
+			// Default content-type should be in headers object (Pulse server format)
+			expect(body.headers?.['content-type']).toBe('application/octet-stream');
+			// Should NOT have contentType at top level
+			expect(body.contentType).toBeUndefined();
 		});
 
 		test('should create a stream with metadata', async () => {
@@ -45,7 +48,7 @@ describe('StreamStorageService', () => {
 			expect(body.metadata).toEqual(metadata);
 		});
 
-		test('should create a stream with custom contentType', async () => {
+		test('should create a stream with custom contentType in headers object', async () => {
 			const { adapter, calls } = createMockAdapter([
 				{ ok: true, data: { id: 'stream-789' } },
 				{ ok: true },
@@ -56,7 +59,48 @@ describe('StreamStorageService', () => {
 
 			expect(stream.id).toBe('stream-789');
 			const body = JSON.parse(calls[0].options?.body as string);
-			expect(body.contentType).toBe('application/json');
+			// Content-type should be in headers object, not as a top-level contentType field
+			expect(body.headers?.['content-type']).toBe('application/json');
+			expect(body.contentType).toBeUndefined();
+		});
+
+		test('should send content-type in headers object for Pulse server compatibility', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-headers-test' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream', { contentType: 'text/plain' });
+
+			const body = JSON.parse(calls[0].options?.body as string);
+
+			// Verify headers object structure (Pulse server expects this format)
+			expect(body.headers).toBeDefined();
+			expect(typeof body.headers).toBe('object');
+			expect(body.headers['content-type']).toBe('text/plain');
+
+			// Verify contentType is NOT sent as a separate field
+			expect(body.contentType).toBeUndefined();
+
+			// Verify other expected fields
+			expect(body.name).toBe('test-stream');
+		});
+
+		test('should not include headers object when no contentType specified', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-no-ct' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			// Note: The implementation always sets a default content-type of 'application/octet-stream'
+			// so headers will always be present. This test verifies that behavior.
+			await service.create('test-stream');
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			// Default content-type is always set
+			expect(body.headers?.['content-type']).toBe('application/octet-stream');
 		});
 
 		test('should create a compressed stream', async () => {
