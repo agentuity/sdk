@@ -568,6 +568,27 @@ This ensures the team can recall this work in future sessions via semantic searc
 - Solutions implemented
 - Open questions or follow-ups
 
+## Public Memory Sharing
+
+When user wants to share content publicly:
+
+**You have the current session context. Memory does not (unless given a session ID to look up).**
+
+| Sharing What | Who Handles |
+|--------------|-------------|
+| Current session | You - compile content, call \`agentuity_memory_share\` |
+| Stored content (specific session ID, past work) | Delegate to Memory with the identifier |
+
+**For current session sharing:**
+1. Extract relevant content (requests, decisions, outcomes)
+2. Format as markdown (structure is flexible based on content)
+3. Call \`agentuity_memory_share\` with the content
+4. Return the URL
+
+**Use Memory for supplementary context** - e.g., if this is a long Cadence cycle with compactions, ask Memory for past compactions to include.
+
+If sharing fails, report the error and suggest alternatives.
+
 ## Verification Checklist
 
 Before marking any task complete, verify:
