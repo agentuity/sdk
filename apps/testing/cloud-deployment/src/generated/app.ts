@@ -177,10 +177,11 @@ registerAnalyticsRoutes(app);
 if (isDevelopment() && process.env.VITE_PORT) {
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT, 10);
 
-	const proxyToVite = async (c: Context) => {
-		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${c.req.path}`;
+	const proxyToVite = async (c: Context, pathOverride?: string) => {
+		const targetPath = pathOverride ?? c.req.path;
+		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${targetPath}`;
 		try {
-			otel.logger.debug(`[Proxy] ${c.req.method} ${c.req.path} -> Vite:${VITE_ASSET_PORT}`);
+			otel.logger.debug(`[Proxy] ${c.req.method} ${c.req.path} -> Vite:${VITE_ASSET_PORT}${targetPath}`);
 			const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
 			otel.logger.debug(`[Proxy] ${c.req.path} -> ${res.status} (${res.headers.get('content-type')})`);
 			return new Response(res.body, {
@@ -299,59 +300,42 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	});
 
 	// Vite client scripts and HMR
-	app.get('/@vite/*', proxyToVite);
-	app.get('/@react-refresh', proxyToVite);
+	app.get('/@vite/*', (c: Context) => proxyToVite(c));
+	app.get('/@react-refresh', (c: Context) => proxyToVite(c));
 
 	// Source files for HMR
-	app.get('/src/web/*', proxyToVite);
-	app.get('/src/*', proxyToVite); // Catch-all for other source files
+	app.get('/src/web/*', (c: Context) => proxyToVite(c));
+	app.get('/src/*', (c: Context) => proxyToVite(c)); // Catch-all for other source files
 
 	// Workbench source files (in .agentuity/workbench-src/)
-	app.get('/.agentuity/workbench-src/*', proxyToVite);
+	app.get('/.agentuity/workbench-src/*', (c: Context) => proxyToVite(c));
 
 	// Node modules (Vite transforms these)
-	app.get('/node_modules/*', proxyToVite);
+	app.get('/node_modules/*', (c: Context) => proxyToVite(c));
 
 	// Scoped packages (e.g., @agentuity/*, @types/*)
-	app.get('/@*', proxyToVite);
+	app.get('/@*', (c: Context) => proxyToVite(c));
 
 	// File system access (for Vite's @fs protocol)
-	app.get('/@fs/*', proxyToVite);
+	app.get('/@fs/*', (c: Context) => proxyToVite(c));
 
 	// Module resolution (for Vite's @id protocol)
-	app.get('/@id/*', proxyToVite);
+	app.get('/@id/*', (c: Context) => proxyToVite(c));
 
 	// Static assets - Vite serves src/web/public/* at root, but code uses /public/* paths
 	// In production, the plugin transforms /public/foo.svg to CDN URLs
 	// Rewrite /public/foo.svg -> /foo.svg before proxying to Vite
-	app.get('/public/*', async (c: Context) => {
-		// Remove /public prefix to get the root path that Vite expects
+	app.get('/public/*', (c: Context) => {
 		const rootPath = c.req.path.replace(/^\/public/, '');
-		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${rootPath}`;
-		try {
-			otel.logger.debug(`[Proxy] ${c.req.method} ${c.req.path} -> Vite:${VITE_ASSET_PORT}${rootPath}`);
-			const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
-			otel.logger.debug(`[Proxy] ${c.req.path} -> ${res.status} (${res.headers.get('content-type')})`);
-			return new Response(res.body, {
-				status: res.status,
-				headers: res.headers,
-			});
-		} catch (err) {
-			if (err instanceof Error && err.name === 'TimeoutError') {
-				otel.logger.error(`Vite proxy timeout: ${c.req.path}`);
-				return c.text('Vite asset server timeout', 504);
-			}
-			otel.logger.error(`Failed to proxy to Vite: ${c.req.path} - ${err instanceof Error ? err.message : String(err)}`);
-			return c.text('Vite asset server error', 500);
-		}
+		return proxyToVite(c, rootPath);
 	});
 
 	// Any .js, .jsx, .ts, .tsx files (catch remaining modules)
-	app.get('/*.js', proxyToVite);
-	app.get('/*.jsx', proxyToVite);
-	app.get('/*.ts', proxyToVite);
-	app.get('/*.tsx', proxyToVite);
-	app.get('/*.css', proxyToVite);
+	app.get('/*.js', (c: Context) => proxyToVite(c));
+	app.get('/*.jsx', (c: Context) => proxyToVite(c));
+	app.get('/*.ts', (c: Context) => proxyToVite(c));
+	app.get('/*.tsx', (c: Context) => proxyToVite(c));
+	app.get('/*.css', (c: Context) => proxyToVite(c));
 }
 
 const hasWorkbenchConfig = false;
