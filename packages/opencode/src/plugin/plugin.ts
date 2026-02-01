@@ -726,45 +726,48 @@ Returns the public URL that can be copied and used anywhere.`,
 			region: s.string().optional().describe('Cloud region (use, usc, usw). Default: usc'),
 		},
 		async execute(args) {
-			// Check auth first
-			const authResult = await checkAuth();
-			if (!authResult.ok) {
-				const err = new MemoryShareAuthError({ reason: authResult.error });
-				return JSON.stringify({
-					success: false,
-					error: err.message,
-					errorTag: err._tag,
-					details: { reason: authResult.error },
-				});
-			}
-
-			// Build CLI command
-			const namespace = args.namespace ?? 'agentuity-opencode-shares';
-			const contentType = args.content_type ?? 'text/markdown';
-
-			const cliArgs = ['agentuity', '--json', 'cloud', 'stream', 'create', namespace, '-'];
-			cliArgs.push('--content-type', contentType);
-			cliArgs.push('--region', args.region ?? 'usc');
-
-			if (args.ttl_seconds !== undefined) {
-				cliArgs.push('--ttl', String(args.ttl_seconds));
-			}
-
-			if (args.compress) {
-				cliArgs.push('--compress');
-			}
-
-			if (args.metadata && Object.keys(args.metadata).length > 0) {
-				const metadataStr = Object.entries(args.metadata)
-					.map(([k, v]) => `${k}=${v}`)
-					.join(',');
-				cliArgs.push('--metadata', metadataStr);
-			}
-
-			// Get the profile to use
+			// Get the profile first - this ensures checkAuth() and CLI use the same profile
 			const profile = getCoderProfile();
+			const originalProfile = process.env.AGENTUITY_PROFILE;
 
 			try {
+				// Set profile before auth check so checkAuth reads the correct config
+				process.env.AGENTUITY_PROFILE = profile;
+
+				// Check auth first
+				const authResult = await checkAuth();
+				if (!authResult.ok) {
+					const err = new MemoryShareAuthError({ reason: authResult.error });
+					return JSON.stringify({
+						success: false,
+						error: err.message,
+						errorTag: err._tag,
+						details: { reason: authResult.error },
+					});
+				}
+
+				// Build CLI command
+				const namespace = args.namespace ?? 'agentuity-opencode-shares';
+				const contentType = args.content_type ?? 'text/markdown';
+
+				const cliArgs = ['agentuity', '--json', 'cloud', 'stream', 'create', namespace, '-'];
+				cliArgs.push('--content-type', contentType);
+				cliArgs.push('--region', args.region ?? 'usc');
+
+				if (args.ttl_seconds !== undefined) {
+					cliArgs.push('--ttl', String(args.ttl_seconds));
+				}
+
+				if (args.compress) {
+					cliArgs.push('--compress');
+				}
+
+				if (args.metadata && Object.keys(args.metadata).length > 0) {
+					const metadataStr = Object.entries(args.metadata)
+						.map(([k, v]) => `${k}=${v}`)
+						.join(',');
+					cliArgs.push('--metadata', metadataStr);
+				}
 				const proc = Bun.spawn(cliArgs, {
 					stdin: 'pipe',
 					stdout: 'pipe',
@@ -818,6 +821,13 @@ Returns the public URL that can be copied and used anywhere.`,
 					errorTag: err._tag,
 					details: { reason },
 				});
+			} finally {
+				// Restore original profile
+				if (originalProfile !== undefined) {
+					process.env.AGENTUITY_PROFILE = originalProfile;
+				} else {
+					delete process.env.AGENTUITY_PROFILE;
+				}
 			}
 		},
 	});
