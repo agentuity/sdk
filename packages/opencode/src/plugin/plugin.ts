@@ -5,7 +5,7 @@ import { loadAllSkills, type LoadedSkill } from '../skills';
 import { agents } from '../agents';
 import { loadCoderConfig, getDefaultConfig, mergeConfig, validateAndWarnConfigs } from '../config';
 import { createSessionHooks } from './hooks/session';
-import { createToolHooks } from './hooks/tools';
+import { createToolHooks, getCoderProfile } from './hooks/tools';
 import { createKeywordHooks } from './hooks/keyword';
 import { createParamsHooks } from './hooks/params';
 import { createCadenceHooks } from './hooks/cadence';
@@ -13,6 +13,7 @@ import { createSessionMemoryHooks } from './hooks/session-memory';
 import type { AgentRole } from '../types';
 import { BackgroundManager } from '../background';
 import { TmuxSessionManager } from '../tmux';
+import { checkAuth } from '../services/auth';
 
 // Sandbox environment detection
 const SANDBOX_ID = process.env.AGENTUITY_SANDBOX_ID;
@@ -319,6 +320,46 @@ Save to vector storage using the agentuity-opencode-sessions namespace. Store an
 $ARGUMENTS`,
 			agent: 'Agentuity Coder Memory',
 			argumentHint: '(optional additional context)',
+		},
+
+		'agentuity-memory-share': {
+			name: 'agentuity-memory-share',
+			description: '🔗 Share memory content publicly with a shareable URL',
+			template: `Create a public shareable link for memory content.
+
+The user wants to share: $ARGUMENTS
+
+## Your Task
+
+1. **Understand what to share** — Based on the user's request, determine what content to share:
+   - A summary of the current session
+   - The latest compaction
+   - Specific decisions or corrections
+   - A custom selection of context
+   - If the request implies context not in the current chat, pull from memory stores (KV/Vector)
+
+2. **Prepare the content** — Format the content appropriately:
+   - Use clear markdown formatting
+   - Include relevant context (what this is, when it was created)
+   - Be conservative with sensitive information (no secrets, credentials, etc.)
+   - Keep it focused and useful for the recipient
+
+3. **Share it** — Call the \`agentuity_memory_share\` tool with:
+   - \`content\`: The formatted content to share
+   - \`ttl_seconds\`: Only if the user specified a duration (otherwise use default 30-day expiration)
+   - \`metadata\`: Optional tags like \`type=summary\` or \`source=session\`
+   - \`content_type\`: Usually \`text/markdown\` (default)
+
+4. **Return the URL** — Give the user the public URL they can share anywhere.
+
+## Guidelines
+- The URL works without authentication — anyone with the link can view it
+- Content is stored in Agentuity Cloud Streams with automatic expiration
+- Don't include secrets, API keys, or sensitive credentials in shared content
+- If unsure what to share, ask the user for clarification`,
+			agent: 'Agentuity Coder Memory',
+			argumentHint:
+				'"share a summary of this session" or "share the auth decisions with 1 hour TTL"',
 		},
 
 		// ─────────────────────────────────────────────────────────────────────
@@ -634,11 +675,126 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 		},
 	});
 
+	const memoryShare = tool({
+		description: `Share memory content publicly via Agentuity Cloud Streams.
+
+Creates a public URL that can be shared with anyone - no authentication required to access.
+The content is stored in Agentuity's durable stream storage with optional TTL.
+
+Use this when:
+- User wants to share context with another agent/session
+- User wants to export a summary, compaction, or session for external use
+- User explicitly asks to "share" or "make public" some memory content
+
+Returns the public URL that can be copied and used anywhere.`,
+		args: {
+			content: s.string().describe('The content to share publicly'),
+			namespace: s
+				.string()
+				.optional()
+				.describe('Stream namespace (default: agentuity-opencode-shares)'),
+			ttl_seconds: s
+				.number()
+				.optional()
+				.describe('TTL in seconds (60-7776000, or omit for 30-day default)'),
+			content_type: s.string().optional().describe('Content type (default: text/markdown)'),
+			metadata: s
+				.record(s.string(), s.string())
+				.optional()
+				.describe('Optional metadata key-value pairs'),
+			compress: s.boolean().optional().describe('Enable gzip compression'),
+			region: s.string().optional().describe('Cloud region (use, usc, usw). Default: use'),
+		},
+		async execute(args) {
+			// Check auth first
+			const authResult = await checkAuth();
+			if (!authResult.ok) {
+				return JSON.stringify({
+					success: false,
+					error: authResult.error,
+				});
+			}
+
+			// Build CLI command
+			const namespace = args.namespace ?? 'agentuity-opencode-shares';
+			const contentType = args.content_type ?? 'text/markdown';
+
+			const cliArgs = ['agentuity', '--json', 'cloud', 'stream', 'create', namespace, '-'];
+			cliArgs.push('--content-type', contentType);
+			cliArgs.push('--region', args.region ?? 'usc');
+
+			if (args.ttl_seconds !== undefined) {
+				cliArgs.push('--ttl', String(args.ttl_seconds));
+			}
+
+			if (args.compress) {
+				cliArgs.push('--compress');
+			}
+
+			if (args.metadata && Object.keys(args.metadata).length > 0) {
+				const metadataStr = Object.entries(args.metadata)
+					.map(([k, v]) => `${k}=${v}`)
+					.join(',');
+				cliArgs.push('--metadata', metadataStr);
+			}
+
+			// Get the profile to use
+			const profile = getCoderProfile();
+
+			try {
+				const proc = Bun.spawn(cliArgs, {
+					stdin: 'pipe',
+					stdout: 'pipe',
+					stderr: 'pipe',
+					env: {
+						...process.env,
+						AGENTUITY_PROFILE: profile,
+					},
+				});
+
+				// Write content to stdin (Bun's FileSink API)
+				proc.stdin.write(new TextEncoder().encode(args.content));
+				proc.stdin.end();
+
+				const [stdout, stderr, exitCode] = await Promise.all([
+					new Response(proc.stdout).text(),
+					new Response(proc.stderr).text(),
+					proc.exited,
+				]);
+
+				if (exitCode !== 0) {
+					return JSON.stringify({
+						success: false,
+						error: stderr || `CLI exited with code ${exitCode}`,
+					});
+				}
+
+				// Parse JSON response from CLI
+				const result = JSON.parse(stdout);
+
+				return JSON.stringify({
+					success: true,
+					url: result.url,
+					id: result.id,
+					namespace: result.namespace,
+					sizeBytes: result.sizeBytes,
+					expiresAt: result.expiresAt,
+				});
+			} catch (error) {
+				return JSON.stringify({
+					success: false,
+					error: error instanceof Error ? error.message : 'Failed to create stream',
+				});
+			}
+		},
+	});
+
 	return {
 		agentuity_coder_delegate: coderDelegate,
 		agentuity_background_task: backgroundTask,
 		agentuity_background_output: backgroundOutput,
 		agentuity_background_cancel: backgroundCancel,
+		agentuity_memory_share: memoryShare,
 	};
 }
 

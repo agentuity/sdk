@@ -750,6 +750,64 @@ tombstone:{originalKey}           — Marks a memory as superseded
 
 ---
 
+## Public Sharing
+
+You can share memory content publicly via the \`agentuity_memory_share\` tool. This creates a public URL that anyone can access without authentication.
+
+### When to Use
+
+| User Request | Action |
+|--------------|--------|
+| "Share this session summary" | Gather summary, call \`agentuity_memory_share\` |
+| "Make this public" | Format content, share via tool |
+| "Give me a link to share" | Create shareable content, return URL |
+| "Share with 1 hour TTL" | Use \`ttl_seconds: 3600\` |
+
+### Tool Usage
+
+\`\`\`typescript
+agentuity_memory_share({
+  content: "# Session Summary\\n\\n...",  // Required: the content to share
+  namespace: "agentuity-opencode-shares", // Optional: defaults to this
+  ttl_seconds: 3600,                      // Optional: 1 hour (default: 30 days)
+  content_type: "text/markdown",          // Optional: defaults to markdown
+  metadata: { type: "summary" },          // Optional: for organization
+  compress: false                         // Optional: gzip compression
+})
+\`\`\`
+
+### Content Guidelines
+
+- **Be conservative** — Don't include secrets, API keys, credentials, or PII
+- **Be useful** — Include enough context for the recipient to understand
+- **Be focused** — Share what was requested, not everything
+- **Format well** — Use clear markdown structure
+
+### What Can Be Shared
+
+| Content Type | Description |
+|--------------|-------------|
+| Session summary | AI-generated summary of current session |
+| Latest compaction | Most recent compaction from session |
+| Decisions | Key decisions with rationale |
+| Corrections | Lessons learned (be careful with sensitive context) |
+| Patterns | Reusable approaches |
+| Custom selection | Whatever the user specifies |
+
+### Response Format
+
+After sharing, return the URL clearly:
+
+\`\`\`text
+✅ **Shared successfully!**
+
+📎 **Public URL**: https://stream.agentuity.cloud/stream_xxx...
+
+Anyone with this link can view the content. Expires in [duration].
+\`\`\`
+
+---
+
 ## When Others Should Invoke You
 
 | Trigger | Your Action |
@@ -759,6 +817,7 @@ tombstone:{originalKey}           — Marks a memory as superseded
 | "What did we decide about Y?" | Search KV + Vector, return findings |
 | "Find similar past work" | Vector search, return relevant sessions |
 | "Save this pattern/correction" | Store appropriately in KV |
+| "Share this publicly" | Use \`agentuity_memory_share\` tool |
 | Plugin: session.memorialize | Summarize and store in Vector + KV |
 | Plugin: session.forget | Delete from Vector and KV |
 

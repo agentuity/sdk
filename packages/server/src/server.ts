@@ -11,6 +11,7 @@ import { appendFileSync } from 'node:fs';
 
 interface ServiceAdapterConfig {
 	headers: Record<string, string>;
+	queryParams?: Record<string, string>;
 	onBefore?: (url: string, options: FetchRequest, invoke: () => Promise<void>) => Promise<void>;
 	onAfter?: <T>(
 		url: string,
@@ -238,6 +239,15 @@ class ServerFetchAdapter implements FetchAdapter {
 		this.#logger = logger;
 	}
 	private async _invoke<T>(url: string, options: FetchRequest): Promise<FetchResponse<T>> {
+		// Append query params if configured
+		if (this.#config.queryParams && Object.keys(this.#config.queryParams).length > 0) {
+			const urlObj = new URL(url);
+			for (const [key, value] of Object.entries(this.#config.queryParams)) {
+				urlObj.searchParams.set(key, value);
+			}
+			url = urlObj.toString();
+		}
+
 		const headers: Record<string, string> = {
 			...options.headers,
 			...this.#config.headers,

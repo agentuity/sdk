@@ -13,7 +13,8 @@ export const deleteSubcommand = createCommand({
 	description: 'Delete a stream by ID (soft delete)',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	examples: [
 		{ command: getCommand('stream delete stream-id-123'), description: 'Delete a stream' },
 		{

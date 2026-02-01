@@ -16,7 +16,8 @@ export const getSubcommand = createCommand({
 	name: 'get',
 	description: 'Get detailed information about a specific stream',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('stream get stream-id-123'), description: 'Get stream details' },

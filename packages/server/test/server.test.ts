@@ -86,4 +86,94 @@ describe('createServerFetchAdapter', () => {
 		expect(onBefore).toHaveBeenCalled();
 		expect(onAfter).toHaveBeenCalled();
 	});
+
+	test('should append queryParams to URL', async () => {
+		let capturedUrl = '';
+		mockFetch(async (url) => {
+			capturedUrl = url;
+			return new Response(JSON.stringify({ result: 'success' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' },
+			});
+		});
+
+		const adapter = createServerFetchAdapter(
+			{
+				headers: { Authorization: 'Bearer test' },
+				queryParams: { orgId: 'org_123', foo: 'bar' },
+			},
+			createMockLogger()
+		);
+
+		await adapter.invoke('https://api.example.com/endpoint', { method: 'GET' });
+
+		// Verify query params were appended to URL
+		expect(capturedUrl).toContain('orgId=org_123');
+		expect(capturedUrl).toContain('foo=bar');
+		expect(capturedUrl).toContain('?');
+	});
+
+	test('should append queryParams to URL that already has query string', async () => {
+		let capturedUrl = '';
+		mockFetch(async (url) => {
+			capturedUrl = url;
+			return new Response(JSON.stringify({ result: 'success' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' },
+			});
+		});
+
+		const adapter = createServerFetchAdapter(
+			{
+				headers: {},
+				queryParams: { orgId: 'org_456' },
+			},
+			createMockLogger()
+		);
+
+		await adapter.invoke('https://api.example.com/endpoint?existing=param', { method: 'GET' });
+
+		// Verify both existing and new query params are present
+		expect(capturedUrl).toContain('existing=param');
+		expect(capturedUrl).toContain('orgId=org_456');
+	});
+
+	test('should not modify URL when queryParams is undefined', async () => {
+		let capturedUrl = '';
+		mockFetch(async (url) => {
+			capturedUrl = url;
+			return new Response(JSON.stringify({ result: 'success' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' },
+			});
+		});
+
+		const adapter = createServerFetchAdapter({ headers: {} }, createMockLogger());
+
+		await adapter.invoke('https://api.example.com/endpoint', { method: 'GET' });
+
+		// URL should remain unchanged
+		expect(capturedUrl).toBe('https://api.example.com/endpoint');
+	});
+
+	test('should not modify URL when queryParams is empty object', async () => {
+		let capturedUrl = '';
+		mockFetch(async (url) => {
+			capturedUrl = url;
+			return new Response(JSON.stringify({ result: 'success' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' },
+			});
+		});
+
+		const adapter = createServerFetchAdapter(
+			{ headers: {}, queryParams: {} },
+			createMockLogger()
+		);
+
+		await adapter.invoke('https://api.example.com/endpoint', { method: 'GET' });
+
+		// URL should remain unchanged (no query string added)
+		expect(capturedUrl).toBe('https://api.example.com/endpoint');
+	});
 });
