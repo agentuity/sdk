@@ -8,7 +8,7 @@ if (versionArgs.length === 1 && ['version', '-v', '--version', '-V'].includes(ve
 	process.exit(0);
 }
 
-import { ConsoleLogger } from '@agentuity/server';
+import { ConsoleLogger, getAppBaseURL } from '@agentuity/server';
 import { isStructuredError } from '@agentuity/core';
 import { createCLI, registerCommands } from '../src/cli';
 import { validateRuntime } from '../src/runtime';
@@ -322,7 +322,28 @@ try {
 		closeDatabase();
 		exit(0);
 	}
-	const errorWithMessage = error as { message?: string };
+	const errorWithMessage = error as { message?: string; statusCode?: number; _tag?: string };
+
+	// Handle payment required (402) errors with a friendly TUI message
+	if (
+		isStructuredError(error) &&
+		((errorWithMessage._tag === 'ServiceException' && errorWithMessage.statusCode === 402) ||
+			errorWithMessage._tag === 'PaymentRequiredError')
+	) {
+		const { errorBox, link, newline } = await import('../src/tui');
+		const overrides = config?.overrides as { app_url?: string } | undefined;
+		const appBaseUrl = getAppBaseURL(undefined, overrides);
+		const billingUrl = `${appBaseUrl}/billing`;
+		newline();
+		errorBox(
+			'Out of Credit',
+			`Your organization is out of credit.\n\nPlease add more here:\n${link(billingUrl)}`,
+			false // standalone box, not connected to a guide
+		);
+		closeDatabase();
+		exit(1);
+	}
+
 	if (isStructuredError(error)) {
 		logger.error(error);
 	} else {

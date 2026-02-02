@@ -115,6 +115,15 @@ export const MisdirectedRequestError = StructuredError(
 	sessionId?: string | null;
 }>();
 
+export const PaymentRequiredError = StructuredError(
+	'PaymentRequiredError',
+	'This action requires a paid plan. Please upgrade your account to continue.'
+)<{
+	url: string;
+	sessionId?: string | null;
+	upgradeUrl?: string;
+}>();
+
 export class APIClient {
 	#baseUrl: string;
 	#apiKey?: string;
@@ -602,6 +611,16 @@ export class APIClient {
 						throw new UpgradeRequiredError({ sessionId });
 					}
 
+					// HTTP 402 Payment Required - user needs to upgrade their plan
+					if (response.status === 402) {
+						const upgradeUrl = response.headers.get('x-upgrade-url');
+						throw new PaymentRequiredError({
+							url,
+							sessionId,
+							upgradeUrl: upgradeUrl ?? undefined,
+						});
+					}
+
 					// Check for UPGRADE_REQUIRED error
 					if (errorData?.code === 'UPGRADE_REQUIRED') {
 						// Skip version check if configured
@@ -789,6 +808,8 @@ export class APIClient {
 				return 'The API request was invalid (HTTP 400). Please check your request parameters.';
 			case 401:
 				return 'Authentication failed (HTTP 401). Please check your credentials or try logging in again.';
+			case 402:
+				return 'This action requires a paid plan. Please upgrade your account at https://app.agentuity.com/billing to continue.';
 			case 403:
 				return 'Access denied (HTTP 403). You do not have permission to perform this action.';
 			case 404:

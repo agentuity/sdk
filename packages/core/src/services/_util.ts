@@ -36,6 +36,15 @@ export async function toServiceException(
 				statusCode: response.status,
 				sessionId,
 			});
+		case 402:
+			return new ServiceException({
+				message:
+					'This action requires a paid plan. Please upgrade your account at https://app.agentuity.com/billing to continue.',
+				method,
+				url,
+				statusCode: response.status,
+				sessionId,
+			});
 		case 404:
 			return new ServiceException({
 				message: 'Not Found',

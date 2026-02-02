@@ -124,11 +124,11 @@ async function executeOrValidate(
 		};
 		outputValidation(result, ctx.options);
 	} else if (handler) {
-		// Render "View on the web" link before normal execution
-		maybeRenderWebLink(ctx, webUrl);
-
 		// Normal execution
 		const result = await handler(ctx);
+
+		// Render "View on the web" link after successful execution (not shown on errors)
+		maybeRenderWebLink(ctx, webUrl);
 
 		// If --json flag is set
 		if (ctx.options.json) {
@@ -1371,8 +1371,9 @@ async function registerSubcommand(
 					}
 				}
 				if (subcommand.handler) {
-					maybeRenderWebLink(ctx as CommandContext, subcommand.webUrl);
 					const result = await subcommand.handler(ctx as CommandContext);
+					// Render "View on the web" link after successful execution (not shown on errors)
+					maybeRenderWebLink(ctx as CommandContext, subcommand.webUrl);
 
 					// If --json flag is set
 					if (baseCtx.options.json) {
@@ -1621,8 +1622,9 @@ async function registerSubcommand(
 					}
 				}
 				if (subcommand.handler) {
-					maybeRenderWebLink(ctx as CommandContext, subcommand.webUrl);
 					const result = await subcommand.handler(ctx as CommandContext);
+					// Render "View on the web" link after successful execution (not shown on errors)
+					maybeRenderWebLink(ctx as CommandContext, subcommand.webUrl);
 
 					// If --json flag is set
 					if (baseCtx.options.json) {
@@ -1760,8 +1762,9 @@ async function registerSubcommand(
 					}
 				}
 				if (subcommand.handler) {
-					maybeRenderWebLink(ctx as CommandContext, subcommand.webUrl);
 					const result = await subcommand.handler(ctx as CommandContext);
+					// Render "View on the web" link after successful execution (not shown on errors)
+					maybeRenderWebLink(ctx as CommandContext, subcommand.webUrl);
 
 					// If --json flag is set
 					if (baseCtx.options.json) {
