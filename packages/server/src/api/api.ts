@@ -826,7 +826,7 @@ export function getAPIBaseURL(region?: string, overrides?: { api_url?: string })
 		return 'https://api.agentuity.io';
 	}
 
-	return 'https://api-v1.agentuity.com';
+	return 'https://api.agentuity.com';
 }
 
 export function getAppBaseURL(region?: string, overrides?: { app_url?: string } | null): string {
@@ -842,7 +842,7 @@ export function getAppBaseURL(region?: string, overrides?: { app_url?: string } 
 		return 'https://app.agentuity.io';
 	}
 
-	return 'https://app-v1.agentuity.com';
+	return 'https://app.agentuity.com';
 }
 
 export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
