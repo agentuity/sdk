@@ -345,39 +345,16 @@ $ARGUMENTS`,
 		'agentuity-memory-share': {
 			name: 'agentuity-memory-share',
 			description: '🔗 Share memory content publicly with a shareable URL',
-			template: `Create a public shareable link for memory content.
+			template: `User wants to share content publicly.
 
-The user wants to share: $ARGUMENTS
+**You have current session context. Memory does not (unless given a session ID).**
 
-## Your Task
+- Current session → Handle directly: compile content, call \`agentuity_memory_share\`
+- Stored content (specific ID, past work) → Delegate to Memory
+- Long Cadence cycle? → Ask Memory for past compactions to include
 
-1. **Understand what to share** — Based on the user's request, determine what content to share:
-   - A summary of the current session
-   - The latest compaction
-   - Specific decisions or corrections
-   - A custom selection of context
-   - If the request implies context not in the current chat, pull from memory stores (KV/Vector)
-
-2. **Prepare the content** — Format the content appropriately:
-   - Use clear markdown formatting
-   - Include relevant context (what this is, when it was created)
-   - Be conservative with sensitive information (no secrets, credentials, etc.)
-   - Keep it focused and useful for the recipient
-
-3. **Share it** — Call the \`agentuity_memory_share\` tool with:
-   - \`content\`: The formatted content to share
-   - \`ttl_seconds\`: Only if the user specified a duration (otherwise use default 30-day expiration)
-   - \`metadata\`: Optional tags like \`type=summary\` or \`source=session\`
-   - \`content_type\`: Usually \`text/markdown\` (default)
-
-4. **Return the URL** — Give the user the public URL they can share anywhere.
-
-## Guidelines
-- The URL works without authentication — anyone with the link can view it
-- Content is stored in Agentuity Cloud Streams with automatic expiration
-- Don't include secrets, API keys, or sensitive credentials in shared content
-- If unsure what to share, ask the user for clarification`,
-			agent: 'Agentuity Coder Memory',
+User's request: $ARGUMENTS`,
+			agent: 'Agentuity Coder Lead',
 			argumentHint:
 				'"share a summary of this session" or "share the auth decisions with 1 hour TTL"',
 		},

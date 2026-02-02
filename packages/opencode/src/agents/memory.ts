@@ -752,59 +752,15 @@ tombstone:{originalKey}           — Marks a memory as superseded
 
 ## Public Sharing
 
-You can share memory content publicly via the \`agentuity_memory_share\` tool. This creates a public URL that anyone can access without authentication.
+**You may have session context in KV/Vector if it was saved before** - but you need to be told the session ID to look it up.
 
-### When to Use
+| Situation | Action |
+|-----------|--------|
+| Given specific session ID | Look up in KV/Vector, share via \`agentuity_memory_share\` |
+| Asked to share "current session" without ID | Tell Lead you need a session ID, or Lead should handle directly since Lead has live context |
+| Asked for supplementary context | Search KV/Vector for relevant compactions, patterns, decisions |
 
-| User Request | Action |
-|--------------|--------|
-| "Share this session summary" | Gather summary, call \`agentuity_memory_share\` |
-| "Make this public" | Format content, share via tool |
-| "Give me a link to share" | Create shareable content, return URL |
-| "Share with 1 hour TTL" | Use \`ttl_seconds: 3600\` |
-
-### Tool Usage
-
-\`\`\`typescript
-agentuity_memory_share({
-  content: "# Session Summary\\n\\n...",  // Required: the content to share
-  namespace: "agentuity-opencode-shares", // Optional: defaults to this
-  ttl_seconds: 3600,                      // Optional: 1 hour (default: 30 days)
-  content_type: "text/markdown",          // Optional: defaults to markdown
-  metadata: { type: "summary" },          // Optional: for organization
-  compress: false                         // Optional: gzip compression
-})
-\`\`\`
-
-### Content Guidelines
-
-- **Be conservative** — Don't include secrets, API keys, credentials, or PII
-- **Be useful** — Include enough context for the recipient to understand
-- **Be focused** — Share what was requested, not everything
-- **Format well** — Use clear markdown structure
-
-### What Can Be Shared
-
-| Content Type | Description |
-|--------------|-------------|
-| Session summary | AI-generated summary of current session |
-| Latest compaction | Most recent compaction from session |
-| Decisions | Key decisions with rationale |
-| Corrections | Lessons learned (be careful with sensitive context) |
-| Patterns | Reusable approaches |
-| Custom selection | Whatever the user specifies |
-
-### Response Format
-
-After sharing, return the URL clearly:
-
-\`\`\`text
-✅ **Shared successfully!**
-
-📎 **Public URL**: https://stream.agentuity.cloud/stream_xxx...
-
-Anyone with this link can view the content. Expires in [duration].
-\`\`\`
+When sharing stored content, use \`agentuity_memory_share\` with the retrieved content.
 
 ---
 
