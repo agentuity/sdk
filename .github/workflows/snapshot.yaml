@@ -76,8 +76,10 @@ jobs:
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
 
          - name: Install Dependencies
-           working-directory: apps/docs
            run: bun install
+
+         - name: Build Packages
+           run: bun run build
 
          - name: Bundle Run Scripts
            working-directory: apps/docs
