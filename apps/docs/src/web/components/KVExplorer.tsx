@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Button, Separator } from './ui';
 
 export function KVExplorer() {
 	const [keys, setKeys] = useState<string[]>([]);
@@ -91,23 +92,22 @@ export function KVExplorer() {
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-4">
 				<div className="flex items-center gap-3">
 					<span className="text-zinc-500 text-xs uppercase">Sample Data:</span>
-					{!seeded && (
-						<button
-							onClick={seedData}
-							disabled={loading}
-							type="button"
-							className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-xs px-3 py-1.5 cursor-pointer ${
-								loading ? 'opacity-50' : 'hover:bg-cyan-400 dark:hover:bg-cyan-300'
-							}`}
-						>
-							<span data-loading={seeding ? 'true' : undefined}>
-								{seeding ? 'Loading' : 'Load Sample Data'}
-							</span>
-						</button>
-					)}
-					{seeded && (
-						<span className="text-green-600 dark:text-green-400 text-xs">Loaded</span>
-					)}
+					<Button
+						variant="success"
+						size="sm"
+						onClick={seedData}
+						disabled={loading || seeded}
+					>
+						<span className="relative">
+							<span className={seeding || seeded ? 'invisible' : ''}>Load Sample Data</span>
+							{seeding && !seeded && (
+								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+							)}
+							{seeded && (
+								<span className="absolute inset-0 flex items-center justify-center">Loaded</span>
+							)}
+						</span>
+					</Button>
 				</div>
 			</div>
 
@@ -121,10 +121,11 @@ export function KVExplorer() {
 			{/* Main content - two columns */}
 			<div className="grid grid-cols-2 gap-4">
 				{/* Left column: Key list */}
-				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg flex flex-col max-h-[400px]">
-					<div className="border-b border-zinc-200 dark:border-zinc-900 text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
+				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg flex flex-col h-[400px]">
+					<div className="text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
 						Keys ({keys.length})
 					</div>
+					<Separator />
 					<div className="flex-1 overflow-y-auto">
 						{keys.length === 0 ? (
 							<div className="text-zinc-500 dark:text-zinc-600 text-sm p-8 text-center">
@@ -132,28 +133,29 @@ export function KVExplorer() {
 							</div>
 						) : (
 							keys.map((key) => (
-								<button
+								<Button
 									key={key}
-									type="button"
 									onClick={() => fetchValue(key)}
-									className={`flex items-center w-full text-left text-sm px-4 py-3 truncate bg-transparent border-none border-b border-zinc-200 dark:border-zinc-900 cursor-pointer ${
+									variant="ghost"
+									className={`w-full justify-start text-left rounded-none border-b border-zinc-200 dark:border-zinc-900 ${
 										selectedKey === key
 											? 'bg-zinc-100 dark:bg-zinc-900 text-cyan-700 dark:text-cyan-400'
 											: 'text-zinc-900 dark:text-white'
 									}`}
 								>
 									{key}
-								</button>
+								</Button>
 							))
 						)}
 					</div>
 				</div>
 
 				{/* Right column: Value viewer */}
-				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg flex flex-col max-h-[400px]">
-					<div className="border-b border-zinc-200 dark:border-zinc-900 text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
+				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg flex flex-col h-[400px]">
+					<div className="text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
 						Value
 					</div>
+					<Separator />
 					<div className="flex-1 overflow-y-auto p-4">
 						{selectedKey ? (
 							<div>

@@ -1,5 +1,6 @@
 import { CodeBracketIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
+import { Button } from './ui';
 import { JsonDisplay } from './JsonDisplay';
 
 // Mock terminal log entries
@@ -216,20 +217,15 @@ export function HandlerContextDemo() {
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
 				<div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))]">
 					{endpoints.map((ep) => (
-						<button
+						<Button
 							key={ep.id}
 							onClick={() => callEndpoint(ep.id)}
 							disabled={loading}
 							title={ep.description}
-							type="button"
-							className={`rounded-md text-sm text-center py-2.5 px-4 transition-all ${
-								lastEndpoint === ep.id
-									? 'bg-blue-100 dark:bg-blue-900/50 border border-blue-400 dark:border-blue-500 text-blue-700 dark:text-white'
-									: 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white'
-							} ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600'}`}
+							variant={lastEndpoint === ep.id ? 'secondary' : 'outline'}
 						>
 							{ep.label}
-						</button>
+						</Button>
 					))}
 				</div>
 			</div>

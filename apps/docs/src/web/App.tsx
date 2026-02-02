@@ -21,6 +21,7 @@ import { TerminalOutput } from './components/TerminalOutput';
 import { ThemeProvider } from './components/ThemeContext';
 import { VectorSearch } from './components/VectorSearch';
 import { useSandboxRunner } from './hooks/useSandboxRunner';
+import { Button, Card, CardContent, CardHeader, CardTitle, Separator } from './components/ui';
 
 // Demo IDs for navigation
 type DemoId =
@@ -524,13 +525,17 @@ function DemoCard({ demo, onClick }: { demo: DemoConfig; onClick: () => void }) 
 		<button
 			type="button"
 			onClick={onClick}
-			className="group bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 text-left
-                 hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors duration-200 cursor-pointer
-                 flex flex-col items-start"
+			className="group text-left cursor-pointer w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
 		>
-			<h3 className="text-zinc-900 dark:text-white font-normal mb-1">{demo.title}</h3>
-			<p className="text-cyan-700 dark:text-cyan-400 text-xs mb-3">{demo.subtitle}</p>
-			<p className="text-zinc-500 text-sm leading-relaxed">{demo.description}</p>
+			<Card className="h-full flex flex-col transition-colors hover:border-zinc-400 dark:hover:border-zinc-600 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50">
+				<CardHeader>
+					<CardTitle className="text-base">{demo.title}</CardTitle>
+					<p className="text-cyan-700 dark:text-cyan-400 text-xs">{demo.subtitle}</p>
+				</CardHeader>
+				<CardContent className="flex-1">
+					<p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">{demo.description}</p>
+				</CardContent>
+			</Card>
 		</button>
 	);
 }
@@ -623,25 +628,27 @@ function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 	return (
 		<div className="min-h-screen flex flex-col">
 			{/* Header: Back navigation */}
-			<header className="flex items-center justify-between px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
-				<button
-					type="button"
+			<header className="flex items-center justify-between px-6 py-3 bg-zinc-50 dark:bg-zinc-950">
+				<Button
+					variant="ghost"
+					size="sm"
 					onClick={onBack}
-					className="flex items-center px-2 py-1 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
+					className="flex items-center gap-1"
 				>
-					<ChevronLeftIcon className="w-4 h-4 mr-1.5" />
+					<ChevronLeftIcon className="size-4" />
 					<span>Back to Explorer</span>
-				</button>
+				</Button>
 			</header>
+			<Separator />
 
 			{/* Split layout: top/bottom on mobile, left/right on desktop */}
-			<div className="flex-1 flex flex-col lg:grid lg:grid-cols-[55fr_45fr] min-h-0">
+			<main className="flex-1 flex flex-col lg:grid lg:grid-cols-[55fr_45fr] min-h-0">
 				{/* Top (mobile) / Left (desktop): Interactive demo */}
 				<div className="flex-1 lg:h-full overflow-auto lg:border-r border-b lg:border-b-0 border-zinc-200 dark:border-zinc-800 p-4 min-w-0">
 					{/* Explanation block with docs link - min-height for visual consistency across pages */}
 					<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4 min-h-[140px]">
 						{/* Header bar - mirrors CodeBlock header style */}
-						<div className="flex items-center justify-between px-4 h-12 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-zinc-900/50">
+						<div className="flex items-center justify-between px-4 h-12 bg-zinc-100/50 dark:bg-zinc-900/50">
 							<h2 className="text-lg font-normal text-cyan-700 dark:text-cyan-400">
 								{demo.title}
 							</h2>
@@ -663,6 +670,7 @@ function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 								</button>
 							)}
 						</div>
+						<Separator />
 						{/* Description body */}
 						<div className="px-4 py-4">
 							<p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">
@@ -704,7 +712,7 @@ function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 						/>
 					)}
 				</div>
-			</div>
+			</main>
 		</div>
 	);
 }

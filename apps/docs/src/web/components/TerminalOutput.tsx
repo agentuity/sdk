@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
+import { Button, Progress, Separator, StatusIndicator } from './ui';
 
 export type TerminalStatus = 'idle' | 'creating' | 'recreating' | 'running' | 'completed' | 'error';
 
@@ -51,35 +52,35 @@ export function TerminalOutput({
 		}
 	}, [output]);
 
-	const getStatusConfig = (
+	const getStatusIndicatorConfig = (
 		status: TerminalStatus,
 		exitCode: number | null | undefined
-	): { dot: string; text: string } => {
+	): { indicatorStatus: 'idle' | 'pending' | 'running' | 'success' | 'error'; text: string } => {
 		if (status === 'completed') {
 			if (exitCode !== null && exitCode !== undefined && exitCode !== 0) {
-				return { dot: 'bg-red-500', text: 'Failed' };
+				return { indicatorStatus: 'error', text: 'Failed' };
 			}
-			return { dot: 'bg-green-500', text: 'Completed' };
+			return { indicatorStatus: 'success', text: 'Completed' };
 		}
-		const statusConfig: Record<TerminalStatus, { dot: string; text: string }> = {
-			idle: { dot: 'bg-zinc-500', text: 'Ready' },
-			creating: { dot: 'bg-yellow-500 animate-pulse', text: 'Creating sandbox' },
-			recreating: { dot: 'bg-yellow-500 animate-pulse', text: 'Recreating sandbox' },
-			running: { dot: 'bg-cyan-500 animate-pulse', text: 'Executing' },
-			completed: { dot: 'bg-green-500', text: 'Completed' },
-			error: { dot: 'bg-red-500', text: 'Error' },
+		const statusConfig: Record<TerminalStatus, { indicatorStatus: 'idle' | 'pending' | 'running' | 'success' | 'error'; text: string }> = {
+			idle: { indicatorStatus: 'idle', text: 'Ready' },
+			creating: { indicatorStatus: 'pending', text: 'Creating sandbox' },
+			recreating: { indicatorStatus: 'pending', text: 'Recreating sandbox' },
+			running: { indicatorStatus: 'running', text: 'Executing' },
+			completed: { indicatorStatus: 'success', text: 'Completed' },
+			error: { indicatorStatus: 'error', text: 'Error' },
 		};
 		return statusConfig[status];
 	};
 
-	const { dot, text } = getStatusConfig(status, exitCode);
+	const { indicatorStatus, text } = getStatusIndicatorConfig(status, exitCode);
 
 	return (
 		<div className="flex flex-col bg-zinc-100 dark:bg-zinc-900 rounded-lg border border-zinc-300 dark:border-zinc-700 overflow-hidden flex-shrink-0">
 			{/* Header */}
-			<div className="flex items-center justify-between px-4 h-10 border-b border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-800/50">
+			<div className="flex items-center justify-between px-4 h-10 bg-zinc-200/50 dark:bg-zinc-800/50">
 				<div className="flex items-center gap-2">
-					<div className={`w-2 h-2 rounded-full ${dot}`} />
+					<StatusIndicator status={indicatorStatus} label={text} showLabel={false} />
 					<span className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
 						{text}
 					</span>
@@ -92,15 +93,34 @@ export function TerminalOutput({
 					)}
 				</div>
 				{(output || error) && onClear && (
-					<button
-						type="button"
-						onClick={onClear}
-						className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors cursor-pointer"
-					>
+					<Button variant="ghost" size="xs" onClick={onClear}>
 						Clear
-					</button>
+					</Button>
 				)}
 			</div>
+			<Separator className="bg-zinc-300 dark:bg-zinc-700" />
+
+			{/* Progress bar for sandbox creation */}
+			{(status === 'creating' || status === 'recreating') && (
+				<>
+					<div className="px-4 py-2">
+						<div className="flex items-center justify-between mb-1.5">
+							<span className="text-xs text-yellow-600 dark:text-yellow-400">
+								{CREATING_MESSAGES[creatingMessageIndex] ?? 'Creating sandbox'}
+							</span>
+							<span className="text-xs text-zinc-500 dark:text-zinc-400">
+								{Math.round(((creatingMessageIndex + 1) / CREATING_MESSAGES.length) * 100)}%
+							</span>
+						</div>
+						<Progress
+							value={((creatingMessageIndex + 1) / CREATING_MESSAGES.length) * 100}
+							indicatorClassName="bg-yellow-500 dark:bg-yellow-400"
+							className="h-1.5"
+						/>
+					</div>
+					<Separator className="bg-zinc-300 dark:bg-zinc-700" />
+				</>
+			)}
 
 			{/* Output */}
 			<div
@@ -109,11 +129,6 @@ export function TerminalOutput({
 			>
 				{status === 'idle' && !output && !error && (
 					<span className="text-zinc-400 dark:text-zinc-600">Output will appear here...</span>
-				)}
-				{status === 'creating' && !output && (
-					<span data-loading="true" className="text-yellow-600 dark:text-yellow-400">
-						{CREATING_MESSAGES[creatingMessageIndex] ?? 'Creating sandbox'}
-					</span>
 				)}
 				{status === 'running' && !output && (
 					<span data-loading="true" className="text-cyan-600 dark:text-cyan-400">

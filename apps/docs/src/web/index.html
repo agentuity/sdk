@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link rel="icon" type="image/x-icon" href="./public/favicon.ico" />
+		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 		<title>Agentuity SDK Explorer</title>
 		<!-- Prevent flash of wrong theme -->
 		<script>
@@ -34,7 +34,80 @@
 				--color-cyan-900: #003333;
 				--color-cyan-950: #001919;
 
+				/* Theme Colors */
+				--color-background: hsl(var(--background));
+				--color-foreground: hsl(var(--foreground));
+				--color-card: hsl(var(--card));
+				--color-card-foreground: hsl(var(--card-foreground));
+				--color-popover: hsl(var(--popover));
+				--color-popover-foreground: hsl(var(--popover-foreground));
+				--color-primary: hsl(var(--primary));
+				--color-primary-foreground: hsl(var(--primary-foreground));
+				--color-secondary: hsl(var(--secondary));
+				--color-secondary-foreground: hsl(var(--secondary-foreground));
+				--color-muted: hsl(var(--muted));
+				--color-muted-foreground: hsl(var(--muted-foreground));
+				--color-accent: hsl(var(--accent));
+				--color-accent-foreground: hsl(var(--accent-foreground));
+				--color-destructive: hsl(var(--destructive));
+				--color-destructive-foreground: hsl(var(--destructive-foreground));
+				--color-border: hsl(var(--border));
+				--color-input: hsl(var(--input));
+				--color-ring: hsl(var(--ring));
+
+				/* Border Radiuses */
+				--radius-lg: var(--radius);
+				--radius-md: calc(var(--radius) - 2px);
+				--radius-sm: calc(var(--radius) - 4px);
+
 				--animate-ellipsis: ellipsis 1.5s steps(4, end) infinite;
+			}
+
+			/* Light mode CSS variables */
+			:root {
+				--background: 0 0% 100%;
+				--foreground: 240 10% 3.9%;
+				--card: 0 0% 100%;
+				--card-foreground: 240 10% 3.9%;
+				--popover: 0 0% 100%;
+				--popover-foreground: 240 10% 3.9%;
+				--primary: 240 5.9% 10%;
+				--primary-foreground: 0 0% 98%;
+				--secondary: 240 4.8% 95.9%;
+				--secondary-foreground: 240 5.9% 10%;
+				--muted: 240 4.8% 95.9%;
+				--muted-foreground: 240 3.8% 46.1%;
+				--accent: 240 4.8% 95.9%;
+				--accent-foreground: 240 5.9% 10%;
+				--destructive: 347 77% 50%;
+				--destructive-foreground: 0 0% 98%;
+				--border: 240 5.9% 90%;
+				--input: 240 5.9% 90%;
+				--ring: 240 10% 3.9%;
+				--radius: 0.5rem;
+			}
+
+			/* Dark mode CSS variables */
+			.dark {
+				--background: 240 10% 3.9%;
+				--foreground: 0 0% 98%;
+				--card: 240 10% 3.9%;
+				--card-foreground: 0 0% 98%;
+				--popover: 240 10% 3.9%;
+				--popover-foreground: 0 0% 98%;
+				--primary: 0 0% 98%;
+				--primary-foreground: 240 5.9% 10%;
+				--secondary: 240 3.7% 15.9%;
+				--secondary-foreground: 0 0% 98%;
+				--muted: 240 3.7% 15.9%;
+				--muted-foreground: 240 5% 64.9%;
+				--accent: 240 3.7% 15.9%;
+				--accent-foreground: 0 0% 98%;
+				--destructive: 345 83% 41%;
+				--destructive-foreground: 0 0% 98%;
+				--border: 240 3.7% 15.9%;
+				--input: 240 3.7% 15.9%;
+				--ring: 240 4.9% 83.9%;
 			}
 
 			@keyframes ellipsis {
@@ -80,6 +153,16 @@
 
 			.dark .line-highlight-important {
 				background-color: rgba(0, 255, 255, 0.12);
+			}
+
+			/* Base layer */
+			* {
+				border-color: var(--color-border);
+			}
+
+			body {
+				background-color: var(--color-background);
+				color: var(--color-foreground);
 			}
 		</style>
 		<script type="module" src="./frontend.tsx" async></script>

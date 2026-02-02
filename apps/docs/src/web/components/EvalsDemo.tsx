@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Separator } from './ui';
 
 interface EvalResultData {
 	passed: boolean;
@@ -157,15 +158,13 @@ export function EvalsDemo() {
 							Explain what AI is and how it works in a few brief sentences
 						</div>
 					</div>
-					<button
+					<Button
 						onClick={generate}
 						disabled={status === 'generating' || status === 'polling'}
 						type="button"
-						className={`rounded-md text-sm font-medium px-6 py-3 self-start ${
-							status === 'generating' || status === 'polling'
-								? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed'
-								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
-						}`}
+						variant="outline"
+						size="default"
+						className="self-start"
 					>
 						{status === 'generating' ? (
 							<span data-loading="true">Generating</span>
@@ -174,7 +173,7 @@ export function EvalsDemo() {
 						) : (
 							'Generate Explanation'
 						)}
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -186,9 +185,10 @@ export function EvalsDemo() {
 
 			{status === 'generating' && (
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg overflow-hidden animate-pulse">
-					<div className="border-b border-zinc-200 dark:border-zinc-900 px-4 py-3">
+					<div className="px-4 py-3">
 						<div className="h-5 w-40 bg-zinc-200 dark:bg-zinc-800 rounded" />
 					</div>
+					<Separator />
 					<div className="p-4 space-y-2">
 						<div className="h-4 w-full bg-zinc-200 dark:bg-zinc-800 rounded" />
 						<div className="h-4 w-3/4 bg-zinc-200 dark:bg-zinc-800 rounded" />
@@ -199,7 +199,7 @@ export function EvalsDemo() {
 
 			{generatedContent && (
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg overflow-hidden">
-					<div className="border-b border-zinc-200 dark:border-zinc-900 px-4 py-3 flex justify-between items-center">
+					<div className="px-4 py-3 flex justify-between items-center">
 						<span className="text-zinc-900 dark:text-white font-medium">
 							Generated Response
 						</span>
@@ -209,6 +209,7 @@ export function EvalsDemo() {
 							</span>
 						)}
 					</div>
+					<Separator />
 					<div className="p-4">
 						<p className="text-zinc-700 dark:text-zinc-300 text-sm whitespace-pre-wrap">
 							{generatedContent}
@@ -219,7 +220,7 @@ export function EvalsDemo() {
 
 			{(status === 'polling' || status === 'done') && (
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg overflow-hidden">
-					<div className="border-b border-zinc-200 dark:border-zinc-900 px-4 py-3 flex justify-between items-center">
+					<div className="px-4 py-3 flex justify-between items-center">
 						<span className="text-zinc-900 dark:text-white font-medium">
 							Evaluation Results
 						</span>
@@ -227,6 +228,7 @@ export function EvalsDemo() {
 							<span className="text-green-600 dark:text-green-400 text-xs">Complete</span>
 						)}
 					</div>
+					<Separator />
 					<div className="p-4 space-y-4">
 						{evalResults.length === 0 && status === 'polling' && (
 							<>

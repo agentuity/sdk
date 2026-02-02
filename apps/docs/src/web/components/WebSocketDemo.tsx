@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Input } from './ui';
 
 interface Message {
 	id: number;
@@ -234,20 +235,14 @@ export function WebSocketDemo() {
 
 				{/* Connection Controls */}
 				<div className="flex items-center gap-4 mb-4">
-					<button
-						type="button"
+					<Button
+						variant={isConnected ? 'destructive' : 'outline'}
+						size="sm"
 						onClick={isConnected ? disconnect : () => connect()}
 						disabled={isConnecting}
-						className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
-							isConnected
-								? 'bg-red-600 hover:bg-red-700 text-white'
-								: isConnecting
-									? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
-									: 'bg-cyan-400 hover:bg-cyan-300 text-black'
-						}`}
 					>
 						{isConnecting ? 'Connecting...' : isConnected ? 'Disconnect' : 'Connect'}
-					</button>
+					</Button>
 
 					<div className="flex items-center gap-2">
 						<div
@@ -269,35 +264,36 @@ export function WebSocketDemo() {
 					</div>
 
 					{messages.length > 0 && (
-						<button
-							type="button"
+						<Button
+							variant="ghost"
+							size="xs"
 							onClick={clearMessages}
-							className="px-3 py-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+							className="text-zinc-500 hover:text-zinc-300"
 						>
 							Clear messages
-						</button>
+						</Button>
 					)}
 				</div>
 
 				{/* Message Input */}
-				<div className="flex gap-2 mb-4">
-					<input
+				<div className="flex items-center gap-2 mb-4">
+					<Input
 						type="text"
 						value={inputValue}
 						onChange={(e) => setInputValue(e.target.value)}
 						onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
 						placeholder={isConnected ? 'Type a message...' : 'Connect first...'}
 						disabled={!isConnected}
-						className="flex-1 bg-black border border-zinc-800 rounded px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 disabled:opacity-50"
+						className="flex-1"
 					/>
-					<button
-						type="button"
+					<Button
+						variant="outline"
+						size="default"
 						onClick={sendMessage}
 						disabled={!isConnected || !inputValue.trim()}
-						className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 disabled:bg-zinc-800 disabled:text-zinc-600 text-black rounded transition-colors"
 					>
 						Send
-					</button>
+					</Button>
 				</div>
 
 				{/* Messages */}
@@ -316,7 +312,7 @@ export function WebSocketDemo() {
 									<span
 										className={`text-xs font-medium ${
 											msg.type === 'sent'
-												? 'text-cyan-400'
+												? 'text-cyan-500'
 												: msg.type === 'heartbeat'
 													? 'text-zinc-500'
 													: 'text-zinc-400'
@@ -346,7 +342,7 @@ export function WebSocketDemo() {
 
 				<div className="grid grid-cols-2 gap-4">
 					<div className="space-y-2">
-						<h3 className="text-cyan-400 font-medium">WebSocket</h3>
+						<h3 className="text-cyan-500 font-medium">WebSocket</h3>
 						<ul className="text-sm text-zinc-400 space-y-1">
 							<li>Bidirectional (client + server)</li>
 							<li>Single persistent connection</li>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Button } from './ui';
 
 interface LogEntry {
 	time: string;
@@ -84,26 +85,22 @@ export function CronDemo() {
 						</span>
 					</div>
 					<div className="flex items-center gap-2">
-						<button
+						<Button
 							onClick={startSimulation}
 							disabled={isRunning}
-							type="button"
-							className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-sm px-4 py-2 ${
-								isRunning
-									? 'opacity-50 cursor-not-allowed'
-									: 'cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
-							}`}
+							variant="outline"
+							size="sm"
 						>
 							{isRunning ? 'Running...' : logs.length > 0 ? 'Run Again' : 'Start Simulation'}
-						</button>
+						</Button>
 						{logs.length > 0 && !isRunning && (
-							<button
+							<Button
 								onClick={reset}
-								type="button"
-								className="bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md text-zinc-700 dark:text-zinc-300 text-sm px-4 py-2 cursor-pointer hover:bg-zinc-300 dark:hover:bg-zinc-700"
+								variant="ghost"
+								size="sm"
 							>
 								Reset
-							</button>
+							</Button>
 						)}
 					</div>
 				</div>
@@ -121,9 +118,9 @@ export function CronDemo() {
 				<div className="bg-[#0a1f0a] border border-green-900/50 rounded-lg p-3 font-mono text-xs">
 					<div className="flex items-center gap-2 mb-2 pb-2 border-b border-green-900/30">
 						<div className="flex gap-1.5">
-							<div className="w-2 h-2 rounded-full bg-red-500/70" />
-							<div className="w-2 h-2 rounded-full bg-yellow-500/70" />
-							<div className="w-2 h-2 rounded-full bg-green-500/70" />
+							<span className="h-2 w-2 rounded-full bg-red-500/70" />
+							<span className="h-2 w-2 rounded-full bg-yellow-500/70" />
+							<span className="h-2 w-2 rounded-full bg-green-500/70" />
 						</div>
 						<span className="text-green-600 text-[10px]">Simulated Cron Output</span>
 					</div>

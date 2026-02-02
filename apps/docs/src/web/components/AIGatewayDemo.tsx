@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import Markdown from 'react-markdown';
+import { Badge, Button, Separator, StatusIndicator } from './ui';
 
 interface ModelResponse {
 	model: string;
@@ -190,28 +191,22 @@ export function AIGatewayDemo() {
 						</span>
 						<div className="flex flex-wrap gap-2">
 							{AVAILABLE_MODELS.map((model) => (
-								<button
+								<Button
 									key={model.id}
 									onClick={() => toggleModel(model.id)}
 									disabled={isRunning}
-									type="button"
-									className={`rounded-md text-xs px-3 py-2 transition-colors ${
-										selectedModels.includes(model.id)
-											? 'bg-zinc-300 dark:bg-zinc-700 border-2 border-zinc-400 dark:border-zinc-500 text-zinc-900 dark:text-white'
-											: 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600'
-									} ${isRunning ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+									variant={selectedModels.includes(model.id) ? 'toggle-active' : 'toggle'}
+									size="xs"
 								>
 									<span className={getProviderColor(model.id)}>{model.provider}</span>
 									<span className="text-zinc-500 mx-1">/</span>
 									<span className="font-mono">{model.id}</span>
-								</button>
+								</Button>
 							))}
 						</div>
-						{selectedModels.length < 2 && (
-							<p className="text-amber-600 dark:text-yellow-500 text-xs mt-2">
-								Select at least 2 models to compare
-							</p>
-						)}
+						<p className={`text-amber-600 dark:text-yellow-500 text-xs mt-2 ${selectedModels.length >= 2 ? 'invisible' : ''}`}>
+							Select at least 2 models to compare
+						</p>
 					</div>
 
 					{/* Prompt Display */}
@@ -225,18 +220,15 @@ export function AIGatewayDemo() {
 					</div>
 
 					{/* Run Button */}
-					<button
+					<Button
 						onClick={runComparison}
 						disabled={isRunning || selectedModels.length < 2}
-						type="button"
-						className={`rounded-md text-sm font-medium px-6 py-3 self-start ${
-							isRunning || selectedModels.length < 2
-								? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed'
-								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
-						}`}
+						variant="outline"
+						size="default"
+						className="self-start"
 					>
 						{isRunning ? 'Running...' : 'Compare Models'}
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -256,13 +248,13 @@ export function AIGatewayDemo() {
 								}`}
 							>
 								{/* Model Header */}
-								<div className="border-b border-zinc-200 dark:border-zinc-900 px-4 py-3 flex justify-between items-center">
-									<div>
-										<span className={getProviderColor(response.model)}>
+								<div className="px-4 py-3 flex justify-between items-center">
+									<div className="flex items-center gap-1.5">
+										<span className={`text-sm font-medium ${getProviderColor(response.model)}`}>
 											{AVAILABLE_MODELS.find((m) => m.id === response.model)?.provider}
 										</span>
-										<span className="text-zinc-500 mx-2">/</span>
-										<span className="text-zinc-900 dark:text-white">
+										<span className="text-zinc-500 text-sm">/</span>
+										<span className="text-zinc-900 dark:text-white text-sm">
 											{getModelLabel(response.model)}
 										</span>
 									</div>
@@ -272,7 +264,7 @@ export function AIGatewayDemo() {
 												<span className="text-zinc-500 dark:text-zinc-600 text-xs">
 													{response.tokens} tokens (est.)
 												</span>
-												<div className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse" />
+												<StatusIndicator status="running" showLabel={false} />
 											</>
 										)}
 										{response.status === 'done' && (
@@ -288,6 +280,7 @@ export function AIGatewayDemo() {
 										)}
 									</div>
 								</div>
+								<Separator />
 
 								{/* Response Content */}
 								<div className="p-4 h-[350px] overflow-y-auto">
