@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/auth",
-	"version": "0.1.44",
+	"version": "0.1.45",
 	"type": "module",
 	"description": "Authentication for Agentuity projects using Agentuity Auth",
 	"repository": {
