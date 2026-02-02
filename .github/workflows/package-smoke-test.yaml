@@ -169,13 +169,15 @@ jobs:
          - name: Run cloud deployment tests
            run: bash scripts/test-cloud-deployment.sh
 
-         - name: Upload deployment logs
-           if: failure()
-           uses: actions/upload-artifact@v4
-           with:
-              name: deployment-logs
-              path: ~/.config/agentuity/logs/
-              if-no-files-found: ignore
+         # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
+         # - name: Upload deployment logs
+         #   if: failure()
+         #   uses: actions/upload-artifact@v4
+         #   with:
+         #      name: deployment-logs
+         #      path: ~/.config/agentuity/logs/
+         #      if-no-files-found: ignore
+         #      retention-days: 1
 
          - name: Cleanup
            if: always()
@@ -347,13 +349,14 @@ jobs:
          - name: Run Playwright E2E tests
            run: bash scripts/test-e2e.sh
 
-         - name: Upload Playwright report
-           uses: actions/upload-artifact@v4
-           if: always()
-           with:
-              name: playwright-report
-              path: playwright-report/
-              retention-days: 7
+         # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
+         # - name: Upload Playwright report
+         #   uses: actions/upload-artifact@v4
+         #   if: always()
+         #   with:
+         #      name: playwright-report
+         #      path: playwright-report/
+         #      retention-days: 1
 
    framework-demo-test:
       runs-on: blacksmith-4vcpu-ubuntu-2204
@@ -387,10 +390,11 @@ jobs:
            timeout-minutes: 8
            run: bash scripts/test-framework-demos.sh --skip-build
 
-         - name: Upload Playwright report
-           uses: actions/upload-artifact@v4
-           if: always()
-           with:
-              name: framework-demo-playwright-report
-              path: playwright-report/
-              retention-days: 7
+         # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
+         # - name: Upload Playwright report
+         #   uses: actions/upload-artifact@v4
+         #   if: always()
+         #   with:
+         #      name: framework-demo-playwright-report
+         #      path: playwright-report/
+         #      retention-days: 1
