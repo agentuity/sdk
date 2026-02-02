@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "projectRoot": "/home/huijiro/Dev/agentuity/sdk/apps/testing/svelte-app",
+  "mainPid": 269879,
+  "instanceId": "cceadac6-7e89-496b-82e3-14dc6e5d0b95",
+  "createdAt": "2026-02-02T16:53:47.935Z",
+  "updatedAt": "2026-02-02T16:53:48.234Z",
+  "ports": {
+    "bun": 3500,
+    "vite": 5173
+  },
+  "children": []
+}

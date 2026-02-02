@@ -1,0 +1,9 @@
+{
+	"dependencies": {
+		"@agentuity/svelte": "workspace:*"
+	},
+	"devDependencies": {
+		"@sveltejs/vite-plugin-svelte": "^5.0.3",
+		"svelte": "^5.0.0"
+	}
+}

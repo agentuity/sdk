@@ -66,16 +66,17 @@ export async function generateAssetServerConfig(
 
 		resolve: {
 			alias,
-			// Deduplicate React to prevent multiple instances
+			// Deduplicate React to prevent multiple instances (only for React projects)
 			dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
 		},
 
-		// Pre-bundle dependencies to avoid React preamble issues with pre-built JSX
+		// Pre-bundle dependencies to avoid framework preamble issues with pre-built JSX/components
 		// Only include @agentuity/workbench if workbench is enabled
+		// Use appropriate frontend package based on framework detection (set in plugins IIFE below)
 		optimizeDeps: {
 			include: workbenchPath
-				? ['@agentuity/workbench', '@agentuity/core', '@agentuity/react']
-				: ['@agentuity/core', '@agentuity/react'],
+				? ['@agentuity/workbench', '@agentuity/core']
+				: ['@agentuity/core'],
 		},
 
 		// Only allow frontend env vars (server uses process.env)
@@ -119,23 +120,34 @@ export async function generateAssetServerConfig(
 			'process.env.NODE_ENV': JSON.stringify('development'),
 		},
 
-		// Plugins: User plugins first (e.g., Tailwind), then React and browser env
+		// Plugins: User plugins first (e.g., Tailwind), then framework plugin and browser env
 		// Try project's node_modules first, fall back to CLI's bundled version
 		plugins: await (async () => {
 			const projectRequire = createRequire(join(rootDir, 'package.json'));
-			let reactPluginPath = '@vitejs/plugin-react';
+
+			// Detect if project uses Svelte
+			const { detectSvelteProject } = await import('./vite-builder');
+			const isSvelteProject = await detectSvelteProject(rootDir);
+
+			// Load appropriate framework plugin
+			let frameworkPluginPath = isSvelteProject
+				? '@sveltejs/vite-plugin-svelte'
+				: '@vitejs/plugin-react';
 			try {
-				reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+				frameworkPluginPath = projectRequire.resolve(frameworkPluginPath);
 			} catch {
-				// Project doesn't have @vitejs/plugin-react, use CLI's bundled version
+				// Project doesn't have the framework plugin, use CLI's bundled version
 			}
-			const reactPlugin = (await import(reactPluginPath)).default();
+			const frameworkModule = await import(frameworkPluginPath);
+			// Svelte plugin exports { svelte }, React plugin exports default
+			const frameworkPlugin = isSvelteProject ? frameworkModule.svelte() : frameworkModule.default();
+
 			const { browserEnvPlugin } = await import('./browser-env-plugin');
 			return [
 				// User-defined plugins from agentuity.config.ts (e.g., Tailwind CSS)
 				...userPlugins,
-				// React plugin for JSX/TSX transformation and Fast Refresh
-				reactPlugin,
+				// Framework plugin for component transformation (React or Svelte)
+				frameworkPlugin,
 				// Browser env plugin to map process.env to import.meta.env
 				browserEnvPlugin(),
 			];

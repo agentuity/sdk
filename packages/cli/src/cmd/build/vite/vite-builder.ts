@@ -17,7 +17,7 @@ import type { BuildReportCollector } from '../../../build-report';
  * Detect if a project uses Svelte by checking for .svelte files in src/web
  * or svelte dependency in package.json
  */
-async function detectSvelteProject(rootDir: string): Promise<boolean> {
+export async function detectSvelteProject(rootDir: string): Promise<boolean> {
 	// Check for .svelte files in src/web directory
 	const webDir = join(rootDir, 'src', 'web');
 	if (existsSync(webDir)) {

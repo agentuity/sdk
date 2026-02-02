@@ -1,0 +1,18 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"outDir": "./.agentuity",
+		"rootDir": ".",
+		"allowImportingTsExtensions": true,
+		"noEmit": true,
+		"lib": ["ESNext", "DOM"],
+		"types": ["bun-types"],
+		"skipLibCheck": true,
+		"paths": {
+			"@agent/*": ["./src/agent/*"],
+			"@api/*": ["./src/api/*"]
+		}
+	},
+	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],
+	"exclude": ["node_modules", ".agentuity"]
+}

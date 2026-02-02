@@ -1,0 +1,27 @@
+{
+	"name": "svelte-app",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "bun ../../../packages/cli/bin/cli.ts build --dir . --dev",
+		"dev": "bun ../../../packages/cli/bin/cli.ts dev --dir .",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"@agentuity/svelte": "workspace:*",
+		"hono": "^4.7.13"
+	},
+	"devDependencies": {
+		"@sveltejs/vite-plugin-svelte": "^5.0.3",
+		"@types/bun": "latest",
+		"svelte": "^5.0.0",
+		"typescript": "^5.9.0"
+	}
+}
