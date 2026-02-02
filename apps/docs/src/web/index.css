@@ -1,0 +1,163 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+	--background: oklch(1 0 0);
+	--foreground: oklch(0.141 0.005 285.823);
+	--card: oklch(1 0 0);
+	--card-foreground: oklch(0.141 0.005 285.823);
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0.141 0.005 285.823);
+	--primary: oklch(0.205 0.006 285.885);
+	--primary-foreground: oklch(0.985 0 0);
+	--secondary: oklch(0.967 0.001 286.375);
+	--secondary-foreground: oklch(0.21 0.006 285.885);
+	--muted: oklch(0.967 0.001 286.375);
+	--muted-foreground: oklch(0.552 0.016 285.938);
+	--accent: oklch(0.967 0.001 286.375);
+	--accent-foreground: oklch(0.21 0.006 285.885);
+	--destructive: oklch(0.577 0.245 27.325);
+	--destructive-foreground: oklch(0.985 0 0);
+	--border: oklch(0.92 0.004 286.32);
+	--input: oklch(0.92 0.004 286.32);
+	--ring: oklch(0.705 0.015 286.067);
+	--radius: 0.5rem;
+
+	/* Agentuity brand cyan */
+	--cyan-50: #e5ffff;
+	--cyan-100: #ccffff;
+	--cyan-200: #99ffff;
+	--cyan-300: #66ffff;
+	--cyan-400: #33ffff;
+	--cyan-500: #00ffff;
+	--cyan-600: #00cccc;
+	--cyan-700: #009999;
+	--cyan-800: #006666;
+	--cyan-900: #003333;
+	--cyan-950: #001919;
+}
+
+.dark {
+	--background: oklch(0.141 0.005 285.823);
+	--foreground: oklch(0.985 0 0);
+	--card: oklch(0.141 0.005 285.823);
+	--card-foreground: oklch(0.985 0 0);
+	--popover: oklch(0.141 0.005 285.823);
+	--popover-foreground: oklch(0.985 0 0);
+	--primary: oklch(0.985 0 0);
+	--primary-foreground: oklch(0.205 0.006 285.885);
+	--secondary: oklch(0.274 0.006 286.033);
+	--secondary-foreground: oklch(0.985 0 0);
+	--muted: oklch(0.274 0.006 286.033);
+	--muted-foreground: oklch(0.705 0.015 286.067);
+	--accent: oklch(0.274 0.006 286.033);
+	--accent-foreground: oklch(0.985 0 0);
+	--destructive: oklch(0.704 0.191 22.216);
+	--destructive-foreground: oklch(0.985 0 0);
+	--border: oklch(1 0 0 / 10%);
+	--input: oklch(1 0 0 / 15%);
+	--ring: oklch(0.552 0.016 285.938);
+}
+
+@theme inline {
+	/* Agentuity brand cyan */
+	--color-cyan-50: var(--cyan-50);
+	--color-cyan-100: var(--cyan-100);
+	--color-cyan-200: var(--cyan-200);
+	--color-cyan-300: var(--cyan-300);
+	--color-cyan-400: var(--cyan-400);
+	--color-cyan-500: var(--cyan-500);
+	--color-cyan-600: var(--cyan-600);
+	--color-cyan-700: var(--cyan-700);
+	--color-cyan-800: var(--cyan-800);
+	--color-cyan-900: var(--cyan-900);
+	--color-cyan-950: var(--cyan-950);
+
+	/* Theme Colors */
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+
+	/* Border Radiuses */
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+	--radius-2xl: calc(var(--radius) + 8px);
+	--radius-3xl: calc(var(--radius) + 12px);
+	--radius-4xl: calc(var(--radius) + 16px);
+
+	--animate-ellipsis: ellipsis 1.5s steps(4, end) infinite;
+}
+
+@keyframes ellipsis {
+	0% {
+		content: '.';
+	}
+	25% {
+		content: '..';
+	}
+	50% {
+		content: '...';
+	}
+	75% {
+		content: '';
+	}
+}
+
+[data-loading='true'] {
+	display: inline;
+	white-space: nowrap;
+}
+
+[data-loading='true']::after {
+	content: '.';
+	display: inline;
+	white-space: nowrap;
+	animation: var(--animate-ellipsis);
+}
+
+/* Monaco editor line highlighting */
+.line-highlight-subtle {
+	background-color: rgba(255, 255, 0, 0.1);
+}
+
+.line-highlight-important {
+	background-color: rgba(0, 255, 255, 0.15);
+}
+
+/* Dark mode variants */
+.dark .line-highlight-subtle {
+	background-color: rgba(255, 255, 0, 0.08);
+}
+
+.dark .line-highlight-important {
+	background-color: rgba(0, 255, 255, 0.12);
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+}

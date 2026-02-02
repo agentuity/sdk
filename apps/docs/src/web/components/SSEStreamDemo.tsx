@@ -198,7 +198,7 @@ export function SSEStreamDemo() {
 								Model
 							</label>
 							<Select value={model} onValueChange={setModel} disabled={isStreaming}>
-								<SelectTrigger>
+								<SelectTrigger className="w-full">
 									<SelectValue placeholder="Select a model..." />
 								</SelectTrigger>
 								<SelectContent>
