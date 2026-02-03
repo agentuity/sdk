@@ -465,26 +465,35 @@ $ARGUMENTS
 
 ## Cadence Workflow
 
-1. **Initialize loop state**:
+1. **FIRST: Establish PRD with Product** (REQUIRED):
+   - Ask @Agentuity Coder Product to establish/validate the PRD for this task
+   - Product will check for existing PRD or create one
+   - This defines "what" we're building and success criteria
+
+2. **Initialize loop state**:
    - Generate loop ID (format: \`lp_short_name_01\`)
    - Store in KV: \`agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...}'\`
+   - Link session planning to PRD via \`prdKey\`
 
-2. **Each iteration**:
+3. **Each iteration**:
    - Ask @Agentuity Coder Memory for relevant context
    - Use @Agentuity Coder Scout to understand what's needed
-   - For complex planning, use extended thinking (ultrathink)
+   - For complex planning, use extended thinking (ultrathink) — ground in PRD requirements
    - Delegate implementation to **@Agentuity Coder Architect** (preferred for Cadence)
    - Have @Agentuity Coder Reviewer verify the work
    - Tell @Agentuity Coder Memory to store checkpoint
 
-3. **When truly complete**, output:
+4. **When truly complete**, output:
 \`\`\`
 <promise>DONE</promise>
 \`\`\`
 
-4. **Tell @Agentuity Coder Memory to memorialize** the completed session
+5. **Finalize**:
+   - Tell @Agentuity Coder Product to update the PRD with completed work
+   - Tell @Agentuity Coder Memory to memorialize the session
 
 ## Guidelines
+- **Product first** — Always establish PRD before starting work
 - **Use Architect for implementation** — Architect has GPT Codex with maximum reasoning, ideal for autonomous work
 - Use regular Builder only for trivial fixes within an iteration
 - Ask Memory for context at each iteration start
