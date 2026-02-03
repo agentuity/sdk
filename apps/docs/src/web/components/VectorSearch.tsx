@@ -230,7 +230,7 @@ export function VectorSearch() {
 					{/* AI Recommendation */}
 					{result.recommendation && (
 						<div className="bg-blue-100/50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-900 rounded-lg p-6">
-							<h3 className="text-cyan-700 dark:text-cyan-400 text-sm font-medium m-0 mb-3">
+							<h3 className="text-cyan-600 dark:text-cyan-400 text-sm font-medium m-0 mb-3">
 								AI Recommendation
 							</h3>
 							<p className="text-zinc-700 dark:text-slate-200 text-[15px] leading-relaxed m-0">
@@ -271,7 +271,7 @@ export function VectorSearch() {
 											<div
 												className={`text-[15px] font-medium ${
 													match.sku === result.recommendedSKU
-														? 'text-cyan-700 dark:text-cyan-400'
+														? 'text-cyan-600 dark:text-cyan-400'
 														: 'text-zinc-900 dark:text-white'
 												}`}
 											>

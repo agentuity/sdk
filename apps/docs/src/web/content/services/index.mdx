@@ -1,0 +1,95 @@
+---
+title: Services
+description: Storage, observability, and infrastructure services
+---
+
+import { Database, Search, HardDrive, Server, Activity, Eye, FileText, Route, Bug, Box, Camera } from 'lucide-react';
+
+Agentuity provides built-in services for storage, observability, and code execution.
+
+## Storage
+
+<Cards>
+  <CardLink
+    href="/services/storage/key-value"
+    title="Key-Value"
+    description="Simple key-value storage for caching and state"
+    icon={<Database />}
+  />
+  <CardLink
+    href="/services/storage/vector"
+    title="Vector"
+    description="Semantic search with embeddings"
+    icon={<Search />}
+  />
+  <CardLink
+    href="/services/storage/object"
+    title="Object"
+    description="Store files and binary data"
+    icon={<HardDrive />}
+  />
+  <CardLink
+    href="/services/storage/database"
+    title="Database"
+    description="PostgreSQL database access"
+    icon={<Server />}
+  />
+  <CardLink
+    href="/services/storage/durable-streams"
+    title="Durable Streams"
+    description="Persistent message streams"
+    icon={<Activity />}
+  />
+  <CardLink
+    href="/services/storage/custom"
+    title="Custom Storage"
+    description="Bring your own storage implementation"
+    icon={<Box />}
+  />
+</Cards>
+
+## Observability
+
+<Cards>
+  <CardLink
+    href="/services/observability/logging"
+    title="Logging"
+    description="Structured logging with ctx.logger"
+    icon={<FileText />}
+  />
+  <CardLink
+    href="/services/observability/tracing"
+    title="Tracing"
+    description="Distributed tracing for debugging"
+    icon={<Route />}
+  />
+  <CardLink
+    href="/services/observability/sessions-debugging"
+    title="Sessions & Debugging"
+    description="View request history and debug issues"
+    icon={<Bug />}
+  />
+</Cards>
+
+## Sandbox
+
+<Cards>
+  <CardLink
+    href="/services/sandbox"
+    title="Sandbox Overview"
+    description="Execute code in isolated containers"
+    icon={<Box />}
+  />
+  <CardLink
+    href="/services/sandbox/sdk-usage"
+    title="SDK Usage"
+    description="Use the sandbox from your agents"
+    icon={<Eye />}
+  />
+  <CardLink
+    href="/services/sandbox/snapshots"
+    title="Snapshots"
+    description="Save and restore sandbox state"
+    icon={<Camera />}
+  />
+</Cards>

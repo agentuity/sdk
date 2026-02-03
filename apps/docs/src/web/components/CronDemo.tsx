@@ -77,7 +77,7 @@ export function CronDemo() {
 					<div className="flex flex-col gap-1">
 						<div className="flex items-center gap-3">
 							<span className="text-zinc-500 text-xs uppercase">Schedule:</span>
-							<code className="text-cyan-700 dark:text-cyan-400 text-sm">0 * * * *</code>
+							<code className="text-cyan-600 dark:text-cyan-400 text-sm">0 * * * *</code>
 							<span className="text-zinc-500 dark:text-zinc-600 text-xs">(every hour)</span>
 						</div>
 						<span className="text-zinc-500 dark:text-zinc-600 text-xs">
@@ -179,7 +179,7 @@ function CountdownTimer() {
 	return (
 		<div className="flex items-center justify-center gap-3">
 			<span className="text-zinc-500 text-sm">Next scheduled run in:</span>
-			<span className="text-cyan-700 dark:text-cyan-400 text-2xl font-mono">{seconds}s</span>
+			<span className="text-cyan-600 dark:text-cyan-400 text-2xl font-mono">{seconds}s</span>
 		</div>
 	);
 }

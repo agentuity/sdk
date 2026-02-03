@@ -37,7 +37,7 @@ export function HelloDemo() {
 
 				<div
 					className={`bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md font-mono leading-relaxed px-4 py-3 ${
-						greeting ? 'text-cyan-700 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'
+						greeting ? 'text-cyan-600 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'
 					}`}
 				>
 					{greeting ?? 'Waiting for request'}

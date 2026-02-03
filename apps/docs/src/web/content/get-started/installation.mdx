@@ -1,0 +1,56 @@
+---
+title: Installation
+description: Set up your development environment
+---
+
+## Install the CLI
+
+```bash
+curl -sSL https://agentuity.sh | sh
+```
+
+This installs the `agentuity` CLI globally on your system.
+
+<Callout type="info" title="Alternative: Install via Bun">
+If you prefer package managers: `bun add -g @agentuity/cli`
+</Callout>
+
+## Create a Project
+
+```bash
+agentuity create my-app
+```
+
+This scaffolds a project using the [default template](/reference/cli/getting-started#default-template), which includes a translation agent, API routes, React frontend with Tailwind, and Workbench.
+
+## Start the Dev Server
+
+```bash
+agentuity dev
+# or
+bun run dev
+```
+
+Your project is now running at `http://localhost:3500`. The dev server uses Vite for instant frontend updates and Bun for fast server rebuilds, so changes are reflected immediately.
+
+<Callout type="info" title="Bun Required">
+Agentuity projects run on [Bun](https://bun.sh). If you don't have Bun installed, the CLI will prompt you to install it when you create your first project.
+</Callout>
+
+### CLI Shortcuts
+
+While the dev server is running, use these shortcuts:
+
+| Key | Action |
+|-----|--------|
+| `h` | Show help |
+| `c` | Clear console |
+| `r` | Restart server |
+| `o` | Show API routes |
+| `a` | Show agents |
+| `q` | Quit |
+
+## Next Steps
+
+- [Quickstart](/get-started/quickstart): Build your first agent
+- [Project Structure](/get-started/project-structure): Understand the file layout

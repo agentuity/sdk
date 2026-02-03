@@ -315,7 +315,7 @@ export function StreamingDemo() {
 								),
 								em: ({ children }) => <em className="italic">{children}</em>,
 								code: ({ children }) => (
-									<code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-cyan-700 dark:text-cyan-400 text-xs">
+									<code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-cyan-600 dark:text-cyan-400 text-xs">
 										{children}
 									</code>
 								),
@@ -325,7 +325,7 @@ export function StreamingDemo() {
 						</Markdown>
 					)}
 					{state.status === 'streaming' && (
-						<span className="inline-block w-0.5 h-4 bg-cyan-500 dark:bg-cyan-400 ml-0.5 animate-pulse" />
+						<span className="inline-block w-0.5 h-4 bg-cyan-500 ml-0.5 animate-pulse" />
 					)}
 				</div>
 			</div>

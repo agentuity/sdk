@@ -1,0 +1,77 @@
+---
+title: Agents
+description: Build and configure AI agents
+---
+
+import { Bot, Wrench, Database, Zap, GitBranch, Radio, Gauge, Phone, Play, ClipboardCheck, Calendar } from 'lucide-react';
+
+Agents are the core building blocks of Agentuity. Each agent handles a specific task with schema validation, AI integration, and lifecycle hooks.
+
+<Cards>
+  <CardLink
+    href="/agents/creating-agents"
+    title="Creating Agents"
+    description="Learn how to create agents with schemas and handlers"
+    icon={<Bot />}
+  />
+  <CardLink
+    href="/agents/workbench"
+    title="Workbench"
+    description="Test agents locally with the built-in UI"
+    icon={<Wrench />}
+  />
+  <CardLink
+    href="/agents/schema-libraries"
+    title="Schema Libraries"
+    description="Use Zod, Valibot, or the built-in schema library"
+    icon={<Database />}
+  />
+  <CardLink
+    href="/agents/ai-gateway"
+    title="AI Gateway"
+    description="Route LLM calls through OpenAI, Anthropic, and more"
+    icon={<Zap />}
+  />
+  <CardLink
+    href="/agents/ai-sdk-integration"
+    title="AI SDK Integration"
+    description="Use Vercel AI SDK with Agentuity"
+    icon={<GitBranch />}
+  />
+  <CardLink
+    href="/agents/streaming-responses"
+    title="Streaming Responses"
+    description="Return real-time streaming responses"
+    icon={<Radio />}
+  />
+  <CardLink
+    href="/agents/state-management"
+    title="State Management"
+    description="Persist data with thread and session state"
+    icon={<Gauge />}
+  />
+  <CardLink
+    href="/agents/calling-other-agents"
+    title="Calling Other Agents"
+    description="Build multi-agent systems"
+    icon={<Phone />}
+  />
+  <CardLink
+    href="/agents/standalone-execution"
+    title="Standalone Execution"
+    description="Run agents outside HTTP requests"
+    icon={<Play />}
+  />
+  <CardLink
+    href="/agents/evaluations"
+    title="Evaluations"
+    description="Automated quality checks after each execution"
+    icon={<ClipboardCheck />}
+  />
+  <CardLink
+    href="/agents/events-lifecycle"
+    title="Events & Lifecycle"
+    description="Hook into agent lifecycle events"
+    icon={<Calendar />}
+  />
+</Cards>

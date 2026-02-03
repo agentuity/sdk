@@ -190,7 +190,7 @@ export function WebSocketDemo() {
 	const getMessageStyle = (type: Message['type']) => {
 		switch (type) {
 			case 'sent':
-				return 'bg-cyan-900/30 border-cyan-700/50 ml-8';
+				return 'bg-cyan-900/30 border-cyan-500/50 ml-8';
 			case 'echo':
 				return 'bg-zinc-800/50 border-zinc-700/50 mr-8';
 			case 'heartbeat':
@@ -312,7 +312,7 @@ export function WebSocketDemo() {
 									<span
 										className={`text-xs font-medium ${
 											msg.type === 'sent'
-												? 'text-cyan-500'
+												? 'text-cyan-600 dark:text-cyan-400'
 												: msg.type === 'heartbeat'
 													? 'text-zinc-500'
 													: 'text-zinc-400'
@@ -342,7 +342,7 @@ export function WebSocketDemo() {
 
 				<div className="grid grid-cols-2 gap-4">
 					<div className="space-y-2">
-						<h3 className="text-cyan-500 font-medium">WebSocket</h3>
+						<h3 className="text-cyan-600 dark:text-cyan-400 font-medium">WebSocket</h3>
 						<ul className="text-sm text-zinc-400 space-y-1">
 							<li>Bidirectional (client + server)</li>
 							<li>Single persistent connection</li>

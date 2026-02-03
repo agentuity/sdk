@@ -10,7 +10,7 @@ const buttonVariants = cva(
 			variant: {
 				default: 'bg-primary text-primary-foreground hover:bg-primary/80',
 				outline:
-					'border-border bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 aria-expanded:bg-muted aria-expanded:text-foreground shadow-xs hover:text-cyan-600 dark:hover:text-cyan-400',
+					'border-border bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 aria-expanded:bg-muted aria-expanded:text-foreground shadow-xs hover:text-cyan-500',
 				// Neutral outline - subtle bg hover only (no accent)
 				'outline-neutral':
 					'border-zinc-300 dark:border-zinc-700 bg-transparent text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 disabled:hover:bg-transparent disabled:hover:border-zinc-300 dark:disabled:hover:border-zinc-700',

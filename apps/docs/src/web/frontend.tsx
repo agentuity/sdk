@@ -9,6 +9,8 @@ import './index.css';
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { AgentuityProvider } from '@agentuity/react';
+import { ThemeProvider } from './components/ThemeContext';
 import { App } from './App';
 
 const elem = document.getElementById('root');
@@ -18,7 +20,11 @@ if (!elem) {
 
 const app = (
 	<StrictMode>
-		<App />
+		<ThemeProvider>
+			<AgentuityProvider>
+				<App />
+			</AgentuityProvider>
+		</ThemeProvider>
 	</StrictMode>
 );
 
