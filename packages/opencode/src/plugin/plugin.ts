@@ -64,6 +64,8 @@ You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
 const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'architect'];
 
 // Agent display names for @mentions
+// Note: Monitor has hidden: true so it won't appear in @ autocomplete,
+// but it's still included here for programmatic invocation via Task tool
 const AGENT_MENTIONS: Record<AgentRole, string> = {
 	lead: '@Agentuity Coder Lead',
 	scout: '@Agentuity Coder Scout',
@@ -75,6 +77,7 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	runner: '@Agentuity Coder Runner',
 	reasoner: '@Agentuity Coder Reasoner',
 	product: '@Agentuity Coder Product',
+	monitor: '@Agentuity Coder Monitor',
 };
 
 export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
@@ -93,7 +96,6 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
 	const paramsHooks = createParamsHooks(ctx, coderConfig);
-	const cadenceHooks = createCadenceHooks(ctx, coderConfig);
 	const tmuxManager = coderConfig.tmux?.enabled
 		? new TmuxSessionManager(ctx, coderConfig.tmux, {
 				onLog: (message) =>
@@ -124,9 +126,12 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			: undefined,
 	});
 
+	// Create hooks that need backgroundManager for task reference injection during compaction
+	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager);
+
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
 	// Orchestration (deciding which module handles which session) happens below in the hooks
-	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig);
+	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig, backgroundManager);
 
 	const configHandler = createConfigHandler(coderConfig);
 
@@ -279,6 +284,7 @@ function createAgentConfigs(
 			...(agent.maxSteps !== undefined ? { maxSteps: agent.maxSteps } : {}),
 			...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}),
 			...(agent.thinking ? { thinking: agent.thinking } : {}),
+			...(agent.hidden ? { hidden: agent.hidden } : {}),
 		};
 	}
 
@@ -566,7 +572,8 @@ Use this to:
 - Memory: Store context, remember decisions across sessions
 - Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
 - Expert: Get help with Agentuity CLI and cloud services
-- Runner: Execute lint/build/test/typecheck/format commands, returns structured results`,
+- Runner: Execute lint/build/test/typecheck/format commands, returns structured results
+- Monitor: Watch background tasks and report when they complete (hidden from users)`,
 		args: {
 			agent: s
 				.enum([
@@ -578,6 +585,8 @@ Use this to:
 					'reasoner',
 					'expert',
 					'runner',
+					'product',
+					'monitor',
 				])
 				.describe('Which agent to delegate to'),
 			task: s.string().describe('Clear description of the task'),
@@ -613,6 +622,7 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'expert',
 					'runner',
 					'product',
+					'monitor',
 				])
 				.describe('Agent role to run the task'),
 			task: s.string().describe('Task prompt to run in the background'),

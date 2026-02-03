@@ -10,6 +10,7 @@ import { expertAgent } from './expert';
 import { runnerAgent } from './runner';
 import { reasonerAgent } from './reasoner';
 import { productAgent } from './product';
+import { monitorAgent } from './monitor';
 
 export type { AgentDefinition, AgentRegistry } from './types';
 
@@ -24,6 +25,7 @@ export const agents: Record<AgentRole, AgentDefinition> = {
 	runner: runnerAgent,
 	reasoner: reasonerAgent,
 	product: productAgent,
+	monitor: monitorAgent,
 };
 
 export function getAgent(role: AgentRole): AgentDefinition {

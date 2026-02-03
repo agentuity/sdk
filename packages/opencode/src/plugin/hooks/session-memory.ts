@@ -1,5 +1,6 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
+import type { BackgroundManager } from '../../background';
 
 export interface SessionMemoryHooks {
 	onEvent: (input: {
@@ -20,7 +21,8 @@ export interface SessionMemoryHooks {
  */
 export function createSessionMemoryHooks(
 	ctx: PluginInput,
-	_config: CoderConfig
+	_config: CoderConfig,
+	backgroundManager?: BackgroundManager
 ): SessionMemoryHooks {
 	const log = (msg: string) => {
 		ctx.client.app.log({
@@ -129,6 +131,30 @@ Then continue with the current task if there is one.`,
 			const sessionId = input.sessionID;
 			log(`Compacting session ${sessionId}`);
 
+			// Get active background tasks for this session
+			const tasks = backgroundManager?.getTasksByParent(sessionId) ?? [];
+			let backgroundTaskContext = '';
+
+			if (tasks.length > 0) {
+				const taskList = tasks
+					.map(
+						(t) =>
+							`- **${t.id}**: ${t.description || 'No description'} (session: ${t.sessionId ?? 'pending'}, status: ${t.status})`
+					)
+					.join('\n');
+
+				backgroundTaskContext = `
+
+## Active Background Tasks
+
+This session has ${tasks.length} background task(s) running in separate sessions:
+${taskList}
+
+**CRITICAL:** Task IDs and session IDs persist across compaction - these tasks are still running.
+Use \`agentuity_background_output({ task_id: "..." })\` to check their status.
+`;
+			}
+
 			output.context.push(`
 ## Session Memory
 
@@ -142,7 +168,7 @@ If this session has planning active (user requested "track progress" or similar)
 - \`planning.phases\` - Current phases with status and notes
 - \`planning.findings\` - Discoveries made during work
 - \`planning.errors\` - Failures to avoid repeating
-
+${backgroundTaskContext}
 After compaction:
 1. Memory will save this summary to the session record
 2. If planning is active, Memory should update planning.progress with this compaction
