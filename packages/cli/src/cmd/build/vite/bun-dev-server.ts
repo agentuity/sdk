@@ -1,10 +1,15 @@
 /**
- * Bun Dev Server
+ * Bun Dev Server with Native Hot Reload
  *
  * Runs Bun server that handles ALL app logic (HTTP + WebSocket) and proxies
  * frontend asset requests to Vite asset server for HMR support.
+ *
+ * NEW: Uses Bun's native --hot flag for instant hot module replacement,
+ * eliminating the need for bundling in dev mode. LLM patches are applied
+ * at runtime via a preload script.
  */
 
+import { join } from 'node:path';
 import type { Logger } from '../../../types';
 
 export interface BunDevServerOptions {
@@ -25,159 +30,190 @@ export interface BunDevServerResult {
 }
 
 /**
- * Start Bun dev server (Vite asset server must already be running)
+ * Generate the preload script for LLM patches
+ * This script registers a Bun plugin that intercepts LLM SDK imports
+ * and applies patches for AI Gateway routing at runtime.
+ */
+async function generatePreloadScript(rootDir: string, logger: Logger): Promise<string> {
+	const preloadPath = join(rootDir, '.agentuity', 'preload.ts');
+
+	const preloadScript = `/**
+ * Agentuity Dev Mode Preload Script
+ * Auto-generated - do not edit
  *
- * IMPORTANT: This function assumes that the dev bundle has already been built:
+ * This script registers the LLM patch plugin before any modules are loaded.
+ * It enables AI Gateway routing and OpenTelemetry instrumentation in dev mode.
+ */
+
+import { plugin } from 'bun';
+import { generatePatches, applyPatch } from '@agentuity/cli/cmd/build/patch';
+
+const patches = generatePatches();
+
+plugin({
+  name: 'agentuity:runtime-patch',
+  setup(build) {
+    for (const [name, patch] of patches) {
+      // Build regex to match the module path in node_modules
+      let modulePath: string;
+      if (patch.filename) {
+        // Match specific file within the module
+        const escapedModule = patch.module.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
+        modulePath = \`node_modules[/\\\\\\\\]\${escapedModule}[/\\\\\\\\]\${patch.filename}\\\\.(js|mjs|ts)$\`;
+      } else {
+        // Match index file of the module
+        const escapedModule = patch.module.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
+        const lastPart = patch.module.split('/').pop();
+        modulePath = \`node_modules[/\\\\\\\\]\${escapedModule}[/\\\\\\\\](dist[/\\\\\\\\])?(index|\${lastPart})\\\\.(js|mjs|ts)$\`;
+      }
+
+      const filter = new RegExp(modulePath);
+
+      build.onLoad({ filter, namespace: 'file' }, async (args) => {
+        try {
+          const [contents, loader] = await applyPatch(args.path, patch);
+          return { contents, loader };
+        } catch {
+          // If patching fails, let Bun handle the file normally
+          return undefined;
+        }
+      });
+    }
+  },
+});
+`;
+
+	// Ensure .agentuity directory exists
+	const agentuityDir = join(rootDir, '.agentuity');
+	await Bun.write(join(agentuityDir, '.gitkeep'), '');
+
+	// Write the preload script
+	await Bun.write(preloadPath, preloadScript);
+	logger.debug('Generated preload script at %s', preloadPath);
+
+	return preloadPath;
+}
+
+/**
+ * Start Bun dev server with native hot reload (Vite asset server must already be running)
+ *
+ * NEW ARCHITECTURE (no bundling):
  * - Entry file generated at src/generated/app.ts (with workbench config if enabled)
- * - Bundled to .agentuity/app.js with LLM patches applied
+ * - TypeScript is run directly with Bun (no bundling step)
+ * - LLM patches applied at runtime via preload script
+ * - Bun's --hot flag enables native hot module replacement
  *
- * The bundle is loaded here to ensure AI Gateway routing patches are active.
- * Vite port is read from process.env.VITE_PORT at runtime.
- *
- * When debugger flags (inspect, inspectWait, inspectBrk) are passed, bun is spawned
- * as a subprocess to enable passing the debugger CLI flags.
+ * This eliminates the bundling step entirely, providing:
+ * - Instant startup (no bundling)
+ * - True HMR via Bun's native --hot flag
+ * - Better debugging with original source files
  */
 export async function startBunDevServer(options: BunDevServerOptions): Promise<BunDevServerResult> {
 	const { rootDir, port = 3500, logger, vitePort, inspect, inspectWait, inspectBrk } = options;
 
-	logger.debug('Starting Bun dev server (Vite already running on port %d)...', vitePort);
+	logger.debug('Starting Bun dev server with native hot reload (Vite on port %d)...', vitePort);
 
-	const appPath = `${rootDir}/.agentuity/app.js`;
+	// Entry point is the generated TypeScript file (not bundled)
+	const appPath = join(rootDir, 'src/generated/app.ts');
 
-	// Verify bundle exists before attempting to load
+	// Verify entry point exists
 	const appFile = Bun.file(appPath);
 	if (!(await appFile.exists())) {
-		throw new Error(
-			`Dev bundle not found at ${appPath}. The bundle must be generated before starting the dev server.`
-		);
+		throw new Error(`Entry file not found at ${appPath}. Run code generation first.`);
 	}
+
+	// Generate preload script for LLM patches
+	const preloadPath = await generatePreloadScript(rootDir, logger);
 
 	// Set PORT env var so the generated app uses the correct port
 	process.env.PORT = String(port);
 
-	// Check if any debugger flag is enabled
-	const useDebugger = inspect || inspectWait || inspectBrk;
+	// Build command arguments - always spawn as subprocess with --hot
+	const args: string[] = ['bun'];
 
-	if (useDebugger) {
-		// Spawn bun as subprocess with debugger flag
-		logger.debug('📦 Spawning bun with debugger enabled...');
-
-		// Determine which debugger flag to use (priority: inspectBrk > inspectWait > inspect)
-		let debugFlag: string;
-		if (inspectBrk) {
-			debugFlag = '--inspect-brk';
-		} else if (inspectWait) {
-			debugFlag = '--inspect-wait';
-		} else {
-			debugFlag = '--inspect';
-		}
-
-		logger.debug('Using debugger flag: %s', debugFlag);
-
-		const bunProcess = Bun.spawn(['bun', debugFlag, 'run', appPath], {
-			cwd: rootDir,
-			stdout: 'inherit',
-			stderr: 'inherit',
-			env: {
-				...process.env,
-				PORT: String(port),
-			},
-		});
-
-		// Store the process globally so it can be killed on shutdown
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = bunProcess;
-
-		// Wait for server to actually start listening
-		const maxRetries = 50;
-		const retryDelay = 100;
-		let serverReady = false;
-
-		for (let i = 0; i < maxRetries; i++) {
-			try {
-				await fetch(`http://127.0.0.1:${port}/`, {
-					method: 'HEAD',
-					signal: AbortSignal.timeout(1000),
-				});
-				// Any response (even 404) means server is listening
-				serverReady = true;
-				break;
-			} catch {
-				// Connection refused or timeout - server not ready yet
-			}
-			// Wait before next check
-			await new Promise((resolve) => setTimeout(resolve, retryDelay));
-		}
-
-		if (!serverReady) {
-			// Kill the subprocess if server didn't start
-			try {
-				bunProcess.kill();
-			} catch (err) {
-				logger.debug('Error killing subprocess during startup failure: %s', err);
-			}
-			throw new Error(
-				`Bun server failed to start on port ${port} after ${maxRetries * retryDelay}ms`
-			);
-		}
-
-		logger.debug(`Bun dev server started on http://127.0.0.1:${port} with debugger enabled`);
-		logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
-	} else {
-		// Load the bundled app - this will start Bun.serve() internally
-		// IMPORTANT: We must import the bundled .agentuity/app.js (NOT src/generated/app.ts)
-		// because the bundled version has LLM provider patches applied that enable AI Gateway routing.
-		// Importing the source file directly would bypass these patches.
-		logger.debug('📦 Loading bundled app (Bun server will start)...');
-
-		// Import the generated app with cache-busting query parameter.
-		// Bun's module cache is keyed by the full specifier including query string,
-		// so adding a unique timestamp forces a fresh import on each reload.
-		const cacheBuster = `?t=${Date.now()}`;
-		try {
-			await import(appPath + cacheBuster);
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error('Failed to import generated app from %s: %s', appPath, errorMessage);
-			throw new Error(`Failed to load generated app: ${errorMessage}`);
-		}
-
-		// Wait for server to actually start listening
-		// The generated app sets (globalThis as any).__AGENTUITY_SERVER__ when server starts
-		const maxRetries = 50; // Increased retries for slower systems
-		const retryDelay = 100; // ms
-		let serverReady = false;
-
-		for (let i = 0; i < maxRetries; i++) {
-			// Check if global server object exists
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			if ((globalThis as any).__AGENTUITY_SERVER__) {
-				// Server object exists, now verify it's actually listening by making a request
-				try {
-					await fetch(`http://127.0.0.1:${port}/`, {
-						method: 'HEAD',
-						signal: AbortSignal.timeout(1000),
-					});
-					// Any response (even 404) means server is listening
-					serverReady = true;
-					break;
-				} catch {
-					// Connection refused or timeout - server not ready yet
-				}
-			}
-			// Wait before next check
-			await new Promise((resolve) => setTimeout(resolve, retryDelay));
-		}
-
-		if (!serverReady) {
-			throw new Error(
-				`Bun server failed to start on port ${port} after ${maxRetries * retryDelay}ms`
-			);
-		}
-
-		logger.debug(`Bun dev server started on http://127.0.0.1:${port}`);
-		logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
+	// Add debugger flag if enabled (priority: inspectBrk > inspectWait > inspect)
+	if (inspectBrk) {
+		args.push('--inspect-brk');
+		logger.debug('Using debugger flag: --inspect-brk');
+	} else if (inspectWait) {
+		args.push('--inspect-wait');
+		logger.debug('Using debugger flag: --inspect-wait');
+	} else if (inspect) {
+		args.push('--inspect');
+		logger.debug('Using debugger flag: --inspect');
 	}
+
+	// Add hot reload flag for native HMR
+	args.push('--hot');
+
+	// Add preload script for LLM patches (AI Gateway routing)
+	args.push('--preload', preloadPath);
+
+	// Add the entry point
+	args.push('run', appPath);
+
+	logger.debug('Spawning: %s', args.join(' '));
+
+	// Spawn the Bun process
+	const bunProcess = Bun.spawn(args, {
+		cwd: rootDir,
+		stdout: 'inherit',
+		stderr: 'inherit',
+		env: {
+			...process.env,
+			PORT: String(port),
+			VITE_PORT: String(vitePort),
+		},
+	});
+
+	// Store the process globally so it can be killed on shutdown
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = bunProcess;
+
+	// Wait for server to actually start listening
+	const maxRetries = 50;
+	const retryDelay = 100;
+	let serverReady = false;
+
+	for (let i = 0; i < maxRetries; i++) {
+		try {
+			await fetch(`http://127.0.0.1:${port}/`, {
+				method: 'HEAD',
+				signal: AbortSignal.timeout(1000),
+			});
+			// Any response (even 404) means server is listening
+			serverReady = true;
+			break;
+		} catch {
+			// Connection refused or timeout - server not ready yet
+		}
+
+		// Check if process exited unexpectedly
+		if (bunProcess.exitCode !== null) {
+			throw new Error(
+				`Bun process exited with code ${bunProcess.exitCode} before server started`
+			);
+		}
+
+		// Wait before next check
+		await new Promise((resolve) => setTimeout(resolve, retryDelay));
+	}
+
+	if (!serverReady) {
+		// Kill the subprocess if server didn't start
+		try {
+			bunProcess.kill();
+		} catch (err) {
+			logger.debug('Error killing subprocess during startup failure: %s', err);
+		}
+		throw new Error(
+			`Bun server failed to start on port ${port} after ${maxRetries * retryDelay}ms`
+		);
+	}
+
+	logger.debug(`Bun dev server started on http://127.0.0.1:${port} with hot reload`);
+	logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
+	logger.debug(`LLM patches applied via preload script (AI Gateway routing enabled)`);
 
 	return {
 		bunServerPort: port,

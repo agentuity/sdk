@@ -17,6 +17,10 @@
 		"./vite-plugin": {
 			"import": "./dist/cmd/build/vite/index.js",
 			"types": "./dist/cmd/build/vite/index.d.ts"
+		},
+		"./cmd/build/patch": {
+			"import": "./dist/cmd/build/patch/index.js",
+			"types": "./dist/cmd/build/patch/index.d.ts"
 		}
 	},
 	"files": [
