@@ -854,9 +854,9 @@ export const command = createCommand({
 				try {
 					let typeCheckErrors: string | undefined;
 
-					// Generate entry file for dev server (no bundling - TypeScript runs directly)
+					// Generate entry file and bundle for dev server (with LLM patches)
 					await tui.spinner({
-						message: 'Preparing dev server',
+						message: 'Building dev bundle',
 						callback: async () => {
 							// Step 0: typecheck
 							typeCheckErrors = undefined;
@@ -921,11 +921,16 @@ export const command = createCommand({
 								analytics: agentuityConfig?.analytics,
 							});
 
-							// NOTE: Bundling is SKIPPED in dev mode!
-							// TypeScript is run directly with Bun's native --hot flag for instant HMR.
-							// LLM patches (AI Gateway routing) are applied at runtime via a preload script
-							// that registers a Bun plugin to intercept LLM SDK imports.
-							// See bun-dev-server.ts for the implementation.
+							// Step 4: Bundle the app with LLM patches (dev mode = no minification)
+							// This produces .agentuity/app.js with AI Gateway routing patches applied
+							const { installExternalsAndBuild } = await import(
+								'../build/vite/server-bundler'
+							);
+							await installExternalsAndBuild({
+								rootDir,
+								dev: true, // DevMode: no minification, inline sourcemaps
+								logger,
+							});
 
 							// Generate metadata file (needed for eval ID lookup at runtime)
 							// Reuse agentMetadata and routes from Step 2
