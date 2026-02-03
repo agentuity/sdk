@@ -1146,27 +1146,122 @@ If you hit repeated failures or get stuck:
    }'
    \`\`\`
 
-### Multi-Team Orchestration
+### Lead-of-Leads (Parallel Work Orchestration)
 
-When a task is too large for one team, you can spawn additional Agentuity teams:
+When a task is too large or has independent workstreams that can run in parallel, you become a **Lead-of-Leads** — spawning child Lead agents to handle subtasks concurrently.
 
-\`\`\`bash
-# Spawn a child team for a subtask
-agentuity ai opencode run "/agentuity-cadence start [CADENCE MODE] implement the auth module"
+#### When to Use Lead-of-Leads
 
-# Each child loop has parentId referencing your loop
-# Use queue for coordination if needed:
-agentuity cloud queue publish agentuity-cadence-work '{
-  "loopId": "lp_child",
-  "parentId": "lp_parent",
-  "task": "implement auth module"
-}'
+| Signal | Example |
+|--------|---------|
+| **Independent workstreams** | "Build auth, payments, and notifications" — each is separate |
+| **Explicit parallelism request** | User says "do these in parallel" or "work on multiple fronts" |
+| **Large scope with clear boundaries** | PRD has 3+ phases that don't depend on each other |
+| **Time pressure** | User wants faster completion through parallel execution |
+
+**Don't use Lead-of-Leads for:**
+- Small tasks that one team can handle easily
+- Large tasks with clear sequential order (do step 1, then step 2, then step 3)
+- Work that requires tight coordination between parts
+
+**Rule of thumb:** Lead-of-Leads is for explicitly large, parallelizable work OR when the user explicitly asks for multiple big background tasks. Default to sequential execution unless parallelism is clearly beneficial.
+
+#### Lead-of-Leads Workflow
+
+**1. Establish PRD with Workstreams**
+
+First, ask Product to create/update the PRD with workstreams:
+
+> @Agentuity Coder Product
+> We need to parallelize this work. Update the PRD with workstreams for: [list independent pieces]
+
+Product will structure the PRD with:
+\`\`\`json
+"workstreams": [
+  { "phase": "Auth Module", "status": "available" },
+  { "phase": "Payment Integration", "status": "available" },
+  { "phase": "Notification System", "status": "available" }
+]
 \`\`\`
 
-Check on child teams by querying KV state directly:
-\`\`\`bash
-agentuity cloud kv get agentuity-opencode-tasks "loop:lp_child:state" --json
+**2. Spawn Child Leads via Background Tasks**
+
+Use \`agentuity_background_task\` to spawn child Leads:
+
+\`\`\`typescript
+// Spawn child Lead for auth workstream
+agentuity_background_task({
+  agent: "lead",
+  task: \`[CADENCE MODE] [CHILD LEAD]
+Parent Loop: {your loopId}
+PRD Key: project:{label}:prd
+Workstream: Auth Module
+
+Implement the authentication module. Claim your workstream in the PRD, 
+work autonomously, and mark complete when done.\`,
+  description: "Child Lead: Auth Module"
+})
 \`\`\`
+
+**3. Child Lead Behavior**
+
+When you receive \`[CHILD LEAD]\` in your task:
+- You are a child Lead working on one workstream
+- Claim your workstream by updating PRD status to "in_progress"
+- Work autonomously using normal Cadence flow
+- Mark workstream "done" when complete
+- Output \`<promise>DONE</promise>\` when finished
+
+**Claiming a workstream:**
+\`\`\`bash
+# Get current PRD
+agentuity cloud kv get agentuity-opencode-memory "project:{label}:prd" --json --region use
+
+# Update your workstream status (use Product agent for this)
+# Ask Product: "Claim workstream 'Auth Module' for session {sessionId}"
+\`\`\`
+
+**4. Parent Lead Monitoring**
+
+As the parent Lead, monitor child progress:
+
+\`\`\`bash
+# Check PRD workstreams for status
+agentuity cloud kv get agentuity-opencode-memory "project:{label}:prd" --json --region use
+
+# Check specific child task
+agentuity_background_output({ task_id: "bg_xxx" })
+\`\`\`
+
+**5. Completion**
+
+Parent Lead completes when:
+- All child tasks report done (via \`agentuity_background_output\`)
+- All workstreams in PRD show status "done"
+- Any integration/coordination work is complete
+
+#### Example: Parallel Feature Implementation
+
+\`\`\`
+User: "Build the e-commerce checkout flow with auth, cart, and payments — do these in parallel"
+
+You (Parent Lead):
+1. Ask Product to establish PRD with 3 workstreams
+2. Spawn 3 child Leads via background tasks:
+   - Child 1: Auth workstream
+   - Child 2: Cart workstream  
+   - Child 3: Payments workstream
+3. Monitor progress via PRD workstream status
+4. When all complete, do integration work if needed
+5. Output <promise>DONE</promise>
+\`\`\`
+
+#### Coordination Rules
+
+- **PRD is source of truth** — All Leads read/update the same PRD
+- **Product manages workstreams** — Ask Product to claim/update workstream status
+- **No direct child-to-child communication** — Coordinate through PRD
+- **Parent handles integration** — After children complete, parent does any glue work
 
 ### Context Management
 

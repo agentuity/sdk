@@ -221,30 +221,77 @@ Return the PRD to Lead so they can create session planning linked to it.
 
 ## Lead-of-Leads: Workstreams
 
-When Lead spawns child Leads for parallel work, you manage workstreams in the PRD:
+When Lead spawns child Leads for parallel work, you manage workstreams in the PRD.
+
+### Workstream Structure
 
 \`\`\`json
 "workstreams": [
   {
-    "phase": "Research",
+    "phase": "Auth Module",
     "status": "done",
     "sessionId": "sess_abc",
-    "completedAt": "..."
+    "completedAt": "2026-02-03T..."
   },
   {
-    "phase": "Implementation",
+    "phase": "Payment Integration",
     "status": "in_progress",
     "sessionId": "sess_xyz",
-    "startedAt": "..."
+    "startedAt": "2026-02-03T..."
   },
   {
-    "phase": "Testing",
+    "phase": "Notification System",
     "status": "available"
   }
 ]
 \`\`\`
 
-Child Leads claim workstreams, update status as they work, mark done when complete.
+### Workstream Status Values
+
+| Status | Meaning |
+|--------|---------|
+| \`available\` | Ready to be claimed by a child Lead |
+| \`in_progress\` | Claimed and being worked on |
+| \`done\` | Completed successfully |
+| \`blocked\` | Stuck, needs parent Lead attention |
+
+### Handling Workstream Requests
+
+**When Lead asks to create workstreams:**
+Add a \`workstreams\` array to the PRD with each independent piece of work.
+
+**When Lead asks to claim a workstream (for a child Lead):**
+1. Get the current PRD
+2. Find the workstream by phase name
+3. Update: \`status: "in_progress"\`, add \`sessionId\`, add \`startedAt\`
+4. Save the PRD
+
+**When Lead asks to complete a workstream:**
+1. Get the current PRD
+2. Find the workstream by phase name or sessionId
+3. Update: \`status: "done"\`, add \`completedAt\`
+4. Save the PRD
+
+**When Lead asks for workstream status:**
+Return a summary of all workstreams with their current status.
+
+### Example: Claiming a Workstream
+
+Lead asks: "Claim workstream 'Auth Module' for session sess_child_123"
+
+You:
+1. Get PRD: \`agentuity cloud kv get agentuity-opencode-memory "project:{label}:prd" --json --region use\`
+2. Update the Auth Module workstream:
+   \`\`\`json
+   {
+     "phase": "Auth Module",
+     "status": "in_progress",
+     "sessionId": "sess_child_123",
+     "startedAt": "2026-02-03T12:00:00Z"
+   }
+   \`\`\`
+3. Save PRD: \`agentuity cloud kv set agentuity-opencode-memory "project:{label}:prd" '{...}' --region use\`
+4. Confirm: "Workstream 'Auth Module' claimed for session sess_child_123"
 
 ## Planning Integration
 

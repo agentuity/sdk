@@ -234,6 +234,100 @@ Cadence is **agentic-first** — Lead's prompt drives the loop, not deterministi
 
 See [docs/cadence.md](docs/cadence.md) for architecture details.
 
+### Lead-of-Leads: Parallel Work Orchestration
+
+For very large tasks with independent workstreams, Lead can spawn **child Leads** to work in parallel.
+
+#### When to Use
+
+| Signal                            | Example                                                       |
+| --------------------------------- | ------------------------------------------------------------- |
+| **Independent workstreams**       | "Build auth, payments, and notifications" — each is separate  |
+| **Explicit parallelism**          | User says "do these in parallel" or "work on multiple fronts" |
+| **Large scope, clear boundaries** | PRD has 3+ phases that don't depend on each other             |
+
+**Don't use Lead-of-Leads for:**
+
+- Small tasks that one team can handle easily
+- Large tasks with clear sequential order
+- Work requiring tight coordination between parts
+
+#### How It Works
+
+```
+User: "Build auth, cart, and payments in parallel"
+           │
+           ▼
+    ┌─────────────┐
+    │ Parent Lead │ ◄── Orchestrates
+    └─────────────┘
+           │
+           │ 1. Ask Product to create PRD with workstreams
+           ▼
+    ┌─────────────┐
+    │   Product   │ ◄── Creates PRD with 3 workstreams (status: available)
+    └─────────────┘
+           │
+           │ 2. Spawn 3 child Leads via background tasks
+           ▼
+    ┌───────┬───────┬───────┐
+    │Child 1│Child 2│Child 3│ ◄── Each claims a workstream
+    │ Auth  │ Cart  │Payment│
+    └───────┴───────┴───────┘
+           │
+           │ 3. Each child works autonomously, updates PRD when done
+           ▼
+    ┌─────────────┐
+    │ Parent Lead │ ◄── Monitors PRD, does integration when all done
+    └─────────────┘
+           │
+           ▼
+    <promise>DONE</promise>
+```
+
+#### Workstream Status
+
+Product manages workstream status in the PRD:
+
+| Status        | Meaning                             |
+| ------------- | ----------------------------------- |
+| `available`   | Ready to be claimed by a child Lead |
+| `in_progress` | Claimed and being worked on         |
+| `done`        | Completed successfully              |
+| `blocked`     | Stuck, needs parent Lead attention  |
+
+#### Workstream Structure
+
+```json
+{
+	"workstreams": [
+		{
+			"phase": "Auth Module",
+			"status": "done",
+			"sessionId": "sess_abc",
+			"completedAt": "2026-02-03T..."
+		},
+		{
+			"phase": "Payment Integration",
+			"status": "in_progress",
+			"sessionId": "sess_xyz",
+			"startedAt": "2026-02-03T..."
+		},
+		{
+			"phase": "Notification System",
+			"status": "available"
+		}
+	]
+}
+```
+
+#### Coordination Rules
+
+- **PRD is source of truth** — All Leads read/update the same PRD
+- **Product manages workstreams** — Child Leads ask Product to claim/complete workstreams
+- **No direct child-to-child communication** — Coordinate through PRD only
+- **Parent handles integration** — After children complete, parent does any glue work
+
 ## Local Development
 
 When developing the opencode package locally, configure OpenCode to use your local build.
