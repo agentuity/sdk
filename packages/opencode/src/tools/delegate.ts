@@ -55,7 +55,7 @@ Use this to:
 - Expert: Get help with Agentuity CLI and cloud services
 - Runner: Run lint/build/test/typecheck/format/clean/install commands, returns structured results
 - Product: Drive clarity on requirements, validate features, track progress, Cadence briefings
-- Monitor: Watch background tasks and report when they complete (hidden from users)
+- Monitor: Watch background tasks and report when they complete
 
 The task will be executed by the specified agent and the result returned.`,
 

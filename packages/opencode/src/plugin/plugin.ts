@@ -573,7 +573,7 @@ Use this to:
 - Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
 - Expert: Get help with Agentuity CLI and cloud services
 - Runner: Execute lint/build/test/typecheck/format commands, returns structured results
-- Monitor: Watch background tasks and report when they complete (hidden from users)`,
+- Monitor: Watch background tasks and report when they complete`,
 		args: {
 			agent: s
 				.enum([
