@@ -209,26 +209,38 @@ function matchesPatch(filePath, patch) {
 }
 
 // Register the Bun plugin for runtime patching
+// Use a simple filter that matches common LLM SDK paths
 Bun.plugin({
   name: 'agentuity:runtime-patch',
   setup(build) {
-    // Use a broad filter to match all files in node_modules
+    // Match files in node_modules that might be LLM SDKs
+    // Using a simple pattern that covers openai, anthropic, ai-sdk, etc.
     build.onLoad({ filter: /node_modules/ }, async (args) => {
-      // Check if this file matches any of our target modules
+      // Quick check: skip if path doesn't contain any of our target modules
+      const normalizedPath = args.path.replace(/\\\\/g, '/');
+      let matchedPatch = null;
+      
       for (const { name, patch } of patchData) {
-        if (matchesPatch(args.path, patch)) {
-          try {
-            const [contents, loader] = await applyPatch(args.path, patch);
-            return { contents, loader };
-          } catch (e) {
-            // If patching fails, let Bun handle the file normally
-            console.warn('[agentuity] Failed to patch ' + args.path + ':', e);
-            return undefined;
-          }
+        if (matchesPatch(normalizedPath, patch)) {
+          matchedPatch = patch;
+          break;
         }
       }
-      // Not a target module, let Bun handle it normally
-      return undefined;
+      
+      // If no patch matches, don't return anything - let Bun handle normally
+      if (!matchedPatch) {
+        return;
+      }
+      
+      // Apply the patch
+      try {
+        const [contents, loader] = await applyPatch(args.path, matchedPatch);
+        return { contents: contents, loader: loader };
+      } catch (e) {
+        // If patching fails, log warning and let Bun handle normally
+        console.warn('[agentuity] Failed to patch ' + args.path + ':', e);
+        return;
+      }
     });
   },
 });
