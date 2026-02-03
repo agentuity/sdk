@@ -12,7 +12,6 @@ export const DelegateArgsSchema = z.object({
 			'memory',
 			'reasoner',
 			'expert',
-			'planner',
 			'runner',
 			'product',
 		])
@@ -36,7 +35,6 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
-	planner: '@Agentuity Coder Planner',
 	runner: '@Agentuity Coder Runner',
 	reasoner: '@Agentuity Coder Reasoner',
 	product: '@Agentuity Coder Product',
@@ -54,7 +52,6 @@ Use this to:
 - Memory: Store context, remember decisions across sessions
 - Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
 - Expert: Get help with Agentuity CLI and cloud services
-- Planner: Strategic advisor for complex architecture and deep planning (read-only)
 - Runner: Run lint/build/test/typecheck/format/clean/install commands, returns structured results
 - Product: Drive clarity on requirements, validate features, track progress, Cadence briefings
 

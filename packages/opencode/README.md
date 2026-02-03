@@ -47,17 +47,17 @@ The Expert agent can operate any `agentuity cloud` subcommand:
 
 ## Agent Team
 
-| Agent         | Role                   | When to Use                                                         |
-| ------------- | ---------------------- | ------------------------------------------------------------------- |
-| **Lead**      | Orchestrator           | Automatically coordinates all work                                  |
-| **Scout**     | Explorer               | Finding files, patterns, codebase analysis (read-only)              |
-| **Builder**   | Implementer            | Interactive code changes, quick fixes, guided implementation        |
-| **Architect** | Autonomous Implementer | Cadence mode, complex multi-file features, long-running tasks       |
-| **Reviewer**  | Code Reviewer          | Reviewing changes, catching issues, suggesting fixes                |
-| **Memory**    | Context Manager        | Storing/retrieving context, decisions, patterns across sessions     |
-| **Expert**    | Agentuity Specialist   | CLI commands, cloud services, SDK questions                         |
-| **Planner**   | Strategic Advisor      | Complex architecture decisions, deep technical planning (read-only) |
-| **Runner**    | Command Executor       | Run lint/build/test/typecheck/format, returns structured summaries  |
+| Agent         | Role                   | When to Use                                                        |
+| ------------- | ---------------------- | ------------------------------------------------------------------ |
+| **Lead**      | Orchestrator           | Automatically coordinates all work, handles strategic planning     |
+| **Scout**     | Explorer               | Finding files, patterns, codebase analysis (read-only)             |
+| **Builder**   | Implementer            | Interactive code changes, quick fixes, guided implementation       |
+| **Architect** | Autonomous Implementer | Cadence mode, complex multi-file features, long-running tasks      |
+| **Reviewer**  | Code Reviewer          | Reviewing changes, catching issues, suggesting fixes               |
+| **Memory**    | Context Manager        | Storing/retrieving context, decisions, patterns across sessions    |
+| **Expert**    | Agentuity Specialist   | CLI commands, cloud services, SDK questions                        |
+| **Product**   | Requirements Owner     | Define what to build and why, PRDs, validate product intent        |
+| **Runner**    | Command Executor       | Run lint/build/test/typecheck/format, returns structured summaries |
 
 ### Builder vs Architect
 
@@ -86,7 +86,7 @@ Each agent has a default model optimized for its role:
 | Reviewer  | `anthropic/claude-sonnet-4-5-20250929` | high                    |
 | Memory    | `anthropic/claude-haiku-4-5-20251001`  | -                       |
 | Expert    | `anthropic/claude-sonnet-4-5-20250929` | high                    |
-| Planner   | `openai/gpt-5.2`                       | xhigh                   |
+| Product   | `openai/gpt-5.2`                       | high                    |
 | Runner    | `anthropic/claude-haiku-4-5-20251001`  | -                       |
 
 ### Overriding Agent Models

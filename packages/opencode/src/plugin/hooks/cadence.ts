@@ -284,8 +284,20 @@ This session is running in Cadence mode (long-running autonomous loop).
 **Session Record Location:**
 \`session:${sessionId}\` in agentuity-opencode-memory
 
-After compaction, Memory will save this summary and update the cadence state.
-Then Lead will continue the loop from iteration ${state.iteration}.
+**Planning State:**
+If this session has planning active, the session record contains:
+- \`planning.prdKey\` - Link to the PRD being executed
+- \`planning.objective\` - What we're trying to accomplish
+- \`planning.phases\` - Current phases with status and notes
+- \`planning.current\` - Current phase
+- \`planning.findings\` - Discoveries made during work
+- \`planning.errors\` - Failures to avoid repeating
+
+After compaction:
+1. Memory will save this summary and update the session record
+2. Memory should update planning.progress with this compaction
+3. Lead will continue the loop from iteration ${state.iteration}
+4. Use 5-Question Reboot to re-orient: Where am I? Where going? Goal? Learned? Done?
 `);
 		},
 

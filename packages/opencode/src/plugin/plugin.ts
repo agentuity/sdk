@@ -72,7 +72,6 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
-	planner: '@Agentuity Coder Planner',
 	runner: '@Agentuity Coder Runner',
 	reasoner: '@Agentuity Coder Reasoner',
 	product: '@Agentuity Coder Product',
@@ -303,7 +302,6 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 - **@Agentuity Coder Memory**: Store context, remember decisions
 - **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
-- **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress
 
@@ -459,7 +457,6 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 - **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
 - **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
-- **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress, Cadence briefings
 
@@ -475,7 +472,7 @@ $ARGUMENTS
 2. **Each iteration**:
    - Ask @Agentuity Coder Memory for relevant context
    - Use @Agentuity Coder Scout to understand what's needed
-   - For complex planning, consult @Agentuity Coder Planner
+   - For complex planning, use extended thinking (ultrathink)
    - Delegate implementation to **@Agentuity Coder Architect** (preferred for Cadence)
    - Have @Agentuity Coder Reviewer verify the work
    - Tell @Agentuity Coder Memory to store checkpoint
@@ -492,7 +489,7 @@ $ARGUMENTS
 - Use regular Builder only for trivial fixes within an iteration
 - Ask Memory for context at each iteration start
 - Store checkpoints at each iteration end
-- If stuck on architecture, consult Planner before trying more approaches
+- If stuck on architecture, use extended thinking (ultrathink) for deep planning
 - Use @Agentuity Coder Expert for sandbox/cloud operations
 - Respect max iterations (50 default)`,
 			agent: 'Agentuity Coder Lead',
@@ -550,7 +547,6 @@ Use this to:
 - Memory: Store context, remember decisions across sessions
 - Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
 - Expert: Get help with Agentuity CLI and cloud services
-- Planner: Strategic advisor for complex architecture and deep planning (read-only)
 - Runner: Execute lint/build/test/typecheck/format commands, returns structured results`,
 		args: {
 			agent: s
@@ -562,7 +558,6 @@ Use this to:
 					'memory',
 					'reasoner',
 					'expert',
-					'planner',
 					'runner',
 				])
 				.describe('Which agent to delegate to'),
@@ -597,7 +592,6 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'memory',
 					'reasoner',
 					'expert',
-					'planner',
 					'runner',
 					'product',
 				])

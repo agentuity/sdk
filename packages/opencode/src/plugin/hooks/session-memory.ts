@@ -135,7 +135,18 @@ Then continue with the current task if there is one.`,
 This session's context is being saved to persistent memory.
 Session record location: \`session:${sessionId}\` in agentuity-opencode-memory
 
-After compaction, Memory will automatically save this summary for future recovery.
+**Planning State (if active):**
+If this session has planning active (user requested "track progress" or similar), the session record contains:
+- \`planning.prdKey\` - Link to PRD if one exists
+- \`planning.objective\` - What we're trying to accomplish
+- \`planning.phases\` - Current phases with status and notes
+- \`planning.findings\` - Discoveries made during work
+- \`planning.errors\` - Failures to avoid repeating
+
+After compaction:
+1. Memory will save this summary to the session record
+2. If planning is active, Memory should update planning.progress with this compaction
+3. Memory will consider triggering Reasoner if significant patterns/corrections emerged
 `);
 		},
 	};

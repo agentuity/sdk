@@ -3,8 +3,8 @@ import { agents, getAgentByRole, getAgentById } from '../src/agents';
 
 describe('Agents', () => {
 	describe('agent definitions', () => {
-		it('exports all 11 agents', () => {
-			expect(Object.keys(agents)).toHaveLength(11);
+		it('exports all 10 agents', () => {
+			expect(Object.keys(agents)).toHaveLength(10);
 			expect(agents.lead).toBeDefined();
 			expect(agents.scout).toBeDefined();
 			expect(agents.builder).toBeDefined();
@@ -12,7 +12,6 @@ describe('Agents', () => {
 			expect(agents.reviewer).toBeDefined();
 			expect(agents.memory).toBeDefined();
 			expect(agents.expert).toBeDefined();
-			expect(agents.planner).toBeDefined();
 			expect(agents.runner).toBeDefined();
 			expect(agents.product).toBeDefined();
 			expect(agents.reasoner).toBeDefined();
@@ -51,7 +50,6 @@ describe('Agents', () => {
 			expect(getAgentByRole('reviewer')?.id).toBe('ag-reviewer');
 			expect(getAgentByRole('memory')?.id).toBe('ag-memory');
 			expect(getAgentByRole('expert')?.id).toBe('ag-expert');
-			expect(getAgentByRole('planner')?.id).toBe('ag-planner');
 			expect(getAgentByRole('runner')?.id).toBe('ag-runner');
 			expect(getAgentByRole('product')?.id).toBe('ag-product');
 			expect(getAgentByRole('reasoner')?.id).toBe('ag-reasoner');
@@ -67,7 +65,6 @@ describe('Agents', () => {
 			expect(getAgentById('ag-reviewer')?.role).toBe('reviewer');
 			expect(getAgentById('ag-memory')?.role).toBe('memory');
 			expect(getAgentById('ag-expert')?.role).toBe('expert');
-			expect(getAgentById('ag-planner')?.role).toBe('planner');
 			expect(getAgentById('ag-runner')?.role).toBe('runner');
 			expect(getAgentById('ag-product')?.role).toBe('product');
 			expect(getAgentById('ag-reasoner')?.role).toBe('reasoner');
@@ -99,14 +96,6 @@ describe('Agents', () => {
 		it('Memory agent cannot write files', () => {
 			expect(agents.memory.tools?.exclude).toContain('write');
 			expect(agents.memory.tools?.exclude).toContain('edit');
-		});
-
-		it('Planner agent is read-only with high reasoning', () => {
-			expect(agents.planner.tools?.exclude).toContain('write');
-			expect(agents.planner.tools?.exclude).toContain('edit');
-			expect(agents.planner.tools?.exclude).toContain('bash');
-			expect(agents.planner.reasoningEffort).toBe('xhigh');
-			expect(agents.planner.temperature).toBe(0.1);
 		});
 
 		it('Architect agent has GPT Codex with xhigh reasoning', () => {
@@ -149,7 +138,7 @@ describe('Agents', () => {
 			expect(agents.product.systemPrompt).toContain('Cadence Briefing Format');
 			expect(agents.product.systemPrompt).toContain('agentuity cloud kv');
 			// Phase 4: PRD generation
-			expect(agents.product.systemPrompt).toContain('PRD Template');
+			expect(agents.product.systemPrompt).toContain('PRD Generation');
 		});
 
 		it('Reasoner agent is subagent-only with restricted tools', () => {
