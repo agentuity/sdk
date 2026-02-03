@@ -500,7 +500,17 @@ $ARGUMENTS
 - Store checkpoints at each iteration end
 - If stuck on architecture, use extended thinking (ultrathink) for deep planning
 - Use @Agentuity Coder Expert for sandbox/cloud operations
-- Respect max iterations (50 default)`,
+- Respect max iterations (50 default)
+
+## Lead-of-Leads (Parallel Work)
+If the task has **independent workstreams** that can run in parallel (e.g., "build auth, payments, and notifications"):
+1. Ask @Agentuity Coder Product to create PRD with workstreams
+2. Spawn child Leads via \`agentuity_background_task\` for each workstream
+3. Each child Lead claims a workstream, works autonomously, marks done when complete
+4. Monitor progress via PRD workstream status
+5. Do integration work when all children complete
+
+**Don't use Lead-of-Leads for:** small tasks, sequential work, or work requiring tight coordination.`,
 			agent: 'Agentuity Coder Lead',
 			argumentHint: 'build the new auth feature with tests',
 		},
