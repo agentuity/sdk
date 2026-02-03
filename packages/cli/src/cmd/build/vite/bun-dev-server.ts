@@ -72,25 +72,41 @@ async function generatePreloadScript(rootDir: string, logger: Logger): Promise<s
 import { plugin } from 'bun';
 
 // Patch data generated at dev server startup time
-// This is serialized from the CLI's patch generation logic
-const patchData: Array<{ name: string; patch: PatchModule }> = ${serializedPatches};
+const patchData = ${serializedPatches};
 
-interface PatchFunctionAction {
-  before?: string;
-  after?: string;
-}
-
-interface PatchModule {
-  module: string;
-  filename?: string;
-  functions?: Record<string, PatchFunctionAction>;
-  body?: PatchFunctionAction;
+/**
+ * Check if a file path should be patched for a given module
+ */
+function shouldPatch(filePath, patch) {
+  // Normalize path separators to forward slashes
+  const normalizedPath = filePath.replace(/\\\\/g, '/');
+  
+  // Check if path contains the module in node_modules
+  const modulePattern = 'node_modules/' + patch.module + '/';
+  if (!normalizedPath.includes(modulePattern)) {
+    return false;
+  }
+  
+  // If a specific filename is required, check for it
+  if (patch.filename) {
+    return normalizedPath.includes(patch.filename);
+  }
+  
+  // Otherwise, match index files or files named after the module
+  const lastPart = patch.module.split('/').pop();
+  const fileName = normalizedPath.split('/').pop() || '';
+  return fileName === 'index.js' || 
+         fileName === 'index.mjs' ||
+         fileName === 'index.ts' ||
+         fileName === lastPart + '.js' ||
+         fileName === lastPart + '.mjs' ||
+         fileName === lastPart + '.ts';
 }
 
 /**
  * Search backwards in a string for a character
  */
-function searchBackwards(contents: string, offset: number, val: string): number {
+function searchBackwards(contents, offset, val) {
   for (let i = offset; i >= 0; i--) {
     if (contents.charAt(i) === val) {
       return i;
@@ -101,12 +117,8 @@ function searchBackwards(contents: string, offset: number, val: string): number 
 
 /**
  * Apply a patch to file contents
- * This is a copy of the applyPatch function from the CLI's patch module
  */
-async function applyPatch(
-  filename: string,
-  patch: PatchModule
-): Promise<[string, 'js' | 'ts']> {
+async function applyPatch(filename, patch) {
   let contents = await Bun.file(filename).text();
   const isJS = filename.endsWith('.js') || filename.endsWith('.mjs');
   let suffix = '';
@@ -116,7 +128,7 @@ async function applyPatch(
       if (!mod) {
         continue;
       }
-      let fnname = \`function \${fn}\`;
+      let fnname = 'function ' + fn;
       let index = contents.indexOf(fnname);
       let isConstVariable = false;
       if (index === -1) {
@@ -135,7 +147,7 @@ async function applyPatch(
       const isAsync = prefix.includes('async');
       const isExport = prefix.includes('export');
       const newname = '__agentuity_' + fn;
-      let newfnname: string;
+      let newfnname;
       if (isConstVariable) {
         newfnname = 'const ' + newname + ' = ';
       } else {
@@ -163,10 +175,8 @@ async function applyPatch(
       }
 
       if (isJS) {
-        // For JS: use .apply to preserve 'this' context
         suffix += '\\tlet result = ' + newname + '.apply(this, _args);\\n';
       } else {
-        // For TS: use spread operator
         suffix += '\\tlet result = ' + newname + '(..._args);\\n';
       }
 
@@ -184,50 +194,37 @@ async function applyPatch(
       contents = contents + '\\n' + suffix;
     }
   }
-  if (patch.body?.before) {
+  if (patch.body && patch.body.before) {
     contents = patch.body.before + '\\n' + contents;
   }
-  if (patch.body?.after) {
+  if (patch.body && patch.body.after) {
     contents = contents + '\\n' + patch.body.after;
   }
   return [contents, isJS ? 'js' : 'ts'];
 }
 
-/**
- * Escape special regex characters in a string
- */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
-}
-
+// Register the plugin with a simple filter that matches all node_modules files
 plugin({
   name: 'agentuity:runtime-patch',
   setup(build) {
-    for (const { name, patch } of patchData) {
-      // Build regex to match the module path in node_modules
-      let modulePath: string;
-      const escapedModule = escapeRegex(patch.module);
-      if (patch.filename) {
-        // Match specific file within the module
-        modulePath = 'node_modules[/\\\\\\\\]' + escapedModule + '[/\\\\\\\\]' + patch.filename + '\\\\.(js|mjs|ts)$';
-      } else {
-        // Match index file of the module
-        const lastPart = patch.module.split('/').pop() || patch.module;
-        modulePath = 'node_modules[/\\\\\\\\]' + escapedModule + '[/\\\\\\\\](dist[/\\\\\\\\])?(index|' + lastPart + ')\\\\.(js|mjs|ts)$';
-      }
-
-      const filter = new RegExp(modulePath);
-
-      build.onLoad({ filter, namespace: 'file' }, async (args) => {
-        try {
-          const [contents, loader] = await applyPatch(args.path, patch);
-          return { contents, loader };
-        } catch {
-          // If patching fails, let Bun handle the file normally
-          return undefined;
+    // Use a simple filter to match files in node_modules
+    build.onLoad({ filter: /node_modules/ }, async (args) => {
+      // Check if this file matches any of our target modules
+      for (const { name, patch } of patchData) {
+        if (shouldPatch(args.path, patch)) {
+          try {
+            const [contents, loader] = await applyPatch(args.path, patch);
+            return { contents, loader };
+          } catch (e) {
+            // If patching fails, let Bun handle the file normally
+            console.warn('[agentuity] Failed to patch ' + args.path + ':', e);
+            return undefined;
+          }
         }
-      });
-    }
+      }
+      // Not a target module, let Bun handle it normally
+      return undefined;
+    });
   },
 });
 `;
