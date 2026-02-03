@@ -11,6 +11,8 @@
 
 import { join } from 'node:path';
 import type { Logger } from '../../../types';
+import { generatePatches } from '../patch';
+import type { PatchModule } from '../patch/_util';
 
 export interface BunDevServerOptions {
 	rootDir: string;
@@ -30,12 +32,34 @@ export interface BunDevServerResult {
 }
 
 /**
+ * Serialize patches to a format that can be embedded in the preload script.
+ * We need to serialize the patch data as JSON since the preload script
+ * runs in the user's project context where @agentuity/cli is not available.
+ */
+function serializePatchesForPreload(patches: Map<string, PatchModule>): string {
+	const patchArray: Array<{ name: string; patch: PatchModule }> = [];
+	for (const [name, patch] of patches) {
+		patchArray.push({ name, patch });
+	}
+	return JSON.stringify(patchArray, null, 2);
+}
+
+/**
  * Generate the preload script for LLM patches
  * This script registers a Bun plugin that intercepts LLM SDK imports
  * and applies patches for AI Gateway routing at runtime.
+ *
+ * The patch data is generated at dev server startup time and serialized
+ * into the preload script, so it doesn't need to import from @agentuity/cli.
  */
 async function generatePreloadScript(rootDir: string, logger: Logger): Promise<string> {
 	const preloadPath = join(rootDir, '.agentuity', 'preload.ts');
+
+	// Generate patches at dev server startup time
+	const patches = generatePatches();
+	const serializedPatches = serializePatchesForPreload(patches);
+
+	logger.debug('Generated %d patches for preload script', patches.size);
 
 	const preloadScript = `/**
  * Agentuity Dev Mode Preload Script
@@ -46,25 +70,150 @@ async function generatePreloadScript(rootDir: string, logger: Logger): Promise<s
  */
 
 import { plugin } from 'bun';
-import { generatePatches, applyPatch } from '@agentuity/cli/cmd/build/patch';
 
-const patches = generatePatches();
+// Patch data generated at dev server startup time
+// This is serialized from the CLI's patch generation logic
+const patchData: Array<{ name: string; patch: PatchModule }> = ${serializedPatches};
+
+interface PatchFunctionAction {
+  before?: string;
+  after?: string;
+}
+
+interface PatchModule {
+  module: string;
+  filename?: string;
+  functions?: Record<string, PatchFunctionAction>;
+  body?: PatchFunctionAction;
+}
+
+/**
+ * Search backwards in a string for a character
+ */
+function searchBackwards(contents: string, offset: number, val: string): number {
+  for (let i = offset; i >= 0; i--) {
+    if (contents.charAt(i) === val) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Apply a patch to file contents
+ * This is a copy of the applyPatch function from the CLI's patch module
+ */
+async function applyPatch(
+  filename: string,
+  patch: PatchModule
+): Promise<[string, 'js' | 'ts']> {
+  let contents = await Bun.file(filename).text();
+  const isJS = filename.endsWith('.js') || filename.endsWith('.mjs');
+  let suffix = '';
+  if (patch.functions) {
+    for (const fn of Object.keys(patch.functions)) {
+      const mod = patch.functions[fn];
+      if (!mod) {
+        continue;
+      }
+      let fnname = \`function \${fn}\`;
+      let index = contents.indexOf(fnname);
+      let isConstVariable = false;
+      if (index === -1) {
+        fnname = 'const ' + fn + ' = ';
+        index = contents.indexOf(fnname);
+        isConstVariable = true;
+        if (index === -1) {
+          continue;
+        }
+      }
+      const eol = searchBackwards(contents, index, '\\n');
+      if (eol < 0) {
+        continue;
+      }
+      const prefix = contents.substring(eol + 1, index).trim();
+      const isAsync = prefix.includes('async');
+      const isExport = prefix.includes('export');
+      const newname = '__agentuity_' + fn;
+      let newfnname: string;
+      if (isConstVariable) {
+        newfnname = 'const ' + newname + ' = ';
+      } else {
+        newfnname = 'function ' + newname;
+      }
+      let fnprefix = '';
+      if (isAsync) {
+        fnprefix = 'async ';
+      }
+      if (isExport) {
+        fnprefix += 'export ' + fnprefix;
+      }
+      contents = contents.replace(fnname, newfnname);
+      if (isJS) {
+        suffix += fnprefix + 'function ' + fn + '() {\\n';
+        suffix += 'let args = arguments;\\n';
+      } else {
+        suffix += fnprefix + fnname + '(...args) {\\n';
+      }
+      suffix += '\\tlet _args = args;\\n';
+
+      if (mod.before) {
+        suffix += mod.before;
+        suffix += '\\n';
+      }
+
+      if (isJS) {
+        // For JS: use .apply to preserve 'this' context
+        suffix += '\\tlet result = ' + newname + '.apply(this, _args);\\n';
+      } else {
+        // For TS: use spread operator
+        suffix += '\\tlet result = ' + newname + '(..._args);\\n';
+      }
+
+      if (isAsync) {
+        suffix += '\\tif (result instanceof Promise) {\\n';
+        suffix += '\\t\\tresult = await result;\\n';
+        suffix += '\\t}\\n';
+      }
+      if (mod.after) {
+        suffix += mod.after;
+        suffix += '\\n';
+      }
+      suffix += '\\treturn result;\\n';
+      suffix += '}\\n';
+      contents = contents + '\\n' + suffix;
+    }
+  }
+  if (patch.body?.before) {
+    contents = patch.body.before + '\\n' + contents;
+  }
+  if (patch.body?.after) {
+    contents = contents + '\\n' + patch.body.after;
+  }
+  return [contents, isJS ? 'js' : 'ts'];
+}
+
+/**
+ * Escape special regex characters in a string
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
+}
 
 plugin({
   name: 'agentuity:runtime-patch',
   setup(build) {
-    for (const [name, patch] of patches) {
+    for (const { name, patch } of patchData) {
       // Build regex to match the module path in node_modules
       let modulePath: string;
+      const escapedModule = escapeRegex(patch.module);
       if (patch.filename) {
         // Match specific file within the module
-        const escapedModule = patch.module.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
-        modulePath = \`node_modules[/\\\\\\\\]\${escapedModule}[/\\\\\\\\]\${patch.filename}\\\\.(js|mjs|ts)$\`;
+        modulePath = 'node_modules[/\\\\\\\\]' + escapedModule + '[/\\\\\\\\]' + patch.filename + '\\\\.(js|mjs|ts)$';
       } else {
         // Match index file of the module
-        const escapedModule = patch.module.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
-        const lastPart = patch.module.split('/').pop();
-        modulePath = \`node_modules[/\\\\\\\\]\${escapedModule}[/\\\\\\\\](dist[/\\\\\\\\])?(index|\${lastPart})\\\\.(js|mjs|ts)$\`;
+        const lastPart = patch.module.split('/').pop() || patch.module;
+        modulePath = 'node_modules[/\\\\\\\\]' + escapedModule + '[/\\\\\\\\](dist[/\\\\\\\\])?(index|' + lastPart + ')\\\\.(js|mjs|ts)$';
       }
 
       const filter = new RegExp(modulePath);
