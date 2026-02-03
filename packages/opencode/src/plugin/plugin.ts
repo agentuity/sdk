@@ -695,6 +695,49 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 		},
 	});
 
+	const backgroundInspect = tool({
+		description: `Inspect a background task to see its session messages and current state. Useful for debugging or checking what a child agent is doing.`,
+		args: {
+			task_id: s.string().describe('Background task ID to inspect'),
+		},
+		async execute(args) {
+			const inspection = await backgroundManager.inspectTask(args.task_id);
+			if (!inspection) {
+				return JSON.stringify({
+					taskId: args.task_id,
+					status: 'unknown',
+					found: false,
+					error: 'Task not found or session no longer exists.',
+				});
+			}
+
+			// Extract last few messages for summary
+			const messages = inspection.messages ?? [];
+			const lastMessages = messages
+				.slice(-3)
+				.map((m) => {
+					const parts = m.parts ?? [];
+					const textParts = parts.filter(
+						(p: unknown) => (p as { type?: string }).type === 'text'
+					);
+					return textParts
+						.map((p: unknown) => ((p as { text?: string }).text ?? '').slice(0, 200))
+						.join(' ')
+						.slice(0, 300);
+				})
+				.filter(Boolean);
+
+			return JSON.stringify({
+				taskId: inspection.taskId,
+				status: inspection.status,
+				found: true,
+				messageCount: messages.length,
+				lastMessages,
+				lastActivity: inspection.lastActivity,
+			});
+		},
+	});
+
 	const memoryShare = tool({
 		description: `Share memory content publicly via Agentuity Cloud Streams.
 
@@ -837,6 +880,7 @@ Returns the public URL that can be copied and used anywhere.`,
 		agentuity_background_task: backgroundTask,
 		agentuity_background_output: backgroundOutput,
 		agentuity_background_cancel: backgroundCancel,
+		agentuity_background_inspect: backgroundInspect,
 		agentuity_memory_share: memoryShare,
 	};
 }

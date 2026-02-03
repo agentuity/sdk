@@ -1,7 +1,14 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import { agents } from '../agents';
 import type { AgentDefinition } from '../agents';
-import type { BackgroundTask, BackgroundTaskConfig, LaunchInput, TaskProgress } from './types';
+import type {
+	BackgroundTask,
+	BackgroundTaskConfig,
+	BackgroundTaskStatus,
+	LaunchInput,
+	TaskInspection,
+	TaskProgress,
+} from './types';
 import { ConcurrencyManager } from './concurrency';
 
 const DEFAULT_BACKGROUND_CONFIG: BackgroundTaskConfig = {
@@ -104,6 +111,118 @@ export class BackgroundManager {
 		const taskId = this.tasksBySession.get(sessionId);
 		if (!taskId) return undefined;
 		return this.tasks.get(taskId);
+	}
+
+	/**
+	 * Inspect a background task by fetching its session messages.
+	 * Useful for seeing what a child Lead or other agent is doing.
+	 */
+	async inspectTask(taskId: string): Promise<TaskInspection | undefined> {
+		const task = this.tasks.get(taskId);
+		if (!task?.sessionId) return undefined;
+
+		try {
+			// Get session details
+			const sessionResponse = await this.ctx.client.session.get({
+				path: { id: task.sessionId },
+				throwOnError: false,
+			});
+
+			// Get messages from the session
+			const messagesResponse = await this.ctx.client.session.messages({
+				path: { id: task.sessionId },
+				throwOnError: false,
+			});
+
+			const session = unwrapResponse<unknown>(sessionResponse);
+			const messages =
+				unwrapResponse<Array<{ info: unknown; parts: unknown[] }>>(messagesResponse);
+
+			// Return structured inspection result
+			return {
+				taskId: task.id,
+				sessionId: task.sessionId,
+				status: task.status,
+				session,
+				messages: messages ?? [],
+				lastActivity: task.progress?.lastUpdate?.toISOString(),
+			};
+		} catch {
+			// Session might not exist anymore
+			return undefined;
+		}
+	}
+
+	/**
+	 * Refresh task statuses from the server.
+	 * Useful for recovering state after issues or checking on stuck tasks.
+	 */
+	async refreshStatuses(): Promise<Map<string, BackgroundTaskStatus>> {
+		const results = new Map<string, BackgroundTaskStatus>();
+
+		// Get all our tracked session IDs
+		const sessionIds = Array.from(this.tasksBySession.keys());
+		if (sessionIds.length === 0) return results;
+
+		try {
+			// Fetch children for each unique parent (more efficient than individual gets)
+			const parentIds = new Set<string>();
+			for (const task of this.tasks.values()) {
+				if (task.parentSessionId) {
+					parentIds.add(task.parentSessionId);
+				}
+			}
+
+			for (const parentId of parentIds) {
+				const childrenResponse = await this.ctx.client.session.children({
+					path: { id: parentId },
+					throwOnError: false,
+				});
+
+				const children = unwrapResponse<Array<unknown>>(childrenResponse) ?? [];
+				for (const child of children) {
+					const childSession = child as { id?: string; status?: { type?: string } };
+					if (!childSession.id) continue;
+
+					const matchedTaskId = this.tasksBySession.get(childSession.id);
+					if (matchedTaskId) {
+						const task = this.tasks.get(matchedTaskId);
+						if (task) {
+							// Update task status based on session state
+							const newStatus = this.mapSessionStatusToTaskStatus(childSession);
+							if (newStatus !== task.status) {
+								task.status = newStatus;
+								results.set(matchedTaskId, newStatus);
+							}
+						}
+					}
+				}
+			}
+		} catch (error) {
+			// Log but don't fail - this is a best-effort refresh
+			console.error('Failed to refresh task statuses:', error);
+		}
+
+		return results;
+	}
+
+	private mapSessionStatusToTaskStatus(session: unknown): BackgroundTaskStatus {
+		// Map OpenCode session status to our task status
+		// Session status types: 'idle' | 'pending' | 'running' | 'error'
+		const status = (session as { status?: { type?: string } })?.status?.type;
+		switch (status) {
+			case 'idle':
+				return 'completed';
+			case 'pending':
+				return 'pending';
+			case 'running':
+				return 'running';
+			case 'error':
+				return 'error';
+			default:
+				// Unknown session status - default to pending for best-effort recovery
+				return 'pending';
+		}
 	}
 
 	cancel(taskId: string): boolean {
