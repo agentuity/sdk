@@ -126,6 +126,31 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			: undefined,
 	});
 
+	// Recover any background tasks from previous sessions
+	// This allows tasks to survive plugin restarts
+	void backgroundManager
+		.recoverTasks()
+		.then((count) => {
+			if (count > 0) {
+				ctx.client.app.log({
+					body: {
+						service: 'agentuity-coder',
+						level: 'info',
+						message: `Recovered ${count} background task(s) from previous sessions`,
+					},
+				});
+			}
+		})
+		.catch((error) => {
+			ctx.client.app.log({
+				body: {
+					service: 'agentuity-coder',
+					level: 'warn',
+					message: `Failed to recover background tasks: ${error}`,
+				},
+			});
+		});
+
 	// Create hooks that need backgroundManager for task reference injection during compaction
 	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager);
 

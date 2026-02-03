@@ -206,6 +206,97 @@ export class BackgroundManager {
 		return results;
 	}
 
+	/**
+	 * Recover background tasks from existing sessions.
+	 * Call this on plugin startup to restore state after restart.
+	 *
+	 * This method queries all sessions and reconstructs task state from
+	 * sessions that have JSON-encoded task metadata in their title.
+	 *
+	 * @returns The number of tasks recovered
+	 */
+	async recoverTasks(): Promise<number> {
+		let recovered = 0;
+
+		try {
+			// Get all sessions
+			const sessionsResponse = await this.ctx.client.session.list({
+				throwOnError: false,
+			});
+
+			const sessions = unwrapResponse<Array<unknown>>(sessionsResponse) ?? [];
+
+			for (const session of sessions) {
+				const sess = session as {
+					id?: string;
+					title?: string;
+					parentID?: string;
+					status?: { type?: string };
+				};
+
+				// Check if this is one of our background task sessions
+				// Our sessions have JSON-encoded task metadata in the title
+				if (!sess.title?.startsWith('{')) continue;
+
+				try {
+					const metadata = JSON.parse(sess.title) as {
+						taskId?: string;
+						agent?: string;
+						description?: string;
+						createdAt?: string;
+					};
+
+					// Skip if not a valid task metadata (must have taskId starting with 'bg_')
+					if (!metadata.taskId || !metadata.taskId.startsWith('bg_')) continue;
+
+					// Skip if we already have this task
+					if (this.tasks.has(metadata.taskId)) continue;
+
+					// Skip sessions without an ID
+					if (!sess.id) continue;
+
+					// Reconstruct the task
+					const agentName = metadata.agent ?? 'unknown';
+					const task: BackgroundTask = {
+						id: metadata.taskId,
+						sessionId: sess.id,
+						parentSessionId: sess.parentID ?? '',
+						agent: agentName,
+						description: metadata.description ?? '',
+						prompt: '', // Original prompt not stored in metadata
+						status: this.mapSessionStatusToTaskStatus(sess),
+						queuedAt: metadata.createdAt ? new Date(metadata.createdAt) : new Date(),
+						startedAt: metadata.createdAt ? new Date(metadata.createdAt) : new Date(),
+						concurrencyGroup: this.getConcurrencyGroup(agentName),
+						progress: {
+							toolCalls: 0,
+							lastUpdate: new Date(),
+						},
+					};
+
+					// Add to our tracking maps
+					this.tasks.set(task.id, task);
+					this.tasksBySession.set(sess.id, task.id);
+
+					if (task.parentSessionId) {
+						const parentTasks = this.tasksByParent.get(task.parentSessionId) ?? new Set();
+						parentTasks.add(task.id);
+						this.tasksByParent.set(task.parentSessionId, parentTasks);
+					}
+
+					recovered++;
+				} catch {
+					// Not valid JSON or not our task, skip
+					continue;
+				}
+			}
+		} catch (error) {
+			console.error('Failed to recover tasks:', error);
+		}
+
+		return recovered;
+	}
+
 	private mapSessionStatusToTaskStatus(session: unknown): BackgroundTaskStatus {
 		// Map OpenCode session status to our task status
 		// Session status types: 'idle' | 'pending' | 'running' | 'error'
@@ -339,10 +430,18 @@ export class BackgroundManager {
 		}
 
 		try {
+			// Store task metadata in session title for persistence/recovery
+			const taskMetadata = JSON.stringify({
+				taskId: task.id,
+				agent: task.agent,
+				description: task.description,
+				createdAt: task.queuedAt?.toISOString() ?? new Date().toISOString(),
+			});
+
 			const sessionResult = await this.ctx.client.session.create({
 				body: {
 					parentID: task.parentSessionId,
-					title: task.description,
+					title: taskMetadata,
 				},
 				throwOnError: true,
 			});
