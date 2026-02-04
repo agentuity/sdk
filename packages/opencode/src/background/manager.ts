@@ -135,8 +135,10 @@ export class BackgroundManager {
 			});
 
 			const session = unwrapResponse<unknown>(sessionResponse);
-			const messages =
+			const rawMessages =
 				unwrapResponse<Array<{ info: unknown; parts: unknown[] }>>(messagesResponse);
+			// Defensive array coercion (response may be non-array when throwOnError is false)
+			const messages = Array.isArray(rawMessages) ? rawMessages : [];
 
 			// Return structured inspection result
 			return {
@@ -144,7 +146,7 @@ export class BackgroundManager {
 				sessionId: task.sessionId,
 				status: task.status,
 				session,
-				messages: messages ?? [],
+				messages,
 				lastActivity: task.progress?.lastUpdate?.toISOString(),
 			};
 		} catch {
@@ -173,6 +175,8 @@ export class BackgroundManager {
 				}
 			}
 
+			const completionPromises: Promise<void>[] = [];
+
 			for (const parentId of parentIds) {
 				const childrenResponse = await this.ctx.client.session.children({
 					path: { id: parentId },
@@ -188,16 +192,28 @@ export class BackgroundManager {
 					if (matchedTaskId) {
 						const task = this.tasks.get(matchedTaskId);
 						if (task) {
-							// Update task status based on session state
 							const newStatus = this.mapSessionStatusToTaskStatus(childSession);
 							if (newStatus !== task.status) {
-								task.status = newStatus;
-								results.set(matchedTaskId, newStatus);
+								// Use proper handlers to trigger side effects (concurrency, notifications, etc.)
+								if (newStatus === 'completed' && task.status === 'running') {
+									completionPromises.push(this.completeTask(task));
+									results.set(matchedTaskId, newStatus);
+								} else if (newStatus === 'error') {
+									this.failTask(task, 'Session ended with error');
+									results.set(matchedTaskId, newStatus);
+								} else {
+									// For other transitions (e.g., pending -> running), direct update is fine
+									task.status = newStatus;
+									results.set(matchedTaskId, newStatus);
+								}
 							}
 						}
 					}
 				}
 			}
+
+			// Wait for all completion handlers to finish
+			await Promise.all(completionPromises);
 		} catch (error) {
 			// Log but don't fail - this is a best-effort refresh
 			console.error('Failed to refresh task statuses:', error);
