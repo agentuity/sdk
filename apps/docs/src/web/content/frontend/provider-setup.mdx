@@ -1,0 +1,109 @@
+---
+title: Provider Setup
+description: Configure AgentuityProvider for local development and production deployments
+---
+
+Wrap your app in `AgentuityProvider` to connect React hooks to your agents.
+
+## Basic Setup
+
+```tsx
+import { AgentuityProvider } from '@agentuity/react';
+
+export default function App() {
+  return (
+    <AgentuityProvider>
+      <YourApp />
+    </AgentuityProvider>
+  );
+}
+```
+
+In development, the provider automatically connects to `http://localhost:3500` where your agents run.
+
+## Production Configuration
+
+For deployed applications, set the `baseUrl` to your Agentuity deployment:
+
+```tsx
+import { AgentuityProvider } from '@agentuity/react';
+
+export default function App() {
+  return (
+    <AgentuityProvider baseUrl="https://your-project.agentuity.cloud">
+      <YourApp />
+    </AgentuityProvider>
+  );
+}
+```
+
+### Environment-Based Configuration
+
+Use environment variables to switch between development and production:
+
+```tsx
+import { AgentuityProvider } from '@agentuity/react';
+
+const baseUrl = process.env.NODE_ENV === 'production'
+  ? 'https://your-project.agentuity.cloud'
+  : undefined; // Falls back to localhost:3500
+
+export default function App() {
+  return (
+    <AgentuityProvider baseUrl={baseUrl}>
+      <YourApp />
+    </AgentuityProvider>
+  );
+}
+```
+
+For production, set your deployment URL via your framework's environment variable pattern.
+
+## Provider Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `baseUrl` | `string` | `http://localhost:3500` | Base URL for agent requests |
+| `children` | `ReactNode` | — | Your app components |
+
+## Authentication Integration
+
+For apps with user authentication, wrap `AgentuityProvider` with `AuthProvider` from `@agentuity/auth/react`:
+
+```tsx
+import { AgentuityProvider } from '@agentuity/react';
+import { AuthProvider, createAuthClient } from '@agentuity/auth/react';
+
+const authClient = createAuthClient();
+
+export default function App() {
+  return (
+    <AgentuityProvider>
+      <AuthProvider authClient={authClient}>
+        <YourApp />
+      </AuthProvider>
+    </AgentuityProvider>
+  );
+}
+```
+
+Once configured, `useAPI` and `useWebsocket` automatically include auth tokens in requests. See [Adding Authentication](/frontend/authentication) for full setup.
+
+## Type Safety
+
+When you run `bun dev` or `agentuity dev`, the CLI generates TypeScript types for your agents at `.agentuity/types.d.ts`. This enables autocomplete and type checking for agent names and their input/output schemas.
+
+```tsx
+// TypeScript knows which routes exist and their types
+const { invoke } = useAPI('POST /api/chat'); // Autocomplete for routes
+await invoke({ message: 'Hello' });  // Type-checked input
+```
+
+<Callout type="info" title="Type Generation">
+Types are regenerated automatically when you add or modify agents. If types seem stale, restart the dev server.
+</Callout>
+
+## Next Steps
+
+- [React Hooks](/frontend/react-hooks): Learn about `useAPI`, `useWebsocket`, and `useEventStream`
+- [Deployment Scenarios](/frontend/deployment-scenarios): Choose where your frontend lives

@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/reference/cli/development')({
-	component: () => (
-		<PlaceholderPage title="CLI: Development" description="Development commands and workflows." />
-	),
+	component: () => <MDXPage route="reference/cli/development" />,
 	staticData: { crumb: 'Development' },
 });

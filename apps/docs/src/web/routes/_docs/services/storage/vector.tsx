@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/services/storage/vector')({
-	component: () => (
-		<PlaceholderPage title="Vector Storage" description="Semantic search with embeddings." />
-	),
+	component: () => <MDXPage route="services/storage/vector" />,
 	staticData: { crumb: 'Vector' },
 });

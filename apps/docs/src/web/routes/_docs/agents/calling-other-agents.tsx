@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/agents/calling-other-agents')({
-	component: () => (
-		<PlaceholderPage
-			title="Calling Other Agents"
-			description="Invoke agents from other agents or routes."
-		/>
-	),
+	component: () => <MDXPage route="agents/calling-other-agents" />,
 	staticData: { crumb: 'Calling Other Agents' },
 });

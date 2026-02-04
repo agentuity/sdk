@@ -1,0 +1,390 @@
+---
+title: Middleware & Authentication
+description: Add authentication, validation, and request processing to your routes
+---
+
+Agentuity routes are built on [Hono](https://hono.dev), giving you access to Hono's middleware system. Use middleware to add authentication, logging, CORS, rate limiting, and other shared request processing.
+
+<Callout type="info" title="Supported Routes">
+Middleware works on HTTP, WebSocket, SSE, Cron, and Stream routes.
+</Callout>
+
+## Basic Middleware
+
+Create middleware with `createMiddleware` from Hono:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { createMiddleware } from 'hono/factory';
+
+const router = createRouter();
+
+// Middleware that logs all requests
+const loggerMiddleware = createMiddleware(async (c, next) => {
+  const start = Date.now();
+  await next();
+  const duration = Date.now() - start;
+  c.var.logger.info('Request completed', {
+    method: c.req.method,
+    path: c.req.path,
+    duration,
+  });
+});
+
+// Apply to specific route
+router.get('/data', loggerMiddleware, (c) => {
+  return c.json({ data: 'value' });
+});
+
+export default router;
+```
+
+## Authentication Patterns
+
+### API Key Authentication
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { createMiddleware } from 'hono/factory';
+
+const router = createRouter();
+
+const apiKeyAuth = createMiddleware(async (c, next) => {
+  const apiKey = c.req.header('X-API-Key');
+
+  if (!apiKey) {
+    return c.json({ error: 'API key required' }, 401);
+  }
+
+  // Validate against stored keys
+  const keyData = await c.var.kv.get('api-keys', apiKey);
+  if (!keyData.exists) {
+    return c.json({ error: 'Invalid API key' }, 401);
+  }
+
+  // Add user info to context for downstream handlers
+  c.set('apiKeyOwner', keyData.data.ownerId);
+  await next();
+});
+
+router.get('/protected', apiKeyAuth, (c) => {
+  const ownerId = c.var.apiKeyOwner;
+  return c.json({ message: 'Access granted', ownerId });
+});
+
+export default router;
+```
+
+### Bearer Token (JWT)
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { createMiddleware } from 'hono/factory';
+import { verify } from 'hono/jwt';
+
+const router = createRouter();
+
+const jwtAuth = createMiddleware(async (c, next) => {
+  const authHeader = c.req.header('Authorization');
+
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({ error: 'Bearer token required' }, 401);
+  }
+
+  const token = authHeader.slice(7);
+
+  try {
+    const payload = await verify(token, process.env.JWT_SECRET!);
+    c.set('user', payload);
+    await next();
+  } catch {
+    return c.json({ error: 'Invalid token' }, 401);
+  }
+});
+
+router.get('/me', jwtAuth, (c) => {
+  const user = c.var.user;
+  return c.json({ userId: user.sub, email: user.email });
+});
+
+export default router;
+```
+
+### Authentication Middleware
+
+The `@agentuity/auth` package provides authentication middleware:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { createSessionMiddleware } from '@agentuity/auth';
+import { auth } from '../auth';
+
+const router = createRouter();
+
+router.get('/public', (c) => {
+  return c.json({ message: 'Public endpoint' });
+});
+
+// Protected route requiring authentication
+router.get('/protected', createSessionMiddleware(auth), async (c) => {
+  const user = await c.var.auth.getUser();
+  return c.json({
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+  });
+});
+
+export default router;
+```
+
+The `@agentuity/auth` package automatically integrates with `useAPI` and `useWebsocket` hooks, injecting auth tokens into requests.
+
+<Callout type="info" title="Full Authentication Setup">
+For complete setup including client-side configuration, see [Adding Authentication](/frontend/authentication).
+</Callout>
+
+## Request Validation
+
+Use `agent.validator()` for type-safe request validation:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import agent from './agent';
+
+const router = createRouter();
+
+// Validates using agent's input schema
+router.post('/items', agent.validator(), async (c) => {
+  const data = c.req.valid('json'); // Fully typed from schema
+  await c.var.kv.set('items', crypto.randomUUID(), data);
+  return c.json({ created: true, item: data });
+});
+
+export default router;
+```
+
+### Custom Schema Override
+
+Pass a schema to override the agent's default:
+
+```typescript
+import { z } from 'zod';
+
+const customSchema = z.object({
+  name: z.string().min(1).max(100),
+  price: z.number().positive(),
+  category: z.enum(['electronics', 'clothing', 'food']),
+});
+
+router.post('/custom',
+  agent.validator({ input: customSchema }),
+  async (c) => {
+    const data = c.req.valid('json');
+    return c.json(data);
+  }
+);
+```
+
+### With Valibot
+
+The validator works with any [StandardSchema](https://github.com/standard-schema/standard-schema)-compatible library:
+
+```typescript
+import * as v from 'valibot';
+
+const itemSchema = v.object({
+  name: v.pipe(v.string(), v.minLength(1), v.maxLength(100)),
+  price: v.pipe(v.number(), v.minValue(0)),
+  category: v.picklist(['electronics', 'clothing', 'food']),
+});
+
+router.post('/items',
+  agent.validator({ input: itemSchema }),
+  async (c) => {
+    const data = c.req.valid('json');
+    return c.json(data);
+  }
+);
+```
+
+See [Schema Libraries](/agents/schema-libraries) for more on Valibot and ArkType.
+
+## Route-Level Middleware
+
+Apply middleware to all routes in a router with `router.use()`:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { createMiddleware } from 'hono/factory';
+
+const router = createRouter();
+
+// Apply to all routes in this file
+router.use('/*', createMiddleware(async (c, next) => {
+  c.var.logger.info('API request', { path: c.req.path });
+  await next();
+}));
+
+// Apply to specific path prefix
+router.use('/admin/*', adminAuthMiddleware);
+
+router.get('/public', (c) => c.text('Anyone can access'));
+router.get('/admin/users', (c) => c.json({ users: [] })); // Requires admin auth
+
+export default router;
+```
+
+## Combining Middleware
+
+Chain multiple middleware for complex requirements:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { createMiddleware } from 'hono/factory';
+import agent from './agent';
+
+const router = createRouter();
+
+const rateLimiter = createMiddleware(async (c, next) => {
+  const ip = c.req.header('x-forwarded-for') || 'unknown';
+  const key = `ratelimit:${ip}`;
+
+  const result = await c.var.kv.get<number>('ratelimit', key);
+  const count = result.exists ? result.data : 0;
+
+  if (count >= 100) {
+    return c.json({ error: 'Rate limit exceeded' }, 429);
+  }
+
+  await c.var.kv.set('ratelimit', key, count + 1, { ttl: 60 });
+  await next();
+});
+
+const authMiddleware = createMiddleware(async (c, next) => {
+  const token = c.req.header('Authorization')?.slice(7);
+  if (!token) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  c.set('userId', await validateToken(token));
+  await next();
+});
+
+// Chain: rate limit → auth → validation → handler
+router.post('/message',
+  rateLimiter,
+  authMiddleware,
+  agent.validator(),
+  async (c) => {
+    const userId = c.var.userId;
+    const { message } = c.req.valid('json');
+
+    return c.json({ received: true, userId, message });
+  }
+);
+
+export default router;
+```
+
+## Error Handling
+
+Handle errors gracefully in middleware:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { createMiddleware } from 'hono/factory';
+
+const router = createRouter();
+
+const errorHandler = createMiddleware(async (c, next) => {
+  try {
+    await next();
+  } catch (error) {
+    c.var.logger.error('Unhandled error', {
+      error: error instanceof Error ? error.message : String(error),
+      path: c.req.path,
+    });
+
+    return c.json(
+      { error: 'Internal server error' },
+      500
+    );
+  }
+});
+
+router.use('/*', errorHandler);
+
+router.get('/risky', (c) => {
+  // If this throws, errorHandler catches it
+  throw new Error('Something went wrong');
+});
+
+export default router;
+```
+
+## Built-in Middleware
+
+Agentuity provides middleware for common needs, exported from `@agentuity/runtime`.
+
+### CORS
+
+Apply CORS headers to routes:
+
+```typescript
+import { createRouter, createCorsMiddleware } from '@agentuity/runtime';
+
+const router = createRouter();
+
+// Apply CORS to all API routes
+router.use('/api/*', createCorsMiddleware());
+
+// Or with custom options
+router.use('/api/*', createCorsMiddleware({
+  origin: ['https://myapp.com', 'https://admin.myapp.com'],
+  credentials: true,
+  maxAge: 3600,
+}));
+
+export default router;
+```
+
+CORS can also be configured globally via `createApp()`. See [App Configuration](/Get-Started/app-configuration).
+
+### Compression
+
+Compress responses with gzip/deflate based on the `Accept-Encoding` header:
+
+```typescript
+import { createRouter, createCompressionMiddleware } from '@agentuity/runtime';
+
+const router = createRouter();
+
+// Apply compression to all routes
+router.use('/*', createCompressionMiddleware());
+
+// Or with custom threshold (only compress responses > 2KB)
+router.use('/*', createCompressionMiddleware({
+  threshold: 2048,
+}));
+
+export default router;
+```
+
+Compression automatically bypasses:
+- WebSocket upgrade requests
+- Requests without `Accept-Encoding` headers
+- SSE and binary streams
+
+Compression can also be configured globally via `createApp({ compression: { ... } })`. See [App Configuration](/Get-Started/app-configuration).
+
+## Best Practices
+
+- **Order matters**: Middleware runs in registration order. Put error handling first, then auth, then validation.
+- **Early returns**: Return immediately on failure (don't call `next()`).
+- **Share data via context**: Use `c.set('key', value)` to pass data to downstream handlers, access with `c.var.key`.
+- **Keep middleware focused**: Each middleware should do one thing.
+
+## Next Steps
+
+- [HTTP Routes](/routes/http): Complete routing reference
+- [Calling Agents from APIs](/APIs/calling-agents): Invoke agents from API routes

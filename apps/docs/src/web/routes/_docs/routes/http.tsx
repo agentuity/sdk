@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/routes/http')({
-	component: () => (
-		<PlaceholderPage title="HTTP Routes" description="Create HTTP endpoints with the Hono router." />
-	),
+	component: () => <MDXPage route="routes/http" />,
 	staticData: { crumb: 'HTTP' },
 });

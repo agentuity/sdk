@@ -7,7 +7,7 @@ import { cn } from '../../lib/utils';
 import { Callout } from './callout';
 import { Steps, Step } from './steps';
 import { Tabs, Tab } from './tabs';
-import { Cards, CardLink } from './cards';
+import { Cards, CardLink, ExternalCard } from './cards';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MDXComponents = Record<string, React.ComponentType<any>>;
@@ -278,5 +278,6 @@ export const mdxComponents: MDXComponents = {
 	Tab,
 	Cards,
 	CardLink,
+	ExternalCard,
 	Card: CardLink, // Alias for Fumadocs compatibility
 };

@@ -1,0 +1,177 @@
+---
+title: Using the AI Gateway
+description: Automatic LLM routing with observability and cost tracking
+---
+
+Agentuity's AI Gateway routes LLM requests through a managed infrastructure, giving you unified observability and cost tracking across all model providers.
+
+## How It Works
+
+When you make LLM requests from your agents, they're *automatically* routed through the AI Gateway:
+
+```
+Your Agent → AI Gateway → Provider API (OpenAI, Anthropic, etc.)
+```
+
+The AI Gateway provides:
+
+- **Consolidated billing** across all LLM providers
+- **Automatic observability** with token tracking and latency metrics
+- **Request logging** visible in the Agentuity console
+- **No configuration required** when using your SDK key
+
+## Using the AI Gateway
+
+The AI Gateway works automatically—whether you use the Vercel AI SDK, provider SDKs directly (Anthropic, OpenAI), or frameworks like Mastra and LangGraph.
+
+### With the Vercel AI SDK
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { s } from '@agentuity/schema';
+
+const agent = createAgent('TextGenerator', {
+  schema: {
+    input: s.object({ prompt: s.string() }),
+    output: s.object({ response: s.string() }),
+  },
+  handler: async (ctx, input) => {
+    // Requests route through AI Gateway automatically
+    const { text } = await generateText({
+      model: openai('gpt-5-mini'),
+      prompt: input.prompt,
+    });
+
+    return { response: text };
+  },
+});
+
+export default agent;
+```
+
+### Multiple Providers
+
+You can easily compare responses from different providers by swapping out the `model` parameter:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { openai } from '@ai-sdk/openai';
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
+
+const router = createRouter();
+
+router.post('/compare', async (c) => {
+  const prompt = await c.req.text();
+
+  // Both providers route through AI Gateway automatically
+  const [resultOpenAI, resultGoogle] = await Promise.all([
+    generateText({
+      model: openai('gpt-5-mini'),
+      prompt,
+    }),
+    generateText({
+      model: google('gemini-2.5-flash'),
+      prompt,
+    }),
+  ]);
+
+  return c.json({
+    openai: resultOpenAI.text,
+    google: resultGoogle.text,
+  });
+});
+
+export default router;
+```
+
+### With Provider SDKs Directly
+
+You can also use provider SDKs directly. The AI Gateway routes these requests automatically:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import Anthropic from '@anthropic-ai/sdk';
+import { s } from '@agentuity/schema';
+
+const client = new Anthropic();
+
+const agent = createAgent('AnthropicChat', {
+  schema: {
+    input: s.object({ prompt: s.string() }),
+    output: s.object({ response: s.string() }),
+  },
+  handler: async (ctx, input) => {
+    const result = await client.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: input.prompt }],
+    });
+
+    const text = result.content[0]?.type === 'text'
+      ? result.content[0].text
+      : '';
+
+    return { response: text };
+  },
+});
+
+export default agent;
+```
+
+## Supported Providers
+
+The following are some of the providers available through the AI Gateway:
+
+| Provider | Package | Example Models |
+|----------|---------|----------------|
+| OpenAI | `@ai-sdk/openai` | `gpt-5-mini`, `gpt-5` |
+| Anthropic | `@ai-sdk/anthropic` | `claude-sonnet-4-5`, `claude-haiku-4-5` |
+| Google | `@ai-sdk/google` | `gemini-2.5-pro`, `gemini-2.5-flash` |
+| xAI | `@ai-sdk/xai` | `grok-3`, `grok-3-mini` |
+| DeepSeek | `@ai-sdk/deepseek` | `deepseek-chat`, `deepseek-reasoner` |
+| Groq | `@ai-sdk/groq` | `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `openai/gpt-oss-120b`, `groq/compound` |
+| Mistral | `@ai-sdk/mistral` | `mistral-large`, `mistral-small` |
+
+### Provider Imports
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
+import { google } from '@ai-sdk/google';
+import { xai } from '@ai-sdk/xai';
+import { deepseek } from '@ai-sdk/deepseek';
+import { groq } from '@ai-sdk/groq';
+import { mistral } from '@ai-sdk/mistral';
+```
+
+## BYO API Keys
+
+You can bypass the AI Gateway and use your own API keys, by updating your `.env` file:
+
+```bash
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_GENERATIVE_AI_API_KEY=...
+```
+
+When these variables are set, requests go directly to the provider instead of through the AI Gateway.
+
+## Gateway vs BYO Keys
+
+| Aspect | AI Gateway | BYO API Keys |
+|--------|------------|--------------|
+| **Setup** | Just SDK key | Manage per-provider keys |
+| **Cost tracking** | Automatic in console | Manual |
+| **Observability** | Built-in token/latency metrics | Must configure separately |
+| **Rate limits** | Shared pool | Your own limits |
+
+We recommend using the AI Gateway for most projects.
+
+## Next Steps
+
+- [Using the AI SDK](/agents/ai-sdk-integration): Structured output, tool calling, and multi-turn conversations
+- [Returning Streaming Responses](/agents/streaming-responses): Real-time chat UIs and progress indicators
+- [Logging](/services/observability/logging): Debug requests and track LLM performance

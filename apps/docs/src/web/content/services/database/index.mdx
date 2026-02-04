@@ -1,0 +1,148 @@
+---
+title: Database
+description: Relational database storage using Bun's native SQL APIs
+---
+
+Store structured data with queries, joins, and transactions using [Bun's native SQL APIs](https://bun.sh/docs/runtime/sql).
+
+## When to Use Database Storage
+
+| Storage Type | Best For |
+|--------------|----------|
+| **Database** | Structured data, complex queries, transactions, relational data |
+| [Key-Value](/services/storage/key-value) | Fast lookups, caching, configuration |
+| [Vector](/services/storage/vector) | Semantic search, embeddings, RAG |
+| [Object (S3)](/services/storage/object) | Files, images, documents, media |
+| [Durable Streams](/services/storage/durable-streams) | Large exports, audit logs |
+
+<Callout type="info" title="Credentials Auto-Injected">
+When you create a database with `agentuity cloud db create`, the `DATABASE_URL` is automatically added to your `.env` file. During deployment, credentials are injected automatically.
+</Callout>
+
+## Creating a Database
+
+```bash
+# Create with default settings
+agentuity cloud db create
+
+# Create with name and description
+agentuity cloud db create --name "users-db" --description "Primary user data store"
+```
+
+## Quick Start
+
+```typescript
+import { sql } from "bun";
+
+// Query with automatic SQL injection protection
+const users = await sql`SELECT * FROM users WHERE active = ${true}`;
+
+// Insert data
+await sql`INSERT INTO users (name, email) VALUES (${"Alice"}, ${"alice@example.com"})`;
+
+// Update data
+await sql`UPDATE users SET active = ${false} WHERE id = ${userId}`;
+
+// Delete data
+await sql`DELETE FROM users WHERE id = ${userId}`;
+```
+
+<Callout type="warn" title="SQL Injection Prevention">
+Always use template literal parameters (`${value}`) for dynamic values. Never concatenate strings into queries.
+</Callout>
+
+## Using in Agents
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { sql } from "bun";
+
+const agent = createAgent('UserQuery', {
+  handler: async (ctx, input) => {
+    const users = await sql`
+      SELECT * FROM users
+      WHERE active = ${true}
+      AND created_at > ${input.since}
+      ORDER BY created_at DESC
+      LIMIT 10
+    `;
+
+    ctx.logger.info("Query results", { count: users.length });
+    return { users };
+  },
+});
+```
+
+## Using in Routes
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { sql } from "bun";
+
+const router = createRouter();
+
+router.get('/users', async (c) => {
+  const limit = parseInt(c.req.query('limit') || '10');
+  const users = await sql`
+    SELECT id, name, email FROM users
+    ORDER BY created_at DESC
+    LIMIT ${limit}
+  `;
+  return c.json({ users });
+});
+
+router.post('/users', async (c) => {
+  const body = await c.req.json();
+  const result = await sql`
+    INSERT INTO users (name, email)
+    VALUES (${body.name}, ${body.email})
+    RETURNING id, name, email
+  `;
+  return c.json({ user: result[0] }, 201);
+});
+
+export default router;
+```
+
+## Transactions
+
+Use transactions for operations that must succeed or fail together:
+
+```typescript
+import { sql } from "bun";
+
+await sql.begin(async (tx) => {
+  await tx`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${fromAccount}`;
+  await tx`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${toAccount}`;
+  await tx`INSERT INTO transfers (from_id, to_id, amount) VALUES (${fromAccount}, ${toAccount}, ${amount})`;
+});
+```
+
+## Supported Databases
+
+Bun's SQL API supports PostgreSQL, MySQL, and SQLite:
+
+```typescript
+import { SQL } from "bun";
+
+// PostgreSQL (default, uses DATABASE_URL)
+const users = await sql`SELECT * FROM users`;
+
+// Custom PostgreSQL connection
+const postgres = new SQL("postgres://user:pass@localhost:5432/mydb");
+
+// MySQL
+const mysql = new SQL("mysql://user:pass@localhost:3306/mydb");
+
+// SQLite
+const sqlite = new SQL("sqlite://data/app.db");
+```
+
+For complete Bun SQL documentation, see the [Bun SQL docs](https://bun.sh/docs/runtime/sql).
+
+## Next Steps
+
+- [Resilient Postgres Client](/services/database/postgres): Auto-reconnecting PostgreSQL client for serverless
+- [Drizzle ORM](/services/database/drizzle): Type-safe database access with Drizzle
+- [Key-Value Storage](/services/storage/key-value): Fast caching and session data
+- [Vector Storage](/services/storage/vector): Semantic search and embeddings

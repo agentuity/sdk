@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/services/observability/tracing')({
-	component: () => (
-		<PlaceholderPage title="Tracing" description="Distributed tracing for agent calls." />
-	),
+	component: () => <MDXPage route="services/observability/tracing" />,
 	staticData: { crumb: 'Tracing' },
 });

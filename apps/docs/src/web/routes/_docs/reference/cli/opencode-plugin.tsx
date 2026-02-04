@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/reference/cli/opencode-plugin')({
-	component: () => (
-		<PlaceholderPage title="CLI: Opencode Plugin" description="Use the Opencode plugin for enhanced editing." />
-	),
+	component: () => <MDXPage route="reference/cli/opencode-plugin" />,
 	staticData: { crumb: 'Opencode Plugin' },
 });

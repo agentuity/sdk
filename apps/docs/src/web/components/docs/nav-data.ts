@@ -76,7 +76,6 @@ export const navData: NavSection[] = [
 		title: 'Routes',
 		url: '/routes',
 		items: [
-			{ title: 'Overview', url: '/routes' },
 			{ title: 'HTTP', url: '/routes/http' },
 			{ title: 'Middleware', url: '/routes/middleware' },
 			{ title: 'Cron', url: '/routes/cron' },
@@ -103,14 +102,15 @@ export const navData: NavSection[] = [
 		items: [
 			{
 				title: 'Database',
+				url: '/services/database',
 				items: [
-					{ title: 'Overview', url: '/services/database' },
 					{ title: 'Postgres', url: '/services/database/postgres' },
 					{ title: 'Drizzle', url: '/services/database/drizzle' },
 				],
 			},
 			{
 				title: 'Storage',
+				url: '/services/storage',
 				items: [
 					{ title: 'Key-Value', url: '/services/storage/key-value' },
 					{ title: 'Vector', url: '/services/storage/vector' },
@@ -122,6 +122,7 @@ export const navData: NavSection[] = [
 			{ title: 'Queues', url: '/services/queues' },
 			{
 				title: 'Observability',
+				url: '/services/observability',
 				items: [
 					{ title: 'Logging', url: '/services/observability/logging' },
 					{ title: 'Tracing', url: '/services/observability/tracing' },
@@ -130,8 +131,8 @@ export const navData: NavSection[] = [
 			},
 			{
 				title: 'Sandbox',
+				url: '/services/sandbox',
 				items: [
-					{ title: 'Overview', url: '/services/sandbox' },
 					{ title: 'SDK Usage', url: '/services/sandbox/sdk-usage' },
 					{ title: 'Snapshots', url: '/services/sandbox/snapshots' },
 				],
@@ -139,33 +140,27 @@ export const navData: NavSection[] = [
 		],
 	},
 	{
-		title: 'Learn',
-		url: '/learn',
+		title: 'Cookbook',
+		url: '/cookbook',
 		items: [
 			{
-				title: 'Cookbook',
+				title: 'Tutorials',
 				items: [
-					{ title: 'Overview', url: '/learn/cookbook' },
-					{
-						title: 'Tutorials',
-						items: [
-							{ title: 'Understanding Agents', url: '/learn/cookbook/tutorials/understanding-agents' },
-							{ title: 'RAG Agent', url: '/learn/cookbook/tutorials/rag-agent' },
-						],
-					},
-					{
-						title: 'Patterns',
-						items: [
-							{ title: 'Background Tasks', url: '/learn/cookbook/patterns/background-tasks' },
-							{ title: 'Chat with History', url: '/learn/cookbook/patterns/chat-with-history' },
-							{ title: 'Cron with Storage', url: '/learn/cookbook/patterns/cron-with-storage' },
-							{ title: 'LLM as a Judge', url: '/learn/cookbook/patterns/llm-as-a-judge' },
-							{ title: 'Server Utilities', url: '/learn/cookbook/patterns/server-utilities' },
-							{ title: 'Product Search', url: '/learn/cookbook/patterns/product-search' },
-							{ title: 'Tailwind Setup', url: '/learn/cookbook/patterns/tailwind-setup' },
-							{ title: 'Webhook Handler', url: '/learn/cookbook/patterns/webhook-handler' },
-						],
-					},
+					{ title: 'Understanding Agents', url: '/cookbook/tutorials/understanding-agents' },
+					{ title: 'RAG Agent', url: '/cookbook/tutorials/rag-agent' },
+				],
+			},
+			{
+				title: 'Patterns',
+				items: [
+					{ title: 'Background Tasks', url: '/cookbook/patterns/background-tasks' },
+					{ title: 'Chat with History', url: '/cookbook/patterns/chat-with-history' },
+					{ title: 'Cron with Storage', url: '/cookbook/patterns/cron-with-storage' },
+					{ title: 'LLM as a Judge', url: '/cookbook/patterns/llm-as-a-judge' },
+					{ title: 'Server Utilities', url: '/cookbook/patterns/server-utilities' },
+					{ title: 'Product Search', url: '/cookbook/patterns/product-search' },
+					{ title: 'Tailwind Setup', url: '/cookbook/patterns/tailwind-setup' },
+					{ title: 'Webhook Handler', url: '/cookbook/patterns/webhook-handler' },
 				],
 			},
 		],
@@ -173,6 +168,7 @@ export const navData: NavSection[] = [
 	{
 		title: 'Community',
 		url: '/community',
+		hideItems: true,
 		items: [{ title: 'Overview', url: '/community' }],
 	},
 	{
@@ -181,6 +177,7 @@ export const navData: NavSection[] = [
 		items: [
 			{
 				title: 'CLI',
+				url: '/reference/cli',
 				items: [
 					{ title: 'Getting Started', url: '/reference/cli/getting-started' },
 					{ title: 'Development', url: '/reference/cli/development' },

@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/agents/events-lifecycle')({
-	component: () => (
-		<PlaceholderPage
-			title="Events & Lifecycle"
-			description="Understand the agent execution lifecycle and events."
-		/>
-	),
+	component: () => <MDXPage route="agents/events-lifecycle" />,
 	staticData: { crumb: 'Events & Lifecycle' },
 });

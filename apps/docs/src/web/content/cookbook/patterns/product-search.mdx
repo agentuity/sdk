@@ -1,0 +1,427 @@
+---
+title: Product Search with Vector
+description: Semantic product search with metadata filtering
+---
+
+Build a product search that understands natural language queries and filters by category, price, or other attributes.
+
+## The Pattern
+
+Vector search finds semantically similar products. Combine with metadata filtering for precise results.
+
+```typescript title="src/agent/product-search/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+interface ProductMetadata {
+  name: string;
+  price: number;
+  category: string;
+  inStock: boolean;
+}
+
+const agent = createAgent('Product Search', {
+  description: 'Semantic search for products',
+  schema: {
+    input: z.object({
+      query: z.string().describe('Natural language search query'),
+      category: z.string().optional().describe('Filter by category'),
+      maxPrice: z.number().optional().describe('Maximum price filter'),
+      limit: z.number().min(1).max(50).default(10),
+    }),
+    output: z.object({
+      products: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string(),
+        price: z.number(),
+        category: z.string(),
+        relevance: z.number(),
+      })),
+      total: z.number(),
+    }),
+  },
+  handler: async (ctx, input) => {
+    ctx.logger.info('Searching products', {
+      query: input.query,
+      category: input.category,
+      maxPrice: input.maxPrice,
+    });
+
+    // Search with semantic similarity
+    const results = await ctx.vector.search<ProductMetadata>('products', { // [!code highlight]
+      query: input.query,
+      limit: input.limit * 2, // Fetch extra for filtering
+      similarity: 0.6,
+    });
+
+    // Apply metadata filters
+    let filtered = results;
+
+    if (input.category) {
+      filtered = filtered.filter(r =>
+        r.metadata?.category?.toLowerCase() === input.category?.toLowerCase()
+      );
+    }
+
+    if (input.maxPrice) {
+      filtered = filtered.filter(r =>
+        (r.metadata?.price ?? Infinity) <= input.maxPrice!
+      );
+    }
+
+    // Only show in-stock items
+    filtered = filtered.filter(r => r.metadata?.inStock !== false);
+
+    // Limit to requested count
+    const products = filtered.slice(0, input.limit).map(r => ({
+      id: r.key,
+      name: r.metadata?.name || 'Unknown',
+      description: r.document || '',
+      price: r.metadata?.price || 0,
+      category: r.metadata?.category || 'Uncategorized',
+      relevance: r.similarity,
+    }));
+
+    ctx.logger.info('Search complete', {
+      found: results.length,
+      afterFilters: products.length,
+    });
+
+    return {
+      products,
+      total: products.length,
+    };
+  },
+});
+
+export default agent;
+```
+
+## Indexing Products
+
+Add products to the vector database. This example uses [Valibot](https://valibot.dev) for schema validation:
+
+```typescript title="src/agent/product-indexer/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import * as v from 'valibot';
+
+const ProductSchema = v.object({
+  id: v.string(),
+  name: v.string(),
+  description: v.string(),
+  price: v.number(),
+  category: v.string(),
+  inStock: v.optional(v.boolean(), true),
+});
+
+const agent = createAgent('ProductIndexer', {
+  schema: {
+    input: v.object({
+      products: v.array(ProductSchema),
+    }),
+    output: v.object({
+      indexed: v.number(),
+    }),
+  },
+  handler: async (ctx, input) => {
+    for (const product of input.products) {
+      // Use description as the searchable document
+      await ctx.vector.upsert('products', {
+        key: product.id,
+        document: `${product.name}. ${product.description}`,
+        metadata: {
+          name: product.name,
+          price: product.price,
+          category: product.category,
+          inStock: product.inStock,
+        },
+      });
+    }
+
+    return { indexed: input.products.length };
+  },
+});
+
+export default agent;
+```
+
+## Route with Query Parameters
+
+```typescript title="src/api/products/route.ts"
+import { createRouter } from '@agentuity/runtime';
+import productSearch from '@agent/product-search';
+
+const router = createRouter();
+
+router.get('/search', async (c) => {
+  const query = c.req.query('q') || '';
+  const category = c.req.query('category');
+  const maxPrice = c.req.query('maxPrice');
+  const limit = parseInt(c.req.query('limit') || '10');
+
+  const result = await productSearch.run({
+    query,
+    category,
+    maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+    limit,
+  });
+
+  return c.json(result);
+});
+
+export default router;
+```
+
+## AI-Powered Recommendations
+
+Enhance search results with AI-generated recommendations. Use `generateObject` to analyze matches and suggest the best option.
+
+```typescript title="src/agent/product-advisor/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { s } from '@agentuity/schema';
+import { z } from 'zod';
+
+interface ProductMetadata {
+  sku: string;
+  name: string;
+  price: number;
+  rating: number;
+  description: string;
+  feedback: string;
+}
+
+const agent = createAgent('Product Advisor', {
+  description: 'Semantic search with AI recommendations',
+  schema: {
+    input: s.object({
+      query: s.string(),
+    }),
+    output: s.object({
+      matches: s.array(
+        s.object({
+          sku: s.string(),
+          name: s.string(),
+          price: s.number(),
+          rating: s.number(),
+          similarity: s.number(),
+        })
+      ),
+      recommendation: s.string(),
+      recommendedSKU: s.string(),
+    }),
+  },
+  handler: async (ctx, input) => {
+    // Semantic search for matching products
+    const results = await ctx.vector.search<ProductMetadata>('products', {
+      query: input.query,
+      limit: 3,
+      similarity: 0.3,
+    });
+
+    if (results.length === 0) {
+      return {
+        matches: [],
+        recommendation: 'No matching products found. Try a different search.',
+        recommendedSKU: '',
+      };
+    }
+
+    // Format matches for response
+    const matches = results.map((r) => ({
+      sku: r.metadata?.sku ?? '',
+      name: r.metadata?.name ?? '',
+      price: r.metadata?.price ?? 0,
+      rating: r.metadata?.rating ?? 0,
+      similarity: r.similarity,
+    }));
+
+    // Build context for AI recommendation
+    const context = results
+      .map((r) => {
+        const p = r.metadata;
+        return `${p?.name}: SKU ${p?.sku}, $${p?.price}, ${p?.rating} stars. "${p?.feedback}"`;
+      })
+      .join('\n');
+
+    // Generate personalized recommendation
+    const { object } = await generateObject({ // [!code highlight]
+      model: openai('gpt-5-mini'),
+      system: 'You are a product consultant. Provide a brief 2-3 sentence recommendation based on the search results. Reference customer feedback when relevant.',
+      prompt: `Customer searched for: "${input.query}"\n\nMatching products:\n${context}`,
+      schema: z.object({
+        summary: z.string().describe('Brief recommendation explaining the best choice'),
+        recommendedSKU: z.string().describe('SKU of the recommended product'),
+      }),
+    });
+
+    return {
+      matches,
+      recommendation: object.summary,
+      recommendedSKU: object.recommendedSKU,
+    };
+  },
+});
+
+export default agent;
+```
+
+<Callout type="info" title="When to Use AI Recommendations">
+Add AI recommendations when customers benefit from personalized guidance: comparing similar products, explaining trade-offs, or highlighting relevant features based on their search intent.
+</Callout>
+
+### Example Response
+
+```json
+{
+  "matches": [
+    { "sku": "CHAIR-ERG-001", "name": "ErgoMax Pro", "price": 549, "rating": 4.8, "similarity": 0.89 },
+    { "sku": "CHAIR-BUD-002", "name": "ComfortBasic", "price": 129, "rating": 4.2, "similarity": 0.76 }
+  ],
+  "recommendation": "For a comfortable office chair, I recommend the ErgoMax Pro. Customers report significant back pain relief, and the premium lumbar support justifies the higher price for long work sessions.",
+  "recommendedSKU": "CHAIR-ERG-001"
+}
+```
+
+## Frontend
+
+A search interface that displays matches and the AI recommendation:
+
+```tsx title="src/web/App.tsx"
+import { useState } from 'react';
+
+interface Match {
+  sku: string;
+  name: string;
+  price: number;
+  rating: number;
+  similarity: number;
+}
+
+interface SearchResult {
+  matches: Match[];
+  recommendation: string;
+  recommendedSKU: string;
+}
+
+export function App() {
+  const [query, setQuery] = useState('');
+  const [result, setResult] = useState<SearchResult | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const search = async () => {
+    if (!query.trim()) return;
+    setLoading(true);
+
+    const response = await fetch('/api/products/search', { // [!code highlight]
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    const data = await response.json();
+    setResult(data);
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ padding: '2rem', maxWidth: '600px' }}>
+      <h1>Product Search</h1>
+
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && search()}
+          placeholder="Search products..."
+          style={{ flex: 1, padding: '0.75rem' }}
+        />
+        <button onClick={search} disabled={loading}>
+          {loading ? '...' : 'Search'}
+        </button>
+      </div>
+
+      {result && (
+        <>
+          {/* AI Recommendation */}
+          {result.recommendation && (
+            <div style={{
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
+              borderRadius: '8px',
+              padding: '1rem',
+              marginBottom: '1.5rem',
+            }}>
+              <strong style={{ color: '#0284c7' }}>AI Recommendation</strong>
+              <p style={{ margin: '0.5rem 0 0' }}>{result.recommendation}</p>
+            </div>
+          )}
+
+          {/* Matches */}
+          <div>
+            {result.matches.map((match) => (
+              <div
+                key={match.sku}
+                style={{
+                  padding: '1rem',
+                  borderBottom: '1px solid #eee',
+                  background: match.sku === result.recommendedSKU ? '#f0fdf4' : 'transparent',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div>
+                    <strong>{match.name}</strong>
+                    {match.sku === result.recommendedSKU && (
+                      <span style={{
+                        background: '#dcfce7',
+                        color: '#166534',
+                        fontSize: '0.75rem',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        marginLeft: '0.5rem',
+                      }}>
+                        Recommended
+                      </span>
+                    )}
+                    <div style={{ color: '#666', fontSize: '0.85rem' }}>{match.sku}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div>${match.price}</div>
+                    <div style={{ color: '#666', fontSize: '0.85rem' }}>
+                      {match.rating} stars · {Math.round(match.similarity * 100)}% match
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+## Testing
+
+Use the frontend to search interactively. If you need to call the endpoint directly:
+
+```bash
+curl "http://localhost:3500/products/search?q=comfortable%20office%20chair"
+curl "http://localhost:3500/products/search?q=laptop&category=electronics&maxPrice=1000"
+```
+
+## Key Points
+
+- **Semantic search** finds products by meaning, not just keywords
+- **Metadata filtering** narrows results by category, price, stock
+- **AI recommendations** add personalized guidance based on search context
+- **Customer feedback** in metadata helps AI make relevant suggestions
+- **Document field** should include searchable text (name + description)
+
+## See Also
+
+- [Vector Storage](/services/storage/vector) for all vector operations
+- [Build a RAG Agent](/cookbook/tutorials/rag-agent) for question-answering
+- [AI SDK Integration](/agents/ai-sdk-integration) for `generateObject` patterns

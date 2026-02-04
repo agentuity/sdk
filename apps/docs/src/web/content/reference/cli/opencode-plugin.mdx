@@ -1,0 +1,279 @@
+---
+title: OpenCode Plugin
+description: Install the Agentuity plugin for OpenCode to enable AI-assisted development with specialized agents
+---
+
+The OpenCode plugin adds Agentuity-aware AI agents and slash commands to [OpenCode](https://opencode.ai), providing intelligent assistance for building, deploying, and managing your agents.
+
+## Installation
+
+Install the plugin using the CLI:
+
+```bash
+agentuity ai opencode install
+```
+
+This configures OpenCode with:
+- Specialized AI agents for different development tasks
+- Slash commands for common Agentuity operations
+- MCP servers for library documentation and code search
+
+To remove the plugin:
+
+```bash
+agentuity ai opencode uninstall
+```
+
+## Specialized Agents
+
+The plugin provides various specialized agents, each focused on a specific aspect of development:
+
+### Primary Agents
+
+| Agent | Role | When to Use |
+|-------|------|-------------|
+| **Lead** | Orchestrator | Automatically coordinates all work |
+| **Scout** | Explorer | Finding files, patterns, codebase analysis (read-only) |
+| **Builder** | Implementer | Interactive code changes, quick fixes, guided implementation |
+| **Architect** | Autonomous Implementer | Cadence mode, complex multi-file features, long-running tasks |
+| **Reviewer** | Code Reviewer | Reviewing changes, catching issues, suggesting fixes |
+| **Memory** | Context Manager | Storing/retrieving context, decisions, patterns across sessions |
+| **Expert** | Agentuity Specialist | CLI commands, cloud services, SDK questions |
+| **Planner** | Strategic Advisor | Complex architecture decisions, deep technical planning (read-only) |
+| **Runner** | Command Executor | Run lint/build/test/typecheck/format, returns structured summaries |
+
+### Sub-Agents
+
+These agents work as sub-agents, called by other agents when needed:
+
+| Agent | Role | Called By |
+|-------|------|-----------|
+| **Reasoner** | Conclusion Extractor | Memory: extracts structured conclusions from sessions |
+| **Product** | Product Strategy | Lead: defines requirements, validates features, generates PRDs |
+
+OpenCode automatically routes tasks to the appropriate agent based on context.
+
+### Builder vs Architect
+
+| Aspect | Builder | Architect |
+|--------|---------|-----------|
+| **Mode** | Interactive | Autonomous |
+| **Best for** | Quick fixes, guided work | Cadence mode, complex features |
+| **Model** | Claude Opus 4.5 | GPT 5.2 Codex |
+| **Reasoning** | High | Maximum (xhigh) |
+| **Context** | Session-based | Checkpoint-based |
+
+Use **Builder** when working interactively, making quick changes, or needing guidance. Use **Architect** when running Cadence mode, implementing complex multi-file features, or needing autonomous execution with deep reasoning.
+
+### Memory System
+
+The Memory agent uses entity-centric storage to persist context across sessions. It stores:
+
+| Entity Type | Scope | Examples |
+|-------------|-------|----------|
+| `user` | Cross-project | Your preferences, patterns, corrections |
+| `project` | Project-specific | Architecture decisions, codebase patterns |
+| `repo` | Cross-project | Repository conventions, commit styles |
+| `agent` | Cross-project | Agent-specific behaviors, model preferences |
+
+Memory tracks **conclusions** (patterns learned from your work), **corrections** (mistakes to avoid), and **relationships** between entities. The Reasoner sub-agent periodically extracts new insights from sessions.
+
+Use `/agentuity-memory-save` to explicitly save important context, or let Memory capture it automatically during Cadence sessions.
+
+### Model Configuration
+
+Override any agent's model in `opencode.json`. See [Agent Model Overrides](#agent-model-overrides) for full configuration options.
+
+Run `opencode models` to see all available models.
+
+<Callout type="info" title="Security">
+Sensitive CLI commands are blocked by default: `agentuity cloud secrets`, `agentuity cloud apikey`, and `agentuity auth token`.
+</Callout>
+
+## Slash Commands
+
+The plugin adds slash commands for common Agentuity tasks:
+
+| Command | Description |
+|---------|-------------|
+| `/agentuity-coder` | Run tasks with the full agent team (Lead orchestrates) |
+| `/agentuity-cadence` | Start a long-running autonomous loop |
+| `/agentuity-cloud` | Interact with any Agentuity cloud service |
+| `/agentuity-sandbox` | Run code in isolated sandbox environments |
+| `/agentuity-memory-save` | Save session context to memory |
+
+Use these commands by typing them directly in OpenCode:
+
+```
+/agentuity-coder Create a new agent that processes webhooks from Stripe
+```
+
+## MCP Servers
+
+The plugin configures two MCP servers that provide additional context to the AI agents:
+
+**context7**: Provides access to library documentation for common dependencies (AI SDK, Zod, Hono, etc.). Agents can look up API references and examples without leaving your editor.
+
+**grep_app**: Enables searching GitHub repositories for code examples and patterns. Useful when you need to see how others have implemented similar features.
+
+## Headless Mode
+
+Run Agentuity tasks from the command line without opening OpenCode:
+
+```bash
+agentuity ai opencode run "Create an agent that validates email addresses"
+```
+
+This executes the task using the appropriate agents and outputs the result. Useful for:
+- CI/CD pipelines that need AI-assisted code generation
+- Scripting repetitive development tasks
+- Batch processing multiple requests
+
+## Cadence Mode
+
+Cadence enables long-running autonomous work sessions. Start it with the `/agentuity-cadence` slash command:
+
+```
+/agentuity-cadence Build a complete auth system with tests
+```
+
+Control Cadence through natural language:
+
+| Action | How |
+|--------|-----|
+| Start | `/agentuity-cadence <task description>` |
+| Status | "what's the status?" |
+| Pause | "pause" or "hold on" |
+| Resume | "continue" or "resume" |
+| Stop | "stop" or Ctrl+C |
+
+For headless execution:
+
+```bash
+agentuity ai opencode run "/agentuity-cadence Build the feature"
+```
+
+## Background Agents
+
+Run agents in the background while continuing other work. Background agents execute asynchronously and notify you when complete.
+
+The plugin provides three tools for background task management:
+
+| Tool | Description |
+|------|-------------|
+| `background_task` | Launch an agent task in the background |
+| `background_output` | Retrieve the result of a completed task |
+| `background_cancel` | Cancel a running or pending background task |
+
+### Concurrency Control
+
+Background tasks are rate-limited to prevent overwhelming providers. Configure in your Agentuity CLI profile (`~/.config/agentuity/production.yaml`):
+
+```yaml
+coder:
+  background:
+    enabled: true
+    defaultConcurrency: 3  # Override the default of 1
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `enabled` | `true` | Enable/disable background tasks |
+| `defaultConcurrency` | `1` | Default max concurrent tasks per model |
+| `staleTimeoutMs` | `1800000` | Timeout for stale tasks (30 minutes) |
+| `providerConcurrency` | `{}` | Per-provider concurrency limits |
+| `modelConcurrency` | `{}` | Per-model concurrency limits |
+
+## Tmux Integration
+
+When running inside tmux, background agents can spawn in separate panes for visual multi-agent execution.
+
+<Callout type="warning" title="Server Mode Required">
+Tmux integration requires OpenCode to run with an HTTP server enabled. Start OpenCode with `opencode --port 4096`.
+</Callout>
+
+Configure in your Agentuity CLI profile:
+
+```yaml
+coder:
+  tmux:
+    enabled: true
+    maxPanes: 6
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `enabled` | `false` | Enable tmux pane spawning |
+| `maxPanes` | `4` | Max agent panes before rotating oldest out |
+| `mainPaneMinWidth` | `100` | Minimum width for main pane (columns) |
+| `agentPaneMinWidth` | `40` | Minimum width for agent panes (columns) |
+
+When enabled, agents spawn in a dedicated "Agents" window with a tiled grid layout. Oldest panes close automatically when `maxPanes` is reached.
+
+## Configuration
+
+Agent models are configured in `~/.config/opencode/opencode.json`. Plugin behavior settings go in your Agentuity CLI profile (`~/.config/agentuity/production.yaml`).
+
+### Agent Model Overrides
+
+Override any agent's default model in `opencode.json`:
+
+```json
+{
+  "agent": {
+    "Agentuity Coder Builder": {
+      "model": "anthropic/claude-opus-4-5-20251101",
+      "temperature": 0.7
+    },
+    "Agentuity Coder Architect": {
+      "model": "openai/gpt-5.2-codex",
+      "reasoningEffort": "xhigh"
+    }
+  }
+}
+```
+
+| Option | Description |
+|--------|-------------|
+| `model` | Model identifier (e.g., `anthropic/claude-opus-4-5-20251101`) |
+| `temperature` | Number between 0-1 (lower = more deterministic) |
+| `reasoningEffort` | For OpenAI: `low`, `medium`, `high`, `xhigh` |
+| `variant` | For Anthropic: `low`, `medium`, `high`, `max` (extended thinking) |
+| `thinking` | For Anthropic: `{ "type": "enabled", "budgetTokens": 10000 }` |
+| `maxSteps` | Maximum tool use steps per turn |
+
+### MCP Server Configuration
+
+Add MCP servers for enhanced agent capabilities in `opencode.json`:
+
+```json
+{
+  "mcp": {
+    "context7": { "type": "remote", "url": "https://mcp.context7.com/mcp" },
+    "grep_app": { "type": "remote", "url": "https://mcp.grep.app" }
+  }
+}
+```
+
+| MCP | Purpose | Free Tier |
+|-----|---------|-----------|
+| **context7** | Library docs lookup | 500 req/month |
+| **grep_app** | GitHub code search | Unlimited |
+
+### Plugin Behavior Settings
+
+Configure plugin behavior in your Agentuity CLI profile (`~/.config/agentuity/production.yaml`):
+
+```yaml
+coder:
+  tmux:
+    enabled: true
+  background:
+    defaultConcurrency: 3
+```
+
+## Next Steps
+
+- [AI Commands](/reference/CLI/ai-commands): Other AI-related CLI commands
+- [Local Development](/reference/CLI/development): Run agents locally
+- [Creating Agents](/agents/creating-agents): Build your first agent

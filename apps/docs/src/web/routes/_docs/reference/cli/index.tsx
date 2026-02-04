@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/reference/cli/')({
-	component: () => (
-		<PlaceholderPage title="CLI Reference" description="Complete CLI command reference." />
-	),
+	component: () => <MDXPage route="reference/cli" />,
 	staticData: { crumb: 'CLI' },
 });

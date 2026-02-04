@@ -1,0 +1,15 @@
+{
+  "title": "CLI",
+  "pages": [
+    "getting-started",
+    "development",
+    "build-configuration",
+    "deployment",
+    "storage",
+    "sandbox",
+    "configuration",
+    "debugging",
+    "ai-commands",
+    "opencode-plugin"
+  ]
+}

@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/reference/cli/build-configuration')({
-	component: () => (
-		<PlaceholderPage title="CLI: Build Configuration" description="Configure the build process." />
-	),
+	component: () => <MDXPage route="reference/cli/build-configuration" />,
 	staticData: { crumb: 'Build Configuration' },
 });

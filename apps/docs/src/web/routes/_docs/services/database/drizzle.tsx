@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/services/database/drizzle')({
-	component: () => (
-		<PlaceholderPage title="Drizzle" description="Use Drizzle ORM with your Agentuity agents." />
-	),
+	component: () => <MDXPage route="services/database/drizzle" />,
 	staticData: { crumb: 'Drizzle' },
 });

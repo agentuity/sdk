@@ -1,0 +1,356 @@
+---
+title: Storage Commands
+description: Manage Key-Value, S3, Vector, Database, and Stream storage from the CLI.
+---
+
+These CLI commands help you inspect and manage cloud storage during development and debugging.
+
+<Callout type="info" title="Cloud Prefix Required">
+All storage commands require the `cloud` prefix. For example: `agentuity cloud kv get ...`
+</Callout>
+
+## Key-Value Storage
+
+Inspect and manage key-value data organized into namespaces.
+
+<Callout type="info" title="Organization-Scoped">
+KV storage is scoped to your organization, not individual projects. You can run KV commands from any directory without needing a project context.
+</Callout>
+
+### Interactive REPL
+
+Start an interactive session for faster exploration:
+
+```bash
+agentuity cloud kv repl
+```
+
+In the REPL, use commands like `set`, `get`, `delete`, `keys`, and `stats`:
+
+```
+> set cache user:123 '{"name":"Alice"}'
+> get cache user:123
+> keys cache
+> stats
+```
+
+### Get a Value
+
+```bash
+agentuity cloud kv get production user:123
+agentuity cloud kv get cache session:abc
+```
+
+### Set a Value
+
+```bash
+# Store JSON data
+agentuity cloud kv set production user:123 '{"name":"Alice","email":"alice@example.com"}'
+
+# Set with TTL (expires after 1 hour)
+agentuity cloud kv set cache session:abc "session-data" --ttl 3600
+```
+
+### Delete a Key
+
+```bash
+agentuity cloud kv delete production user:123
+agentuity cloud kv rm cache session:abc  # Using alias
+```
+
+### List Keys
+
+```bash
+agentuity cloud kv keys production
+agentuity cloud kv ls cache  # Using alias
+```
+
+### Search Keys
+
+```bash
+agentuity cloud kv search production user
+agentuity cloud kv search cache session
+```
+
+### View Statistics
+
+```bash
+# Stats for all namespaces
+agentuity cloud kv stats
+
+# Stats for specific namespace
+agentuity cloud kv stats production
+```
+
+### Namespace Management
+
+A namespace is a logical container that groups related keys together. For example, you might use `cache` for temporary data, `users` for user profiles, and `sessions` for session state.
+
+```bash
+# List all namespaces
+agentuity cloud kv list-namespaces
+agentuity cloud kv ns  # Using alias
+
+# Create a namespace
+agentuity cloud kv create-namespace staging
+
+# Delete a namespace and all its keys
+agentuity cloud kv delete-namespace old-cache
+```
+
+**In agents:** Use `ctx.kv` for programmatic access. See [Key-Value Storage](/services/storage/key-value).
+
+## S3 Storage
+
+Manage S3-compatible storage resources for file uploads and downloads.
+
+Both `cloud storage` and `cloud s3` work interchangeably. Examples below use `s3` for brevity.
+
+### Create Storage Resource
+
+```bash
+agentuity cloud storage create --name my-storage
+# or: agentuity cloud s3 create --name my-storage
+```
+
+This adds S3 credentials to your local `.env` file automatically.
+
+### List Storage Resources
+
+```bash
+agentuity cloud s3 list
+```
+
+### Upload a File
+
+```bash
+agentuity cloud s3 upload ./local-file.pdf
+```
+
+### Download a File
+
+```bash
+agentuity cloud s3 download <file-id> --output ./downloaded-file.pdf
+```
+
+### Get Storage Details
+
+```bash
+agentuity cloud s3 get <storage-id>
+```
+
+### Delete Storage Resource
+
+```bash
+agentuity cloud s3 delete <storage-id>
+```
+
+**In agents:** Use Bun's `s3` API (`import { s3 } from "bun"`). See [Object Storage (S3)](/services/storage/object).
+
+## Vector Storage
+
+Search and inspect vector embeddings.
+
+### Search by Similarity
+
+```bash
+# Basic search
+agentuity cloud vector search products "comfortable office chair"
+
+# Limit results
+agentuity cloud vector search docs "API documentation" --limit 5
+
+# Set minimum similarity threshold
+agentuity cloud vector search products "ergonomic" --similarity 0.8
+
+# Filter by metadata
+agentuity cloud vector search embeddings "neural networks" --metadata category=ai
+```
+
+### Get Vector by ID
+
+```bash
+agentuity cloud vec get <vector-id>
+```
+
+### Upsert Vectors
+
+Add or update vectors from a JSON file:
+
+```bash
+# Upsert from file
+agentuity cloud vector upsert products --file vectors.json
+
+# File format: array of { key, document?, embeddings?, metadata? }
+```
+
+Example `vectors.json`:
+
+```json
+[
+  {
+    "key": "product-123",
+    "document": "Ergonomic office chair with lumbar support",
+    "metadata": { "category": "furniture", "price": 299 }
+  },
+  {
+    "key": "product-456",
+    "document": "Standing desk with adjustable height",
+    "metadata": { "category": "furniture", "price": 599 }
+  }
+]
+```
+
+### Delete a Vector
+
+```bash
+agentuity cloud vec delete <vector-id>
+```
+
+### View Statistics
+
+```bash
+# Stats for all namespaces
+agentuity cloud vector stats
+
+# Stats for specific namespace
+agentuity cloud vector stats products
+```
+
+### List Namespaces
+
+```bash
+agentuity cloud vector namespaces
+```
+
+### Delete a Namespace
+
+Delete an entire namespace and all its vectors:
+
+```bash
+agentuity cloud vector delete-namespace old-products
+```
+
+<Callout type="warning" title="Destructive Operation">
+Deleting a namespace removes all vectors within it. This cannot be undone.
+</Callout>
+
+**In agents:** Use `ctx.vector` for programmatic access. See [Vector Storage](/services/storage/vector).
+
+## Database
+
+Manage database resources and run SQL queries.
+
+### List Databases
+
+```bash
+agentuity cloud db list
+```
+
+### Create a Database
+
+```bash
+agentuity cloud db create --name my-database
+agentuity cloud db create --name analytics-db --description "Analytics data warehouse"
+```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Custom database name |
+| `--description <text>` | Optional database description |
+
+This adds `DATABASE_URL` to your local `.env` file automatically.
+
+### Get Database Details
+
+```bash
+agentuity cloud db get <database-id>
+```
+
+### Run SQL Queries
+
+Execute SQL queries directly from the CLI:
+
+```bash
+# Simple query
+agentuity cloud db sql "SELECT * FROM users LIMIT 10"
+
+# Query with filtering
+agentuity cloud db sql "SELECT name, email FROM users WHERE active = true"
+
+# Insert data
+agentuity cloud db sql "INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com')"
+```
+
+### View Database Logs
+
+```bash
+agentuity cloud db logs <database-id>
+```
+
+### Delete a Database
+
+```bash
+agentuity cloud db delete <database-id>
+```
+
+**In agents:** Use Bun's `sql` API (`import { sql } from "bun"`). See [Database](/services/database/overview).
+
+## Streams
+
+List and manage durable event streams.
+
+### List Streams
+
+```bash
+agentuity cloud stream list
+```
+
+### Get Stream Details
+
+```bash
+agentuity cloud stream get <stream-id>
+```
+
+### Delete a Stream
+
+```bash
+agentuity cloud stream delete <stream-id>
+```
+
+**In agents:** Use `ctx.stream` for programmatic access. See [Durable Streams](/services/storage/durable-streams).
+
+## Redis
+
+View Redis connection details for your organization.
+
+### Show Connection URL
+
+```bash
+# Show Redis URL (credentials masked in terminal)
+agentuity cloud redis show
+
+# Show with credentials visible
+agentuity cloud redis show --show-credentials
+
+# JSON output (credentials always visible)
+agentuity --json cloud redis show
+```
+
+<Callout type="info" title="Organization Resource">
+Redis is provisioned at the organization level. Contact support if you need Redis enabled for your organization.
+</Callout>
+
+To use Redis locally, add the URL to your `.env`:
+
+```bash
+REDIS_URL=redis://...
+```
+
+## Next Steps
+
+- [Configuration Commands](/reference/CLI/configuration): Manage environment variables, secrets, and API keys
+- [Key-Value Storage](/services/storage/key-value): Programmatic KV access in agents
+- [Object Storage (S3)](/services/storage/object): File storage with Bun S3
+- [Database](/services/database/overview): SQL queries with Bun SQL
+- [Vector Storage](/services/storage/vector): Semantic search in agents

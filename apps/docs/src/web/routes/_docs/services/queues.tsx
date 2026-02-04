@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/services/queues')({
-	component: () => (
-		<PlaceholderPage title="Queues" description="Process background jobs with queues." />
-	),
+	component: () => <MDXPage route="services/queues" />,
 	staticData: { crumb: 'Queues' },
 });

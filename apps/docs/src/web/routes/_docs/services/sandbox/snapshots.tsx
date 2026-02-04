@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/services/sandbox/snapshots')({
-	component: () => (
-		<PlaceholderPage title="Snapshots" description="Save and restore sandbox state." />
-	),
+	component: () => <MDXPage route="services/sandbox/snapshots" />,
 	staticData: { crumb: 'Snapshots' },
 });

@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/services/storage/database')({
-	component: () => (
-		<PlaceholderPage title="Database" description="Use relational databases with Agentuity." />
-	),
+	component: () => <MDXPage route="services/storage/database" />,
 	staticData: { crumb: 'Database' },
 });

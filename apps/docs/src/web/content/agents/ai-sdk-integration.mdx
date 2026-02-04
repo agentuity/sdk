@@ -1,0 +1,245 @@
+---
+title: Using the AI SDK
+description: Generate text, structured data, and streams with the Vercel AI SDK
+---
+
+The [Vercel AI SDK](https://ai-sdk.dev) provides a consistent API for LLM interactions with built-in streaming, structured output, and tool calling.
+
+Agentuity works with any approach—you can also use provider SDKs directly (Anthropic, OpenAI), or frameworks like Mastra and LangGraph. See [Using the AI Gateway](/agents/ai-gateway) for examples with different libraries.
+
+## Installation
+
+Install the AI SDK and your preferred provider:
+
+```bash
+bun add ai @ai-sdk/openai
+```
+
+Or with multiple providers:
+
+```bash
+bun add ai @ai-sdk/openai @ai-sdk/anthropic @ai-sdk/google
+```
+
+## Generating Text
+
+Use `generateText` for simple completions:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
+
+const agent = createAgent('TextGenerator', {
+  schema: {
+    input: z.object({ prompt: z.string() }),
+    output: z.object({ response: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    const { text } = await generateText({
+      model: openai('gpt-5-mini'),
+      prompt: input.prompt,
+    });
+
+    return { response: text };
+  },
+});
+
+export default agent;
+```
+
+### With System Prompt
+
+Add context with a system message:
+
+```typescript
+const { text } = await generateText({
+  model: openai('gpt-5-mini'),
+  system: 'You are a concise technical assistant. Keep responses under 100 words.',
+  prompt: input.prompt,
+});
+```
+
+### With Message History
+
+Pass conversation history for multi-turn interactions:
+
+```typescript
+const { text } = await generateText({
+  model: openai('gpt-5-mini'),
+  messages: [
+    { role: 'system', content: 'You are a helpful assistant.' },
+    { role: 'user', content: 'What is TypeScript?' },
+    { role: 'assistant', content: 'TypeScript is a typed superset of JavaScript.' },
+    { role: 'user', content: input.followUp },
+  ],
+});
+```
+
+## Generating Structured Data
+
+Use `generateObject` to get validated, typed responses:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
+
+const SentimentSchema = z.object({
+  sentiment: z.enum(['positive', 'negative', 'neutral']),
+  confidence: z.number().min(0).max(1),
+  keywords: z.array(z.string()),
+});
+
+const agent = createAgent('SentimentAnalyzer', {
+  schema: {
+    input: z.object({ text: z.string() }),
+    output: SentimentSchema,
+  },
+  handler: async (ctx, input) => {
+    const { object } = await generateObject({
+      model: openai('gpt-5-mini'),
+      schema: SentimentSchema,
+      prompt: `Analyze the sentiment of: "${input.text}"`,
+    });
+
+    // object is fully typed as { sentiment, confidence, keywords }
+    return object;
+  },
+});
+
+export default agent;
+```
+
+<Callout type="tip" title="Schema Reuse">
+Define your schema once and reuse it for both `generateObject` and your agent's output schema. This keeps types consistent throughout your codebase.
+</Callout>
+
+### Using `.describe()` for Field Hints
+
+Add `.describe()` to schema fields to guide the model on format and content:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
+
+const EventSchema = z.object({
+  title: z.string().describe('Event title, e.g. "Team standup"'),
+  date: z.string().describe('ISO 8601 date: YYYY-MM-DD'),
+  startTime: z.string().describe('24-hour format: HH:MM'),
+  duration: z.number().describe('Duration in minutes'),
+  attendees: z.array(z.string()).describe('List of attendee names'),
+});
+
+const agent = createAgent('EventExtractor', {
+  schema: {
+    input: z.object({ text: z.string() }),
+    output: EventSchema,
+  },
+  handler: async (ctx, input) => {
+    const { object } = await generateObject({
+      model: openai('gpt-5-mini'),
+      schema: EventSchema,
+      prompt: `Extract event details from: "${input.text}"`,
+    });
+
+    return object;
+  },
+});
+
+export default agent;
+```
+
+The `.describe()` hints improve output consistency, especially for dates, times, and formatted strings.
+
+## Generating Streams
+
+Use `streamText` for real-time responses:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
+
+const agent = createAgent('StreamingChat', {
+  schema: {
+    input: z.object({ prompt: z.string() }),
+    stream: true,
+  },
+  handler: async (ctx, input) => {
+    const { textStream } = streamText({
+      model: openai('gpt-5-mini'),
+      prompt: input.prompt,
+    });
+
+    return textStream;
+  },
+});
+
+export default agent;
+```
+
+For detailed streaming patterns, see [Streaming Responses](/agents/streaming-responses).
+
+## Provider Configuration
+
+### Switching Providers
+
+Change providers by swapping the import and model:
+
+```typescript
+// OpenAI
+import { openai } from '@ai-sdk/openai';
+const model = openai('gpt-5-mini');
+
+// Anthropic
+import { anthropic } from '@ai-sdk/anthropic';
+const model = anthropic('claude-sonnet-4-5');
+
+// Google
+import { google } from '@ai-sdk/google';
+const model = google('gemini-2.5-flash');
+
+// Groq (fast inference)
+import { groq } from '@ai-sdk/groq';
+const model = groq('llama-3.3-70b-versatile');
+```
+
+## Error Handling
+
+Wrap LLM calls in try-catch to handle errors gracefully:
+
+```typescript
+handler: async (ctx, input) => {
+  try {
+    const { text } = await generateText({
+      model: openai('gpt-5-mini'),
+      prompt: input.prompt,
+    });
+
+    return { response: text };
+  } catch (error) {
+    ctx.logger.error('LLM request failed', { error });
+
+    // Return fallback response
+    return { response: 'I encountered an error processing your request.' };
+  }
+}
+```
+
+## Best Practices
+
+- **Define output schemas** with [Zod](https://zod.dev), [Valibot](https://valibot.dev), or [ArkType](https://arktype.io) for type safety and validation
+- **Add system prompts** to guide model behavior consistently
+- **Handle errors gracefully** with fallback responses
+
+## Next Steps
+
+- [Using the AI Gateway](/agents/ai-gateway): Observability, cost tracking, and provider switching
+- [Returning Streaming Responses](/agents/streaming-responses): Chat UIs and long-form content generation
+- [Evaluations](/agents/evaluations): Quality checks and output validation

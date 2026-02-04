@@ -1,0 +1,176 @@
+---
+title: Resilient Postgres Client
+description: Auto-reconnecting PostgreSQL client for serverless environments
+---
+
+The `@agentuity/postgres` package provides a PostgreSQL client built for serverless environments with automatic reconnection.
+
+## Installation
+
+```bash
+bun add @agentuity/postgres
+```
+
+## Basic Usage
+
+```typescript
+import { postgres } from '@agentuity/postgres';
+
+// Create client (uses DATABASE_URL by default)
+const sql = postgres();
+
+// Queries automatically retry on connection errors
+const users = await sql`SELECT * FROM users WHERE active = ${true}`;
+```
+
+## Transactions
+
+Transactions ensure multiple operations succeed or fail together:
+
+```typescript
+const tx = await sql.begin();
+try {
+  await tx`UPDATE accounts SET balance = balance - ${100} WHERE name = ${'Alice'}`;
+  await tx`UPDATE accounts SET balance = balance + ${100} WHERE name = ${'Bob'}`;
+  await tx.commit();
+} catch (error) {
+  await tx.rollback();
+  throw error;
+}
+```
+
+### Transaction Options
+
+```typescript
+const tx = await sql.begin({
+  isolationLevel: 'serializable',  // 'read uncommitted' | 'read committed' | 'repeatable read' | 'serializable'
+  readOnly: true,                   // Read-only transaction
+  deferrable: true,                 // Deferrable transaction (only with serializable + readOnly)
+});
+```
+
+### Savepoints
+
+Use savepoints for partial rollbacks within a transaction:
+
+```typescript
+const tx = await sql.begin();
+try {
+  await tx`INSERT INTO users (name) VALUES (${'Alice'})`;
+
+  const savepoint = await tx.savepoint();
+  try {
+    await tx`INSERT INTO users (name) VALUES (${'Bob'})`;
+    // Something goes wrong...
+    throw new Error('Oops');
+  } catch {
+    await savepoint.rollback();  // Only rolls back Bob's insert
+  }
+
+  await tx.commit();  // Alice's insert is committed
+} catch (error) {
+  await tx.rollback();
+  throw error;
+}
+```
+
+## Configuration
+
+```typescript
+const sql = postgres({
+  url: 'postgres://user:pass@localhost:5432/mydb',
+  reconnect: {
+    enabled: true,
+    maxAttempts: 10,
+    initialDelayMs: 100,
+    maxDelayMs: 30000,
+    multiplier: 2,
+    jitterMs: 1000,
+  },
+  onclose: (error) => console.log('Connection closed', error),
+  onreconnected: () => console.log('Reconnected!'),
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `url` | `string` | `DATABASE_URL` | PostgreSQL connection string |
+| `reconnect.enabled` | `boolean` | `true` | Enable automatic reconnection |
+| `reconnect.maxAttempts` | `number` | `10` | Maximum reconnection attempts |
+| `reconnect.initialDelayMs` | `number` | `100` | Initial delay before first retry |
+| `reconnect.maxDelayMs` | `number` | `30000` | Maximum delay between retries |
+| `reconnect.multiplier` | `number` | `2` | Exponential backoff multiplier |
+| `reconnect.jitterMs` | `number` | `1000` | Maximum random jitter added to delays |
+| `onclose` | `(error) => void` | - | Callback when connection closes |
+| `onreconnected` | `() => void` | - | Callback when reconnection succeeds |
+
+## Connection Stats
+
+Monitor connection health with detailed statistics:
+
+```typescript
+const sql = postgres();
+
+// After some queries...
+console.log(sql.stats);
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `connected` | `boolean` | Whether currently connected |
+| `reconnecting` | `boolean` | Whether currently reconnecting |
+| `totalConnections` | `number` | Total connections established |
+| `reconnectAttempts` | `number` | Current reconnection attempt count |
+| `failedReconnects` | `number` | Total failed reconnection attempts |
+| `lastConnectedAt` | `Date \| null` | When last connected |
+| `lastDisconnectedAt` | `Date \| null` | When last disconnected |
+| `lastReconnectAttemptAt` | `Date \| null` | When last reconnection was attempted |
+
+## Additional Methods
+
+### Wait for Connection
+
+Block until a connection is established:
+
+```typescript
+// Wait up to 5 seconds for connection
+await sql.waitForConnection(5000);
+```
+
+### Graceful Shutdown
+
+Signal that no new queries should be accepted:
+
+```typescript
+await sql.shutdown();
+```
+
+### Unsafe Queries
+
+Execute raw SQL strings (use with caution):
+
+```typescript
+// Only use for trusted queries, not user input
+const result = await sql.unsafe('SELECT version()');
+```
+
+### Access Raw Client
+
+Access the underlying Bun.SQL instance:
+
+```typescript
+const bunSql = sql.raw;
+```
+
+## Key Features
+
+- **Automatic reconnection** with exponential backoff and jitter
+- **Query retry** on retryable errors (connection lost, etc.)
+- **Graceful shutdown** on SIGTERM/SIGINT
+- **Transaction support** with isolation levels and savepoints
+- **Connection stats** for monitoring and debugging
+
+## Next Steps
+
+- [Database Overview](/services/database): Bun SQL basics and provisioning
+- [Drizzle ORM](/services/database/drizzle): Type-safe queries with Drizzle

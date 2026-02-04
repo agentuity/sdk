@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/frontend/rpc-client')({
-	component: () => (
-		<PlaceholderPage title="RPC Client" description="Type-safe agent calls from the frontend." />
-	),
+	component: () => <MDXPage route="frontend/rpc-client" />,
 	staticData: { crumb: 'RPC Client' },
 });

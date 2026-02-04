@@ -1,0 +1,377 @@
+---
+title: LLM as a Judge
+description: Use LLMs to evaluate and score agent outputs for quality, safety, and compliance
+---
+
+The LLM-as-judge pattern uses one model to evaluate another model's output. This is useful for subjective quality assessments that can't be checked programmatically.
+
+## When to Use This Pattern
+
+| Use Case | Good Fit? |
+|----------|-----------|
+| Checking factual accuracy against sources | Yes |
+| Evaluating tone and politeness | Yes |
+| Detecting hallucinations in RAG | Yes |
+| Comparing response quality | Yes |
+| Validating JSON structure | No (use schema validation) |
+| Checking string length | No (use code) |
+
+Use LLM-as-judge when the evaluation requires understanding context, nuance, or subjective criteria.
+
+## Inline vs Evals
+
+LLM-as-judge can be used in two contexts:
+
+| Context | When to Use | Blocks Response? |
+|---------|-------------|------------------|
+| **Inline** (in handler) | Scores needed in UI, model comparison, user-facing quality metrics | Yes |
+| **Evals** (in eval.ts) | Background quality monitoring, compliance checks, production observability | No |
+
+**Inline example**: A model arena that shows users which response "won" needs scores returned with the response.
+
+**Eval example**: Checking all responses for PII or hallucinations in production without slowing down users.
+
+<Callout type="info" title="Agentuity Evals">
+Agentuity has a built-in [evaluation system](/agents/evaluations) that runs LLM-as-judge checks asynchronously after each response. Use evals for production monitoring without impacting response times.
+</Callout>
+
+## Basic Pattern
+
+Use a fast model to judge outputs. Groq provides low-latency inference for judge calls:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { generateText, generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { groq } from '@ai-sdk/groq';
+import { z } from 'zod';
+
+const JudgmentSchema = z.object({
+  score: z.number().min(0).max(1).describe('Quality score from 0 to 1'),
+  passed: z.boolean().describe('Whether the response meets quality threshold'),
+  reason: z.string().describe('Brief explanation of the judgment'),
+});
+
+const agent = createAgent('QualityChecker', {
+  schema: {
+    input: z.object({ question: z.string() }),
+    output: z.object({
+      answer: z.string(),
+      judgment: JudgmentSchema,
+    }),
+  },
+  handler: async (ctx, input) => {
+    // Generate answer with primary model
+    const { text: answer } = await generateText({
+      model: openai('gpt-5-mini'),
+      prompt: input.question,
+    });
+
+    // Judge with fast model
+    const { object: judgment } = await generateObject({
+      model: groq('openai/gpt-oss-120b'),
+      schema: JudgmentSchema,
+      prompt: `Evaluate this response on a 0-1 scale.
+
+Question: ${input.question}
+Response: ${answer}
+
+Consider:
+- Does it directly answer the question?
+- Is the information accurate?
+- Is it clear and easy to understand?
+
+Score 0.7+ to pass.`,
+    });
+
+    return { answer, judgment };
+  },
+});
+
+export default agent;
+```
+
+## Model Comparison Arena
+
+Compare responses from multiple providers and declare a winner. This pattern is useful for benchmarking, A/B testing, or letting users see quality differences:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { generateText, generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
+import { groq } from '@ai-sdk/groq';
+import { z } from 'zod';
+
+const ArenaJudgment = z.object({
+  winner: z.enum(['openai', 'anthropic']),
+  reasoning: z.string(),
+  scores: z.object({
+    openai: z.number().min(0).max(1),
+    anthropic: z.number().min(0).max(1),
+  }),
+});
+
+const arenaAgent = createAgent('ModelArena', {
+  schema: {
+    input: z.object({
+      prompt: z.string(),
+      tone: z.enum(['whimsical', 'suspenseful', 'comedic']),
+    }),
+    output: z.object({
+      results: z.array(z.object({
+        provider: z.string(),
+        story: z.string(),
+        generationMs: z.number(),
+      })),
+      judgment: ArenaJudgment,
+    }),
+  },
+  handler: async (ctx, input) => {
+    // Generate from both models in parallel
+    const [openaiResult, anthropicResult] = await Promise.all([
+      generateWithTiming(openai('gpt-5-nano'), input.prompt, input.tone),
+      generateWithTiming(anthropic('claude-haiku-4-5'), input.prompt, input.tone),
+    ]);
+
+    const results = [
+      { provider: 'openai', ...openaiResult },
+      { provider: 'anthropic', ...anthropicResult },
+    ];
+
+    // Judge with fast model
+    const { object: judgment } = await generateObject({
+      model: groq('openai/gpt-oss-120b'),
+      schema: ArenaJudgment,
+      prompt: `Compare these ${input.tone} stories and pick a winner.
+
+PROMPT: "${input.prompt}"
+
+--- OpenAI ---
+${openaiResult.story}
+
+--- Anthropic ---
+${anthropicResult.story}
+
+Score each on creativity, engagement, and tone match (0-1).
+Declare a winner with reasoning.`,
+    });
+
+    ctx.logger.info('Arena complete', { winner: judgment.winner });
+    return { results, judgment };
+  },
+});
+
+async function generateWithTiming(
+  model: Parameters<typeof generateText>[0]['model'],
+  prompt: string,
+  tone: string
+) {
+  const start = Date.now();
+  const { text } = await generateText({
+    model,
+    system: `Write a short ${tone} story (max 200 words) with a beginning, middle, and end.`,
+    prompt,
+  });
+  return { story: text, generationMs: Date.now() - start };
+}
+
+export default arenaAgent;
+```
+
+<Callout type="tip" title="See It Live">
+The [SDK Explorer](/) includes a working Model Arena demo that demonstrates this pattern in more detail.
+</Callout>
+
+## Grounding Check for RAG
+
+Detect hallucinations by checking if claims are supported by retrieved sources:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { generateText, generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { groq } from '@ai-sdk/groq';
+import { z } from 'zod';
+
+const GroundingJudgment = z.object({
+  isGrounded: z.boolean().describe('Whether all claims are supported by sources'),
+  score: z.number().min(0).max(1).describe('Percentage of claims supported'),
+  unsupportedClaims: z.array(z.string()).describe('Claims not found in sources'),
+  reason: z.string(),
+});
+
+interface DocumentMetadata {
+  content: string;
+  title?: string;
+}
+
+const ragAgent = createAgent('RAGWithGrounding', {
+  schema: {
+    input: z.object({ question: z.string() }),
+    output: z.object({
+      answer: z.string(),
+      grounding: GroundingJudgment,
+      sources: z.array(z.string()),
+    }),
+  },
+  handler: async (ctx, input) => {
+    // Retrieve relevant documents
+    const results = await ctx.vector.search<DocumentMetadata>('knowledge-base', {
+      query: input.question,
+      limit: 3,
+    });
+
+    const sources = results.map(r => r.metadata?.content || '').filter(Boolean);
+
+    // Generate answer
+    const { text: answer } = await generateText({
+      model: openai('gpt-5-mini'),
+      prompt: `Answer based on these sources:\n\n${sources.join('\n\n')}\n\nQuestion: ${input.question}`,
+    });
+
+    // Check grounding with fast model
+    const { object: grounding } = await generateObject({
+      model: groq('openai/gpt-oss-120b'),
+      schema: GroundingJudgment,
+      prompt: `Check if this answer is supported by the sources.
+
+Answer: ${answer}
+
+Sources:
+${sources.map((s, i) => `[${i + 1}] ${s}`).join('\n\n')}
+
+Are all factual claims in the answer supported by the sources?
+List any unsupported claims.`,
+    });
+
+    if (!grounding.isGrounded) {
+      ctx.logger.warn('Hallucination detected', {
+        claims: grounding.unsupportedClaims,
+      });
+    }
+
+    return { answer, grounding, sources: results.map(r => r.key) };
+  },
+});
+
+export default ragAgent;
+```
+
+## Using in Evals
+
+For background quality monitoring, use LLM-as-judge in your eval files. Evals run asynchronously after the response is sent, so they don't slow down users:
+
+```typescript title="src/agent/qa-agent/eval.ts"
+import agent from './agent';
+import { generateObject } from 'ai';
+import { groq } from '@ai-sdk/groq';
+import { z } from 'zod';
+
+const HelpfulnessJudgment = z.object({
+  scores: z.object({
+    helpfulness: z.object({
+      score: z.number().min(0).max(1),
+      reason: z.string(),
+    }),
+  }),
+  checks: z.object({
+    answersQuestion: z.object({
+      passed: z.boolean(),
+      reason: z.string(),
+    }),
+    actionable: z.object({
+      passed: z.boolean(),
+      reason: z.string(),
+    }),
+  }),
+});
+
+export const helpfulnessEval = agent.createEval('helpfulness', {
+  description: 'Judges if responses are helpful and actionable',
+  handler: async (ctx, input, output) => {
+    const { object } = await generateObject({
+      model: groq('openai/gpt-oss-120b'),
+      schema: HelpfulnessJudgment,
+      prompt: `Evaluate this response.
+
+Question: ${input.question}
+Response: ${output.answer}
+
+SCORE:
+- helpfulness: How useful is this response? (0 = useless, 1 = extremely helpful)
+
+CHECKS:
+- answersQuestion: Does it directly answer what was asked?
+- actionable: Can the user act on this information?`,
+    });
+
+    // Combine score and checks into eval result
+    const allChecksPassed = object.checks.answersQuestion.passed && object.checks.actionable.passed;
+
+    return {
+      passed: allChecksPassed && object.scores.helpfulness.score >= 0.7,
+      score: object.scores.helpfulness.score,
+      reason: object.scores.helpfulness.reason,
+      metadata: {
+        checks: object.checks,
+      },
+    };
+  },
+});
+```
+
+See [Adding Evaluations](/agents/evaluations) for more patterns including preset evals.
+
+## Structuring Judge Prompts
+
+Good judge prompts have clear structure:
+
+```typescript
+const judgePrompt = `You are evaluating a ${taskType} response.
+
+CONTEXT:
+${context}
+
+RESPONSE TO EVALUATE:
+${response}
+
+SCORING CRITERIA (0.0-1.0):
+- criterion1: What specifically to look for
+- criterion2: What specifically to look for
+
+CHECKS (pass/fail):
+- check1: Specific yes/no question
+- check2: Specific yes/no question
+
+Evaluate each criterion, then provide an overall assessment.`;
+```
+
+**Tips:**
+- Be explicit about the scale (0-1, not 1-10)
+- Define what each score level means
+- Make checks binary questions with clear answers
+- Include the original context/prompt for reference
+
+## Best Practices
+
+- **Use fast models for judging**: Groq, gpt-5-nano, or claude-haiku-4-5 work well
+- **Separate scores from checks**: Scores for gradients, checks for pass/fail
+- **Structure prompts clearly**: List criteria explicitly with descriptions
+- **Log low scores**: Track failures for debugging and model improvement
+- **Consider latency**: Use inline judging only when users need to see results
+
+## Cost Optimization
+
+LLM-as-judge adds model calls. Optimize by:
+
+- Using the fastest capable model (Groq for speed, nano models for cost)
+- Running evals asynchronously (default in Agentuity)
+- Sampling a percentage of requests in high-volume scenarios
+- Batching judgments when evaluating multiple items
+
+## Next Steps
+
+- [Adding Evaluations](/agents/evaluations): Background quality monitoring with evals
+- [Using the AI SDK](/agents/ai-sdk-integration): Model selection and configuration
+- [Vector Storage](/services/storage/vector): Build RAG systems to ground responses

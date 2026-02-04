@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/agents/evaluations')({
-	component: () => (
-		<PlaceholderPage
-			title="Evaluations"
-			description="Run automated quality checks on agent responses."
-		/>
-	),
+	component: () => <MDXPage route="agents/evaluations" />,
 	staticData: { crumb: 'Evaluations' },
 });

@@ -1,0 +1,220 @@
+---
+title: Running Code in Sandboxes
+description: Run code in isolated, secure containers with configurable resources
+---
+
+Execute code in isolated Linux containers with configurable resource limits, network controls, and execution timeouts.
+
+## Why Sandboxes?
+
+Agents that reason about code need somewhere safe to execute it. Whether generating Python scripts, validating builds, or running user-provided code, you can't let arbitrary execution happen on your infrastructure.
+
+The pattern keeps repeating: spin up a secure environment, run code, tear it down. Without proper isolation, a single bad script could access sensitive data, exhaust resources, or compromise your systems.
+
+Agentuity sandboxes handle this automatically. Every execution runs in an isolated container with its own filesystem, configurable resource limits, and network controls. When execution completes, the environment is destroyed.
+
+**What this gives you:**
+
+- **Security by default**: Network disabled, filesystem isolated, resource limits enforced
+- **No infrastructure management**: Containers spin up and tear down automatically
+- **Multi-language support**: Run Python, Node.js, shell scripts, and more
+- **Consistent environments**: Use snapshots to get the same setup every time, with dependencies pre-installed
+
+## Three Ways to Use Sandboxes
+
+| Method | Best For |
+|--------|----------|
+| **[Web App](https://app-v1.agentuity.com)** | Visual management, browsing runtimes and snapshots |
+| **[SDK](/services/sandbox/sdk-usage)** | Programmatic use in agents and routes (`ctx.sandbox`) |
+| **[CLI](/reference/CLI/sandbox)** | Local development, scripting, CI/CD |
+
+<Callout type="info" title="Multi-language Execution">
+Your agents are written in TypeScript, but the sandbox can run any language safely. Use `ctx.sandbox.run()` to execute Python, Node.js, shell scripts, or anything available via `apt install` in isolated containers.
+</Callout>
+
+## Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Runtime** | A pre-configured base environment (OS + language tools) provided by Agentuity |
+| **Sandbox** | A running container created from a runtime where you execute commands |
+| **Snapshot** | A saved sandbox state that can be used to create new sandboxes |
+
+These build on each other: **Runtime → Sandbox → Snapshot**. Here's an example of how to use all three:
+
+1. Pick a **runtime** (e.g., `bun:1` or `node:latest`)
+2. Create a **sandbox** from that runtime
+3. Optionally save a **snapshot** to reuse your configured environment
+
+## Runtimes
+
+Runtimes are pre-configured base environments that Agentuity provides. Each includes an operating system, language toolchain, and common utilities.
+
+### Language Runtimes
+
+Use these for general code execution:
+
+| Runtime | Description |
+|---------|-------------|
+| `base:latest` | Minimal Debian runtime with essential tools  (default) |
+| `bun:1` | Bun 1.x with JavaScript/TypeScript support |
+| `node:latest` | Node.js latest version |
+| `node:lts` | Node.js LTS version |
+| `python:3.13` | Python 3.13 |
+| `python:3.14` | Python 3.14 |
+| `golang:latest` | Golang latest |
+
+### Agent Runtimes
+
+Pre-configured AI coding assistants:
+
+| Runtime | Description |
+|---------|-------------|
+| `claude-code:latest` | Claude Code AI assistant |
+| `amp:latest` | Amp AI coding assistant |
+| `codex:latest` | OpenAI Codex CLI agent |
+| `gemini-cli:latest` | Google Gemini CLI agent |
+| `opencode:latest` | OpenCode AI coding assistant |
+| `agentuity:latest` | Agentuity CLI for building and running AI agents |
+
+### Testing Runtimes
+
+Pre-configured testing runtimes:
+
+| Runtime | Description |
+|---------|-------------|
+| `agent-browser:latest` | Headless browser automation CLI for AI agents |
+| `playwright:v1` | Playwright browser automation runtime (Chrome, Firefox, WebKit) |
+
+<Callout type="tip" title="List Available Runtimes">
+Run `agentuity cloud sandbox runtime list` to see all available runtimes, or view them in the [Agentuity App](https://app-v1.agentuity.com) under **Services > Sandbox > Runtimes**.
+</Callout>
+
+### Runtime Metadata
+
+Each runtime includes metadata for identification and resource planning:
+
+| Field | Description |
+|-------|-------------|
+| `description` | What the runtime provides |
+| `icon` | URL to runtime icon |
+| `brandColor` | Hex color for UI display |
+| `documentationUrl` | Link to runtime documentation |
+| `tags` | Categories like `language`, `ai-agent` |
+| `requirements` | Minimum memory, CPU, disk, and network needs |
+
+View runtime details with `agentuity cloud sandbox runtime list --json`.
+
+## Snapshots
+
+A snapshot captures the filesystem state of a sandbox. You create new sandboxes *from* a snapshot rather than running it directly.
+
+Snapshots build on top of runtimes. When you create a snapshot, it includes everything from the base runtime plus your installed dependencies and files.
+
+**Workflow:**
+1. Create a sandbox from a runtime
+2. Install dependencies and configure the environment
+3. Save a snapshot
+4. Create new sandboxes from that snapshot (fast, no reinstallation needed)
+
+See [Creating and Using Snapshots](/services/sandbox/snapshots) for details.
+
+## Two Execution Modes
+
+Choose based on your use case:
+
+### One-shot (`sandbox.run()`)
+
+Creates a sandbox, runs a single command, then destroys the sandbox. Best for stateless code execution.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('CodeRunner', {
+  handler: async (ctx, input) => {
+    const result = await ctx.sandbox.run({
+      command: { exec: ['python3', '-c', 'print("Hello!")'] },
+      resources: { memory: '256Mi', cpu: '500m' },
+    });
+
+    ctx.logger.info('Output', { stdout: result.stdout, exitCode: result.exitCode });
+    return { output: result.stdout, exitCode: result.exitCode };
+  },
+});
+```
+
+### Interactive (`sandbox.create()`)
+
+Creates a persistent sandbox for multiple commands. Best for stateful workflows like dependency installation.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('ProjectBuilder', {
+  handler: async (ctx, input) => {
+    const sandbox = await ctx.sandbox.create({
+      resources: { memory: '1Gi' },
+      network: { enabled: true },  // Required for package installation
+    });
+
+    try {
+      await sandbox.execute({ command: ['npm', 'install'] });
+      await sandbox.execute({ command: ['npm', 'run', 'build'] });
+      return { success: true };
+    } finally {
+      await sandbox.destroy();
+    }
+  },
+});
+```
+
+## SDK Access
+
+| Context | Access |
+|---------|--------|
+| Agents | `ctx.sandbox` |
+| Routes | `c.var.sandbox` |
+
+The API is identical in both contexts.
+
+## Configuration Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `runtime` | Runtime environment | `'bun:1'`, `'python:3.14'` |
+| `resources.memory` | Memory limit (Kubernetes-style) | `'512Mi'`, `'1Gi'` |
+| `resources.cpu` | CPU limit in millicores | `'500m'`, `'1000m'` |
+| `resources.disk` | Disk space limit | `'1Gi'` |
+| `network.enabled` | Allow outbound network | `true` (default: `false`) |
+| `network.port` | Port to expose to internet (1024-65535) | `3000` |
+| `projectId` | Associate sandbox with a project | `'proj_abc123'` |
+| `timeout.idle` | Idle timeout before cleanup | `'10m'`, `'1h'` |
+| `timeout.execution` | Max execution time per command | `'5m'`, `'30s'` |
+| `dependencies` | Apt packages to install | `['python3', 'git']` |
+| `env` | Environment variables | `{ NODE_ENV: 'test' }` |
+| `snapshot` | Create from existing snapshot | `'my-env'` or `snp_abc123` |
+
+## When to Use Sandbox
+
+| Use Case | Example |
+|----------|---------|
+| Code execution agents | Run user-provided Python/JavaScript safely |
+| Code validation | Verify generated code compiles and runs |
+| AI coding assistants | Execute code suggested by LLMs |
+| Automated testing | Run tests in clean environments |
+| Build systems | Compile projects in isolated containers |
+
+## Security
+
+Sandboxes provide isolation through:
+
+- **Network disabled by default**: Enable explicitly when needed
+- **Resource limits**: Prevent resource exhaustion
+- **Execution timeouts**: Prevent runaway processes
+- **Filesystem isolation**: Each sandbox has its own workspace
+
+## Next Steps
+
+- [SDK Usage](/services/sandbox/sdk-usage): Detailed API for file I/O, streaming, and advanced configuration
+- [Snapshots](/services/sandbox/snapshots): Skip dependency installation with pre-configured environments
+- [CLI Commands](/reference/CLI/sandbox): Debug sandboxes and create snapshots manually

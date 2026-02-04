@@ -1,0 +1,255 @@
+---
+title: Events & Lifecycle
+description: Lifecycle hooks for monitoring and extending agent behavior
+---
+
+Events provide lifecycle hooks for monitoring agent execution. Use them for logging, metrics, analytics, and error tracking.
+
+## Agent Events
+
+Track individual agent execution with `started`, `completed`, and `errored` events:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const agent = createAgent('TaskProcessor', {
+  schema: {
+    input: s.object({ task: s.string() }),
+    output: s.object({ result: s.string() }),
+  },
+  handler: async (ctx, input) => {
+    ctx.logger.info('Processing task', { task: input.task });
+    return { result: `Completed: ${input.task}` };
+  },
+});
+
+// Track execution timing
+agent.addEventListener('started', (event, agent, ctx) => {
+  ctx.state.set('startTime', Date.now());
+  ctx.logger.info('Agent started', { agent: agent.metadata.name });
+});
+
+agent.addEventListener('completed', (event, agent, ctx) => {
+  const startTime = ctx.state.get('startTime') as number;
+  const duration = Date.now() - startTime;
+
+  ctx.logger.info('Agent completed', {
+    agent: agent.metadata.name,
+    durationMs: duration,
+  });
+
+  // Warn on slow executions
+  if (duration > 1000) {
+    ctx.logger.warn('Slow execution detected', { duration, threshold: 1000 });
+  }
+});
+
+agent.addEventListener('errored', (event, agent, ctx, error) => {
+  const startTime = ctx.state.get('startTime') as number;
+  const duration = Date.now() - startTime;
+
+  ctx.logger.error('Agent failed', {
+    agent: agent.metadata.name,
+    error: error.message,
+    durationMs: duration,
+  });
+});
+
+export default agent;
+```
+
+Event listeners receive: event name, agent instance, context, and (for `errored`) the error object.
+
+## App-Level Events
+
+Monitor all agents globally by registering listeners in `app.ts`:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+
+const app = await createApp();
+
+// Track all agent executions
+app.addEventListener('agent.started', (event, agent, ctx) => {
+  ctx.logger.info('Agent execution started', {
+    agent: agent.metadata.name,
+    sessionId: ctx.sessionId,
+  });
+});
+
+app.addEventListener('agent.completed', (event, agent, ctx) => {
+  ctx.logger.info('Agent execution completed', {
+    agent: agent.metadata.name,
+    sessionId: ctx.sessionId,
+  });
+});
+
+app.addEventListener('agent.errored', (event, agent, ctx, error) => {
+  ctx.logger.error('Agent execution failed', {
+    agent: agent.metadata.name,
+    error: error.message,
+    sessionId: ctx.sessionId,
+  });
+});
+```
+
+### Available App Events
+
+| Event | Description |
+|-------|-------------|
+| `agent.started` | Any agent starts execution |
+| `agent.completed` | Any agent completes successfully |
+| `agent.errored` | Any agent throws an error |
+| `session.started` | New session begins |
+| `session.completed` | Session ends |
+| `thread.created` | New thread created |
+| `thread.destroyed` | Thread expired or destroyed |
+
+## App Lifecycle Hooks
+
+Use `setup` and `shutdown` hooks to initialize resources and manage typed app state:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+
+const { server, logger } = await createApp({
+  setup: async () => {
+    // Initialize resources when the app starts
+    const dbClient = await connectToDatabase();
+
+    // Return typed app state - available in all agents via ctx.app
+    return {
+      db: dbClient,
+      startedAt: new Date(),
+    };
+  },
+  shutdown: async (state) => {
+    // Cleanup when the app shuts down
+    // state is typed from setup's return value
+    await state.db.close();
+    logger.info('App ran for:', Date.now() - state.startedAt.getTime(), 'ms');
+  },
+});
+```
+
+Access app state in any agent handler:
+
+```typescript
+const agent = createAgent('DataFetcher', {
+  handler: async (ctx, input) => {
+    // ctx.app is fully typed from setup's return value
+    const results = await ctx.app.db.query('SELECT * FROM users');
+    return { users: results };
+  },
+});
+```
+
+<Callout type="tip" title="Use Cases">
+Common uses for app lifecycle hooks:
+- Database connection pools
+- Cache initialization
+- External service clients
+- Metrics/telemetry setup
+</Callout>
+
+## Agent Lifecycle Hooks
+
+Individual agents can also define `setup` and `shutdown` functions for agent-specific initialization:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('CachedLookup', {
+  schema: {
+    input: z.object({ key: z.string() }),
+    output: z.object({ value: z.string() }),
+  },
+  // Called once when app starts - receives app state, returns agent config
+  setup: async (app) => {
+    const cache = new Map<string, string>();
+    return { cache };
+  },
+  // Called when app shuts down - receives app state and agent config
+  shutdown: async (app, config) => {
+    config.cache.clear();
+  },
+  handler: async (ctx, input) => {
+    // ctx.config is typed from setup's return value
+    const cached = ctx.config.cache.get(input.key);
+    if (cached) {
+      return { value: cached };
+    }
+
+    // Fetch and cache
+    const value = await fetchValue(input.key);
+    ctx.config.cache.set(input.key, value);
+    return { value };
+  },
+});
+
+export default agent;
+```
+
+**Key differences from app lifecycle:**
+- `setup` receives `app` state (from `createApp`) and returns agent-specific config
+- Config is accessed via `ctx.config` (not `ctx.app`)
+- Each agent can have its own isolated resources
+
+<Callout type="tip" title="When to Use Agent vs App Setup">
+- **App setup (`createApp`)**: Shared resources like database pools, Redis clients
+- **Agent setup**: Agent-specific caches, pre-loaded models, isolated connections
+</Callout>
+
+## Shared State
+
+Event handlers share state via `ctx.state`:
+
+```typescript
+agent.addEventListener('started', (event, agent, ctx) => {
+  ctx.state.set('startTime', Date.now());
+  ctx.state.set('metadata', { userId: '123', source: 'api' });
+});
+
+agent.addEventListener('completed', (event, agent, ctx) => {
+  const startTime = ctx.state.get('startTime') as number;
+  const metadata = ctx.state.get('metadata') as Record<string, string>;
+
+  ctx.logger.info('Execution complete', {
+    duration: Date.now() - startTime,
+    ...metadata,
+  });
+});
+```
+
+<Callout type="tip" title="Background Work">
+Use `ctx.waitUntil()` in event handlers for non-blocking operations like sending metrics to external services:
+
+```typescript
+agent.addEventListener('completed', (event, agent, ctx) => {
+  ctx.waitUntil(async () => {
+    await sendMetricsToExternalService({ agent: agent.metadata.name });
+  });
+});
+```
+</Callout>
+
+## Events vs Evals
+
+| Aspect | Events | Evals |
+|--------|--------|-------|
+| **Purpose** | Monitoring, logging | Quality assessment |
+| **Timing** | During execution | After completion |
+| **Blocking** | Synchronous | Background (`waitUntil`) |
+| **Output** | Logs, metrics | Pass/fail, scores |
+
+Use events for observability. Use [evaluations](/agents/evaluations) for output quality checks.
+
+## Next Steps
+
+- [Evaluations](/agents/evaluations): Automated quality testing for agent outputs
+- [State Management](/agents/state-management): Thread and session state patterns
+- [Calling Other Agents](/agents/calling-other-agents): Multi-agent coordination
+- [Logging](/services/observability/logging): Structured logging for debugging events
+- [Tracing](/services/observability/tracing): Track timing across event handlers

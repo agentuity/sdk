@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/reference/sdk-reference')({
-	component: () => (
-		<PlaceholderPage title="SDK Reference" description="Complete API reference for the Agentuity SDK." />
-	),
+	component: () => <MDXPage route="reference/sdk-reference" />,
 	staticData: { crumb: 'SDK Reference' },
 });

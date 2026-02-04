@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/agents/schema-libraries')({
-	component: () => (
-		<PlaceholderPage
-			title="Schema Libraries"
-			description="Use Zod, Valibot, or other schema libraries with agents."
-		/>
-	),
+	component: () => <MDXPage route="agents/schema-libraries" />,
 	staticData: { crumb: 'Schema Libraries' },
 });

@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/frontend/authentication')({
-	component: () => (
-		<PlaceholderPage title="Authentication" description="Add user authentication to your app." />
-	),
+	component: () => <MDXPage route="frontend/authentication" />,
 	staticData: { crumb: 'Authentication' },
 });

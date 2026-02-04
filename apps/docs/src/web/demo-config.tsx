@@ -100,7 +100,7 @@ export const DEMOS: DemoConfig[] = [
 				example you can run in the sandbox.
 			</>
 		),
-		docsUrl: '/reference/sdk-reference',
+		docsUrl: '/reference/sdk-reference#context-api',
 		category: 'basics',
 		component: HandlerContextDemo,
 		codeExample: CODE_EXAMPLES['handler-context'],
@@ -445,7 +445,7 @@ export const DEMOS: DemoConfig[] = [
 				prompts.
 			</>
 		),
-		docsUrl: '/agents/ai-gateway',
+		docsUrl: '/cookbook/patterns/llm-as-a-judge',
 		category: 'examples',
 		component: ModelArena,
 		codeExample: CODE_EXAMPLES['model-arena'],

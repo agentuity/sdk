@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/agents/ai-sdk-integration')({
-	component: () => (
-		<PlaceholderPage
-			title="AI SDK Integration"
-			description="Integrate with the Vercel AI SDK for streaming and structured output."
-		/>
-	),
+	component: () => <MDXPage route="agents/ai-sdk-integration" />,
 	staticData: { crumb: 'AI SDK Integration' },
 });

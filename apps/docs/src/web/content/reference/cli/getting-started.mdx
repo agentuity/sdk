@@ -1,0 +1,417 @@
+---
+title: Getting Started with the CLI
+description: Install the Agentuity CLI and authenticate to start building agents.
+---
+
+Everything you do with Agentuity goes through the CLI: creating projects, running locally, deploying to the cloud, and debugging live agents. The [App](https://app-v1.agentuity.com) stays synced when you need a visual interface.
+
+## Installation
+
+Install the CLI using the universal installer:
+
+```bash
+curl -sSL https://agentuity.sh | sh
+```
+
+Alternatively, install via package manager: `bun add -g @agentuity/cli`
+
+Verify the installation:
+
+```bash
+agentuity --version
+```
+
+<Callout type="info" title="Requirements">
+Bun 1.3.0 or higher is required to run the CLI.
+</Callout>
+
+## Upgrading
+
+Upgrade the CLI to the latest version:
+
+```bash
+agentuity upgrade
+```
+
+Force upgrade even if already on the latest version:
+
+```bash
+agentuity upgrade --force
+```
+
+The CLI periodically checks for new versions and prompts you to upgrade when one is available.
+
+## Authentication
+
+### Login to Your Account
+
+Authenticate using a browser-based login flow:
+
+```bash
+agentuity auth login
+# or simply
+agentuity login
+```
+
+This command:
+1. Generates a one-time password and opens your browser
+2. Prompts you to authenticate in the web app
+3. Saves your API credentials locally
+
+Check your authentication status:
+
+```bash
+agentuity auth whoami
+```
+
+### Get Your API Key
+
+Display the API key for your authenticated account:
+
+```bash
+agentuity auth apikey
+```
+
+### Create a New Account
+
+Sign up for a new Agentuity account directly from the CLI:
+
+```bash
+agentuity auth signup
+```
+
+This opens your browser to complete account creation, then automatically saves your credentials locally.
+
+### Logout
+
+Clear your local credentials:
+
+```bash
+agentuity auth logout
+# or simply
+agentuity logout
+```
+
+## Preferences
+
+Set default organization and region to avoid specifying them on every command.
+
+### Organization Preferences
+
+```bash
+# Set default organization
+agentuity auth org select org_abc123
+
+# Show current default organization
+agentuity auth org current
+
+# Clear default organization
+agentuity auth org unselect
+```
+
+When a default organization is set, commands that support `--org` will use it automatically.
+
+### Region Preferences
+
+```bash
+# Set default region for deployments
+agentuity cloud region select usw
+
+# Show current default region
+agentuity cloud region current
+
+# Clear default region
+agentuity cloud region unselect
+```
+
+## Creating Projects
+
+### Create a New Project
+
+The quickest way to get started is the interactive project creation:
+
+```bash
+agentuity project create
+# or simply
+agentuity create
+```
+
+Create a project with a specific name:
+
+```bash
+agentuity project create --name my-agent
+```
+
+Create a project in a specific directory:
+
+```bash
+agentuity project create --name my-agent --dir ~/projects/agents
+```
+
+### Default Template
+
+Running `agentuity create` currently scaffolds a project with:
+
+- **Translation agent**: Demonstrates AI Gateway, thread state, and structured logging
+- **API routes**: Shows agent integration and state management endpoints
+- **React frontend**: Pre-configured with Tailwind CSS
+- **Workbench**: Local testing UI at `/workbench`
+- **Evaluations**: Example eval setup for testing agent behavior
+
+The agent uses the OpenAI SDK routed through Agentuity's AI Gateway. This means you don't need a separate OpenAI API key: requests are authenticated with your Agentuity credentials and billed through your Agentuity account.
+
+### Project Creation Options
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Project name |
+| `--dir <path>` | Directory to create the project in |
+| `--template <name>` | Template to use (optional, defaults to "default") |
+| `--no-install` | Skip dependency installation |
+| `--no-build` | Skip initial build |
+| `--no-register` | Don't register the project with Agentuity Cloud |
+| `--database <value>` | Database option: `skip`, `new`, or existing database name |
+| `--storage <value>` | Storage option: `skip`, `new`, or existing bucket name |
+| `--enable-auth` | Enable Agentuity Auth for the project |
+
+Example:
+
+```bash
+agentuity project create \
+  --name customer-service-bot \
+  --dir ~/projects \
+  --no-build
+```
+
+### Headless Project Creation
+
+Create projects non-interactively for CI/CD pipelines and automation:
+
+```bash
+# Create with new database and storage
+agentuity project create \
+  --name my-agent \
+  --database new \
+  --storage new \
+  --enable-auth
+
+# Skip optional resources
+agentuity project create \
+  --name my-agent \
+  --database skip \
+  --storage skip
+
+# Use existing resources
+agentuity project create \
+  --name my-agent \
+  --database my-existing-db \
+  --storage my-bucket
+```
+
+<Callout type="info" title="Authentication Required">
+The `--database` and `--storage` options require authentication. Run `agentuity login` first or the command will fail.
+</Callout>
+
+## Managing Projects
+
+### List Projects
+
+View all registered projects:
+
+```bash
+agentuity project list
+```
+
+For machine-readable output (useful for scripts and AI coding agents):
+
+```bash
+agentuity --json project list
+```
+
+### Show Project Details
+
+View details for a specific project:
+
+```bash
+agentuity project show <project-id>
+```
+
+### Delete a Project
+
+Delete projects interactively:
+
+```bash
+agentuity project delete
+```
+
+Delete a specific project:
+
+```bash
+agentuity project delete <project-id>
+```
+
+Skip confirmation prompt:
+
+```bash
+agentuity project delete <project-id> --confirm
+```
+
+<Callout type="warning" title="Permanent Deletion">
+Project deletion is permanent and cannot be undone. Deployed agents and associated resources will be removed.
+</Callout>
+
+### Import a Project
+
+Register an existing local Agentuity project with the cloud:
+
+```bash
+# Import current directory
+agentuity project import
+
+# Import from specific directory
+agentuity project import --dir ./my-existing-project
+
+# Validate without importing
+agentuity project import --validate-only
+```
+
+The import command verifies that the directory contains a valid Agentuity project (requires `@agentuity/runtime` dependency and either `agentuity.config.ts` or an `agentuity/` directory).
+
+<Callout type="info" title="Automatic Reconciliation">
+When you run `agentuity dev` or `agentuity deploy` on an unregistered project while authenticated, the CLI will prompt you to import it automatically.
+</Callout>
+
+## Command Shortcuts
+
+Several common commands have shortcuts that let you skip the subcommand prefix:
+
+| Full Command | Shortcut | Also Works |
+|--------------|----------|------------|
+| `agentuity auth login` | `agentuity login` | |
+| `agentuity auth logout` | `agentuity logout` | |
+| `agentuity auth signup` | `agentuity signup` | |
+| `agentuity project create` | `agentuity create` | `new`, `init` |
+| `agentuity cloud deploy` | `agentuity deploy` | |
+| `agentuity cloud ssh` | `agentuity ssh` | |
+
+All other commands require their full prefix (e.g., `agentuity cloud session list`, `agentuity auth ssh add`).
+
+## Global Options
+
+The CLI supports several global flags that work with any command:
+
+| Flag | Description | Example |
+|------|-------------|---------|
+| `--json` | Output in JSON format | `agentuity --json project list` |
+| `--log-level <level>` | Set log verbosity (debug, trace, info, warn, error) | `agentuity --log-level=debug auth login` |
+| `--quiet` | Suppress non-essential output | `agentuity --quiet project create` |
+| `--no-progress` | Disable progress indicators | `agentuity --no-progress build` |
+| `--color <mode>` | Control color output (auto, always, never) | `agentuity --color=never project list` |
+| `--explain` | Show what the command would do without executing | `agentuity --explain project delete my-proj` |
+| `--dry-run` | Simulate command execution | `agentuity --dry-run project delete my-proj` |
+| `--skip-version-check` | Disable automatic version checking | `agentuity --skip-version-check dev` |
+
+### JSON Output
+
+All commands support `--json` for machine-readable output, useful for shell scripts and AI coding agents:
+
+```bash
+# Get JSON output for scripting
+agentuity --json auth whoami
+
+# Parse with jq (a command-line JSON processor)
+agentuity --json project list | jq '.[].name'
+```
+
+[jq](https://jqlang.org/) is a lightweight command-line JSON processor. Install via `brew install jq` (macOS) or `apt install jq` (Linux).
+
+### Log Levels
+
+Control CLI verbosity:
+
+```bash
+# Detailed debugging output
+agentuity --log-level=debug project create
+
+# Only show errors
+agentuity --log-level=error build
+```
+
+## Configuration Profiles
+
+The CLI supports multiple configuration profiles for different environments (development, staging, production).
+
+### Switch Profiles
+
+Switch to a different profile:
+
+```bash
+agentuity profile use production
+```
+
+### List Profiles
+
+View available profiles:
+
+```bash
+agentuity profile list
+```
+
+Configuration is stored in `~/.config/agentuity/production.yaml` by default. Override with `--config=/path/to/config.yaml`.
+
+## SSH Key Management
+
+Add SSH keys to your account for secure container access during development and debugging.
+
+### List SSH Keys
+
+View all SSH keys on your account:
+
+```bash
+agentuity auth ssh list
+```
+
+### Add an SSH Key
+
+Add a new SSH key interactively (automatically discovers keys in `~/.ssh/`):
+
+```bash
+agentuity auth ssh add
+```
+
+Add a specific key file:
+
+```bash
+agentuity auth ssh add --file ~/.ssh/id_ed25519.pub
+```
+
+Pipe a key from stdin:
+
+```bash
+cat ~/.ssh/id_rsa.pub | agentuity auth ssh add
+```
+
+### Remove an SSH Key
+
+Remove keys interactively:
+
+```bash
+agentuity auth ssh delete
+```
+
+Remove a specific key by fingerprint:
+
+```bash
+agentuity auth ssh delete <fingerprint>
+```
+
+SSH keys enable secure access to deployed agent containers for debugging and log inspection. See [Debugging Deployments](/reference/CLI/debugging) for details.
+
+## Next Steps
+
+Now that you have the CLI installed and authenticated:
+
+- [Local Development](/reference/CLI/development): Run agents locally with hot reload
+- [Deploying to the Cloud](/reference/CLI/deployment): Deploy agents to Agentuity Cloud
+- [Managing Cloud Data](/reference/CLI/data-management): Inspect storage, env vars, and secrets
+- [OpenCode Plugin](/reference/CLI/opencode-plugin): AI-assisted development with specialized agents

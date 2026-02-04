@@ -1,0 +1,74 @@
+---
+title: Storage
+description: Persistent storage options for agents and routes
+---
+
+import { Database, Key, Search, HardDrive, Activity } from 'lucide-react';
+
+Agentuity provides multiple storage options to match different data access patterns.
+
+## Storage Types
+
+<Cards>
+  <CardLink
+    href="/services/storage/key-value"
+    title="Key-Value"
+    description="Fast lookups, caching, configuration"
+    icon={<Key />}
+  />
+  <CardLink
+    href="/services/storage/vector"
+    title="Vector"
+    description="Semantic search, embeddings, RAG"
+    icon={<Search />}
+  />
+  <CardLink
+    href="/services/storage/object"
+    title="Object (S3)"
+    description="Files, images, documents, media"
+    icon={<HardDrive />}
+  />
+  <CardLink
+    href="/services/storage/durable-streams"
+    title="Durable Streams"
+    description="Large exports, audit logs, real-time data"
+    icon={<Activity />}
+  />
+</Cards>
+
+## When to Use Each Type
+
+| Storage Type | Best For | Access Pattern |
+|--------------|----------|----------------|
+| [Key-Value](/services/storage/key-value) | Caching, session data, rate limits | Fast key-based lookups |
+| [Vector](/services/storage/vector) | Semantic search, embeddings, RAG | Similarity search |
+| [Object](/services/storage/object) | Files, images, large blobs | URL-based access |
+| [Durable Streams](/services/storage/durable-streams) | Logs, exports, event streams | Append-only, ordered reads |
+| [Database](/services/database) | Relational data, complex queries | SQL queries |
+
+## Built-in State vs Storage
+
+Agents have built-in state that persists across requests:
+
+| State Type | Scope | Use For |
+|------------|-------|---------|
+| `ctx.state` | Agent instance | Request-local data |
+| `ctx.thread.state` | Thread | Conversation context |
+| `ctx.session.state` | Session | User preferences |
+
+Use storage services when you need:
+- Custom TTL or expiration
+- Data shared across agents
+- Persistent data beyond sessions
+- External system integration
+
+## Access Patterns
+
+| Context | KV | Vector | Object |
+|---------|----|----|--------|
+| Agents | `ctx.kv` | `ctx.vectors` | `ctx.storage` |
+| Routes | `c.var.kv` | `c.var.vectors` | `c.var.storage` |
+
+## Custom Storage
+
+For specialized needs, you can implement [custom storage backends](/services/storage/custom) that integrate with external systems.

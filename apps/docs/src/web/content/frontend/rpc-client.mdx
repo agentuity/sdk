@@ -1,0 +1,241 @@
+---
+title: RPC Client
+description: Type-safe API calls from any JavaScript environment using createAPIClient
+---
+
+Call your API routes with full type safety. The SDK auto-generates a typed client based on your route definitions.
+
+## Basic Usage
+
+For non-React apps, import `createAPIClient` from the generated routes:
+
+```typescript
+import { createAPIClient } from './generated/routes';
+
+const api = createAPIClient();
+
+// Type-safe API call - types are inferred from your route schemas
+const result = await api.chat.post({ message: 'Hello' });
+console.log(result.response);
+```
+
+For React apps, import from `@agentuity/react`:
+
+```typescript
+import { createAPIClient } from '@agentuity/react';
+
+const api = createAPIClient();
+const result = await api.chat.post({ message: 'Hello' });
+```
+
+<Callout type="info" title="Auth Headers">
+When imported from `@agentuity/react`, the client automatically includes auth headers if you've configured authentication with `AgentuityProvider`. Use `./generated/routes` when you need a client without automatic auth injection.
+</Callout>
+
+<Callout type="info" title="React Apps">
+For React components, consider using [React Hooks](/frontend/react-hooks) instead. They provide built-in state management, loading states, and automatic cleanup.
+</Callout>
+
+## HTTP Methods
+
+All standard HTTP methods are supported:
+
+```typescript
+import { createAPIClient } from './generated/routes';
+
+const api = createAPIClient();
+
+const users = await api.users.get();
+const created = await api.users.post({ name: 'Alice', email: 'alice@example.com' });
+await api.users.alice.put({ name: 'Alice Smith' });
+await api.users.alice.delete();
+```
+
+## WebSocket Connections
+
+Connect to WebSocket routes with `.websocket()`:
+
+```typescript
+import { createAPIClient } from './generated/routes';
+
+const api = createAPIClient();
+const ws = api.chat.websocket();
+
+ws.on('open', () => {
+  console.log('Connected');
+  ws.send({ message: 'Hello!' });
+});
+
+ws.on('message', (data) => {
+  console.log('Received:', data);
+});
+
+ws.on('error', (error) => {
+  console.error('WebSocket error:', error);
+});
+
+ws.close();
+```
+
+## Server-Sent Events
+
+Subscribe to SSE streams with `.eventstream()`:
+
+```typescript
+import { createAPIClient } from './generated/routes';
+
+const api = createAPIClient();
+const events = api.notifications.eventstream();
+
+events.on('message', (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Event:', data);
+});
+
+events.on('error', (error) => {
+  console.error('Stream error:', error);
+});
+
+events.close();
+```
+
+## Streaming Responses
+
+For streaming HTTP responses, use `.stream()`:
+
+```typescript
+import { createAPIClient } from './generated/routes';
+
+const api = createAPIClient();
+const stream = await api.generate.stream({ prompt: 'Write a story' });
+
+stream.on('chunk', (chunk) => {
+  const text = new TextDecoder().decode(chunk);
+  process.stdout.write(text);
+});
+
+stream.on('close', () => {
+  console.log('\nStream complete');
+});
+```
+
+## Client Options
+
+Configure the client with custom options:
+
+```typescript
+import { createAPIClient } from './generated/routes';
+
+// With custom headers
+const api = createAPIClient({
+  headers: {
+    'X-Custom-Header': 'value',
+  },
+});
+
+// With dynamic headers (called on each request)
+const authenticatedApi = createAPIClient({
+  headers: () => ({
+    'Authorization': `Bearer ${getToken()}`,
+  }),
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `baseUrl` | `string \| () => string` | `''` (relative) | Base URL for requests |
+| `headers` | `Record<string, string> \| () => Record<string, string>` | `{}` | Request headers |
+| `contentType` | `string` | `application/json` | Content-Type header |
+| `signal` | `AbortSignal` | — | For request cancellation |
+
+## Request Cancellation
+
+Cancel in-flight requests using `AbortController`:
+
+```typescript
+import { createAPIClient } from './generated/routes';
+
+const controller = new AbortController();
+
+const api = createAPIClient({
+  signal: controller.signal,
+});
+
+const resultPromise = api.longProcess.post({ data: 'large payload' });
+
+// Cancel if needed
+setTimeout(() => controller.abort(), 5000);
+
+try {
+  const result = await resultPromise;
+} catch (error) {
+  if (error.name === 'AbortError') {
+    console.log('Request cancelled');
+  }
+}
+```
+
+## Error Handling
+
+The client throws on HTTP errors:
+
+```typescript
+import { createAPIClient } from './generated/routes';
+
+const api = createAPIClient();
+
+try {
+  const result = await api.users.post({ name: 'Alice' });
+  console.log('Created:', result);
+} catch (error) {
+  if (error.message.startsWith('HTTP 4')) {
+    console.error('Client error:', error.message);
+  } else if (error.message.startsWith('HTTP 5')) {
+    console.error('Server error:', error.message);
+  } else {
+    console.error('Network error:', error);
+  }
+}
+```
+
+## Type Generation
+
+Types are generated automatically when you run `agentuity dev`. The generated `RPCRouteRegistry` maps your route paths to their input/output types:
+
+```typescript
+// Generated at src/generated/routes.ts
+export type RPCRouteRegistry = {
+  chat: {
+    post: { input: { message: string }; output: { response: string } };
+  };
+  users: {
+    get: { input: void; output: User[] };
+    post: { input: CreateUserInput; output: User };
+  };
+};
+```
+
+<Callout type="info" title="Generated Files">
+Generated types live in `src/generated/`. Don't edit these files directly as they're regenerated on each build.
+</Callout>
+
+## RPC Client vs React Hooks
+
+| Use Case | Recommended |
+|----------|-------------|
+| React components | [React Hooks](/frontend/react-hooks) |
+| Non-React apps (Vue, Svelte, vanilla JS) | `createAPIClient` from `./generated/routes` |
+| Server-side JavaScript | `createAPIClient` from `./generated/routes` |
+| CLI tools or scripts | `createAPIClient` from `./generated/routes` |
+
+## Calling Routes from External Backends
+
+External backends like Next.js or Express can use HTTP to call Agentuity routes that access storage services. See [SDK Utilities for External Apps](/cookbook/patterns/server-utilities) for the complete pattern.
+
+## Next Steps
+
+- [React Hooks](/frontend/react-hooks): State-managed hooks for React apps
+- [Provider Setup](/frontend/provider-setup): Configure `AgentuityProvider` for React
+- [Adding Authentication](/frontend/authentication): Protect routes with Agentuity Auth
+- [WebSockets](/routes/websockets): Create WebSocket routes
+- [Server-Sent Events](/routes/sse): Create SSE routes

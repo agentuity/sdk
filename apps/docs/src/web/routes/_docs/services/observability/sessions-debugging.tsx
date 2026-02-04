@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/services/observability/sessions-debugging')({
-	component: () => (
-		<PlaceholderPage title="Sessions & Debugging" description="Debug agent sessions in the dashboard." />
-	),
+	component: () => <MDXPage route="services/observability/sessions-debugging" />,
 	staticData: { crumb: 'Sessions & Debugging' },
 });

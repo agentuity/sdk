@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/services/observability/logging')({
-	component: () => (
-		<PlaceholderPage title="Logging" description="Structured logging with ctx.logger." />
-	),
+	component: () => <MDXPage route="services/observability/logging" />,
 	staticData: { crumb: 'Logging' },
 });

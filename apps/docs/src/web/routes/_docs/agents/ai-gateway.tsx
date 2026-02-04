@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/agents/ai-gateway')({
-	component: () => (
-		<PlaceholderPage
-			title="AI Gateway"
-			description="Use any AI provider with a single API key."
-		/>
-	),
+	component: () => <MDXPage route="agents/ai-gateway" />,
 	staticData: { crumb: 'AI Gateway' },
 });

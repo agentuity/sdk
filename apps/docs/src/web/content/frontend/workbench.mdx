@@ -1,0 +1,92 @@
+---
+title: Workbench Configuration
+description: Configure routes, authentication, and embed Workbench in custom frontends
+---
+
+This page covers advanced Workbench configuration and embedding. For basic setup and testing agents, see [Testing with Workbench](/agents/workbench).
+
+## Configuration
+
+Configure Workbench in your `agentuity.config.ts`:
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+
+export default {
+  workbench: {
+    route: '/workbench',
+    headers: {},
+  },
+} satisfies AgentuityConfig;
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `route` | `string` | Custom route path (default: `/workbench`) |
+| `headers` | `Record<string, string>` | Custom headers for API requests |
+
+### Custom Route
+
+Serve Workbench at a different path:
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+
+export default {
+  workbench: {
+    route: '/dev',
+  },
+} satisfies AgentuityConfig;
+```
+
+### Authentication
+
+Protect Workbench with an API key by setting the `AGENTUITY_WORKBENCH_APIKEY` environment variable:
+
+```bash
+# .env
+AGENTUITY_WORKBENCH_APIKEY=your-secret-key
+```
+
+When set, requests to Workbench without a valid Bearer token will be rejected.
+
+## Embedding in Your Frontend
+
+Workbench exports React components you can embed in your own application:
+
+```typescript
+import { App } from '@agentuity/workbench';
+import '@agentuity/workbench/styles';
+import { encodeWorkbenchConfig } from '@agentuity/core/workbench';
+
+const config = encodeWorkbenchConfig({
+  route: '/workbench',
+  headers: {},
+});
+
+function MyApp() {
+  return <App configBase64={config} />;
+}
+```
+
+For custom layouts, the package also exports individual components:
+
+- `Chat` - The conversation area
+- `Schema` - Schema viewer panel
+- `WorkbenchProvider` + `useWorkbench` - Context and hooks for full control
+
+## Debug Logging
+
+Enable debug logging in the browser console:
+
+```javascript
+localStorage.setItem('AGENTUITY_LOG_LEVEL', 'debug');
+```
+
+Valid levels: `debug`, `info`, `warn`, `error`. Refresh the page after setting.
+
+## Next Steps
+
+- [Testing with Workbench](/agents/workbench): Basic setup and test prompts
+- [React Hooks](/frontend/react-hooks): Build custom agent UIs
+- [Local Development](/reference/CLI/development): Dev server options

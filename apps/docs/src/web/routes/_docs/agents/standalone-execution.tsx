@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/agents/standalone-execution')({
-	component: () => (
-		<PlaceholderPage
-			title="Standalone Execution"
-			description="Run agents outside the Agentuity runtime."
-		/>
-	),
+	component: () => <MDXPage route="agents/standalone-execution" />,
 	staticData: { crumb: 'Standalone Execution' },
 });

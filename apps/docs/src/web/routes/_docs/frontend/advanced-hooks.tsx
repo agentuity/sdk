@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/frontend/advanced-hooks')({
-	component: () => (
-		<PlaceholderPage title="Advanced Hooks" description="Advanced React hooks for complex scenarios." />
-	),
+	component: () => <MDXPage route="frontend/advanced-hooks" />,
 	staticData: { crumb: 'Advanced Hooks' },
 });

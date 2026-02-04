@@ -1,0 +1,146 @@
+---
+title: Testing with Workbench
+description: Use the built-in development UI to test agents, validate schemas, and debug responses
+---
+
+Workbench is a built-in UI for testing your agents during development. It automatically discovers your agents, displays their input/output schemas, and lets you execute them with real inputs.
+
+## Why Workbench?
+
+Testing agents isn't like testing traditional APIs. You need to validate input schemas, see how responses format, test multi-turn conversations, and understand execution timing. Using `curl` or Postman means manually constructing JSON payloads and parsing responses.
+
+Workbench understands your agents. It reads your schemas, generates test forms, maintains conversation threads, and shows execution metrics. When something goes wrong, you see exactly what the agent received and returned.
+
+**Key capabilities:**
+
+- **Schema-aware testing**: Input forms generated from your actual schemas
+- **Thread persistence**: Test multi-turn conversations without manual state tracking
+- **Execution metrics**: See token usage and response times for every request
+- **Quick iteration**: Test prompts display in the UI for one-click execution
+
+## Enabling Workbench
+
+Add a `workbench` section to your `agentuity.config.ts`:
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+
+export default {
+  workbench: {
+    route: '/workbench',
+    headers: {},
+  },
+} satisfies AgentuityConfig;
+```
+
+Start the dev server and visit [http://localhost:3500/workbench](http://localhost:3500/workbench).
+
+<Callout type="info" title="Development Only">
+Workbench is only available in development mode (`agentuity dev`). It is not included in production builds.
+</Callout>
+
+## Adding Test Prompts
+
+Export a `welcome` function from your agent to customize Workbench:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('Support Agent', {
+  schema: {
+    input: z.object({ message: z.string() }),
+    output: z.object({ response: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    // Agent logic
+    return { response: 'Hello!' };
+  },
+});
+
+export const welcome = () => ({
+  welcome: `Welcome to the **Support Agent**.
+
+Ask questions about your account, billing, or technical issues.`,
+  prompts: [
+    {
+      data: JSON.stringify({ message: 'How do I reset my password?' }),
+      contentType: 'application/json',
+    },
+    {
+      data: JSON.stringify({ message: 'What are your business hours?' }),
+      contentType: 'application/json',
+    },
+  ],
+});
+
+export default agent;
+```
+
+The `welcome` field supports Markdown. The `prompts` array provides quick-test buttons in the UI.
+
+## What You See
+
+Workbench displays:
+
+- **Agent selector**: Switch between agents in your project
+- **Input schema**: See what fields the agent expects
+- **Output schema**: See what the agent returns
+- **Execution metrics**: Token usage and response time
+- **Response viewer**: Formatted output with copy support
+
+## Thread Persistence
+
+Workbench maintains thread state across requests, allowing you to test multi-turn conversations. Each browser tab gets its own thread, and state persists until you close the tab.
+
+Test conversational agents that use thread state:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('Chat', {
+  schema: {
+    input: z.object({ message: z.string() }),
+    output: z.object({ response: z.string(), turnCount: z.number() }),
+  },
+  handler: async (ctx, input) => {
+    // Initialize turn count on first request (async)
+    if (!(await ctx.thread.state.has('turns'))) {
+      await ctx.thread.state.set('turns', 0);
+    }
+
+    const turns = ((await ctx.thread.state.get<number>('turns')) || 0) + 1;
+    await ctx.thread.state.set('turns', turns);
+
+    return {
+      response: `You said: ${input.message}`,
+      turnCount: turns,
+    };
+  },
+});
+
+export default agent;
+```
+
+Send multiple requests in Workbench to see the turn count increment.
+
+## Custom Route
+
+Serve Workbench at a different path:
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+
+export default {
+  workbench: {
+    route: '/dev',
+  },
+} satisfies AgentuityConfig;
+```
+
+## Next Steps
+
+- [Workbench Configuration](/frontend/workbench): Configuration options and embedding in custom frontends
+- [Creating Agents](/agents/creating-agents): Agent patterns and best practices
+- [Local Development](/reference/CLI/development): Dev server options

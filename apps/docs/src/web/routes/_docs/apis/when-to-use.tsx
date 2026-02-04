@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { PlaceholderPage } from '../../../components/docs/placeholder-page';
+import { MDXPage } from '../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/apis/when-to-use')({
-	component: () => (
-		<PlaceholderPage title="When to Use APIs" description="Understand when to use APIs vs agents." />
-	),
+	component: () => <MDXPage route="apis/when-to-use" />,
 	staticData: { crumb: 'When to Use' },
 });

@@ -1,0 +1,96 @@
+---
+title: Tailwind CSS Setup
+description: Add Tailwind CSS styling to your Agentuity frontend
+---
+
+Add [Tailwind CSS](https://tailwindcss.com) v4 to your Agentuity project using the official Tailwind Vite plugin.
+
+<Callout type="tip" title="Starting a New Project?">
+The default template includes Tailwind CSS pre-configured:
+
+```bash
+agentuity create my-app
+```
+</Callout>
+
+## Prerequisites
+
+- An Agentuity project with a `src/web/` directory
+- Bun runtime (included with Agentuity CLI)
+
+## Step 1: Install Dependencies
+
+```bash
+bun add -D tailwindcss @tailwindcss/vite
+```
+
+## Step 2: Create Build Configuration
+
+Create `agentuity.config.ts` in your project root:
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+import tailwindcss from '@tailwindcss/vite';
+
+export default {
+  plugins: [tailwindcss()],
+} satisfies AgentuityConfig;
+```
+
+## Step 3: Import Tailwind in Your CSS
+
+Create or update your main CSS file (`src/web/styles.css`):
+
+```css
+@import 'tailwindcss';
+```
+
+Then import it in your entry point (`src/web/frontend.tsx`):
+
+```typescript
+import './styles.css';
+```
+
+## Step 4: Use Tailwind Classes
+
+Add utility classes to your React components:
+
+```tsx
+// src/web/App.tsx
+export function App() {
+  return (
+    <div className="min-h-screen bg-zinc-900 flex items-center justify-center">
+      <div className="bg-zinc-800 rounded-lg p-8 max-w-md">
+        <h1 className="text-2xl font-bold text-white mb-4">
+          Hello, Tailwind!
+        </h1>
+        <p className="text-zinc-400">
+          Your Agentuity frontend is styled with Tailwind CSS.
+        </p>
+      </div>
+    </div>
+  );
+}
+```
+
+## Step 5: Verify
+
+Start the dev server and check that styles are applied:
+
+```bash
+bun run dev
+```
+
+Open `http://localhost:3500` in your browser. You should see your styled component.
+
+## Key Points
+
+- Tailwind applies to frontend builds only (via Vite)
+- The plugin scans your components and generates only the CSS you use
+- No `tailwind.config.ts` needed for basic usage (Tailwind v4 works out of the box)
+- Style changes reflect immediately in dev mode via Vite HMR
+
+## Next Steps
+
+- [Build Configuration](/reference/CLI/build-configuration): Explore all config options including plugins and define constants
+- [Frontend Development](/frontend/react-hooks): Connect your styled frontend to agents using React hooks
