@@ -57,7 +57,16 @@ async function ensureEncryptionKey(service: string): Promise<Uint8Array> {
  * Encrypt data using AES-256-GCM
  */
 async function encrypt(data: string, keyBytes: Uint8Array): Promise<Uint8Array> {
-	const key = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['encrypt']);
+	const key = await crypto.subtle.importKey(
+		'raw',
+		keyBytes.buffer.slice(
+			keyBytes.byteOffset,
+			keyBytes.byteOffset + keyBytes.byteLength
+		) as ArrayBuffer,
+		'AES-GCM',
+		false,
+		['encrypt']
+	);
 
 	const iv = crypto.getRandomValues(new Uint8Array(12));
 	const plaintext = new TextEncoder().encode(data);
@@ -78,7 +87,16 @@ async function encrypt(data: string, keyBytes: Uint8Array): Promise<Uint8Array> 
  * Decrypt data using AES-256-GCM
  */
 async function decrypt(combined: Uint8Array, keyBytes: Uint8Array): Promise<string> {
-	const key = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt']);
+	const key = await crypto.subtle.importKey(
+		'raw',
+		keyBytes.buffer.slice(
+			keyBytes.byteOffset,
+			keyBytes.byteOffset + keyBytes.byteLength
+		) as ArrayBuffer,
+		'AES-GCM',
+		false,
+		['decrypt']
+	);
 
 	const iv = combined.slice(0, 12);
 	const ciphertext = combined.slice(12);
