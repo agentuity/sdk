@@ -270,8 +270,9 @@ section "CREATE & GET & LIST Command Tests"
 # ============================================
 
 # Test: Create sandbox with custom resources
-info "Test: sandbox create --memory --cpu --disk"
-CREATE_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --memory 1Gi --cpu 1000m --disk 2Gi --json 2>&1) || true
+# Use --idle-timeout 10m to prevent sandbox from being reaped during long-running tests
+info "Test: sandbox create --memory --cpu --disk --idle-timeout"
+CREATE_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --memory 1Gi --cpu 1000m --disk 2Gi --idle-timeout 10m --json 2>&1) || true
 SANDBOX_ID=$(echo "$CREATE_OUTPUT" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SANDBOX_ID" ] && [[ "$SANDBOX_ID" == sbx_* ]]; then
 	pass "sandbox create returns valid sandboxId: $SANDBOX_ID"
