@@ -109,6 +109,11 @@ export const databaseSubcommand = createSubcommand({
 				})),
 			});
 
+			// Ensure stdin is paused so process can exit
+			if (process.stdin.isTTY) {
+				process.stdin.pause();
+			}
+
 			if (!selected) {
 				tui.fatal('Operation cancelled', ErrorCode.USER_CANCELLED);
 			}
