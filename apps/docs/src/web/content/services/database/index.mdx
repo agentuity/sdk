@@ -47,7 +47,7 @@ await sql`UPDATE users SET active = ${false} WHERE id = ${userId}`;
 await sql`DELETE FROM users WHERE id = ${userId}`;
 ```
 
-<Callout type="warn" title="SQL Injection Prevention">
+<Callout type="warning" title="SQL Injection Prevention">
 Always use template literal parameters (`${value}`) for dynamic values. Never concatenate strings into queries.
 </Callout>
 

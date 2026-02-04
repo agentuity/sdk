@@ -44,6 +44,18 @@ function getModulePath(route: string): string | null {
 	return null;
 }
 
+// Get frontmatter for a route path (used by DocsLayout for title)
+export function getFrontmatterForRoute(pathname: string): Frontmatter | null {
+	// Convert pathname to route: "/get-started/installation" -> "get-started/installation"
+	const route = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+	if (!route) return null;
+
+	const modulePath = getModulePath(route);
+	if (!modulePath) return null;
+
+	return mdxModules[modulePath]?.frontmatter || null;
+}
+
 interface MDXPageProps {
 	route: string;
 }
@@ -130,6 +142,8 @@ function MDXRenderer({ modulePath, route }: { modulePath: string; route: string 
 			setActiveId(toc[0].id);
 		}
 	}, [mod, setHeadings, setActiveId]);
+
+	// Title is now managed by DocsLayout for instant updates on route change
 
 	if (!mod) return null;
 

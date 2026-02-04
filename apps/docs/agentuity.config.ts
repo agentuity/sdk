@@ -10,10 +10,12 @@ import mdx from '@mdx-js/rollup';
 import remarkGfm from 'remark-gfm';
 import remarkFrontmatter from 'remark-frontmatter';
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter';
+import remarkCodeImport from 'remark-code-import';
 import rehypePrettyCode from 'rehype-pretty-code';
 import rehypeSlug from 'rehype-slug';
 import rehypeExtractToc from '@stefanprobst/rehype-extract-toc';
 import rehypeExtractTocExport from '@stefanprobst/rehype-extract-toc/mdx';
+import rehypeMermaid from 'rehype-mermaid';
 
 export default {
 	/**
@@ -51,11 +53,17 @@ export default {
 		}),
 		// MDX support with GitHub Flavored Markdown + Shiki syntax highlighting
 		mdx({
-			remarkPlugins: [remarkFrontmatter, remarkMdxFrontmatter, remarkGfm],
+			remarkPlugins: [
+				remarkFrontmatter,
+				remarkMdxFrontmatter,
+				remarkGfm,
+				[remarkCodeImport, { rootDir: process.cwd() }],
+			],
 			rehypePlugins: [
 				rehypeSlug,
 				rehypeExtractToc,
 				rehypeExtractTocExport,
+				[rehypeMermaid, { strategy: 'img-svg' }],
 				[
 					rehypePrettyCode,
 					{

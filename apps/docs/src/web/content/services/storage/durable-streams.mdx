@@ -126,7 +126,7 @@ const agent = createAgent('CSVExporter', {
 });
 ```
 
-<Callout type="warn" title="Always Close Streams">
+<Callout type="warning" title="Always Close Streams">
 Streams must be closed manually with `stream.close()`. They do not auto-close. Failing to close a stream leaves it in an incomplete state.
 </Callout>
 

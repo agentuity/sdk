@@ -65,7 +65,7 @@ export const adversarialEval = agent.createEval('adversarial', { // [!code highl
 });
 ```
 
-<Callout type="warn" title="Use Named Exports">
+<Callout type="warning" title="Use Named Exports">
 Evals must use named exports (`export const evalName = ...`). Default exports won't work.
 
 The runtime auto-discovers `eval.ts` files next to your agents, so you don't need any special imports in your routes.

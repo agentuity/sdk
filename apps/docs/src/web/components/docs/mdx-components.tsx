@@ -8,6 +8,8 @@ import { Callout } from './callout';
 import { Steps, Step } from './steps';
 import { Tabs, Tab } from './tabs';
 import { Cards, CardLink, ExternalCard } from './cards';
+import { ThemeImage } from './theme-image';
+import { CLICommand } from './cli-command';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MDXComponents = Record<string, React.ComponentType<any>>;
@@ -179,11 +181,11 @@ export const mdxComponents: MDXComponents = {
 		<em className={cn('italic', className)} {...props} />
 	),
 
-	// Links
+	// Links - white/dark text, cyan underline, dim on hover
 	a: ({ className, href, ...props }: ComponentPropsWithoutRef<'a'>) => (
 		<a
 			className={cn(
-				'text-cyan-600 dark:text-cyan-400 underline underline-offset-4 hover:text-cyan-500 transition-colors cursor-pointer',
+				'text-zinc-900 dark:text-zinc-100 underline decoration-cyan-600 dark:decoration-cyan-400 underline-offset-4 hover:opacity-80 transition-opacity duration-200',
 				className
 			)}
 			href={href}
@@ -280,4 +282,6 @@ export const mdxComponents: MDXComponents = {
 	CardLink,
 	ExternalCard,
 	Card: CardLink, // Alias for Fumadocs compatibility
+	ThemeImage,
+	CLICommand,
 };

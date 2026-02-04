@@ -2,7 +2,7 @@ export { AppSidebar } from './app-sidebar';
 export { DocsLayout } from './docs-layout';
 export { FooterNav } from './footer-nav';
 export { HeaderLinks } from './header-links';
-export { MDXPage } from './mdx-page';
+export { MDXPage, getFrontmatterForRoute } from './mdx-page';
 export { ModeToggle } from './mode-toggle';
 export { PlaceholderPage } from './placeholder-page';
 export { SearchDialog } from './search-dialog';

@@ -15,9 +15,9 @@ import { Route as DemoDemoIdRouteImport } from './routes/demo/$demoId'
 import { Route as DocsServicesIndexRouteImport } from './routes/_docs/services/index'
 import { Route as DocsRoutesIndexRouteImport } from './routes/_docs/routes/index'
 import { Route as DocsReferenceIndexRouteImport } from './routes/_docs/reference/index'
-import { Route as DocsLearnIndexRouteImport } from './routes/_docs/learn/index'
 import { Route as DocsGetStartedIndexRouteImport } from './routes/_docs/get-started/index'
 import { Route as DocsFrontendIndexRouteImport } from './routes/_docs/frontend/index'
+import { Route as DocsCookbookIndexRouteImport } from './routes/_docs/cookbook/index'
 import { Route as DocsCommunityIndexRouteImport } from './routes/_docs/community/index'
 import { Route as DocsApisIndexRouteImport } from './routes/_docs/apis/index'
 import { Route as DocsAgentsIndexRouteImport } from './routes/_docs/agents/index'
@@ -29,6 +29,7 @@ import { Route as DocsRoutesHttpRouteImport } from './routes/_docs/routes/http'
 import { Route as DocsRoutesCronRouteImport } from './routes/_docs/routes/cron'
 import { Route as DocsReferenceSdkReferenceRouteImport } from './routes/_docs/reference/sdk-reference'
 import { Route as DocsReferenceMigrationGuideRouteImport } from './routes/_docs/reference/migration-guide'
+import { Route as DocsReferenceMdxFeaturesRouteImport } from './routes/_docs/reference/mdx-features'
 import { Route as DocsGetStartedWhatIsAgentuityRouteImport } from './routes/_docs/get-started/what-is-agentuity'
 import { Route as DocsGetStartedQuickstartRouteImport } from './routes/_docs/get-started/quickstart'
 import { Route as DocsGetStartedProjectStructureRouteImport } from './routes/_docs/get-started/project-structure'
@@ -59,7 +60,8 @@ import { Route as DocsServicesSandboxIndexRouteImport } from './routes/_docs/ser
 import { Route as DocsServicesObservabilityIndexRouteImport } from './routes/_docs/services/observability/index'
 import { Route as DocsServicesDatabaseIndexRouteImport } from './routes/_docs/services/database/index'
 import { Route as DocsReferenceCliIndexRouteImport } from './routes/_docs/reference/cli/index'
-import { Route as DocsLearnCookbookIndexRouteImport } from './routes/_docs/learn/cookbook/index'
+import { Route as DocsCookbookTutorialsIndexRouteImport } from './routes/_docs/cookbook/tutorials/index'
+import { Route as DocsCookbookPatternsIndexRouteImport } from './routes/_docs/cookbook/patterns/index'
 import { Route as DocsServicesStorageVectorRouteImport } from './routes/_docs/services/storage/vector'
 import { Route as DocsServicesStorageObjectRouteImport } from './routes/_docs/services/storage/object'
 import { Route as DocsServicesStorageKeyValueRouteImport } from './routes/_docs/services/storage/key-value'
@@ -83,18 +85,16 @@ import { Route as DocsReferenceCliDebuggingRouteImport } from './routes/_docs/re
 import { Route as DocsReferenceCliConfigurationRouteImport } from './routes/_docs/reference/cli/configuration'
 import { Route as DocsReferenceCliBuildConfigurationRouteImport } from './routes/_docs/reference/cli/build-configuration'
 import { Route as DocsReferenceCliAiCommandsRouteImport } from './routes/_docs/reference/cli/ai-commands'
-import { Route as DocsLearnCookbookTutorialsIndexRouteImport } from './routes/_docs/learn/cookbook/tutorials/index'
-import { Route as DocsLearnCookbookPatternsIndexRouteImport } from './routes/_docs/learn/cookbook/patterns/index'
-import { Route as DocsLearnCookbookTutorialsUnderstandingAgentsRouteImport } from './routes/_docs/learn/cookbook/tutorials/understanding-agents'
-import { Route as DocsLearnCookbookTutorialsRagAgentRouteImport } from './routes/_docs/learn/cookbook/tutorials/rag-agent'
-import { Route as DocsLearnCookbookPatternsWebhookHandlerRouteImport } from './routes/_docs/learn/cookbook/patterns/webhook-handler'
-import { Route as DocsLearnCookbookPatternsTailwindSetupRouteImport } from './routes/_docs/learn/cookbook/patterns/tailwind-setup'
-import { Route as DocsLearnCookbookPatternsServerUtilitiesRouteImport } from './routes/_docs/learn/cookbook/patterns/server-utilities'
-import { Route as DocsLearnCookbookPatternsProductSearchRouteImport } from './routes/_docs/learn/cookbook/patterns/product-search'
-import { Route as DocsLearnCookbookPatternsLlmAsAJudgeRouteImport } from './routes/_docs/learn/cookbook/patterns/llm-as-a-judge'
-import { Route as DocsLearnCookbookPatternsCronWithStorageRouteImport } from './routes/_docs/learn/cookbook/patterns/cron-with-storage'
-import { Route as DocsLearnCookbookPatternsChatWithHistoryRouteImport } from './routes/_docs/learn/cookbook/patterns/chat-with-history'
-import { Route as DocsLearnCookbookPatternsBackgroundTasksRouteImport } from './routes/_docs/learn/cookbook/patterns/background-tasks'
+import { Route as DocsCookbookTutorialsUnderstandingAgentsRouteImport } from './routes/_docs/cookbook/tutorials/understanding-agents'
+import { Route as DocsCookbookTutorialsRagAgentRouteImport } from './routes/_docs/cookbook/tutorials/rag-agent'
+import { Route as DocsCookbookPatternsWebhookHandlerRouteImport } from './routes/_docs/cookbook/patterns/webhook-handler'
+import { Route as DocsCookbookPatternsTailwindSetupRouteImport } from './routes/_docs/cookbook/patterns/tailwind-setup'
+import { Route as DocsCookbookPatternsServerUtilitiesRouteImport } from './routes/_docs/cookbook/patterns/server-utilities'
+import { Route as DocsCookbookPatternsProductSearchRouteImport } from './routes/_docs/cookbook/patterns/product-search'
+import { Route as DocsCookbookPatternsLlmAsAJudgeRouteImport } from './routes/_docs/cookbook/patterns/llm-as-a-judge'
+import { Route as DocsCookbookPatternsCronWithStorageRouteImport } from './routes/_docs/cookbook/patterns/cron-with-storage'
+import { Route as DocsCookbookPatternsChatWithHistoryRouteImport } from './routes/_docs/cookbook/patterns/chat-with-history'
+import { Route as DocsCookbookPatternsBackgroundTasksRouteImport } from './routes/_docs/cookbook/patterns/background-tasks'
 
 const DocsRouteRoute = DocsRouteRouteImport.update({
   id: '/_docs',
@@ -125,11 +125,6 @@ const DocsReferenceIndexRoute = DocsReferenceIndexRouteImport.update({
   path: '/reference/',
   getParentRoute: () => DocsRouteRoute,
 } as any)
-const DocsLearnIndexRoute = DocsLearnIndexRouteImport.update({
-  id: '/learn/',
-  path: '/learn/',
-  getParentRoute: () => DocsRouteRoute,
-} as any)
 const DocsGetStartedIndexRoute = DocsGetStartedIndexRouteImport.update({
   id: '/get-started/',
   path: '/get-started/',
@@ -138,6 +133,11 @@ const DocsGetStartedIndexRoute = DocsGetStartedIndexRouteImport.update({
 const DocsFrontendIndexRoute = DocsFrontendIndexRouteImport.update({
   id: '/frontend/',
   path: '/frontend/',
+  getParentRoute: () => DocsRouteRoute,
+} as any)
+const DocsCookbookIndexRoute = DocsCookbookIndexRouteImport.update({
+  id: '/cookbook/',
+  path: '/cookbook/',
   getParentRoute: () => DocsRouteRoute,
 } as any)
 const DocsCommunityIndexRoute = DocsCommunityIndexRouteImport.update({
@@ -195,6 +195,12 @@ const DocsReferenceMigrationGuideRoute =
   DocsReferenceMigrationGuideRouteImport.update({
     id: '/reference/migration-guide',
     path: '/reference/migration-guide',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsReferenceMdxFeaturesRoute =
+  DocsReferenceMdxFeaturesRouteImport.update({
+    id: '/reference/mdx-features',
+    path: '/reference/mdx-features',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsGetStartedWhatIsAgentuityRoute =
@@ -368,11 +374,18 @@ const DocsReferenceCliIndexRoute = DocsReferenceCliIndexRouteImport.update({
   path: '/reference/cli/',
   getParentRoute: () => DocsRouteRoute,
 } as any)
-const DocsLearnCookbookIndexRoute = DocsLearnCookbookIndexRouteImport.update({
-  id: '/learn/cookbook/',
-  path: '/learn/cookbook/',
-  getParentRoute: () => DocsRouteRoute,
-} as any)
+const DocsCookbookTutorialsIndexRoute =
+  DocsCookbookTutorialsIndexRouteImport.update({
+    id: '/cookbook/tutorials/',
+    path: '/cookbook/tutorials/',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsCookbookPatternsIndexRoute =
+  DocsCookbookPatternsIndexRouteImport.update({
+    id: '/cookbook/patterns/',
+    path: '/cookbook/patterns/',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
 const DocsServicesStorageVectorRoute =
   DocsServicesStorageVectorRouteImport.update({
     id: '/services/storage/vector',
@@ -509,76 +522,64 @@ const DocsReferenceCliAiCommandsRoute =
     path: '/reference/cli/ai-commands',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookTutorialsIndexRoute =
-  DocsLearnCookbookTutorialsIndexRouteImport.update({
-    id: '/learn/cookbook/tutorials/',
-    path: '/learn/cookbook/tutorials/',
+const DocsCookbookTutorialsUnderstandingAgentsRoute =
+  DocsCookbookTutorialsUnderstandingAgentsRouteImport.update({
+    id: '/cookbook/tutorials/understanding-agents',
+    path: '/cookbook/tutorials/understanding-agents',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookPatternsIndexRoute =
-  DocsLearnCookbookPatternsIndexRouteImport.update({
-    id: '/learn/cookbook/patterns/',
-    path: '/learn/cookbook/patterns/',
+const DocsCookbookTutorialsRagAgentRoute =
+  DocsCookbookTutorialsRagAgentRouteImport.update({
+    id: '/cookbook/tutorials/rag-agent',
+    path: '/cookbook/tutorials/rag-agent',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookTutorialsUnderstandingAgentsRoute =
-  DocsLearnCookbookTutorialsUnderstandingAgentsRouteImport.update({
-    id: '/learn/cookbook/tutorials/understanding-agents',
-    path: '/learn/cookbook/tutorials/understanding-agents',
+const DocsCookbookPatternsWebhookHandlerRoute =
+  DocsCookbookPatternsWebhookHandlerRouteImport.update({
+    id: '/cookbook/patterns/webhook-handler',
+    path: '/cookbook/patterns/webhook-handler',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookTutorialsRagAgentRoute =
-  DocsLearnCookbookTutorialsRagAgentRouteImport.update({
-    id: '/learn/cookbook/tutorials/rag-agent',
-    path: '/learn/cookbook/tutorials/rag-agent',
+const DocsCookbookPatternsTailwindSetupRoute =
+  DocsCookbookPatternsTailwindSetupRouteImport.update({
+    id: '/cookbook/patterns/tailwind-setup',
+    path: '/cookbook/patterns/tailwind-setup',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookPatternsWebhookHandlerRoute =
-  DocsLearnCookbookPatternsWebhookHandlerRouteImport.update({
-    id: '/learn/cookbook/patterns/webhook-handler',
-    path: '/learn/cookbook/patterns/webhook-handler',
+const DocsCookbookPatternsServerUtilitiesRoute =
+  DocsCookbookPatternsServerUtilitiesRouteImport.update({
+    id: '/cookbook/patterns/server-utilities',
+    path: '/cookbook/patterns/server-utilities',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookPatternsTailwindSetupRoute =
-  DocsLearnCookbookPatternsTailwindSetupRouteImport.update({
-    id: '/learn/cookbook/patterns/tailwind-setup',
-    path: '/learn/cookbook/patterns/tailwind-setup',
+const DocsCookbookPatternsProductSearchRoute =
+  DocsCookbookPatternsProductSearchRouteImport.update({
+    id: '/cookbook/patterns/product-search',
+    path: '/cookbook/patterns/product-search',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookPatternsServerUtilitiesRoute =
-  DocsLearnCookbookPatternsServerUtilitiesRouteImport.update({
-    id: '/learn/cookbook/patterns/server-utilities',
-    path: '/learn/cookbook/patterns/server-utilities',
+const DocsCookbookPatternsLlmAsAJudgeRoute =
+  DocsCookbookPatternsLlmAsAJudgeRouteImport.update({
+    id: '/cookbook/patterns/llm-as-a-judge',
+    path: '/cookbook/patterns/llm-as-a-judge',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookPatternsProductSearchRoute =
-  DocsLearnCookbookPatternsProductSearchRouteImport.update({
-    id: '/learn/cookbook/patterns/product-search',
-    path: '/learn/cookbook/patterns/product-search',
+const DocsCookbookPatternsCronWithStorageRoute =
+  DocsCookbookPatternsCronWithStorageRouteImport.update({
+    id: '/cookbook/patterns/cron-with-storage',
+    path: '/cookbook/patterns/cron-with-storage',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookPatternsLlmAsAJudgeRoute =
-  DocsLearnCookbookPatternsLlmAsAJudgeRouteImport.update({
-    id: '/learn/cookbook/patterns/llm-as-a-judge',
-    path: '/learn/cookbook/patterns/llm-as-a-judge',
+const DocsCookbookPatternsChatWithHistoryRoute =
+  DocsCookbookPatternsChatWithHistoryRouteImport.update({
+    id: '/cookbook/patterns/chat-with-history',
+    path: '/cookbook/patterns/chat-with-history',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsLearnCookbookPatternsCronWithStorageRoute =
-  DocsLearnCookbookPatternsCronWithStorageRouteImport.update({
-    id: '/learn/cookbook/patterns/cron-with-storage',
-    path: '/learn/cookbook/patterns/cron-with-storage',
-    getParentRoute: () => DocsRouteRoute,
-  } as any)
-const DocsLearnCookbookPatternsChatWithHistoryRoute =
-  DocsLearnCookbookPatternsChatWithHistoryRouteImport.update({
-    id: '/learn/cookbook/patterns/chat-with-history',
-    path: '/learn/cookbook/patterns/chat-with-history',
-    getParentRoute: () => DocsRouteRoute,
-  } as any)
-const DocsLearnCookbookPatternsBackgroundTasksRoute =
-  DocsLearnCookbookPatternsBackgroundTasksRouteImport.update({
-    id: '/learn/cookbook/patterns/background-tasks',
-    path: '/learn/cookbook/patterns/background-tasks',
+const DocsCookbookPatternsBackgroundTasksRoute =
+  DocsCookbookPatternsBackgroundTasksRouteImport.update({
+    id: '/cookbook/patterns/background-tasks',
+    path: '/cookbook/patterns/background-tasks',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 
@@ -610,6 +611,7 @@ export interface FileRoutesByFullPath {
   '/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute
   '/get-started/quickstart': typeof DocsGetStartedQuickstartRoute
   '/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute
+  '/reference/mdx-features': typeof DocsReferenceMdxFeaturesRoute
   '/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute
   '/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute
   '/routes/cron': typeof DocsRoutesCronRoute
@@ -621,12 +623,22 @@ export interface FileRoutesByFullPath {
   '/agents/': typeof DocsAgentsIndexRoute
   '/apis/': typeof DocsApisIndexRoute
   '/community/': typeof DocsCommunityIndexRoute
+  '/cookbook/': typeof DocsCookbookIndexRoute
   '/frontend/': typeof DocsFrontendIndexRoute
   '/get-started/': typeof DocsGetStartedIndexRoute
-  '/learn/': typeof DocsLearnIndexRoute
   '/reference/': typeof DocsReferenceIndexRoute
   '/routes/': typeof DocsRoutesIndexRoute
   '/services/': typeof DocsServicesIndexRoute
+  '/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute
+  '/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute
+  '/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute
+  '/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute
+  '/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute
+  '/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute
+  '/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute
+  '/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute
+  '/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute
+  '/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute
   '/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
   '/reference/cli/configuration': typeof DocsReferenceCliConfigurationRoute
@@ -650,24 +662,13 @@ export interface FileRoutesByFullPath {
   '/services/storage/key-value': typeof DocsServicesStorageKeyValueRoute
   '/services/storage/object': typeof DocsServicesStorageObjectRoute
   '/services/storage/vector': typeof DocsServicesStorageVectorRoute
-  '/learn/cookbook/': typeof DocsLearnCookbookIndexRoute
+  '/cookbook/patterns/': typeof DocsCookbookPatternsIndexRoute
+  '/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute
   '/reference/cli/': typeof DocsReferenceCliIndexRoute
   '/services/database/': typeof DocsServicesDatabaseIndexRoute
   '/services/observability/': typeof DocsServicesObservabilityIndexRoute
   '/services/sandbox/': typeof DocsServicesSandboxIndexRoute
   '/services/storage/': typeof DocsServicesStorageIndexRoute
-  '/learn/cookbook/patterns/background-tasks': typeof DocsLearnCookbookPatternsBackgroundTasksRoute
-  '/learn/cookbook/patterns/chat-with-history': typeof DocsLearnCookbookPatternsChatWithHistoryRoute
-  '/learn/cookbook/patterns/cron-with-storage': typeof DocsLearnCookbookPatternsCronWithStorageRoute
-  '/learn/cookbook/patterns/llm-as-a-judge': typeof DocsLearnCookbookPatternsLlmAsAJudgeRoute
-  '/learn/cookbook/patterns/product-search': typeof DocsLearnCookbookPatternsProductSearchRoute
-  '/learn/cookbook/patterns/server-utilities': typeof DocsLearnCookbookPatternsServerUtilitiesRoute
-  '/learn/cookbook/patterns/tailwind-setup': typeof DocsLearnCookbookPatternsTailwindSetupRoute
-  '/learn/cookbook/patterns/webhook-handler': typeof DocsLearnCookbookPatternsWebhookHandlerRoute
-  '/learn/cookbook/tutorials/rag-agent': typeof DocsLearnCookbookTutorialsRagAgentRoute
-  '/learn/cookbook/tutorials/understanding-agents': typeof DocsLearnCookbookTutorialsUnderstandingAgentsRoute
-  '/learn/cookbook/patterns/': typeof DocsLearnCookbookPatternsIndexRoute
-  '/learn/cookbook/tutorials/': typeof DocsLearnCookbookTutorialsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -697,6 +698,7 @@ export interface FileRoutesByTo {
   '/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute
   '/get-started/quickstart': typeof DocsGetStartedQuickstartRoute
   '/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute
+  '/reference/mdx-features': typeof DocsReferenceMdxFeaturesRoute
   '/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute
   '/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute
   '/routes/cron': typeof DocsRoutesCronRoute
@@ -708,12 +710,22 @@ export interface FileRoutesByTo {
   '/agents': typeof DocsAgentsIndexRoute
   '/apis': typeof DocsApisIndexRoute
   '/community': typeof DocsCommunityIndexRoute
+  '/cookbook': typeof DocsCookbookIndexRoute
   '/frontend': typeof DocsFrontendIndexRoute
   '/get-started': typeof DocsGetStartedIndexRoute
-  '/learn': typeof DocsLearnIndexRoute
   '/reference': typeof DocsReferenceIndexRoute
   '/routes': typeof DocsRoutesIndexRoute
   '/services': typeof DocsServicesIndexRoute
+  '/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute
+  '/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute
+  '/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute
+  '/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute
+  '/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute
+  '/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute
+  '/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute
+  '/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute
+  '/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute
+  '/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute
   '/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
   '/reference/cli/configuration': typeof DocsReferenceCliConfigurationRoute
@@ -737,24 +749,13 @@ export interface FileRoutesByTo {
   '/services/storage/key-value': typeof DocsServicesStorageKeyValueRoute
   '/services/storage/object': typeof DocsServicesStorageObjectRoute
   '/services/storage/vector': typeof DocsServicesStorageVectorRoute
-  '/learn/cookbook': typeof DocsLearnCookbookIndexRoute
+  '/cookbook/patterns': typeof DocsCookbookPatternsIndexRoute
+  '/cookbook/tutorials': typeof DocsCookbookTutorialsIndexRoute
   '/reference/cli': typeof DocsReferenceCliIndexRoute
   '/services/database': typeof DocsServicesDatabaseIndexRoute
   '/services/observability': typeof DocsServicesObservabilityIndexRoute
   '/services/sandbox': typeof DocsServicesSandboxIndexRoute
   '/services/storage': typeof DocsServicesStorageIndexRoute
-  '/learn/cookbook/patterns/background-tasks': typeof DocsLearnCookbookPatternsBackgroundTasksRoute
-  '/learn/cookbook/patterns/chat-with-history': typeof DocsLearnCookbookPatternsChatWithHistoryRoute
-  '/learn/cookbook/patterns/cron-with-storage': typeof DocsLearnCookbookPatternsCronWithStorageRoute
-  '/learn/cookbook/patterns/llm-as-a-judge': typeof DocsLearnCookbookPatternsLlmAsAJudgeRoute
-  '/learn/cookbook/patterns/product-search': typeof DocsLearnCookbookPatternsProductSearchRoute
-  '/learn/cookbook/patterns/server-utilities': typeof DocsLearnCookbookPatternsServerUtilitiesRoute
-  '/learn/cookbook/patterns/tailwind-setup': typeof DocsLearnCookbookPatternsTailwindSetupRoute
-  '/learn/cookbook/patterns/webhook-handler': typeof DocsLearnCookbookPatternsWebhookHandlerRoute
-  '/learn/cookbook/tutorials/rag-agent': typeof DocsLearnCookbookTutorialsRagAgentRoute
-  '/learn/cookbook/tutorials/understanding-agents': typeof DocsLearnCookbookTutorialsUnderstandingAgentsRoute
-  '/learn/cookbook/patterns': typeof DocsLearnCookbookPatternsIndexRoute
-  '/learn/cookbook/tutorials': typeof DocsLearnCookbookTutorialsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -786,6 +787,7 @@ export interface FileRoutesById {
   '/_docs/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute
   '/_docs/get-started/quickstart': typeof DocsGetStartedQuickstartRoute
   '/_docs/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute
+  '/_docs/reference/mdx-features': typeof DocsReferenceMdxFeaturesRoute
   '/_docs/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute
   '/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute
   '/_docs/routes/cron': typeof DocsRoutesCronRoute
@@ -797,12 +799,22 @@ export interface FileRoutesById {
   '/_docs/agents/': typeof DocsAgentsIndexRoute
   '/_docs/apis/': typeof DocsApisIndexRoute
   '/_docs/community/': typeof DocsCommunityIndexRoute
+  '/_docs/cookbook/': typeof DocsCookbookIndexRoute
   '/_docs/frontend/': typeof DocsFrontendIndexRoute
   '/_docs/get-started/': typeof DocsGetStartedIndexRoute
-  '/_docs/learn/': typeof DocsLearnIndexRoute
   '/_docs/reference/': typeof DocsReferenceIndexRoute
   '/_docs/routes/': typeof DocsRoutesIndexRoute
   '/_docs/services/': typeof DocsServicesIndexRoute
+  '/_docs/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute
+  '/_docs/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute
+  '/_docs/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute
+  '/_docs/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute
+  '/_docs/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute
+  '/_docs/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute
+  '/_docs/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute
+  '/_docs/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute
+  '/_docs/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute
+  '/_docs/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute
   '/_docs/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/_docs/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
   '/_docs/reference/cli/configuration': typeof DocsReferenceCliConfigurationRoute
@@ -826,24 +838,13 @@ export interface FileRoutesById {
   '/_docs/services/storage/key-value': typeof DocsServicesStorageKeyValueRoute
   '/_docs/services/storage/object': typeof DocsServicesStorageObjectRoute
   '/_docs/services/storage/vector': typeof DocsServicesStorageVectorRoute
-  '/_docs/learn/cookbook/': typeof DocsLearnCookbookIndexRoute
+  '/_docs/cookbook/patterns/': typeof DocsCookbookPatternsIndexRoute
+  '/_docs/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute
   '/_docs/reference/cli/': typeof DocsReferenceCliIndexRoute
   '/_docs/services/database/': typeof DocsServicesDatabaseIndexRoute
   '/_docs/services/observability/': typeof DocsServicesObservabilityIndexRoute
   '/_docs/services/sandbox/': typeof DocsServicesSandboxIndexRoute
   '/_docs/services/storage/': typeof DocsServicesStorageIndexRoute
-  '/_docs/learn/cookbook/patterns/background-tasks': typeof DocsLearnCookbookPatternsBackgroundTasksRoute
-  '/_docs/learn/cookbook/patterns/chat-with-history': typeof DocsLearnCookbookPatternsChatWithHistoryRoute
-  '/_docs/learn/cookbook/patterns/cron-with-storage': typeof DocsLearnCookbookPatternsCronWithStorageRoute
-  '/_docs/learn/cookbook/patterns/llm-as-a-judge': typeof DocsLearnCookbookPatternsLlmAsAJudgeRoute
-  '/_docs/learn/cookbook/patterns/product-search': typeof DocsLearnCookbookPatternsProductSearchRoute
-  '/_docs/learn/cookbook/patterns/server-utilities': typeof DocsLearnCookbookPatternsServerUtilitiesRoute
-  '/_docs/learn/cookbook/patterns/tailwind-setup': typeof DocsLearnCookbookPatternsTailwindSetupRoute
-  '/_docs/learn/cookbook/patterns/webhook-handler': typeof DocsLearnCookbookPatternsWebhookHandlerRoute
-  '/_docs/learn/cookbook/tutorials/rag-agent': typeof DocsLearnCookbookTutorialsRagAgentRoute
-  '/_docs/learn/cookbook/tutorials/understanding-agents': typeof DocsLearnCookbookTutorialsUnderstandingAgentsRoute
-  '/_docs/learn/cookbook/patterns/': typeof DocsLearnCookbookPatternsIndexRoute
-  '/_docs/learn/cookbook/tutorials/': typeof DocsLearnCookbookTutorialsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -875,6 +876,7 @@ export interface FileRouteTypes {
     | '/get-started/project-structure'
     | '/get-started/quickstart'
     | '/get-started/what-is-agentuity'
+    | '/reference/mdx-features'
     | '/reference/migration-guide'
     | '/reference/sdk-reference'
     | '/routes/cron'
@@ -886,12 +888,22 @@ export interface FileRouteTypes {
     | '/agents/'
     | '/apis/'
     | '/community/'
+    | '/cookbook/'
     | '/frontend/'
     | '/get-started/'
-    | '/learn/'
     | '/reference/'
     | '/routes/'
     | '/services/'
+    | '/cookbook/patterns/background-tasks'
+    | '/cookbook/patterns/chat-with-history'
+    | '/cookbook/patterns/cron-with-storage'
+    | '/cookbook/patterns/llm-as-a-judge'
+    | '/cookbook/patterns/product-search'
+    | '/cookbook/patterns/server-utilities'
+    | '/cookbook/patterns/tailwind-setup'
+    | '/cookbook/patterns/webhook-handler'
+    | '/cookbook/tutorials/rag-agent'
+    | '/cookbook/tutorials/understanding-agents'
     | '/reference/cli/ai-commands'
     | '/reference/cli/build-configuration'
     | '/reference/cli/configuration'
@@ -915,24 +927,13 @@ export interface FileRouteTypes {
     | '/services/storage/key-value'
     | '/services/storage/object'
     | '/services/storage/vector'
-    | '/learn/cookbook/'
+    | '/cookbook/patterns/'
+    | '/cookbook/tutorials/'
     | '/reference/cli/'
     | '/services/database/'
     | '/services/observability/'
     | '/services/sandbox/'
     | '/services/storage/'
-    | '/learn/cookbook/patterns/background-tasks'
-    | '/learn/cookbook/patterns/chat-with-history'
-    | '/learn/cookbook/patterns/cron-with-storage'
-    | '/learn/cookbook/patterns/llm-as-a-judge'
-    | '/learn/cookbook/patterns/product-search'
-    | '/learn/cookbook/patterns/server-utilities'
-    | '/learn/cookbook/patterns/tailwind-setup'
-    | '/learn/cookbook/patterns/webhook-handler'
-    | '/learn/cookbook/tutorials/rag-agent'
-    | '/learn/cookbook/tutorials/understanding-agents'
-    | '/learn/cookbook/patterns/'
-    | '/learn/cookbook/tutorials/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -962,6 +963,7 @@ export interface FileRouteTypes {
     | '/get-started/project-structure'
     | '/get-started/quickstart'
     | '/get-started/what-is-agentuity'
+    | '/reference/mdx-features'
     | '/reference/migration-guide'
     | '/reference/sdk-reference'
     | '/routes/cron'
@@ -973,12 +975,22 @@ export interface FileRouteTypes {
     | '/agents'
     | '/apis'
     | '/community'
+    | '/cookbook'
     | '/frontend'
     | '/get-started'
-    | '/learn'
     | '/reference'
     | '/routes'
     | '/services'
+    | '/cookbook/patterns/background-tasks'
+    | '/cookbook/patterns/chat-with-history'
+    | '/cookbook/patterns/cron-with-storage'
+    | '/cookbook/patterns/llm-as-a-judge'
+    | '/cookbook/patterns/product-search'
+    | '/cookbook/patterns/server-utilities'
+    | '/cookbook/patterns/tailwind-setup'
+    | '/cookbook/patterns/webhook-handler'
+    | '/cookbook/tutorials/rag-agent'
+    | '/cookbook/tutorials/understanding-agents'
     | '/reference/cli/ai-commands'
     | '/reference/cli/build-configuration'
     | '/reference/cli/configuration'
@@ -1002,24 +1014,13 @@ export interface FileRouteTypes {
     | '/services/storage/key-value'
     | '/services/storage/object'
     | '/services/storage/vector'
-    | '/learn/cookbook'
+    | '/cookbook/patterns'
+    | '/cookbook/tutorials'
     | '/reference/cli'
     | '/services/database'
     | '/services/observability'
     | '/services/sandbox'
     | '/services/storage'
-    | '/learn/cookbook/patterns/background-tasks'
-    | '/learn/cookbook/patterns/chat-with-history'
-    | '/learn/cookbook/patterns/cron-with-storage'
-    | '/learn/cookbook/patterns/llm-as-a-judge'
-    | '/learn/cookbook/patterns/product-search'
-    | '/learn/cookbook/patterns/server-utilities'
-    | '/learn/cookbook/patterns/tailwind-setup'
-    | '/learn/cookbook/patterns/webhook-handler'
-    | '/learn/cookbook/tutorials/rag-agent'
-    | '/learn/cookbook/tutorials/understanding-agents'
-    | '/learn/cookbook/patterns'
-    | '/learn/cookbook/tutorials'
   id:
     | '__root__'
     | '/'
@@ -1050,6 +1051,7 @@ export interface FileRouteTypes {
     | '/_docs/get-started/project-structure'
     | '/_docs/get-started/quickstart'
     | '/_docs/get-started/what-is-agentuity'
+    | '/_docs/reference/mdx-features'
     | '/_docs/reference/migration-guide'
     | '/_docs/reference/sdk-reference'
     | '/_docs/routes/cron'
@@ -1061,12 +1063,22 @@ export interface FileRouteTypes {
     | '/_docs/agents/'
     | '/_docs/apis/'
     | '/_docs/community/'
+    | '/_docs/cookbook/'
     | '/_docs/frontend/'
     | '/_docs/get-started/'
-    | '/_docs/learn/'
     | '/_docs/reference/'
     | '/_docs/routes/'
     | '/_docs/services/'
+    | '/_docs/cookbook/patterns/background-tasks'
+    | '/_docs/cookbook/patterns/chat-with-history'
+    | '/_docs/cookbook/patterns/cron-with-storage'
+    | '/_docs/cookbook/patterns/llm-as-a-judge'
+    | '/_docs/cookbook/patterns/product-search'
+    | '/_docs/cookbook/patterns/server-utilities'
+    | '/_docs/cookbook/patterns/tailwind-setup'
+    | '/_docs/cookbook/patterns/webhook-handler'
+    | '/_docs/cookbook/tutorials/rag-agent'
+    | '/_docs/cookbook/tutorials/understanding-agents'
     | '/_docs/reference/cli/ai-commands'
     | '/_docs/reference/cli/build-configuration'
     | '/_docs/reference/cli/configuration'
@@ -1090,24 +1102,13 @@ export interface FileRouteTypes {
     | '/_docs/services/storage/key-value'
     | '/_docs/services/storage/object'
     | '/_docs/services/storage/vector'
-    | '/_docs/learn/cookbook/'
+    | '/_docs/cookbook/patterns/'
+    | '/_docs/cookbook/tutorials/'
     | '/_docs/reference/cli/'
     | '/_docs/services/database/'
     | '/_docs/services/observability/'
     | '/_docs/services/sandbox/'
     | '/_docs/services/storage/'
-    | '/_docs/learn/cookbook/patterns/background-tasks'
-    | '/_docs/learn/cookbook/patterns/chat-with-history'
-    | '/_docs/learn/cookbook/patterns/cron-with-storage'
-    | '/_docs/learn/cookbook/patterns/llm-as-a-judge'
-    | '/_docs/learn/cookbook/patterns/product-search'
-    | '/_docs/learn/cookbook/patterns/server-utilities'
-    | '/_docs/learn/cookbook/patterns/tailwind-setup'
-    | '/_docs/learn/cookbook/patterns/webhook-handler'
-    | '/_docs/learn/cookbook/tutorials/rag-agent'
-    | '/_docs/learn/cookbook/tutorials/understanding-agents'
-    | '/_docs/learn/cookbook/patterns/'
-    | '/_docs/learn/cookbook/tutorials/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1160,13 +1161,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsReferenceIndexRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/': {
-      id: '/_docs/learn/'
-      path: '/learn'
-      fullPath: '/learn/'
-      preLoaderRoute: typeof DocsLearnIndexRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
     '/_docs/get-started/': {
       id: '/_docs/get-started/'
       path: '/get-started'
@@ -1179,6 +1173,13 @@ declare module '@tanstack/react-router' {
       path: '/frontend'
       fullPath: '/frontend/'
       preLoaderRoute: typeof DocsFrontendIndexRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/cookbook/': {
+      id: '/_docs/cookbook/'
+      path: '/cookbook'
+      fullPath: '/cookbook/'
+      preLoaderRoute: typeof DocsCookbookIndexRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/community/': {
@@ -1256,6 +1257,13 @@ declare module '@tanstack/react-router' {
       path: '/reference/migration-guide'
       fullPath: '/reference/migration-guide'
       preLoaderRoute: typeof DocsReferenceMigrationGuideRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/reference/mdx-features': {
+      id: '/_docs/reference/mdx-features'
+      path: '/reference/mdx-features'
+      fullPath: '/reference/mdx-features'
+      preLoaderRoute: typeof DocsReferenceMdxFeaturesRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/get-started/what-is-agentuity': {
@@ -1468,11 +1476,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsReferenceCliIndexRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/': {
-      id: '/_docs/learn/cookbook/'
-      path: '/learn/cookbook'
-      fullPath: '/learn/cookbook/'
-      preLoaderRoute: typeof DocsLearnCookbookIndexRouteImport
+    '/_docs/cookbook/tutorials/': {
+      id: '/_docs/cookbook/tutorials/'
+      path: '/cookbook/tutorials'
+      fullPath: '/cookbook/tutorials/'
+      preLoaderRoute: typeof DocsCookbookTutorialsIndexRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/cookbook/patterns/': {
+      id: '/_docs/cookbook/patterns/'
+      path: '/cookbook/patterns'
+      fullPath: '/cookbook/patterns/'
+      preLoaderRoute: typeof DocsCookbookPatternsIndexRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/services/storage/vector': {
@@ -1636,88 +1651,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsReferenceCliAiCommandsRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/tutorials/': {
-      id: '/_docs/learn/cookbook/tutorials/'
-      path: '/learn/cookbook/tutorials'
-      fullPath: '/learn/cookbook/tutorials/'
-      preLoaderRoute: typeof DocsLearnCookbookTutorialsIndexRouteImport
+    '/_docs/cookbook/tutorials/understanding-agents': {
+      id: '/_docs/cookbook/tutorials/understanding-agents'
+      path: '/cookbook/tutorials/understanding-agents'
+      fullPath: '/cookbook/tutorials/understanding-agents'
+      preLoaderRoute: typeof DocsCookbookTutorialsUnderstandingAgentsRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/patterns/': {
-      id: '/_docs/learn/cookbook/patterns/'
-      path: '/learn/cookbook/patterns'
-      fullPath: '/learn/cookbook/patterns/'
-      preLoaderRoute: typeof DocsLearnCookbookPatternsIndexRouteImport
+    '/_docs/cookbook/tutorials/rag-agent': {
+      id: '/_docs/cookbook/tutorials/rag-agent'
+      path: '/cookbook/tutorials/rag-agent'
+      fullPath: '/cookbook/tutorials/rag-agent'
+      preLoaderRoute: typeof DocsCookbookTutorialsRagAgentRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/tutorials/understanding-agents': {
-      id: '/_docs/learn/cookbook/tutorials/understanding-agents'
-      path: '/learn/cookbook/tutorials/understanding-agents'
-      fullPath: '/learn/cookbook/tutorials/understanding-agents'
-      preLoaderRoute: typeof DocsLearnCookbookTutorialsUnderstandingAgentsRouteImport
+    '/_docs/cookbook/patterns/webhook-handler': {
+      id: '/_docs/cookbook/patterns/webhook-handler'
+      path: '/cookbook/patterns/webhook-handler'
+      fullPath: '/cookbook/patterns/webhook-handler'
+      preLoaderRoute: typeof DocsCookbookPatternsWebhookHandlerRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/tutorials/rag-agent': {
-      id: '/_docs/learn/cookbook/tutorials/rag-agent'
-      path: '/learn/cookbook/tutorials/rag-agent'
-      fullPath: '/learn/cookbook/tutorials/rag-agent'
-      preLoaderRoute: typeof DocsLearnCookbookTutorialsRagAgentRouteImport
+    '/_docs/cookbook/patterns/tailwind-setup': {
+      id: '/_docs/cookbook/patterns/tailwind-setup'
+      path: '/cookbook/patterns/tailwind-setup'
+      fullPath: '/cookbook/patterns/tailwind-setup'
+      preLoaderRoute: typeof DocsCookbookPatternsTailwindSetupRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/patterns/webhook-handler': {
-      id: '/_docs/learn/cookbook/patterns/webhook-handler'
-      path: '/learn/cookbook/patterns/webhook-handler'
-      fullPath: '/learn/cookbook/patterns/webhook-handler'
-      preLoaderRoute: typeof DocsLearnCookbookPatternsWebhookHandlerRouteImport
+    '/_docs/cookbook/patterns/server-utilities': {
+      id: '/_docs/cookbook/patterns/server-utilities'
+      path: '/cookbook/patterns/server-utilities'
+      fullPath: '/cookbook/patterns/server-utilities'
+      preLoaderRoute: typeof DocsCookbookPatternsServerUtilitiesRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/patterns/tailwind-setup': {
-      id: '/_docs/learn/cookbook/patterns/tailwind-setup'
-      path: '/learn/cookbook/patterns/tailwind-setup'
-      fullPath: '/learn/cookbook/patterns/tailwind-setup'
-      preLoaderRoute: typeof DocsLearnCookbookPatternsTailwindSetupRouteImport
+    '/_docs/cookbook/patterns/product-search': {
+      id: '/_docs/cookbook/patterns/product-search'
+      path: '/cookbook/patterns/product-search'
+      fullPath: '/cookbook/patterns/product-search'
+      preLoaderRoute: typeof DocsCookbookPatternsProductSearchRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/patterns/server-utilities': {
-      id: '/_docs/learn/cookbook/patterns/server-utilities'
-      path: '/learn/cookbook/patterns/server-utilities'
-      fullPath: '/learn/cookbook/patterns/server-utilities'
-      preLoaderRoute: typeof DocsLearnCookbookPatternsServerUtilitiesRouteImport
+    '/_docs/cookbook/patterns/llm-as-a-judge': {
+      id: '/_docs/cookbook/patterns/llm-as-a-judge'
+      path: '/cookbook/patterns/llm-as-a-judge'
+      fullPath: '/cookbook/patterns/llm-as-a-judge'
+      preLoaderRoute: typeof DocsCookbookPatternsLlmAsAJudgeRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/patterns/product-search': {
-      id: '/_docs/learn/cookbook/patterns/product-search'
-      path: '/learn/cookbook/patterns/product-search'
-      fullPath: '/learn/cookbook/patterns/product-search'
-      preLoaderRoute: typeof DocsLearnCookbookPatternsProductSearchRouteImport
+    '/_docs/cookbook/patterns/cron-with-storage': {
+      id: '/_docs/cookbook/patterns/cron-with-storage'
+      path: '/cookbook/patterns/cron-with-storage'
+      fullPath: '/cookbook/patterns/cron-with-storage'
+      preLoaderRoute: typeof DocsCookbookPatternsCronWithStorageRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/patterns/llm-as-a-judge': {
-      id: '/_docs/learn/cookbook/patterns/llm-as-a-judge'
-      path: '/learn/cookbook/patterns/llm-as-a-judge'
-      fullPath: '/learn/cookbook/patterns/llm-as-a-judge'
-      preLoaderRoute: typeof DocsLearnCookbookPatternsLlmAsAJudgeRouteImport
+    '/_docs/cookbook/patterns/chat-with-history': {
+      id: '/_docs/cookbook/patterns/chat-with-history'
+      path: '/cookbook/patterns/chat-with-history'
+      fullPath: '/cookbook/patterns/chat-with-history'
+      preLoaderRoute: typeof DocsCookbookPatternsChatWithHistoryRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/learn/cookbook/patterns/cron-with-storage': {
-      id: '/_docs/learn/cookbook/patterns/cron-with-storage'
-      path: '/learn/cookbook/patterns/cron-with-storage'
-      fullPath: '/learn/cookbook/patterns/cron-with-storage'
-      preLoaderRoute: typeof DocsLearnCookbookPatternsCronWithStorageRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
-    '/_docs/learn/cookbook/patterns/chat-with-history': {
-      id: '/_docs/learn/cookbook/patterns/chat-with-history'
-      path: '/learn/cookbook/patterns/chat-with-history'
-      fullPath: '/learn/cookbook/patterns/chat-with-history'
-      preLoaderRoute: typeof DocsLearnCookbookPatternsChatWithHistoryRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
-    '/_docs/learn/cookbook/patterns/background-tasks': {
-      id: '/_docs/learn/cookbook/patterns/background-tasks'
-      path: '/learn/cookbook/patterns/background-tasks'
-      fullPath: '/learn/cookbook/patterns/background-tasks'
-      preLoaderRoute: typeof DocsLearnCookbookPatternsBackgroundTasksRouteImport
+    '/_docs/cookbook/patterns/background-tasks': {
+      id: '/_docs/cookbook/patterns/background-tasks'
+      path: '/cookbook/patterns/background-tasks'
+      fullPath: '/cookbook/patterns/background-tasks'
+      preLoaderRoute: typeof DocsCookbookPatternsBackgroundTasksRouteImport
       parentRoute: typeof DocsRouteRoute
     }
   }
@@ -1749,6 +1750,7 @@ interface DocsRouteRouteChildren {
   DocsGetStartedProjectStructureRoute: typeof DocsGetStartedProjectStructureRoute
   DocsGetStartedQuickstartRoute: typeof DocsGetStartedQuickstartRoute
   DocsGetStartedWhatIsAgentuityRoute: typeof DocsGetStartedWhatIsAgentuityRoute
+  DocsReferenceMdxFeaturesRoute: typeof DocsReferenceMdxFeaturesRoute
   DocsReferenceMigrationGuideRoute: typeof DocsReferenceMigrationGuideRoute
   DocsReferenceSdkReferenceRoute: typeof DocsReferenceSdkReferenceRoute
   DocsRoutesCronRoute: typeof DocsRoutesCronRoute
@@ -1760,12 +1762,22 @@ interface DocsRouteRouteChildren {
   DocsAgentsIndexRoute: typeof DocsAgentsIndexRoute
   DocsApisIndexRoute: typeof DocsApisIndexRoute
   DocsCommunityIndexRoute: typeof DocsCommunityIndexRoute
+  DocsCookbookIndexRoute: typeof DocsCookbookIndexRoute
   DocsFrontendIndexRoute: typeof DocsFrontendIndexRoute
   DocsGetStartedIndexRoute: typeof DocsGetStartedIndexRoute
-  DocsLearnIndexRoute: typeof DocsLearnIndexRoute
   DocsReferenceIndexRoute: typeof DocsReferenceIndexRoute
   DocsRoutesIndexRoute: typeof DocsRoutesIndexRoute
   DocsServicesIndexRoute: typeof DocsServicesIndexRoute
+  DocsCookbookPatternsBackgroundTasksRoute: typeof DocsCookbookPatternsBackgroundTasksRoute
+  DocsCookbookPatternsChatWithHistoryRoute: typeof DocsCookbookPatternsChatWithHistoryRoute
+  DocsCookbookPatternsCronWithStorageRoute: typeof DocsCookbookPatternsCronWithStorageRoute
+  DocsCookbookPatternsLlmAsAJudgeRoute: typeof DocsCookbookPatternsLlmAsAJudgeRoute
+  DocsCookbookPatternsProductSearchRoute: typeof DocsCookbookPatternsProductSearchRoute
+  DocsCookbookPatternsServerUtilitiesRoute: typeof DocsCookbookPatternsServerUtilitiesRoute
+  DocsCookbookPatternsTailwindSetupRoute: typeof DocsCookbookPatternsTailwindSetupRoute
+  DocsCookbookPatternsWebhookHandlerRoute: typeof DocsCookbookPatternsWebhookHandlerRoute
+  DocsCookbookTutorialsRagAgentRoute: typeof DocsCookbookTutorialsRagAgentRoute
+  DocsCookbookTutorialsUnderstandingAgentsRoute: typeof DocsCookbookTutorialsUnderstandingAgentsRoute
   DocsReferenceCliAiCommandsRoute: typeof DocsReferenceCliAiCommandsRoute
   DocsReferenceCliBuildConfigurationRoute: typeof DocsReferenceCliBuildConfigurationRoute
   DocsReferenceCliConfigurationRoute: typeof DocsReferenceCliConfigurationRoute
@@ -1789,24 +1801,13 @@ interface DocsRouteRouteChildren {
   DocsServicesStorageKeyValueRoute: typeof DocsServicesStorageKeyValueRoute
   DocsServicesStorageObjectRoute: typeof DocsServicesStorageObjectRoute
   DocsServicesStorageVectorRoute: typeof DocsServicesStorageVectorRoute
-  DocsLearnCookbookIndexRoute: typeof DocsLearnCookbookIndexRoute
+  DocsCookbookPatternsIndexRoute: typeof DocsCookbookPatternsIndexRoute
+  DocsCookbookTutorialsIndexRoute: typeof DocsCookbookTutorialsIndexRoute
   DocsReferenceCliIndexRoute: typeof DocsReferenceCliIndexRoute
   DocsServicesDatabaseIndexRoute: typeof DocsServicesDatabaseIndexRoute
   DocsServicesObservabilityIndexRoute: typeof DocsServicesObservabilityIndexRoute
   DocsServicesSandboxIndexRoute: typeof DocsServicesSandboxIndexRoute
   DocsServicesStorageIndexRoute: typeof DocsServicesStorageIndexRoute
-  DocsLearnCookbookPatternsBackgroundTasksRoute: typeof DocsLearnCookbookPatternsBackgroundTasksRoute
-  DocsLearnCookbookPatternsChatWithHistoryRoute: typeof DocsLearnCookbookPatternsChatWithHistoryRoute
-  DocsLearnCookbookPatternsCronWithStorageRoute: typeof DocsLearnCookbookPatternsCronWithStorageRoute
-  DocsLearnCookbookPatternsLlmAsAJudgeRoute: typeof DocsLearnCookbookPatternsLlmAsAJudgeRoute
-  DocsLearnCookbookPatternsProductSearchRoute: typeof DocsLearnCookbookPatternsProductSearchRoute
-  DocsLearnCookbookPatternsServerUtilitiesRoute: typeof DocsLearnCookbookPatternsServerUtilitiesRoute
-  DocsLearnCookbookPatternsTailwindSetupRoute: typeof DocsLearnCookbookPatternsTailwindSetupRoute
-  DocsLearnCookbookPatternsWebhookHandlerRoute: typeof DocsLearnCookbookPatternsWebhookHandlerRoute
-  DocsLearnCookbookTutorialsRagAgentRoute: typeof DocsLearnCookbookTutorialsRagAgentRoute
-  DocsLearnCookbookTutorialsUnderstandingAgentsRoute: typeof DocsLearnCookbookTutorialsUnderstandingAgentsRoute
-  DocsLearnCookbookPatternsIndexRoute: typeof DocsLearnCookbookPatternsIndexRoute
-  DocsLearnCookbookTutorialsIndexRoute: typeof DocsLearnCookbookTutorialsIndexRoute
 }
 
 const DocsRouteRouteChildren: DocsRouteRouteChildren = {
@@ -1835,6 +1836,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsGetStartedProjectStructureRoute: DocsGetStartedProjectStructureRoute,
   DocsGetStartedQuickstartRoute: DocsGetStartedQuickstartRoute,
   DocsGetStartedWhatIsAgentuityRoute: DocsGetStartedWhatIsAgentuityRoute,
+  DocsReferenceMdxFeaturesRoute: DocsReferenceMdxFeaturesRoute,
   DocsReferenceMigrationGuideRoute: DocsReferenceMigrationGuideRoute,
   DocsReferenceSdkReferenceRoute: DocsReferenceSdkReferenceRoute,
   DocsRoutesCronRoute: DocsRoutesCronRoute,
@@ -1846,12 +1848,30 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsAgentsIndexRoute: DocsAgentsIndexRoute,
   DocsApisIndexRoute: DocsApisIndexRoute,
   DocsCommunityIndexRoute: DocsCommunityIndexRoute,
+  DocsCookbookIndexRoute: DocsCookbookIndexRoute,
   DocsFrontendIndexRoute: DocsFrontendIndexRoute,
   DocsGetStartedIndexRoute: DocsGetStartedIndexRoute,
-  DocsLearnIndexRoute: DocsLearnIndexRoute,
   DocsReferenceIndexRoute: DocsReferenceIndexRoute,
   DocsRoutesIndexRoute: DocsRoutesIndexRoute,
   DocsServicesIndexRoute: DocsServicesIndexRoute,
+  DocsCookbookPatternsBackgroundTasksRoute:
+    DocsCookbookPatternsBackgroundTasksRoute,
+  DocsCookbookPatternsChatWithHistoryRoute:
+    DocsCookbookPatternsChatWithHistoryRoute,
+  DocsCookbookPatternsCronWithStorageRoute:
+    DocsCookbookPatternsCronWithStorageRoute,
+  DocsCookbookPatternsLlmAsAJudgeRoute: DocsCookbookPatternsLlmAsAJudgeRoute,
+  DocsCookbookPatternsProductSearchRoute:
+    DocsCookbookPatternsProductSearchRoute,
+  DocsCookbookPatternsServerUtilitiesRoute:
+    DocsCookbookPatternsServerUtilitiesRoute,
+  DocsCookbookPatternsTailwindSetupRoute:
+    DocsCookbookPatternsTailwindSetupRoute,
+  DocsCookbookPatternsWebhookHandlerRoute:
+    DocsCookbookPatternsWebhookHandlerRoute,
+  DocsCookbookTutorialsRagAgentRoute: DocsCookbookTutorialsRagAgentRoute,
+  DocsCookbookTutorialsUnderstandingAgentsRoute:
+    DocsCookbookTutorialsUnderstandingAgentsRoute,
   DocsReferenceCliAiCommandsRoute: DocsReferenceCliAiCommandsRoute,
   DocsReferenceCliBuildConfigurationRoute:
     DocsReferenceCliBuildConfigurationRoute,
@@ -1878,34 +1898,13 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsServicesStorageKeyValueRoute: DocsServicesStorageKeyValueRoute,
   DocsServicesStorageObjectRoute: DocsServicesStorageObjectRoute,
   DocsServicesStorageVectorRoute: DocsServicesStorageVectorRoute,
-  DocsLearnCookbookIndexRoute: DocsLearnCookbookIndexRoute,
+  DocsCookbookPatternsIndexRoute: DocsCookbookPatternsIndexRoute,
+  DocsCookbookTutorialsIndexRoute: DocsCookbookTutorialsIndexRoute,
   DocsReferenceCliIndexRoute: DocsReferenceCliIndexRoute,
   DocsServicesDatabaseIndexRoute: DocsServicesDatabaseIndexRoute,
   DocsServicesObservabilityIndexRoute: DocsServicesObservabilityIndexRoute,
   DocsServicesSandboxIndexRoute: DocsServicesSandboxIndexRoute,
   DocsServicesStorageIndexRoute: DocsServicesStorageIndexRoute,
-  DocsLearnCookbookPatternsBackgroundTasksRoute:
-    DocsLearnCookbookPatternsBackgroundTasksRoute,
-  DocsLearnCookbookPatternsChatWithHistoryRoute:
-    DocsLearnCookbookPatternsChatWithHistoryRoute,
-  DocsLearnCookbookPatternsCronWithStorageRoute:
-    DocsLearnCookbookPatternsCronWithStorageRoute,
-  DocsLearnCookbookPatternsLlmAsAJudgeRoute:
-    DocsLearnCookbookPatternsLlmAsAJudgeRoute,
-  DocsLearnCookbookPatternsProductSearchRoute:
-    DocsLearnCookbookPatternsProductSearchRoute,
-  DocsLearnCookbookPatternsServerUtilitiesRoute:
-    DocsLearnCookbookPatternsServerUtilitiesRoute,
-  DocsLearnCookbookPatternsTailwindSetupRoute:
-    DocsLearnCookbookPatternsTailwindSetupRoute,
-  DocsLearnCookbookPatternsWebhookHandlerRoute:
-    DocsLearnCookbookPatternsWebhookHandlerRoute,
-  DocsLearnCookbookTutorialsRagAgentRoute:
-    DocsLearnCookbookTutorialsRagAgentRoute,
-  DocsLearnCookbookTutorialsUnderstandingAgentsRoute:
-    DocsLearnCookbookTutorialsUnderstandingAgentsRoute,
-  DocsLearnCookbookPatternsIndexRoute: DocsLearnCookbookPatternsIndexRoute,
-  DocsLearnCookbookTutorialsIndexRoute: DocsLearnCookbookTutorialsIndexRoute,
 }
 
 const DocsRouteRouteWithChildren = DocsRouteRoute._addFileChildren(

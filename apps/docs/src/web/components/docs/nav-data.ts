@@ -193,6 +193,7 @@ export const navData: NavSection[] = [
 			},
 			{ title: 'SDK Reference', url: '/reference/sdk-reference' },
 			{ title: 'Migration Guide', url: '/reference/migration-guide' },
+			{ title: 'MDX Features', url: '/reference/mdx-features' },
 		],
 	},
 ];

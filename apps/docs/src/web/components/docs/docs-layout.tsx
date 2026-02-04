@@ -6,6 +6,7 @@ import { FooterNav } from './footer-nav';
 import { HeaderLinks } from './header-links';
 import { ModeToggle } from './mode-toggle';
 import { SearchDialog } from './search-dialog';
+import { getFrontmatterForRoute } from './mdx-page';
 
 export function DocsLayout() {
 	const [searchOpen, setSearchOpen] = React.useState(false);
@@ -15,13 +16,34 @@ export function DocsLayout() {
 	// Convert pathname to currentPage format for backward compatibility
 	const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
 
+	// Set document title for a given path
+	const setTitleForPath = React.useCallback((pathname: string) => {
+		if (pathname === '/') {
+			document.title = 'Agentuity Documentation';
+		} else if (pathname.startsWith('/demo/')) {
+			document.title = 'SDK Explorer — Agentuity Documentation';
+		} else {
+			const frontmatter = getFrontmatterForRoute(pathname);
+			document.title = frontmatter?.title
+				? `${frontmatter.title} — Agentuity Documentation`
+				: 'Agentuity Documentation';
+		}
+	}, []);
+
 	const handleNavigate = React.useCallback(
 		(path: string) => {
 			const to = path === 'home' ? '/' : `/${path}`;
+			// Set title BEFORE navigation for instant feedback
+			setTitleForPath(to);
 			void navigate({ to });
 		},
-		[navigate]
+		[navigate, setTitleForPath]
 	);
+
+	// Also set title on initial load and direct URL access
+	React.useLayoutEffect(() => {
+		setTitleForPath(location.pathname);
+	}, [location.pathname, setTitleForPath]);
 
 	// Keyboard shortcut for search
 	React.useEffect(() => {
