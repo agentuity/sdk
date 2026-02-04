@@ -5,6 +5,7 @@ import { getCommand } from '../../../command-prefix';
 
 export const addCommand = createCommand({
 	name: 'add',
+	aliases: ['link'],
 	description: 'Link existing cloud resources to the current project',
 	tags: ['fast', 'requires-auth', 'requires-project'],
 	examples: [
