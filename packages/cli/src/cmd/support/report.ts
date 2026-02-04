@@ -335,11 +335,11 @@ export default createSubcommand({
 			// Debug: log the response
 			logger.debug('Upload response received', { uploadResponse });
 
-			if (!uploadResponse.success) {
-				const errorMsg = uploadResponse.message || 'Failed to create upload URL';
-				logger.error('Upload URL creation failed', { uploadResponse, errorMsg });
-				throw new UploadUrlCreationError({ message: errorMsg });
-			}
+		if (!uploadResponse.success) {
+			const errorMsg = uploadResponse.message || 'Failed to create upload URL';
+			logger.error('Upload URL creation failed', { uploadResponse, errorMsg });
+			throw new UploadUrlCreationError({ message: errorMsg });
+		}
 
 			const { presigned_url, url: reportUrl, report_id: reportId } = uploadResponse.data;
 

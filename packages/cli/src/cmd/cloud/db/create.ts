@@ -74,24 +74,24 @@ export const createSubcommand = defineSubcommand({
 					]);
 				},
 			});
-			const resource = created[0];
-			if (resource) {
-				// Write environment variables to .env if running inside a project
-				if (ctx.projectDir && resource.env && Object.keys(resource.env).length > 0) {
-					await addResourceEnvVars(ctx.projectDir, resource.env);
-					if (!options.json) {
-						tui.info('Environment variables written to .env');
-					}
-				}
-
+		const resource = created[0];
+		if (resource) {
+			// Write environment variables to .env if running inside a project
+			if (ctx.projectDir && resource.env && Object.keys(resource.env).length > 0) {
+				await addResourceEnvVars(ctx.projectDir, resource.env);
 				if (!options.json) {
-					tui.success(`Created database: ${tui.bold(resource.name)}`);
+					tui.info('Environment variables written to .env');
 				}
-				return {
-					success: true,
-					name: resource.name,
-				};
-			} else {
+			}
+
+			if (!options.json) {
+				tui.success(`Created database: ${tui.bold(resource.name)}`);
+			}
+			return {
+				success: true,
+				name: resource.name,
+			};
+		} else {
 				tui.fatal('Failed to create database');
 			}
 		} catch (ex) {

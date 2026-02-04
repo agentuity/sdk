@@ -178,27 +178,27 @@ export const deleteSubcommand = createSubcommand({
 				},
 			});
 
-			const resource = deleted[0];
-			if (resource) {
-				// Clear cache entry for deleted database
-				await deleteResourceRegion('db', profileName, resource.name);
+		const resource = deleted[0];
+		if (resource) {
+			// Clear cache entry for deleted database
+			await deleteResourceRegion('db', profileName, resource.name);
 
-				// Remove env vars from .env if running inside a project
-				if (ctx.projectDir && resource.env_keys.length > 0) {
-					await removeResourceEnvVars(ctx.projectDir, resource.env_keys);
-					if (!options.json) {
-						tui.info(`Removed ${resource.env_keys.join(', ')} from .env`);
-					}
-				}
-
+			// Remove env vars from .env if running inside a project
+			if (ctx.projectDir && resource.env_keys.length > 0) {
+				await removeResourceEnvVars(ctx.projectDir, resource.env_keys);
 				if (!options.json) {
-					tui.success(`Deleted database: ${tui.bold(resource.name)}`);
+					tui.info(`Removed ${resource.env_keys.join(', ')} from .env`);
 				}
-				return {
-					success: true,
-					name: resource.name,
-				};
-			} else {
+			}
+
+			if (!options.json) {
+				tui.success(`Deleted database: ${tui.bold(resource.name)}`);
+			}
+			return {
+				success: true,
+				name: resource.name,
+			};
+		} else {
 				tui.error('Failed to delete database');
 				return { success: false, name: dbName };
 			}

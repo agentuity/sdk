@@ -65,25 +65,25 @@ function buildFileTree(files: SnapshotFileInfo[]): TreeNode {
 		const parts = file.path.split('/');
 		let current = root;
 
-		for (let i = 0; i < parts.length; i++) {
-			const part = parts[i];
-			if (!part) continue;
-			if (!current.children.has(part)) {
-				current.children.set(part, {
-					name: part,
-					isFile: i === parts.length - 1,
-					children: new Map(),
-				});
-			}
-			const child = current.children.get(part);
-			if (!child) continue;
-			current = child;
-
-			if (i === parts.length - 1) {
-				current.size = file.size;
-				current.isFile = true;
-			}
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i];
+		if (!part) continue;
+		if (!current.children.has(part)) {
+			current.children.set(part, {
+				name: part,
+				isFile: i === parts.length - 1,
+				children: new Map(),
+			});
 		}
+		const child = current.children.get(part);
+		if (!child) continue;
+		current = child;
+
+		if (i === parts.length - 1) {
+			current.size = file.size;
+			current.isFile = true;
+		}
+	}
 	}
 
 	return root;
@@ -647,15 +647,15 @@ export const buildSubcommand = createCommand({
 					}
 				}
 
-				if (finalEnv && Object.keys(finalEnv).length > 0) {
-					console.log('');
-					tui.info('Environment:');
-					for (const [envKey, envValue] of Object.entries(finalEnv)) {
-						console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
-					}
+			if (finalEnv && Object.keys(finalEnv).length > 0) {
+				console.log('');
+				tui.info('Environment:');
+				for (const [envKey, envValue] of Object.entries(finalEnv)) {
+					console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
 				}
+			}
 
-				if (fileList.length > 0) {
+			if (fileList.length > 0) {
 					console.log('');
 					tui.info('Files:');
 					printFileTree(fileList);
@@ -949,15 +949,15 @@ export const buildSubcommand = createCommand({
 					}
 				}
 
-				if (finalEnv && Object.keys(finalEnv).length > 0) {
-					console.log('');
-					tui.info('Environment:');
-					for (const [envKey, envValue] of Object.entries(finalEnv)) {
-						console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
-					}
+			if (finalEnv && Object.keys(finalEnv).length > 0) {
+				console.log('');
+				tui.info('Environment:');
+				for (const [envKey, envValue] of Object.entries(finalEnv)) {
+					console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
 				}
+			}
 
-				if (finalMetadata && Object.keys(finalMetadata).length > 0) {
+			if (finalMetadata && Object.keys(finalMetadata).length > 0) {
 					console.log('');
 					tui.info('Metadata:');
 					for (const key of Object.keys(finalMetadata)) {

@@ -252,11 +252,11 @@ export const addSubcommand = createSubcommand({
 
 				const sortedOrgs = [...orgStatuses].sort((a, b) => a.name.localeCompare(b.name));
 
-				const firstOrg = orgs[0];
-				if (orgs.length === 1 && firstOrg) {
-					orgId = firstOrg.id;
-					selectedOrg = firstOrg;
-				} else {
+			const firstOrg = orgs[0];
+			if (orgs.length === 1 && firstOrg) {
+				orgId = firstOrg.id;
+				selectedOrg = firstOrg;
+			} else {
 					const choices = sortedOrgs.map((org) => {
 						const count = org.integrations.length;
 						const suffix =

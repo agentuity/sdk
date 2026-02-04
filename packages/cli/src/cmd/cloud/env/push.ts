@@ -80,13 +80,13 @@ export const pushSubcommand = createSubcommand({
 			tui.warning(
 				`Moving public variables to env: ${publicSecretKeys.join(', ')} (these are exposed to the frontend)`
 			);
-			for (const key of publicSecretKeys) {
-				delete secrets[key];
-				const value = filteredEnv[key];
-				if (value !== undefined) {
-					env[key] = value;
-				}
+		for (const key of publicSecretKeys) {
+			delete secrets[key];
+			const value = filteredEnv[key];
+			if (value !== undefined) {
+				env[key] = value;
 			}
+		}
 		}
 
 		if (useOrgScope) {

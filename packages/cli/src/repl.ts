@@ -1030,10 +1030,7 @@ async function readLine(
 		const searchHistory = (query: string, startFrom: number): number => {
 			for (let i = startFrom - 1; i >= 0; i--) {
 				const historyEntry = history[i];
-				if (
-					historyEntry !== undefined &&
-					historyEntry.toLowerCase().includes(query.toLowerCase())
-				) {
+				if (historyEntry !== undefined && historyEntry.toLowerCase().includes(query.toLowerCase())) {
 					return i;
 				}
 			}

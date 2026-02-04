@@ -113,13 +113,13 @@ export const importSubcommand = createSubcommand({
 			tui.warning(
 				`Moving public variables to env: ${publicSecretKeys.join(', ')} (these are exposed to the frontend)`
 			);
-			for (const key of publicSecretKeys) {
-				delete secrets[key];
-				const value = filteredVars[key];
-				if (value !== undefined) {
-					env[key] = value;
-				}
+		for (const key of publicSecretKeys) {
+			delete secrets[key];
+			const value = filteredVars[key];
+			if (value !== undefined) {
+				env[key] = value;
 			}
+		}
 		}
 
 		const envCount = Object.keys(env).length;

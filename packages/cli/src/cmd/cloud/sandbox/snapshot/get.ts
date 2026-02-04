@@ -183,25 +183,25 @@ function buildFileTree(files: SnapshotFileInfo[]): TreeNode {
 		const parts = file.path.split('/');
 		let current = root;
 
-		for (let i = 0; i < parts.length; i++) {
-			const part = parts[i];
-			if (!part) continue;
-			if (!current.children.has(part)) {
-				current.children.set(part, {
-					name: part,
-					isFile: i === parts.length - 1,
-					children: new Map(),
-				});
-			}
-			const child = current.children.get(part);
-			if (!child) continue;
-			current = child;
-
-			if (i === parts.length - 1) {
-				current.size = file.size;
-				current.isFile = true;
-			}
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i];
+		if (!part) continue;
+		if (!current.children.has(part)) {
+			current.children.set(part, {
+				name: part,
+				isFile: i === parts.length - 1,
+				children: new Map(),
+			});
 		}
+		const child = current.children.get(part);
+		if (!child) continue;
+		current = child;
+
+		if (i === parts.length - 1) {
+			current.size = file.size;
+			current.isFile = true;
+		}
+	}
 	}
 
 	return root;

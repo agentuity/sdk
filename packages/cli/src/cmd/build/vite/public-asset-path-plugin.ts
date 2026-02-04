@@ -162,10 +162,7 @@ export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}
 				const patterns = createIncorrectPatterns();
 				for (const { regex, replacement } of patterns) {
 					const replaceRegex = new RegExp(regex.source, regex.flags);
-					transformed = transformed.replace(
-						replaceRegex,
-						replacement.replace('{base}', targetBase)
-					);
+					transformed = transformed.replace(replaceRegex, replacement.replace('{base}', targetBase));
 				}
 			}
 
@@ -174,10 +171,7 @@ export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}
 				const publicPatterns = createPublicPatterns();
 				for (const { regex, replacement } of publicPatterns) {
 					const replaceRegex = new RegExp(regex.source, regex.flags);
-					transformed = transformed.replace(
-						replaceRegex,
-						replacement.replace('{base}', targetBase)
-					);
+					transformed = transformed.replace(replaceRegex, replacement.replace('{base}', targetBase));
 				}
 			}
 
