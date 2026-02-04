@@ -82,6 +82,9 @@ export enum ErrorCode {
 
 	// Upgrade of the software is required to continue
 	UPGRADE_REQUIRED = 'UPGRADE_REQUIRED',
+
+	// Payment required - user needs to upgrade their plan
+	PAYMENT_REQUIRED = 'PAYMENT_REQUIRED',
 }
 
 /**
@@ -146,6 +149,10 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 		// Security errors
 		case ErrorCode.MALWARE_DETECTED:
 			return ExitCode.SECURITY_ERROR;
+
+		// Payment required - user needs to upgrade their plan
+		case ErrorCode.PAYMENT_REQUIRED:
+			return ExitCode.GENERAL_ERROR;
 
 		// Resource conflicts and other errors
 		case ErrorCode.RESOURCE_ALREADY_EXISTS:

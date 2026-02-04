@@ -201,8 +201,10 @@ export function note(message: string, title = ''): void {
 
 /**
  * Draw an error box with red border
+ * @param withGuide - If true (default), shows guide bar at top and connector at bottom for use in flows.
+ *                    If false, renders as a standalone box with proper corners.
  */
-export function errorBox(title: string, message: string): void {
+export function errorBox(title: string, message: string, withGuide = true): void {
 	const termWidth = getTerminalWidth();
 	const maxWidth = termWidth - 3;
 	const boxWidth = Math.min(60, maxWidth);
@@ -212,15 +214,22 @@ export function errorBox(title: string, message: string): void {
 
 	const lines: string[] = [];
 
-	// Title line with error symbol
+	// Top border with title
 	const errorSymbol = colors.error('✗');
 	const titleText = colors.error(title);
 	const titleTextWidth = 1 + stringWidth(title); // symbol + title
 	const barsNeeded = Math.max(innerWidth - titleTextWidth - 3, 1);
-	const titleLine = `${errorSymbol}  ${titleText} ${colors.error(symbols.barH.repeat(barsNeeded) + symbols.cornerTR)}`;
 
-	lines.push(colors.error(symbols.bar));
-	lines.push(titleLine);
+	if (withGuide) {
+		// Guide style: bar at top, then title line without top-left corner
+		lines.push(colors.error(symbols.bar));
+		const titleLine = `${errorSymbol}  ${titleText} ${colors.error(symbols.barH.repeat(barsNeeded) + symbols.cornerTR)}`;
+		lines.push(titleLine);
+	} else {
+		// Standalone style: title line with top-left corner
+		const titleLine = `${colors.error(symbols.cornerTL)}${errorSymbol} ${titleText} ${colors.error(symbols.barH.repeat(barsNeeded) + symbols.cornerTR)}`;
+		lines.push(titleLine);
+	}
 
 	// Empty line
 	const emptyLine = `${colors.error(symbols.bar)}${' '.repeat(contentWidth)}${colors.error(symbols.bar)}`;
@@ -244,9 +253,15 @@ export function errorBox(title: string, message: string): void {
 	lines.push(emptyLine);
 
 	// Bottom border
-	lines.push(
-		colors.error(symbols.connect + symbols.barH.repeat(innerWidth - 1) + symbols.cornerBR)
-	);
+	if (withGuide) {
+		lines.push(
+			colors.error(symbols.connect + symbols.barH.repeat(innerWidth - 1) + symbols.cornerBR)
+		);
+	} else {
+		lines.push(
+			colors.error(symbols.cornerBL + symbols.barH.repeat(innerWidth - 1) + symbols.cornerBR)
+		);
+	}
 
 	console.log(lines.join('\n'));
 }
