@@ -1,7 +1,14 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import { agents } from '../agents';
 import type { AgentDefinition } from '../agents';
-import type { BackgroundTask, BackgroundTaskConfig, LaunchInput, TaskProgress } from './types';
+import type {
+	BackgroundTask,
+	BackgroundTaskConfig,
+	BackgroundTaskStatus,
+	LaunchInput,
+	TaskInspection,
+	TaskProgress,
+} from './types';
 import { ConcurrencyManager } from './concurrency';
 
 const DEFAULT_BACKGROUND_CONFIG: BackgroundTaskConfig = {
@@ -104,6 +111,225 @@ export class BackgroundManager {
 		const taskId = this.tasksBySession.get(sessionId);
 		if (!taskId) return undefined;
 		return this.tasks.get(taskId);
+	}
+
+	/**
+	 * Inspect a background task by fetching its session messages.
+	 * Useful for seeing what a child Lead or other agent is doing.
+	 */
+	async inspectTask(taskId: string): Promise<TaskInspection | undefined> {
+		const task = this.tasks.get(taskId);
+		if (!task?.sessionId) return undefined;
+
+		try {
+			// Get session details
+			const sessionResponse = await this.ctx.client.session.get({
+				path: { id: task.sessionId },
+				throwOnError: false,
+			});
+
+			// Get messages from the session
+			const messagesResponse = await this.ctx.client.session.messages({
+				path: { id: task.sessionId },
+				throwOnError: false,
+			});
+
+			const session = unwrapResponse<unknown>(sessionResponse);
+			const rawMessages =
+				unwrapResponse<Array<{ info: unknown; parts: unknown[] }>>(messagesResponse);
+			// Defensive array coercion (response may be non-array when throwOnError is false)
+			const messages = Array.isArray(rawMessages) ? rawMessages : [];
+
+			// Return structured inspection result
+			return {
+				taskId: task.id,
+				sessionId: task.sessionId,
+				status: task.status,
+				session,
+				messages,
+				lastActivity: task.progress?.lastUpdate?.toISOString(),
+			};
+		} catch {
+			// Session might not exist anymore
+			return undefined;
+		}
+	}
+
+	/**
+	 * Refresh task statuses from the server.
+	 * Useful for recovering state after issues or checking on stuck tasks.
+	 */
+	async refreshStatuses(): Promise<Map<string, BackgroundTaskStatus>> {
+		const results = new Map<string, BackgroundTaskStatus>();
+
+		// Get all our tracked session IDs
+		const sessionIds = Array.from(this.tasksBySession.keys());
+		if (sessionIds.length === 0) return results;
+
+		try {
+			// Fetch children for each unique parent (more efficient than individual gets)
+			const parentIds = new Set<string>();
+			for (const task of this.tasks.values()) {
+				if (task.parentSessionId) {
+					parentIds.add(task.parentSessionId);
+				}
+			}
+
+			const completionPromises: Promise<void>[] = [];
+
+			for (const parentId of parentIds) {
+				const childrenResponse = await this.ctx.client.session.children({
+					path: { id: parentId },
+					throwOnError: false,
+				});
+
+				const children = unwrapResponse<Array<unknown>>(childrenResponse) ?? [];
+				for (const child of children) {
+					const childSession = child as { id?: string; status?: { type?: string } };
+					if (!childSession.id) continue;
+
+					const matchedTaskId = this.tasksBySession.get(childSession.id);
+					if (matchedTaskId) {
+						const task = this.tasks.get(matchedTaskId);
+						if (task) {
+							const newStatus = this.mapSessionStatusToTaskStatus(childSession);
+							if (newStatus !== task.status) {
+								// Use proper handlers to trigger side effects (concurrency, notifications, etc.)
+								if (newStatus === 'completed' && task.status === 'running') {
+									completionPromises.push(this.completeTask(task));
+									results.set(matchedTaskId, newStatus);
+								} else if (newStatus === 'error') {
+									this.failTask(task, 'Session ended with error');
+									results.set(matchedTaskId, newStatus);
+								} else {
+									// For other transitions (e.g., pending -> running), direct update is fine
+									task.status = newStatus;
+									results.set(matchedTaskId, newStatus);
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Wait for all completion handlers to finish
+			await Promise.all(completionPromises);
+		} catch (error) {
+			// Log but don't fail - this is a best-effort refresh
+			console.error('Failed to refresh task statuses:', error);
+		}
+
+		return results;
+	}
+
+	/**
+	 * Recover background tasks from existing sessions.
+	 * Call this on plugin startup to restore state after restart.
+	 *
+	 * This method queries all sessions and reconstructs task state from
+	 * sessions that have JSON-encoded task metadata in their title.
+	 *
+	 * @returns The number of tasks recovered
+	 */
+	async recoverTasks(): Promise<number> {
+		let recovered = 0;
+
+		try {
+			// Get all sessions
+			const sessionsResponse = await this.ctx.client.session.list({
+				throwOnError: false,
+			});
+
+			const sessions = unwrapResponse<Array<unknown>>(sessionsResponse) ?? [];
+
+			for (const session of sessions) {
+				const sess = session as {
+					id?: string;
+					title?: string;
+					parentID?: string;
+					status?: { type?: string };
+				};
+
+				// Check if this is one of our background task sessions
+				// Our sessions have JSON-encoded task metadata in the title
+				if (!sess.title?.startsWith('{')) continue;
+
+				try {
+					const metadata = JSON.parse(sess.title) as {
+						taskId?: string;
+						agent?: string;
+						description?: string;
+						createdAt?: string;
+					};
+
+					// Skip if not a valid task metadata (must have taskId starting with 'bg_')
+					if (!metadata.taskId || !metadata.taskId.startsWith('bg_')) continue;
+
+					// Skip if we already have this task
+					if (this.tasks.has(metadata.taskId)) continue;
+
+					// Skip sessions without an ID
+					if (!sess.id) continue;
+
+					// Reconstruct the task
+					const agentName = metadata.agent ?? 'unknown';
+					const task: BackgroundTask = {
+						id: metadata.taskId,
+						sessionId: sess.id,
+						parentSessionId: sess.parentID ?? '',
+						agent: agentName,
+						description: metadata.description ?? '',
+						prompt: '', // Original prompt not stored in metadata
+						status: this.mapSessionStatusToTaskStatus(sess),
+						queuedAt: metadata.createdAt ? new Date(metadata.createdAt) : new Date(),
+						startedAt: metadata.createdAt ? new Date(metadata.createdAt) : new Date(),
+						concurrencyGroup: this.getConcurrencyGroup(agentName),
+						progress: {
+							toolCalls: 0,
+							lastUpdate: new Date(),
+						},
+					};
+
+					// Add to our tracking maps
+					this.tasks.set(task.id, task);
+					this.tasksBySession.set(sess.id, task.id);
+
+					if (task.parentSessionId) {
+						const parentTasks = this.tasksByParent.get(task.parentSessionId) ?? new Set();
+						parentTasks.add(task.id);
+						this.tasksByParent.set(task.parentSessionId, parentTasks);
+					}
+
+					recovered++;
+				} catch {
+					// Not valid JSON or not our task, skip
+					continue;
+				}
+			}
+		} catch (error) {
+			console.error('Failed to recover tasks:', error);
+		}
+
+		return recovered;
+	}
+
+	private mapSessionStatusToTaskStatus(session: unknown): BackgroundTaskStatus {
+		// Map OpenCode session status to our task status
+		// Session status types: 'idle' | 'pending' | 'running' | 'error'
+		const status = (session as { status?: { type?: string } })?.status?.type;
+		switch (status) {
+			case 'idle':
+				return 'completed';
+			case 'pending':
+				return 'pending';
+			case 'running':
+				return 'running';
+			case 'error':
+				return 'error';
+			default:
+				// Unknown session status - default to pending for best-effort recovery
+				return 'pending';
+		}
 	}
 
 	cancel(taskId: string): boolean {
@@ -220,10 +446,18 @@ export class BackgroundManager {
 		}
 
 		try {
+			// Store task metadata in session title for persistence/recovery
+			const taskMetadata = JSON.stringify({
+				taskId: task.id,
+				agent: task.agent,
+				description: task.description,
+				createdAt: task.queuedAt?.toISOString() ?? new Date().toISOString(),
+			});
+
 			const sessionResult = await this.ctx.client.session.create({
 				body: {
 					parentID: task.parentSessionId,
-					title: task.description,
+					title: taskMetadata,
 				},
 				throwOnError: true,
 			});
