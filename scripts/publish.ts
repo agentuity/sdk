@@ -539,7 +539,8 @@ async function buildTemplatesTarball(version: string): Promise<string> {
 		await $`cp -r ${templatesDir}/. ${templatesSubdir}/`;
 
 		// Create tarball from /tmp with sdk-main as root directory
-		await $`tar -czf ${tarballPath} -C /tmp sdk-main`;
+		// COPYFILE_DISABLE=1 prevents macOS from including AppleDouble (._*) resource fork files
+		await $`COPYFILE_DISABLE=1 tar -czf ${tarballPath} -C /tmp sdk-main`;
 
 		// Clean up temp directory
 		await $`rm -rf /tmp/sdk-main`;
