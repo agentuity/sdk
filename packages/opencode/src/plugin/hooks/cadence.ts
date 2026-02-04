@@ -1,5 +1,6 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
+import type { BackgroundManager } from '../../background';
 
 /** Compacting hook input/output types */
 type CompactingInput = { sessionID: string };
@@ -48,7 +49,11 @@ interface CadenceSessionState {
  * 4. Trigger continuation after compaction (session.compacted)
  * 5. Clean up on session abort/error
  */
-export function createCadenceHooks(ctx: PluginInput, _config: CoderConfig): CadenceHooks {
+export function createCadenceHooks(
+	ctx: PluginInput,
+	_config: CoderConfig,
+	backgroundManager?: BackgroundManager
+): CadenceHooks {
 	const activeCadenceSessions = new Map<string, CadenceSessionState>();
 
 	const log = (msg: string) => {
@@ -269,6 +274,39 @@ Continue Cadence iteration ${state.iteration} of ${state.maxIterations}
 			log(`Injecting Cadence context during compaction for session ${sessionId}`);
 			showToast(ctx, '💾 Compacting Cadence context...');
 
+			// Get active background tasks for this session
+			const tasks = backgroundManager?.getTasksByParent(sessionId) ?? [];
+			let backgroundTaskContext = '';
+
+			if (tasks.length > 0) {
+				const taskList = tasks
+					.map(
+						(t) =>
+							`- **${t.id}**: ${t.description || 'No description'} (session: ${t.sessionId ?? 'pending'}, status: ${t.status})`
+					)
+					.join('\n');
+
+				backgroundTaskContext = `
+
+## Active Background Tasks
+
+This session has ${tasks.length} background task(s) running in separate sessions:
+${taskList}
+
+**CRITICAL:** Task IDs and session IDs persist across compaction - these tasks are still running.
+Use \`agentuity_background_output({ task_id: "..." })\` to check their status.
+
+**Tip:** If you spawned child Leads for parallel work, delegate monitoring to BackgroundMonitor:
+\`\`\`typescript
+agentuity_background_task({
+  agent: "monitor",
+  task: "Monitor these background tasks and report when all complete:\\n${tasks.map((t) => `- ${t.id}`).join('\\n')}",
+  description: "Monitor child tasks"
+})
+\`\`\`
+`;
+			}
+
 			output.context.push(`
 ## CADENCE MODE ACTIVE
 
@@ -284,8 +322,20 @@ This session is running in Cadence mode (long-running autonomous loop).
 **Session Record Location:**
 \`session:${sessionId}\` in agentuity-opencode-memory
 
-After compaction, Memory will save this summary and update the cadence state.
-Then Lead will continue the loop from iteration ${state.iteration}.
+**Planning State:**
+If this session has planning active, the session record contains:
+- \`planning.prdKey\` - Link to the PRD being executed
+- \`planning.objective\` - What we're trying to accomplish
+- \`planning.phases\` - Current phases with status and notes
+- \`planning.current\` - Current phase
+- \`planning.findings\` - Discoveries made during work
+- \`planning.errors\` - Failures to avoid repeating
+${backgroundTaskContext}
+After compaction:
+1. Memory will save this summary and update the session record
+2. Memory should update planning.progress with this compaction
+3. Lead will continue the loop from iteration ${state.iteration}
+4. Use 5-Question Reboot to re-orient: Where am I? Where going? Goal? Learned? Done?
 `);
 		},
 
