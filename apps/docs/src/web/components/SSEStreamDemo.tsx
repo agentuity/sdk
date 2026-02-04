@@ -179,7 +179,7 @@ export function SSEStreamDemo() {
 	return (
 		<div className="flex flex-col gap-4">
 			{/* Input Section */}
-			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
+			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-4">
 				<div className="flex flex-col gap-4">
 					{/* Prompt Display */}
 					<div>

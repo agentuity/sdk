@@ -16,6 +16,7 @@ import {
 	SidebarMenuSubItem,
 	SidebarRail,
 } from '../ui';
+import { cn } from '../../lib/utils';
 import { navData, hasActiveChild, type NavItem, type NavSection } from './nav-data';
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -52,136 +53,246 @@ function AgentuityLogo({ className }: { className?: string }) {
 	);
 }
 
-// Navigation menu with collapsible sections
-function NavMain({
-	items,
+// Recursive nav item component - handles any depth
+function RecursiveNavItem({
+	item,
+	depth,
 	currentUrl,
 	onNavigate,
 }: {
-	items: {
-		title: string;
-		url: string;
-		isActive?: boolean;
-		hideItems?: boolean;
-		items?: {
-			title: string;
-			url: string;
-		}[];
-	}[];
+	item: NavItem;
+	depth: number;
+	currentUrl: string;
+	onNavigate: (page: string) => void;
+}) {
+	const hasChildren = item.items && item.items.length > 0;
+	const isActive = item.url === currentUrl;
+	const hasActiveDescendant = hasChildren && hasActiveChild(item.items!, currentUrl);
+	const [open, setOpen] = React.useState(hasActiveDescendant);
+
+	// Auto-expand when a descendant becomes active
+	React.useEffect(() => {
+		if (hasActiveDescendant) {
+			setOpen(true);
+		}
+	}, [hasActiveDescendant]);
+
+	const handleClick = (e: React.MouseEvent) => {
+		e.preventDefault();
+		if (hasChildren) {
+			// If we're already on this page or a child page, just toggle
+			if (isActive || hasActiveDescendant) {
+				setOpen((prev) => !prev);
+			} else {
+				// Navigate to the item's URL (if it has one) and expand
+				setOpen(true);
+				if (item.url) {
+					onNavigate(item.url === '/' ? 'home' : item.url.slice(1));
+				}
+			}
+		} else if (item.url) {
+			// Leaf node - just navigate
+			onNavigate(item.url === '/' ? 'home' : item.url.slice(1));
+		}
+	};
+
+	const handleChevronClick = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setOpen((prev) => !prev);
+	};
+
+	// Leaf node (no children) - render as link
+	if (!hasChildren) {
+		if (depth === 0) {
+			// Top-level leaf
+			return (
+				<SidebarMenuItem>
+					<SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+						<a href={item.url || '#'} onClick={handleClick}>
+							<span>{item.title}</span>
+						</a>
+					</SidebarMenuButton>
+				</SidebarMenuItem>
+			);
+		}
+		// Nested leaf
+		return (
+			<SidebarMenuSubItem>
+				<SidebarMenuSubButton asChild isActive={isActive}>
+					<a href={item.url || '#'} onClick={handleClick}>
+						<span>{item.title}</span>
+					</a>
+				</SidebarMenuSubButton>
+			</SidebarMenuSubItem>
+		);
+	}
+
+	// Node with children - render as collapsible
+	if (depth === 0) {
+		// Top-level collapsible section
+		return (
+			<Collapsible asChild open={open} onOpenChange={setOpen} className="group/collapsible">
+				<SidebarMenuItem>
+					<SidebarMenuButton tooltip={item.title} isActive={isActive} onClick={handleClick}>
+						<span>{item.title}</span>
+						<CollapsibleTrigger asChild onClick={handleChevronClick}>
+							<ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+						</CollapsibleTrigger>
+					</SidebarMenuButton>
+					<CollapsibleContent>
+						<SidebarMenuSub>
+							{item.items!.map((child) => (
+								<RecursiveNavItem
+									key={child.title}
+									item={child}
+									depth={depth + 1}
+									currentUrl={currentUrl}
+									onNavigate={onNavigate}
+								/>
+							))}
+						</SidebarMenuSub>
+					</CollapsibleContent>
+				</SidebarMenuItem>
+			</Collapsible>
+		);
+	}
+
+	// Nested collapsible (depth >= 1)
+	// Use a unique group name based on depth to avoid conflicts
+	const groupName = `collapsible-d${depth}-${item.title.replace(/\s+/g, '-').toLowerCase()}`;
+
+	return (
+		<Collapsible asChild open={open} onOpenChange={setOpen} className={`group/${groupName}`}>
+			<SidebarMenuSubItem>
+				<SidebarMenuSubButton
+					asChild
+					isActive={isActive}
+					className={cn(hasActiveDescendant && 'text-sidebar-accent-foreground')}
+				>
+					<a href={item.url || '#'} onClick={handleClick}>
+						<span>{item.title}</span>
+						<CollapsibleTrigger asChild onClick={handleChevronClick}>
+							<ChevronRight
+								className={cn(
+									'ml-auto size-4 transition-transform duration-200',
+									open && 'rotate-90'
+								)}
+							/>
+						</CollapsibleTrigger>
+					</a>
+				</SidebarMenuSubButton>
+				<CollapsibleContent>
+					<SidebarMenuSub>
+						{item.items!.map((child) => (
+							<RecursiveNavItem
+								key={child.title}
+								item={child}
+								depth={depth + 1}
+								currentUrl={currentUrl}
+								onNavigate={onNavigate}
+							/>
+						))}
+					</SidebarMenuSub>
+				</CollapsibleContent>
+			</SidebarMenuSubItem>
+		</Collapsible>
+	);
+}
+
+// Navigation menu with recursive sections
+function NavMain({
+	sections,
+	currentUrl,
+	onNavigate,
+}: {
+	sections: NavSection[];
 	currentUrl: string;
 	onNavigate: (page: string) => void;
 }) {
 	return (
 		<SidebarGroup>
 			<SidebarMenu>
-				{items.map((item) =>
-					item.hideItems || !item.items?.length ? (
-						// Direct link for sections with hideItems or no sub-items
-						<SidebarMenuItem key={item.title}>
-							<SidebarMenuButton
-								asChild
-								isActive={item.url === currentUrl || item.isActive}
-								tooltip={item.title}
-							>
-								<a
-									href={item.url}
-									onClick={(e) => {
-										e.preventDefault();
-										onNavigate(item.url === '/' ? 'home' : item.url.slice(1));
-									}}
+				{sections.map((section) => {
+					const hasChildren = section.items.length > 0 && !section.hideItems;
+					const isActive = section.url === currentUrl;
+					const hasActiveDescendant = hasActiveChild(section.items, currentUrl);
+
+					// Convert section to NavItem format for recursive rendering
+					const sectionAsItem: NavItem = {
+						title: section.title,
+						url: section.url,
+						items: section.hideItems ? undefined : section.items,
+					};
+
+					// Direct link for sections with hideItems or no visible sub-items
+					if (!hasChildren) {
+						return (
+							<SidebarMenuItem key={section.title}>
+								<SidebarMenuButton
+									asChild
+									isActive={isActive || hasActiveDescendant}
+									tooltip={section.title}
 								>
-									<span>{item.title}</span>
-								</a>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-					) : (
-						// Collapsible section for items with sub-items
-						<Collapsible
-							key={item.title}
-							asChild
-							defaultOpen={item.isActive}
-							className="group/collapsible"
-						>
-							<SidebarMenuItem>
-								<CollapsibleTrigger asChild>
-									<SidebarMenuButton tooltip={item.title}>
-										<span>{item.title}</span>
-										<ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-									</SidebarMenuButton>
-								</CollapsibleTrigger>
-								<CollapsibleContent>
-									<SidebarMenuSub>
-										{item.items?.map((subItem) => (
-											<SidebarMenuSubItem key={subItem.title}>
-												<SidebarMenuSubButton
-													asChild
-													isActive={subItem.url === currentUrl}
-												>
-													<a
-														href={subItem.url}
-														onClick={(e) => {
-															e.preventDefault();
-															onNavigate(subItem.url.slice(1));
-														}}
-													>
-														<span>{subItem.title}</span>
-													</a>
-												</SidebarMenuSubButton>
-											</SidebarMenuSubItem>
-										))}
-									</SidebarMenuSub>
-								</CollapsibleContent>
+									<a
+										href={section.url || '#'}
+										onClick={(e) => {
+											e.preventDefault();
+											onNavigate(section.url === '/' ? 'home' : (section.url || '').slice(1));
+										}}
+									>
+										<span>{section.title}</span>
+									</a>
+								</SidebarMenuButton>
 							</SidebarMenuItem>
-						</Collapsible>
-					)
-				)}
+						);
+					}
+
+					// Collapsible section with recursive children
+					return (
+						<RecursiveNavItem
+							key={section.title}
+							item={sectionAsItem}
+							depth={0}
+							currentUrl={currentUrl}
+							onNavigate={onNavigate}
+						/>
+					);
+				})}
 			</SidebarMenu>
 		</SidebarGroup>
 	);
 }
 
-// Transform nav sections to menu format
-function transformToNavItems(sections: NavSection[], currentUrl: string) {
-	return sections.map((section) => ({
-		title: section.title,
-		url: section.url || '#',
-		isActive: hasActiveChild(section.items, currentUrl),
-		hideItems: section.hideItems,
-		items: section.hideItems
-			? [] // Don't include sub-items for sections with hideItems
-			: section.items
-					.filter((item) => item.url) // Only items with URLs
-					.map((item) => ({
-						title: item.title,
-						url: item.url!,
-					})),
-	}));
-}
-
 export function AppSidebar({ currentPage, onNavigate, onOpenSearch, ...props }: AppSidebarProps) {
 	const currentUrl = currentPage === 'home' ? '/' : `/${currentPage}`;
-	const navItems = transformToNavItems(navData, currentUrl);
 
 	return (
 		<Sidebar {...props}>
-			<SidebarHeader>
-				<a
-					href="/"
-					onClick={(e) => {
-						e.preventDefault();
-						onNavigate('home');
-					}}
-					aria-label="Go to home"
-					className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-sidebar-accent transition-colors"
-				>
-					<AgentuityLogo className="size-6" />
-					<span className="font-medium text-sm">Agentuity</span>
-				</a>
+			<SidebarHeader className="-mb-0.5">
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild size="lg">
+							<a
+								href="/"
+								onClick={(e) => {
+									e.preventDefault();
+									onNavigate('home');
+								}}
+								aria-label="Go to home"
+							>
+								<div className="flex aspect-square size-6 items-center justify-center">
+									<AgentuityLogo className="size-6" />
+								</div>
+								<span className="font-medium text-sm">Agentuity</span>
+							</a>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
 
 				<button
 					type="button"
 					onClick={onOpenSearch}
-					className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+					className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
 				>
 					<SearchIcon className="size-4" />
 					<span className="flex-1 text-left">Search...</span>
@@ -192,7 +303,7 @@ export function AppSidebar({ currentPage, onNavigate, onOpenSearch, ...props }: 
 			</SidebarHeader>
 
 			<SidebarContent>
-				<NavMain items={navItems} currentUrl={currentUrl} onNavigate={onNavigate} />
+				<NavMain sections={navData} currentUrl={currentUrl} onNavigate={onNavigate} />
 			</SidebarContent>
 
 			<SidebarRail />

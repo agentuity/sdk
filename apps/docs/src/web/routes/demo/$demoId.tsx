@@ -47,9 +47,9 @@ function DemoView() {
 	const status = testOutput ? 'completed' : sandbox.state.status;
 
 	return (
-		<div className="flex flex-col lg:grid lg:grid-cols-[55fr_45fr] min-h-0 flex-1">
+		<div className="flex flex-col lg:grid lg:grid-cols-[55fr_45fr] gap-4 min-h-0 flex-1 p-4">
 			{/* Left: Interactive demo */}
-			<div className="flex-1 lg:h-full overflow-auto lg:border-r border-b lg:border-b-0 border-zinc-200 dark:border-zinc-800 p-4 min-w-0">
+			<div className="flex-1 lg:h-full overflow-auto min-w-0">
 				{/* Explanation block */}
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4 min-h-[140px]">
 					<div className="flex items-center justify-between px-4 h-12 bg-zinc-100/50 dark:bg-zinc-900/50">
@@ -78,7 +78,7 @@ function DemoView() {
 			</div>
 
 			{/* Right: Code example */}
-			<div className="flex-1 lg:h-full overflow-auto p-4 min-w-0 flex flex-col gap-4">
+			<div className="flex-1 lg:h-full overflow-auto min-w-0 flex flex-col gap-4">
 				{demo.sandboxEnabled ? (
 					<>
 						<CodeBlock

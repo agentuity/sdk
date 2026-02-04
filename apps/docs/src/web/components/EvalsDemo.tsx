@@ -120,7 +120,7 @@ export function EvalsDemo() {
 	return (
 		<div className="flex flex-col gap-4">
 			{/* Generate Button */}
-			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
+			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-4">
 				<div className="flex flex-col gap-4">
 					<div>
 						<span className="text-zinc-500 dark:text-zinc-400 block text-xs mb-2 uppercase">

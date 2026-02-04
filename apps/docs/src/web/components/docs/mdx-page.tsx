@@ -1,8 +1,15 @@
 import { MDXProvider } from '@mdx-js/react';
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { mdxComponents } from './mdx-components';
-import { Skeleton } from '../ui/skeleton';
 import { useToc, type TocItem } from '../../hooks/use-toc';
+import { findCurrentNav } from './nav-data';
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+} from '../ui';
 
 interface Frontmatter {
 	title?: string;
@@ -15,11 +22,10 @@ interface MDXModule {
 	tableOfContents?: TocItem[];
 }
 
-// Dynamic import of all MDX files in content directory
-const mdxModules = import.meta.glob('../../content/**/*.mdx') as Record<
-	string,
-	() => Promise<MDXModule>
->;
+// Eager load all MDX files at build time for instant navigation
+const mdxModules = import.meta.glob('../../content/**/*.mdx', {
+	eager: true,
+}) as Record<string, MDXModule>;
 
 // Map route paths to MDX file paths
 function getModulePath(route: string): string | null {
@@ -42,24 +48,6 @@ interface MDXPageProps {
 	route: string;
 }
 
-// Loading skeleton for MDX content
-function MDXSkeleton() {
-	return (
-		<div className="space-y-4">
-			<Skeleton className="h-10 w-3/4" />
-			<Skeleton className="h-5 w-full" />
-			<div className="h-6" />
-			<Skeleton className="h-4 w-full" />
-			<Skeleton className="h-4 w-full" />
-			<Skeleton className="h-4 w-2/3" />
-			<div className="h-6" />
-			<Skeleton className="h-6 w-1/2" />
-			<Skeleton className="h-4 w-full" />
-			<Skeleton className="h-32 w-full" />
-		</div>
-	);
-}
-
 // Not found component
 function NotFound({ route }: { route: string }) {
 	return (
@@ -72,6 +60,40 @@ function NotFound({ route }: { route: string }) {
 				<code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">#{route}</code>
 			</p>
 		</div>
+	);
+}
+
+// Breadcrumb showing current section
+function PageBreadcrumb({ route }: { route: string }) {
+	const navigate = useNavigate();
+	const { section, item } = findCurrentNav(route);
+
+	// Only show breadcrumb if we're on a child page (not the section index)
+	if (!section || !item) return null;
+
+	const handleClick = (e: React.MouseEvent, url: string) => {
+		e.preventDefault();
+		const to = url === '/' ? '/' : url;
+		void navigate({ to });
+	};
+
+	return (
+		<Breadcrumb className="mb-4">
+			<BreadcrumbList>
+				<BreadcrumbItem>
+					{section.url ? (
+						<BreadcrumbLink
+							href={section.url}
+							onClick={(e) => handleClick(e, section.url!)}
+						>
+							{section.title}
+						</BreadcrumbLink>
+					) : (
+						<span className="text-muted-foreground">{section.title}</span>
+					)}
+				</BreadcrumbItem>
+			</BreadcrumbList>
+		</Breadcrumb>
 	);
 }
 
@@ -96,38 +118,30 @@ function PageHeader({ title, description }: Frontmatter) {
 }
 
 // Inner component that renders MDX with frontmatter
-function MDXRenderer({ modulePath }: { modulePath: string }) {
-	const [frontmatter, setFrontmatter] = useState<Frontmatter>({});
+function MDXRenderer({ modulePath, route }: { modulePath: string; route: string }) {
 	const { setHeadings, setActiveId } = useToc();
+	const mod = mdxModules[modulePath];
 
-	// Create lazy component for the MDX module
-	const MDXContent = useMemo(() => {
-		const loader = mdxModules[modulePath];
-		if (!loader) {
-			throw new Error(`MDX module not found: ${modulePath}`);
+	useEffect(() => {
+		if (!mod) return;
+		const toc = mod.tableOfContents || [];
+		setHeadings(toc);
+		if (toc[0]) {
+			setActiveId(toc[0].id);
 		}
-		return lazy(async () => {
-			const mod = await loader();
-			// Extract frontmatter when module loads
-			setFrontmatter(mod.frontmatter || {});
-			// Set ToC from extracted headings
-			const toc = mod.tableOfContents || [];
-			setHeadings(toc);
-			// Set initial active heading
-			if (toc[0]) {
-				setActiveId(toc[0].id);
-			}
-			return { default: mod.default };
-		});
-	}, [modulePath, setHeadings, setActiveId]);
+	}, [mod, setHeadings, setActiveId]);
+
+	if (!mod) return null;
+
+	const Content = mod.default;
+	const frontmatter = mod.frontmatter || {};
 
 	return (
 		<>
+			<PageBreadcrumb route={route} />
 			<PageHeader {...frontmatter} />
 			<MDXProvider components={mdxComponents}>
-				<Suspense fallback={<MDXSkeleton />}>
-					<MDXContent />
-				</Suspense>
+				<Content />
 			</MDXProvider>
 		</>
 	);
@@ -140,5 +154,5 @@ export function MDXPage({ route }: MDXPageProps) {
 		return <NotFound route={route} />;
 	}
 
-	return <MDXRenderer modulePath={modulePath} />;
+	return <MDXRenderer modulePath={modulePath} route={route} />;
 }

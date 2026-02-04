@@ -1,22 +1,11 @@
 import * as React from 'react';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbLink,
-	BreadcrumbList,
-	BreadcrumbPage,
-	Separator,
-	SidebarInset,
-	SidebarProvider,
-	SidebarTrigger,
-} from '../ui';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '../ui';
 import { AppSidebar } from './app-sidebar';
 import { FooterNav } from './footer-nav';
 import { HeaderLinks } from './header-links';
 import { ModeToggle } from './mode-toggle';
 import { SearchDialog } from './search-dialog';
-import { findCurrentNav } from './nav-data';
 
 export function DocsLayout() {
 	const [searchOpen, setSearchOpen] = React.useState(false);
@@ -47,12 +36,6 @@ export function DocsLayout() {
 		return () => window.removeEventListener('keydown', handleKeyDown);
 	}, []);
 
-	// Get current nav context for breadcrumb
-	const { section, item } = findCurrentNav(currentPage);
-
-	// Only show section breadcrumb if we're on a child page (not the section index)
-	const showSectionBreadcrumb = section && item;
-
 	return (
 		<SidebarProvider className="min-h-0! h-full">
 			<AppSidebar
@@ -63,40 +46,7 @@ export function DocsLayout() {
 			<SidebarInset className="flex flex-col">
 				<header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4">
 					<SidebarTrigger className="-ml-1" />
-					<Separator orientation="vertical" className="mr-2 h-4" />
-
-					<Breadcrumb className="flex-1">
-						<BreadcrumbList>
-							{showSectionBreadcrumb && (() => {
-								const sectionUrl = section.url;
-								return (
-									<BreadcrumbItem>
-										{sectionUrl ? (
-											<BreadcrumbLink
-												href={sectionUrl}
-												onClick={(e) => {
-													e.preventDefault();
-													const path = sectionUrl === '/' ? 'home' : sectionUrl.slice(1);
-													handleNavigate(path);
-												}}
-											>
-												{section.title}
-											</BreadcrumbLink>
-										) : (
-											<span className="text-muted-foreground">{section.title}</span>
-										)}
-									</BreadcrumbItem>
-								);
-							})()}
-
-							{!section && (currentPage === 'home' || currentPage === '') && (
-								<BreadcrumbItem>
-									<BreadcrumbPage>SDK Explorer</BreadcrumbPage>
-								</BreadcrumbItem>
-							)}
-						</BreadcrumbList>
-					</Breadcrumb>
-
+					<div className="flex-1" />
 					<HeaderLinks />
 					<ModeToggle />
 				</header>

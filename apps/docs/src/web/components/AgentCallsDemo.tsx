@@ -171,9 +171,9 @@ export function AgentCallsDemo() {
 	};
 
 	return (
-		<div className="flex flex-col gap-8">
+		<div className="flex flex-col gap-4">
 			{/* Main interaction panel */}
-			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg shadow-2xl flex flex-col gap-6 overflow-hidden p-8">
+			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg shadow-2xl flex flex-col gap-4 overflow-hidden p-4">
 				{/* Hint text */}
 				<p className="text-zinc-500 text-sm m-0">
 					Select a pattern and operation, then click Run to see agent invocation in action.

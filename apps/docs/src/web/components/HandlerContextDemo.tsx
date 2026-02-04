@@ -213,8 +213,8 @@ export function HandlerContextDemo() {
 	};
 
 	return (
-		<div className="flex flex-col gap-6">
-			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
+		<div className="flex flex-col gap-4">
+			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-4">
 				<div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))]">
 					{endpoints.map((ep) => (
 						<Button
@@ -257,7 +257,7 @@ export function HandlerContextDemo() {
 					);
 				})()}
 
-			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
+			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-4">
 				<h3 className="text-zinc-600 dark:text-zinc-400 text-sm font-normal m-0 mb-4">
 					Response{' '}
 					{lastEndpoint && (

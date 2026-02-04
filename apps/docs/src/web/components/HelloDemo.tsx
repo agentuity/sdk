@@ -7,8 +7,8 @@ export function HelloDemo() {
 	const { invoke, isLoading, data: greeting } = useAPI('POST /api/hello');
 
 	return (
-		<div className="flex flex-col gap-8">
-			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg shadow-2xl flex flex-col gap-6 overflow-hidden p-8">
+		<div className="flex flex-col gap-4">
+			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg shadow-2xl flex flex-col gap-4 overflow-hidden p-4">
 				<div className="flex gap-4 items-center">
 					<label htmlFor="hello-name" className="sr-only">Your name</label>
 					<Input

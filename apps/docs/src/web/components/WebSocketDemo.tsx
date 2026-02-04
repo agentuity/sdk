@@ -226,9 +226,9 @@ export function WebSocketDemo() {
 	};
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4">
 			{/* Interactive Demo */}
-			<div className="bg-black border border-zinc-900 rounded-lg p-6">
+			<div className="bg-black border border-zinc-900 rounded-lg p-4">
 				<p className="text-zinc-600 text-xs m-0 mb-4">
 					Note: Connections don't persist across page refresh
 				</p>
@@ -337,7 +337,7 @@ export function WebSocketDemo() {
 			</div>
 
 			{/* Features */}
-			<div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
+			<div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
 				<h2 className="text-lg font-normal text-white mb-4">WebSocket vs SSE</h2>
 
 				<div className="grid grid-cols-2 gap-4">
