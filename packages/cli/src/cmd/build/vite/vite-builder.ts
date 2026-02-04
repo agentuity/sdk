@@ -203,17 +203,17 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 					? JSON.stringify(workbenchRoute)
 					: 'undefined',
 			},
-		build: {
-			outDir: clientOutDir,
-			rollupOptions: {
-				input: htmlPath,
+			build: {
+				outDir: clientOutDir,
+				rollupOptions: {
+					input: htmlPath,
+				},
+				manifest: true,
+				emptyOutDir: true,
+				// Copy public files to output for CDN upload (production builds only)
+				// In dev mode, Vite serves them directly from src/web/public/
+				copyPublicDir: !dev,
 			},
-			manifest: true,
-			emptyOutDir: true,
-			// Copy public files to output for CDN upload (production builds only)
-			// In dev mode, Vite serves them directly from src/web/public/
-			copyPublicDir: !dev,
-		},
 			logLevel: 'warn',
 		};
 	} else if (mode === 'workbench') {
