@@ -6,6 +6,7 @@ import { discoverAgents, type AgentMetadata } from './agent-discovery';
 import { discoverRoutes, type RouteMetadata, type RouteInfo } from './route-discovery';
 import { generateAgentRegistry, generateRouteRegistry } from './registry-generator';
 import { generateLifecycleTypes } from './lifecycle-generator';
+import { generateEnvTypes } from './env-types-generator';
 import { generateMetadata, writeMetadataFile, generateRouteMapping } from './metadata-generator';
 import { generateEntryFile } from '../entry-generator';
 import { loadAgentuityConfig, getWorkbenchConfig } from './config-loader';
@@ -22,6 +23,8 @@ export interface AgentuityPluginOptions {
 	deploymentId?: string;
 	logLevel?: LogLevel;
 	deploymentOptions?: DeployOptions;
+	/** Optional config profile name (e.g., 'staging', 'test') for .env.{profile} files */
+	profile?: string;
 }
 
 /**
@@ -45,6 +48,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 		deploymentId = '',
 		logLevel = 'info',
 		deploymentOptions,
+		profile,
 	} = options;
 	const logger = createLogger(logLevel);
 	const srcDir = join(rootDir, 'src');
@@ -96,6 +100,17 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			logger.debug('[vite-plugin] About to call generateLifecycleTypes');
 			const lifecycleResult = await generateLifecycleTypes(rootDir, srcDir, logger);
 			logger.debug(`[vite-plugin] generateLifecycleTypes returned: ${lifecycleResult}`);
+
+			// Generate environment types from local .env files
+			logger.debug('[vite-plugin] About to call generateEnvTypes');
+			const envTypesResult = await generateEnvTypes({
+				rootDir,
+				srcDir,
+				logger,
+				isProduction: !dev,
+				profile,
+			});
+			logger.debug(`[vite-plugin] generateEnvTypes returned: ${envTypesResult}`);
 
 			// Generate entry file (pass workbench and analytics config)
 			await generateEntryFile({
