@@ -452,11 +452,13 @@
       "version": "1.0.1",
       "dependencies": {
         "@agentuity/core": "workspace:*",
+        "pg": "^8.13.1",
       },
       "devDependencies": {
         "@agentuity/runtime": "workspace:*",
         "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
+        "@types/pg": "^8.11.14",
         "bun-types": "latest",
         "typescript": "^5.9.0",
       },
