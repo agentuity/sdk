@@ -34,12 +34,14 @@ import { AgentuityProvider } from '@agentuity/react';
 
 function App() {
    return (
-      <AgentuityProvider baseUrl="http://localhost:3000">
+      <AgentuityProvider>
          <MyApp />
       </AgentuityProvider>
    );
 }
 \`\`\`
+
+NOTE: `baseUrl="http://localhost:3000"` property only needed if using outside an Agentuity full stack project
 
 ### useAPI Hook
 
