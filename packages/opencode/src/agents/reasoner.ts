@@ -258,7 +258,7 @@ export const reasonerAgent: AgentDefinition = {
 	systemPrompt: REASONER_SYSTEM_PROMPT,
 	mode: 'subagent',
 	tools: {
-		exclude: ['write', 'edit', 'apply_patch', 'task'],
+		exclude: ['write', 'edit', 'apply_patch'],
 	},
 	reasoningEffort: 'high',
 	temperature: 0.3,

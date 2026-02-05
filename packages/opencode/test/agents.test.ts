@@ -149,7 +149,7 @@ describe('Agents', () => {
 			expect(agents.reasoner.mode).toBe('subagent');
 			expect(agents.reasoner.tools?.exclude).toContain('write');
 			expect(agents.reasoner.tools?.exclude).toContain('edit');
-			expect(agents.reasoner.tools?.exclude).toContain('task');
+			expect(agents.reasoner.tools?.exclude).not.toContain('task');
 			expect(agents.reasoner.defaultModel).toBe('openai/gpt-5.2');
 			expect(agents.reasoner.temperature).toBe(0.3);
 		});
