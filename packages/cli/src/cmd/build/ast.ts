@@ -2020,9 +2020,10 @@ export async function parseRoute(
 						}
 
 						// Extract output schema from SSE options: sse({ output: schema }, handler)
-						// Imported schemas need not be exported, but locally-defined schemas
-						// must be exported and are validated by validateSchemaExports below.
-						if (sseCallExpr && !routeConfig.outputSchemaVariable) {
+						// For SSE routes, the sse({ output }) pattern takes precedence over any
+						// validator-provided schema. Imported schemas need not be exported, but
+						// locally-defined schemas must be exported and are validated below.
+						if (sseCallExpr) {
 							const sseSchemaInfo = extractSSEOutputSchema(sseCallExpr);
 							if (sseSchemaInfo.outputSchemaVariable) {
 								// Track where the schema is imported from (if imported)
@@ -2042,10 +2043,15 @@ export async function parseRoute(
 										thepath
 									);
 								}
+								// Override any validator-provided schema with SSE-specific schema
 								routeConfig.outputSchemaVariable = sseSchemaInfo.outputSchemaVariable;
 								if (outputImportInfo) {
 									routeConfig.outputSchemaImportPath = outputImportInfo.modulePath;
 									routeConfig.outputSchemaImportedName = outputImportInfo.importedName;
+								} else {
+									// Clear any validator-provided import info since we're using local schema
+									delete routeConfig.outputSchemaImportPath;
+									delete routeConfig.outputSchemaImportedName;
 								}
 							}
 						}
