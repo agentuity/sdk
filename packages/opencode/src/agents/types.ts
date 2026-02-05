@@ -11,6 +11,12 @@ export interface AgentDefinition {
 	systemPrompt: string;
 	/** Agent mode: 'primary', 'subagent', or 'all' (default) */
 	mode?: 'primary' | 'subagent' | 'all';
+	/**
+	 * Hide agent from @ autocomplete menu.
+	 * Agent can still be invoked programmatically via Task tool.
+	 * Only applies to subagents.
+	 */
+	hidden?: boolean;
 	tools?: {
 		include?: string[];
 		exclude?: string[];

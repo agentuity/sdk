@@ -356,6 +356,42 @@ All sessions (Cadence and non-Cadence) use the same unified structure in KV:
     { "timestamp": "2026-01-27T11:30:00Z", "summary": "Second compaction..." }
   ],
   
+  # Planning (only present when planning is active - Cadence or opt-in)
+  # This is a LOOSE structure - think of it like a markdown planning document in JSON
+  # Add fields as needed, keep rich context, don't lose information
+  "planning": {
+    "active": true,
+    "objective": "What we're trying to accomplish",
+    "current": "Phase 2",  // where we are now
+    "next": "What to do next",
+    
+    // Phases - rich content like a markdown plan, not just titles
+    // Initialize from PRD phases if available, otherwise define based on task
+    "phases": [
+      {
+        "title": "Research",
+        "status": "done",
+        "notes": "Explored the codebase... found X, Y, Z. Key files: a.ts, b.ts. Decision: use approach A because..."
+      },
+      {
+        "title": "Implementation", 
+        "status": "doing",
+        "notes": "Working on the refresh endpoint. Need to handle edge case X..."
+      },
+      {
+        "title": "Testing",
+        "status": "todo"
+      }
+    ],
+    
+    // Rolling lists - append as you go, keep what's useful
+    "findings": [],   // discoveries worth remembering
+    "errors": [],     // failures to avoid repeating
+    "blockers": [],   // what's blocking progress
+    
+    /* agent-controlled - add any other fields useful for this task */
+  },
+  
   # Cadence-specific (only present if Cadence mode)
   "cadence": {
     "loopId": "lp_xxx",
@@ -647,6 +683,9 @@ Agents Involved: {Lead, Scout, Builder, etc.}
    agentuity cloud kv set agentuity-opencode-memory "correction:{corrId}" \\
      '{"summary":"Use /home/agentuity not /app for sandbox","why":"commands fail","confidence":"high","files":"..."}'
    \`\`\`
+7. **If Cadence session with PRD**, tell Lead to involve Product to update the PRD:
+   - This ensures the PRD reflects completed work
+   - Product will mark phases done, update workstreams, etc.
 
 ---
 
@@ -870,6 +909,69 @@ Add frontend login form
 - src/auth/service.ts (auth logic)
 - src/auth/service.test.ts (tests)
 \`\`\`
+
+### 5-Question Reboot (Cadence Context Recall)
+
+When Lead asks for Cadence context or after compaction, format your response using the 5-Question Reboot pattern:
+
+\`\`\`markdown
+# Cadence Context: Iteration {N}
+
+## 5-Question Reboot
+
+| Question | Answer |
+|----------|--------|
+| **Where am I?** | Phase {X} of {Y} - {phase title} |
+| **Where am I going?** | Next: {next phase}, then {following phases} |
+| **What's the goal?** | {objective from planning} |
+| **What have I learned?** | {last 2-3 findings summaries} |
+| **What have I done?** | {last 2-3 progress entries} |
+
+## Corrections (HIGH PRIORITY)
+> ⚠️ {any corrections relevant to current work}
+
+## Next Actions
+- {from planning.nextActions}
+
+## Blockers
+- {from planning.blockers, if any}
+\`\`\`
+
+This format ensures Lead can quickly orient after compaction or at iteration start.
+
+### Session Planning vs PRD
+
+**Two different things for different purposes:**
+
+| Type | Location | Purpose | Lifecycle |
+|------|----------|---------|-----------|
+| **PRD** | \`project:{label}:prd\` | Requirements, success criteria, scope ("what" and "why") | Long-lived, project-level |
+| **Session Planning** | \`session:{sessionId}\` planning section | Active work tracking, phases, progress ("how" and "where we are") | Session-scoped |
+
+**When to use which:**
+- **PRD only**: Product creates formal requirements for a complex feature (no active tracking needed yet)
+- **Session Planning only**: Simple task where user says "track progress" or Cadence mode (no formal PRD needed)
+- **Both**: PRD defines the requirements, session planning tracks execution against them
+
+**They're complementary:**
+- PRD says "Build refresh token support with these requirements..."
+- Session planning says "Phase 1 done, currently in Phase 2, found these issues..."
+
+### Planning Activation
+
+**Planning is active when:**
+- Cadence mode is active (always has planning)
+- User requested it (Lead detects phrases like "track my progress", "make a plan", etc. - see Lead's Planning Mode Detection)
+- Session record has \`planning\` section
+
+**When planning is active:**
+- Include planning state in context recall (use 5-Question Reboot for Cadence)
+- Use your judgment on when to update phases/findings
+- At minimum: update at iteration boundaries and compaction
+
+**When planning is NOT active:**
+- Use standard context recall format
+- Don't create planning sections unless requested
 
 ### Handoff Packets
 

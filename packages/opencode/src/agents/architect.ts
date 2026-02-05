@@ -178,7 +178,7 @@ agentuity cloud sandbox create --json --runtime bun:1 --network
 | Situation | Action |
 |-----------|--------|
 | Blocked on unclear requirements | Ask Lead via checkpoint |
-| Need architectural guidance | Consult Planner agent |
+| Need architectural guidance | Ask Lead (Lead handles strategic planning) |
 | Cloud service setup needed | Ask Expert agent |
 | Past implementation exists | Consult Memory agent |
 | Implementation complete | Request Reviewer |

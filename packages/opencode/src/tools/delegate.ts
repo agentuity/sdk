@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { AgentRole } from '../types';
 
-// Schema for the delegate tool
+// Schema for the delegate tool - includes all agents Lead can delegate to
 export const DelegateArgsSchema = z.object({
 	agent: z
 		.enum([
@@ -12,9 +12,9 @@ export const DelegateArgsSchema = z.object({
 			'memory',
 			'reasoner',
 			'expert',
-			'planner',
 			'runner',
 			'product',
+			'monitor',
 		])
 		.describe('The agent to delegate to'),
 	task: z.string().describe('Clear description of the task to delegate'),
@@ -28,18 +28,17 @@ export const DelegateArgsSchema = z.object({
 export type DelegateArgs = z.infer<typeof DelegateArgsSchema>;
 
 // Agent display names for @mentions
-const AGENT_MENTIONS: Record<AgentRole, string> = {
-	lead: '@Agentuity Coder Lead',
+const AGENT_MENTIONS: Record<Exclude<AgentRole, 'lead'>, string> = {
 	scout: '@Agentuity Coder Scout',
 	builder: '@Agentuity Coder Builder',
 	architect: '@Agentuity Coder Architect',
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
-	planner: '@Agentuity Coder Planner',
 	runner: '@Agentuity Coder Runner',
 	reasoner: '@Agentuity Coder Reasoner',
 	product: '@Agentuity Coder Product',
+	monitor: '@Agentuity Coder Monitor',
 };
 
 export const delegateTool = {
@@ -54,16 +53,16 @@ Use this to:
 - Memory: Store context, remember decisions across sessions
 - Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
 - Expert: Get help with Agentuity CLI and cloud services
-- Planner: Strategic advisor for complex architecture and deep planning (read-only)
 - Runner: Run lint/build/test/typecheck/format/clean/install commands, returns structured results
 - Product: Drive clarity on requirements, validate features, track progress, Cadence briefings
+- Monitor: Watch background tasks and report when they complete
 
 The task will be executed by the specified agent and the result returned.`,
 
 	args: DelegateArgsSchema,
 
 	async execute(args: DelegateArgs, _context: unknown): Promise<{ output: string }> {
-		const mention = AGENT_MENTIONS[args.agent as AgentRole];
+		const mention = AGENT_MENTIONS[args.agent as Exclude<AgentRole, 'lead'>];
 
 		// Build the delegation prompt
 		let prompt = `${mention}\n\n## Task\n${args.task}`;
