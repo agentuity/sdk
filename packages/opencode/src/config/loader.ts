@@ -74,7 +74,7 @@ export async function getConfigPath(): Promise<string> {
  * {
  *   "agent": {
  *     "Agentuity Coder Architect": {
- *       "model": "openai/gpt-5.2-codex",
+ *       "model": "openai/gpt-5.3-codex",
  *       "reasoningEffort": "xhigh"
  *     }
  *   }

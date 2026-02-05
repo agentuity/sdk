@@ -26,6 +26,7 @@ export interface BackgroundTask {
 	progress?: TaskProgress;
 	concurrencyKey?: string; // Active concurrency slot key
 	concurrencyGroup?: string; // Persistent key for re-acquiring on resume
+	notifiedStatuses?: Set<BackgroundTaskStatus>; // Tracks statuses already notified to prevent duplicates
 }
 
 export interface LaunchInput {

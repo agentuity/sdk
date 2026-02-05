@@ -430,7 +430,7 @@ export const builderAgent: AgentDefinition = {
 	id: 'ag-builder',
 	displayName: 'Agentuity Coder Builder',
 	description: 'Agentuity Coder implementer - writes code, makes edits, runs tests and builds',
-	defaultModel: 'anthropic/claude-opus-4-5-20251101',
+	defaultModel: 'anthropic/claude-opus-4-6',
 	systemPrompt: BUILDER_SYSTEM_PROMPT,
 	variant: 'high', // Careful thinking for implementation
 	temperature: 0.1, // Deterministic - precise code generation

@@ -54,12 +54,12 @@ describe('Config', () => {
 	describe('Model helpers', () => {
 		it('isOpenAIModel correctly identifies OpenAI models', () => {
 			expect(isOpenAIModel('openai/gpt-5.2')).toBe(true);
-			expect(isOpenAIModel('openai/gpt-5.2-codex')).toBe(true);
-			expect(isOpenAIModel('anthropic/claude-opus-4-5')).toBe(false);
+			expect(isOpenAIModel('openai/gpt-5.3-codex')).toBe(true);
+			expect(isOpenAIModel('anthropic/claude-opus-4-6')).toBe(false);
 		});
 
 		it('isAnthropicModel correctly identifies Anthropic models', () => {
-			expect(isAnthropicModel('anthropic/claude-opus-4-5')).toBe(true);
+			expect(isAnthropicModel('anthropic/claude-opus-4-6')).toBe(true);
 			expect(isAnthropicModel('anthropic/claude-haiku-4-5')).toBe(true);
 			expect(isAnthropicModel('openai/gpt-5.2')).toBe(false);
 		});

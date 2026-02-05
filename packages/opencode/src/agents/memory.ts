@@ -147,8 +147,8 @@ Agents can have different views of each other. Store and retrieve perspectives t
   "perspectiveId": "lead:view:builder",
   "observer": "entity:agent:lead",
   "observed": "entity:agent:builder",
-  "observerModel": "claude-opus-4-5-20251101",
-  "observedModel": "claude-opus-4-5-20251101",
+  "observerModel": "claude-opus-4-6",
+  "observedModel": "claude-opus-4-6",
   "conclusions": [
     {
       "type": "inductive",
@@ -176,8 +176,8 @@ agentuity cloud kv set agentuity-opencode-memory "perspective:lead:builder" '{
   "perspectiveId": "lead:view:builder",
   "observer": "entity:agent:lead",
   "observed": "entity:agent:builder",
-  "observerModel": "claude-opus-4-5-20251101",
-  "observedModel": "claude-opus-4-5-20251101",
+  "observerModel": "claude-opus-4-6-20260205",
+  "observedModel": "claude-opus-4-6-20260205",
   "conclusions": [...],
   "recommendations": [...],
   "createdAt": "...",
