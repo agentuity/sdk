@@ -41,7 +41,7 @@ You are the Expert agent on the Agentuity Coder team — the cloud architect and
 - **@agentuity/evals**: Agent evaluation framework, \`createPresetEval()\`
 
 ### Frontend Packages (Expert Frontend)
-- **@agentuity/react**: React hooks - \`useAPI()\` for calling agents, \`useWebsocket()\` for real-time
+- **@agentuity/react**: React hooks - \`useAPI()\` with \`invoke()\` for mutations, \`useWebsocket()\` with \`isConnected\`/\`messages\`
 - **@agentuity/frontend**: Framework-agnostic utilities - URL building, reconnection manager
 - **@agentuity/auth**: Authentication - \`createAuth()\`, \`createSessionMiddleware()\`, React AuthProvider
 - **@agentuity/workbench**: Dev UI for testing agents, \`welcome\` export pattern

@@ -50,10 +50,10 @@ import { useAPI } from '@agentuity/react';
 
 function ChatComponent() {
    // For POST/mutation routes
-   const { data, call, isLoading, error } = useAPI('POST /agent/chat');
+   const { data, invoke, isLoading, isSuccess, isError, error, reset } = useAPI('POST /agent/chat');
 
    const handleSubmit = async (message: string) => {
-      await call({ message });
+      await invoke({ message });
    };
 
    return (
@@ -66,18 +66,25 @@ function ChatComponent() {
    );
 }
 
-// For GET routes (auto-fetches)
+// For GET routes (auto-fetches on mount)
 function UserProfile() {
-   const { data, isLoading, refetch } = useAPI('GET /api/user');
+   const { data, isLoading, isFetching, refetch } = useAPI('GET /api/user');
    // data is fetched automatically on mount
+   // isFetching is true during refetches
 }
 \`\`\`
 
 **Options:**
 \`\`\`typescript
-const { data, call } = useAPI({
+const { data, invoke } = useAPI({
    route: 'POST /agent/my-agent',
    headers: { 'X-Custom': 'value' },
+});
+
+// Streaming support
+const { data, invoke } = useAPI('POST /agent/stream', {
+   delimiter: '\\n',
+   onChunk: (chunk) => console.log('Received chunk:', chunk),
 });
 \`\`\`
 
@@ -89,18 +96,31 @@ Real-time bidirectional communication.
 import { useWebsocket } from '@agentuity/react';
 
 function LiveChat() {
-   const { connected, send, setHandler, close } = useWebsocket('/ws/chat');
+   const { 
+      isConnected, 
+      send, 
+      close, 
+      data,           // Latest message
+      messages,       // All messages array
+      clearMessages,  // Clear message history
+      error,
+      readyState 
+   } = useWebsocket('/ws/chat');
 
+   // Messages are accessed via data (latest) or messages (all)
    useEffect(() => {
-      setHandler((message) => {
-         console.log('Received:', message);
-      });
-   }, [setHandler]);
+      if (data) {
+         console.log('Received:', data);
+      }
+   }, [data]);
 
    return (
       <div>
-         <p>Status: {connected ? 'Connected' : 'Disconnected'}</p>
+         <p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
          <button onClick={() => send({ type: 'ping' })}>Ping</button>
+         <ul>
+            {messages.map((msg, i) => <li key={i}>{JSON.stringify(msg)}</li>)}
+         </ul>
       </div>
    );
 }
@@ -110,6 +130,7 @@ function LiveChat() {
 - Auto-reconnection on connection loss
 - Message queuing when disconnected
 - Auth tokens auto-injected when AuthProvider is in tree
+- Access latest message via \`data\` or all via \`messages\` array
 
 ### useAuth Hook
 
@@ -438,8 +459,10 @@ All frontend packages build on @agentuity/core types:
 
 | Mistake | Better Approach | Why |
 |---------|-----------------|-----|
-| \`fetch('/agent/my-agent', ...)\` | \`useAPI('/agent/my-agent')\` | Type-safe, auto-auth |
+| \`fetch('/agent/my-agent', ...)\` | \`useAPI('POST /agent/my-agent')\` | Type-safe, auto-auth |
 | Manual WebSocket handling | \`useWebsocket('/ws/path')\` | Auto-reconnect, queuing |
+| Using \`call()\` on useAPI | Use \`invoke()\` | Correct method name |
+| Using \`connected\` on useWebsocket | Use \`isConnected\` | Correct property name |
 | \`window.location.origin\` everywhere | \`defaultBaseUrl\` from frontend | Cross-platform |
 | Rolling custom auth | Consider \`@agentuity/auth\` | Battle-tested, multi-tenant |
 | Storing tokens in localStorage | Use AuthProvider | More secure, auto-refresh |
