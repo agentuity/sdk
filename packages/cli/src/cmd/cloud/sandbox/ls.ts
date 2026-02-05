@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getSandboxRegion, createSandboxClient } from './util';
+import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxListFiles } from '@agentuity/server';
+import { sandboxListFiles, sandboxResolve } from '@agentuity/server';
 
 const FileInfoSchema = z.object({
 	path: z.string(),
@@ -23,7 +23,7 @@ export const lsSubcommand = createCommand({
 	aliases: ['lsf'],
 	description: 'List files in a sandbox directory',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox files sbx_abc123'),
@@ -61,8 +61,12 @@ export const lsSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, config, logger, orgId } = ctx;
-		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
+		const { args, opts, options, auth, logger, apiClient } = ctx;
+
+		// Resolve sandbox to get region and orgId using CLI API
+		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+		const { region, orgId } = sandboxInfo;
+
 		const client = createSandboxClient(logger, auth, region);
 
 		const result = await sandboxListFiles(client, {

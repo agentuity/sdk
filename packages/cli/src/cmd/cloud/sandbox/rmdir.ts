@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, getSandboxRegion } from './util';
+import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxRmDir } from '@agentuity/server';
+import { sandboxRmDir, sandboxResolve } from '@agentuity/server';
 
 const RmDirResponseSchema = z.object({
 	success: z.boolean(),
@@ -14,7 +14,7 @@ export const rmdirSubcommand = createCommand({
 	name: 'rmdir',
 	description: 'Remove a directory from a sandbox',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox rmdir sbx_abc123 /path/to/dir'),
@@ -44,8 +44,12 @@ export const rmdirSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, logger, orgId, config } = ctx;
-		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
+		const { args, opts, options, auth, logger, apiClient } = ctx;
+
+		// Resolve sandbox to get region and orgId using CLI API
+		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+		const { region, orgId } = sandboxInfo;
+
 		const client = createSandboxClient(logger, auth, region);
 
 		await sandboxRmDir(client, {

@@ -1,16 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Logger, FileToWrite } from '@agentuity/core';
-import { APIClient, getServiceUrls, sandboxGet } from '@agentuity/server';
+import { APIClient, sandboxGet } from '@agentuity/server';
 import type { AuthData } from '../../../types';
+import { getCatalystUrl } from '../../../catalyst';
 import { getGlobalCatalystAPIClient } from '../../../config';
-import { getResourceRegion, setResourceRegion, deleteResourceRegion } from '../../../cache';
+import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache';
 import * as tui from '../../../tui';
 import { ErrorCode } from '../../../errors';
 
 export function createSandboxClient(logger: Logger, auth: AuthData, region: string): APIClient {
-	const urls = getServiceUrls(region);
-	return new APIClient(urls.catalyst, logger, auth.apiKey);
+	return new APIClient(getCatalystUrl(region), logger, auth.apiKey);
 }
 
 /**
@@ -22,13 +22,13 @@ export async function getSandboxRegion(
 	auth: AuthData,
 	profileName = 'production',
 	sandboxId: string,
-	orgId: string
+	orgId?: string
 ): Promise<string> {
 	// Check cache first
-	const cachedRegion = await getResourceRegion('sandbox', profileName, sandboxId);
-	if (cachedRegion) {
-		logger.trace(`[sandbox] Found cached region for ${sandboxId}: ${cachedRegion}`);
-		return cachedRegion;
+	const cachedInfo = await getResourceInfo('sandbox', profileName, sandboxId);
+	if (cachedInfo?.region) {
+		logger.trace(`[sandbox] Found cached region for ${sandboxId}: ${cachedInfo.region}`);
+		return cachedInfo.region;
 	}
 
 	// Fallback to API lookup using global client
@@ -41,7 +41,7 @@ export async function getSandboxRegion(
 	}
 
 	// Cache the result
-	await setResourceRegion('sandbox', profileName, sandboxId, sandbox.region);
+	await setResourceInfo('sandbox', profileName, sandboxId, sandbox.region, orgId);
 	logger.trace(`[sandbox] Cached region for ${sandboxId}: ${sandbox.region}`);
 
 	return sandbox.region;
@@ -55,7 +55,7 @@ export async function cacheSandboxRegion(
 	sandboxId: string,
 	region: string
 ): Promise<void> {
-	await setResourceRegion('sandbox', profileName, sandboxId, region);
+	await setResourceInfo('sandbox', profileName, sandboxId, region);
 }
 
 /**

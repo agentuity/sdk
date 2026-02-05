@@ -2,59 +2,18 @@ import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
-import { sandboxList } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import type { SandboxStatus } from '@agentuity/core';
-
-const SandboxRuntimeInfoSchema = z.object({
-	id: z.string().describe('Runtime ID'),
-	name: z.string().describe('Runtime name'),
-	iconUrl: z.string().optional().describe('URL for runtime icon'),
-	brandColor: z.string().optional().describe('Brand color for the runtime'),
-	tags: z.array(z.string()).optional().describe('Runtime tags'),
-});
-
-const SandboxSnapshotUserInfoSchema = z.object({
-	id: z.string().describe('User ID'),
-	firstName: z.string().optional().describe("User's first name"),
-	lastName: z.string().optional().describe("User's last name"),
-});
-
-const SandboxSnapshotOrgInfoSchema = z.object({
-	id: z.string().describe('Organization ID'),
-	name: z.string().describe('Organization name'),
-	slug: z.string().optional().describe('Organization slug'),
-});
-
-const SandboxSnapshotInfoSchema = z.discriminatedUnion('public', [
-	z.object({
-		id: z.string().describe('Snapshot ID'),
-		name: z.string().optional().describe('Snapshot name'),
-		tag: z.string().nullable().optional().describe('Snapshot tag'),
-		fullName: z.string().optional().describe('Full name with org slug'),
-		public: z.literal(true).describe('Public snapshot'),
-		org: SandboxSnapshotOrgInfoSchema.describe('Organization that owns the public snapshot'),
-	}),
-	z.object({
-		id: z.string().describe('Snapshot ID'),
-		name: z.string().optional().describe('Snapshot name'),
-		tag: z.string().nullable().optional().describe('Snapshot tag'),
-		fullName: z.string().optional().describe('Full name with org slug'),
-		public: z.literal(false).describe('Private snapshot'),
-		user: SandboxSnapshotUserInfoSchema.describe('User who created the private snapshot'),
-	}),
-]);
+import { cliSandboxList } from '@agentuity/server';
 
 const SandboxInfoSchema = z.object({
-	sandboxId: z.string().describe('Sandbox ID'),
-	name: z.string().optional().describe('Sandbox name'),
-	description: z.string().optional().describe('Sandbox description'),
+	id: z.string().describe('Sandbox ID'),
+	name: z.string().nullable().describe('Sandbox name'),
+	description: z.string().nullable().describe('Sandbox description'),
 	status: z.string().describe('Current status'),
-	createdAt: z.string().describe('Creation timestamp'),
-	region: z.string().optional().describe('Region where sandbox is running'),
-	runtime: SandboxRuntimeInfoSchema.optional().describe('Runtime information'),
-	snapshot: SandboxSnapshotInfoSchema.optional().describe('Snapshot information'),
-	executions: z.number().describe('Number of executions'),
+	createdAt: z.string().nullable().describe('Creation timestamp'),
+	region: z.string().nullable().describe('Region where sandbox is running'),
+	orgId: z.string().describe('Organization ID'),
+	orgName: z.string().nullable().describe('Organization name'),
+	projectId: z.string().nullable().describe('Project ID'),
 });
 
 const SandboxListResponseSchema = z.object({
@@ -67,7 +26,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List sandboxes with optional filtering',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	optional: { project: true },
 	idempotent: true,
 	pagination: {
@@ -93,6 +52,10 @@ export const listSubcommand = createCommand({
 			description: 'List sandboxes for a specific project',
 		},
 		{
+			command: getCommand('cloud sandbox list --org-id org_123'),
+			description: 'List sandboxes for a specific organization',
+		},
+		{
 			command: getCommand('cloud sandbox list --limit 10 --offset 20'),
 			description: 'List with pagination',
 		},
@@ -108,6 +71,7 @@ export const listSubcommand = createCommand({
 				.optional()
 				.describe('Filter by status'),
 			projectId: z.string().optional().describe('Filter by project ID'),
+			orgId: z.string().optional().describe('Filter by organization ID'),
 			all: z.boolean().optional().describe('List all sandboxes regardless of project context'),
 			limit: z.number().optional().describe('Maximum number of results (default: 50, max: 100)'),
 			offset: z.number().optional().describe('Pagination offset'),
@@ -116,57 +80,67 @@ export const listSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { opts, options, auth, project, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { opts, options, project, apiClient } = ctx;
 
 		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
 
-		const result = await sandboxList(client, {
-			orgId,
+		const result = await cliSandboxList(apiClient, {
 			projectId,
-			status: opts.status as SandboxStatus | undefined,
+			orgId: opts.orgId,
+			status: opts.status,
 			limit: opts.limit,
 			offset: opts.offset,
 		});
+
+		// Check if results span multiple orgs
+		const uniqueOrgIds = new Set(result.sandboxes.map((s) => s.orgId));
+		const showOrgColumn = uniqueOrgIds.size > 1;
 
 		if (!options.json) {
 			if (result.sandboxes.length === 0) {
 				tui.info('No sandboxes found');
 			} else {
 				const tableData = result.sandboxes.map((sandbox) => {
-					return {
-						ID: sandbox.sandboxId,
+					const row: Record<string, string | number> = {
+						ID: sandbox.id,
 						Name: sandbox.name || '-',
-						Runtime: sandbox.runtime?.name || '-',
 						Status: sandbox.status,
-						'Created At': sandbox.createdAt,
-						Executions: sandbox.executions,
+						Region: sandbox.region || '-',
+						'Created At': sandbox.createdAt || '-',
 					};
+					if (showOrgColumn) {
+						row.Organization = sandbox.orgName || sandbox.orgId;
+					}
+					return row;
 				});
-				tui.table(tableData, [
-					{ name: 'ID', alignment: 'left' },
-					{ name: 'Name', alignment: 'left' },
-					{ name: 'Runtime', alignment: 'left' },
-					{ name: 'Status', alignment: 'left' },
-					{ name: 'Created At', alignment: 'left' },
-					{ name: 'Executions', alignment: 'right' },
-				]);
 
+				const columns = [
+					{ name: 'ID', alignment: 'left' as const },
+					{ name: 'Name', alignment: 'left' as const },
+					{ name: 'Status', alignment: 'left' as const },
+					{ name: 'Region', alignment: 'left' as const },
+					{ name: 'Created At', alignment: 'left' as const },
+				];
+				if (showOrgColumn) {
+					columns.push({ name: 'Organization', alignment: 'left' as const });
+				}
+
+				tui.table(tableData, columns);
 				tui.info(`Total: ${result.total} ${tui.plural(result.total, 'sandbox', 'sandboxes')}`);
 			}
 		}
 
 		return {
 			sandboxes: result.sandboxes.map((s) => ({
-				sandboxId: s.sandboxId,
+				id: s.id,
 				name: s.name,
 				description: s.description,
 				status: s.status,
 				createdAt: s.createdAt,
 				region: s.region,
-				runtime: s.runtime,
-				snapshot: s.snapshot,
-				executions: s.executions,
+				orgId: s.orgId,
+				orgName: s.orgName,
+				projectId: s.projectId,
 			})),
 			total: result.total,
 		};
