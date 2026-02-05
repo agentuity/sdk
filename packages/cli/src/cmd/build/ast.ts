@@ -1247,6 +1247,55 @@ function extractZValidatorSchema(callExpr: ASTCallExpression): {
 }
 
 /**
+ * Extract output schema from SSE options object.
+ * Example: sse({ output: MySchema }, handler)
+ *
+ * @param callExpr - The SSE CallExpression AST node
+ * @returns Object with outputSchemaVariable if found
+ */
+function extractSSEOutputSchema(callExpr: ASTCallExpression): {
+	outputSchemaVariable?: string;
+} {
+	const result: { outputSchemaVariable?: string } = {};
+
+	// sse() can be called as:
+	// 1. sse(handler) - no schema
+	// 2. sse({ output: schema }, handler) - with schema
+	if (!callExpr.arguments || callExpr.arguments.length === 0) {
+		return result;
+	}
+
+	// Check if first argument is an options object with 'output' property
+	const firstArg = callExpr.arguments[0] as ASTNode;
+	if (firstArg.type !== 'ObjectExpression') {
+		// First argument is handler function, no options
+		return result;
+	}
+
+	const objExpr = firstArg as ASTObjectExpression;
+	for (const prop of objExpr.properties) {
+		// Extract key name - could be Identifier or Literal
+		let keyName: string | undefined;
+		const propKey = prop.key as { type: string; name?: string; value?: unknown };
+		if (propKey.type === 'Identifier') {
+			keyName = propKey.name;
+		} else if (propKey.type === 'Literal') {
+			keyName = String(propKey.value);
+		}
+
+		if (!keyName) continue;
+
+		// Look for the 'output' property
+		if (keyName === 'output' && prop.value.type === 'Identifier') {
+			result.outputSchemaVariable = (prop.value as ASTNodeIdentifier).name;
+			break;
+		}
+	}
+
+	return result;
+}
+
+/**
  * Extract schema from Hono validator('json', callback) pattern
  * Example: validator('json', (value, c) => { const result = mySchema['~standard'].validate(value); ... })
  * Searches the callback function body for schema.validate() or schema['~standard'].validate() calls
@@ -1543,6 +1592,8 @@ export async function parseRoute(
 						const action = statement.expression.arguments[0];
 						let suffix = '';
 						let config: Record<string, unknown> | undefined;
+						// Capture SSE call expression for output schema extraction
+						let sseCallExpr: ASTCallExpression | undefined;
 						// Supported HTTP methods that can be represented in BuildMetadata
 						const SUPPORTED_HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch'] as const;
 						type SupportedHttpMethod = (typeof SUPPORTED_HTTP_METHODS)[number];
@@ -1804,6 +1855,10 @@ export async function parseRoute(
 												calleeName === 'stream'
 											) {
 												type = calleeName;
+												// Capture SSE call expression for output schema extraction
+												if (calleeName === 'sse') {
+													sseCallExpr = callExpr;
+												}
 												break;
 											}
 											if (calleeName === 'cron') {
@@ -1956,6 +2011,23 @@ export async function parseRoute(
 							}
 							if (validatorInfo.stream !== undefined) {
 								routeConfig.stream = validatorInfo.stream;
+							}
+						}
+
+						// Extract output schema from SSE options: sse({ output: schema }, handler)
+						// This provides typed SSE routes without requiring exported schemas
+						if (sseCallExpr && !routeConfig.outputSchemaVariable) {
+							const sseSchemaInfo = extractSSEOutputSchema(sseCallExpr);
+							if (sseSchemaInfo.outputSchemaVariable) {
+								routeConfig.outputSchemaVariable = sseSchemaInfo.outputSchemaVariable;
+								// Track where the schema is imported from (if imported)
+								const outputImportInfo = importInfoMap.get(
+									sseSchemaInfo.outputSchemaVariable
+								);
+								if (outputImportInfo) {
+									routeConfig.outputSchemaImportPath = outputImportInfo.modulePath;
+									routeConfig.outputSchemaImportedName = outputImportInfo.importedName;
+								}
 							}
 						}
 

@@ -1,6 +1,7 @@
 import type { Context, Handler } from 'hono';
 import { stream as honoStream } from 'hono/streaming';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
+import type { Schema } from '@agentuity/schema';
 import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 
@@ -61,6 +62,43 @@ export type SSEHandler<E extends Env = Env> = (
 ) => void | Promise<void>;
 
 /**
+ * Options for configuring SSE middleware.
+ *
+ * @template TOutput - The type of data that will be sent through the SSE stream.
+ *   This is used for type inference in generated route registries and does not
+ *   perform runtime validation (SSE data is serialized via JSON.stringify).
+ */
+export interface SSEOptions<TOutput = unknown> {
+	/**
+	 * Schema defining the output type for SSE events.
+	 *
+	 * This schema is used for:
+	 * - Type inference in generated `routes.ts` registry
+	 * - Automatic typing of `useEventStream` hook's `data` property
+	 *
+	 * The schema is NOT used for runtime validation - SSE messages are sent
+	 * as-is through the stream. Use this for TypeScript type safety only.
+	 *
+	 * @example
+	 * ```typescript
+	 * import { s } from '@agentuity/schema';
+	 *
+	 * const StreamEventSchema = s.object({
+	 *   type: s.enum(['token', 'complete', 'error']),
+	 *   content: s.optional(s.string()),
+	 * });
+	 *
+	 * router.get('/stream', sse({ output: StreamEventSchema }, async (c, stream) => {
+	 *   await stream.writeSSE({ data: JSON.stringify({ type: 'token', content: 'Hello' }) });
+	 *   await stream.writeSSE({ data: JSON.stringify({ type: 'complete' }) });
+	 *   stream.close();
+	 * }));
+	 * ```
+	 */
+	output: Schema<TOutput, TOutput>;
+}
+
+/**
  * Format an SSE message according to the SSE specification.
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
  */
@@ -95,7 +133,7 @@ function formatSSEMessage(message: SSEMessage): string {
  *
  * Use with router.get() to create an SSE endpoint:
  *
- * @example
+ * @example Basic SSE without typed output
  * ```typescript
  * import { createRouter, sse } from '@agentuity/runtime';
  *
@@ -120,11 +158,58 @@ function formatSSEMessage(message: SSEMessage): string {
  * }));
  * ```
  *
+ * @example SSE with typed output schema
+ * ```typescript
+ * import { createRouter, sse } from '@agentuity/runtime';
+ * import { s } from '@agentuity/schema';
+ *
+ * // Define your SSE event schema
+ * export const outputSchema = s.object({
+ *   type: s.enum(['token', 'complete', 'error']),
+ *   content: s.optional(s.string()),
+ * });
+ *
+ * const router = createRouter();
+ *
+ * // Pass schema as first argument for typed SSE routes
+ * router.get('/stream', sse({ output: outputSchema }, async (c, stream) => {
+ *   await stream.writeSSE({ data: JSON.stringify({ type: 'token', content: 'Hello' }) });
+ *   await stream.writeSSE({ data: JSON.stringify({ type: 'complete' }) });
+ *   stream.close();
+ * }));
+ *
+ * // On the frontend, useEventStream will now have typed data:
+ * // const { data } = useEventStream('/api/stream');
+ * // data.type is 'token' | 'complete' | 'error'
+ * ```
+ *
  * @param handler - Handler function receiving context and SSE stream
+ * @param options - Optional configuration with output schema for type inference
  * @returns Hono handler for SSE streaming
  * @see https://github.com/agentuity/sdk/issues/471
+ * @see https://github.com/agentuity/sdk/issues/855
  */
-export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
+export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E>;
+/**
+ * Creates an SSE middleware with typed output schema.
+ *
+ * @param options - Configuration object containing the output schema
+ * @param handler - Handler function receiving context and SSE stream
+ * @returns Hono handler for SSE streaming
+ */
+export function sse<E extends Env = Env, TOutput = unknown>(
+	options: SSEOptions<TOutput>,
+	handler: SSEHandler<E>
+): Handler<E>;
+export function sse<E extends Env = Env, TOutput = unknown>(
+	handlerOrOptions: SSEHandler<E> | SSEOptions<TOutput>,
+	maybeHandler?: SSEHandler<E>
+): Handler<E> {
+	// Determine if first arg is options or handler
+	const handler: SSEHandler<E> =
+		typeof handlerOrOptions === 'function' ? handlerOrOptions : maybeHandler!;
+	// Note: options.output is captured for type inference but not used at runtime
+	// The CLI extracts this during build to generate typed route registries
 	return (c: Context<E>) => {
 		const asyncLocalStorage = getAgentAsyncLocalStorage();
 		const capturedContext = asyncLocalStorage.getStore();
