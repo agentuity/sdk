@@ -118,7 +118,7 @@ describe('Kysely PostgresDialect compatibility', () => {
 			pool.end();
 		});
 
-		it('can create Kysely instance with pool factory function', () => {
+		it('can create Kysely instance with pool factory function', async () => {
 			// Kysely also accepts a factory function
 			const db = new Kysely<Database>({
 				dialect: new PostgresDialect({
@@ -131,7 +131,11 @@ describe('Kysely PostgresDialect compatibility', () => {
 				}),
 			});
 
-			expect(db).toBeInstanceOf(Kysely);
+			try {
+				expect(db).toBeInstanceOf(Kysely);
+			} finally {
+				await db.destroy();
+			}
 		});
 	});
 
