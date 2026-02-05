@@ -1,24 +1,23 @@
 import { z } from 'zod';
 import { StructuredError } from '@agentuity/core';
-import type { APIClient } from '../api';
+import { APIResponseSchemaOptionalData, type APIClient } from '../api';
 
 /**
- * Response schema for sandbox resolve endpoint
+ * Data schema for sandbox resolve endpoint
  */
-const SandboxResolveResponseSchema = z.object({
-	success: z.boolean(),
-	message: z.string().optional(),
-	data: z
-		.object({
-			id: z.string(),
-			name: z.string().nullable(),
-			region: z.string(),
-			status: z.string(),
-			orgId: z.string(),
-			projectId: z.string().nullable(),
-		})
-		.optional(),
+const SandboxResolveDataSchema = z.object({
+	id: z.string(),
+	name: z.string().nullable(),
+	region: z.string(),
+	status: z.string(),
+	orgId: z.string(),
+	projectId: z.string().nullable(),
 });
+
+/**
+ * Response schema for sandbox resolve endpoint using standardized discriminated union
+ */
+const SandboxResolveResponseSchema = APIResponseSchemaOptionalData(SandboxResolveDataSchema);
 
 /**
  * Resolved sandbox info returned from the CLI API
@@ -69,9 +68,20 @@ export async function sandboxResolve(
 		SandboxResolveResponseSchema
 	);
 
-	if (!response.success || !response.data) {
+	if (!response.success) {
+		// Extract status code from error code if present (e.g., "NOT_FOUND" -> 404)
+		// Fall back to 404 if no code is provided
+		const statusCode = response.code === 'NOT_FOUND' ? 404 : response.code ? 400 : 404;
 		throw new SandboxResolveError({
 			message: response.message || 'Sandbox not found',
+			sandboxId,
+			statusCode,
+		});
+	}
+
+	if (!response.data) {
+		throw new SandboxResolveError({
+			message: 'Sandbox not found',
 			sandboxId,
 			statusCode: 404,
 		});

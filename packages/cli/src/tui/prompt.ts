@@ -101,9 +101,14 @@ export class PromptFlow {
 		if (!this.isInteractive()) {
 			if (hasDefault) {
 				const validationResult = validate ? await validate(initial) : true;
-				if (validationResult === true || validationResult === undefined) {
+				if (validationResult === true) {
 					return initial;
 				}
+				// Validation failed - include the error message if it's a string
+				const errorDetail = typeof validationResult === 'string' ? `: ${validationResult}` : '';
+				throw this.nonInteractiveError(
+					`Cannot prompt for "${message}" in non-interactive mode. Validation failed for default value "${initial}"${errorDetail}.`
+				);
 			}
 			throw this.nonInteractiveError(`Cannot prompt for "${message}" in non-interactive mode.`);
 		}

@@ -225,12 +225,23 @@ async function selectRegion(regions: RegionList, defaultRegion?: string): Promis
 	// Check for non-interactive mode before prompting
 	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
 	if (isNonInteractive) {
-		// In non-interactive mode, use default region if available
+		// In non-interactive mode, validate defaultRegion against available regions
 		if (defaultRegion) {
-			return defaultRegion;
+			const isValidRegion = regions.some((r) => r.region === defaultRegion);
+			if (isValidRegion) {
+				return defaultRegion;
+			}
+			const supportedRegions = regions.map((r) => r.region).join(', ');
+			tui.fatal(
+				`Region "${defaultRegion}" is not supported. ` +
+					`Available regions: ${supportedRegions}. ` +
+					'Use --region flag or set AGENTUITY_REGION environment variable with a valid region.'
+			);
 		}
+		const supportedRegions = regions.map((r) => r.region).join(', ');
 		tui.fatal(
 			'Cannot select region in non-interactive mode. ' +
+				`Available regions: ${supportedRegions}. ` +
 				'Use --region flag or set AGENTUITY_REGION environment variable.'
 		);
 	}
