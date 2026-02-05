@@ -502,6 +502,13 @@ export async function createCLI(version: string): Promise<Command> {
 	skipVersionCheckOption.hideHelp();
 	program.addOption(skipVersionCheckOption);
 
+	const profileOption = program.createOption(
+		'--profile <name>',
+		'Override the default profile (takes precedence over AGENTUITY_PROFILE env var)'
+	);
+	profileOption.hideHelp();
+	program.addOption(profileOption);
+
 	program.action(() => {
 		program.help();
 	});

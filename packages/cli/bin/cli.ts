@@ -244,7 +244,7 @@ if (earlyOpts.skipVersionCheck) {
 	process.env.AGENTUITY_SKIP_VERSION_CHECK = '1';
 }
 
-const config = await loadConfig(earlyOpts.config);
+const config = await loadConfig(earlyOpts.config, false, earlyOpts.profile);
 
 // Update internal logger with userId if available from auth (keychain or config)
 try {

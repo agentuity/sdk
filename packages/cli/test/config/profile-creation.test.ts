@@ -2,7 +2,7 @@ import { test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadConfig, generateYAMLTemplate, saveConfig } from '../../src/config';
+import { loadConfig, generateYAMLTemplate, saveConfig, getProfile } from '../../src/config';
 import type { Config } from '../../src/types';
 
 let testConfigDir: string;
@@ -204,4 +204,55 @@ test('profile creation > multiple loads of custom path should reload from disk',
 	const load2 = await loadConfig(prodPath);
 	expect(load2?.auth).toBeDefined();
 	expect(load2?.name).toBe('production');
+});
+
+test('profile flag > loadConfig with explicit customPath loads correct profile', async () => {
+	const configDir = join(testConfigDir, '.config', 'agentuity');
+	await mkdir(configDir, { recursive: true });
+
+	// Create a specific profile with explicit path
+	const testProfile: Config = {
+		name: 'my-custom-profile',
+		overrides: {
+			api_url: 'https://custom-api.example.com',
+		},
+	};
+
+	const profilePath = join(configDir, 'my-custom-profile.yaml');
+	await saveConfig(testProfile, profilePath);
+
+	// Load using explicit customPath (first parameter) - this bypasses profile resolution entirely
+	const config = await loadConfig(profilePath, true);
+	expect(config).not.toBeNull();
+	expect(config?.name).toBe('my-custom-profile');
+	expect(config?.overrides?.api_url).toBe('https://custom-api.example.com');
+});
+
+test('profile flag > loadConfig customPath takes precedence over profileFromFlag', async () => {
+	// This test verifies that when customPath is provided, profileFromFlag is ignored
+	const configDir = join(testConfigDir, '.config', 'agentuity');
+	await mkdir(configDir, { recursive: true });
+
+	// Create a profile
+	const testProfile: Config = {
+		name: 'test-profile',
+	};
+	const profilePath = join(configDir, 'test-profile.yaml');
+	await saveConfig(testProfile, profilePath);
+
+	// When customPath is provided, profileFromFlag is ignored (customPath takes precedence)
+	// Note: 'ignored-profile' would normally throw an error if used, but customPath bypasses it
+	const config = await loadConfig(profilePath, true, 'ignored-profile');
+	expect(config).not.toBeNull();
+	expect(config?.name).toBe('test-profile');
+});
+
+test('profile flag > getProfile throws error when profile file does not exist', async () => {
+	// When --profile flag is provided but the file doesn't exist, getProfile should throw
+	// rather than silently falling back to env var or default
+	const nonExistentProfile = 'non-existent-profile-12345';
+
+	await expect(getProfile(nonExistentProfile)).rejects.toThrow(
+		`Profile '${nonExistentProfile}' not found`
+	);
 });

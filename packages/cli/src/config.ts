@@ -51,8 +51,21 @@ export async function saveProfile(path: string): Promise<void> {
 	await writeFile(getProfilePath(), path, { mode: 0o600 });
 }
 
-export async function getProfile(): Promise<string> {
-	// Check environment variable first
+export async function getProfile(profileFromFlag?: string): Promise<string> {
+	// Check --profile flag first (highest priority)
+	if (profileFromFlag) {
+		const flagProfilePath = join(getDefaultConfigDir(), `${profileFromFlag}.yaml`);
+		const flagFile = Bun.file(flagProfilePath);
+		if (await flagFile.exists()) {
+			return flagProfilePath;
+		}
+		// If --profile flag was explicitly provided but file doesn't exist, throw an error
+		throw new Error(
+			`Profile '${profileFromFlag}' not found. Expected file at: ${flagProfilePath}`
+		);
+	}
+
+	// Check environment variable second
 	if (process.env.AGENTUITY_PROFILE) {
 		const profileName = process.env.AGENTUITY_PROFILE;
 		const envProfilePath = join(getDefaultConfigDir(), `${profileName}.yaml`);
@@ -127,12 +140,16 @@ function expandTilde(path: string): string {
 
 let cachedConfig: Config | null | undefined;
 
-export async function loadConfig(customPath?: string, skipCache = false): Promise<Config | null> {
+export async function loadConfig(
+	customPath?: string,
+	skipCache = false,
+	profileFromFlag?: string
+): Promise<Config | null> {
 	// Use cache if available and not skipped
 	if (!skipCache && cachedConfig !== undefined) {
 		return cachedConfig;
 	}
-	const configPath = customPath ? expandTilde(customPath) : await getProfile();
+	const configPath = customPath ? expandTilde(customPath) : await getProfile(profileFromFlag);
 
 	try {
 		const file = Bun.file(configPath);
