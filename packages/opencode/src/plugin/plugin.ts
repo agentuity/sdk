@@ -277,13 +277,18 @@ function createConfigHandler(
 			const existingPermissions = (config.permission as Record<string, unknown>) ?? {};
 			const existingExternalDir =
 				(existingPermissions.external_directory as Record<string, string>) ?? {};
+
+			// Normalize TMPDIR: strip trailing slashes, then append /**
+			const tmpdir = process.env.TMPDIR?.replace(/\/+$/, '');
+			const tmpdirPattern = tmpdir ? `${tmpdir}/**` : null;
+
 			config.permission = {
 				...existingPermissions,
 				external_directory: {
 					...existingExternalDir,
 					'/tmp/**': 'allow',
 					// Also allow OS-specific temp directories
-					...(process.env.TMPDIR ? { [`${process.env.TMPDIR}**`]: 'allow' } : {}),
+					...(tmpdirPattern ? { [tmpdirPattern]: 'allow' } : {}),
 				},
 			};
 		}

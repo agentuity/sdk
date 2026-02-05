@@ -425,12 +425,11 @@ export function App() {
 ### Protected Component
 
 \`\`\`tsx
-import { useAuth } from '@agentuity/react';
-import { useAgent } from '@agentuity/react';
+import { useAuth, useAPI } from '@agentuity/react';
 
 function Dashboard() {
    const { isAuthenticated, authLoading } = useAuth();
-   const { data, run } = useAgent('dashboard-data');
+   const { data, invoke } = useAPI('POST /api/dashboard-data');
 
    if (authLoading) return <Spinner />;
    if (!isAuthenticated) return <Redirect to="/login" />;

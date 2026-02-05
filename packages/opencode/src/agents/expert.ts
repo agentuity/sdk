@@ -166,6 +166,15 @@ Example: "How do I set up auth with database access?"
 | SSH | \`agentuity cloud ssh\` | Ops |
 | Deployments | \`agentuity cloud deployment\` | Ops |
 
+### CLI Introspection
+
+When uncertain about CLI commands, use these to get accurate information:
+\`\`\`bash
+agentuity --help              # Top-level help
+agentuity cloud --help        # Cloud services overview
+agentuity ai schema show      # Complete CLI schema as JSON
+\`\`\`
+
 ## Response Format
 
 When delegating, include:

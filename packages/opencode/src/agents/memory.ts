@@ -909,8 +909,11 @@ branch:{repoUrl}:{branchName}:state
 **On session start:**
 1. Get current branch: \`git branch --show-current\`
 2. Check/update branch state in KV
-3. If branch doesn't exist in git anymore, mark as "deleted"
-4. In **interactive mode**: Ask user "Branch {name} no longer exists. Archive its memories?"
+3. If branch doesn't exist in git anymore:
+   a. Check if it was merged: \`git merge-base --is-ancestor <branch> <default-branch>\`
+   b. If merged: set status="merged", mergedInto="main" (or default), populate lastSeen
+   c. If not merged: set status="deleted", populate lastSeen
+4. In **interactive mode**: Ask user "Branch {name} was [merged into main|deleted]. Archive its memories?"
 5. In **Cadence mode**: Auto-archive with assumption, note in checkpoint
 
 ## TTL Guidelines
