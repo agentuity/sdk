@@ -2,13 +2,13 @@ import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
 import { RegionResponseError } from './util';
 
-const ListRegionsResponse = z.array(
+export const ListRegionsResponse = z.array(
 	z.object({
 		region: z.string().describe('the region identifier'),
 		description: z.string().describe('the human-readable description of the region'),
 	})
 );
-const ListRegionsResponseSchema = APIResponseSchema(ListRegionsResponse);
+export const ListRegionsResponseSchema = APIResponseSchema(ListRegionsResponse);
 
 export type ListRegionsResponse = z.infer<typeof ListRegionsResponseSchema>;
 export type RegionList = z.infer<typeof ListRegionsResponse>;

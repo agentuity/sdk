@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { ProjectResponseError } from './util';
 
-const CreateProjectRequestSchema = z.object({
+export const CreateProjectRequestSchema = z.object({
 	name: z.string().max(255).min(1).describe('the name of the new project'),
 	description: z.string().max(255).min(0).optional().describe('the description of the project'),
 	tags: z.array(z.string()).optional().describe('tags for the project'),
@@ -11,16 +11,16 @@ const CreateProjectRequestSchema = z.object({
 	domains: z.array(z.string()).optional().describe('the custom domains for this project'),
 });
 
-const CreateProjectResponse = z.object({
+export const NewProjectSchema = z.object({
 	id: z.string().describe('the unique id for the project'),
 	sdkKey: z.string().describe('the SDK key for the project'),
 });
 
-const CreateProjectResponseSchema = APIResponseSchema(CreateProjectResponse);
+const CreateProjectResponseSchema = APIResponseSchema(NewProjectSchema);
 
 export type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
 export type CreateProjectResponse = z.infer<typeof CreateProjectResponseSchema>;
-export type NewProject = z.infer<typeof CreateProjectResponse>;
+export type NewProject = z.infer<typeof NewProjectSchema>;
 
 /**
  * Create a new Project

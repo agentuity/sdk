@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 
-const EvaluationDetailSchema = z.object({
+export const EvaluationDetailSchema = z.object({
 	id: z.string().describe('Evaluation ID'),
 	name: z.string().describe('Evaluation name'),
 	description: z.string().nullable().describe('Evaluation description'),

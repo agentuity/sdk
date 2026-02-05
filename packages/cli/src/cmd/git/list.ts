@@ -53,13 +53,13 @@ export const listSubcommand = createSubcommand({
 				return [];
 			}
 
-		// Select org
-		let orgId = opts.org;
-		if (!orgId) {
-			const firstOrg = orgs[0];
-			if (orgs.length === 1 && firstOrg) {
-				orgId = firstOrg.id;
-			} else {
+			// Select org
+			let orgId = opts.org;
+			if (!orgId) {
+				const firstOrg = orgs[0];
+				if (orgs.length === 1 && firstOrg) {
+					orgId = firstOrg.id;
+				} else {
 					tui.newline();
 					const orgChoices = orgs.map((o) => ({
 						name: o.id,
