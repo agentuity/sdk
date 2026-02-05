@@ -4,6 +4,7 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
+import { getDefaultRegion } from '../../../config';
 
 const StreamCreateResponseSchema = z.object({
 	id: z.string().describe('Stream ID'),
@@ -19,8 +20,8 @@ export const createSubcommand = createCommand({
 	aliases: ['new'],
 	description: 'Create a new stream and upload content',
 	tags: ['mutating', 'creates-resource', 'slow', 'requires-auth', 'uses-stdin'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
+	optional: { project: true, region: true, org: true },
 	idempotent: false,
 	examples: [
 		{
@@ -77,9 +78,12 @@ export const createSubcommand = createCommand({
 	webUrl: '/services/stream',
 
 	async handler(ctx) {
-		const { args, opts, options } = ctx;
+		const { args, opts, options, config } = ctx;
 		const started = Date.now();
-		const storage = await createStorageAdapter(ctx);
+
+		// Resolve region from config if not provided
+		const region = ctx.region ?? (await getDefaultRegion(config?.name, config));
+		const storage = await createStorageAdapter({ ...ctx, region });
 
 		// Parse metadata if provided
 		let metadata: Record<string, string> | undefined;
