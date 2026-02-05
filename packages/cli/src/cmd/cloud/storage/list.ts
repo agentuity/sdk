@@ -101,7 +101,13 @@ export const listSubcommand = createSubcommand({
 		// Cache each bucket with its region and orgId for future lookups
 		for (const s3 of resources.s3) {
 			if (s3.cloud_region && s3.org_id) {
-				await setResourceInfo('bucket', profileName, s3.bucket_name, s3.cloud_region, s3.org_id);
+				await setResourceInfo(
+					'bucket',
+					profileName,
+					s3.bucket_name,
+					s3.cloud_region,
+					s3.org_id
+				);
 			}
 		}
 

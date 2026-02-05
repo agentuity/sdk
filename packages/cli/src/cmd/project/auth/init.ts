@@ -73,13 +73,13 @@ export const initSubcommand = createSubcommand({
 		if (!databaseUrl) {
 			// Check .env file
 			const envPath = path.join(projectDir, '.env');
-		if (fs.existsSync(envPath)) {
-			const envContent = fs.readFileSync(envPath, 'utf-8');
-			const match = envContent.match(/^DATABASE_URL=(.+)$/m);
-			if (match?.[1]) {
-				databaseUrl = match[1].trim().replace(/^["']|["']$/g, '');
+			if (fs.existsSync(envPath)) {
+				const envContent = fs.readFileSync(envPath, 'utf-8');
+				const match = envContent.match(/^DATABASE_URL=(.+)$/m);
+				if (match?.[1]) {
+					databaseUrl = match[1].trim().replace(/^["']|["']$/g, '');
+				}
 			}
-		}
 		}
 
 		// Show database picker (with existing as first option if configured)

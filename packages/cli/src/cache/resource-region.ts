@@ -26,6 +26,7 @@ async function getDatabase(): Promise<Database> {
 			id TEXT NOT NULL,
 			region TEXT NOT NULL,
 			org_id TEXT,
+			project_id TEXT,
 			last_updated INTEGER NOT NULL,
 			PRIMARY KEY (resource_type, profile, id)
 		)
@@ -36,6 +37,13 @@ async function getDatabase(): Promise<Database> {
 		ON resource_region_cache(last_updated)
 	`);
 
+	// Migration: Add project_id column if it doesn't exist (for existing databases)
+	try {
+		db.run('ALTER TABLE resource_region_cache ADD COLUMN project_id TEXT');
+	} catch {
+		// Column already exists, ignore the error
+	}
+
 	return db;
 }
 
@@ -44,7 +52,17 @@ function pruneOldEntries(database: Database): void {
 	database.run('DELETE FROM resource_region_cache WHERE last_updated < ?', [cutoff]);
 }
 
-export type ResourceType = 'sandbox' | 'bucket' | 'db' | 'project' | 'deployment';
+export type ResourceType =
+	| 'sandbox'
+	| 'bucket'
+	| 'db'
+	| 'project'
+	| 'deployment'
+	| 'machine'
+	| 'queue'
+	| 'vector'
+	| 'kv'
+	| 'stream';
 
 /**
  * Resource info returned from cache lookup
@@ -52,6 +70,7 @@ export type ResourceType = 'sandbox' | 'bucket' | 'db' | 'project' | 'deployment
 export interface ResourceInfo {
 	region: string;
 	orgId?: string;
+	projectId?: string;
 }
 
 /**
@@ -68,9 +87,9 @@ export async function getResourceInfo(
 
 	const row = database
 		.query<
-			{ region: string; org_id: string | null; last_updated: number },
+			{ region: string; org_id: string | null; project_id: string | null; last_updated: number },
 			[string, string, string]
-		>('SELECT region, org_id, last_updated FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?')
+		>('SELECT region, org_id, project_id, last_updated FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?')
 		.get(type, profile, id);
 
 	if (!row) {
@@ -90,6 +109,7 @@ export async function getResourceInfo(
 	return {
 		region: row.region,
 		orgId: row.org_id ?? undefined,
+		projectId: row.project_id ?? undefined,
 	};
 }
 
@@ -116,7 +136,8 @@ export async function setResourceInfo(
 	profile: string,
 	id: string,
 	region: string,
-	orgId?: string
+	orgId?: string,
+	projectId?: string
 ): Promise<void> {
 	const database = await getDatabase();
 
@@ -124,9 +145,9 @@ export async function setResourceInfo(
 
 	database.run(
 		`INSERT OR REPLACE INTO resource_region_cache 
-		 (resource_type, profile, id, region, org_id, last_updated)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		[type, profile, id, region, orgId ?? null, Date.now()]
+		 (resource_type, profile, id, region, org_id, project_id, last_updated)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		[type, profile, id, region, orgId ?? null, projectId ?? null, Date.now()]
 	);
 }
 

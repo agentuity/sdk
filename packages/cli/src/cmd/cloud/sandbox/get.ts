@@ -73,7 +73,10 @@ export const getSubcommand = createCommand({
 
 		// Create regional client and get full sandbox details
 		const client = createSandboxClient(logger, auth, sandboxInfo.region);
-		const result = await sandboxGet(client, { sandboxId: args.sandboxId, orgId: sandboxInfo.orgId });
+		const result = await sandboxGet(client, {
+			sandboxId: args.sandboxId,
+			orgId: sandboxInfo.orgId,
+		});
 
 		// Cache the region for future lookups
 		if (result.region) {

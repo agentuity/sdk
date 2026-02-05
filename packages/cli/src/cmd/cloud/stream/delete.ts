@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { streamGet } from '@agentuity/server';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
+import { createStorageAdapterForOrg } from './util';
 import { getCommand } from '../../../command-prefix';
 const DeleteStreamResponseSchema = z.object({
 	id: z.string().describe('Stream ID'),
@@ -13,7 +14,7 @@ export const deleteSubcommand = createCommand({
 	description: 'Delete a stream by ID (soft delete)',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, region: true },
+	requires: { auth: true, apiClient: true },
 	optional: { project: true },
 	examples: [
 		{ command: getCommand('stream delete stream-id-123'), description: 'Delete a stream' },
@@ -34,9 +35,32 @@ export const deleteSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, options, logger, auth, apiClient } = ctx;
 		const started = Date.now();
-		const storage = await createStorageAdapter(ctx);
+
+		if (!apiClient) {
+			tui.fatal('API client is required for stream delete');
+		}
+
+		// Look up the stream to get its org and region
+		const streamInfo = await streamGet(apiClient, args.id);
+
+		// Extract region from the stream URL (e.g., https://streams-use.agentuity.cloud/...)
+		let region = 'usc'; // default
+		const urlMatch = streamInfo.url.match(/https:\/\/streams-([^.]+)\.agentuity\.cloud/);
+		if (urlMatch?.[1]) {
+			region = urlMatch[1];
+		} else if (streamInfo.url.includes('streams.agentuity.io')) {
+			region = 'local';
+		}
+
+		// Use the stream's orgId for auth
+		const storage = createStorageAdapterForOrg({
+			logger,
+			auth,
+			region,
+			orgId: streamInfo.orgId,
+		});
 
 		await storage.delete(args.id);
 

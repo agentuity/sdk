@@ -14,20 +14,27 @@ import type {
 	GlobalOptions,
 } from './types';
 import { showBanner, generateBanner } from './banner';
-import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
+import {
+	requireAuth,
+	optionalAuth,
+	requireOrg,
+	optionalOrg as selectOptionalOrg,
+	hasPrefixedResourceId,
+	resolveOrgIdWithoutPrompt,
+} from './auth';
 import { type RegionList, ValidationOutputError } from '@agentuity/server';
 import { fetchRegionsWithCache } from './regions';
 import enquirer from 'enquirer';
 import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser';
-import { defaultProfileName, loadProjectConfig } from './config';
+import { defaultProfileName, loadProjectConfig, saveProjectId, saveRegion } from './config';
 import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
 import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
 import { getCommand } from './command-prefix';
 import { isValidateMode, outputValidation, type ValidationResult } from './output';
 import { StructuredError } from '@agentuity/core';
 import { setProgram } from './program-ref';
-import { getCachedProject, setCachedProject } from './cache';
+import { getCachedProject, getResourceInfo, setCachedProject, type ResourceType } from './cache';
 
 /**
  * Check if an error is a CLI input validation error (Zod error from schema parsing),
@@ -455,6 +462,10 @@ async function promptProjectSelection(baseCtx: CommandContext): Promise<ProjectC
 		return null;
 	}
 
+	if (selectedProject.id !== config?.preferences?.projectId) {
+		await saveProjectId(selectedProject.id);
+	}
+
 	// Convert to ProjectConfig format
 	return {
 		projectId: selectedProject.id,
@@ -484,6 +495,11 @@ export async function createCLI(version: string): Promise<Command> {
 			'--org-id <id>',
 			'Use a specific organization when performing operations',
 			process.env.AGENTUITY_CLOUD_ORG_ID
+		)
+		.option(
+			'--project-id <id>',
+			'Use a specific project when performing operations (AGENTUITY_CLOUD_PROJECT_ID)',
+			process.env.AGENTUITY_CLOUD_PROJECT_ID
 		)
 		.option('--color-scheme <scheme>', 'Color scheme: light or dark')
 		.option('--color <mode>', 'Color output: auto, always, never', 'auto')
@@ -669,15 +685,19 @@ export async function createCLI(version: string): Promise<Command> {
 	return program;
 }
 
-async function getRegion(regions: RegionList): Promise<string> {
+async function getRegion(regions: RegionList, preferredRegion?: string): Promise<string> {
 	const firstRegion = regions[0];
 	if (regions.length === 1 && firstRegion) {
 		return firstRegion.region;
 	} else {
+		const preferredIndex = preferredRegion
+			? regions.findIndex((region) => region.region === preferredRegion)
+			: -1;
 		const response = await enquirer.prompt<{ region: string }>({
 			type: 'select',
 			name: 'region',
 			message: 'Select a cloud region:',
+			...(preferredIndex >= 0 && { initial: preferredIndex }),
 			choices: regions.map((r) => ({
 				name: r.region,
 				message: `${r.description.padEnd(15, ' ')} ${tui.muted(r.region)}`,
@@ -687,16 +707,76 @@ async function getRegion(regions: RegionList): Promise<string> {
 	}
 }
 
-interface ResolveRegionOptions {
+const RESOURCE_PREFIXES: Array<{ prefix: string; type: ResourceType }> = [
+	{ prefix: 'sbx_', type: 'sandbox' },
+	{ prefix: 'proj_', type: 'project' },
+	{ prefix: 'db_', type: 'db' },
+	{ prefix: 'deploy_', type: 'deployment' },
+	{ prefix: 'machine_', type: 'machine' },
+	{ prefix: 'que_', type: 'queue' },
+	{ prefix: 'vec_', type: 'vector' },
+	{ prefix: 'kv_', type: 'kv' },
+	{ prefix: 'stream_', type: 'stream' },
+];
+
+type PrefixedResource = { id: string; type: ResourceType };
+
+function getResourceTypeFromId(id: string): ResourceType | undefined {
+	for (const entry of RESOURCE_PREFIXES) {
+		if (id.startsWith(entry.prefix)) {
+			return entry.type;
+		}
+	}
+	return undefined;
+}
+
+function collectPrefixedResources(
+	values?: Record<string, unknown> | unknown[]
+): PrefixedResource[] {
+	if (!values) {
+		return [];
+	}
+	const results = new Map<string, ResourceType>();
+	const addValue = (value: unknown) => {
+		if (typeof value === 'string') {
+			const resourceType = getResourceTypeFromId(value);
+			if (resourceType) {
+				results.set(value, resourceType);
+			}
+			return;
+		}
+		if (Array.isArray(value)) {
+			for (const entry of value) {
+				addValue(entry);
+			}
+		}
+	};
+
+	if (Array.isArray(values)) {
+		for (const entry of values) {
+			addValue(entry);
+		}
+	} else {
+		for (const value of Object.values(values)) {
+			addValue(value);
+		}
+	}
+
+	return Array.from(results.entries()).map(([id, type]) => ({ id, type }));
+}
+
+export interface ResolveRegionOptions {
 	options: Record<string, unknown>;
 	regions: RegionList;
 	logger: Logger;
 	required: boolean;
 	region?: string;
+	config?: Config | null;
+	args?: Record<string, unknown> | unknown[];
 }
 
-async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
-	const { options, regions, logger, required } = opts;
+export async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
+	const { options, regions, logger, required, config, args } = opts;
 
 	// No regions available
 	if (regions.length === 0) {
@@ -717,7 +797,7 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 	}
 
 	// Check if region was provided via flag
-	let region = opts.region ?? (options.region as string | undefined);
+	let region = options.region as string | undefined;
 
 	// Validate --region flag if provided
 	if (region) {
@@ -741,6 +821,22 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 		return region;
 	}
 
+	const profileName = config?.name ?? defaultProfileName;
+	const candidateResources = new Map<string, ResourceType>();
+	for (const resource of collectPrefixedResources(args)) {
+		candidateResources.set(resource.id, resource.type);
+	}
+	for (const resource of collectPrefixedResources(options)) {
+		candidateResources.set(resource.id, resource.type);
+	}
+	for (const [id, type] of candidateResources.entries()) {
+		const cachedInfo = await getResourceInfo(type, profileName, id);
+		if (cachedInfo?.region) {
+			logger.trace('resolved region from cache for %s (%s): %s', id, type, cachedInfo.region);
+			return cachedInfo.region;
+		}
+	}
+
 	// Auto-select if only one region available
 	const singleRegion = regions[0];
 	if (regions.length === 1 && singleRegion) {
@@ -760,6 +856,29 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 			return matchingRegion.region;
 		}
 		// If not valid, fall through to error/prompt
+	}
+
+	// Check for preferred region in config
+	const preferredRegion = config?.preferences?.region;
+	if (preferredRegion) {
+		const matchingRegion = regions.find((r) => r.region === preferredRegion);
+		if (matchingRegion) {
+			if (process.stdin.isTTY) {
+				region = await getRegion(regions, matchingRegion.region);
+				return region;
+			}
+			logger.trace('selected preferred region (non-TTY): %s', matchingRegion.region);
+			return matchingRegion.region;
+		}
+	}
+
+	// Check for project region fallback
+	const projectRegion = opts.region;
+	if (projectRegion) {
+		const matchingRegion = regions.find((r) => r.region === projectRegion);
+		if (matchingRegion) {
+			return matchingRegion.region;
+		}
 	}
 
 	// No flag provided - handle TTY vs non-TTY
@@ -786,6 +905,24 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 	if (process.stdin.isTTY) {
 		// Interactive mode - prompt user
 		region = await getRegion(regions);
+
+		const hasSavedPreference = !!config?.preferences?.region;
+		const hasEnvRegion = !!process.env.AGENTUITY_REGION;
+		const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+		if (region && hasTTY && !hasSavedPreference && !hasEnvRegion) {
+			const selectedRegionInfo = regions.find((r) => r.region === region);
+			const regionLabel = selectedRegionInfo
+				? `${selectedRegionInfo.description} (${selectedRegionInfo.region})`
+				: region;
+			const shouldSave = await tui.confirm(
+				`Would you like to set "${regionLabel}" as your default region?`,
+				true
+			);
+			if (shouldSave) {
+				await saveRegion(region);
+			}
+		}
+
 		return region;
 	}
 
@@ -1040,44 +1177,58 @@ async function registerSubcommand(
 		const dirNeeded = normalized.requiresProject || normalized.optionalProject;
 
 		if (dirNeeded) {
-			const projectId = options.projectId as string | undefined;
+			const optionsProjectId = options.projectId as string | undefined;
 
-			// If --project-id is provided, fetch project details from API
-			if (projectId) {
-				try {
-					const auth = await requireAuth(baseCtx);
-					if (auth) {
-						// Create config with auth credentials for API client
-						const configWithAuth = {
-							...baseCtx.config,
-							auth: {
-								api_key: auth.apiKey,
-								user_id: auth.userId,
-								expires: auth.expires.getTime(),
-							},
-						};
-						const apiClient = createAPIClient(baseCtx, configWithAuth as Config);
-						// Check cache first to avoid duplicate API calls
-						const profile = baseCtx.config?.name ?? 'default';
-						let projectDetails = getCachedProject(profile, projectId);
-						if (!projectDetails) {
-							const { projectGet } = await import('@agentuity/server');
-							// Use keys: false to match other callers and ensure cache consistency
-							projectDetails = await projectGet(apiClient, { id: projectId, keys: false });
-							setCachedProject(profile, projectId, projectDetails);
-						}
-						project = {
-							projectId: projectDetails.id,
-							orgId: projectDetails.orgId,
-							region: projectDetails.cloudRegion || '',
-						};
+			// Helper to fetch project from API by ID
+			const fetchProjectFromAPI = async (
+				projectId: string
+			): Promise<ProjectConfig | undefined> => {
+				const auth = await requireAuth(baseCtx);
+				if (auth) {
+					// Create config with auth credentials for API client
+					const configWithAuth = {
+						...baseCtx.config,
+						auth: {
+							api_key: auth.apiKey,
+							user_id: auth.userId,
+							expires: auth.expires.getTime(),
+						},
+					};
+					const apiClient = createAPIClient(baseCtx, configWithAuth as Config);
+					// Check cache first to avoid duplicate API calls
+					const profile = baseCtx.config?.name ?? 'default';
+					let projectDetails = getCachedProject(profile, projectId);
+					if (!projectDetails) {
+						const { projectGet } = await import('@agentuity/server');
+						// Use keys: false to match other callers and ensure cache consistency
+						projectDetails = await projectGet(apiClient, { id: projectId, keys: false });
+						setCachedProject(profile, projectId, projectDetails);
 					}
+					return {
+						projectId: projectDetails.id,
+						orgId: projectDetails.orgId,
+						region: projectDetails.cloudRegion || '',
+					};
+				}
+				return undefined;
+			};
+
+			// Resolution precedence:
+			// 1. --project-id flag (or AGENTUITY_CLOUD_PROJECT_ID env var)
+			// 2. agentuity.json in project directory
+			// 3. config.preferences.projectId (global preference) - fallback only
+			// 4. Interactive selection (if TTY)
+
+			if (optionsProjectId) {
+				// Priority 1: Explicit flag/env var provided
+				try {
+					project = await fetchProjectFromAPI(optionsProjectId);
 				} catch (_error) {
 					if (normalized.requiresProject) {
 						exitWithError(
 							createError(
 								ErrorCode.PROJECT_NOT_FOUND,
-								`Project not found: ${projectId}`,
+								`Project not found: ${optionsProjectId}`,
 								undefined,
 								[
 									'Verify the project ID is correct',
@@ -1090,7 +1241,7 @@ async function registerSubcommand(
 					}
 				}
 			} else {
-				// Try to load from directory
+				// Priority 2: Try to load from agentuity.json in directory
 				const dir = (options.dir as string | undefined) ?? process.cwd();
 				projectDir = dir;
 				if (projectDir.startsWith('~/')) {
@@ -1100,14 +1251,35 @@ async function registerSubcommand(
 				try {
 					project = await loadProjectConfig(dir, baseCtx.config);
 				} catch (error) {
-					if (normalized.requiresProject) {
-						if (
-							error &&
-							typeof error === 'object' &&
-							'name' in error &&
-							error.name === 'ProjectConfigNotFoundException'
-						) {
-							// If TTY is available, prompt user to select a project
+					const isConfigNotFound =
+						error &&
+						typeof error === 'object' &&
+						'name' in error &&
+						error.name === 'ProjectConfigNotFoundException';
+
+					if (isConfigNotFound) {
+						// Priority 3: Try global preference (only when no agentuity.json found)
+						const projectIdFromPreference = baseCtx.config?.preferences?.projectId as
+							| string
+							| undefined;
+						if (projectIdFromPreference) {
+							try {
+								project = await fetchProjectFromAPI(projectIdFromPreference);
+								if (project) {
+									// Set the project ID in options so it can be used by the command
+									(options as Record<string, unknown>).projectId = projectIdFromPreference;
+								}
+							} catch (_preferenceError) {
+								// Preference project not found, fall through to interactive selection
+								baseCtx.logger.trace(
+									'Preference project not found: %s',
+									projectIdFromPreference
+								);
+							}
+						}
+
+						// Priority 4: Interactive selection (if TTY and still no project)
+						if (!project && normalized.requiresProject) {
 							const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
 
 							if (hasTTY) {
@@ -1143,9 +1315,9 @@ async function registerSubcommand(
 									baseCtx.options.errorFormat
 								);
 							}
-						} else {
-							throw error;
 						}
+					} else if (normalized.requiresProject) {
+						throw error;
 					}
 					// For optional projects, silently continue without project config
 				}
@@ -1200,11 +1372,25 @@ async function registerSubcommand(
 					}
 					// Auto-select org when --confirm flag is used
 					const autoSelectOrg = options.confirm === true;
+					const hasPrefixedId = hasPrefixedResourceId(
+						ctx.args as Record<string, unknown> | undefined,
+						ctx.opts as Record<string, unknown> | undefined
+					);
+					const prefixedOrgId = hasPrefixedId
+						? await resolveOrgIdWithoutPrompt({
+								options,
+								config: (ctx.config as Config | null) ?? null,
+								args: ctx.args as Record<string, unknown> | undefined,
+								opts: ctx.opts as Record<string, unknown> | undefined,
+							})
+						: undefined;
 					if (normalized.requiresOrg) {
-						ctx.orgId = await requireOrg(
-							ctx as CommandContext & { apiClient: APIClientType },
-							autoSelectOrg
-						);
+						ctx.orgId = hasPrefixedId
+							? prefixedOrgId
+							: await requireOrg(
+									ctx as CommandContext & { apiClient: APIClientType },
+									autoSelectOrg
+								);
 					}
 					// Skip org handling if --no-register is set (org only needed for registration)
 					const skipOrg =
@@ -1214,10 +1400,12 @@ async function registerSubcommand(
 						(ctx.opts as Record<string, unknown>).register === false;
 
 					if (normalized.optionalOrg && ctx.auth && !skipOrg) {
-						ctx.orgId = await selectOptionalOrg(
-							ctx as CommandContext & { apiClient: APIClientType },
-							autoSelectOrg
-						);
+						ctx.orgId = hasPrefixedId
+							? prefixedOrgId
+							: await selectOptionalOrg(
+									ctx as CommandContext & { apiClient: APIClientType },
+									autoSelectOrg
+								);
 					}
 					// Skip region handling if --no-register is set (region only needed for registration)
 					const skipRegion =
@@ -1252,10 +1440,12 @@ async function registerSubcommand(
 						if (normalized.requiresRegion || normalized.optionalRegion) {
 							const region = await resolveRegion({
 								options: options as Record<string, unknown>,
+								args: ctx.args as Record<string, unknown> | undefined,
 								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 								region: project?.region,
+								config: baseCtx.config ?? null,
 							});
 							if (region) {
 								ctx.region = region;
@@ -1308,11 +1498,21 @@ async function registerSubcommand(
 				}
 				// Auto-select org when --confirm flag is used
 				const autoSelectOrg2 = options.confirm === true;
+				const hasPrefixedId = hasPrefixedResourceId(args as unknown[]);
+				const prefixedOrgId = hasPrefixedId
+					? await resolveOrgIdWithoutPrompt({
+							options,
+							config: (ctx.config as Config | null) ?? null,
+							args: args as unknown[],
+						})
+					: undefined;
 				if (normalized.requiresOrg) {
-					ctx.orgId = await requireOrg(
-						ctx as CommandContext & { apiClient: APIClientType },
-						autoSelectOrg2
-					);
+					ctx.orgId = hasPrefixedId
+						? prefixedOrgId
+						: await requireOrg(
+								ctx as CommandContext & { apiClient: APIClientType },
+								autoSelectOrg2
+							);
 				}
 				// Skip org handling if --no-register is set (org only needed for registration)
 				const skipOrg =
@@ -1322,10 +1522,12 @@ async function registerSubcommand(
 					(ctx.opts as Record<string, unknown>).register === false;
 
 				if (normalized.optionalOrg && ctx.auth && !skipOrg) {
-					ctx.orgId = await selectOptionalOrg(
-						ctx as CommandContext & { apiClient: APIClientType },
-						autoSelectOrg2
-					);
+					ctx.orgId = hasPrefixedId
+						? prefixedOrgId
+						: await selectOptionalOrg(
+								ctx as CommandContext & { apiClient: APIClientType },
+								autoSelectOrg2
+							);
 				}
 				// Skip region handling if --no-register is set (region only needed for registration)
 				const skipRegion =
@@ -1360,10 +1562,12 @@ async function registerSubcommand(
 					if (normalized.requiresRegion || normalized.optionalRegion) {
 						const region = await resolveRegion({
 							options: options as Record<string, unknown>,
+							args: args as unknown[],
 							regions,
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
 							region: project?.region,
+							config: baseCtx.config ?? null,
 						});
 						if (region) {
 							ctx.region = region;
@@ -1467,11 +1671,25 @@ async function registerSubcommand(
 					);
 					// Auto-select org when --confirm flag is used
 					const autoSelectOrg3 = options.confirm === true;
+					const hasPrefixedId3 = hasPrefixedResourceId(
+						ctx.args as Record<string, unknown> | undefined,
+						ctx.opts as Record<string, unknown> | undefined
+					);
+					const prefixedOrgId3 = hasPrefixedId3
+						? await resolveOrgIdWithoutPrompt({
+								options,
+								config: (ctx.config as Config | null) ?? null,
+								args: ctx.args as Record<string, unknown> | undefined,
+								opts: ctx.opts as Record<string, unknown> | undefined,
+							})
+						: undefined;
 					if (normalized.requiresOrg && ctx.apiClient) {
-						ctx.orgId = await requireOrg(
-							ctx as CommandContext & { apiClient: APIClientType },
-							autoSelectOrg3
-						);
+						ctx.orgId = hasPrefixedId3
+							? prefixedOrgId3
+							: await requireOrg(
+									ctx as CommandContext & { apiClient: APIClientType },
+									autoSelectOrg3
+								);
 					}
 					// Skip org handling if --no-register is set (org only needed for registration)
 					const skipOrg =
@@ -1481,10 +1699,12 @@ async function registerSubcommand(
 						(ctx.opts as Record<string, unknown>).register === false;
 
 					if (normalized.optionalOrg && ctx.apiClient && auth && !skipOrg) {
-						ctx.orgId = await selectOptionalOrg(
-							ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData },
-							autoSelectOrg3
-						);
+						ctx.orgId = hasPrefixedId3
+							? prefixedOrgId3
+							: await selectOptionalOrg(
+									ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData },
+									autoSelectOrg3
+								);
 						baseCtx.logger.trace('selected orgId: %s', ctx.orgId);
 					}
 					// Skip region handling if --no-register is set (region only needed for registration)
@@ -1514,10 +1734,12 @@ async function registerSubcommand(
 						});
 						const region = await resolveRegion({
 							options: options as Record<string, unknown>,
+							args: ctx.args as Record<string, unknown> | undefined,
 							regions,
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
 							region: project?.region,
+							config: baseCtx.config ?? null,
 						});
 						if (region) {
 							ctx.region = region;
@@ -1568,11 +1790,21 @@ async function registerSubcommand(
 				}
 				// Auto-select org when --confirm flag is used
 				const autoSelectOrg4 = options.confirm === true;
+				const hasPrefixedId4 = hasPrefixedResourceId(args as unknown[]);
+				const prefixedOrgId4 = hasPrefixedId4
+					? await resolveOrgIdWithoutPrompt({
+							options,
+							config: (ctx.config as Config | null) ?? null,
+							args: args as unknown[],
+						})
+					: undefined;
 				if (normalized.requiresOrg && ctx.apiClient) {
-					ctx.orgId = await requireOrg(
-						ctx as CommandContext & { apiClient: APIClientType },
-						autoSelectOrg4
-					);
+					ctx.orgId = hasPrefixedId4
+						? prefixedOrgId4
+						: await requireOrg(
+								ctx as CommandContext & { apiClient: APIClientType },
+								autoSelectOrg4
+							);
 				}
 				// Skip org handling if --no-register is set (org only needed for registration)
 				// For non-schema commands, check options directly (Commander passes all options)
@@ -1582,10 +1814,12 @@ async function registerSubcommand(
 					(options as Record<string, unknown>).register === false;
 
 				if (normalized.optionalOrg && ctx.apiClient && !skipOrg) {
-					ctx.orgId = await selectOptionalOrg(
-						ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData },
-						autoSelectOrg4
-					);
+					ctx.orgId = hasPrefixedId4
+						? prefixedOrgId4
+						: await selectOptionalOrg(
+								ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData },
+								autoSelectOrg4
+							);
 				}
 				// Skip region handling if --no-register is set (region only needed for registration)
 				const skipRegion =
@@ -1612,10 +1846,12 @@ async function registerSubcommand(
 					});
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
+						args: args as unknown[],
 						regions,
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
 						region: project?.region,
+						config: baseCtx.config ?? null,
 					});
 					if (region) {
 						ctx.region = region;
@@ -1752,10 +1988,12 @@ async function registerSubcommand(
 					});
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
+						args: args as unknown[],
 						regions,
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
 						region: project?.region,
+						config: baseCtx.config ?? null,
 					});
 					if (region) {
 						ctx.region = region;
@@ -1895,6 +2133,7 @@ export async function registerCommands(
 								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
+								config: baseCtx.config ?? null,
 							});
 							if (region) {
 								ctx.region = region;
@@ -1963,6 +2202,7 @@ export async function registerCommands(
 								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
+								config: baseCtx.config ?? null,
 							});
 							if (region) {
 								ctx.region = region;
@@ -1994,6 +2234,7 @@ export async function registerCommands(
 								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
+								config: baseCtx.config ?? null,
 							});
 							if (region) {
 								ctx.region = region;

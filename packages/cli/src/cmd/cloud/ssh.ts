@@ -71,16 +71,14 @@ export const sshSubcommand = createSubcommand({
 		const profileName = config?.name;
 		const targetIdentifier = identifier ?? projectId!;
 
-		// For sandbox identifiers, use saved org preference (no prompting)
-		const orgId = targetIdentifier.startsWith('sbx_') ? config?.preferences?.orgId : undefined;
-
+		// Region lookup handles org resolution automatically via CLI API
 		const region = await getIdentifierRegion(
 			logger,
 			auth,
 			apiClient,
 			profileName,
 			targetIdentifier,
-			orgId,
+			undefined, // orgId resolved automatically for sandboxes
 			config
 		);
 

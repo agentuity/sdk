@@ -54,6 +54,7 @@ export const ConfigSchema = zod.object({
 			last_legacy_warning: zod.number().optional().describe('Last legacy CLI warning timestamp'),
 			signup_banner_shown: zod.boolean().optional().describe('If the signup banner was shown'),
 			orgId: zod.string().optional().describe('Default organization ID'),
+			projectId: zod.string().optional().describe('Default project ID'),
 			region: zod.string().optional().describe('Default cloud region'),
 			project_dir: zod.string().optional().describe('Last used project directory'),
 		})
@@ -322,6 +323,38 @@ export interface CommandSchemas {
 	aliases?: Record<string, string[]>;
 }
 
+/**
+ * Declarative resource selection rule for schema-driven testing
+ */
+export interface ResourceSelectionRule {
+	/** Resource type */
+	resource: 'org' | 'project' | 'region';
+
+	/** Is this resource required for the command? */
+	required: boolean;
+
+	/** CLI flag name (e.g., 'org-id', 'region') */
+	flag: string;
+
+	/** Environment variable name */
+	envVar: string;
+
+	/** Config preference key (if applicable) */
+	configPref?: string;
+
+	/** Can be implied from context (e.g., project from agentuity.json) */
+	canBeImplied?: boolean;
+
+	/** Source file or context for implied values (e.g., 'agentuity.json') */
+	impliedFrom?: string;
+
+	/** Can be inferred from cache (for prefixed IDs) */
+	canUseCache?: boolean;
+
+	/** Operation type affects behavior */
+	operationType?: 'read' | 'execute' | 'mutate';
+}
+
 export type ProjectConfig = zod.infer<typeof ProjectSchema>;
 
 export type Requires = {
@@ -480,6 +513,7 @@ export function createSubcommand<
 	tags?: string[];
 	skipSkill?: boolean;
 	webUrl?: WebUrl<R, O, A, Op>;
+	resourceRules?: ResourceSelectionRule[];
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
@@ -527,6 +561,7 @@ export function createCommand<
 	tags?: string[];
 	skipSkill?: boolean;
 	webUrl?: WebUrl<R, O, A, Op>;
+	resourceRules?: ResourceSelectionRule[];
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
@@ -567,6 +602,7 @@ type CommandDefBase =
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
@@ -587,6 +623,7 @@ type CommandDefBase =
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];
@@ -607,6 +644,7 @@ type SubcommandDefBase =
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
@@ -625,6 +663,7 @@ type SubcommandDefBase =
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];

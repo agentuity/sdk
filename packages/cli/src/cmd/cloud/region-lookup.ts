@@ -1,12 +1,19 @@
-import type { Logger } from '@agentuity/core';
-import { projectGet, sandboxGet, deploymentGet, type APIClient } from '@agentuity/server';
-import { getResourceRegion, setResourceRegion } from '../../cache';
-import { getGlobalCatalystAPIClient } from '../../config';
+import { StreamStorageService, type Logger } from '@agentuity/core';
+import {
+	projectGet,
+	sandboxResolve,
+	deploymentGet,
+	type APIClient,
+	createServerFetchAdapter,
+	getServiceUrls,
+} from '@agentuity/server';
+import { getResourceInfo, setResourceInfo } from '../../cache';
+import { getDefaultRegion } from '../../config';
 import type { AuthData, Config } from '../../types';
 import * as tui from '../../tui';
 import { ErrorCode } from '../../errors';
 
-export type IdentifierType = 'project' | 'deployment' | 'sandbox';
+export type IdentifierType = 'project' | 'deployment' | 'sandbox' | 'stream';
 
 /**
  * Determine the type of identifier based on its prefix
@@ -21,18 +28,24 @@ export function getIdentifierType(identifier: string): IdentifierType {
 	if (identifier.startsWith('sbx_')) {
 		return 'sandbox';
 	}
+	if (identifier.startsWith('stream_')) {
+		return 'stream';
+	}
 	// Default to project for unknown prefixes
 	return 'project';
 }
 
 /**
- * Look up the region for a project, deployment, or sandbox identifier.
+ * Look up the region for a project, deployment, sandbox, or stream identifier.
  * Uses cache-first strategy with API fallback.
+ *
+ * @param apiClient - Required for project/deployment lookups, optional for sandbox/stream
+ *                    (they create their own clients internally)
  */
 export async function getIdentifierRegion(
 	logger: Logger,
 	auth: AuthData,
-	apiClient: APIClient,
+	apiClient: APIClient | undefined,
 	profileName = 'production',
 	identifier: string,
 	orgId?: string,
@@ -41,10 +54,10 @@ export async function getIdentifierRegion(
 	const identifierType = getIdentifierType(identifier);
 
 	// For project, deployment, and sandbox, check cache first
-	const cachedRegion = await getResourceRegion(identifierType, profileName, identifier);
-	if (cachedRegion) {
-		logger.trace(`[region-lookup] Found cached region for ${identifier}: ${cachedRegion}`);
-		return cachedRegion;
+	const cachedInfo = await getResourceInfo(identifierType, profileName, identifier);
+	if (cachedInfo?.region) {
+		logger.trace(`[region-lookup] Found cached region for ${identifier}: ${cachedInfo.region}`);
+		return cachedInfo.region;
 	}
 
 	logger.trace(`[region-lookup] Cache miss for ${identifier}, fetching from API`);
@@ -52,22 +65,69 @@ export async function getIdentifierRegion(
 	let region: string | null = null;
 
 	if (identifierType === 'project') {
+		if (!apiClient) {
+			tui.fatal(
+				`API client required for project region lookup. This is an internal error.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
 		const project = await projectGet(apiClient, { id: identifier, mask: true, keys: false });
 		region = project.cloudRegion ?? null;
 	} else if (identifierType === 'deployment') {
+		if (!apiClient) {
+			tui.fatal(
+				`API client required for deployment region lookup. This is an internal error.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
 		const deployment = await deploymentGet(apiClient, identifier);
 		region = deployment.cloudRegion ?? null;
-	} else {
-		// sandbox - pass config to getGlobalCatalystAPIClient for proper region resolution
-		const globalClient = await getGlobalCatalystAPIClient(
-			logger,
-			auth,
-			profileName,
-			orgId,
-			config
-		);
-		const sandbox = await sandboxGet(globalClient, { sandboxId: identifier, orgId });
+	} else if (identifierType === 'sandbox') {
+		// sandbox - use CLI API to resolve across all orgs the user has access to
+		if (!apiClient) {
+			tui.fatal(
+				`API client required for sandbox region lookup. This is an internal error.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
+		const sandbox = await sandboxResolve(apiClient, identifier);
 		region = sandbox.region ?? null;
+		// Cache the orgId along with the region for future lookups
+		if (sandbox.orgId) {
+			orgId = sandbox.orgId;
+		}
+	} else {
+		// stream - use the streams service to look up stream info
+		// Any regional streams service can look up any stream and return its info
+		// The service authenticates based on user's org membership, no explicit orgId needed
+		const defaultRegion = await getDefaultRegion(profileName, config);
+		const baseUrl = getServiceUrls(defaultRegion).stream;
+
+		// Include orgId if available, but don't require it
+		const resolvedOrgId =
+			orgId ?? process.env.AGENTUITY_CLOUD_ORG_ID ?? config?.preferences?.orgId;
+
+		const adapter = createServerFetchAdapter(
+			{
+				headers: {
+					Authorization: `Bearer ${auth.apiKey}`,
+				},
+				queryParams: resolvedOrgId ? { orgId: resolvedOrgId } : undefined,
+			},
+			logger
+		);
+
+		const streamService = new StreamStorageService(baseUrl, adapter);
+		const streamInfo = await streamService.get(identifier);
+
+		// Extract region from the stream URL (e.g., https://streams-use.agentuity.cloud/...)
+		const urlMatch = streamInfo.url.match(/https:\/\/streams-([^.]+)\.agentuity\.cloud/);
+		if (urlMatch?.[1]) {
+			region = urlMatch[1];
+		} else if (streamInfo.url.includes('streams.agentuity.io')) {
+			// Local environment
+			region = 'local';
+		}
 	}
 
 	if (!region) {
@@ -86,7 +146,7 @@ export async function getIdentifierRegion(
 	}
 
 	// Cache the result
-	await setResourceRegion(identifierType, profileName, identifier, region);
+	await setResourceInfo(identifierType, profileName, identifier, region, orgId);
 	logger.trace(`[region-lookup] Cached region for ${identifier}: ${region}`);
 
 	return region;
@@ -100,5 +160,5 @@ export async function cacheProjectRegion(
 	projectId: string,
 	region: string
 ): Promise<void> {
-	await setResourceRegion('project', profileName, projectId, region);
+	await setResourceInfo('project', profileName, projectId, region);
 }
