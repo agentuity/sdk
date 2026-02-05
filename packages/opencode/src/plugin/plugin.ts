@@ -64,8 +64,8 @@ You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
 const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'architect'];
 
 // Agent display names for @mentions
-// Note: Monitor has hidden: true so it won't appear in @ autocomplete,
-// but it's still included here for programmatic invocation via Task tool
+// Note: Monitor and Expert sub-agents have hidden: true so they won't appear in @ autocomplete,
+// but they're still included here for programmatic invocation via Task tool
 const AGENT_MENTIONS: Record<AgentRole, string> = {
 	lead: '@Agentuity Coder Lead',
 	scout: '@Agentuity Coder Scout',
@@ -74,6 +74,9 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
+	'expert-backend': '@Agentuity Coder Expert Backend',
+	'expert-frontend': '@Agentuity Coder Expert Frontend',
+	'expert-ops': '@Agentuity Coder Expert Ops',
 	runner: '@Agentuity Coder Runner',
 	reasoner: '@Agentuity Coder Reasoner',
 	product: '@Agentuity Coder Product',
@@ -257,13 +260,35 @@ function createConfigHandler(
 		// Validate merged configs and warn about mismatches
 		validateAndWarnConfigs(mergedAgents);
 
-		// In sandbox, allow all permissions without prompts
+		// Permission configuration for external directories
+		// Memory agent and other operations may need to write temp files for CLI piping
 		if (IN_SANDBOX) {
+			// In sandbox, allow all permissions without prompts
 			config.permission = {
 				'*': 'allow',
 				external_directory: {
 					'/home/agentuity/**': 'allow',
 					'*': 'allow',
+				},
+			};
+		} else {
+			// For non-sandbox environments, auto-allow temp directory writes
+			// This prevents blocking prompts when Memory agent writes large JSON for CLI piping
+			const existingPermissions = (config.permission as Record<string, unknown>) ?? {};
+			const existingExternalDir =
+				(existingPermissions.external_directory as Record<string, string>) ?? {};
+
+			// Normalize TMPDIR: strip trailing slashes, then append /**
+			const tmpdir = process.env.TMPDIR?.replace(/\/+$/, '');
+			const tmpdirPattern = tmpdir ? `${tmpdir}/**` : null;
+
+			config.permission = {
+				...existingPermissions,
+				external_directory: {
+					...existingExternalDir,
+					'/tmp/**': 'allow',
+					// Also allow OS-specific temp directories
+					...(tmpdirPattern ? { [tmpdirPattern]: 'allow' } : {}),
 				},
 			};
 		}

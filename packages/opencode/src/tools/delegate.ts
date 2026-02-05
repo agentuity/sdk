@@ -2,6 +2,8 @@ import { z } from 'zod';
 import type { AgentRole } from '../types';
 
 // Schema for the delegate tool - includes all agents Lead can delegate to
+// Note: Expert sub-agents (expert-backend, expert-frontend, expert-ops) are hidden
+// and should only be invoked by the Expert orchestrator, not directly by Lead
 export const DelegateArgsSchema = z.object({
 	agent: z
 		.enum([
@@ -12,6 +14,9 @@ export const DelegateArgsSchema = z.object({
 			'memory',
 			'reasoner',
 			'expert',
+			'expert-backend',
+			'expert-frontend',
+			'expert-ops',
 			'runner',
 			'product',
 			'monitor',
@@ -35,6 +40,9 @@ const AGENT_MENTIONS: Record<Exclude<AgentRole, 'lead'>, string> = {
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
+	'expert-backend': '@Agentuity Coder Expert Backend',
+	'expert-frontend': '@Agentuity Coder Expert Frontend',
+	'expert-ops': '@Agentuity Coder Expert Ops',
 	runner: '@Agentuity Coder Runner',
 	reasoner: '@Agentuity Coder Reasoner',
 	product: '@Agentuity Coder Product',
