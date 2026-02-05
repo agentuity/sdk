@@ -1274,6 +1274,11 @@ function extractSSEOutputSchema(callExpr: ASTCallExpression): {
 
 	const objExpr = firstArg as ASTObjectExpression;
 	for (const prop of objExpr.properties) {
+		// Skip SpreadElement entries (e.g., { ...obj }) which don't have key/value
+		if ((prop as ASTNode).type !== 'Property') {
+			continue;
+		}
+
 		// Extract key name - could be Identifier or Literal
 		let keyName: string | undefined;
 		const propKey = prop.key as { type: string; name?: string; value?: unknown };
@@ -2015,7 +2020,8 @@ export async function parseRoute(
 						}
 
 						// Extract output schema from SSE options: sse({ output: schema }, handler)
-						// This provides typed SSE routes without requiring exported schemas
+						// Imported schemas need not be exported, but locally-defined schemas
+						// must be exported and are validated by validateSchemaExports below.
 						if (sseCallExpr && !routeConfig.outputSchemaVariable) {
 							const sseSchemaInfo = extractSSEOutputSchema(sseCallExpr);
 							if (sseSchemaInfo.outputSchemaVariable) {
