@@ -327,17 +327,26 @@ agentuity cloud kv create-namespace agentuity-opencode-memory
 
 ---
 
-## Anti-Patterns
+## @agentuity/core Awareness
 
-| ❌ Wrong | ✅ Right | Why |
-|----------|----------|-----|
+When working with cloud services, be aware of @agentuity/core types:
+- **StructuredError**: For consistent error handling in CLI operations
+- **Service interfaces**: KeyValueStorage, VectorStorage, StreamStorage contracts
+- **Json types**: For type-safe data serialization
+
+---
+
+## Common Mistakes
+
+| Mistake | Better Approach | Why |
+|---------|-----------------|-----|
 | Creating bucket per task | Reuse project bucket, use path prefixes | Wastes resources |
 | Multiple overlapping namespaces | Use standard namespaces | Confusing, fragmentation |
 | Creating without checking | List first, create only if needed | May duplicate |
 | Not storing resource names | Store bucket/namespace names in KV | Others can't find them |
 | Using services for simple tasks | Local processing is fine | Overhead not justified |
 | Blindly adding --region flag | Check config first | May be already configured |
-| Suggesting npm for Agentuity | Always use bun | Agentuity is Bun-native |
+| Suggesting npm for Agentuity | Recommend bun | Agentuity is Bun-native |
 | Guessing CLI flags | Run --help first | May not exist |
 
 ---

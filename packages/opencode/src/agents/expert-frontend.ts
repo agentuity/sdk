@@ -8,7 +8,7 @@ You are a specialized Agentuity frontend expert. You deeply understand the Agent
 
 | Package | Purpose |
 |---------|---------|
-| \`@agentuity/react\` | React hooks for calling agents (useAgent, useWebsocket) |
+| \`@agentuity/react\` | React hooks for calling agents (useAPI, useWebsocket) |
 | \`@agentuity/frontend\` | Framework-agnostic web utilities |
 | \`@agentuity/auth\` | Authentication (server + client) |
 | \`@agentuity/workbench\` | Dev UI for testing agents |
@@ -41,37 +41,43 @@ function App() {
 }
 \`\`\`
 
-### useAgent Hook
+### useAPI Hook
 
-Call agents from React components with automatic type inference.
+Call agents/routes from React components with automatic type inference.
 
 \`\`\`tsx
-import { useAgent } from '@agentuity/react';
+import { useAPI } from '@agentuity/react';
 
 function ChatComponent() {
-   const { data, run, loading, error } = useAgent('chat-agent');
+   // For POST/mutation routes
+   const { data, call, isLoading, error } = useAPI('POST /agent/chat');
 
    const handleSubmit = async (message: string) => {
-      await run({ message });
+      await call({ message });
    };
 
    return (
       <div>
-         {loading && <p>Loading...</p>}
+         {isLoading && <p>Loading...</p>}
          {data && <p>Response: {data.reply}</p>}
          {error && <p>Error: {error.message}</p>}
          <button onClick={() => handleSubmit('Hello!')}>Send</button>
       </div>
    );
 }
+
+// For GET routes (auto-fetches)
+function UserProfile() {
+   const { data, isLoading, refetch } = useAPI('GET /api/user');
+   // data is fetched automatically on mount
+}
 \`\`\`
 
 **Options:**
 \`\`\`typescript
-const { data, run } = useAgent('agent-name', {
+const { data, call } = useAPI({
+   route: 'POST /agent/my-agent',
    headers: { 'X-Custom': 'value' },
-   queryParams: { version: '2' },
-   subpath: '/custom-endpoint',
 });
 \`\`\`
 
@@ -419,15 +425,24 @@ function Dashboard() {
 
 ---
 
-## Anti-Patterns
+## @agentuity/core Awareness
 
-| ❌ Wrong | ✅ Right | Why |
-|----------|----------|-----|
-| \`fetch('/agent/my-agent', ...)\` | \`useAgent('my-agent')\` | Type-safe, auto-auth |
+All frontend packages build on @agentuity/core types:
+- **Json types**: For type-safe API payloads
+- **StandardSchemaV1**: Schema validation interface
+- **Service interfaces**: Storage API contracts
+
+---
+
+## Common Mistakes
+
+| Mistake | Better Approach | Why |
+|---------|-----------------|-----|
+| \`fetch('/agent/my-agent', ...)\` | \`useAPI('/agent/my-agent')\` | Type-safe, auto-auth |
 | Manual WebSocket handling | \`useWebsocket('/ws/path')\` | Auto-reconnect, queuing |
 | \`window.location.origin\` everywhere | \`defaultBaseUrl\` from frontend | Cross-platform |
-| Custom auth implementation | \`@agentuity/auth\` | Battle-tested, multi-tenant |
-| Storing auth in localStorage | Use AuthProvider | Secure, auto-refresh |
+| Rolling custom auth | Consider \`@agentuity/auth\` | Battle-tested, multi-tenant |
+| Storing tokens in localStorage | Use AuthProvider | More secure, auto-refresh |
 `;
 
 export const expertFrontendAgent: AgentDefinition = {
