@@ -1,7 +1,7 @@
 import type { Logger } from '@agentuity/core';
 import type { Readable, Writable } from 'node:stream';
 import { PassThrough } from 'node:stream';
-import { APIClient } from '../api';
+import { APIClient, PaymentRequiredError } from '../api';
 import { sandboxCreate } from './create';
 import { sandboxDestroy } from './destroy';
 import { sandboxGet } from './get';
@@ -286,6 +286,11 @@ async function createStdinStream(
 	});
 
 	if (!response.ok) {
+		if (response.status === 402) {
+			throw new PaymentRequiredError({
+				url: url,
+			});
+		}
 		throw new Error(`Failed to create stdin stream: ${response.status} ${response.statusText}`);
 	}
 

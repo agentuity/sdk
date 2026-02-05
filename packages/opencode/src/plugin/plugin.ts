@@ -64,6 +64,8 @@ You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
 const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'architect'];
 
 // Agent display names for @mentions
+// Note: Monitor has hidden: true so it won't appear in @ autocomplete,
+// but it's still included here for programmatic invocation via Task tool
 const AGENT_MENTIONS: Record<AgentRole, string> = {
 	lead: '@Agentuity Coder Lead',
 	scout: '@Agentuity Coder Scout',
@@ -72,10 +74,10 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
-	planner: '@Agentuity Coder Planner',
 	runner: '@Agentuity Coder Runner',
 	reasoner: '@Agentuity Coder Reasoner',
 	product: '@Agentuity Coder Product',
+	monitor: '@Agentuity Coder Monitor',
 };
 
 export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
@@ -94,7 +96,6 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
 	const paramsHooks = createParamsHooks(ctx, coderConfig);
-	const cadenceHooks = createCadenceHooks(ctx, coderConfig);
 	const tmuxManager = coderConfig.tmux?.enabled
 		? new TmuxSessionManager(ctx, coderConfig.tmux, {
 				onLog: (message) =>
@@ -125,9 +126,37 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			: undefined,
 	});
 
+	// Recover any background tasks from previous sessions
+	// This allows tasks to survive plugin restarts
+	void backgroundManager
+		.recoverTasks()
+		.then((count) => {
+			if (count > 0) {
+				ctx.client.app.log({
+					body: {
+						service: 'agentuity-coder',
+						level: 'info',
+						message: `Recovered ${count} background task(s) from previous sessions`,
+					},
+				});
+			}
+		})
+		.catch((error) => {
+			ctx.client.app.log({
+				body: {
+					service: 'agentuity-coder',
+					level: 'warn',
+					message: `Failed to recover background tasks: ${error}`,
+				},
+			});
+		});
+
+	// Create hooks that need backgroundManager for task reference injection during compaction
+	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager);
+
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
 	// Orchestration (deciding which module handles which session) happens below in the hooks
-	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig);
+	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig, backgroundManager);
 
 	const configHandler = createConfigHandler(coderConfig);
 
@@ -280,6 +309,7 @@ function createAgentConfigs(
 			...(agent.maxSteps !== undefined ? { maxSteps: agent.maxSteps } : {}),
 			...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}),
 			...(agent.thinking ? { thinking: agent.thinking } : {}),
+			...(agent.hidden ? { hidden: agent.hidden } : {}),
 		};
 	}
 
@@ -303,7 +333,6 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 - **@Agentuity Coder Memory**: Store context, remember decisions
 - **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
-- **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress
 
@@ -459,7 +488,6 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 - **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
 - **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
-- **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress, Cadence briefings
 
@@ -468,33 +496,52 @@ $ARGUMENTS
 
 ## Cadence Workflow
 
-1. **Initialize loop state**:
+1. **FIRST: Establish PRD with Product** (REQUIRED):
+   - Ask @Agentuity Coder Product to establish/validate the PRD for this task
+   - Product will check for existing PRD or create one
+   - This defines "what" we're building and success criteria
+
+2. **Initialize loop state**:
    - Generate loop ID (format: \`lp_short_name_01\`)
    - Store in KV: \`agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...}'\`
+   - Link session planning to PRD via \`prdKey\`
 
-2. **Each iteration**:
+3. **Each iteration**:
    - Ask @Agentuity Coder Memory for relevant context
    - Use @Agentuity Coder Scout to understand what's needed
-   - For complex planning, consult @Agentuity Coder Planner
+   - For complex planning, use extended thinking (ultrathink) — ground in PRD requirements
    - Delegate implementation to **@Agentuity Coder Architect** (preferred for Cadence)
    - Have @Agentuity Coder Reviewer verify the work
    - Tell @Agentuity Coder Memory to store checkpoint
 
-3. **When truly complete**, output:
+4. **When truly complete**, output:
 \`\`\`
 <promise>DONE</promise>
 \`\`\`
 
-4. **Tell @Agentuity Coder Memory to memorialize** the completed session
+5. **Finalize**:
+   - Tell @Agentuity Coder Product to update the PRD with completed work
+   - Tell @Agentuity Coder Memory to memorialize the session
 
 ## Guidelines
+- **Product first** — Always establish PRD before starting work
 - **Use Architect for implementation** — Architect has GPT Codex with maximum reasoning, ideal for autonomous work
 - Use regular Builder only for trivial fixes within an iteration
 - Ask Memory for context at each iteration start
 - Store checkpoints at each iteration end
-- If stuck on architecture, consult Planner before trying more approaches
+- If stuck on architecture, use extended thinking (ultrathink) for deep planning
 - Use @Agentuity Coder Expert for sandbox/cloud operations
-- Respect max iterations (50 default)`,
+- Respect max iterations (50 default)
+
+## Lead-of-Leads (Parallel Work)
+If the task has **independent workstreams** that can run in parallel (e.g., "build auth, payments, and notifications"):
+1. Ask @Agentuity Coder Product to create PRD with workstreams
+2. Spawn child Leads via \`agentuity_background_task\` for each workstream
+3. Each child Lead claims a workstream, works autonomously, marks done when complete
+4. Monitor progress via PRD workstream status
+5. Do integration work when all children complete
+
+**Don't use Lead-of-Leads for:** small tasks, sequential work, or work requiring tight coordination.`,
 			agent: 'Agentuity Coder Lead',
 			argumentHint: 'build the new auth feature with tests',
 		},
@@ -550,8 +597,8 @@ Use this to:
 - Memory: Store context, remember decisions across sessions
 - Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
 - Expert: Get help with Agentuity CLI and cloud services
-- Planner: Strategic advisor for complex architecture and deep planning (read-only)
-- Runner: Execute lint/build/test/typecheck/format commands, returns structured results`,
+- Runner: Execute lint/build/test/typecheck/format commands, returns structured results
+- Monitor: Watch background tasks and report when they complete`,
 		args: {
 			agent: s
 				.enum([
@@ -562,8 +609,9 @@ Use this to:
 					'memory',
 					'reasoner',
 					'expert',
-					'planner',
 					'runner',
+					'product',
+					'monitor',
 				])
 				.describe('Which agent to delegate to'),
 			task: s.string().describe('Clear description of the task'),
@@ -597,9 +645,9 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'memory',
 					'reasoner',
 					'expert',
-					'planner',
 					'runner',
 					'product',
+					'monitor',
 				])
 				.describe('Agent role to run the task'),
 			task: s.string().describe('Task prompt to run in the background'),
@@ -668,6 +716,49 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 				taskId: args.task_id,
 				success,
 				message: success ? 'Background task cancelled.' : 'Unable to cancel task.',
+			});
+		},
+	});
+
+	const backgroundInspect = tool({
+		description: `Inspect a background task to see its session messages and current state. Useful for debugging or checking what a child agent is doing.`,
+		args: {
+			task_id: s.string().describe('Background task ID to inspect'),
+		},
+		async execute(args) {
+			const inspection = await backgroundManager.inspectTask(args.task_id);
+			if (!inspection) {
+				return JSON.stringify({
+					taskId: args.task_id,
+					status: 'unknown',
+					found: false,
+					error: 'Task not found or session no longer exists.',
+				});
+			}
+
+			// Extract last few messages for summary
+			const messages = inspection.messages ?? [];
+			const lastMessages = messages
+				.slice(-3)
+				.map((m) => {
+					const parts = m.parts ?? [];
+					const textParts = parts.filter(
+						(p: unknown) => (p as { type?: string }).type === 'text'
+					);
+					return textParts
+						.map((p: unknown) => ((p as { text?: string }).text ?? '').slice(0, 200))
+						.join(' ')
+						.slice(0, 300);
+				})
+				.filter(Boolean);
+
+			return JSON.stringify({
+				taskId: inspection.taskId,
+				status: inspection.status,
+				found: true,
+				messageCount: messages.length,
+				lastMessages,
+				lastActivity: inspection.lastActivity,
 			});
 		},
 	});
@@ -814,6 +905,7 @@ Returns the public URL that can be copied and used anywhere.`,
 		agentuity_background_task: backgroundTask,
 		agentuity_background_output: backgroundOutput,
 		agentuity_background_cancel: backgroundCancel,
+		agentuity_background_inspect: backgroundInspect,
 		agentuity_memory_share: memoryShare,
 	};
 }
