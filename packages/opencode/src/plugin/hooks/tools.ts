@@ -74,8 +74,10 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 						return;
 					}
 
-					// Inject AGENTUITY_PROFILE environment variable
+					// Inject AGENTUITY_PROFILE and AGENTUITY_OPENCODE_SESSION environment variables
 					const profile = getCoderProfile();
+					const sessionId = (input as { sessionID?: string }).sessionID;
+
 					let modifiedCommand: string;
 
 					// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
@@ -85,9 +87,20 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 							/AGENTUITY_PROFILE=\S+/g,
 							`AGENTUITY_PROFILE=${profile}`
 						);
+						// Add session ID and agent mode if not already present
+						if (sessionId && !modifiedCommand.includes('AGENTUITY_OPENCODE_SESSION=')) {
+							modifiedCommand = `AGENTUITY_OPENCODE_SESSION=${sessionId} ${modifiedCommand}`;
+						}
+						if (!modifiedCommand.includes('AGENTUITY_AGENT_MODE=')) {
+							modifiedCommand = `AGENTUITY_AGENT_MODE=opencode ${modifiedCommand}`;
+						}
 					} else {
-						// Prepend AGENTUITY_PROFILE
-						modifiedCommand = `AGENTUITY_PROFILE=${profile} ${command}`;
+						// Build environment variable prefix
+						let envVars = `AGENTUITY_PROFILE=${profile} AGENTUITY_AGENT_MODE=opencode`;
+						if (sessionId) {
+							envVars += ` AGENTUITY_OPENCODE_SESSION=${sessionId}`;
+						}
+						modifiedCommand = `${envVars} ${command}`;
 					}
 					setBashCommand(input, modifiedCommand);
 

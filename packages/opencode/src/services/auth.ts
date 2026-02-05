@@ -27,6 +27,16 @@ const AGENTUITY_CONFIG_DIR = join(homedir(), '.config', 'agentuity');
 const DEFAULT_PROFILE = 'production.yaml';
 
 async function getProfilePath(): Promise<string> {
+	// Check AGENTUITY_PROFILE env var first (matches CLI behavior)
+	if (process.env.AGENTUITY_PROFILE) {
+		const envProfilePath = join(AGENTUITY_CONFIG_DIR, `${process.env.AGENTUITY_PROFILE}.yaml`);
+		const envFile = Bun.file(envProfilePath);
+		if (await envFile.exists()) {
+			return envProfilePath;
+		}
+	}
+
+	// Then check profile file
 	const profileFile = Bun.file(join(AGENTUITY_CONFIG_DIR, 'profile'));
 
 	if (await profileFile.exists()) {
