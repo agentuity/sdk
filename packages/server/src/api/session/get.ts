@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
-import { SessionSchema } from './list';
+import { SessionSchema, type Session } from './list';
 import { SessionResponseError } from './util';
 
-const _SessionGetRequestSchema = z.object({
+export const _SessionGetRequestSchema = z.object({
 	id: z.string().describe('the session id'),
 });
 
-const EvalRunSchema = z.object({
+export const SessionEvalRunSchema = z.object({
 	id: z.string().describe('eval run id'),
 	created_at: z.string().describe('creation timestamp'),
 	eval_id: z.string().describe('evaluation id'),
@@ -26,7 +26,7 @@ export interface SpanNode {
 	error?: string;
 }
 
-const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
+export const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
 	z.object({
 		id: z.string().describe('span ID'),
 		duration: z.number().describe('duration in milliseconds'),
@@ -37,7 +37,7 @@ const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
 	})
 );
 
-const RouteInfoSchema = z
+export const RouteInfoSchema = z
 	.object({
 		id: z.string().describe('route id'),
 		method: z.string().describe('HTTP method'),
@@ -45,24 +45,22 @@ const RouteInfoSchema = z
 	})
 	.nullable();
 
-const AgentInfoSchema = z.object({
+export const AgentInfoSchema = z.object({
 	name: z.string().describe('agent name'),
 	identifier: z.string().describe('agent identifier'),
 });
 
-const EnrichedSessionDataSchema = z.object({
+export const EnrichedSessionDataSchema = z.object({
 	session: SessionSchema,
 	agents: z.array(AgentInfoSchema).describe('resolved agents'),
-	eval_runs: z.array(EvalRunSchema).describe('eval runs for this session'),
+	eval_runs: z.array(SessionEvalRunSchema).describe('eval runs for this session'),
 	route: RouteInfoSchema.describe('route information'),
 });
 
-const SessionGetResponseSchema = APIResponseSchema(EnrichedSessionDataSchema);
+export const SessionGetResponseSchema = APIResponseSchema(EnrichedSessionDataSchema);
 
 type SessionGetRequest = z.infer<typeof _SessionGetRequestSchema>;
 type SessionGetResponse = z.infer<typeof SessionGetResponseSchema>;
-
-export type Session = z.infer<typeof SessionSchema>;
 
 /**
  * Get a single session by id
@@ -71,13 +69,15 @@ export type Session = z.infer<typeof SessionSchema>;
  * @param request
  * @returns
  */
-export type EvalRun = z.infer<typeof EvalRunSchema>;
+export type SessionEvalRun = z.infer<typeof SessionEvalRunSchema>;
+/** @deprecated Use SessionEvalRun instead */
+export type EvalRun = SessionEvalRun;
 export type RouteInfo = z.infer<typeof RouteInfoSchema>;
 export type AgentInfo = z.infer<typeof AgentInfoSchema>;
 export type EnrichedSession = {
 	session: Session;
 	agents: AgentInfo[];
-	evalRuns: EvalRun[];
+	evalRuns: SessionEvalRun[];
 	timeline: SpanNode | null;
 	route: RouteInfo;
 };

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchemaNoData } from '../api';
 import { ProjectResponseError } from './util';
 
-const _ProjectEnvDeleteRequestSchema = z.object({
+export const ProjectEnvDeleteRequestSchema = z.object({
 	id: z.string().describe('the project id'),
 	env: z.array(z.string()).optional().describe('environment variable keys to delete'),
 	secrets: z.array(z.string()).optional().describe('secret keys to delete'),
@@ -10,7 +10,7 @@ const _ProjectEnvDeleteRequestSchema = z.object({
 
 const ProjectEnvDeleteResponseSchema = APIResponseSchemaNoData();
 
-type ProjectEnvDeleteRequest = z.infer<typeof _ProjectEnvDeleteRequestSchema>;
+type ProjectEnvDeleteRequest = z.infer<typeof ProjectEnvDeleteRequestSchema>;
 type ProjectEnvDeleteResponse = z.infer<typeof ProjectEnvDeleteResponseSchema>;
 
 /**

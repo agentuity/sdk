@@ -42,9 +42,9 @@ const SessionSchema = z.object({
 
 export { SessionSchema };
 
-const SessionListResponse = z.array(SessionSchema);
+export const SessionListResponse = z.array(SessionSchema);
 
-const SessionListResponseSchema = APIResponseSchema(SessionListResponse);
+export const SessionListResponseSchema = APIResponseSchema(SessionListResponse);
 
 export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
 export type SessionList = z.infer<typeof SessionListResponse>;

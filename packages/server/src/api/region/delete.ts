@@ -2,26 +2,26 @@ import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
 import { RegionResponseError } from './util';
 
-const DeleteResourceSpec = z.object({
+export const DeleteResourceSpec = z.object({
 	type: z.enum(['db', 's3']).describe('the resource type'),
 	name: z.string().describe('the resource name (bucket_name for S3, db_name for DB)'),
 });
 
-const DeleteResourcesRequest = z.object({
+export const DeleteResourcesRequest = z.object({
 	resources: z.array(DeleteResourceSpec).describe('list of resources to delete'),
 });
 
-const DeletedResource = z.object({
+export const DeletedResource = z.object({
 	type: z.string().describe('the resource type'),
 	name: z.string().describe('the resource name'),
 	env_keys: z.array(z.string()).describe('environment variable keys to remove'),
 });
 
-const DeleteResourcesResponse = z.object({
+export const DeleteResourcesResponse = z.object({
 	deleted: z.array(DeletedResource).describe('list of deleted resources'),
 });
 
-const DeleteResourcesResponseSchema = APIResponseSchema(DeleteResourcesResponse);
+export const DeleteResourcesResponseSchema = APIResponseSchema(DeleteResourcesResponse);
 
 export type DeleteResourcesRequest = z.infer<typeof DeleteResourcesRequest>;
 export type DeleteResourcesResponse = z.infer<typeof DeleteResourcesResponseSchema>;

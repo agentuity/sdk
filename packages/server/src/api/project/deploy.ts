@@ -30,7 +30,7 @@ const BaseFileFields = {
 	version: z.string().describe('the SHA256 content of the file'),
 };
 
-const EvalSchema = z.object({
+export const BuildEvalSchema = z.object({
 	...BaseFileFields,
 	id: z.string().describe('the unique calculated id for the eval'),
 	identifier: z.string().describe('the unique id for eval for the project across deployments'),
@@ -47,7 +47,7 @@ const BaseAgentFields = {
 	projectId: z.string().describe('the project id'),
 	name: z.string().describe('the name of the agent'),
 	description: z.string().optional().describe('the agent description'),
-	evals: z.array(EvalSchema).optional().describe('the evals for the agent'),
+	evals: z.array(BuildEvalSchema).optional().describe('the evals for the agent'),
 	schema: z
 		.object({
 			input: z.string().optional().describe('JSON schema for input (stringified JSON)'),
@@ -57,7 +57,7 @@ const BaseAgentFields = {
 		.describe('input and output JSON schemas for the agent'),
 };
 
-const AgentSchema = z.object({
+export const BuildAgentSchema = z.object({
 	...BaseAgentFields,
 });
 
@@ -87,7 +87,7 @@ export const BuildMetadataSchema = z.object({
 				.describe('input and output JSON schemas for the route'),
 		})
 	),
-	agents: z.array(AgentSchema),
+	agents: z.array(BuildAgentSchema),
 	assets: z.array(
 		z.object({
 			filename: z.string().describe('the relative path for the file'),
@@ -168,7 +168,7 @@ export const BuildMetadataSchema = z.object({
 
 export type BuildMetadata = z.infer<typeof BuildMetadataSchema>;
 
-const CreateProjectDeployment = z.object({
+export const CreateProjectDeploymentSchema = z.object({
 	id: z.string().describe('the unique id for the deployment'),
 	orgId: z.string().describe('the organization id'),
 	publicKey: z.string().describe('the public key to use for encrypting the deployment'),
@@ -178,11 +178,11 @@ const CreateProjectDeployment = z.object({
 		.describe('the URL for streaming build logs (PUT to write, GET to read)'),
 });
 
-const CreateProjectDeploymentSchema = APIResponseSchema(CreateProjectDeployment);
+const CreateProjectDeploymentResponseSchema = APIResponseSchema(CreateProjectDeploymentSchema);
 
-type CreateProjectDeploymentPayload = z.infer<typeof CreateProjectDeploymentSchema>;
+type CreateProjectDeploymentPayload = z.infer<typeof CreateProjectDeploymentResponseSchema>;
 
-export type Deployment = z.infer<typeof CreateProjectDeployment>;
+export type Deployment = z.infer<typeof CreateProjectDeploymentSchema>;
 
 /**
  * Create a new project deployment
@@ -199,7 +199,7 @@ export async function projectDeploymentCreate(
 	const resp = await client.request<CreateProjectDeploymentPayload>(
 		'POST',
 		`/cli/deploy/1/start/${projectId}`,
-		CreateProjectDeploymentSchema,
+		CreateProjectDeploymentResponseSchema,
 		deploymentConfig ?? {}
 	);
 	if (resp.success) {
@@ -208,7 +208,7 @@ export async function projectDeploymentCreate(
 	throw new ProjectResponseError({ message: resp.message });
 }
 
-const DeploymentInstructionsObject = z.object({
+export const DeploymentInstructionsSchema = z.object({
 	deployment: z.string().describe('the url for uploading the encrypted deployment archive'),
 	assets: z
 		.record(
@@ -218,10 +218,10 @@ const DeploymentInstructionsObject = z.object({
 		.describe('the upload metadata for public assets'),
 });
 
-const DeploymentInstructionsSchema = APIResponseSchema(DeploymentInstructionsObject);
+const DeploymentInstructionsResponseSchema = APIResponseSchema(DeploymentInstructionsSchema);
 
-type DeploymentInstructionsResponse = z.infer<typeof DeploymentInstructionsSchema>;
-export type DeploymentInstructions = z.infer<typeof DeploymentInstructionsObject>;
+type DeploymentInstructionsResponse = z.infer<typeof DeploymentInstructionsResponseSchema>;
+export type DeploymentInstructions = z.infer<typeof DeploymentInstructionsSchema>;
 
 /**
  * Update the deployment with the build metadata
@@ -238,7 +238,7 @@ export async function projectDeploymentUpdate(
 	const resp = await client.request<DeploymentInstructionsResponse, BuildMetadata>(
 		'PUT',
 		`/cli/deploy/1/start/${deploymentId}`,
-		DeploymentInstructionsSchema,
+		DeploymentInstructionsResponseSchema,
 		deployment,
 		BuildMetadataSchema
 	);
@@ -248,7 +248,7 @@ export async function projectDeploymentUpdate(
 	throw new ProjectResponseError({ message: resp.message });
 }
 
-const DeploymentCompleteObject = z.object({
+export const DeploymentCompleteSchema = z.object({
 	streamId: z.string().optional().describe('the stream id for warmup logs'),
 	publicUrls: z
 		.object({
@@ -259,10 +259,10 @@ const DeploymentCompleteObject = z.object({
 		.describe('the map of public urls'),
 });
 
-const DeploymentCompleteObjectSchema = APIResponseSchema(DeploymentCompleteObject);
+const DeploymentCompleteResponseSchema = APIResponseSchema(DeploymentCompleteSchema);
 
-type DeploymentCompleteResponse = z.infer<typeof DeploymentCompleteObjectSchema>;
-export type DeploymentComplete = z.infer<typeof DeploymentCompleteObject>;
+type DeploymentCompleteResponse = z.infer<typeof DeploymentCompleteResponseSchema>;
+export type DeploymentComplete = z.infer<typeof DeploymentCompleteSchema>;
 
 export const DeploymentStateValue = z.enum([
 	'pending',
@@ -274,14 +274,14 @@ export const DeploymentStateValue = z.enum([
 
 export type DeploymentState = z.infer<typeof DeploymentStateValue>;
 
-const DeploymentStatusObject = z.object({
+export const DeploymentStatusSchema = z.object({
 	state: DeploymentStateValue.describe('the current deployment state'),
 });
 
-const DeploymentStatusObjectSchema = APIResponseSchema(DeploymentStatusObject);
+const DeploymentStatusResponseSchema = APIResponseSchema(DeploymentStatusSchema);
 
-type DeploymentStatusResponse = z.infer<typeof DeploymentStatusObjectSchema>;
-export type DeploymentStatusResult = z.infer<typeof DeploymentStatusObject>;
+type DeploymentStatusResponse = z.infer<typeof DeploymentStatusResponseSchema>;
+export type DeploymentStatusResult = z.infer<typeof DeploymentStatusSchema>;
 
 /**
  * Complete the deployment once build is uploaded
@@ -297,7 +297,7 @@ export async function projectDeploymentComplete(
 	const resp = await client.request<DeploymentCompleteResponse>(
 		'POST',
 		`/cli/deploy/1/complete/${deploymentId}`,
-		DeploymentCompleteObjectSchema
+		DeploymentCompleteResponseSchema
 	);
 	if (resp.success) {
 		return resp.data;
@@ -321,7 +321,7 @@ export async function projectDeploymentStatus(
 	const resp = await client.request<DeploymentStatusResponse>(
 		'GET',
 		`/cli/deploy/1/status/${deploymentId}`,
-		DeploymentStatusObjectSchema
+		DeploymentStatusResponseSchema
 	);
 	if (resp.success) {
 		return resp.data;
@@ -359,7 +359,7 @@ export interface DeploymentFailPayload {
 	diagnostics?: ClientDiagnostics;
 }
 
-const ClientDiagnosticsErrorSchema = z.object({
+export const ClientDiagnosticsErrorSchema = z.object({
 	type: z.enum(['file', 'general']),
 	scope: z.enum(['typescript', 'ast', 'build', 'bundler', 'validation', 'deploy']),
 	path: z.string().optional(),
@@ -369,14 +369,14 @@ const ClientDiagnosticsErrorSchema = z.object({
 	code: z.string().optional(),
 });
 
-const ClientDiagnosticsTimingSchema = z.object({
+export const ClientDiagnosticsTimingSchema = z.object({
 	name: z.string(),
 	startedAt: z.string(),
 	completedAt: z.string(),
 	durationMs: z.number(),
 });
 
-const ClientDiagnosticsSchema = z.object({
+export const ClientDiagnosticsSchema = z.object({
 	success: z.boolean(),
 	errors: z.array(ClientDiagnosticsErrorSchema),
 	warnings: z.array(ClientDiagnosticsErrorSchema),
@@ -384,17 +384,17 @@ const ClientDiagnosticsSchema = z.object({
 	error: z.string().optional(),
 });
 
-const DeploymentFailPayloadSchema = z.object({
+export const DeploymentFailPayloadSchema = z.object({
 	error: z.string().optional(),
 	diagnostics: ClientDiagnosticsSchema.optional(),
 });
 
-const DeploymentFailResponseObject = z.object({
+export const DeploymentFailResponseSchema = z.object({
 	state: z.literal('failed'),
 });
 
-const DeploymentFailResponseSchema = APIResponseSchema(DeploymentFailResponseObject);
-type DeploymentFailResponse = z.infer<typeof DeploymentFailResponseSchema>;
+const DeploymentFailAPIResponseSchema = APIResponseSchema(DeploymentFailResponseSchema);
+type DeploymentFailResponse = z.infer<typeof DeploymentFailAPIResponseSchema>;
 
 /**
  * Report a deployment failure from the client
@@ -412,7 +412,7 @@ export async function projectDeploymentFail(
 	const resp = await client.request<DeploymentFailResponse, DeploymentFailPayload>(
 		'POST',
 		`/cli/deploy/1/fail/${deploymentId}`,
-		DeploymentFailResponseSchema,
+		DeploymentFailAPIResponseSchema,
 		payload,
 		DeploymentFailPayloadSchema
 	);

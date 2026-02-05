@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 
-const EvalRunSchema = z.object({
+export const EvalRunSchema = z.object({
 	id: z.string().describe('Eval run ID'),
 	sessionId: z.string().describe('Session ID'),
 	evalId: z.string().describe('Evaluation record ID'),
@@ -19,7 +19,7 @@ const EvalRunSchema = z.object({
 	updatedAt: z.string().describe('Last updated timestamp'),
 });
 
-const EvalRunListResponseData = z.array(EvalRunSchema);
+export const EvalRunListResponseData = z.array(EvalRunSchema);
 const EvalRunListResponseSchema = APIResponseSchema(EvalRunListResponseData);
 
 export type EvalRunListItem = z.infer<typeof EvalRunSchema>;
