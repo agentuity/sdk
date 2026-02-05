@@ -358,14 +358,14 @@ export const toneEval = createPresetEval<
    name: 'tone-check',
    description: 'Evaluates if response matches expected tone',
    options: {
-      model: 'gpt-4o',
+      model: openai('gpt-4o'), // LanguageModel instance from AI SDK
       expectedTone: 'friendly',
    },
    handler: async (ctx, input, output, options) => {
-      // Evaluation logic
+      // Evaluation logic - use options.model for LLM calls
       return {
          passed: true,
-         score: 0.85, // optional
+         score: 0.85, // optional (0.0-1.0)
          reason: 'Response matches friendly tone',
       };
    },
@@ -373,7 +373,7 @@ export const toneEval = createPresetEval<
 
 // Usage on agent
 agent.createEval(toneEval()); // Use defaults
-agent.createEval(toneEval({ expectedTone: 'formal' })); // Override
+agent.createEval(toneEval({ expectedTone: 'formal' })); // Override options
 \`\`\`
 
 **Key points:**
