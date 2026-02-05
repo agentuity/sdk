@@ -140,9 +140,9 @@ export const domainSubcommand = createSubcommand({
 				tui.newline();
 				tui.warning('DNS record not yet configured. Please add the following CNAME record:');
 				tui.newline();
-				console.log(`  ${tui.colorInfo('Domain:')}  ${tui.colorPrimary(result.domain)}`);
-				console.log(`  ${tui.colorInfo('Type:')}    ${tui.colorPrimary(result.recordType)}`);
-				console.log(`  ${tui.colorInfo('Target:')}  ${tui.colorPrimary(result.target)}`);
+				tui.output(`  ${tui.colorInfo('Domain:')}  ${tui.colorPrimary(result.domain)}`);
+				tui.output(`  ${tui.colorInfo('Type:')}    ${tui.colorPrimary(result.recordType)}`);
+				tui.output(`  ${tui.colorInfo('Target:')}  ${tui.colorPrimary(result.target)}`);
 				tui.newline();
 
 				if (isMisconfigured(result)) {
