@@ -20,8 +20,9 @@ None - this is a source-only package used directly via workspace imports
 ```text
 src/
 ├── index.ts         # Main exports
-├── mock-logger.ts   # createMockLogger() helper
-└── mock-fetch.ts    # mockFetch() helper
+├── mock-logger.ts   # createMockLogger(), createMockLoggerWithCapture()
+├── mock-fetch.ts    # mockFetch() helper
+└── mock-adapter.ts  # createMockAdapter() for FetchAdapter mocking
 ```
 
 ## Usage in Other Packages
@@ -39,7 +40,7 @@ Add to devDependencies only:
 Import in test files:
 
 ```typescript
-import { createMockLogger, mockFetch } from '@agentuity/test-utils';
+import { createMockLogger, mockFetch, createMockAdapter } from '@agentuity/test-utils';
 ```
 
 ## Adding New Helpers
@@ -63,8 +64,47 @@ When you find test code duplicated across 2+ packages:
 
 ### `createMockLogger()`
 
-Creates a silent mock Logger for testing.
+Creates a silent mock Logger for testing. All log methods are no-ops.
+
+### `createMockLoggerWithCapture()`
+
+Creates a mock Logger that captures log output for assertions.
 
 ### `mockFetch(fn)`
 
-Mocks globalThis.fetch, handling Bun's type incompatibility automatically.
+Mocks `globalThis.fetch`, handling Bun's type incompatibility automatically.
+
+```typescript
+import { mockFetch, type MockFetchFn } from '@agentuity/test-utils';
+
+const mockFn: MockFetchFn = async (url, init) => {
+	return new Response(JSON.stringify({ ok: true }));
+};
+
+const restore = mockFetch(mockFn);
+// ... run tests ...
+restore(); // Restore original fetch
+```
+
+### `createMockAdapter(config)`
+
+Creates a mock `FetchAdapter` for testing services that use the adapter pattern.
+
+```typescript
+import { createMockAdapter, type MockAdapterConfig } from '@agentuity/test-utils';
+
+const { adapter, calls } = createMockAdapter({
+	responses: [
+		{ status: 200, data: { id: '123' } },
+		{ status: 404, error: 'Not found' },
+	],
+});
+
+// Use adapter in service
+const service = new MyService(adapter);
+await service.get('123');
+
+// Assert calls
+expect(calls).toHaveLength(1);
+expect(calls[0].method).toBe('GET');
+```

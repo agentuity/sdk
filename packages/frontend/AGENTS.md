@@ -2,80 +2,80 @@
 
 ## Package Overview
 
-Generic web utilities for building Agentuity frontend applications. Provides framework-agnostic utilities that can be used across React, Svelte, Vue, and other frontend frameworks.
+Framework-agnostic web utilities for building Agentuity frontend applications. Works across React, Svelte, Vue, and other frameworks without any framework dependencies.
 
 ## Commands
 
 - **Build**: `bun run build` (compiles for browser target)
-- **Typecheck**: `bun run typecheck` (runs TypeScript type checking)
-- **Clean**: `bun run clean` (removes dist/)
+- **Typecheck**: `bun run typecheck`
+- **Clean**: `bun run clean`
 
 ## Architecture
 
-- **Runtime**: Browser only (uses browser APIs like fetch, WebSocket, EventSource)
+- **Runtime**: Browser only (uses fetch, WebSocket, EventSource)
 - **Build target**: Browser with ESNext
-- **Dependencies**: Requires `@agentuity/core` (workspace dependency)
-- **No framework dependencies**: Pure JavaScript/TypeScript with no React/Svelte/Vue dependencies
+- **Dependencies**: `@agentuity/core` only
+- **No framework dependencies**: Pure TypeScript
 
 ## Structure
 
 ```text
 src/
-├── index.ts           # Main entry point
-├── env.ts             # Environment variable helpers
-├── url.ts             # URL building utilities
-├── serialization.ts   # JSON serialization helpers
-├── reconnect.ts       # Exponential backoff reconnection logic
-├── types.ts           # Type definitions for route registries
-└── memo.ts            # JSON equality utilities
+├── index.ts              # Main exports
+├── types.ts              # RouteRegistry, WebSocketRouteRegistry, SSERouteRegistry, RPCRouteRegistry
+├── url.ts                # buildUrl, defaultBaseUrl
+├── reconnect.ts          # createReconnectManager (exponential backoff)
+├── websocket-manager.ts  # WebSocketManager class
+├── eventstream-manager.ts # EventStreamManager class (SSE)
+├── client/               # Type-safe API client (createClient)
+└── analytics/            # getAnalytics, track, getVisitorId, isOptedOut
 ```
 
-## Code Style
+## Code Conventions
 
-- **Framework-agnostic** - No framework-specific dependencies (React, Svelte, etc.)
+- **Framework-agnostic** - No React/Svelte/Vue dependencies
 - **TypeScript generics** - Heavy use of generics for type safety
 - **Pure functions** - All utilities are pure functions where possible
-- **Browser APIs** - Uses standard browser APIs (fetch, WebSocket, EventSource)
+- **Browser APIs** - Uses standard browser APIs only
 
-## Important Conventions
+## Important Patterns
 
-- **No framework dependencies** - This package must remain framework-agnostic
-- **Type inference** - Route types are inferred from generated types (RouteRegistry)
-- **Base URL** - Defaults to current origin if not provided
-- **WebSocket protocol** - Auto-converts http:// to ws:// and https:// to wss://
-- **Serialization** - Automatically handles JSON serialization/deserialization
+### Route Registries
 
-## Utilities
+Types are augmented by generated code:
 
-### URL Building
+```typescript
+declare module '@agentuity/frontend' {
+	export interface RouteRegistry {
+		'GET /users': { outputSchema: typeof usersSchema };
+	}
+	export interface WebSocketRouteRegistry {
+		/* ... */
+	}
+	export interface SSERouteRegistry {
+		/* ... */
+	}
+	export interface RPCRouteRegistry {
+		/* ... */
+	}
+}
+```
 
-- `buildUrl()` - Construct URLs with paths, subpaths, and query parameters
-- `defaultBaseUrl` - Default base URL from environment or window.location.origin
+### Connection Managers
 
-### Reconnection Manager
+`WebSocketManager` and `EventStreamManager` provide auto-reconnection with exponential backoff. Used internally by `@agentuity/react` hooks.
 
-- `createReconnectManager()` - Exponential backoff reconnection logic with jitter
-- Configurable threshold, delays, and retry strategies
+## Key Exports
 
-### Environment
+- **URL**: `buildUrl`, `defaultBaseUrl`
+- **Reconnect**: `createReconnectManager`
+- **Managers**: `WebSocketManager`, `EventStreamManager`
+- **Client**: `createClient`
+- **Analytics**: `getAnalytics`, `track`, `getVisitorId`, `isOptedOut`, `setOptOut`
+- **Types**: `RouteRegistry`, `WebSocketRouteRegistry`, `SSERouteRegistry`, `RPCRouteRegistry`
 
-- `getProcessEnv()` - Cross-platform environment variable access (process.env, import.meta.env)
+## Publishing
 
-### Serialization
-
-- `deserializeData()` - Safe JSON deserialization with fallback
-- `jsonEqual()` - JSON-based equality check for memoization
-
-## Testing
-
-- Test with Bun test runner
-- Mock browser APIs where needed (fetch, WebSocket, EventSource)
-- Ensure all utilities work without framework dependencies
-- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
-
-## Publishing Checklist
-
-1. Run `bun run build` to compile for browser
-2. Verify `dist/` contains browser-compatible code (no Node.js APIs)
-3. Ensure no framework-specific dependencies are added
-4. Must publish **after** @agentuity/core
+1. Run `bun run build`
+2. Verify no Node.js APIs in output
+3. Must publish **after** @agentuity/core
