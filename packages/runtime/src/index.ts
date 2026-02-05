@@ -85,6 +85,7 @@ export {
 	type SSEMessage,
 	type SSEStream,
 	type SSEHandler,
+	type SSEOptions,
 	stream,
 	type StreamHandler,
 	cron,

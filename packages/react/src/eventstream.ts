@@ -49,6 +49,9 @@ export interface EventStreamOptions {
  * the SSERouteRegistry generated from your routes.
  *
  * @template TRoute - SSE route key from SSERouteRegistry (e.g., '/events', '/notifications')
+ * @template TOutput - Optional type override for SSE event data. When provided, this type
+ *   is used instead of the inferred type from the route registry. This is useful for SSE
+ *   routes where outputSchema is `never` in the generated types.
  *
  * @example Simple SSE connection
  * ```typescript
@@ -63,14 +66,29 @@ export interface EventStreamOptions {
  *   query: new URLSearchParams({ userId: '123' })
  * });
  * ```
+ *
+ * @example SSE with custom output type (when registry has outputSchema: never)
+ * ```typescript
+ * interface StreamMessage {
+ *   type: 'token' | 'complete';
+ *   content?: string;
+ * }
+ *
+ * const { isConnected, data } = useEventStream<'/api/search', StreamMessage>('/api/search');
+ *
+ * // data is typed as StreamMessage | undefined
+ * if (data?.type === 'token') {
+ *   console.log(data.content);
+ * }
+ * ```
  */
-export function useEventStream<TRoute extends SSERouteKey>(
+export function useEventStream<TRoute extends SSERouteKey, TOutput = SSERouteOutput<TRoute>>(
 	route: TRoute,
 	options?: EventStreamOptions
 ): {
 	isConnected: boolean;
 	close: () => void;
-	data?: SSERouteOutput<TRoute>;
+	data?: TOutput;
 	error: Error | null;
 	isError: boolean;
 	reset: () => void;
@@ -82,23 +100,28 @@ export function useEventStream<TRoute extends SSERouteKey>(
 		throw new Error('useEventStream must be used within a AgentuityProvider');
 	}
 
-	const managerRef = useRef<EventStreamManager<SSERouteOutput<TRoute>> | null>(null);
+	const managerRef = useRef<EventStreamManager<TOutput> | null>(null);
 
-	const [data, setData] = useState<SSERouteOutput<TRoute>>();
+	const [data, setData] = useState<TOutput>();
 	const [error, setError] = useState<Error | null>(null);
 	const [isError, setIsError] = useState(false);
 	const [isConnected, setIsConnected] = useState(false);
 	const [readyState, setReadyState] = useState<number>(2); // EventSource.CLOSED = 2
 
 	// Build EventStream URL
+	// Track both query object and its string representation to detect mutations.
+	// URLSearchParams can be mutated in-place without changing object identity,
+	// so we compare the string value to trigger recomputation when params change.
+	const queryString = options?.query?.toString();
 	const esUrl = useMemo(
 		() => buildUrl(context.baseUrl!, route as string, options?.subpath, options?.query),
-		[context.baseUrl, route, options?.subpath, options?.query?.toString()]
+		// biome-ignore lint/correctness/useExhaustiveDependencies: queryString tracks URLSearchParams mutations that options?.query reference wouldn't catch
+		[context.baseUrl, route, options?.subpath, options?.query, queryString]
 	);
 
 	// Initialize manager and connect
 	useEffect(() => {
-		const manager = new EventStreamManager<SSERouteOutput<TRoute>>({
+		const manager = new EventStreamManager<TOutput>({
 			url: esUrl,
 			callbacks: {
 				onConnect: () => {
