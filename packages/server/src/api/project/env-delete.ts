@@ -2,11 +2,15 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchemaNoData } from '../api';
 import { ProjectResponseError } from './util';
 
-export const ProjectEnvDeleteRequestSchema = z.object({
-	id: z.string().describe('the project id'),
-	env: z.array(z.string()).optional().describe('environment variable keys to delete'),
-	secrets: z.array(z.string()).optional().describe('secret keys to delete'),
-});
+export const ProjectEnvDeleteRequestSchema = z
+	.object({
+		id: z.string().describe('the project id'),
+		env: z.array(z.string()).optional().describe('environment variable keys to delete'),
+		secrets: z.array(z.string()).optional().describe('secret keys to delete'),
+	})
+	.refine((data) => (data.env?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0, {
+		message: 'must provide at least one of env or secrets',
+	});
 
 const ProjectEnvDeleteResponseSchema = APIResponseSchemaNoData();
 
