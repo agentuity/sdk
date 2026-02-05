@@ -64,8 +64,8 @@ You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
 const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'architect'];
 
 // Agent display names for @mentions
-// Note: Monitor has hidden: true so it won't appear in @ autocomplete,
-// but it's still included here for programmatic invocation via Task tool
+// Note: Monitor and Expert sub-agents have hidden: true so they won't appear in @ autocomplete,
+// but they're still included here for programmatic invocation via Task tool
 const AGENT_MENTIONS: Record<AgentRole, string> = {
 	lead: '@Agentuity Coder Lead',
 	scout: '@Agentuity Coder Scout',
@@ -74,6 +74,9 @@ const AGENT_MENTIONS: Record<AgentRole, string> = {
 	reviewer: '@Agentuity Coder Reviewer',
 	memory: '@Agentuity Coder Memory',
 	expert: '@Agentuity Coder Expert',
+	'expert-backend': '@Agentuity Coder Expert Backend',
+	'expert-frontend': '@Agentuity Coder Expert Frontend',
+	'expert-ops': '@Agentuity Coder Expert Ops',
 	runner: '@Agentuity Coder Runner',
 	reasoner: '@Agentuity Coder Reasoner',
 	product: '@Agentuity Coder Product',
