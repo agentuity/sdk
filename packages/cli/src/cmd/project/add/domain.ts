@@ -47,7 +47,7 @@ export const domainSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, projectDir, config } = ctx;
+		const { args, opts, options, projectDir, config, logger } = ctx;
 
 		if (isDryRunMode(options)) {
 			const message = args.domain
@@ -75,7 +75,7 @@ export const domainSubcommand = createSubcommand({
 		} else {
 			const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
 			if (isHeadless) {
-				tui.fatal(
+				logger.fatal(
 					'Domain name is required in non-interactive mode. Usage: ' +
 						tui.bold(getCommand('project add domain <domain>')),
 					ErrorCode.MISSING_ARGUMENT
@@ -103,7 +103,7 @@ export const domainSubcommand = createSubcommand({
 			}
 
 			if (!entered) {
-				tui.fatal('Operation cancelled', ErrorCode.USER_CANCELLED);
+				logger.fatal('Operation cancelled', ErrorCode.USER_CANCELLED);
 			}
 
 			domain = entered.toLowerCase().trim();
@@ -134,7 +134,7 @@ export const domainSubcommand = createSubcommand({
 			const result = results[0];
 			if (result && !isSuccess(result)) {
 				if (isError(result)) {
-					tui.fatal(`DNS validation failed: ${result.error}`, ErrorCode.VALIDATION_FAILED);
+					logger.fatal(`DNS validation failed: ${result.error}`, ErrorCode.VALIDATION_FAILED);
 				}
 
 				tui.newline();
@@ -161,7 +161,7 @@ export const domainSubcommand = createSubcommand({
 				}
 
 				if (!proceed) {
-					tui.fatal('Operation cancelled', ErrorCode.USER_CANCELLED);
+					logger.fatal('Operation cancelled', ErrorCode.USER_CANCELLED);
 				}
 			}
 		}
