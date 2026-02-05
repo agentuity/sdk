@@ -63,26 +63,6 @@ You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
 // Agents that should receive sandbox context in their prompts
 const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'architect'];
 
-// Agent display names for @mentions
-// Note: Monitor and Expert sub-agents have hidden: true so they won't appear in @ autocomplete,
-// but they're still included here for programmatic invocation via Task tool
-const AGENT_MENTIONS: Record<AgentRole, string> = {
-	lead: '@Agentuity Coder Lead',
-	scout: '@Agentuity Coder Scout',
-	builder: '@Agentuity Coder Builder',
-	architect: '@Agentuity Coder Architect',
-	reviewer: '@Agentuity Coder Reviewer',
-	memory: '@Agentuity Coder Memory',
-	expert: '@Agentuity Coder Expert',
-	'expert-backend': '@Agentuity Coder Expert Backend',
-	'expert-frontend': '@Agentuity Coder Expert Frontend',
-	'expert-ops': '@Agentuity Coder Expert Ops',
-	runner: '@Agentuity Coder Runner',
-	reasoner: '@Agentuity Coder Reasoner',
-	product: '@Agentuity Coder Product',
-	monitor: '@Agentuity Coder Monitor',
-};
-
 export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	ctx.client.app.log({
 		body: {
