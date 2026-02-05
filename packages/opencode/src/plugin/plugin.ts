@@ -257,13 +257,30 @@ function createConfigHandler(
 		// Validate merged configs and warn about mismatches
 		validateAndWarnConfigs(mergedAgents);
 
-		// In sandbox, allow all permissions without prompts
+		// Permission configuration for external directories
+		// Memory agent and other operations may need to write temp files for CLI piping
 		if (IN_SANDBOX) {
+			// In sandbox, allow all permissions without prompts
 			config.permission = {
 				'*': 'allow',
 				external_directory: {
 					'/home/agentuity/**': 'allow',
 					'*': 'allow',
+				},
+			};
+		} else {
+			// For non-sandbox environments, auto-allow temp directory writes
+			// This prevents blocking prompts when Memory agent writes large JSON for CLI piping
+			const existingPermissions = (config.permission as Record<string, unknown>) ?? {};
+			const existingExternalDir =
+				(existingPermissions.external_directory as Record<string, string>) ?? {};
+			config.permission = {
+				...existingPermissions,
+				external_directory: {
+					...existingExternalDir,
+					'/tmp/**': 'allow',
+					// Also allow OS-specific temp directories
+					...(process.env.TMPDIR ? { [`${process.env.TMPDIR}**`]: 'allow' } : {}),
 				},
 			};
 		}
