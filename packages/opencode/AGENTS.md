@@ -70,7 +70,6 @@ src/
 │       └── entities.ts   # Entity extraction and management
 ├── tools/
 │   ├── index.ts          # Tool exports
-│   ├── delegate.ts       # agentuity_coder_delegate tool
 │   └── background.ts     # Background task tools
 ├── background/
 │   ├── index.ts          # Background task exports
@@ -130,15 +129,10 @@ Sessions are stored with branch awareness to prevent stale memories from deleted
 
 ## Delegation Pattern
 
-Lead delegates to specialized agents via `agentuity_coder_delegate` tool:
+Lead delegates to specialized agents via two mechanisms:
 
-```typescript
-{
-  agent: 'scout' | 'builder' | 'architect' | 'reviewer' | 'memory' | 'reasoner' | 'expert' | 'runner' | 'product' | 'monitor',
-  task: 'Description of what to do',
-  context?: 'Additional context'
-}
-```
+- **Task tool** (blocking) — Spawns a subagent, waits for result. Use for sequential work.
+- **`agentuity_background_task`** (parallel) — Launches a task in a separate session. Use for independent concurrent work.
 
 ## Testing
 

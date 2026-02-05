@@ -611,47 +611,6 @@ function createTools(backgroundManager: BackgroundManager): Hooks['tool'] {
 	// Use the schema from @opencode-ai/plugin's tool helper to avoid Zod version mismatches
 	const s = tool.schema;
 
-	const coderDelegate = tool({
-		description: `Delegate a task to a specialized Agentuity Coder agent.
-
-Use this to:
-- Scout: Explore codebase, find patterns, research documentation
-- Builder: Implement features, write code, run tests (interactive work)
-- Architect: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
-- Reviewer: Review changes, catch issues, apply fixes
-- Memory: Store context, remember decisions across sessions
-- Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
-- Expert: Get help with Agentuity CLI and cloud services
-- Runner: Execute lint/build/test/typecheck/format commands, returns structured results
-- Monitor: Watch background tasks and report when they complete`,
-		args: {
-			agent: s
-				.enum([
-					'scout',
-					'builder',
-					'architect',
-					'reviewer',
-					'memory',
-					'reasoner',
-					'expert',
-					'runner',
-					'product',
-					'monitor',
-				])
-				.describe('Which agent to delegate to'),
-			task: s.string().describe('Clear description of the task'),
-			context: s.string().optional().describe('Additional context from previous tasks'),
-		},
-		async execute(args) {
-			const mention = AGENT_MENTIONS[args.agent as AgentRole];
-			let prompt = `${mention}\n\n## Task\n${args.task}`;
-			if (args.context) {
-				prompt = `${mention}\n\n## Context\n${args.context}\n\n## Task\n${args.task}`;
-			}
-			return `To delegate this task, use the Task tool with this prompt:\n\n${prompt}\n\nThe ${args.agent} agent will handle this task.`;
-		},
-	});
-
 	const backgroundTask = tool({
 		description: `Launch a task to run in the background. Use this for parallel execution of multiple independent tasks.
 
@@ -926,7 +885,6 @@ Returns the public URL that can be copied and used anywhere.`,
 	});
 
 	return {
-		agentuity_coder_delegate: coderDelegate,
 		agentuity_background_task: backgroundTask,
 		agentuity_background_output: backgroundOutput,
 		agentuity_background_cancel: backgroundCancel,
