@@ -61,7 +61,7 @@ export function TableOfContents() {
 	}
 
 	return (
-		<nav className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
+		<nav className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto border-l border-zinc-200/60 dark:border-zinc-800/60 pl-4">
 			<p className="mb-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">On this page</p>
 			<ul className="space-y-2 text-sm pb-4">
 				{flatHeadings.map(({ id, value, depth }) => (

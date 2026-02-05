@@ -1,4 +1,5 @@
 export { AppSidebar } from './app-sidebar';
+export { CopyPageDropdown } from './copy-page-dropdown';
 export { DocsLayout } from './docs-layout';
 export { FooterNav } from './footer-nav';
 export { HeaderLinks } from './header-links';

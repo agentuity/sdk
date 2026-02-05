@@ -267,11 +267,6 @@ export const mdxComponents: MDXComponents = {
 		/>
 	),
 
-	// Wrapper for MDX content with prose styling
-	wrapper: ({ children }: { children: ReactNode }) => (
-		<article className="prose prose-zinc dark:prose-invert max-w-none">{children}</article>
-	),
-
 	// Documentation components
 	Callout,
 	Steps,

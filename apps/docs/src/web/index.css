@@ -243,10 +243,18 @@
 /* rehype-pretty-code: Inline code highlighting */
 [data-rehype-pretty-code-figure] code[data-theme] span {
 	color: var(--shiki-light);
+	background: transparent !important;
+	background-color: transparent !important;
+	--shiki-light-bg: transparent !important;
+	--shiki-dark-bg: transparent !important;
 }
 
 .dark [data-rehype-pretty-code-figure] code[data-theme] span {
 	color: var(--shiki-dark);
+	background: transparent !important;
+	background-color: transparent !important;
+	--shiki-light-bg: transparent !important;
+	--shiki-dark-bg: transparent !important;
 }
 
 @layer base {

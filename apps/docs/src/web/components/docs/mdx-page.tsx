@@ -10,6 +10,7 @@ import {
 	BreadcrumbLink,
 	BreadcrumbList,
 } from '../ui';
+import { CopyPageDropdown } from './copy-page-dropdown';
 
 interface Frontmatter {
 	title?: string;
@@ -115,13 +116,16 @@ function PageHeader({ title, description }: Frontmatter) {
 
 	return (
 		<header className="mb-8">
-			{title && (
-				<h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mb-3">
-					{title}
-				</h1>
-			)}
+			<div className="flex items-start justify-between gap-4">
+				{title && (
+					<h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+						{title}
+					</h1>
+				)}
+				<CopyPageDropdown enhanced />
+			</div>
 			{description && (
-				<p className="text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
+				<p className="text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed mt-3">
 					{description}
 				</p>
 			)}
@@ -154,9 +158,11 @@ function MDXRenderer({ modulePath, route }: { modulePath: string; route: string 
 		<>
 			<PageBreadcrumb route={route} />
 			<PageHeader {...frontmatter} />
-			<MDXProvider components={mdxComponents}>
-				<Content />
-			</MDXProvider>
+			<article className="prose prose-zinc dark:prose-invert max-w-none">
+				<MDXProvider components={mdxComponents}>
+					<Content />
+				</MDXProvider>
+			</article>
 		</>
 	);
 }

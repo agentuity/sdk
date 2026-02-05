@@ -2,48 +2,31 @@ import * as React from 'react';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '../ui';
 import { AppSidebar } from './app-sidebar';
-import { FooterNav } from './footer-nav';
 import { HeaderLinks } from './header-links';
 import { ModeToggle } from './mode-toggle';
 import { SearchDialog } from './search-dialog';
-import { getFrontmatterForRoute } from './mdx-page';
 
 export function DocsLayout() {
 	const [searchOpen, setSearchOpen] = React.useState(false);
 	const location = useLocation();
 	const navigate = useNavigate();
+	const mainRef = React.useRef<HTMLElement>(null);
 
 	// Convert pathname to currentPage format for backward compatibility
 	const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
 
-	// Set document title for a given path
-	const setTitleForPath = React.useCallback((pathname: string) => {
-		if (pathname === '/') {
-			document.title = 'Agentuity Documentation';
-		} else if (pathname.startsWith('/demo/')) {
-			document.title = 'SDK Explorer — Agentuity Documentation';
-		} else {
-			const frontmatter = getFrontmatterForRoute(pathname);
-			document.title = frontmatter?.title
-				? `${frontmatter.title} — Agentuity Documentation`
-				: 'Agentuity Documentation';
-		}
-	}, []);
+	// Scroll to top on route change
+	React.useLayoutEffect(() => {
+		mainRef.current?.scrollTo(0, 0);
+	}, [location.pathname]);
 
 	const handleNavigate = React.useCallback(
 		(path: string) => {
 			const to = path === 'home' ? '/' : `/${path}`;
-			// Set title BEFORE navigation for instant feedback
-			setTitleForPath(to);
 			void navigate({ to });
 		},
-		[navigate, setTitleForPath]
+		[navigate]
 	);
-
-	// Also set title on initial load and direct URL access
-	React.useLayoutEffect(() => {
-		setTitleForPath(location.pathname);
-	}, [location.pathname, setTitleForPath]);
 
 	// Keyboard shortcut for search
 	React.useEffect(() => {
@@ -73,11 +56,8 @@ export function DocsLayout() {
 					<ModeToggle />
 				</header>
 
-				<main className="flex-1 overflow-y-auto">
+				<main ref={mainRef} className="flex-1 overflow-y-auto">
 					<Outlet />
-					<div className="max-w-4xl mx-auto px-6">
-						<FooterNav currentPage={currentPage} onNavigate={handleNavigate} />
-					</div>
 				</main>
 			</SidebarInset>
 
