@@ -151,14 +151,12 @@ You can (and should) query the Memory agent to retrieve relevant context while r
 
 ### How to Query
 
-Use \`agentuity_coder_delegate\` to ask Memory:
+Use the Task tool to ask Memory:
 
 \`\`\`
-agentuity_coder_delegate({
-  agent: "memory",
-  task: "What auth patterns and corrections do we have?",
-  context: "Reasoning about auth implementation in session data"
-})
+@Agentuity Coder Memory
+
+What auth patterns and corrections do we have? Context: Reasoning about auth implementation in session data.
 \`\`\`
 
 ### The Feedback Loop
@@ -260,7 +258,7 @@ export const reasonerAgent: AgentDefinition = {
 	systemPrompt: REASONER_SYSTEM_PROMPT,
 	mode: 'subagent',
 	tools: {
-		exclude: ['write', 'edit', 'apply_patch', 'task'],
+		exclude: ['write', 'edit', 'apply_patch'],
 	},
 	reasoningEffort: 'high',
 	temperature: 0.3,

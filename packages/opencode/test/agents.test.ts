@@ -104,7 +104,7 @@ describe('Agents', () => {
 
 		it('Architect agent has GPT Codex with xhigh reasoning', () => {
 			const architect = agents.architect;
-			expect(architect.defaultModel).toBe('openai/gpt-5.2-codex');
+			expect(architect.defaultModel).toBe('openai/gpt-5.3-codex');
 			expect(architect.reasoningEffort).toBe('xhigh');
 			expect(architect.temperature).toBe(0.1);
 			expect(architect.systemPrompt).toContain('Cadence');
@@ -149,7 +149,7 @@ describe('Agents', () => {
 			expect(agents.reasoner.mode).toBe('subagent');
 			expect(agents.reasoner.tools?.exclude).toContain('write');
 			expect(agents.reasoner.tools?.exclude).toContain('edit');
-			expect(agents.reasoner.tools?.exclude).toContain('task');
+			expect(agents.reasoner.tools?.exclude).not.toContain('task');
 			expect(agents.reasoner.defaultModel).toBe('openai/gpt-5.2');
 			expect(agents.reasoner.temperature).toBe(0.3);
 		});

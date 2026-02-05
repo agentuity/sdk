@@ -1334,7 +1334,7 @@ export const leadAgent: AgentDefinition = {
 	displayName: 'Agentuity Coder Lead',
 	description:
 		'Agentuity Coder team orchestrator - delegates to Scout, Builder, Reviewer, Memory, Expert',
-	defaultModel: 'anthropic/claude-opus-4-5-20251101',
+	defaultModel: 'anthropic/claude-opus-4-6',
 	systemPrompt: LEAD_SYSTEM_PROMPT,
 	mode: 'all',
 	tools: {
