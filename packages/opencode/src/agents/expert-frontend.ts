@@ -41,7 +41,7 @@ function App() {
 }
 \`\`\`
 
-NOTE: `baseUrl="http://localhost:3000"` property only needed if using outside an Agentuity full stack project
+NOTE: The baseUrl="http://localhost:3000" property is only needed if using outside an Agentuity full stack project.
 
 ### useAPI Hook
 
