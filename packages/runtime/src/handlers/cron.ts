@@ -51,7 +51,22 @@ async function verifyCronSignature(c: Context, body: string): Promise<boolean> {
 		return false;
 	}
 
-	// Verify the signature
+	// Validate signature format: must be 'v1=' followed by valid hex (64 chars for SHA-256)
+	if (!signature.startsWith('v1=')) {
+		return false;
+	}
+	const hexPayload = signature.slice(3);
+	if (!/^[0-9a-f]{64}$/i.test(hexPayload)) {
+		return false;
+	}
+
+	// Decode hex payload into Uint8Array
+	const incomingSigBytes = new Uint8Array(32);
+	for (let i = 0; i < 32; i++) {
+		incomingSigBytes[i] = parseInt(hexPayload.slice(i * 2, i * 2 + 2), 16);
+	}
+
+	// Verify the signature using constant-time comparison
 	const message = `${timestamp}.${body}`;
 	const encoder = new TextEncoder();
 	const key = await crypto.subtle.importKey(
@@ -59,16 +74,10 @@ async function verifyCronSignature(c: Context, body: string): Promise<boolean> {
 		encoder.encode(sdkKey),
 		{ name: 'HMAC', hash: 'SHA-256' },
 		false,
-		['sign']
+		['verify']
 	);
-	const signatureBytes = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
-	const expectedSignature =
-		'v1=' +
-		Array.from(new Uint8Array(signatureBytes))
-			.map((b) => b.toString(16).padStart(2, '0'))
-			.join('');
 
-	return signature === expectedSignature;
+	return crypto.subtle.verify('HMAC', key, incomingSigBytes, encoder.encode(message));
 }
 
 /**
