@@ -620,7 +620,7 @@ import { s } from '@agentuity/schema';
 const router = createRouter();
 
 export const outputSchema = s.object({ fallback: s.boolean() });
-const specificSchema = s.object({ specific: s.string() });
+export const specificSchema = s.object({ specific: s.string() });
 
 router.get('/prefer', sse({ output: specificSchema }, async (c, stream) => {
 	await stream.writeSSE({ data: 'hello' });
@@ -636,6 +636,35 @@ export default router;
 		expect(routes[0].type).toBe('sse');
 		// Should use specificSchema from sse(), not exported outputSchema
 		expect(routes[0].config?.outputSchemaVariable).toBe('specificSchema');
+
+		cleanup();
+	});
+
+	test('should throw error when SSE output schema is locally defined but not exported', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter, sse } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const router = createRouter();
+
+// Not exported - should fail validation
+const localSchema = s.object({ local: s.boolean() });
+
+router.get('/local', sse({ output: localSchema }, async (c, stream) => {
+	await stream.writeSSE({ data: 'hello' });
+	stream.close();
+}));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		// Should throw SchemaNotExportedError
+		await expect(parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1')).rejects.toThrow(
+			'Schema "localSchema" used as the output validator'
+		);
 
 		cleanup();
 	});

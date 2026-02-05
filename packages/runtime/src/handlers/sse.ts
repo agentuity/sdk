@@ -1,9 +1,18 @@
 import type { Context, Handler } from 'hono';
 import { stream as honoStream } from 'hono/streaming';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
+import { StructuredError } from '@agentuity/core';
 import type { Schema } from '@agentuity/schema';
 import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
+
+/**
+ * Error thrown when sse() is called without a handler function.
+ */
+const SSEHandlerMissingError = StructuredError(
+	'SSEHandlerMissingError',
+	'An SSE handler function is required. Use sse(handler) or sse({ output: schema }, handler).'
+);
 
 /**
  * Context variable key for stream completion promise.
@@ -206,8 +215,14 @@ export function sse<E extends Env = Env, TOutput = unknown>(
 	maybeHandler?: SSEHandler<E>
 ): Handler<E> {
 	// Determine if first arg is options or handler
-	const handler: SSEHandler<E> =
-		typeof handlerOrOptions === 'function' ? handlerOrOptions : maybeHandler!;
+	const handler: SSEHandler<E> | undefined =
+		typeof handlerOrOptions === 'function' ? handlerOrOptions : maybeHandler;
+
+	// Validate handler is provided - catches sse({ output }) without handler
+	if (!handler) {
+		throw new SSEHandlerMissingError();
+	}
+
 	// Note: options.output is captured for type inference but not used at runtime
 	// The CLI extracts this during build to generate typed route registries
 	return (c: Context<E>) => {

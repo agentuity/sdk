@@ -2019,11 +2019,24 @@ export async function parseRoute(
 						if (sseCallExpr && !routeConfig.outputSchemaVariable) {
 							const sseSchemaInfo = extractSSEOutputSchema(sseCallExpr);
 							if (sseSchemaInfo.outputSchemaVariable) {
-								routeConfig.outputSchemaVariable = sseSchemaInfo.outputSchemaVariable;
 								// Track where the schema is imported from (if imported)
 								const outputImportInfo = importInfoMap.get(
 									sseSchemaInfo.outputSchemaVariable
 								);
+								// Validate that locally-defined schemas are exported
+								// (skip validation if schema is imported from another module)
+								if (!outputImportInfo) {
+									validateSchemaExports(
+										sseSchemaInfo.outputSchemaVariable,
+										'output',
+										importedNames,
+										exportedNames,
+										rel,
+										method,
+										thepath
+									);
+								}
+								routeConfig.outputSchemaVariable = sseSchemaInfo.outputSchemaVariable;
 								if (outputImportInfo) {
 									routeConfig.outputSchemaImportPath = outputImportInfo.modulePath;
 									routeConfig.outputSchemaImportedName = outputImportInfo.importedName;
