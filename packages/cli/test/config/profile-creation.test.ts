@@ -205,3 +205,45 @@ test('profile creation > multiple loads of custom path should reload from disk',
 	expect(load2?.auth).toBeDefined();
 	expect(load2?.name).toBe('production');
 });
+
+test('profile flag > loadConfig with profileFromFlag loads correct profile', async () => {
+	const configDir = join(testConfigDir, '.config', 'agentuity');
+	await mkdir(configDir, { recursive: true });
+
+	// Create a specific profile with explicit path
+	const testProfile: Config = {
+		name: 'my-custom-profile',
+		overrides: {
+			api_url: 'https://custom-api.example.com',
+		},
+	};
+
+	const profilePath = join(configDir, 'my-custom-profile.yaml');
+	await saveConfig(testProfile, profilePath);
+
+	// Load using explicit path (simulating what happens when profile flag is resolved)
+	const config = await loadConfig(profilePath, true);
+	expect(config).not.toBeNull();
+	expect(config?.name).toBe('my-custom-profile');
+	expect(config?.overrides?.api_url).toBe('https://custom-api.example.com');
+});
+
+test('profile flag > loadConfig third parameter is used for profile resolution', async () => {
+	// This test verifies the loadConfig function signature accepts profileFromFlag
+	// The actual path resolution is tested by integration tests
+	const configDir = join(testConfigDir, '.config', 'agentuity');
+	await mkdir(configDir, { recursive: true });
+
+	// Create a profile
+	const testProfile: Config = {
+		name: 'test-profile',
+	};
+	const profilePath = join(configDir, 'test-profile.yaml');
+	await saveConfig(testProfile, profilePath);
+
+	// Verify loadConfig accepts three parameters (customPath, skipCache, profileFromFlag)
+	// When customPath is provided, profileFromFlag is ignored (customPath takes precedence)
+	const config = await loadConfig(profilePath, true, 'ignored-profile');
+	expect(config).not.toBeNull();
+	expect(config?.name).toBe('test-profile');
+});

@@ -284,6 +284,7 @@ export interface AuthData {
 
 export interface GlobalOptions {
 	config?: string;
+	profile?: string;
 	logLevel: LogLevel;
 	logTimestamp?: boolean;
 	logPrefix?: boolean;
