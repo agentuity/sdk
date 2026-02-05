@@ -1,5 +1,6 @@
 import { createCommand } from '../../../types';
 import { databaseSubcommand } from './database';
+import { domainSubcommand } from './domain';
 import { storageSubcommand } from './storage';
 import { getCommand } from '../../../command-prefix';
 
@@ -18,6 +19,10 @@ export const addCommand = createCommand({
 			description: 'Link an existing storage bucket to the project',
 		},
 		{
+			command: getCommand('project add domain'),
+			description: 'Add a custom domain to the project',
+		},
+		{
 			command: getCommand('project add database my-db'),
 			description: 'Link a specific database by name',
 		},
@@ -25,6 +30,10 @@ export const addCommand = createCommand({
 			command: getCommand('project add storage my-bucket'),
 			description: 'Link a specific storage bucket by name',
 		},
+		{
+			command: getCommand('project add domain example.com'),
+			description: 'Add a specific custom domain',
+		},
 	],
-	subcommands: [databaseSubcommand, storageSubcommand],
+	subcommands: [databaseSubcommand, domainSubcommand, storageSubcommand],
 });
