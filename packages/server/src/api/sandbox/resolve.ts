@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { StructuredError } from '@agentuity/core';
 import type { APIClient } from '../api';
 
 /**
@@ -32,17 +33,23 @@ export interface ResolvedSandboxInfo {
 }
 
 /**
- * Error thrown when sandbox resolution fails
+ * Error thrown when sandbox resolution fails.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await sandboxResolve(client, 'sbx_123');
+ * } catch (error) {
+ *   if (error._tag === 'SandboxResolveError') {
+ *     console.error(`Sandbox not found: ${error.sandboxId}`);
+ *   }
+ * }
+ * ```
  */
-export class SandboxResolveError extends Error {
-	constructor(
-		message: string,
-		public readonly statusCode?: number
-	) {
-		super(message);
-		this.name = 'SandboxResolveError';
-	}
-}
+export const SandboxResolveError = StructuredError('SandboxResolveError')<{
+	sandboxId?: string;
+	statusCode?: number;
+}>();
 
 /**
  * Resolve a sandbox by ID across all organizations the user has access to.
@@ -63,7 +70,11 @@ export async function sandboxResolve(
 	);
 
 	if (!response.success || !response.data) {
-		throw new SandboxResolveError(response.message || 'Sandbox not found', 404);
+		throw new SandboxResolveError({
+			message: response.message || 'Sandbox not found',
+			sandboxId,
+			statusCode: 404,
+		});
 	}
 
 	return {

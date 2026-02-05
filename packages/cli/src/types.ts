@@ -646,6 +646,8 @@ type SubcommandDefBase =
 			schema?: CommandSchemas;
 			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
+			requires?: Requires;
+			optional?: Optional;
 			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
 	  }
@@ -665,6 +667,8 @@ type SubcommandDefBase =
 			schema?: CommandSchemas;
 			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
+			requires?: Requires;
+			optional?: Optional;
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];
 	  };

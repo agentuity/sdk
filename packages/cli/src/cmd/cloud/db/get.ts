@@ -116,6 +116,16 @@ export const getSubcommand = createSubcommand({
 		if (opts.showTables) {
 			const region = db.cloud_region;
 			const regionalClient = getCatalystAPIClient(logger, auth, region);
+
+			// Validate org_id is present - dbTables requires orgId for authorization
+			// Some internal databases may not have org_id set, which would fail the API call
+			if (!db.org_id) {
+				tui.fatal(
+					`Database '${args.name}' is missing organization information and cannot be queried for tables`,
+					ErrorCode.RESOURCE_NOT_FOUND
+				);
+			}
+
 			const tables = await tui.spinner({
 				message: `Fetching table schemas for ${args.name}`,
 				clearOnSuccess: true,

@@ -1,9 +1,18 @@
 import { z } from 'zod';
 import { streamGet } from '@agentuity/server';
+import { StructuredError } from '@agentuity/core';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
+
+const StreamGetError = StructuredError('StreamGetError')<{
+	streamId?: string;
+}>();
+const StreamDownloadError = StructuredError('StreamDownloadError')<{
+	statusCode?: number;
+	statusText?: string;
+}>();
+const StreamReaderError = StructuredError('StreamReaderError');
 
 const GetStreamResponseSchema = z.object({
 	id: z.string().describe('Stream ID'),
@@ -61,7 +70,11 @@ export const getSubcommand = createCommand({
 				// Fetch the stream content from the URL
 				const response = await fetch(stream.url);
 				if (!response.ok) {
-					tui.fatal(`Failed to download stream: ${response.status} ${response.statusText}`);
+					throw new StreamDownloadError({
+						message: `Failed to download stream: ${response.status} ${response.statusText}`,
+						statusCode: response.status,
+						statusText: response.statusText,
+					});
 				}
 
 				const file = Bun.file(opts.output);
@@ -69,7 +82,7 @@ export const getSubcommand = createCommand({
 
 				const reader = response.body?.getReader();
 				if (!reader) {
-					tui.fatal('Failed to get stream reader');
+					throw new StreamReaderError({ message: 'Failed to get stream reader' });
 				}
 
 				try {
@@ -128,7 +141,14 @@ export const getSubcommand = createCommand({
 				sizeBytes: stream.sizeBytes,
 			};
 		} catch (ex) {
-			tui.fatal(`Failed to get stream: ${ex}`, ErrorCode.API_ERROR);
+			if (
+				ex instanceof StreamGetError ||
+				ex instanceof StreamDownloadError ||
+				ex instanceof StreamReaderError
+			) {
+				throw ex;
+			}
+			throw new StreamGetError({ message: `Failed to get stream: ${ex}`, streamId: args.id });
 		}
 	},
 });

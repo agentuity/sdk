@@ -1,9 +1,15 @@
 import { z } from 'zod';
 import { streamList, type StreamInfo } from '@agentuity/server';
+import { StructuredError } from '@agentuity/core';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
+
+const StreamListError = StructuredError('StreamListError')<{
+	namespace?: string;
+	projectId?: string;
+	orgId?: string;
+}>();
 
 const StreamInfoSchema = z.object({
 	id: z.string().describe('Stream ID'),
@@ -68,6 +74,8 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options, apiClient, project } = ctx;
+		// Use project context if available, or explicit flag
+		const projectId = opts.projectId || project?.projectId;
 
 		// Parse metadata filter if provided
 		let metadataFilter: Record<string, string> | undefined;
@@ -107,9 +115,6 @@ export const listSubcommand = createCommand({
 		}
 
 		try {
-			// Use project context if available, or explicit flag
-			const projectId = opts.projectId || project?.projectId;
-
 			const result = await streamList(apiClient, {
 				limit: opts.size,
 				offset: opts.offset,
@@ -160,7 +165,15 @@ export const listSubcommand = createCommand({
 				total: result.total,
 			};
 		} catch (ex) {
-			tui.fatal(`Failed to list streams: ${ex}`, ErrorCode.API_ERROR);
+			if (ex instanceof StreamListError) {
+				throw ex;
+			}
+			throw new StreamListError({
+				message: `Failed to list streams: ${ex}`,
+				namespace: opts.namespace,
+				projectId,
+				orgId: opts.orgId,
+			});
 		}
 	},
 });
