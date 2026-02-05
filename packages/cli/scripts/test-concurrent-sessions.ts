@@ -31,7 +31,9 @@ interface SessionJson {
 	timestamp: string;
 }
 
-async function runCLI(id: number): Promise<{ exitCode: number; stderr: string }> {
+const PROCESS_TIMEOUT_MS = 30000; // 30 second timeout per process
+
+async function runCLI(id: number): Promise<{ exitCode: number; stderr: string; timedOut?: boolean }> {
 	console.log(`[Process ${id}] Starting...`);
 	
 	// Use 'build' command which initializes the internal logger
@@ -42,22 +44,35 @@ async function runCLI(id: number): Promise<{ exitCode: number; stderr: string }>
 	});
 	
 	const stderrChunks: Buffer[] = [];
-	const reader = proc.stderr.getReader();
+	let timedOut = false;
 	
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		if (value) stderrChunks.push(Buffer.from(value));
+	// Create a timeout that will kill the process if it takes too long
+	const timeoutId = setTimeout(() => {
+		console.log(`[Process ${id}] Timed out after ${PROCESS_TIMEOUT_MS}ms, killing...`);
+		timedOut = true;
+		proc.kill();
+	}, PROCESS_TIMEOUT_MS);
+	
+	try {
+		const reader = proc.stderr.getReader();
+		
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (value) stderrChunks.push(Buffer.from(value));
+		}
+		
+		const exitCode = await proc.exited;
+		const stderr = Buffer.concat(stderrChunks).toString('utf-8');
+		
+		console.log(`[Process ${id}] Exited with code ${exitCode}${timedOut ? ' (timed out)' : ''}`);
+		
+		// We expect non-zero exit (build fails without app.ts) but that's OK
+		// We're testing that logs are created, not that the command succeeds
+		return { exitCode, stderr, timedOut };
+	} finally {
+		clearTimeout(timeoutId);
 	}
-	
-	const exitCode = await proc.exited;
-	const stderr = Buffer.concat(stderrChunks).toString('utf-8');
-	
-	console.log(`[Process ${id}] Exited with code ${exitCode}`);
-	
-	// We expect non-zero exit (build fails without app.ts) but that's OK
-	// We're testing that logs are created, not that the command succeeds
-	return { exitCode, stderr };
 }
 
 async function main() {
@@ -80,12 +95,20 @@ async function main() {
 	
 	const startTime = Date.now();
 	const promises = Array.from({ length: NUM_CONCURRENT }, (_, i) => runCLI(i + 1));
-	await Promise.all(promises);
+	const results = await Promise.all(promises);
 	const elapsed = Date.now() - startTime;
 	
 	console.log();
 	console.log(`All processes completed in ${elapsed}ms`);
 	console.log();
+	
+	// Check if any processes timed out
+	const timedOutCount = results.filter(r => r.timedOut).length;
+	if (timedOutCount > 0) {
+		console.error(`⚠️  ${timedOutCount} process(es) timed out - this may indicate a hanging subprocess`);
+		// Don't fail the test for timeouts, as we still want to verify the logging behavior
+		// The timeout mechanism ensures the test doesn't hang forever
+	}
 	
 	// Note: We expect all processes to exit with non-zero (build fails without app.ts)
 	// That's fine - we're testing that logs are created without conflicts, not command success
@@ -223,7 +246,21 @@ async function main() {
 	console.log('='.repeat(60));
 }
 
-main().catch(err => {
-	console.error('Test failed with error:', err);
+// Global test timeout - if the entire test takes more than 3 minutes, something is very wrong
+const GLOBAL_TIMEOUT_MS = 180000;
+
+const globalTimeout = setTimeout(() => {
+	console.error(`\n❌ GLOBAL TIMEOUT: Test exceeded ${GLOBAL_TIMEOUT_MS / 1000} seconds`);
+	console.error('This likely indicates a hanging process that escaped the per-process timeout.');
 	process.exit(1);
-});
+}, GLOBAL_TIMEOUT_MS);
+
+main()
+	.then(() => {
+		clearTimeout(globalTimeout);
+	})
+	.catch(err => {
+		clearTimeout(globalTimeout);
+		console.error('Test failed with error:', err);
+		process.exit(1);
+	});

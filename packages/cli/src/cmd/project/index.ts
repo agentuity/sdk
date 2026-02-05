@@ -5,6 +5,7 @@ import { listSubcommand } from './list';
 import { deleteSubcommand } from './delete';
 import { showSubcommand } from './show';
 import { authCommand } from './auth';
+import { addCommand } from './add';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -16,6 +17,11 @@ export const command = createCommand({
 		{ command: getCommand('project import'), description: 'Import an existing project' },
 		{ command: getCommand('project list'), description: 'List all projects' },
 		{ command: getCommand('project auth init'), description: 'Set up Agentuity Auth' },
+		{ command: getCommand('project add database'), description: 'Link an existing database' },
+		{
+			command: getCommand('project add storage'),
+			description: 'Link an existing storage bucket',
+		},
 	],
 	subcommands: [
 		createProjectSubcommand,
@@ -24,5 +30,6 @@ export const command = createCommand({
 		deleteSubcommand,
 		showSubcommand,
 		authCommand,
+		addCommand,
 	],
 });
