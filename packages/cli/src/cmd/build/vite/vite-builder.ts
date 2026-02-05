@@ -63,6 +63,8 @@ export interface ViteBuildOptions {
 	deploymentOptions?: DeployOptions;
 	/** Optional collector for structured error reporting */
 	collector?: BuildReportCollector;
+	/** Optional config profile name (e.g., 'staging', 'test') for .env.{profile} files */
+	profile?: string;
 }
 
 /**
@@ -70,7 +72,15 @@ export interface ViteBuildOptions {
  * Uses inline Vite config (customizable via agentuity.config.ts)
  */
 export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
-	const { rootDir, mode, dev = false, projectId = '', deploymentId = '', logger } = options;
+	const {
+		rootDir,
+		mode,
+		dev = false,
+		projectId = '',
+		deploymentId = '',
+		logger,
+		profile,
+	} = options;
 
 	logger.debug(`Running Vite build for mode: ${mode}`);
 
@@ -92,6 +102,16 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		// Generate lifecycle types (if setup() exists)
 		const { generateLifecycleTypes } = await import('./lifecycle-generator');
 		await generateLifecycleTypes(rootDir, srcDir, logger);
+
+		// Generate environment types from local .env files
+		const { generateEnvTypes } = await import('./env-types-generator');
+		await generateEnvTypes({
+			rootDir,
+			srcDir,
+			logger,
+			isProduction: !dev,
+			profile,
+		});
 
 		// Load workbench config for entry file generation
 		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
