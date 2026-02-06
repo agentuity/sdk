@@ -43,6 +43,7 @@ export const domainSubcommand = createSubcommand({
 			success: z.boolean().describe('Whether adding the domain succeeded'),
 			domain: z.string().describe('Added domain name'),
 			domains: z.array(z.string()).describe('All configured domains'),
+			dryRun: z.boolean().optional().describe('True if this was a dry-run preview'),
 		}),
 	},
 
@@ -57,7 +58,8 @@ export const domainSubcommand = createSubcommand({
 				tui.info('[DRY RUN] Domain addition skipped');
 			}
 			return {
-				success: false,
+				success: true,
+				dryRun: true,
 				domain: args.domain,
 				domains: [],
 			};
@@ -97,8 +99,19 @@ export const domainSubcommand = createSubcommand({
 				},
 			});
 
-			const result = results[0];
-			if (result && !isSuccess(result)) {
+			// Handle empty results - DNS validation service returned no data
+			if (results.length === 0) {
+				logger.fatal(
+					`DNS validation failed: no response from DNS validation service for domain "${domain}". ` +
+						'Use --skip-validation to add the domain without DNS verification.',
+					ErrorCode.VALIDATION_FAILED
+				);
+			}
+
+			// Safe to assert non-null since we've checked results.length above
+			// (logger.fatal never returns - it exits the process)
+			const result = results[0]!;
+			if (!isSuccess(result)) {
 				if (isError(result)) {
 					logger.fatal(`DNS validation failed: ${result.error}`, ErrorCode.VALIDATION_FAILED);
 				}
