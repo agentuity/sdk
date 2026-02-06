@@ -230,13 +230,23 @@ describe('createPostgresDrizzle config', () => {
 		});
 
 		it('can create instance with no config (defaults to DATABASE_URL)', () => {
-			const { db, client, close } = createPostgresDrizzle();
+			const originalDatabaseUrl = process.env.DATABASE_URL;
+			process.env.DATABASE_URL = 'postgres://localhost:5432/dummy_test_db';
 			try {
-				expect(db).toBeDefined();
-				expect(client).toBeDefined();
-				expect(typeof close).toBe('function');
+				const { db, client, close } = createPostgresDrizzle();
+				try {
+					expect(db).toBeDefined();
+					expect(client).toBeDefined();
+					expect(typeof close).toBe('function');
+				} finally {
+					close();
+				}
 			} finally {
-				close();
+				if (originalDatabaseUrl === undefined) {
+					delete process.env.DATABASE_URL;
+				} else {
+					process.env.DATABASE_URL = originalDatabaseUrl;
+				}
 			}
 		});
 	});
