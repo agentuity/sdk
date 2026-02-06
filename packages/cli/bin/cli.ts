@@ -20,6 +20,7 @@ import { getVersion, getPackageName } from '../src/version';
 
 import type { CommandContext, LogLevel } from '../src/types';
 import { generateCLISchema } from '../src/schema-generator';
+import { generateAIHelp } from '../src/ai-help';
 import { setOutputOptions } from '../src/output';
 import type { GlobalOptions } from '../src/types';
 import { ensureBunOnPath } from '../src/bun-path';
@@ -126,6 +127,21 @@ if (
 	const commands = await discoverCommands();
 	const cliSchema = generateCLISchema(program, commands, version);
 	console.log(JSON.stringify(cliSchema, null, 2));
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
+	closeDatabase();
+	exit(0);
+}
+
+// Check for --ai-help early (dashdash format for AI agents)
+// This runs before auth/validation per dashdash spec "eager" requirement
+if (preprocessedArgs.includes('--ai-help')) {
+	const version = getVersion();
+	const program = await createCLI(version);
+	const commands = await discoverCommands();
+	const cliSchema = generateCLISchema(program, commands, version);
+	const aiHelp = generateAIHelp(cliSchema);
+	console.log(aiHelp);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
 	closeDatabase();

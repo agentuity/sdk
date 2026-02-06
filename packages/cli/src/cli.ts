@@ -509,7 +509,8 @@ export async function createCLI(version: string): Promise<Command> {
 		.option('--no-progress', 'Disable progress indicators', false)
 		.option('--explain', 'Show what the command would do without executing', false)
 		.option('--dry-run', 'Execute command without making changes', false)
-		.option('--validate', 'Validate arguments and options without executing', false);
+		.option('--validate', 'Validate arguments and options without executing', false)
+		.option('--ai-help', 'Show AI-optimized help in dashdash format', false);
 
 	const skipVersionCheckOption = program.createOption(
 		'--skip-version-check',
