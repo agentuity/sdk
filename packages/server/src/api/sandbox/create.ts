@@ -57,9 +57,7 @@ export const SandboxCreateRequestSchema = z
 				files: z
 					.array(
 						z.object({
-							path: z
-								.string()
-								.describe('Path to the file relative to the sandbox workspace'),
+							path: z.string().describe('Path to the file relative to the sandbox workspace'),
 							content: z.string().describe('Base64-encoded file content'),
 						})
 					)
@@ -73,9 +71,14 @@ export const SandboxCreateRequestSchema = z
 			.optional()
 			.describe('Initial command to run in the sandbox'),
 		files: z
-			.record(z.string(), z.string())
+			.array(
+				z.object({
+					path: z.string().describe('Path to the file relative to the sandbox workspace'),
+					content: z.string().describe('Base64-encoded file content'),
+				})
+			)
 			.optional()
-			.describe('Files to write to sandbox on creation (path -> base64 content)'),
+			.describe('Files to write to sandbox on creation'),
 		snapshot: z.string().optional().describe('Snapshot ID to restore the sandbox from'),
 		dependencies: z
 			.array(z.string())
@@ -186,9 +189,10 @@ export async function sandboxCreate(
 		};
 	}
 	if (options.files && options.files.length > 0) {
-		body.files = Object.fromEntries(
-			options.files.map((f) => [f.path, f.content.toString('base64')])
-		);
+		body.files = options.files.map((f) => ({
+			path: f.path,
+			content: f.content.toString('base64'),
+		}));
 	}
 	if (options.snapshot) {
 		body.snapshot = options.snapshot;
