@@ -496,7 +496,7 @@ export class WebRTCManager {
 				try {
 					const msg = JSON.parse(event.data) as SignalMessage;
 					this.handleSignalingMessage(msg);
-				} catch (err) {
+				} catch (_err) {
 					this.callbacks.onError?.(new Error('Invalid signaling message'), this._state);
 				}
 			};
