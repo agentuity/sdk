@@ -7,11 +7,13 @@ This guide explains when to use a mesh topology versus an SFU (Selective Forward
 **How it works:** every participant sends media directly to every other participant.
 
 **Pros**
+
 - Simple to set up (no media server required)
 - Lowest latency for small rooms
 - Works well for 2–4 participants
 
 **Cons**
+
 - Upload bandwidth grows with each peer
 - CPU usage grows with each peer (encoding multiple streams)
 - Unreliable in larger rooms or constrained networks
@@ -21,12 +23,14 @@ This guide explains when to use a mesh topology versus an SFU (Selective Forward
 **How it works:** each participant sends a single stream to a server (SFU) which forwards it to other participants.
 
 **Pros**
+
 - Upload bandwidth stays constant per peer
 - Lower CPU usage on clients (one encode)
 - Better scaling for 5+ participants
 - Server can manage bandwidth, simulcast, and quality tiers
 
 **Cons**
+
 - Requires operating or integrating a media server
 - Slightly higher latency (one extra hop)
 - Adds infrastructure complexity
@@ -57,12 +61,12 @@ High-level steps:
 
 ## Decision Matrix
 
-| Room Size | Topology | Why |
-|---|---|---|
-| 1–2 peers | Mesh | Lowest latency, minimal setup |
-| 3–4 peers | Mesh | Still manageable bandwidth/CPU |
-| 5–8 peers | SFU | Upload/CPU starts to spike |
-| 9+ peers | SFU | Mesh becomes impractical |
+| Room Size | Topology | Why                            |
+| --------- | -------- | ------------------------------ |
+| 1–2 peers | Mesh     | Lowest latency, minimal setup  |
+| 3–4 peers | Mesh     | Still manageable bandwidth/CPU |
+| 5–8 peers | SFU      | Upload/CPU starts to spike     |
+| 9+ peers  | SFU      | Mesh becomes impractical       |
 
 ## Migration Strategy
 

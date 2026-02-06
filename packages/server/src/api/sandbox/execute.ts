@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { throwSandboxError, API_VERSION } from './util';
 import type { ExecuteOptions, Execution, ExecutionStatus } from '@agentuity/core';
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '../api';
+import { API_VERSION, throwSandboxError } from './util';
 
-const ExecuteRequestSchema = z
+export const ExecuteRequestSchema = z
 	.object({
 		command: z.array(z.string()).describe('Command and arguments to execute'),
 		files: z
@@ -22,7 +22,7 @@ const ExecuteRequestSchema = z
 	})
 	.describe('Request body for executing a command in a sandbox');
 
-const ExecuteDataSchema = z
+export const ExecuteDataSchema = z
 	.object({
 		executionId: z.string().describe('Unique identifier for the execution'),
 		status: z
@@ -35,7 +35,7 @@ const ExecuteDataSchema = z
 	})
 	.describe('Response data from command execution');
 
-const ExecuteResponseSchema = APIResponseSchema(ExecuteDataSchema);
+export const ExecuteResponseSchema = APIResponseSchema(ExecuteDataSchema);
 
 export interface SandboxExecuteParams {
 	sandboxId: string;

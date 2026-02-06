@@ -184,10 +184,13 @@ describe('SandboxClient', () => {
 
 			expect(sandbox.id).toBe('sandbox-files');
 			expect(requestBody).not.toBeNull();
-			expect(requestBody!.files).toEqual({
-				'index.ts': Buffer.from('console.log("hello")').toString('base64'),
-				'config.json': Buffer.from('{"port": 3000}').toString('base64'),
-			});
+			expect(requestBody!.files).toEqual([
+				{ path: 'index.ts', content: Buffer.from('console.log("hello")').toString('base64') },
+				{
+					path: 'config.json',
+					content: Buffer.from('{"port": 3000}').toString('base64'),
+				},
+			]);
 		});
 	});
 

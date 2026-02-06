@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { ProjectResponseError } from './util';
 
 export const ProjectGetRequestSchema = z.object({
@@ -20,7 +20,7 @@ export const ProjectSchema = z.object({
 	secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),
 });
 
-const ProjectGetResponseSchema = APIResponseSchema(ProjectSchema);
+export const ProjectGetResponseSchema = APIResponseSchema(ProjectSchema);
 
 type ProjectGetRequest = z.infer<typeof ProjectGetRequestSchema>;
 type ProjectGetResponse = z.infer<typeof ProjectGetResponseSchema>;

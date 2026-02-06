@@ -1,8 +1,8 @@
-import { z } from 'zod';
-import { APIClient, APIResponseSchemaNoData } from '../api';
-import { throwSandboxError, API_VERSION } from './util';
+import type { z } from 'zod';
+import { type APIClient, APIResponseSchemaNoData } from '../api';
+import { API_VERSION, throwSandboxError } from './util';
 
-const DestroyResponseSchema = APIResponseSchemaNoData();
+export const DestroyResponseSchema = APIResponseSchemaNoData();
 
 export interface SandboxDestroyParams {
 	sandboxId: string;

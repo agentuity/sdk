@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { StreamResponseError } from './util';
 
-const StreamDetailSchema = z.object({
+export const StreamDetailSchema = z.object({
 	id: z.string().describe('the stream id'),
 	namespace: z.string().describe('the stream namespace'),
 	metadata: z.record(z.string(), z.string()).describe('stream metadata'),
@@ -20,7 +20,7 @@ const StreamDetailSchema = z.object({
 	chunks: z.number().describe('number of chunks'),
 });
 
-const StreamDetailResponseSchema = APIResponseSchema(StreamDetailSchema);
+export const StreamDetailResponseSchema = APIResponseSchema(StreamDetailSchema);
 
 export type StreamDetailResponse = z.infer<typeof StreamDetailResponseSchema>;
 export type StreamDetail = z.infer<typeof StreamDetailSchema>;

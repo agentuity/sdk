@@ -51,9 +51,9 @@ export function WebRTCTestPage() {
 	const [autoReconnect, setAutoReconnect] = useState(true);
 	const [maxReconnectAttempts, setMaxReconnectAttempts] = useState(5);
 	const [reconnectAttempt, setReconnectAttempt] = useState<number | null>(null);
-	const [reconnectStatus, setReconnectStatus] = useState<'idle' | 'reconnecting' | 'reconnected' | 'failed'>(
-		'idle'
-	);
+	const [reconnectStatus, setReconnectStatus] = useState<
+		'idle' | 'reconnecting' | 'reconnected' | 'failed'
+	>('idle');
 
 	// Cursor tracking
 	const [remoteCursors, setRemoteCursors] = useState<Map<string, CursorPosition>>(new Map());
@@ -85,9 +85,7 @@ export function WebRTCTestPage() {
 		const signalUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/webrtc/signal`;
 
 		const mediaEnabled = enableVideo || enableAudio;
-		const mediaConstraints = mediaEnabled
-			? { video: enableVideo, audio: enableAudio }
-			: false;
+		const mediaConstraints = mediaEnabled ? { video: enableVideo, audio: enableAudio } : false;
 
 		const manager = new WebRTCManager({
 			signalUrl,
@@ -628,7 +626,8 @@ export function WebRTCTestPage() {
 					<h3>Cursor Tracking</h3>
 					<p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>
 						Move your mouse over the canvas to share your cursor position with peers.
-						{remoteCursors.size > 0 && ` (${remoteCursors.size} remote cursor${remoteCursors.size > 1 ? 's' : ''})`}
+						{remoteCursors.size > 0 &&
+							` (${remoteCursors.size} remote cursor${remoteCursors.size > 1 ? 's' : ''})`}
 					</p>
 					<canvas
 						ref={canvasRef}
@@ -654,130 +653,12 @@ export function WebRTCTestPage() {
 						{/* Local Video */}
 						<div>
 							<div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>You</div>
-						<video
-							ref={localVideoRef}
-							autoPlay
-							muted
-							playsInline
-							data-testid="local-video"
-							style={{
-								width: '240px',
-								height: '180px',
-								background: '#000',
-								borderRadius: '4px',
-							}}
-						>
-							<track kind="captions" src="data:text/vtt,WEBVTT" label="captions" />
-						</video>
-						<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
-							{enableAudio && (
-								<button
-									type="button"
-									onClick={toggleAudioMute}
-									data-testid="mute-audio-btn"
-									style={{
-										padding: '0.25rem 0.5rem',
-										background: isAudioMuted ? '#f44336' : '#4caf50',
-											color: 'white',
-											border: 'none',
-											borderRadius: '4px',
-											cursor: 'pointer',
-										}}
-									>
-										{isAudioMuted ? '🔇 Unmute' : '🔊 Mute'}
-									</button>
-								)}
-							{enableVideo && (
-								<button
-									type="button"
-									onClick={toggleVideoMute}
-									data-testid="mute-video-btn"
-									style={{
-										padding: '0.25rem 0.5rem',
-										background: isVideoMuted ? '#f44336' : '#4caf50',
-											color: 'white',
-											border: 'none',
-											borderRadius: '4px',
-											cursor: 'pointer',
-										}}
-								>
-									{isVideoMuted ? '📷 Show' : '📷 Hide'}
-								</button>
-							)}
-						</div>
-						<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
-							<button
-								type="button"
-								onClick={startScreenShare}
-								disabled={isScreenSharing}
-								data-testid="start-screen-share-btn"
-								style={{ padding: '0.25rem 0.5rem' }}
-							>
-								Start Screen Share
-							</button>
-							<button
-								type="button"
-								onClick={stopScreenShare}
-								disabled={!isScreenSharing}
-								data-testid="stop-screen-share-btn"
-								style={{ padding: '0.25rem 0.5rem' }}
-							>
-								Stop Screen Share
-							</button>
-						</div>
-						<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
-							<button
-								type="button"
-								onClick={startRecording}
-								disabled={recordingState === 'recording'}
-								data-testid="start-recording-btn"
-								style={{ padding: '0.25rem 0.5rem' }}
-							>
-								Start Recording
-							</button>
-							<button
-								type="button"
-								onClick={stopRecording}
-								disabled={recordingState !== 'recording'}
-								data-testid="stop-recording-btn"
-								style={{ padding: '0.25rem 0.5rem' }}
-							>
-								Stop Recording
-							</button>
-						</div>
-						<div style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
-							<div data-testid="recording-state">
-								<strong>Recording:</strong> {recordingState}
-							</div>
-							<div data-testid="recording-size">
-								<strong>Recording Size:</strong>{' '}
-								{recordingSize !== null ? `${recordingSize} bytes` : 'N/A'}
-							</div>
-							<div data-testid="recording-mime">
-								<strong>Recording MIME:</strong>{' '}
-								{recordingMimeType ?? 'N/A'}
-							</div>
-						</div>
-					</div>
-
-						{/* Remote Videos */}
-						{remotePeerIds.map((remotePeerId) => (
-							<div key={remotePeerId}>
-								<div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>
-									{remotePeerId.slice(0, 15)}...
-								</div>
 							<video
-								ref={(el) => {
-									if (el) {
-										const stream = remoteStreams.get(remotePeerId);
-										if (stream && el.srcObject !== stream) {
-											el.srcObject = stream;
-										}
-									}
-								}}
+								ref={localVideoRef}
 								autoPlay
+								muted
 								playsInline
-								data-testid={`remote-video-${remotePeerId}`}
+								data-testid="local-video"
 								style={{
 									width: '240px',
 									height: '180px',
@@ -787,8 +668,125 @@ export function WebRTCTestPage() {
 							>
 								<track kind="captions" src="data:text/vtt,WEBVTT" label="captions" />
 							</video>
+							<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+								{enableAudio && (
+									<button
+										type="button"
+										onClick={toggleAudioMute}
+										data-testid="mute-audio-btn"
+										style={{
+											padding: '0.25rem 0.5rem',
+											background: isAudioMuted ? '#f44336' : '#4caf50',
+											color: 'white',
+											border: 'none',
+											borderRadius: '4px',
+											cursor: 'pointer',
+										}}
+									>
+										{isAudioMuted ? '🔇 Unmute' : '🔊 Mute'}
+									</button>
+								)}
+								{enableVideo && (
+									<button
+										type="button"
+										onClick={toggleVideoMute}
+										data-testid="mute-video-btn"
+										style={{
+											padding: '0.25rem 0.5rem',
+											background: isVideoMuted ? '#f44336' : '#4caf50',
+											color: 'white',
+											border: 'none',
+											borderRadius: '4px',
+											cursor: 'pointer',
+										}}
+									>
+										{isVideoMuted ? '📷 Show' : '📷 Hide'}
+									</button>
+								)}
+							</div>
+							<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+								<button
+									type="button"
+									onClick={startScreenShare}
+									disabled={isScreenSharing}
+									data-testid="start-screen-share-btn"
+									style={{ padding: '0.25rem 0.5rem' }}
+								>
+									Start Screen Share
+								</button>
+								<button
+									type="button"
+									onClick={stopScreenShare}
+									disabled={!isScreenSharing}
+									data-testid="stop-screen-share-btn"
+									style={{ padding: '0.25rem 0.5rem' }}
+								>
+									Stop Screen Share
+								</button>
+							</div>
+							<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+								<button
+									type="button"
+									onClick={startRecording}
+									disabled={recordingState === 'recording'}
+									data-testid="start-recording-btn"
+									style={{ padding: '0.25rem 0.5rem' }}
+								>
+									Start Recording
+								</button>
+								<button
+									type="button"
+									onClick={stopRecording}
+									disabled={recordingState !== 'recording'}
+									data-testid="stop-recording-btn"
+									style={{ padding: '0.25rem 0.5rem' }}
+								>
+									Stop Recording
+								</button>
+							</div>
+							<div style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+								<div data-testid="recording-state">
+									<strong>Recording:</strong> {recordingState}
+								</div>
+								<div data-testid="recording-size">
+									<strong>Recording Size:</strong>{' '}
+									{recordingSize !== null ? `${recordingSize} bytes` : 'N/A'}
+								</div>
+								<div data-testid="recording-mime">
+									<strong>Recording MIME:</strong> {recordingMimeType ?? 'N/A'}
+								</div>
+							</div>
 						</div>
-					))}
+
+						{/* Remote Videos */}
+						{remotePeerIds.map((remotePeerId) => (
+							<div key={remotePeerId}>
+								<div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>
+									{remotePeerId.slice(0, 15)}...
+								</div>
+								<video
+									ref={(el) => {
+										if (el) {
+											const stream = remoteStreams.get(remotePeerId);
+											if (stream && el.srcObject !== stream) {
+												el.srcObject = stream;
+											}
+										}
+									}}
+									autoPlay
+									playsInline
+									data-testid={`remote-video-${remotePeerId}`}
+									style={{
+										width: '240px',
+										height: '180px',
+										background: '#000',
+										borderRadius: '4px',
+									}}
+								>
+									<track kind="captions" src="data:text/vtt,WEBVTT" label="captions" />
+								</video>
+							</div>
+						))}
 					</div>
 				</div>
 			)}

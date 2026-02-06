@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { ProjectResponseError } from './util';
 
 export const ProjectListItemSchema = z.object({
@@ -14,7 +14,7 @@ export const ProjectListItemSchema = z.object({
 
 export const ProjectListSchema = z.array(ProjectListItemSchema);
 
-const ProjectListResponseSchema = APIResponseSchema(ProjectListSchema);
+export const ProjectListResponseSchema = APIResponseSchema(ProjectListSchema);
 
 export type ProjectListResponse = z.infer<typeof ProjectListResponseSchema>;
 export type ProjectList = z.infer<typeof ProjectListSchema>;

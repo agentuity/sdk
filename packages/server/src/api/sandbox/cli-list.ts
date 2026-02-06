@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { SandboxResponseError } from './util';
 
-const SandboxInfoSchema = z.object({
+export const SandboxInfoSchema = z.object({
 	id: z.string().describe('the sandbox id'),
 	name: z.string().nullable().describe('the sandbox name'),
 	description: z.string().nullable().describe('the sandbox description'),
@@ -14,12 +14,12 @@ const SandboxInfoSchema = z.object({
 	projectId: z.string().nullable().describe('the project id'),
 });
 
-const SandboxListDataSchema = z.object({
+export const SandboxListDataSchema = z.object({
 	sandboxes: z.array(SandboxInfoSchema).describe('list of sandboxes'),
 	total: z.number().describe('total count of matching sandboxes'),
 });
 
-const SandboxListResponseSchema = APIResponseSchema(SandboxListDataSchema);
+export const SandboxListResponseSchema = APIResponseSchema(SandboxListDataSchema);
 
 export type CLISandboxListResponse = z.infer<typeof SandboxListResponseSchema>;
 export type CLISandboxListData = z.infer<typeof SandboxListDataSchema>;

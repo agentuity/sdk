@@ -40,7 +40,9 @@ export const detectSubcommand = createSubcommand({
 				console.log(`    - ${getAgentDisplayName(id)} (${id})`);
 			}
 			tui.newline();
-			console.log(`  You can also set the ${tui.colorPrimary('AGENTUITY_AGENT_MODE')} environment variable`);
+			console.log(
+				`  You can also set the ${tui.colorPrimary('AGENTUITY_AGENT_MODE')} environment variable`
+			);
 			console.log(`  to manually specify the agent.\n`);
 
 			// Exit with code 1 when no agent detected (non-JSON mode)

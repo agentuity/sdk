@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchemaNoData } from '../api';
 import { ProjectResponseError } from './util';
 
 export const ProjectEnvDeleteRequestSchema = z
@@ -12,7 +12,7 @@ export const ProjectEnvDeleteRequestSchema = z
 		message: 'must provide at least one of env or secrets',
 	});
 
-const ProjectEnvDeleteResponseSchema = APIResponseSchemaNoData();
+export const ProjectEnvDeleteResponseSchema = APIResponseSchemaNoData();
 
 type ProjectEnvDeleteRequest = z.infer<typeof ProjectEnvDeleteRequestSchema>;
 type ProjectEnvDeleteResponse = z.infer<typeof ProjectEnvDeleteResponseSchema>;

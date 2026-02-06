@@ -82,6 +82,7 @@ manager.sendJSON('chat', { message: 'Hello!' });
 ```
 
 Key features:
+
 - Multi-peer mesh networking
 - Auto-reconnection with exponential backoff
 - Data channels (JSON, binary, ArrayBuffer)

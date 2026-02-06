@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { ProjectResponseError } from './util';
 
 export const ProjectDeleteRequestSchema = z.object({ ids: z.array(z.string()) });
-const ProjectDeleteResponseSchema = APIResponseSchema(z.array(z.string()));
+export const ProjectDeleteResponseSchema = APIResponseSchema(z.array(z.string()));
 
 type ProjectDeleteRequest = z.infer<typeof ProjectDeleteRequestSchema>;
 type ProjectDeleteResponse = z.infer<typeof ProjectDeleteResponseSchema>;

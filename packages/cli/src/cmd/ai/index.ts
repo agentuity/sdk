@@ -34,5 +34,12 @@ export const command = createCommand({
 			description: 'Output CLI schema for AI consumption',
 		},
 	],
-	subcommands: [detectSubcommand, introSubcommand, opencodeCommand, capabilitiesCommand, promptCommand, schemaCommand],
+	subcommands: [
+		detectSubcommand,
+		introSubcommand,
+		opencodeCommand,
+		capabilitiesCommand,
+		promptCommand,
+		schemaCommand,
+	],
 });

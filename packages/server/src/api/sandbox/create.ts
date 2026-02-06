@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { throwSandboxError, API_VERSION } from './util';
 import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '../api';
+import { API_VERSION, throwSandboxError } from './util';
 
-const SandboxCreateRequestSchema = z
+export const SandboxCreateRequestSchema = z
 	.object({
 		projectId: z.string().optional().describe('Project ID to associate the sandbox with'),
 		runtime: z.string().optional().describe('Runtime name (e.g., "bun:1", "python:3.14")'),
@@ -57,9 +57,7 @@ const SandboxCreateRequestSchema = z
 				files: z
 					.array(
 						z.object({
-							path: z
-								.string()
-								.describe('Path to the file relative to the sandbox workspace'),
+							path: z.string().describe('Path to the file relative to the sandbox workspace'),
 							content: z.string().describe('Base64-encoded file content'),
 						})
 					)
@@ -73,9 +71,14 @@ const SandboxCreateRequestSchema = z
 			.optional()
 			.describe('Initial command to run in the sandbox'),
 		files: z
-			.record(z.string(), z.string())
+			.array(
+				z.object({
+					path: z.string().describe('Path to the file relative to the sandbox workspace'),
+					content: z.string().describe('Base64-encoded file content'),
+				})
+			)
 			.optional()
-			.describe('Files to write to sandbox on creation (path -> base64 content)'),
+			.describe('Files to write to sandbox on creation'),
 		snapshot: z.string().optional().describe('Snapshot ID to restore the sandbox from'),
 		dependencies: z
 			.array(z.string())
@@ -101,7 +104,7 @@ const SandboxCreateRequestSchema = z
 	)
 	.describe('Request body for creating a new sandbox');
 
-const SandboxCreateDataSchema = z
+export const SandboxCreateDataSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the created sandbox'),
 		status: z
@@ -114,7 +117,7 @@ const SandboxCreateDataSchema = z
 	})
 	.describe('Response data from sandbox creation');
 
-const SandboxCreateResponseSchema = APIResponseSchema(SandboxCreateDataSchema);
+export const SandboxCreateResponseSchema = APIResponseSchema(SandboxCreateDataSchema);
 
 export interface SandboxCreateResponse {
 	sandboxId: string;
@@ -186,9 +189,10 @@ export async function sandboxCreate(
 		};
 	}
 	if (options.files && options.files.length > 0) {
-		body.files = Object.fromEntries(
-			options.files.map((f) => [f.path, f.content.toString('base64')])
-		);
+		body.files = options.files.map((f) => ({
+			path: f.path,
+			content: f.content.toString('base64'),
+		}));
 	}
 	if (options.snapshot) {
 		body.snapshot = options.snapshot;
