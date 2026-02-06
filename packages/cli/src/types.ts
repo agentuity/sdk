@@ -462,13 +462,13 @@ export type CommandContextFromSpecs<
 	 *
 	 * @example
 	 * ```typescript
-	 * const agent = await ctx.isExecutingFromAgent();
+	 * const agent = ctx.getExecutingAgent();
 	 * if (agent) {
 	 *   logger.debug(`Running from agent: ${agent}`);
 	 * }
 	 * ```
 	 */
-	isExecutingFromAgent: () => Promise<string | undefined>;
+	getExecutingAgent: () => string | undefined;
 } & AddArgs<A> &
 	AddOpts<Op> &
 	AddAuth<AuthMode<R, O>> &

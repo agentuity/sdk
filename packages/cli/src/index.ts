@@ -1,5 +1,13 @@
 export { createCLI, registerCommands } from './cli';
 export { generateAIHelp, type DashdashConfig } from './ai-help';
+export {
+	getExecutingAgent,
+	getAgentEnv,
+	getAgentDisplayName,
+	KNOWN_AGENTS,
+	AGENT_DISPLAY_NAMES,
+	type KnownAgent,
+} from './agent-detection';
 export { validateRuntime, isBun } from './runtime';
 export { ensureBunOnPath } from './bun-path';
 export { isGitAvailable, getDefaultBranch } from './git-helper';

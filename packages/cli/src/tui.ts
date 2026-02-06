@@ -15,6 +15,7 @@ import type { Profile } from './types';
 import { type APIClient as APIClientType } from './api';
 import { getExitCode } from './errors';
 import { maskSecret } from './env-util';
+import { getExecutingAgent } from './agent-detection';
 
 // Install global exit handler to always restore terminal cursor
 // This ensures cursor is restored even when process.exit() is called directly
@@ -26,6 +27,10 @@ function ensureCursorRestoration(): void {
 	const restoreCursor = () => {
 		// Skip cursor restoration in CI - terminals don't support these sequences
 		if (process.env.CI) {
+			return;
+		}
+		// Skip cursor restoration when running from an AI coding agent
+		if (getExecutingAgent()) {
 			return;
 		}
 		// Restore cursor visibility
@@ -56,24 +61,61 @@ export type {
 	MultiSelectOptions,
 } from './tui/prompt';
 
-// Icons
-export const ICONS = {
-	success: '✓',
-	error: '✗',
-	warning: '⚠',
-	info: 'ℹ',
-	arrow: '→',
-	bullet: '•',
-} as const;
+// Icons - use plain text alternatives when running from an AI coding agent
+function getIcons() {
+	if (getExecutingAgent()) {
+		return {
+			success: '[OK]',
+			error: '[ERROR]',
+			warning: '[WARN]',
+			info: '[INFO]',
+			arrow: '->',
+			bullet: '-',
+		} as const;
+	}
+	return {
+		success: '✓',
+		error: '✗',
+		warning: '⚠',
+		info: 'ℹ',
+		arrow: '→',
+		bullet: '•',
+	} as const;
+}
+
+// Export ICONS as a getter for backward compatibility
+// Proxy with full traps for enumeration and serialization support
+export const ICONS = new Proxy({} as ReturnType<typeof getIcons>, {
+	get(_target, prop: keyof ReturnType<typeof getIcons>) {
+		return getIcons()[prop];
+	},
+	has(_target, prop) {
+		return prop in getIcons();
+	},
+	ownKeys() {
+		return Object.keys(getIcons());
+	},
+	getOwnPropertyDescriptor(_target, prop) {
+		const icons = getIcons();
+		if (prop in icons) {
+			return { configurable: true, enumerable: true, value: icons[prop as keyof typeof icons] };
+		}
+	},
+});
 
 /**
  * Check if we should treat the terminal as TTY-like for interactive output
  * (real TTY on stdout or stderr, or FORCE_COLOR set by fork wrapper).
  * Returns false in CI environments since CI terminals often don't support
  * cursor control sequences reliably.
+ * Returns false when running from an AI coding agent (no interactive prompts/spinners).
  */
 export function isTTYLike(): boolean {
 	if (process.env.CI) {
+		return false;
+	}
+	// Disable interactive features when running from an AI coding agent
+	if (getExecutingAgent()) {
 		return false;
 	}
 	return !!process.stdout.isTTY || !!process.stderr.isTTY || process.env.FORCE_COLOR === '1';
@@ -99,6 +141,10 @@ export function shouldUseColors(): boolean {
 	// FORCE_COLOR overrides TTY detection (used by fork wrapper)
 	if (process.env.FORCE_COLOR === '1') {
 		return true;
+	}
+	// Disable colors when running from an AI coding agent (cleaner output for parsing)
+	if (getExecutingAgent()) {
+		return false;
 	}
 	return (
 		!process.env.NO_COLOR &&
