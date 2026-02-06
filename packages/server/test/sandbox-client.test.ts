@@ -314,10 +314,10 @@ describe('SandboxClient', () => {
 
 			expect(requestBody).not.toBeNull();
 			expect(requestBody!.command).toEqual(['bun', 'run', 'script.ts']);
-			expect(requestBody!.files).toEqual({
-				'script.ts': Buffer.from('console.log("hello")').toString('base64'),
-				'data.json': Buffer.from('{"key": "value"}').toString('base64'),
-			});
+			expect(requestBody!.files).toEqual([
+				{ path: 'script.ts', content: Buffer.from('console.log("hello")').toString('base64') },
+				{ path: 'data.json', content: Buffer.from('{"key": "value"}').toString('base64') },
+			]);
 		});
 
 		test('execute with empty files array should not include files in request', async () => {
