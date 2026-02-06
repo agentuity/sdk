@@ -219,6 +219,54 @@ If you don't want to run your own TURN server:
 - [Xirsys](https://xirsys.com/) - TURN-as-a-service
 - [Metered](https://www.metered.ca/stun-turn) - STUN/TURN service
 
+## Example: Free TURN Service (Metered Free Tier)
+
+Metered offers a free tier with short-lived credentials. Generate credentials from their API and pass them into `iceServers`:
+
+```typescript
+// Example response from your backend (values are placeholders)
+const meteredCredentials = {
+	urls: [
+		'stun:stun.metered.ca:80',
+		'turn:turn.metered.ca:80?transport=udp',
+		'turn:turn.metered.ca:443?transport=tcp',
+		'turns:turn.metered.ca:443?transport=tcp',
+	],
+	username: 'METERED_USERNAME',
+	credential: 'METERED_CREDENTIAL',
+};
+
+const manager = new WebRTCManager({
+	signalUrl: 'wss://example.com/signal',
+	roomId: 'my-room',
+	iceServers: [
+		{ urls: 'stun:stun.l.google.com:19302' },
+		{
+			urls: meteredCredentials.urls,
+			username: meteredCredentials.username,
+			credential: meteredCredentials.credential,
+		},
+	],
+});
+```
+
+> Note: Free tiers are great for development and testing. For production, ensure you understand the provider's limits and SLAs.
+
+## Example: Twilio / Xirsys TURN Credentials
+
+Twilio and Xirsys provide time-limited ICE server lists via their APIs. Fetch credentials from your backend and pass through:
+
+```typescript
+// Backend returns provider-issued ICE servers
+const { iceServers } = await fetch('/api/turn-credentials').then((r) => r.json());
+
+const manager = new WebRTCManager({
+	signalUrl: 'wss://example.com/signal',
+	roomId: 'my-room',
+	iceServers,
+});
+```
+
 ## Troubleshooting
 
 ### Connection Fails in Corporate Networks

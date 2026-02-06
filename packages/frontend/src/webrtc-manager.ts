@@ -10,6 +10,7 @@ import type {
 	RecordingState,
 	TrackSource as CoreTrackSource,
 } from '@agentuity/core';
+import { createReconnectManager, type ReconnectManager } from './reconnect';
 
 /**
  * Track source interface extended for browser environment.
@@ -109,6 +110,8 @@ interface PeerSession {
 	negotiationStarted: boolean;
 	lastStats?: RTCStatsReport;
 	lastStatsTime?: number;
+	hasIceCandidate?: boolean;
+	iceGatheringTimer?: ReturnType<typeof setTimeout> | null;
 }
 
 // =============================================================================
@@ -227,6 +230,21 @@ export interface WebRTCClientCallbacks {
 	 * Called when screen sharing stops.
 	 */
 	onScreenShareStop?: () => void;
+
+	/**
+	 * Called when a reconnect attempt is scheduled.
+	 */
+	onReconnecting?: (attempt: number) => void;
+
+	/**
+	 * Called after a successful reconnection.
+	 */
+	onReconnected?: () => void;
+
+	/**
+	 * Called when reconnect attempts are exhausted.
+	 */
+	onReconnectFailed?: () => void;
 }
 
 // =============================================================================
@@ -262,6 +280,22 @@ export interface WebRTCManagerOptions {
 	 * Callbacks for state changes and events.
 	 */
 	callbacks?: WebRTCClientCallbacks;
+	/**
+	 * Whether to auto-reconnect on WebSocket/ICE failures (default: true)
+	 */
+	autoReconnect?: boolean;
+	/**
+	 * Maximum reconnection attempts before giving up (default: 5)
+	 */
+	maxReconnectAttempts?: number;
+	/**
+	 * Connection timeout in ms for connecting/negotiating (default: 30000)
+	 */
+	connectionTimeout?: number;
+	/**
+	 * ICE gathering timeout in ms (default: 10000)
+	 */
+	iceGatheringTimeout?: number;
 }
 
 /**
@@ -331,13 +365,33 @@ export class WebRTCManager {
 
 	private options: WebRTCManagerOptions;
 	private callbacks: WebRTCClientCallbacks;
+	private reconnectManager: ReconnectManager;
+	private isReconnecting = false;
+	private intentionalClose = false;
+	private connectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	private recordings = new Map<string, { recorder: MediaRecorder; chunks: Blob[] }>();
 
 	constructor(options: WebRTCManagerOptions) {
-		this.options = options;
+		this.options = {
+			...options,
+			autoReconnect: options.autoReconnect ?? true,
+			maxReconnectAttempts: options.maxReconnectAttempts ?? 5,
+			connectionTimeout: options.connectionTimeout ?? 30000,
+			iceGatheringTimeout: options.iceGatheringTimeout ?? 10000,
+		};
 		this.basePolite = options.polite;
 		this.callbacks = options.callbacks ?? {};
+		this.reconnectManager = createReconnectManager({
+			onReconnect: () => {
+				void this.reconnect();
+			},
+			baseDelay: 1000,
+			factor: 2,
+			maxDelay: 30000,
+			jitter: 0,
+			enabled: () => this.shouldAutoReconnect(),
+		});
 	}
 
 	/**
@@ -411,6 +465,7 @@ export class WebRTCManager {
 		if (prevState === newState) return;
 
 		this._state = newState;
+		this.handleStateTimeouts(newState);
 		this.callbacks.onStateChange?.(prevState, newState, reason);
 
 		if (newState === 'connected' && prevState !== 'connected') {
@@ -426,8 +481,51 @@ export class WebRTCManager {
 	private mapToDisconnectReason(reason?: string): WebRTCDisconnectReason {
 		if (reason === 'hangup') return 'hangup';
 		if (reason === 'peer-left') return 'peer-left';
-		if (reason === 'timeout') return 'timeout';
+		if (reason?.includes('timeout')) return 'timeout';
 		return 'error';
+	}
+
+	private handleStateTimeouts(state: WebRTCConnectionState): void {
+		if (state === 'connecting' || state === 'negotiating') {
+			this.startConnectionTimeout();
+			return;
+		}
+		this.clearConnectionTimeout();
+	}
+
+	private startConnectionTimeout(): void {
+		this.clearConnectionTimeout();
+		const timeoutMs = this.options.connectionTimeout ?? 30000;
+		this.connectionTimeoutId = setTimeout(() => {
+			if (this._state === 'connecting' || this._state === 'negotiating') {
+				const error = new Error('WebRTC connection timed out');
+				this.callbacks.onError?.(error, this._state);
+				this.handleTimeout('connection-timeout');
+			}
+		}, timeoutMs);
+	}
+
+	private clearConnectionTimeout(): void {
+		if (this.connectionTimeoutId) {
+			clearTimeout(this.connectionTimeoutId);
+			this.connectionTimeoutId = null;
+		}
+	}
+
+	private handleTimeout(reason: string): void {
+		this.intentionalClose = true;
+		this.cleanupPeerSessions();
+		if (this.ws) {
+			this.ws.close();
+			this.ws = null;
+		}
+		this.peerId = null;
+		this.setState('idle', reason);
+		this.intentionalClose = false;
+	}
+
+	private shouldAutoReconnect(): boolean {
+		return (this.options.autoReconnect ?? true) && !this.intentionalClose;
 	}
 
 	private updateConnectionState(): void {
@@ -463,54 +561,14 @@ export class WebRTCManager {
 	 */
 	async connect(): Promise<void> {
 		if (this._state !== 'idle') return;
+		this.intentionalClose = false;
+		this.reconnectManager.reset();
 
 		this.setState('connecting', 'connect() called');
 
 		try {
-			if (this.options.media !== false) {
-				if (
-					this.options.media &&
-					typeof this.options.media === 'object' &&
-					'getStream' in this.options.media
-				) {
-					this.trackSource = this.options.media;
-				} else {
-					const constraints = (this.options.media as MediaStreamConstraints) ?? {
-						video: true,
-						audio: true,
-					};
-					this.trackSource = new UserMediaSource(constraints);
-				}
-				this.localStream = await this.trackSource.getStream();
-				this.callbacks.onLocalStream?.(this.localStream);
-			}
-
-			this.ws = new WebSocket(this.options.signalUrl);
-
-			this.ws.onopen = () => {
-				this.setState('signaling', 'WebSocket opened');
-				this.send({ t: 'join', roomId: this.options.roomId });
-			};
-
-			this.ws.onmessage = (event) => {
-				try {
-					const msg = JSON.parse(event.data) as SignalMessage;
-					this.handleSignalingMessage(msg);
-				} catch (_err) {
-					this.callbacks.onError?.(new Error('Invalid signaling message'), this._state);
-				}
-			};
-
-			this.ws.onerror = () => {
-				const error = new Error('WebSocket connection error');
-				this.callbacks.onError?.(error, this._state);
-			};
-
-			this.ws.onclose = () => {
-				if (this._state !== 'idle') {
-					this.setState('idle', 'WebSocket closed');
-				}
-			};
+			await this.ensureLocalStream();
+			this.openWebSocket();
 		} catch (err) {
 			// Clean up local media on failure
 			if (this.localStream) {
@@ -526,6 +584,107 @@ export class WebRTCManager {
 			const error = err instanceof Error ? err : new Error(String(err));
 			this.callbacks.onError?.(error, this._state);
 			this.setState('idle', 'error');
+		}
+	}
+
+	private async ensureLocalStream(): Promise<void> {
+		if (this.options.media === false || this.localStream) return;
+		if (this.options.media && typeof this.options.media === 'object' && 'getStream' in this.options.media) {
+			this.trackSource = this.options.media;
+		} else {
+			const constraints = (this.options.media as MediaStreamConstraints) ?? {
+				video: true,
+				audio: true,
+			};
+			this.trackSource = new UserMediaSource(constraints);
+		}
+		this.localStream = await this.trackSource.getStream();
+		this.callbacks.onLocalStream?.(this.localStream);
+	}
+
+	private openWebSocket(): void {
+		if (this.ws) {
+			const previous = this.ws;
+			this.ws = null;
+			previous.onclose = null;
+			previous.onerror = null;
+			previous.onmessage = null;
+			previous.onopen = null;
+			previous.close();
+		}
+
+		this.ws = new WebSocket(this.options.signalUrl);
+
+		this.ws.onopen = () => {
+			this.setState('signaling', 'WebSocket opened');
+			this.send({ t: 'join', roomId: this.options.roomId });
+			if (this.isReconnecting) {
+				this.isReconnecting = false;
+				this.reconnectManager.recordSuccess();
+				this.callbacks.onReconnected?.();
+			}
+		};
+
+		this.ws.onmessage = (event) => {
+			try {
+				const msg = JSON.parse(event.data) as SignalMessage;
+				this.handleSignalingMessage(msg);
+			} catch (_err) {
+				this.callbacks.onError?.(new Error('Invalid signaling message'), this._state);
+			}
+		};
+
+		this.ws.onerror = () => {
+			const error = new Error('WebSocket connection error');
+			this.callbacks.onError?.(error, this._state);
+		};
+
+		this.ws.onclose = () => {
+			if (this._state === 'idle') return;
+			if (this.intentionalClose) {
+				this.setState('idle', 'WebSocket closed');
+				return;
+			}
+			this.handleConnectionLoss('WebSocket closed');
+		};
+	}
+
+	private handleConnectionLoss(reason: string): void {
+		this.cleanupPeerSessions();
+		this.peerId = null;
+		if (this.shouldAutoReconnect()) {
+			this.scheduleReconnect(reason);
+		} else {
+			this.setState('idle', reason);
+		}
+	}
+
+	private scheduleReconnect(reason: string): void {
+		const nextAttempt = this.reconnectManager.getAttempts() + 1;
+		const maxAttempts = this.options.maxReconnectAttempts ?? 5;
+		if (nextAttempt > maxAttempts) {
+			this.callbacks.onReconnectFailed?.();
+			this.setState('idle', 'reconnect-failed');
+			return;
+		}
+
+		this.isReconnecting = true;
+		this.callbacks.onReconnecting?.(nextAttempt);
+		this.setState('connecting', `reconnecting:${reason}`);
+		this.reconnectManager.recordFailure();
+	}
+
+	private async reconnect(): Promise<void> {
+		if (!this.shouldAutoReconnect()) return;
+		this.cleanupPeerSessions();
+		this.peerId = null;
+		try {
+			await this.ensureLocalStream();
+			this.openWebSocket();
+		} catch (err) {
+			const error = err instanceof Error ? err : new Error(String(err));
+			this.callbacks.onError?.(error, this._state);
+			this.scheduleReconnect('reconnect-error');
 		}
 	}
 
@@ -588,6 +747,8 @@ export class WebRTCManager {
 			pendingCandidates: [],
 			isOfferer,
 			negotiationStarted: false,
+			hasIceCandidate: false,
+			iceGatheringTimer: null,
 		};
 
 		this.peers.set(remotePeerId, session);
@@ -624,6 +785,11 @@ export class WebRTCManager {
 
 		pc.onicecandidate = (event) => {
 			if (event.candidate) {
+				session.hasIceCandidate = true;
+				if (session.iceGatheringTimer) {
+					clearTimeout(session.iceGatheringTimer);
+					session.iceGatheringTimer = null;
+				}
 				this.callbacks.onIceCandidate?.(remotePeerId, event.candidate.toJSON());
 				this.send({
 					t: 'ice',
@@ -633,6 +799,8 @@ export class WebRTCManager {
 				});
 			}
 		};
+
+		this.scheduleIceGatheringTimeout(session);
 
 		pc.onnegotiationneeded = async () => {
 			// If we're not the offerer and haven't received a remote description yet,
@@ -666,6 +834,7 @@ export class WebRTCManager {
 			if (iceState === 'failed') {
 				const error = new Error(`ICE connection failed for peer ${remotePeerId}`);
 				this.callbacks.onError?.(error, this._state);
+				this.handleConnectionLoss('ice-failed');
 			}
 		};
 
@@ -787,6 +956,11 @@ export class WebRTCManager {
 		const session = this.peers.get(peerId);
 		if (!session) return;
 
+		if (session.iceGatheringTimer) {
+			clearTimeout(session.iceGatheringTimer);
+			session.iceGatheringTimer = null;
+		}
+
 		for (const channel of session.dataChannels.values()) {
 			channel.close();
 		}
@@ -794,6 +968,26 @@ export class WebRTCManager {
 
 		session.pc.close();
 		this.peers.delete(peerId);
+	}
+
+	private cleanupPeerSessions(): void {
+		for (const peerId of this.peers.keys()) {
+			this.closePeerSession(peerId);
+		}
+		this.peers.clear();
+	}
+
+	private scheduleIceGatheringTimeout(session: PeerSession): void {
+		const timeoutMs = this.options.iceGatheringTimeout ?? 10000;
+		if (timeoutMs <= 0) return;
+		if (session.iceGatheringTimer) {
+			clearTimeout(session.iceGatheringTimer);
+		}
+		session.iceGatheringTimer = setTimeout(() => {
+			if (!session.hasIceCandidate) {
+				console.warn(`ICE gathering timeout for peer ${session.peerId}`);
+			}
+		}, timeoutMs);
 	}
 
 	// =========================================================================
@@ -1354,10 +1548,10 @@ export class WebRTCManager {
 	 * End the call and disconnect from all peers
 	 */
 	hangup(): void {
-		for (const peerId of this.peers.keys()) {
-			this.closePeerSession(peerId);
-		}
-		this.peers.clear();
+		this.intentionalClose = true;
+		this.reconnectManager.cancel();
+		this.clearConnectionTimeout();
+		this.cleanupPeerSessions();
 
 		if (this.isScreenSharing) {
 			const screenTrack = this.localStream?.getVideoTracks()[0];
@@ -1379,6 +1573,7 @@ export class WebRTCManager {
 		this.peerId = null;
 		this.isScreenSharing = false;
 		this.setState('idle', 'hangup');
+		this.intentionalClose = false;
 	}
 
 	/**
@@ -1387,5 +1582,6 @@ export class WebRTCManager {
 	dispose(): void {
 		this.stopAllRecordings();
 		this.hangup();
+		this.reconnectManager.dispose();
 	}
 }

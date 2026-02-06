@@ -50,6 +50,22 @@ export interface UseWebRTCCallOptions {
 	 * Only the offerer (late joiner) creates channels; the answerer receives them.
 	 */
 	dataChannels?: DataChannelConfig[];
+	/**
+	 * Whether to auto-reconnect on WebSocket/ICE failures (default: true)
+	 */
+	autoReconnect?: boolean;
+	/**
+	 * Maximum reconnection attempts before giving up (default: 5)
+	 */
+	maxReconnectAttempts?: number;
+	/**
+	 * Connection timeout in ms for connecting/negotiating (default: 30000)
+	 */
+	connectionTimeout?: number;
+	/**
+	 * ICE gathering timeout in ms (default: 10000)
+	 */
+	iceGatheringTimeout?: number;
 	/** Whether to auto-connect on mount (default: true) */
 	autoConnect?: boolean;
 	/**
@@ -212,6 +228,10 @@ export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResul
 			iceServers: options.iceServers,
 			media: options.media,
 			dataChannels: options.dataChannels,
+			autoReconnect: options.autoReconnect,
+			maxReconnectAttempts: options.maxReconnectAttempts,
+			connectionTimeout: options.connectionTimeout,
+			iceGatheringTimeout: options.iceGatheringTimeout,
 			callbacks: {
 				onStateChange: (from, to, reason) => {
 					setState(to);
@@ -298,6 +318,15 @@ export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResul
 					setIsScreenSharing(false);
 					userCallbacksRef.current?.onScreenShareStop?.();
 				},
+				onReconnecting: (attempt) => {
+					userCallbacksRef.current?.onReconnecting?.(attempt);
+				},
+				onReconnected: () => {
+					userCallbacksRef.current?.onReconnected?.();
+				},
+				onReconnectFailed: () => {
+					userCallbacksRef.current?.onReconnectFailed?.();
+				},
 			},
 		};
 	}, [
@@ -307,6 +336,10 @@ export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResul
 		options.iceServers,
 		options.media,
 		options.dataChannels,
+		options.autoReconnect,
+		options.maxReconnectAttempts,
+		options.connectionTimeout,
+		options.iceGatheringTimeout,
 	]);
 
 	useEffect(() => {

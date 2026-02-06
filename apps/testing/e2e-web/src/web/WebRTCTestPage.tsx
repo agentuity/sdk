@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WebRTCManager, type WebRTCConnectionState } from '@agentuity/frontend';
+import type { RecordingHandle, RecordingState } from '@agentuity/core';
 
 interface Message {
 	from: 'local' | 'remote';
@@ -37,12 +38,22 @@ export function WebRTCTestPage() {
 	const [inputMessage, setInputMessage] = useState('');
 	const [error, setError] = useState<string | null>(null);
 	const [dataChannelOpen, setDataChannelOpen] = useState(false);
+	const [isScreenSharing, setIsScreenSharing] = useState(false);
+	const [recordingState, setRecordingState] = useState<RecordingState>('inactive');
+	const [recordingSize, setRecordingSize] = useState<number | null>(null);
+	const [recordingMimeType, setRecordingMimeType] = useState<string | null>(null);
 
 	// Media options
 	const [enableVideo, setEnableVideo] = useState(false);
 	const [enableAudio, setEnableAudio] = useState(false);
 	const [isAudioMuted, setIsAudioMuted] = useState(false);
 	const [isVideoMuted, setIsVideoMuted] = useState(false);
+	const [autoReconnect, setAutoReconnect] = useState(true);
+	const [maxReconnectAttempts, setMaxReconnectAttempts] = useState(5);
+	const [reconnectAttempt, setReconnectAttempt] = useState<number | null>(null);
+	const [reconnectStatus, setReconnectStatus] = useState<'idle' | 'reconnecting' | 'reconnected' | 'failed'>(
+		'idle'
+	);
 
 	// Cursor tracking
 	const [remoteCursors, setRemoteCursors] = useState<Map<string, CursorPosition>>(new Map());
@@ -55,11 +66,15 @@ export function WebRTCTestPage() {
 	const managerRef = useRef<WebRTCManager | null>(null);
 	const localVideoRef = useRef<HTMLVideoElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
+	const recordingHandleRef = useRef<RecordingHandle | null>(null);
 
 	const connect = useCallback(() => {
 		if (managerRef.current) {
 			managerRef.current.dispose();
 		}
+		setError(null);
+		setReconnectStatus('idle');
+		setReconnectAttempt(null);
 
 		const signalUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/webrtc/signal`;
 
@@ -72,6 +87,8 @@ export function WebRTCTestPage() {
 			signalUrl,
 			roomId,
 			media: mediaConstraints,
+			autoReconnect,
+			maxReconnectAttempts,
 			dataChannels: [
 				{ label: 'chat', ordered: true },
 				{ label: 'cursors', ordered: false, maxRetransmits: 0 },
@@ -102,6 +119,7 @@ export function WebRTCTestPage() {
 					console.log('[WebRTC] Disconnected:', reason);
 					setDataChannelOpen(false);
 					setRemotePeerIds([]);
+					setIsScreenSharing(false);
 				},
 				onPeerJoined: (id) => {
 					console.log('[WebRTC] Peer joined:', id);
@@ -187,6 +205,22 @@ export function WebRTCTestPage() {
 					console.error('[WebRTC] Error:', err);
 					setError(err.message);
 				},
+				onScreenShareStart: () => {
+					setIsScreenSharing(true);
+				},
+				onScreenShareStop: () => {
+					setIsScreenSharing(false);
+				},
+				onReconnecting: (attempt: number) => {
+					setReconnectAttempt(attempt);
+					setReconnectStatus('reconnecting');
+				},
+				onReconnected: () => {
+					setReconnectStatus('reconnected');
+				},
+				onReconnectFailed: () => {
+					setReconnectStatus('failed');
+				},
 			},
 		});
 
@@ -200,7 +234,7 @@ export function WebRTCTestPage() {
 				clearInterval(checkPeerId);
 			}
 		}, 100);
-	}, [roomId, enableVideo, enableAudio]);
+	}, [roomId, enableVideo, enableAudio, autoReconnect, maxReconnectAttempts]);
 
 	const toggleAudioMute = useCallback(() => {
 		if (managerRef.current) {
@@ -217,6 +251,56 @@ export function WebRTCTestPage() {
 			setIsVideoMuted(newMuted);
 		}
 	}, [isVideoMuted]);
+
+	const startScreenShare = useCallback(async () => {
+		if (!managerRef.current) return;
+		try {
+			await managerRef.current.startScreenShare();
+			managerRef.current.sendJSON('chat', { type: 'screen-share', active: true });
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			setError(message);
+		}
+	}, []);
+
+	const stopScreenShare = useCallback(async () => {
+		if (!managerRef.current) return;
+		try {
+			await managerRef.current.stopScreenShare();
+			managerRef.current.sendJSON('chat', { type: 'screen-share', active: false });
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			setError(message);
+		}
+	}, []);
+
+	const startRecording = useCallback(() => {
+		if (!managerRef.current) return;
+		const handle = managerRef.current.startRecording('local');
+		if (!handle) {
+			setError('Recording failed');
+			return;
+		}
+		recordingHandleRef.current = handle;
+		setRecordingState(handle.state);
+		setRecordingSize(null);
+		setRecordingMimeType(null);
+	}, []);
+
+	const stopRecording = useCallback(async () => {
+		const handle = recordingHandleRef.current;
+		if (!handle) return;
+		const blob = await handle.stop();
+		setRecordingState('inactive');
+		setRecordingSize(blob.size);
+		setRecordingMimeType(blob.type);
+		recordingHandleRef.current = null;
+	}, []);
+
+	const forceWebSocketClose = useCallback(() => {
+		const manager = managerRef.current as unknown as { ws?: WebSocket } | null;
+		manager?.ws?.close();
+	}, []);
 
 	// Handle canvas mouse movement
 	const handleCanvasMouseMove = useCallback(
@@ -296,7 +380,7 @@ export function WebRTCTestPage() {
 
 	useEffect(() => {
 		drawCanvas();
-	}, [drawCanvas, state]);
+	}, [drawCanvas]);
 
 	const disconnect = useCallback(() => {
 		if (managerRef.current) {
@@ -310,6 +394,13 @@ export function WebRTCTestPage() {
 		setDataChannelOpen(false);
 		setCursorChannelOpen(false);
 		setRemoteCursors(new Map());
+		setIsScreenSharing(false);
+		setRecordingState('inactive');
+		setRecordingSize(null);
+		setRecordingMimeType(null);
+		recordingHandleRef.current = null;
+		setReconnectStatus('idle');
+		setReconnectAttempt(null);
 	}, []);
 
 	const sendMessage = useCallback(() => {
@@ -364,6 +455,19 @@ export function WebRTCTestPage() {
 				</label>
 			</div>
 
+			{state !== 'idle' && (
+				<div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+					<button
+						type="button"
+						onClick={forceWebSocketClose}
+						data-testid="force-ws-close-btn"
+						style={{ padding: '0.5rem 1rem' }}
+					>
+						Force WS Close
+					</button>
+				</div>
+			)}
+
 			<div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
 				<label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
 					<input
@@ -387,9 +491,35 @@ export function WebRTCTestPage() {
 				</label>
 			</div>
 
+			<div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+				<label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+					<input
+						type="checkbox"
+						checked={autoReconnect}
+						onChange={(e) => setAutoReconnect(e.target.checked)}
+						disabled={state !== 'idle'}
+						data-testid="auto-reconnect-toggle"
+					/>
+					Auto Reconnect
+				</label>
+				<label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+					Max Attempts
+					<input
+						type="number"
+						min={0}
+						value={maxReconnectAttempts}
+						onChange={(e) => setMaxReconnectAttempts(Number(e.target.value))}
+						disabled={state !== 'idle'}
+						data-testid="max-reconnect-input"
+						style={{ width: '5rem', padding: '0.25rem' }}
+					/>
+				</label>
+			</div>
+
 			<div style={{ marginBottom: '1rem' }}>
 				{state === 'idle' ? (
 					<button
+						type="button"
 						onClick={connect}
 						data-testid="connect-btn"
 						style={{ padding: '0.5rem 1rem' }}
@@ -398,6 +528,7 @@ export function WebRTCTestPage() {
 					</button>
 				) : (
 					<button
+						type="button"
 						onClick={disconnect}
 						data-testid="disconnect-btn"
 						style={{ padding: '0.5rem 1rem' }}
@@ -428,6 +559,17 @@ export function WebRTCTestPage() {
 				<div data-testid="data-channel-state">
 					<strong>Data Channel:</strong> {dataChannelOpen ? 'Open' : 'Closed'}
 				</div>
+				<div data-testid="screen-share-state">
+					<strong>Screen Share:</strong> {isScreenSharing ? 'On' : 'Off'}
+				</div>
+				<div data-testid="reconnect-status">
+					<strong>Reconnect:</strong> {reconnectStatus}
+				</div>
+				{reconnectAttempt !== null && (
+					<div data-testid="reconnect-attempt">
+						<strong>Reconnect Attempt:</strong> {reconnectAttempt}
+					</div>
+				)}
 				{error && (
 					<div data-testid="error" style={{ color: 'red' }}>
 						<strong>Error:</strong> {error}
@@ -467,27 +609,30 @@ export function WebRTCTestPage() {
 						{/* Local Video */}
 						<div>
 							<div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>You</div>
-							<video
-								ref={localVideoRef}
-								autoPlay
-								muted
-								playsInline
-								data-testid="local-video"
-								style={{
-									width: '240px',
-									height: '180px',
-									background: '#000',
-									borderRadius: '4px',
-								}}
-							/>
-							<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
-								{enableAudio && (
-									<button
-										onClick={toggleAudioMute}
-										data-testid="mute-audio-btn"
-										style={{
-											padding: '0.25rem 0.5rem',
-											background: isAudioMuted ? '#f44336' : '#4caf50',
+						<video
+							ref={localVideoRef}
+							autoPlay
+							muted
+							playsInline
+							data-testid="local-video"
+							style={{
+								width: '240px',
+								height: '180px',
+								background: '#000',
+								borderRadius: '4px',
+							}}
+						>
+							<track kind="captions" src="data:text/vtt,WEBVTT" label="captions" />
+						</video>
+						<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+							{enableAudio && (
+								<button
+									type="button"
+									onClick={toggleAudioMute}
+									data-testid="mute-audio-btn"
+									style={{
+										padding: '0.25rem 0.5rem',
+										background: isAudioMuted ? '#f44336' : '#4caf50',
 											color: 'white',
 											border: 'none',
 											borderRadius: '4px',
@@ -497,24 +642,78 @@ export function WebRTCTestPage() {
 										{isAudioMuted ? '🔇 Unmute' : '🔊 Mute'}
 									</button>
 								)}
-								{enableVideo && (
-									<button
-										onClick={toggleVideoMute}
-										data-testid="mute-video-btn"
-										style={{
-											padding: '0.25rem 0.5rem',
-											background: isVideoMuted ? '#f44336' : '#4caf50',
+							{enableVideo && (
+								<button
+									type="button"
+									onClick={toggleVideoMute}
+									data-testid="mute-video-btn"
+									style={{
+										padding: '0.25rem 0.5rem',
+										background: isVideoMuted ? '#f44336' : '#4caf50',
 											color: 'white',
 											border: 'none',
 											borderRadius: '4px',
 											cursor: 'pointer',
 										}}
-									>
-										{isVideoMuted ? '📷 Show' : '📷 Hide'}
-									</button>
-								)}
+								>
+									{isVideoMuted ? '📷 Show' : '📷 Hide'}
+								</button>
+							)}
+						</div>
+						<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+							<button
+								type="button"
+								onClick={startScreenShare}
+								disabled={isScreenSharing}
+								data-testid="start-screen-share-btn"
+								style={{ padding: '0.25rem 0.5rem' }}
+							>
+								Start Screen Share
+							</button>
+							<button
+								type="button"
+								onClick={stopScreenShare}
+								disabled={!isScreenSharing}
+								data-testid="stop-screen-share-btn"
+								style={{ padding: '0.25rem 0.5rem' }}
+							>
+								Stop Screen Share
+							</button>
+						</div>
+						<div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+							<button
+								type="button"
+								onClick={startRecording}
+								disabled={recordingState === 'recording'}
+								data-testid="start-recording-btn"
+								style={{ padding: '0.25rem 0.5rem' }}
+							>
+								Start Recording
+							</button>
+							<button
+								type="button"
+								onClick={stopRecording}
+								disabled={recordingState !== 'recording'}
+								data-testid="stop-recording-btn"
+								style={{ padding: '0.25rem 0.5rem' }}
+							>
+								Stop Recording
+							</button>
+						</div>
+						<div style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+							<div data-testid="recording-state">
+								<strong>Recording:</strong> {recordingState}
+							</div>
+							<div data-testid="recording-size">
+								<strong>Recording Size:</strong>{' '}
+								{recordingSize !== null ? `${recordingSize} bytes` : 'N/A'}
+							</div>
+							<div data-testid="recording-mime">
+								<strong>Recording MIME:</strong>{' '}
+								{recordingMimeType ?? 'N/A'}
 							</div>
 						</div>
+					</div>
 
 						{/* Remote Videos */}
 						{remotePeerIds.map((remotePeerId) => (
@@ -522,27 +721,29 @@ export function WebRTCTestPage() {
 								<div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>
 									{remotePeerId.slice(0, 15)}...
 								</div>
-								<video
-									ref={(el) => {
-										if (el) {
-											const stream = remoteStreams.get(remotePeerId);
-											if (stream && el.srcObject !== stream) {
-												el.srcObject = stream;
-											}
+							<video
+								ref={(el) => {
+									if (el) {
+										const stream = remoteStreams.get(remotePeerId);
+										if (stream && el.srcObject !== stream) {
+											el.srcObject = stream;
 										}
-									}}
-									autoPlay
-									playsInline
-									data-testid={`remote-video-${remotePeerId}`}
-									style={{
-										width: '240px',
-										height: '180px',
-										background: '#000',
-										borderRadius: '4px',
-									}}
-								/>
-							</div>
-						))}
+									}
+								}}
+								autoPlay
+								playsInline
+								data-testid={`remote-video-${remotePeerId}`}
+								style={{
+									width: '240px',
+									height: '180px',
+									background: '#000',
+									borderRadius: '4px',
+								}}
+							>
+								<track kind="captions" src="data:text/vtt,WEBVTT" label="captions" />
+							</video>
+						</div>
+					))}
 					</div>
 				</div>
 			)}
@@ -560,6 +761,7 @@ export function WebRTCTestPage() {
 							style={{ flex: 1, padding: '0.5rem' }}
 						/>
 						<button
+							type="button"
 							onClick={sendMessage}
 							data-testid="send-btn"
 							style={{ padding: '0.5rem 1rem' }}
@@ -567,6 +769,7 @@ export function WebRTCTestPage() {
 							Send
 						</button>
 						<button
+							type="button"
 							onClick={sendJSON}
 							data-testid="send-json-btn"
 							style={{ padding: '0.5rem 1rem' }}
@@ -592,9 +795,9 @@ export function WebRTCTestPage() {
 				{messages.length === 0 ? (
 					<p style={{ color: '#999' }}>No messages yet</p>
 				) : (
-					messages.map((msg, i) => (
+					messages.map((msg) => (
 						<div
-							key={i}
+							key={`${msg.timestamp}-${msg.from}-${msg.peerId ?? 'local'}`}
 							data-testid={`message-${msg.from}`}
 							style={{
 								padding: '0.5rem',
