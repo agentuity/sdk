@@ -56,7 +56,9 @@ export function createPostgresDrizzle<
 	// Use connectionString only if no url is already present on the cloned config
 	// This ensures connection (when provided) keeps precedence over connectionString
 	if (!clientConfig.url) {
-		if (config?.connectionString) {
+		if (config?.url) {
+			clientConfig.url = config.url;
+		} else if (config?.connectionString) {
 			clientConfig.url = config.connectionString;
 		} else if (process.env.DATABASE_URL) {
 			clientConfig.url = process.env.DATABASE_URL;

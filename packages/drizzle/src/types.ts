@@ -11,6 +11,13 @@ export interface PostgresDrizzleConfig<
 	TSchema extends Record<string, unknown> = Record<string, never>,
 > {
 	/**
+	 * PostgreSQL connection URL.
+	 * Shorthand for `connection.url`.
+	 * If not provided, falls back to `connectionString`, then `process.env.DATABASE_URL`.
+	 */
+	url?: string;
+
+	/**
 	 * PostgreSQL connection string.
 	 * If not provided, uses `process.env.DATABASE_URL`.
 	 */
