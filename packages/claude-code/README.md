@@ -147,6 +147,8 @@ Memory requires the Agentuity CLI to be installed and authenticated.
 | Hook | Event | Purpose |
 | --- | --- | --- |
 | `block-sensitive-commands.sh` | PreToolUse (Bash) | Block access to secrets, API keys, and auth tokens |
+| `pre-compact.sh` | PreCompact | Inject memory-save instructions before context compaction |
+| `stop-memory-save.sh` | Stop | Request memory save before session ends (blocks first stop only) |
 | `session-start.sh` | SessionStart | Gather Agentuity context (project, org, git branch) |
 | `session-end.sh` | SessionEnd | Sync memory to cloud (future) |
 
@@ -359,6 +361,8 @@ packages/claude-code/
 │   ├── hooks.json
 │   └── scripts/
 │       ├── block-sensitive-commands.sh # Blocks secrets/apikey/token access
+│       ├── pre-compact.sh             # Memory save before compaction
+│       ├── stop-memory-save.sh        # Memory save before session stop
 │       ├── session-start.sh           # Gathers project context
 │       └── session-end.sh             # Future memory sync
 ├── src/
