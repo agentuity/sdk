@@ -9,11 +9,6 @@ import type {
 export type { SDPDescription, ICECandidate, SignalMessage, WebRTCSignalingCallbacks };
 
 /**
- * @deprecated Use `SignalMessage` instead. Alias for backwards compatibility.
- */
-export type SignalMsg = SignalMessage;
-
-/**
  * Configuration options for WebRTC signaling.
  */
 export interface WebRTCOptions {

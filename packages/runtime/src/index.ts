@@ -97,7 +97,6 @@ export {
 
 // webrtc-signaling.ts exports
 export {
-	type SignalMsg,
 	type SignalMessage,
 	type SDPDescription,
 	type ICECandidate,

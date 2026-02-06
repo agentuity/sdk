@@ -70,15 +70,6 @@ declare module 'hono' {
 		 * ```
 		 */
 		cron(schedule: string, ...args: any[]): this;
-
-		/**
-		 * @deprecated Use the `webrtc` middleware instead:
-		 * ```typescript
-		 * import { webrtc } from '@agentuity/runtime';
-		 * router.get('/call/signal', webrtc({ maxPeers: 2 }));
-		 * ```
-		 */
-		webrtc(path: string, ...args: any[]): this;
 	}
 }
 
@@ -282,19 +273,6 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 				`  router.post('/your-cron-path', cron('${schedule}', (c) => {\n` +
 				`    return { status: 'complete' };\n` +
 				`  }));`
-		);
-	};
-
-	_router.webrtc = (path: string, ..._args: any[]) => {
-		throw new Error(
-			`router.webrtc() is deprecated and has been removed.\n\n` +
-				`Migration: Use the webrtc middleware instead:\n\n` +
-				`  import { createRouter, webrtc } from '@agentuity/runtime';\n\n` +
-				`  const router = createRouter();\n\n` +
-				`  // Before (deprecated):\n` +
-				`  // router.webrtc('${path}');\n\n` +
-				`  // After:\n` +
-				`  router.get('${path}/signal', webrtc({ maxPeers: 10 }));`
 		);
 	};
 
