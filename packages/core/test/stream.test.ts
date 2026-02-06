@@ -27,7 +27,10 @@ describe('StreamStorageService', () => {
 
 			const body = JSON.parse(calls[0].options?.body as string);
 			expect(body.name).toBe('test-stream');
-			expect(body.contentType).toBe('application/octet-stream');
+			// Default content-type should be in headers object (Pulse server format)
+			expect(body.headers?.['content-type']).toBe('application/octet-stream');
+			// Should NOT have contentType at top level
+			expect(body.contentType).toBeUndefined();
 		});
 
 		test('should create a stream with metadata', async () => {
@@ -45,7 +48,7 @@ describe('StreamStorageService', () => {
 			expect(body.metadata).toEqual(metadata);
 		});
 
-		test('should create a stream with custom contentType', async () => {
+		test('should create a stream with custom contentType in headers object', async () => {
 			const { adapter, calls } = createMockAdapter([
 				{ ok: true, data: { id: 'stream-789' } },
 				{ ok: true },
@@ -56,7 +59,48 @@ describe('StreamStorageService', () => {
 
 			expect(stream.id).toBe('stream-789');
 			const body = JSON.parse(calls[0].options?.body as string);
-			expect(body.contentType).toBe('application/json');
+			// Content-type should be in headers object, not as a top-level contentType field
+			expect(body.headers?.['content-type']).toBe('application/json');
+			expect(body.contentType).toBeUndefined();
+		});
+
+		test('should send content-type in headers object for Pulse server compatibility', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-headers-test' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream', { contentType: 'text/plain' });
+
+			const body = JSON.parse(calls[0].options?.body as string);
+
+			// Verify headers object structure (Pulse server expects this format)
+			expect(body.headers).toBeDefined();
+			expect(typeof body.headers).toBe('object');
+			expect(body.headers['content-type']).toBe('text/plain');
+
+			// Verify contentType is NOT sent as a separate field
+			expect(body.contentType).toBeUndefined();
+
+			// Verify other expected fields
+			expect(body.name).toBe('test-stream');
+		});
+
+		test('should not include headers object when no contentType specified', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-no-ct' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			// Note: The implementation always sets a default content-type of 'application/octet-stream'
+			// so headers will always be present. This test verifies that behavior.
+			await service.create('test-stream');
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			// Default content-type is always set
+			expect(body.headers?.['content-type']).toBe('application/octet-stream');
 		});
 
 		test('should create a compressed stream', async () => {
@@ -71,24 +115,78 @@ describe('StreamStorageService', () => {
 			expect(stream.compressed).toBe(true);
 		});
 
-		test('should throw error for empty stream name', async () => {
+		test('should create stream with default TTL when not specified', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-default-ttl' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream');
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			// TTL should not be in the body when not specified (server uses 30-day default)
+			expect(body.ttl).toBeUndefined();
+		});
+
+		test('should create stream with custom TTL', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-custom-ttl' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream', { ttl: 3600 });
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			expect(body.ttl).toBe(3600);
+		});
+
+		test('should create stream with no expiration when TTL is null', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-no-expire-null' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream', { ttl: null });
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			// null should be converted to 0 (no expiration)
+			expect(body.ttl).toBe(0);
+		});
+
+		test('should create stream with no expiration when TTL is 0', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-no-expire-zero' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			await service.create('test-stream', { ttl: 0 });
+
+			const body = JSON.parse(calls[0].options?.body as string);
+			expect(body.ttl).toBe(0);
+		});
+
+		test('should throw error for empty stream namespace', async () => {
 			const { adapter } = createMockAdapter([]);
 
 			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.create('')).rejects.toThrow(
-				'Stream name must be between 1 and 254 characters'
+				'Stream namespace must be between 1 and 254 characters'
 			);
 		});
 
-		test('should throw error for stream name too long', async () => {
+		test('should throw error for stream namespace too long', async () => {
 			const { adapter } = createMockAdapter([]);
 
 			const service = new StreamStorageService(baseUrl, adapter);
-			const longName = 'a'.repeat(255);
+			const longNamespace = 'a'.repeat(255);
 
-			await expect(service.create(longName)).rejects.toThrow(
-				'Stream name must be between 1 and 254 characters'
+			await expect(service.create(longNamespace)).rejects.toThrow(
+				'Stream namespace must be between 1 and 254 characters'
 			);
 		});
 
@@ -143,13 +241,14 @@ describe('StreamStorageService', () => {
 			expect(calls[0].options?.method).toBe('POST');
 		});
 
-		test('should list streams with name filter', async () => {
+		test('should list streams with namespace filter', async () => {
 			const mockResponse = { success: true, streams: [], total: 0 };
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
 			const service = new StreamStorageService(baseUrl, adapter);
-			await service.list({ name: 'test-stream' });
+			await service.list({ namespace: 'test-stream' });
 
+			// namespace is mapped to name in the API request
 			const body = JSON.parse(calls[0].options?.body as string);
 			expect(body.name).toBe('test-stream');
 		});
@@ -524,7 +623,7 @@ describe('StreamStorageService', () => {
 			const result = await service.get('stream-123');
 
 			expect(result.id).toBe('stream-123');
-			expect(result.name).toBe('test-stream');
+			expect(result.namespace).toBe('test-stream');
 			expect(result.metadata).toEqual({ type: 'video' });
 			expect(result.sizeBytes).toBe(2048);
 			expect(calls[0].url).toBe(`${baseUrl}/stream-123/info`);
@@ -799,7 +898,7 @@ describe('StreamStorageService', () => {
 
 			expect(calls[0].options?.telemetry).toBeDefined();
 			expect(calls[0].options?.telemetry?.name).toBe('agentuity.stream.create');
-			expect(calls[0].options?.telemetry?.attributes?.name).toBe('test-stream');
+			expect(calls[0].options?.telemetry?.attributes?.namespace).toBe('test-stream');
 		});
 
 		test('should include telemetry for list operation', async () => {
@@ -807,11 +906,11 @@ describe('StreamStorageService', () => {
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
 			const service = new StreamStorageService(baseUrl, adapter);
-			await service.list({ name: 'test', limit: 10 });
+			await service.list({ namespace: 'test', limit: 10 });
 
 			expect(calls[0].options?.telemetry).toBeDefined();
 			expect(calls[0].options?.telemetry?.name).toBe('agentuity.stream.list');
-			expect(calls[0].options?.telemetry?.attributes?.name).toBe('test');
+			expect(calls[0].options?.telemetry?.attributes?.namespace).toBe('test');
 			expect(calls[0].options?.telemetry?.attributes?.limit).toBe('10');
 		});
 

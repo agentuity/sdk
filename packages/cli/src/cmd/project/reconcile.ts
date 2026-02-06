@@ -23,6 +23,7 @@ import {
 	splitEnvAndSecrets,
 } from '../../env-util';
 import { fetchRegionsWithCache } from '../../regions';
+import { getCachedProject, setCachedProject } from '../../cache';
 
 export interface ReconcileResult {
 	status: 'valid' | 'imported' | 'skipped' | 'error';
@@ -216,8 +217,33 @@ async function selectRegion(regions: RegionList, defaultRegion?: string): Promis
 		throw new Error('No cloud regions available');
 	}
 
-	if (regions.length === 1) {
-		return regions[0].region;
+	const firstRegion = regions[0];
+	if (regions.length === 1 && firstRegion) {
+		return firstRegion.region;
+	}
+
+	// Check for non-interactive mode before prompting
+	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
+	if (isNonInteractive) {
+		// In non-interactive mode, validate defaultRegion against available regions
+		if (defaultRegion) {
+			const isValidRegion = regions.some((r) => r.region === defaultRegion);
+			if (isValidRegion) {
+				return defaultRegion;
+			}
+			const supportedRegions = regions.map((r) => r.region).join(', ');
+			tui.fatal(
+				`Region "${defaultRegion}" is not supported. ` +
+					`Available regions: ${supportedRegions}. ` +
+					'Use --region flag or set AGENTUITY_REGION environment variable with a valid region.'
+			);
+		}
+		const supportedRegions = regions.map((r) => r.region).join(', ');
+		tui.fatal(
+			'Cannot select region in non-interactive mode. ' +
+				`Available regions: ${supportedRegions}. ` +
+				'Use --region flag or set AGENTUITY_REGION environment variable.'
+		);
 	}
 
 	// Build options from API regions
@@ -227,18 +253,21 @@ async function selectRegion(regions: RegionList, defaultRegion?: string): Promis
 	}));
 
 	// Move default to top if found
-	const defaultValue = defaultRegion ?? regions[0].region;
+	const defaultValue = defaultRegion ?? firstRegion?.region ?? '';
 	const defaultIndex = options.findIndex((r) => r.value === defaultValue);
 	if (defaultIndex > 0) {
 		const [defaultItem] = options.splice(defaultIndex, 1);
-		options.unshift(defaultItem);
+		if (defaultItem) {
+			options.unshift(defaultItem);
+		}
 	}
 
 	const prompt = createPrompt();
+	const firstOption = options[0];
 	return prompt.select({
 		message: 'Select a region:',
 		options,
-		initial: options[0].value,
+		initial: firstOption?.value ?? '',
 	});
 }
 
@@ -250,6 +279,22 @@ async function textPrompt(options: {
 	initial?: string;
 	validate?: (value: string) => boolean | string;
 }): Promise<string> {
+	// Check for non-interactive mode before prompting
+	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
+	if (isNonInteractive) {
+		// In non-interactive mode, use initial value if available and valid
+		if (options.initial) {
+			const validationResult = options.validate?.(options.initial);
+			if (validationResult === true || validationResult === undefined) {
+				return options.initial;
+			}
+		}
+		tui.fatal(
+			'Cannot prompt for input in non-interactive mode. ' +
+				'Use --name flag to specify the project name.'
+		);
+	}
+
 	const prompt = createPrompt();
 	return prompt.text({
 		message: options.message,
@@ -468,7 +513,13 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 	if (projectConfig) {
 		// 2. Validate access to existing project
 		try {
-			const project = await projectGet(apiClient, { id: projectConfig.projectId, keys: false });
+			// Check cache first to avoid duplicate API calls
+			const profile = config?.name ?? 'default';
+			let project = getCachedProject(profile, projectConfig.projectId);
+			if (!project) {
+				project = await projectGet(apiClient, { id: projectConfig.projectId, keys: false });
+				setCachedProject(profile, projectConfig.projectId, project);
+			}
 
 			// 3. Check if orgId matches user's orgs
 			const userOrgs = await listOrganizations(apiClient);
@@ -542,7 +593,13 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 
 	if (projectConfig) {
 		try {
-			const project = await projectGet(apiClient, { id: projectConfig.projectId, keys: false });
+			// Check cache first to avoid duplicate API calls
+			const profile = config?.name ?? 'default';
+			let project = getCachedProject(profile, projectConfig.projectId);
+			if (!project) {
+				project = await projectGet(apiClient, { id: projectConfig.projectId, keys: false });
+				setCachedProject(profile, projectConfig.projectId, project);
+			}
 			const userOrgs = await listOrganizations(apiClient);
 			const hasAccess = userOrgs.some((org) => org.id === project.orgId);
 

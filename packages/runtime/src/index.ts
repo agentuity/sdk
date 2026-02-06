@@ -36,11 +36,13 @@ export {
 	type PrivateVariables,
 	type Env,
 	type AppResult,
+	type ShutdownHook,
 	createApp,
 	getApp,
 	getAppState,
 	getAppConfig,
 	runShutdown,
+	registerShutdownHook,
 	fireEvent,
 } from './app';
 
@@ -83,6 +85,7 @@ export {
 	type SSEMessage,
 	type SSEStream,
 	type SSEHandler,
+	type SSEOptions,
 	stream,
 	type StreamHandler,
 	cron,

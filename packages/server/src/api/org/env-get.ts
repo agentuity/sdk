@@ -2,19 +2,19 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { OrgResponseError } from './util';
 
-const OrgEnvDataSchema = z.object({
+export const OrgEnvDataSchema = z.object({
 	id: z.string().describe('the organization id'),
 	env: z.record(z.string(), z.string()).optional().describe('environment variables'),
 	secrets: z.record(z.string(), z.string()).optional().describe('secrets (may be masked)'),
 });
 
-const OrgEnvGetResponseSchema = APIResponseSchema(OrgEnvDataSchema);
+export const OrgEnvGetResponseSchema = APIResponseSchema(OrgEnvDataSchema);
 
 interface OrgEnvGetRequest {
 	id: string;
 	mask?: boolean;
 }
-type OrgEnvGetResponse = z.infer<typeof OrgEnvGetResponseSchema>;
+export type OrgEnvGetResponse = z.infer<typeof OrgEnvGetResponseSchema>;
 
 export type OrgEnv = z.infer<typeof OrgEnvDataSchema>;
 

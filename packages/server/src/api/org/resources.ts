@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
 import { OrgResourceResponseError } from './util';
 
-const OrgS3Resource = z.object({
+export const OrgS3Resource = z.object({
 	bucket_name: z.string().describe('the S3 bucket name'),
 	access_key: z.string().nullable().optional().describe('the S3 access key'),
 	secret_key: z.string().nullable().optional().describe('the S3 secret key'),
@@ -11,9 +11,12 @@ const OrgS3Resource = z.object({
 	cloud_region: z.string().describe('the cloud region where this resource is provisioned'),
 	org_id: z.string().describe('the organization ID that owns this resource'),
 	org_name: z.string().describe('the organization name that owns this resource'),
+	bucket_type: z.string().describe('the bucket type (user or snapshots)'),
+	internal: z.boolean().describe('whether this is a system-managed bucket'),
+	description: z.string().nullable().optional().describe('optional description of the bucket'),
 });
 
-const OrgDBResource = z.object({
+export const OrgDBResource = z.object({
 	name: z.string().describe('the database name'),
 	description: z.string().nullable().optional().describe('optional description of the database'),
 	username: z.string().nullable().optional().describe('the database username'),
@@ -22,14 +25,15 @@ const OrgDBResource = z.object({
 	cloud_region: z.string().describe('the cloud region where this resource is provisioned'),
 	org_id: z.string().describe('the organization ID that owns this resource'),
 	org_name: z.string().describe('the organization name that owns this resource'),
+	internal: z.boolean().describe('whether this is a system-managed database (KV/Vector/Queue)'),
 });
 
-const OrgResourceListResponse = z.object({
+export const OrgResourceListResponse = z.object({
 	s3: z.array(OrgS3Resource),
 	db: z.array(OrgDBResource),
 });
 
-const OrgResourceListResponseSchema = APIResponseSchema(OrgResourceListResponse);
+export const OrgResourceListResponseSchema = APIResponseSchema(OrgResourceListResponse);
 
 export type OrgResourceListResponse = z.infer<typeof OrgResourceListResponseSchema>;
 export type OrgResourceList = z.infer<typeof OrgResourceListResponse>;

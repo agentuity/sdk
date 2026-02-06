@@ -24,6 +24,10 @@ export const ConfigSchema = zod.object({
 	devmode: zod
 		.object({
 			hostname: zod.string().optional().describe('Development mode hostname'),
+			privateKey: zod
+				.string()
+				.optional()
+				.describe('Development mode private key (base64-encoded PEM)'),
 		})
 		.optional()
 		.describe('Development mode configuration'),
@@ -50,6 +54,7 @@ export const ConfigSchema = zod.object({
 			last_legacy_warning: zod.number().optional().describe('Last legacy CLI warning timestamp'),
 			signup_banner_shown: zod.boolean().optional().describe('If the signup banner was shown'),
 			orgId: zod.string().optional().describe('Default organization ID'),
+			projectId: zod.string().optional().describe('Default project ID'),
 			region: zod.string().optional().describe('Default cloud region'),
 			project_dir: zod.string().optional().describe('Last used project directory'),
 		})
@@ -280,6 +285,7 @@ export interface AuthData {
 
 export interface GlobalOptions {
 	config?: string;
+	profile?: string;
 	logLevel: LogLevel;
 	logTimestamp?: boolean;
 	logPrefix?: boolean;
@@ -316,6 +322,38 @@ export interface CommandSchemas {
 	options?: z.ZodType;
 	response?: z.ZodType;
 	aliases?: Record<string, string[]>;
+}
+
+/**
+ * Declarative resource selection rule for schema-driven testing
+ */
+export interface ResourceSelectionRule {
+	/** Resource type */
+	resource: 'org' | 'project' | 'region';
+
+	/** Is this resource required for the command? */
+	required: boolean;
+
+	/** CLI flag name (e.g., 'org-id', 'region') */
+	flag: string;
+
+	/** Environment variable name */
+	envVar: string;
+
+	/** Config preference key (if applicable) */
+	configPref?: string;
+
+	/** Can be implied from context (e.g., project from agentuity.json) */
+	canBeImplied?: boolean;
+
+	/** Source file or context for implied values (e.g., 'agentuity.json') */
+	impliedFrom?: string;
+
+	/** Can be inferred from cache (for prefixed IDs) */
+	canUseCache?: boolean;
+
+	/** Operation type affects behavior */
+	operationType?: 'read' | 'execute' | 'mutate';
 }
 
 export type ProjectConfig = zod.infer<typeof ProjectSchema>;
@@ -418,6 +456,19 @@ export type CommandContextFromSpecs<
 	config: Config | null;
 	logger: Logger;
 	options: GlobalOptions;
+	/**
+	 * Check if the CLI is being executed from a known coding agent.
+	 * Returns the agent name if detected, undefined otherwise.
+	 *
+	 * @example
+	 * ```typescript
+	 * const agent = await ctx.isExecutingFromAgent();
+	 * if (agent) {
+	 *   logger.debug(`Running from agent: ${agent}`);
+	 * }
+	 * ```
+	 */
+	isExecutingFromAgent: () => Promise<string | undefined>;
 } & AddArgs<A> &
 	AddOpts<Op> &
 	AddAuth<AuthMode<R, O>> &
@@ -453,6 +504,7 @@ export function createSubcommand<
 	banner?: true;
 	aliases?: string[];
 	toplevel?: boolean;
+	skipInternalLogging?: boolean;
 	requires?: R;
 	optional?: O;
 	examples?: CommandExample[];
@@ -462,6 +514,7 @@ export function createSubcommand<
 	tags?: string[];
 	skipSkill?: boolean;
 	webUrl?: WebUrl<R, O, A, Op>;
+	resourceRules?: ResourceSelectionRule[];
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
@@ -499,6 +552,7 @@ export function createCommand<
 	executable?: boolean;
 	skipUpgradeCheck?: boolean;
 	passThroughArgs?: boolean;
+	skipInternalLogging?: boolean;
 	requires?: R;
 	optional?: O;
 	examples?: CommandExample[];
@@ -508,6 +562,7 @@ export function createCommand<
 	tags?: string[];
 	skipSkill?: boolean;
 	webUrl?: WebUrl<R, O, A, Op>;
+	resourceRules?: ResourceSelectionRule[];
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
@@ -541,12 +596,14 @@ type CommandDefBase =
 			skipUpgradeCheck?: boolean;
 			passThroughArgs?: boolean;
 			skipSkill?: boolean;
+			skipInternalLogging?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
@@ -560,12 +617,14 @@ type CommandDefBase =
 			skipUpgradeCheck?: boolean;
 			passThroughArgs?: boolean;
 			skipSkill?: boolean;
+			skipInternalLogging?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];
@@ -579,13 +638,17 @@ type SubcommandDefBase =
 			toplevel?: boolean;
 			banner?: boolean;
 			skipSkill?: boolean;
+			skipInternalLogging?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
+			requires?: Requires;
+			optional?: Optional;
 			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
 	  }
@@ -596,13 +659,17 @@ type SubcommandDefBase =
 			toplevel?: boolean;
 			banner?: boolean;
 			skipSkill?: boolean;
+			skipInternalLogging?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			resourceRules?: ResourceSelectionRule[];
 			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
+			requires?: Requires;
+			optional?: Optional;
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];
 	  };
@@ -653,26 +720,37 @@ export const BuildMetadataSchema = ServerBuildMetadataSchema;
 export type BuildMetadata = zod.infer<typeof BuildMetadataSchema>;
 export type Project = zod.infer<typeof ProjectSchema>;
 
-export const DeployOptionsSchema = zod.object({
-	logsUrl: zod.url().optional().describe('The url to the CI build logs'),
-	trigger: zod
-		.enum(['cli', 'workflow', 'webhook'])
-		.default('cli')
-		.optional()
-		.describe('The trigger that caused the build'),
-	commitUrl: zod.url().optional().describe('The url to the CI commit'),
-	message: zod.string().optional().describe('The message to associate with this deployment'),
-	commit: zod.string().optional().describe('The commit SHA for this deployment'),
-	branch: zod.string().optional().describe('The git branch for this deployment'),
-	provider: zod.string().optional().describe('The CI provider name (attempts to autodetect)'),
-	repo: zod.string().optional().describe('The repo url'),
-	event: zod
-		.enum(['pull_request', 'push', 'manual', 'workflow'])
-		.default('manual')
-		.optional()
-		.describe('The event that triggered the deployment'),
-	pullRequestNumber: zod.number().optional().describe('the pull request number'),
-	pullRequestUrl: zod.url().optional().describe('the pull request url'),
+/**
+ * Common git options schema for build commands (deploy, snapshot build, etc.)
+ * These can be provided via CLI flags to override auto-detected git values.
+ */
+export const GitOptionsSchema = zod.object({
+	message: zod.string().optional().describe('The message to associate with this build'),
+	commit: zod.string().optional().describe('The git commit SHA'),
+	branch: zod.string().optional().describe('The git branch'),
+	repo: zod.string().optional().describe('The git repo URL'),
+	provider: zod.string().optional().describe('The git provider (github, gitlab, bitbucket)'),
+	commitUrl: zod.url().optional().describe('The URL to the commit'),
 });
+
+export type GitOptions = z.infer<typeof GitOptionsSchema>;
+
+export const DeployOptionsSchema = zod
+	.object({
+		logsUrl: zod.url().optional().describe('The url to the CI build logs'),
+		trigger: zod
+			.enum(['cli', 'workflow', 'webhook'])
+			.default('cli')
+			.optional()
+			.describe('The trigger that caused the build'),
+		event: zod
+			.enum(['pull_request', 'push', 'manual', 'workflow'])
+			.default('manual')
+			.optional()
+			.describe('The event that triggered the deployment'),
+		pullRequestNumber: zod.number().optional().describe('the pull request number'),
+		pullRequestUrl: zod.url().optional().describe('the pull request url'),
+	})
+	.merge(GitOptionsSchema);
 
 export type DeployOptions = z.infer<typeof DeployOptionsSchema>;

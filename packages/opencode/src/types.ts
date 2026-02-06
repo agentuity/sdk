@@ -1,6 +1,36 @@
 import { z } from 'zod';
+import type { BackgroundTaskConfig } from './background/types';
+import type { SkillsConfig } from './skills/types';
+import type { TmuxConfig } from './tmux/types';
 
-export const AgentRoleSchema = z.enum(['lead', 'scout', 'builder', 'reviewer', 'memory', 'expert']);
+// Re-export types from @opencode-ai/plugin
+export type {
+	Plugin,
+	PluginInput,
+	Hooks as PluginHooks,
+	ToolDefinition,
+} from '@opencode-ai/plugin';
+
+export type { BackgroundTaskConfig } from './background/types';
+export type { SkillsConfig, LoadedSkill, SkillMetadata, SkillScope } from './skills';
+export type { TmuxConfig } from './tmux/types';
+
+export const AgentRoleSchema = z.enum([
+	'lead',
+	'scout',
+	'builder',
+	'architect',
+	'reviewer',
+	'memory',
+	'expert',
+	'expert-backend',
+	'expert-frontend',
+	'expert-ops',
+	'runner',
+	'reasoner',
+	'product',
+	'monitor',
+]);
 export type AgentRole = z.infer<typeof AgentRoleSchema>;
 
 export const TaskStatusSchema = z.enum(['pending', 'running', 'completed', 'failed', 'cancelled']);
@@ -8,6 +38,36 @@ export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
 export const OrchestrationPatternSchema = z.enum(['single', 'fanout', 'pipeline']);
 export type OrchestrationPattern = z.infer<typeof OrchestrationPatternSchema>;
+
+export const CadenceStatusSchema = z.enum([
+	'running',
+	'paused',
+	'completed',
+	'failed',
+	'cancelled',
+]);
+export type CadenceStatus = z.infer<typeof CadenceStatusSchema>;
+
+export const CadenceSandboxModeSchema = z.enum(['off', 'per_iteration', 'persistent']);
+export type CadenceSandboxMode = z.infer<typeof CadenceSandboxModeSchema>;
+
+export interface CadenceLoop {
+	loopId: string;
+	parentId?: string;
+	projectLabel?: string;
+	sessionId?: string;
+	status: CadenceStatus;
+	iteration: number;
+	maxIterations: number;
+	prompt: string;
+	createdAt: string;
+	updatedAt: string;
+	lastError?: string;
+	sandbox?: {
+		mode: CadenceSandboxMode;
+		sandboxId?: string;
+	};
+}
 
 export interface AgentConfig {
 	/** Agent description - explains what it does and when to use it */
@@ -26,6 +86,10 @@ export interface AgentConfig {
 	temperature?: number;
 	/** Maximum agentic steps before forcing text response */
 	maxSteps?: number;
+	/** Reasoning effort for OpenAI models */
+	reasoningEffort?: ReasoningEffort;
+	/** Extended thinking configuration for Anthropic models */
+	thinking?: ThinkingConfig;
 }
 
 export interface AgentContext {
@@ -48,32 +112,84 @@ export interface CoderTask {
 	error?: string;
 }
 
+/** Extended thinking configuration for Anthropic models */
+export const ThinkingConfigSchema = z.object({
+	type: z.enum(['enabled', 'disabled']),
+	budgetTokens: z.number().optional(),
+});
+export type ThinkingConfig = z.infer<typeof ThinkingConfigSchema>;
+
+/** Reasoning effort for OpenAI models */
+export const ReasoningEffortSchema = z.enum(['low', 'medium', 'high', 'xhigh']);
+export type ReasoningEffort = z.infer<typeof ReasoningEffortSchema>;
+
+/** Model variant for Anthropic thinking levels */
+export const ModelVariantSchema = z.enum(['low', 'medium', 'high', 'max']);
+export type ModelVariant = z.infer<typeof ModelVariantSchema>;
+
+/** Enhanced agent model configuration */
+export interface AgentModelConfig {
+	/** Model ID in provider/model-id format */
+	model?: string;
+	/** Temperature for response creativity (0.0-2.0) */
+	temperature?: number;
+	/** Model variant for Anthropic thinking levels */
+	variant?: ModelVariant;
+	/** Reasoning effort for OpenAI models */
+	reasoningEffort?: ReasoningEffort;
+	/** Extended thinking configuration for Anthropic models */
+	thinking?: ThinkingConfig;
+	/** Maximum agentic steps before forcing text response */
+	maxSteps?: number;
+}
+
+export const AgentModelConfigSchema = z.object({
+	model: z.string().optional(),
+	temperature: z.number().min(0).max(2).optional(),
+	variant: ModelVariantSchema.optional(),
+	reasoningEffort: ReasoningEffortSchema.optional(),
+	thinking: ThinkingConfigSchema.optional(),
+	maxSteps: z.number().optional(),
+});
+
 export interface CoderConfig {
 	org?: string;
-	agents?: Partial<Record<AgentRole, AgentModelConfig>>;
 	disabledMcps?: string[];
 	/** CLI command patterns to block for security (e.g., 'cloud secrets', 'auth token') */
 	blockedCommands?: string[];
+	background?: BackgroundTaskConfig;
+	skills?: SkillsConfig;
+	tmux?: TmuxConfig;
 }
 
-export interface AgentModelConfig {
-	model?: string;
-	temperature?: number;
-}
+export const BackgroundTaskConfigSchema = z.object({
+	enabled: z.boolean(),
+	defaultConcurrency: z.number(),
+	staleTimeoutMs: z.number(),
+	providerConcurrency: z.record(z.string(), z.number()).optional(),
+	modelConcurrency: z.record(z.string(), z.number()).optional(),
+});
+
+export const SkillsConfigSchema = z.object({
+	enabled: z.boolean(),
+	paths: z.array(z.string()).optional(),
+	disabled: z.array(z.string()).optional(),
+});
+
+export const TmuxConfigSchema = z.object({
+	enabled: z.boolean(),
+	maxPanes: z.number(),
+	mainPaneMinWidth: z.number(),
+	agentPaneMinWidth: z.number(),
+});
 
 export const CoderConfigSchema = z.object({
 	org: z.string().optional(),
-	agents: z
-		.record(
-			AgentRoleSchema,
-			z.object({
-				model: z.string().optional(),
-				temperature: z.number().min(0).max(2).optional(),
-			})
-		)
-		.optional(),
 	disabledMcps: z.array(z.string()).optional(),
 	blockedCommands: z.array(z.string()).optional(),
+	background: BackgroundTaskConfigSchema.optional(),
+	skills: SkillsConfigSchema.optional(),
+	tmux: TmuxConfigSchema.optional(),
 });
 
 export interface McpConfig {
@@ -84,32 +200,7 @@ export interface McpConfig {
 	headers?: Record<string, string>;
 }
 
-export interface PluginClient {
-	app: {
-		log: (options: {
-			body: { service: string; level: string; message: string; extra?: unknown };
-		}) => void;
-	};
-	tui?: {
-		showToast?: (options: { body: { message: string } }) => void;
-	};
-}
-
-export interface PluginContext {
-	directory: string;
-	client: PluginClient;
-}
-
-export interface PluginHooks {
-	agents?: Record<string, AgentConfig>;
-	tool?: Record<string, unknown>; // Open Code tool format (created via tool() helper)
-	config?: (config: Record<string, unknown>) => Promise<void>;
-	'chat.message'?: (input: unknown, output: unknown) => Promise<void>;
-	'chat.params'?: (input: unknown, output: unknown) => Promise<void>;
-	'tool.execute.before'?: (input: unknown, output: unknown) => Promise<void>;
-	'tool.execute.after'?: (input: unknown, output: unknown) => Promise<void>;
-	event?: (input: unknown) => Promise<void>;
-}
+// Note: PluginInput and PluginHooks are now imported from @opencode-ai/plugin above.
 
 export interface CommandDefinition {
 	name: string;
@@ -122,8 +213,4 @@ export interface CommandDefinition {
 	subtask?: boolean;
 }
 
-export interface ToolDefinition {
-	description: string;
-	args: unknown; // Zod schema or JSON schema
-	execute: (args: unknown, context: unknown) => Promise<unknown>;
-}
+// ToolDefinition is re-exported from @opencode-ai/plugin above

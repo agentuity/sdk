@@ -75,6 +75,8 @@ const crashAttemptsAgent = createAgent('resilience-crash-attempts', {
 				} catch (err) {
 					throw new Error('Outer error wrapping inner', { cause: err });
 				}
+				// Note: unreachable due to throw in catch, but needed for TypeScript
+				throw new Error('Unreachable');
 			}
 
 			case 'stack-overflow': {
@@ -97,6 +99,8 @@ const crashAttemptsAgent = createAgent('resilience-crash-attempts', {
 						message: `Caught recursion at depth ${depth}`,
 					};
 				}
+				// Note: unreachable due to throw in try, but needed for TypeScript
+				throw new Error('Unreachable');
 			}
 
 			case 'null-deref': {

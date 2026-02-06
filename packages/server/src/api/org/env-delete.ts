@@ -2,16 +2,16 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchemaNoData } from '../api';
 import { OrgResponseError } from './util';
 
-const _OrgEnvDeleteRequestSchema = z.object({
+export const OrgEnvDeleteRequestSchema = z.object({
 	id: z.string().describe('the organization id'),
 	env: z.array(z.string()).optional().describe('environment variable keys to delete'),
 	secrets: z.array(z.string()).optional().describe('secret keys to delete'),
 });
 
-const OrgEnvDeleteResponseSchema = APIResponseSchemaNoData();
+export const OrgEnvDeleteResponseSchema = APIResponseSchemaNoData();
 
-type OrgEnvDeleteRequest = z.infer<typeof _OrgEnvDeleteRequestSchema>;
-type OrgEnvDeleteResponse = z.infer<typeof OrgEnvDeleteResponseSchema>;
+export type OrgEnvDeleteRequest = z.infer<typeof OrgEnvDeleteRequestSchema>;
+export type OrgEnvDeleteResponse = z.infer<typeof OrgEnvDeleteResponseSchema>;
 
 /**
  * Delete environment variables and/or secrets from an organization.

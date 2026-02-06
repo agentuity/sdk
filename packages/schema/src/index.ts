@@ -28,7 +28,12 @@ export { OptionalSchema, optional } from './utils/optional';
 export { NullableSchema, nullable } from './utils/nullable';
 export { UnionSchema, union } from './utils/union';
 
-export { toJSONSchema, fromJSONSchema, type JSONSchema } from './json-schema';
+export {
+	toJSONSchema,
+	fromJSONSchema,
+	type JSONSchema,
+	type ToJSONSchemaOptions,
+} from './json-schema';
 
 export { CoerceStringSchema, coerceString } from './coerce/string';
 export { CoerceNumberSchema, coerceNumber } from './coerce/number';

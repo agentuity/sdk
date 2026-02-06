@@ -3,6 +3,21 @@ import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { StructuredError } from '../error';
 
+/**
+ * Minimum TTL value in seconds (1 minute)
+ */
+export const STREAM_MIN_TTL_SECONDS = 60;
+
+/**
+ * Maximum TTL value in seconds (90 days)
+ */
+export const STREAM_MAX_TTL_SECONDS = 7776000;
+
+/**
+ * Default TTL value in seconds (30 days) - used when no TTL is specified
+ */
+export const STREAM_DEFAULT_TTL_SECONDS = 2592000;
+
 // Use Web API streams - in Node.js/Bun, import from 'stream/web' which provides proper Web API
 // In browsers, use globalThis directly
 // Check for Node.js/Bun by looking for process.versions.node
@@ -35,6 +50,20 @@ export interface CreateStreamProps {
 	 * compression for this to work or must be able to uncompress the raw data it receives.
 	 */
 	compress?: true;
+
+	/**
+	 * optional time-to-live in seconds for the stream. Controls when the stream expires and is automatically deleted.
+	 * - `undefined` (not provided): Stream expires after 30 days (default)
+	 * - `null` or `0`: Stream never expires
+	 * - positive number (≥60): Stream expires after the specified number of seconds (max 90 days)
+	 *
+	 * @remarks
+	 * TTL values below 60 seconds are clamped to 60 seconds by the server.
+	 * TTL values above 7,776,000 seconds (90 days) are clamped to 90 days.
+	 *
+	 * @default 2592000 (30 days)
+	 */
+	ttl?: number | null;
 }
 
 /**
@@ -42,9 +71,9 @@ export interface CreateStreamProps {
  */
 export interface ListStreamsParams {
 	/**
-	 * optional name filter to search for streams
+	 * optional namespace filter to search for streams
 	 */
-	name?: string;
+	namespace?: string;
 
 	/**
 	 * optional metadata filters to match streams
@@ -72,9 +101,9 @@ export interface StreamInfo {
 	id: string;
 
 	/**
-	 * the name of the stream
+	 * the namespace of the stream
 	 */
-	name: string;
+	namespace: string;
 
 	/**
 	 * the stream metadata
@@ -90,6 +119,11 @@ export interface StreamInfo {
 	 * the size of the stream in bytes
 	 */
 	sizeBytes: number;
+
+	/**
+	 * ISO 8601 timestamp when stream expires, or undefined if stream never expires
+	 */
+	expiresAt?: string;
 }
 
 /**
@@ -177,18 +211,28 @@ export interface StreamStorage {
 	/**
 	 * Create a new stream for writing data that can be read multiple times
 	 *
-	 * @param name - the name of the stream (1-254 characters). Use names to group and organize streams.
-	 * @param props - optional properties including metadata, content type, and compression
+	 * @param namespace - the namespace of the stream (1-254 characters). Use namespaces to group and organize streams.
+	 * @param props - optional properties including metadata, content type, compression, and TTL
 	 * @returns a Promise that resolves to the created Stream
 	 *
 	 * @example
 	 * ```typescript
-	 * // Create a simple text stream
+	 * // Create a simple text stream (expires in 30 days by default)
 	 * const stream = await streams.create('agent-logs');
 	 * await stream.write('Starting agent execution\n');
 	 * await stream.write('Processing data...\n');
 	 * await stream.close();
 	 * console.log('Stream URL:', stream.url);
+	 *
+	 * // Create a stream with custom TTL (expires in 1 hour)
+	 * const tempStream = await streams.create('temp-data', {
+	 *   ttl: 3600  // 1 hour in seconds
+	 * });
+	 *
+	 * // Create a stream that never expires
+	 * const permanentStream = await streams.create('permanent-data', {
+	 *   ttl: null  // or ttl: 0
+	 * });
 	 *
 	 * // Create a compressed JSON stream with metadata
 	 * const dataStream = await streams.create('data-export', {
@@ -206,7 +250,7 @@ export interface StreamStorage {
 	 * }
 	 * ```
 	 */
-	create(name: string, props?: CreateStreamProps): Promise<Stream>;
+	create(namespace: string, props?: CreateStreamProps): Promise<Stream>;
 
 	/**
 	 * Get stream metadata by ID
@@ -217,7 +261,7 @@ export interface StreamStorage {
 	 * @example
 	 * ```typescript
 	 * const stream = await streams.get('stream_0199a52b06e3767dbe2f10afabb5e5e4');
-	 * console.log(`Name: ${stream.name}, Size: ${stream.sizeBytes} bytes`);
+	 * console.log(`Namespace: ${stream.namespace}, Size: ${stream.sizeBytes} bytes`);
 	 * ```
 	 */
 	get(id: string): Promise<StreamInfo>;
@@ -248,8 +292,8 @@ export interface StreamStorage {
 	 * const all = await streams.list();
 	 * console.log(`Found ${all.total} streams`);
 	 *
-	 * // Filter by name
-	 * const logs = await streams.list({ name: 'agent-logs' });
+	 * // Filter by namespace
+	 * const logs = await streams.list({ namespace: 'agent-logs' });
 	 *
 	 * // Filter by metadata and paginate
 	 * const filtered = await streams.list({
@@ -259,7 +303,7 @@ export interface StreamStorage {
 	 * });
 	 *
 	 * for (const stream of filtered.streams) {
-	 *   console.log(`${stream.name}: ${stream.sizeBytes} bytes at ${stream.url}`);
+	 *   console.log(`${stream.namespace}: ${stream.sizeBytes} bytes at ${stream.url}`);
 	 * }
 	 * ```
 	 */
@@ -586,9 +630,9 @@ class UnderlyingSinkState {
 	}
 }
 
-const StreamNameInvalidError = StructuredError(
-	'StreamNameInvalidError',
-	'Stream name must be between 1 and 254 characters'
+const StreamNamespaceInvalidError = StructuredError(
+	'StreamNamespaceInvalidError',
+	'Stream namespace must be between 1 and 254 characters'
 );
 
 const StreamLimitInvalidError = StructuredError(
@@ -610,14 +654,14 @@ export class StreamStorageService implements StreamStorage {
 		this.#baseUrl = baseUrl;
 	}
 
-	async create(name: string, props?: CreateStreamProps): Promise<Stream> {
-		if (!name || name.length < 1 || name.length > 254) {
-			throw new StreamNameInvalidError();
+	async create(namespace: string, props?: CreateStreamProps): Promise<Stream> {
+		if (!namespace || namespace.length < 1 || namespace.length > 254) {
+			throw new StreamNamespaceInvalidError();
 		}
 		const url = this.#baseUrl;
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts;
 		const attributes: Record<string, string> = {
-			name,
+			namespace,
 		};
 		if (!props?.contentType) {
 			props = props ?? {};
@@ -629,10 +673,20 @@ export class StreamStorageService implements StreamStorage {
 		if (props?.contentType) {
 			attributes['stream.content_type'] = props.contentType;
 		}
+		// Map namespace to name for the API (backend still uses 'name')
+		// Note: Pulse expects content-type in the headers object, not as a separate contentType field
+		const headers: Record<string, string> = {};
+		if (props?.contentType) {
+			headers['content-type'] = props.contentType;
+		}
 		const body = JSON.stringify({
-			name,
+			name: namespace,
 			...(props?.metadata && { metadata: props.metadata }),
-			...(props?.contentType && { contentType: props.contentType }),
+			...(Object.keys(headers).length > 0 && { headers }),
+			// TTL handling: only include if explicitly provided
+			// null or 0 = no expiration, positive = TTL in seconds
+			// undefined = not sent, server uses default (30 days)
+			...(props?.ttl !== undefined && { ttl: props.ttl === null ? 0 : props.ttl }),
 		});
 		const res = await this.#adapter.invoke<{ id: string }>(url, {
 			method: 'POST',
@@ -675,16 +729,17 @@ export class StreamStorageService implements StreamStorage {
 		if (params?.offset !== undefined) {
 			attributes['offset'] = String(params.offset);
 		}
-		if (params?.name) {
-			attributes['name'] = params.name;
+		if (params?.namespace) {
+			attributes['namespace'] = params.namespace;
 		}
 		if (params?.metadata) {
 			attributes['metadata'] = JSON.stringify(params.metadata);
 		}
 
+		// Map namespace to name for the API (backend still uses 'name')
 		const requestBody: Record<string, unknown> = {};
-		if (params?.name) {
-			requestBody.name = params.name;
+		if (params?.namespace) {
+			requestBody.name = params.namespace;
 		}
 		if (params?.metadata) {
 			requestBody.metadata = params.metadata;
@@ -707,6 +762,7 @@ export class StreamStorageService implements StreamStorage {
 				metadata: Record<string, string>;
 				url: string;
 				size_bytes: number;
+				expires_at?: string;
 			}>;
 			total: number;
 		}>(url, {
@@ -720,16 +776,17 @@ export class StreamStorageService implements StreamStorage {
 			},
 		});
 		if (res.ok) {
-			// Transform snake_case to camelCase for sizeBytes
+			// Transform snake_case to camelCase and map name to namespace
 			return {
 				success: res.data.success,
 				message: res.data.message,
 				streams: res.data.streams.map((s) => ({
 					id: s.id,
-					name: s.name,
+					namespace: s.name,
 					metadata: s.metadata,
 					url: s.url,
 					sizeBytes: s.size_bytes,
+					...(s.expires_at && { expiresAt: s.expires_at }),
 				})),
 				total: res.data.total,
 			};
@@ -749,6 +806,7 @@ export class StreamStorageService implements StreamStorage {
 			metadata: Record<string, string>;
 			url: string;
 			size_bytes: number;
+			expires_at?: string;
 		}>(url, {
 			method: 'POST',
 			signal,
@@ -762,12 +820,14 @@ export class StreamStorageService implements StreamStorage {
 			},
 		});
 		if (res.ok) {
+			// Map name to namespace for the SDK interface
 			return {
 				id: res.data.id,
-				name: res.data.name,
+				namespace: res.data.name,
 				metadata: res.data.metadata,
 				url: res.data.url,
 				sizeBytes: res.data.size_bytes,
+				...(res.data.expires_at && { expiresAt: res.data.expires_at }),
 			};
 		}
 		throw await toServiceException('POST', url, res.response);

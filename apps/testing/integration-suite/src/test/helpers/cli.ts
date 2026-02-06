@@ -90,7 +90,7 @@ const CLI_PATH = resolveCliPath();
 
 // Find the project directory containing agentuity.json
 // This is needed because the test server runs from .agentuity/ but CLI needs the parent
-const PROJECT_DIR =
+export const PROJECT_DIR =
 	findProjectDir(process.cwd()) || findProjectDir(import.meta.dir) || process.cwd();
 
 // Log CLI path once at startup (only in CI)
@@ -102,6 +102,7 @@ export interface CLIResult {
 	stderr: string;
 	exitCode: number;
 	json?: any;
+	jsonParseError?: string; // Captures JSON parsing errors for debugging
 }
 
 /**
@@ -192,9 +193,15 @@ export async function runCLIJSON(args: string[]): Promise<CLIResult> {
 	if (result.exitCode === 0 && result.stdout) {
 		try {
 			result.json = JSON.parse(result.stdout);
-		} catch {
-			// JSON parsing failed, leave json undefined
+		} catch (e: any) {
+			// Capture JSON parsing error for debugging flaky tests
+			result.jsonParseError = `JSON parse failed: ${e.message}. Raw stdout (first 500 chars): ${result.stdout.slice(0, 500)}`;
+			debug(`JSON parse error for ${args.join(' ')}: ${result.jsonParseError}`);
 		}
+	} else if (result.exitCode === 0 && !result.stdout) {
+		// Command succeeded but no output - this is suspicious
+		result.jsonParseError = `Command succeeded (exit 0) but stdout is empty. stderr: ${result.stderr?.slice(0, 200) || '(none)'}`;
+		debug(`Empty stdout for ${args.join(' ')}: ${result.jsonParseError}`);
 	}
 
 	return result;

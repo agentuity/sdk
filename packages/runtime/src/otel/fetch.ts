@@ -37,7 +37,7 @@ export function instrumentFetch() {
 
 		// Create a child span using the current context
 		const childSpan = trace.getTracer('fetch').startSpan(
-			`HTTP ${method}`,
+			`${method} ${_url.pathname}`,
 			{
 				attributes: {
 					'http.url': url,

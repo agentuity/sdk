@@ -49,22 +49,13 @@ jobs:
               script: |
                  const version = '${{ steps.pack.outputs.prerelease_version }}';
                  const packagesJson = ${{ steps.pack.outputs.packages_json }};
-                 const executablesJson = ${{ steps.pack.outputs.executables_json }};
-                 const npmBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/npm/${version}`;
-                 const binaryBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/binary/${version}`;
+                 const npmBaseUrl = `https://agentuity-sdk-objects.t3.storageapi.dev/npm/${version}`;
 
                  // Build packages table
                  let packagesTable = '| Package | Version | URL |\n| --- | --- | --- |\n';
                  for (const pkg of packagesJson) {
                    const url = `${npmBaseUrl}/${pkg.tarball}`;
                    packagesTable += `| \`${pkg.name}\` | \`${version}\` | ${url} |\n`;
-                 }
-
-                 // Build executables table
-                 let executablesTable = '| Platform | Version | URL |\n| --- | --- | --- |\n';
-                 for (const exe of executablesJson) {
-                   const url = `${binaryBaseUrl}/${exe.filename}`;
-                   executablesTable += `| \`${exe.platform}\` | \`${version}\` | ${url} |\n`;
                  }
 
                  // Build dependencies object with all packages
@@ -97,20 +88,6 @@ jobs:
 
                  \`\`\`bash
                  ${packagesJson.map(pkg => `bun add ${npmBaseUrl}/${pkg.tarball}`).join('\n')}
-                 \`\`\`
-                 </details>
-
-                 <details>
-                 <summary>CLI Executables</summary>
-
-                 ${executablesTable}
-                 </details>
-
-                 <details>
-                 <summary>Run Canary CLI</summary>
-
-                 \`\`\`bash
-                 agentuity canary ${version} [command] [...args]
                  \`\`\`
                  </details>
                  `;

@@ -4,11 +4,12 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 const TEST_DIR = '/tmp/agentuity-cli-test-routes';
+const API_DIR = join(TEST_DIR, 'src', 'api');
 
 describe('parseRoute - Crash Prevention Scenarios', () => {
 	const setup = () => {
 		rmSync(TEST_DIR, { recursive: true, force: true });
-		mkdirSync(TEST_DIR, { recursive: true });
+		mkdirSync(API_DIR, { recursive: true });
 	};
 
 	const cleanup = () => {
@@ -17,7 +18,7 @@ describe('parseRoute - Crash Prevention Scenarios', () => {
 
 	test('should handle files with interface definitions', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
@@ -42,7 +43,7 @@ export default router;
 
 	test('should handle non-call expression statements', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
@@ -65,7 +66,7 @@ export default router;
 
 	test('should handle variable access identifiers', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
@@ -86,7 +87,7 @@ export default router;
 
 	test('should handle direct function calls (not member expressions)', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
@@ -108,7 +109,7 @@ export default router;
 
 	test('should skip wildcard use() middleware without error', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 import { clerkMiddleware } from '@clerk/clerk-sdk-node';
@@ -133,7 +134,7 @@ export default router;
 
 	test('should handle on and all methods, and skip route/use methods', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 import { authMiddleware, loggerMiddleware } from './middleware';
@@ -161,7 +162,7 @@ export default router;
 		// post('/users') → 1 route
 		expect(routes).toHaveLength(8);
 
-		// Group routes by path
+		// Group routes by path - file is route.ts in src/api/, so mount is /api
 		const routesByPath = routes.reduce<Record<string, string[]>>((acc, r) => {
 			acc[r.path] ??= [];
 			acc[r.path].push(r.method);
@@ -183,7 +184,7 @@ export default router;
 
 	test('should support on() with array of methods and wildcard path', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -209,7 +210,7 @@ export default router;
 
 	test('should skip unsupported HTTP methods in on()', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -233,7 +234,7 @@ export default router;
 
 	test('should handle mixed complex scenarios', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -277,7 +278,7 @@ export default router;
 	});
 	test('should reject invalid router method', async () => {
 		setup();
-		const routeFile = join(TEST_DIR, 'route.ts');
+		const routeFile = join(API_DIR, 'route.ts');
 		const code = `
 import { createRouter } from '@agentuity/runtime';
 
@@ -464,5 +465,207 @@ const { server } = await createApp({
 		const result = analyzeWorkbench(code);
 		expect(result.hasWorkbench).toBe(false);
 		expect(result.config).toBe(null);
+	});
+});
+
+describe('parseRoute - SSE Output Schema Extraction', () => {
+	const setup = () => {
+		rmSync(TEST_DIR, { recursive: true, force: true });
+		mkdirSync(API_DIR, { recursive: true });
+	};
+
+	const cleanup = () => {
+		rmSync(TEST_DIR, { recursive: true, force: true });
+	};
+
+	test('should extract output schema from sse({ output: schema }, handler) pattern', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter, sse } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const router = createRouter();
+
+export const outputSchema = s.object({
+	type: s.enum(['token', 'complete']),
+	content: s.optional(s.string()),
+});
+
+router.get('/stream', sse({ output: outputSchema }, async (c, stream) => {
+	await stream.writeSSE({ data: JSON.stringify({ type: 'token', content: 'hello' }) });
+	stream.close();
+}));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(1);
+		expect(routes[0].method).toBe('get');
+		expect(routes[0].type).toBe('sse');
+		expect(routes[0].config?.outputSchemaVariable).toBe('outputSchema');
+
+		cleanup();
+	});
+
+	test('should extract output schema imported from another file', async () => {
+		setup();
+		// Create the shared schema file
+		const schemaDir = join(TEST_DIR, 'src', 'schemas');
+		mkdirSync(schemaDir, { recursive: true });
+		const schemaFile = join(schemaDir, 'sse-events.ts');
+		writeFileSync(
+			schemaFile,
+			`
+import { s } from '@agentuity/schema';
+export const StreamEventSchema = s.object({
+	type: s.string(),
+	data: s.unknown(),
+});
+		`
+		);
+
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter, sse } from '@agentuity/runtime';
+import { StreamEventSchema } from '../schemas/sse-events';
+
+const router = createRouter();
+
+router.get('/events', sse({ output: StreamEventSchema }, async (c, stream) => {
+	await stream.writeSSE({ data: 'test' });
+	stream.close();
+}));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(1);
+		expect(routes[0].type).toBe('sse');
+		expect(routes[0].config?.outputSchemaVariable).toBe('StreamEventSchema');
+		expect(routes[0].config?.outputSchemaImportPath).toBe('../schemas/sse-events');
+
+		cleanup();
+	});
+
+	test('should handle sse without options (backward compatible)', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter, sse } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/simple', sse(async (c, stream) => {
+	await stream.writeSSE({ data: 'hello' });
+	stream.close();
+}));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(1);
+		expect(routes[0].type).toBe('sse');
+		// No output schema expected when using simple sse(handler) pattern
+		expect(routes[0].config?.outputSchemaVariable).toBeUndefined();
+
+		cleanup();
+	});
+
+	test('should still support exported outputSchema fallback for SSE routes', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter, sse } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const router = createRouter();
+
+// Exported schema without passing to sse()
+export const outputSchema = s.object({
+	message: s.string(),
+});
+
+router.get('/fallback', sse(async (c, stream) => {
+	await stream.writeSSE({ data: 'hello' });
+	stream.close();
+}));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(1);
+		expect(routes[0].type).toBe('sse');
+		// Should pick up exported outputSchema as fallback
+		expect(routes[0].config?.outputSchemaVariable).toBe('outputSchema');
+
+		cleanup();
+	});
+
+	test('should prefer sse({ output }) over exported schema', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter, sse } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const router = createRouter();
+
+export const outputSchema = s.object({ fallback: s.boolean() });
+export const specificSchema = s.object({ specific: s.string() });
+
+router.get('/prefer', sse({ output: specificSchema }, async (c, stream) => {
+	await stream.writeSSE({ data: 'hello' });
+	stream.close();
+}));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(1);
+		expect(routes[0].type).toBe('sse');
+		// Should use specificSchema from sse(), not exported outputSchema
+		expect(routes[0].config?.outputSchemaVariable).toBe('specificSchema');
+
+		cleanup();
+	});
+
+	test('should throw error when SSE output schema is locally defined but not exported', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter, sse } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const router = createRouter();
+
+// Not exported - should fail validation
+const localSchema = s.object({ local: s.boolean() });
+
+router.get('/local', sse({ output: localSchema }, async (c, stream) => {
+	await stream.writeSSE({ data: 'hello' });
+	stream.close();
+}));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		// Should throw SchemaNotExportedError
+		await expect(parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1')).rejects.toThrow(
+			'Schema "localSchema" used as the output validator'
+		);
+
+		cleanup();
 	});
 });

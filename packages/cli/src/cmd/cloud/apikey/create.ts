@@ -95,7 +95,9 @@ export const createSubcommand = createSubcommandHelper({
 			tui.newline();
 			tui.success('API key created successfully!');
 			tui.newline();
-			tui.warn('Make sure to copy the API key value now. You will not be able to see it again.');
+			tui.warning(
+				'Make sure to copy the API key value now. You will not be able to see it again.'
+			);
 			tui.newline();
 
 			const rows = [

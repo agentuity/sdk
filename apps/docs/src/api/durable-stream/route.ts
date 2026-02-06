@@ -38,7 +38,7 @@ router.post('/create', async (c) => {
 
 	// Auto-rotate: if at limit, delete the oldest stream
 	const existing = await c.var.stream.list({
-		name: STREAM_NAME,
+		namespace: STREAM_NAME,
 		limit: MAX_STREAMS,
 	});
 	if (existing.total >= MAX_STREAMS && existing.streams.length > 0) {
@@ -94,7 +94,7 @@ router.post('/create', async (c) => {
 	};
 
 	// Start generation in background
-	c.executionCtx?.waitUntil(generateInBackground());
+	c.waitUntil(generateInBackground());
 
 	// Return immediately - URL will return content once stream is closed
 	return c.json({
@@ -112,13 +112,13 @@ router.get('/list', async (c) => {
 		return c.json({ error: 'Stream service not available' }, 500);
 	}
 
-	const result = await c.var.stream.list({ name: STREAM_NAME, limit: 10 });
+	const result = await c.var.stream.list({ namespace: STREAM_NAME, limit: 10 });
 
 	return c.json({
 		total: result.total,
 		streams: result.streams.map((s) => ({
 			id: s.id,
-			name: s.name,
+			namespace: s.namespace,
 			url: s.url,
 			sizeBytes: s.sizeBytes,
 			metadata: s.metadata,

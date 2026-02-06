@@ -49,10 +49,16 @@ export async function generateAssetServerConfig(
 		const tsconfig = JSON.parse(await Bun.file(tsconfigPath).text());
 		const paths = tsconfig?.compilerOptions?.paths || {};
 		alias = Object.fromEntries(
-			Object.entries(paths).map(([key, value]) => {
-				const pathArray = value as string[];
-				return [key.replace('/*', ''), join(rootDir, pathArray[0].replace('/*', ''))];
-			})
+			Object.entries(paths)
+				.filter(([, value]) => {
+					const pathArray = value as string[];
+					return pathArray.length > 0 && pathArray[0] !== undefined;
+				})
+				.map(([key, value]) => {
+					const pathArray = value as string[];
+					const firstPath = pathArray[0] ?? '';
+					return [key.replace('/*', ''), join(rootDir, firstPath.replace('/*', ''))];
+				})
 		);
 	} catch {
 		// No tsconfig or no paths - that's fine
@@ -62,7 +68,9 @@ export async function generateAssetServerConfig(
 		root: rootDir,
 		base: '/',
 		clearScreen: false,
-		publicDir: false, // Don't serve public dir - Bun server handles that
+		// Serve public assets from src/web/public/ at root path (e.g., /favicon.png)
+		// The Bun server proxies /public/* requests to Vite, rewriting to root paths
+		publicDir: join(rootDir, 'src', 'web', 'public'),
 
 		resolve: {
 			alias,
@@ -93,12 +101,13 @@ export async function generateAssetServerConfig(
 				credentials: true,
 			},
 
-			// HMR configuration - client must connect to Vite asset server directly
-			// Do NOT set port/clientPort - let Vite use the actual server port it binds to
-			// (important when strictPort: false and Vite falls back to an alternate port)
+			// HMR configuration for development with tunnel support (*.agentuity.live)
+			// Do NOT set host/protocol - let Vite auto-detect from page origin
+			// This allows HMR to work both locally and through the Gravity tunnel
+			// The Bun server proxies /__vite_hmr WebSocket connections to Vite
 			hmr: {
-				protocol: 'ws',
-				host: '127.0.0.1',
+				// Use a dedicated path for HMR WebSocket to enable proxying
+				path: '/__vite_hmr',
 			},
 
 			// Don't open browser - Bun server will be the entry point
@@ -131,6 +140,7 @@ export async function generateAssetServerConfig(
 			}
 			const reactPlugin = (await import(reactPluginPath)).default();
 			const { browserEnvPlugin } = await import('./browser-env-plugin');
+			const { publicAssetPathPlugin } = await import('./public-asset-path-plugin');
 			return [
 				// User-defined plugins from agentuity.config.ts (e.g., Tailwind CSS)
 				...userPlugins,
@@ -138,6 +148,8 @@ export async function generateAssetServerConfig(
 				reactPlugin,
 				// Browser env plugin to map process.env to import.meta.env
 				browserEnvPlugin(),
+				// Warn about incorrect public asset paths in dev mode
+				publicAssetPathPlugin({ warnInDev: true }),
 			];
 		})(),
 

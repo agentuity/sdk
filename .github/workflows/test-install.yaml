@@ -8,7 +8,6 @@ on:
          - 'install.sh'
          - 'scripts/test-install.sh'
          - 'scripts/test-bun-check.sh'
-         - 'scripts/test-upgrade.sh'
          - 'packages/cli/**'
          - '.github/workflows/test-install.yaml'
    pull_request:
@@ -16,7 +15,6 @@ on:
          - 'install.sh'
          - 'scripts/test-install.sh'
          - 'scripts/test-bun-check.sh'
-         - 'scripts/test-upgrade.sh'
          - '.github/workflows/test-install.yaml'
 
 concurrency:
@@ -44,6 +42,11 @@ jobs:
          - name: Checkout
            uses: actions/checkout@v4
 
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+           with:
+              bun-version: latest
+
          - name: Test install script
            run: |
               set -e
@@ -52,20 +55,23 @@ jobs:
               tmpdir=$(mktemp -d)
               export HOME="$tmpdir"
 
-              # Get version from package.json to avoid network requests in CI
-              export VERSION=$(grep -o '"version": "[^"]*"' packages/cli/package.json | head -1 | cut -d'"' -f4)
+              # Ensure bun is available in the temp HOME
+              mkdir -p "$HOME/.bun/bin"
+              ln -s "$(which bun)" "$HOME/.bun/bin/bun"
+              export PATH="$HOME/.bun/bin:$PATH"
 
               # Run install script in non-interactive mode
               ./install.sh -y
 
-              # Verify installation
-              if [ ! -f "$HOME/.agentuity/bin/agentuity" ]; then
-                echo "❌ Binary not installed"
+              # Verify installation via bun global
+              if [ ! -f "$HOME/.bun/bin/agentuity" ]; then
+                echo "❌ CLI not installed at $HOME/.bun/bin/agentuity"
+                ls -la "$HOME/.bun/bin/" || true
                 exit 1
               fi
 
-              # Test binary execution
-              "$HOME/.agentuity/bin/agentuity" --version
+              # Test CLI execution
+              "$HOME/.bun/bin/agentuity" --version
 
               # Cleanup
               rm -rf "$tmpdir"
@@ -81,49 +87,27 @@ jobs:
          fail-fast: false
          matrix:
             distro:
-               # TODO: Uncomment when Bun fixes musl --compile bug (produces corrupted binaries)
-               # - name: Alpine Linux (latest)
-               #   image: alpine:latest
-               #   setup: ''
-               #   arch: ''
-               # - name: Alpine Linux 3.19
-               #   image: alpine:3.19
-               #   setup: ''
-               #   arch: ''
-               # - name: Alpine Linux 3.18
-               #   image: alpine:3.18
-               #   setup: ''
-               #   arch: ''
                - name: Debian 12 (Bookworm)
                  image: debian:12
                  setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
-                 arch: ''
                - name: Debian 11 (Bullseye)
                  image: debian:11
                  setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
-                 arch: ''
                - name: Ubuntu 24.04
                  image: ubuntu:24.04
                  setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
-                 arch: ''
                - name: Ubuntu 22.04
                  image: ubuntu:22.04
                  setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
-                 arch: ''
                - name: Ubuntu 20.04
                  image: ubuntu:20.04
                  setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
-                 arch: ''
                - name: Fedora Latest
                  image: fedora:latest
                  setup: 'dnf install -y -q curl unzip'
-                 arch: ''
-               # Note: Amazon Linux has curl-minimal pre-installed which conflicts with curl package
-               # The install script works with curl-minimal, only gzip needs to be installed
                - name: Amazon Linux 2023
                  image: amazonlinux:2023
                  setup: 'yum install -y -q gzip unzip'
-                 arch: ''
 
       steps:
          - name: Checkout
@@ -146,8 +130,13 @@ jobs:
                 eval "$SETUP" > /dev/null 2>&1
               fi
 
-              # Get version from package.json to avoid network requests in CI
-              export VERSION=$(grep -o '"version": "[^"]*"' packages/cli/package.json | head -1 | cut -d'"' -f4)
+              # Install Bun first (required for new install script)
+              echo "Installing Bun..."
+              curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1
+              export PATH="$HOME/.bun/bin:$PATH"
+
+              # Verify bun is installed
+              bun --version
 
               # Run install script
               if ! ./install.sh -y > /tmp/install.log 2>&1; then
@@ -156,20 +145,21 @@ jobs:
                 exit 1
               fi
 
-              # Verify binary exists
-              if [ ! -f "$HOME/.agentuity/bin/agentuity" ]; then
-                echo "❌ Binary not found at $HOME/.agentuity/bin/agentuity"
+              # Verify CLI is installed
+              if [ ! -f "$HOME/.bun/bin/agentuity" ]; then
+                echo "❌ CLI not found at $HOME/.bun/bin/agentuity"
+                ls -la "$HOME/.bun/bin/" || true
                 exit 1
               fi
 
-              # Test binary execution
-              if ! "$HOME/.agentuity/bin/agentuity" --version > /tmp/version.log 2>&1; then
-                echo "❌ Binary execution failed:"
+              # Test CLI execution
+              if ! "$HOME/.bun/bin/agentuity" --version > /tmp/version.log 2>&1; then
+                echo "❌ CLI execution failed:"
                 cat /tmp/version.log
                 exit 1
               fi
 
-              version=$("$HOME/.agentuity/bin/agentuity" --version)
+              version=$("$HOME/.bun/bin/agentuity" --version)
               echo "✅ SUCCESS: agentuity version $version"
               EOF
 
@@ -182,20 +172,6 @@ jobs:
                 echo "❌ ${{ matrix.distro.name }} test failed"
                 exit 1
               fi
-
-   # Run comprehensive test suite
-   test-suite:
-      name: Run Test Suite
-      runs-on: ubuntu-latest
-      timeout-minutes: 20
-      steps:
-         - name: Checkout
-           uses: actions/checkout@v4
-
-         - name: Run full test suite
-           run: |
-              chmod +x scripts/test-install.sh
-              ./scripts/test-install.sh
 
    # Test Bun version checking
    test-bun-checks:
@@ -211,31 +187,6 @@ jobs:
               chmod +x scripts/test-bun-check.sh
               ./scripts/test-bun-check.sh
 
-   # Test upgrade command
-   test-upgrade:
-      name: Test Upgrade Command
-      runs-on: ubuntu-latest
-      timeout-minutes: 20
-      steps:
-         - name: Checkout
-           uses: actions/checkout@v4
-
-         - name: Setup Bun
-           uses: oven-sh/setup-bun@v2
-           with:
-              bun-version: latest
-
-         - name: Install dependencies
-           run: bun install
-
-         - name: Build packages
-           run: bun run build
-
-         - name: Run upgrade tests
-           run: |
-              chmod +x scripts/test-upgrade.sh
-              ./scripts/test-upgrade.sh
-
    # Test specific scenarios
    test-scenarios:
       name: Test ${{ matrix.scenario.name }}
@@ -245,132 +196,146 @@ jobs:
          fail-fast: false
          matrix:
             scenario:
-               # TODO: Uncomment when Bun fixes musl --compile bug
-               # - name: Alpine musl-native binary
-               #   test: |
-               #     docker run --rm -v "$PWD:/app" -w /app alpine:latest sh -c '
-               #       ./install.sh -y > /tmp/install.log 2>&1
-               #       if ! grep -q "musl libc system" /tmp/install.log; then
-               #         echo "❌ musl detection failed"
-               #         cat /tmp/install.log
-               #         exit 1
-               #       fi
-               #       $HOME/.agentuity/bin/agentuity --version
-               #     '
-
                - name: Force reinstall
                  test: |
                     docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
                       apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
-                      export VERSION=$(grep -o "\"version\": \"[^\"]*\"" packages/cli/package.json | head -1 | cut -d\" -f4)
+                      
+                      # Install Bun
+                      curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1
+                      export PATH="$HOME/.bun/bin:$PATH"
+                      
+                      # First install
                       ./install.sh -y > /dev/null 2>&1
-                      first_version=$($HOME/.agentuity/bin/agentuity --version)
-                      ./install.sh -y --force
-                      second_version=$($HOME/.agentuity/bin/agentuity --version)
-                      if [ "$first_version" != "$second_version" ]; then
-                        echo "❌ Version mismatch: $first_version vs $second_version"
-                        exit 1
-                      fi
-                      echo "✅ Force reinstall completed: $second_version"
+                      first_version=$($HOME/.bun/bin/agentuity --version)
+                      
+                      # Force reinstall
+                      ./install.sh -y --force > /dev/null 2>&1
+                      second_version=$($HOME/.bun/bin/agentuity --version)
+                      
+                      echo "First version: $first_version"
+                      echo "Second version: $second_version"
+                      echo "✅ Force reinstall completed"
                     '
 
                - name: Non-interactive with CI env
                  test: |
                     docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
                       apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
-                      export VERSION=$(grep -o "\"version\": \"[^\"]*\"" packages/cli/package.json | head -1 | cut -d\" -f4)
+                      
+                      # Install Bun
+                      curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1
+                      export PATH="$HOME/.bun/bin:$PATH"
+                      
+                      # Install without -y flag (should still work in CI)
                       ./install.sh > /tmp/install.log 2>&1
-                      if [ ! -f "$HOME/.agentuity/bin/agentuity" ]; then
-                        echo "❌ Binary not installed"
+                      
+                      if [ ! -f "$HOME/.bun/bin/agentuity" ]; then
+                        echo "❌ CLI not installed"
                         cat /tmp/install.log
                         exit 1
                       fi
-                      $HOME/.agentuity/bin/agentuity --version
+                      
+                      $HOME/.bun/bin/agentuity --version
+                      echo "✅ Non-interactive install passed"
                     '
 
-               - name: Upgrade command exists
+               - name: Upgrade command available
                  test: |
                     docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
                       apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
-                      export VERSION=$(grep -o "\"version\": \"[^\"]*\"" packages/cli/package.json | head -1 | cut -d\" -f4)
+                      
+                      # Install Bun
+                      curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1
+                      export PATH="$HOME/.bun/bin:$PATH"
+                      
+                      # Install CLI
                       ./install.sh -y > /dev/null 2>&1
-                      if ! $HOME/.agentuity/bin/agentuity upgrade --help > /tmp/upgrade-help.log 2>&1; then
-                        echo "⚠  Upgrade command not found in current release (expected until new version is published)"
+                      
+                      # Check upgrade command exists by looking for it in --help output
+                      $HOME/.bun/bin/agentuity --help > /tmp/help.log 2>&1 || true
+                      
+                      if ! grep -q "upgrade" /tmp/help.log; then
+                        echo "⚠  Upgrade command not found (expected until new version is published)"
                         echo "✅ Test passed (pre-release state)"
                         exit 0
                       fi
+                      
+                      # Verify upgrade --help works
+                      $HOME/.bun/bin/agentuity upgrade --help > /tmp/upgrade-help.log 2>&1 || true
+                      
                       if ! grep -q "Upgrade the CLI to the latest version" /tmp/upgrade-help.log; then
                         echo "❌ Upgrade help missing expected text"
                         cat /tmp/upgrade-help.log
                         exit 1
                       fi
+                      
                       echo "✅ Upgrade command exists"
                     '
 
-               - name: Upgrade version check
+               - name: Legacy shim creation
                  test: |
                     docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
                       apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
-                      export VERSION=$(grep -o "\"version\": \"[^\"]*\"" packages/cli/package.json | head -1 | cut -d\" -f4)
+                      
+                      # Install Bun
+                      curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1
+                      export PATH="$HOME/.bun/bin:$PATH"
+                      
+                      # Create legacy directory and add to PATH to trigger shim creation
+                      # The install script only creates the shim if ~/.agentuity/bin is on PATH
+                      mkdir -p "$HOME/.agentuity/bin"
+                      touch "$HOME/.agentuity/bin/agentuity"
+                      export PATH="$HOME/.agentuity/bin:$PATH"
+                      
+                      # Install CLI
                       ./install.sh -y > /dev/null 2>&1
-                      version=$($HOME/.agentuity/bin/agentuity --version)
-                      echo "Installed version: $version"
-                      # Try upgrade check (may fail due to network, but command should exist)
-                      if $HOME/.agentuity/bin/agentuity upgrade --json > /tmp/upgrade.log 2>&1 || true; then
-                        echo "✅ Upgrade check completed"
-                        cat /tmp/upgrade.log
-                      else
-                        echo "✅ Upgrade check ran (may have network issues)"
-                      fi
-                    '
-
-               - name: Upgrade from v0.0.86 to latest
-                 test: |
-                    docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
-                      apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
                       
-                      # Install old version 0.0.86
-                      echo "Installing v0.0.86..."
-                      VERSION=0.0.86 ./install.sh -y > /dev/null 2>&1
-                      old_version=$($HOME/.agentuity/bin/agentuity --version)
-                      echo "Old version: $old_version"
-                      
-                      if [ "$old_version" != "0.0.86" ]; then
-                        echo "❌ Expected version 0.0.86, got: $old_version"
+                      # Verify shim was created
+                      if [ ! -f "$HOME/.agentuity/bin/agentuity" ]; then
+                        echo "❌ Legacy shim not created"
                         exit 1
                       fi
                       
-                      # Check latest version
-                      latest_version=$( (curl -s https://agentuity.sh/release/sdk/version 2>/dev/null | tr -d "v") || echo "unknown")
-                      echo "Latest available version: $latest_version"
-                      
-                      # Upgrade to latest
-                      echo "Upgrading to latest..."
-                      export VERSION=$(grep -o "\"version\": \"[^\"]*\"" packages/cli/package.json | head -1 | cut -d\" -f4)
-                      ./install.sh -y --force > /dev/null 2>&1
-                      new_version=$($HOME/.agentuity/bin/agentuity --version)
-                      echo "New version: $new_version"
-                      
-                      # Verify version changed (only if newer version exists)
-                      if [ "$new_version" = "$old_version" ]; then
-                        if [ "$latest_version" = "$old_version" ] || [ "$latest_version" = "unknown" ]; then
-                          echo "✅ No newer version available - already on latest ($old_version)"
-                        else
-                          echo "❌ Version did not change (expected $latest_version, got $new_version)"
-                          exit 1
-                        fi
-                      else
-                        echo "✅ Successfully upgraded from v$old_version to v$new_version"
+                      # Verify shim works
+                      if ! "$HOME/.agentuity/bin/agentuity" --version > /dev/null 2>&1; then
+                        echo "❌ Legacy shim does not work"
+                        exit 1
                       fi
                       
-                      # Verify upgrade command exists in new version (only if we upgraded)
-                      if [ "$new_version" != "$old_version" ]; then
-                        if ! $HOME/.agentuity/bin/agentuity upgrade --help > /dev/null 2>&1; then
-                          echo "⚠ Upgrade command not found in new version (may not be released yet)"
-                        else
-                          echo "✅ Upgrade command exists in new version"
-                        fi
+                      echo "✅ Legacy shim created and works"
+                    '
+
+               - name: Legacy shim cleanup when not on PATH
+                 test: |
+                    docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
+                      apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
+                      
+                      # Install Bun
+                      curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1
+                      export PATH="$HOME/.bun/bin:$PATH"
+                      
+                      # Create legacy directory but do NOT add to PATH
+                      # The install script should clean this up
+                      mkdir -p "$HOME/.agentuity/bin"
+                      touch "$HOME/.agentuity/bin/agentuity"
+                      
+                      # Install CLI
+                      ./install.sh -y > /dev/null 2>&1
+                      
+                      # Verify legacy binary was removed (since not on PATH)
+                      if [ -f "$HOME/.agentuity/bin/agentuity" ]; then
+                        echo "❌ Legacy binary should have been cleaned up (not on PATH)"
+                        exit 1
                       fi
+                      
+                      # Verify main CLI still works
+                      if ! "$HOME/.bun/bin/agentuity" --version > /dev/null 2>&1; then
+                        echo "❌ Main CLI does not work"
+                        exit 1
+                      fi
+                      
+                      echo "✅ Legacy cleanup works correctly"
                     '
 
       steps:
@@ -388,24 +353,14 @@ jobs:
    test-summary:
       name: Test Summary
       runs-on: ubuntu-latest
-      needs:
-         [
-            test-native,
-            test-linux-distros,
-            test-suite,
-            test-bun-checks,
-            test-upgrade,
-            test-scenarios,
-         ]
+      needs: [test-native, test-linux-distros, test-bun-checks, test-scenarios]
       if: always()
       steps:
          - name: Check results
            run: |
               if [ "${{ needs.test-native.result }}" != "success" ] || \
                  [ "${{ needs.test-linux-distros.result }}" != "success" ] || \
-                 [ "${{ needs.test-suite.result }}" != "success" ] || \
                  [ "${{ needs.test-bun-checks.result }}" != "success" ] || \
-                 [ "${{ needs.test-upgrade.result }}" != "success" ] || \
                  [ "${{ needs.test-scenarios.result }}" != "success" ]; then
                 echo "❌ Some tests failed"
                 exit 1

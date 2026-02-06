@@ -8,7 +8,7 @@
  */
 
 import { test } from '@test/suite';
-import { assert, assertEqual, uniqueId } from '@test/helpers';
+import { assert, assertEqual, uniqueId, testRunId } from '@test/helpers';
 import cliAgent from '@agents/cli/agent';
 import { isAuthenticated } from '@test/helpers/cli';
 
@@ -592,7 +592,10 @@ test('cli-env-secrets', 'env-delete-not-found', async () => {
 
 	assertEqual(result.success, false, 'Should fail for non-existent key');
 	const output = (result.stdout || '') + (result.stderr || '');
-	assert(output.includes('not found'), 'Should mention key not found');
+	assert(
+		output.includes('not found') || output.includes('No variables found'),
+		'Should mention key not found'
+	);
 });
 
 // Test: Full CRUD cycle - set, get, list, delete, verify deleted
@@ -689,24 +692,25 @@ test('cli-env-secrets', 'env-set-overwrite', async () => {
 	});
 });
 
-// Test: Secret to env conversion - set as secret, then set as env
-test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
+// Test: Re-setting a secret without --secret flag should preserve secret status
+test('cli-env-secrets', 'env-secret-preserves-status-on-update', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = trackKey(uniqueId('CONVERT_TEST'));
-	const value = 'convert_test_value';
+	const testKey = trackKey(uniqueId('SECRET_PRESERVE_TEST'));
+	const value1 = 'secret_value_1';
+	const value2 = 'secret_value_2';
 
-	// Set as secret (flag must be in command string)
+	// Set as secret
 	const setSecretResult = await cliAgent.run({
-		command: `cloud env set ${testKey} ${value} --secret`,
+		command: `cloud env set ${testKey} ${value1} --secret`,
 	});
 	assert(
 		Boolean(setSecretResult.success || setSecretResult.stdout?.includes('Secret')),
 		`Set as secret should succeed: ${setSecretResult.stderr}`
 	);
 
-	// Verify it's a secret - check the specific line contains [secret]
+	// Verify it's a secret
 	const listBefore = await cliAgent.run({
 		command: 'cloud env list',
 	});
@@ -715,15 +719,15 @@ test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
 	const keyLineBefore = linesBefore.find((l) => l.includes(testKey));
 	assert(
 		Boolean(keyLineBefore && keyLineBefore.includes('[secret]')),
-		`Should be listed as secret: ${keyLineBefore || 'key not found'}`
+		`Should be listed as secret initially: ${keyLineBefore || 'key not found'}`
 	);
 
-	// Now set same key as regular env (no --secret flag)
+	// Re-set same key with new value but WITHOUT --secret flag
 	await cliAgent.run({
-		command: `cloud env set ${testKey} ${value}`,
+		command: `cloud env set ${testKey} ${value2}`,
 	});
 
-	// Verify it's now an env var (no [secret] tag)
+	// Verify it's STILL a secret (secret status should be preserved)
 	const listAfter = await cliAgent.run({
 		command: 'cloud env list',
 	});
@@ -731,8 +735,8 @@ test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
 	const linesAfter = listAfterOutput.split('\n');
 	const keyLineAfter = linesAfter.find((l) => l.includes(testKey));
 	assert(
-		Boolean(keyLineAfter && !keyLineAfter.includes('[secret]')),
-		`Should now be a regular env var: ${keyLineAfter || 'key not found'}`
+		Boolean(keyLineAfter && keyLineAfter.includes('[secret]')),
+		`Should still be a secret after update without --secret flag: ${keyLineAfter || 'key not found'}`
 	);
 
 	// Cleanup
@@ -835,55 +839,19 @@ test('cli-env-secrets', 'zzz-cleanup-all-env-vars', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	// Get all env vars and delete any that match our test patterns
-	const listResult = await cliAgent.run({
-		command: 'cloud env list',
+	// Only delete env vars created by THIS test run (identified by testRunId)
+	// This prevents concurrent CI runs from interfering with each other
+	const keysToDelete = [...createdEnvVars];
+
+	if (keysToDelete.length === 0) {
+		return;
+	}
+
+	// Delete all test env vars from this run in a single batch operation
+	await cliAgent.run({
+		command: 'cloud env delete',
+		args: keysToDelete,
 	});
-	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
-	const lines = listOutput.split('\n');
-
-	// Patterns that indicate test-created env vars
-	const testPatterns = [
-		/^MASK_TEST_/,
-		/^NOMASK_TEST_/,
-		/^AGENTUITY_PUBLIC_TEST_/,
-		/^VITE_TEST_/,
-		/^PUBLIC_TEST_/,
-		/^SECRET_KEY_/,
-		/^TEST_.*_KEY$/,
-		/^CONFIG_VAL_/,
-		/^NORMAL_VAR_/,
-		/^CRUD_TEST_/,
-		/^OVERWRITE_TEST_/,
-		/^CONVERT_TEST_/,
-	];
-
-	const keysToDelete: string[] = [];
-	for (const line of lines) {
-		// Extract key name from line (format: "KEY_NAME    value    [secret]")
-		const match = line.match(/^([A-Z][A-Z0-9_]*)/);
-		if (match) {
-			const key = match[1];
-			if (testPatterns.some((pattern) => pattern.test(key))) {
-				keysToDelete.push(key);
-			}
-		}
-	}
-
-	// Also add any tracked keys that might have been missed
-	for (const key of createdEnvVars) {
-		if (!keysToDelete.includes(key)) {
-			keysToDelete.push(key);
-		}
-	}
-
-	// Delete all test env vars
-	for (const key of keysToDelete) {
-		await cliAgent.run({
-			command: 'cloud env delete',
-			args: [key],
-		});
-	}
 
 	// Clear the tracking array
 	createdEnvVars.length = 0;

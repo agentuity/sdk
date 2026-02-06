@@ -45,7 +45,7 @@ export { maskSecret };
 // Export new TUI components
 export { createPrompt, PromptFlow } from './tui/prompt';
 export { group } from './tui/group';
-export { note, drawBox } from './tui/box';
+export { note, drawBox, errorBox, warningBox } from './tui/box';
 export { symbols } from './tui/symbols';
 export { colors as tuiColors } from './tui/colors';
 export type {
@@ -485,7 +485,9 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 	const targetWidth = maxWidth - ellipsis.length;
 
 	for (let i = 0; i < segments.length; i++) {
-		const segment = segments[i].segment;
+		const seg = segments[i];
+		if (!seg) continue;
+		const segment = seg.segment;
 		const segmentWidth = Bun.stringWidth(segment);
 
 		if (currentWidth + segmentWidth > targetWidth) {
@@ -493,7 +495,7 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 		}
 
 		currentWidth += segmentWidth;
-		cutIndex = segments[i].index + segment.length;
+		cutIndex = seg.index + segment.length;
 	}
 
 	// Now reconstruct with ANSI codes preserved
@@ -1027,8 +1029,9 @@ export function wrapText(text: string, maxWidth: number): string[] {
 		// ensure each wrapped line ends with reset (only for this paragraph's lines)
 		if (leadingCodes && hasReset) {
 			for (let i = paragraphStart; i < allLines.length; i++) {
-				if (!endsWithReset(allLines[i])) {
-					allLines[i] += getColor('reset');
+				const line = allLines[i];
+				if (line !== undefined && !endsWithReset(line)) {
+					allLines[i] = line + getColor('reset');
 				}
 			}
 		}
@@ -1059,6 +1062,11 @@ export interface SimpleSpinnerOptions<T> {
 	 * Defaults to false
 	 */
 	clearOnSuccess?: boolean;
+	/**
+	 * If true, suppress the error message display on failure (for custom error handling)
+	 * Defaults to false
+	 */
+	clearOnError?: boolean;
 }
 
 /**
@@ -1073,6 +1081,11 @@ export interface ProgressSpinnerOptions<T> {
 	 * Defaults to false
 	 */
 	clearOnSuccess?: boolean;
+	/**
+	 * If true, suppress the error message display on failure (for custom error handling)
+	 * Defaults to false
+	 */
+	clearOnError?: boolean;
 }
 
 /**
@@ -1162,6 +1175,11 @@ export async function spinner<T>(
 		options = messageOrOptions;
 	}
 
+	// assume true by default
+	if (options.clearOnSuccess === undefined) {
+		options.clearOnSuccess = true;
+	}
+
 	const message = options.message;
 	const reset = getColor('reset');
 
@@ -1198,8 +1216,12 @@ export async function spinner<T>(
 
 			return result;
 		} catch (err) {
-			const errorColor = getColor('error');
-			console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
+			const clearOnError =
+				(options.type === 'progress' || options.type === 'simple') && options.clearOnError;
+			if (!clearOnError) {
+				const errorColor = getColor('error');
+				console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
+			}
 			throw err;
 		}
 	}
@@ -1233,9 +1255,9 @@ export async function spinner<T>(
 			process.stderr.write(`\x1b[${linesRendered}A`);
 		}
 
-		const colorDef = spinnerColors[frameIndex % spinnerColors.length];
-		const color = colorDef[currentColorScheme];
-		const frame = `${color}${bold}${frames[frameIndex % frames.length]}${reset}`;
+		const colorDef = spinnerColors[frameIndex % spinnerColors.length] ?? spinnerColors[0];
+		const color = colorDef?.[currentColorScheme] ?? '';
+		const frame = `${color}${bold}${frames[frameIndex % frames.length] ?? ''}${reset}`;
 
 		// Add progress indicator or countdown timer if available
 		let indicator = '';
@@ -1428,10 +1450,14 @@ export async function spinner<T>(
 		}
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
-		// Show error
-		const errorColor = getColor('error');
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		console.error(`${errorColor}${ICONS.error} ${message}: ${errorMessage}${reset}`);
+		// Show error (unless clearOnError is set for custom error handling)
+		const clearOnError =
+			(options.type === 'progress' || options.type === 'simple') && options.clearOnError;
+		if (!clearOnError) {
+			const errorColor = getColor('error');
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			console.error(`${errorColor}${ICONS.error} ${message}: ${errorMessage}${reset}`);
+		}
 
 		throw err;
 	}
@@ -1738,9 +1764,18 @@ export async function prompt(message: string): Promise<string> {
 	});
 }
 
+/**
+ * Select an organization from a list.
+ *
+ * @param orgs - List of organizations to choose from
+ * @param initial - Preferred org ID to pre-select (from saved preferences)
+ * @param autoSelect - If true, auto-select preferred org without prompting (for --confirm or non-interactive)
+ * @returns The selected organization ID
+ */
 export async function selectOrganization(
 	orgs: OrganizationList,
-	initial?: string
+	initial?: string,
+	autoSelect?: boolean
 ): Promise<string> {
 	if (orgs.length === 0) {
 		fatal(
@@ -1749,6 +1784,7 @@ export async function selectOrganization(
 		);
 	}
 
+	// 1. Environment variable always takes precedence
 	if (process.env.AGENTUITY_CLOUD_ORG_ID) {
 		const org = orgs.find((o) => o.id === process.env.AGENTUITY_CLOUD_ORG_ID);
 		if (org) {
@@ -1756,38 +1792,59 @@ export async function selectOrganization(
 		}
 	}
 
-	// Auto-select if only one org (regardless of TTY mode)
-	if (orgs.length === 1) {
+	// 2. Auto-select if only one org (regardless of TTY mode or autoSelect)
+	if (orgs.length === 1 && orgs[0]) {
 		return orgs[0].id;
 	}
 
-	// Use saved preference if available (regardless of TTY mode)
-	// This allows consistent behavior without prompting on every command
-	if (initial) {
-		const initialOrg = orgs.find((o) => o.id === initial);
-		if (initialOrg) {
-			return initialOrg.id;
+	// 3. Auto-select mode (--confirm flag or explicit autoSelect)
+	// Use preferred org if set, otherwise fall back to first org
+	if (autoSelect) {
+		if (initial) {
+			const initialOrg = orgs.find((o) => o.id === initial);
+			if (initialOrg) {
+				return initialOrg.id;
+			}
+		}
+		// Fall back to first org with warning
+		const firstOrg = orgs[0];
+		if (firstOrg) {
+			warning(
+				`Multiple organizations found. Auto-selecting first org: ${firstOrg.name}. ` +
+					`Set AGENTUITY_CLOUD_ORG_ID, use --org-id, or run 'agentuity auth org select' to set a default.`
+			);
+			return firstOrg.id;
 		}
 	}
 
-	// Check for non-interactive environment (check both stdin and stdout)
+	// 4. Check for non-interactive environment (check both stdin and stdout)
 	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
 	if (isNonInteractive) {
-		// In non-interactive mode with multiple orgs, auto-select first org
-		// This allows scripts and CI/CD to work without explicit org selection
-		warning(
-			`Multiple organizations found. Auto-selecting first org: ${orgs[0].name}. ` +
-				`Set AGENTUITY_CLOUD_ORG_ID or use --org-id to specify a different org.`
-		);
-		return orgs[0].id;
+		// In non-interactive mode, use preferred org if set
+		if (initial) {
+			const initialOrg = orgs.find((o) => o.id === initial);
+			if (initialOrg) {
+				return initialOrg.id;
+			}
+		}
+		// Fall back to first org with warning
+		const firstOrg = orgs[0];
+		if (firstOrg) {
+			warning(
+				`Multiple organizations found. Auto-selecting first org: ${firstOrg.name}. ` +
+					`Set AGENTUITY_CLOUD_ORG_ID, use --org-id, or run 'agentuity auth org select' to set a default.`
+			);
+			return firstOrg.id;
+		}
 	}
 
-	// Interactive mode with no saved preference - prompt user
+	// 5. Interactive mode - show selector with preferred org pre-selected
+	const initialIndex = initial ? orgs.findIndex((o) => o.id === initial) : 0;
 	const response = await enquirer.prompt<{ action: string }>({
 		type: 'select',
 		name: 'action',
 		message: 'Select an organization',
-		initial: 0,
+		initial: initialIndex >= 0 ? initialIndex : 0,
 		choices: orgs.map((o) => ({ message: o.name, name: o.id })),
 	});
 
@@ -1865,8 +1922,9 @@ export async function showProfileList(
 	// If non-interactive, return initial or first
 	if (!process.stdin.isTTY) {
 		if (initial) return initial;
-		if (profiles.length === 1) {
-			return profiles[0].name;
+		const firstProfile = profiles[0];
+		if (profiles.length === 1 && firstProfile) {
+			return firstProfile.name;
 		}
 		fatal(
 			'Profile selection required but cannot prompt in non-interactive environment. ' +
@@ -1994,6 +2052,7 @@ function renderVerticalTable<T extends Record<string, unknown>>(
 
 	for (let i = 0; i < data.length; i++) {
 		const row = data[i];
+		if (!row) continue;
 
 		for (const colName of columnNames) {
 			const value = row[colName];
@@ -2048,10 +2107,11 @@ export function table<T extends Record<string, unknown>>(
 		colAligns = columnConfigs.map((col) => col.alignment || 'left');
 	} else {
 		// Simple mode: determine column names from data or columns parameter
+		const firstRow = data[0];
 		columnNames = columns
 			? (columns as (keyof T)[]).map((c) => String(c))
-			: data.length > 0
-				? Object.keys(data[0])
+			: data.length > 0 && firstRow
+				? Object.keys(firstRow)
 				: [];
 		colAligns = columnNames.map(() => 'left' as const);
 	}

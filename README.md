@@ -7,25 +7,29 @@
 </div>
 <br />
 
-> [!CAUTION]
-> This repo contains the upcoming v1 Agentuity release but is not yet ready for production. Feedback very much welcome!
-
-> [!NOTE]
-> For more information about this early release, read more [here](https://agentuity.com/blog/agentuity-v1-is-now-in-public-preview)
-
-Visit [https://agentuity.com/](https://agentuity.com/) to learn more about Agentuity and create a free account.
-
 # Getting Started
 
 The fastest way to install and get started is to install the CLI:
 
 ```bash
-curl -sSL https://v1.agentuity.sh | sh
+curl -fsSL https://agentuity.sh | sh
 ```
+
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=hOhMqY2T7so">
+    <img src="https://img.youtube.com/vi/hOhMqY2T7so/maxresdefault.jpg"
+         alt="Get Started with Agentuity"
+         width="640" height="360">
+  </a>
+</div>
+
+<p>&nbsp;</p>
+
+Visit [https://agentuity.com/](https://agentuity.com/) to learn more about Agentuity and create a free account or sign up in the CLI after installation.
 
 # Documentation
 
-Visit [https://preview.agentuity.dev/v1](https://preview.agentuity.dev/v1/Get-Started/what-is-agentuity) to view the full documentation.
+Visit [https://agentuity.dev](https://agentuity.dev/) to view the full documentation.
 
 # Community
 
@@ -39,16 +43,21 @@ To chat with other community members you can join the [Agentuity Discord server]
 
 The structure of this mono repository:
 
-- `packages/cli` - the command line tool
-- `packages/core` - Shared utilities
-- `packages/react` - React package for the Browser
-- `packages/auth` - Authentication helpers for identity providers (Clerk, Auth0, etc.)
-- `packages/runtime` - Server-side package for the Agent runtime
-- `packages/server` - Runtime-agnostic server utilities (Node.js & Bun)
+- `packages/auth` - Agentuity unified Authentication package
+- `packages/cli` - the Agentuity command line tool
+- `packages/core` - Shared utilities used by most packages
+- `packages/drizzle` - Drizzle ORM integration with resilient PostgreSQL connections
+- `packages/evals` - Reusable Evaluation Presets
 - `packages/frontend` - Reusable code for web frontends
-- `packages/workbench` - Workbench UI component
-- `packages/schema` - Schema validation library
+- `packages/opencode` - Opencoder agent plugins for Agentuity
+- `packages/postgres` - Resilient PostgreSQL client with automatic reconnection
+- `packages/react` - React package for the Browser
+- `packages/runtime` - Server-side package for the Agent runtime
+- `packages/schema` - Schema validation library similar to zod and arktype
+- `packages/server` - Runtime-agnostic server-side SDK (Node.js & Bun)
+- `packages/test-utils` - Internal test utilities that can be used by packages
 - `packages/vscode` - VS Code extension for Agentuity
+- `packages/workbench` - Workbench UI component
 
 Each package is its own published npm package but all packages are versioned and published together.
 

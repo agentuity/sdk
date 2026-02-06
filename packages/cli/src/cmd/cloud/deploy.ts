@@ -4,7 +4,6 @@ import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { StructuredError } from '@agentuity/core';
-import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
@@ -13,6 +12,7 @@ import {
 	getDefaultConfigDir,
 	loadProjectSDKKey,
 	updateProjectConfig,
+	getGlobalCatalystAPIClient,
 } from '../../config';
 import { getProjectGithubStatus } from '../git/api';
 import { runGitLink } from '../git/link';
@@ -33,12 +33,16 @@ import {
 	projectDeploymentUpdate,
 	projectDeploymentComplete,
 	projectDeploymentStatus,
+	projectDeploymentMalwareCheck,
 	validateResources,
+	projectGet,
+	projectUpdateRegion,
 	type Deployment,
 	type BuildMetadata,
 	type DeploymentInstructions,
 	type DeploymentComplete,
 	type DeploymentStatusResult,
+	type MalwareCheckResult,
 	getAppBaseURL,
 } from '@agentuity/server';
 import {
@@ -51,11 +55,13 @@ import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { getCommand } from '../../command-prefix';
 import * as domain from '../../domain';
-import { ErrorCode } from '../../errors';
+import { ErrorCode, getExitCode } from '../../errors';
 import { typecheck } from '../build/typecheck';
 import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
 import { runForkedDeploy } from './deploy-fork';
 import { validateAptDependencies } from '../../utils/apt-validator';
+import { extractDependencies } from '../../utils/deps';
+import { getCachedProject, setCachedProject } from '../../cache';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -100,6 +106,23 @@ export const deploySubcommand = createSubcommand({
 	idempotent: false,
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['auth login'],
+	resourceRules: [
+		{
+			resource: 'project',
+			required: true,
+			flag: 'project-id',
+			envVar: 'AGENTUITY_CLOUD_PROJECT_ID',
+			impliedFrom: 'agentuity.json',
+		},
+		{
+			resource: 'region',
+			required: true,
+			flag: 'region',
+			envVar: 'AGENTUITY_REGION',
+			configPref: 'region',
+			operationType: 'mutate',
+		},
+	],
 	schema: {
 		options: z.intersection(
 			DeployOptionsSchema,
@@ -115,6 +138,11 @@ export const deploySubcommand = createSubcommand({
 					.optional()
 					.default(false)
 					.describe('Internal: run as forked child process'),
+				confirm: z
+					.boolean()
+					.optional()
+					.default(false)
+					.describe('Confirm region change without prompting (for non-TTY environments)'),
 			})
 		),
 		response: DeployResponseSchema,
@@ -154,6 +182,79 @@ export const deploySubcommand = createSubcommand({
 			tui.newline();
 		}
 
+		// Check if local region differs from server region and handle confirmation
+		const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+		if (project.region) {
+			try {
+				// Check cache first to avoid duplicate API calls
+				const profile = config?.name ?? 'default';
+				let serverProject = getCachedProject(profile, project.projectId);
+				if (!serverProject) {
+					serverProject = await projectGet(apiClient, {
+						id: project.projectId,
+						keys: false,
+					});
+					setCachedProject(profile, project.projectId, serverProject);
+				}
+				const serverRegion = serverProject.cloudRegion;
+
+				if (serverRegion && serverRegion !== project.region) {
+					logger.debug(
+						'Region mismatch detected: local=%s, server=%s',
+						project.region,
+						serverRegion
+					);
+
+					if (hasTTY) {
+						// Interactive mode: prompt for confirmation
+						tui.newline();
+						tui.warning(
+							`Region change detected: ${tui.bold(serverRegion)} → ${tui.bold(project.region)}`
+						);
+						const confirmChange = await tui.confirm(
+							'Do you want to update the project region?',
+							false
+						);
+
+						if (!confirmChange) {
+							tui.newline();
+							tui.fatal(
+								'Deployment cancelled. Update the region in agentuity.json or keep the current region.',
+								ErrorCode.CONFIG_INVALID
+							);
+						}
+					} else {
+						// Non-interactive mode: require --confirm flag
+						if (!opts.confirm) {
+							tui.fatal(
+								`Region change detected (${serverRegion} → ${project.region}). Use --confirm flag to proceed with region change in non-interactive mode.`,
+								ErrorCode.CONFIG_INVALID
+							);
+						}
+						logger.debug('Region change confirmed via --confirm flag');
+					}
+
+					// Update the region on the server
+					await tui.spinner({
+						message: 'Updating project region...',
+						type: 'simple',
+						callback: async () => {
+							await projectUpdateRegion(apiClient, project.projectId, project.region);
+						},
+					});
+					tui.success(`Project region updated to ${tui.bold(project.region)}`);
+					tui.newline();
+				}
+			} catch (err) {
+				// If it's a fatal error we threw, re-throw it
+				if (err instanceof Error && err.message.includes('Region change detected')) {
+					throw err;
+				}
+				// Log other errors as non-fatal and continue (e.g., network issues fetching project)
+				logger.trace('Failed to check project region: %s', err);
+			}
+		}
+
 		// Initialize build report collector if reportFile is specified
 		const collector = new BuildReportCollector();
 		if (opts.reportFile) {
@@ -167,6 +268,7 @@ export const deploySubcommand = createSubcommand({
 		let instructions: DeploymentInstructions | undefined;
 		let complete: DeploymentComplete | undefined;
 		let statusResult: DeploymentStatusResult | undefined;
+		let malwareCheckPromise: Promise<MalwareCheckResult | null> | undefined;
 		const logs: string[] = [];
 
 		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
@@ -326,12 +428,42 @@ export const deploySubcommand = createSubcommand({
 			}
 		}
 
+		// Start malware check async (runs in parallel with build)
+		if (deployment) {
+			malwareCheckPromise = (async () => {
+				try {
+					logger.debug('Starting malware dependency check');
+					const packages = await extractDependencies(projectDir, logger);
+					if (packages.length === 0) {
+						logger.debug('No packages to check for malware');
+						return null;
+					}
+					logger.debug('Checking %d packages for malware', packages.length);
+					// Use Catalyst client directly for malware check (security routes are on Catalyst)
+					const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+					const result = await projectDeploymentMalwareCheck(
+						catalystClient,
+						deployment!.id,
+						packages
+					);
+					logger.debug(
+						'Malware check complete: action=%s, flagged=%d',
+						result.action,
+						result.summary.flagged
+					);
+					return result;
+				} catch (error) {
+					logger.warn('Malware check failed: %s', error);
+					return null;
+				}
+			})();
+		}
+
 		try {
 			await saveProjectDir(projectDir);
 
 			// Check GitHub status and prompt for setup if not linked
 			// Skip in non-TTY environments (CI, automated runs) to prevent hanging
-			const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
 			if (!useExistingDeployment && !project.skipGitSetup && hasTTY) {
 				try {
 					const githubStatus = await getProjectGithubStatus(apiClient, project.projectId);
@@ -529,6 +661,49 @@ export const deploySubcommand = createSubcommand({
 						},
 					},
 					{
+						label: 'Security Scan',
+						run: async () => {
+							if (!malwareCheckPromise) {
+								return stepSkipped('malware check not started');
+							}
+
+							const result = await malwareCheckPromise;
+							if (!result) {
+								return stepSkipped('malware check unavailable');
+							}
+
+							if (result.action === 'block' && result.findings.length > 0) {
+								if (opts.reportFile) {
+									for (const finding of result.findings) {
+										collector.addGeneralError(
+											'deploy',
+											`Malicious package: ${finding.name}@${finding.version} (${finding.reason})`
+										);
+									}
+									await collector.forceWrite();
+								}
+
+								const packageList = result.findings
+									.map((f) => `• ${f.name}@${f.version} (${f.reason})`)
+									.join('\n');
+
+								// Pause step UI to cleanly render error box
+								pauseStepUI(true);
+
+								tui.newline();
+								tui.errorBox(
+									'Malicious Packages Detected',
+									`Your deployment was blocked because it contains known malicious packages:\n\n${packageList}\n\nRemove these packages from your project and try again.`
+								);
+								tui.newline();
+
+								process.exit(getExitCode(ErrorCode.MALWARE_DETECTED));
+							}
+
+							return stepSuccess([`Scanned ${result.summary.scanned} packages`]);
+						},
+					},
+					{
 						label: 'Encrypt and Upload Deployment',
 						run: async (stepCtx: StepContext) => {
 							const progress = stepCtx.progress;
@@ -658,18 +833,8 @@ export const deploySubcommand = createSubcommand({
 									return stepError(errorMsg);
 								}
 
-								// Workaround for Bun crash in compiled executables (https://github.com/agentuity/sdk/issues/191)
-								// Use limited concurrency (1 at a time) for executables to avoid parallel fetch crash
-								const isExecutable = isRunningFromExecutable();
-								const concurrency = isExecutable ? 1 : Math.min(4, build.assets.length);
-
-								if (isExecutable) {
-									ctx.logger.trace(
-										`Running from executable - using limited concurrency (${concurrency} uploads at a time)`
-									);
-								}
-
 								// Process assets in batches with limited concurrency
+								const concurrency = Math.min(4, build.assets.length);
 								for (let i = 0; i < build.assets.length; i += concurrency) {
 									const batch = build.assets.slice(i, i + concurrency);
 									const promises: Promise<Response>[] = [];

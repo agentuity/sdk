@@ -238,6 +238,15 @@ type UseAPIResultQuery<TRoute extends RouteKey> = UseAPIResultBase &
 			});
 
 /**
+ * Options that can be passed to invoke() at invocation time.
+ * Allows dynamic path parameter substitution when calling mutations.
+ */
+export type InvokeOptions<TRoute extends RouteKey> =
+	RoutePathParams<TRoute> extends never
+		? { params?: never }
+		: { params?: RoutePathParams<TRoute> };
+
+/**
  * Return value for POST/PUT/PATCH/DELETE requests (manual execution)
  */
 type UseAPIResultMutation<TRoute extends RouteKey> = UseAPIResultBase &
@@ -245,18 +254,44 @@ type UseAPIResultMutation<TRoute extends RouteKey> = UseAPIResultBase &
 		? {
 				/** No data property - route returns no content (204 No Content) */
 				data?: never;
-				/** Invoke the mutation with required input */
+				/**
+				 * Invoke the mutation with optional input and options.
+				 * @param input - Request body (required for routes with inputSchema)
+				 * @param options - Optional invocation options including dynamic path params
+				 * @example
+				 * // Route without input
+				 * await invoke(undefined, { params: { itemId: '123' } });
+				 *
+				 * // Route with input
+				 * await invoke({ name: 'New Name' }, { params: { itemId: '123' } });
+				 */
 				invoke: RouteInput<TRoute> extends never
-					? () => Promise<void>
-					: (input: RouteInput<TRoute>) => Promise<void>;
+					? (input?: undefined, options?: InvokeOptions<TRoute>) => Promise<void>
+					: (input: RouteInput<TRoute>, options?: InvokeOptions<TRoute>) => Promise<void>;
 			}
 		: {
 				/** Response data (undefined until invoked) */
 				data: RouteOutput<TRoute> | undefined;
-				/** Invoke the mutation with required input */
+				/**
+				 * Invoke the mutation with optional input and options.
+				 * @param input - Request body (required for routes with inputSchema)
+				 * @param options - Optional invocation options including dynamic path params
+				 * @example
+				 * // Route without input
+				 * const result = await invoke(undefined, { params: { itemId: '123' } });
+				 *
+				 * // Route with input
+				 * const result = await invoke({ name: 'New Name' }, { params: { itemId: '123' } });
+				 */
 				invoke: RouteInput<TRoute> extends never
-					? () => Promise<RouteOutput<TRoute>>
-					: (input: RouteInput<TRoute>) => Promise<RouteOutput<TRoute>>;
+					? (
+							input?: undefined,
+							options?: InvokeOptions<TRoute>
+						) => Promise<RouteOutput<TRoute>>
+					: (
+							input: RouteInput<TRoute>,
+							options?: InvokeOptions<TRoute>
+						) => Promise<RouteOutput<TRoute>>;
 			});
 
 /**
@@ -272,10 +307,12 @@ export type UseAPIResult<TRoute extends RouteKey> =
  */
 function parseRouteKey(routeKey: string): { method: string; path: string } {
 	const parts = routeKey.split(' ');
-	if (parts.length !== 2) {
+	const method = parts[0];
+	const path = parts[1];
+	if (parts.length !== 2 || !method || !path) {
 		throw new Error(`Invalid route key format: "${routeKey}". Expected "METHOD /path"`);
 	}
-	return { method: parts[0], path: parts[1] };
+	return { method, path };
 }
 
 /**
@@ -758,9 +795,14 @@ export function useAPI(routeOrOptions: unknown): any {
 
 	// For POST/PUT/PATCH/DELETE: provide invoke method (manual invocation)
 	const invoke = useCallback(
-		async (invokeInput?: any) => {
+		async (invokeInput?: any, invokeOptions?: { params?: Record<string, string> }) => {
 			// Use invokeInput parameter if provided
 			const effectiveInput = invokeInput !== undefined ? invokeInput : input;
+
+			// Compute path at invocation time if params provided, otherwise use hook-level path
+			const effectivePath = invokeOptions?.params
+				? substitutePathParams(basePath, invokeOptions.params)
+				: path;
 
 			setIsFetching(true);
 			setIsLoading(true);
@@ -768,7 +810,12 @@ export function useAPI(routeOrOptions: unknown): any {
 			setIsError(false);
 
 			try {
-				const url = buildUrl(context.baseUrl || '', path, undefined, toSearchParams(query));
+				const url = buildUrl(
+					context.baseUrl || '',
+					effectivePath,
+					undefined,
+					toSearchParams(query)
+				);
 				const requestInit: RequestInit = {
 					method,
 					headers: {
@@ -876,7 +923,18 @@ export function useAPI(routeOrOptions: unknown): any {
 				}
 			}
 		},
-		[context.baseUrl, context.authHeader, path, method, query, headers, input, onSuccess, onError]
+		[
+			context.baseUrl,
+			context.authHeader,
+			basePath,
+			path,
+			method,
+			query,
+			headers,
+			input,
+			onSuccess,
+			onError,
+		]
 	);
 
 	return {

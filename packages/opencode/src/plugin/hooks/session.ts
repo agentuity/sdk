@@ -1,10 +1,11 @@
-import type { PluginContext, CoderConfig } from '../../types';
+import type { PluginInput } from '@opencode-ai/plugin';
+import type { CoderConfig } from '../../types';
 
 export interface SessionHooks {
 	onMessage: (input: unknown, output: unknown) => Promise<void>;
 }
 
-export function createSessionHooks(_ctx: PluginContext, _config: CoderConfig): SessionHooks {
+export function createSessionHooks(_ctx: PluginInput, _config: CoderConfig): SessionHooks {
 	const initializedSessions = new Set<string>();
 
 	return {

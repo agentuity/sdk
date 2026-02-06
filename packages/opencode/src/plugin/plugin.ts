@@ -1,24 +1,69 @@
-import type { PluginContext, PluginHooks, AgentConfig, CommandDefinition } from '../types';
+import type { PluginInput, Hooks } from '@opencode-ai/plugin';
+import { tool } from '@opencode-ai/plugin';
+import { StructuredError } from '@agentuity/core';
+import type { AgentConfig, CommandDefinition } from '../types';
+import { loadAllSkills, type LoadedSkill } from '../skills';
 import { agents } from '../agents';
-import { loadCoderConfig, getDefaultConfig, mergeConfig } from '../config';
+import { loadCoderConfig, getDefaultConfig, mergeConfig, validateAndWarnConfigs } from '../config';
 import { createSessionHooks } from './hooks/session';
-import { createToolHooks } from './hooks/tools';
+import { createToolHooks, getCoderProfile } from './hooks/tools';
 import { createKeywordHooks } from './hooks/keyword';
 import { createParamsHooks } from './hooks/params';
-import { z } from 'zod';
+import { createCadenceHooks } from './hooks/cadence';
+import { createSessionMemoryHooks } from './hooks/session-memory';
 import type { AgentRole } from '../types';
+import { BackgroundManager } from '../background';
+import { TmuxSessionManager } from '../tmux';
+import { checkAuth } from '../services/auth';
 
-// Agent display names for @mentions
-const AGENT_MENTIONS: Record<AgentRole, string> = {
-	lead: '@Agentuity Coder Lead',
-	scout: '@Agentuity Coder Scout',
-	builder: '@Agentuity Coder Builder',
-	reviewer: '@Agentuity Coder Reviewer',
-	memory: '@Agentuity Coder Memory',
-	expert: '@Agentuity Coder Expert',
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Memory Share Tool Errors
+// ─────────────────────────────────────────────────────────────────────────────
 
-export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks> {
+const MemoryShareAuthError = StructuredError(
+	'MemoryShareAuthError',
+	'Authentication required to share memory content'
+)<{ reason: string }>();
+
+const MemoryShareCLIError = StructuredError(
+	'MemoryShareCLIError',
+	'CLI command failed to create stream'
+)<{ exitCode: number; stderr: string }>();
+
+const MemoryShareError = StructuredError(
+	'MemoryShareError',
+	'Failed to create public memory share'
+)<{ reason: string }>();
+
+// Sandbox environment detection
+const SANDBOX_ID = process.env.AGENTUITY_SANDBOX_ID;
+const IN_SANDBOX = !!SANDBOX_ID;
+
+// Sandbox context injected into Lead, Builder, and Architect prompts
+const SANDBOX_CONTEXT = IN_SANDBOX
+	? `
+## Sandbox Environment
+
+You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
+
+**Permissions:** All file operations are allowed without prompts.
+
+**File Locations:**
+- Working directory: \`/home/agentuity\`
+- Temp files: \`/home/agentuity/tmp/\` (preferred over \`/tmp/\`)
+- Artifacts: \`/home/agentuity/.agentuity/\`
+
+**Tips:**
+- No permission prompts - you can read/write freely
+- Sandbox is isolated - safe to experiment
+- Use \`/home/agentuity/\` paths for all file operations
+`
+	: '';
+
+// Agents that should receive sandbox context in their prompts
+const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'architect'];
+
+export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	ctx.client.app.log({
 		body: {
 			service: 'agentuity-coder',
@@ -34,19 +79,90 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
 	const paramsHooks = createParamsHooks(ctx, coderConfig);
+	const tmuxManager = coderConfig.tmux?.enabled
+		? new TmuxSessionManager(ctx, coderConfig.tmux, {
+				onLog: (message) =>
+					ctx.client.app.log({
+						body: {
+							service: 'agentuity-coder',
+							level: 'info',
+							message,
+						},
+					}),
+			})
+		: undefined;
+	const backgroundManager = new BackgroundManager(ctx, coderConfig.background, {
+		onSubagentSessionCreated: tmuxManager
+			? (event) => {
+					void tmuxManager.onSessionCreated(event);
+				}
+			: undefined,
+		onSubagentSessionDeleted: tmuxManager
+			? (event) => {
+					void tmuxManager.onSessionDeleted(event);
+				}
+			: undefined,
+		onShutdown: tmuxManager
+			? () => {
+					void tmuxManager.cleanup();
+				}
+			: undefined,
+	});
+
+	// Recover any background tasks from previous sessions
+	// This allows tasks to survive plugin restarts
+	void backgroundManager
+		.recoverTasks()
+		.then((count) => {
+			if (count > 0) {
+				ctx.client.app.log({
+					body: {
+						service: 'agentuity-coder',
+						level: 'info',
+						message: `Recovered ${count} background task(s) from previous sessions`,
+					},
+				});
+			}
+		})
+		.catch((error) => {
+			ctx.client.app.log({
+				body: {
+					service: 'agentuity-coder',
+					level: 'warn',
+					message: `Failed to recover background tasks: ${error}`,
+				},
+			});
+		});
+
+	// Create hooks that need backgroundManager for task reference injection during compaction
+	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager);
+
+	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
+	// Orchestration (deciding which module handles which session) happens below in the hooks
+	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig, backgroundManager);
 
 	const configHandler = createConfigHandler(coderConfig);
 
-	// Get the tool helper from Open Code context if available
-	const toolHelper = (ctx as { tool?: unknown }).tool as
-		| ((schema: (s: typeof z) => unknown) => unknown)
-		| undefined;
+	// Create plugin tools using the @opencode-ai/plugin tool helper
+	const tools = createTools(backgroundManager);
 
-	const tools = toolHelper ? createTools(toolHelper) : undefined;
+	// Create a logger for shutdown handler
+	const shutdownLogger = (message: string) =>
+		ctx.client.app.log({
+			body: {
+				service: 'agentuity-coder',
+				level: 'info',
+				message: `[shutdown] ${message}`,
+			},
+		});
+
+	registerShutdownHandler(backgroundManager, tmuxManager, shutdownLogger);
 
 	// Show startup toast (fire and forget, don't block)
 	try {
-		ctx.client.tui?.showToast?.({ body: { message: '🚀 Agentuity Coder ready' } });
+		ctx.client.tui.showToast({
+			body: { message: '🚀 Agentuity Coder ready', variant: 'success' },
+		});
 	} catch {
 		// Toast may not be available
 	}
@@ -57,10 +173,35 @@ export async function createCoderPlugin(ctx: PluginContext): Promise<PluginHooks
 		'chat.message': async (input: unknown, output: unknown) => {
 			await keywordHooks.onMessage(input, output);
 			await sessionHooks.onMessage(input, output);
+			await cadenceHooks.onMessage(input, output);
 		},
 		'chat.params': paramsHooks.onParams,
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
+		event: async (input) => {
+			const event = extractEventFromInput(input);
+			if (event) {
+				backgroundManager.handleEvent(event);
+			}
+			// Orchestrate: route to appropriate module based on session type
+			const sessionId = extractSessionIdFromEvent(input);
+			if (sessionId && cadenceHooks.isActiveCadenceSession(sessionId)) {
+				await cadenceHooks.onEvent(input);
+			} else if (sessionId) {
+				// Non-Cadence sessions - handle session.compacted for checkpointing
+				await sessionMemoryHooks.onEvent(
+					input as { event: { type: string; properties?: Record<string, unknown> } }
+				);
+			}
+		},
+		'experimental.session.compacting': async (input, output) => {
+			// Orchestrate: route to appropriate module based on session type
+			if (cadenceHooks.isActiveCadenceSession(input.sessionID)) {
+				await cadenceHooks.onCompacting(input, output);
+			} else {
+				await sessionMemoryHooks.onCompacting(input, output);
+			}
+		},
 	};
 }
 
@@ -70,27 +211,82 @@ function createConfigHandler(
 	return async (config: Record<string, unknown>) => {
 		const agentConfigs = createAgentConfigs(coderConfig);
 		const commands = createCommands();
+		const loadedSkills = await loadAllSkills(coderConfig.skills);
+		const skillCommands = createSkillCommands(loadedSkills);
 
-		config.agent = {
-			...(config.agent as Record<string, AgentConfig> | undefined),
-			...agentConfigs,
-		};
+		// Merge agent configs: our defaults first, then user's opencode.json overrides on top
+		// This allows users to customize any agent via their opencode.json
+		const userAgentConfigs = config.agent as Record<string, AgentConfig> | undefined;
+		const mergedAgents: Record<string, AgentConfig> = { ...agentConfigs };
+
+		// Shallow merge user overrides on top of our defaults (nested objects like tools are replaced, not merged)
+		if (userAgentConfigs) {
+			for (const [name, userConfig] of Object.entries(userAgentConfigs)) {
+				if (mergedAgents[name]) {
+					// Merge user config on top of our default
+					mergedAgents[name] = {
+						...mergedAgents[name],
+						...userConfig,
+					};
+				} else {
+					// User defined a new agent not in our defaults
+					mergedAgents[name] = userConfig;
+				}
+			}
+		}
+
+		config.agent = mergedAgents;
+
+		// Validate merged configs and warn about mismatches
+		validateAndWarnConfigs(mergedAgents);
+
+		// Permission configuration for external directories
+		// Memory agent and other operations may need to write temp files for CLI piping
+		if (IN_SANDBOX) {
+			// In sandbox, allow all permissions without prompts
+			config.permission = {
+				'*': 'allow',
+				external_directory: {
+					'/home/agentuity/**': 'allow',
+					'*': 'allow',
+				},
+			};
+		} else {
+			// For non-sandbox environments, auto-allow temp directory writes
+			// This prevents blocking prompts when Memory agent writes large JSON for CLI piping
+			const existingPermissions = (config.permission as Record<string, unknown>) ?? {};
+			const existingExternalDir =
+				(existingPermissions.external_directory as Record<string, string>) ?? {};
+
+			// Normalize TMPDIR: strip trailing slashes, then append /**
+			const tmpdir = process.env.TMPDIR?.replace(/\/+$/, '');
+			const tmpdirPattern = tmpdir ? `${tmpdir}/**` : null;
+
+			config.permission = {
+				...existingPermissions,
+				external_directory: {
+					...existingExternalDir,
+					'/tmp/**': 'allow',
+					// Also allow OS-specific temp directories
+					...(tmpdirPattern ? { [tmpdirPattern]: 'allow' } : {}),
+				},
+			};
+		}
 
 		config.command = {
 			...(config.command as Record<string, CommandDefinition> | undefined),
 			...commands,
+			...skillCommands,
 		};
 	};
 }
 
 function createAgentConfigs(
-	config: ReturnType<typeof getDefaultConfig>
+	_config: ReturnType<typeof getDefaultConfig>
 ): Record<string, AgentConfig> {
 	const result: Record<string, AgentConfig> = {};
 
 	for (const agent of Object.values(agents)) {
-		const modelConfig = config.agents?.[agent.role];
-
 		// Convert tools.exclude to Open Code format (tool: false)
 		const tools: Record<string, boolean> = {};
 		if (agent.tools?.exclude) {
@@ -99,16 +295,26 @@ function createAgentConfigs(
 			}
 		}
 
+		// Inject sandbox context into specific agents when running in sandbox
+		const shouldInjectSandbox =
+			IN_SANDBOX && SANDBOX_AWARE_AGENTS.includes(agent.role as AgentRole);
+		const prompt = shouldInjectSandbox
+			? `${agent.systemPrompt}\n${SANDBOX_CONTEXT}`
+			: agent.systemPrompt;
+
+		// Use agent defaults directly - user overrides happen in createConfigHandler
 		result[agent.displayName] = {
 			description: agent.description,
-			model: modelConfig?.model ?? agent.defaultModel,
-			prompt: agent.systemPrompt,
+			model: agent.defaultModel,
+			prompt,
 			mode: agent.mode ?? 'subagent',
 			...(Object.keys(tools).length > 0 ? { tools } : {}),
-			// Pass through thinking/reasoning settings
 			...(agent.variant ? { variant: agent.variant } : {}),
 			...(agent.temperature !== undefined ? { temperature: agent.temperature } : {}),
 			...(agent.maxSteps !== undefined ? { maxSteps: agent.maxSteps } : {}),
+			...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}),
+			...(agent.thinking ? { thinking: agent.thinking } : {}),
+			...(agent.hidden ? { hidden: agent.hidden } : {}),
 		};
 	}
 
@@ -127,20 +333,26 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 ## Your Team (use @mentions to invoke)
 - **@Agentuity Coder Scout**: Explore codebase, find patterns, research docs (read-only)
 - **@Agentuity Coder Builder**: Implement features, write code, run tests
+- **@Agentuity Coder Architect**: Complex autonomous tasks, Cadence mode (GPT Codex)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions
+- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
 - **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
+- **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
+- **@Agentuity Coder Product**: Clarify requirements, validate features, track progress
 
 ## Task
 $ARGUMENTS
 
 ## Guidelines
 1. Use @Agentuity Coder Scout first to understand context
-2. Delegate implementation to @Agentuity Coder Builder
-3. Have @Agentuity Coder Reviewer check the work
-4. Use @Agentuity Coder Expert for Agentuity CLI questions
-5. Only use cloud services when genuinely helpful
-6. **When done, tell @Agentuity Coder Memory to memorialize the session**
+2. Use @Agentuity Coder Product to clarify requirements if unclear
+3. Delegate implementation to @Agentuity Coder Builder (or Architect for complex work)
+4. Delegate lint/build/test commands to @Agentuity Coder Runner for structured results
+5. Have @Agentuity Coder Reviewer check the work
+6. Use @Agentuity Coder Expert for Agentuity CLI questions
+7. Only use cloud services when genuinely helpful
+8. **When done, tell @Agentuity Coder Memory to memorialize the session**
 </coder-mode>`,
 			agent: 'Agentuity Coder Lead',
 			argumentHint: '"task description"',
@@ -151,15 +363,34 @@ $ARGUMENTS
 			template: `Memorialize this session. Summarize what was accomplished in this conversation:
 - Problem/task that was addressed
 - Key decisions and their rationale  
+- Corrections/mistakes (user corrected agent or agent corrected user)
 - Patterns and approaches used
 - Solutions implemented
+- Files and folders referenced
 - Open questions or follow-ups
 
-Save to vector storage using the coder-sessions namespace so the team can recall this work in future sessions.
+Save to vector storage using the agentuity-opencode-sessions namespace. Store any corrections prominently in agentuity-opencode-memory KV.
 
 $ARGUMENTS`,
 			agent: 'Agentuity Coder Memory',
 			argumentHint: '(optional additional context)',
+		},
+
+		'agentuity-memory-share': {
+			name: 'agentuity-memory-share',
+			description: '🔗 Share memory content publicly with a shareable URL',
+			template: `User wants to share content publicly.
+
+**You have current session context. Memory does not (unless given a session ID).**
+
+- Current session → Handle directly: compile content, call \`agentuity_memory_share\`
+- Stored content (specific ID, past work) → Delegate to Memory
+- Long Cadence cycle? → Ask Memory for past compactions to include
+
+User's request: $ARGUMENTS`,
+			agent: 'Agentuity Coder Lead',
+			argumentHint:
+				'"share a summary of this session" or "share the auth decisions with 1 hour TTL"',
 		},
 
 		// ─────────────────────────────────────────────────────────────────────
@@ -242,39 +473,491 @@ $ARGUMENTS`,
 			subtask: true,
 			argumentHint: '"run bun test" or "create a sandbox with 2Gi memory"',
 		},
+
+		// ─────────────────────────────────────────────────────────────────────
+		// Agentuity Cadence Commands (Long-Running Tasks)
+		// ─────────────────────────────────────────────────────────────────────
+
+		'agentuity-cadence': {
+			name: 'agentuity-cadence',
+			description: '🔄 Start a long-running Cadence loop (autonomous task completion)',
+			template: `[CADENCE MODE]
+
+You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomous loop.
+
+## Your Team (use @mentions to invoke)
+- **@Agentuity Coder Scout**: Explore codebase, find patterns, research docs (read-only)
+- **@Agentuity Coder Architect**: Complex autonomous implementation (GPT Codex with high reasoning) — **USE THIS FOR CADENCE**
+- **@Agentuity Coder Builder**: Quick fixes, simple changes (for minor iterations only)
+- **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
+- **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
+- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
+- **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
+- **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
+- **@Agentuity Coder Product**: Clarify requirements, validate features, track progress, Cadence briefings
+
+## Task
+$ARGUMENTS
+
+## Cadence Workflow
+
+1. **FIRST: Establish PRD with Product** (REQUIRED):
+   - Ask @Agentuity Coder Product to establish/validate the PRD for this task
+   - Product will check for existing PRD or create one
+   - This defines "what" we're building and success criteria
+
+2. **Initialize loop state**:
+   - Generate loop ID (format: \`lp_short_name_01\`)
+   - Store in KV: \`agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...}'\`
+   - Link session planning to PRD via \`prdKey\`
+
+3. **Each iteration**:
+   - Ask @Agentuity Coder Memory for relevant context
+   - Use @Agentuity Coder Scout to understand what's needed
+   - For complex planning, use extended thinking (ultrathink) — ground in PRD requirements
+   - Delegate implementation to **@Agentuity Coder Architect** (preferred for Cadence)
+   - Have @Agentuity Coder Reviewer verify the work
+   - Tell @Agentuity Coder Memory to store checkpoint
+
+4. **When truly complete**, output:
+\`\`\`
+<promise>DONE</promise>
+\`\`\`
+
+5. **Finalize**:
+   - Tell @Agentuity Coder Product to update the PRD with completed work
+   - Tell @Agentuity Coder Memory to memorialize the session
+
+## Guidelines
+- **Product first** — Always establish PRD before starting work
+- **Use Architect for implementation** — Architect has GPT Codex with maximum reasoning, ideal for autonomous work
+- Use regular Builder only for trivial fixes within an iteration
+- Ask Memory for context at each iteration start
+- Store checkpoints at each iteration end
+- If stuck on architecture, use extended thinking (ultrathink) for deep planning
+- Use @Agentuity Coder Expert for sandbox/cloud operations
+- Respect max iterations (50 default)
+
+## Lead-of-Leads (Parallel Work)
+If the task has **independent workstreams** that can run in parallel (e.g., "build auth, payments, and notifications"):
+1. Ask @Agentuity Coder Product to create PRD with workstreams
+2. Spawn child Leads via \`agentuity_background_task\` for each workstream
+3. Each child Lead claims a workstream, works autonomously, marks done when complete
+4. Monitor progress via PRD workstream status
+5. Do integration work when all children complete
+
+**Don't use Lead-of-Leads for:** small tasks, sequential work, or work requiring tight coordination.`,
+			agent: 'Agentuity Coder Lead',
+			argumentHint: 'build the new auth feature with tests',
+		},
 	};
 }
 
-function createTools(tool: (schema: (s: typeof z) => unknown) => unknown): Record<string, unknown> {
-	const coderDelegate = tool((s) => ({
-		description: `Delegate a task to a specialized Agentuity Coder agent.
+function createSkillCommands(skills: LoadedSkill[]): Record<string, CommandDefinition> {
+	const commands: Record<string, CommandDefinition> = {};
 
-Use this to:
-- Scout: Explore codebase, find patterns, research documentation
-- Builder: Implement features, write code, run tests
-- Reviewer: Review changes, catch issues, apply fixes
-- Memory: Store context, remember decisions across sessions
-- Expert: Get help with Agentuity CLI and cloud services`,
-		args: s.object({
+	for (const skill of skills) {
+		const baseDir = normalizeBaseDir(skill.resolvedPath);
+		commands[skill.name] = {
+			name: skill.name,
+			description: skill.metadata.description,
+			template: `<skill-instruction>
+Base directory for this skill: ${baseDir}/
+File references (@path) in this skill are relative to this directory.
+
+${skill.content}
+</skill-instruction>
+
+<user-request>
+$ARGUMENTS
+</user-request>`,
+			...(skill.metadata.agent ? { agent: skill.metadata.agent } : {}),
+			...(skill.metadata.model ? { model: skill.metadata.model } : {}),
+			...(skill.metadata['argument-hint']
+				? { argumentHint: skill.metadata['argument-hint'] }
+				: {}),
+			...(skill.metadata.subtask ? { subtask: true } : {}),
+		};
+	}
+
+	return commands;
+}
+
+function normalizeBaseDir(path: string): string {
+	return path.replace(/[\\/]+$/, '');
+}
+
+function createTools(backgroundManager: BackgroundManager): Hooks['tool'] {
+	// Use the schema from @opencode-ai/plugin's tool helper to avoid Zod version mismatches
+	const s = tool.schema;
+
+	const backgroundTask = tool({
+		description: `Launch a task to run in the background. Use this for parallel execution of multiple independent tasks.
+
+IMPORTANT: Use this tool instead of the 'task' tool when:
+- You need to run multiple agents in parallel
+- Tasks are independent and don't need sequential execution
+- The user asks for "parallel", "background", or "concurrent" work`,
+		args: {
 			agent: s
-				.enum(['scout', 'builder', 'reviewer', 'memory', 'expert'])
-				.describe('Which agent to delegate to'),
-			task: s.string().describe('Clear description of the task'),
-			context: s.string().optional().describe('Additional context from previous tasks'),
-		}),
-		execute: async (args: { agent: AgentRole; task: string; context?: string }) => {
-			const mention = AGENT_MENTIONS[args.agent];
-			let prompt = `${mention}\n\n## Task\n${args.task}`;
-			if (args.context) {
-				prompt = `${mention}\n\n## Context\n${args.context}\n\n## Task\n${args.task}`;
-			}
-			return {
-				output: `To delegate this task, use the Task tool with this prompt:\n\n${prompt}\n\nThe ${args.agent} agent will handle this task.`,
-			};
+				.enum([
+					'lead',
+					'scout',
+					'builder',
+					'architect',
+					'reviewer',
+					'memory',
+					'reasoner',
+					'expert',
+					'runner',
+					'product',
+					'monitor',
+				])
+				.describe('Agent role to run the task'),
+			task: s.string().describe('Task prompt to run in the background'),
+			description: s.string().optional().describe('Short description of the task'),
 		},
-	}));
+		async execute(args, context) {
+			const parentSessionId = context.sessionID;
+			if (!parentSessionId) {
+				return JSON.stringify({
+					taskId: 'unknown',
+					status: 'error',
+					message: 'Missing session context for background task.',
+				});
+			}
+
+			const agentName = resolveAgentName(args.agent as AgentRole);
+			const bgTask = await backgroundManager.launch({
+				description: args.description ?? args.task,
+				prompt: args.task,
+				agent: agentName,
+				parentSessionId,
+				parentMessageId: context.messageID,
+			});
+			return JSON.stringify({
+				taskId: bgTask.id,
+				status: bgTask.status,
+				message:
+					bgTask.status === 'error'
+						? (bgTask.error ?? 'Failed to launch background task.')
+						: 'Background task launched.',
+			});
+		},
+	});
+
+	const backgroundOutput = tool({
+		description: 'Retrieve output for a background task.',
+		args: {
+			task_id: s.string().describe('Background task ID'),
+		},
+		async execute(args) {
+			const bgTask = backgroundManager.getTask(args.task_id);
+			if (!bgTask) {
+				return JSON.stringify({
+					taskId: args.task_id,
+					status: 'error',
+					error: 'Task not found.',
+				});
+			}
+			return JSON.stringify({
+				taskId: bgTask.id,
+				status: bgTask.status,
+				result: bgTask.result,
+				error: bgTask.error,
+			});
+		},
+	});
+
+	const backgroundCancel = tool({
+		description: 'Cancel a running background task.',
+		args: {
+			task_id: s.string().describe('Background task ID'),
+		},
+		async execute(args) {
+			const success = backgroundManager.cancel(args.task_id);
+			return JSON.stringify({
+				taskId: args.task_id,
+				success,
+				message: success ? 'Background task cancelled.' : 'Unable to cancel task.',
+			});
+		},
+	});
+
+	const backgroundInspect = tool({
+		description: `Inspect a background task to see its session messages and current state. Useful for debugging or checking what a child agent is doing.`,
+		args: {
+			task_id: s.string().describe('Background task ID to inspect'),
+		},
+		async execute(args) {
+			const inspection = await backgroundManager.inspectTask(args.task_id);
+			if (!inspection) {
+				return JSON.stringify({
+					taskId: args.task_id,
+					status: 'unknown',
+					found: false,
+					error: 'Task not found or session no longer exists.',
+				});
+			}
+
+			// Extract last few messages for summary
+			const messages = inspection.messages ?? [];
+			const lastMessages = messages
+				.slice(-3)
+				.map((m) => {
+					const parts = m.parts ?? [];
+					const textParts = parts.filter(
+						(p: unknown) => (p as { type?: string }).type === 'text'
+					);
+					return textParts
+						.map((p: unknown) => ((p as { text?: string }).text ?? '').slice(0, 200))
+						.join(' ')
+						.slice(0, 300);
+				})
+				.filter(Boolean);
+
+			return JSON.stringify({
+				taskId: inspection.taskId,
+				status: inspection.status,
+				found: true,
+				messageCount: messages.length,
+				lastMessages,
+				lastActivity: inspection.lastActivity,
+			});
+		},
+	});
+
+	const memoryShare = tool({
+		description: `Share memory content publicly via Agentuity Cloud Streams.
+
+Creates a public URL that can be shared with anyone - no authentication required to access.
+The content is stored in Agentuity's durable stream storage with optional TTL.
+
+Use this when:
+- User wants to share context with another agent/session
+- User wants to export a summary, compaction, or session for external use
+- User explicitly asks to "share" or "make public" some memory content
+
+Returns the public URL that can be copied and used anywhere.`,
+		args: {
+			content: s.string().describe('The content to share publicly'),
+			namespace: s
+				.string()
+				.optional()
+				.describe('Stream namespace (default: agentuity-opencode-shares)'),
+			ttl_seconds: s
+				.number()
+				.optional()
+				.describe('TTL in seconds (60-7776000, or omit for 30-day default)'),
+			content_type: s.string().optional().describe('Content type (default: text/markdown)'),
+			metadata: s
+				.record(s.string(), s.string())
+				.optional()
+				.describe('Optional metadata key-value pairs'),
+			compress: s.boolean().optional().describe('Enable gzip compression'),
+			region: s.string().optional().describe('Cloud region (use, usc, usw). Default: usc'),
+		},
+		async execute(args) {
+			// Get the profile first - this ensures checkAuth() and CLI use the same profile
+			const profile = getCoderProfile();
+			const originalProfile = process.env.AGENTUITY_PROFILE;
+
+			try {
+				// Set profile before auth check so checkAuth reads the correct config
+				process.env.AGENTUITY_PROFILE = profile;
+
+				// Check auth first
+				const authResult = await checkAuth();
+				if (!authResult.ok) {
+					const err = new MemoryShareAuthError({ reason: authResult.error });
+					return JSON.stringify({
+						success: false,
+						error: err.message,
+						errorTag: err._tag,
+						details: { reason: authResult.error },
+					});
+				}
+
+				// Build CLI command
+				const namespace = args.namespace ?? 'agentuity-opencode-shares';
+				const contentType = args.content_type ?? 'text/markdown';
+
+				const cliArgs = ['agentuity', '--json', 'cloud', 'stream', 'create', namespace, '-'];
+				cliArgs.push('--content-type', contentType);
+				cliArgs.push('--region', args.region ?? 'usc');
+
+				if (args.ttl_seconds !== undefined) {
+					cliArgs.push('--ttl', String(args.ttl_seconds));
+				}
+
+				if (args.compress) {
+					cliArgs.push('--compress');
+				}
+
+				if (args.metadata && Object.keys(args.metadata).length > 0) {
+					const metadataStr = Object.entries(args.metadata)
+						.map(([k, v]) => `${k}=${v}`)
+						.join(',');
+					cliArgs.push('--metadata', metadataStr);
+				}
+				const proc = Bun.spawn(cliArgs, {
+					stdin: 'pipe',
+					stdout: 'pipe',
+					stderr: 'pipe',
+					env: {
+						...process.env,
+						AGENTUITY_PROFILE: profile,
+					},
+				});
+
+				// Write content to stdin (Bun's FileSink API)
+				proc.stdin.write(new TextEncoder().encode(args.content));
+				proc.stdin.end();
+
+				const [stdout, stderr, exitCode] = await Promise.all([
+					new Response(proc.stdout).text(),
+					new Response(proc.stderr).text(),
+					proc.exited,
+				]);
+
+				if (exitCode !== 0) {
+					const err = new MemoryShareCLIError({
+						exitCode,
+						stderr: stderr || `CLI exited with code ${exitCode}`,
+					});
+					return JSON.stringify({
+						success: false,
+						error: err.message,
+						errorTag: err._tag,
+						details: { exitCode, stderr },
+					});
+				}
+
+				// Parse JSON response from CLI
+				const result = JSON.parse(stdout);
+
+				return JSON.stringify({
+					success: true,
+					url: result.url,
+					id: result.id,
+					namespace: result.namespace,
+					sizeBytes: result.sizeBytes,
+					expiresAt: result.expiresAt,
+				});
+			} catch (error) {
+				const reason = error instanceof Error ? error.message : 'Failed to create stream';
+				const err = new MemoryShareError({ reason });
+				return JSON.stringify({
+					success: false,
+					error: err.message,
+					errorTag: err._tag,
+					details: { reason },
+				});
+			} finally {
+				// Restore original profile
+				if (originalProfile !== undefined) {
+					process.env.AGENTUITY_PROFILE = originalProfile;
+				} else {
+					delete process.env.AGENTUITY_PROFILE;
+				}
+			}
+		},
+	});
 
 	return {
-		coder_delegate: coderDelegate,
+		agentuity_background_task: backgroundTask,
+		agentuity_background_output: backgroundOutput,
+		agentuity_background_cancel: backgroundCancel,
+		agentuity_background_inspect: backgroundInspect,
+		agentuity_memory_share: memoryShare,
 	};
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper Functions
+// ─────────────────────────────────────────────────────────────────────────────
+
+function extractSessionIdFromEvent(input: unknown): string | undefined {
+	if (typeof input !== 'object' || input === null) return undefined;
+
+	const inp = input as { event?: { properties?: Record<string, unknown> } };
+	if (!inp.event?.properties) return undefined;
+
+	return (
+		(inp.event.properties.sessionId as string | undefined) ??
+		(inp.event.properties.sessionID as string | undefined)
+	);
+}
+
+function resolveAgentName(role: AgentRole): string {
+	const agent = agents[role];
+	return agent?.displayName ?? role;
+}
+
+function extractEventFromInput(
+	input: unknown
+): { type: string; properties?: Record<string, unknown> } | undefined {
+	if (typeof input !== 'object' || input === null) return undefined;
+	const inp = input as { event?: { type?: string; properties?: Record<string, unknown> } };
+	if (!inp.event || typeof inp.event.type !== 'string') return undefined;
+	return { type: inp.event.type, properties: inp.event.properties };
+}
+
+function registerShutdownHandler(
+	manager: BackgroundManager,
+	tmuxManager?: TmuxSessionManager,
+	logger?: (msg: string) => void
+): void {
+	if (typeof process === 'undefined') {
+		logger?.('[shutdown] process is undefined, cannot register handlers');
+		return;
+	}
+
+	const log = logger ?? (() => {});
+	let shutdownCalled = false;
+
+	log(
+		`Registering shutdown handlers (PID: ${process.pid}, tmuxManager: ${tmuxManager ? 'yes' : 'no'})`
+	);
+	log(`Current tracked sessions in tmuxManager: ${tmuxManager ? 'checking...' : 'N/A'}`);
+
+	const shutdown = (signal?: string) => {
+		// Prevent multiple shutdown calls
+		if (shutdownCalled) {
+			log(`Shutdown already in progress, ignoring ${signal ?? 'unknown'} signal`);
+			return;
+		}
+		shutdownCalled = true;
+
+		log(`Shutdown triggered by ${signal ?? 'unknown'} signal`);
+
+		try {
+			log('Shutting down background manager...');
+			manager.shutdown();
+			log('Background manager shutdown complete');
+		} catch (error) {
+			log(`Background manager shutdown error: ${error}`);
+		}
+
+		if (tmuxManager) {
+			try {
+				log('Cleaning up tmux sessions...');
+				// Use sync version to ensure cleanup completes before process exits
+				tmuxManager.cleanupSync();
+				log('Tmux cleanup complete');
+			} catch (error) {
+				log(`Tmux cleanup error: ${error}`);
+			}
+		}
+
+		log('Shutdown complete');
+	};
+
+	process.once('beforeExit', () => shutdown('beforeExit'));
+	process.once('SIGINT', () => shutdown('SIGINT'));
+	process.once('SIGTERM', () => shutdown('SIGTERM'));
+	process.once('SIGHUP', () => shutdown('SIGHUP')); // Handle tmux pane close
+	process.once('exit', () => shutdown('exit')); // Also handle exit event for extra safety
+
+	log('Shutdown handlers registered for: beforeExit, SIGINT, SIGTERM, SIGHUP, exit');
 }

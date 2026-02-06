@@ -10,13 +10,15 @@ const VectorGetResponseSchema = z.object({
 	metadata: z.record(z.string(), z.unknown()).optional().describe('Vector metadata'),
 	document: z.string().optional().describe('Original document text'),
 	similarity: z.number().optional().describe('Similarity score'),
+	expiresAt: z.string().optional().describe('Expiration time as ISO 8601 timestamp'),
 });
 
 export const getSubcommand = createCommand({
 	name: 'get',
 	description: 'Get a specific vector entry by key',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	idempotent: true,
 	examples: [
 		{
@@ -78,6 +80,10 @@ export const getSubcommand = createCommand({
 				if (data.embeddings) {
 					tui.info(`  Embeddings: [${data.embeddings.length} dimensions]`);
 				}
+
+				if (data.expiresAt) {
+					tui.info(`  Expires: ${new Date(data.expiresAt).toLocaleString()}`);
+				}
 			} else {
 				tui.warning(`Vector "${tui.bold(args.key)}" not found in ${tui.bold(args.namespace)}`);
 			}
@@ -91,6 +97,7 @@ export const getSubcommand = createCommand({
 				metadata: result.data.metadata,
 				document: result.data.document,
 				similarity: result.data.similarity,
+				expiresAt: result.data.expiresAt,
 			};
 		}
 

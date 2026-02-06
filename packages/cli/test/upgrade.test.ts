@@ -1,38 +1,25 @@
-import { describe, test, expect } from 'bun:test';
-import { isRunningFromExecutable, getPlatformInfo, PermissionError } from '../src/cmd/upgrade';
+import { describe, test, expect, afterEach } from 'bun:test';
+import { mockFetch } from '@agentuity/test-utils';
+import { getInstallationType, isGlobalInstall } from '../src/cmd/upgrade';
+import {
+	isVersionAvailableOnNpm,
+	isVersionAvailableOnNpmQuick,
+	waitForNpmAvailability,
+} from '../src/cmd/upgrade/npm-availability';
 
 describe('upgrade command', () => {
-	test('isRunningFromExecutable returns false when running from bun script', () => {
-		const result = isRunningFromExecutable();
+	test('getInstallationType returns source when running from test', () => {
+		const result = getInstallationType();
+		expect(typeof result).toBe('string');
+		// When running tests from source, should return 'source'
+		expect(result).toBe('source');
+	});
+
+	test('isGlobalInstall returns false when running from source', () => {
+		const result = isGlobalInstall();
 		expect(typeof result).toBe('boolean');
 		expect(result).toBe(false);
 	});
-
-	test('getPlatformInfo returns valid platform info', () => {
-		const platform = getPlatformInfo();
-		expect(platform).toHaveProperty('os');
-		expect(platform).toHaveProperty('arch');
-		expect(['darwin', 'linux']).toContain(platform.os);
-		expect(['x64', 'arm64']).toContain(platform.arch);
-	});
-
-	test.skipIf(process.platform !== 'darwin' || process.arch !== 'arm64')(
-		'getPlatformInfo returns darwin arm64',
-		() => {
-			const platform = getPlatformInfo();
-			expect(platform.os).toBe('darwin');
-			expect(platform.arch).toBe('arm64');
-		}
-	);
-
-	test.skipIf(process.platform !== 'linux' || process.arch !== 'x64')(
-		'getPlatformInfo returns linux x64',
-		() => {
-			const platform = getPlatformInfo();
-			expect(platform.os).toBe('linux');
-			expect(platform.arch).toBe('x64');
-		}
-	);
 
 	test('should validate version format', () => {
 		const validVersions = ['v1.2.3', '1.2.3', 'v0.0.1', '10.20.30'];
@@ -90,33 +77,45 @@ describe('upgrade command', () => {
 		}
 	});
 
-	test('should construct correct download URL', () => {
-		const version = 'v1.2.3';
-		const os = 'darwin';
-		const arch = 'arm64';
-		const url = `https://agentuity.sh/release/sdk/${version}/${os}/${arch}`;
+	describe('npm availability integration', () => {
+		const originalFetch = globalThis.fetch;
 
-		expect(url).toBe('https://agentuity.sh/release/sdk/v1.2.3/darwin/arm64');
-	});
-
-	test('PermissionError has correct properties', () => {
-		const error = new PermissionError({
-			binaryPath: '/usr/local/bin/agentuity',
-			reason: 'Cannot write to file',
-			message: 'Permission denied: Cannot write to file',
+		afterEach(() => {
+			globalThis.fetch = originalFetch;
 		});
-		expect(error.name).toBe('PermissionError');
-		expect(error.binaryPath).toBe('/usr/local/bin/agentuity');
-		expect(error.reason).toBe('Cannot write to file');
-		expect(error.message).toBe('Permission denied: Cannot write to file');
-	});
 
-	test('PermissionError is an instance of Error', () => {
-		const error = new PermissionError({
-			binaryPath: '/usr/local/bin/agentuity',
-			reason: 'test',
+		test('isVersionAvailableOnNpm is exported and callable', async () => {
+			mockFetch(async () => new Response(null, { status: 200 }));
+
+			const result = await isVersionAvailableOnNpm('1.0.0');
+			expect(typeof result).toBe('boolean');
+			expect(result).toBe(true);
 		});
-		expect(error instanceof Error).toBe(true);
-		expect(error instanceof PermissionError).toBe(true);
+
+		test('waitForNpmAvailability is exported and callable', async () => {
+			mockFetch(async () => new Response(null, { status: 200 }));
+
+			const result = await waitForNpmAvailability('1.0.0', {
+				maxAttempts: 1,
+				initialDelayMs: 1,
+			});
+			expect(typeof result).toBe('boolean');
+			expect(result).toBe(true);
+		});
+
+		test('npm availability check handles unavailable versions gracefully', async () => {
+			mockFetch(async () => new Response(null, { status: 404 }));
+
+			const result = await isVersionAvailableOnNpm('99.99.99');
+			expect(result).toBe(false);
+		});
+
+		test('isVersionAvailableOnNpmQuick is exported for implicit version checks', async () => {
+			mockFetch(async () => new Response(null, { status: 200 }));
+
+			const result = await isVersionAvailableOnNpmQuick('1.0.0');
+			expect(typeof result).toBe('boolean');
+			expect(result).toBe(true);
+		});
 	});
 });

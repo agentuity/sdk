@@ -92,7 +92,7 @@ export class RichError extends Error {
 	}
 
 	/** Return the cause (if any) */
-	get cause(): unknown | undefined {
+	override get cause(): unknown | undefined {
 		return this[_causeSym];
 	}
 
@@ -119,7 +119,8 @@ export class RichError extends Error {
 				if (stackLines.length > 0) {
 					// indent stack
 					let s = stackLines.map((s) => spacer + spacer + s.trim());
-					if (s[s.length - 1].includes('processTicksAndRejections')) {
+					const lastLine = s[s.length - 1];
+					if (lastLine && lastLine.includes('processTicksAndRejections')) {
 						s = s.slice(0, s.length - 1);
 					}
 					lines.push(...s);
@@ -203,7 +204,7 @@ export class RichError extends Error {
 		return output;
 	}
 
-	toString(): string {
+	override toString(): string {
 		// default to pretty print with small indent
 		return this.prettyPrint(2);
 	}

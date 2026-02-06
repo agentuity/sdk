@@ -1,4 +1,4 @@
-import type { AgentRole } from '../types';
+import type { AgentRole, ReasoningEffort, ThinkingConfig } from '../types';
 
 export interface AgentDefinition {
 	/** Internal role key for config lookup */
@@ -11,6 +11,12 @@ export interface AgentDefinition {
 	systemPrompt: string;
 	/** Agent mode: 'primary', 'subagent', or 'all' (default) */
 	mode?: 'primary' | 'subagent' | 'all';
+	/**
+	 * Hide agent from @ autocomplete menu.
+	 * Agent can still be invoked programmatically via Task tool.
+	 * Only applies to subagents.
+	 */
+	hidden?: boolean;
 	tools?: {
 		include?: string[];
 		exclude?: string[];
@@ -21,6 +27,10 @@ export interface AgentDefinition {
 	temperature?: number;
 	/** Maximum agentic steps before forcing text response */
 	maxSteps?: number;
+	/** Reasoning effort for OpenAI models */
+	reasoningEffort?: ReasoningEffort;
+	/** Extended thinking configuration for Anthropic models */
+	thinking?: ThinkingConfig;
 }
 
 export interface AgentRegistry {

@@ -2,19 +2,19 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { SessionResponseError } from './util';
 
-const _SessionLogsRequestSchema = z.object({
+export const _SessionLogsRequestSchema = z.object({
 	id: z.string().describe('the session id'),
 });
 
-const LogSchema = z.object({
+export const LogSchema = z.object({
 	body: z.string().describe('the log body'),
 	severity: z.string().describe('the log severity'),
 	timestamp: z.string().describe('the log timestamp'),
 });
 
-const SessionLogsResponse = z.array(LogSchema);
+export const SessionLogsResponse = z.array(LogSchema);
 
-const SessionLogsResponseSchema = APIResponseSchema(SessionLogsResponse);
+export const SessionLogsResponseSchema = APIResponseSchema(SessionLogsResponse);
 
 type SessionLogsRequest = z.infer<typeof _SessionLogsRequestSchema>;
 type SessionLogsResponse = z.infer<typeof SessionLogsResponseSchema>;

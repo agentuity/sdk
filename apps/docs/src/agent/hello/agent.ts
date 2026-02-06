@@ -10,7 +10,7 @@
  * - schema.input/output define the contract (uses @agentuity/schema, Zod, etc.)
  * - handler receives typed input and returns typed output
  *
- * Docs: https://preview.agentuity.dev/v1/Build/Agents/creating-agents
+ * Docs: https://agentuity.dev/Agents/creating-agents
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

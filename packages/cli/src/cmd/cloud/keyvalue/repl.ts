@@ -11,7 +11,7 @@ export const replSubcommand = createCommand({
 	description: 'Start an interactive repl for working with keyvalue database',
 	tags: ['slow', 'requires-auth'],
 	idempotent: false,
-	requires: { auth: true },
+	requires: { auth: true, region: true },
 	optional: { project: true },
 	examples: [{ command: getCommand('kv repl'), description: 'Start interactive KV session' }],
 
@@ -37,7 +37,12 @@ export const replSubcommand = createCommand({
 						z.string().min(1),
 						z.string().min(1),
 						z.string().min(1),
-						z.coerce.number().min(60).optional(),
+						z.coerce
+							.number()
+							.refine((val) => val >= 0, {
+								message: 'TTL must be a non-negative number of seconds',
+							})
+							.optional(),
 					]),
 					argNames: ['namespace', 'key', 'value', 'ttl'],
 				},

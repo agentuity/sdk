@@ -11,6 +11,7 @@ import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
 import { beaconPlugin } from './beacon-plugin';
+import { publicAssetPathPlugin } from './public-asset-path-plugin';
 import type { BuildReportCollector } from '../../../build-report';
 
 /**
@@ -62,6 +63,8 @@ export interface ViteBuildOptions {
 	deploymentOptions?: DeployOptions;
 	/** Optional collector for structured error reporting */
 	collector?: BuildReportCollector;
+	/** Optional config profile name (e.g., 'staging', 'test') for .env.{profile} files */
+	profile?: string;
 }
 
 /**
@@ -69,7 +72,15 @@ export interface ViteBuildOptions {
  * Uses inline Vite config (customizable via agentuity.config.ts)
  */
 export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
-	const { rootDir, mode, dev = false, projectId = '', deploymentId = '', logger } = options;
+	const {
+		rootDir,
+		mode,
+		dev = false,
+		projectId = '',
+		deploymentId = '',
+		logger,
+		profile,
+	} = options;
 
 	logger.debug(`Running Vite build for mode: ${mode}`);
 
@@ -91,6 +102,16 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		// Generate lifecycle types (if setup() exists)
 		const { generateLifecycleTypes } = await import('./lifecycle-generator');
 		await generateLifecycleTypes(rootDir, srcDir, logger);
+
+		// Generate environment types from local .env files
+		const { generateEnvTypes } = await import('./env-types-generator');
+		await generateEnvTypes({
+			rootDir,
+			srcDir,
+			logger,
+			isProduction: !dev,
+			profile,
+		});
 
 		// Load workbench config for entry file generation
 		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
@@ -148,11 +169,22 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			analyticsEnabled = false,
 		} = options;
 
+		// Determine CDN base URL for production builds
+		// Use CDN for all non-dev builds with a deploymentId (including local region)
+		const isLocalRegion = options.region === 'local';
+		const cdnDomain = isLocalRegion
+			? 'localstack-static-assets.t3.storageapi.dev'
+			: 'cdn.agentuity.com';
+		const cdnBaseUrl =
+			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
+
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
 		const plugins = [
 			react(),
 			browserEnvPlugin(),
+			// Fix incorrect public asset paths and rewrite to CDN URLs
+			publicAssetPathPlugin({ cdnBaseUrl }),
 			flattenHtmlOutputPlugin(clientOutDir),
 			// Emit analytics beacon as hashed CDN asset (prod builds only)
 			beaconPlugin({ enabled: analyticsEnabled && !dev }),
@@ -173,15 +205,6 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				Object.keys(userDefine).length
 			);
 		}
-
-		// Determine CDN base URL for production builds
-		// Use CDN for all non-dev builds with a deploymentId (including local region)
-		const isLocalRegion = options.region === 'local';
-		const cdnDomain = isLocalRegion
-			? 'localstack-static-assets.t3.storage.dev'
-			: 'cdn.agentuity.com';
-		const cdnBaseUrl =
-			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
 
 		viteConfig = {
 			// Use project root as Vite root so plugins (e.g., TanStack Router) resolve paths
@@ -207,8 +230,9 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				},
 				manifest: true,
 				emptyOutDir: true,
-				// Disable copying public files - Vite already includes them in assets with hashing
-				copyPublicDir: false,
+				// Copy public files to output for CDN upload (production builds only)
+				// In dev mode, Vite serves them directly from src/web/public/
+				copyPublicDir: !dev,
 			},
 			logLevel: 'warn',
 		};

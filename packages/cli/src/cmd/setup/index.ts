@@ -37,9 +37,16 @@ export const command = createCommand({
 						message: 'Validating your identity',
 						clearOnSuccess: true,
 						callback: async () => {
-							const newargs = process.argv.map((x) => (x === 'setup' ? 'login' : x));
+							// Re-run the CLI with 'login' instead of 'setup'
+							// Only replace the first occurrence of 'setup' to avoid replacing user data
+							const argv = process.argv;
+							const setupIndex = argv.indexOf('setup');
+							const cmd =
+								setupIndex >= 0
+									? [...argv.slice(0, setupIndex), 'login', ...argv.slice(setupIndex + 1)]
+									: argv;
 							const r = Bun.spawn({
-								cmd: newargs.concat('--json'),
+								cmd: cmd.concat('--json'),
 								stdout: 'pipe',
 								stderr: 'inherit',
 							});

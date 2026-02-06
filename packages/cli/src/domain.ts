@@ -79,8 +79,9 @@ async function fetchDNSRecord(name: string, type: string): Promise<string | null
 	});
 	if (res.ok) {
 		const result = (await res.json()) as CFRecord;
-		if (result?.Answer?.length) {
-			return result.Answer[0].data.replace(/\.$/, ''); // DNS records end with . so we remove that
+		const firstAnswer = result?.Answer?.[0];
+		if (firstAnswer) {
+			return firstAnswer.data.replace(/\.$/, ''); // DNS records end with . so we remove that
 		}
 	}
 	return null;
@@ -104,7 +105,7 @@ export async function checkCustomDomainForDNS(
 	config?: Config | null
 ): Promise<DNSResult[]> {
 	const suffix = config?.overrides?.api_url?.includes('agentuity.io') ? LOCAL_DNS : PRODUCTION_DNS;
-	const id = Bun.hash.xxHash64(projectId).toString(16);
+	const id = Bun.hash.xxHash64(projectId).toString(16).padStart(16, '0');
 	const proxy = `p${id}.${suffix}`;
 
 	return Promise.all(

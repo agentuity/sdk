@@ -40,7 +40,7 @@ export function updateStatusBar(): void {
 	} else if (linked.length === 1) {
 		const sandbox = linked[0];
 		const name = sandbox.name || sandbox.sandboxId.slice(0, 8);
-		const runtime = sandbox.runtimeName ?? sandbox.runtimeId ?? 'bun:1';
+		const runtime = sandbox.runtime?.name ?? sandbox.runtime?.id ?? 'bun:1';
 		statusBarItem.text = `$(vm) ${name}`;
 
 		const tooltipLines = [
@@ -137,7 +137,7 @@ async function showSandboxQuickPick(): Promise<void> {
 
 		for (const sandbox of linked) {
 			const name = sandbox.name || sandbox.sandboxId.slice(0, 8);
-			const runtime = sandbox.runtimeName ?? sandbox.runtimeId ?? 'bun:1';
+			const runtime = sandbox.runtime?.name ?? sandbox.runtime?.id ?? 'bun:1';
 			items.push({
 				label: `$(vm) ${name}`,
 				description: `${runtime} · ${sandbox.sandboxId.slice(0, 8)}`,

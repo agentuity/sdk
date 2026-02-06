@@ -11,6 +11,11 @@ import type { LogLevel } from '../../types';
 import { existsSync, mkdirSync } from 'node:fs';
 import JSON5 from 'json5';
 import { formatSchemaCode } from './format-schema';
+import {
+	computeApiMountPath,
+	joinMountAndRoute,
+	extractRelativeApiPath,
+} from './vite/api-mount-path';
 
 const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel);
 
@@ -136,6 +141,9 @@ export function getDevmodeDeploymentId(projectId: string, endpointId: string): s
 	return `devmode_${hashSHA1(projectId, endpointId)}`;
 }
 
+// getAgentId generates the deployment-specific agent ID (becomes database PK agent.id)
+// This ID changes with each deployment and uses the agentid_ prefix
+// Hash includes deploymentId so it's unique per deployment
 function getAgentId(
 	projectId: string,
 	deploymentId: string,
@@ -167,6 +175,9 @@ function generateRouteId(
 	return `route_${hashSHA1(projectId, deploymentId, type, method, filename, path, version)}`;
 }
 
+// generateStableAgentId generates the stable identifier (becomes database agent.identifier)
+// This uses the agent_ prefix and is the same across all deployments
+// Hash only includes projectId + name, no deploymentId
 function generateStableAgentId(projectId: string, name: string): string {
 	return `agent_${hashSHA1(projectId, name)}`.substring(0, 64);
 }
@@ -1236,6 +1247,60 @@ function extractZValidatorSchema(callExpr: ASTCallExpression): {
 }
 
 /**
+ * Extract output schema from SSE options object.
+ * Example: sse({ output: MySchema }, handler)
+ *
+ * @param callExpr - The SSE CallExpression AST node
+ * @returns Object with outputSchemaVariable if found
+ */
+function extractSSEOutputSchema(callExpr: ASTCallExpression): {
+	outputSchemaVariable?: string;
+} {
+	const result: { outputSchemaVariable?: string } = {};
+
+	// sse() can be called as:
+	// 1. sse(handler) - no schema
+	// 2. sse({ output: schema }, handler) - with schema
+	if (!callExpr.arguments || callExpr.arguments.length === 0) {
+		return result;
+	}
+
+	// Check if first argument is an options object with 'output' property
+	const firstArg = callExpr.arguments[0] as ASTNode;
+	if (firstArg.type !== 'ObjectExpression') {
+		// First argument is handler function, no options
+		return result;
+	}
+
+	const objExpr = firstArg as ASTObjectExpression;
+	for (const prop of objExpr.properties) {
+		// Skip SpreadElement entries (e.g., { ...obj }) which don't have key/value
+		if ((prop as ASTNode).type !== 'Property') {
+			continue;
+		}
+
+		// Extract key name - could be Identifier or Literal
+		let keyName: string | undefined;
+		const propKey = prop.key as { type: string; name?: string; value?: unknown };
+		if (propKey.type === 'Identifier') {
+			keyName = propKey.name;
+		} else if (propKey.type === 'Literal') {
+			keyName = String(propKey.value);
+		}
+
+		if (!keyName) continue;
+
+		// Look for the 'output' property
+		if (keyName === 'output' && prop.value.type === 'Identifier') {
+			result.outputSchemaVariable = (prop.value as ASTNodeIdentifier).name;
+			break;
+		}
+	}
+
+	return result;
+}
+
+/**
  * Extract schema from Hono validator('json', callback) pattern
  * Example: validator('json', (value, c) => { const result = mySchema['~standard'].validate(value); ... })
  * Searches the callback function body for schema.validate() or schema['~standard'].validate() calls
@@ -1362,8 +1427,16 @@ export async function parseRoute(
 	let exportName: string | undefined;
 	let variableName: string | undefined;
 
+	// Import info structure for tracking where identifiers come from
+	interface ImportInfo {
+		modulePath: string;
+		importedName: string; // The exported name from the source module
+		importKind: 'named' | 'default';
+	}
+
 	// Extract import statements to map variable names to their import sources
-	const importMap = new Map<string, string>(); // Maps variable name to import path
+	const importMap = new Map<string, string>(); // Maps variable name to import path (for backwards compat)
+	const importInfoMap = new Map<string, ImportInfo>(); // Maps variable name to full import info
 	for (const body of ast.body) {
 		if (body.type === 'ImportDeclaration') {
 			const importDecl = body as {
@@ -1371,6 +1444,7 @@ export async function parseRoute(
 				specifiers?: Array<{
 					type: string;
 					local?: { name?: string };
+					imported?: { name?: string }; // For named imports: the exported name
 				}>;
 			};
 			const importPath = importDecl.source?.value;
@@ -1379,9 +1453,20 @@ export async function parseRoute(
 					if (spec.type === 'ImportDefaultSpecifier' && spec.local?.name) {
 						// import hello from '@agent/hello'
 						importMap.set(spec.local.name, importPath);
+						importInfoMap.set(spec.local.name, {
+							modulePath: importPath,
+							importedName: 'default',
+							importKind: 'default',
+						});
 					} else if (spec.type === 'ImportSpecifier' && spec.local?.name) {
-						// import { hello } from './shared'
+						// import { hello } from './shared' or import { hello as h } from './shared'
+						const importedName = spec.imported?.name ?? spec.local.name;
 						importMap.set(spec.local.name, importPath);
+						importInfoMap.set(spec.local.name, {
+							modulePath: importPath,
+							importedName,
+							importKind: 'named',
+						});
 					}
 				}
 			}
@@ -1472,26 +1557,18 @@ export async function parseRoute(
 
 	const rel = relative(rootDir, filename);
 
-	// For src/api/index.ts, we don't want to add the folder name since it's the root API router
-	const isRootApi = filename.includes('src/api/index.ts');
-
-	// For nested routes, use the full path from src/api/ instead of just the immediate parent
-	// e.g., src/api/v1/users/route.ts -> routeName = "v1/users"
-	//       src/api/auth/route.ts -> routeName = "auth"
-	//       src/api/test.ts -> routeName = "" (file directly in src/api/)
-	let routeName = '';
-	if (!isRootApi) {
-		const apiMatch = filename.match(/src\/api\/(.+?)\/[^/]+\.ts$/);
-		if (apiMatch) {
-			// File in subdirectory: src/api/auth/route.ts -> "auth"
-			routeName = apiMatch[1];
-		}
-		// For files directly in src/api/ (e.g., test.ts), routeName stays empty
-		// This prevents double /api prefix since these files often define full paths
-	}
+	// Compute the API mount path using the shared helper
+	// This ensures consistency between route type generation (here) and runtime mounting (entry-generator.ts)
+	// Examples:
+	//   src/api/index.ts           -> basePath = '/api'
+	//   src/api/sessions.ts        -> basePath = '/api/sessions'
+	//   src/api/auth/route.ts      -> basePath = '/api/auth'
+	//   src/api/users/profile/route.ts -> basePath = '/api/users/profile'
+	const srcDir = join(rootDir, 'src');
+	const relativeApiPath = extractRelativeApiPath(filename, srcDir);
+	const basePath = computeApiMountPath(relativeApiPath);
 
 	const routes: RouteDefinition = [];
-	const routePrefix = '/api';
 
 	try {
 		for (const body of ast.body) {
@@ -1520,6 +1597,8 @@ export async function parseRoute(
 						const action = statement.expression.arguments[0];
 						let suffix = '';
 						let config: Record<string, unknown> | undefined;
+						// Capture SSE call expression for output schema extraction
+						let sseCallExpr: ASTCallExpression | undefined;
 						// Supported HTTP methods that can be represented in BuildMetadata
 						const SUPPORTED_HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch'] as const;
 						type SupportedHttpMethod = (typeof SUPPORTED_HTTP_METHODS)[number];
@@ -1573,9 +1652,7 @@ export async function parseRoute(
 
 								// Create a route entry for each method
 								for (const httpMethod of methods) {
-									const thepath = `${routePrefix}/${routeName}/${pathSuffix}`
-										.replaceAll(/\/{2,}/g, '/')
-										.replaceAll(/\/$/g, '');
+									const thepath = joinMountAndRoute(basePath, pathSuffix);
 									const id = generateRouteId(
 										projectId,
 										deploymentId,
@@ -1620,10 +1697,29 @@ export async function parseRoute(
 										if (validatorInfo.inputSchemaVariable) {
 											routeConfig.inputSchemaVariable =
 												validatorInfo.inputSchemaVariable;
+											// Track where the schema is imported from (if imported)
+											const inputImportInfo = importInfoMap.get(
+												validatorInfo.inputSchemaVariable
+											);
+											if (inputImportInfo) {
+												routeConfig.inputSchemaImportPath = inputImportInfo.modulePath;
+												routeConfig.inputSchemaImportedName =
+													inputImportInfo.importedName;
+											}
 										}
 										if (validatorInfo.outputSchemaVariable) {
 											routeConfig.outputSchemaVariable =
 												validatorInfo.outputSchemaVariable;
+											// Track where the schema is imported from (if imported)
+											const outputImportInfo = importInfoMap.get(
+												validatorInfo.outputSchemaVariable
+											);
+											if (outputImportInfo) {
+												routeConfig.outputSchemaImportPath =
+													outputImportInfo.modulePath;
+												routeConfig.outputSchemaImportedName =
+													outputImportInfo.importedName;
+											}
 										}
 										if (validatorInfo.stream !== undefined) {
 											routeConfig.stream = validatorInfo.stream;
@@ -1653,9 +1749,7 @@ export async function parseRoute(
 
 								// Create a route entry for each supported method
 								for (const httpMethod of SUPPORTED_HTTP_METHODS) {
-									const thepath = `${routePrefix}/${routeName}/${pathSuffix}`
-										.replaceAll(/\/{2,}/g, '/')
-										.replaceAll(/\/$/g, '');
+									const thepath = joinMountAndRoute(basePath, pathSuffix);
 									const id = generateRouteId(
 										projectId,
 										deploymentId,
@@ -1700,10 +1794,29 @@ export async function parseRoute(
 										if (validatorInfo.inputSchemaVariable) {
 											routeConfig.inputSchemaVariable =
 												validatorInfo.inputSchemaVariable;
+											// Track where the schema is imported from (if imported)
+											const inputImportInfo = importInfoMap.get(
+												validatorInfo.inputSchemaVariable
+											);
+											if (inputImportInfo) {
+												routeConfig.inputSchemaImportPath = inputImportInfo.modulePath;
+												routeConfig.inputSchemaImportedName =
+													inputImportInfo.importedName;
+											}
 										}
 										if (validatorInfo.outputSchemaVariable) {
 											routeConfig.outputSchemaVariable =
 												validatorInfo.outputSchemaVariable;
+											// Track where the schema is imported from (if imported)
+											const outputImportInfo = importInfoMap.get(
+												validatorInfo.outputSchemaVariable
+											);
+											if (outputImportInfo) {
+												routeConfig.outputSchemaImportPath =
+													outputImportInfo.modulePath;
+												routeConfig.outputSchemaImportedName =
+													outputImportInfo.importedName;
+											}
 										}
 										if (validatorInfo.stream !== undefined) {
 											routeConfig.stream = validatorInfo.stream;
@@ -1747,6 +1860,10 @@ export async function parseRoute(
 												calleeName === 'stream'
 											) {
 												type = calleeName;
+												// Capture SSE call expression for output schema extraction
+												if (calleeName === 'sse') {
+													sseCallExpr = callExpr;
+												}
 												break;
 											}
 											if (calleeName === 'cron') {
@@ -1830,9 +1947,7 @@ export async function parseRoute(
 								});
 							}
 						}
-						const thepath = `${routePrefix}/${routeName}/${suffix}`
-							.replaceAll(/\/{2,}/g, '/')
-							.replaceAll(/\/$/g, '');
+						const thepath = joinMountAndRoute(basePath, suffix);
 						const id = generateRouteId(
 							projectId,
 							deploymentId,
@@ -1879,12 +1994,65 @@ export async function parseRoute(
 							);
 							if (validatorInfo.inputSchemaVariable) {
 								routeConfig.inputSchemaVariable = validatorInfo.inputSchemaVariable;
+								// Track where the schema is imported from (if imported)
+								const inputImportInfo = importInfoMap.get(
+									validatorInfo.inputSchemaVariable
+								);
+								if (inputImportInfo) {
+									routeConfig.inputSchemaImportPath = inputImportInfo.modulePath;
+									routeConfig.inputSchemaImportedName = inputImportInfo.importedName;
+								}
 							}
 							if (validatorInfo.outputSchemaVariable) {
 								routeConfig.outputSchemaVariable = validatorInfo.outputSchemaVariable;
+								// Track where the schema is imported from (if imported)
+								const outputImportInfo = importInfoMap.get(
+									validatorInfo.outputSchemaVariable
+								);
+								if (outputImportInfo) {
+									routeConfig.outputSchemaImportPath = outputImportInfo.modulePath;
+									routeConfig.outputSchemaImportedName = outputImportInfo.importedName;
+								}
 							}
 							if (validatorInfo.stream !== undefined) {
 								routeConfig.stream = validatorInfo.stream;
+							}
+						}
+
+						// Extract output schema from SSE options: sse({ output: schema }, handler)
+						// For SSE routes, the sse({ output }) pattern takes precedence over any
+						// validator-provided schema. Imported schemas need not be exported, but
+						// locally-defined schemas must be exported and are validated below.
+						if (sseCallExpr) {
+							const sseSchemaInfo = extractSSEOutputSchema(sseCallExpr);
+							if (sseSchemaInfo.outputSchemaVariable) {
+								// Track where the schema is imported from (if imported)
+								const outputImportInfo = importInfoMap.get(
+									sseSchemaInfo.outputSchemaVariable
+								);
+								// Validate that locally-defined schemas are exported
+								// (skip validation if schema is imported from another module)
+								if (!outputImportInfo) {
+									validateSchemaExports(
+										sseSchemaInfo.outputSchemaVariable,
+										'output',
+										importedNames,
+										exportedNames,
+										rel,
+										method,
+										thepath
+									);
+								}
+								// Override any validator-provided schema with SSE-specific schema
+								routeConfig.outputSchemaVariable = sseSchemaInfo.outputSchemaVariable;
+								if (outputImportInfo) {
+									routeConfig.outputSchemaImportPath = outputImportInfo.modulePath;
+									routeConfig.outputSchemaImportedName = outputImportInfo.importedName;
+								} else {
+									// Clear any validator-provided import info since we're using local schema
+									delete routeConfig.outputSchemaImportPath;
+									delete routeConfig.outputSchemaImportedName;
+								}
 							}
 						}
 
@@ -1894,9 +2062,21 @@ export async function parseRoute(
 						// which is useful when using zValidator (input-only) but needing typed outputs
 						if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
 							routeConfig.inputSchemaVariable = exportedInputSchemaName;
+							// Check if exported schema name is also imported
+							const inputImportInfo = importInfoMap.get(exportedInputSchemaName);
+							if (inputImportInfo) {
+								routeConfig.inputSchemaImportPath = inputImportInfo.modulePath;
+								routeConfig.inputSchemaImportedName = inputImportInfo.importedName;
+							}
 						}
 						if (!routeConfig.outputSchemaVariable && exportedOutputSchemaName) {
 							routeConfig.outputSchemaVariable = exportedOutputSchemaName;
+							// Check if exported schema name is also imported
+							const outputImportInfo = importInfoMap.get(exportedOutputSchemaName);
+							if (outputImportInfo) {
+								routeConfig.outputSchemaImportPath = outputImportInfo.modulePath;
+								routeConfig.outputSchemaImportedName = outputImportInfo.importedName;
+							}
 						}
 
 						routes.push({
@@ -1996,8 +2176,9 @@ export function checkRouteConflicts(content: string, workbenchEndpoint: string):
 				node.expression.name.text === 'get'
 			) {
 				// Check if first argument is the workbench endpoint
-				if (node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0])) {
-					if (node.arguments[0].text === workbenchEndpoint) {
+				const firstArg = node.arguments[0];
+				if (node.arguments.length > 0 && firstArg && ts.isStringLiteral(firstArg)) {
+					if (firstArg.text === workbenchEndpoint) {
 						hasConflict = true;
 					}
 				}
@@ -2052,8 +2233,8 @@ export function extractAppStateType(content: string): string | null {
 
 			if (callExpr) {
 				// Check if it has a config object argument
-				if (callExpr.arguments.length > 0) {
-					const configArg = callExpr.arguments[0];
+				const configArg = callExpr.arguments[0];
+				if (callExpr.arguments.length > 0 && configArg) {
 					if (ts.isObjectLiteralExpression(configArg)) {
 						// Find setup property
 						for (const prop of configArg.properties) {
@@ -2554,9 +2735,9 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 				if (ts.isIdentifier(node.name)) {
 					// Extract configuration from the first argument (if any)
 					let varConfig: WorkbenchConfig;
-					if (node.initializer.arguments.length > 0) {
-						const configArg = node.initializer.arguments[0];
-						varConfig = parseConfigObject(configArg) || { route: '/workbench' };
+					const firstInitArg = node.initializer.arguments[0];
+					if (node.initializer.arguments.length > 0 && firstInitArg) {
+						varConfig = parseConfigObject(firstInitArg) || { route: '/workbench' };
 					} else {
 						// Default config if no arguments provided
 						varConfig = { route: '/workbench' };
@@ -2572,10 +2753,10 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 				node.expression.text === 'createApp' &&
 				node.arguments.length > 0
 			) {
-				const configArg = node.arguments[0];
-				if (ts.isObjectLiteralExpression(configArg)) {
+				const createAppConfigArg = node.arguments[0];
+				if (createAppConfigArg && ts.isObjectLiteralExpression(createAppConfigArg)) {
 					// Find the services property
-					for (const prop of configArg.properties) {
+					for (const prop of createAppConfigArg.properties) {
 						if (
 							ts.isPropertyAssignment(prop) &&
 							ts.isIdentifier(prop.name) &&
@@ -2657,9 +2838,9 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 						node.expression.text === 'createApp' &&
 						node.arguments.length > 0
 					) {
-						const configArg = node.arguments[0];
-						if (ts.isObjectLiteralExpression(configArg)) {
-							for (const prop of configArg.properties) {
+						const checkConfigArg = node.arguments[0];
+						if (checkConfigArg && ts.isObjectLiteralExpression(checkConfigArg)) {
+							for (const prop of checkConfigArg.properties) {
 								if (
 									ts.isPropertyAssignment(prop) &&
 									ts.isIdentifier(prop.name) &&

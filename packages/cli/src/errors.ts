@@ -14,6 +14,7 @@ export enum ExitCode {
 	FILE_ERROR = 7,
 	USER_CANCELLED = 8,
 	BUILD_FAILED = 9,
+	SECURITY_ERROR = 10,
 }
 
 /**
@@ -75,6 +76,15 @@ export enum ErrorCode {
 
 	// Integration errors
 	INTEGRATION_FAILED = 'INTEGRATION_FAILED',
+
+	// Security errors
+	MALWARE_DETECTED = 'MALWARE_DETECTED',
+
+	// Upgrade of the software is required to continue
+	UPGRADE_REQUIRED = 'UPGRADE_REQUIRED',
+
+	// Payment required - user needs to upgrade their plan
+	PAYMENT_REQUIRED = 'PAYMENT_REQUIRED',
 }
 
 /**
@@ -136,6 +146,14 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 		case ErrorCode.INTEGRATION_FAILED:
 			return ExitCode.NETWORK_ERROR;
 
+		// Security errors
+		case ErrorCode.MALWARE_DETECTED:
+			return ExitCode.SECURITY_ERROR;
+
+		// Payment required - user needs to upgrade their plan
+		case ErrorCode.PAYMENT_REQUIRED:
+			return ExitCode.GENERAL_ERROR;
+
 		// Resource conflicts and other errors
 		case ErrorCode.RESOURCE_ALREADY_EXISTS:
 		case ErrorCode.RESOURCE_CONFLICT:
@@ -144,6 +162,7 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 		case ErrorCode.RUNTIME_ERROR:
 		case ErrorCode.INTERNAL_ERROR:
 		case ErrorCode.NOT_IMPLEMENTED:
+		case ErrorCode.UPGRADE_REQUIRED:
 		default:
 			return ExitCode.GENERAL_ERROR;
 	}

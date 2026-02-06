@@ -6,21 +6,37 @@ This folder contains AI agents for your Agentuity application. Each agent is org
 
 Each agent folder must contain:
 
-- **agent.ts** (required) - Agent definition with metadata, schema, and handler
-- **route.ts** (optional) - HTTP routes for the agent endpoint
+- **agent.ts** (required) - Agent definition with schema and handler
+
+Optional supporting files:
+
+- **lib.ts**, **types.ts**, **prompts.ts** - Helper modules
+- **sample-data.json** - Sample data for the agent
+- **context.txt** - Context documents for LLM
 
 Example structure:
 
-```
+```text
 src/agent/
 ├── hello/
+│   └── agent.ts
+├── chat/
 │   ├── agent.ts
-│   └── route.ts
-├── process-data/
+│   └── agentuity-context.txt
+├── model-arena/
 │   ├── agent.ts
-│   └── route.ts
-└── registry.generated.ts (auto-generated)
+│   ├── lib.ts
+│   ├── types.ts
+│   └── prompts.ts
+├── vector/
+│   ├── agent.ts
+│   └── sample-products.json
+└── evals/
+    ├── agent.ts
+    └── eval.ts
 ```
+
+**Note:** HTTP routes are in `src/api/`, not in agent folders.
 
 ## Creating an Agent
 
@@ -30,128 +46,147 @@ src/agent/
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const agent = createAgent({
-	metadata: {
-		name: 'My Agent',
-		description: 'What this agent does',
-	},
+const agent = createAgent('hello', {
+	description: 'Simple greeting agent',
 	schema: {
 		input: s.object({
 			name: s.string(),
-			age: s.number(),
 		}),
 		output: s.string(),
 	},
-	handler: async (c, input) => {
-		// Access context: c.app, c.config, c.logger, c.kv, c.vector, c.stream
-		return `Hello, ${input.name}! You are ${input.age} years old.`;
+	handler: async (ctx, { name }) => {
+		ctx.logger.info('Greeting', { name });
+		return `Hello, ${name}!`;
 	},
 });
 
 export default agent;
 ```
 
-### Agent with Lifecycle (setup/shutdown)
+The first argument is the agent name, followed by the configuration object.
+
+### Agent with LLM Integration
 
 ```typescript
-import { createAgent, type AppState } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
+import { generateText } from 'ai';
+import { google } from '@ai-sdk/google';
 
-const agent = createAgent({
-	metadata: {
-		name: 'Lifecycle Agent',
-		description: 'Agent with setup and shutdown',
-	},
+const agent = createAgent('chat', {
+	description: 'Conversational agent with AI responses',
 	schema: {
 		input: s.object({ message: s.string() }),
-		output: s.object({ result: s.string() }),
+		output: s.string(),
 	},
-	setup: async (app: AppState) => {
-		// Initialize resources (runs once on startup)
-		console.log('Setting up agent for app:', app.appName);
+	handler: async (ctx, { message }) => {
+		const { text } = await generateText({
+			model: google('gemini-3-flash-preview'),
+			prompt: message,
+		});
+		return text;
+	},
+});
+
+export default agent;
+```
+
+### Agent with State (Thread/Session)
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const agent = createAgent('stateful', {
+	description: 'Agent with persistent state',
+	schema: {
+		input: s.object({ message: s.string() }),
+		output: s.object({ response: s.string(), turnCount: s.number() }),
+	},
+	handler: async (ctx, { message }) => {
+		// Thread state persists across requests (conversation history)
+		const history = (await ctx.thread.state.get<string[]>('history')) || [];
+		history.push(message);
+		await ctx.thread.state.set('history', history);
+
+		// Session state is ephemeral (per-request metadata)
+		await ctx.session.state.set('lastMessage', message);
+
 		return {
-			agentId: `agent-${Math.random().toString(36).substr(2, 9)}`,
-			connectionPool: ['conn-1', 'conn-2'],
+			response: `You said: ${message}`,
+			turnCount: history.length,
 		};
 	},
-	handler: async (ctx, input) => {
-		// Access setup config via ctx.config (fully typed)
-		console.log('Agent ID:', ctx.config.agentId);
-		console.log('Connections:', ctx.config.connectionPool);
-		return { result: `Processed: ${input.message}` };
-	},
-	shutdown: async (app, config) => {
-		// Cleanup resources (runs on shutdown)
-		console.log('Shutting down agent:', config.agentId);
-	},
 });
 
 export default agent;
 ```
 
-### Agent with Event Listeners
+## Agent Context (ctx)
+
+The handler receives a context object with:
+
+- **ctx.logger** - Structured logger (info, warn, error, debug, trace)
+- **ctx.kv** - Key-value storage
+- **ctx.vector** - Vector storage
+- **ctx.stream** - Durable stream management (create, list, delete)
+- **ctx.agent** - Access to other agents for agent-to-agent calls
+- **ctx.thread.state** - Persistent state across requests (conversation history)
+- **ctx.session.state** - Ephemeral state for single request
+- **ctx.sessionId** - Current session identifier
+- **ctx.thread.id** - Current thread identifier
+
+## Calling Agents
+
+### From API Routes (most common)
+
+Import the agent directly and call `.run()`:
 
 ```typescript
-const agent = createAgent({
-	// ... configuration
-});
-
-agent.addEventListener('started', (eventName, agent, ctx) => {
-	console.log('Agent started:', ctx.config.agentId);
-});
-
-agent.addEventListener('completed', (eventName, agent, ctx) => {
-	console.log('Agent completed');
-});
-
-export default agent;
-```
-
-## Creating Routes (route.ts)
-
-Routes expose HTTP endpoints for your agent:
-
-```typescript
+// src/api/hello/route.ts
 import { createRouter } from '@agentuity/runtime';
-import agent from './agent';
+import helloAgent from '../../agent/hello/agent';
 
 const router = createRouter();
 
-// GET /agent/hello
-router.get('/', async (c) => {
-	const result = await c.agent.hello.run({ name: 'World', age: 25 });
-	return c.text(result);
-});
-
-// POST /agent/hello with validation
-router.post('/', agent.validator(), async (c) => {
+router.post('/', helloAgent.validator(), async (c) => {
 	const data = c.req.valid('json');
-	const result = await c.agent.hello.run(data);
-	return c.text(result);
+	const text = await helloAgent.run(data);
+	return c.text(text);
 });
 
 export default router;
 ```
 
-## Agent Context (c)
+### From Run Scripts (standalone execution)
 
-The handler receives a context object with:
+Use `createAgentContext()` and wrap calls in `ctx.invoke()`:
 
-- **c.app** - Application state (appName, version, startedAt, config)
-- **c.config** - Agent-specific config (from setup return value, fully typed)
-- **c.logger** - Structured logger (info, warn, error, debug, trace)
-- **c.kv** - Key-value storage
-- **c.vector** - Vector storage
-- **c.stream** - Stream management (create, list, delete)
-- **c.agent** - Access to other agents (c.agent.otherAgent.run())
+```typescript
+// src/run/hello.ts
+import { createAgentContext } from '@agentuity/runtime';
+import helloAgent from '../agent/hello/agent';
 
-## Context in Routes (c)
+const input = JSON.parse(process.argv[2] ?? '{"name":"World"}');
+const ctx = createAgentContext();
 
-Route handlers have additional context:
+const result = await ctx.invoke(() => helloAgent.run(input));
 
-- **c.req** - Hono request object
-- **c.var.logger** - Logger instance
-- **c.var.agent** or **c.agent** - Access to all agents
+console.log('---OUTPUT---');
+console.log(result);
+```
+
+### From Agent Handlers (agent-to-agent)
+
+Use `ctx.agent.{name}.run()` for agent-to-agent communication:
+
+```typescript
+handler: async (ctx, input) => {
+	// Call another agent via ctx.agent
+	const result = await ctx.agent.otherAgent.run({ data: input.value });
+	return `Other agent returned: ${result}`;
+};
+```
 
 ## Examples
 
@@ -198,13 +233,10 @@ Agents can have subagents organized one level deep. This is useful for grouping 
 src/agent/
 └── team/              # Parent agent
     ├── agent.ts       # Parent agent
-    ├── route.ts       # Parent routes
     ├── members/       # Subagent
-    │   ├── agent.ts
-    │   └── route.ts
+    │   └── agent.ts
     └── tasks/         # Subagent
-        ├── agent.ts
-        └── route.ts
+        └── agent.ts
 ```
 
 ### Parent Agent
@@ -213,10 +245,8 @@ src/agent/
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const agent = createAgent({
-	metadata: {
-		name: 'Team Manager',
-	},
+const agent = createAgent('team', {
+	description: 'Team manager agent',
 	schema: {
 		input: s.object({ action: s.union([s.literal('info'), s.literal('count')]) }),
 		output: s.object({
@@ -241,10 +271,8 @@ export default agent;
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const agent = createAgent({
-	metadata: {
-		name: 'Members Subagent',
-	},
+const agent = createAgent('team.members', {
+	description: 'Team members subagent',
 	schema: {
 		input: s.object({
 			action: s.union([s.literal('list'), s.literal('add'), s.literal('remove')]),
@@ -273,20 +301,24 @@ const agent = createAgent({
 export default agent;
 ```
 
-### Accessing Subagents from Routes
+### Calling Subagents from API Routes
+
+Import agents directly:
 
 ```typescript
+// In src/api/team/route.ts
 import { createRouter } from '@agentuity/runtime';
+import teamAgent from '../../agent/team/agent';
+import membersAgent from '../../agent/team/members/agent';
+import tasksAgent from '../../agent/team/tasks/agent';
 
 const router = createRouter();
 
 router.get('/', async (c) => {
-	// Call parent agent
-	const teamInfo = await c.agent.team.run({ action: 'info' });
-
-	// Call subagents (nested access)
-	const members = await c.agent.team.members.run({ action: 'list' });
-	const tasks = await c.agent.team.tasks.run({ action: 'list' });
+	// Call agents directly
+	const teamInfo = await teamAgent.run({ action: 'info' });
+	const members = await membersAgent.run({ action: 'list' });
+	const tasks = await tasksAgent.run({ action: 'list' });
 
 	return c.json({ teamInfo, members, tasks });
 });
@@ -294,31 +326,21 @@ router.get('/', async (c) => {
 export default router;
 ```
 
-### Subagent Routes
-
-Routes for subagents automatically mount under the parent path:
-
-- Parent: `/agent/team`
-- Subagent: `/agent/team/members`
-- Subagent: `/agent/team/tasks`
-
 ### Key Points About Subagents
 
 - **One level deep**: Only one level of nesting is supported (no nested subagents)
 - **Access parent**: Subagents can call their parent via `ctx.agent.parentName.run()`
 - **Agent names**: Subagents have dotted names like `"team.members"`
-- **Route hierarchy**: Routes inherit parent path structure
 - **Shared context**: Subagents share the same app context (kv, logger, etc.)
 
 ## Rules
 
-- Each agent folder name becomes the agent's route name (e.g., `hello/` → `/agent/hello`)
 - **agent.ts** must export default the agent instance
-- **route.ts** must export default the router instance
+- Agent name is the first argument to `createAgent('name', {...})`
 - Input/output schemas are enforced with @agentuity/schema validation
-- Setup return value type automatically flows to ctx.config (fully typed)
-- Use c.logger for logging, not console.log
-- Agent names in routes are accessed via c.agent.{folderName}
+- Use `ctx.logger` for logging in agents (or `c.var.logger` in routes), not console.log
+- **From routes**: Import agent directly, call `agent.run()`
+- **From handlers**: Use `ctx.agent.{agentName}.run()` for agent-to-agent calls
+- **From run scripts**: Wrap in `ctx.invoke()`, import agent directly
 - Subagents are one level deep only (team/members/, not team/members/subagent/)
-- Subagent routes mount under parent path (/agent/team/members)
-- Agents do not necessary need a route.ts file if they aren't exposed externally
+- HTTP routes for agents go in `src/api/`, not in agent folders

@@ -34,7 +34,7 @@ export const vectorCommand = createCommand({
 		listNamespacesSubcommand,
 		deleteNamespaceSubcommand,
 	],
-	requires: { auth: true, project: true },
+	requires: { auth: true },
 });
 
 export default vectorCommand;

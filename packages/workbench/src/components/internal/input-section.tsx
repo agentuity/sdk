@@ -248,6 +248,10 @@ export function InputSection({
 														onSelect={(currentValue) => {
 															// Extract agentId from the compound value
 															const agentId = currentValue.split('|')[1];
+															if (!agentId) {
+																setAgentSelectOpen(false);
+																return;
+															}
 															const selectedAgentData = Object.values(agents).find(
 																(a) => a.metadata.agentId === agentId
 															);

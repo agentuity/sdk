@@ -22,7 +22,7 @@ export const APIKeySchema = z.object({
 
 export const APIKeyListResponseArray = z.array(APIKeySchema);
 
-const APIKeyListResponseSchema = APIResponseSchema(APIKeyListResponseArray);
+export const APIKeyListResponseSchema = APIResponseSchema(APIKeyListResponseArray);
 
 export type APIKeyListResponse = z.infer<typeof APIKeyListResponseSchema>;
 export type APIKeyList = z.infer<typeof APIKeyListResponseArray>;

@@ -1,15 +1,30 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { cacheSandboxRegion } from './util';
+import { cacheSandboxRegion, createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxGet } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../config';
+import { sandboxGet, sandboxResolve } from '@agentuity/server';
 
 const SandboxResourcesSchema = z.object({
 	memory: z.string().optional().describe('Memory limit (e.g., "512Mi", "1Gi")'),
 	cpu: z.string().optional().describe('CPU limit (e.g., "500m", "1000m")'),
 	disk: z.string().optional().describe('Disk limit (e.g., "1Gi", "10Gi")'),
+});
+
+const SandboxRuntimeInfoSchema = z.object({
+	id: z.string().describe('Runtime ID'),
+	name: z.string().describe('Runtime name'),
+	iconUrl: z.string().optional().describe('URL for runtime icon'),
+	brandColor: z.string().optional().describe('Brand color for the runtime'),
+	tags: z.array(z.string()).optional().describe('Runtime tags'),
+});
+
+const SandboxSnapshotInfoSchema = z.object({
+	id: z.string().describe('Snapshot ID'),
+	name: z.string().optional().describe('Snapshot name'),
+	tag: z.string().optional().describe('Snapshot tag'),
+	fullName: z.string().optional().describe('Full name with org slug'),
+	public: z.boolean().describe('Whether snapshot is public'),
 });
 
 const SandboxGetResponseSchema = z.object({
@@ -19,10 +34,8 @@ const SandboxGetResponseSchema = z.object({
 	status: z.string().describe('Current status'),
 	createdAt: z.string().describe('Creation timestamp'),
 	region: z.string().optional().describe('Region where sandbox is running'),
-	runtimeId: z.string().optional().describe('Runtime ID'),
-	runtimeName: z.string().optional().describe('Runtime name'),
-	snapshotId: z.string().optional().describe('Snapshot ID sandbox was created from'),
-	snapshotTag: z.string().optional().describe('Snapshot tag sandbox was created from'),
+	runtime: SandboxRuntimeInfoSchema.optional().describe('Runtime information'),
+	snapshot: SandboxSnapshotInfoSchema.optional().describe('Snapshot information'),
 	executions: z.number().describe('Number of executions'),
 	stdoutStreamUrl: z.string().optional().describe('URL to stdout output stream'),
 	stderrStreamUrl: z.string().optional().describe('URL to stderr output stream'),
@@ -37,7 +50,7 @@ export const getSubcommand = createCommand({
 	aliases: ['info', 'show'],
 	description: 'Get information about a sandbox',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	idempotent: true,
 	examples: [
 		{
@@ -53,10 +66,17 @@ export const getSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options, auth, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { args, options, auth, logger, config, apiClient } = ctx;
 
-		const result = await sandboxGet(client, { sandboxId: args.sandboxId, orgId });
+		// Resolve sandbox to get region and orgId using CLI API
+		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+
+		// Create regional client and get full sandbox details
+		const client = createSandboxClient(logger, auth, sandboxInfo.region);
+		const result = await sandboxGet(client, {
+			sandboxId: args.sandboxId,
+			orgId: sandboxInfo.orgId,
+		});
 
 		// Cache the region for future lookups
 		if (result.region) {
@@ -72,15 +92,6 @@ export const getSubcommand = createCommand({
 						: result.status === 'failed'
 							? tui.colorError
 							: tui.colorMuted;
-
-			const snapshotDisplay =
-				result.snapshotId || result.snapshotTag
-					? result.snapshotTag
-						? result.snapshotId
-							? `${result.snapshotTag} ${tui.muted('(' + result.snapshotId + ')')}`
-							: result.snapshotTag
-						: result.snapshotId
-					: undefined;
 
 			let streamDisplay: string | undefined;
 			if (
@@ -106,9 +117,15 @@ export const getSubcommand = createCommand({
 			if (result.description) tableData['Description'] = result.description;
 			tableData['Status'] = statusColor(result.status);
 			tableData['Created'] = result.createdAt;
-			if (result.runtimeName) tableData['Runtime'] = result.runtimeName;
+			if (result.runtime?.name) tableData['Runtime'] = result.runtime.name;
 			if (result.region) tableData['Region'] = result.region;
-			if (snapshotDisplay) tableData['Snapshot'] = snapshotDisplay;
+			if (result.snapshot?.id) {
+				const snapshotDisplay =
+					result.snapshot.public && result.snapshot.fullName
+						? result.snapshot.fullName
+						: result.snapshot.tag || result.snapshot.id;
+				tableData['Snapshot'] = snapshotDisplay;
+			}
 			tableData['Executions'] = result.executions;
 			if (streamDisplay) {
 				tableData['Stream'] = streamDisplay;
@@ -141,10 +158,8 @@ export const getSubcommand = createCommand({
 			status: result.status,
 			createdAt: result.createdAt,
 			region: result.region,
-			runtimeId: result.runtimeId,
-			runtimeName: result.runtimeName,
-			snapshotId: result.snapshotId,
-			snapshotTag: result.snapshotTag,
+			runtime: result.runtime,
+			snapshot: result.snapshot,
 			executions: result.executions,
 			stdoutStreamUrl: result.stdoutStreamUrl,
 			stderrStreamUrl: result.stderrStreamUrl,

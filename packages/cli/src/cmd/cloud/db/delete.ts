@@ -178,9 +178,8 @@ export const deleteSubcommand = createSubcommand({
 				},
 			});
 
-			if (deleted.length > 0) {
-				const resource = deleted[0];
-
+			const resource = deleted[0];
+			if (resource) {
 				// Clear cache entry for deleted database
 				await deleteResourceRegion('db', profileName, resource.name);
 

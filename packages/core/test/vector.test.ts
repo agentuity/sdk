@@ -321,6 +321,78 @@ describe('VectorStorageService', () => {
 				},
 			});
 		});
+
+		test('should not include ttl in body when not specified (uses server default)', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }] } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert('my-vectors', { key: 'k1', document: 'test' });
+
+			const body = JSON.parse(calls[0].options.body as string);
+			// TTL should not be in the body when not specified (server uses 30-day default)
+			expect(body[0].ttl).toBeUndefined();
+		});
+
+		test('should include custom ttl in body', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }] } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert('my-vectors', { key: 'k1', document: 'test', ttl: 3600 });
+
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body[0].ttl).toBe(3600);
+		});
+
+		test('should send ttl=0 when ttl is null (no expiration)', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }] } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert('my-vectors', { key: 'k1', document: 'test', ttl: null });
+
+			const body = JSON.parse(calls[0].options.body as string);
+			// null should be converted to 0 (no expiration)
+			expect(body[0].ttl).toBe(0);
+		});
+
+		test('should send ttl=0 when ttl is 0 (no expiration)', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: [{ id: 'vec-1' }] } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert('my-vectors', { key: 'k1', document: 'test', ttl: 0 });
+
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body[0].ttl).toBe(0);
+		});
+
+		test('should handle multiple documents with different TTLs', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{
+					ok: true,
+					data: { success: true, data: [{ id: 'vec-1' }, { id: 'vec-2' }, { id: 'vec-3' }] },
+				},
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.upsert(
+				'my-vectors',
+				{ key: 'k1', document: 'doc1', ttl: 3600 }, // Custom TTL
+				{ key: 'k2', document: 'doc2', ttl: null }, // No expiration
+				{ key: 'k3', document: 'doc3' } // Server default
+			);
+
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body[0].ttl).toBe(3600);
+			expect(body[1].ttl).toBe(0);
+			expect(body[2].ttl).toBeUndefined();
+		});
 	});
 
 	describe('Get Operation', () => {
@@ -989,14 +1061,10 @@ describe('VectorStorageService', () => {
 
 	describe('GetNamespaces Operation', () => {
 		test('returns array of namespace names', async () => {
-			const { adapter } = createMockAdapter([
+			const { adapter, calls } = createMockAdapter([
 				{
 					ok: true,
-					data: {
-						products: { sum: 1024, count: 10 },
-						embeddings: { sum: 2048, count: 20 },
-						documents: { sum: 512, count: 5 },
-					},
+					data: ['products', 'embeddings', 'documents'],
 				},
 			]);
 
@@ -1007,10 +1075,13 @@ describe('VectorStorageService', () => {
 			expect(namespaces).toContain('products');
 			expect(namespaces).toContain('embeddings');
 			expect(namespaces).toContain('documents');
+
+			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/namespaces`);
+			expect(calls[0].options.method).toBe('GET');
 		});
 
 		test('returns empty array when no namespaces exist', async () => {
-			const { adapter } = createMockAdapter([{ ok: true, data: {} }]);
+			const { adapter } = createMockAdapter([{ ok: true, data: [] }]);
 
 			const service = new VectorStorageService(baseUrl, adapter);
 			const namespaces = await service.getNamespaces();
@@ -1111,13 +1182,10 @@ describe('VectorStorageService', () => {
 						},
 					},
 				},
-				// getNamespaces (via getAllStats)
+				// getNamespaces (now uses dedicated endpoint)
 				{
 					ok: true,
-					data: {
-						products: { sum: 1024, count: 10 },
-						test: { sum: 256, count: 2 },
-					},
+					data: ['products', 'test'],
 				},
 				// deleteNamespace
 				{ ok: true, data: { success: true, data: 2 } },
@@ -1142,6 +1210,57 @@ describe('VectorStorageService', () => {
 
 			// Delete namespace
 			await service.deleteNamespace('test');
+		});
+
+		test('getAllStats with pagination params returns paginated response', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						namespaces: {
+							products: { sum: 1024, count: 10 },
+							embeddings: { sum: 2048, count: 20 },
+						},
+						total: 50,
+						limit: 10,
+						offset: 0,
+						hasMore: true,
+					},
+				},
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			const result = await service.getAllStats({ limit: 10, offset: 0 });
+
+			expect(calls[0].url).toContain('limit=10');
+			expect(calls[0].url).toContain('offset=0');
+			expect('namespaces' in result).toBe(true);
+			if ('namespaces' in result) {
+				expect(result.total).toBe(50);
+				expect(result.hasMore).toBe(true);
+				expect(Object.keys(result.namespaces)).toHaveLength(2);
+			}
+		});
+
+		test('getAllStats without params returns flat map', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						products: { sum: 1024, count: 10 },
+						embeddings: { sum: 2048, count: 20 },
+					},
+				},
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			const result = await service.getAllStats();
+
+			expect(calls[0].url).not.toContain('limit=');
+			expect(calls[0].url).not.toContain('offset=');
+			expect('namespaces' in result).toBe(false);
+			expect(Object.keys(result)).toContain('products');
+			expect(Object.keys(result)).toContain('embeddings');
 		});
 	});
 });

@@ -17,7 +17,10 @@ export const PUBLIC_VAR_PREFIXES = ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'] as 
  * Specific AGENTUITY_ keys that are allowed to be set by users.
  * Note: There is also a whitelist in the API that must be kept in sync.
  */
-export const AGENTUITY_ALLOWED_KEYS = ['AGENTUITY_AUTH_SECRET'] as const;
+export const AGENTUITY_ALLOWED_KEYS = [
+	'AGENTUITY_AUTH_SECRET',
+	'AGENTUITY_CLOUD_BASE_URL',
+] as const;
 
 /**
  * Check if a key is a public variable (exposed to frontend)
@@ -146,7 +149,8 @@ export async function readEnvFile(path: string): Promise<EnvVars> {
 
 /**
  * Write environment variables to an .env file
- * Optionally skip certain keys (like AGENTUITY_SDK_KEY)
+ * By default, preserves existing keys that are not in the new vars.
+ * Use preserveExisting: false to completely overwrite the file.
  */
 export async function writeEnvFile(
 	path: string,
@@ -154,20 +158,36 @@ export async function writeEnvFile(
 	options?: {
 		skipKeys?: string[];
 		addComment?: (key: string) => string | null;
+		/**
+		 * When true (default), reads existing file first and merges with new vars.
+		 * New vars take priority for matching keys, but all existing keys are preserved.
+		 * When false, completely overwrites the file with only the provided vars.
+		 */
+		preserveExisting?: boolean;
 	}
 ): Promise<void> {
 	const skipKeys = options?.skipKeys || [];
+	const preserveExisting = options?.preserveExisting ?? true;
+
+	// If preserveExisting is true, read existing file and merge
+	let finalVars = vars;
+	if (preserveExisting) {
+		const existing = await readEnvFile(path);
+		// Merge: existing as base, new vars override
+		finalVars = { ...existing, ...vars };
+	}
+
 	const lines: string[] = [];
 
 	// Sort keys for consistent output
-	const sortedKeys = Object.keys(vars).sort();
+	const sortedKeys = Object.keys(finalVars).sort();
 
 	for (const key of sortedKeys) {
 		if (skipKeys.includes(key)) {
 			continue;
 		}
 
-		const value = vars[key];
+		const value = finalVars[key];
 
 		// Add comment if provided
 		if (options?.addComment) {

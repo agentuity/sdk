@@ -16,7 +16,7 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 		output: s.object({
 			operation: s.string(),
 			streamId: s.string().optional(),
-			name: s.string().optional(),
+			namespace: s.string().optional(),
 			url: s.string().optional(),
 			sizeBytes: s.number().optional(),
 			metadata: s.record(s.string(), s.string()).optional(),
@@ -24,7 +24,7 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 				.array(
 					s.object({
 						id: s.string(),
-						name: s.string(),
+						namespace: s.string(),
 						url: s.string(),
 						sizeBytes: s.number(),
 						metadata: s.record(s.string(), s.string()),
@@ -45,6 +45,7 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 				const stream = await ctx.stream.create(name, {
 					metadata,
 					contentType,
+					ttl: 1800,
 				});
 
 				await stream.write('test data with metadata');
@@ -55,7 +56,7 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 				return {
 					operation,
 					streamId: info.id,
-					name: info.name,
+					namespace: info.namespace,
 					url: info.url,
 					sizeBytes: info.sizeBytes,
 					metadata: info.metadata,
@@ -71,7 +72,7 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 				return {
 					operation,
 					streamId: info.id,
-					name: info.name,
+					namespace: info.namespace,
 					url: info.url,
 					sizeBytes: info.sizeBytes,
 					metadata: info.metadata,
@@ -81,7 +82,7 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 
 			case 'list': {
 				const result = await ctx.stream.list({
-					name,
+					namespace: name,
 					metadata,
 					limit,
 					offset,

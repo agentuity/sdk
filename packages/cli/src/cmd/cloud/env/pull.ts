@@ -1,15 +1,8 @@
 import { z } from 'zod';
-import { join } from 'node:path';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectGet, orgEnvGet } from '@agentuity/server';
-import {
-	findExistingEnvFile,
-	readEnvFile,
-	writeEnvFile,
-	mergeEnvVars,
-	isReservedAgentuityKey,
-} from '../../../env-util';
+import { findExistingEnvFile, readEnvFile, writeEnvFile, mergeEnvVars } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 import { resolveOrgId, isOrgScope } from './org-util';
 
@@ -56,6 +49,7 @@ export const pullSubcommand = createSubcommand({
 
 		let cloudEnv: Record<string, string>;
 		let scope: 'project' | 'org';
+		let cloudApiKey: string | undefined;
 
 		if (useOrgScope) {
 			// Organization scope
@@ -70,6 +64,7 @@ export const pullSubcommand = createSubcommand({
 
 			cloudEnv = { ...orgData.env, ...orgData.secrets };
 			scope = 'org';
+			cloudApiKey = undefined; // Orgs don't have api_key
 		} else {
 			// Project scope
 			if (!project) {
@@ -84,30 +79,15 @@ export const pullSubcommand = createSubcommand({
 
 			cloudEnv = { ...projectData.env, ...projectData.secrets };
 			scope = 'project';
-
-			// Write AGENTUITY_SDK_KEY to .env if present and missing locally (project scope only)
-			if (projectData.api_key) {
-				const dotEnvPath = join(projectDir, '.env');
-				const dotEnv = await readEnvFile(dotEnvPath);
-
-				if (!dotEnv.AGENTUITY_SDK_KEY) {
-					dotEnv.AGENTUITY_SDK_KEY = projectData.api_key;
-					await writeEnvFile(dotEnvPath, dotEnv, {
-						addComment: (key) => {
-							if (key === 'AGENTUITY_SDK_KEY') {
-								return 'AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
-							}
-							return null;
-						},
-					});
-					tui.info(`Wrote AGENTUITY_SDK_KEY to ${dotEnvPath}`);
-				}
-			}
+			cloudApiKey = projectData.api_key;
 		}
 
 		// Target file is always .env
 		const targetEnvPath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(targetEnvPath);
+
+		// Preserve local AGENTUITY_SDK_KEY
+		const localSdkKey = localEnv.AGENTUITY_SDK_KEY;
 
 		// Merge: cloud values override local if force=true, otherwise keep local
 		let mergedEnv: Record<string, string>;
@@ -119,10 +99,26 @@ export const pullSubcommand = createSubcommand({
 			mergedEnv = mergeEnvVars(cloudEnv, localEnv);
 		}
 
-		// Write to .env (skip reserved AGENTUITY_ keys, except AGENTUITY_PUBLIC_)
+		// Determine the SDK key to use: cloud api_key is source of truth, fallback to local
+		const sdkKeyToWrite = cloudApiKey || localSdkKey;
+		if (sdkKeyToWrite) {
+			mergedEnv.AGENTUITY_SDK_KEY = sdkKeyToWrite;
+		}
+
+		// Write to .env in a single operation, preserveExisting: false since we have the full merged state
 		await writeEnvFile(targetEnvPath, mergedEnv, {
-			skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
+			preserveExisting: false,
+			addComment: (key) => {
+				if (key === 'AGENTUITY_SDK_KEY') {
+					return 'AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
+				}
+				return null;
+			},
 		});
+
+		if (cloudApiKey && cloudApiKey !== localSdkKey) {
+			tui.info(`Wrote AGENTUITY_SDK_KEY to ${targetEnvPath}`);
+		}
 
 		const count = Object.keys(cloudEnv).length;
 		const scopeLabel = useOrgScope ? 'organization' : 'project';

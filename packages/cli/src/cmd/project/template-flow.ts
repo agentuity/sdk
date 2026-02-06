@@ -220,7 +220,12 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 		selectedTemplate = found;
 	} else if (!isInteractive || templates.length === 1) {
-		selectedTemplate = templates[0];
+		const firstTemplate = templates[0];
+		if (!firstTemplate) {
+			logger.fatal('No templates available', ErrorCode.RESOURCE_NOT_FOUND);
+			return undefined as never;
+		}
+		selectedTemplate = firstTemplate;
 	} else {
 		let maxLength = 15;
 		templates.forEach((t) => {
@@ -572,14 +577,19 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 					return createResources(catalystClient!, orgId!, region!, [{ type: 'db' }]);
 				},
 			});
-			authDatabaseName = created[0].name;
+			const createdDb = created[0];
+			if (!createdDb) {
+				logger.fatal('Failed to create database for auth', ErrorCode.RESOURCE_NOT_FOUND);
+				return undefined as never;
+			}
+			authDatabaseName = createdDb.name;
 
 			// Get env vars from created resource
-			if (created[0]?.env) {
-				authDatabaseUrl = created[0].env.DATABASE_URL;
+			if (createdDb.env) {
+				authDatabaseUrl = createdDb.env.DATABASE_URL;
 				// Also add to resourceEnvVars if not already set
 				if (!resourceEnvVars.DATABASE_URL) {
-					Object.assign(resourceEnvVars, created[0].env);
+					Object.assign(resourceEnvVars, createdDb.env);
 				}
 			}
 		}

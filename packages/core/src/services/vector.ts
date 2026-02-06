@@ -4,6 +4,21 @@ import { safeStringify } from '../json';
 import { StructuredError } from '../error';
 
 /**
+ * Minimum TTL value in seconds (1 minute)
+ */
+export const VECTOR_MIN_TTL_SECONDS = 60;
+
+/**
+ * Maximum TTL value in seconds (90 days)
+ */
+export const VECTOR_MAX_TTL_SECONDS = 7776000;
+
+/**
+ * Default TTL value in seconds (30 days) - used when no TTL is specified
+ */
+export const VECTOR_DEFAULT_TTL_SECONDS = 2592000;
+
+/**
  * Base properties shared by all vector upsert operations
  */
 export interface VectorUpsertBase {
@@ -16,6 +31,20 @@ export interface VectorUpsertBase {
 	 * the metadata to upsert
 	 */
 	metadata?: Record<string, unknown>;
+
+	/**
+	 * Time-to-live in seconds for the vector. Controls when the vector expires and is automatically deleted.
+	 * - `undefined` (not provided): Vector expires after 30 days (default)
+	 * - `null` or `0`: Vector never expires
+	 * - positive number (≥60): Vector expires after the specified number of seconds (max 90 days)
+	 *
+	 * @remarks
+	 * TTL values below 60 seconds are clamped to 60 seconds by the server.
+	 * TTL values above 7,776,000 seconds (90 days) are clamped to 90 days.
+	 *
+	 * @default 2592000 (30 days)
+	 */
+	ttl?: number | null;
 }
 
 /**
@@ -113,6 +142,12 @@ export interface VectorSearchResult<T extends Record<string, unknown> = Record<s
 	 * the distance of the vector object from the query from 0-1. The larger the number, the more similar the vector object is to the query.
 	 */
 	similarity: number;
+
+	/**
+	 * the expiration time of the vector as an ISO 8601 timestamp.
+	 * undefined if the vector does not expire.
+	 */
+	expiresAt?: string;
 }
 
 /**
@@ -248,6 +283,12 @@ export interface VectorItemStats {
 	 * Note: This is only tracked in cloud storage; local development returns undefined.
 	 */
 	count?: number;
+
+	/**
+	 * the expiration time of the vector as an ISO 8601 timestamp.
+	 * undefined if the vector does not expire.
+	 */
+	expiresAt?: string;
 }
 
 /**
@@ -258,6 +299,46 @@ export interface VectorNamespaceStatsWithSamples extends VectorNamespaceStats {
 	 * A sample of vectors in the namespace (up to 20)
 	 */
 	sampledResults?: Record<string, VectorItemStats>;
+}
+
+/**
+ * Parameters for getting all namespace statistics with optional pagination
+ */
+export interface VectorGetAllStatsParams {
+	/**
+	 * Maximum number of namespaces to return (default: 100, max: 1000)
+	 */
+	limit?: number;
+	/**
+	 * Number of namespaces to skip for pagination (default: 0)
+	 */
+	offset?: number;
+}
+
+/**
+ * Paginated response for vector namespace statistics
+ */
+export interface VectorStatsPaginated {
+	/**
+	 * Map of namespace names to their statistics
+	 */
+	namespaces: Record<string, VectorNamespaceStats>;
+	/**
+	 * Total number of namespaces across all pages
+	 */
+	total: number;
+	/**
+	 * Number of namespaces requested per page
+	 */
+	limit: number;
+	/**
+	 * Number of namespaces skipped
+	 */
+	offset: number;
+	/**
+	 * Whether there are more namespaces available
+	 */
+	hasMore: boolean;
 }
 
 /**
@@ -427,24 +508,29 @@ export interface VectorStorage {
 	getStats(name: string): Promise<VectorNamespaceStatsWithSamples>;
 
 	/**
-	 * Get statistics for all namespaces in the organization
+	 * get statistics for all namespaces with optional pagination
 	 *
-	 * @returns map of namespace names to their statistics
+	 * @param params - optional pagination parameters (limit, offset)
+	 * @returns map of namespace names to statistics, or paginated response if params provided
 	 *
-	 * @example
-	 * ```typescript
-	 * const allStats = await vectorStore.getAllStats();
-	 * for (const [name, stats] of Object.entries(allStats)) {
-	 *   console.log(`${name}: ${stats.count} vectors, ${stats.sum} bytes`);
-	 * }
-	 * ```
+	 * @remarks
+	 * - Without params: returns flat map of all namespaces (backward compatible)
+	 * - With params: returns paginated response with total count and hasMore flag
+	 * - Default limit is 100, maximum is 1000
 	 */
-	getAllStats(): Promise<Record<string, VectorNamespaceStats>>;
+	getAllStats(
+		params?: VectorGetAllStatsParams
+	): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated>;
 
 	/**
 	 * Get all namespace names
 	 *
-	 * @returns array of namespace names
+	 * @returns array of namespace names (up to 1000)
+	 *
+	 * @remarks
+	 * This method returns a maximum of 1000 namespace names.
+	 * If you have more than 1000 namespaces, only the first 1000
+	 * (ordered by creation date, most recent first) will be returned.
 	 *
 	 * @example
 	 * ```typescript
@@ -517,8 +603,6 @@ interface VectorDeleteErrorResponse {
 type VectorDeleteResponse = VectorDeleteSuccessResponse | VectorDeleteErrorResponse;
 
 type VectorStatsResponse = VectorNamespaceStatsWithSamples;
-
-type VectorAllStatsResponse = Record<string, VectorNamespaceStats>;
 
 interface VectorDeleteNamespaceSuccessResponse {
 	success: true;
@@ -641,9 +725,18 @@ export class VectorStorageService implements VectorStorage {
 		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000);
 
+		// Transform documents to handle TTL: null → 0 for "no expiration"
+		const requestDocs = documents.map((doc) => ({
+			...doc,
+			// TTL handling: only include if explicitly provided
+			// null or 0 = no expiration (send 0 to server), positive = TTL in seconds
+			// undefined = not sent, server uses default (30 days)
+			...(doc.ttl !== undefined && { ttl: doc.ttl === null ? 0 : doc.ttl }),
+		}));
+
 		const res = await this.#adapter.invoke<VectorUpsertResponse>(url, {
 			method: 'PUT',
-			body: safeStringify(documents),
+			body: safeStringify(requestDocs),
 			contentType: 'application/json',
 			signal,
 			telemetry: {
@@ -657,10 +750,13 @@ export class VectorStorageService implements VectorStorage {
 
 		if (res.ok) {
 			if (res.data.success) {
-				return res.data.data.map((o, index) => ({
-					key: documents[index].key,
-					id: o.id,
-				}));
+				return res.data.data.map((o, index) => {
+					const doc = documents[index];
+					return {
+						key: doc ? doc.key : '',
+						id: o.id,
+					};
+				});
 			}
 			throw new VectorStorageResponseError({
 				status: res.response.status,
@@ -687,7 +783,7 @@ export class VectorStorageService implements VectorStorage {
 			this.#baseUrl,
 			`/vector/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(key)}`
 		);
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const res = await this.#adapter.invoke<VectorGetResponse>(url, {
 			method: 'GET',
@@ -743,8 +839,9 @@ export class VectorStorageService implements VectorStorage {
 
 		const resultMap = new Map<string, VectorSearchResultWithDocument<T>>();
 		results.forEach((result, index) => {
-			if (result.exists) {
-				resultMap.set(keys[index], result.data);
+			const key = keys[index];
+			if (result.exists && key) {
+				resultMap.set(key, result.data);
 			}
 		});
 
@@ -846,10 +943,11 @@ export class VectorStorageService implements VectorStorage {
 		let url: string;
 		let body: string | undefined;
 
-		if (keys.length === 1) {
+		const firstKey = keys[0];
+		if (keys.length === 1 && firstKey) {
 			url = buildUrl(
 				this.#baseUrl,
-				`/vector/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(keys[0])}`
+				`/vector/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(firstKey)}`
 			);
 		} else {
 			url = buildUrl(this.#baseUrl, `/vector/2025-03-17/${encodeURIComponent(name)}`);
@@ -902,7 +1000,7 @@ export class VectorStorageService implements VectorStorage {
 		}
 
 		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/stats/${encodeURIComponent(name)}`);
-		const signal = AbortSignal.timeout(10_000);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const res = await this.#adapter.invoke<VectorStatsResponse>(url, {
 			method: 'GET',
@@ -926,11 +1024,26 @@ export class VectorStorageService implements VectorStorage {
 		throw await toServiceException('GET', url, res.response);
 	}
 
-	async getAllStats(): Promise<Record<string, VectorNamespaceStats>> {
-		const url = buildUrl(this.#baseUrl, '/vector/2025-03-17/stats');
-		const signal = AbortSignal.timeout(10_000);
+	async getAllStats(
+		params?: VectorGetAllStatsParams
+	): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated> {
+		const queryParams = new URLSearchParams();
+		if (params?.limit !== undefined) {
+			queryParams.set('limit', String(params.limit));
+		}
+		if (params?.offset !== undefined) {
+			queryParams.set('offset', String(params.offset));
+		}
+		const queryString = queryParams.toString();
+		const url = buildUrl(
+			this.#baseUrl,
+			`/vector/2025-03-17/stats${queryString ? `?${queryString}` : ''}`
+		);
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
-		const res = await this.#adapter.invoke<VectorAllStatsResponse>(url, {
+		const res = await this.#adapter.invoke<
+			Record<string, VectorNamespaceStats> | VectorStatsPaginated
+		>(url, {
 			method: 'GET',
 			signal,
 			telemetry: {
@@ -947,8 +1060,20 @@ export class VectorStorageService implements VectorStorage {
 	}
 
 	async getNamespaces(): Promise<string[]> {
-		const stats = await this.getAllStats();
-		return Object.keys(stats);
+		const url = buildUrl(this.#baseUrl, '/vector/2025-03-17/namespaces');
+		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
+		const res = await this.#adapter.invoke<string[]>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.vector.getNamespaces',
+				attributes: {},
+			},
+		});
+		if (res.ok) {
+			return res.data;
+		}
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async deleteNamespace(name: string): Promise<void> {

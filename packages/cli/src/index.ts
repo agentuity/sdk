@@ -18,6 +18,13 @@ export {
 } from './errors';
 export { wrapLogger, CLILogger } from './cli-logger';
 export {
+	InternalLogger,
+	createInternalLogger,
+	getLatestLogSession,
+	getLogsDirPath,
+} from './internal-logger';
+export { CompositeLogger, createCompositeLogger } from './composite-logger';
+export {
 	isJSONMode,
 	isQuietMode,
 	shouldDisableProgress,
@@ -66,6 +73,7 @@ export {
 	getAuth,
 } from './config';
 export { APIClient, getAPIBaseURL, getAppBaseURL } from './api';
+export { getCatalystUrl } from './catalyst';
 export {
 	ConsoleLogger,
 	createLogger,
@@ -104,6 +112,7 @@ export type {
 	Profile,
 	AuthData,
 	CommandSchemas,
+	ResourceSelectionRule,
 	BuildPhase,
 	BuildContext,
 	BuildConfig,

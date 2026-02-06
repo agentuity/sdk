@@ -82,7 +82,10 @@ export const pushSubcommand = createSubcommand({
 			);
 			for (const key of publicSecretKeys) {
 				delete secrets[key];
-				env[key] = filteredEnv[key];
+				const value = filteredEnv[key];
+				if (value !== undefined) {
+					env[key] = value;
+				}
 			}
 		}
 

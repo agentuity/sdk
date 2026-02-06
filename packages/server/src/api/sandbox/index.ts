@@ -4,8 +4,12 @@ export { sandboxExecute } from './execute';
 export type { SandboxExecuteParams } from './execute';
 export { sandboxGet } from './get';
 export type { SandboxGetParams } from './get';
+export { sandboxResolve, SandboxResolveError } from './resolve';
+export type { ResolvedSandboxInfo } from './resolve';
 export { sandboxList } from './list';
 export type { SandboxListParams } from './list';
+export { cliSandboxList } from './cli-list';
+export type { CLISandboxListOptions, CLISandboxListData, CLISandboxInfo } from './cli-list';
 export { runtimeList } from './runtime';
 export type { RuntimeListParams } from './runtime';
 export { sandboxDestroy } from './destroy';
@@ -19,7 +23,18 @@ export type {
 	ExecutionListParams,
 	ExecutionListResponse,
 } from './execution';
-export { SandboxResponseError, writeAndDrain } from './util';
+export {
+	SandboxResponseError,
+	SandboxNotFoundError,
+	SandboxTerminatedError,
+	ExecutionNotFoundError,
+	ExecutionTimeoutError,
+	ExecutionCancelledError,
+	SnapshotNotFoundError,
+	throwSandboxError,
+	writeAndDrain,
+} from './util';
+export type { SandboxErrorCode, SandboxErrorContext } from './util';
 export { SandboxClient } from './client';
 export type {
 	SandboxClientOptions,
@@ -37,6 +52,23 @@ export {
 	sandboxDownloadArchive,
 	sandboxUploadArchive,
 	sandboxSetEnv,
+	FileToWriteSchema,
+	WriteFilesRequestSchema,
+	WriteFilesDataSchema,
+	WriteFilesResponseSchema,
+	MkDirRequestSchema,
+	MkDirResponseSchema,
+	RmDirRequestSchema,
+	RmDirResponseSchema,
+	RmFileRequestSchema,
+	RmFileResponseSchema,
+	FileInfoSchema,
+	ListFilesDataSchema,
+	ListFilesResponseSchema,
+	UploadArchiveResponseSchema,
+	SetEnvRequestSchema,
+	SetEnvDataSchema,
+	SetEnvResponseSchema,
 } from './files';
 export type {
 	WriteFilesParams,
@@ -60,8 +92,12 @@ export {
 	snapshotList,
 	snapshotDelete,
 	snapshotTag,
+	snapshotLineage,
+	snapshotPublicGet,
+	snapshotPublicList,
 	snapshotBuildInit,
 	snapshotBuildFinalize,
+	snapshotUpload,
 } from './snapshot';
 export type {
 	SnapshotInfo,
@@ -72,9 +108,17 @@ export type {
 	SnapshotListResponse,
 	SnapshotDeleteParams,
 	SnapshotTagParams,
+	SnapshotLineageParams,
+	SnapshotLineageEntry,
+	SnapshotLineageResponse,
+	SnapshotPublicGetParams,
+	SnapshotPublicListParams,
+	SnapshotBuildGitInfo,
 	SnapshotBuildInitParams,
 	SnapshotBuildInitResponse,
 	SnapshotBuildFinalizeParams,
+	SnapshotUploadParams,
+	SnapshotUploadResponse,
 } from './snapshot';
 export { SnapshotBuildFileSchema } from './snapshot-build';
 export type { SnapshotBuildFile } from './snapshot-build';

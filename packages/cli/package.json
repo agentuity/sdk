@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/cli",
-	"version": "0.1.16",
+	"version": "1.0.1",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -30,13 +30,14 @@
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
 		"build": "bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
-		"test": "bun scripts/test-create-flow.ts && bun scripts/test-exit-codes.ts && bun scripts/test-response-schema.ts && bun scripts/test-batch-reporting.ts && bun scripts/test-response-envelope.ts",
+		"test": "bun scripts/test-create-flow.ts && bun scripts/test-exit-codes.ts && bun scripts/test-response-schema.ts && bun scripts/test-batch-reporting.ts && bun scripts/test-response-envelope.ts && bun scripts/test-concurrent-sessions.ts",
 		"test:create": "bun scripts/test-create-flow.ts",
 		"test:exit-codes": "bun scripts/test-exit-codes.ts",
 		"test:response-schema": "bun scripts/test-response-schema.ts",
 		"test:batch": "bun scripts/test-batch-reporting.ts",
 		"test:envelope": "bun scripts/test-response-envelope.ts",
 		"test:bundled-create": "bun scripts/test-bundled-create.ts",
+		"test:concurrent-sessions": "bun scripts/test-concurrent-sessions.ts",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {

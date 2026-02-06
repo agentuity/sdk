@@ -7,6 +7,25 @@
 import { z } from 'zod';
 import type { Logger } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
+import pkg from '../../package.json' with { type: 'json' };
+
+// Cache the package data
+let cachedPackage: typeof pkg | null = null;
+
+export function getPackage(): typeof pkg {
+	if (!cachedPackage) {
+		cachedPackage = pkg;
+	}
+	return cachedPackage;
+}
+
+function getVersion(): string {
+	return process.env.AGENTUITY_CLI_VERSION || getPackage().version || 'dev';
+}
+
+function getUserAgent(): string {
+	return `Agentuity SDK/${getVersion()}`;
+}
 
 export interface APIClientConfig {
 	skipVersionCheck?: boolean;
@@ -16,7 +35,7 @@ export interface APIClientConfig {
 	headers?: Record<string, string>;
 }
 
-const ZodIssuesSchema = z.array(
+export const ZodIssuesSchema = z.array(
 	z.object({
 		code: z.string(),
 		input: z.unknown().optional(),
@@ -36,7 +55,7 @@ const toIssues = (issues: z.core.$ZodIssue[]): IssuesType => {
 	}));
 };
 
-const APIErrorSchema = z.object({
+export const APIErrorSchema = z.object({
 	success: z.boolean(),
 	code: z.string().optional(),
 	message: z.string().optional(),
@@ -77,7 +96,7 @@ export const ValidationOutputError = StructuredError(
 
 export const UpgradeRequiredError = StructuredError(
 	'UpgradeRequiredError',
-	'Upgrade required to continue. Please see https://agentuity.dev/CLI/installation to download the latest version of the SDK.'
+	'Upgrade required to continue. Please run `agentuity upgrade` or see https://agentuity.dev/Get-Started/installation to download the latest version.'
 )<{
 	sessionId?: string | null;
 }>();
@@ -86,6 +105,24 @@ export const MaxRetriesError = StructuredError(
 	'MaxRetriesError',
 	'Max Retries attempted and continued failures exhausted.'
 );
+
+export const MisdirectedRequestError = StructuredError(
+	'MisdirectedRequestError',
+	'The request was sent to the wrong regional server.'
+)<{
+	url: string;
+	region: string;
+	sessionId?: string | null;
+}>();
+
+export const PaymentRequiredError = StructuredError(
+	'PaymentRequiredError',
+	'This action requires a paid plan. Please upgrade your account to continue.'
+)<{
+	url: string;
+	sessionId?: string | null;
+	upgradeUrl?: string;
+}>();
 
 export class APIClient {
 	#baseUrl: string;
@@ -123,9 +160,18 @@ export class APIClient {
 	async get<TResponse = void>(
 		endpoint: string,
 		responseSchema?: z.ZodType<TResponse>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('GET', endpoint, responseSchema, undefined, undefined, signal);
+		return this.request(
+			'GET',
+			endpoint,
+			responseSchema,
+			undefined,
+			undefined,
+			signal,
+			extraHeaders
+		);
 	}
 
 	/**
@@ -136,9 +182,10 @@ export class APIClient {
 		body?: TBody,
 		responseSchema?: z.ZodType<TResponse>,
 		bodySchema?: z.ZodType<TBody>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('POST', endpoint, responseSchema, body, bodySchema, signal);
+		return this.request('POST', endpoint, responseSchema, body, bodySchema, signal, extraHeaders);
 	}
 
 	/**
@@ -149,9 +196,10 @@ export class APIClient {
 		body?: TBody,
 		responseSchema?: z.ZodType<TResponse>,
 		bodySchema?: z.ZodType<TBody>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('PUT', endpoint, responseSchema, body, bodySchema, signal);
+		return this.request('PUT', endpoint, responseSchema, body, bodySchema, signal, extraHeaders);
 	}
 
 	/**
@@ -160,9 +208,18 @@ export class APIClient {
 	async delete<TResponse = void>(
 		endpoint: string,
 		responseSchema?: z.ZodType<TResponse>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('DELETE', endpoint, responseSchema, undefined, undefined, signal);
+		return this.request(
+			'DELETE',
+			endpoint,
+			responseSchema,
+			undefined,
+			undefined,
+			signal,
+			extraHeaders
+		);
 	}
 
 	/**
@@ -173,17 +230,30 @@ export class APIClient {
 		body?: TBody,
 		responseSchema?: z.ZodType<TResponse>,
 		bodySchema?: z.ZodType<TBody>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
-		return this.request('PATCH', endpoint, responseSchema, body, bodySchema, signal);
+		return this.request(
+			'PATCH',
+			endpoint,
+			responseSchema,
+			body,
+			bodySchema,
+			signal,
+			extraHeaders
+		);
 	}
 
 	/**
 	 * Raw GET request that returns the Response object directly.
 	 * Useful for streaming responses where you need access to the body stream.
 	 */
-	async rawGet(endpoint: string, signal?: AbortSignal): Promise<Response> {
-		return this.#makeRequest('GET', endpoint, undefined, signal);
+	async rawGet(
+		endpoint: string,
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
+	): Promise<Response> {
+		return this.#makeRequest('GET', endpoint, undefined, signal, undefined, extraHeaders);
 	}
 
 	/**
@@ -197,6 +267,20 @@ export class APIClient {
 		signal?: AbortSignal
 	): Promise<Response> {
 		return this.#makeRequest('POST', endpoint, body, signal, contentType);
+	}
+
+	/**
+	 * Raw PUT request that returns the Response object directly.
+	 * Useful for binary uploads where you need to pass raw body data.
+	 */
+	async rawPut(
+		endpoint: string,
+		body: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array> | string | Blob,
+		contentType: string,
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
+	): Promise<Response> {
+		return this.#makeRequest('PUT', endpoint, body, signal, contentType, extraHeaders);
 	}
 
 	/**
@@ -291,6 +375,8 @@ export class APIClient {
 
 		if (this.#config?.userAgent) {
 			headers['User-Agent'] = this.#config.userAgent;
+		} else {
+			headers['User-Agent'] = getUserAgent();
 		}
 
 		if (this.#apiKey) {
@@ -298,14 +384,22 @@ export class APIClient {
 		}
 
 		if (this.#config?.headers) {
-			Object.keys(this.#config.headers).forEach(
-				(key) => (headers[key] = this.#config!.headers![key])
-			);
+			Object.keys(this.#config.headers).forEach((key) => {
+				const value = this.#config?.headers?.[key];
+				if (value !== undefined) {
+					headers[key] = value;
+				}
+			});
 		}
 
 		// Apply per-request extra headers (e.g., x-agentuity-orgid for CLI auth)
 		if (extraHeaders) {
-			Object.keys(extraHeaders).forEach((key) => (headers[key] = extraHeaders[key]));
+			Object.keys(extraHeaders).forEach((key) => {
+				const value = extraHeaders[key];
+				if (value !== undefined) {
+					headers[key] = value;
+				}
+			});
 		}
 
 		const canRetry = !(body instanceof ReadableStream); // we cannot safely retry a ReadableStream as body
@@ -320,6 +414,7 @@ export class APIClient {
 						| ArrayBuffer
 						| ReadableStream<Uint8Array>
 						| string
+						| Blob
 						| undefined;
 					if (body !== undefined) {
 						if (contentType && contentType !== 'application/json') {
@@ -327,7 +422,8 @@ export class APIClient {
 								| Uint8Array
 								| ArrayBuffer
 								| ReadableStream<Uint8Array>
-								| string;
+								| string
+								| Blob;
 						} else {
 							requestBody = JSON.stringify(body);
 						}
@@ -362,6 +458,67 @@ export class APIClient {
 				}
 
 				const sessionId = response.headers.get('x-session-id');
+
+				// Handle 421 Misdirected Request - the resource is in a different region
+				// We need to retry against the correct regional Catalyst
+				// Only handle this for Catalyst URLs (not the main API)
+				if (response.status === 421 && this.#isCatalystUrl()) {
+					const targetRegion = response.headers.get('x-agentuity-region');
+					if (targetRegion && canRetry) {
+						const regionalUrl = this.#buildRegionalUrl(targetRegion, endpoint);
+						this.#logger.debug(
+							`Got 421 Misdirected Request, resource is in region ${targetRegion}, retrying against ${regionalUrl} (sessionId: ${sessionId ?? null})`
+						);
+
+						// Retry the request against the correct regional Catalyst
+						let requestBody:
+							| Uint8Array
+							| ArrayBuffer
+							| ReadableStream<Uint8Array>
+							| string
+							| Blob
+							| undefined;
+						if (body !== undefined) {
+							if (contentType && contentType !== 'application/json') {
+								requestBody = body as
+									| Uint8Array
+									| ArrayBuffer
+									| ReadableStream<Uint8Array>
+									| string
+									| Blob;
+							} else {
+								requestBody = JSON.stringify(body);
+							}
+						}
+
+						const regionalResponse = await fetch(regionalUrl, {
+							method,
+							headers,
+							body: requestBody,
+							signal,
+						});
+
+						// If the regional request also fails with 421, throw MisdirectedRequestError
+						if (regionalResponse.status === 421) {
+							throw new MisdirectedRequestError({
+								url: regionalUrl,
+								region: targetRegion,
+								sessionId: regionalResponse.headers.get('x-session-id'),
+							});
+						}
+
+						// For all other responses (success or error), assign to response
+						// and let the normal flow handle it (error handling, validation, etc.)
+						response = regionalResponse;
+					} else {
+						// No region header or can't retry - throw error
+						throw new MisdirectedRequestError({
+							url,
+							region: targetRegion ?? 'unknown',
+							sessionId,
+						});
+					}
+				}
 
 				// Check if we should retry on specific status codes (409, 501, 503)
 				const retryableStatuses = [409, 501, 503];
@@ -448,6 +605,21 @@ export class APIClient {
 					this.#logger.debug('  Status:', response.status, response.statusText);
 					this.#logger.debug('  Headers:', JSON.stringify(sanitizedHeaders, null, 2));
 					this.#logger.debug('  Response:', responseBody);
+
+					// HTTP 426 always forces upgrade (cannot be skipped - emergency upgrade path)
+					if (response.status === 426) {
+						throw new UpgradeRequiredError({ sessionId });
+					}
+
+					// HTTP 402 Payment Required - user needs to upgrade their plan
+					if (response.status === 402) {
+						const upgradeUrl = response.headers.get('x-upgrade-url');
+						throw new PaymentRequiredError({
+							url,
+							sessionId,
+							upgradeUrl: upgradeUrl ?? undefined,
+						});
+					}
 
 					// Check for UPGRADE_REQUIRED error
 					if (errorData?.code === 'UPGRADE_REQUIRED') {
@@ -558,6 +730,38 @@ export class APIClient {
 		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
 
+	/**
+	 * Check if the base URL is a Catalyst URL.
+	 * We only handle 421 Misdirected Request for Catalyst URLs, not the main API.
+	 */
+	#isCatalystUrl(): boolean {
+		try {
+			const url = new URL(this.#baseUrl);
+			return url.hostname.includes('catalyst');
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Build a URL for a specific regional Catalyst instance.
+	 * Used when retrying requests that received 421 Misdirected Request.
+	 */
+	#buildRegionalUrl(region: string, endpoint: string): string {
+		// Determine the domain suffix based on region
+		const isLocal = region === 'local' || region === 'l';
+		const domainSuffix = isLocal ? 'agentuity.io' : 'agentuity.cloud';
+
+		// Build the regional Catalyst URL
+		// For local: https://catalyst.agentuity.io
+		// For production: https://catalyst-{region}.agentuity.cloud
+		const baseUrl = isLocal
+			? `https://catalyst.${domainSuffix}`
+			: `https://catalyst-${region}.${domainSuffix}`;
+
+		return `${baseUrl}${endpoint}`;
+	}
+
 	#getRateLimitDelay(response: Response): number | null {
 		// Check for Retry-After header (standard HTTP)
 		const retryAfter = response.headers.get('Retry-After');
@@ -604,6 +808,8 @@ export class APIClient {
 				return 'The API request was invalid (HTTP 400). Please check your request parameters.';
 			case 401:
 				return 'Authentication failed (HTTP 401). Please check your credentials or try logging in again.';
+			case 402:
+				return 'This action requires a paid plan. Please upgrade your account at https://app.agentuity.com/billing to continue.';
 			case 403:
 				return 'Access denied (HTTP 403). You do not have permission to perform this action.';
 			case 404:
@@ -641,7 +847,7 @@ export function getAPIBaseURL(region?: string, overrides?: { api_url?: string })
 		return 'https://api.agentuity.io';
 	}
 
-	return 'https://api-v1.agentuity.com';
+	return 'https://api.agentuity.com';
 }
 
 export function getAppBaseURL(region?: string, overrides?: { app_url?: string } | null): string {
@@ -657,7 +863,7 @@ export function getAppBaseURL(region?: string, overrides?: { app_url?: string } 
 		return 'https://app.agentuity.io';
 	}
 
-	return 'https://app-v1.agentuity.com';
+	return 'https://app.agentuity.com';
 }
 
 export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
@@ -665,6 +871,7 @@ export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
 		z.object({
 			success: z.literal<false>(false),
 			message: z.string().describe('the error message'),
+			code: z.string().optional().describe('machine-readable error code'),
 		}),
 		z.object({
 			success: z.literal<true>(true),
@@ -677,6 +884,7 @@ export const APIResponseSchemaOptionalData = <T extends z.ZodType>(dataSchema: T
 		z.object({
 			success: z.literal<false>(false),
 			message: z.string().describe('the error message'),
+			code: z.string().optional().describe('machine-readable error code'),
 		}),
 		z.object({
 			success: z.literal<true>(true),
@@ -689,6 +897,7 @@ export const APIResponseSchemaNoData = () =>
 		z.object({
 			success: z.literal<false>(false),
 			message: z.string().describe('the error message'),
+			code: z.string().optional().describe('machine-readable error code'),
 		}),
 		z.object({
 			success: z.literal<true>(true),

@@ -18,15 +18,17 @@ const VectorUpsertResponseSchema = z.object({
 		)
 		.describe('Upsert results with key-to-id mappings'),
 	durationMs: z.number().describe('Operation duration in milliseconds'),
+	ttl: z.number().optional().describe('TTL in seconds if set'),
 });
 
 export const upsertSubcommand = createCommand({
 	name: 'upsert',
 	aliases: ['put', 'add'],
 	description: 'Add or update vectors in the vector storage',
-	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth'],
+	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth', 'uses-stdin'],
 	idempotent: true,
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('vector upsert products doc1 --document "Comfortable office chair"'),
@@ -41,6 +43,12 @@ export const upsertSubcommand = createCommand({
 		{
 			command: getCommand('vector upsert embeddings vec1 --embeddings "[0.1, 0.2, 0.3]"'),
 			description: 'Upsert with pre-computed embeddings',
+		},
+		{
+			command: getCommand(
+				'vector upsert products doc1 --document "Limited time offer" --ttl 86400'
+			),
+			description: 'Upsert with 24h TTL',
 		},
 		{
 			command: getCommand('vector upsert products --file vectors.json'),
@@ -67,6 +75,13 @@ export const upsertSubcommand = createCommand({
 				.string()
 				.optional()
 				.describe('path to JSON file containing vectors, or "-" for stdin'),
+			ttl: z.coerce
+				.number()
+				.refine((val) => val >= 0, {
+					message: 'TTL must be a non-negative number of seconds',
+				})
+				.optional()
+				.describe('TTL in seconds (0 for no expiration, values 1-59 clamped to 60 by server)'),
 		}),
 		response: VectorUpsertResponseSchema,
 	},
@@ -117,7 +132,10 @@ export const upsertSubcommand = createCommand({
 				tui.fatal('Invalid JSON in input file/stdin');
 			}
 
-			// Validate documents
+			// Validate documents and apply TTL from command line if not set in document
+			// Handle TTL: 0 means no expiration (null in API), undefined means use default
+			const cliTtl = opts.ttl === 0 ? null : opts.ttl;
+
 			for (const doc of documents) {
 				if (!doc.key || typeof doc.key !== 'string') {
 					tui.fatal('Each document must have a non-empty "key" property');
@@ -126,6 +144,10 @@ export const upsertSubcommand = createCommand({
 					tui.fatal(
 						`Document with key "${doc.key}" must have either "document" or "embeddings" property`
 					);
+				}
+				// Apply CLI TTL to documents that don't have their own TTL set
+				if (cliTtl !== undefined && doc.ttl === undefined) {
+					doc.ttl = cliTtl;
 				}
 			}
 		} else {
@@ -151,12 +173,16 @@ export const upsertSubcommand = createCommand({
 				}
 			}
 
+			// Handle TTL: 0 means no expiration (null in API), undefined means use default
+			const ttl = opts.ttl === 0 ? null : opts.ttl;
+
 			if (opts.document) {
 				documents = [
 					{
 						key: args.key,
 						document: opts.document,
 						metadata,
+						ttl,
 					},
 				];
 			} else if (opts.embeddings) {
@@ -175,6 +201,7 @@ export const upsertSubcommand = createCommand({
 						key: args.key,
 						embeddings,
 						metadata,
+						ttl,
 					},
 				];
 			}
@@ -209,6 +236,7 @@ export const upsertSubcommand = createCommand({
 			count: results.length,
 			results,
 			durationMs,
+			ttl: opts.ttl,
 		};
 	},
 });

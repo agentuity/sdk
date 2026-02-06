@@ -8,6 +8,11 @@ import {
 	sandboxRun,
 	sandboxWriteFiles,
 	sandboxReadFile,
+	snapshotCreate,
+	snapshotGet,
+	snapshotList,
+	snapshotDelete,
+	snapshotTag,
 } from '@agentuity/server';
 import type {
 	SandboxService,
@@ -23,6 +28,11 @@ import type {
 	StreamReader,
 	SandboxStatus,
 	FileToWrite,
+	SnapshotService,
+	SnapshotCreateOptions,
+	SnapshotInfo,
+	SnapshotListParams,
+	SnapshotListResponse,
 } from '@agentuity/core';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 
@@ -149,13 +159,91 @@ function createSandboxInstance(
 	};
 }
 
+/**
+ * HTTP implementation of the SnapshotService interface
+ */
+class HTTPSnapshotService implements SnapshotService {
+	private client: APIClient;
+
+	constructor(client: APIClient) {
+		this.client = client;
+	}
+
+	async create(sandboxId: string, options?: SnapshotCreateOptions): Promise<SnapshotInfo> {
+		return withSpan(
+			'agentuity.sandbox.snapshot.create',
+			{
+				'sandbox.id': sandboxId,
+				'snapshot.name': options?.name ?? '',
+				'snapshot.tag': options?.tag ?? '',
+			},
+			() =>
+				snapshotCreate(this.client, {
+					sandboxId,
+					name: options?.name,
+					description: options?.description,
+					tag: options?.tag,
+					public: options?.public,
+				})
+		);
+	}
+
+	async get(snapshotId: string): Promise<SnapshotInfo> {
+		return withSpan('agentuity.sandbox.snapshot.get', { 'snapshot.id': snapshotId }, () =>
+			snapshotGet(this.client, { snapshotId })
+		);
+	}
+
+	async list(params?: SnapshotListParams): Promise<SnapshotListResponse> {
+		return withSpan(
+			'agentuity.sandbox.snapshot.list',
+			{
+				'snapshot.sandboxId': params?.sandboxId ?? '',
+				'snapshot.limit': params?.limit ?? 50,
+			},
+			() =>
+				snapshotList(this.client, {
+					sandboxId: params?.sandboxId,
+					limit: params?.limit,
+					offset: params?.offset,
+				})
+		);
+	}
+
+	async delete(snapshotId: string): Promise<void> {
+		return withSpan('agentuity.sandbox.snapshot.delete', { 'snapshot.id': snapshotId }, () =>
+			snapshotDelete(this.client, { snapshotId })
+		);
+	}
+
+	async tag(snapshotId: string, tag: string | null): Promise<SnapshotInfo> {
+		return withSpan(
+			'agentuity.sandbox.snapshot.tag',
+			{
+				'snapshot.id': snapshotId,
+				'snapshot.tag': tag ?? '',
+			},
+			() => snapshotTag(this.client, { snapshotId, tag })
+		);
+	}
+}
+
+/**
+ * HTTP implementation of the SandboxService interface
+ */
 export class HTTPSandboxService implements SandboxService {
 	private client: APIClient;
 	private streamBaseUrl: string;
 
+	/**
+	 * Snapshot management operations
+	 */
+	public readonly snapshot: SnapshotService;
+
 	constructor(client: APIClient, streamBaseUrl: string) {
 		this.client = client;
 		this.streamBaseUrl = streamBaseUrl;
+		this.snapshot = new HTTPSnapshotService(client);
 	}
 
 	async run(options: SandboxRunOptions): Promise<SandboxRunResult> {

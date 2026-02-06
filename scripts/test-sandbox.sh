@@ -15,7 +15,13 @@ SANDBOX_ID=""
 # Get commit SHA for sandbox descriptions
 COMMIT_SHA=$(git -C "$SDK_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 SANDBOX_DESC="Automated test-sandbox.sh for commit $COMMIT_SHA"
+
+# Generate a unique run ID to avoid conflicts between concurrent CI runs
+# Combines timestamp with random hex to ensure uniqueness even if runs start in the same second
+RUN_ID="$(date +%s)-$(head -c 6 /dev/urandom | xxd -p)"
 SNAPSHOT_ID=""
+# Array to track all created snapshot IDs for cleanup
+CREATED_SNAPSHOTS=()
 TESTS_PASSED=0
 TESTS_FAILED=0
 
@@ -30,9 +36,12 @@ cleanup() {
 	if [ -n "$SANDBOX_ID" ]; then
 		$CLI cloud sandbox delete "$SANDBOX_ID" --confirm 2>/dev/null || true
 	fi
-	if [ -n "$SNAPSHOT_ID" ]; then
-		$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
-	fi
+	# Clean up all tracked snapshots
+	for snap_id in "${CREATED_SNAPSHOTS[@]}"; do
+		if [ -n "$snap_id" ]; then
+			$CLI cloud sandbox snapshot delete "$snap_id" --confirm 2>/dev/null || true
+		fi
+	done
 	rm -rf "$TEST_DIR"
 	echo -e "${GREEN}Cleanup complete${NC}"
 	echo ""
@@ -50,6 +59,40 @@ trap cleanup EXIT
 pass() {
 	echo -e "${GREEN}✓ $1${NC}"
 	TESTS_PASSED=$((TESTS_PASSED + 1))
+}
+
+# Track a snapshot for cleanup
+track_snapshot() {
+	if [ -n "$1" ] && [[ "$1" == snp_* ]]; then
+		CREATED_SNAPSHOTS+=("$1")
+	fi
+}
+
+# Remove a snapshot from tracking (after successful deletion)
+untrack_snapshot() {
+	local snap_to_remove="$1"
+	local new_array=()
+	for snap_id in "${CREATED_SNAPSHOTS[@]}"; do
+		if [ "$snap_id" != "$snap_to_remove" ]; then
+			new_array+=("$snap_id")
+		fi
+	done
+	CREATED_SNAPSHOTS=("${new_array[@]}")
+}
+
+# Delete a snapshot and untrack only on success
+# Returns 0 on success, 1 on failure (snapshot remains tracked for retry)
+delete_and_untrack_snapshot() {
+	local snap_id="$1"
+	if [ -z "$snap_id" ]; then
+		return 0
+	fi
+	if $CLI cloud sandbox snapshot delete "$snap_id" --confirm 2>/dev/null; then
+		untrack_snapshot "$snap_id"
+		return 0
+	else
+		return 1
+	fi
 }
 
 fail() {
@@ -152,8 +195,8 @@ else
 	pass "Using org ID: $ORG_ID"
 
 	# Set up org-level env and secret for testing
-	ORG_TEST_KEY="SANDBOX_TEST_ORG_VAR_$(date +%s)"
-	ORG_SECRET_KEY="SANDBOX_TEST_ORG_SECRET_$(date +%s)"
+	ORG_TEST_KEY="SANDBOX_TEST_ORG_VAR_${RUN_ID}"
+	ORG_SECRET_KEY="SANDBOX_TEST_ORG_SECRET_${RUN_ID}"
 	ORG_TEST_VALUE="org_env_test_value"
 	ORG_SECRET_VALUE="org_secret_test_value"
 
@@ -227,8 +270,9 @@ section "CREATE & GET & LIST Command Tests"
 # ============================================
 
 # Test: Create sandbox with custom resources
-info "Test: sandbox create --memory --cpu --disk"
-CREATE_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --memory 1Gi --cpu 1000m --disk 2Gi --json 2>&1) || true
+# Use --idle-timeout 10m to prevent sandbox from being reaped during long-running tests
+info "Test: sandbox create --memory --cpu --disk --idle-timeout"
+CREATE_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --memory 1Gi --cpu 1000m --disk 2Gi --idle-timeout 10m --json 2>&1) || true
 SANDBOX_ID=$(echo "$CREATE_OUTPUT" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SANDBOX_ID" ] && [[ "$SANDBOX_ID" == sbx_* ]]; then
 	pass "sandbox create returns valid sandboxId: $SANDBOX_ID"
@@ -778,6 +822,7 @@ section "SNAPSHOT Command Tests"
 info "Test: snapshot create --json"
 SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --json 2>&1) || true
 SNAPSHOT_ID=$(echo "$SNAP_CREATE" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$SNAPSHOT_ID"
 if [ -n "$SNAPSHOT_ID" ] && [[ "$SNAPSHOT_ID" == snp_* ]]; then
 	pass "snapshot create returns valid snapshotId: $SNAPSHOT_ID"
 else
@@ -812,7 +857,7 @@ fi
 
 # Test: Tag snapshot
 info "Test: snapshot tag"
-TEST_TAG="test-$(date +%s)"
+TEST_TAG="test-${RUN_ID}"
 TAG_OUTPUT=$($CLI cloud sandbox snapshot tag "$SNAPSHOT_ID" "$TEST_TAG" 2>&1) || true
 if echo "$TAG_OUTPUT" | grep -qi "tagged\|$TEST_TAG"; then
 	pass "snapshot tag succeeds"
@@ -846,19 +891,21 @@ else
 fi
 
 # Delete the first snapshot before creating a named one
-$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
-SNAPSHOT_ID=""
+if delete_and_untrack_snapshot "$SNAPSHOT_ID"; then
+	SNAPSHOT_ID=""
+fi
 
 # ============================================
 section "SNAPSHOT name:tag Resolution Tests"
 # ============================================
 
 # Create snapshot with explicit name and tag
-SNAP_NAME="test-snap-$(date +%s)"
+SNAP_NAME="test-snap-${RUN_ID}"
 SNAP_TAG="v1"
 info "Test: snapshot create with --name and --tag"
 NAMED_SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "$SNAP_NAME" --tag "$SNAP_TAG" --json 2>&1) || true
 SNAPSHOT_ID=$(echo "$NAMED_SNAP_CREATE" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$SNAPSHOT_ID"
 CREATED_NAME=$(echo "$NAMED_SNAP_CREATE" | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 CREATED_TAG=$(echo "$NAMED_SNAP_CREATE" | grep -o '"tag"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 
@@ -889,6 +936,7 @@ fi
 info "Test: snapshot create with --name (defaults to latest tag)"
 LATEST_SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "$SNAP_NAME" --json 2>&1) || true
 LATEST_SNAP_ID=$(echo "$LATEST_SNAP_CREATE" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$LATEST_SNAP_ID"
 LATEST_TAG=$(echo "$LATEST_SNAP_CREATE" | grep -o '"tag"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ "$LATEST_TAG" = "latest" ]; then
 	pass "snapshot create without --tag defaults to 'latest'"
@@ -932,7 +980,7 @@ fi
 
 # Test: Error handling for non-existent snapshot name:tag
 info "Test: sandbox create --snapshot with non-existent name:tag"
-NONEXIST_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "nonexistent-snap-$(date +%s):v999" --json 2>&1) || true
+NONEXIST_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "nonexistent-snap-${RUN_ID}:v999" --json 2>&1) || true
 if echo "$NONEXIST_OUTPUT" | grep -qi "not found\|error\|failed"; then
 	pass "non-existent snapshot name:tag returns error"
 else
@@ -945,9 +993,10 @@ else
 fi
 
 # Clean up snapshots
-$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
-$CLI cloud sandbox snapshot delete "$LATEST_SNAP_ID" --confirm 2>/dev/null || true
-SNAPSHOT_ID=""
+if delete_and_untrack_snapshot "$SNAPSHOT_ID"; then
+	SNAPSHOT_ID=""
+fi
+delete_and_untrack_snapshot "$LATEST_SNAP_ID"
 
 # ============================================
 section "SNAPSHOT BUILD Command Tests"
@@ -978,6 +1027,7 @@ EOF
 
 BUILD_OUTPUT=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --tag "v1" --json 2>&1) || true
 BUILD_SNAP_ID=$(echo "$BUILD_OUTPUT" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$BUILD_SNAP_ID"
 if [ -n "$BUILD_SNAP_ID" ] && [[ "$BUILD_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build returns valid snapshotId: $BUILD_SNAP_ID"
 	SNAPSHOT_ID="$BUILD_SNAP_ID"
@@ -1044,8 +1094,9 @@ else
 fi
 
 # Clean up first build snapshot
-$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
-SNAPSHOT_ID=""
+if delete_and_untrack_snapshot "$SNAPSHOT_ID"; then
+	SNAPSHOT_ID=""
+fi
 
 # Test: Build with dependencies
 info "Test: snapshot build with dependencies"
@@ -1060,9 +1111,10 @@ EOF
 
 DEP_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --json 2>&1) || true
 DEP_SNAP_ID=$(echo "$DEP_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$DEP_SNAP_ID"
 if [ -n "$DEP_SNAP_ID" ] && [[ "$DEP_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with dependencies succeeds"
-	$CLI cloud sandbox snapshot delete "$DEP_SNAP_ID" --confirm 2>/dev/null || true
+	delete_and_untrack_snapshot "$DEP_SNAP_ID"
 else
 	fail "snapshot build with dependencies failed" "$DEP_BUILD"
 fi
@@ -1081,9 +1133,10 @@ EOF
 
 ENV_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --env "MY_SECRET=secret123" --json 2>&1) || true
 ENV_SNAP_ID=$(echo "$ENV_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$ENV_SNAP_ID"
 if [ -n "$ENV_SNAP_ID" ] && [[ "$ENV_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with env substitution succeeds"
-	$CLI cloud sandbox snapshot delete "$ENV_SNAP_ID" --confirm 2>/dev/null || true
+	delete_and_untrack_snapshot "$ENV_SNAP_ID"
 else
 	fail "snapshot build with env substitution failed" "$ENV_BUILD"
 fi
@@ -1097,7 +1150,8 @@ else
 	# Check if it somehow succeeded (which would be wrong)
 	MISSING_SNAP_ID=$(echo "$MISSING_ENV_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 	if [ -n "$MISSING_SNAP_ID" ]; then
-		$CLI cloud sandbox snapshot delete "$MISSING_SNAP_ID" --confirm 2>/dev/null || true
+		track_snapshot "$MISSING_SNAP_ID"
+		delete_and_untrack_snapshot "$MISSING_SNAP_ID"
 		fail "snapshot build should have failed with missing env variable" "$MISSING_ENV_BUILD"
 	else
 		fail "snapshot build error message not clear about missing variable" "$MISSING_ENV_BUILD"
@@ -1118,9 +1172,10 @@ EOF
 
 META_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --metadata "VERSION=1.0.0" --json 2>&1) || true
 META_SNAP_ID=$(echo "$META_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$META_SNAP_ID"
 if [ -n "$META_SNAP_ID" ] && [[ "$META_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with metadata succeeds"
-	$CLI cloud sandbox snapshot delete "$META_SNAP_ID" --confirm 2>/dev/null || true
+	delete_and_untrack_snapshot "$META_SNAP_ID"
 else
 	fail "snapshot build with metadata failed" "$META_BUILD"
 fi
@@ -1136,9 +1191,10 @@ EOF
 
 CUSTOM_FILE_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --file "$BUILD_DIR/custom-build.yaml" --json 2>&1) || true
 CUSTOM_SNAP_ID=$(echo "$CUSTOM_FILE_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$CUSTOM_SNAP_ID"
 if [ -n "$CUSTOM_SNAP_ID" ] && [[ "$CUSTOM_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with --file option succeeds"
-	$CLI cloud sandbox snapshot delete "$CUSTOM_SNAP_ID" --confirm 2>/dev/null || true
+	delete_and_untrack_snapshot "$CUSTOM_SNAP_ID"
 else
 	fail "snapshot build with --file option failed" "$CUSTOM_FILE_BUILD"
 fi
@@ -1155,9 +1211,10 @@ EOF
 
 DESC_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --description "Overridden description" --json 2>&1) || true
 DESC_SNAP_ID=$(echo "$DESC_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$DESC_SNAP_ID"
 if [ -n "$DESC_SNAP_ID" ] && [[ "$DESC_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build with --description succeeds"
-	$CLI cloud sandbox snapshot delete "$DESC_SNAP_ID" --confirm 2>/dev/null || true
+	delete_and_untrack_snapshot "$DESC_SNAP_ID"
 else
 	fail "snapshot build with --description failed" "$DESC_BUILD"
 fi
@@ -1195,7 +1252,8 @@ if echo "$INVALID_BUILD" | grep -qi "runtime\|required\|invalid"; then
 else
 	INVALID_SNAP_ID=$(echo "$INVALID_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 	if [ -n "$INVALID_SNAP_ID" ]; then
-		$CLI cloud sandbox snapshot delete "$INVALID_SNAP_ID" --confirm 2>/dev/null || true
+		track_snapshot "$INVALID_SNAP_ID"
+		delete_and_untrack_snapshot "$INVALID_SNAP_ID"
 		fail "snapshot build should have failed with missing runtime" "$INVALID_BUILD"
 	else
 		fail "snapshot build error message not clear about missing runtime" "$INVALID_BUILD"
@@ -1219,12 +1277,110 @@ if echo "$INVALID_DEP_BUILD" | grep -qi "invalid\|not found\|error"; then
 else
 	INVALID_DEP_SNAP_ID=$(echo "$INVALID_DEP_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 	if [ -n "$INVALID_DEP_SNAP_ID" ]; then
-		$CLI cloud sandbox snapshot delete "$INVALID_DEP_SNAP_ID" --confirm 2>/dev/null || true
+		track_snapshot "$INVALID_DEP_SNAP_ID"
+		delete_and_untrack_snapshot "$INVALID_DEP_SNAP_ID"
 		fail "snapshot build should have failed with invalid dependency" "$INVALID_DEP_BUILD"
 	else
 		fail "snapshot build error message not clear about invalid dependency" "$INVALID_DEP_BUILD"
 	fi
 fi
+
+# ============================================
+section "MALWARE DETECTION Tests (Public Snapshots)"
+# ============================================
+
+# Setup malware test directory with EICAR test file
+MALWARE_DIR="$TEST_DIR/malware-test"
+mkdir -p "$MALWARE_DIR"
+echo "clean file content" > "$MALWARE_DIR/clean.txt"
+# EICAR test file - standard antivirus test string
+echo 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > "$MALWARE_DIR/malware.txt"
+cat > "$MALWARE_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+description: Malware detection test
+files:
+  - "*.txt"
+EOF
+pass "Malware test files created (EICAR test file)"
+
+# Test: Public snapshot with malware is rejected (TUI output)
+info "Test: snapshot build --public rejects malware"
+set +e
+MALWARE_BUILD=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --confirm 2>&1)
+MALWARE_EXIT=$?
+set -e
+if echo "$MALWARE_BUILD" | grep -qi "malware detected"; then
+	pass "snapshot build --public detects and reports malware"
+else
+	fail "snapshot build --public did not detect malware" "$MALWARE_BUILD"
+fi
+
+# Verify exit code is 10 (SECURITY_ERROR)
+if [ "$MALWARE_EXIT" -eq 10 ]; then
+	pass "snapshot build --public with malware exits with code 10 (SECURITY_ERROR)"
+else
+	fail "snapshot build --public with malware should exit with code 10, got $MALWARE_EXIT" ""
+fi
+
+# Verify error box mentions virus name
+if echo "$MALWARE_BUILD" | grep -qi "Eicar-Signature\|Eicar"; then
+	pass "malware detection shows virus name (Eicar-Signature)"
+else
+	fail "malware detection did not show virus name" "$MALWARE_BUILD"
+fi
+
+# Test: Public snapshot with malware is rejected (JSON output)
+info "Test: snapshot build --public --json malware detection"
+set +e
+MALWARE_JSON=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --confirm --json 2>&1)
+MALWARE_JSON_EXIT=$?
+set -e
+
+# Verify JSON contains malwareDetected field
+if echo "$MALWARE_JSON" | grep -q '"malwareDetected"[[:space:]]*:[[:space:]]*true'; then
+	pass "snapshot build --public --json returns malwareDetected: true"
+else
+	fail "snapshot build --public --json missing malwareDetected field" "$MALWARE_JSON"
+fi
+
+# Verify JSON contains virusName field
+if echo "$MALWARE_JSON" | grep -q '"virusName"'; then
+	pass "snapshot build --public --json returns virusName field"
+else
+	fail "snapshot build --public --json missing virusName field" "$MALWARE_JSON"
+fi
+
+# Verify JSON contains error field
+if echo "$MALWARE_JSON" | grep -q '"error"'; then
+	pass "snapshot build --public --json returns error field"
+else
+	fail "snapshot build --public --json missing error field" "$MALWARE_JSON"
+fi
+
+# Verify JSON exit code is 1 (JSON mode uses exit 1)
+if [ "$MALWARE_JSON_EXIT" -eq 1 ]; then
+	pass "snapshot build --public --json with malware exits with code 1"
+else
+	fail "snapshot build --public --json with malware should exit with code 1, got $MALWARE_JSON_EXIT" ""
+fi
+
+# Test: Clean public snapshot succeeds
+info "Test: snapshot build --public with clean files succeeds"
+rm "$MALWARE_DIR/malware.txt"  # Remove the malware file
+CLEAN_PUBLIC_BUILD=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --confirm --json 2>&1) || true
+CLEAN_SNAP_ID=$(echo "$CLEAN_PUBLIC_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$CLEAN_SNAP_ID"
+if [ -n "$CLEAN_SNAP_ID" ] && [[ "$CLEAN_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build --public with clean files succeeds: $CLEAN_SNAP_ID"
+	# Clean up
+	delete_and_untrack_snapshot "$CLEAN_SNAP_ID"
+else
+	fail "snapshot build --public with clean files failed" "$CLEAN_PUBLIC_BUILD"
+fi
+
+# Clean up malware test directory
+rm -rf "$MALWARE_DIR"
 
 # Test: Build with no build file present (auto-detect should fail)
 info "Test: snapshot build with missing build file"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { $ } from 'bun';
 import * as readline from 'node:readline';
@@ -55,21 +55,13 @@ Description:
 
   GitHub Release:
     - Creates/updates GitHub release with generated release notes
-    - Builds and uploads CLI executables for multiple platforms
     - Builds and uploads VS Code extension (.vsix) for manual installation
+    - Builds and uploads templates tarball (templates-{version}.tar.gz)
     - Marks pre-releases appropriately on GitHub
-
-Required Environment Variables:
-  QUILL_SIGN_P12       Path to P12 certificate file
-  QUILL_SIGN_PASSWORD  Password for P12 certificate
-  QUILL_NOTARY_KEY     Apple notary API key
-  QUILL_NOTARY_KEY_ID  Apple notary key ID
-  QUILL_NOTARY_ISSUER  Apple notary issuer ID
 
 Required Tools:
   gh                   GitHub CLI (https://cli.github.com/)
   amp                  Amp CLI for release notes generation
-  quill                quill signing and notarization tool (https://github.com/anchore/quill)
 
 Examples:
   bun scripts/publish.ts                 # Publish to npm (interactive)
@@ -413,42 +405,6 @@ async function validateEnvironment(isDryRun: boolean) {
 			console.error('   Required for generating release notes.');
 			process.exit(1);
 		}
-
-		// Check for quill CLI
-		try {
-			await $`quill --version`.quiet();
-		} catch {
-			console.error('❌ Error: quill not found.');
-			console.error('   Install from: https://github.com/anchore/quill');
-			process.exit(1);
-		}
-
-		// Validate quill environment variables
-		const requiredEnvVars = [
-			'QUILL_SIGN_P12',
-			'QUILL_SIGN_PASSWORD',
-			'QUILL_NOTARY_KEY',
-			'QUILL_NOTARY_KEY_ID',
-			'QUILL_NOTARY_ISSUER',
-		];
-
-		const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
-
-		if (missingVars.length > 0) {
-			console.error('❌ Error: Required environment variables not set:');
-			for (const varName of missingVars) {
-				console.error(`   - ${varName}`);
-			}
-			console.error('\n   These are required for quill signing and notarization.');
-			console.error('   See: https://github.com/anchore/quill#configuration');
-			process.exit(1);
-		}
-
-		if (process.platform !== 'darwin') {
-			console.error('❌ Error: macOS code signing required but not running on macOS.');
-			console.error('   Must run publish on macOS for signing and notarization.');
-			process.exit(1);
-		}
 	}
 
 	console.log('✓ Environment validation passed\n');
@@ -519,19 +475,13 @@ Formatting Instructions:
 	}
 }
 
-async function buildExecutables(version: string, skipSign: boolean) {
-	console.log('\n🔨 Building CLI executables...\n');
-
-	const cliDir = join(rootDir, 'packages', 'cli');
+async function isVersionPublished(pkgName: string, version: string): Promise<boolean> {
 	try {
-		const args = ['scripts/build-executables.ts', `--version=${version}`];
-		if (skipSign) {
-			args.push('--skip-sign');
-		}
-		await $`bun ${args}`.cwd(cliDir);
-	} catch (err) {
-		console.error('✗ Failed to build executables:', err);
-		throw err;
+		const result = await $`npm view ${pkgName}@${version} version`.quiet().text();
+		return result.trim() === version;
+	} catch {
+		// Package or version doesn't exist
+		return false;
 	}
 }
 
@@ -552,11 +502,65 @@ async function buildVSCodeExtension(version: string): Promise<string> {
 	}
 }
 
+async function buildTemplatesTarball(version: string): Promise<string> {
+	console.log('\n📦 Building templates tarball...\n');
+
+	const templatesDir = join(rootDir, 'templates');
+	const tarballName = `templates-${version}.tar.gz`;
+	const tarballPath = join('/tmp', tarballName);
+	// Use sdk-main as the directory prefix to match what the CLI expects
+	// The CLI constructs the prefix as `sdk-${branch}` where branch defaults to 'main'
+	const tempDir = join('/tmp', 'sdk-main');
+	const templatesSubdir = join(tempDir, 'templates');
+
+	// Validate templates directory exists
+	try {
+		const stats = await stat(templatesDir);
+		if (!stats.isDirectory()) {
+			throw new Error(`Templates path is not a directory: ${templatesDir}`);
+		}
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+			throw new Error(`Templates directory not found: ${templatesDir}`);
+		}
+		throw err;
+	}
+
+	try {
+		// Clean up any existing temp directory and tarball
+		// Use explicit /tmp/sdk-main path to ensure we always clean up the fixed location
+		await $`rm -rf /tmp/sdk-main ${tarballPath}`.quiet().nothrow();
+
+		// Create temp directory with sdk-main/templates structure
+		await $`mkdir -p ${templatesSubdir}`;
+
+		// Copy all contents including dotfiles using trailing dot syntax
+		// cp -r source/. dest/ copies all files including hidden ones
+		await $`cp -r ${templatesDir}/. ${templatesSubdir}/`;
+
+		// Create tarball from /tmp with sdk-main as root directory
+		// COPYFILE_DISABLE=1 prevents macOS from including AppleDouble (._*) resource fork files
+		await $`COPYFILE_DISABLE=1 tar -czf ${tarballPath} -C /tmp sdk-main`;
+
+		// Clean up temp directory
+		await $`rm -rf /tmp/sdk-main`;
+
+		console.log(`✓ Built templates tarball: ${tarballName}`);
+		return tarballPath;
+	} catch (err) {
+		// Clean up on error
+		await $`rm -rf /tmp/sdk-main ${tarballPath}`.quiet().nothrow();
+		console.error('✗ Failed to build templates tarball:', err);
+		throw err;
+	}
+}
+
 async function createOrUpdateGitHubRelease(
 	version: string,
 	releaseNotes: string,
 	isPrerelease: boolean,
-	vsixPath?: string
+	vsixPath?: string,
+	templatesTarballPath?: string
 ) {
 	const tag = `v${version}`;
 	console.log(`\n🏷️  Creating GitHub release ${tag}...\n`);
@@ -584,21 +588,6 @@ async function createOrUpdateGitHubRelease(
 		args.push('--prerelease');
 	}
 
-	// Add executable assets (only .gz compressed files)
-	const binDir = join(rootDir, 'packages', 'cli', 'dist', 'bin');
-	const executables = await readdir(binDir);
-	const assetFiles: string[] = [];
-	for (const exe of executables) {
-		if (exe.endsWith('.gz')) {
-			assetFiles.push(join(binDir, exe));
-		}
-	}
-
-	// Add VS Code extension if provided
-	if (vsixPath) {
-		assetFiles.push(vsixPath);
-	}
-
 	// First create the release without assets
 	try {
 		console.log('   Creating release...');
@@ -609,12 +598,25 @@ async function createOrUpdateGitHubRelease(
 		throw err;
 	}
 
-	// Then upload assets one by one with progress
-	for (const assetPath of assetFiles) {
-		const assetName = assetPath.split('/').pop();
+	// Upload VS Code extension if provided
+	if (vsixPath) {
+		const assetName = vsixPath.split('/').pop();
 		console.log(`   Uploading ${assetName}...`);
 		try {
-			await $`gh release upload ${tag} ${assetPath} --clobber`.cwd(rootDir);
+			await $`gh release upload ${tag} ${vsixPath} --clobber`.cwd(rootDir);
+			console.log(`   ✓ Uploaded ${assetName}`);
+		} catch (err) {
+			console.error(`✗ Failed to upload ${assetName}:`, err);
+			throw err;
+		}
+	}
+
+	// Upload templates tarball if provided
+	if (templatesTarballPath) {
+		const assetName = templatesTarballPath.split('/').pop();
+		console.log(`   Uploading ${assetName}...`);
+		try {
+			await $`gh release upload ${tag} ${templatesTarballPath} --clobber`.cwd(rootDir);
 			console.log(`   ✓ Uploaded ${assetName}`);
 		} catch (err) {
 			console.error(`✗ Failed to upload ${assetName}:`, err);
@@ -717,15 +719,21 @@ async function main() {
 		console.log('\n🔨 Running bun run build...');
 		await $`bun run build`.cwd(rootDir);
 
-		// Build executables (skip signing in dry-run)
-		await buildExecutables(newVersion, isDryRun);
-
 		// Build VS Code extension
 		const vsixPath = await buildVSCodeExtension(newVersion);
 
+		// Build templates tarball
+		const templatesTarballPath = await buildTemplatesTarball(newVersion);
+
 		// Create GitHub release before npm publish (skip in dry-run)
 		if (!isDryRun) {
-			await createOrUpdateGitHubRelease(newVersion, releaseNotes, isPreReleaseVersion, vsixPath);
+			await createOrUpdateGitHubRelease(
+				newVersion,
+				releaseNotes,
+				isPreReleaseVersion,
+				vsixPath,
+				templatesTarballPath
+			);
 		}
 
 		const publishable = await getPublishablePackages();
@@ -736,6 +744,12 @@ async function main() {
 			const pkgJson = await readJSON(join(pkg.path, 'package.json'));
 			const pkgName = pkgJson.name;
 			console.log(`\n📦 Publishing ${pkgName}...`);
+
+			// Check if version is already published
+			if (await isVersionPublished(pkgName, newVersion)) {
+				console.log(`⊘ Skipped ${pkgName}@${newVersion} (already published)`);
+				continue;
+			}
 
 			const maxRetries = 3;
 			let lastErr: unknown;

@@ -1,11 +1,15 @@
-import type { Config, Logger, CommandDefinition } from './types';
-import { isRunningFromExecutable, fetchLatestVersion } from './cmd/upgrade';
+import type { Config, Logger, CommandDefinition, SubcommandDefinition } from './types';
+import { getInstallationType } from './utils/installation-type';
+import { fetchLatestVersion } from './cmd/upgrade';
 import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version';
 import * as tui from './tui';
 import { saveConfig } from './config';
 import { $ } from 'bun';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+
+// Tags that indicate a command should skip the upgrade prompt
+const SKIP_UPGRADE_TAGS = ['read-only', 'fast'];
 
 /**
  * Check if we should skip the version check based on environment and config
@@ -20,10 +24,12 @@ function shouldSkipCheck(
 		skipVersionCheck?: boolean;
 	},
 	commandDef: CommandDefinition | undefined,
+	subcommandDef: SubcommandDefinition | undefined,
 	args: string[]
 ): boolean {
-	// Skip if running via bun/bunx (not installed executable)
-	if (!isRunningFromExecutable()) {
+	// Skip if not a global installation (can't auto-upgrade local/source installs)
+	const installationType = getInstallationType();
+	if (installationType !== 'global') {
 		return true;
 	}
 
@@ -61,6 +67,21 @@ function shouldSkipCheck(
 	// Skip if command explicitly opts out of upgrade check
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if (commandDef && (commandDef as any).skipUpgradeCheck === true) {
+		return true;
+	}
+
+	// Skip if subcommand explicitly opts out of upgrade check
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if (subcommandDef && (subcommandDef as any).skipUpgradeCheck === true) {
+		return true;
+	}
+
+	// Skip if command or subcommand has tags indicating it's read-only or fast
+	// These commands shouldn't be interrupted with upgrade prompts
+	const commandTags = commandDef?.tags ?? [];
+	const subcommandTags = subcommandDef?.tags ?? [];
+	const allTags = [...commandTags, ...subcommandTags];
+	if (allTags.some((tag) => SKIP_UPGRADE_TAGS.includes(tag))) {
 		return true;
 	}
 
@@ -135,25 +156,28 @@ async function updateCheckTimestamp(config: Config | null, logger: Logger): Prom
 }
 
 /**
- * Perform the upgrade and re-run the command
+ * Perform the upgrade using bun global install and re-run the command
  */
-async function performUpgrade(logger: Logger): Promise<void> {
+async function performUpgrade(logger: Logger, targetVersion: string): Promise<void> {
 	try {
-		// Run upgrade command with --force since user already confirmed via prompt
-		// Use process.execPath to get the actual binary path (not Bun.main which is virtual)
-		logger.info('Starting upgrade...');
-		await $`${process.execPath} upgrade --force`.quiet();
+		// Remove 'v' prefix for npm version
+		const npmVersion = targetVersion.replace(/^v/, '');
+
+		logger.info('Upgrading to version %s...', npmVersion);
+
+		// Use bun to install the specific version globally
+		await $`bun add -g @agentuity/cli@${npmVersion}`.quiet();
 
 		// If we got here, the upgrade succeeded
 		// Re-run the original command with the new binary
 		const args = process.argv.slice(2);
-		const newBinaryPath = process.execPath;
 
 		logger.info('Upgrade successful! Restarting with new version...');
 		console.log('');
 
-		// Spawn new process with same arguments
-		const proc = Bun.spawn([newBinaryPath, ...args], {
+		// Spawn new process using the global agentuity command
+		// This will use the newly installed version
+		const proc = Bun.spawn(['agentuity', ...args], {
 			stdin: 'inherit',
 			stdout: 'inherit',
 			stderr: 'inherit',
@@ -187,10 +211,11 @@ export async function checkForUpdates(
 		skipVersionCheck?: boolean;
 	},
 	commandDef: CommandDefinition | undefined,
+	subcommandDef: SubcommandDefinition | undefined,
 	args: string[]
 ): Promise<void> {
 	// Determine if we should skip the check
-	if (shouldSkipCheck(config, options, commandDef, args)) {
+	if (shouldSkipCheck(config, options, commandDef, subcommandDef, args)) {
 		logger.trace('Skipping version check (disabled or not applicable)');
 		return;
 	}
@@ -208,17 +233,33 @@ export async function checkForUpdates(
 		const currentVersion = getVersion();
 		const latestVersion = await fetchLatestVersion();
 
-		// Update the timestamp since we successfully checked
-		await updateCheckTimestamp(config, logger);
-
 		// Compare versions
 		const normalizedCurrent = currentVersion.replace(/^v/, '');
 		const normalizedLatest = latestVersion.replace(/^v/, '');
 
 		if (normalizedCurrent === normalizedLatest) {
+			// Update timestamp - we confirmed we're on latest version
+			await updateCheckTimestamp(config, logger);
 			logger.trace('Already on latest version: %s', currentVersion);
 			return;
 		}
+
+		// Quick npm availability check before prompting (short timeout, no retries)
+		// This avoids blocking the user's command if npm is slow or version not yet available
+		const { isVersionAvailableOnNpmQuick } = await import('./cmd/upgrade/npm-availability');
+		const isAvailable = await isVersionAvailableOnNpmQuick(latestVersion);
+
+		if (!isAvailable) {
+			// Don't update timestamp - we want to check again soon since npm may propagate
+			logger.debug(
+				'Version %s not yet available on npm, skipping upgrade prompt',
+				latestVersion
+			);
+			return;
+		}
+
+		// Update timestamp - npm availability confirmed, we can proceed with prompt
+		await updateCheckTimestamp(config, logger);
 
 		// New version available - prompt user
 		const shouldUpgrade = await promptUpgrade(currentVersion, latestVersion);
@@ -231,7 +272,7 @@ export async function checkForUpdates(
 		}
 
 		// User wants to upgrade - perform it
-		await performUpgrade(logger);
+		await performUpgrade(logger, latestVersion);
 	} catch (error) {
 		// Non-fatal - if we can't fetch the latest version (network error, timeout, etc.),
 		// just log at debug level and continue without interrupting the user's command

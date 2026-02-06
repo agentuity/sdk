@@ -1,7 +1,8 @@
 import enquirer from 'enquirer';
 import { getDefaultConfigPath, getAuth, saveConfig, loadConfig, saveOrgId } from './config';
+import { getResourceInfo, type ResourceType } from './cache';
 import { getCommand } from './command-prefix';
-import type { CommandContext, AuthData } from './types';
+import type { CommandContext, AuthData, Config } from './types';
 import * as tui from './tui';
 import { defaultProfileName } from './config';
 import { listOrganizations } from '@agentuity/server';
@@ -9,6 +10,119 @@ import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientTyp
 
 export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
+}
+
+const ORG_ID_ENV_VAR = 'AGENTUITY_CLOUD_ORG_ID';
+const NON_INTERACTIVE_ORG_ERROR =
+	'Cannot select organization in non-interactive mode. ' +
+	`Use --org-id, set ${ORG_ID_ENV_VAR}, or run interactively.`;
+
+const RESOURCE_PREFIXES: Array<{ prefix: string; type: ResourceType }> = [
+	{ prefix: 'sbx_', type: 'sandbox' },
+	{ prefix: 'proj_', type: 'project' },
+	{ prefix: 'db_', type: 'db' },
+	{ prefix: 'deploy_', type: 'deployment' },
+	{ prefix: 'machine_', type: 'machine' },
+	{ prefix: 'que_', type: 'queue' },
+	{ prefix: 'vec_', type: 'vector' },
+	{ prefix: 'kv_', type: 'kv' },
+	{ prefix: 'stream_', type: 'stream' },
+];
+
+function getResourceTypeFromId(id: string): ResourceType | undefined {
+	for (const entry of RESOURCE_PREFIXES) {
+		if (id.startsWith(entry.prefix)) {
+			return entry.type;
+		}
+	}
+	return undefined;
+}
+
+function collectPrefixedIds(values?: Record<string, unknown> | unknown[]): string[] {
+	if (!values) {
+		return [];
+	}
+	const ids = new Set<string>();
+	const addValue = (value: unknown) => {
+		if (typeof value === 'string') {
+			const resourceType = getResourceTypeFromId(value);
+			if (resourceType) {
+				ids.add(value);
+			}
+			return;
+		}
+		if (Array.isArray(value)) {
+			for (const entry of value) {
+				if (typeof entry === 'string') {
+					const resourceType = getResourceTypeFromId(entry);
+					if (resourceType) {
+						ids.add(entry);
+					}
+				}
+			}
+		}
+	};
+
+	for (const value of Object.values(values)) {
+		addValue(value);
+	}
+
+	return Array.from(ids);
+}
+
+export function hasPrefixedResourceId(
+	args?: Record<string, unknown> | unknown[],
+	opts?: Record<string, unknown> | unknown[]
+): boolean {
+	return collectPrefixedIds(args).length > 0 || collectPrefixedIds(opts).length > 0;
+}
+
+async function resolveCachedOrgId(ctx: {
+	config: Config | null;
+	args?: Record<string, unknown> | unknown[];
+	opts?: Record<string, unknown> | unknown[];
+}): Promise<string | undefined> {
+	const profileName = ctx.config?.name ?? defaultProfileName;
+	const candidateIds = [...collectPrefixedIds(ctx.args), ...collectPrefixedIds(ctx.opts)];
+
+	for (const candidateId of candidateIds) {
+		const resourceType = getResourceTypeFromId(candidateId);
+		if (!resourceType) {
+			continue;
+		}
+		const cachedInfo = await getResourceInfo(resourceType, profileName, candidateId);
+		if (cachedInfo?.orgId) {
+			return cachedInfo.orgId;
+		}
+	}
+
+	return undefined;
+}
+
+export async function resolveOrgIdWithoutPrompt(ctx: {
+	options: { orgId?: string };
+	config: Config | null;
+	args?: Record<string, unknown> | unknown[];
+	opts?: Record<string, unknown> | unknown[];
+}): Promise<string | undefined> {
+	const { options, config, args, opts } = ctx;
+	const envOrgId = process.env[ORG_ID_ENV_VAR];
+	const flagOrgId = options.orgId && options.orgId !== envOrgId ? options.orgId : undefined;
+
+	if (flagOrgId) {
+		return flagOrgId;
+	}
+
+	if (envOrgId) {
+		return envOrgId;
+	}
+
+	const preferredOrgId = config?.preferences?.orgId;
+	if (preferredOrgId) {
+		return preferredOrgId;
+	}
+
+	return resolveCachedOrgId({ config, args, opts });
 }
 
 export async function hasLoggedInBefore(): Promise<boolean> {
@@ -72,12 +186,13 @@ export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthD
 	// Import and run login flow
 	const { loginCommand } = await import('./cmd/auth/login');
 
-	// Ensure apiClient is available for login handler
+	// Ensure apiClient and opts are available for login handler
 	const loginCtx = ctx as unknown as Record<string, unknown>;
 	if (!loginCtx.apiClient) {
 		const apiUrl = getAPIBaseURL(ctx.config ?? null);
 		loginCtx.apiClient = new APIClient(apiUrl, ctx.logger, ctx.config ?? null);
 	}
+	loginCtx.opts ??= {};
 
 	if (loginCommand.handler) {
 		await loginCommand.handler(loginCtx as CommandContext);
@@ -165,12 +280,13 @@ export async function optionalAuth(
 			// Import and run login flow
 			const { loginCommand } = await import('./cmd/auth/login');
 
-			// Ensure apiClient is available for login handler
+			// Ensure apiClient and opts are available for login handler
 			const loginCtx1 = ctx as unknown as Record<string, unknown>;
 			if (!loginCtx1.apiClient) {
 				const apiUrl = getAPIBaseURL(ctx.config ?? null);
 				loginCtx1.apiClient = new APIClient(apiUrl, ctx.logger, ctx.config ?? null);
 			}
+			loginCtx1.opts ??= {};
 
 			if (loginCommand.handler) {
 				await loginCommand.handler(loginCtx1 as CommandContext);
@@ -207,12 +323,13 @@ export async function optionalAuth(
 			// Import and run login flow
 			const { loginCommand } = await import('./cmd/auth/login');
 
-			// Ensure apiClient is available for login handler
+			// Ensure apiClient and opts are available for login handler
 			const loginCtx2 = ctx as unknown as Record<string, unknown>;
 			if (!loginCtx2.apiClient) {
 				const apiUrl = getAPIBaseURL(ctx.config ?? null);
 				loginCtx2.apiClient = new APIClient(apiUrl, ctx.logger, ctx.config ?? null);
 			}
+			loginCtx2.opts ??= {};
 
 			if (loginCommand.handler) {
 				await loginCommand.handler(loginCtx2 as CommandContext);
@@ -225,13 +342,40 @@ export async function optionalAuth(
 }
 
 export async function requireOrg(
-	ctx: CommandContext & { apiClient: APIClientType }
+	ctx: CommandContext & { apiClient: APIClientType },
+	autoSelect?: boolean
 ): Promise<string> {
-	const { options, config, apiClient } = ctx;
+	const { options, config, apiClient, args, opts } = ctx as CommandContext & {
+		apiClient: APIClientType;
+		args?: Record<string, unknown>;
+		opts?: Record<string, unknown>;
+	};
+	const interactive = isTTY();
+	const envOrgId = process.env[ORG_ID_ENV_VAR];
+	const flagOrgId = options.orgId && options.orgId !== envOrgId ? options.orgId : undefined;
 
-	// Check if org is provided via --org-id flag
-	if (options.orgId) {
-		return options.orgId;
+	// 1. --org-id flag
+	if (flagOrgId) {
+		return flagOrgId;
+	}
+
+	// 2. Environment variable
+	if (envOrgId) {
+		return envOrgId;
+	}
+
+	// 3. Config preference (TTY: prompt with pre-selected, non-TTY: use directly)
+	const preferredOrgId = config?.preferences?.orgId;
+	if (preferredOrgId && (!interactive || autoSelect)) {
+		return preferredOrgId;
+	}
+
+	// Cache lookup for prefixed resource IDs
+	if (!preferredOrgId) {
+		const cachedOrgId = await resolveCachedOrgId({ config, args, opts });
+		if (cachedOrgId) {
+			return cachedOrgId;
+		}
 	}
 
 	// Fetch organizations
@@ -247,12 +391,33 @@ export async function requireOrg(
 		tui.fatal('No organizations found for your account');
 	}
 
-	// Use selectOrganization which handles single org and prompting
-	// Pass the saved preference as initial selection
-	const orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
+	// 4. Single-org auto-select
+	if (orgs.length === 1 && orgs[0]) {
+		const orgId = orgs[0].id;
+		if (orgId !== preferredOrgId) {
+			await saveOrgId(orgId);
+		}
+		return orgId;
+	}
+
+	// Auto-select mode (--confirm flag or explicit autoSelect)
+	if (autoSelect) {
+		const orgId = await tui.selectOrganization(orgs, preferredOrgId, true);
+		if (orgId !== preferredOrgId) {
+			await saveOrgId(orgId);
+		}
+		return orgId;
+	}
+
+	// 5. Interactive prompt (TTY) / Error (no TTY)
+	if (!interactive) {
+		return tui.fatal(NON_INTERACTIVE_ORG_ERROR);
+	}
+
+	const orgId = await tui.selectOrganization(orgs, preferredOrgId, false);
 
 	// Save selected org to config if different
-	if (orgId !== config?.preferences?.orgId) {
+	if (orgId !== preferredOrgId) {
 		await saveOrgId(orgId);
 	}
 
@@ -260,9 +425,18 @@ export async function requireOrg(
 }
 
 export async function optionalOrg(
-	ctx: CommandContext & { apiClient?: APIClientType; auth?: AuthData }
+	ctx: CommandContext & { apiClient?: APIClientType; auth?: AuthData },
+	autoSelect?: boolean
 ): Promise<string | undefined> {
-	const { options, config, apiClient, auth } = ctx;
+	const { options, config, apiClient, auth, args, opts } = ctx as CommandContext & {
+		apiClient?: APIClientType;
+		auth?: AuthData;
+		args?: Record<string, unknown>;
+		opts?: Record<string, unknown>;
+	};
+	const interactive = isTTY();
+	const envOrgId = process.env[ORG_ID_ENV_VAR];
+	const flagOrgId = options.orgId && options.orgId !== envOrgId ? options.orgId : undefined;
 
 	// If not authenticated or no API client, skip org selection
 	if (!auth || !apiClient) {
@@ -276,9 +450,28 @@ export async function optionalOrg(
 
 	// Note: --no-register check is handled in cli.ts before calling this function
 
-	// Check if org is provided via --org-id flag
-	if (options.orgId) {
-		return options.orgId;
+	// 1. --org-id flag
+	if (flagOrgId) {
+		return flagOrgId;
+	}
+
+	// 2. Environment variable
+	if (envOrgId) {
+		return envOrgId;
+	}
+
+	// 3. Config preference (TTY: prompt with pre-selected, non-TTY: use directly)
+	const preferredOrgId = config?.preferences?.orgId;
+	if (preferredOrgId && (!interactive || autoSelect)) {
+		return preferredOrgId;
+	}
+
+	// Cache lookup for prefixed resource IDs
+	if (!preferredOrgId) {
+		const cachedOrgId = await resolveCachedOrgId({ config, args, opts });
+		if (cachedOrgId) {
+			return cachedOrgId;
+		}
 	}
 
 	// Fetch organizations
@@ -294,11 +487,34 @@ export async function optionalOrg(
 		return undefined;
 	}
 
-	// Always prompt for org selection (use saved preference as initial/default)
-	const orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
+	// 4. Single-org auto-select
+	if (orgs.length === 1 && orgs[0]) {
+		const orgId = orgs[0].id;
+		if (orgId !== preferredOrgId) {
+			await saveOrgId(orgId);
+		}
+		return orgId;
+	}
+
+	// Auto-select mode (--confirm flag or explicit autoSelect)
+	if (autoSelect) {
+		const orgId = await tui.selectOrganization(orgs, preferredOrgId, true);
+		if (orgId !== preferredOrgId) {
+			await saveOrgId(orgId);
+		}
+		return orgId;
+	}
+
+	// 5. Interactive prompt (TTY) / Error (no TTY)
+	if (!interactive) {
+		return tui.fatal(NON_INTERACTIVE_ORG_ERROR);
+	}
+
+	// Prompt for org selection (use saved preference as initial/default)
+	const orgId = await tui.selectOrganization(orgs, preferredOrgId, false);
 
 	// Save selected org to config if different
-	if (orgId !== config?.preferences?.orgId) {
+	if (orgId !== preferredOrgId) {
 		await saveOrgId(orgId);
 	}
 

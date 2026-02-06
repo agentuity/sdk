@@ -349,19 +349,23 @@ export function WorkbenchProvider({
 
 				const firstAgent = sortedAgents[0];
 
-				logger.debug(
-					'🎯 No saved agent found, using first agent (alphabetically):',
-					firstAgent
-				);
+				if (firstAgent) {
+					logger.debug(
+						'🎯 No saved agent found, using first agent (alphabetically):',
+						firstAgent
+					);
 
-				agentToSelect = firstAgent.metadata.agentId;
+					agentToSelect = firstAgent.metadata.agentId;
+				}
 			}
 
-			logger.debug('🆔 Setting selectedAgent to:', agentToSelect);
+			if (agentToSelect) {
+				logger.debug('🆔 Setting selectedAgent to:', agentToSelect);
 
-			setSelectedAgent(agentToSelect);
-			saveSelectedAgent(agentToSelect);
-			fetchAgentState(agentToSelect);
+				setSelectedAgent(agentToSelect);
+				saveSelectedAgent(agentToSelect);
+				fetchAgentState(agentToSelect);
+			}
 		}
 	}, [agents, selectedAgent, loadSelectedAgent, saveSelectedAgent, logger, fetchAgentState]);
 

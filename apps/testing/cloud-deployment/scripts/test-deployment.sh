@@ -236,6 +236,48 @@ else
 			else
 				echo -e "${YELLOW}⚠${NC} Session script not found (may be expected in some configurations)"
 			fi
+			
+			# Test 3c: Verify public asset is accessible from CDN
+			echo ""
+			echo "Test 3c: Verify public asset on CDN..."
+			
+			# Extract CDN base URL from HTML (look for src="https://cdn...agentuity.io/.../client/...")
+			CDN_BASE_URL=$(grep -oE 'https://cdn[^"]+/client/' "$HTML_OUTPUT" | head -1 | sed 's|/client/$|/client|' || echo "")
+			
+			if [ -z "$CDN_BASE_URL" ]; then
+				echo -e "${YELLOW}⚠${NC} Could not extract CDN base URL from HTML"
+				echo "Looking for pattern: https://cdn.../client/"
+			else
+				echo "CDN Base URL: $CDN_BASE_URL"
+				
+				# Fetch the public asset from CDN
+				PUBLIC_ASSET_URL="${CDN_BASE_URL}/test-asset.txt"
+				echo "Fetching: $PUBLIC_ASSET_URL"
+				
+				PUBLIC_ASSET_OUTPUT="$TEMP_DIR/public-asset.txt"
+				set +e
+				curl -s "$PUBLIC_ASSET_URL" > "$PUBLIC_ASSET_OUTPUT" 2>&1
+				PUBLIC_ASSET_EXIT=$?
+				set -e
+				
+				if [ $PUBLIC_ASSET_EXIT -eq 0 ]; then
+					# Verify the content matches expected value
+					if grep -q "AGENTUITY_PUBLIC_ASSET_TEST_OK" "$PUBLIC_ASSET_OUTPUT"; then
+						echo -e "${GREEN}✓${NC} Public asset accessible from CDN with correct content"
+					else
+						echo -e "${RED}✗${NC} Public asset content mismatch"
+						echo "Expected: AGENTUITY_PUBLIC_ASSET_TEST_OK"
+						echo "Got:"
+						cat "$PUBLIC_ASSET_OUTPUT"
+						TEST_FAILED=true
+						exit 1
+					fi
+				else
+					echo -e "${RED}✗${NC} Failed to fetch public asset from CDN (curl exit: $PUBLIC_ASSET_EXIT)"
+					TEST_FAILED=true
+					exit 1
+				fi
+			fi
 		else
 			echo -e "${YELLOW}⚠${NC} Failed to fetch HTML page (curl exit: $HTML_EXIT)"
 		fi
@@ -426,8 +468,8 @@ else
 			fi
 			echo ""
 			
-			# Test 3c: List sessions with filters
-			echo "Test 3c: Test session filters..."
+			# Test 3d: List sessions with filters
+			echo "Test 3d: Test session filters..."
 			
 			# Test success filter
 			SESSION_SUCCESS_OUTPUT="$TEMP_DIR/session-success.txt"
@@ -480,8 +522,8 @@ else
 			echo -e "${GREEN}✓${NC} All session filters validated"
 			echo ""
 			
-			# Test 3d: Get session logs
-			echo "Test 3c: Get session logs..."
+			# Test 3e: Get session logs
+			echo "Test 3e: Get session logs..."
 			SESSION_LOGS_OUTPUT="$TEMP_DIR/session-logs.txt"
 			set +e
 			bun "$BIN_SCRIPT" cloud session logs "$SESSION_ID" > "$SESSION_LOGS_OUTPUT" 2>&1
@@ -720,6 +762,7 @@ echo "Tests completed:"
 echo "  ✓ List deployments"
 echo "  ✓ Deploy project (first deployment)"
 echo "  ✓ Verify analytics beacon in HTML"
+echo "  ✓ Verify public asset on CDN"
 echo "  ✓ Invoke deployment and capture session"
 echo "  ✓ Get session details"
 echo "  ✓ List sessions"

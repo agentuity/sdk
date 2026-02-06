@@ -3,6 +3,12 @@
  *
  * GET /api/test/run?suite=<name>&test=<name>&exclude=<name>&concurrency=<number>
  *
+ * Parameters:
+ * - suite: Comma-separated list of suite names to run (e.g., "cli-deployment,cli-apikey")
+ * - test: Filter by test name
+ * - exclude: Comma-separated list of suite names to exclude
+ * - concurrency: Number of tests to run in parallel (default: 10)
+ *
  * Streams test results as Server-Sent Events:
  * - event: start - Test execution started
  * - event: progress - Individual test result
@@ -46,8 +52,19 @@ router.get('/api/test/run', async (c) => {
 	const concurrencyStr = c.req.query('concurrency');
 	const concurrency = concurrencyStr ? parseInt(concurrencyStr, 10) : 10;
 
-	// Get matching tests, optionally excluding certain suites
-	let tests = testSuite.getTests(suite, test);
+	// Get matching tests
+	// Suite parameter can be comma-separated to include multiple suites
+	let tests: ReturnType<typeof testSuite.getTests> = [];
+	if (suite) {
+		const suiteNames = suite.split(',').map((s) => s.trim());
+		for (const suiteName of suiteNames) {
+			tests = tests.concat(testSuite.getTests(suiteName, test));
+		}
+	} else {
+		tests = testSuite.getTests(undefined, test);
+	}
+
+	// Optionally exclude certain suites
 	if (exclude) {
 		const excludeSuites = exclude.split(',').map((s) => s.trim());
 		tests = tests.filter((t) => !excludeSuites.includes(t.suite));

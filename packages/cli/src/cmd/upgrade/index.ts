@@ -4,41 +4,8 @@ import { getCommand } from '../../command-prefix';
 import { z } from 'zod';
 import { ErrorCode, createError, exitWithError } from '../../errors';
 import * as tui from '../../tui';
-import { downloadWithProgress } from '../../download';
 import { $ } from 'bun';
-import { join, dirname } from 'node:path';
-import { tmpdir } from 'node:os';
-import { randomUUID } from 'node:crypto';
-import { access, constants } from 'node:fs/promises';
-import { StructuredError } from '@agentuity/core';
-
-export const PermissionError = StructuredError('PermissionError')<{
-	binaryPath: string;
-	reason: string;
-}>();
-
-async function checkWritePermission(binaryPath: string): Promise<void> {
-	try {
-		await access(binaryPath, constants.W_OK);
-	} catch {
-		throw new PermissionError({
-			binaryPath,
-			reason: `Cannot write to ${binaryPath}. You may need to run with elevated permissions (e.g., sudo) or reinstall to a user-writable location.`,
-			message: `Permission denied: Cannot write to ${binaryPath}`,
-		});
-	}
-
-	const parentDir = dirname(binaryPath);
-	try {
-		await access(parentDir, constants.W_OK);
-	} catch {
-		throw new PermissionError({
-			binaryPath,
-			reason: `Cannot write to directory ${parentDir}. You may need to run with elevated permissions (e.g., sudo) or reinstall to a user-writable location.`,
-			message: `Permission denied: Cannot write to directory ${parentDir}`,
-		});
-	}
-}
+import { getInstallationType, type InstallationType } from '../../utils/installation-type';
 
 const UpgradeOptionsSchema = z.object({
 	force: z.boolean().optional().describe('Force upgrade even if version is the same'),
@@ -52,68 +19,17 @@ const UpgradeResponseSchema = z.object({
 });
 
 /**
- * Check if running from a compiled executable (not via bun/bunx)
- * @internal Exported for testing
+ * Get the installation type - re-exported for backward compatibility
+ * @deprecated Use getInstallationType() from '../../utils/installation-type' instead
  */
-export function isRunningFromExecutable(): boolean {
-	const scriptPath = process.argv[1] || '';
-
-	// Check if running from compiled binary (uses Bun's virtual filesystem)
-	// When compiled with `bun build --compile`, the script path is in the virtual /$bunfs/root/ directory
-	// Note: process.argv[0] is the executable path (e.g., /usr/local/bin/agentuity), not 'bun'
-	if (scriptPath.startsWith('/$bunfs/root/')) {
-		return true;
-	}
-
-	// If running via bun/bunx (from node_modules or .ts files), it's not an executable
-	if (Bun.main.includes('/node_modules/') || Bun.main.includes('.ts')) {
-		return false;
-	}
-
-	// Check if in a bin directory but not in node_modules (globally installed)
-	const normalized = Bun.main;
-	const isGlobal =
-		normalized.includes('/bin/') &&
-		!normalized.includes('/node_modules/') &&
-		!normalized.includes('/packages/cli/bin');
-
-	return isGlobal;
-}
+export { getInstallationType, type InstallationType };
 
 /**
- * Get the OS and architecture for downloading the binary
- * @internal Exported for testing
+ * Check if running from a global installation
+ * This replaces the old isRunningFromExecutable() function
  */
-export function getPlatformInfo(): { os: string; arch: string } {
-	const platform = process.platform;
-	const arch = process.arch;
-
-	let os: string;
-	let archStr: string;
-
-	switch (platform) {
-		case 'darwin':
-			os = 'darwin';
-			break;
-		case 'linux':
-			os = 'linux';
-			break;
-		default:
-			throw new Error(`Unsupported platform: ${platform}`);
-	}
-
-	switch (arch) {
-		case 'x64':
-			archStr = 'x64';
-			break;
-		case 'arm64':
-			archStr = 'arm64';
-			break;
-		default:
-			throw new Error(`Unsupported architecture: ${arch}`);
-	}
-
-	return { os, arch: archStr };
+export function isGlobalInstall(): boolean {
+	return getInstallationType() === 'global';
 }
 
 /**
@@ -121,11 +37,19 @@ export function getPlatformInfo(): { os: string; arch: string } {
  * @internal Exported for testing
  */
 export async function fetchLatestVersion(): Promise<string> {
+	const currentVersion = getVersion();
 	const response = await fetch('https://agentuity.sh/release/sdk/version', {
-		signal: AbortSignal.timeout(10000), // 10 second timeout
+		signal: AbortSignal.timeout(10_000), // 10 second timeout
+		headers: {
+			'User-Agent': `Agentuity CLI/${currentVersion}`,
+		},
 	});
 	if (!response.ok) {
-		throw new Error(`Failed to fetch version: ${response.statusText}`);
+		const body = await response.text();
+		if (response.status === 426) {
+			tui.fatal(body, ErrorCode.UPGRADE_REQUIRED);
+		}
+		throw new Error(`Failed to fetch version: ${body}`);
 	}
 
 	const version = await response.text();
@@ -146,157 +70,47 @@ export async function fetchLatestVersion(): Promise<string> {
 }
 
 /**
- * Download the binary for the specified version
+ * Upgrade the CLI using bun global install
  */
-async function downloadBinary(
-	version: string,
-	platform: { os: string; arch: string }
-): Promise<string> {
-	const { os, arch } = platform;
-	const url = `https://agentuity.sh/release/sdk/${version}/${os}/${arch}`;
+async function performBunUpgrade(version: string): Promise<void> {
+	// Remove 'v' prefix for npm version
+	const npmVersion = version.replace(/^v/, '');
 
-	const tmpDir = tmpdir();
-	const tmpFile = join(tmpDir, `agentuity-${randomUUID()}`);
-	const gzFile = `${tmpFile}.gz`;
+	// Use bun to install the specific version globally
+	const result = await $`bun add -g @agentuity/cli@${npmVersion}`.quiet().nothrow();
 
-	const stream = await downloadWithProgress({
-		url,
-		message: `Downloading version ${version}...`,
-	});
-
-	// Write to temp file
-	const writer = Bun.file(gzFile).writer();
-	for await (const chunk of stream) {
-		writer.write(chunk);
+	if (result.exitCode !== 0) {
+		const stderr = result.stderr.toString();
+		throw new Error(`Failed to install @agentuity/cli@${npmVersion}: ${stderr}`);
 	}
-	await writer.end();
+}
 
-	// Verify file was downloaded
-	if (!(await Bun.file(gzFile).exists())) {
-		throw new Error('Download failed - file not created');
+/**
+ * Verify the upgrade was successful by checking the installed version
+ */
+async function verifyUpgrade(expectedVersion: string): Promise<void> {
+	// Run agentuity version to check the installed version
+	const result = await $`agentuity version`.quiet().nothrow();
+
+	if (result.exitCode !== 0) {
+		throw new Error('Failed to verify upgrade - could not run agentuity version');
 	}
 
-	// Decompress using gunzip
-	try {
-		await $`gunzip ${gzFile}`.quiet();
-	} catch (error) {
-		if (await Bun.file(gzFile).exists()) {
-			await $`rm ${gzFile}`.quiet();
-		}
+	const installedVersion = result.stdout.toString().trim();
+	const normalizedExpected = expectedVersion.replace(/^v/, '');
+	const normalizedInstalled = installedVersion.replace(/^v/, '');
+
+	if (normalizedInstalled !== normalizedExpected) {
 		throw new Error(
-			`Decompression failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+			`Version mismatch after upgrade: expected ${normalizedExpected}, got ${normalizedInstalled}`
 		);
-	}
-
-	// Verify decompressed file exists
-	if (!(await Bun.file(tmpFile).exists())) {
-		throw new Error('Decompression failed - file not found');
-	}
-
-	// Verify it's a valid binary
-	const fileType = await $`file ${tmpFile}`.text();
-	if (!fileType.match(/(executable|ELF|Mach-O|PE32)/i)) {
-		throw new Error('Downloaded file is not a valid executable');
-	}
-
-	// Make executable
-	await $`chmod 755 ${tmpFile}`.quiet();
-
-	return tmpFile;
-}
-
-/**
- * Validate the downloaded binary by running version command
- */
-async function validateBinary(binaryPath: string, expectedVersion: string): Promise<void> {
-	try {
-		// Use spawn to capture both stdout and stderr
-		const proc = Bun.spawn([binaryPath, 'version'], {
-			stdout: 'pipe',
-			stderr: 'pipe',
-		});
-
-		const [stdout, stderr] = await Promise.all([
-			new Response(proc.stdout).text(),
-			new Response(proc.stderr).text(),
-		]);
-
-		const exitCode = await proc.exited;
-
-		if (exitCode !== 0) {
-			const errorDetails = [];
-			if (stdout.trim()) errorDetails.push(`stdout: ${stdout.trim()}`);
-			if (stderr.trim()) errorDetails.push(`stderr: ${stderr.trim()}`);
-			const details = errorDetails.length > 0 ? `\n${errorDetails.join('\n')}` : '';
-			throw new Error(`Failed with exit code ${exitCode}${details}`);
-		}
-
-		const actualVersion = stdout.trim();
-
-		// Normalize versions for comparison (remove 'v' prefix)
-		const normalizedExpected = expectedVersion.replace(/^v/, '');
-		const normalizedActual = actualVersion.replace(/^v/, '');
-
-		if (normalizedActual !== normalizedExpected) {
-			throw new Error(`Version mismatch: expected ${expectedVersion}, got ${actualVersion}`);
-		}
-	} catch (error) {
-		if (error instanceof Error) {
-			throw new Error(`Binary validation failed: ${error.message}`);
-		}
-		throw new Error('Binary validation failed');
-	}
-}
-
-/**
- * Replace the current binary with the new one
- * Uses platform-specific safe replacement strategies
- */
-async function replaceBinary(newBinaryPath: string, currentBinaryPath: string): Promise<void> {
-	const platform = process.platform;
-
-	if (platform === 'darwin' || platform === 'linux') {
-		// Unix: Use atomic move via temp file
-		const backupPath = `${currentBinaryPath}.backup`;
-		const tempPath = `${currentBinaryPath}.new`;
-
-		try {
-			// Copy new binary to temp location next to current binary
-			await $`cp ${newBinaryPath} ${tempPath}`.quiet();
-			await $`chmod 755 ${tempPath}`.quiet();
-
-			// Backup current binary
-			if (await Bun.file(currentBinaryPath).exists()) {
-				await $`cp ${currentBinaryPath} ${backupPath}`.quiet();
-			}
-
-			// Atomic rename
-			await $`mv ${tempPath} ${currentBinaryPath}`.quiet();
-
-			// Clean up backup after successful replacement
-			if (await Bun.file(backupPath).exists()) {
-				await $`rm ${backupPath}`.quiet();
-			}
-		} catch (error) {
-			// Try to restore backup if replacement failed
-			if (await Bun.file(backupPath).exists()) {
-				await $`mv ${backupPath} ${currentBinaryPath}`.quiet();
-			}
-			// Clean up temp file if it exists
-			if (await Bun.file(tempPath).exists()) {
-				await $`rm ${tempPath}`.quiet();
-			}
-			throw error;
-		}
-	} else {
-		throw new Error(`Unsupported platform for binary replacement: ${platform}`);
 	}
 }
 
 export const command = createCommand({
 	name: 'upgrade',
 	description: 'Upgrade the CLI to the latest version',
-	executable: true,
+	hidden: false, // Always visible, but handler checks installation type
 	skipUpgradeCheck: true,
 	tags: ['update'],
 	examples: [
@@ -318,9 +132,35 @@ export const command = createCommand({
 		const { logger, options } = ctx;
 		const { force } = ctx.opts;
 
+		const installationType = getInstallationType();
 		const currentVersion = getVersion();
-		// Use process.execPath to get the actual file path (Bun.main is virtual for compiled binaries)
-		const currentBinaryPath = process.execPath;
+
+		// Check if we can upgrade based on installation type
+		if (installationType === 'source') {
+			tui.error('Upgrade is not available when running from source.');
+			tui.warning('You are running the CLI from source code (development mode).');
+			tui.info('Use git to update the source code instead.');
+			return {
+				upgraded: false,
+				from: currentVersion,
+				to: currentVersion,
+				message: 'Cannot upgrade: running from source',
+			};
+		}
+
+		if (installationType === 'local') {
+			tui.error('Upgrade is not available for local project installations.');
+			tui.warning('The CLI is installed as a project dependency.');
+			tui.newline();
+			console.log('To upgrade, update your package.json or run:');
+			console.log(`  ${tui.muted('bun add @agentuity/cli@latest')}`);
+			return {
+				upgraded: false,
+				from: currentVersion,
+				to: currentVersion,
+				message: 'Cannot upgrade: local project installation',
+			};
+		}
 
 		try {
 			// Fetch latest version
@@ -345,6 +185,31 @@ export const command = createCommand({
 				};
 			}
 
+			// Verify the version is available on npm before proceeding
+			const isAvailable = await tui.spinner({
+				message: 'Verifying npm availability...',
+				clearOnSuccess: true,
+				callback: async () => {
+					const { waitForNpmAvailability } = await import('./npm-availability');
+					return await waitForNpmAvailability(latestVersion, {
+						maxAttempts: 6,
+						initialDelayMs: 2000,
+					});
+				},
+			});
+
+			if (!isAvailable) {
+				tui.warning('The new version is not yet available on npm.');
+				tui.info('This can happen right after a release. Please try again in a few minutes.');
+				tui.info(`You can also run: ${tui.muted('bun add -g @agentuity/cli@latest')}`);
+				return {
+					upgraded: false,
+					from: currentVersion,
+					to: latestVersion,
+					message: 'Version not yet available on npm',
+				};
+			}
+
 			// Show version info
 			if (!force) {
 				tui.info(`Current version: ${tui.muted(normalizedCurrent)}`);
@@ -357,39 +222,6 @@ export const command = createCommand({
 				}
 				tui.success(`Release notes:   ${tui.link(getReleaseUrl(latestVersion))}`);
 				tui.newline();
-			}
-
-			// Check write permissions before prompting - fail early with helpful message
-			try {
-				await checkWritePermission(currentBinaryPath);
-			} catch (error) {
-				if (error instanceof PermissionError) {
-					tui.error('Unable to upgrade: permission denied');
-					tui.newline();
-					tui.warning(`The CLI binary at ${tui.bold(error.binaryPath)} is not writable.`);
-					tui.newline();
-					if (process.env.AGENTUITY_RUNTIME) {
-						console.log('You cannot self-upgrade the agentuity cli in the cloud runtime.');
-						console.log('The runtime will automatically update the cli and other software');
-						console.log('within a day or so. If you need assistance, please contact us');
-						console.log('at support@agentuity.com.');
-					} else {
-						console.log('To fix this, you can either:');
-						console.log(
-							`  1. Run with elevated permissions: ${tui.muted('sudo agentuity upgrade')}`
-						);
-						console.log(`  2. Reinstall to a user-writable location`);
-					}
-					tui.newline();
-					exitWithError(
-						createError(ErrorCode.PERMISSION_DENIED, 'Upgrade failed: permission denied', {
-							path: error.binaryPath,
-						}),
-						logger,
-						options.errorFormat
-					);
-				}
-				throw error;
 			}
 
 			// Confirm upgrade
@@ -408,38 +240,29 @@ export const command = createCommand({
 				}
 			}
 
-			// Get platform info
-			const platform = getPlatformInfo();
-
-			// Download binary
-			const tmpBinaryPath = await tui.spinner({
-				type: 'progress',
-				message: 'Downloading...',
-				callback: async () => await downloadBinary(latestVersion, platform),
-			});
-
-			// Validate binary
+			// Perform the upgrade using bun
 			await tui.spinner({
-				message: 'Validating binary...',
-				callback: async () => await validateBinary(tmpBinaryPath, latestVersion),
+				message: `Installing @agentuity/cli@${normalizedLatest}...`,
+				callback: async () => await performBunUpgrade(latestVersion),
 			});
 
-			// Replace binary
+			// Verify the upgrade
 			await tui.spinner({
-				message: 'Installing...',
-				callback: async () => await replaceBinary(tmpBinaryPath, currentBinaryPath),
+				message: 'Verifying installation...',
+				callback: async () => await verifyUpgrade(latestVersion),
 			});
-
-			// Clean up temp file
-			if (await Bun.file(tmpBinaryPath).exists()) {
-				await $`rm ${tmpBinaryPath}`.quiet();
-			}
 
 			const message =
 				normalizedCurrent === normalizedLatest
-					? `Successfully upgraded to ${normalizedLatest}`
+					? `Successfully reinstalled ${normalizedLatest}`
 					: `Successfully upgraded from ${normalizedCurrent} to ${normalizedLatest}`;
 			tui.success(message);
+
+			// Hint about PATH if needed
+			tui.newline();
+			tui.info(
+				`${tui.muted('If the new version is not detected, restart your terminal or run:')} source ~/.bashrc`
+			);
 
 			return {
 				upgraded: true,
@@ -448,26 +271,10 @@ export const command = createCommand({
 				message,
 			};
 		} catch (error) {
-			let errorDetails: Record<string, unknown> = {
+			const errorDetails: Record<string, unknown> = {
 				error: error instanceof Error ? error.message : 'Unknown error',
+				installationType,
 			};
-
-			if (error instanceof Error && error.message.includes('Binary validation failed')) {
-				const match = error.message.match(
-					/Failed with exit code (\d+)\n(stdout: .+\n)?(stderr: .+)?/s
-				);
-				if (match) {
-					const exitCode = match[1];
-					const stdout = match[2]?.replace('stdout: ', '').trim();
-					const stderr = match[3]?.replace('stderr: ', '').trim();
-
-					errorDetails = {
-						validation_exit_code: exitCode,
-						...(stdout && { validation_stdout: stdout }),
-						...(stderr && { validation_stderr: stderr }),
-					};
-				}
-			}
 
 			exitWithError(
 				createError(ErrorCode.INTERNAL_ERROR, 'Upgrade failed', errorDetails),

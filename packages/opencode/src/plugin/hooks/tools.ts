@@ -1,5 +1,7 @@
-import type { PluginContext, CoderConfig } from '../../types';
+import type { PluginInput } from '@opencode-ai/plugin';
+import type { CoderConfig } from '../../types';
 import { checkAuth } from '../../services/auth';
+import { entityId, getEntityContext } from '../../agents/memory/entities';
 
 export interface ToolHooks {
 	before: (input: unknown, output: unknown) => Promise<void>;
@@ -13,6 +15,15 @@ const CLOUD_TOOL_PREFIXES = [
 	'agentuity.sandbox',
 ];
 
+/**
+ * Get the Agentuity profile to use for CLI commands.
+ * Defaults to 'production' for safety, but can be overridden via AGENTUITY_CODER_PROFILE.
+ */
+export function getCoderProfile(): string {
+	const profile = process.env.AGENTUITY_CODER_PROFILE?.trim();
+	return profile || 'production';
+}
+
 /** Cloud service detection for bash commands */
 const CLOUD_SERVICES: Record<string, { name: string; emoji: string }> = {
 	'agentuity cloud kv': { name: 'KV Storage', emoji: '🗄️' },
@@ -24,7 +35,7 @@ const CLOUD_SERVICES: Record<string, { name: string; emoji: string }> = {
 	'agentuity cloud scp': { name: 'File Transfer', emoji: '📤' },
 };
 
-export function createToolHooks(ctx: PluginContext, config: CoderConfig): ToolHooks {
+export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHooks {
 	const blockedCommands = config.blockedCommands ?? [];
 
 	return {
@@ -63,12 +74,32 @@ export function createToolHooks(ctx: PluginContext, config: CoderConfig): ToolHo
 						return;
 					}
 
+					// Inject AGENTUITY_PROFILE environment variable
+					const profile = getCoderProfile();
+					let modifiedCommand: string;
+
+					// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
+					if (/AGENTUITY_PROFILE=\S+/.test(command)) {
+						// Replace all existing AGENTUITY_PROFILE occurrences to enforce our profile
+						modifiedCommand = command.replace(
+							/AGENTUITY_PROFILE=\S+/g,
+							`AGENTUITY_PROFILE=${profile}`
+						);
+					} else {
+						// Prepend AGENTUITY_PROFILE
+						modifiedCommand = `AGENTUITY_PROFILE=${profile} ${command}`;
+					}
+					setBashCommand(input, modifiedCommand);
+
 					// Show toast for cloud service usage
 					const service = detectCloudService(command);
 					if (service) {
 						try {
-							ctx.client.tui?.showToast?.({
-								body: { message: `${service.emoji} Agentuity ${service.name}` },
+							ctx.client.tui.showToast({
+								body: {
+									message: `${service.emoji} Agentuity ${service.name}`,
+									variant: 'info',
+								},
 							});
 						} catch {
 							// Toast may not be available
@@ -80,6 +111,28 @@ export function createToolHooks(ctx: PluginContext, config: CoderConfig): ToolHo
 
 		async after(_input: unknown, _output: unknown): Promise<void> {},
 	};
+}
+
+export async function getEntityContextForSession(): Promise<{
+	userId?: string;
+	orgId?: string;
+	projectId?: string;
+	repoId?: string;
+}> {
+	try {
+		const ctx = await getEntityContext();
+		return {
+			userId: ctx.user?.id ? entityId('user', ctx.user.id) : undefined,
+			orgId: ctx.org?.id ? entityId('org', ctx.org.id) : undefined,
+			projectId: ctx.project?.id ? entityId('project', ctx.project.id) : undefined,
+			repoId:
+				ctx.repo?.url || ctx.repo?.path
+					? entityId('repo', ctx.repo.url || ctx.repo.path)
+					: undefined,
+		};
+	} catch {
+		return {};
+	}
 }
 
 function extractToolName(input: unknown): string | undefined {
@@ -101,6 +154,25 @@ function extractBashCommand(input: unknown): string | undefined {
 	}
 
 	return undefined;
+}
+
+/**
+ * Set the bash command in the input object.
+ * Handles both direct command property and args.command structures.
+ */
+function setBashCommand(input: unknown, command: string): void {
+	if (typeof input !== 'object' || input === null) return;
+	const inp = input as Record<string, unknown>;
+
+	// Update the command in the same location it was found
+	if (typeof inp.command === 'string') {
+		inp.command = command;
+	} else if (typeof inp.args === 'object' && inp.args !== null) {
+		const args = inp.args as Record<string, unknown>;
+		if (typeof args.command === 'string') {
+			args.command = command;
+		}
+	}
 }
 
 function detectCloudService(command: string): { name: string; emoji: string } | null {

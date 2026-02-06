@@ -1820,5 +1820,372 @@ describe('registry-generator', () => {
 			expect(content).toContain('"pathParams": [');
 			expect(content).toContain('"userId"');
 		});
+
+		test('should import schemas from shared files when inputSchemaImportPath is provided (issue #629)', async () => {
+			// Simulate a route that imports UserSchema from a shared utils file
+			// Route is at src/api/example/route.ts
+			// Schema is at src/utils/schemas.ts
+			// Import in route: import { UserSchema } from '../../utils/schemas'
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/example',
+					filename: './api/example/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'UserSchema',
+					inputSchemaImportPath: '../../utils/schemas', // as written in the route file
+					inputSchemaImportedName: 'UserSchema', // the exported name
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			expect(existsSync(routesPath)).toBe(true);
+			const content = await Bun.file(routesPath).text();
+
+			// Should import from the utils/schemas file, NOT from the route file
+			expect(content).toContain("from '../utils/schemas'");
+			// Should NOT import from the route file
+			expect(content).not.toContain("from '../api/example/route'");
+			// Should have the schema type export
+			expect(content).toContain('export type POSTApiExampleInput');
+		});
+
+		test('should handle aliased imports correctly (import { A as B })', async () => {
+			// Simulate: import { UserSchema as US } from '../../utils/schemas'
+			// then using US in validator({ input: US })
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/users',
+					filename: './api/users/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'US', // local name used in the route file
+					inputSchemaImportPath: '../../utils/schemas',
+					inputSchemaImportedName: 'UserSchema', // the actual exported name
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const content = await Bun.file(routesPath).text();
+
+			// Should import the actual exported name (UserSchema), not the local alias (US)
+			expect(content).toContain('UserSchema as UserSchema_');
+			expect(content).toContain("from '../utils/schemas'");
+		});
+
+		test('should handle bare module imports (non-relative) as-is', async () => {
+			// Simulate: import { SharedSchema } from '@company/schemas'
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/data',
+					filename: './api/data/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'SharedSchema',
+					inputSchemaImportPath: '@company/schemas', // bare module, not relative
+					inputSchemaImportedName: 'SharedSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const content = await Bun.file(routesPath).text();
+
+			// Should use the bare module path as-is
+			expect(content).toContain("from '@company/schemas'");
+		});
+
+		test('should fall back to route file for locally defined schemas', async () => {
+			// Simulate a schema defined directly in the route file (no import path)
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/local',
+					filename: './api/local/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'LocalSchema',
+					// No inputSchemaImportPath - schema is defined locally
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const content = await Bun.file(routesPath).text();
+
+			// Should import from the route file itself
+			expect(content).toContain("from '../api/local/route'");
+		});
+
+		test('should handle both input and output schemas from different files', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/mixed',
+					filename: './api/mixed/route.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'InputSchema',
+					inputSchemaImportPath: '../../schemas/input',
+					inputSchemaImportedName: 'InputSchema',
+					outputSchemaVariable: 'OutputSchema',
+					outputSchemaImportPath: '../../schemas/output',
+					outputSchemaImportedName: 'OutputSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const content = await Bun.file(routesPath).text();
+
+			// Should have imports from both schema files
+			expect(content).toContain("from '../schemas/input'");
+			expect(content).toContain("from '../schemas/output'");
+			expect(content).toContain('InputSchema as InputSchema_');
+			expect(content).toContain('OutputSchema as OutputSchema_');
+		});
+	});
+
+	describe('agent import path patterns (issue #789)', () => {
+		test('should generate correct import for new pattern: bare @agent/hello with index.ts (issue #789)', async () => {
+			// New pattern: agent code is directly in index.ts
+			// src/agent/hello/index.ts contains the agent code
+			// Route imports via @agent/hello (bare import)
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello', // bare import, resolves to index.ts
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should generate import that resolves to index.js
+			expect(routesContent).toContain("import type helloAgent from '../agent/hello/index.js'");
+			// Should have proper type exports
+			expect(routesContent).toContain('export type POSTApiHelloInput');
+			expect(routesContent).toContain('export type POSTApiHelloOutput');
+		});
+
+		test('should generate correct import for old pattern: explicit @agent/hello/agent with agent.ts (issue #789)', async () => {
+			// Old pattern: agent code is in agent.ts with barrel index.ts
+			// src/agent/hello/agent.ts contains the agent code
+			// src/agent/hello/index.ts re-exports from agent.ts
+			// Route imports via @agent/hello/agent (explicit import)
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello/agent', // explicit import to agent.ts
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should generate import that resolves to agent.js
+			expect(routesContent).toContain("import type helloAgent from '../agent/hello/agent.js'");
+			// Should have proper type exports
+			expect(routesContent).toContain('export type POSTApiHelloInput');
+			expect(routesContent).toContain('export type POSTApiHelloOutput');
+		});
+
+		test('should support both patterns in the same project (backwards compatibility)', async () => {
+			// Mixed project: some agents use new pattern (index.ts), some use old pattern (agent.ts)
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/new-agent',
+					filename: './api/new-agent/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'newAgent',
+					agentImportPath: '@agent/new-agent', // new pattern: bare import
+				},
+				{
+					method: 'post',
+					path: '/api/old-agent',
+					filename: './api/old-agent/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'oldAgent',
+					agentImportPath: '@agent/old-agent/agent', // old pattern: explicit import
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// New pattern should resolve to index.js
+			expect(routesContent).toContain("import type newAgent from '../agent/new-agent/index.js'");
+			// Old pattern should resolve to agent.js
+			expect(routesContent).toContain("import type oldAgent from '../agent/old-agent/agent.js'");
+
+			// Both should have proper type exports
+			expect(routesContent).toContain('export type POSTApiNewAgentInput');
+			expect(routesContent).toContain('export type POSTApiNewAgentOutput');
+			expect(routesContent).toContain('export type POSTApiOldAgentInput');
+			expect(routesContent).toContain('export type POSTApiOldAgentOutput');
+
+			// Both routes should be in the registry
+			expect(routesContent).toContain("'POST /api/new-agent'");
+			expect(routesContent).toContain("'POST /api/old-agent'");
+		});
+	});
+
+	describe('SSE route output schema typing (issue #855)', () => {
+		test('should generate typed SSE route when outputSchemaVariable is provided', async () => {
+			// Create the schema file that will be imported
+			const apiDir = join(srcDir, 'api');
+			mkdirSync(apiDir, { recursive: true });
+			writeFileSync(
+				join(apiDir, 'events.ts'),
+				`
+import { s } from '@agentuity/schema';
+export const StreamEventSchema = s.object({
+	type: s.enum(['token', 'complete']),
+	content: s.optional(s.string()),
+});
+			`
+			);
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/events',
+					filename: './api/events.ts',
+					routeType: 'sse',
+					hasValidator: false,
+					outputSchemaVariable: 'StreamEventSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// SSE route should be in SSERouteRegistry
+			expect(routesContent).toContain("'/api/events'");
+			expect(routesContent).toContain('export interface SSERouteRegistry');
+
+			// Should generate type exports for the SSE route
+			expect(routesContent).toContain('export type GETApiEventsOutput');
+
+			// Should NOT use 'never' for outputSchema
+			expect(routesContent).toContain('GETApiEventsOutputSchema');
+			expect(routesContent).not.toMatch(/'\/api\/events'[^}]*outputSchema: never/);
+		});
+
+		test('should generate never types for SSE route without outputSchemaVariable', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/simple-sse',
+					filename: './api/simple-sse.ts',
+					routeType: 'sse',
+					hasValidator: false,
+					// No outputSchemaVariable
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should be in SSERouteRegistry
+			expect(routesContent).toContain("'/api/simple-sse'");
+
+			// Should have never types since no schema provided
+			expect(routesContent).toMatch(/'\/api\/simple-sse'[^}]*outputSchema: never/);
+		});
+
+		test('should include SSE routes in RPC registry with eventstream method', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/notifications',
+					filename: './api/notifications.ts',
+					routeType: 'sse',
+					hasValidator: false,
+					outputSchemaVariable: 'NotificationSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// RPC registry should have eventstream method for SSE routes
+			expect(routesContent).toContain('notifications: {');
+			expect(routesContent).toContain('eventstream: {');
+			expect(routesContent).toContain("type: 'sse'");
+		});
+
+		test('should handle SSE route with imported schema and track import path', async () => {
+			// Create schema file
+			const schemasDir = join(srcDir, 'schemas');
+			mkdirSync(schemasDir, { recursive: true });
+			writeFileSync(
+				join(schemasDir, 'events.ts'),
+				`
+import { s } from '@agentuity/schema';
+export const EventSchema = s.object({ data: s.string() });
+			`
+			);
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/stream',
+					filename: './api/stream.ts',
+					routeType: 'sse',
+					hasValidator: false,
+					outputSchemaVariable: 'EventSchema',
+					outputSchemaImportPath: '../schemas/events',
+					outputSchemaImportedName: 'EventSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should import the schema from the correct path
+			expect(routesContent).toContain("from '../schemas/events'");
+			expect(routesContent).toContain('EventSchema');
+
+			// Should generate proper types
+			expect(routesContent).toContain('export type GETApiStreamOutput');
+		});
 	});
 });

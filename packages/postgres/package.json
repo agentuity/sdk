@@ -1,0 +1,58 @@
+{
+	"name": "@agentuity/postgres",
+	"version": "1.0.1",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"description": "Resilient PostgreSQL client with automatic reconnection for Agentuity projects",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"src",
+		"dist"
+	],
+	"exports": {
+		".": "./dist/index.js"
+	},
+	"typesVersions": {
+		"*": {
+			".": [
+				"./dist/index.d.ts"
+			]
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"pg": "^8.13.1"
+	},
+	"peerDependencies": {
+		"@agentuity/runtime": "workspace:*"
+	},
+	"peerDependenciesMeta": {
+		"@agentuity/runtime": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/test-utils": "workspace:*",
+		"@types/bun": "latest",
+		"@types/pg": "^8.11.14",
+		"bun-types": "latest",
+		"kysely": "^0.27.6",
+		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false
+}

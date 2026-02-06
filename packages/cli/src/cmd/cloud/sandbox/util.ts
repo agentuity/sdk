@@ -1,16 +1,15 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Logger, FileToWrite } from '@agentuity/core';
-import { APIClient, getServiceUrls, sandboxGet } from '@agentuity/server';
+import { APIClient, sandboxGet, getServiceUrls } from '@agentuity/server';
 import type { AuthData } from '../../../types';
 import { getGlobalCatalystAPIClient } from '../../../config';
-import { getResourceRegion, setResourceRegion, deleteResourceRegion } from '../../../cache';
+import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache';
 import * as tui from '../../../tui';
 import { ErrorCode } from '../../../errors';
 
 export function createSandboxClient(logger: Logger, auth: AuthData, region: string): APIClient {
-	const urls = getServiceUrls(region);
-	return new APIClient(urls.catalyst, logger, auth.apiKey);
+	return new APIClient(getServiceUrls(region).catalyst, logger, auth.apiKey);
 }
 
 /**
@@ -22,13 +21,13 @@ export async function getSandboxRegion(
 	auth: AuthData,
 	profileName = 'production',
 	sandboxId: string,
-	orgId: string
+	orgId?: string
 ): Promise<string> {
 	// Check cache first
-	const cachedRegion = await getResourceRegion('sandbox', profileName, sandboxId);
-	if (cachedRegion) {
-		logger.trace(`[sandbox] Found cached region for ${sandboxId}: ${cachedRegion}`);
-		return cachedRegion;
+	const cachedInfo = await getResourceInfo('sandbox', profileName, sandboxId);
+	if (cachedInfo?.region) {
+		logger.trace(`[sandbox] Found cached region for ${sandboxId}: ${cachedInfo.region}`);
+		return cachedInfo.region;
 	}
 
 	// Fallback to API lookup using global client
@@ -41,7 +40,7 @@ export async function getSandboxRegion(
 	}
 
 	// Cache the result
-	await setResourceRegion('sandbox', profileName, sandboxId, sandbox.region);
+	await setResourceInfo('sandbox', profileName, sandboxId, sandbox.region, orgId);
 	logger.trace(`[sandbox] Cached region for ${sandboxId}: ${sandbox.region}`);
 
 	return sandbox.region;
@@ -55,7 +54,7 @@ export async function cacheSandboxRegion(
 	sandboxId: string,
 	region: string
 ): Promise<void> {
-	await setResourceRegion('sandbox', profileName, sandboxId, region);
+	await setResourceInfo('sandbox', profileName, sandboxId, region);
 }
 
 /**
@@ -77,7 +76,7 @@ export async function clearSandboxRegionCache(
  *
  * @returns Array of FileToWrite objects
  */
-export function parseFileArgs(fileArgs: string[] | undefined): FileToWrite[] {
+export async function parseFileArgs(fileArgs: string[] | undefined): Promise<FileToWrite[]> {
 	if (!fileArgs || fileArgs.length === 0) {
 		return [];
 	}
@@ -106,7 +105,9 @@ export function parseFileArgs(fileArgs: string[] | undefined): FileToWrite[] {
 		}
 
 		const resolvedPath = resolve(localPath);
-		if (!existsSync(resolvedPath)) {
+		// Use Bun.file().exists() instead of Node's existsSync per coding guidelines
+		const fileExists = await Bun.file(resolvedPath).exists();
+		if (!fileExists) {
 			throw new Error(`File not found: ${localPath} (resolved to ${resolvedPath})`);
 		}
 

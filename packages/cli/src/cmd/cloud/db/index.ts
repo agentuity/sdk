@@ -10,7 +10,7 @@ import { getCommand } from '../../../command-prefix';
 export const dbCommand = createCommand({
 	name: 'db',
 	aliases: ['database'],
-	description: 'Manage database resources',
+	description: 'Manage Postgres managed database resources',
 	tags: ['slow', 'requires-auth', 'requires-deployment'],
 	examples: [
 		{ command: getCommand('cloud db list'), description: 'List all databases' },

@@ -8,17 +8,28 @@ Each API folder must contain:
 
 - **route.ts** (required) - HTTP route definitions using Hono router
 
-Example structure:
+Current routes in this SDK Explorer:
 
-```
+```text
 src/api/
-├── index.ts         (optional, mounted at /api)
-├── status/
-│   └── route.ts     (mounted at /api/status)
-├── users/
-│   └── route.ts     (mounted at /api/users)
-├── agent-call/
-    └── route.ts     (mounted at /api/agent-call)
+├── index.ts             # Empty router (mounted at /api)
+├── hello/               # Basic greeting endpoint
+├── chat/                # Chat conversation endpoint
+├── context/             # AgentContext info endpoint
+├── key-value/           # KV storage operations
+├── vector-storage/      # Vector search endpoint
+├── object-storage/      # S3 file operations
+├── ai-gateway/          # Multi-provider LLM routing (streaming)
+├── streaming/           # Raw text streaming
+├── sse-stream/          # Server-Sent Events streaming
+├── durable-stream/      # Persistent streams with public URLs
+├── agent-calls/         # Agent invocation patterns (sync/background/chain)
+├── model-arena/         # LLM-as-judge comparison (SSE)
+├── evals/               # Quality evaluations endpoint
+├── websocket/           # WebSocket bidirectional communication
+└── sandbox/             # Cloud sandbox execution (SSE)
+    ├── route.ts         # Sandbox execution endpoint
+    └── scripts.ts       # Script names and default inputs (generated)
 ```
 
 ## Creating an API
@@ -80,16 +91,17 @@ export default router;
 
 ### API Calling Agents
 
-APIs can call agents directly:
+Import agents directly and call `.run()`:
 
 ```typescript
 import { createRouter } from '@agentuity/runtime';
+import helloAgent from '../../agent/hello/agent';
 
 const router = createRouter();
 
 router.get('/', async (c) => {
-	// Call an agent from the agents/ folder
-	const result = await c.agent.hello.run({ name: 'API Caller', age: 42 });
+	// Call the imported agent directly
+	const result = await helloAgent.run({ name: 'API Caller' });
 
 	return c.json({
 		success: true,
@@ -97,12 +109,10 @@ router.get('/', async (c) => {
 	});
 });
 
-router.post('/with-input', async (c) => {
-	const body = await c.req.json();
-	const { name, age } = body;
-
-	// Call agent with dynamic input
-	const result = await c.agent.simple.run({ name, age });
+// Use agent.validator() for automatic request validation
+router.post('/', helloAgent.validator(), async (c) => {
+	const data = c.req.valid('json'); // Already typed & validated
+	const result = await helloAgent.run(data);
 
 	return c.json({
 		success: true,
@@ -221,9 +231,11 @@ router.post('/upload', async (c) => {
 ## Error Handling
 
 ```typescript
+import myAgent from '../../agent/my-agent/agent';
+
 router.get('/', async (c) => {
 	try {
-		const result = await c.agent.myAgent.run({ data: 'test' });
+		const result = await myAgent.run({ data: 'test' });
 		return c.json({ success: true, result });
 	} catch (error) {
 		c.var.logger.error('Agent call failed:', error);
@@ -237,6 +249,170 @@ router.get('/', async (c) => {
 	}
 });
 ```
+
+## SSE Streaming (Server-Sent Events)
+
+Use the `sse()` middleware for streaming responses with named events:
+
+```typescript
+import { createRouter, sse } from '@agentuity/runtime';
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const router = createRouter();
+
+router.get('/stream', (c) =>
+	sse(async (c, stream) => {
+		const { textStream } = streamText({
+			model: openai('gpt-5-nano'),
+			prompt: 'Tell me a story',
+		});
+
+		let chunkCount = 0;
+		for await (const chunk of textStream) {
+			await stream.writeSSE({
+				event: 'token',
+				data: chunk,
+				id: String(chunkCount++),
+			});
+		}
+
+		await stream.writeSSE({
+			event: 'done',
+			data: JSON.stringify({ totalTokens: chunkCount }),
+		});
+	})
+);
+
+export default router;
+```
+
+**SSE Event Structure:**
+
+- `event` - Event name (client listens with `eventSource.addEventListener(event, ...)`)
+- `data` - Event payload (string)
+- `id` - Optional event ID for client-side deduplication
+
+**Used in:** `sse-stream/`, `model-arena/`, `sandbox/`
+
+## Raw Streaming
+
+Use the `stream()` middleware for simple text streaming without events:
+
+```typescript
+import { createRouter, stream } from '@agentuity/runtime';
+import { streamText } from 'ai';
+
+const router = createRouter();
+
+router.post('/stream', (c) =>
+	stream(async () => {
+		const { textStream } = streamText({
+			model: openai('gpt-5-nano'),
+			prompt: 'Hello',
+		});
+		return textStream; // Returns ReadableStream directly
+	})
+);
+
+export default router;
+```
+
+**Used in:** `streaming/`, `ai-gateway/`
+
+## WebSocket
+
+Use the `websocket()` middleware for bidirectional communication:
+
+```typescript
+import { createRouter, websocket } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/connect', (c) =>
+	websocket((c, ws) => {
+		ws.onOpen(() => {
+			ws.send(JSON.stringify({ type: 'system', message: 'Connected' }));
+		});
+
+		ws.onMessage(async (event) => {
+			const data = typeof event.data === 'string' ? event.data : '';
+			ws.send(JSON.stringify({ type: 'echo', message: data }));
+		});
+
+		ws.onClose(() => {
+			console.log('Client disconnected');
+		});
+	})
+);
+
+export default router;
+```
+
+**Used in:** `websocket/`
+
+## Background Tasks
+
+Use `c.waitUntil()` to schedule work after the response is sent:
+
+```typescript
+router.post('/background', async (c) => {
+	const body = await c.req.json();
+
+	// Schedule background work
+	c.waitUntil(async () => {
+		// This runs after the response is sent
+		await someAsyncTask(body);
+	});
+
+	// Return immediately
+	return c.json({ status: 'accepted' });
+});
+```
+
+**Used in:** `agent-calls/`, `context/`, `durable-stream/`
+
+## Sandbox Route (sandbox/)
+
+The sandbox route executes demo scripts in cloud sandboxes with session reuse.
+
+**Endpoint:** `GET /api/sandbox/run?script=hello&input=base64JSON`
+
+**Session Reuse Flow:**
+
+1. Read `atid` cookie → thread ID
+2. KV lookup `explorer-sessions` / threadId → sandboxId
+3. If found: Execute on existing sandbox via `sandboxExecute()`
+4. If not found or expired: Create new sandbox with `mode: 'interactive'`
+5. Store sandboxId in KV with 10-min TTL
+6. Fetch stdout + stderr after execution completes
+7. Fallback: If any step fails, use one-shot `sandboxRun()`
+
+**Files:**
+
+- `route.ts` - SSE endpoint with interactive session logic
+- `scripts.ts` - Script names (`SCRIPT_NAMES`) and default inputs (`SCRIPT_DEFAULTS`), generated by `bun run generate:scripts`
+
+**SSE Events:**
+
+- `status` - Sandbox status ('creating', 'running')
+- `stdout` - Output content (combined stdout + stderr)
+- `done` - Completion with `{ exitCode: number }`
+- `error` - Error message
+
+**Key Implementation Details:**
+
+- Sandbox created without initial command (stays in `idle` state)
+- 10-min idle timeout matches KV TTL
+- Both stdout and stderr fetched (logger writes to stderr)
+- No live streaming in interactive mode (output fetched after completion)
+
+**Adding a new sandbox script:**
+
+1. Create the script in `src/run/newscript.ts`
+2. Run `bun run generate:scripts` to regenerate script metadata
+3. Rebuild the sandbox snapshot to include the new script
+4. The script should output results wrapped in `---OUTPUT---` markers
 
 ## Response Types
 
@@ -266,8 +442,9 @@ return c.json({ data: 'value' }, 200, {
 
 - Each API folder name becomes the route name (e.g., `status/` → `/api/status`)
 - **route.ts** must export default the router instance
-- Use c.var.logger for logging, not console.log
-- All agents are accessible via c.agent.{agentName}
+- Use `c.var.logger` for logging in routes (or `ctx.logger` in agents), not console.log
+- Import agents directly: `import agent from '../../agent/name/agent'`
+- Call agents with `agent.run(input)` or use `agent.validator()` middleware
 - Validation should use @agentuity/schema or any Standard Schema compatible library
 - Return appropriate HTTP status codes
 - APIs run at `/api/{folderName}` by default

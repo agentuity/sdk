@@ -72,65 +72,65 @@ describe('Global Database Commands - No Region Required', () => {
 			const requires = dbListSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is not required - auto-discovered from resource
 		});
 
 		test('db get does not require region', () => {
 			const requires = dbGetSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is not required - auto-discovered from resource
 		});
 
 		test('db delete does not require region', () => {
 			const requires = dbDeleteSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is not required - auto-discovered from resource
 		});
 
 		test('db logs does not require region', () => {
 			const requires = dbLogsSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is not required - auto-discovered from resource
 		});
 	});
 
 	describe('Storage Commands', () => {
-		test('storage list does not require region', () => {
+		test('storage list requires org (needs to know which org to list)', () => {
 			const requires = storageListSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
 			expect(requires?.org).toBe(true);
 		});
 
-		test('storage get does not require region', () => {
+		test('storage get does not require region or org (auto-discovered)', () => {
 			const requires = storageGetSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is optional - auto-discovered from resource name via cache or API
 		});
 
-		test('storage delete does not require region', () => {
+		test('storage delete does not require region or org (auto-discovered)', () => {
 			const requires = storageDeleteSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is optional - auto-discovered from resource name via cache or API
 		});
 
-		test('storage upload does not require region', () => {
+		test('storage upload does not require region or org (auto-discovered)', () => {
 			const requires = storageUploadSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is optional - auto-discovered from resource name via cache or API
 		});
 
-		test('storage download does not require region', () => {
+		test('storage download does not require region or org (auto-discovered)', () => {
 			const requires = storageDownloadSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is optional - auto-discovered from resource name via cache or API
 		});
 	});
 

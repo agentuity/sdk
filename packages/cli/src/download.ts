@@ -1,6 +1,7 @@
 import { Transform, Readable } from 'node:stream';
 import * as tui from './tui';
 import { APIError } from '@agentuity/server';
+import { getVersion } from './version';
 
 export interface DownloadOptions {
 	url: string;
@@ -17,6 +18,8 @@ export async function downloadWithProgress(
 	options: DownloadOptions
 ): Promise<NodeJS.ReadableStream> {
 	const { url, headers = {}, onProgress } = options;
+
+	headers['User-Agent'] = `Agentuity CLI/${getVersion()}`;
 
 	const response = await fetch(url, { headers });
 	if (!response.ok) {

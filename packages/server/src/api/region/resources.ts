@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
 import { RegionResponseError } from './util';
 
-const ResourceListResponse = z.object({
+export const ResourceListResponse = z.object({
 	s3: z.array(
 		z.object({
 			bucket_name: z.string().describe('the S3 bucket name'),
@@ -12,6 +12,13 @@ const ResourceListResponse = z.object({
 			endpoint: z.string().nullable().optional().describe('the S3 endpoint'),
 			cname: z.string().nullable().optional().describe('the S3 CNAME'),
 			env: z.record(z.string(), z.string()).describe('environment variables for the resource'),
+			bucket_type: z.string().describe('the bucket type (user or snapshots)'),
+			internal: z.boolean().describe('whether this is a system-managed bucket'),
+			description: z
+				.string()
+				.nullable()
+				.optional()
+				.describe('optional description of the bucket'),
 		})
 	),
 	db: z.array(
@@ -21,6 +28,9 @@ const ResourceListResponse = z.object({
 			password: z.string().nullable().optional().describe('the database password'),
 			url: z.string().nullable().optional().describe('the full database connection URL'),
 			env: z.record(z.string(), z.string()).describe('environment variables for the resource'),
+			internal: z
+				.boolean()
+				.describe('whether this is a system-managed database (KV/Vector/Queue)'),
 		})
 	),
 	redis: z
@@ -29,7 +39,7 @@ const ResourceListResponse = z.object({
 		})
 		.optional(),
 });
-const ResourceListResponseSchema = APIResponseSchema(ResourceListResponse);
+export const ResourceListResponseSchema = APIResponseSchema(ResourceListResponse);
 
 export type ResourceListResponse = z.infer<typeof ResourceListResponseSchema>;
 export type ResourceList = z.infer<typeof ResourceListResponse>;

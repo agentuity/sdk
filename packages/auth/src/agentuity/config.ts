@@ -9,7 +9,7 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
-import { drizzle } from 'drizzle-orm/bun-sql';
+import { createPostgresDrizzle } from '@agentuity/drizzle';
 import * as authSchema from '../schema';
 
 // Re-export plugin types for convenience
@@ -159,11 +159,28 @@ function parseOriginLike(value: string): string | undefined {
  *
  * Priority:
  * 1. Explicit `baseURL` option
- * 2. `AGENTUITY_BASE_URL` env var (Agentuity platform-injected)
- * 3. `BETTER_AUTH_URL` env var (BetterAuth standard, for 3rd party SDK compatibility)
+ * 2. `AGENTUITY_CLOUD_BASE_URL` env var (Agentuity platform-injected for cloud deployments)
+ * 3. `AGENTUITY_BASE_URL` env var (Agentuity platform-injected, legacy fallback)
+ * 4. `BETTER_AUTH_URL` env var (BetterAuth standard, for 3rd party SDK compatibility)
+ *
+ * Empty or whitespace-only values are treated as missing and skipped.
  */
 function resolveBaseURL(explicitBaseURL?: string): string | undefined {
-	return explicitBaseURL ?? process.env.AGENTUITY_BASE_URL ?? process.env.BETTER_AUTH_URL;
+	const candidates = [
+		explicitBaseURL,
+		process.env.AGENTUITY_CLOUD_BASE_URL,
+		process.env.AGENTUITY_BASE_URL,
+		process.env.BETTER_AUTH_URL,
+	];
+
+	for (const candidate of candidates) {
+		const trimmed = candidate?.trim();
+		if (trimmed) {
+			return trimmed;
+		}
+	}
+
+	return undefined;
 }
 
 /**
@@ -373,9 +390,12 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	// Handle database configuration
 	let database = restOptions.database;
 
-	// ConnectionString provided - create Bun SQL connection + drizzle internally
+	// ConnectionString provided - create resilient Drizzle connection internally
 	if (connectionString && !database) {
-		const db = drizzle(connectionString, { schema: authSchema });
+		const { db } = createPostgresDrizzle({
+			connectionString,
+			schema: authSchema,
+		});
 		database = drizzleAdapter(db, {
 			provider: 'pg',
 			schema: authSchema,

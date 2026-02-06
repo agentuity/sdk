@@ -1,5 +1,14 @@
 #!/usr/bin/env bun
-import { ConsoleLogger } from '@agentuity/server';
+
+// Fast-path for version command - check before loading heavy modules
+const versionArgs = process.argv.slice(2);
+if (versionArgs.length === 1 && ['version', '-v', '--version', '-V'].includes(versionArgs[0])) {
+	const { getVersion } = await import('../src/version');
+	console.log(getVersion());
+	process.exit(0);
+}
+
+import { ConsoleLogger, getAppBaseURL } from '@agentuity/server';
 import { isStructuredError } from '@agentuity/core';
 import { createCLI, registerCommands } from '../src/cli';
 import { validateRuntime } from '../src/runtime';
@@ -7,8 +16,8 @@ import { loadConfig } from '../src/config';
 import { discoverCommands } from '../src/cmd';
 import { detectColorScheme } from '../src/terminal';
 import { setColorScheme } from '../src/tui';
-import { getVersion } from '../src/version';
-import { checkLegacyCLI } from '../src/legacy-check';
+import { getVersion, getPackageName } from '../src/version';
+
 import type { CommandContext, LogLevel } from '../src/types';
 import { generateCLISchema } from '../src/schema-generator';
 import { setOutputOptions } from '../src/output';
@@ -16,6 +25,43 @@ import type { GlobalOptions } from '../src/types';
 import { ensureBunOnPath } from '../src/bun-path';
 import { checkForUpdates } from '../src/version-check';
 import { closeDatabase } from '../src/cache';
+import { createInternalLogger } from '../src/internal-logger';
+import { createCompositeLogger } from '../src/composite-logger';
+import { getAuth } from '../src/config';
+import {
+	startAgentDetection,
+	isExecutingFromAgent,
+	onAgentDetected,
+	flushAgentDetection,
+} from '../src/agent-detection';
+
+/**
+ * Extract --dir flag from process.argv before command parsing
+ * Handles both --dir=<path> and --dir <path> formats
+ * Returns undefined if not present
+ */
+function getProjectDirFromArgs(): string | undefined {
+	const args = process.argv;
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+
+		// Handle --dir=<path>
+		if (arg.startsWith('--dir=')) {
+			return arg.slice(6);
+		}
+
+		// Handle --dir <path>
+		if (arg === '--dir' && i + 1 < args.length) {
+			const nextArg = args[i + 1];
+			// Make sure next arg isn't another flag
+			if (!nextArg.startsWith('-')) {
+				return nextArg;
+			}
+		}
+	}
+
+	return undefined;
+}
 
 // Cleanup TTY state before exit
 function cleanupTTY() {
@@ -48,6 +94,10 @@ process.on('SIGTERM', () => {
 
 validateRuntime();
 await ensureBunOnPath();
+
+// Start agent detection early (non-blocking) so it runs in the background
+// while the rest of CLI initialization happens
+startAgentDetection();
 
 // Preprocess arguments to convert --help=json to --help json
 // Commander.js doesn't support --option=value syntax for optional values
@@ -82,22 +132,17 @@ if (
 	exit(0);
 }
 
-// Check for legacy CLI and warn user (skip via flag or env var)
-// Env var is preferred for programmatic use (e.g., test runners) since Commander.js
-// would fail on unknown CLI flags
-const skipLegacyCheck =
-	process.argv.includes('--skip-legacy-check') || process.env.AGENTUITY_SKIP_LEGACY_CHECK === '1';
-if (!skipLegacyCheck) {
-	await checkLegacyCLI();
-}
-
 const version = getVersion();
 const program = await createCLI(version);
 
-// Parse options early to check for color scheme override
+// Parse options early to check for color scheme override and extract operands
 // Skip parseOptions if we have help flags to avoid "unknown option" error
+// parseOptions returns { operands, unknown } where operands are positional args (command names)
+// Pass only user args (slice(2) to skip node path and script path) per Commander v14 expectations
+let parsedOperands: string[] = [];
 if (!hasHelp) {
-	program.parseOptions(process.argv);
+	const parsed = program.parseOptions(process.argv.slice(2));
+	parsedOperands = parsed.operands;
 }
 const earlyOpts = program.opts();
 
@@ -120,20 +165,102 @@ if (process.env.DEBUG_COLORS) {
 // In quiet or JSON mode, suppress most logging
 const effectiveLogLevel =
 	earlyOpts.quiet || earlyOpts.json ? 'error' : (earlyOpts.logLevel as LogLevel) || 'info';
-const logger = new ConsoleLogger(effectiveLogLevel, earlyOpts.logTimestamp || false, colorScheme);
-logger.setShowPrefix(earlyOpts.logPrefix !== false);
+const consoleLogger = new ConsoleLogger(
+	effectiveLogLevel,
+	earlyOpts.logTimestamp || false,
+	colorScheme
+);
+consoleLogger.setShowPrefix(earlyOpts.logPrefix !== false);
+
+// Use the parsed operands from Commander.js parseOptions() which correctly
+// separates command names from option values. parsedOperands contains only
+// positional arguments (command/subcommand names), not flag values.
+// For help mode, parsedOperands is empty so we fall back to extracting from preprocessedArgs.
+const commandArgs = hasHelp
+	? preprocessedArgs.filter((arg) => !arg.startsWith('-'))
+	: parsedOperands;
+
+// Check if we should skip internal logging based on command or help flags
+// We need to check the commands first to see if skipInternalLogging is set
+const earlyCommandName = commandArgs[0];
+const earlySubcommandName = commandArgs[1];
+const commands = await discoverCommands();
+const earlyCommandDef = commands.find((cmd) => cmd.name === earlyCommandName);
+const earlySubcommandDef = earlySubcommandName
+	? earlyCommandDef?.subcommands?.find((sub) => sub.name === earlySubcommandName)
+	: undefined;
+
+// Skip internal logging if:
+// 1. Help flag is present
+// 2. No command provided (shows help)
+// 3. Command has skipInternalLogging set
+// 4. Subcommand has skipInternalLogging set
+const shouldSkipInternalLogging =
+	hasHelp ||
+	commandArgs.length === 0 ||
+	earlyCommandDef?.skipInternalLogging ||
+	earlySubcommandDef?.skipInternalLogging;
+
+// Create internal logger for trace/debug logging (always at trace level)
+const internalLogger = createInternalLogger(version, getPackageName());
+
+// Disable or initialize the internal logger based on command flags
+if (shouldSkipInternalLogging) {
+	internalLogger.disable();
+} else {
+	const command = commandArgs.length > 0 ? commandArgs.join(' ') : 'help';
+	// Extract --dir from argv if present (for project context in logs)
+	const projectDirArg = getProjectDirFromArgs();
+	// Filter out command/subcommand names from args by position, not by value.
+	// The first N entries of preprocessedArgs that are not flags are the command tokens.
+	// Skip the leading command tokens to get only the actual arguments.
+	let commandTokensToSkip = commandArgs.length;
+	const filteredArgs: string[] = [];
+	for (const arg of preprocessedArgs) {
+		if (commandTokensToSkip > 0 && !arg.startsWith('-') && commandArgs.includes(arg)) {
+			commandTokensToSkip--;
+		} else {
+			filteredArgs.push(arg);
+		}
+	}
+	internalLogger.init(command, filteredArgs, undefined, projectDirArg);
+
+	// Set session ID in environment so forked child processes can share the same log file
+	process.env.AGENTUITY_INTERNAL_SESSION_ID = internalLogger.getSessionId();
+
+	// Register callback to update session with detected agent (non-blocking)
+	onAgentDetected((agent) => {
+		if (agent) {
+			internalLogger.setDetectedAgent(agent);
+		}
+	});
+}
+
+// Create composite logger that writes to both console and internal log
+const logger = createCompositeLogger(consoleLogger, internalLogger);
 
 // Set version check skip flag from CLI option
 if (earlyOpts.skipVersionCheck) {
 	process.env.AGENTUITY_SKIP_VERSION_CHECK = '1';
 }
 
-const config = await loadConfig(earlyOpts.config);
+const config = await loadConfig(earlyOpts.config, false, earlyOpts.profile);
+
+// Update internal logger with userId if available from auth (keychain or config)
+try {
+	const auth = await getAuth();
+	if (auth?.userId) {
+		internalLogger.setUserId(auth.userId);
+	}
+} catch {
+	// Ignore auth errors - user might not be logged in
+}
 
 const ctx = {
 	config,
 	logger,
 	options: earlyOpts,
+	isExecutingFromAgent,
 };
 
 // Set global output options for utilities to use
@@ -143,14 +270,19 @@ if (earlyOpts.json && !earlyOpts.errorFormat) {
 }
 setOutputOptions(earlyOpts as GlobalOptions);
 
-const commands = await discoverCommands();
-
 // Check for updates before running commands (may upgrade and re-exec)
 // Find the command being run to check if it opts out of upgrade check
-const commandName = preprocessedArgs.find((arg) => !arg.startsWith('-'));
+// Use parsedOperands from Commander's parseOptions which correctly separates
+// command names from option values (e.g., "--file myfile" won't treat "myfile" as a command)
+// Also find the subcommand if present (e.g., "auth whoami" -> command="auth", subcommand="whoami")
+const commandName = parsedOperands[0];
+const subcommandName = parsedOperands[1];
 const commandDef = commands.find((cmd) => cmd.name === commandName);
+const subcommandDef = subcommandName
+	? commandDef?.subcommands?.find((sub) => sub.name === subcommandName)
+	: undefined;
 
-await checkForUpdates(config, logger, earlyOpts, commandDef, preprocessedArgs);
+await checkForUpdates(config, logger, earlyOpts, commandDef, subcommandDef, preprocessedArgs);
 
 // Generate and store CLI schema globally for the schema command
 const cliSchema = generateCLISchema(program, commands, version);
@@ -161,6 +293,8 @@ await registerCommands(program, commands, ctx as unknown as CommandContext);
 
 try {
 	await program.parseAsync(process.argv);
+	// Flush agent detection to ensure it's written to session logs before exit
+	await flushAgentDetection();
 } catch (error) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
@@ -188,7 +322,28 @@ try {
 		closeDatabase();
 		exit(0);
 	}
-	const errorWithMessage = error as { message?: string };
+	const errorWithMessage = error as { message?: string; statusCode?: number; _tag?: string };
+
+	// Handle payment required (402) errors with a friendly TUI message
+	if (
+		isStructuredError(error) &&
+		((errorWithMessage._tag === 'ServiceException' && errorWithMessage.statusCode === 402) ||
+			errorWithMessage._tag === 'PaymentRequiredError')
+	) {
+		const { errorBox, link, newline } = await import('../src/tui');
+		const overrides = config?.overrides as { app_url?: string } | undefined;
+		const appBaseUrl = getAppBaseURL(undefined, overrides);
+		const billingUrl = `${appBaseUrl}/billing`;
+		newline();
+		errorBox(
+			'Out of Credit',
+			`Your organization is out of credit.\n\nPlease add more here:\n${link(billingUrl)}`,
+			false // standalone box, not connected to a guide
+		);
+		closeDatabase();
+		exit(1);
+	}
+
 	if (isStructuredError(error)) {
 		logger.error(error);
 	} else {

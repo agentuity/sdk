@@ -177,6 +177,7 @@ function renderAllSteps(
 
 	for (let i = 0; i < state.length; i++) {
 		const step = state[i];
+		if (step === undefined) continue;
 		const isRunning = i === runningStepIndex;
 		const stepSpinner = isRunning && spinner ? spinner : undefined;
 
@@ -384,9 +385,10 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 	const forceRerender = (skipMove = false) => {
 		if (currentStepIndex < 0 || currentStepIndex >= state.length) return;
 
-		const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length];
+		const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length] ?? 'cyan';
 		const color = getColor(colorKey);
-		const spinner = `${color}${COLORS.bold}${FRAMES[currentFrameIndex % FRAMES.length]}${COLORS.reset}`;
+		const frame = FRAMES[currentFrameIndex % FRAMES.length] ?? FRAMES[0] ?? '◐';
+		const spinner = `${color}${COLORS.bold}${frame}${COLORS.reset}`;
 		const rendered = renderAllSteps(state, currentStepIndex, spinner);
 
 		// Optionally move up, then to column 0
@@ -421,15 +423,17 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 
 			const step = steps[stepIndex];
 			const stepState = state[stepIndex];
+			if (step === undefined || stepState === undefined) continue;
 			stepState.status = 'running';
 
 			// Start spinner animation
 			activeInterval = setInterval(() => {
 				if (isPaused) return;
 
-				const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length];
+				const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length] ?? 'cyan';
 				const color = getColor(colorKey);
-				const spinner = `${color}${COLORS.bold}${FRAMES[currentFrameIndex % FRAMES.length]}${COLORS.reset}`;
+				const frame = FRAMES[currentFrameIndex % FRAMES.length] ?? FRAMES[0] ?? '◐';
+				const spinner = `${color}${COLORS.bold}${frame}${COLORS.reset}`;
 
 				// Render all steps from state
 				const rendered = renderAllSteps(state, currentStepIndex, spinner);
@@ -453,9 +457,10 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 				stepState.progress = Math.min(100, Math.max(0, progress));
 
 				// Render all steps from state
-				const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length];
+				const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length] ?? 'cyan';
 				const color = getColor(colorKey);
-				const spinner = `${color}${COLORS.bold}${FRAMES[currentFrameIndex % FRAMES.length]}${COLORS.reset}`;
+				const frame = FRAMES[currentFrameIndex % FRAMES.length] ?? FRAMES[0] ?? '◐';
+				const spinner = `${color}${COLORS.bold}${frame}${COLORS.reset}`;
 				const rendered = renderAllSteps(state, currentStepIndex, spinner);
 
 				// Move to start, clear, render

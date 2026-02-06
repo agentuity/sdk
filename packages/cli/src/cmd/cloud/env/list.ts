@@ -169,7 +169,9 @@ export const listSubcommand = createSubcommand({
 				const shouldMask = opts?.mask !== false;
 
 				for (const key of sortedKeys) {
-					const { value, secret, scope } = result[key];
+					const entry = result[key];
+					if (!entry) continue;
+					const { value, secret, scope } = entry;
 					const displayValue = shouldMask && secret ? tui.maskSecret(value) : value;
 					const typeIndicator = secret ? ' [secret]' : '';
 					const scopeIndicator = !useOrgScope ? ` [${scope}]` : '';

@@ -1,16 +1,23 @@
 import { z } from 'zod';
-import { toJSONSchema as agentuityToJSONSchema, type JSONSchema } from '@agentuity/schema';
+import {
+	toJSONSchema as agentuityToJSONSchema,
+	type JSONSchema,
+	type ToJSONSchemaOptions,
+} from '@agentuity/schema';
 
 /**
  * Converts a schema to JSON Schema format.
  * Supports Agentuity schemas (StandardSchemaV1) and Zod schemas.
  * Returns empty object for unknown schema types.
+ *
+ * @param schema - The schema to convert
+ * @param options - Conversion options (only applies to Agentuity schemas)
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const toJSONSchema = (schema: any): JSONSchema => {
+export const toJSONSchema = (schema: any, options?: ToJSONSchemaOptions): JSONSchema => {
 	// Check if it's an Agentuity schema via StandardSchemaV1 vendor
 	if (schema?.['~standard']?.vendor === 'agentuity') {
-		return agentuityToJSONSchema(schema);
+		return agentuityToJSONSchema(schema, options);
 	}
 	// Check if it's a Zod schema
 	// Zod 3 uses _def.typeName (e.g., "ZodObject")

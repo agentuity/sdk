@@ -26,6 +26,7 @@ import {
   createWorkbenchRouter,
   bootstrapRuntimeEnv,
   patchBunS3ForStorageDev,
+  runShutdown,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { websocket, serveStatic } from 'hono/bun';
@@ -248,14 +249,16 @@ const { default: router_8 } = await import('../api/model-arena/route.js');
 app.route('/api/model-arena', router_8);
 const { default: router_9 } = await import('../api/object-storage/route.js');
 app.route('/api/object-storage', router_9);
-const { default: router_10 } = await import('../api/sse-stream/route.js');
-app.route('/api/sse-stream', router_10);
-const { default: router_11 } = await import('../api/streaming/route.js');
-app.route('/api/streaming', router_11);
-const { default: router_12 } = await import('../api/vector-storage/route.js');
-app.route('/api/vector-storage', router_12);
-const { default: router_13 } = await import('../api/websocket/route.js');
-app.route('/api/websocket', router_13);
+const { default: router_10 } = await import('../api/sandbox/route.js');
+app.route('/api/sandbox', router_10);
+const { default: router_11 } = await import('../api/sse-stream/route.js');
+app.route('/api/sse-stream', router_11);
+const { default: router_12 } = await import('../api/streaming/route.js');
+app.route('/api/streaming', router_12);
+const { default: router_13 } = await import('../api/vector-storage/route.js');
+app.route('/api/vector-storage', router_13);
+const { default: router_14 } = await import('../api/websocket/route.js');
+app.route('/api/websocket', router_14);
 
 const hasWorkbenchConfig = true;
 const hasWorkbench = isDevelopment() && hasWorkbenchConfig;
@@ -409,6 +412,24 @@ if (typeof Bun !== 'undefined') {
 	otel.logger.info(`Server listening on http://127.0.0.1:${port}`);
 	if (isDevelopment() && process.env.VITE_PORT) {
 		otel.logger.debug(`Proxying Vite assets from port ${process.env.VITE_PORT}`);
+	}
+
+	// Register signal handlers for graceful shutdown (production only)
+	// Dev mode has its own handlers in devmode.ts
+	if (!isDevelopment()) {
+		const handleShutdown = async (signal: string) => {
+			otel.logger.info(`Received ${signal}, initiating graceful shutdown...`);
+			try {
+				await runShutdown();
+				otel.logger.info('Shutdown complete');
+			} catch (err) {
+				otel.logger.error(`Error during shutdown: ${err instanceof Error ? err.message : String(err)}`);
+			}
+			process.exit(0);
+		};
+
+		process.once('SIGTERM', () => handleShutdown('SIGTERM'));
+		process.once('SIGINT', () => handleShutdown('SIGINT'));
 	}
 }
 

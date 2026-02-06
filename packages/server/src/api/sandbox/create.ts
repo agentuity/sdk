@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { throwSandboxError, API_VERSION } from './util';
 import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
 
 const SandboxCreateRequestSchema = z
@@ -64,7 +64,7 @@ const SandboxCreateRequestSchema = z
 						})
 					)
 					.optional()
-					.describe('Files to write before execution'),
+					.describe('Files to write before execution (deprecated: use top-level files)'),
 				mode: z
 					.enum(['oneshot', 'interactive'])
 					.optional()
@@ -72,6 +72,10 @@ const SandboxCreateRequestSchema = z
 			})
 			.optional()
 			.describe('Initial command to run in the sandbox'),
+		files: z
+			.record(z.string(), z.string())
+			.optional()
+			.describe('Files to write to sandbox on creation (path -> base64 content)'),
 		snapshot: z.string().optional().describe('Snapshot ID to restore the sandbox from'),
 		dependencies: z
 			.array(z.string())
@@ -82,6 +86,19 @@ const SandboxCreateRequestSchema = z
 			.optional()
 			.describe('Optional user-defined metadata to associate with the sandbox'),
 	})
+	.refine(
+		(data) => {
+			// If snapshot is provided, runtime and runtimeId must not be provided
+			if (data.snapshot) {
+				return !data.runtime && !data.runtimeId;
+			}
+			return true;
+		},
+		{
+			message: 'cannot specify both snapshot and runtime; snapshot includes its own runtime',
+			path: ['snapshot'],
+		}
+	)
 	.describe('Request body for creating a new sandbox');
 
 const SandboxCreateDataSchema = z
@@ -168,6 +185,11 @@ export async function sandboxCreate(
 			})),
 		};
 	}
+	if (options.files && options.files.length > 0) {
+		body.files = Object.fromEntries(
+			options.files.map((f) => [f.path, f.content.toString('base64')])
+		);
+	}
 	if (options.snapshot) {
 		body.snapshot = options.snapshot;
 	}
@@ -196,5 +218,5 @@ export async function sandboxCreate(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }

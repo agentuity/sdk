@@ -29,6 +29,7 @@ import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
 import { internal } from './logger/internal';
 import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './handlers/sse';
+import { loadBuildMetadata } from './_metadata';
 
 const SESSION_HEADER = 'x-session-id';
 const THREAD_HEADER = 'x-thread-id';
@@ -55,12 +56,12 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'stream',
 	'vector',
 	'sandbox',
+	'queue',
 	'state',
 	'thread',
 	'session',
 	'config',
 	'app',
-	'waitUntil',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -112,6 +113,7 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 		c.set('stream', services.stream);
 		c.set('vector', services.vector);
 		c.set('sandbox', services.sandbox);
+		c.set('queue', services.queue);
 
 		installContextPropertyHelpers(c);
 
@@ -290,7 +292,7 @@ export function createOtelMiddleware() {
 		await context.with(extractedContext, async (): Promise<void> => {
 			const tracer = trace.getTracer('http-server');
 			await tracer.startActiveSpan(
-				`HTTP ${method}`,
+				`${method} ${url.pathname}`,
 				{
 					kind: SpanKind.SERVER,
 					attributes: {
@@ -301,6 +303,8 @@ export function createOtelMiddleware() {
 					},
 				},
 				async (span): Promise<void> => {
+					// Track request duration from the SDK's perspective
+					const requestStartTime = performance.now();
 					const sctx = span.spanContext();
 					const sessionId = sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess');
 
@@ -320,6 +324,7 @@ export function createOtelMiddleware() {
 
 					if (projectId) traceState = traceState.set('pid', projectId);
 					if (orgId) traceState = traceState.set('oid', orgId);
+					if (deploymentId) traceState = traceState.set('did', deploymentId);
 					if (isDevMode) traceState = traceState.set('d', '1');
 
 					// Update the active context with the new trace state
@@ -352,8 +357,46 @@ export function createOtelMiddleware() {
 					const sessionEventProvider = getSessionEventProvider();
 					if (sessionEventProvider) {
 						try {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							const routeId = (c as any).var?.routeId || '';
+							// Look up routeId from build metadata by matching method and path
+							// We need to do this here because the router wrapper hasn't run yet
+							const metadata = loadBuildMetadata();
+							const methodUpper = c.req.method.toUpperCase();
+
+							// Normalize paths: trim trailing slashes for consistent matching
+							const normalizePath = (p: string) => {
+								const decoded = decodeURIComponent(p);
+								return decoded.endsWith('/') && decoded.length > 1
+									? decoded.slice(0, -1)
+									: decoded;
+							};
+							const requestPath = normalizePath(c.req.path);
+
+							// Helper to check if requestPath ends with routePath at a segment boundary
+							// e.g., "/api/translate" matches "/translate" but "/api/translate-v2" does not
+							const matchesAtSegmentBoundary = (reqPath: string, routePath: string) => {
+								if (reqPath === routePath) return true;
+								if (!reqPath.endsWith(routePath)) return false;
+								// Check that the character before the match is a path separator
+								const charBeforeMatch = reqPath[reqPath.length - routePath.length - 1];
+								return charBeforeMatch === '/';
+							};
+
+							// Try matching by exact normalized path first
+							let route = metadata?.routes?.find(
+								(r) =>
+									r.method.toUpperCase() === methodUpper &&
+									normalizePath(r.path) === requestPath
+							);
+							// Fall back to segment-boundary matching (handles /api/translate matching /translate)
+							if (!route) {
+								route = metadata?.routes?.find(
+									(r) =>
+										r.method.toUpperCase() === methodUpper &&
+										matchesAtSegmentBoundary(requestPath, normalizePath(r.path))
+								);
+							}
+							const routeId = route?.id || '';
+
 							await sessionEventProvider.start({
 								id: sessionId,
 								threadId: thread.id,
@@ -373,8 +416,13 @@ export function createOtelMiddleware() {
 					}
 
 					// Factor out finalization logic so it can run synchronously or deferred
-					const finalizeSession = async (statusCode?: number) => {
-						internal.info('[session] saving session %s (thread: %s)', sessionId, thread.id);
+					const finalizeSession = async (statusCode?: number, error?: string) => {
+						internal.info(
+							'[session] saving session %s (thread: %s) (error: %s)',
+							sessionId,
+							thread.id,
+							error
+						);
 						await sessionProvider.save(session);
 						internal.info('[session] session saved, now saving thread');
 						await threadProvider.save(thread);
@@ -397,19 +445,49 @@ export function createOtelMiddleware() {
 									id: sessionId,
 									threadId: isEmpty ? null : thread.id,
 									statusCode: statusCode ?? c.res?.status ?? 200,
+									error,
 									agentIds: agentIds?.length ? agentIds : undefined,
 									userData,
 								});
 								internal.info('[session] session complete event sent');
 							} catch (ex) {
-								internal.info('[session] session complete event failed: %s', ex);
+								internal.info(
+									'[session] session complete event failed: %s',
+									ex instanceof Error ? ex.message : ex
+								);
 								// Silently ignore session complete errors - don't block response
 							}
 						}
 					};
 
+					// Track state for finalization
+					let responseStatus = 200;
+					let errorMessage: string | undefined;
+					let handlerDurationMs = 0;
+					// Track whether span should be ended in finally block (false for streaming - ended in waitUntil)
+					let shouldEndSpanInFinally = true;
+
 					try {
+						internal.info(
+							'[request] %s %s - handler starting (session: %s)',
+							method,
+							url.pathname,
+							sessionId
+						);
+
 						await next();
+
+						// Capture timing immediately after next() returns - this is when the handler completed
+						// This is the HTTP response time we want to report (excludes waitUntil/finalization)
+						handlerDurationMs = performance.now() - requestStartTime;
+
+						internal.info(
+							'[request] %s %s - handler completed in %sms (session: %s)',
+							method,
+							url.pathname,
+							handlerDurationMs.toFixed(2),
+							sessionId
+						);
 
 						// Check if this is a streaming response that needs deferred finalization
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -419,47 +497,351 @@ export function createOtelMiddleware() {
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const isStreaming = Boolean((c as any).get(IS_STREAMING_RESPONSE_KEY));
 
+						// Check if Hono caught an error (c.error is set by Hono's error handler)
+						// or if the response status indicates an error
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const honoError = (c as any).error as Error | undefined;
+						responseStatus = c.res?.status ?? 200;
+						const isError = honoError || responseStatus >= 500;
+
+						internal.info(
+							'[request] %s %s - status: %d, streaming: %s, error: %s (session: %s)',
+							method,
+							url.pathname,
+							responseStatus,
+							isStreaming,
+							isError,
+							sessionId
+						);
+
+						if (isError) {
+							// Capture error message for finalization
+							errorMessage = honoError
+								? (honoError.stack ?? honoError.message)
+								: `HTTP ${responseStatus}`;
+							span.setStatus({
+								code: SpanStatusCode.ERROR,
+								message: honoError?.message ?? errorMessage,
+							});
+							if (honoError) {
+								span.recordException(honoError);
+							}
+						} else {
+							span.setStatus({ code: SpanStatusCode.OK });
+						}
+
+						// For streaming responses, defer everything until stream completes
 						if (isStreaming && streamDone) {
-							// Defer session/thread saving until stream completes
-							// This ensures thread state changes made during streaming are persisted
 							internal.info(
-								'[session] deferring session/thread save until streaming completes (session %s)',
+								'[request] %s %s - streaming response, deferring finalization (session: %s)',
+								method,
+								url.pathname,
 								sessionId
 							);
 
+							// For streaming, we end the span inside waitUntil after setting attributes
+							shouldEndSpanInFinally = false;
+
+							// Capture pending promises BEFORE adding finalization waitUntil to avoid deadlock
+							const pendingPromises = handler.getPendingSnapshot();
+							const hasPendingTasks = pendingPromises.length > 0;
+
+							if (hasPendingTasks) {
+								internal.info(
+									'[request] %s %s - %d pending waitUntil tasks to wait for after stream (session: %s)',
+									method,
+									url.pathname,
+									pendingPromises.length,
+									sessionId
+								);
+							}
+
+							// Capture values needed for span attributes (responseStatus already captured above)
+							const capturedResponseStatus = responseStatus;
+							const capturedErrorMessage = errorMessage;
+
+							// Use waitUntil to handle stream completion and finalization
+							// This runs AFTER the response is sent to the client
+							// Note: We intentionally do NOT use noSpan here - the waitUntil span helps
+							// track the streaming finalization work in telemetry
 							handler.waitUntil(async () => {
+								// Track if stream ended with error so we can update finalization status
+								let streamError: unknown = undefined;
+
 								try {
 									await streamDone;
 									internal.info(
-										'[session] stream completed, now saving session/thread (session %s)',
+										'[request] %s %s - stream completed (session: %s)',
+										method,
+										url.pathname,
 										sessionId
 									);
 								} catch (ex) {
-									// Stream ended with an error/abort; still try to persist the latest state
+									streamError = ex;
 									internal.info(
-										'[session] stream ended with error, still saving state: %s',
-										ex
+										'[request] %s %s - stream ended with error: %s (session: %s)',
+										method,
+										url.pathname,
+										ex,
+										sessionId
 									);
 								}
-								await finalizeSession();
-							});
 
-							span.setStatus({ code: SpanStatusCode.OK });
+								// Record duration now that stream is complete - set attributes BEFORE ending span
+								const streamDurationMs = performance.now() - requestStartTime;
+								const durationNs = Math.round(streamDurationMs * 1_000_000);
+								internal.info(
+									'[request] %s %s - recording stream duration: %sms (session: %s)',
+									method,
+									url.pathname,
+									streamDurationMs.toFixed(2),
+									sessionId
+								);
+
+								// Determine final status - use stream error if present
+								const finalStatus = streamError ? 500 : capturedResponseStatus;
+								const finalErrorMessage = streamError
+									? streamError instanceof Error
+										? (streamError.stack ?? streamError.message)
+										: String(streamError)
+									: capturedErrorMessage;
+
+								try {
+									// Wait for pending tasks (evals, etc.) captured BEFORE this waitUntil was added
+									if (hasPendingTasks) {
+										internal.info(
+											'[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)',
+											method,
+											url.pathname,
+											pendingPromises.length,
+											sessionId
+										);
+										const logger = c.get('logger');
+										await handler.waitForPromises(pendingPromises, logger, sessionId);
+										internal.info(
+											'[request] %s %s - all waitUntil tasks complete (session: %s)',
+											method,
+											url.pathname,
+											sessionId
+										);
+									}
+
+									// Finalize session after stream completes and evals finish
+									await finalizeSession(
+										finalStatus >= 500 ? finalStatus : undefined,
+										finalErrorMessage
+									);
+									internal.info(
+										'[request] %s %s - stream session finalization complete (session: %s)',
+										method,
+										url.pathname,
+										sessionId
+									);
+								} finally {
+									// Set span attributes and end span AFTER all work is done
+									span.setAttribute('@agentuity/request.duration', durationNs);
+									span.setAttribute('http.status_code', finalStatus);
+
+									// Set span status based on whether there was an error
+									if (streamError) {
+										span.setStatus({
+											code: SpanStatusCode.ERROR,
+											message: finalErrorMessage ?? 'Stream ended with error',
+										});
+										if (streamError instanceof Error) {
+											span.recordException(streamError);
+										}
+									} else {
+										span.setStatus({ code: SpanStatusCode.OK });
+									}
+
+									span.end();
+									internal.info(
+										'[request] %s %s - stream span ended (session: %s)',
+										method,
+										url.pathname,
+										sessionId
+									);
+									// Note: We don't call waitUntilAll() here because this waitUntil callback
+									// IS the final cleanup task. Calling waitUntilAll() would deadlock since
+									// it would wait for this very promise to complete.
+								}
+							});
 						} else {
-							// Non-streaming: save session/thread synchronously (existing behavior)
-							await finalizeSession();
-							span.setStatus({ code: SpanStatusCode.OK });
+							// Non-streaming: record duration immediately
+							const durationNs = Math.round(handlerDurationMs * 1_000_000);
+							internal.info(
+								'[request] %s %s - recording duration: %sms (%dns) (session: %s)',
+								method,
+								url.pathname,
+								handlerDurationMs.toFixed(2),
+								durationNs,
+								sessionId
+							);
+							span.setAttribute('@agentuity/request.duration', durationNs);
+							span.setAttribute('http.status_code', responseStatus);
+
+							// Capture pending promises BEFORE adding finalization waitUntil to avoid deadlock.
+							// If we called waitUntilAll inside waitUntil, it would wait for itself.
+							const pendingPromises = handler.getPendingSnapshot();
+							const hasPendingTasks = pendingPromises.length > 0;
+
+							if (hasPendingTasks) {
+								internal.info(
+									'[request] %s %s - %d pending waitUntil tasks to wait for (session: %s)',
+									method,
+									url.pathname,
+									pendingPromises.length,
+									sessionId
+								);
+							}
+
+							// Capture values for use in waitUntil callback
+							const capturedResponseStatus = responseStatus;
+							const capturedErrorMessage = errorMessage;
+
+							// Defer session finalization to run AFTER response is sent
+							// Use noSpan: true since finalizeSession creates its own Session End span
+							handler.waitUntil(
+								async () => {
+									// Wait for the snapshot of pending tasks (evals, etc.) captured BEFORE this waitUntil was added
+									if (hasPendingTasks) {
+										internal.info(
+											'[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)',
+											method,
+											url.pathname,
+											pendingPromises.length,
+											sessionId
+										);
+										const logger = c.get('logger');
+										await handler.waitForPromises(pendingPromises, logger, sessionId);
+										internal.info(
+											'[request] %s %s - all waitUntil tasks complete (session: %s)',
+											method,
+											url.pathname,
+											sessionId
+										);
+									}
+
+									// Finalize session - this is the actual work
+									internal.info(
+										'[request] %s %s - starting session finalization (session: %s)',
+										method,
+										url.pathname,
+										sessionId
+									);
+									try {
+										await finalizeSession(
+											capturedResponseStatus >= 500 ? capturedResponseStatus : undefined,
+											capturedErrorMessage
+										);
+										internal.info(
+											'[request] %s %s - session finalization complete (session: %s)',
+											method,
+											url.pathname,
+											sessionId
+										);
+									} catch (ex) {
+										internal.error(
+											'[request] %s %s - session finalization failed: %s (session: %s)',
+											method,
+											url.pathname,
+											ex,
+											sessionId
+										);
+									}
+									// Note: We don't call waitUntilAll() here because this waitUntil callback
+									// IS the final cleanup task. Calling waitUntilAll() would deadlock since
+									// it would wait for this very promise to complete.
+								},
+								{ noSpan: true }
+							);
 						}
 					} catch (ex) {
+						// Record request metrics even on exceptions (500 status)
+						const exceptionDurationMs = performance.now() - requestStartTime;
+						const durationNs = Math.round(exceptionDurationMs * 1_000_000);
+						internal.info(
+							'[request] %s %s - recording exception duration: %sms (session: %s)',
+							method,
+							url.pathname,
+							exceptionDurationMs.toFixed(2),
+							sessionId
+						);
+						span.setAttribute('@agentuity/request.duration', durationNs);
+						span.setAttribute('http.status_code', 500);
+
 						if (ex instanceof Error) {
 							span.recordException(ex);
 						}
+						errorMessage = ex instanceof Error ? (ex.stack ?? ex.message) : String(ex);
+						responseStatus = 500;
 						span.setStatus({
 							code: SpanStatusCode.ERROR,
-							message: (ex as Error).message ?? String(ex),
+							message: ex instanceof Error ? ex.message : String(ex),
 						});
+
+						// Capture error message for use in waitUntil callback
+						const capturedErrorMessage = errorMessage;
+
+						// Capture pending promises BEFORE adding finalization waitUntil to avoid deadlock
+						const pendingPromises = handler.getPendingSnapshot();
+						const hasPendingTasks = pendingPromises.length > 0;
+
+						if (hasPendingTasks) {
+							internal.info(
+								'[request] %s %s - %d pending waitUntil tasks to wait for after error (session: %s)',
+								method,
+								url.pathname,
+								pendingPromises.length,
+								sessionId
+							);
+						}
+
+						// Still defer finalization even on error
+						// Use noSpan: true since finalizeSession creates its own Session End span
+						handler.waitUntil(
+							async () => {
+								// Wait for pending tasks (evals, etc.) captured BEFORE this waitUntil was added
+								if (hasPendingTasks) {
+									internal.info(
+										'[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)',
+										method,
+										url.pathname,
+										pendingPromises.length,
+										sessionId
+									);
+									const logger = c.get('logger');
+									await handler.waitForPromises(pendingPromises, logger, sessionId);
+									internal.info(
+										'[request] %s %s - all waitUntil tasks complete (session: %s)',
+										method,
+										url.pathname,
+										sessionId
+									);
+								}
+
+								try {
+									await finalizeSession(500, capturedErrorMessage);
+								} catch (finalizeEx) {
+									internal.error(
+										'[request] %s %s - error session finalization failed: %s (session: %s)',
+										method,
+										url.pathname,
+										finalizeEx,
+										sessionId
+									);
+								}
+								// Note: We don't call waitUntilAll() here because this waitUntil callback
+								// IS the final cleanup task. Calling waitUntilAll() would deadlock since
+								// it would wait for this very promise to complete.
+							},
+							{ noSpan: true }
+						);
+
 						throw ex;
 					} finally {
+						// Set response headers - this is the only thing that should block the response
 						const headers: Record<string, string> = {};
 						propagation.inject(context.active(), headers);
 						for (const key of Object.keys(headers)) {
@@ -467,7 +849,20 @@ export function createOtelMiddleware() {
 						}
 						const traceId = sctx?.traceId || sessionId.replace(/^sess_/, '');
 						c.header(SESSION_HEADER, `sess_${traceId}`);
-						span.end();
+
+						internal.info(
+							'[request] %s %s - response ready, duration: %sms (session: %s)',
+							method,
+							url.pathname,
+							handlerDurationMs.toFixed(2),
+							sessionId
+						);
+
+						// Only end span here for non-streaming responses
+						// For streaming, span is ended in the waitUntil callback after setting duration attributes
+						if (shouldEndSpanInFinally) {
+							span.end();
+						}
 					}
 				}
 			);

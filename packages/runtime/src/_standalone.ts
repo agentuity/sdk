@@ -5,8 +5,10 @@ import type {
 	StreamStorage,
 	VectorStorage,
 	SandboxService,
+	QueueService,
 	Logger,
 } from '@agentuity/core';
+import { formatMessage } from './logger/util';
 import type {
 	AgentContext,
 	AgentRegistry,
@@ -49,22 +51,27 @@ function createStandaloneLogger(): Logger {
 
 	const logger: Logger = {
 		trace: (message: unknown, ...args: unknown[]) => {
-			if (shouldLog('trace')) console.debug('[TRACE]', message, ...args);
+			if (shouldLog('trace'))
+				console.debug('[TRACE]', formatMessage(false, undefined, message, args));
 		},
 		debug: (message: unknown, ...args: unknown[]) => {
-			if (shouldLog('debug')) console.debug('[DEBUG]', message, ...args);
+			if (shouldLog('debug'))
+				console.debug('[DEBUG]', formatMessage(false, undefined, message, args));
 		},
 		info: (message: unknown, ...args: unknown[]) => {
-			if (shouldLog('info')) console.info('[INFO]', message, ...args);
+			if (shouldLog('info'))
+				console.info('[INFO]', formatMessage(false, undefined, message, args));
 		},
 		warn: (message: unknown, ...args: unknown[]) => {
-			if (shouldLog('warn')) console.warn('[WARN]', message, ...args);
+			if (shouldLog('warn'))
+				console.warn('[WARN]', formatMessage(false, undefined, message, args));
 		},
 		error: (message: unknown, ...args: unknown[]) => {
-			if (shouldLog('error')) console.error('[ERROR]', message, ...args);
+			if (shouldLog('error'))
+				console.error('[ERROR]', formatMessage(false, undefined, message, args));
 		},
 		fatal: (message: unknown, ...args: unknown[]): never => {
-			console.error('[FATAL]', message, ...args);
+			console.error('[FATAL]', formatMessage(false, undefined, message, args));
 			process.exit(1);
 		},
 		child: () => logger,
@@ -189,6 +196,7 @@ export class StandaloneAgentContext<
 	stream!: StreamStorage;
 	vector!: VectorStorage;
 	sandbox!: SandboxService;
+	queue!: QueueService;
 	config: TConfig;
 	app: TAppState;
 	current!: AgentMetadata;
@@ -394,6 +402,9 @@ export class StandaloneAgentContext<
 					if (orgId) {
 						traceState = traceState.set('oid', orgId);
 					}
+					if (deploymentId) {
+						traceState = traceState.set('did', deploymentId);
+					}
 					if (isDevMode) {
 						traceState = traceState.set('d', '1');
 					}
@@ -492,7 +503,12 @@ export class StandaloneAgentContext<
 														: undefined,
 											})
 											.then(() => {})
-											.catch((ex) => this.logger.error(ex));
+											.catch((ex) =>
+												this.logger.error(
+													'session complete failed: %s',
+													ex instanceof Error ? ex.message : ex
+												)
+											);
 									}
 								})
 								.catch(async (ex) => {
@@ -528,7 +544,12 @@ export class StandaloneAgentContext<
 														: undefined,
 											})
 											.then(() => {})
-											.catch((ex) => this.logger.error(ex));
+											.catch((ex) =>
+												this.logger.error(
+													'session complete failed: %s',
+													ex instanceof Error ? ex.message : ex
+												)
+											);
 									}
 								})
 								.finally(() => {
@@ -553,7 +574,12 @@ export class StandaloneAgentContext<
 												: undefined,
 									})
 									.then(() => {})
-									.catch((ex) => this.logger.error(ex));
+									.catch((ex) =>
+										this.logger.error(
+											'session complete failed: %s',
+											ex instanceof Error ? ex.message : ex
+										)
+									);
 							}
 						}
 
@@ -584,7 +610,12 @@ export class StandaloneAgentContext<
 											: undefined,
 								})
 								.then(() => {})
-								.catch((ex) => this.logger.error(ex));
+								.catch((ex) =>
+									this.logger.error(
+										'session complete failed: %s',
+										ex instanceof Error ? ex.message : ex
+									)
+								);
 						}
 						throw ex;
 					} finally {

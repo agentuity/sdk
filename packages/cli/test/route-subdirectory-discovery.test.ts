@@ -147,7 +147,7 @@ export default router;
 import { createRouter } from '@agentuity/runtime';
 const router = createRouter();
 
-router.post('/login', (c) => c.json({ token: 'abc123' }));
+router.post('/', (c) => c.json({ token: 'abc123' }));
 
 export default router;
 		`;
@@ -155,8 +155,8 @@ export default router;
 
 		const routes = await parseRoute(TEST_DIR, loginFile, 'proj_1', 'dep_1');
 		expect(routes).toHaveLength(1);
-		// Non-route.ts files still get folder prefix
-		expect(routes[0].path).toBe('/api/auth/login');
+		// login.ts in auth folder is mounted at /api/auth (directory-based)
+		expect(routes[0].path).toBe('/api/auth');
 	});
 
 	test('should handle utility files that do not export routers', async () => {

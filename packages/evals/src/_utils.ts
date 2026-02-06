@@ -5,7 +5,7 @@ import {
 	type EvalContext,
 	type EvalHandlerResult,
 } from '@agentuity/runtime';
-import type { BaseEvalOptions, EvalMiddleware } from './types';
+import type { BaseEvalOptions, EvalLifecycleHooks, EvalMiddleware } from './types';
 import { s } from '@agentuity/schema';
 import { generateText, type LanguageModel } from 'ai';
 
@@ -104,6 +104,14 @@ type PresetEvalOverrides<
 		InferSchemaOutput<TEvalInput>,
 		InferSchemaOutput<TEvalOutput>
 	>;
+	/**
+	 * Called before the eval handler runs.
+	 */
+	onStart?: EvalLifecycleHooks<TAgentInput, TAgentOutput>['onStart'];
+	/**
+	 * Called after the eval handler completes successfully.
+	 */
+	onComplete?: EvalLifecycleHooks<TAgentInput, TAgentOutput>['onComplete'];
 };
 
 // Return type is compatible with any agent's createEval method
@@ -142,7 +150,8 @@ export function createPresetEval<
 	>
 ) => PresetEvalResult<TOptions> {
 	return (overrides) => {
-		const { name, description, middleware, ...optionOverrides } = overrides ?? {};
+		const { name, description, middleware, onStart, onComplete, ...optionOverrides } =
+			overrides ?? {};
 		const currentOptions = { ...config.options, ...optionOverrides } as TOptions;
 
 		return {
@@ -150,13 +159,34 @@ export function createPresetEval<
 			description: description ?? config.description,
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			handler: (async (ctx: EvalContext, input: any, output: any) => {
-				const evalInput = middleware
+				// Call onStart hook if provided
+				if (onStart) {
+					try {
+						await onStart(ctx, input, output);
+					} catch (error) {
+						ctx.logger.warn('Eval onStart hook failed', { error: String(error) });
+					}
+				}
+
+				const evalInput = middleware?.transformInput
 					? middleware.transformInput(input)
 					: (input as InferSchemaOutput<TEvalInput>);
-				const evalOutput = middleware
+				const evalOutput = middleware?.transformOutput
 					? middleware.transformOutput(output)
 					: (output as InferSchemaOutput<TEvalOutput>);
-				return config.handler(ctx, evalInput, evalOutput, currentOptions);
+
+				const result = await config.handler(ctx, evalInput, evalOutput, currentOptions);
+
+				// Call onComplete hook if provided
+				if (onComplete) {
+					try {
+						await onComplete(ctx, input, output, result);
+					} catch (error) {
+						ctx.logger.warn('Eval onComplete hook failed', { error: String(error) });
+					}
+				}
+
+				return result;
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			}) as any,
 			options: currentOptions,

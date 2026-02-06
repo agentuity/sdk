@@ -2,109 +2,112 @@
 
 ## Package Overview
 
-React hooks and components for building Agentuity web applications. Provides type-safe hooks for calling agents and WebSocket communication.
+React hooks for building Agentuity web applications. Provides type-safe hooks for API calls, WebSocket, Server-Sent Events, and analytics.
 
 ## Commands
 
-- **Build**: `bun run build` (compiles for browser target)
-- **Typecheck**: `bun run typecheck` (runs TypeScript type checking)
-- **Clean**: `bun run clean` (removes dist/)
+- **Build**: `bun run build`
+- **Typecheck**: `bun run typecheck`
+- **Clean**: `bun run clean`
 
 ## Architecture
 
-- **Runtime**: Browser only (uses browser APIs like fetch, WebSocket)
-- **Build target**: Browser with ESNext
-- **Dependencies**: Requires `@agentuity/core` (workspace dependency)
+- **Runtime**: Browser only
+- **Dependencies**: `@agentuity/core`, `@agentuity/frontend`
 - **Peer dependencies**: React 18+ or 19+
 
 ## Structure
 
 ```text
 src/
-├── index.ts        # Main entry point
-├── context.tsx     # AgentuityProvider and AgentuityContext
-├── run.ts          # useAgent hook for HTTP calls
-├── websocket.ts    # useWebsocket hook for WebSocket
-├── types.ts        # Type definitions for agent registry
-├── url.ts          # URL building utilities
-└── env.ts          # Environment helpers
+├── index.ts        # Main exports (client-side)
+├── server.ts       # Server-side entry point (SSR, server components, API routes)
+├── context.tsx     # AgentuityProvider, useAgentuity, useAuth
+├── api.ts          # useAPI hook
+├── websocket.ts    # useWebsocket hook
+├── eventstream.ts  # useEventStream hook
+├── client.ts       # createClient, createAPIClient
+├── analytics.tsx   # useAnalytics, useTrackOnMount, withPageTracking
+└── memo.ts         # useJsonMemo
 ```
 
-## Code Style
+**Entry points:**
 
-- **React hooks** - Follow React hooks conventions
-- **TypeScript generics** - Heavy use of generics for type safety
-- **Functional components** - All components are functional
-- **Context API** - Use React Context for configuration
-- **Error boundaries** - Throw errors that can be caught by error boundaries
+- `@agentuity/react` - Client-side hooks (browser only)
+- `@agentuity/react/server` - Server-safe exports (SSR, server components)
 
-## Important Conventions
+## Code Conventions
 
 - **Provider required** - All hooks must be used within `AgentuityProvider`
-- **Type inference** - Agent types are inferred from generated types (AgentRegistry)
-- **Base URL** - Defaults to current origin if not provided
-- **WebSocket protocol** - Auto-converts http:// to ws:// and https:// to wss://
-- **Serialization** - Automatically handles JSON serialization/deserialization
+- **Type inference** - Types inferred from generated registries (RouteRegistry, etc.)
+- **SSR safe** - All hooks include SSR guards
 
 ## Hooks API
 
-### useAuth
+### useAPI (main HTTP hook)
 
 ```typescript
-const { isAuthenticated, authLoading, authHeader } = useAuth();
+// GET auto-executes, returns refetch()
+const { data, isLoading, error, refetch } = useAPI('GET /users');
+
+// POST/PUT/PATCH/DELETE manual via invoke()
+const { data, invoke } = useAPI('POST /users');
+await invoke({ name: 'Alice' });
 ```
 
-- Provides auth state for conditional rendering
-- `authHeader` is automatically injected into agent/API calls
-- Works with `@agentuity/auth`'s `AuthProvider`
-
-### useAgent
-
-```typescript
-const { data, run } = useAgent('agentName');
-```
-
-- Returns last response in `data`
-- `run()` function for calling the agent
-- Supports custom headers, query params, subpaths
-- **Auth tokens auto-injected** when `AuthProvider` is in tree
+Returns: `{ data, error, isLoading, isSuccess, isError, isFetching, reset, refetch|invoke }`
 
 ### useWebsocket
 
 ```typescript
-const { connected, send, setHandler, close } = useWebsocket('/path');
+const { isConnected, data, messages, send, close, clearMessages } = useWebsocket('/ws');
+send({ message: 'Hello' });
+```
+
+- `data` = latest message, `messages` = all messages
+- Auto-reconnection on connection loss
+
+### useEventStream (SSE)
+
+```typescript
+const { isConnected, data, close, error, isError, reset, readyState } = useEventStream('/events');
 ```
 
 - Auto-reconnection on connection loss
-- Message queuing when disconnected
-- Type-safe message handlers
-- **Auth tokens auto-injected** when `AuthProvider` is in tree
+- `data` = latest event (with JSON memoization)
+
+### useAuth
+
+```typescript
+const { isAuthenticated, authHeader, setAuthHeader, authLoading } = useAuth();
+```
+
+### useAnalytics
+
+```typescript
+const { track, trackClick, identify } = useAnalytics();
+track('event_name', { prop: 'value' });
+```
+
+### Other Hooks
+
+- `useAgentuity()` - Access baseUrl
+- `useTrackOnMount(options)` - Track event on mount
+- `useJsonMemo(value)` - Deep equality memoization
+- `withPageTracking(Component, pageName)` - HOC for page tracking
+
+## Client Functions
+
+```typescript
+const api = createAPIClient();
+await api.hello.post({ name: 'World' });
+```
 
 ## Generated Types
 
-This package expects a `AgentRegistry` type to be augmented by generated code:
+Route registries are augmented via `declare module '@agentuity/frontend'`. See `@agentuity/frontend` for registry interfaces.
 
-```typescript
-// Generated by bundler
-export interface AgentRegistry {
-  'my-agent': {
-    inputSchema: z.ZodObject<...>;
-    outputSchema: z.ZodObject<...>;
-  };
-}
-```
+## Publishing
 
-## Testing
-
-- Test with React Testing Library
-- Mock fetch and WebSocket APIs
-- Test error boundaries
-- Test with and without provider
-- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
-
-## Publishing Checklist
-
-1. Run `bun run build` to compile for browser
-2. Verify `dist/` contains browser-compatible code (no Node.js APIs)
-3. Ensure peer dependencies are correctly specified
-4. Must publish **after** @agentuity/core
+1. Run `bun run build`
+2. Must publish **after** @agentuity/core and @agentuity/frontend

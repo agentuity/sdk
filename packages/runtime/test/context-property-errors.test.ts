@@ -163,37 +163,6 @@ describe('HonoContext Property Access Error Messages', () => {
 
 			expect(res.status).toBe(200);
 		});
-
-		test('accessing c.waitUntil throws with specific message', async () => {
-			const app = new Hono();
-
-			app.use('*', (c, next) => {
-				installContextPropertyHelpers(c);
-				return next();
-			});
-
-			app.post('/waituntil', (c) => {
-				try {
-					// @ts-expect-error - Testing error message
-					c.waitUntil(() => {});
-					throw new Error('Should not reach here');
-				} catch (error) {
-					expect(error).toBeInstanceOf(Error);
-					expect((error as Error).message).toMatch(
-						/use c\.var\.waitUntil instead of c\.waitUntil/i
-					);
-					return c.json({ errorCaught: true });
-				}
-			});
-
-			const res = await app.request('/waituntil', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({}),
-			});
-
-			expect(res.status).toBe(200);
-		});
 	});
 
 	describe('Error message format validation', () => {

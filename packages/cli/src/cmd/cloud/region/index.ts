@@ -45,7 +45,7 @@ const selectCommand = createSubcommand({
 				);
 			}
 
-			if (regions.length === 1) {
+			if (regions.length === 1 && regions[0]) {
 				selectedRegion = regions[0].region;
 			} else {
 				const response = await tui.createPrompt().select<string>({

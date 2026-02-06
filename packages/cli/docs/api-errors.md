@@ -63,7 +63,7 @@ When the CLI version is outdated or incompatible with the API, the server return
 {
 	"success": false,
 	"code": "UPGRADE_REQUIRED",
-	"message": "Please upgrade to the latest version of the CLI. Instructions at https://agentuity.dev/CLI/installation"
+	"message": "Please upgrade to the latest version of the CLI. Instructions at https://agentuity.dev/Get-Started/installation"
 }
 ```
 
@@ -84,7 +84,7 @@ try {
 	if (error instanceof UpgradeRequiredError) {
 		logger.error('⚠ CLI Upgrade Required');
 		logger.error(error.message);
-		logger.error('Visit: https://agentuity.dev/CLI/installation');
+		logger.error('Visit: https://agentuity.dev/Get-Started/installation');
 		process.exit(1);
 	}
 	throw error;

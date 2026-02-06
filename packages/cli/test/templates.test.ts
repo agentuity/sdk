@@ -20,20 +20,7 @@ describe('createAgentTemplates', () => {
 		rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	test('creates agent.ts with default export', () => {
-		const agentDir = join(tempDir, 'my-agent');
-		mkdirSync(agentDir);
-
-		createAgentTemplates(agentDir);
-
-		const agentContent = readFileSync(join(agentDir, 'agent.ts'), 'utf-8');
-
-		// Should use default export, not named export
-		expect(agentContent).toContain('export default createAgent');
-		expect(agentContent).not.toContain('export const');
-	});
-
-	test('creates index.ts that re-exports default', () => {
+	test('creates index.ts with default export', () => {
 		const agentDir = join(tempDir, 'my-agent');
 		mkdirSync(agentDir);
 
@@ -41,17 +28,17 @@ describe('createAgentTemplates', () => {
 
 		const indexContent = readFileSync(join(agentDir, 'index.ts'), 'utf-8');
 
-		// Should re-export default from agent.ts
-		expect(indexContent).toContain("export { default } from './agent'");
+		// Should use default export, not named export
+		expect(indexContent).toContain('export default createAgent');
+		expect(indexContent).not.toContain('export const');
 	});
 
-	test('creates both agent.ts and index.ts files', () => {
+	test('creates index.ts file', () => {
 		const agentDir = join(tempDir, 'test-agent');
 		mkdirSync(agentDir);
 
 		createAgentTemplates(agentDir);
 
-		expect(existsSync(join(agentDir, 'agent.ts'))).toBe(true);
 		expect(existsSync(join(agentDir, 'index.ts'))).toBe(true);
 	});
 
@@ -61,10 +48,10 @@ describe('createAgentTemplates', () => {
 
 		createAgentTemplates(agentDir);
 
-		const agentContent = readFileSync(join(agentDir, 'agent.ts'), 'utf-8');
+		const indexContent = readFileSync(join(agentDir, 'index.ts'), 'utf-8');
 
 		// Agent name should be PascalCase version of directory name
-		expect(agentContent).toContain("createAgent('MyCoolAgent'");
+		expect(indexContent).toContain("createAgent('MyCoolAgent'");
 	});
 
 	test('includes required imports', () => {
@@ -73,10 +60,10 @@ describe('createAgentTemplates', () => {
 
 		createAgentTemplates(agentDir);
 
-		const agentContent = readFileSync(join(agentDir, 'agent.ts'), 'utf-8');
+		const indexContent = readFileSync(join(agentDir, 'index.ts'), 'utf-8');
 
-		expect(agentContent).toContain("import { createAgent } from '@agentuity/runtime'");
-		expect(agentContent).toContain("import { s } from '@agentuity/schema'");
+		expect(indexContent).toContain("import { createAgent } from '@agentuity/runtime'");
+		expect(indexContent).toContain("import { s } from '@agentuity/schema'");
 	});
 
 	test('includes schema definition', () => {
@@ -85,11 +72,11 @@ describe('createAgentTemplates', () => {
 
 		createAgentTemplates(agentDir);
 
-		const agentContent = readFileSync(join(agentDir, 'agent.ts'), 'utf-8');
+		const indexContent = readFileSync(join(agentDir, 'index.ts'), 'utf-8');
 
-		expect(agentContent).toContain('schema:');
-		expect(agentContent).toContain('input: s.string()');
-		expect(agentContent).toContain('output: s.string()');
+		expect(indexContent).toContain('schema:');
+		expect(indexContent).toContain('input: s.string()');
+		expect(indexContent).toContain('output: s.string()');
 	});
 
 	test('includes handler with async signature', () => {
@@ -98,10 +85,10 @@ describe('createAgentTemplates', () => {
 
 		createAgentTemplates(agentDir);
 
-		const agentContent = readFileSync(join(agentDir, 'agent.ts'), 'utf-8');
+		const indexContent = readFileSync(join(agentDir, 'index.ts'), 'utf-8');
 
-		expect(agentContent).toContain('handler: async (_c, input)');
-		expect(agentContent).toContain('return input');
+		expect(indexContent).toContain('handler: async (_c, input)');
+		expect(indexContent).toContain('return input');
 	});
 
 	test('does not create files for invalid directory names', () => {
@@ -110,7 +97,6 @@ describe('createAgentTemplates', () => {
 
 		createAgentTemplates(invalidDir);
 
-		expect(existsSync(join(invalidDir, 'agent.ts'))).toBe(false);
 		expect(existsSync(join(invalidDir, 'index.ts'))).toBe(false);
 	});
 
@@ -120,7 +106,6 @@ describe('createAgentTemplates', () => {
 
 		createAgentTemplates(reservedDir);
 
-		expect(existsSync(join(reservedDir, 'agent.ts'))).toBe(false);
 		expect(existsSync(join(reservedDir, 'index.ts'))).toBe(false);
 	});
 
@@ -130,7 +115,6 @@ describe('createAgentTemplates', () => {
 
 		createAgentTemplates(trailingDotDir);
 
-		expect(existsSync(join(trailingDotDir, 'agent.ts'))).toBe(false);
 		expect(existsSync(join(trailingDotDir, 'index.ts'))).toBe(false);
 	});
 
@@ -140,7 +124,6 @@ describe('createAgentTemplates', () => {
 
 		createAgentTemplates(trailingSpaceDir);
 
-		expect(existsSync(join(trailingSpaceDir, 'agent.ts'))).toBe(false);
 		expect(existsSync(join(trailingSpaceDir, 'index.ts'))).toBe(false);
 	});
 });

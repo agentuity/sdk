@@ -1,12 +1,8 @@
 import { z } from 'zod';
 import { existsSync, mkdirSync } from 'node:fs';
 import { StructuredError, type Logger } from '@agentuity/core';
-import {
-	BuildMetadataSchema,
-	type BuildMetadata,
-	getServiceUrls,
-	APIClient as ServerAPIClient,
-} from '@agentuity/server';
+import { BuildMetadataSchema, type BuildMetadata, getServiceUrls } from '@agentuity/server';
+import { APIClient as ServerAPIClient } from '@agentuity/server';
 import { YAML } from 'bun';
 import { join, extname, basename, resolve, normalize } from 'node:path';
 import { homedir } from 'node:os';
@@ -15,6 +11,7 @@ import JSON5 from 'json5';
 import type { Config, Profile, AuthData } from './types';
 import { ConfigSchema, ProjectSchema } from './types';
 import * as tui from './tui';
+import { getCatalystUrl } from './catalyst';
 import {
 	isMacOS,
 	saveAuthToKeychain,
@@ -51,8 +48,21 @@ export async function saveProfile(path: string): Promise<void> {
 	await writeFile(getProfilePath(), path, { mode: 0o600 });
 }
 
-export async function getProfile(): Promise<string> {
-	// Check environment variable first
+export async function getProfile(profileFromFlag?: string): Promise<string> {
+	// Check --profile flag first (highest priority)
+	if (profileFromFlag) {
+		const flagProfilePath = join(getDefaultConfigDir(), `${profileFromFlag}.yaml`);
+		const flagFile = Bun.file(flagProfilePath);
+		if (await flagFile.exists()) {
+			return flagProfilePath;
+		}
+		// If --profile flag was explicitly provided but file doesn't exist, throw an error
+		throw new Error(
+			`Profile '${profileFromFlag}' not found. Expected file at: ${flagProfilePath}`
+		);
+	}
+
+	// Check environment variable second
 	if (process.env.AGENTUITY_PROFILE) {
 		const profileName = process.env.AGENTUITY_PROFILE;
 		const envProfilePath = join(getDefaultConfigDir(), `${profileName}.yaml`);
@@ -127,12 +137,16 @@ function expandTilde(path: string): string {
 
 let cachedConfig: Config | null | undefined;
 
-export async function loadConfig(customPath?: string, skipCache = false): Promise<Config | null> {
+export async function loadConfig(
+	customPath?: string,
+	skipCache = false,
+	profileFromFlag?: string
+): Promise<Config | null> {
 	// Use cache if available and not skipped
 	if (!skipCache && cachedConfig !== undefined) {
 		return cachedConfig;
 	}
-	const configPath = customPath ? expandTilde(customPath) : await getProfile();
+	const configPath = customPath ? expandTilde(customPath) : await getProfile(profileFromFlag);
 
 	try {
 		const file = Bun.file(configPath);
@@ -359,10 +373,25 @@ export async function saveOrgId(orgId: string): Promise<void> {
 	await saveConfig(config);
 }
 
+export async function saveProjectId(projectId: string): Promise<void> {
+	const config = await getOrInitConfig();
+	config.preferences = config.preferences || {};
+	(config.preferences as Record<string, unknown>).projectId = projectId;
+	await saveConfig(config);
+}
+
 export async function clearOrgId(): Promise<void> {
 	const config = await getOrInitConfig();
 	if (config.preferences) {
 		delete (config.preferences as Record<string, unknown>).orgId;
+		await saveConfig(config);
+	}
+}
+
+export async function clearProjectId(): Promise<void> {
+	const config = await getOrInitConfig();
+	if (config.preferences) {
+		delete (config.preferences as Record<string, unknown>).projectId;
 		await saveConfig(config);
 	}
 }
@@ -733,10 +762,18 @@ export async function loadProjectSDKKey(
 	logger.trace(`[SDK_KEY] AGENTUITY_SDK_KEY not found in any file`);
 }
 
-export function getCatalystAPIClient(logger: Logger, auth: AuthData, region: string) {
-	const serviceUrls = getServiceUrls(region);
-	const catalystUrl = serviceUrls.catalyst;
-	return new ServerAPIClient(catalystUrl, logger, auth.apiKey);
+export function getCatalystAPIClient(
+	logger: Logger,
+	auth: AuthData,
+	region: string,
+	orgId?: string
+) {
+	const catalystUrl = getCatalystUrl(region);
+	const headers: Record<string, string> = {};
+	if (orgId) {
+		headers['x-agentuity-orgid'] = orgId;
+	}
+	return new ServerAPIClient(catalystUrl, logger, auth.apiKey, { headers });
 }
 
 interface RegionsCacheData {
@@ -780,8 +817,9 @@ export async function getDefaultRegion(
 		const file = Bun.file(cachePath);
 		if (await file.exists()) {
 			const data: RegionsCacheData = await file.json();
-			if (data.regions && data.regions.length > 0) {
-				return data.regions[0].region;
+			const firstRegion = data.regions?.[0];
+			if (firstRegion) {
+				return firstRegion.region;
 			}
 		}
 	} catch {
@@ -795,14 +833,22 @@ export async function getDefaultRegion(
 /**
  * Get a Catalyst API client for global database operations.
  * Uses the default region since the admin DB is global.
+ *
+ * @param logger - Logger instance
+ * @param auth - Authentication data
+ * @param profileName - Profile name (default: 'production')
+ * @param orgId - Optional organization ID for CLI key authentication
+ * @param config - Optional config for region preference lookup
  */
 export async function getGlobalCatalystAPIClient(
 	logger: Logger,
 	auth: AuthData,
-	profileName = 'production'
+	profileName = 'production',
+	orgId?: string,
+	config?: Config | null
 ) {
-	const region = await getDefaultRegion(profileName);
-	return getCatalystAPIClient(logger, auth, region);
+	const region = await getDefaultRegion(profileName, config);
+	return getCatalystAPIClient(logger, auth, region, orgId);
 }
 
 export function getIONHost(config: Config | null, region: string) {
@@ -812,6 +858,12 @@ export function getIONHost(config: Config | null, region: string) {
 	}
 	if (config?.name === 'local' || region === 'local') {
 		return 'ion.agentuity.io';
+	}
+	// Validate region is a non-empty string to prevent malformed hostnames
+	if (!region || typeof region !== 'string' || region.trim() === '') {
+		throw new Error(
+			`Invalid region: '${region}'. Region must be a non-empty string. Use --region flag to specify a valid region.`
+		);
 	}
 	return `ion-${region}.agentuity.cloud`;
 }

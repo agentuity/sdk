@@ -184,6 +184,7 @@ function parseCommandLine(line: string): ParsedCommand {
 	// Parse remaining tokens into args and options
 	for (let i = 1; i < tokens.length; i++) {
 		const token = tokens[i];
+		if (token === undefined) continue;
 
 		if (token.startsWith('--')) {
 			// Long option: --name=value or --flag
@@ -194,8 +195,9 @@ function parseCommandLine(line: string): ParsedCommand {
 				options[name.slice(0, eqIndex)] = name.slice(eqIndex + 1);
 			} else {
 				// Check if next token is a value
-				if (i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {
-					options[name] = tokens[i + 1];
+				const nextToken = tokens[i + 1];
+				if (i + 1 < tokens.length && nextToken !== undefined && !nextToken.startsWith('-')) {
+					options[name] = nextToken;
 					i++;
 				} else {
 					options[name] = true;
@@ -206,8 +208,9 @@ function parseCommandLine(line: string): ParsedCommand {
 			const name = token.slice(1);
 
 			// Check if next token is a value
-			if (i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {
-				options[name] = tokens[i + 1];
+			const nextToken = tokens[i + 1];
+			if (i + 1 < tokens.length && nextToken !== undefined && !nextToken.startsWith('-')) {
+				options[name] = nextToken;
 				i++;
 			} else {
 				options[name] = true;
@@ -603,7 +606,7 @@ function getAutocompleteMatches(
 	if (!buffer.trim()) return [];
 
 	const tokens = buffer.trim().split(/\s+/);
-	const firstToken = tokens[0].toLowerCase();
+	const firstToken = tokens[0]?.toLowerCase() ?? '';
 
 	// If we're typing the first word (no trailing space), suggest commands
 	if (tokens.length === 1 && buffer === buffer.trimEnd()) {
@@ -623,7 +626,7 @@ function getAutocompleteMatches(
 	if (tokens.length === 2 && buffer === buffer.trimEnd() && commandMap) {
 		const cmd = commandMap.get(firstToken);
 		if (cmd?.subcommands) {
-			const subToken = tokens[1].toLowerCase();
+			const subToken = tokens[1]?.toLowerCase() ?? '';
 			return cmd.subcommands
 				.filter((sub) => sub.name.startsWith(subToken) && sub.name !== subToken)
 				.map((sub) => sub.name);
@@ -647,8 +650,10 @@ function getAutocompleteSuggestion(
 	if (matches.length === 0) return '';
 
 	const selectedMatch = matches[cycleIndex % matches.length];
+	if (selectedMatch === undefined) return '';
+
 	const tokens = buffer.trim().split(/\s+/);
-	const firstToken = tokens[0].toLowerCase();
+	const firstToken = tokens[0]?.toLowerCase() ?? '';
 
 	// Typing first word (command name)
 	if (tokens.length === 1 && buffer === buffer.trimEnd()) {
@@ -675,7 +680,7 @@ function getAutocompleteSuggestion(
 	// Typing subcommand name
 	if (tokens.length === 2 && buffer === buffer.trimEnd()) {
 		const cmd = commandMap.get(firstToken);
-		const subToken = tokens[1];
+		const subToken = tokens[1] ?? '';
 		const subcommand = cmd?.subcommands?.find((sub) => sub.name === selectedMatch);
 
 		let suggestion = selectedMatch.slice(subToken.length);
@@ -791,7 +796,7 @@ class ActivityIndicator {
 	}
 
 	private draw() {
-		const frame = this.frames[this.currentFrame];
+		const frame = this.frames[this.currentFrame] ?? this.frames[0] ?? '⠋';
 		// Clear line, draw spinner, stay on same line
 		process.stdout.write('\r\x1b[K'); // Clear line from cursor
 		process.stdout.write(`${tui.muted(frame)} ${tui.muted(this.message)}...`);
@@ -855,6 +860,7 @@ async function showCommandPicker(
 		// Draw commands
 		for (let i = 0; i < commands.length; i++) {
 			const cmd = commands[i];
+			if (cmd === undefined) continue;
 			const isSelected = i === selectedIndex;
 			const prefix = isSelected ? '▶ ' : '  ';
 			const style = isSelected ? '\x1b[7m' : ''; // Reverse video for selected
@@ -913,7 +919,11 @@ async function showCommandPicker(
 				const selected = commands[selectedIndex];
 				cleanup();
 				clearPicker();
-				resolve(selected.name + (selected.argHint ? ' ' : ''));
+				if (selected) {
+					resolve(selected.name + (selected.argHint ? ' ' : ''));
+				} else {
+					resolve(null);
+				}
 				return;
 			}
 
@@ -957,6 +967,7 @@ function applySyntaxHighlighting(buffer: string, commands: string[]): string {
 
 	for (let i = 0; i < tokens.length; i++) {
 		const token = tokens[i];
+		if (token === undefined) continue;
 
 		// Skip whitespace
 		if (/^\s+$/.test(token)) {
@@ -1018,7 +1029,11 @@ async function readLine(
 
 		const searchHistory = (query: string, startFrom: number): number => {
 			for (let i = startFrom - 1; i >= 0; i--) {
-				if (history[i].toLowerCase().includes(query.toLowerCase())) {
+				const historyEntry = history[i];
+				if (
+					historyEntry !== undefined &&
+					historyEntry.toLowerCase().includes(query.toLowerCase())
+				) {
 					return i;
 				}
 			}
@@ -1057,7 +1072,8 @@ async function readLine(
 				}
 				const linePrompt = currentLineIndex === 0 ? prompt : '... ';
 				process.stdout.write('\r');
-				process.stdout.write(linePrompt + lines[currentLineIndex].slice(0, cursorPos));
+				const currentLine = lines[currentLineIndex] ?? '';
+				process.stdout.write(linePrompt + currentLine.slice(0, cursorPos));
 			} else {
 				// Single-line mode (original behavior)
 				process.stdout.write('\r\x1b[K');
@@ -1282,7 +1298,7 @@ async function readLine(
 				lines.push('');
 				currentLineIndex++;
 				cursorPos = 0;
-				buffer = lines[currentLineIndex];
+				buffer = lines[currentLineIndex] ?? '';
 				process.stdout.write('\n');
 				process.stdout.write('... ');
 				return;
@@ -1293,7 +1309,7 @@ async function readLine(
 				if (searchMode) {
 					// Accept search result
 					if (searchResultIndex >= 0) {
-						buffer = history[searchResultIndex];
+						buffer = history[searchResultIndex] ?? '';
 					}
 					searchMode = false;
 					process.stdout.write('\n');

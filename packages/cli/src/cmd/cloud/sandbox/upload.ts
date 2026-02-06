@@ -2,16 +2,16 @@ import { z } from 'zod';
 import { readFileSync, statSync } from 'node:fs';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, getSandboxRegion } from './util';
+import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxUploadArchive } from '@agentuity/server';
+import { sandboxUploadArchive, sandboxResolve } from '@agentuity/server';
 
 export const uploadSubcommand = createCommand({
 	name: 'upload',
 	aliases: ['ul'],
 	description: 'Upload a compressed archive to a sandbox and extract it',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox upload sbx_abc123 ./archive.tar.gz'),
@@ -45,9 +45,12 @@ export const uploadSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, logger, orgId, config } = ctx;
+		const { args, opts, options, auth, logger, apiClient } = ctx;
 
-		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
+		// Resolve sandbox to get region and orgId using CLI API
+		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+		const { region, orgId } = sandboxInfo;
+
 		const client = createSandboxClient(logger, auth, region);
 
 		const stat = statSync(args.archive);
@@ -58,11 +61,13 @@ export const uploadSubcommand = createCommand({
 		const content = readFileSync(args.archive);
 		const bytes = content.length;
 
+		const format = opts.format ?? detectFormat(args.archive);
+
 		await sandboxUploadArchive(client, {
 			sandboxId: args.sandboxId,
 			archive: content,
 			path: opts.path || '.',
-			format: opts.format || '',
+			format,
 			orgId,
 		});
 
@@ -79,6 +84,12 @@ function formatSize(bytes: number): string {
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 	return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function detectFormat(filename: string): 'zip' | 'tar.gz' {
+	const lower = filename.toLowerCase();
+	if (lower.endsWith('.zip')) return 'zip';
+	return 'tar.gz';
 }
 
 export default uploadSubcommand;

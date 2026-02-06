@@ -167,6 +167,8 @@ async function linkLocalPackages(): Promise<boolean> {
 		'schema',
 		'frontend',
 		'react',
+		'postgres',
+		'drizzle',
 		'auth',
 		'runtime',
 		'server',
@@ -363,15 +365,21 @@ async function main() {
 	log('╚════════════════════════════════════════════╝', colors.cyan);
 
 	try {
-		// Remove global agentuity to avoid conflicts
+		// Check for global agentuity - only remove in CI to avoid deleting user's CLI
 		const globalAgentuity = Bun.which('agentuity');
 		if (globalAgentuity) {
-			logInfo(`Removing global agentuity at: ${globalAgentuity}`);
-			try {
-				await Bun.$`bun remove -g @agentuity/cli`.nothrow();
-				logSuccess('Removed global agentuity');
-			} catch (_error) {
-				logInfo('Could not remove global agentuity (might not be installed via bun)');
+			const isCI = process.env.CI === 'true' || process.env.CI === '1';
+			if (isCI) {
+				logInfo(`[CI] Removing global agentuity at: ${globalAgentuity}`);
+				try {
+					await Bun.$`bun remove -g @agentuity/cli`.nothrow();
+					logSuccess('Removed global agentuity');
+				} catch (_error) {
+					logInfo('Could not remove global agentuity (might not be installed via bun)');
+				}
+			} else {
+				logInfo(`Found global agentuity at: ${globalAgentuity}`);
+				logInfo('Skipping removal (not in CI) - test uses local CLI directly');
 			}
 		}
 

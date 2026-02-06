@@ -6,10 +6,10 @@ import {
 	type StreamStorage,
 	type VectorStorage,
 	type SandboxService,
+	type QueueService,
 	type InferInput,
 	type InferOutput,
 	toCamelCase,
-	type EvalRunStartEvent,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import { TraceState } from '@opentelemetry/core';
@@ -26,7 +26,7 @@ import {
 	type RequestAgentContextArgs,
 } from './_context';
 import type { Logger } from './logger';
-import type { Eval, EvalContext, EvalHandlerResult, EvalRunResult, EvalFunction } from './eval';
+import type { Eval, EvalHandlerResult, EvalRunResult, EvalFunction } from './eval';
 import { internal } from './logger/internal';
 import { fireEvent } from './_events';
 import type { Thread, Session } from './session';
@@ -230,6 +230,17 @@ export interface AgentContext<
 	 * ```
 	 */
 	sandbox: SandboxService;
+
+	/**
+	 * Queue service for publishing messages to queues.
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await ctx.queue.publish('my-queue', { event: 'user.created', userId: '123' });
+	 * console.log('Message ID:', result.id);
+	 * ```
+	 */
+	queue: QueueService;
 
 	/**
 	 * In-memory state storage scoped to the current request.
@@ -1610,8 +1621,8 @@ export function createAgent<
 		(agentCtx as any).current = agent.metadata;
 
 		const attrs = {
-			'@agentuity/agentId': agent.metadata.id,
-			'@agentuity/agentInstanceId': agent.metadata.agentId,
+			'@agentuity/agentId': agent.metadata.agentId, // stable ID (agent_*) - consistent across deployments
+			'@agentuity/agentInstanceId': agent.metadata.id, // deployment-specific ID (agentid_*) - changes per deployment
 			'@agentuity/agentDescription': agent.metadata.description,
 			'@agentuity/agentName': agent.metadata.name,
 			'@agentuity/threadId': agentCtx.thread.id,
@@ -1647,20 +1658,10 @@ export function createAgent<
 		await fireAgentEvent(runtime, agent as Agent, 'started', agentCtx);
 
 		try {
-			// Wrap agent execution with span tracking if tracer is available
+			// Execute the handler directly - span creation is handled by the caller (AgentRunner.run)
+			// This avoids duplicate spans when agents call other agents
 			const result = await (async () => {
-				if (agentCtx.tracer && inHTTPContext()) {
-					const honoCtx = getHTTPContext();
-					return runWithSpan<any, TInput, TOutput, TStream>(
-						agentCtx.tracer,
-						agent as Agent<TInput, TOutput, TStream>,
-						honoCtx,
-						async () =>
-							inputSchema
-								? await (config.handler as any)(agentCtx, validatedInput)
-								: await (config.handler as any)(agentCtx)
-					);
-				} else if (agent.metadata.id) {
+				if (agent.metadata.id && !inHTTPContext()) {
 					// For standalone contexts, wrap with agent context to set aid in trace state
 					return runWithAgentContext(agent.metadata.id, () =>
 						inputSchema
@@ -1668,7 +1669,8 @@ export function createAgent<
 							: (config.handler as any)(agentCtx)
 					);
 				} else {
-					// No agent ID, invoke handler directly
+					// HTTP context or no agent ID - invoke handler directly
+					// Span is created by AgentRunner.run or createAgentRunner
 					return inputSchema
 						? (config.handler as any)(agentCtx, validatedInput)
 						: (config.handler as any)(agentCtx);
@@ -1905,249 +1907,269 @@ export function createAgent<
 				// HTTP context may not be available, spanId will be undefined
 			}
 
+			// Capture the agent span context so eval spans are parented to the agent
+			const agentSpanContext = context.active();
+
 			// Execute each eval using waitUntil to avoid blocking the response
 			for (const evalItem of agentEvals) {
 				const evalName = evalItem.metadata.name || 'unnamed';
 				const agentName = _agent?.metadata?.name || name;
+				const evalRunId = generateId('evalrun');
 
-				ctx.waitUntil(
-					(async () => {
-						internal.info(`[EVALRUN] Starting eval run tracking for '${evalName}'`);
-						const evalRunId = generateId('evalrun');
+				// Look up eval metadata synchronously before async execution
+				const evalMeta = getEvalMetadata(agentName, evalName);
+				const evalId = evalMeta?.id || '';
+				const evalIdentifier = evalMeta?.identifier || '';
 
-						// Look up eval metadata from agentuity.metadata.json by agent name and eval name
-						internal.info(
-							`[EVALRUN] Looking up eval metadata: agentName='${agentName}', evalName='${evalName}'`
-						);
-						const evalMeta = getEvalMetadata(agentName, evalName);
-						internal.info(`[EVALRUN] Eval metadata lookup result:`, {
-							found: !!evalMeta,
-							identifier: evalMeta?.identifier,
-							id: evalMeta?.id,
-							filename: evalMeta?.filename,
+				// Create eval span FIRST, parented to agent, then call waitUntil inside it
+				// This makes waitUntil a child of the eval span
+				const tracer = ctx.tracer;
+				if (tracer) {
+					const evalSpan = tracer.startSpan(evalName, {}, agentSpanContext);
+					evalSpan.setAttributes({
+						'@agentuity/evalId': evalId,
+						'@agentuity/evalIdentifier': evalIdentifier,
+						'@agentuity/evalName': evalName,
+						'@agentuity/evalRunId': evalRunId,
+						'@agentuity/agentName': agentName,
+						'@agentuity/evalDescription':
+							evalMeta?.description || evalItem.metadata.description || '',
+						'@agentuity/evalFilename': evalMeta?.filename || evalItem.metadata.filename || '',
+					});
+
+					const evalSpanContext = trace.setSpan(agentSpanContext, evalSpan);
+
+					// Run waitUntil INSIDE the eval span context - this makes waitUntil a child of eval
+					// Pass a function (not an already-executing promise) so waitUntil executes it
+					// AFTER setting up its span context, making operations children of waitUntil
+					context.with(evalSpanContext, () => {
+						ctx.waitUntil(async () => {
+							const orgId = runtimeConfig.getOrganizationId();
+							const projectId = runtimeConfig.getProjectId();
+							const devMode = runtimeConfig.isDevMode() ?? false;
+							const evalRunEventProvider = getEvalRunEventProvider();
+
+							const shouldSendEvalRunEvents =
+								orgId && projectId && evalId !== '' && evalIdentifier !== '';
+
+							try {
+								internal.info(`[EVALRUN] Starting eval run tracking for '${evalName}'`);
+
+								// Send eval run start event
+								if (shouldSendEvalRunEvents && evalRunEventProvider) {
+									try {
+										const deploymentId = runtimeConfig.getDeploymentId();
+										await evalRunEventProvider.start({
+											id: evalRunId,
+											sessionId: ctx.sessionId,
+											evalId,
+											evalIdentifier,
+											orgId: orgId!,
+											projectId: projectId!,
+											devmode: Boolean(devMode),
+											deploymentId: deploymentId || undefined,
+											spanId: agentRunSpanId,
+										});
+									} catch (error) {
+										internal.error(
+											`[EVALRUN] Error sending start event for '${evalName}'`,
+											{ error }
+										);
+									}
+								}
+
+								// Validate eval input/output if schemas exist
+								let evalValidatedInput: any = validatedInput;
+								let evalValidatedOutput: any = validatedOutput;
+
+								if (evalItem.inputSchema) {
+									const result =
+										await evalItem.inputSchema['~standard'].validate(validatedInput);
+									if (result.issues) {
+										throw new ValidationError({
+											issues: result.issues,
+											message: `Eval input validation failed`,
+										});
+									}
+									evalValidatedInput = result.value;
+								}
+
+								if (evalItem.outputSchema) {
+									const result =
+										await evalItem.outputSchema['~standard'].validate(validatedOutput);
+									if (result.issues) {
+										throw new ValidationError({
+											issues: result.issues,
+											message: `Eval output validation failed`,
+										});
+									}
+									evalValidatedOutput = result.value;
+								}
+
+								// Execute the eval handler
+								let handlerResult: EvalHandlerResult;
+								if (inputSchema && outputSchema) {
+									handlerResult = await (evalItem.handler as any)(
+										ctx,
+										evalValidatedInput,
+										evalValidatedOutput
+									);
+								} else if (inputSchema) {
+									handlerResult = await (evalItem.handler as any)(ctx, evalValidatedInput);
+								} else if (outputSchema) {
+									handlerResult = await (evalItem.handler as any)(
+										ctx,
+										evalValidatedOutput
+									);
+								} else {
+									handlerResult = await (evalItem.handler as any)(ctx);
+								}
+
+								const result: EvalRunResult = { success: true, ...handlerResult };
+
+								// Send eval run complete event
+								if (shouldSendEvalRunEvents && evalRunEventProvider) {
+									try {
+										await evalRunEventProvider.complete({ id: evalRunId, result });
+									} catch (error) {
+										internal.error(
+											`[EVALRUN] Error sending complete event for '${evalName}'`,
+											{ error }
+										);
+									}
+								}
+
+								internal.debug(`Eval '${evalName}' completed successfully`);
+							} catch (error) {
+								const errorMessage = error instanceof Error ? error.message : String(error);
+								evalSpan.recordException(error as Error);
+								evalSpan.setStatus({
+									code: SpanStatusCode.ERROR,
+									message: errorMessage,
+								});
+								internal.error(`Error executing eval '${evalName}'`, { error });
+
+								// Send error event
+								if (shouldSendEvalRunEvents && evalRunEventProvider) {
+									try {
+										await evalRunEventProvider.complete({
+											id: evalRunId,
+											error: errorMessage,
+											result: {
+												success: false,
+												passed: false,
+												error: errorMessage,
+												metadata: {},
+											},
+										});
+									} catch (e) {
+										internal.debug('Failed to send eval run complete event', {
+											evalRunId,
+											errorMessage,
+											error: e instanceof Error ? e.message : String(e),
+										});
+									}
+								}
+							} finally {
+								evalSpan.end();
+							}
 						});
-
-						// evalId = deployment-specific ID (evalid_...), evalIdentifier = stable (eval_...)
-						const evalId = evalMeta?.id || '';
-						const evalIdentifier = evalMeta?.identifier || '';
-						internal.info(
-							`[EVALRUN] Resolved evalId='${evalId}', evalIdentifier='${evalIdentifier}'`
-						);
-
-						// Log eval metadata using structured logging and tracing
-						ctx.logger.debug('Starting eval run with metadata', {
-							evalName,
-							agentName,
-							evalRunId,
-							evalId,
-							evalMetaFromFile: !!evalMeta,
-							evalMetadata: evalItem.metadata,
-						});
-
-						// Add eval metadata to the active span for observability
-						const activeSpan = ctx.tracer ? trace.getActiveSpan() : undefined;
-						if (activeSpan) {
-							activeSpan.setAttributes({
-								'eval.name': evalName,
-								'eval.id': evalId,
-								'eval.runId': evalRunId,
-								'eval.description':
-									evalMeta?.description || evalItem.metadata.description || '',
-								'eval.filename': evalMeta?.filename || evalItem.metadata.filename || '',
-							});
-						}
-
+					});
+				} else {
+					// No tracer - execute without span
+					ctx.waitUntil(async () => {
 						const orgId = runtimeConfig.getOrganizationId();
 						const projectId = runtimeConfig.getProjectId();
 						const devMode = runtimeConfig.isDevMode() ?? false;
 						const evalRunEventProvider = getEvalRunEventProvider();
-
-						// Only send events if we have required context (devmode flag will be set based on devMode)
 						const shouldSendEvalRunEvents =
 							orgId && projectId && evalId !== '' && evalIdentifier !== '';
 
-						internal.info(`[EVALRUN] Checking conditions for eval '${evalName}':`, {
-							orgId: orgId,
-							projectId: projectId,
-							evalId: evalId,
-							evalIdentifier: evalIdentifier,
-							devMode,
-							hasEvalRunEventProvider: !!evalRunEventProvider,
-							shouldSendEvalRunEvents,
-						});
-
-						if (!shouldSendEvalRunEvents) {
-							const reasons: string[] = [];
-							if (!orgId) reasons.push('missing orgId');
-							if (!projectId) reasons.push('missing projectId');
-							if (!evalId || evalId === '') reasons.push('empty evalId');
-							if (!evalIdentifier || evalIdentifier === '')
-								reasons.push('empty evalIdentifier');
-							internal.info(
-								`[EVALRUN] Skipping eval run events for '${evalName}': ${reasons.join(', ')}`
-							);
-						}
-
 						try {
-							internal.debug(`Executing eval: ${evalName}`);
-
-							// Send eval run start event
 							if (shouldSendEvalRunEvents && evalRunEventProvider) {
-								internal.info(
-									`[EVALRUN] Sending start event for eval '${evalName}' (id: ${evalRunId}, evalId: ${evalId})`
-								);
 								try {
-									const deploymentId = runtimeConfig.getDeploymentId();
-									// Use captured agentRunSpanId (may be undefined if HTTP context unavailable)
-									if (!agentRunSpanId) {
-										internal.warn(
-											`[EVALRUN] agentRunSpanId not available for eval '${evalName}' (id: ${evalRunId}). This may occur if waitUntil runs outside AsyncLocalStorage context.`
-										);
-									}
-									const startEvent: EvalRunStartEvent = {
+									await evalRunEventProvider.start({
 										id: evalRunId,
 										sessionId: ctx.sessionId,
-										evalId: evalId, // deployment-specific ID (evalid_...)
-										evalIdentifier: evalIdentifier, // stable identifier (eval_...)
+										evalId,
+										evalIdentifier,
 										orgId: orgId!,
 										projectId: projectId!,
 										devmode: Boolean(devMode),
-										deploymentId: deploymentId || undefined,
+										deploymentId: runtimeConfig.getDeploymentId() || undefined,
 										spanId: agentRunSpanId,
-									};
-									internal.debug(
-										'[EVALRUN] Start event payload: %s',
-										JSON.stringify(startEvent, null, 2)
-									);
-									await evalRunEventProvider.start(startEvent);
-									internal.info(
-										`[EVALRUN] Start event sent successfully for eval '${evalName}' (id: ${evalRunId})`
-									);
-								} catch (error) {
-									internal.error(
-										`[EVALRUN] Error sending eval run start event for '${evalName}' (id: ${evalRunId})`,
-										{
-											error,
-										}
-									);
-									// Don't throw - continue with eval execution even if start event fails
+									});
+								} catch (e) {
+									internal.debug('Failed to send eval run start event', {
+										evalRunId,
+										evalId,
+										evalIdentifier,
+										sessionId: ctx.sessionId,
+										error: e instanceof Error ? e.message : String(e),
+									});
 								}
-							} else if (shouldSendEvalRunEvents && !evalRunEventProvider) {
-								internal.warn(
-									`[EVALRUN] Conditions met but no evalRunEventProvider available for '${evalName}'`
-								);
-							} else {
-								internal.debug(
-									`[EVALRUN] Not sending start event for '${evalName}': shouldSendEvalRunEvents=${shouldSendEvalRunEvents}, hasProvider=${!!evalRunEventProvider}`
-								);
 							}
 
-							// Validate eval input if schema exists
 							let evalValidatedInput: any = validatedInput;
-							if (evalItem.inputSchema) {
-								const evalInputResult =
-									await evalItem.inputSchema['~standard'].validate(validatedInput);
-								if (evalInputResult.issues) {
-									throw new ValidationError({
-										issues: evalInputResult.issues,
-										message: `Eval input validation failed: ${evalInputResult.issues.map((i: any) => i.message).join(', ')}`,
-									});
-								}
-								evalValidatedInput = evalInputResult.value;
-							}
-
-							// Validate eval output if schema exists
 							let evalValidatedOutput: any = validatedOutput;
-							if (evalItem.outputSchema) {
-								const evalOutputResult =
-									await evalItem.outputSchema['~standard'].validate(validatedOutput);
-								if (evalOutputResult.issues) {
+
+							if (evalItem.inputSchema) {
+								const result =
+									await evalItem.inputSchema['~standard'].validate(validatedInput);
+								if (result.issues) {
 									throw new ValidationError({
-										issues: evalOutputResult.issues,
-										message: `Eval output validation failed: ${evalOutputResult.issues.map((i: any) => i.message).join(', ')}`,
+										issues: result.issues,
+										message: `Eval input validation failed`,
 									});
 								}
-								evalValidatedOutput = evalOutputResult.value;
+								evalValidatedInput = result.value;
+							}
+							if (evalItem.outputSchema) {
+								const result =
+									await evalItem.outputSchema['~standard'].validate(validatedOutput);
+								if (result.issues) {
+									throw new ValidationError({
+										issues: result.issues,
+										message: `Eval output validation failed`,
+									});
+								}
+								evalValidatedOutput = result.value;
 							}
 
-							// Create EvalContext (just an alias for AgentContext)
-							const evalContext: EvalContext = ctx;
-
-							// Execute the eval handler conditionally based on agent schema
 							let handlerResult: EvalHandlerResult;
 							if (inputSchema && outputSchema) {
-								// Both input and output defined
 								handlerResult = await (evalItem.handler as any)(
-									evalContext,
+									ctx,
 									evalValidatedInput,
 									evalValidatedOutput
 								);
 							} else if (inputSchema) {
-								// Only input defined
-								handlerResult = await (evalItem.handler as any)(
-									evalContext,
-									evalValidatedInput
-								);
+								handlerResult = await (evalItem.handler as any)(ctx, evalValidatedInput);
 							} else if (outputSchema) {
-								// Only output defined
-								handlerResult = await (evalItem.handler as any)(
-									evalContext,
-									evalValidatedOutput
-								);
+								handlerResult = await (evalItem.handler as any)(ctx, evalValidatedOutput);
 							} else {
-								// Neither defined
-								handlerResult = await (evalItem.handler as any)(evalContext);
+								handlerResult = await (evalItem.handler as any)(ctx);
 							}
 
-							// Wrap handler result with success for catalyst
-							const result: EvalRunResult = {
-								success: true,
-								...handlerResult,
-							};
-
-							// Log the result
-							if (result.score !== undefined) {
-								internal.info(
-									`Eval '${evalName}' pass: ${result.passed}, score: ${result.score}`,
-									result.metadata
-								);
-							} else {
-								internal.info(`Eval '${evalName}' pass: ${result.passed}`, result.metadata);
-							}
-
-							// Send eval run complete event
 							if (shouldSendEvalRunEvents && evalRunEventProvider) {
-								internal.info(
-									`[EVALRUN] Sending complete event for eval '${evalName}' (id: ${evalRunId})`
-								);
 								try {
 									await evalRunEventProvider.complete({
 										id: evalRunId,
-										result,
+										result: { success: true, ...handlerResult },
 									});
-									internal.info(
-										`[EVALRUN] Complete event sent successfully for eval '${evalName}' (id: ${evalRunId})`
-									);
-								} catch (error) {
-									internal.error(
-										`[EVALRUN] Error sending eval run complete event for '${evalName}' (id: ${evalRunId})`,
-										{
-											error,
-										}
-									);
+								} catch (e) {
+									internal.debug('Failed to send eval run complete event', {
+										evalRunId,
+										error: e instanceof Error ? e.message : String(e),
+									});
 								}
 							}
-
-							internal.debug(`Eval '${evalName}' completed successfully`);
 						} catch (error) {
 							const errorMessage = error instanceof Error ? error.message : String(error);
 							internal.error(`Error executing eval '${evalName}'`, { error });
 
-							// Send eval run complete event with error
+							// Send error event to match traced branch behavior
 							if (shouldSendEvalRunEvents && evalRunEventProvider) {
-								internal.info(
-									`[EVALRUN] Sending complete event (error) for eval '${evalName}' (id: ${evalRunId})`
-								);
 								try {
 									await evalRunEventProvider.complete({
 										id: evalRunId,
@@ -2159,19 +2181,17 @@ export function createAgent<
 											metadata: {},
 										},
 									});
-									internal.info(
-										`[EVALRUN] Complete event (error) sent successfully for eval '${evalName}' (id: ${evalRunId})`
-									);
-								} catch (eventError) {
-									internal.error(
-										`[EVALRUN] Error sending eval run complete event (error) for '${evalName}' (id: ${evalRunId})`,
-										{ error: eventError }
-									);
+								} catch (e) {
+									internal.debug('Failed to send eval run complete event', {
+										evalRunId,
+										errorMessage,
+										error: e instanceof Error ? e.message : String(e),
+									});
 								}
 							}
 						}
-					})()
-				);
+					});
+				}
 			}
 		}
 	});
@@ -2319,9 +2339,35 @@ export function createAgent<
 		removeEventListener: agent.removeEventListener,
 		run: inputSchema
 			? async (input: InferSchemaInput<Exclude<TInput, undefined>>) => {
+					// Wrap with span if in HTTP context with tracer
+					if (inHTTPContext()) {
+						const honoCtx = getHTTPContext();
+						const tracer = honoCtx.var.tracer;
+						if (tracer) {
+							return runWithSpan(
+								tracer,
+								agent as Agent<TInput, TOutput, TStream>,
+								honoCtx,
+								async () => await agent.handler(input)
+							);
+						}
+					}
 					return await agent.handler(input);
 				}
 			: async () => {
+					// Wrap with span if in HTTP context with tracer
+					if (inHTTPContext()) {
+						const honoCtx = getHTTPContext();
+						const tracer = honoCtx.var.tracer;
+						if (tracer) {
+							return runWithSpan(
+								tracer,
+								agent as Agent<TInput, TOutput, TStream>,
+								honoCtx,
+								async () => await agent.handler()
+							);
+						}
+					}
 					return await agent.handler();
 				},
 		[INTERNAL_AGENT]: agent, // Store reference to internal agent for testing
@@ -2372,8 +2418,8 @@ const runWithSpan = async <
 
 	// Set agent attributes on the span immediately after creation
 	span.setAttributes({
-		'@agentuity/agentId': agent.metadata.id,
-		'@agentuity/agentInstanceId': agent.metadata.agentId,
+		'@agentuity/agentId': agent.metadata.agentId, // stable ID (agent_*) - consistent across deployments
+		'@agentuity/agentInstanceId': agent.metadata.id, // deployment-specific ID (agentid_*) - changes per deployment
 		'@agentuity/agentDescription': agent.metadata.description,
 		'@agentuity/agentName': agent.metadata.name,
 		'@agentuity/threadId': ctx.var.thread.id,
@@ -2389,12 +2435,26 @@ const runWithSpan = async <
 		// Create a new context with the span and updated trace state including agent id
 		const spanContext = trace.setSpan(currentContext, span);
 
-		// Update trace state with agent identifier (aid) so downstream API calls (e.g., sandbox)
-		// can associate operations with this agent. The trace state is scoped to this execution,
-		// so when the agent finishes, the parent context's trace state is automatically restored.
+		// Update trace state with agent identifier (aid) and other context so downstream API calls
+		// (e.g., sandbox, AI gateway) can associate operations with this agent and session.
+		// The trace state is scoped to this execution, so when the agent finishes, the parent
+		// context's trace state is automatically restored.
 		const currentSpanContext = span.spanContext();
-		const existingTraceState = currentSpanContext.traceState ?? new TraceState();
-		const updatedTraceState = existingTraceState.set('aid', agent.metadata.id);
+		let updatedTraceState = currentSpanContext.traceState ?? new TraceState();
+
+		// Add agent ID
+		updatedTraceState = updatedTraceState.set('aid', agent.metadata.id);
+
+		// Add deployment ID, project ID, org ID, and devmode if available
+		const deploymentId = runtimeConfig.getDeploymentId();
+		const projectId = runtimeConfig.getProjectId();
+		const orgId = runtimeConfig.getOrganizationId();
+		const isDevMode = runtimeConfig.isDevMode();
+
+		if (deploymentId) updatedTraceState = updatedTraceState.set('did', deploymentId);
+		if (projectId) updatedTraceState = updatedTraceState.set('pid', projectId);
+		if (orgId) updatedTraceState = updatedTraceState.set('oid', orgId);
+		if (isDevMode) updatedTraceState = updatedTraceState.set('d', '1');
 
 		// Create context with both the span and the updated trace state
 		const contextWithAgentId = trace.setSpanContext(spanContext, {

@@ -4,13 +4,52 @@
  * Generates src/generated/registry.ts from discovered agents
  */
 
-import { join } from 'node:path';
+import { join, dirname, relative, resolve } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { StructuredError } from '@agentuity/core';
 import { toCamelCase, toPascalCase } from '../../../utils/string';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteInfo } from './route-discovery';
+
+/**
+ * Rebase a relative import path from the route file's location to the generated file's location.
+ * @param routeFilename - The route file path (e.g., 'api/example/route.ts' or './api/example/route.ts')
+ * @param schemaImportPath - The import path as written in the route file (e.g., '../../utils/schemas')
+ * @param srcDir - The src directory path
+ * @returns The rebased import path relative to src/generated/
+ */
+function rebaseImportPath(routeFilename: string, schemaImportPath: string, srcDir: string): string {
+	// Non-relative imports (bare modules like '@company/schemas') should be used as-is
+	if (!schemaImportPath.startsWith('.') && !schemaImportPath.startsWith('/')) {
+		return schemaImportPath;
+	}
+
+	// Normalize route filename to get its directory relative to srcDir
+	let routeDir: string;
+	const cleanFilename = routeFilename.replace(/\\/g, '/');
+	if (cleanFilename.startsWith('./')) {
+		routeDir = dirname(join(srcDir, cleanFilename.substring(2)));
+	} else if (cleanFilename.startsWith('src/')) {
+		routeDir = dirname(join(srcDir, '..', cleanFilename));
+	} else {
+		routeDir = dirname(join(srcDir, cleanFilename));
+	}
+
+	// Resolve the schema module path from the route file's directory
+	const resolvedSchemaPath = resolve(routeDir, schemaImportPath);
+
+	// Calculate the relative path from src/generated/ to the resolved schema path
+	const generatedDir = join(srcDir, 'generated');
+	let rebasedPath = relative(generatedDir, resolvedSchemaPath).replace(/\\/g, '/');
+
+	// Ensure it starts with './' or '../'
+	if (!rebasedPath.startsWith('.') && !rebasedPath.startsWith('/')) {
+		rebasedPath = './' + rebasedPath;
+	}
+
+	return rebasedPath;
+}
 
 const AgentIdentifierCollisionError = StructuredError('AgentIdentifierCollisionError');
 
@@ -335,7 +374,11 @@ function generateRPCRegistryType(
 
 		// Add path segments - sanitize for valid TypeScript property names
 		for (let i = 0; i < pathParts.length; i++) {
-			const part = sanitizePathSegment(pathParts[i]);
+			const rawPart = pathParts[i];
+			if (!rawPart) {
+				continue;
+			}
+			const part = sanitizePathSegment(rawPart);
 			// Skip empty segments (e.g., wildcards like '*' that sanitize to '')
 			if (!part) {
 				continue;
@@ -522,7 +565,10 @@ function generateRPCRuntimeMetadata(
 		const sorted: MetadataNode = {};
 		for (const key of Object.keys(obj).sort()) {
 			const value = obj[key];
-			if (value && typeof value === 'object' && !('type' in value)) {
+			if (value === undefined) {
+				continue;
+			}
+			if (typeof value === 'object' && !('type' in value)) {
 				sorted[key] = sortObject(value as MetadataNode);
 			} else {
 				sorted[key] = value;
@@ -601,9 +647,11 @@ export async function generateRouteRegistry(
 			const match = route.agentImportPath.match(/@agent[s]?\/([^/]+)/);
 			if (match) {
 				const agentName = match[1];
-				const metadata = agentNameMap.get(agentName);
-				if (metadata) {
-					agentMetadataMap.set(route.agentVariable, metadata);
+				if (agentName) {
+					const metadata = agentNameMap.get(agentName);
+					if (metadata) {
+						agentMetadataMap.set(route.agentVariable, metadata);
+					}
 				}
 			}
 		}
@@ -617,6 +665,8 @@ export async function generateRouteRegistry(
 	const imports: string[] = [];
 	const agentImports = new Map<string, string>();
 	const routeFileImports = new Map<string, Set<string>>();
+	// Track per-route which import path and schema name to use for alias lookup
+	const routeSchemaImportInfo = new Map<string, { importPath: string; schemaName: string }>();
 
 	// Collect agent and schema imports from routes with validators or exported schemas
 	allRoutes.forEach((route) => {
@@ -678,9 +728,30 @@ export async function generateRouteRegistry(
 				const withoutSrc = normalized.startsWith('src/') ? normalized.substring(4) : normalized;
 				// Make it relative from src/generated/
 				resolvedPath = `../${withoutSrc}`;
-				// Add .js extension if not already present
-				if (!resolvedPath.endsWith('.js')) {
-					resolvedPath = resolvedPath.replace(/\.tsx?$/, '') + '.js';
+				// Check if this is a directory import (no file extension) vs a file import
+				// Directory imports like '../agent/translate' should resolve to '../agent/translate/index.js'
+				// File imports like '../agent/translate/agent' should resolve to '../agent/translate/agent.js'
+				const hasExtension = /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(resolvedPath);
+				if (!hasExtension) {
+					// No extension - check if it's a directory or a file
+					// Try to resolve the actual path on disk to determine
+					const absolutePath = join(srcDir, withoutSrc);
+					const isDirectory =
+						existsSync(absolutePath) ||
+						existsSync(join(absolutePath, 'index.ts')) ||
+						existsSync(join(absolutePath, 'index.tsx'));
+					const isFile = existsSync(`${absolutePath}.ts`) || existsSync(`${absolutePath}.tsx`);
+
+					if (isDirectory && !isFile) {
+						// It's a directory import, add /index.js
+						resolvedPath = `${resolvedPath}/index.js`;
+					} else {
+						// It's a file import (or we can't determine), add .js
+						resolvedPath = `${resolvedPath}.js`;
+					}
+				} else {
+					// Has extension - replace with .js
+					resolvedPath = resolvedPath.replace(/\.tsx?$/, '.js');
 				}
 			}
 
@@ -690,25 +761,76 @@ export async function generateRouteRegistry(
 		}
 
 		// Collect schema variable imports
-		if (route.inputSchemaVariable || route.outputSchemaVariable) {
-			const filename = route.filename.replace(/\\/g, '/');
-			// Remove 'src/' prefix if present (routes.filename might be './api/...' or 'src/api/...')
-			const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
-			const withoutLeadingDot = withoutSrc.startsWith('./')
-				? withoutSrc.substring(2)
-				: withoutSrc;
-			const importPath = `../${withoutLeadingDot.replace(/\.ts$/, '')}`;
+		// If the schema is imported from another file, use that file's path (rebased)
+		// Otherwise fall back to the route file path (for locally defined schemas)
+		if (route.inputSchemaVariable) {
+			let importPath: string;
+			let schemaNameToImport: string;
+
+			if (route.inputSchemaImportPath) {
+				// Schema is imported - rebase the import path from route file to generated file
+				importPath = rebaseImportPath(route.filename, route.inputSchemaImportPath, srcDir);
+				// Use the actual exported name (handles aliased imports like `import { A as B }`)
+				schemaNameToImport =
+					route.inputSchemaImportedName === 'default'
+						? route.inputSchemaVariable
+						: (route.inputSchemaImportedName ?? route.inputSchemaVariable);
+			} else {
+				// Schema is locally defined - import from the route file
+				const filename = route.filename.replace(/\\/g, '/');
+				const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
+				const withoutLeadingDot = withoutSrc.startsWith('./')
+					? withoutSrc.substring(2)
+					: withoutSrc;
+				importPath = `../${withoutLeadingDot.replace(/\.ts$/, '')}`;
+				schemaNameToImport = route.inputSchemaVariable;
+			}
 
 			if (!routeFileImports.has(importPath)) {
 				routeFileImports.set(importPath, new Set());
 			}
+			routeFileImports.get(importPath)!.add(schemaNameToImport);
 
-			if (route.inputSchemaVariable) {
-				routeFileImports.get(importPath)!.add(route.inputSchemaVariable);
+			// Store the resolved import info for later alias lookup
+			routeSchemaImportInfo.set(`input:${route.path}:${route.method}`, {
+				importPath,
+				schemaName: schemaNameToImport,
+			});
+		}
+
+		if (route.outputSchemaVariable) {
+			let importPath: string;
+			let schemaNameToImport: string;
+
+			if (route.outputSchemaImportPath) {
+				// Schema is imported - rebase the import path from route file to generated file
+				importPath = rebaseImportPath(route.filename, route.outputSchemaImportPath, srcDir);
+				// Use the actual exported name (handles aliased imports like `import { A as B }`)
+				schemaNameToImport =
+					route.outputSchemaImportedName === 'default'
+						? route.outputSchemaVariable
+						: (route.outputSchemaImportedName ?? route.outputSchemaVariable);
+			} else {
+				// Schema is locally defined - import from the route file
+				const filename = route.filename.replace(/\\/g, '/');
+				const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
+				const withoutLeadingDot = withoutSrc.startsWith('./')
+					? withoutSrc.substring(2)
+					: withoutSrc;
+				importPath = `../${withoutLeadingDot.replace(/\.ts$/, '')}`;
+				schemaNameToImport = route.outputSchemaVariable;
 			}
-			if (route.outputSchemaVariable) {
-				routeFileImports.get(importPath)!.add(route.outputSchemaVariable);
+
+			if (!routeFileImports.has(importPath)) {
+				routeFileImports.set(importPath, new Set());
 			}
+			routeFileImports.get(importPath)!.add(schemaNameToImport);
+
+			// Store the resolved import info for later alias lookup
+			routeSchemaImportInfo.set(`output:${route.path}:${route.method}`, {
+				importPath,
+				schemaName: schemaNameToImport,
+			});
 		}
 	});
 
@@ -774,18 +896,22 @@ export async function generateRouteRegistry(
 				inputSchemaType = `typeof ${importName} extends { inputSchema?: infer I } ? I : never`;
 				outputSchemaType = `typeof ${importName} extends { outputSchema?: infer O } ? O : never`;
 			} else if (route.inputSchemaVariable || route.outputSchemaVariable) {
-				// Get the aliased schema names for this route's file
-				const filename = route.filename.replace(/\\/g, '/');
-				const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
-				const withoutLeadingDot = withoutSrc.startsWith('./')
-					? withoutSrc.substring(2)
-					: withoutSrc;
-				const importPath = `../${withoutLeadingDot.replace(/\.ts$/, '')}`;
-				const aliases = schemaImportAliases.get(importPath);
+				// Get the aliased schema names using the stored import info
+				// (which correctly handles schemas imported from shared files)
+				const inputInfo = routeSchemaImportInfo.get(`input:${route.path}:${route.method}`);
+				const outputInfo = routeSchemaImportInfo.get(`output:${route.path}:${route.method}`);
 
-				const inputAlias = route.inputSchemaVariable && aliases?.get(route.inputSchemaVariable);
-				const outputAlias =
-					route.outputSchemaVariable && aliases?.get(route.outputSchemaVariable);
+				let inputAlias: string | undefined;
+				let outputAlias: string | undefined;
+
+				if (inputInfo) {
+					const aliases = schemaImportAliases.get(inputInfo.importPath);
+					inputAlias = aliases?.get(inputInfo.schemaName);
+				}
+				if (outputInfo) {
+					const aliases = schemaImportAliases.get(outputInfo.importPath);
+					outputAlias = aliases?.get(outputInfo.schemaName);
+				}
 
 				inputType = inputAlias ? `InferInput<typeof ${inputAlias}>` : 'never';
 				outputType = outputAlias ? `InferOutput<typeof ${outputAlias}>` : 'never';

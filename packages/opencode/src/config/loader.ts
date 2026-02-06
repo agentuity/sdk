@@ -1,22 +1,37 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { YAML } from 'bun';
-import type { CoderConfig } from '../types';
+import type { CoderConfig, SkillsConfig } from '../types';
+import type { BackgroundTaskConfig } from '../background/types';
 import { CoderConfigSchema } from '../types';
+import type { TmuxConfig } from '../tmux/types';
+import { MIN_PANE_WIDTH } from '../tmux/types';
 
 const CONFIG_DIR = join(homedir(), '.config', 'agentuity');
 const DEFAULT_PROFILE = 'production.yaml';
+
+interface CLICoderConfig {
+	tmux?: {
+		enabled?: boolean;
+		maxPanes?: number;
+		mainPaneMinWidth?: number;
+		agentPaneMinWidth?: number;
+	};
+	background?: {
+		enabled?: boolean;
+		defaultConcurrency?: number;
+		staleTimeoutMs?: number;
+		providerConcurrency?: Record<string, number>;
+		modelConcurrency?: Record<string, number>;
+	};
+}
 
 interface CLIConfig {
 	name?: string;
 	preferences?: {
 		orgId?: string;
 	};
-	coder?: {
-		source?: 'npm' | 'local';
-		path?: string;
-		org?: string;
-	};
+	coder?: CLICoderConfig;
 }
 
 async function getProfilePath(): Promise<string> {
@@ -48,6 +63,24 @@ export async function getConfigPath(): Promise<string> {
 	return getProfilePath();
 }
 
+/**
+ * Load plugin configuration.
+ *
+ * This primarily loads the orgId from the Agentuity CLI profile.
+ * Agent model configuration should be done via OpenCode's native opencode.json.
+ *
+ * Users can override agent models in their opencode.json:
+ * ```json
+ * {
+ *   "agent": {
+ *     "Agentuity Coder Architect": {
+ *       "model": "openai/gpt-5.3-codex",
+ *       "reasoningEffort": "xhigh"
+ *     }
+ *   }
+ * }
+ * ```
+ */
 export async function loadCoderConfig(): Promise<CoderConfig> {
 	try {
 		const configPath = await getProfilePath();
@@ -60,8 +93,23 @@ export async function loadCoderConfig(): Promise<CoderConfig> {
 		const content = await configFile.text();
 		const cliConfig = YAML.parse(content) as CLIConfig;
 
+		// Extract orgId from CLI config preferences
+		// Extract coder settings (tmux, background) from CLI config coder section
+		// Agent model overrides should be done via opencode.json
 		const coderConfig: CoderConfig = {
 			org: cliConfig.preferences?.orgId,
+			tmux: cliConfig.coder?.tmux
+				? {
+						...DEFAULT_TMUX_CONFIG,
+						...cliConfig.coder.tmux,
+					}
+				: undefined,
+			background: cliConfig.coder?.background
+				? {
+						...DEFAULT_BACKGROUND_CONFIG,
+						...cliConfig.coder.background,
+					}
+				: undefined,
 		};
 
 		const result = CoderConfigSchema.safeParse(coderConfig);
@@ -86,42 +134,91 @@ const DEFAULT_BLOCKED_COMMANDS = [
 	'auth token', // Don't leak auth tokens
 ];
 
+const DEFAULT_BACKGROUND_CONFIG: BackgroundTaskConfig = {
+	enabled: true,
+	defaultConcurrency: 1,
+	staleTimeoutMs: 30 * 60 * 1000,
+	providerConcurrency: {},
+	modelConcurrency: {},
+};
+
+const DEFAULT_SKILLS_CONFIG: SkillsConfig = {
+	enabled: true,
+	paths: [],
+	disabled: [],
+};
+
+const DEFAULT_TMUX_CONFIG: TmuxConfig = {
+	enabled: false,
+	maxPanes: 4,
+	mainPaneMinWidth: 100,
+	agentPaneMinWidth: MIN_PANE_WIDTH,
+};
+
+/**
+ * Get default configuration.
+ *
+ * Note: Agent model defaults are defined in agent definition files (src/agents/).
+ * Users can override agent models via opencode.json.
+ */
 export function getDefaultConfig(): CoderConfig {
 	return {
-		agents: {
-			lead: { model: 'anthropic/claude-opus-4-5-20251101' },
-			scout: { model: 'anthropic/claude-haiku-4-5-20251001' },
-			builder: { model: 'anthropic/claude-opus-4-5-20251101' },
-			reviewer: { model: 'anthropic/claude-haiku-4-5-20251001' },
-			memory: { model: 'anthropic/claude-haiku-4-5-20251001' },
-			expert: { model: 'anthropic/claude-opus-4-5-20251101' },
-		},
 		disabledMcps: [],
 		blockedCommands: DEFAULT_BLOCKED_COMMANDS,
+		background: DEFAULT_BACKGROUND_CONFIG,
+		skills: DEFAULT_SKILLS_CONFIG,
+		tmux: DEFAULT_TMUX_CONFIG,
 	};
 }
 
 export function mergeConfig(base: CoderConfig, override: CoderConfig): CoderConfig {
-	// Deep merge agents: for each agent, merge base and override properties
-	const mergedAgents: CoderConfig['agents'] = {};
-	const allAgentKeys = new Set([
-		...Object.keys(base.agents ?? {}),
-		...Object.keys(override.agents ?? {}),
-	]);
-
-	for (const key of allAgentKeys) {
-		const baseAgent = base.agents?.[key as keyof typeof base.agents];
-		const overrideAgent = override.agents?.[key as keyof typeof override.agents];
-		mergedAgents[key as keyof typeof mergedAgents] = {
-			...baseAgent,
-			...overrideAgent,
-		};
-	}
-
 	return {
 		org: override.org ?? base.org,
-		agents: mergedAgents,
 		disabledMcps: override.disabledMcps ?? base.disabledMcps,
 		blockedCommands: override.blockedCommands ?? base.blockedCommands,
+		background: mergeBackgroundConfig(base.background, override.background),
+		skills: mergeSkillsConfig(base.skills, override.skills),
+		tmux: mergeTmuxConfig(base.tmux, override.tmux),
+	};
+}
+
+function mergeBackgroundConfig(
+	base?: BackgroundTaskConfig,
+	override?: BackgroundTaskConfig
+): BackgroundTaskConfig | undefined {
+	if (!base && !override) return undefined;
+	return {
+		enabled: override?.enabled ?? base?.enabled ?? true,
+		defaultConcurrency: override?.defaultConcurrency ?? base?.defaultConcurrency ?? 1,
+		staleTimeoutMs: override?.staleTimeoutMs ?? base?.staleTimeoutMs ?? 30 * 60 * 1000,
+		providerConcurrency: {
+			...(base?.providerConcurrency ?? {}),
+			...(override?.providerConcurrency ?? {}),
+		},
+		modelConcurrency: {
+			...(base?.modelConcurrency ?? {}),
+			...(override?.modelConcurrency ?? {}),
+		},
+	};
+}
+
+function mergeSkillsConfig(base?: SkillsConfig, override?: SkillsConfig): SkillsConfig | undefined {
+	if (!base && !override) return undefined;
+	const paths = new Set([...(base?.paths ?? []), ...(override?.paths ?? [])]);
+	const disabled = new Set([...(base?.disabled ?? []), ...(override?.disabled ?? [])]);
+	return {
+		enabled: override?.enabled ?? base?.enabled ?? true,
+		paths: paths.size > 0 ? Array.from(paths) : undefined,
+		disabled: disabled.size > 0 ? Array.from(disabled) : undefined,
+	};
+}
+
+function mergeTmuxConfig(base?: TmuxConfig, override?: TmuxConfig): TmuxConfig | undefined {
+	if (!base && !override) return undefined;
+	return {
+		enabled: override?.enabled ?? base?.enabled ?? false,
+		maxPanes: override?.maxPanes ?? base?.maxPanes ?? 4,
+		mainPaneMinWidth: override?.mainPaneMinWidth ?? base?.mainPaneMinWidth ?? 100,
+		agentPaneMinWidth: override?.agentPaneMinWidth ?? base?.agentPaneMinWidth ?? MIN_PANE_WIDTH,
 	};
 }

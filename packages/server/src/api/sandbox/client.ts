@@ -19,12 +19,15 @@ import { sandboxRun } from './run';
 import { executionGet, type ExecutionInfo } from './execution';
 import { ConsoleLogger } from '../../logger';
 import { getServiceUrls } from '../../config';
+import { writeAndDrain } from './util';
 
-const POLL_INTERVAL_MS = 100;
-const MAX_POLL_TIME_MS = 300000; // 5 minutes
+// Server-side long-poll wait duration (max 5 minutes supported by server)
+const EXECUTION_WAIT_DURATION = '5m';
 
 /**
- * Poll for execution completion
+ * Wait for execution completion using server-side long-polling.
+ * This is more efficient than client-side polling and provides immediate
+ * error detection if the sandbox is terminated.
  */
 async function waitForExecution(
 	client: APIClient,
@@ -32,45 +35,28 @@ async function waitForExecution(
 	orgId?: string,
 	signal?: AbortSignal
 ): Promise<ExecutionInfo> {
-	const startTime = Date.now();
-
-	while (Date.now() - startTime < MAX_POLL_TIME_MS) {
-		if (signal?.aborted) {
-			throw new DOMException('The operation was aborted.', 'AbortError');
-		}
-
-		const info = await executionGet(client, { executionId, orgId });
-
-		if (
-			info.status === 'completed' ||
-			info.status === 'failed' ||
-			info.status === 'timeout' ||
-			info.status === 'cancelled'
-		) {
-			return info;
-		}
-
-		await new Promise((resolve, reject) => {
-			const timeoutId = setTimeout(resolve, POLL_INTERVAL_MS);
-			signal?.addEventListener(
-				'abort',
-				() => {
-					clearTimeout(timeoutId);
-					reject(new DOMException('The operation was aborted.', 'AbortError'));
-				},
-				{ once: true }
-			);
-		});
+	if (signal?.aborted) {
+		throw new DOMException('The operation was aborted.', 'AbortError');
 	}
 
-	throw new Error(`Execution ${executionId} timed out waiting for completion`);
+	// Use server-side long-polling - the server will hold the connection
+	// until the execution reaches a terminal state or the wait duration expires
+	return executionGet(client, {
+		executionId,
+		orgId,
+		wait: EXECUTION_WAIT_DURATION,
+	});
 }
 
 /**
- * Pipes a remote stream URL to a local writable stream
+ * Pipes a remote stream URL to a local writable stream with proper backpressure handling
  */
-async function pipeStreamToWritable(streamUrl: string, writable: Writable): Promise<void> {
-	const response = await fetch(streamUrl);
+async function pipeStreamToWritable(
+	streamUrl: string,
+	writable: Writable,
+	signal?: AbortSignal
+): Promise<void> {
+	const response = await fetch(streamUrl, { signal });
 	if (!response.ok) {
 		throw new Error(`Failed to fetch stream: ${response.status} ${response.statusText}`);
 	}
@@ -84,10 +70,15 @@ async function pipeStreamToWritable(streamUrl: string, writable: Writable): Prom
 			const { done, value } = await reader.read();
 			if (done) break;
 			if (value) {
-				writable.write(value);
+				await writeAndDrain(writable, value);
 			}
 		}
 	} finally {
+		try {
+			await reader.cancel();
+		} catch {
+			// Ignore cancel errors - stream may already be closed
+		}
 		reader.releaseLock();
 	}
 }
@@ -190,6 +181,16 @@ export interface SandboxInstance {
 	 * Execute a command in the sandbox
 	 */
 	execute(options: ExecuteOptions): Promise<Execution>;
+
+	/**
+	 * Write files to the sandbox workspace
+	 */
+	writeFiles(files: FileToWrite[]): Promise<number>;
+
+	/**
+	 * Read a file from the sandbox workspace
+	 */
+	readFile(path: string): Promise<ReadableStream<Uint8Array>>;
 
 	/**
 	 * Get current sandbox information
@@ -327,12 +328,20 @@ export class SandboxClient {
 
 					if (pipe.stdout && initialResult.stdoutStreamUrl) {
 						streamPromises.push(
-							pipeStreamToWritable(initialResult.stdoutStreamUrl, pipe.stdout)
+							pipeStreamToWritable(
+								initialResult.stdoutStreamUrl,
+								pipe.stdout,
+								coreOptions.signal
+							)
 						);
 					}
 					if (pipe.stderr && initialResult.stderrStreamUrl) {
 						streamPromises.push(
-							pipeStreamToWritable(initialResult.stderrStreamUrl, pipe.stderr)
+							pipeStreamToWritable(
+								initialResult.stderrStreamUrl,
+								pipe.stderr,
+								coreOptions.signal
+							)
 						);
 					}
 
@@ -358,6 +367,15 @@ export class SandboxClient {
 					stdoutStreamUrl: initialResult.stdoutStreamUrl,
 					stderrStreamUrl: initialResult.stderrStreamUrl,
 				};
+			},
+
+			async writeFiles(files: FileToWrite[]): Promise<number> {
+				const result = await sandboxWriteFiles(client, { sandboxId, files, orgId });
+				return result.filesWritten;
+			},
+
+			async readFile(path: string): Promise<ReadableStream<Uint8Array>> {
+				return sandboxReadFile(client, { sandboxId, path, orgId });
 			},
 
 			async get(): Promise<SandboxInfo> {

@@ -81,11 +81,17 @@ export function validateBucketName(name: string): { valid: boolean; error?: stri
 		return { valid: false, error: 'bucket name cannot contain adjacent periods' };
 	}
 	const firstChar = name[0];
-	if (!((firstChar >= 'a' && firstChar <= 'z') || (firstChar >= '0' && firstChar <= '9'))) {
+	if (
+		firstChar === undefined ||
+		!((firstChar >= 'a' && firstChar <= 'z') || (firstChar >= '0' && firstChar <= '9'))
+	) {
 		return { valid: false, error: 'bucket name must start with a lowercase letter or number' };
 	}
 	const lastChar = name[name.length - 1];
-	if (!((lastChar >= 'a' && lastChar <= 'z') || (lastChar >= '0' && lastChar <= '9'))) {
+	if (
+		lastChar === undefined ||
+		!((lastChar >= 'a' && lastChar <= 'z') || (lastChar >= '0' && lastChar <= '9'))
+	) {
 		return { valid: false, error: 'bucket name must end with a lowercase letter or number' };
 	}
 	if (name.startsWith('xn--')) {
@@ -114,27 +120,27 @@ function isIPv4Address(s: string): boolean {
 	return true;
 }
 
-const ResourceSpec = z.object({
+export const ResourceSpec = z.object({
 	type: z.enum(['db', 's3']).describe('the resource type'),
 	name: z.string().optional().describe('optional custom name for db'),
 	description: z.string().optional().describe('optional description for db'),
 });
 
-const CreateResourcesRequest = z.object({
+export const CreateResourcesRequest = z.object({
 	resources: z.array(ResourceSpec).describe('list of resources to create'),
 });
 
-const CreatedResource = z.object({
+export const CreatedResource = z.object({
 	type: z.string().describe('the resource type'),
 	name: z.string().describe('the resource name'),
 	env: z.record(z.string(), z.string()).describe('environment variables for the resource'),
 });
 
-const CreateResourcesResponse = z.object({
+export const CreateResourcesResponse = z.object({
 	created: z.array(CreatedResource),
 });
 
-const CreateResourcesResponseSchema = APIResponseSchema(CreateResourcesResponse);
+export const CreateResourcesResponseSchema = APIResponseSchema(CreateResourcesResponse);
 
 export type CreateResourcesRequest = z.infer<typeof CreateResourcesRequest>;
 export type CreateResourcesResponse = z.infer<typeof CreateResourcesResponseSchema>;

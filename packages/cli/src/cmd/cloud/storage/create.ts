@@ -29,6 +29,9 @@ export const createSubcommand = defineSubcommand({
 		},
 	],
 	schema: {
+		options: z.object({
+			description: z.string().optional().describe('Optional description for the bucket'),
+		}),
 		response: z.object({
 			success: z.boolean().describe('Whether creation succeeded'),
 			name: z.string().describe('Created storage bucket name'),
@@ -36,7 +39,7 @@ export const createSubcommand = defineSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, orgId, region, auth, options } = ctx;
+		const { logger, orgId, region, auth, options, opts } = ctx;
 
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
@@ -58,13 +61,14 @@ export const createSubcommand = defineSubcommand({
 			message: `Creating storage in ${region}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return createResources(catalystClient, orgId, region!, [{ type: 's3' }]);
+				return createResources(catalystClient, orgId, region!, [
+					{ type: 's3', description: opts.description },
+				]);
 			},
 		});
 
-		if (created.length > 0) {
-			const resource = created[0];
-
+		const resource = created[0];
+		if (resource) {
 			// Write environment variables to .env if running inside a project
 			if (ctx.projectDir && resource.env && Object.keys(resource.env).length > 0) {
 				await addResourceEnvVars(ctx.projectDir, resource.env);

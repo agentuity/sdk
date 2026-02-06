@@ -7,10 +7,8 @@ import {
 	readEnvFile,
 	writeEnvFile,
 	filterAgentuitySdkKeys,
-	mergeEnvVars,
 	splitEnvAndSecrets,
 	validateNoPublicSecrets,
-	isReservedAgentuityKey,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 import { resolveOrgId, isOrgScope } from './org-util';
@@ -117,7 +115,10 @@ export const importSubcommand = createSubcommand({
 			);
 			for (const key of publicSecretKeys) {
 				delete secrets[key];
-				env[key] = filteredVars[key];
+				const value = filteredVars[key];
+				if (value !== undefined) {
+					env[key] = value;
+				}
 			}
 		}
 
@@ -164,12 +165,9 @@ export const importSubcommand = createSubcommand({
 			let localEnvPath: string | undefined;
 			if (projectDir) {
 				localEnvPath = await findExistingEnvFile(projectDir);
-				const localEnv = await readEnvFile(localEnvPath);
-				const mergedEnv = mergeEnvVars(localEnv, filteredVars);
-
-				await writeEnvFile(localEnvPath, mergedEnv, {
-					skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
-				});
+				// writeEnvFile preserves existing keys by default, so just write the filtered vars
+				// This will merge with existing .env content, preserving AGENTUITY_SDK_KEY and other keys
+				await writeEnvFile(localEnvPath, filteredVars);
 			}
 
 			tui.success(

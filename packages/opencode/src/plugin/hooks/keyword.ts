@@ -1,4 +1,5 @@
-import type { PluginContext, CoderConfig } from '../../types';
+import type { PluginInput } from '@opencode-ai/plugin';
+import type { CoderConfig } from '../../types';
 
 export interface KeywordHooks {
 	onMessage: (input: unknown, output: unknown) => Promise<void>;
@@ -13,9 +14,13 @@ You are now using the Agentuity Coder agent team from Agentuity.
 - **@Agentuity Coder Lead**: Orchestrator - breaks down tasks, delegates, never implements directly
 - **@Agentuity Coder Scout**: Explorer - finds patterns, researches docs, analyzes codebase (read-only)
 - **@Agentuity Coder Builder**: Implementer - writes code, runs tests, makes changes
+- **@Agentuity Coder Architect**: Senior implementer - complex autonomous tasks, Cadence mode
 - **@Agentuity Coder Reviewer**: Quality checker - reviews changes, applies fixes
 - **@Agentuity Coder Memory**: Context keeper - remembers decisions, stores checkpoints
+- **@Agentuity Coder Reasoner**: Conclusion extractor - resolves conflicts, surfaces corrections
 - **@Agentuity Coder Expert**: Agentuity specialist - knows CLI commands and cloud services
+- **@Agentuity Coder Runner**: Command executor - runs lint/build/test, returns structured results
+- **@Agentuity Coder Product**: Requirements definer - clarifies scope, validates features, drives clarity
 
 ## Agentuity Cloud Services Available
 When genuinely helpful, use these via the CLI:
@@ -30,12 +35,13 @@ Run \`agentuity ai schema show\` to see all available CLI commands.
 ## Guidelines
 1. Break complex tasks into subtasks
 2. Use @Agentuity Coder Scout before implementing to understand context
-3. Have @Agentuity Coder Reviewer check @Agentuity Coder Builder's work
-4. Use cloud services only when they genuinely help
+3. Use @Agentuity Coder Product for new features or unclear requirements
+4. Have @Agentuity Coder Reviewer check @Agentuity Coder Builder's work
+5. Use cloud services only when they genuinely help
 </coder-mode>
 `;
 
-export function createKeywordHooks(ctx: PluginContext, _config: CoderConfig): KeywordHooks {
+export function createKeywordHooks(ctx: PluginInput, _config: CoderConfig): KeywordHooks {
 	const activatedSessions = new Set<string>();
 
 	const log = (msg: string) => {
