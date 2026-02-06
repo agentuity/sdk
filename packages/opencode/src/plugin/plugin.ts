@@ -757,10 +757,11 @@ Returns the public URL that can be copied and used anywhere.`,
 			compress: s.boolean().optional().describe('Enable gzip compression'),
 			region: s.string().optional().describe('Cloud region (use, usc, usw). Default: usc'),
 		},
-		async execute(args) {
+		async execute(args, context) {
 			// Get the profile first - this ensures checkAuth() and CLI use the same profile
 			const profile = getCoderProfile();
 			const originalProfile = process.env.AGENTUITY_PROFILE;
+			const sessionId = context.sessionID;
 
 			try {
 				// Set profile before auth check so checkAuth reads the correct config
@@ -807,6 +808,8 @@ Returns the public URL that can be copied and used anywhere.`,
 					env: {
 						...process.env,
 						AGENTUITY_PROFILE: profile,
+						AGENTUITY_AGENT_MODE: 'opencode',
+						...(sessionId ? { AGENTUITY_OPENCODE_SESSION: sessionId } : {}),
 					},
 				});
 
