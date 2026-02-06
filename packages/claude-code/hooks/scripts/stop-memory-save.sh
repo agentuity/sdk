@@ -48,13 +48,16 @@ find "$MARKER_DIR" -name 'saved-*' -mtime +1 -delete 2>/dev/null || true
 # Get git branch for context
 GIT_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 
-# Block the stop and request memory save.
-# Keep the instruction focused on a SINGLE direct KV save command to avoid
-# complex agent delegation that can hang in some modes.
+# Block the stop and request agentic memory save via Memory agent.
+# The Memory agent has full reasoning capabilities: entity extraction,
+# corrections identification, Vector upsert, and structured KV storage.
+#
+# IMPORTANT: We use the Task tool to delegate to Memory agent (subagent),
+# NOT Lead, to avoid complex multi-agent orchestration that can hang.
 cat <<EOF
 {
   "decision": "block",
-  "reason": "Before ending, save a brief session summary. Run: agentuity cloud kv set agentuity-opencode-memory 'session:cc:$(date +%s)' '{\"branch\":\"${GIT_BRANCH}\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"summary\":\"<2-3 sentence summary of what was accomplished>\"}' --region use"
+  "reason": "Before ending this session, you MUST save session context to persistent memory. Use the Task tool to delegate to the Memory agent:\n\nTask tool parameters:\n- subagent_type: agentuity-coder:agentuity-coder-memory\n- description: Save session memory\n- prompt: \"Memorialize this session. You are being invoked automatically at session end. Review the conversation above and perform a full session memorialization:\\n\\n1. Create a session summary using the Session Summary Template (PROBLEM, CONTEXT, DECISIONS, CORRECTIONS, SOLUTIONS, PATTERNS, FILES, OPEN QUESTIONS)\\n2. Extract and store any corrections/mistakes as high-priority KV entries (correction:{name})\\n3. Store any key decisions (decision:{name})\\n4. Store any reusable patterns (pattern:{name})\\n5. Upsert the FULL session document to Vector storage for semantic search\\n6. Apply reasoning to extract conclusions (explicit, deductive, inductive, abductive) and update entity representations\\n7. Current branch: ${GIT_BRANCH}\\n\\nDo NOT ask questions. Summarize and store everything you can from the conversation history. Prioritize corrections and decisions.\"\n\nAfter the Memory agent completes, you may stop."
 }
 EOF
 exit 2
