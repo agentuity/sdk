@@ -93,13 +93,13 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 
 				let modifiedCommand: string;
 
-				// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
-				if (/AGENTUITY_PROFILE=\S+/.test(command)) {
-					// Replace all existing AGENTUITY_PROFILE occurrences to enforce our profile
-				modifiedCommand = command.replace(
-					/AGENTUITY_PROFILE=\S+/g,
-					() => `AGENTUITY_PROFILE=${escapedProfile}`
-				);
+			// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
+			if (/AGENTUITY_PROFILE=(?:'[^']*'|\S+)/.test(command)) {
+				// Replace all existing AGENTUITY_PROFILE occurrences to enforce our profile
+			modifiedCommand = command.replace(
+				/AGENTUITY_PROFILE=(?:'[^']*'|\S+)/g,
+				() => `AGENTUITY_PROFILE=${escapedProfile}`
+			);
 					// Add session ID and agent mode if not already present
 					if (escapedSessionId && !modifiedCommand.includes('AGENTUITY_OPENCODE_SESSION=')) {
 						modifiedCommand = `AGENTUITY_OPENCODE_SESSION=${escapedSessionId} ${modifiedCommand}`;
