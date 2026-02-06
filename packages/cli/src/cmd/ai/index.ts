@@ -3,6 +3,7 @@ import capabilitiesCommand from './capabilities';
 import promptCommand from './prompt';
 import schemaCommand from './schema';
 import opencodeCommand from './opencode';
+import introSubcommand from './intro';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -11,6 +12,10 @@ export const command = createCommand({
 	skipUpgradeCheck: true,
 	tags: ['fast'],
 	examples: [
+		{
+			command: getCommand('ai intro'),
+			description: 'Introduce the Agentuity CLI to your AI agent',
+		},
 		{
 			command: getCommand('ai opencode install'),
 			description: 'Install Agentuity Open Code plugin',
@@ -24,5 +29,5 @@ export const command = createCommand({
 			description: 'Output CLI schema for AI consumption',
 		},
 	],
-	subcommands: [opencodeCommand, capabilitiesCommand, promptCommand, schemaCommand],
+	subcommands: [introSubcommand, opencodeCommand, capabilitiesCommand, promptCommand, schemaCommand],
 });
