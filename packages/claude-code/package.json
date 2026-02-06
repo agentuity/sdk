@@ -1,0 +1,49 @@
+{
+	"name": "@agentuity/claude-code",
+	"version": "1.0.0",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"description": "Agentuity Coder plugin for Claude Code with specialized AI coding agents",
+	"type": "module",
+	"main": "./dist/install.js",
+	"module": "./dist/install.js",
+	"types": "./dist/install.d.ts",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		".claude-plugin",
+		"agents",
+		"skills",
+		"hooks",
+		"commands",
+		"scripts",
+		"src",
+		"dist"
+	],
+	"exports": {
+		".": "./dist/install.js"
+	},
+	"typesVersions": {
+		"*": {
+			".": [
+				"./dist/install.d.ts"
+			]
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"bun-types": "latest",
+		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false
+}
