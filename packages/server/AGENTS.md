@@ -2,57 +2,61 @@
 
 ## Package Overview
 
-Runtime-agnostic server utilities for Node.js and Bun applications. This package provides common server-side utilities that work across both runtimes without using runtime-specific APIs.
+Server-side utilities for Node.js and Bun applications. Provides API clients for Agentuity cloud services, configuration, logging, and resource validation.
 
 ## Commands
 
-- **Build**: `bun run build` (compiles TypeScript with tsc)
-- **Typecheck**: `bun run typecheck` (runs TypeScript type checking)
-- **Clean**: `rm -rf dist` (removes build artifacts)
+- **Build**: `bun run build`
+- **Typecheck**: `bun run typecheck`
+- **Clean**: `rm -rf dist`
 
 ## Architecture
 
-- **Runtime**: Node.js and Bun compatible (no runtime-specific code)
-- **Build target**: ESNext with TypeScript declaration files
-- **Exports**: All public APIs exported from `src/index.ts`
-- **Dependencies**: Only @agentuity/core and standard Node.js types
+- **Runtime**: Node.js and Bun compatible
+- **Exports**: All public APIs from `src/index.ts`
+- **Dependencies**: @agentuity/core, zod
 
 ## Structure
 
 ```text
 src/
-├── index.ts              # Main entry point, exports all modules
-├── config.ts             # Service URL configuration: ServiceUrls, getServiceUrls
-└── server.ts             # Server fetch adapter: createServerFetchAdapter
+├── index.ts              # Main exports
+├── config.ts             # getServiceUrls, resolveRegion
+├── server.ts             # createServerFetchAdapter
+├── logger.ts             # ConsoleLogger, createLogger
+├── schema.ts             # toJSONSchema
+├── runtime-bootstrap.ts  # bootstrapRuntimeEnv
+├── util/resources.ts     # validateResources, validateCPUSpec, validateMemorySpec
+└── api/                  # API clients for Agentuity cloud services
+    ├── apikey/           # API key management
+    ├── db/               # Database operations
+    ├── eval/             # Eval management
+    ├── org/              # Organization management
+    ├── project/          # Project management (deploy, env, etc.)
+    ├── queue/            # Queue management
+    ├── region/           # Region management
+    ├── sandbox/          # Sandbox management (create, execute, files, snapshot)
+    ├── session/          # Session logs
+    ├── thread/           # Thread management
+    └── user/             # User operations (whoami)
 ```
 
-## Code Style
+## Code Conventions
 
-- **Runtime agnostic** - No Bun-specific or Node-specific APIs
 - **TypeScript-first** - All code is TypeScript
-- **Interface-based** - Prefer interfaces for public APIs
-- **Server-side only** - Not browser compatible
-- **Minimal dependencies** - Keep dependencies lean
-
-## Important Conventions
-
-- **No runtime-specific code** - Must work in both Node.js and Bun
-- **No browser APIs** - Server-side only
+- **Zod schemas** - Use zod for runtime validation
 - **Shared with runtime** - Common utilities used by @agentuity/runtime
-- **Breaking changes** - Coordinate with @agentuity/runtime package
-- **Standard patterns** - Follow Node.js/Bun common practices
+- **Re-exports** - `@agentuity/core` types and `z` from zod
 
-## Testing
+## Key Exports
 
-- Use Bun's built-in test runner: `bun test`
-- Test with both Node.js and Bun when possible
-- Avoid runtime-specific test utilities
-- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
+- **Adapter**: `createServerFetchAdapter`
+- **Config**: `getServiceUrls`, `resolveRegion`
+- **Logging**: `createLogger`, `ConsoleLogger`
+- **Validation**: `validateResources`, `validateCPUSpec`, `validateMemorySpec`
+- **API Clients**: All functions from `api/*` (listProjects, createSandbox, etc.)
 
-## Publishing Checklist
+## Publishing
 
-1. Run `bun run build` to compile
-2. Verify `dist/` contains `.js` and `.d.ts` files
-3. Ensure no runtime-specific APIs are used
-4. Test with both Node.js and Bun if possible
-5. Must be published **after** @agentuity/core
+1. Run `bun run build`
+2. Must publish **after** @agentuity/core

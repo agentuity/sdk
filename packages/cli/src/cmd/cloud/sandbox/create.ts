@@ -147,7 +147,7 @@ export const createSubcommand = createCommand({
 			}
 		}
 
-		const files = parseFileArgs(opts.file);
+		const files = await parseFileArgs(opts.file);
 		const hasFiles = files.length > 0;
 
 		let metadata: Record<string, unknown> | undefined;

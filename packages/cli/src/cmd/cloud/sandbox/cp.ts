@@ -3,13 +3,14 @@ import { readFileSync, writeFileSync, mkdirSync, statSync, readdirSync } from 'n
 import { dirname, resolve, basename, join, relative } from 'node:path';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getSandboxRegion, createSandboxClient } from './util';
+import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
 import {
 	sandboxWriteFiles,
 	sandboxReadFile,
 	sandboxExecute,
 	executionGet,
+	sandboxResolve,
 	type APIClient,
 } from '@agentuity/server';
 import type { Logger, FileToWrite } from '@agentuity/core';
@@ -47,7 +48,7 @@ export const cpSubcommand = createCommand({
 	aliases: ['copy'],
 	description: 'Copy files or directories to or from a sandbox',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox cp ./local-file.txt snbx_abc123:/path/to/file.txt'),
@@ -84,7 +85,7 @@ export const cpSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, logger, orgId, config } = ctx;
+		const { args, opts, options, auth, logger, apiClient } = ctx;
 
 		const source = parsePath(args.source);
 		const destination = parsePath(args.destination);
@@ -102,7 +103,11 @@ export const cpSubcommand = createCommand({
 		}
 
 		const sandboxId = source.sandboxId ?? destination.sandboxId!;
-		const region = await getSandboxRegion(logger, auth, config?.name, sandboxId, orgId);
+
+		// Resolve sandbox to get region and orgId using CLI API
+		const sandboxInfo = await sandboxResolve(apiClient, sandboxId);
+		const { region, orgId } = sandboxInfo;
+
 		const client = createSandboxClient(logger, auth, region);
 		const recursive = opts.recursive ?? false;
 

@@ -2,13 +2,13 @@ import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
 import { OrgResponseError } from './util';
 
-const ListOrganizationsResponse = z.array(
+export const ListOrganizationsResponse = z.array(
 	z.object({
 		id: z.string().describe('the unique id for the organization'),
 		name: z.string().describe('the name of the organization'),
 	})
 );
-const ListOrganizationsResponseSchema = APIResponseSchema(ListOrganizationsResponse);
+export const ListOrganizationsResponseSchema = APIResponseSchema(ListOrganizationsResponse);
 
 export type ListOrganizationsResponse = z.infer<typeof ListOrganizationsResponseSchema>;
 export type OrganizationList = z.infer<typeof ListOrganizationsResponse>;

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { DbInvalidArgumentError, DbResponseError } from './util';
 
-const _DbLogsRequestSchema = z.object({
+export const DbLogsRequestSchema = z.object({
 	database: z.string().describe('the database name'),
 	orgId: z.string().describe('the organization ID'),
 	region: z.string().describe('the region'),
@@ -28,12 +28,12 @@ export const DbQueryLogSchema = z.object({
 	sessionId: z.string().optional().describe('session ID with sess_ prefix'),
 });
 
-const DbLogsResponse = z.array(DbQueryLogSchema);
+export const DbLogsResponseSchema = z.array(DbQueryLogSchema);
 
-const DbLogsResponseSchema = APIResponseSchema(DbLogsResponse);
+const DbLogsAPIResponseSchema = APIResponseSchema(DbLogsResponseSchema);
 
-type DbLogsRequest = z.infer<typeof _DbLogsRequestSchema>;
-type DbLogsResponse = z.infer<typeof DbLogsResponseSchema>;
+type DbLogsRequest = z.infer<typeof DbLogsRequestSchema>;
+type DbLogsAPIResponse = z.infer<typeof DbLogsAPIResponseSchema>;
 
 export type DbQueryLog = z.infer<typeof DbQueryLogSchema>;
 export type DbQueryLogs = DbQueryLog[];
@@ -62,7 +62,7 @@ export async function dbLogs(client: APIClient, request: DbLogsRequest): Promise
 	const queryString = params.toString();
 	const url = `/resource/2025-03-17/${orgId}/${region}/${database}/logs${queryString ? `?${queryString}` : ''}`;
 
-	const resp = await client.get<DbLogsResponse>(url, DbLogsResponseSchema);
+	const resp = await client.get<DbLogsAPIResponse>(url, DbLogsAPIResponseSchema);
 
 	if (resp.success) {
 		return resp.data;

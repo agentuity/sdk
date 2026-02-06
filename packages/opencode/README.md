@@ -134,6 +134,33 @@ Sensitive CLI commands are blocked by default:
 - `agentuity cloud apikey`
 - `agentuity auth token`
 
+## Permissions
+
+The plugin auto-allows certain operations to prevent blocking prompts during agent execution.
+
+### Auto-Allowed Directories
+
+| Directory    | Reason                                                      |
+| ------------ | ----------------------------------------------------------- |
+| `/tmp/**`    | Memory agent writes temp files for piping large JSON to CLI |
+| `$TMPDIR/**` | OS-specific temp directory (macOS, etc.)                    |
+
+These are standard temp directories designed for ephemeral file operations. In sandbox environments, all permissions are auto-allowed.
+
+### Customizing Permissions
+
+To allow additional directories or override defaults, add to your `opencode.json`:
+
+```json
+{
+	"permission": {
+		"external_directory": {
+			"/my/custom/path/**": "allow"
+		}
+	}
+}
+```
+
 ## Plugin Configuration
 
 Plugin settings are configured in your Agentuity CLI profile (`~/.config/agentuity/production.yaml`). Add a `coder` section:

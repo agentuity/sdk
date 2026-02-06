@@ -44,7 +44,7 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List storage resources or files in a bucket',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud storage list'), description: 'List items' },
@@ -85,23 +85,29 @@ export const listSubcommand = createSubcommand({
 			: '/services/storage',
 
 	async handler(ctx) {
-		const { logger, args, opts, options, orgId, auth, config } = ctx;
+		const { logger, args, opts, options, auth, config } = ctx;
 
 		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		const profileName = config?.name ?? 'production';
 		const resources = await tui.spinner({
-			message: `Fetching storage for ${orgId}`,
+			message: 'Fetching storage',
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 's3', orgId });
+				return listOrgResources(catalystClient, { type: 's3' });
 			},
 		});
 
 		// Cache each bucket with its region and orgId for future lookups
 		for (const s3 of resources.s3) {
-			if (s3.cloud_region) {
-				await setResourceInfo('bucket', profileName, s3.bucket_name, s3.cloud_region, orgId);
+			if (s3.cloud_region && s3.org_id) {
+				await setResourceInfo(
+					'bucket',
+					profileName,
+					s3.bucket_name,
+					s3.cloud_region,
+					s3.org_id
+				);
 			}
 		}
 

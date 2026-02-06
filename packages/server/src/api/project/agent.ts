@@ -3,7 +3,7 @@ import type { APIClient } from '../api';
 import { APIResponseSchema } from '../api';
 import { AgentNotFoundError, ProjectResponseError } from './util';
 
-const AgentSchema = z.object({
+export const AgentSchema = z.object({
 	id: z.string().describe('Agent ID (same as identifier)'),
 	name: z.string().describe('Agent name'),
 	description: z.string().nullable().describe('Agent description'),

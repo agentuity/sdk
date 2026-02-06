@@ -106,6 +106,23 @@ export const deploySubcommand = createSubcommand({
 	idempotent: false,
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['auth login'],
+	resourceRules: [
+		{
+			resource: 'project',
+			required: true,
+			flag: 'project-id',
+			envVar: 'AGENTUITY_CLOUD_PROJECT_ID',
+			impliedFrom: 'agentuity.json',
+		},
+		{
+			resource: 'region',
+			required: true,
+			flag: 'region',
+			envVar: 'AGENTUITY_REGION',
+			configPref: 'region',
+			operationType: 'mutate',
+		},
+	],
 	schema: {
 		options: z.intersection(
 			DeployOptionsSchema,

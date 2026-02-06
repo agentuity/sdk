@@ -56,6 +56,88 @@ When new information contradicts existing conclusions:
 3. If uncertain, you may consult Memory agent for guidance
 4. Document the conflict and resolution
 
+## Validity Checking
+
+In addition to extracting conclusions, you can assess the validity of existing memories.
+
+### When Triggered for Validity Check
+
+Memory may ask you to validate memories when:
+- Session starts and relevant memories are found
+- Memories reference branches that may no longer exist
+- Conflicts are detected between memories
+
+### Validity Check Input Format
+
+\`\`\`json
+{
+  "type": "validity_check",
+  "currentContext": {
+    "branch": "feature/payments",
+    "projectLabel": "github.com/acme/repo",
+    "branchExists": true
+  },
+  "memoriesToCheck": [
+    {
+      "key": "session:sess_xxx",
+      "branch": "feature/old-auth",
+      "summary": "Implemented auth with JWT...",
+      "createdAt": "2026-01-15T..."
+    }
+  ]
+}
+\`\`\`
+
+### Validity Assessment Criteria
+
+Assess each memory against these criteria:
+
+| Criterion | Check | Result if Failed |
+|-----------|-------|------------------|
+| Branch exists | Does the memory's branch still exist? | Mark as "stale" |
+| Branch merged | Was the branch merged into current? | Mark as "merged" (still valid) |
+| Age | Is the memory very old (>90 days)? | Note as "old" (use judgment) |
+| Relevance | Does it relate to current work? | Mark relevance level |
+
+### Validity Check Output Format
+
+\`\`\`json
+{
+  "validityResults": [
+    {
+      "memoryKey": "session:sess_xxx",
+      "assessment": "stale",
+      "reason": "Branch 'feature/old-auth' no longer exists and was not merged",
+      "recommendation": "archive",
+      "shouldSurface": false
+    },
+    {
+      "memoryKey": "decision:use-jwt",
+      "assessment": "valid",
+      "reason": "Decision is repo-scoped and applies regardless of branch",
+      "recommendation": "keep",
+      "shouldSurface": true
+    }
+  ],
+  "reasoning": "Checked 2 memories. 1 is stale (branch deleted), 1 is valid (repo-scoped)."
+}
+\`\`\`
+
+### Assessment Values
+
+- **valid** — Memory is current and relevant
+- **stale** — Memory is from deleted/abandoned branch
+- **merged** — Memory is from a branch that was merged (still useful)
+- **outdated** — Memory is old but branch exists (use judgment)
+- **conflicting** — Memory conflicts with newer information
+
+### Recommendation Values
+
+- **keep** — Memory should remain active
+- **archive** — Memory should be marked as archived
+- **update** — Memory needs to be updated with new info
+- **review** — Needs human review (uncertain)
+
 ## Querying Memory During Reasoning
 
 You can (and should) query the Memory agent to retrieve relevant context while reasoning. This creates a feedback loop that improves conclusion quality.
@@ -69,14 +151,12 @@ You can (and should) query the Memory agent to retrieve relevant context while r
 
 ### How to Query
 
-Use \`agentuity_coder_delegate\` to ask Memory:
+Use the Task tool to ask Memory:
 
 \`\`\`
-agentuity_coder_delegate({
-  agent: "memory",
-  task: "What auth patterns and corrections do we have?",
-  context: "Reasoning about auth implementation in session data"
-})
+@Agentuity Coder Memory
+
+What auth patterns and corrections do we have? Context: Reasoning about auth implementation in session data.
 \`\`\`
 
 ### The Feedback Loop
@@ -127,6 +207,8 @@ Return structured JSON with conclusions for each relevant entity:
 - Corrections are highest priority - never miss them
 - Keep it loose - add fields as needed for context
 - Use entity IDs from the entity model (entity:{type}:{id})
+- **For validity checks**: Be conservative - when uncertain, recommend "review" not "archive"
+- **Branch awareness**: Consider branch context when assessing relevance
 
 ## Entity Types
 
@@ -147,10 +229,11 @@ You save conclusions using the Agentuity CLI:
 ## When You Run
 
 Memory triggers you:
-- After compaction events
-- At end of Cadence mode
-- On explicit memorialization requests
-- When Memory judges reasoning is needed
+- After compaction events (extract conclusions)
+- At end of Cadence mode (extract conclusions)
+- On explicit memorialization requests (extract conclusions)
+- When Memory judges reasoning is needed (extract conclusions)
+- **For validity checks** when memories may be stale or conflicting
 `;
 
 export type ReasonerOutput = {
@@ -175,7 +258,7 @@ export const reasonerAgent: AgentDefinition = {
 	systemPrompt: REASONER_SYSTEM_PROMPT,
 	mode: 'subagent',
 	tools: {
-		exclude: ['write', 'edit', 'apply_patch', 'task'],
+		exclude: ['write', 'edit', 'apply_patch'],
 	},
 	reasoningEffort: 'high',
 	temperature: 0.3,

@@ -1,17 +1,36 @@
 /**
- * Global registry for PostgreSQL clients.
+ * Global registry for PostgreSQL clients and pools.
  *
- * This module provides a way to track all active PostgreSQL clients
+ * This module provides a way to track all active PostgreSQL clients and pools
  * so they can be gracefully shut down together (e.g., on process exit).
  *
- * The runtime can use `shutdownAll()` to close all registered clients
+ * The runtime can use `shutdownAll()` to close all registered clients/pools
  * during graceful shutdown.
  *
  * When @agentuity/runtime is available, this module automatically registers
- * a shutdown hook so all postgres clients are closed during graceful shutdown.
+ * a shutdown hook so all postgres clients/pools are closed during graceful shutdown.
  */
 
-import type { PostgresClient } from './client';
+/**
+ * Common interface for registrable PostgreSQL connections.
+ * Both PostgresClient and PostgresPool implement this interface.
+ */
+export interface Registrable {
+	/**
+	 * Whether the connection is shutting down.
+	 */
+	readonly shuttingDown: boolean;
+
+	/**
+	 * Signal that the connection is shutting down.
+	 */
+	shutdown(): void;
+
+	/**
+	 * Close the connection.
+	 */
+	close(): Promise<void>;
+}
 
 /**
  * Symbol used to store the registry in globalThis to avoid conflicts.
@@ -24,10 +43,10 @@ const REGISTRY_KEY = Symbol.for('@agentuity/postgres:registry');
 const RUNTIME_HOOK_REGISTERED = Symbol.for('@agentuity/postgres:runtime-hook-registered');
 
 /**
- * Gets the global client registry, creating it if it doesn't exist.
+ * Gets the global registry, creating it if it doesn't exist.
  */
-function getRegistry(): Set<PostgresClient> {
-	const global = globalThis as Record<symbol, Set<PostgresClient>>;
+function getRegistry(): Set<Registrable> {
+	const global = globalThis as Record<symbol, Set<Registrable>>;
 	if (!global[REGISTRY_KEY]) {
 		global[REGISTRY_KEY] = new Set();
 	}
@@ -35,29 +54,29 @@ function getRegistry(): Set<PostgresClient> {
 }
 
 /**
- * Registers a client in the global registry.
- * Called automatically when a client is created.
+ * Registers a client or pool in the global registry.
+ * Called automatically when a client or pool is created.
  *
- * @param client - The client to register
+ * @param connection - The client or pool to register
  * @internal
  */
-export function registerClient(client: PostgresClient): void {
-	getRegistry().add(client);
+export function registerClient(connection: Registrable): void {
+	getRegistry().add(connection);
 }
 
 /**
- * Unregisters a client from the global registry.
- * Called automatically when a client is closed.
+ * Unregisters a client or pool from the global registry.
+ * Called automatically when a client or pool is closed.
  *
- * @param client - The client to unregister
+ * @param connection - The client or pool to unregister
  * @internal
  */
-export function unregisterClient(client: PostgresClient): void {
-	getRegistry().delete(client);
+export function unregisterClient(connection: Registrable): void {
+	getRegistry().delete(connection);
 }
 
 /**
- * Returns the number of registered clients.
+ * Returns the number of registered clients and pools.
  * Useful for debugging and testing.
  */
 export function getClientCount(): number {
@@ -65,27 +84,27 @@ export function getClientCount(): number {
 }
 
 /**
- * Returns all registered clients.
+ * Returns all registered clients and pools.
  * Useful for debugging and monitoring.
  */
-export function getClients(): ReadonlySet<PostgresClient> {
+export function getClients(): ReadonlySet<Registrable> {
 	return getRegistry();
 }
 
 /**
- * Shuts down all registered PostgreSQL clients gracefully.
+ * Shuts down all registered PostgreSQL clients and pools gracefully.
  *
  * This function:
- * 1. Signals shutdown to all clients (prevents reconnection)
- * 2. Closes all clients in parallel
+ * 1. Signals shutdown to all clients/pools (prevents reconnection)
+ * 2. Closes all clients/pools in parallel
  * 3. Clears the registry
  *
  * This is intended to be called by the runtime during graceful shutdown.
  *
  * @param timeoutMs - Optional timeout in milliseconds. If provided, the function
- *                    will resolve after the timeout even if some clients haven't
+ *                    will resolve after the timeout even if some connections haven't
  *                    finished closing. Default: no timeout.
- * @returns A promise that resolves when all clients are closed (or timeout)
+ * @returns A promise that resolves when all connections are closed (or timeout)
  *
  * @example
  * ```typescript
@@ -99,21 +118,21 @@ export function getClients(): ReadonlySet<PostgresClient> {
  */
 export async function shutdownAll(timeoutMs?: number): Promise<void> {
 	const registry = getRegistry();
-	const clients = Array.from(registry);
+	const connections = Array.from(registry);
 
-	if (clients.length === 0) {
+	if (connections.length === 0) {
 		return;
 	}
 
-	// Signal shutdown to all clients first (prevents reconnection attempts)
-	for (const client of clients) {
-		client.shutdown();
+	// Signal shutdown to all connections first (prevents reconnection attempts)
+	for (const connection of connections) {
+		connection.shutdown();
 	}
 
-	// Close all clients in parallel
-	const closePromises = clients.map(async (client) => {
+	// Close all connections in parallel
+	const closePromises = connections.map(async (connection) => {
 		try {
-			await client.close();
+			await connection.close();
 		} catch {
 			// Ignore close errors during shutdown
 		}
@@ -141,13 +160,13 @@ export async function shutdownAll(timeoutMs?: number): Promise<void> {
 }
 
 /**
- * Checks if there are any active (non-shutdown) clients.
+ * Checks if there are any active (non-shutdown) clients or pools.
  * Useful for health checks.
  */
 export function hasActiveClients(): boolean {
 	const registry = getRegistry();
-	for (const client of registry) {
-		if (!client.shuttingDown) {
+	for (const connection of registry) {
+		if (!connection.shuttingDown) {
 			return true;
 		}
 	}

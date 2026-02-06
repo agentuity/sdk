@@ -35,7 +35,7 @@ export interface APIClientConfig {
 	headers?: Record<string, string>;
 }
 
-const ZodIssuesSchema = z.array(
+export const ZodIssuesSchema = z.array(
 	z.object({
 		code: z.string(),
 		input: z.unknown().optional(),
@@ -55,7 +55,7 @@ const toIssues = (issues: z.core.$ZodIssue[]): IssuesType => {
 	}));
 };
 
-const APIErrorSchema = z.object({
+export const APIErrorSchema = z.object({
 	success: z.boolean(),
 	code: z.string().optional(),
 	message: z.string().optional(),

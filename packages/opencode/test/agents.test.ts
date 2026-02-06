@@ -3,8 +3,8 @@ import { agents, getAgentByRole, getAgentById } from '../src/agents';
 
 describe('Agents', () => {
 	describe('agent definitions', () => {
-		it('exports all 11 agents', () => {
-			expect(Object.keys(agents)).toHaveLength(11);
+		it('exports all 14 agents', () => {
+			expect(Object.keys(agents)).toHaveLength(14);
 			expect(agents.lead).toBeDefined();
 			expect(agents.scout).toBeDefined();
 			expect(agents.builder).toBeDefined();
@@ -12,6 +12,9 @@ describe('Agents', () => {
 			expect(agents.reviewer).toBeDefined();
 			expect(agents.memory).toBeDefined();
 			expect(agents.expert).toBeDefined();
+			expect(agents['expert-backend']).toBeDefined();
+			expect(agents['expert-frontend']).toBeDefined();
+			expect(agents['expert-ops']).toBeDefined();
 			expect(agents.runner).toBeDefined();
 			expect(agents.product).toBeDefined();
 			expect(agents.reasoner).toBeDefined();
@@ -101,7 +104,7 @@ describe('Agents', () => {
 
 		it('Architect agent has GPT Codex with xhigh reasoning', () => {
 			const architect = agents.architect;
-			expect(architect.defaultModel).toBe('openai/gpt-5.2-codex');
+			expect(architect.defaultModel).toBe('openai/gpt-5.3-codex');
 			expect(architect.reasoningEffort).toBe('xhigh');
 			expect(architect.temperature).toBe(0.1);
 			expect(architect.systemPrompt).toContain('Cadence');
@@ -146,7 +149,7 @@ describe('Agents', () => {
 			expect(agents.reasoner.mode).toBe('subagent');
 			expect(agents.reasoner.tools?.exclude).toContain('write');
 			expect(agents.reasoner.tools?.exclude).toContain('edit');
-			expect(agents.reasoner.tools?.exclude).toContain('task');
+			expect(agents.reasoner.tools?.exclude).not.toContain('task');
 			expect(agents.reasoner.defaultModel).toBe('openai/gpt-5.2');
 			expect(agents.reasoner.temperature).toBe(0.3);
 		});

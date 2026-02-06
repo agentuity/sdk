@@ -2,14 +2,14 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchemaNoData } from '../api';
 import { ThreadResponseError } from './util';
 
-const _ThreadDeleteRequestSchema = z.object({
+export const _ThreadDeleteRequestSchema = z.object({
 	id: z.string().describe('the thread id'),
 });
 
-const ThreadDeleteResponseSchema = APIResponseSchemaNoData();
+export const ThreadDeleteResponseSchema = APIResponseSchemaNoData();
 
-type ThreadDeleteRequest = z.infer<typeof _ThreadDeleteRequestSchema>;
-type ThreadDeleteResponse = z.infer<typeof ThreadDeleteResponseSchema>;
+export type ThreadDeleteRequest = z.infer<typeof _ThreadDeleteRequestSchema>;
+export type ThreadDeleteResponse = z.infer<typeof ThreadDeleteResponseSchema>;
 
 /**
  * Delete a thread by id

@@ -30,6 +30,7 @@ export const KNOWN_AGENTS: [string, string][] = [
 	['windsurf', 'windsurf'],
 	['zed', 'zed'],
 	['amp', 'amp'],
+	['warp', 'warp'],
 	// TODO: VSCode Agent Mode detection - need to find a reliable way to detect
 	// when VSCode's built-in agent (Copilot Chat) is running commands vs just
 	// running in VSCode's integrated terminal. May need env var detection.
@@ -123,6 +124,13 @@ function matchAgent(command: string): string | undefined {
  */
 function detectParentAgent(): Promise<string | undefined> {
 	return new Promise((resolve) => {
+		// Short-circuit: if AGENTUITY_AGENT_MODE is set, use it directly
+		const agentMode = process.env.AGENTUITY_AGENT_MODE;
+		if (agentMode) {
+			resolve(agentMode);
+			return;
+		}
+
 		// TODO: Implement Windows support using wmic or PowerShell
 		if (process.platform === 'win32') {
 			resolve(undefined);
@@ -171,6 +179,14 @@ function detectParentAgent(): Promise<string | undefined> {
 export function startAgentDetection(): void {
 	if (detectionPromise !== null) {
 		// Already started
+		return;
+	}
+
+	// Short-circuit: if AGENTUITY_AGENT_MODE is set, skip process tree detection
+	const agentMode = process.env.AGENTUITY_AGENT_MODE;
+	if (agentMode) {
+		cachedResult = agentMode;
+		detectionPromise = Promise.resolve(agentMode);
 		return;
 	}
 
@@ -225,6 +241,11 @@ export function onAgentDetected(callback: (agent: string | undefined) => void): 
  * Use this for synchronous access when you don't want to wait for detection.
  */
 export function getDetectedAgent(): string | undefined | null {
+	// Short-circuit: if AGENTUITY_AGENT_MODE is set, use it directly
+	const agentMode = process.env.AGENTUITY_AGENT_MODE;
+	if (agentMode) {
+		return agentMode;
+	}
 	return cachedResult;
 }
 
@@ -256,6 +277,12 @@ export async function flushAgentDetection(): Promise<void> {
  * ```
  */
 export async function isExecutingFromAgent(): Promise<string | undefined> {
+	// Short-circuit: if AGENTUITY_AGENT_MODE is set, use it directly
+	const agentMode = process.env.AGENTUITY_AGENT_MODE;
+	if (agentMode) {
+		return agentMode;
+	}
+
 	// Return cached result if detection has completed
 	if (cachedResult !== null) {
 		return cachedResult;

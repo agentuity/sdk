@@ -423,7 +423,12 @@ async function installDependencies(
 async function buildProjectDev(projectDir: string): Promise<{ success: boolean; error?: string }> {
 	// Use local CLI bin to ensure we test the current code
 	// Test dev build mode first (this is what users run with `agentuity dev`)
-	const result = await runCommand(['bun', CLI_BIN, 'build', '--dev'], projectDir, undefined, 120000);
+	const result = await runCommand(
+		['bun', CLI_BIN, 'build', '--dev'],
+		projectDir,
+		undefined,
+		120000
+	);
 	if (!result.success) {
 		// Log full error output for debugging
 		if (result.stderr) {

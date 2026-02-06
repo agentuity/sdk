@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { APIKeyResponseError } from './util';
 
-const APIKeyDetailSchema = z.object({
+export const APIKeyDetailSchema = z.object({
 	id: z.string().describe('the API key id'),
 	name: z.string().describe('the API key name'),
 	orgId: z.string().describe('the organization id'),
@@ -20,7 +20,7 @@ const APIKeyDetailSchema = z.object({
 		.describe('the associated project'),
 });
 
-const APIKeyGetResponseSchema = APIResponseSchema(APIKeyDetailSchema);
+export const APIKeyGetResponseSchema = APIResponseSchema(APIKeyDetailSchema);
 
 type APIKeyGetResponse = z.infer<typeof APIKeyGetResponseSchema>;
 

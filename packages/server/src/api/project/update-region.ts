@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { ProjectResponseError } from './util';
 
-const UpdateRegionRequestSchema = z.object({
+export const UpdateRegionRequestSchema = z.object({
 	cloudRegion: z.string().describe('the cloud region to update the project to'),
 });
 

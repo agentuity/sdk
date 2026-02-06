@@ -101,5 +101,5 @@ export function getGravityDevModeURL(region: string, config?: Config | null): st
 	if (config?.name === 'local') {
 		return 'grpc://gravity.agentuity.io:8443';
 	}
-	return `grpc://gravity-${region}.agentuity.cloud`;
+	return 'grpc://devmode-us.agentuity.com';
 }

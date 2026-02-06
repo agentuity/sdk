@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, getSandboxRegion } from './util';
+import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxMkDir } from '@agentuity/server';
+import { sandboxMkDir, sandboxResolve } from '@agentuity/server';
 
 const MkDirResponseSchema = z.object({
 	success: z.boolean(),
@@ -14,7 +14,7 @@ export const mkdirSubcommand = createCommand({
 	name: 'mkdir',
 	description: 'Create a directory in a sandbox',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox mkdir sbx_abc123 /path/to/dir'),
@@ -44,8 +44,12 @@ export const mkdirSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, logger, orgId, config } = ctx;
-		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
+		const { args, opts, options, auth, logger, apiClient } = ctx;
+
+		// Resolve sandbox to get region and orgId using CLI API
+		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+		const { region, orgId } = sandboxInfo;
+
 		const client = createSandboxClient(logger, auth, region);
 
 		await sandboxMkDir(client, {

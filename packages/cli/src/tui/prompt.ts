@@ -55,6 +55,16 @@ interface PromptState {
 export class PromptFlow {
 	private states: PromptState[] = [];
 
+	private isInteractive(): boolean {
+		return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+	}
+
+	private nonInteractiveError(message: string): Error {
+		return new Error(
+			`${message} Use the appropriate --flag or environment variable to provide input.`
+		);
+	}
+
 	/**
 	 * Display intro banner
 	 */
@@ -84,7 +94,24 @@ export class PromptFlow {
 	 * Text input prompt
 	 */
 	async text(options: TextOptions): Promise<string> {
-		const { message, initial = '', validate } = options;
+		const { message, validate } = options;
+		const initial = options.initial ?? '';
+		const hasDefault = options.initial !== undefined;
+
+		if (!this.isInteractive()) {
+			if (hasDefault) {
+				const validationResult = validate ? await validate(initial) : true;
+				if (validationResult === true) {
+					return initial;
+				}
+				// Validation failed - include the error message if it's a string
+				const errorDetail = typeof validationResult === 'string' ? `: ${validationResult}` : '';
+				throw this.nonInteractiveError(
+					`Cannot prompt for "${message}" in non-interactive mode. Validation failed for default value "${initial}"${errorDetail}.`
+				);
+			}
+			throw this.nonInteractiveError(`Cannot prompt for "${message}" in non-interactive mode.`);
+		}
 
 		return new Promise((resolve, reject) => {
 			const rl = readline.createInterface({
@@ -208,6 +235,10 @@ export class PromptFlow {
 	async confirm(options: ConfirmOptions): Promise<boolean> {
 		const { message, initial = false } = options;
 
+		if (!this.isInteractive()) {
+			return initial;
+		}
+
 		return new Promise((resolve, reject) => {
 			const hint = initial ? 'Y/n' : 'y/N';
 
@@ -291,6 +322,18 @@ export class PromptFlow {
 	 */
 	async select<T = string>(options: SelectOptions<T>): Promise<T> {
 		const { message, options: choices, initial } = options;
+
+		if (!this.isInteractive()) {
+			let selectedIndex = choices.findIndex((c) => c.value === initial);
+			if (selectedIndex === -1) selectedIndex = 0;
+			const selected = choices[selectedIndex];
+			if (!selected) {
+				throw this.nonInteractiveError(
+					`Cannot prompt for "${message}" in non-interactive mode.`
+				);
+			}
+			return selected.value;
+		}
 
 		return new Promise((resolve, reject) => {
 			let selectedIndex = choices.findIndex((c) => c.value === initial);
@@ -397,6 +440,11 @@ export class PromptFlow {
 	async multiselect<T = string>(options: MultiSelectOptions<T>): Promise<T[]> {
 		const { message, options: choices, initial = [] } = options;
 
+		if (!this.isInteractive()) {
+			const choiceValues = new Set(choices.map((choice) => choice.value));
+			return initial.filter((value) => choiceValues.has(value));
+		}
+
 		return new Promise((resolve, reject) => {
 			let cursorIndex = 0;
 			const selected = new Set<number>(
@@ -466,8 +514,12 @@ export class PromptFlow {
 
 					// Sort indices to get consistent order for both values and labels
 					const sortedIndices = Array.from(selected).sort((a, b) => a - b);
-					const values = sortedIndices.map((i) => choices[i]?.value).filter((v) => v !== undefined);
-					const labels = sortedIndices.map((i) => choices[i]?.label).filter((l) => l !== undefined);
+					const values = sortedIndices
+						.map((i) => choices[i]?.value)
+						.filter((v) => v !== undefined);
+					const labels = sortedIndices
+						.map((i) => choices[i]?.label)
+						.filter((l) => l !== undefined);
 
 					// Clear all lines (message + all choices)
 					const totalLines = choices.length + 1;

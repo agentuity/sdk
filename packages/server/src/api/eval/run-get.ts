@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 
-const EvalRunDetailSchema = z.object({
+export const EvalRunDetailSchema = z.object({
 	id: z.string().describe('Eval run ID'),
 	sessionId: z.string().describe('Session ID'),
 	evalId: z.string().describe('Evaluation record ID'),

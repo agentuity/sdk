@@ -73,6 +73,7 @@ export {
 	getAuth,
 } from './config';
 export { APIClient, getAPIBaseURL, getAppBaseURL } from './api';
+export { getCatalystUrl } from './catalyst';
 export {
 	ConsoleLogger,
 	createLogger,
@@ -111,6 +112,7 @@ export type {
 	Profile,
 	AuthData,
 	CommandSchemas,
+	ResourceSelectionRule,
 	BuildPhase,
 	BuildContext,
 	BuildConfig,

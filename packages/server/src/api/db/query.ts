@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIClient, APIError } from '../api';
 import { DbInvalidArgumentError, DbResponseError } from './util';
 
-const QueryColumnSchema = z.object({
+export const QueryColumnSchema = z.object({
 	name: z.string().describe('column name'),
 	type: z.string().describe('PostgreSQL data type OID'),
 });
@@ -14,7 +14,7 @@ export const QueryResultSchema = z.object({
 	truncated: z.boolean().describe('whether results were truncated (max 1000 rows)'),
 });
 
-const QueryResponseSchema = z.object({
+export const QueryResponseSchema = z.object({
 	success: z.boolean(),
 	message: z.string().optional(),
 	data: QueryResultSchema.optional(),

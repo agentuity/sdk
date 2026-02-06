@@ -3,7 +3,7 @@ import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from
 import { ProjectResponseError } from './util';
 
 // Simplified metadata schema for the client
-const DeploymentMetadataSchema = z.object({
+export const DeploymentMetadataSchema = z.object({
 	git: z
 		.object({
 			repo: z.string().optional(),
@@ -35,7 +35,7 @@ const DeploymentMetadataSchema = z.object({
 		.optional(),
 });
 
-const DeploymentSchema = z.object({
+export const DeploymentSchema = z.object({
 	id: z.string(),
 	state: z.string().optional(),
 	message: z.string().nullable().optional(),
@@ -91,7 +91,7 @@ export async function projectDeploymentGet(
 	throw new ProjectResponseError({ message: resp.message });
 }
 
-const DeploymentLookupSchema = z.object({
+export const DeploymentLookupSchema = z.object({
 	id: z.string(),
 	projectId: z.string(),
 	orgId: z.string(),

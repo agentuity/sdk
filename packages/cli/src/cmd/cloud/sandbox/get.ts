@@ -1,10 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { cacheSandboxRegion } from './util';
+import { cacheSandboxRegion, createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxGet } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../config';
+import { sandboxGet, sandboxResolve } from '@agentuity/server';
 
 const SandboxResourcesSchema = z.object({
 	memory: z.string().optional().describe('Memory limit (e.g., "512Mi", "1Gi")'),
@@ -51,7 +50,7 @@ export const getSubcommand = createCommand({
 	aliases: ['info', 'show'],
 	description: 'Get information about a sandbox',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	idempotent: true,
 	examples: [
 		{
@@ -67,10 +66,17 @@ export const getSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options, auth, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { args, options, auth, logger, config, apiClient } = ctx;
 
-		const result = await sandboxGet(client, { sandboxId: args.sandboxId, orgId });
+		// Resolve sandbox to get region and orgId using CLI API
+		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+
+		// Create regional client and get full sandbox details
+		const client = createSandboxClient(logger, auth, sandboxInfo.region);
+		const result = await sandboxGet(client, {
+			sandboxId: args.sandboxId,
+			orgId: sandboxInfo.orgId,
+		});
 
 		// Cache the region for future lookups
 		if (result.region) {

@@ -2,17 +2,17 @@ import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
 import { UserResponseError } from './util';
 
-const OrganizationSchema = z.object({
+export const OrganizationSchema = z.object({
 	id: z.string().describe('the unique id for the organization'),
 	name: z.string().describe('the name of the organization'),
 });
 
-const WhoamiResponse = z.object({
+export const WhoamiResponse = z.object({
 	firstName: z.string().describe('the first name of the user'),
 	lastName: z.string().describe('the last name of the user'),
 	organizations: z.array(OrganizationSchema).describe('the organizations the user is a member of'),
 });
-const WhoamiResponseSchema = APIResponseSchema(WhoamiResponse);
+export const WhoamiResponseSchema = APIResponseSchema(WhoamiResponse);
 
 export type WhoamiResponse = z.infer<typeof WhoamiResponseSchema>;
 export type User = z.infer<typeof WhoamiResponse>;
