@@ -346,6 +346,9 @@ jobs:
          - name: Install SDK in e2e-web
            run: bash scripts/install-sdk-tarballs.sh apps/testing/e2e-web
 
+         # No explicit build step needed: playwright.config.ts webServer starts
+         # "bun run dev" which compiles on-the-fly via Vite. A production build
+         # would be redundant since e2e tests run against the dev server.
          - name: Run Playwright E2E tests
            run: bun run test:e2e
 

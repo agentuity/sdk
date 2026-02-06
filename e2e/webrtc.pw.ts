@@ -910,10 +910,6 @@ test.describe('Peer List Updates', () => {
 				timeout: 15000,
 			});
 
-			// Get peer2's ID directly from their page
-			const peer2IdText = await peer2.page.getByTestId('peer-id').innerText();
-			const peer2Id = peer2IdText.replace('My Peer ID: ', '');
-
 			// Peer2 disconnects
 			await peer2.page.getByTestId('disconnect-btn').click();
 
