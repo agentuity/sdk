@@ -1,38 +1,15 @@
 import { createSubcommand } from '../../types';
 import type { CommandContext } from '../../types';
 import { getCommand } from '../../command-prefix';
-import { isExecutingFromAgent, KNOWN_AGENTS } from '../../agent-detection';
+import { getExecutingAgent, getAgentDisplayName, KNOWN_AGENTS } from '../../agent-detection';
 import { getVersion } from '../../version';
 import * as tui from '../../tui';
 
 /**
- * Generate a friendly name for the detected agent
- */
-function getAgentDisplayName(agentId: string): string {
-	const displayNames: Record<string, string> = {
-		opencode: 'Open Code',
-		codex: 'OpenAI Codex',
-		cursor: 'Cursor',
-		'claude-code': 'Claude Code',
-		copilot: 'GitHub Copilot',
-		gemini: 'Gemini',
-		cline: 'Cline',
-		roo: 'Roo Code',
-		windsurf: 'Windsurf',
-		zed: 'Zed',
-		amp: 'Amp',
-		warp: 'Warp',
-	};
-	return displayNames[agentId] || agentId;
-}
-
-/**
  * Generate the introduction prompt for AI agents
  */
-function generateIntroPrompt(agent: string | undefined): string {
-	const agentGreeting = agent
-		? `Hello ${getAgentDisplayName(agent)}! `
-		: 'Hello! ';
+export function generateIntroPrompt(agent: string | undefined): string {
+	const agentGreeting = agent ? `Hello ${getAgentDisplayName(agent)}! ` : 'Hello! ';
 
 	const detectedAgents = KNOWN_AGENTS.map(([, name]) => getAgentDisplayName(name)).join(', ');
 
@@ -144,11 +121,9 @@ export const introSubcommand = createSubcommand({
 	description: 'Introduction to Agentuity CLI for AI coding agents',
 	tags: ['read-only', 'fast'],
 	idempotent: true,
-	examples: [
-		{ command: getCommand('ai intro'), description: 'Show introduction for AI agents' },
-	],
-	async handler(_ctx: CommandContext) {
-		const agent = await isExecutingFromAgent();
+	examples: [{ command: getCommand('ai intro'), description: 'Show introduction for AI agents' }],
+	handler(_ctx: CommandContext) {
+		const agent = getExecutingAgent();
 
 		if (!agent) {
 			// Human is running this command directly
@@ -164,7 +139,9 @@ export const introSubcommand = createSubcommand({
 				`  Ask your AI coding agent to run ${tui.colorPrimary(`"${getCommand('ai intro')}"`)} to introduce\n` +
 					`  itself to the Agentuity platform and learn how to help you build and deploy agents.\n`
 			);
-			console.log(`  ${tui.muted('Supported agents:')} ${KNOWN_AGENTS.map(([, name]) => getAgentDisplayName(name)).join(', ')}\n`);
+			console.log(
+				`  ${tui.muted('Supported agents:')} ${KNOWN_AGENTS.map(([, name]) => getAgentDisplayName(name)).join(', ')}\n`
+			);
 			return;
 		}
 

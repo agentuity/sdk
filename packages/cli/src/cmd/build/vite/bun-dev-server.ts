@@ -6,6 +6,7 @@
  */
 
 import type { Logger } from '../../../types';
+import { getAgentEnv } from '../../../agent-detection';
 
 export interface BunDevServerOptions {
 	rootDir: string;
@@ -80,6 +81,7 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 			stderr: 'inherit',
 			env: {
 				...process.env,
+				...getAgentEnv(),
 				PORT: String(port),
 			},
 		});

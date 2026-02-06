@@ -2,12 +2,18 @@
  * Box drawing and UI symbols for TUI components
  * Supports Unicode with ASCII fallbacks for non-unicode terminals
  */
+import { getExecutingAgent } from '../agent-detection';
 
 // Detect unicode support
 const isUnicodeSupported = (): boolean => {
 	// FORCE_UNICODE overrides detection (used by fork wrapper)
 	if (process.env.FORCE_UNICODE === '1') {
 		return true;
+	}
+
+	// Use ASCII for AI coding agents (cleaner output for parsing)
+	if (getExecutingAgent()) {
+		return false;
 	}
 
 	if (process.platform !== 'win32') {
