@@ -209,6 +209,24 @@ export interface WebRTCClientCallbacks {
 
 	/**
 	 * Called when a message is received on a data channel.
+	 * 
+	 * **Note:** String messages are automatically parsed as JSON if valid.
+	 * - If the message is valid JSON, `data` will be the parsed object/array/value
+	 * - If the message is not valid JSON, `data` will be the raw string
+	 * - Binary messages (ArrayBuffer) are passed through unchanged
+	 * 
+	 * To distinguish between parsed JSON and raw strings, check the type:
+	 * ```ts
+	 * onDataChannelMessage: (peerId, label, data) => {
+	 *   if (typeof data === 'string') {
+	 *     // Raw string (failed JSON parse)
+	 *   } else if (data instanceof ArrayBuffer) {
+	 *     // Binary data
+	 *   } else {
+	 *     // Parsed JSON object/array/primitive
+	 *   }
+	 * }
+	 * ```
 	 */
 	onDataChannelMessage?: (
 		peerId: string,
@@ -361,6 +379,7 @@ export class WebRTCManager {
 	private isScreenSharing = false;
 
 	private _state: WebRTCConnectionState = 'idle';
+	private isConnecting = false;
 	private basePolite: boolean | undefined;
 
 	private options: WebRTCManagerOptions;
@@ -560,7 +579,8 @@ export class WebRTCManager {
 	 * Connect to the signaling server and start the call
 	 */
 	async connect(): Promise<void> {
-		if (this._state !== 'idle') return;
+		if (this._state !== 'idle' || this.isConnecting) return;
+		this.isConnecting = true;
 		this.intentionalClose = false;
 		this.reconnectManager.reset();
 
@@ -583,7 +603,10 @@ export class WebRTCManager {
 			}
 			const error = err instanceof Error ? err : new Error(String(err));
 			this.callbacks.onError?.(error, this._state);
+			this.isConnecting = false;
 			this.setState('idle', 'error');
+		} finally {
+			this.isConnecting = false;
 		}
 	}
 
@@ -628,7 +651,12 @@ export class WebRTCManager {
 		this.ws.onmessage = (event) => {
 			try {
 				const msg = JSON.parse(event.data) as SignalMessage;
-				this.handleSignalingMessage(msg);
+				void this.handleSignalingMessage(msg).catch((err) => {
+					this.callbacks.onError?.(
+						err instanceof Error ? err : new Error(String(err)),
+						this._state
+					);
+				});
 			} catch (_err) {
 				this.callbacks.onError?.(new Error('Invalid signaling message'), this._state);
 			}
@@ -956,17 +984,27 @@ export class WebRTCManager {
 		const session = this.peers.get(peerId);
 		if (!session) return;
 
+		// Clear ICE gathering timer if exists
 		if (session.iceGatheringTimer) {
 			clearTimeout(session.iceGatheringTimer);
 			session.iceGatheringTimer = null;
 		}
 
+		// Close data channels
 		for (const channel of session.dataChannels.values()) {
 			channel.close();
 		}
 		session.dataChannels.clear();
 
-		session.pc.close();
+		// Clear all event handlers before closing to prevent memory leaks
+		const pc = session.pc;
+		pc.ontrack = null;
+		pc.ondatachannel = null;
+		pc.onicecandidate = null;
+		pc.onnegotiationneeded = null;
+		pc.oniceconnectionstatechange = null;
+
+		pc.close();
 		this.peers.delete(peerId);
 	}
 
@@ -1501,7 +1539,13 @@ export class WebRTCManager {
 			const mimeType = recorder.mimeType;
 			promises.push(
 				new Promise<void>((resolve) => {
+					const timeout = setTimeout(() => {
+						console.warn(`Recording stop timeout for stream ${streamId}`);
+						resolve(); // Don't block other recordings
+					}, 5000);
+
 					recorder.onstop = () => {
+						clearTimeout(timeout);
 						blobs.set(streamId, new Blob(chunks, { type: mimeType }));
 						resolve();
 					};
