@@ -82,6 +82,11 @@ export const runSubcommand = createSubcommand({
 			env: {
 				...process.env,
 				AGENTUITY_CODER_MODE: 'non-interactive',
+				AGENTUITY_AGENT_MODE: 'opencode',
+				// Pass through profile if set
+				...(process.env.AGENTUITY_PROFILE
+					? { AGENTUITY_PROFILE: process.env.AGENTUITY_PROFILE }
+					: {}),
 			},
 		});
 
