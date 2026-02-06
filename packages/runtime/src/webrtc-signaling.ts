@@ -242,14 +242,34 @@ export class WebRTCRoomManager {
 			return;
 		}
 
+		// Validate message format
+		if (!msg || typeof msg.t !== 'string') {
+			const error = new Error('Invalid message format');
+			this.callbacks.onError?.(error);
+			this.send(ws, { t: 'error', message: error.message });
+			return;
+		}
+
 		switch (msg.t) {
 			case 'join':
+				if (!msg.roomId || typeof msg.roomId !== 'string') {
+					this.send(ws, { t: 'error', message: 'Missing or invalid roomId' });
+					return;
+				}
 				this.handleJoin(ws, msg.roomId);
 				break;
 			case 'sdp':
+				if (!msg.description || typeof msg.description !== 'object') {
+					this.send(ws, { t: 'error', message: 'Missing or invalid description' });
+					return;
+				}
 				this.handleSDP(ws, msg.to, msg.description);
 				break;
 			case 'ice':
+				if (!msg.candidate || typeof msg.candidate !== 'object') {
+					this.send(ws, { t: 'error', message: 'Missing or invalid candidate' });
+					return;
+				}
 				this.handleICE(ws, msg.to, msg.candidate);
 				break;
 			default:

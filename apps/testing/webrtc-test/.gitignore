@@ -16,13 +16,13 @@ coverage
 # logs
 
 /logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]\*.json
+*.log
+report.*.json
 
 # dotenv environment variable files
 
 .env
-.env.\*
+.env.*
 
 # caches
 

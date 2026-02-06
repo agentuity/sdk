@@ -126,7 +126,8 @@ export function WebRTCTestPage() {
 						// Assign color to peer if not already assigned
 						if (!peerColorsRef.current.has(remotePeerId)) {
 							const colorIndex = peerColorsRef.current.size % CURSOR_COLORS.length;
-							peerColorsRef.current.set(remotePeerId, CURSOR_COLORS[colorIndex]);
+							const color = CURSOR_COLORS[colorIndex] ?? '#e91e63';
+							peerColorsRef.current.set(remotePeerId, color);
 						}
 					}
 				},

@@ -32,32 +32,40 @@ src/web/
 import { AgentuityProvider, useAgent } from '@agentuity/react';
 import { useState } from 'react';
 
-export function App() {
+function HelloAgent() {
 	const [name, setName] = useState('World');
 	const { run, running, data: greeting } = useAgent('hello');
 
 	return (
-		<div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-			<AgentuityProvider>
-				<h1>Welcome to Agentuity</h1>
+		<>
+			<h1>Welcome to Agentuity</h1>
 
-				<input
-					type="text"
-					value={name}
-					onChange={(e) => setName(e.target.value)}
-					disabled={running}
-				/>
+			<input
+				type="text"
+				value={name}
+				onChange={(e) => setName(e.target.value)}
+				disabled={running}
+			/>
 
-				<button
-					onClick={() => run({ name })}
-					disabled={running}
-				>
-					{running ? 'Running...' : 'Say Hello'}
-				</button>
+			<button
+				onClick={() => run({ name })}
+				disabled={running}
+			>
+				{running ? 'Running...' : 'Say Hello'}
+			</button>
 
-				<div>{greeting ?? 'Waiting for response'}</div>
-			</AgentuityProvider>
-		</div>
+			<div>{greeting ?? 'Waiting for response'}</div>
+		</>
+	);
+}
+
+export function App() {
+	return (
+		<AgentuityProvider>
+			<div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
+				<HelloAgent />
+			</div>
+		</AgentuityProvider>
 	);
 }
 ```
@@ -151,7 +159,7 @@ function MyComponent() {
 import { AgentuityProvider, useAgent, useAgentWebsocket } from '@agentuity/react';
 import { useEffect, useState } from 'react';
 
-export function App() {
+function AppContent() {
 	const [count, setCount] = useState(0);
 	const { run, data: agentResult } = useAgent('simple');
 	const { connected, send, data: wsMessage } = useAgentWebsocket('websocket');
@@ -166,29 +174,35 @@ export function App() {
 
 	return (
 		<div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-			<AgentuityProvider>
-				<h1>My Agentuity App</h1>
+			<h1>My Agentuity App</h1>
 
-				<div>
-					<p>Count: {count}</p>
-					<button onClick={() => setCount(c => c + 1)}>
-						Increment
-					</button>
-				</div>
+			<div>
+				<p>Count: {count}</p>
+				<button onClick={() => setCount(c => c + 1)}>
+					Increment
+				</button>
+			</div>
 
-				<div>
-					<button onClick={() => run({ name: 'Jeff', age: 30 })}>
-						Call Agent
-					</button>
-					<p>{agentResult}</p>
-				</div>
+			<div>
+				<button onClick={() => run({ name: 'Jeff', age: 30 })}>
+					Call Agent
+				</button>
+				<p>{agentResult}</p>
+			</div>
 
-				<div>
-					<strong>WebSocket:</strong>
-					{connected ? JSON.stringify(wsMessage) : 'Not connected'}
-				</div>
-			</AgentuityProvider>
+			<div>
+				<strong>WebSocket:</strong>
+				{connected ? JSON.stringify(wsMessage) : 'Not connected'}
+			</div>
 		</div>
+	);
+}
+
+export function App() {
+	return (
+		<AgentuityProvider>
+			<AppContent />
+		</AgentuityProvider>
 	);
 }
 ```

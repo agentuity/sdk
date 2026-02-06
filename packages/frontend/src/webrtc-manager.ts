@@ -493,8 +493,12 @@ export class WebRTCManager {
 			};
 
 			this.ws.onmessage = (event) => {
-				const msg = JSON.parse(event.data) as SignalMessage;
-				this.handleSignalingMessage(msg);
+				try {
+					const msg = JSON.parse(event.data) as SignalMessage;
+					this.handleSignalingMessage(msg);
+				} catch (err) {
+					this.callbacks.onError?.(new Error('Invalid signaling message'), this._state);
+				}
 			};
 
 			this.ws.onerror = () => {
@@ -508,6 +512,17 @@ export class WebRTCManager {
 				}
 			};
 		} catch (err) {
+			// Clean up local media on failure
+			if (this.localStream) {
+				for (const track of this.localStream.getTracks()) {
+					track.stop();
+				}
+				this.localStream = null;
+			}
+			if (this.trackSource) {
+				this.trackSource.stop();
+				this.trackSource = null;
+			}
 			const error = err instanceof Error ? err : new Error(String(err));
 			this.callbacks.onError?.(error, this._state);
 			this.setState('idle', 'error');
@@ -1010,6 +1025,10 @@ export class WebRTCManager {
 
 		const screenStream = await navigator.mediaDevices.getDisplayMedia(options);
 		const screenTrack = screenStream.getVideoTracks()[0];
+
+		if (!screenTrack) {
+			throw new Error('Failed to get screen video track');
+		}
 
 		if (this.localStream) {
 			const currentVideoTrack = this.localStream.getVideoTracks()[0];
