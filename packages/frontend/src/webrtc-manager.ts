@@ -209,12 +209,12 @@ export interface WebRTCClientCallbacks {
 
 	/**
 	 * Called when a message is received on a data channel.
-	 * 
+	 *
 	 * **Note:** String messages are automatically parsed as JSON if valid.
 	 * - If the message is valid JSON, `data` will be the parsed object/array/value
 	 * - If the message is not valid JSON, `data` will be the raw string
 	 * - Binary messages (ArrayBuffer) are passed through unchanged
-	 * 
+	 *
 	 * To distinguish between parsed JSON and raw strings, check the type:
 	 * ```ts
 	 * onDataChannelMessage: (peerId, label, data) => {
@@ -612,7 +612,11 @@ export class WebRTCManager {
 
 	private async ensureLocalStream(): Promise<void> {
 		if (this.options.media === false || this.localStream) return;
-		if (this.options.media && typeof this.options.media === 'object' && 'getStream' in this.options.media) {
+		if (
+			this.options.media &&
+			typeof this.options.media === 'object' &&
+			'getStream' in this.options.media
+		) {
 			this.trackSource = this.options.media;
 		} else {
 			const constraints = (this.options.media as MediaStreamConstraints) ?? {

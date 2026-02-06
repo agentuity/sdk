@@ -178,7 +178,9 @@ export const CreateProjectDeploymentSchema = z.object({
 		.describe('the URL for streaming build logs (PUT to write, GET to read)'),
 });
 
-const CreateProjectDeploymentResponseSchema = APIResponseSchema(CreateProjectDeploymentSchema);
+export const CreateProjectDeploymentResponseSchema = APIResponseSchema(
+	CreateProjectDeploymentSchema
+);
 
 type CreateProjectDeploymentPayload = z.infer<typeof CreateProjectDeploymentResponseSchema>;
 
@@ -218,7 +220,7 @@ export const DeploymentInstructionsSchema = z.object({
 		.describe('the upload metadata for public assets'),
 });
 
-const DeploymentInstructionsResponseSchema = APIResponseSchema(DeploymentInstructionsSchema);
+export const DeploymentInstructionsResponseSchema = APIResponseSchema(DeploymentInstructionsSchema);
 
 type DeploymentInstructionsResponse = z.infer<typeof DeploymentInstructionsResponseSchema>;
 export type DeploymentInstructions = z.infer<typeof DeploymentInstructionsSchema>;
@@ -259,7 +261,7 @@ export const DeploymentCompleteSchema = z.object({
 		.describe('the map of public urls'),
 });
 
-const DeploymentCompleteResponseSchema = APIResponseSchema(DeploymentCompleteSchema);
+export const DeploymentCompleteResponseSchema = APIResponseSchema(DeploymentCompleteSchema);
 
 type DeploymentCompleteResponse = z.infer<typeof DeploymentCompleteResponseSchema>;
 export type DeploymentComplete = z.infer<typeof DeploymentCompleteSchema>;
@@ -278,7 +280,7 @@ export const DeploymentStatusSchema = z.object({
 	state: DeploymentStateValue.describe('the current deployment state'),
 });
 
-const DeploymentStatusResponseSchema = APIResponseSchema(DeploymentStatusSchema);
+export const DeploymentStatusResponseSchema = APIResponseSchema(DeploymentStatusSchema);
 
 type DeploymentStatusResponse = z.infer<typeof DeploymentStatusResponseSchema>;
 export type DeploymentStatusResult = z.infer<typeof DeploymentStatusSchema>;
@@ -393,7 +395,7 @@ export const DeploymentFailResponseSchema = z.object({
 	state: z.literal('failed'),
 });
 
-const DeploymentFailAPIResponseSchema = APIResponseSchema(DeploymentFailResponseSchema);
+export const DeploymentFailAPIResponseSchema = APIResponseSchema(DeploymentFailResponseSchema);
 type DeploymentFailResponse = z.infer<typeof DeploymentFailAPIResponseSchema>;
 
 /**

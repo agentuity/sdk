@@ -83,38 +83,41 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 						return;
 					}
 
-				// Inject AGENTUITY_PROFILE and AGENTUITY_OPENCODE_SESSION environment variables
-				const profile = getCoderProfile();
-				const sessionId = (input as { sessionID?: string }).sessionID;
+					// Inject AGENTUITY_PROFILE and AGENTUITY_OPENCODE_SESSION environment variables
+					const profile = getCoderProfile();
+					const sessionId = (input as { sessionID?: string }).sessionID;
 
-				// Escape values for safe shell interpolation
-				const escapedProfile = shellEscape(profile);
-				const escapedSessionId = sessionId ? shellEscape(sessionId) : undefined;
+					// Escape values for safe shell interpolation
+					const escapedProfile = shellEscape(profile);
+					const escapedSessionId = sessionId ? shellEscape(sessionId) : undefined;
 
-				let modifiedCommand: string;
+					let modifiedCommand: string;
 
-			// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
-			if (/AGENTUITY_PROFILE=(?:'[^']*'|\S+)/.test(command)) {
-				// Replace all existing AGENTUITY_PROFILE occurrences to enforce our profile
-			modifiedCommand = command.replace(
-				/AGENTUITY_PROFILE=(?:'[^']*'|\S+)/g,
-				() => `AGENTUITY_PROFILE=${escapedProfile}`
-			);
-					// Add session ID and agent mode if not already present
-					if (escapedSessionId && !modifiedCommand.includes('AGENTUITY_OPENCODE_SESSION=')) {
-						modifiedCommand = `AGENTUITY_OPENCODE_SESSION=${escapedSessionId} ${modifiedCommand}`;
+					// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
+					if (/AGENTUITY_PROFILE=(?:'[^']*'|\S+)/.test(command)) {
+						// Replace all existing AGENTUITY_PROFILE occurrences to enforce our profile
+						modifiedCommand = command.replace(
+							/AGENTUITY_PROFILE=(?:'[^']*'|\S+)/g,
+							() => `AGENTUITY_PROFILE=${escapedProfile}`
+						);
+						// Add session ID and agent mode if not already present
+						if (
+							escapedSessionId &&
+							!modifiedCommand.includes('AGENTUITY_OPENCODE_SESSION=')
+						) {
+							modifiedCommand = `AGENTUITY_OPENCODE_SESSION=${escapedSessionId} ${modifiedCommand}`;
+						}
+						if (!modifiedCommand.includes('AGENTUITY_AGENT_MODE=')) {
+							modifiedCommand = `AGENTUITY_AGENT_MODE=opencode ${modifiedCommand}`;
+						}
+					} else {
+						// Build environment variable prefix
+						let envVars = `AGENTUITY_PROFILE=${escapedProfile} AGENTUITY_AGENT_MODE=opencode`;
+						if (escapedSessionId) {
+							envVars += ` AGENTUITY_OPENCODE_SESSION=${escapedSessionId}`;
+						}
+						modifiedCommand = `${envVars} ${command}`;
 					}
-					if (!modifiedCommand.includes('AGENTUITY_AGENT_MODE=')) {
-						modifiedCommand = `AGENTUITY_AGENT_MODE=opencode ${modifiedCommand}`;
-					}
-				} else {
-					// Build environment variable prefix
-					let envVars = `AGENTUITY_PROFILE=${escapedProfile} AGENTUITY_AGENT_MODE=opencode`;
-					if (escapedSessionId) {
-						envVars += ` AGENTUITY_OPENCODE_SESSION=${escapedSessionId}`;
-					}
-					modifiedCommand = `${envVars} ${command}`;
-				}
 					setBashCommand(input, modifiedCommand);
 
 					// Show toast for cloud service usage

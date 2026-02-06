@@ -1,31 +1,31 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
 import {
-	DeadLetterMessageSchema,
-	MessageSchema,
 	type DeadLetterMessage,
-	type Message,
+	DeadLetterMessageSchema,
 	type ListDlqRequest,
+	type Message,
+	MessageSchema,
 	type QueueApiOptions,
 } from './types';
 import {
+	buildQueueHeaders,
+	MessageNotFoundError,
 	QueueError,
 	QueueNotFoundError,
-	MessageNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
-	buildQueueHeaders,
 } from './util';
-import { validateQueueName, validateMessageId, validateLimit, validateOffset } from './validation';
+import { validateLimit, validateMessageId, validateOffset, validateQueueName } from './validation';
 
-const DlqListResponseSchema = APIResponseSchema(
+export const DlqListResponseSchema = APIResponseSchema(
 	z.object({
 		messages: z.array(DeadLetterMessageSchema),
 		total: z.number().optional(),
 	})
 );
-const ReplayDlqResponseSchema = APIResponseSchema(z.object({ message: MessageSchema }));
-const DeleteDlqResponseSchema = APIResponseSchemaNoData();
+export const ReplayDlqResponseSchema = APIResponseSchema(z.object({ message: MessageSchema }));
+export const DeleteDlqResponseSchema = APIResponseSchemaNoData();
 
 /**
  * List messages in the dead letter queue.

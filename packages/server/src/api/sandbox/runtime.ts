@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { throwSandboxError, API_VERSION } from './util';
 import type { ListRuntimesParams, ListRuntimesResponse, SandboxRuntime } from '@agentuity/core';
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '../api';
+import { API_VERSION, throwSandboxError } from './util';
 
-const RuntimeRequirementsSchema = z
+export const RuntimeRequirementsSchema = z
 	.object({
 		memory: z.string().optional().describe('Memory requirement (e.g., "1Gi")'),
 		cpu: z.string().optional().describe('CPU requirement (e.g., "1")'),
@@ -12,7 +12,7 @@ const RuntimeRequirementsSchema = z
 	})
 	.describe('Runtime resource requirements');
 
-const RuntimeInfoSchema = z
+export const RuntimeInfoSchema = z
 	.object({
 		id: z.string().describe('Unique runtime identifier'),
 		name: z.string().describe('Runtime name (e.g., "bun:1", "python:3.14")'),
@@ -26,14 +26,14 @@ const RuntimeInfoSchema = z
 	})
 	.describe('Information about a sandbox runtime');
 
-const ListRuntimesDataSchema = z
+export const ListRuntimesDataSchema = z
 	.object({
 		runtimes: z.array(RuntimeInfoSchema).describe('List of runtime entries'),
 		total: z.number().describe('Total number of runtimes'),
 	})
 	.describe('List of sandbox runtimes');
 
-const ListRuntimesResponseSchema = APIResponseSchema(ListRuntimesDataSchema);
+export const ListRuntimesResponseSchema = APIResponseSchema(ListRuntimesDataSchema);
 
 export interface RuntimeListParams extends ListRuntimesParams {
 	orgId?: string;

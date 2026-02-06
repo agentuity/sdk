@@ -292,7 +292,8 @@ function buildCommandSection(cmd: SchemaCommand, prefix: string, depth: number =
 		lines.push('**Options:**');
 		for (const opt of cmd.options) {
 			const flag = `--${camelToKebab(opt.name)}`;
-			const defaultVal = opt.default !== undefined ? ` (default: ${JSON.stringify(opt.default)})` : '';
+			const defaultVal =
+				opt.default !== undefined ? ` (default: ${JSON.stringify(opt.default)})` : '';
 			lines.push(`- \`${flag}\`${defaultVal}${opt.description ? ` - ${opt.description}` : ''}`);
 		}
 		lines.push('');
@@ -340,7 +341,8 @@ function buildGlobalOptions(schema: CLISchema): string {
 
 	for (const opt of schema.globalOptions) {
 		const flag = `--${camelToKebab(opt.name)}`;
-		const defaultVal = opt.default !== undefined ? ` (default: ${JSON.stringify(opt.default)})` : '';
+		const defaultVal =
+			opt.default !== undefined ? ` (default: ${JSON.stringify(opt.default)})` : '';
 		lines.push(`- \`${flag}\`${defaultVal}${opt.description ? ` - ${opt.description}` : ''}`);
 	}
 

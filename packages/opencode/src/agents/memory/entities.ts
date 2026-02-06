@@ -64,11 +64,10 @@ async function runCommand(
 
 async function fetchWhoami() {
 	const profile = getCoderProfile();
-	const result = await runCommand(
-		['agentuity', '--json', 'auth', 'whoami'],
-		undefined,
-		{ AGENTUITY_PROFILE: profile, AGENTUITY_AGENT_MODE: 'opencode' }
-	);
+	const result = await runCommand(['agentuity', '--json', 'auth', 'whoami'], undefined, {
+		AGENTUITY_PROFILE: profile,
+		AGENTUITY_AGENT_MODE: 'opencode',
+	});
 
 	if (result.exitCode !== 0 || !result.stdout) {
 		return undefined;

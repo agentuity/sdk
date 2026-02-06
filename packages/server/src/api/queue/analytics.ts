@@ -1,25 +1,29 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import {
-	OrgAnalyticsSchema,
-	QueueAnalyticsSchema,
-	TimeSeriesDataSchema,
-	SSEStatsEventSchema,
-	type OrgAnalytics,
-	type QueueAnalytics,
-	type TimeSeriesData,
-	type SSEStatsEvent,
 	type AnalyticsOptions,
+	type OrgAnalytics,
+	OrgAnalyticsSchema,
+	type QueueAnalytics,
+	QueueAnalyticsSchema,
+	type SSEStatsEvent,
+	SSEStatsEventSchema,
 	type StreamAnalyticsOptions,
+	type TimeSeriesData,
+	TimeSeriesDataSchema,
 } from './types';
-import { QueueError, QueueNotFoundError, queueApiPathWithQuery, buildQueueHeaders } from './util';
+import { buildQueueHeaders, QueueError, QueueNotFoundError, queueApiPathWithQuery } from './util';
 import { validateQueueName } from './validation';
 
-const OrgAnalyticsResponseSchema = APIResponseSchema(z.object({ analytics: OrgAnalyticsSchema }));
-const QueueAnalyticsResponseSchema = APIResponseSchema(
+export const OrgAnalyticsResponseSchema = APIResponseSchema(
+	z.object({ analytics: OrgAnalyticsSchema })
+);
+export const QueueAnalyticsResponseSchema = APIResponseSchema(
 	z.object({ analytics: QueueAnalyticsSchema })
 );
-const TimeSeriesResponseSchema = APIResponseSchema(z.object({ timeseries: TimeSeriesDataSchema }));
+export const TimeSeriesResponseSchema = APIResponseSchema(
+	z.object({ timeseries: TimeSeriesDataSchema })
+);
 
 /**
  * Build query string from analytics options.

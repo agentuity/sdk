@@ -115,9 +115,11 @@ test('bitrate calculation uses previous stats snapshot', () => {
 			lastStatsTime: now - 1000,
 		} as unknown as { lastStats?: RTCStatsReport; lastStatsTime?: number };
 
-		const summary = (manager as unknown as {
-			parseStatsToSummary: (stats: RTCStatsReport, session: unknown) => { bitrate?: unknown };
-		}).parseStatsToSummary(currentStats, session);
+		const summary = (
+			manager as unknown as {
+				parseStatsToSummary: (stats: RTCStatsReport, session: unknown) => { bitrate?: unknown };
+			}
+		).parseStatsToSummary(currentStats, session);
 
 		expect(summary.bitrate).toBeDefined();
 		const bitrate = summary.bitrate as {

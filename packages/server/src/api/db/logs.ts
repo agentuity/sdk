@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { DbInvalidArgumentError, DbResponseError } from './util';
 
 export const DbLogsRequestSchema = z.object({
@@ -30,7 +30,7 @@ export const DbQueryLogSchema = z.object({
 
 export const DbLogsResponseSchema = z.array(DbQueryLogSchema);
 
-const DbLogsAPIResponseSchema = APIResponseSchema(DbLogsResponseSchema);
+export const DbLogsAPIResponseSchema = APIResponseSchema(DbLogsResponseSchema);
 
 type DbLogsRequest = z.infer<typeof DbLogsRequestSchema>;
 type DbLogsAPIResponse = z.infer<typeof DbLogsAPIResponseSchema>;

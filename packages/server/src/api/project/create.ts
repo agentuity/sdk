@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { ProjectResponseError } from './util';
 
 export const CreateProjectRequestSchema = z.object({
@@ -16,7 +16,7 @@ export const NewProjectSchema = z.object({
 	sdkKey: z.string().describe('the SDK key for the project'),
 });
 
-const CreateProjectResponseSchema = APIResponseSchema(NewProjectSchema);
+export const CreateProjectResponseSchema = APIResponseSchema(NewProjectSchema);
 
 export type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
 export type CreateProjectResponse = z.infer<typeof CreateProjectResponseSchema>;

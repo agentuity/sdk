@@ -116,7 +116,10 @@ function initFFI(): FFIFunctions {
 		// FFI initialization failed (e.g., missing libc on musl/Alpine, dlopen error)
 		// Fall back to unsupported stub - agent detection will be skipped
 		if (process.env.AGENTUITY_DEBUG_AGENT_DETECTION === '1') {
-			console.error('[agent-detection] FFI initialization failed:', err instanceof Error ? err.message : err);
+			console.error(
+				'[agent-detection] FFI initialization failed:',
+				err instanceof Error ? err.message : err
+			);
 		}
 		return unsupportedFFI;
 	}
@@ -197,14 +200,7 @@ function initDarwinFFI(): FFIFunctions {
 			const mib = new Int32Array([1, 49, pid]);
 			const sizePtr = new BigUint64Array([BigInt(ARG_MAX)]);
 
-			const result = lib.symbols.sysctl(
-				ptr(mib),
-				3,
-				ptr(argBuf),
-				ptr(sizePtr),
-				null,
-				0
-			);
+			const result = lib.symbols.sysctl(ptr(mib), 3, ptr(argBuf), ptr(sizePtr), null, 0);
 
 			if (result === 0) {
 				const size = Number(sizePtr[0]);
@@ -424,15 +420,16 @@ function detectParentAgent(): string | undefined {
 	// Dump relevant env vars for debugging agent detection
 	if (DEBUG) {
 		const relevantEnvVars = Object.entries(process.env)
-			.filter(([key]) =>
-				key.startsWith('WARP') ||
-				key.startsWith('TERM') ||
-				key.startsWith('AGENTUITY') ||
-				key === 'SHELL' ||
-				key === 'LC_TERMINAL' ||
-				key === 'ITERM_SESSION_ID' ||
-				key === 'VSCODE_INJECTION' ||
-				key === 'CURSOR_TRACE_ID'
+			.filter(
+				([key]) =>
+					key.startsWith('WARP') ||
+					key.startsWith('TERM') ||
+					key.startsWith('AGENTUITY') ||
+					key === 'SHELL' ||
+					key === 'LC_TERMINAL' ||
+					key === 'ITERM_SESSION_ID' ||
+					key === 'VSCODE_INJECTION' ||
+					key === 'CURSOR_TRACE_ID'
 			)
 			.map(([key, value]) => `${key}=${value}`)
 			.join(', ');
@@ -501,7 +498,10 @@ function detectParentAgent(): string | undefined {
 
 		// Check the command line (for agents running as node/bun scripts)
 		const cmdline = getProcessCmdline(currentPid);
-		debugLog(`[${depth}] PID ${currentPid} cmdline:`, cmdline?.substring(0, 200) + (cmdline && cmdline.length > 200 ? '...' : ''));
+		debugLog(
+			`[${depth}] PID ${currentPid} cmdline:`,
+			cmdline?.substring(0, 200) + (cmdline && cmdline.length > 200 ? '...' : '')
+		);
 
 		if (cmdline) {
 			const agent = matchAgentCmdline(cmdline);

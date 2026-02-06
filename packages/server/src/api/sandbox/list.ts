@@ -1,22 +1,22 @@
-import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { throwSandboxError, API_VERSION } from './util';
 import type {
 	ListSandboxesParams,
 	ListSandboxesResponse,
-	SandboxStatus,
 	SandboxRuntimeInfo,
 	SandboxSnapshotInfo,
+	SandboxStatus,
 } from '@agentuity/core';
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '../api';
+import { API_VERSION, throwSandboxError } from './util';
 
-const SandboxOrgInfoSchema = z
+export const SandboxOrgInfoSchema = z
 	.object({
 		id: z.string().describe('Organization ID'),
 		name: z.string().describe('Organization name'),
 	})
 	.describe('Organization associated with the sandbox');
 
-const SandboxRuntimeInfoSchema = z
+export const SandboxRuntimeInfoSchema = z
 	.object({
 		id: z.string().describe('Runtime ID'),
 		name: z.string().describe('Runtime name (e.g., "bun:1")'),
@@ -26,7 +26,7 @@ const SandboxRuntimeInfoSchema = z
 	})
 	.describe('Runtime information');
 
-const SandboxSnapshotUserInfoSchema = z
+export const SandboxSnapshotUserInfoSchema = z
 	.object({
 		id: z.string().describe('User ID'),
 		firstName: z.string().optional().describe("User's first name"),
@@ -34,7 +34,7 @@ const SandboxSnapshotUserInfoSchema = z
 	})
 	.describe('Snapshot user information');
 
-const SandboxSnapshotOrgInfoSchema = z
+export const SandboxSnapshotOrgInfoSchema = z
 	.object({
 		id: z.string().describe('Organization ID'),
 		name: z.string().describe('Organization name'),
@@ -42,7 +42,7 @@ const SandboxSnapshotOrgInfoSchema = z
 	})
 	.describe('Snapshot organization information');
 
-const SandboxSnapshotInfoSchema = z
+export const SandboxSnapshotInfoSchema = z
 	.union([
 		z
 			.object({
@@ -69,7 +69,7 @@ const SandboxSnapshotInfoSchema = z
 	])
 	.describe('Snapshot information (discriminated union)');
 
-const SandboxInfoSchema = z
+export const SandboxInfoSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
 		identifier: z.string().optional().describe('Short identifier for DNS hostname'),
@@ -96,14 +96,14 @@ const SandboxInfoSchema = z
 	})
 	.describe('Summary information about a sandbox');
 
-const ListSandboxesDataSchema = z
+export const ListSandboxesDataSchema = z
 	.object({
 		sandboxes: z.array(SandboxInfoSchema).describe('List of sandbox entries'),
 		total: z.number().describe('Total number of sandboxes matching the query'),
 	})
 	.describe('Paginated list of sandboxes');
 
-const ListSandboxesResponseSchema = APIResponseSchema(ListSandboxesDataSchema);
+export const ListSandboxesResponseSchema = APIResponseSchema(ListSandboxesDataSchema);
 
 export interface SandboxListParams extends ListSandboxesParams {
 	orgId?: string;

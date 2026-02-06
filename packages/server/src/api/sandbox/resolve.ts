@@ -1,11 +1,11 @@
-import { z } from 'zod';
 import { StructuredError } from '@agentuity/core';
-import { APIResponseSchemaOptionalData, type APIClient } from '../api';
+import { z } from 'zod';
+import { type APIClient, APIResponseSchemaOptionalData } from '../api';
 
 /**
  * Data schema for sandbox resolve endpoint
  */
-const SandboxResolveDataSchema = z.object({
+export const SandboxResolveDataSchema = z.object({
 	id: z.string(),
 	name: z.string().nullable(),
 	region: z.string(),
@@ -17,7 +17,7 @@ const SandboxResolveDataSchema = z.object({
 /**
  * Response schema for sandbox resolve endpoint using standardized discriminated union
  */
-const SandboxResolveResponseSchema = APIResponseSchemaOptionalData(SandboxResolveDataSchema);
+export const SandboxResolveResponseSchema = APIResponseSchemaOptionalData(SandboxResolveDataSchema);
 
 /**
  * Resolved sandbox info returned from the CLI API

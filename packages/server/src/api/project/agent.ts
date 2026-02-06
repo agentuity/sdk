@@ -28,8 +28,8 @@ export const AgentSchema = z.object({
 		.describe('Associated evaluations'),
 });
 
-const AgentListResponseSchema = APIResponseSchema(z.array(AgentSchema));
-const AgentGetResponseSchema = APIResponseSchema(z.array(AgentSchema));
+export const AgentListResponseSchema = APIResponseSchema(z.array(AgentSchema));
+export const AgentGetResponseSchema = APIResponseSchema(z.array(AgentSchema));
 
 export type Agent = z.infer<typeof AgentSchema>;
 
