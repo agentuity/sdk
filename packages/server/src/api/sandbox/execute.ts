@@ -7,9 +7,14 @@ export const ExecuteRequestSchema = z
 	.object({
 		command: z.array(z.string()).describe('Command and arguments to execute'),
 		files: z
-			.record(z.string(), z.string())
+			.array(
+				z.object({
+					path: z.string().describe('File path relative to workspace'),
+					content: z.string().describe('Base64-encoded file content'),
+				})
+			)
 			.optional()
-			.describe('Files to write before execution (path -> base64 content)'),
+			.describe('Files to write before execution'),
 		timeout: z.string().optional().describe('Execution timeout (e.g., "30s", "5m")'),
 		stream: z
 			.object({
@@ -62,9 +67,10 @@ export async function sandboxExecute(
 	};
 
 	if (options.files && options.files.length > 0) {
-		body.files = Object.fromEntries(
-			options.files.map((f) => [f.path, f.content.toString('base64')])
-		);
+		body.files = options.files.map((f) => ({
+			path: f.path,
+			content: f.content.toString('base64'),
+		}));
 	}
 	if (options.timeout) {
 		body.timeout = options.timeout;
