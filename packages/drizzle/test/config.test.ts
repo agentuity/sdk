@@ -4,10 +4,10 @@
  * Follows the pattern from packages/postgres/test/kysely.test.ts:
  * - Type compatibility tests (compile = pass)
  * - Direct instance creation with various configs (lazy connection, no real DB needed)
- * - Backward compatibility tests
+ * - URL priority chain tests (via resolvePostgresClientConfig)
  */
 import { describe, it, expect } from 'bun:test';
-import { createPostgresDrizzle } from '../src/postgres';
+import { createPostgresDrizzle, resolvePostgresClientConfig } from '../src/postgres';
 import type { PostgresDrizzleConfig } from '../src/types';
 
 describe('createPostgresDrizzle config', () => {
@@ -109,7 +109,7 @@ describe('createPostgresDrizzle config', () => {
 	});
 
 	describe('direct usage', () => {
-		it('can create instance with url', () => {
+		it('can create instance with url', async () => {
 			const { db, client, close } = createPostgresDrizzle({
 				url: 'postgres://localhost:5432/nonexistent_db',
 			});
@@ -118,11 +118,11 @@ describe('createPostgresDrizzle config', () => {
 				expect(client).toBeDefined();
 				expect(typeof close).toBe('function');
 			} finally {
-				close();
+				await close();
 			}
 		});
 
-		it('can create instance with connectionString', () => {
+		it('can create instance with connectionString', async () => {
 			const { db, client, close } = createPostgresDrizzle({
 				connectionString: 'postgres://localhost:5432/nonexistent_db',
 			});
@@ -131,11 +131,11 @@ describe('createPostgresDrizzle config', () => {
 				expect(client).toBeDefined();
 				expect(typeof close).toBe('function');
 			} finally {
-				close();
+				await close();
 			}
 		});
 
-		it('can create instance with connection.url', () => {
+		it('can create instance with connection.url', async () => {
 			const { db, client, close } = createPostgresDrizzle({
 				connection: {
 					url: 'postgres://localhost:5432/nonexistent_db',
@@ -146,11 +146,11 @@ describe('createPostgresDrizzle config', () => {
 				expect(client).toBeDefined();
 				expect(typeof close).toBe('function');
 			} finally {
-				close();
+				await close();
 			}
 		});
 
-		it('can create instance with connection object fields', () => {
+		it('can create instance with connection object fields', async () => {
 			const { db, client, close } = createPostgresDrizzle({
 				connection: {
 					hostname: 'localhost',
@@ -165,11 +165,11 @@ describe('createPostgresDrizzle config', () => {
 				expect(client).toBeDefined();
 				expect(typeof close).toBe('function');
 			} finally {
-				close();
+				await close();
 			}
 		});
 
-		it('can create instance with url and schema', () => {
+		it('can create instance with url and schema', async () => {
 			const mockSchema = { users: {} };
 			const { db, client, close } = createPostgresDrizzle({
 				url: 'postgres://localhost:5432/nonexistent_db',
@@ -180,11 +180,11 @@ describe('createPostgresDrizzle config', () => {
 				expect(client).toBeDefined();
 				expect(typeof close).toBe('function');
 			} finally {
-				close();
+				await close();
 			}
 		});
 
-		it('can create instance with url and logger', () => {
+		it('can create instance with url and logger', async () => {
 			const { db, client, close } = createPostgresDrizzle({
 				url: 'postgres://localhost:5432/nonexistent_db',
 				logger: true,
@@ -194,11 +194,11 @@ describe('createPostgresDrizzle config', () => {
 				expect(client).toBeDefined();
 				expect(typeof close).toBe('function');
 			} finally {
-				close();
+				await close();
 			}
 		});
 
-		it('can create instance with url and reconnect config', () => {
+		it('can create instance with url and reconnect config', async () => {
 			const { db, client, close } = createPostgresDrizzle({
 				url: 'postgres://localhost:5432/nonexistent_db',
 				reconnect: {
@@ -211,11 +211,11 @@ describe('createPostgresDrizzle config', () => {
 				expect(client).toBeDefined();
 				expect(typeof close).toBe('function');
 			} finally {
-				close();
+				await close();
 			}
 		});
 
-		it('can create instance with url and onReconnected callback', () => {
+		it('can create instance with url and onReconnected callback', async () => {
 			const { db, client, close } = createPostgresDrizzle({
 				url: 'postgres://localhost:5432/nonexistent_db',
 				onReconnected: () => {},
@@ -225,11 +225,11 @@ describe('createPostgresDrizzle config', () => {
 				expect(client).toBeDefined();
 				expect(typeof close).toBe('function');
 			} finally {
-				close();
+				await close();
 			}
 		});
 
-		it('can create instance with no config (defaults to DATABASE_URL)', () => {
+		it('can create instance with no config (defaults to DATABASE_URL)', async () => {
 			const originalDatabaseUrl = process.env.DATABASE_URL;
 			process.env.DATABASE_URL = 'postgres://localhost:5432/dummy_test_db';
 			try {
@@ -239,7 +239,7 @@ describe('createPostgresDrizzle config', () => {
 					expect(client).toBeDefined();
 					expect(typeof close).toBe('function');
 				} finally {
-					close();
+					await close();
 				}
 			} finally {
 				if (originalDatabaseUrl === undefined) {
@@ -252,112 +252,89 @@ describe('createPostgresDrizzle config', () => {
 	});
 
 	describe('URL priority chain', () => {
-		// These are type-level / structural tests verifying the config shape.
-		// The actual priority logic (connection.url > url > connectionString > DATABASE_URL)
-		// is validated by the fact that these configs compile and create valid instances.
-
-		it('connection.url takes highest precedence (type check)', () => {
-			const { db, close } = createPostgresDrizzle({
+		it('connection.url takes highest precedence', () => {
+			const resolved = resolvePostgresClientConfig({
 				connection: { url: 'postgres://connection-url:5432/db' },
 				url: 'postgres://top-level-url:5432/db',
 				connectionString: 'postgres://connection-string:5432/db',
 			});
-			try {
-				expect(db).toBeDefined();
-			} finally {
-				close();
-			}
+			expect(resolved.url).toBe('postgres://connection-url:5432/db');
 		});
 
-		it('url takes precedence over connectionString (type check)', () => {
-			const { db, close } = createPostgresDrizzle({
+		it('url takes precedence over connectionString', () => {
+			const resolved = resolvePostgresClientConfig({
 				url: 'postgres://top-level-url:5432/db',
 				connectionString: 'postgres://connection-string:5432/db',
 			});
-			try {
-				expect(db).toBeDefined();
-			} finally {
-				close();
-			}
+			expect(resolved.url).toBe('postgres://top-level-url:5432/db');
 		});
 
-		it('connectionString is used when no url or connection provided (type check)', () => {
-			const { db, close } = createPostgresDrizzle({
+		it('connectionString is used when no url or connection provided', () => {
+			const resolved = resolvePostgresClientConfig({
 				connectionString: 'postgres://connection-string:5432/db',
 			});
-			try {
-				expect(db).toBeDefined();
-			} finally {
-				close();
-			}
+			expect(resolved.url).toBe('postgres://connection-string:5432/db');
 		});
-	});
 
-	describe('backward compatibility', () => {
-		it('connectionString still works', () => {
-			const { db, client, close } = createPostgresDrizzle({
-				connectionString: 'postgres://localhost:5432/nonexistent_db',
-			});
+		it('falls back to DATABASE_URL when no url options provided', () => {
+			const originalDatabaseUrl = process.env.DATABASE_URL;
+			process.env.DATABASE_URL = 'postgres://env-url:5432/db';
 			try {
-				expect(db).toBeDefined();
-				expect(client).toBeDefined();
-				expect(typeof close).toBe('function');
+				const resolved = resolvePostgresClientConfig({});
+				expect(resolved.url).toBe('postgres://env-url:5432/db');
 			} finally {
-				close();
+				if (originalDatabaseUrl === undefined) {
+					delete process.env.DATABASE_URL;
+				} else {
+					process.env.DATABASE_URL = originalDatabaseUrl;
+				}
 			}
 		});
 
-		it('connection object still works', () => {
-			const { db, client, close } = createPostgresDrizzle({
-				connection: {
-					url: 'postgres://localhost:5432/nonexistent_db',
-				},
-			});
+		it('url takes precedence over DATABASE_URL', () => {
+			const originalDatabaseUrl = process.env.DATABASE_URL;
+			process.env.DATABASE_URL = 'postgres://env-url:5432/db';
 			try {
-				expect(db).toBeDefined();
-				expect(client).toBeDefined();
-				expect(typeof close).toBe('function');
+				const resolved = resolvePostgresClientConfig({
+					url: 'postgres://top-level-url:5432/db',
+				});
+				expect(resolved.url).toBe('postgres://top-level-url:5432/db');
 			} finally {
-				close();
+				if (originalDatabaseUrl === undefined) {
+					delete process.env.DATABASE_URL;
+				} else {
+					process.env.DATABASE_URL = originalDatabaseUrl;
+				}
 			}
 		});
 
-		it('connection with individual fields still works', () => {
-			const { db, client, close } = createPostgresDrizzle({
-				connection: {
-					hostname: 'localhost',
-					port: 5432,
-					database: 'nonexistent_db',
-				},
+		it('forwards reconnect config', () => {
+			const resolved = resolvePostgresClientConfig({
+				url: 'postgres://localhost/db',
+				reconnect: { maxAttempts: 5, initialDelayMs: 100 },
 			});
-			try {
-				expect(db).toBeDefined();
-				expect(client).toBeDefined();
-				expect(typeof close).toBe('function');
-			} finally {
-				close();
-			}
+			expect(resolved.reconnect).toEqual({ maxAttempts: 5, initialDelayMs: 100 });
 		});
 
-		it('full config with connectionString and schema still works', () => {
-			const mockSchema = { users: {} };
-			const { db, client, close } = createPostgresDrizzle({
-				connectionString: 'postgres://localhost:5432/nonexistent_db',
-				schema: mockSchema,
-				logger: true,
-				reconnect: {
-					maxAttempts: 5,
-					initialDelayMs: 100,
-				},
-				onReconnected: () => {},
+		it('forwards onReconnected as onreconnected', () => {
+			const cb = () => {};
+			const resolved = resolvePostgresClientConfig({
+				url: 'postgres://localhost/db',
+				onReconnected: cb,
 			});
-			try {
-				expect(db).toBeDefined();
-				expect(client).toBeDefined();
-				expect(typeof close).toBe('function');
-			} finally {
-				close();
-			}
+			expect(resolved.onreconnected).toBe(cb);
+		});
+
+		it('does not mutate the original connection config', () => {
+			const connection = { url: 'postgres://original:5432/db' };
+			const resolved = resolvePostgresClientConfig({
+				connection,
+				reconnect: { maxAttempts: 3 },
+			});
+			expect(resolved.url).toBe('postgres://original:5432/db');
+			expect(resolved.reconnect).toEqual({ maxAttempts: 3 });
+			// Original object should be unmodified
+			expect(connection).toEqual({ url: 'postgres://original:5432/db' });
 		});
 	});
 });
