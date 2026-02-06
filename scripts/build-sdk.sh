@@ -8,6 +8,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+PACKAGES_ONLY=false
+for arg in "$@"; do
+	if [ "$arg" = "--packages-only" ]; then
+		PACKAGES_ONLY=true
+	fi
+done
+
 echo "🔨 Building SDK Packages"
 echo "======================="
 echo ""
@@ -58,7 +65,12 @@ echo ""
 
 # Build all packages
 echo "Building packages..."
-bun run build
+if [ "$PACKAGES_ONLY" = "true" ]; then
+	echo "(packages only - skipping test app builds)"
+	bun run build:packages
+else
+	bun run build
+fi
 
 echo ""
 echo "✅ SDK build complete"

@@ -341,7 +341,8 @@ jobs:
            run: bunx playwright install --with-deps chromium
 
          - name: Prepare SDK for testing
-           run: bash scripts/prepare-sdk-for-testing.sh
+           timeout-minutes: 5
+           run: bash scripts/prepare-sdk-for-testing.sh --packages-only
 
          - name: Install SDK in e2e-web
            run: bash scripts/install-sdk-tarballs.sh apps/testing/e2e-web
