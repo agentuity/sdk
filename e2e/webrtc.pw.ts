@@ -41,11 +41,17 @@ async function connectPeer(
 	await waitForPageLoad(page);
 	await page.getByTestId('room-id-input').clear();
 	await page.getByTestId('room-id-input').fill(roomId);
-	if (options?.enableVideo) {
+	// Explicitly handle video/audio checkbox state (both true and false)
+	// to ensure consistent state regardless of page defaults
+	if (options?.enableVideo === true) {
 		await page.getByTestId('enable-video').check();
+	} else if (options?.enableVideo === false) {
+		await page.getByTestId('enable-video').uncheck();
 	}
-	if (options?.enableAudio) {
+	if (options?.enableAudio === true) {
 		await page.getByTestId('enable-audio').check();
+	} else if (options?.enableAudio === false) {
+		await page.getByTestId('enable-audio').uncheck();
 	}
 	if (options?.autoReconnect !== undefined) {
 		await page.getByTestId('auto-reconnect-toggle').setChecked(options.autoReconnect);
@@ -430,13 +436,13 @@ test.describe('Multi-Peer Mesh', () => {
 				)
 			);
 
-			// Peer 2 disconnects
+			// peers[2] (third peer) disconnects
 			await peers[2].page.getByTestId('disconnect-btn').click();
 			await expect(peers[2].page.getByTestId('connection-state')).toContainText('idle', {
 				timeout: 5000,
 			});
 
-			// Remaining peers should still be connected
+			// Remaining peers (peers[0] and peers[1]) should still be connected
 			await expect(peers[0].page.getByTestId('connection-state')).toContainText('connected', {
 				timeout: 10000,
 			});
@@ -444,7 +450,7 @@ test.describe('Multi-Peer Mesh', () => {
 				timeout: 10000,
 			});
 
-			// Peer 2 rejoins
+			// peers[2] (third peer) rejoins
 			await peers[2].page.getByTestId('connect-btn').click();
 			await expect(peers[2].page.getByTestId('connection-state')).toContainText('connected', {
 				timeout: 20000,
@@ -545,7 +551,8 @@ test.describe('Screen Sharing', () => {
 
 			await peer1.page.getByTestId('stop-screen-share-btn').click();
 			await expect(peer1.page.getByTestId('screen-share-state')).toContainText('Off');
-			await expect(peer2.page.getByTestId('messages')).toContainText('active":false');
+			// Use regex to tolerate whitespace variations in JSON formatting
+			await expect(peer2.page.getByTestId('messages')).toContainText(/"active"\s*:\s*false/);
 		} finally {
 			await Promise.all([peer1.context.close(), peer2.context.close()]);
 		}
@@ -790,9 +797,8 @@ test.describe('Error Handling', () => {
 			await page.getByTestId('set-invalid-signal-url-btn').click();
 			await page.getByTestId('force-ws-close-btn').click();
 
-			// Should show error or transition to a failed state
-			// The reconnect should be disabled, so it should fail
-			await expect(page.getByTestId('connection-state')).not.toContainText('connected', {
+			// With auto-reconnect disabled and an invalid signal URL, should reach idle or error state
+			await expect(page.getByTestId('connection-state')).toContainText(/idle|error/, {
 				timeout: 10000,
 			});
 		} finally {
