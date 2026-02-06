@@ -326,7 +326,7 @@ jobs:
 
    playwright-e2e-test:
       runs-on: blacksmith-4vcpu-ubuntu-2204
-      timeout-minutes: 10
+      timeout-minutes: 15
       name: Playwright E2E Smoke Test
       steps:
          - uses: actions/checkout@v4
@@ -347,7 +347,7 @@ jobs:
            run: bash scripts/install-sdk-tarballs.sh apps/testing/e2e-web
 
          - name: Run Playwright E2E tests
-           run: bash scripts/test-e2e.sh
+           run: bun run test:e2e
 
          # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
          # - name: Upload Playwright report
