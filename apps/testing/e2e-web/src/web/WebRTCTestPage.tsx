@@ -67,8 +67,14 @@ export function WebRTCTestPage() {
 	const localVideoRef = useRef<HTMLVideoElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const recordingHandleRef = useRef<RecordingHandle | null>(null);
+	const checkPeerIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	const connect = useCallback(() => {
+		// Clear any existing peer ID check interval
+		if (checkPeerIdRef.current) {
+			clearInterval(checkPeerIdRef.current);
+			checkPeerIdRef.current = null;
+		}
 		if (managerRef.current) {
 			managerRef.current.dispose();
 		}
@@ -227,11 +233,14 @@ export function WebRTCTestPage() {
 		managerRef.current = manager;
 		manager.connect();
 
-		const checkPeerId = setInterval(() => {
+		checkPeerIdRef.current = setInterval(() => {
 			const managerState = manager.getState();
 			if (managerState.peerId) {
 				setPeerId(managerState.peerId);
-				clearInterval(checkPeerId);
+				if (checkPeerIdRef.current) {
+					clearInterval(checkPeerIdRef.current);
+					checkPeerIdRef.current = null;
+				}
 			}
 		}, 100);
 	}, [roomId, enableVideo, enableAudio, autoReconnect, maxReconnectAttempts]);
@@ -290,11 +299,21 @@ export function WebRTCTestPage() {
 	const stopRecording = useCallback(async () => {
 		const handle = recordingHandleRef.current;
 		if (!handle) return;
-		const blob = await handle.stop();
-		setRecordingState('inactive');
-		setRecordingSize(blob.size);
-		setRecordingMimeType(blob.type);
-		recordingHandleRef.current = null;
+		try {
+			const blob = await handle.stop();
+			setRecordingState('inactive');
+			setRecordingSize(blob.size);
+			setRecordingMimeType(blob.type);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			console.error('Recording stop failed:', message);
+			setError(message);
+			setRecordingState('inactive');
+			setRecordingSize(null);
+			setRecordingMimeType(null);
+		} finally {
+			recordingHandleRef.current = null;
+		}
 	}, []);
 
 	const forceWebSocketClose = useCallback(() => {
@@ -391,6 +410,11 @@ export function WebRTCTestPage() {
 	}, [drawCanvas]);
 
 	const disconnect = useCallback(() => {
+		// Clear peer ID check interval
+		if (checkPeerIdRef.current) {
+			clearInterval(checkPeerIdRef.current);
+			checkPeerIdRef.current = null;
+		}
 		if (managerRef.current) {
 			managerRef.current.dispose();
 			managerRef.current = null;
@@ -439,6 +463,11 @@ export function WebRTCTestPage() {
 
 	useEffect(() => {
 		return () => {
+			// Clean up peer ID check interval
+			if (checkPeerIdRef.current) {
+				clearInterval(checkPeerIdRef.current);
+				checkPeerIdRef.current = null;
+			}
 			if (managerRef.current) {
 				managerRef.current.dispose();
 			}
