@@ -433,12 +433,13 @@ async function replacePane(
 	// Use exec to replace bash with opencode attach directly.
 	// This ensures signals go directly to opencode attach (no wrapper process).
 	// When opencode attach exits, the pane closes automatically (tmux remain-on-exit off).
-	// Use shellEscape to prevent shell injection via session IDs
+	// Use shellEscape to prevent shell injection via session IDs and profile
 	const escapedServerUrl = shellEscape(ctx.serverUrl);
 	const escapedSessionId = shellEscape(action.newSessionId);
 	// Inject profile, session ID, and agent mode environment variables
 	const profile = getCoderProfile();
-	const envPrefix = `AGENTUITY_PROFILE=${profile} AGENTUITY_OPENCODE_SESSION=${action.newSessionId} AGENTUITY_AGENT_MODE=opencode`;
+	const escapedProfile = shellEscape(profile);
+	const envPrefix = `AGENTUITY_PROFILE=${escapedProfile} AGENTUITY_OPENCODE_SESSION=${escapedSessionId} AGENTUITY_AGENT_MODE=opencode`;
 	const command = `${envPrefix} exec opencode attach ${escapedServerUrl} --session ${escapedSessionId}`;
 	const result = await runTmuxCommand(['respawn-pane', '-k', '-t', action.paneId, command]);
 	if (!result.success) {
@@ -477,12 +478,13 @@ async function spawnInAgentsWindow(
 	// Use exec to replace bash with opencode attach directly.
 	// This ensures signals go directly to opencode attach (no wrapper process).
 	// When opencode attach exits, the pane closes automatically (tmux remain-on-exit off).
-	// Use shellEscape to prevent shell injection via session IDs
+	// Use shellEscape to prevent shell injection via session IDs and profile
 	const escapedServerUrl = shellEscape(ctx.serverUrl);
 	const escapedSessionId = shellEscape(action.sessionId);
 	// Inject profile, session ID, and agent mode environment variables
 	const profile = getCoderProfile();
-	const envPrefix = `AGENTUITY_PROFILE=${profile} AGENTUITY_OPENCODE_SESSION=${action.sessionId} AGENTUITY_AGENT_MODE=opencode`;
+	const escapedProfile = shellEscape(profile);
+	const envPrefix = `AGENTUITY_PROFILE=${escapedProfile} AGENTUITY_OPENCODE_SESSION=${escapedSessionId} AGENTUITY_AGENT_MODE=opencode`;
 	const command = `${envPrefix} exec opencode attach ${escapedServerUrl} --session ${escapedSessionId}`;
 	const layout = 'tiled'; // Always use tiled layout for grid arrangement
 
