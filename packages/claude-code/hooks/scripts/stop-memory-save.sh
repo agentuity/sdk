@@ -14,6 +14,12 @@ if ! command -v agentuity &>/dev/null; then
   exit 0
 fi
 
+# If Cadence mode is active, skip memory save — cadence-stop.sh handles the loop
+# and includes Memory checkpoints at each iteration.
+if [ -f ".claude/agentuity-cadence.local.md" ]; then
+  exit 0
+fi
+
 # Detect headless mode: check if CLAUDE_CODE_HEADLESS is set, or if
 # the session was started with -p (no TTY on parent's stdin).
 # In headless mode, session-end.sh handles memory save directly via KV.

@@ -229,7 +229,7 @@ Update perspectives when you observe:
 
 ## Reasoning Capabilities (Inline)
 
-You include reasoning capabilities to extract structured conclusions from session data. This replaces the separate Reasoner sub-agent.
+You include reasoning capabilities to extract structured conclusions from session data. This replaces the separate Reasoner sub-agent — you do both storage AND reasoning.
 
 ### When to Apply Reasoning
 
@@ -245,11 +245,36 @@ You include reasoning capabilities to extract structured conclusions from sessio
 
 ### Reasoning Types
 
-1. **Explicit** — What was directly stated (facts, preferences, decisions)
-2. **Deductive** — Certain conclusions from premises (if A and B, then C)
-3. **Inductive** — Patterns across interactions (recurring behaviors)
-4. **Abductive** — Best explanations for observed behavior (inference)
-5. **Corrections** — Mistakes and lessons learned (HIGH PRIORITY)
+1. **Explicit** — What was directly stated (facts, preferences, decisions). Confidence: high.
+2. **Deductive** — Certain conclusions from premises (if A and B, then C). Include the premises. Confidence: high.
+3. **Inductive** — Patterns across interactions (recurring behaviors). Note occurrence count. Confidence: medium to high.
+4. **Abductive** — Best explanations for observed behavior (inference). Confidence: low to medium.
+5. **Corrections** — Mistakes and lessons learned. HIGH PRIORITY — always extract these. Confidence: high.
+
+### Reasoning Output Format
+
+When applying reasoning, produce structured conclusions per entity:
+
+```json
+{
+  "entities": [
+    {
+      "entityId": "entity:repo:github.com/org/repo",
+      "conclusions": {
+        "explicit": [{ "content": "...", "confidence": "high" }],
+        "deductive": [{ "content": "...", "premises": ["A", "B"], "confidence": "high" }],
+        "inductive": [{ "content": "...", "occurrences": 3, "confidence": "medium" }],
+        "abductive": [{ "content": "...", "confidence": "low" }]
+      },
+      "corrections": [{ "content": "...", "why": "...", "confidence": "high" }],
+      "patterns": [{ "content": "...", "occurrences": 2, "confidence": "medium" }],
+      "conflictsResolved": [{ "old": "...", "new": "...", "resolution": "..." }]
+    }
+  ]
+}
+```
+
+Store each entity's updated representation to KV (`entity:{type}:{id}`) and upsert significant conclusions to Vector for semantic search.
 
 ### Validity Checking
 
@@ -261,6 +286,12 @@ When recalling memories, assess their validity:
 | Branch merged | Was the branch merged into current? | Mark as "merged" (still valid) |
 | Age | Is the memory very old (>90 days)? | Note as "old" (use judgment) |
 | Relevance | Does it relate to current work? | Mark relevance level |
+
+**Assessment values:** valid, stale, merged, outdated, conflicting
+
+**Recommendations:** keep, archive, update, review
+
+Be conservative — when uncertain, recommend "review" not "archive".
 
 ### Conflict Resolution
 

@@ -1,5 +1,5 @@
 ---
-name: memory-save
+name: agentuity-memory-save
 description: Save the current session context to Agentuity Cloud memory (KV + Vector storage) for future recall
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: coder
+name: agentuity-coder
 description: Activate the Agentuity Coder team to work on a task with full orchestration (Lead delegates to Scout, Builder, Architect, Reviewer, Memory, Product)
 ---
 

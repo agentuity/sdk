@@ -27,19 +27,27 @@ A team of specialized AI agents for code assistance with persistent memory via A
 | **command-runner** | Runner | Build/test/lint execution methodology |
 | **reasoning** | Reasoner | Conclusion extraction, memory reasoning |
 
-### Hooks
+### Hooks (6)
 
 | Hook | Event | Purpose |
 |------|-------|---------|
+| block-sensitive-commands.sh | PreToolUse (Bash) | Block access to secrets, API keys, auth tokens |
+| pre-compact.sh | PreCompact | Inject memory-save instructions before compaction |
+| cadence-stop.sh | Stop | Keep Cadence loop running until completion promise detected |
+| stop-memory-save.sh | Stop | Request memory save before interactive session ends |
 | session-start.sh | SessionStart | Gather Agentuity context (project, org, user) |
-| session-end.sh | SessionEnd | Sync memory to cloud (future) |
+| session-end.sh | SessionEnd | Dual-path memory save: immediate KV + async agentic processing |
 
-### Commands
+### Commands (6)
 
 | Command | Description |
 |---------|-------------|
-| /coder | Activate full team orchestration via Lead |
-| /memory-save | Save session to Agentuity Cloud memory |
+| /agentuity-coder | Activate full team orchestration via Lead |
+| /agentuity-cadence | Start a long-running Cadence loop (autonomous task completion) |
+| /agentuity-cadence-cancel | Cancel an active Cadence loop |
+| /agentuity-memory-save | Save session to Agentuity Cloud memory |
+| /agentuity-memory-share | Share content publicly via Agentuity Cloud Streams |
+| /agentuity-sandbox | Agentuity sandboxes (isolated execution environments) |
 
 ## Delegation Flow
 

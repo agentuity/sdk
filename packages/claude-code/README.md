@@ -24,20 +24,25 @@ This registers the plugin with Claude Code and configures it for your current pr
 Use slash commands to activate the agent team:
 
 ```
-/coder implement dark mode for settings page
-/coder review the auth module for security issues
-/coder what's the architecture of the routing system?
-/memory-save
+/agentuity-coder implement dark mode for settings page
+/agentuity-coder review the auth module for security issues
+/agentuity-cadence build the new auth feature with tests
+/agentuity-memory-save
+/agentuity-sandbox run bun test
 ```
 
-You can also use agents directly without the `/coder` command — Claude Code will trigger agents automatically based on context. The Lead agent orchestrates multi-step tasks, but individual agents like Scout or Reviewer can be invoked directly via the Task tool.
+You can also use agents directly without the `/agentuity-coder` command — Claude Code will trigger agents automatically based on context. The Lead agent orchestrates multi-step tasks, but individual agents like Scout or Reviewer can be invoked directly via the Task tool.
 
 ## Commands
 
 | Command | Description |
 | --- | --- |
-| `/coder` | Run tasks with the full agent team (Lead orchestrates) |
-| `/memory-save` | Save session context to Agentuity Cloud memory |
+| `/agentuity-coder` | Run tasks with the full agent team (Lead orchestrates) |
+| `/agentuity-cadence` | Start a long-running Cadence loop (autonomous task completion) |
+| `/agentuity-cadence-cancel` | Cancel an active Cadence loop |
+| `/agentuity-memory-save` | Save session context to Agentuity Cloud memory |
+| `/agentuity-memory-share` | Share content publicly via Agentuity Cloud Streams |
+| `/agentuity-sandbox` | Agentuity sandboxes (isolated execution environments) |
 
 ### Cloud Services via Agents
 
@@ -136,7 +141,7 @@ Memory uses Agentuity Cloud for persistent storage across sessions:
 ### How Memory Works
 
 1. **Recall**: At the start of a task, Lead can ask Memory to search for relevant context from past sessions
-2. **Store**: After completing work, use `/memory-save` to persist the session's decisions, patterns, and corrections
+2. **Store**: After completing work, use `/agentuity-memory-save` to persist the session's decisions, patterns, and corrections
 3. **KV for structured data**: Key-value pairs stored via `agentuity cloud kv` (e.g., `correction:use-bun-not-npm`)
 4. **Vector for semantic search**: Full session summaries stored via `agentuity cloud vector` for natural language recall
 
@@ -148,9 +153,10 @@ Memory requires the Agentuity CLI to be installed and authenticated.
 | --- | --- | --- |
 | `block-sensitive-commands.sh` | PreToolUse (Bash) | Block access to secrets, API keys, and auth tokens |
 | `pre-compact.sh` | PreCompact | Inject memory-save instructions before context compaction |
+| `cadence-stop.sh` | Stop | Keep Cadence loop running until `<promise>DONE</promise>` detected |
 | `stop-memory-save.sh` | Stop | Request memory save before session ends (blocks first stop only) |
 | `session-start.sh` | SessionStart | Gather Agentuity context (project, org, git branch) |
-| `session-end.sh` | SessionEnd | Sync memory to cloud (future) |
+| `session-end.sh` | SessionEnd | Dual-path memory save: immediate KV + async agentic processing |
 
 ### SessionStart Hook
 
@@ -194,7 +200,36 @@ To manually configure permissions, add to `~/.claude/settings.local.json`:
 
 ## Cadence: Long-Running Autonomous Sessions
 
-Cadence enables the agent team to work autonomously on complex tasks across multiple iterations until completion.
+Cadence enables the agent team to work autonomously on complex tasks across multiple iterations until completion. It uses a Stop hook (inspired by the [Ralph Wiggum technique](https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum)) to keep the loop running programmatically.
+
+### How It Works
+
+1. `/agentuity-cadence` creates a state file (`.claude/agentuity-cadence.local.md`) with the task prompt
+2. Claude works on the task, delegating to Architect, Scout, Reviewer, etc.
+3. When Claude tries to stop, `cadence-stop.sh` intercepts and:
+   - Checks the transcript for `<promise>DONE</promise>` completion signal
+   - If not done: blocks the stop, increments iteration, re-injects the prompt with Memory checkpoint instructions
+   - If done or max iterations reached: allows the stop
+4. Memory agent is triggered at each iteration for checkpoints
+
+### Starting a Cadence Session
+
+```
+/agentuity-cadence implement the new payment integration with Stripe, including tests and docs
+```
+
+Options:
+- `--max-iterations N` — Stop after N iterations (default: 50)
+- `--completion-promise TEXT` — Custom completion signal (default: DONE)
+
+### Cadence Control
+
+| Action | How |
+| --- | --- |
+| Start | `/agentuity-cadence build the auth feature` |
+| Start (limited) | `/agentuity-cadence --max-iterations 20 build the auth feature` |
+| Cancel | `/agentuity-cadence-cancel` |
+| Force stop | Ctrl+C |
 
 ### Recommended Agent for Cadence
 
@@ -206,29 +241,6 @@ Cadence enables the agent team to work autonomously on complex tasks across mult
 - Checkpoint-based progress tracking
 
 For quick fixes during a Cadence session, Builder can still be used for minor iterations.
-
-### Starting a Cadence Session
-
-```
-/coder implement the new payment integration with Stripe, including tests and docs
-```
-
-Lead will:
-
-1. Create a PRD via Product agent
-2. Work iteratively — delegating to Scout, Builder/Architect, Reviewer
-3. Store checkpoints with Memory after each iteration
-4. Continue until the task is complete
-
-### Cadence Control
-
-| Action | How |
-| --- | --- |
-| Start | `/coder build the auth feature` |
-| Status | "what's the status?" |
-| Pause | "pause" |
-| Resume | "continue" |
-| Stop | "stop" or Ctrl+C |
 
 ### Lead-of-Leads: Parallel Work Orchestration
 
@@ -294,6 +306,7 @@ This plugin provides the same agent team as `@agentuity/opencode` but adapted fo
 | 9 agents | 7 agents | Runner, Expert, Reasoner absorbed into agents/skills |
 | `@mention` delegation | Task tool delegation | `agentuity-coder:agentuity-coder-{role}` |
 | `agentuity_background_task` | Parallel Task tool calls | Native Claude Code parallelism |
+| `session.compacted` cadence | Stop hook cadence | Ralph Wiggum-style loop via `cadence-stop.sh` |
 | Expert agent | 4 skills | Backend, Frontend, Ops, Cloud (auto-activated) |
 | Runner agent | Command-runner skill | Inline in Builder/Architect |
 | Reasoner agent | Reasoning skill | Inline in Memory |
@@ -331,7 +344,7 @@ This checks that the manifest, agents, skills, hooks, and commands are all prope
 1. Edit agent/skill/command/hook files in `packages/claude-code/`
 2. If you changed `src/install.ts`, rebuild: `bun run build`
 3. Restart Claude Code to pick up changes (or start a new session with `--plugin-dir`)
-4. Test with `/coder` or by invoking agents directly
+4. Test with `/agentuity-coder` or by invoking agents directly
 
 ### Project Structure
 
@@ -354,17 +367,23 @@ packages/claude-code/
 │   ├── agentuity-cloud/
 │   ├── command-runner/
 │   └── reasoning/
-├── commands/                 # 2 slash commands
-│   ├── coder.md             # /coder
-│   └── memory-save.md       # /memory-save
+├── commands/                 # 6 slash commands
+│   ├── agentuity-coder.md          # /agentuity-coder
+│   ├── agentuity-cadence.md        # /agentuity-cadence
+│   ├── agentuity-cadence-cancel.md # /agentuity-cadence-cancel
+│   ├── agentuity-memory-save.md    # /agentuity-memory-save
+│   ├── agentuity-memory-share.md   # /agentuity-memory-share
+│   └── agentuity-sandbox.md        # /agentuity-sandbox
 ├── hooks/                    # Event hooks
 │   ├── hooks.json
 │   └── scripts/
 │       ├── block-sensitive-commands.sh # Blocks secrets/apikey/token access
 │       ├── pre-compact.sh             # Memory save before compaction
+│       ├── cadence-stop.sh            # Cadence loop continuation
+│       ├── setup-cadence.sh           # Cadence state initialization
 │       ├── stop-memory-save.sh        # Memory save before session stop
 │       ├── session-start.sh           # Gathers project context
-│       └── session-end.sh             # Future memory sync
+│       └── session-end.sh             # Dual-path memory save (KV + async)
 ├── src/
 │   └── install.ts           # Install script
 ├── dist/                     # Built output
