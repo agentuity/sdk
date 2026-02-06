@@ -18,6 +18,7 @@ npm install @agentuity/frontend
 - **Reconnection Logic**: Exponential backoff reconnection manager for WebSockets and SSE
 - **Type Definitions**: Shared TypeScript types for route registries
 - **Memoization**: JSON-based equality checking
+- **WebRTC**: Multi-peer connections with data channels, screen sharing, and recording
 
 ## Usage
 
@@ -59,6 +60,36 @@ import { deserializeData } from '@agentuity/frontend';
 
 const data = deserializeData<MyType>('{"key":"value"}');
 ```
+
+### WebRTC
+
+Multi-peer WebRTC connections with auto-reconnection and data channels:
+
+```typescript
+import { WebRTCManager } from '@agentuity/frontend';
+
+const manager = new WebRTCManager({
+	signalUrl: 'ws://localhost:3500/api/webrtc/signal',
+	roomId: 'my-room',
+	autoReconnect: true,
+});
+
+manager.on('peerConnected', (peerId) => console.log('Peer joined:', peerId));
+manager.on('dataChannelMessage', ({ channel, data }) => console.log(channel, data));
+
+await manager.connect();
+manager.sendJSON('chat', { message: 'Hello!' });
+```
+
+Key features:
+- Multi-peer mesh networking
+- Auto-reconnection with exponential backoff
+- Data channels (JSON, binary, ArrayBuffer)
+- Screen sharing and recording
+- ICE/connection timeout detection
+- Connection quality stats API
+
+For detailed architecture, see [docs/webrtc-architecture.md](../../docs/webrtc-architecture.md).
 
 ## License
 

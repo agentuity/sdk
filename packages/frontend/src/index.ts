@@ -23,6 +23,29 @@ export {
 	type EventStreamManagerOptions,
 	type EventStreamManagerState,
 } from './eventstream-manager';
+export {
+	WebRTCManager,
+	UserMediaSource,
+	DisplayMediaSource,
+	CustomStreamSource,
+	type WebRTCManagerOptions,
+	type WebRTCManagerState,
+	type WebRTCClientCallbacks,
+	type TrackSource,
+} from './webrtc-manager';
+
+// Re-export core WebRTC types for convenience
+export type {
+	WebRTCConnectionState,
+	WebRTCDisconnectReason,
+	DataChannelConfig,
+	DataChannelMessage,
+	DataChannelState,
+	ConnectionQualitySummary,
+	RecordingOptions,
+	RecordingHandle,
+	RecordingState,
+} from '@agentuity/core';
 
 // Export client implementation (local to this package)
 export { createClient } from './client/index';

@@ -92,6 +92,58 @@ function ChatComponent() {
 }
 ```
 
+### 4. WebRTC Communication
+
+For peer-to-peer video/audio calls and data channels:
+
+```tsx
+import { useWebRTCCall } from '@agentuity/react';
+
+function VideoChat() {
+	const {
+		state,
+		localVideoRef,
+		remoteStreams,
+		remotePeerIds,
+		connect,
+		hangup,
+		muteAudio,
+		muteVideo,
+		sendJSON,
+		isAudioMuted,
+		isVideoMuted,
+	} = useWebRTCCall({
+		roomId: 'my-room',
+		signalUrl: '/api/webrtc/signal',
+		media: { video: true, audio: true },
+		dataChannels: [{ label: 'chat' }],
+	});
+
+	return (
+		<div>
+			<div>Status: {state}</div>
+			<video ref={localVideoRef} autoPlay muted playsInline />
+			{remotePeerIds.map((peerId) => (
+				<video
+					key={peerId}
+					ref={(el) => el && (el.srcObject = remoteStreams.get(peerId) || null)}
+					autoPlay
+					playsInline
+				/>
+			))}
+			<button onClick={connect}>Join</button>
+			<button onClick={hangup}>Leave</button>
+			<button onClick={() => muteAudio(!isAudioMuted)}>
+				{isAudioMuted ? 'Unmute' : 'Mute'}
+			</button>
+			<button onClick={() => sendJSON('chat', { text: 'Hello!' })}>Send</button>
+		</div>
+	);
+}
+```
+
+For detailed architecture, see [docs/webrtc-architecture.md](../../docs/webrtc-architecture.md).
+
 ## API Reference
 
 ### AgentuityProvider

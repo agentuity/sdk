@@ -14,17 +14,23 @@
 
 Bun workspaces monorepo with packages in `packages/`:
 
-| Package      | Runtime  | Description                                  |
-| ------------ | -------- | -------------------------------------------- |
-| `core`       | Node/Bun | Shared types and utilities (publish first)   |
-| `schema`     | Any      | Schema validation (StandardSchema v1)        |
-| `server`     | Node/Bun | Runtime-agnostic server utilities            |
-| `runtime`    | Bun      | Hono-based server runtime with OpenTelemetry |
-| `react`      | Browser  | React hooks for agents                       |
-| `frontend`   | Browser  | Framework-agnostic web utilities             |
-| `auth`       | Both     | Authentication providers (Clerk, etc.)       |
-| `cli`        | Bun      | CLI framework with commander.js              |
-| `test-utils` | Test     | Private test helpers (never published)       |
+| Package      | Runtime  | Description                                           |
+| ------------ | -------- | ----------------------------------------------------- |
+| `core`       | Node/Bun | Shared types and utilities (publish first)            |
+| `schema`     | Any      | Schema validation (StandardSchema v1)                 |
+| `server`     | Node/Bun | Runtime-agnostic server utilities                     |
+| `runtime`    | Bun      | Hono-based server runtime with WebRTC signaling       |
+| `react`      | Browser  | React hooks for agents and WebRTC                     |
+| `frontend`   | Browser  | Framework-agnostic web utilities with WebRTC manager  |
+| `auth`       | Both     | Authentication providers (Clerk, etc.)                |
+| `cli`        | Bun      | CLI framework with commander.js                       |
+| `postgres`   | Node/Bun | Resilient PostgreSQL client with auto-reconnection    |
+| `drizzle`    | Node/Bun | Drizzle ORM integration with resilient connections    |
+| `evals`      | Any      | Reusable evaluation presets                           |
+| `opencode`   | Bun      | Opencoder agent plugins for Agentuity                 |
+| `workbench`  | Browser  | Workbench UI component for agent testing              |
+| `vscode`     | Node     | VS Code extension for Agentuity                       |
+| `test-utils` | Test     | Private test helpers (never published)                |
 
 ## Code Style
 

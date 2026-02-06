@@ -48,11 +48,11 @@ The structure of this mono repository:
 - `packages/core` - Shared utilities used by most packages
 - `packages/drizzle` - Drizzle ORM integration with resilient PostgreSQL connections
 - `packages/evals` - Reusable Evaluation Presets
-- `packages/frontend` - Reusable code for web frontends
+- `packages/frontend` - Reusable code for web frontends including WebRTC peer connections
 - `packages/opencode` - Opencoder agent plugins for Agentuity
 - `packages/postgres` - Resilient PostgreSQL client with automatic reconnection
-- `packages/react` - React package for the Browser
-- `packages/runtime` - Server-side package for the Agent runtime
+- `packages/react` - React package for the Browser including WebRTC hooks
+- `packages/runtime` - Server-side package for the Agent runtime with WebRTC signaling
 - `packages/schema` - Schema validation library similar to zod and arktype
 - `packages/server` - Runtime-agnostic server-side SDK (Node.js & Bun)
 - `packages/test-utils` - Internal test utilities that can be used by packages
