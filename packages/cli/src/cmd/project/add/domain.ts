@@ -12,17 +12,17 @@ export const domainSubcommand = createSubcommand({
 	name: 'domain',
 	aliases: ['dns'],
 	description: 'Add a custom domain to the current project',
-	tags: ['mutating', 'fast', 'requires-auth', 'requires-project'],
+	tags: ['mutating', 'slow', 'requires-auth', 'requires-project'],
 	idempotent: true,
 	requires: { auth: true, org: true, region: true, project: true },
 	examples: [
 		{
-			command: getCommand('project add domain'),
-			description: 'Add a custom domain interactively',
+			command: getCommand('project add domain example.com'),
+			description: 'Add a custom domain',
 		},
 		{
-			command: getCommand('project add domain example.com'),
-			description: 'Add a specific domain',
+			command: getCommand('project add domain example.com --skip-validation'),
+			description: 'Add a domain without DNS validation',
 		},
 		{
 			command: getCommand('--dry-run project add domain example.com'),
@@ -31,7 +31,7 @@ export const domainSubcommand = createSubcommand({
 	],
 	schema: {
 		args: z.object({
-			domain: z.string().optional().describe('Domain name to add'),
+			domain: z.string().describe('Domain name to add'),
 		}),
 		options: z.object({
 			skipValidation: z
@@ -50,9 +50,7 @@ export const domainSubcommand = createSubcommand({
 		const { args, opts, options, projectDir, config, logger } = ctx;
 
 		if (isDryRunMode(options)) {
-			const message = args.domain
-				? `Would add domain "${args.domain}" to project in ${projectDir}`
-				: `Would prompt to enter a domain to add to project in ${projectDir}`;
+			const message = `Would add domain "${args.domain}" to project in ${projectDir}`;
 			outputDryRun(message, options);
 			if (!options.json) {
 				tui.newline();
@@ -60,7 +58,7 @@ export const domainSubcommand = createSubcommand({
 			}
 			return {
 				success: false,
-				domain: args.domain || 'dry-run-domain.com',
+				domain: args.domain,
 				domains: [],
 			};
 		}
@@ -68,45 +66,13 @@ export const domainSubcommand = createSubcommand({
 		const project = await loadProjectConfig(projectDir, config);
 		const existingDomains = project.deployment?.domains ?? [];
 
-		let domain: string;
+		const domain = args.domain.toLowerCase().trim();
 
-		if (args.domain) {
-			domain = args.domain.toLowerCase().trim();
-		} else {
-			const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
-			if (isHeadless) {
-				logger.fatal(
-					'Domain name is required in non-interactive mode. Usage: ' +
-						tui.bold(getCommand('project add domain <domain>')),
-					ErrorCode.MISSING_ARGUMENT
-				);
-			}
-
-			const prompt = createPrompt();
-			const entered = await prompt.text({
-				message: 'Enter the custom domain',
-				hint: 'e.g., api.example.com',
-				validate: (value) => {
-					if (!value || !value.trim()) {
-						return 'Domain name is required';
-					}
-					const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
-					if (!domainRegex.test(value.trim())) {
-						return 'Please enter a valid domain name';
-					}
-					return true;
-				},
-			});
-
-			if (process.stdin.isTTY) {
-				process.stdin.pause();
-			}
-
-			if (!entered) {
-				logger.fatal('Operation cancelled', ErrorCode.USER_CANCELLED);
-			}
-
-			domain = entered.toLowerCase().trim();
+		// Validate domain format
+		const domainRegex =
+			/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
+		if (!domainRegex.test(domain)) {
+			logger.fatal('Please enter a valid domain name', ErrorCode.VALIDATION_FAILED);
 		}
 
 		// Check if domain already exists
@@ -115,7 +81,7 @@ export const domainSubcommand = createSubcommand({
 				tui.warning(`Domain "${domain}" is already configured for this project`);
 			}
 			return {
-				success: true,
+				success: false,
 				domain,
 				domains: existingDomains,
 			};
@@ -148,6 +114,15 @@ export const domainSubcommand = createSubcommand({
 				if (isMisconfigured(result)) {
 					tui.error(`Current configuration: ${result.misconfigured}`);
 					tui.newline();
+				}
+
+				// In non-interactive mode, fail with guidance
+				const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
+				if (isHeadless) {
+					logger.fatal(
+						'DNS is not configured. Add the DNS record above and try again, or use --skip-validation',
+						ErrorCode.VALIDATION_FAILED
+					);
 				}
 
 				const prompt = createPrompt();

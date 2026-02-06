@@ -19,7 +19,7 @@ export const addCommand = createCommand({
 			description: 'Link an existing storage bucket to the project',
 		},
 		{
-			command: getCommand('project add domain'),
+			command: getCommand('project add domain example.com'),
 			description: 'Add a custom domain to the project',
 		},
 		{
@@ -29,10 +29,6 @@ export const addCommand = createCommand({
 		{
 			command: getCommand('project add storage my-bucket'),
 			description: 'Link a specific storage bucket by name',
-		},
-		{
-			command: getCommand('project add domain example.com'),
-			description: 'Add a specific custom domain',
 		},
 	],
 	subcommands: [databaseSubcommand, domainSubcommand, storageSubcommand],
