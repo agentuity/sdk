@@ -583,7 +583,9 @@ test.describe('Reconnection', () => {
 				timeout: 5000,
 			});
 
-			await page.route('**/api/webrtc/signal', (route) => route.abort());
+			// Set an invalid signal URL before forcing WS close to make reconnection fail
+			// Note: page.route() only blocks HTTP requests, not WebSocket connections
+			await page.getByTestId('set-invalid-signal-url-btn').click();
 			await page.getByTestId('force-ws-close-btn').click();
 
 			await expect(page.getByTestId('reconnect-status')).toContainText('failed', {

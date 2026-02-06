@@ -302,6 +302,14 @@ export function WebRTCTestPage() {
 		manager?.ws?.close();
 	}, []);
 
+	// Test utility: Set an invalid signal URL to force reconnection failures
+	const setInvalidSignalUrl = useCallback(() => {
+		const manager = managerRef.current as unknown as { options?: { signalUrl?: string } } | null;
+		if (manager?.options) {
+			manager.options.signalUrl = 'ws://invalid-host-that-will-not-resolve.local:12345/signal';
+		}
+	}, []);
+
 	// Handle canvas mouse movement
 	const handleCanvasMouseMove = useCallback(
 		(e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -464,6 +472,14 @@ export function WebRTCTestPage() {
 						style={{ padding: '0.5rem 1rem' }}
 					>
 						Force WS Close
+					</button>
+					<button
+						type="button"
+						onClick={setInvalidSignalUrl}
+						data-testid="set-invalid-signal-url-btn"
+						style={{ padding: '0.5rem 1rem' }}
+					>
+						Set Invalid Signal URL
 					</button>
 				</div>
 			)}
