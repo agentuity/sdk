@@ -1,0 +1,13 @@
+{
+	"name": "agentuity-coder",
+	"version": "1.0.0",
+	"description": "Agentuity Coder - a team of specialized AI agents for code assistance with persistent memory via Agentuity Cloud",
+	"author": {
+		"name": "Agentuity",
+		"url": "https://agentuity.dev"
+	},
+	"homepage": "https://agentuity.dev",
+	"repository": "https://github.com/agentuity/sdk",
+	"license": "Apache-2.0",
+	"keywords": ["coding", "agents", "memory", "cloud", "agentuity"]
+}

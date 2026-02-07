@@ -9,7 +9,8 @@
 		{ "path": "./packages/react" },
 		{ "path": "./packages/runtime" },
 		{ "path": "./packages/server" },
-		{ "path": "./packages/workbench" }
+		{ "path": "./packages/workbench" },
+		{ "path": "./packages/claude-code" }
 	],
 	"exclude": ["e2e", "test-results", "playwright-report", "playwright.config.ts"]
 }
