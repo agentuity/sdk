@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
-import { SandboxResponseError, throwSandboxError, API_VERSION } from './util';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { API_VERSION, SandboxResponseError, throwSandboxError } from './util';
 
-const SnapshotFileInfoSchema = z
+export const SnapshotFileInfoSchema = z
 	.object({
 		path: z.string().describe('File path within the snapshot'),
 		size: z.number().describe('File size in bytes'),
@@ -12,7 +12,7 @@ const SnapshotFileInfoSchema = z
 	})
 	.describe('Information about a file in a snapshot');
 
-const SnapshotOrgInfoSchema = z
+export const SnapshotOrgInfoSchema = z
 	.object({
 		id: z.string().describe('Organization ID'),
 		name: z.string().describe('Organization name'),
@@ -20,7 +20,7 @@ const SnapshotOrgInfoSchema = z
 	})
 	.describe('Organization information for public snapshots');
 
-const SnapshotUserInfoSchema = z
+export const SnapshotUserInfoSchema = z
 	.object({
 		id: z.string().describe('User ID'),
 		firstName: z.string().nullable().optional().describe('User first name'),
@@ -28,7 +28,7 @@ const SnapshotUserInfoSchema = z
 	})
 	.describe('User information for private snapshots');
 
-const SnapshotInfoSchema = z
+export const SnapshotInfoSchema = z
 	.object({
 		snapshotId: z.string().describe('Unique identifier for the snapshot'),
 		runtimeId: z
@@ -79,18 +79,18 @@ const SnapshotInfoSchema = z
 	})
 	.describe('Detailed information about a snapshot');
 
-const SnapshotCreateResponseSchema = APIResponseSchema(SnapshotInfoSchema);
-const SnapshotGetResponseSchema = APIResponseSchema(SnapshotInfoSchema);
-const SnapshotListDataSchema = z
+export const SnapshotCreateResponseSchema = APIResponseSchema(SnapshotInfoSchema);
+export const SnapshotGetResponseSchema = APIResponseSchema(SnapshotInfoSchema);
+export const SnapshotListDataSchema = z
 	.object({
 		snapshots: z.array(SnapshotInfoSchema).describe('List of snapshot entries'),
 		total: z.number().describe('Total number of snapshots matching the query'),
 	})
 	.describe('Paginated list of snapshots');
-const SnapshotListResponseSchema = APIResponseSchema(SnapshotListDataSchema);
-const SnapshotDeleteResponseSchema = APIResponseSchemaNoData();
+export const SnapshotListResponseSchema = APIResponseSchema(SnapshotListDataSchema);
+export const SnapshotDeleteResponseSchema = APIResponseSchemaNoData();
 
-const SnapshotLineageEntrySchema = z
+export const SnapshotLineageEntrySchema = z
 	.object({
 		snapshotId: z.string().describe('Unique identifier for the snapshot'),
 		name: z
@@ -121,14 +121,14 @@ const SnapshotLineageEntrySchema = z
 	})
 	.describe('A single entry in the snapshot lineage chain');
 
-const SnapshotLineageDataSchema = z
+export const SnapshotLineageDataSchema = z
 	.object({
 		lineage: z.array(SnapshotLineageEntrySchema).describe('Ordered list of snapshots in lineage'),
 		total: z.number().describe('Total number of snapshots in the lineage'),
 	})
 	.describe('Snapshot lineage response');
 
-const SnapshotLineageResponseSchema = APIResponseSchema(SnapshotLineageDataSchema);
+export const SnapshotLineageResponseSchema = APIResponseSchema(SnapshotLineageDataSchema);
 
 export type SnapshotFileInfo = z.infer<typeof SnapshotFileInfoSchema>;
 export type SnapshotInfo = z.infer<typeof SnapshotInfoSchema>;
@@ -529,7 +529,7 @@ export async function snapshotPublicList(
 /**
  * Git information for snapshot builds
  */
-const SnapshotBuildGitInfoSchema = z
+export const SnapshotBuildGitInfoSchema = z
 	.object({
 		branch: z.string().optional().describe('Git branch name'),
 		commit: z.string().optional().describe('Git commit SHA'),
@@ -563,7 +563,7 @@ const _SnapshotBuildInitParamsSchema = z
 
 export type SnapshotBuildGitInfo = z.infer<typeof SnapshotBuildGitInfoSchema>;
 
-const SnapshotBuildInitResponseSchema = z
+export const SnapshotBuildInitResponseSchema = z
 	.object({
 		snapshotId: z.string().optional().describe('Unique identifier for the snapshot being built'),
 		uploadUrl: z
@@ -581,7 +581,9 @@ const SnapshotBuildInitResponseSchema = z
 	})
 	.describe('Response from snapshot build init API');
 
-const SnapshotBuildInitAPIResponseSchema = APIResponseSchema(SnapshotBuildInitResponseSchema);
+export const SnapshotBuildInitAPIResponseSchema = APIResponseSchema(
+	SnapshotBuildInitResponseSchema
+);
 
 const _SnapshotBuildFinalizeParamsSchema = z
 	.object({
@@ -695,7 +697,7 @@ export async function snapshotBuildFinalize(
 
 // ===== Snapshot Upload API (for public snapshots) =====
 
-const SnapshotUploadResponseSchema = z
+export const SnapshotUploadResponseSchema = z
 	.object({
 		success: z.boolean().describe('Whether the upload was successful'),
 		scanned: z.boolean().describe('Whether the upload was virus scanned'),

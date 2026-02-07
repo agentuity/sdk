@@ -1,6 +1,43 @@
 import { drizzle } from 'drizzle-orm/bun-sql';
-import { postgres, type CallablePostgresClient } from '@agentuity/postgres';
+import { postgres, type CallablePostgresClient, type PostgresConfig } from '@agentuity/postgres';
 import type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
+
+/**
+ * Resolves the PostgreSQL client configuration from Drizzle config options.
+ *
+ * URL priority chain: `connection.url` > `url` > `connectionString` > `process.env.DATABASE_URL`
+ *
+ * @internal Exported for testing — not part of the public package API.
+ */
+export function resolvePostgresClientConfig<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+>(config?: PostgresDrizzleConfig<TSchema>): PostgresConfig {
+	// Clone the connection config to avoid mutating the caller's object
+	const clientConfig: PostgresConfig = config?.connection ? { ...config.connection } : {};
+
+	// Resolve URL using priority chain
+	if (!clientConfig.url) {
+		if (config?.url) {
+			clientConfig.url = config.url;
+		} else if (config?.connectionString) {
+			clientConfig.url = config.connectionString;
+		} else if (process.env.DATABASE_URL) {
+			clientConfig.url = process.env.DATABASE_URL;
+		}
+	}
+
+	// Add reconnection configuration
+	if (config?.reconnect) {
+		clientConfig.reconnect = config.reconnect;
+	}
+
+	// Add callbacks
+	if (config?.onReconnected) {
+		clientConfig.onreconnected = config.onReconnected;
+	}
+
+	return clientConfig;
+}
 
 /**
  * Creates a Drizzle ORM instance with a resilient PostgreSQL connection.
@@ -49,29 +86,8 @@ import type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
 export function createPostgresDrizzle<
 	TSchema extends Record<string, unknown> = Record<string, never>,
 >(config?: PostgresDrizzleConfig<TSchema>): PostgresDrizzle<TSchema> {
-	// Build postgres client configuration by cloning the connection config
-	// to avoid mutating the caller's object
-	const clientConfig = config?.connection ? { ...config.connection } : {};
-
-	// Use connectionString only if no url is already present on the cloned config
-	// This ensures connection (when provided) keeps precedence over connectionString
-	if (!clientConfig.url) {
-		if (config?.connectionString) {
-			clientConfig.url = config.connectionString;
-		} else if (process.env.DATABASE_URL) {
-			clientConfig.url = process.env.DATABASE_URL;
-		}
-	}
-
-	// Add reconnection configuration
-	if (config?.reconnect) {
-		clientConfig.reconnect = config.reconnect;
-	}
-
-	// Add callbacks
-	if (config?.onReconnected) {
-		clientConfig.onreconnected = config.onReconnected;
-	}
+	// Resolve the postgres client configuration
+	const clientConfig = resolvePostgresClientConfig(config);
 
 	// Create the postgres client
 	const client: CallablePostgresClient = postgres(clientConfig);

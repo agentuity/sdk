@@ -14,6 +14,7 @@ import type {
 	GlobalOptions,
 } from './types';
 import { showBanner, generateBanner } from './banner';
+import { getExecutingAgent } from './agent-detection';
 import {
 	requireAuth,
 	optionalAuth,
@@ -34,7 +35,15 @@ import { getCommand } from './command-prefix';
 import { isValidateMode, outputValidation, type ValidationResult } from './output';
 import { StructuredError } from '@agentuity/core';
 import { setProgram } from './program-ref';
-import { getCachedProject, getResourceInfo, setCachedProject, type ResourceType } from './cache';
+import { generateIntroPrompt } from './cmd/ai/intro';
+import {
+	getCachedProject,
+	getResourceInfo,
+	setCachedProject,
+	type ResourceType,
+	hasAgentSeenIntro,
+	markAgentIntroSeen,
+} from './cache';
 
 /**
  * Check if an error is a CLI input validation error (Zod error from schema parsing),
@@ -509,7 +518,8 @@ export async function createCLI(version: string): Promise<Command> {
 		.option('--no-progress', 'Disable progress indicators', false)
 		.option('--explain', 'Show what the command would do without executing', false)
 		.option('--dry-run', 'Execute command without making changes', false)
-		.option('--validate', 'Validate arguments and options without executing', false);
+		.option('--validate', 'Validate arguments and options without executing', false)
+		.option('--ai-help', 'Show AI-optimized help in dashdash format', false);
 
 	const skipVersionCheckOption = program.createOption(
 		'--skip-version-check',
@@ -632,13 +642,34 @@ export async function createCLI(version: string): Promise<Command> {
 			// Format each section (show banner for root command)
 			let output = '';
 
+			// Show intro for first-time agents (before normal help output)
+			// AGENTUITY_SHOW_INTRO=1 forces showing the intro (useful for testing)
+			const agent = getExecutingAgent();
+			const forceShowIntro = process.env.AGENTUITY_SHOW_INTRO === '1';
+			const hasSeenIntro = agent ? hasAgentSeenIntro(agent) : true;
+
+			if (agent && (forceShowIntro || !hasSeenIntro)) {
+				// Only mark as seen if this is their first time (not on forced re-shows)
+				if (!hasSeenIntro) {
+					markAgentIntroSeen(agent);
+				}
+
+				const separator = '='.repeat(79);
+				output += `${separator}\n\n`;
+				output += generateIntroPrompt(agent);
+				output += `\n${separator}\n\n`;
+			}
+
 			// Show banner (full for root, compact for subcommands)
+			// Skip banner when running from an AI coding agent
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const isRootCommand = !(cmd as any).parent;
-			if (isRootCommand) {
-				output += `${generateBanner(version)}\n\n`;
-			} else {
-				output += `${generateBanner(version, true)}\n`;
+			if (!agent) {
+				if (isRootCommand) {
+					output += `${generateBanner(version)}\n\n`;
+				} else {
+					output += `${generateBanner(version, true)}\n`;
+				}
 			}
 
 			// Description

@@ -185,7 +185,7 @@ export const createSubcommand = createCommand({
 						: undefined,
 				timeout: opts.idleTimeout ? { idle: opts.idleTimeout } : undefined,
 				env: Object.keys(envMap).length > 0 ? envMap : undefined,
-				command: hasFiles ? { exec: [], files } : undefined,
+				files: hasFiles ? files : undefined,
 				snapshot: opts.snapshot,
 				dependencies: opts.dependency,
 				metadata,

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema, APIError } from '../api';
+import { type APIClient, APIError, APIResponseSchema } from '../api';
 import { ProjectResponseError } from './util';
 
 export const ProjectExistsRequestSchema = z.object({
@@ -11,7 +11,7 @@ export const ProjectExistsRequestSchema = z.object({
 		.describe('the organization id to create the project in'),
 });
 
-const ProjectExistsResponseSchema = APIResponseSchema(z.boolean());
+export const ProjectExistsResponseSchema = APIResponseSchema(z.boolean());
 
 export type ProjectExistsRequest = z.infer<typeof ProjectExistsRequestSchema>;
 export type ProjectExistsResponse = z.infer<typeof ProjectExistsResponseSchema>;

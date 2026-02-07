@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { DbInvalidArgumentError, DbResponseError } from './util';
 
 export const TableColumnSchema = z.object({
@@ -15,7 +15,7 @@ export const TableSchemaSchema = z.object({
 	columns: z.array(TableColumnSchema).describe('table columns'),
 });
 
-const TablesResponseSchema = APIResponseSchema(
+export const TablesResponseSchema = APIResponseSchema(
 	z.object({
 		tables: z.array(TableSchemaSchema),
 	})

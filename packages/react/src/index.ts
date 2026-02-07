@@ -30,6 +30,13 @@ export {
 	type EventStreamOptions,
 } from './eventstream';
 export {
+	useWebRTCCall,
+	type UseWebRTCCallOptions,
+	type UseWebRTCCallResult,
+	type WebRTCConnectionState,
+	type WebRTCClientCallbacks,
+} from './webrtc';
+export {
 	useAPI,
 	type RouteKey,
 	type ExtractMethod,
@@ -82,6 +89,13 @@ export {
 	type EventStreamCallbacks,
 	type EventStreamManagerOptions,
 	type EventStreamManagerState,
+	WebRTCManager,
+	UserMediaSource,
+	DisplayMediaSource,
+	CustomStreamSource,
+	type WebRTCManagerOptions,
+	type WebRTCManagerState,
+	type WebRTCDisconnectReason,
 	// Client type exports (createClient is exported from ./client.ts)
 	type Client,
 	type ClientOptions,

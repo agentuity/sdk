@@ -5,6 +5,7 @@ import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version';
 import * as tui from './tui';
 import { saveConfig } from './config';
 import { $ } from 'bun';
+import { getExecutingAgent } from './agent-detection';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -30,6 +31,11 @@ function shouldSkipCheck(
 	// Skip if not a global installation (can't auto-upgrade local/source installs)
 	const installationType = getInstallationType();
 	if (installationType !== 'global') {
+		return true;
+	}
+
+	// Skip if running from an AI coding agent (don't interrupt with upgrade prompts)
+	if (getExecutingAgent()) {
 		return true;
 	}
 

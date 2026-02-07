@@ -14,7 +14,7 @@ echo ""
 
 # Step 1: Build SDK packages
 echo "Step 1/2: Building SDK packages..."
-bash "$SCRIPT_DIR/build-sdk.sh"
+bash "$SCRIPT_DIR/build-sdk.sh" "$@"
 echo ""
 
 # Step 2: Pack SDK packages

@@ -215,7 +215,7 @@ export function errorBox(title: string, message: string, withGuide = true): void
 	const lines: string[] = [];
 
 	// Top border with title
-	const errorSymbol = colors.error('✗');
+	const errorSymbol = colors.error(symbols.error);
 	const titleText = colors.error(title);
 	const titleTextWidth = 1 + stringWidth(title); // symbol + title
 	const barsNeeded = Math.max(innerWidth - titleTextWidth - 3, 1);

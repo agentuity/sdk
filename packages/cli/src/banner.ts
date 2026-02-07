@@ -7,6 +7,7 @@ import {
 	getDisplayWidth,
 	stripAnsi,
 } from './tui';
+import { getExecutingAgent } from './agent-detection';
 
 export function generateBanner(version?: string, compact?: true): string {
 	const _version = version ?? getVersion();
@@ -83,5 +84,9 @@ export function generateBanner(version?: string, compact?: true): string {
 }
 
 export function showBanner(version?: string, compact?: true): void {
+	// Skip banner when running from an AI coding agent
+	if (getExecutingAgent()) {
+		return;
+	}
 	console.log(generateBanner(version, compact));
 }

@@ -1,42 +1,42 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
 import {
-	QueueSchema,
-	type Queue,
 	type CreateQueueRequest,
-	type UpdateQueueRequest,
-	type ListQueuesRequest,
-	type QueueApiOptions,
 	CreateQueueRequestSchema,
+	type ListQueuesRequest,
+	type Queue,
+	type QueueApiOptions,
+	QueueSchema,
+	type UpdateQueueRequest,
 	UpdateQueueRequestSchema,
 } from './types';
 import {
+	buildQueueHeaders,
 	QueueError,
 	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
-	buildQueueHeaders,
 } from './util';
 import {
+	validateDescription,
+	validateLimit,
+	validateMaxInFlight,
+	validateMaxRetries,
+	validateOffset,
 	validateQueueName,
 	validateQueueType,
-	validateDescription,
 	validateTTL,
 	validateVisibilityTimeout,
-	validateMaxRetries,
-	validateMaxInFlight,
-	validateLimit,
-	validateOffset,
 } from './validation';
 
-const QueueResponseSchema = APIResponseSchema(z.object({ queue: QueueSchema }));
-const QueuesListResponseSchema = APIResponseSchema(
+export const QueueResponseSchema = APIResponseSchema(z.object({ queue: QueueSchema }));
+export const QueuesListResponseSchema = APIResponseSchema(
 	z.object({
 		queues: z.array(QueueSchema),
 		total: z.number().optional(),
 	})
 );
-const DeleteQueueResponseSchema = APIResponseSchemaNoData();
+export const DeleteQueueResponseSchema = APIResponseSchemaNoData();
 
 /**
  * Create a new message queue.

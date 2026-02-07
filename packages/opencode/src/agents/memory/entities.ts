@@ -2,6 +2,7 @@ import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import type { EntityType } from './types';
 import { loadCoderConfig } from '../../config/loader';
+import { getCoderProfile } from '../../plugin/hooks/tools';
 
 const ENTITY_TYPES: EntityType[] = ['user', 'org', 'project', 'repo', 'agent', 'model'];
 const ENTITY_PREFIX = 'entity';
@@ -34,7 +35,8 @@ type AgentuityProjectConfig = z.infer<typeof AgentuityProjectConfigSchema>;
 
 async function runCommand(
 	command: string[],
-	cwd?: string
+	cwd?: string,
+	env?: Record<string, string>
 ): Promise<{
 	stdout: string;
 	stderr: string;
@@ -44,6 +46,7 @@ async function runCommand(
 		cwd,
 		stdout: 'pipe',
 		stderr: 'pipe',
+		env: env ? { ...process.env, ...env } : undefined,
 	});
 
 	const [stdout, stderr, exitCode] = await Promise.all([
@@ -60,7 +63,11 @@ async function runCommand(
 }
 
 async function fetchWhoami() {
-	const result = await runCommand(['agentuity', '--json', 'auth', 'whoami']);
+	const profile = getCoderProfile();
+	const result = await runCommand(['agentuity', '--json', 'auth', 'whoami'], undefined, {
+		AGENTUITY_PROFILE: profile,
+		AGENTUITY_AGENT_MODE: 'opencode',
+	});
 
 	if (result.exitCode !== 0 || !result.stdout) {
 		return undefined;

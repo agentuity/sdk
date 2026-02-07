@@ -53,9 +53,9 @@ export const DeploymentSchema = z.object({
 	dnsRecords: z.array(z.string()).optional(),
 });
 
-const DeploymentListResponseSchema = APIResponseSchema(z.array(DeploymentSchema));
-const DeploymentGetResponseSchema = APIResponseSchema(DeploymentSchema);
-const DeploymentActionResponseSchema = APIResponseSchemaOptionalData(
+export const DeploymentListResponseSchema = APIResponseSchema(z.array(DeploymentSchema));
+export const DeploymentGetResponseSchema = APIResponseSchema(DeploymentSchema);
+export const DeploymentActionResponseSchema = APIResponseSchemaOptionalData(
 	z.object({ activeDeploymentId: z.string().optional() })
 );
 
@@ -100,7 +100,7 @@ export const DeploymentLookupSchema = z.object({
 	active: z.boolean(),
 });
 
-const DeploymentLookupResponseSchema = APIResponseSchema(DeploymentLookupSchema);
+export const DeploymentLookupResponseSchema = APIResponseSchema(DeploymentLookupSchema);
 
 export type DeploymentLookup = z.infer<typeof DeploymentLookupSchema>;
 
@@ -171,7 +171,7 @@ export const DeploymentLogSchema = z.object({
 	serviceName: z.string(),
 });
 
-const DeploymentLogsResponseSchema = APIResponseSchema(z.array(DeploymentLogSchema));
+export const DeploymentLogsResponseSchema = APIResponseSchema(z.array(DeploymentLogSchema));
 
 export type DeploymentLog = z.infer<typeof DeploymentLogSchema>;
 

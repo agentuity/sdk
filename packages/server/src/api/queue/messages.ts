@@ -1,53 +1,53 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
 import {
-	MessageSchema,
-	type Message,
-	type PublishMessageRequest,
 	type BatchPublishMessagesRequest,
-	type ListMessagesRequest,
-	type ConsumeMessagesRequest,
-	type QueueApiOptions,
-	PublishMessageRequestSchema,
 	BatchPublishMessagesRequestSchema,
+	type ConsumeMessagesRequest,
+	type ListMessagesRequest,
+	type Message,
+	MessageSchema,
+	type PublishMessageRequest,
+	PublishMessageRequestSchema,
+	type QueueApiOptions,
 } from './types';
 import {
+	buildQueueHeaders,
+	MessageNotFoundError,
 	QueueError,
 	QueueNotFoundError,
-	MessageNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
-	buildQueueHeaders,
 } from './util';
 import {
-	validateQueueName,
-	validatePayload,
-	validateMessageId,
-	validatePartitionKey,
-	validateIdempotencyKey,
-	validateTTL,
-	validateOffset,
-	validateLimit,
 	validateBatchSize,
+	validateIdempotencyKey,
+	validateLimit,
+	validateMessageId,
+	validateOffset,
+	validatePartitionKey,
+	validatePayload,
+	validateQueueName,
+	validateTTL,
 } from './validation';
 
-const MessageResponseSchema = APIResponseSchema(z.object({ message: MessageSchema }));
-const MessagesListResponseSchema = APIResponseSchema(
+export const MessageResponseSchema = APIResponseSchema(z.object({ message: MessageSchema }));
+export const MessagesListResponseSchema = APIResponseSchema(
 	z.object({
 		messages: z.array(MessageSchema),
 		total: z.number().optional(),
 	})
 );
-const BatchPublishResponseSchema = APIResponseSchema(
+export const BatchPublishResponseSchema = APIResponseSchema(
 	z.object({
 		messages: z.array(MessageSchema),
 		failed: z.array(z.number()).optional(),
 	})
 );
-const DeleteMessageResponseSchema = APIResponseSchemaNoData();
-const AckNackResponseSchema = APIResponseSchemaNoData();
-const OffsetResponseSchema = APIResponseSchema(z.object({ offset: z.number() }));
-const ReceiveResponseSchema = APIResponseSchema(
+export const DeleteMessageResponseSchema = APIResponseSchemaNoData();
+export const AckNackResponseSchema = APIResponseSchemaNoData();
+export const OffsetResponseSchema = APIResponseSchema(z.object({ offset: z.number() }));
+export const ReceiveResponseSchema = APIResponseSchema(
 	z.object({
 		message: MessageSchema.nullable(),
 	})

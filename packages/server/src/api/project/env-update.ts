@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import type { Project } from './get';
 import { projectGet } from './get';
 import { ProjectResponseError } from './util';
@@ -10,7 +10,7 @@ export const ProjectEnvUpdateRequestSchema = z.object({
 	secrets: z.record(z.string(), z.string()).optional().describe('secrets to set/update'),
 });
 
-const ProjectEnvUpdateResponseSchema = APIResponseSchema(
+export const ProjectEnvUpdateResponseSchema = APIResponseSchema(
 	z
 		.object({
 			id: z.string().describe('the project id'),

@@ -10,3 +10,4 @@ export {
 } from './sse';
 export { stream, type StreamHandler } from './stream';
 export { cron, type CronHandler, type CronMetadata } from './cron';
+export { webrtc, type WebRTCHandler, type WebRTCOptions } from './webrtc';
