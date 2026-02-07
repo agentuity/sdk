@@ -244,7 +244,12 @@ export function AgentCallsDemo() {
 							disabled={isLoading}
 							onClick={handleRun}
 						>
-							<span data-loading={isLoading ? 'true' : undefined}>Run</span>
+							<span className="relative">
+								<span className={isLoading ? 'invisible' : ''}>Run</span>
+								{isLoading && (
+									<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								)}
+							</span>
 						</Button>
 					</div>
 				</div>

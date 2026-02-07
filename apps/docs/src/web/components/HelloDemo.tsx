@@ -29,8 +29,11 @@ export function HelloDemo() {
 						size="default"
 						className="whitespace-nowrap"
 					>
-						<span data-loading={isLoading ? 'true' : undefined}>
-							{isLoading ? 'Running' : 'Say Hello'}
+						<span className="relative">
+							<span className={isLoading ? 'invisible' : ''}>Say Hello</span>
+							{isLoading && (
+								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+							)}
 						</span>
 					</Button>
 				</div>

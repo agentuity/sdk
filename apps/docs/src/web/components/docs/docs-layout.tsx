@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
+import { Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
+import { ChevronLeft } from 'lucide-react';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '../ui';
 import { AppSidebar } from './app-sidebar';
 import { HeaderLinks } from './header-links';
@@ -51,6 +52,12 @@ export function DocsLayout() {
 			<SidebarInset className="flex flex-col">
 				<header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4">
 					<SidebarTrigger className="-ml-1" />
+					{currentPage.startsWith('demo/') && (
+						<Link to="/" className="flex items-center gap-1 text-sm text-zinc-500 hover:text-cyan-500 transition-colors ml-2">
+							<ChevronLeft className="size-4" />
+							<span>Explorer</span>
+						</Link>
+					)}
 					<div className="flex-1" />
 					<HeaderLinks />
 					<ModeToggle />

@@ -227,7 +227,12 @@ export function AIGatewayDemo() {
 						size="default"
 						className="self-start"
 					>
-						{isRunning ? 'Running...' : 'Compare Models'}
+						<span className="relative">
+							<span className={isRunning ? 'invisible' : ''}>Compare Models</span>
+							{isRunning && (
+								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+							)}
+						</span>
 					</Button>
 				</div>
 			</div>

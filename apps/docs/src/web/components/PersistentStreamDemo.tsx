@@ -115,10 +115,12 @@ export function PersistentStreamDemo() {
 						size="sm"
 						variant="outline"
 					>
-						{isGenerating && (
-							<span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-						)}
-						{isGenerating ? 'Generating...' : 'Generate Summary'}
+						<span className="relative">
+							<span className={isGenerating ? 'invisible' : ''}>Generate Summary</span>
+							{isGenerating && (
+								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+							)}
+						</span>
 					</Button>
 				</div>
 				<Separator />

@@ -166,13 +166,12 @@ export function EvalsDemo() {
 						size="default"
 						className="self-start"
 					>
-						{status === 'generating' ? (
-							<span data-loading="true">Generating</span>
-						) : status === 'polling' ? (
-							<span data-loading="true">Running Evals</span>
-						) : (
-							'Generate Explanation'
-						)}
+						<span className="relative">
+							<span className={status === 'generating' || status === 'polling' ? 'invisible' : ''}>Generate Explanation</span>
+							{(status === 'generating' || status === 'polling') && (
+								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+							)}
+						</span>
 					</Button>
 				</div>
 			</div>

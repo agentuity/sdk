@@ -91,7 +91,12 @@ export function CronDemo() {
 							variant="outline"
 							size="sm"
 						>
-							{isRunning ? 'Running...' : logs.length > 0 ? 'Run Again' : 'Start Simulation'}
+							<span className="relative">
+								<span className={isRunning ? 'invisible' : ''}>{logs.length > 0 ? 'Run Again' : 'Start Simulation'}</span>
+								{isRunning && (
+									<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								)}
+							</span>
 						</Button>
 						{logs.length > 0 && !isRunning && (
 							<Button
