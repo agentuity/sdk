@@ -1,5 +1,5 @@
 ---
-name: Agentuity Frontend Reference
+name: agentuity-frontend
 description: When working with Agentuity SDK frontend packages including @agentuity/react, @agentuity/frontend, @agentuity/auth, or @agentuity/workbench. Activates when building React components that call agents, setting up authentication, using useAPI or useWebsocket hooks, or integrating the workbench dev UI.
 version: 1.0.0
 ---

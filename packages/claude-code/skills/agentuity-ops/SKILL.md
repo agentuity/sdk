@@ -1,5 +1,5 @@
 ---
-name: Agentuity Ops Reference
+name: agentuity-ops
 description: When working with the Agentuity CLI, cloud services (KV, Vector, Storage, Sandbox, Database, SSH), deployments, or infrastructure. Activates when running agentuity commands, managing cloud resources, deploying projects, or configuring infrastructure.
 version: 1.0.0
 ---

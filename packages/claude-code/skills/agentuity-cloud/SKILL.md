@@ -1,5 +1,5 @@
 ---
-name: Agentuity Cloud Reference
+name: agentuity-cloud
 description: When working with Agentuity platform services, SDK package selection, or need guidance on which Agentuity package to use for a specific task. Activates when questions span multiple Agentuity domains (backend + frontend + ops), when choosing between packages, or when needing an overview of available services.
 version: 1.0.0
 ---

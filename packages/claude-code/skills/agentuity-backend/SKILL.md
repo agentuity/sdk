@@ -1,5 +1,5 @@
 ---
-name: Agentuity Backend Reference
+name: agentuity-backend
 description: When working with Agentuity SDK backend packages including @agentuity/runtime, @agentuity/schema, @agentuity/drizzle, @agentuity/postgres, @agentuity/evals, @agentuity/core, or @agentuity/server. Activates when writing agent handlers, using ctx.* APIs, setting up schemas, database connections, or evaluation frameworks.
 version: 1.0.0
 ---

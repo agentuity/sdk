@@ -1,5 +1,5 @@
 ---
-name: Command Runner
+name: agentuity-command-runner
 description: When running lint, build, test, typecheck, format, clean, or install commands and need structured, actionable output. Activates when executing development commands and parsing their output into structured error reports with file locations, error classification, and deduplication.
 version: 1.0.0
 ---

@@ -11,6 +11,7 @@
 	"files": [
 		"AGENTS.md",
 		"README.md",
+		"LICENSE",
 		".claude-plugin",
 		"agents",
 		"skills",

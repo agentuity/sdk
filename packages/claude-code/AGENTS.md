@@ -24,8 +24,8 @@ A team of specialized AI agents for code assistance with persistent memory via A
 | **agentuity-frontend** | Expert Frontend | React hooks, auth, workbench, web utilities |
 | **agentuity-ops** | Expert Ops | CLI commands, cloud services, deployments |
 | **agentuity-cloud** | Expert (overview) | Package routing, ecosystem overview |
-| **command-runner** | Runner | Build/test/lint execution methodology |
-| **reasoning** | Reasoner | Conclusion extraction, memory reasoning |
+| **agentuity-command-runner** | Runner | Build/test/lint execution methodology |
+| **agentuity-reasoning** | Reasoner | Conclusion extraction, memory reasoning |
 
 ### Hooks (6)
 

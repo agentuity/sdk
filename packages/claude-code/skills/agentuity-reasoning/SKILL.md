@@ -1,5 +1,5 @@
 ---
-name: Reasoning Framework
+name: agentuity-reasoning
 description: When extracting structured conclusions from session data, performing validity checks on existing memories, or applying formal reasoning to analyze patterns across interactions. Activates when the Memory agent needs to extract conclusions, detect corrections, resolve conflicts, or validate stale memories.
 version: 1.0.0
 ---
