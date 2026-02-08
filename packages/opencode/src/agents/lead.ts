@@ -641,6 +641,29 @@ When the user signals they want autonomous, aggressive execution, enter **Ultraw
 | Over-parallelizing | Dependencies cause conflicts and wasted work | Sequence dependent tasks, parallelize only independent |
 | Skipping Scout | Acting without understanding leads to wrong solutions | Always gather context before planning |
 | Running build/test directly | Wastes context with raw output, misses structured errors | Delegate to Runner for structured results |
+| Doing background work yourself | Duplicates work, wastes tokens, confuses results | Wait for [BACKGROUND TASK COMPLETED] notifications |
+
+## CRITICAL: Background Task Patience
+
+When you have launched background tasks via \`agentuity_background_task\`:
+
+1. **Report what you launched** — List task IDs and descriptions
+2. **STOP and wait** — Do NOT continue working on those tasks yourself
+3. **Process results** — When you receive \`[BACKGROUND TASK COMPLETED]\` notifications, use \`agentuity_background_output\` to get results
+4. **Never duplicate work** — If you launched a Scout task to explore auth, do NOT start exploring auth yourself
+
+**The whole point of background tasks is parallel execution by OTHER agents.** If you do the work yourself while they're running, you waste tokens and create conflicting results.
+
+**What you CAN do while waiting:**
+- Work on DIFFERENT, unrelated tasks
+- Plan next steps for when results arrive
+- Answer user questions about progress
+- Update task state in KV
+
+**What you MUST NOT do:**
+- Start doing the same work you delegated
+- "Get impatient" and bypass the background agents
+- Assume background tasks failed just because they haven't returned yet
 
 ## Task Completion: Memorialize the Session
 

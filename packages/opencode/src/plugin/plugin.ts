@@ -337,7 +337,7 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions
 - **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
-- **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
+- **@Agentuity Coder Expert**: Agentuity CLI, SDK, Services, and Documentation specialist
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress
 
@@ -350,7 +350,7 @@ $ARGUMENTS
 3. Delegate implementation to @Agentuity Coder Builder (or Architect for complex work)
 4. Delegate lint/build/test commands to @Agentuity Coder Runner for structured results
 5. Have @Agentuity Coder Reviewer check the work
-6. Use @Agentuity Coder Expert for Agentuity CLI questions
+6. Use @Agentuity Coder Expert for Agentuity CLI, SDK, Services, and Documentation questions
 7. Only use cloud services when genuinely helpful
 8. **When done, tell @Agentuity Coder Memory to memorialize the session**
 </coder-mode>`,
@@ -492,7 +492,7 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
 - **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
 - **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
-- **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
+- **@Agentuity Coder Expert**: Agentuity CLI, SDK, Services, and Documentation specialist
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress, Cadence briefings
 
