@@ -16,7 +16,7 @@ A team of specialized AI agents for code assistance with persistent memory via A
 | **Memory** | Librarian | haiku | KV + Vector storage, cross-session recall. |
 | **Product** | Requirements | sonnet | Feature planning, PRDs, requirements clarity. |
 
-### Skills (6)
+### Skills (5)
 
 | Skill | Source | Description |
 |-------|--------|-------------|
@@ -25,7 +25,6 @@ A team of specialized AI agents for code assistance with persistent memory via A
 | **agentuity-ops** | Expert Ops | CLI commands, cloud services, deployments |
 | **agentuity-cloud** | Expert (overview) | Package routing, ecosystem overview |
 | **agentuity-command-runner** | Runner | Build/test/lint execution methodology |
-| **agentuity-reasoning** | Reasoner | Conclusion extraction, memory reasoning |
 
 ### Hooks (6)
 

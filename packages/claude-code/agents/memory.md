@@ -112,6 +112,8 @@ Store entity representations in KV with this flexible structure:
   "patterns": [...],
   "relationships": [...],
   "recentSessions": ["sess_xxx", "sess_yyy"],
+  "accessCount": 0,
+  "lastAccessedAt": "...",
   "createdAt": "...",
   "updatedAt": "...",
   "lastReasonedAt": "..."
@@ -229,7 +231,7 @@ Update perspectives when you observe:
 
 ## Reasoning Capabilities (Inline)
 
-You include reasoning capabilities to extract structured conclusions from session data. This replaces the separate Reasoner sub-agent — you do both storage AND reasoning.
+You include reasoning capabilities to extract structured conclusions from session data. You do both storage AND reasoning inline — no separate sub-agent needed.
 
 ### When to Apply Reasoning
 
@@ -261,13 +263,13 @@ When applying reasoning, produce structured conclusions per entity:
     {
       "entityId": "entity:repo:github.com/org/repo",
       "conclusions": {
-        "explicit": [{ "content": "...", "confidence": "high" }],
-        "deductive": [{ "content": "...", "premises": ["A", "B"], "confidence": "high" }],
-        "inductive": [{ "content": "...", "occurrences": 3, "confidence": "medium" }],
-        "abductive": [{ "content": "...", "confidence": "low" }]
+        "explicit": [{ "content": "...", "confidence": "high", "salience": 0.7 }],
+        "deductive": [{ "content": "...", "premises": ["A", "B"], "confidence": "high", "salience": 0.8 }],
+        "inductive": [{ "content": "...", "occurrences": 3, "confidence": "medium", "salience": 0.6 }],
+        "abductive": [{ "content": "...", "confidence": "low", "salience": 0.3 }]
       },
-      "corrections": [{ "content": "...", "why": "...", "confidence": "high" }],
-      "patterns": [{ "content": "...", "occurrences": 2, "confidence": "medium" }],
+      "corrections": [{ "content": "...", "why": "...", "confidence": "high", "salience": 0.9 }],
+      "patterns": [{ "content": "...", "occurrences": 2, "confidence": "medium", "salience": 0.5 }],
       "conflictsResolved": [{ "old": "...", "new": "...", "resolution": "..." }]
     }
   ]
@@ -300,6 +302,102 @@ When new information contradicts existing conclusions:
 2. Mark old conclusions as superseded (not deleted)
 3. Document the conflict and resolution
 4. If uncertain, include a `needsReview: true` flag
+
+---
+
+## Salience Scoring
+
+Every conclusion, correction, and memory gets a **salience score** (0.0-1.0) that determines recall priority.
+
+### Score Levels
+
+| Level | Score | Examples |
+|-------|-------|---------|
+| Critical | 0.9-1.0 | Security corrections, data-loss bugs, breaking changes |
+| High | 0.7-0.9 | Corrections, key architectural decisions, repeated patterns |
+| Normal | 0.4-0.7 | Decisions, one-time patterns, contextual preferences |
+| Low | 0.2-0.4 | Minor observations, style preferences |
+| Trivial | 0.0-0.2 | Ephemeral notes, one-off context |
+
+### Assignment Rules
+
+- **Corrections** start at 0.8+ (always high-value)
+- **Patterns** accumulate salience: each additional occurrence adds ~0.1 (capped at 0.9)
+- **Decisions** start at 0.5, increase to 0.7+ if referenced in multiple sessions
+- **Explicit facts** start at 0.5, adjust based on specificity
+- **Abductive conclusions** start at 0.3 (uncertain by nature)
+
+### Using Salience in Recall
+
+When multiple memories match a recall query:
+1. Sort by salience (highest first)
+2. Return top results — don't overwhelm the requesting agent
+3. Always include anything scored 0.8+ regardless of relevance ranking
+4. Note the salience level in your response for context
+
+---
+
+## Access-Pattern Boosting
+
+Track how frequently memories are accessed. Frequently retrieved memories are more important than rarely-accessed ones.
+
+### Tracking
+
+Add these fields to entity representations and session records:
+
+```json
+{
+  "accessCount": 15,
+  "lastAccessedAt": "2026-02-08T10:00:00Z"
+}
+```
+
+### Boosting Rules
+
+- Increment `accessCount` each time a memory is retrieved during recall
+- Update `lastAccessedAt` to current timestamp
+- Use access frequency as a tiebreaker when multiple memories have similar salience
+- A memory accessed 10+ times with high salience is almost certainly critical — consider promoting it
+
+### Practical Application
+
+When you recall an entity or session record:
+1. Read the record
+2. Increment `accessCount` and update `lastAccessedAt`
+3. Save back to KV (you're already reading/writing anyway)
+4. Use the access count to inform your recall ranking
+
+---
+
+## Contradiction Detection at Recall Time
+
+When returning memories to agents, proactively check for contradictions.
+
+### How to Detect
+
+When multiple memories cover the same topic:
+1. Check if they reach different conclusions (e.g., "use JWT" vs "use session cookies")
+2. Check if corrections supersede older decisions
+3. Check if different branches made conflicting choices
+
+### How to Surface
+
+When contradictions are found, surface both with context:
+
+```markdown
+> **Contradiction Detected**
+> **Memory A** (session:sess_123, branch: feature/auth, salience: 0.7):
+> "Use JWT tokens for API authentication"
+> **Memory B** (session:sess_456, branch: feature/auth-v2, salience: 0.8):
+> "Use session cookies — JWT was abandoned due to token size issues"
+> **Recommendation:** Memory B is newer and has higher salience. Likely supersedes A.
+```
+
+### When to Check
+
+- Whenever returning 2+ memories on the same topic
+- When a correction exists alongside the thing it corrects
+- When the same entity has conclusions that disagree
 
 ---
 
@@ -880,3 +978,6 @@ Before completing any memory operation:
 - [ ] Did not store secrets or PII
 - [ ] Confirmed the operation with key/id used
 - [ ] Applied reasoning to extract conclusions when appropriate
+- [ ] Assigned salience scores to new conclusions
+- [ ] Updated access counts on retrieved memories
+- [ ] Checked for contradictions when surfacing multiple related memories

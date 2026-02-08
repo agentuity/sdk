@@ -3,8 +3,8 @@ import { agents, getAgentByRole, getAgentById } from '../src/agents';
 
 describe('Agents', () => {
 	describe('agent definitions', () => {
-		it('exports all 14 agents', () => {
-			expect(Object.keys(agents)).toHaveLength(14);
+		it('exports all 13 agents', () => {
+			expect(Object.keys(agents)).toHaveLength(13);
 			expect(agents.lead).toBeDefined();
 			expect(agents.scout).toBeDefined();
 			expect(agents.builder).toBeDefined();
@@ -17,7 +17,6 @@ describe('Agents', () => {
 			expect(agents['expert-ops']).toBeDefined();
 			expect(agents.runner).toBeDefined();
 			expect(agents.product).toBeDefined();
-			expect(agents.reasoner).toBeDefined();
 			expect(agents.monitor).toBeDefined();
 		});
 
@@ -56,7 +55,6 @@ describe('Agents', () => {
 			expect(getAgentByRole('expert')?.id).toBe('ag-expert');
 			expect(getAgentByRole('runner')?.id).toBe('ag-runner');
 			expect(getAgentByRole('product')?.id).toBe('ag-product');
-			expect(getAgentByRole('reasoner')?.id).toBe('ag-reasoner');
 		});
 	});
 
@@ -71,7 +69,6 @@ describe('Agents', () => {
 			expect(getAgentById('ag-expert')?.role).toBe('expert');
 			expect(getAgentById('ag-runner')?.role).toBe('runner');
 			expect(getAgentById('ag-product')?.role).toBe('product');
-			expect(getAgentById('ag-reasoner')?.role).toBe('reasoner');
 		});
 
 		it('returns undefined for unknown id', () => {
@@ -145,13 +142,11 @@ describe('Agents', () => {
 			expect(agents.product.systemPrompt).toContain('PRD Generation');
 		});
 
-		it('Reasoner agent is subagent-only with restricted tools', () => {
-			expect(agents.reasoner.mode).toBe('subagent');
-			expect(agents.reasoner.tools?.exclude).toContain('write');
-			expect(agents.reasoner.tools?.exclude).toContain('edit');
-			expect(agents.reasoner.tools?.exclude).not.toContain('task');
-			expect(agents.reasoner.defaultModel).toBe('openai/gpt-5.2');
-			expect(agents.reasoner.temperature).toBe(0.3);
+		it('Memory agent includes inline reasoning capabilities', () => {
+			expect(agents.memory.systemPrompt).toContain('Reasoning Capabilities (Inline)');
+			expect(agents.memory.systemPrompt).toContain('Salience Scoring');
+			expect(agents.memory.systemPrompt).toContain('Access-Pattern Boosting');
+			expect(agents.memory.systemPrompt).toContain('Contradiction Detection');
 		});
 	});
 });
