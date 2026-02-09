@@ -141,6 +141,18 @@ export const SandboxInfoDataSchema = z
 		agent: SandboxAgentInfoSchema.optional().describe('Agent associated with the sandbox'),
 		project: SandboxProjectInfoSchema.optional().describe('Project associated with the sandbox'),
 		org: SandboxOrgInfoSchema.describe('Organization associated with the sandbox'),
+		timeout: z
+			.object({
+				idle: z.string().optional(),
+				execution: z.string().optional(),
+			})
+			.optional(),
+		command: z
+			.object({
+				exec: z.array(z.string()),
+				mode: z.enum(['oneshot', 'interactive']).optional(),
+			})
+			.optional(),
 	})
 	.describe('Detailed information about a sandbox');
 
@@ -209,6 +221,8 @@ export async function sandboxGet(
 			agent: resp.data.agent,
 			project: resp.data.project,
 			org: resp.data.org,
+			timeout: resp.data.timeout,
+			command: resp.data.command,
 		};
 	}
 
