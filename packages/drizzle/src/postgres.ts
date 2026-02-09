@@ -1,3 +1,4 @@
+import { SQL as BunSQL } from 'bun';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { postgres, type CallablePostgresClient, type PostgresConfig } from '@agentuity/postgres';
 import type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
@@ -37,6 +38,57 @@ export function resolvePostgresClientConfig<
 	}
 
 	return clientConfig;
+}
+
+/**
+ * Creates a dynamic SQL proxy that always delegates to the PostgresClient's
+ * current raw connection. This ensures that after automatic reconnection,
+ * Drizzle ORM uses the fresh connection instead of a stale reference.
+ *
+ * The proxy also wraps `unsafe()` calls with the client's retry logic,
+ * providing automatic retry on transient connection errors.
+ *
+ * @internal Exported for testing — not part of the public package API.
+ */
+export function createResilientSQLProxy(
+	client: CallablePostgresClient
+): InstanceType<typeof BunSQL> {
+	return new Proxy({} as InstanceType<typeof BunSQL>, {
+		get(_target, prop, _receiver) {
+			// Always resolve from the CURRENT raw connection (changes after reconnect)
+			const raw = client.raw;
+
+			if (prop === 'unsafe') {
+				// Wrap unsafe() with retry logic for resilient queries.
+				// Returns a thenable that also supports .values() chaining,
+				// matching the SQLQuery interface that Drizzle expects:
+				//   client.unsafe(query, params)           → Promise<rows>
+				//   client.unsafe(query, params).values()   → Promise<rows>
+				return (query: string, params?: unknown[]) => {
+					const makeExecutor = (useValues: boolean) =>
+						client.executeWithRetry(async () => {
+							// Re-resolve raw inside retry to get post-reconnect instance
+							const currentRaw = client.raw;
+							const q = currentRaw.unsafe(query, params);
+							return useValues ? q.values() : q;
+						});
+
+					// Return a thenable with .values() to match Bun's SQLQuery interface
+					const result = makeExecutor(false);
+					return Object.assign(result, {
+						values: () => makeExecutor(true),
+					});
+				};
+			}
+
+			const value = (raw as unknown as Record<string | symbol, unknown>)[prop];
+			if (typeof value === 'function') {
+				// Bind to raw so `this` is correct inside begin(), savepoint(), etc.
+				return (value as (...args: unknown[]) => unknown).bind(raw);
+			}
+			return value;
+		},
+	});
 }
 
 /**
@@ -100,10 +152,15 @@ export function createPostgresDrizzle<
 		});
 	}
 
-	// Create Drizzle instance using the client's raw SQL connection
-	// The bun-sql driver accepts a client that implements the Bun.SQL interface
+	// Create a resilient proxy that always delegates to the current raw SQL
+	// connection. This ensures that after reconnection, Drizzle automatically
+	// uses the new connection instead of the stale one.
+	const resilientSQL = createResilientSQLProxy(client);
+
+	// Create Drizzle instance using the resilient proxy instead of a static
+	// reference to client.raw, which would become stale after reconnection.
 	const db = drizzle({
-		client: client.raw,
+		client: resilientSQL,
 		schema: config?.schema,
 		logger: config?.logger,
 	});
