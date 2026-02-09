@@ -466,8 +466,12 @@ export class PromptFlow {
 
 					// Sort indices to get consistent order for both values and labels
 					const sortedIndices = Array.from(selected).sort((a, b) => a - b);
-					const values = sortedIndices.map((i) => choices[i]?.value).filter((v) => v !== undefined);
-					const labels = sortedIndices.map((i) => choices[i]?.label).filter((l) => l !== undefined);
+					const values = sortedIndices
+						.map((i) => choices[i]?.value)
+						.filter((v) => v !== undefined);
+					const labels = sortedIndices
+						.map((i) => choices[i]?.label)
+						.filter((l) => l !== undefined);
 
 					// Clear all lines (message + all choices)
 					const totalLines = choices.length + 1;

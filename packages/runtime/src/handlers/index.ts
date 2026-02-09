@@ -8,4 +8,4 @@ export {
 	IS_STREAMING_RESPONSE_KEY,
 } from './sse';
 export { stream, type StreamHandler } from './stream';
-export { cron, type CronHandler, type CronMetadata } from './cron';
+export { cron, type CronHandler, type CronMetadata, type CronOptions } from './cron';

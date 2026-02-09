@@ -1,5 +1,4 @@
 import type { Context, Handler, MiddlewareHandler } from 'hono';
-import { timingSafeEqual } from 'node:crypto';
 import { toJSONSchema } from '@agentuity/server';
 import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';
@@ -13,6 +12,46 @@ import {
 	ensureAgentsImported,
 } from './_metadata';
 import { TOKENS_HEADER, DURATION_HEADER } from './_tokens';
+import { verifySignature } from './signature';
+import { isProduction } from './_config';
+import { createCorsMiddleware } from './middleware';
+
+/**
+ * Middleware that verifies workbench request signatures in production.
+ * In development mode, all requests are allowed.
+ * Supports both header-based auth (for HTTP) and query param auth (for WebSocket).
+ */
+const createWorkbenchAuthMiddleware = (): MiddlewareHandler => {
+	return async (c, next) => {
+		// Allow CORS preflight requests through (they don't have auth headers)
+		if (c.req.method === 'OPTIONS') {
+			return next();
+		}
+
+		// Skip auth in dev mode
+		if (!isProduction()) {
+			return next();
+		}
+
+		// Check signature from headers or query params (for WebSocket)
+		const signature = c.req.header('X-Agentuity-Workbench-Signature') || c.req.query('signature');
+		const timestamp = c.req.header('X-Agentuity-Workbench-Timestamp') || c.req.query('timestamp');
+
+		// For non-POST requests, body is empty
+		let body = '';
+		if (c.req.method === 'POST') {
+			const clonedReq = c.req.raw.clone();
+			body = await clonedReq.text();
+		}
+
+		const isValid = await verifySignature(signature, timestamp, body);
+		if (!isValid) {
+			return c.json({ error: 'Unauthorized' }, 401);
+		}
+
+		return next();
+	};
+};
 
 /**
  * Middleware that captures execution metadata (tokens, duration, sessionId) after the handler completes
@@ -89,27 +128,7 @@ const createWorkbenchExecutionMetadataMiddleware = (): MiddlewareHandler => {
 };
 
 export const createWorkbenchExecutionRoute = (): Handler => {
-	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
-		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
-		: undefined;
 	return async (ctx: Context) => {
-		// Authentication check
-		if (authHeader) {
-			try {
-				const authValue = ctx.req.header('Authorization');
-				if (
-					!authValue ||
-					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
-				) {
-					return ctx.text('Unauthorized', { status: 401 });
-				}
-			} catch {
-				// timing safe equals will throw if the input/output lengths are mismatched
-				// so we treat all exceptions as invalid
-				return ctx.text('Unauthorized', { status: 401 });
-			}
-		}
-
 		// Content-type validation
 		const contentType = ctx.req.header('Content-Type');
 		if (!contentType || !contentType.includes('application/json')) {
@@ -188,27 +207,7 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 };
 
 export const createWorkbenchClearStateRoute = (): Handler => {
-	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
-		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
-		: undefined;
 	return async (ctx: Context) => {
-		// Authentication check
-		if (authHeader) {
-			try {
-				const authValue = ctx.req.header('Authorization');
-				if (
-					!authValue ||
-					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
-				) {
-					return ctx.text('Unauthorized', { status: 401 });
-				}
-			} catch {
-				// timing safe equals will throw if the input/output lengths are mismatched
-				// so we treat all exceptions as invalid
-				return ctx.text('Unauthorized', { status: 401 });
-			}
-		}
-
 		const agentId = ctx.req.query('agentId');
 
 		if (!agentId) {
@@ -245,27 +244,7 @@ export const createWorkbenchClearStateRoute = (): Handler => {
 };
 
 export const createWorkbenchStateRoute = (): Handler => {
-	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
-		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
-		: undefined;
 	return async (ctx: Context) => {
-		// Authentication check
-		if (authHeader) {
-			try {
-				const authValue = ctx.req.header('Authorization');
-				if (
-					!authValue ||
-					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
-				) {
-					return ctx.text('Unauthorized', { status: 401 });
-				}
-			} catch {
-				// timing safe equals will throw if the input/output lengths are mismatched
-				// so we treat all exceptions as invalid
-				return ctx.text('Unauthorized', { status: 401 });
-			}
-		}
-
 		const agentId = ctx.req.query('agentId');
 		if (!agentId) {
 			return ctx.json({ error: 'agentId query parameter is required' }, { status: 400 });
@@ -290,31 +269,44 @@ export const createWorkbenchStateRoute = (): Handler => {
  * Creates a workbench router with proper agent middleware for execution routes
  */
 export const createWorkbenchRouter = () => {
-	// Try to extract API key from inline workbench config if available
-	try {
-		// @ts-expect-error - AGENTUITY_WORKBENCH_CONFIG_INLINE will be replaced at build time
-		if (typeof AGENTUITY_WORKBENCH_CONFIG_INLINE !== 'undefined') {
-			// @ts-expect-error - AGENTUITY_WORKBENCH_CONFIG_INLINE will be replaced at build time
-			const encoded = AGENTUITY_WORKBENCH_CONFIG_INLINE;
-
-			// Decode the config manually to avoid async import
-			const json = Buffer.from(encoded, 'base64').toString('utf-8');
-			const config = JSON.parse(json);
-
-			// Extract API key from Authorization header if present
-			if (config.headers?.['Authorization']) {
-				const authHeader = config.headers['Authorization'];
-				if (authHeader.startsWith('Bearer ')) {
-					const apiKey = authHeader.slice('Bearer '.length);
-					process.env.AGENTUITY_WORKBENCH_APIKEY = apiKey;
-				}
-			}
-		}
-	} catch {
-		// Silently ignore if config is not available or invalid
-	}
-
 	const router = createRouter();
+
+	// Apply CORS middleware first so that even error responses get CORS headers
+	// Include workbench signature headers for production auth
+	// Origin reflects any origin (default behavior) to allow app.agentuity.* to call deployed agents
+	console.log('[workbench] Setting up CORS middleware with signature headers');
+	router.use('/_agentuity/workbench/*', async (c, next) => {
+		console.log(`[workbench] CORS middleware hit: ${c.req.method} ${c.req.path}`);
+		return next();
+	});
+	router.use(
+		'/_agentuity/workbench/*',
+		createCorsMiddleware({
+			origin: (origin: string) => {
+				console.log(`[workbench] CORS origin check: ${origin}`);
+				return origin;
+			},
+			allowHeaders: [
+				'Content-Type',
+				'Authorization',
+				'Accept',
+				'Origin',
+				'X-Requested-With',
+				'X-Agentuity-Workbench-Signature',
+				'X-Agentuity-Workbench-Timestamp',
+				'x-thread-id',
+			],
+			exposeHeaders: [
+				'x-thread-id',
+				'x-session-id',
+				'x-agentuity-tokens',
+				'x-agentuity-duration',
+			],
+		})
+	);
+
+	// Apply auth middleware (signature verification in production)
+	router.use('/_agentuity/workbench/*', createWorkbenchAuthMiddleware());
 
 	// Apply agent middleware to ensure proper context is available
 	router.use('/_agentuity/workbench/*', createAgentMiddleware(''));
@@ -334,25 +326,7 @@ export const createWorkbenchRouter = () => {
 };
 
 export const createWorkbenchSampleRoute = (): Handler => {
-	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
-		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
-		: undefined;
 	return async (ctx: Context) => {
-		// Authentication check
-		if (authHeader) {
-			try {
-				const authValue = ctx.req.header('Authorization');
-				if (
-					!authValue ||
-					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
-				) {
-					return ctx.text('Unauthorized', { status: 401 });
-				}
-			} catch {
-				return ctx.text('Unauthorized', { status: 401 });
-			}
-		}
-
 		try {
 			const agentId = ctx.req.query('agentId');
 			if (!agentId) {
@@ -484,27 +458,7 @@ Return a JSON object that matches this schema with realistic values.`;
 };
 
 export const createWorkbenchMetadataRoute = (): Handler => {
-	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
-		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
-		: undefined;
-
 	return async (ctx) => {
-		if (authHeader) {
-			try {
-				const authValue = ctx.req.header('Authorization');
-				if (
-					!authValue ||
-					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
-				) {
-					return ctx.text('Unauthorized', { status: 401 });
-				}
-			} catch {
-				// timing safe equals will throw if the input/output lengths are mismatched
-				// so we treat all exceptions as invalid
-				return ctx.text('Unauthorized', { status: 401 });
-			}
-		}
-
 		// Read metadata from agentuity.metadata.json file
 		const metadata = loadBuildMetadata();
 		if (!metadata) {

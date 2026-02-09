@@ -90,7 +90,11 @@ export {
 	cron,
 	type CronHandler,
 	type CronMetadata,
+	type CronOptions,
 } from './handlers';
+
+// signature.ts exports (shared HMAC signature verification)
+export { verifySignature } from './signature';
 
 // eval.ts exports
 export {

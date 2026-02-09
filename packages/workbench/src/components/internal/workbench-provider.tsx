@@ -1,6 +1,6 @@
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type React from 'react';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAgentSchemas } from '../../hooks/useAgentSchemas';
 import { useLogger } from '../../hooks/useLogger';
 import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
@@ -19,6 +19,13 @@ export function useWorkbench() {
 	return context;
 }
 
+/**
+ * Callback to get authentication headers for workbench requests.
+ * Called before each API request with the request body.
+ * Should return headers like X-Agentuity-Workbench-Signature and X-Agentuity-Workbench-Timestamp.
+ */
+export type GetAuthHeaders = (body: string) => Promise<Record<string, string>>;
+
 interface WorkbenchProviderProps {
 	config: Omit<WorkbenchConfig, 'route'> & {
 		baseUrl?: string | null;
@@ -36,6 +43,12 @@ interface WorkbenchProviderProps {
 			post?: React.ReactNode;
 		};
 	};
+	/**
+	 * Optional callback to get authentication headers for requests to deployed agents.
+	 * Called before each API request with the request body (empty string for GET/DELETE).
+	 * Useful for signature-based authentication in production deployments.
+	 */
+	getAuthHeaders?: GetAuthHeaders;
 }
 
 export function WorkbenchProvider({
@@ -47,8 +60,17 @@ export function WorkbenchProvider({
 	},
 	children,
 	portals,
+	getAuthHeaders,
 }: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
+	console.log('[WorkbenchProvider] render', {
+		baseUrl: config.baseUrl,
+		projectId: config.projectId,
+	});
+
+	// Use ref for getAuthHeaders to prevent re-render loops when the callback changes identity
+	const getAuthHeadersRef = useRef(getAuthHeaders);
+	getAuthHeadersRef.current = getAuthHeaders;
 
 	// localStorage utilities scoped by project
 	const getStorageKey = useCallback(
@@ -77,26 +99,35 @@ export function WorkbenchProvider({
 		}
 	}, [getStorageKey]);
 
+	// Thread IDs are stored per baseUrl to avoid signature mismatch between environments
+	// (local signs with 'agentuity', cloud signs with AGENTUITY_SDK_KEY)
+	const getThreadStorageKey = useCallback(() => {
+		// Use a hash of the baseUrl to create unique storage per endpoint
+		const url = config.baseUrl ?? 'local';
+		const urlHash = typeof url === 'string' ? btoa(url).slice(0, 16) : 'local';
+		return getStorageKey(`thread-id-${urlHash}`);
+	}, [getStorageKey, config.baseUrl]);
+
 	const saveThreadId = useCallback(
 		(threadId: string) => {
 			try {
-				localStorage.setItem(getStorageKey('thread-id'), threadId);
+				localStorage.setItem(getThreadStorageKey(), threadId);
 			} catch (error) {
 				logger.warn('Failed to save thread id to localStorage:', error);
 			}
 		},
-		[getStorageKey]
+		[getThreadStorageKey]
 	);
 
 	const loadThreadId = useCallback((): string | null => {
 		try {
-			return localStorage.getItem(getStorageKey('thread-id'));
+			return localStorage.getItem(getThreadStorageKey());
 		} catch (error) {
 			logger.warn('Failed to load thread id from localStorage:', error);
 
 			return null;
 		}
-	}, [getStorageKey]);
+	}, [getThreadStorageKey]);
 
 	const applyThreadIdHeader = useCallback(
 		(headers: Record<string, string>) => {
@@ -128,7 +159,52 @@ export function WorkbenchProvider({
 	// Config values
 	const baseUrl = config.baseUrl === undefined ? defaultBaseUrl : config.baseUrl;
 	const apiKey = config.apiKey;
+	const configHeaders = config.headers;
 	const isBaseUrlNull = config.baseUrl === null;
+
+	// Helper to build request headers with config headers, auth, and thread ID
+	const buildRequestHeaders = useCallback(
+		(additionalHeaders?: Record<string, string>): Record<string, string> => {
+			const headers: Record<string, string> = {
+				...(configHeaders || {}),
+				...(additionalHeaders || {}),
+			};
+
+			if (apiKey) {
+				headers.Authorization = `Bearer ${apiKey}`;
+			}
+
+			applyThreadIdHeader(headers);
+
+			return headers;
+		},
+		[configHeaders, apiKey, applyThreadIdHeader]
+	);
+
+	// Async helper to get request headers including auth headers from callback
+	const getRequestHeaders = useCallback(
+		async (
+			body: string,
+			additionalHeaders?: Record<string, string>
+		): Promise<Record<string, string>> => {
+			console.log('[WorkbenchProvider] getRequestHeaders called');
+			const headers = buildRequestHeaders(additionalHeaders);
+
+			// Call getAuthHeaders callback if provided (use ref to avoid re-render loops)
+			if (getAuthHeadersRef.current) {
+				console.log('[WorkbenchProvider] calling getAuthHeaders');
+				try {
+					const authHeaders = await getAuthHeadersRef.current(body);
+					Object.assign(headers, authHeaders);
+				} catch (error) {
+					logger.warn('Failed to get auth headers:', error);
+				}
+			}
+
+			return headers;
+		},
+		[buildRequestHeaders, logger]
+	);
 
 	// Log baseUrl state
 	useEffect(() => {
@@ -139,14 +215,19 @@ export function WorkbenchProvider({
 		}
 	}, [isBaseUrlNull, baseUrl, logger]);
 
-	// Set disconnected status if baseUrl is null
+	// Set connection status based on baseUrl availability
+	// In cloud mode, we don't have websocket so we set connected when baseUrl is available
 	useEffect(() => {
 		if (isBaseUrlNull) {
 			logger.debug('🔌 Setting connection status to disconnected (baseUrl is null)');
-
 			setConnectionStatus('disconnected');
+		} else if (env.cloud) {
+			// In cloud mode, we're "connected" as soon as we have a baseUrl
+			// (no websocket to wait for)
+			logger.debug('🔌 Setting connection status to connected (cloud mode with baseUrl)');
+			setConnectionStatus('connected');
 		}
-	}, [isBaseUrlNull, logger]);
+	}, [isBaseUrlNull, env.cloud, logger]);
 
 	useEffect(() => {
 		if (isBaseUrlNull) {
@@ -162,44 +243,57 @@ export function WorkbenchProvider({
 	} = useAgentSchemas({
 		baseUrl,
 		apiKey,
+		headers: configHeaders,
 		enabled: !isBaseUrlNull,
+		getAuthHeaders,
 	});
 
 	// WebSocket connection for dev server restart detection
-	const wsBaseUrl = isBaseUrlNull ? undefined : baseUrl;
+	// Only enable for local dev - deployed agents don't have websocket endpoints
+	const wsEnabled = !isBaseUrlNull && !env.cloud;
+	const wsBaseUrl = wsEnabled ? baseUrl : undefined;
 
 	useEffect(() => {
 		if (isBaseUrlNull) {
 			logger.debug('🔌 WebSocket connection disabled (baseUrl is null)');
+		} else if (env.cloud) {
+			logger.debug('🔌 WebSocket connection disabled (cloud mode)');
 		}
-	}, [isBaseUrlNull, logger]);
+	}, [isBaseUrlNull, env.cloud, logger]);
 
 	const { connected } = useWorkbenchWebsocket({
-		enabled: !isBaseUrlNull,
+		enabled: wsEnabled,
 		baseUrl: wsBaseUrl,
 		apiKey,
+		headers: configHeaders,
 		onConnect: () => {
+			console.log('[WorkbenchProvider] WebSocket onConnect - calling refetchSchemas');
 			setConnectionStatus('connected');
 			refetchSchemas();
 		},
 		onReconnect: () => {
+			console.log('[WorkbenchProvider] WebSocket onReconnect - calling refetchSchemas');
 			setConnectionStatus('connected');
 			refetchSchemas();
 		},
 		onAlive: () => {
+			console.log('[WorkbenchProvider] WebSocket onAlive - calling refetchSchemas');
 			setConnectionStatus('connected');
 			refetchSchemas();
 		},
 		onRestarting: () => {
+			console.log('[WorkbenchProvider] WebSocket onRestarting');
 			setConnectionStatus('restarting');
 		},
 	});
 
 	useEffect(() => {
-		if (!isBaseUrlNull && !connected && connectionStatus !== 'restarting') {
+		// In cloud mode, websocket is disabled so we stay 'connected' (no live connection tracking)
+		// In local mode, track the websocket connection status
+		if (!isBaseUrlNull && !env.cloud && !connected && connectionStatus !== 'restarting') {
 			setConnectionStatus('disconnected');
 		}
-	}, [connected, connectionStatus, isBaseUrlNull]);
+	}, [connected, connectionStatus, isBaseUrlNull, env.cloud]);
 
 	// Convert schema data to Agent format, no fallback
 	const agents = schemaData?.agents;
@@ -217,6 +311,7 @@ export function WorkbenchProvider({
 	// Fetch state for an agent
 	const fetchAgentState = useCallback(
 		async (agentId: string) => {
+			console.log('[WorkbenchProvider] fetchAgentState called', { agentId, baseUrl });
 			if (!baseUrl) {
 				logger.debug('⚠️ No baseUrl configured, skipping state fetch');
 				return;
@@ -228,18 +323,11 @@ export function WorkbenchProvider({
 			}
 
 			try {
-				const headers: Record<string, string> = {};
-
-				if (apiKey) {
-					headers.Authorization = `Bearer ${apiKey}`;
-				}
-
-				applyThreadIdHeader(headers);
-
 				const url = `${baseUrl}/_agentuity/workbench/state?agentId=${encodeURIComponent(agentId)}`;
 
 				logger.debug('📡 Fetching state for agent:', agentId);
 
+				const headers = await getRequestHeaders('');
 				const response = await fetch(url, {
 					method: 'GET',
 					headers,
@@ -295,11 +383,16 @@ export function WorkbenchProvider({
 				setMessages([]);
 			}
 		},
-		[baseUrl, apiKey, logger, applyThreadIdHeader, persistThreadIdFromResponse]
+		[baseUrl, logger, getRequestHeaders, persistThreadIdFromResponse]
 	);
 
 	// Set initial agent selection
 	useEffect(() => {
+		console.log('[WorkbenchProvider] agent selection effect', {
+			hasAgents: !!agents,
+			agentCount: agents ? Object.keys(agents).length : 0,
+			selectedAgent,
+		});
 		if (agents && Object.keys(agents).length > 0 && !selectedAgent) {
 			logger.debug('🔍 Available agents:', agents);
 
@@ -456,16 +549,6 @@ export function WorkbenchProvider({
 
 			logger.debug('🌐 About to make API call...');
 
-			const headers: Record<string, string> = {
-				'Content-Type': 'application/json',
-			};
-
-			if (apiKey) {
-				headers.Authorization = `Bearer ${apiKey}`;
-			}
-
-			applyThreadIdHeader(headers);
-
 			const startTime = performance.now();
 
 			try {
@@ -473,13 +556,17 @@ export function WorkbenchProvider({
 					agentId: selectedAgent,
 					input: parsedInput,
 				};
+				const requestBody = JSON.stringify(requestPayload);
 
 				logger.debug('📤 API Request payload:', requestPayload);
 
+				const headers = await getRequestHeaders(requestBody, {
+					'Content-Type': 'application/json',
+				});
 				const response = await fetch(`${baseUrl}/_agentuity/workbench/execute`, {
 					method: 'POST',
 					headers,
-					body: JSON.stringify(requestPayload),
+					body: requestBody,
 					credentials: 'include',
 				});
 
@@ -641,19 +728,8 @@ export function WorkbenchProvider({
 
 		try {
 			const url = `${baseUrl}/_agentuity/workbench/sample?agentId=${encodeURIComponent(agentId)}`;
-			const headers: HeadersInit = {
-				'Content-Type': 'application/json',
-			};
 
-			if (apiKey) {
-				headers.Authorization = `Bearer ${apiKey}`;
-			}
-
-			// Keep thread id stable across workbench endpoints.
-			if (typeof headers === 'object' && headers && !Array.isArray(headers)) {
-				applyThreadIdHeader(headers as Record<string, string>);
-			}
-
+			const headers = await getRequestHeaders('', { 'Content-Type': 'application/json' });
 			const response = await fetch(url, {
 				method: 'GET',
 				headers,
@@ -713,15 +789,8 @@ export function WorkbenchProvider({
 			}
 
 			try {
-				const headers: Record<string, string> = {};
-
-				if (apiKey) {
-					headers.Authorization = `Bearer ${apiKey}`;
-				}
-
-				applyThreadIdHeader(headers);
-
 				const url = `${baseUrl}/_agentuity/workbench/state?agentId=${encodeURIComponent(agentId)}`;
+				const headers = await getRequestHeaders('');
 				const response = await fetch(url, {
 					method: 'DELETE',
 					headers,
@@ -741,7 +810,7 @@ export function WorkbenchProvider({
 				logger.debug('⚠️ Error clearing state:', error);
 			}
 		},
-		[baseUrl, apiKey, logger, applyThreadIdHeader, persistThreadIdFromResponse]
+		[baseUrl, logger, getRequestHeaders, persistThreadIdFromResponse]
 	);
 
 	const contextValue: WorkbenchContextType = {

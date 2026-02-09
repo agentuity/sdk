@@ -1,5 +1,5 @@
 import type { JSONSchema7 } from 'ai';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLogger } from './useLogger';
 
 export interface AgentSchema {
@@ -32,10 +32,17 @@ export interface AgentSchemasResponse {
 	agents: Record<string, AgentSchemaData>;
 }
 
+/**
+ * Callback to get authentication headers for workbench requests.
+ */
+export type GetAuthHeaders = (body: string) => Promise<Record<string, string>>;
+
 export interface UseAgentSchemasOptions {
 	apiKey?: string;
 	baseUrl?: string;
 	enabled?: boolean;
+	headers?: Record<string, string>;
+	getAuthHeaders?: GetAuthHeaders;
 }
 
 export interface UseAgentSchemasResult {
@@ -66,14 +73,19 @@ export interface UseAgentSchemasResult {
  * ```
  */
 export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentSchemasResult {
-	const { baseUrl = '', apiKey, enabled = true } = options;
+	const { baseUrl = '', apiKey, enabled = true, headers: configHeaders, getAuthHeaders } = options;
 
 	const logger = useLogger('useAgentSchemas');
 	const [data, setData] = useState<AgentSchemasResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 
+	// Use ref to avoid re-render loops when getAuthHeaders changes
+	const getAuthHeadersRef = useRef(getAuthHeaders);
+	getAuthHeadersRef.current = getAuthHeaders;
+
 	const fetchSchemas = useCallback(async () => {
+		console.log('[useAgentSchemas] fetchSchemas called', { enabled, baseUrl });
 		if (!enabled) return;
 
 		setIsLoading(true);
@@ -81,12 +93,24 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 
 		try {
 			const url = `${baseUrl}/_agentuity/workbench/metadata.json`;
-			const headers: HeadersInit = {
+			console.log('[useAgentSchemas] fetching:', url);
+			const headers: Record<string, string> = {
+				...(configHeaders || {}),
 				'Content-Type': 'application/json',
 			};
 
 			if (apiKey) {
 				headers.Authorization = `Bearer ${apiKey}`;
+			}
+
+			// Get auth headers if callback is provided
+			if (getAuthHeadersRef.current) {
+				try {
+					const authHeaders = await getAuthHeadersRef.current('');
+					Object.assign(headers, authHeaders);
+				} catch (err) {
+					logger.warn('Failed to get auth headers:', err);
+				}
 			}
 
 			const response = await fetch(url, {
@@ -131,13 +155,15 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 		} finally {
 			setIsLoading(false);
 		}
-	}, [baseUrl, apiKey, enabled]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- getAuthHeadersRef is a ref
+	}, [baseUrl, apiKey, enabled, configHeaders, logger]);
 
 	const refetch = useCallback(() => {
 		void fetchSchemas();
 	}, [fetchSchemas]);
 
 	useEffect(() => {
+		console.log('[useAgentSchemas] effect triggered - fetchSchemas changed');
 		void fetchSchemas();
 	}, [fetchSchemas]);
 
