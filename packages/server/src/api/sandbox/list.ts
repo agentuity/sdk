@@ -93,6 +93,18 @@ export const SandboxInfoSchema = z
 			.optional()
 			.describe('Public URL for the sandbox (only set if networkPort is configured)'),
 		org: SandboxOrgInfoSchema.describe('Organization associated with the sandbox'),
+		timeout: z
+			.object({
+				idle: z.string().optional(),
+				execution: z.string().optional(),
+			})
+			.optional(),
+		command: z
+			.object({
+				exec: z.array(z.string()),
+				mode: z.enum(['oneshot', 'interactive']).optional(),
+			})
+			.optional(),
 	})
 	.describe('Summary information about a sandbox');
 
