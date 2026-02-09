@@ -67,7 +67,6 @@ Skills inject Agentuity SDK expertise into the conversation automatically when r
 | **agentuity-ops** | CLI commands, cloud services, deployments |
 | **agentuity-cloud** | Package routing, ecosystem overview |
 | **agentuity-command-runner** | Runtime detection, build/test/lint execution |
-| **agentuity-reasoning** | Conclusion extraction, memory reasoning |
 
 ## Memory
 
@@ -151,7 +150,7 @@ claude plugin validate /path/to/sdk/packages/claude-code
 packages/claude-code/
 ├── .claude-plugin/plugin.json   # Plugin manifest
 ├── agents/                      # 7 agent definitions (markdown)
-├── skills/                      # 6 auto-activated skills (SKILL.md)
+├── skills/                      # 5 auto-activated skills (SKILL.md)
 ├── commands/                    # 6 slash commands (markdown)
 ├── hooks/
 │   ├── hooks.json               # Hook event configuration

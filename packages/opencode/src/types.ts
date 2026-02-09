@@ -27,7 +27,6 @@ export const AgentRoleSchema = z.enum([
 	'expert-frontend',
 	'expert-ops',
 	'runner',
-	'reasoner',
 	'product',
 	'monitor',
 ]);

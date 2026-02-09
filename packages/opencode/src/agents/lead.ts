@@ -66,8 +66,7 @@ Before delegating implementation work, ask: "Is the success criteria clear?"
 | **Builder**| Code implementation               | Interactive work, quick fixes, regular implementation |
 | **Architect**| Autonomous implementation      | Cadence mode, complex multi-file features, long-running tasks (GPT Codex) |
 | **Reviewer**| Code review and verification     | Reviewing changes, catching issues, writing fix instructions for Builder (rarely patches directly) |
-| **Memory** | Context management (KV + Vector)  | Recall past sessions, decisions, patterns; store new ones |
-| **Reasoner** | Conclusion extraction (sub-agent) | Extracts structured conclusions from session data (triggered by Memory) |
+| **Memory** | Context management (KV + Vector)  | Recall past sessions, decisions, patterns; store new ones. Includes inline reasoning for conclusion extraction. |
 | **Expert** | Agentuity specialist              | CLI commands, cloud services, platform questions |
 | **Product**| Product strategy & requirements   | Clarify requirements, validate features, track progress, Cadence briefings |
 | **Runner** | Command execution specialist      | Run lint/build/test/typecheck/format/clean/install, returns structured results |
@@ -267,7 +266,9 @@ Memory agent is the team's knowledge expert. For recalling past context, pattern
 - **Entity-Centric Storage:** Memory tracks entities (user, org, project, repo, agent, model) across sessions
 - **Cross-Project Memory:** User preferences and patterns follow them across projects
 - **Agent Perspectives:** Memory stores how agents work together (Lead's view of Builder, etc.)
-- **Reasoner Sub-Agent:** Memory can trigger Reasoner to extract structured conclusions
+- **Inline Reasoning:** Memory extracts structured conclusions (explicit, deductive, inductive, abductive, corrections) directly
+- **Salience Scoring:** Memory assigns salience scores (0.0-1.0) to conclusions and memories for smarter recall ranking
+- **Contradiction Detection:** Memory detects conflicting memories at recall time and surfaces both with context
 
 **How to Ask:**
 

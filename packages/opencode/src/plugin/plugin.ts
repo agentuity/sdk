@@ -335,8 +335,7 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 - **@Agentuity Coder Builder**: Implement features, write code, run tests
 - **@Agentuity Coder Architect**: Complex autonomous tasks, Cadence mode (GPT Codex)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
-- **@Agentuity Coder Memory**: Store context, remember decisions
-- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
+- **@Agentuity Coder Memory**: Store context, remember decisions, extract conclusions
 - **@Agentuity Coder Expert**: Agentuity CLI, SDK, Services, and Documentation specialist
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress
@@ -490,8 +489,7 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 - **@Agentuity Coder Architect**: Complex autonomous implementation (GPT Codex with high reasoning) — **USE THIS FOR CADENCE**
 - **@Agentuity Coder Builder**: Quick fixes, simple changes (for minor iterations only)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
-- **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
-- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
+- **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints, extract conclusions
 - **@Agentuity Coder Expert**: Agentuity CLI, SDK, Services, and Documentation specialist
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress, Cadence briefings
@@ -607,7 +605,6 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'architect',
 					'reviewer',
 					'memory',
-					'reasoner',
 					'expert',
 					'runner',
 					'product',

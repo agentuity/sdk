@@ -97,10 +97,11 @@ After saving the compaction:
 3. Format as a readable summary with timestamps
 4. Include "what's next" - the user's pending request if there is one
 
-After saving the compaction, Memory should consider triggering Reasoner:
+After saving the compaction, Memory should apply inline reasoning:
 - If significant patterns, decisions, or corrections emerged
-- Use: agentuity_background_task({ agent: "reasoner", task: "Extract conclusions from session...", description: "Reason about session" })
-- Reasoner will update entity representations with new conclusions
+- Extract conclusions (explicit, deductive, inductive, abductive, corrections)
+- Update entity representations with new conclusions
+- Assign salience scores to conclusions
 
 Response format:
 \`\`\`
@@ -197,7 +198,7 @@ ${backgroundTaskContext}
 After compaction:
 1. Memory will save this summary to the session record
 2. If planning is active, Memory should update planning.progress with this compaction
-3. Memory will consider triggering Reasoner if significant patterns/corrections emerged
+3. Memory will apply inline reasoning if significant patterns/corrections emerged
 `);
 		},
 	};
