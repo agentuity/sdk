@@ -231,7 +231,7 @@ export interface AgentuityConfig {
 	 * Vite plugins to add to the client build
 	 * These are added AFTER Agentuity's built-in plugins
 	 */
-	plugins?: Array<import('vite').Plugin>;
+	plugins?: import('vite').PluginOption[];
 	/**
 	 * Additional define constants for code replacement in Vite builds
 	 * These are merged with Agentuity's default defines
