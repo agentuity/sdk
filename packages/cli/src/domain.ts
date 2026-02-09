@@ -35,6 +35,54 @@ interface DNSMisconfigured extends BaseDNSResult {
 export type DNSResult = DNSSuccess | DNSPending | DNSMissing | DNSError | DNSMisconfigured;
 export type DNSFailed = DNSPending | DNSMissing | DNSError | DNSMisconfigured;
 
+/**
+ * Default branches that match the '*' wildcard key
+ */
+export const DEFAULT_BRANCHES = ['main', 'master'];
+
+/**
+ * Resolves the domains configuration to a flat array of domain strings
+ * based on the current git branch.
+ *
+ * If domains is already an array, returns it as-is (backward compatible).
+ * If domains is a record (branch map):
+ *   1. If the current branch has an exact match, use those domains
+ *   2. Otherwise, fall back to the '*' key (default/main branch domains)
+ *   3. If no '*' key exists, return empty array
+ *
+ * @param domains - The raw domains config (array or record)
+ * @param currentBranch - The current git branch name (null if not in a git repo)
+ * @returns Flat array of domain strings
+ */
+export function resolveDomains(
+	domains: string[] | Record<string, string[]> | undefined,
+	currentBranch: string | null
+): string[] {
+	if (!domains) return [];
+
+	// Backward compatible: if it's already an array, return as-is
+	if (Array.isArray(domains)) return domains;
+
+	// It's a branch-keyed map
+	// 1. Try exact branch match
+	if (currentBranch && currentBranch in domains) {
+		return domains[currentBranch]!;
+	}
+
+	// 2. If current branch is a default branch (main/master), also match '*'
+	if (currentBranch && DEFAULT_BRANCHES.includes(currentBranch) && '*' in domains) {
+		return domains['*']!;
+	}
+
+	// 3. If no exact match found, fall back to '*' only if there's no current branch detected
+	if (!currentBranch && '*' in domains) {
+		return domains['*']!;
+	}
+
+	// 4. No match found - return empty array
+	return [];
+}
+
 export function isMisconfigured(x: DNSResult): x is DNSMisconfigured {
 	return 'misconfigured' in x && !!x.misconfigured;
 }

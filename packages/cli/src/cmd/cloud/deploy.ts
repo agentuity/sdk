@@ -255,6 +255,28 @@ export const deploySubcommand = createSubcommand({
 			}
 		}
 
+		// Resolve branch-keyed domains to flat array
+		if (project.deployment?.domains && !Array.isArray(project.deployment.domains)) {
+			const { detectGitInfo } = await import('../git/link');
+			const { resolveDomains } = await import('../../domain');
+			const gitInfo = detectGitInfo();
+			const currentBranch = opts.branch ?? gitInfo.branch;
+			const resolvedDomains = resolveDomains(project.deployment.domains, currentBranch);
+			project = {
+				...project,
+				deployment: { ...project.deployment, domains: resolvedDomains },
+			};
+			if (resolvedDomains.length > 0) {
+				logger.debug(
+					'Resolved domains for branch "%s": %s',
+					currentBranch,
+					resolvedDomains.join(', ')
+				);
+			} else {
+				logger.debug('No domains matched for branch "%s"', currentBranch);
+			}
+		}
+
 		// Initialize build report collector if reportFile is specified
 		const collector = new BuildReportCollector();
 		if (opts.reportFile) {
@@ -533,16 +555,23 @@ export const deploySubcommand = createSubcommand({
 
 			await runSteps(
 				[
-					!project.deployment?.domains?.length
+					!project.deployment?.domains ||
+					!Array.isArray(project.deployment.domains) ||
+					!project.deployment.domains.length
 						? null
 						: {
-								label: `Validate Custom ${tui.plural(project.deployment.domains.length, 'Domain', 'Domains')}`,
+								label: `Validate Custom ${tui.plural((project.deployment.domains as string[]).length, 'Domain', 'Domains')}`,
 								run: async () => {
-									if (project.deployment?.domains?.length) {
+									const resolvedDomains = project.deployment?.domains;
+									if (
+										resolvedDomains &&
+										Array.isArray(resolvedDomains) &&
+										resolvedDomains.length
+									) {
 										try {
 											await domain.promptForDNS(
 												project.projectId,
-												project.deployment.domains,
+												resolvedDomains,
 												config!,
 												() => pauseStepUI(true)
 											);

@@ -22,8 +22,21 @@ export const DeploymentConfig = z.object({
 	dependencies: z
 		.array(z.string().describe('APT dependencies to install prior to launching your project'))
 		.optional(),
-	domains: z.array(z.string().describe('the custom domain')).optional(),
+	domains: z
+		.union([
+			z.array(z.string().describe('the custom domain')),
+			z.record(
+				z.string().describe('the branch name or * for default'),
+				z.array(z.string().describe('the custom domain'))
+			),
+		])
+		.optional()
+		.describe(
+			'custom domains - either a flat array or a map of branch names to domain arrays. Use * for the default/main branch'
+		),
 });
+
+export type DomainsConfig = z.infer<typeof DeploymentConfig>['domains'];
 
 const BaseFileFields = {
 	filename: z.string().describe('the relative path for the file'),

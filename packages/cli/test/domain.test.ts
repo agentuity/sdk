@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'bun:test';
+import { resolveDomains, DEFAULT_BRANCHES } from '../src/domain';
 
 /**
  * Generates a project identifier from a project ID using xxHash64.
@@ -73,6 +74,116 @@ describe('domain DNS validation', () => {
 			const proxy = `p${identifier}.${suffix}`;
 
 			expect(proxy).toBe('p0a21231341cdb560.agentuity.io');
+		});
+	});
+});
+
+describe('resolveDomains', () => {
+	describe('backward compatibility (flat array)', () => {
+		test('returns empty array when domains is undefined', () => {
+			expect(resolveDomains(undefined, 'main')).toEqual([]);
+		});
+
+		test('returns empty array when domains is empty array', () => {
+			expect(resolveDomains([], 'main')).toEqual([]);
+		});
+
+		test('returns the array as-is when domains is a flat string[]', () => {
+			const domains = ['example.com', 'app.example.com'];
+			expect(resolveDomains(domains, 'main')).toEqual(['example.com', 'app.example.com']);
+		});
+	});
+
+	describe('branch-keyed map — exact match', () => {
+		test('returns domains for exact branch match "staging"', () => {
+			const domains = {
+				'*': ['prod.example.com'],
+				staging: ['staging.example.com'],
+			};
+			expect(resolveDomains(domains, 'staging')).toEqual(['staging.example.com']);
+		});
+
+		test('returns domains for exact branch match "dev"', () => {
+			const domains = {
+				'*': ['prod.example.com'],
+				dev: ['dev.example.com'],
+			};
+			expect(resolveDomains(domains, 'dev')).toEqual(['dev.example.com']);
+		});
+	});
+
+	describe('branch-keyed map — wildcard * matching', () => {
+		test('returns * domains when branch is "main"', () => {
+			const domains = { '*': ['prod.example.com'] };
+			expect(resolveDomains(domains, 'main')).toEqual(['prod.example.com']);
+		});
+
+		test('returns * domains when branch is "master"', () => {
+			const domains = { '*': ['prod.example.com'] };
+			expect(resolveDomains(domains, 'master')).toEqual(['prod.example.com']);
+		});
+
+		test('returns * domains when branch is null (no branch detected)', () => {
+			const domains = { '*': ['prod.example.com'] };
+			expect(resolveDomains(domains, null)).toEqual(['prod.example.com']);
+		});
+
+		test('does NOT return * domains when branch is a non-default branch', () => {
+			const domains = { '*': ['prod.example.com'] };
+			expect(resolveDomains(domains, 'feature/foo')).toEqual([]);
+		});
+	});
+
+	describe('branch-keyed map — precedence', () => {
+		test('exact match takes precedence over *', () => {
+			const domains = {
+				'*': ['wildcard.example.com'],
+				main: ['main.example.com'],
+			};
+			expect(resolveDomains(domains, 'main')).toEqual(['main.example.com']);
+		});
+	});
+
+	describe('branch-keyed map — no match', () => {
+		test('returns empty array when branch does not match any key and no * key exists', () => {
+			const domains = {
+				staging: ['staging.example.com'],
+				dev: ['dev.example.com'],
+			};
+			expect(resolveDomains(domains, 'feature/bar')).toEqual([]);
+		});
+
+		test('returns empty array when deploying from non-default branch with only *, staging, dev keys', () => {
+			const domains = {
+				'*': ['prod.example.com'],
+				staging: ['staging.example.com'],
+				dev: ['dev.example.com'],
+			};
+			expect(resolveDomains(domains, 'feature/foo')).toEqual([]);
+		});
+	});
+
+	describe('edge cases', () => {
+		test('map with empty arrays as values returns empty array for matched branch', () => {
+			const domains = {
+				staging: [] as string[],
+			};
+			expect(resolveDomains(domains, 'staging')).toEqual([]);
+		});
+
+		test('single branch key with no * key works correctly', () => {
+			const domains = {
+				production: ['prod.example.com'],
+			};
+			expect(resolveDomains(domains, 'production')).toEqual(['prod.example.com']);
+			expect(resolveDomains(domains, 'main')).toEqual([]);
+		});
+	});
+
+	describe('DEFAULT_BRANCHES constant', () => {
+		test('contains "main" and "master"', () => {
+			expect(DEFAULT_BRANCHES).toContain('main');
+			expect(DEFAULT_BRANCHES).toContain('master');
 		});
 	});
 });
