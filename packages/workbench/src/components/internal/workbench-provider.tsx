@@ -446,6 +446,31 @@ export function WorkbenchProvider({
 		}
 	}, [agents, selectedAgent, loadSelectedAgent, saveSelectedAgent, logger, fetchAgentState]);
 
+	// Validate selected agent still exists when agents list changes (e.g., switching local ↔ cloud)
+	useEffect(() => {
+		if (!agents || Object.keys(agents).length === 0 || !selectedAgent) return;
+
+		const agentExists = Object.values(agents).some(
+			(agent) => agent.metadata.agentId === selectedAgent
+		);
+
+		if (!agentExists) {
+			logger.debug('⚠️ Selected agent no longer exists, falling back to first agent');
+
+			const sortedAgents = Object.values(agents).sort((a, b) =>
+				a.metadata.name.localeCompare(b.metadata.name)
+			);
+
+			const firstAgent = sortedAgents[0];
+
+			if (firstAgent) {
+				setSelectedAgent(firstAgent.metadata.agentId);
+				saveSelectedAgent(firstAgent.metadata.agentId);
+				fetchAgentState(firstAgent.metadata.agentId);
+			}
+		}
+	}, [agents, selectedAgent, logger, saveSelectedAgent, fetchAgentState]);
+
 	const submitMessage = async (value: string, _mode: 'text' | 'form' = 'text') => {
 		if (!selectedAgent) return;
 

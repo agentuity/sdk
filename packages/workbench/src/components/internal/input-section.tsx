@@ -396,10 +396,11 @@ export function InputSection({
 				)}
 			</div>
 
-			<PromptInput onSubmit={onSubmit}>
-				<PromptInputBody>
+		<PromptInput onSubmit={onSubmit}>
+			<PromptInputBody>
+				<div className="min-h-[120px] w-full flex flex-col transition-[min-height] duration-200">
 					{!selectedAgent ? (
-						<div className="flex flex-col items-center justify-center py-6 px-4 text-center">
+						<div className="flex flex-col flex-1 items-center justify-center py-6 px-4 text-center">
 							<p className="text-sm text-muted-foreground/70">
 								Select an agent to get started.
 							</p>
@@ -420,17 +421,18 @@ export function InputSection({
 										/>
 									);
 
-								case 'string':
-									return (
-										<PromptInputTextarea
-											onChange={(e) => onChange(e.target.value)}
-											placeholder="Enter a message to send..."
-											value={value}
-										/>
-									);
+							case 'string':
+								return (
+									<PromptInputTextarea
+										className="min-h-[120px]"
+										onChange={(e) => onChange(e.target.value)}
+										placeholder="Enter a message to send..."
+										value={value}
+									/>
+								);
 								default:
 									return (
-										<div className="flex flex-col items-center justify-center py-8 px-4 text-center ">
+										<div className="flex flex-col flex-1 items-center justify-center py-8 px-4 text-center">
 											<p className="text-sm text-muted-foreground">
 												<span className="font-medium">
 													This agent has no input schema.
@@ -456,8 +458,9 @@ export function InputSection({
 									);
 							}
 						})()
-					)}
-				</PromptInputBody>
+				)}
+				</div>
+			</PromptInputBody>
 
 				<PromptInputFooter className={cn('pt-0', !selectedAgent && 'pb-0')}>
 					{selectedAgent && inputType !== 'none' && (
