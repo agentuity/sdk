@@ -27,8 +27,8 @@ For agents that don't require input:
 const result = await ctx.run(statusAgent);
 ```
 
-<Callout type="info" title="Legacy invoke() Method">
-The older `ctx.invoke(() => agent.run(input))` pattern still works but `ctx.run(agent, input)` is preferred for its cleaner syntax.
+<Callout type="info" title="ctx.run() vs ctx.invoke()">
+`ctx.run(agent, input)` is a convenience wrapper around `ctx.invoke()`. Use `ctx.run()` for single agent calls; use `ctx.invoke()` when you need to run arbitrary functions or multiple agents in a single invocation. See [Using invoke() Directly](#using-invoke-directly) below.
 </Callout>
 
 ## Options
@@ -96,10 +96,92 @@ websocket.on('message', async (data) => {
 });
 ```
 
+## Using invoke() Directly
+
+`ctx.run()` is syntactic sugar over `ctx.invoke()`. Use `invoke()` when you need more control:
+
+- Run arbitrary async functions (not just agents) within agent context
+- Execute multiple agents in a single invocation with a shared session and tracing span
+- Set a custom OpenTelemetry span name
+
+### Running Arbitrary Functions
+
+```typescript
+const ctx = createAgentContext({ trigger: 'cron' });
+
+await ctx.invoke(async () => {
+  // Any async code runs with full agent infrastructure
+  const data = await ctx.kv.get('config', 'settings');
+  await ctx.stream.create('audit', {
+    contentType: 'text/plain',
+  });
+  ctx.logger.info('Cron task complete');
+});
+```
+
+### Multiple Agents in One Invocation
+
+When agents share a session and tracing span:
+
+```typescript
+const ctx = createAgentContext();
+
+const result = await ctx.invoke(async () => {
+  const analysis = await analyzeAgent.run({ text: userInput });
+  const response = await respondAgent.run({
+    analysis: analysis.summary,
+  });
+  return response;
+});
+```
+
+Both agent calls share the same OpenTelemetry span, session, and thread. Compare this with calling `ctx.run()` twice, where each call gets its own session and span.
+
+### Custom Span Names
+
+```typescript
+const result = await ctx.invoke(() => agent.run(input), { spanName: 'daily-cleanup' });
+```
+
+### invoke() Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `spanName` | `string` | `'agent-invocation'` | Span name for this invocation |
+
+## Invocation Lifecycle
+
+Each call to `ctx.run()` or `ctx.invoke()` follows this lifecycle:
+
+<Steps>
+### Create tracing span
+An OpenTelemetry span is created within the parent context. Trace state includes project, org, and deployment IDs for distributed tracing.
+
+### Restore session and thread
+A new thread is created and the session is restored from the session provider using the session ID.
+
+### Fire session start event
+A `start` event is sent to the session event provider with the trigger type, session ID, thread ID, and deployment metadata.
+
+### Execute function
+Your function runs within `AsyncLocalStorage` context, giving it access to `ctx.kv`, `ctx.stream`, `ctx.vector`, `ctx.logger`, and `waitUntil`.
+
+### Wait for background tasks
+Any `ctx.waitUntil()` callbacks are awaited before the invocation completes.
+
+### Save session and thread
+Session and thread state are persisted via their providers.
+
+### Fire session complete event
+A `complete` event is sent with the final status code, agent IDs that participated, and any user data.
+</Steps>
+
+If background tasks are pending (`waitUntil`), session save and the complete event happen after all tasks finish. Errors during execution set the span status to `ERROR` and include the error message in the session complete event.
+
 ## What's Included
 
 <Callout type="info" title="Full Infrastructure Support">
-Standalone contexts provide the same infrastructure as HTTP request handlers:
+Each `ctx.run()` or `ctx.invoke()` call provides the same infrastructure as HTTP request handlers:
 
 - **Tracing**: OpenTelemetry spans with proper hierarchy
 - **Sessions**: Automatic save/restore via providers

@@ -59,9 +59,9 @@ const agent = createAgent('StreamCreator', {
   handler: async (ctx, input) => {
     const stream = await ctx.stream.create('export', {
       contentType: 'text/csv',
-      compress: true,  // optional gzip compression
+      compress: true, // optional gzip compression
       metadata: { userId: input.userId },
-      ttl: 86400 * 7,  // expires in 7 days
+      ttl: 86400 * 7, // expires in 7 days
     });
 
     // Stream is ready immediately
@@ -92,6 +92,30 @@ const agent = createAgent('StreamCreator', {
 <Callout type="info" title="TTL in Local Development">
 TTL is enforced only in cloud deployments. During local development, streams persist indefinitely regardless of the TTL value. The `expiresAt` field will not be populated in local stream metadata.
 </Callout>
+
+### Compression
+
+Enable `compress: true` to reduce storage size and transfer time for text-heavy streams:
+
+```typescript
+const stream = await ctx.stream.create('export', {
+  contentType: 'text/csv',
+  compress: true,
+});
+```
+
+Compression uses server-side gzip. Individual `write()` calls send raw data; compression is applied when the stream is closed. The resulting URL serves the data with `Content-Encoding: gzip`, so browsers and HTTP clients decompress it automatically.
+
+<Callout type="info" title="Client Compatibility">
+Compressed streams require the client to accept gzip encoding. Browsers handle this natively. If you're downloading streams programmatically with a client that doesn't support gzip, you'll need to decompress the data manually.
+</Callout>
+
+The `stream.compressed` property indicates whether compression is active:
+
+```typescript
+const stream = await ctx.stream.create('data', { compress: true });
+ctx.logger.info('Compressed:', { compressed: stream.compressed });
+```
 
 ## Writing Data
 
@@ -433,7 +457,7 @@ See [Running Agents Without HTTP](/agents/standalone-execution) for more pattern
 
 ## Best Practices
 
-- **Use compression**: Enable `compress: true` for large text exports to reduce storage and transfer time
+- **Use compression**: Enable `compress: true` for text-heavy streams (CSV, JSON, logs). Compression is applied server-side when the stream is closed, so it works with any write pattern
 - **Return URLs early**: Use `ctx.waitUntil()` to return the stream URL while writing in the background
 - **Clean up**: Delete streams after they're no longer needed to free storage
 - **Set content types**: Always specify the correct MIME type for proper browser handling

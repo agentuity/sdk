@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { Button, Progress, Separator, StatusIndicator } from './ui';
+import { Button, Separator, StatusIndicator } from './ui';
 
 export type TerminalStatus = 'idle' | 'creating' | 'recreating' | 'running' | 'completed' | 'error';
 
@@ -62,7 +62,10 @@ export function TerminalOutput({
 			}
 			return { indicatorStatus: 'success', text: 'Completed' };
 		}
-		const statusConfig: Record<TerminalStatus, { indicatorStatus: 'idle' | 'pending' | 'running' | 'success' | 'error'; text: string }> = {
+		const statusConfig: Record<
+			TerminalStatus,
+			{ indicatorStatus: 'idle' | 'pending' | 'running' | 'success' | 'error'; text: string }
+		> = {
 			idle: { indicatorStatus: 'idle', text: 'Ready' },
 			creating: { indicatorStatus: 'pending', text: 'Creating sandbox' },
 			recreating: { indicatorStatus: 'pending', text: 'Recreating sandbox' },
@@ -100,28 +103,6 @@ export function TerminalOutput({
 			</div>
 			<Separator className="bg-zinc-300 dark:bg-zinc-700" />
 
-			{/* Progress bar for sandbox creation */}
-			{(status === 'creating' || status === 'recreating') && (
-				<>
-					<div className="px-4 py-2">
-						<div className="flex items-center justify-between mb-1.5">
-							<span className="text-xs text-yellow-600 dark:text-yellow-400">
-								{CREATING_MESSAGES[creatingMessageIndex] ?? 'Creating sandbox'}
-							</span>
-							<span className="text-xs text-zinc-500 dark:text-zinc-400">
-								{Math.round(((creatingMessageIndex + 1) / CREATING_MESSAGES.length) * 100)}%
-							</span>
-						</div>
-						<Progress
-							value={((creatingMessageIndex + 1) / CREATING_MESSAGES.length) * 100}
-							indicatorClassName="bg-yellow-500 dark:bg-yellow-400"
-							className="h-1.5"
-						/>
-					</div>
-					<Separator className="bg-zinc-300 dark:bg-zinc-700" />
-				</>
-			)}
-
 			{/* Output */}
 			<div
 				ref={outputRef}
@@ -129,6 +110,11 @@ export function TerminalOutput({
 			>
 				{status === 'idle' && !output && !error && (
 					<span className="text-zinc-400 dark:text-zinc-600">Output will appear here...</span>
+				)}
+				{(status === 'creating' || status === 'recreating') && !output && (
+					<span data-loading="true" className="text-yellow-600 dark:text-yellow-400">
+						{CREATING_MESSAGES[creatingMessageIndex] ?? 'Creating sandbox'}
+					</span>
 				)}
 				{status === 'running' && !output && (
 					<span data-loading="true" className="text-cyan-600 dark:text-cyan-400">
