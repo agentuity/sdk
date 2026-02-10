@@ -15,12 +15,16 @@
 		"dist"
 	],
 	"exports": {
-		".": "./dist/index.js"
+		".": "./dist/index.js",
+		"./schema": "./dist/schema.js"
 	},
 	"typesVersions": {
 		"*": {
 			".": [
 				"./dist/index.d.ts"
+			],
+			"schema": [
+				"./dist/schema.d.ts"
 			]
 		}
 	},
