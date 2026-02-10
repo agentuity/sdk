@@ -157,6 +157,35 @@ async function updateVersions(version: string) {
 	await writeJSON(rootPkgPath, rootPkg);
 	console.log(`✓ Updated root package.json to ${version}`);
 
+	// Update .claude-plugin/marketplace.json
+	const marketplacePath = join(rootDir, '.claude-plugin', 'marketplace.json');
+	try {
+		const marketplace = await readJSON(marketplacePath);
+		if (marketplace.metadata) {
+			marketplace.metadata.version = version;
+		}
+		if (marketplace.plugins) {
+			for (const plugin of marketplace.plugins) {
+				plugin.version = version;
+			}
+		}
+		await writeJSON(marketplacePath, marketplace);
+		console.log(`✓ Updated .claude-plugin/marketplace.json to ${version}`);
+	} catch {
+		console.log(`⊘ Skipped .claude-plugin/marketplace.json (not found)`);
+	}
+
+	// Update packages/claude-code/.claude-plugin/plugin.json
+	const pluginJsonPath = join(packagesDir, 'claude-code', '.claude-plugin', 'plugin.json');
+	try {
+		const pluginJson = await readJSON(pluginJsonPath);
+		pluginJson.version = version;
+		await writeJSON(pluginJsonPath, pluginJson);
+		console.log(`✓ Updated packages/claude-code/.claude-plugin/plugin.json to ${version}`);
+	} catch {
+		console.log(`⊘ Skipped packages/claude-code/.claude-plugin/plugin.json (not found)`);
+	}
+
 	// Update packages/*
 	const packages = await readdir(packagesDir);
 	for (const pkg of packages) {
@@ -368,7 +397,7 @@ async function getPublishablePackages(): Promise<
 }
 
 async function revertVersionChanges() {
-	await $`git checkout -- package.json packages/*/package.json apps/*/package.json bun.lock`.cwd(
+	await $`git checkout -- package.json packages/*/package.json apps/*/package.json .claude-plugin/marketplace.json packages/claude-code/.claude-plugin/plugin.json bun.lock`.cwd(
 		rootDir
 	);
 }
