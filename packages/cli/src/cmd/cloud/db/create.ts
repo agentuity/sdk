@@ -92,7 +92,7 @@ export const createSubcommand = defineSubcommand({
 					name: resource.name,
 				};
 			} else {
-				tui.fatal('Failed to create database', ErrorCode.INTERNAL_ERROR);
+				tui.fatal('Failed to create database');
 			}
 		} catch (ex) {
 			if (ex instanceof APIError) {

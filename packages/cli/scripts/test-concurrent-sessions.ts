@@ -14,7 +14,7 @@
  */
 
 import { spawn } from 'bun';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -84,7 +84,7 @@ async function main() {
 	console.log();
 
 	// Clean up any existing logs before starting
-	if (await Bun.file(LOGS_DIR).exists()) {
+	if (existsSync(LOGS_DIR)) {
 		const { rmSync } = await import('node:fs');
 		const existingDirs = readdirSync(LOGS_DIR);
 		console.log(`Cleaning up ${existingDirs.length} existing log directories...`);
@@ -125,7 +125,7 @@ async function main() {
 	console.log('Checking log directories...');
 	console.log();
 
-	if (!(await Bun.file(LOGS_DIR).exists())) {
+	if (!existsSync(LOGS_DIR)) {
 		console.error('❌ Logs directory does not exist!');
 		process.exit(1);
 	}
@@ -141,7 +141,7 @@ async function main() {
 
 	for (const dir of logDirs) {
 		const sessionFile = join(LOGS_DIR, dir, 'session.json');
-		if (!(await Bun.file(sessionFile).exists())) {
+		if (!existsSync(sessionFile)) {
 			console.error(`❌ Missing session.json in ${dir}`);
 			continue;
 		}
@@ -244,7 +244,7 @@ async function main() {
 	await runCLI(99);
 
 	// Check if old directory was cleaned up
-	if (await Bun.file(oldDirPath).exists()) {
+	if (existsSync(oldDirPath)) {
 		console.error(`❌ Old bucket directory was NOT cleaned up: ${oldDirName}`);
 		process.exit(1);
 	}

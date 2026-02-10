@@ -2,9 +2,6 @@ import type { Client, ClientOptions } from './types';
 import { createWebSocketClient } from './websocket';
 import { createEventStreamClient } from './eventstream';
 import { createStreamClient } from './stream';
-import { StructuredError } from '@agentuity/core';
-
-const ClientError = StructuredError('ClientError');
 
 /**
  * Default base URL (empty = relative URLs).
@@ -170,11 +167,10 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 							if (paramName === undefined) continue;
 							const arg = args[i];
 							if (arg === undefined || arg === null) {
-							throw new ClientError({
-								message:
+								throw new Error(
 									`Missing required path parameter '${paramName}' at position ${i + 1}. ` +
-									`Expected ${pathParamNames.length} path parameter(s): ${pathParamNames.join(', ')}`,
-							});
+										`Expected ${pathParamNames.length} path parameter(s): ${pathParamNames.join(', ')}`
+								);
 							}
 							pathParams[paramName] = String(arg);
 						}
@@ -231,8 +227,8 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 							body: input ? JSON.stringify(input) : undefined,
 							signal,
 						}).then((res) => {
-if (!res.ok) throw new ClientError({ message: `HTTP ${res.status}: ${res.statusText}` });
-						return createStreamClient(res);
+							if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+							return createStreamClient(res);
 						});
 					}
 
@@ -244,7 +240,7 @@ if (!res.ok) throw new ClientError({ message: `HTTP ${res.status}: ${res.statusT
 						body: method.toUpperCase() !== 'GET' && input ? JSON.stringify(input) : undefined,
 						signal,
 					}).then(async (res) => {
-						if (!res.ok) throw new ClientError({ message: `HTTP ${res.status}: ${res.statusText}` });
+						if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 						if (res.status === 204) return undefined;
 						return res.json();
 					});
