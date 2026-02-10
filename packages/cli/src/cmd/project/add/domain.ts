@@ -27,7 +27,7 @@ async function validateDNS(
 	if (results.length === 0) {
 		logger.fatal(
 			`DNS validation failed: no response from DNS validation service for domain "${domain}". ` +
-				'Use --skip-validation to add the domain without DNS verification.',
+			'Use --skip-validation to add the domain without DNS verification.',
 			ErrorCode.VALIDATION_FAILED
 		);
 	}
@@ -160,7 +160,48 @@ export const domainSubcommand = createSubcommand({
 			logger.fatal('Please enter a valid domain name', ErrorCode.VALIDATION_FAILED);
 		}
 
-		const branchKey = opts?.branch;
+		let branchKey = opts?.branch;
+
+		// If domains are already in object/branch-keyed format but no --branch flag given,
+		// prompt the user to select a branch (interactive) or error (non-interactive)
+		if (!branchKey && project.deployment?.domains && !Array.isArray(project.deployment.domains)) {
+			const existingMap = project.deployment.domains as Record<string, string[]>;
+			const existingBranches = Object.keys(existingMap);
+
+			const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
+			if (isHeadless) {
+				logger.fatal(
+					'This project uses branch-keyed domain mapping. Use --branch to specify which branch to add this domain to.\n' +
+					`  Existing branches: ${existingBranches.join(', ')}\n` +
+					`  Example: ${getCommand(`project add domain ${domain} --branch "*"`)}`,
+					ErrorCode.VALIDATION_FAILED
+				);
+			}
+
+			// Interactive: prompt user to select a branch
+			const prompt = createPrompt();
+			const NEW_BRANCH_OPTION = '── Add new branch ──';
+			const choices = [...existingBranches, NEW_BRANCH_OPTION];
+
+			const selectedBranch = await prompt.select({
+				message:
+					'This project uses branch-keyed domains. Which branch should this domain be added to?',
+				options: choices.map((c) => ({ label: c, value: c })),
+			});
+
+			if (selectedBranch === NEW_BRANCH_OPTION) {
+				const newBranch = await prompt.text({
+					message: 'Enter branch name (use * for default/main branch):',
+				});
+				branchKey = newBranch;
+			} else {
+				branchKey = selectedBranch;
+			}
+
+			if (process.stdin.isTTY) {
+				process.stdin.pause();
+			}
+		}
 
 		if (branchKey) {
 			// Branch-keyed mode
