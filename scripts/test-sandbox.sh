@@ -105,6 +105,50 @@ fail() {
 	TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
+verify_removed() {
+	local sandbox_id="$1"
+	local path="$2"
+	local type_flag="$3"
+	local max_retries=3
+	local delay=2
+	local attempt=0
+	local output
+	while [ $attempt -lt $max_retries ]; do
+		output=$($CLI cloud sandbox exec "$sandbox_id" -- test $type_flag "$path" 2>&1) && {
+			attempt=$((attempt + 1))
+			if [ $attempt -lt $max_retries ]; then
+				sleep $delay
+			fi
+			continue
+		}
+		return 0
+	done
+	return 1
+}
+
+verify_exec_output() {
+	local sandbox_id="$1"
+	local pattern="$2"
+	shift 2
+	local max_retries=3
+	local delay=3
+	local attempt=0
+	local output
+	while [ $attempt -lt $max_retries ]; do
+		output=$($CLI cloud sandbox exec "$sandbox_id" -- "$@" 2>&1) || true
+		if echo "$output" | grep -q "$pattern"; then
+			echo "$output"
+			return 0
+		fi
+		attempt=$((attempt + 1))
+		if [ $attempt -lt $max_retries ]; then
+			sleep $delay
+		fi
+	done
+	echo "$output"
+	return 1
+}
+
 info() {
 	echo -e "${YELLOW}→ $1${NC}"
 }
@@ -590,12 +634,11 @@ else
 	fail "sandbox rmdir failed" "$RMDIR_OUTPUT"
 fi
 
-# Verify directory removed
-RMDIR_VERIFY=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'if [ -d /home/agentuity/newdir ]; then echo "STILL_EXISTS"; else echo "REMOVED"; fi' 2>&1) || true
-if echo "$RMDIR_VERIFY" | grep -q "REMOVED"; then
+# Verify directory removed (retry to handle sandbox filesystem sync delays)
+if verify_removed "$SANDBOX_ID" /home/agentuity/newdir -d; then
 	pass "rmdir directory no longer exists"
 else
-	fail "rmdir directory still exists" "$RMDIR_VERIFY"
+	fail "rmdir directory still exists" "directory still present after retries"
 fi
 
 # Test: Remove directory recursively
@@ -607,12 +650,11 @@ else
 	fail "sandbox rmdir -r failed" "$RMDIR_R_OUTPUT"
 fi
 
-# Verify recursive removal
-RMDIR_R_VERIFY=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'if [ -d /home/agentuity/nested ]; then echo "STILL_EXISTS"; else echo "REMOVED"; fi' 2>&1) || true
-if echo "$RMDIR_R_VERIFY" | grep -q "REMOVED"; then
+# Verify recursive removal (retry to handle sandbox filesystem sync delays)
+if verify_removed "$SANDBOX_ID" /home/agentuity/nested -d; then
 	pass "rmdir -r directory tree removed"
 else
-	fail "rmdir -r directory tree still exists" "$RMDIR_R_VERIFY"
+	fail "rmdir -r directory tree still exists" "directory still present after retries"
 fi
 
 # ============================================
@@ -638,12 +680,11 @@ else
 	fail "sandbox rm failed" "$RM_OUTPUT"
 fi
 
-# Verify file removed
-RM_VERIFY=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'if [ -f /home/agentuity/todelete.txt ]; then echo "STILL_EXISTS"; else echo "REMOVED"; fi' 2>&1) || true
-if echo "$RM_VERIFY" | grep -q "REMOVED"; then
+# Verify file removed (retry to handle sandbox filesystem sync delays)
+if verify_removed "$SANDBOX_ID" /home/agentuity/todelete.txt -f; then
 	pass "rm file no longer exists"
 else
-	fail "rm file still exists" "$RM_VERIFY"
+	fail "rm file still exists" "file still present after retries"
 fi
 
 # Test: Remove non-existent file (should fail gracefully)
@@ -876,10 +917,10 @@ info "Test: sandbox create --snapshot (by ID)"
 SNAP_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$SNAPSHOT_ID" --json 2>&1) || true
 SNAP_SANDBOX_ID=$(echo "$SNAP_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SNAP_SANDBOX_ID" ]; then
-	# Wait for snapshot restore and verify file exists
+	# Wait for snapshot restore and verify file exists (retry to handle restore delays)
 	sleep 3
-	RESTORE_VERIFY=$($CLI cloud sandbox exec "$SNAP_SANDBOX_ID" -- cat /home/agentuity/test.txt 2>&1) || true
-	if echo "$RESTORE_VERIFY" | grep -q "Hello from test file"; then
+	RESTORE_VERIFY=$(verify_exec_output "$SNAP_SANDBOX_ID" "Hello from test file" cat /home/agentuity/test.txt)
+	if [ $? -eq 0 ]; then
 		pass "sandbox from snapshot (by ID) contains restored files"
 	else
 		fail "sandbox from snapshot (by ID) missing files" "$RESTORE_VERIFY"
@@ -921,8 +962,8 @@ NAMETAG_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snap
 NAMETAG_SANDBOX_ID=$(echo "$NAMETAG_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$NAMETAG_SANDBOX_ID" ] && [[ "$NAMETAG_SANDBOX_ID" == sbx_* ]]; then
 	sleep 3
-	NAMETAG_VERIFY=$($CLI cloud sandbox exec "$NAMETAG_SANDBOX_ID" -- cat /home/agentuity/test.txt 2>&1) || true
-	if echo "$NAMETAG_VERIFY" | grep -q "Hello from test file"; then
+	NAMETAG_VERIFY=$(verify_exec_output "$NAMETAG_SANDBOX_ID" "Hello from test file" cat /home/agentuity/test.txt)
+	if [ $? -eq 0 ]; then
 		pass "sandbox from snapshot (by name:tag) contains restored files"
 	else
 		fail "sandbox from snapshot (by name:tag) missing files" "$NAMETAG_VERIFY"
@@ -950,8 +991,8 @@ LATEST_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snaps
 LATEST_SANDBOX_ID=$(echo "$LATEST_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$LATEST_SANDBOX_ID" ] && [[ "$LATEST_SANDBOX_ID" == sbx_* ]]; then
 	sleep 3
-	LATEST_VERIFY=$($CLI cloud sandbox exec "$LATEST_SANDBOX_ID" -- cat /home/agentuity/test.txt 2>&1) || true
-	if echo "$LATEST_VERIFY" | grep -q "Hello from test file"; then
+	LATEST_VERIFY=$(verify_exec_output "$LATEST_SANDBOX_ID" "Hello from test file" cat /home/agentuity/test.txt)
+	if [ $? -eq 0 ]; then
 		pass "sandbox from snapshot (by name:latest) contains restored files"
 	else
 		fail "sandbox from snapshot (by name:latest) missing files" "$LATEST_VERIFY"
@@ -967,8 +1008,8 @@ IMPLICIT_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --sna
 IMPLICIT_SANDBOX_ID=$(echo "$IMPLICIT_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$IMPLICIT_SANDBOX_ID" ] && [[ "$IMPLICIT_SANDBOX_ID" == sbx_* ]]; then
 	sleep 3
-	IMPLICIT_VERIFY=$($CLI cloud sandbox exec "$IMPLICIT_SANDBOX_ID" -- cat /home/agentuity/test.txt 2>&1) || true
-	if echo "$IMPLICIT_VERIFY" | grep -q "Hello from test file"; then
+	IMPLICIT_VERIFY=$(verify_exec_output "$IMPLICIT_SANDBOX_ID" "Hello from test file" cat /home/agentuity/test.txt)
+	if [ $? -eq 0 ]; then
 		pass "sandbox from snapshot (by name only) contains restored files"
 	else
 		fail "sandbox from snapshot (by name only) missing files" "$IMPLICIT_VERIFY"
