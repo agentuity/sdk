@@ -73,7 +73,7 @@ export const initSubcommand = createSubcommand({
 		if (!databaseUrl) {
 			// Check .env file
 			const envPath = path.join(projectDir, '.env');
-			if (fs.existsSync(envPath)) {
+			if (await Bun.file(envPath).exists()) {
 				const envContent = fs.readFileSync(envPath, 'utf-8');
 				const match = envContent.match(/^DATABASE_URL=(.+)$/m);
 				if (match?.[1]) {

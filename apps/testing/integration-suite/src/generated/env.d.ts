@@ -6,6 +6,36 @@ declare global {
 	namespace NodeJS {
 		interface ProcessEnv {
 		readonly AGENTUITY_SDK_KEY: string;
+		readonly CONVERT_TEST_75yxmk7w_1768237087021_3n_spi7fhnlqjj: string;
+		readonly CONVERT_TEST_w48vgx74_1768238270810_3o_5z5a0ifbnh8: string;
+		readonly CRUD_TEST_3cjcyeh7_1768233710781_n_2wkz9tqkg1t: string;
+		readonly CRUD_TEST_3cjcyeh7_1768233827810_q_6gjkcpchdej: string;
+		readonly CRUD_TEST_98g8r1w6_1767998372253_3y_3yguy77sfjk: string;
+		readonly CRUD_TEST_c8535m8h_1768238182499_3o_bv2pjnp3h2: string;
+		readonly CRUD_TEST_g4iealq5_1768231387319_3n_dpcsn080koq: string;
+		readonly CRUD_TEST_j4kyudnu_1768233927710_b_ux328yiurf: string;
+		readonly CRUD_TEST_qxwf1fy9_1767998635273_3o_3eh33g3hhs5: string;
+		readonly CRUD_TEST_qxwf1fy9_1767998666007_3y_5ou7i61tl0c: string;
+		readonly MY_API_KEY: string;
+		readonly MY_API_KEY_1767992540942: string;
+		readonly MY_API_KEY_1767996390059: string;
+		readonly MY_TEST_SECRET_KEY: string;
+		readonly NODE_ENV: string;
+		readonly NOMASK_TEST_75yxmk7w_1768237081546_3i_cx822kd0idt: string;
+		readonly NOMASK_TEST_g4iealq5_1768231401373_3q_t0gy90yhle: string;
+		readonly OVERWRITE_TEST_3cjcyeh7_1768233644420_l_olajyq07gsr: string;
+		readonly OVERWRITE_TEST_3cjcyeh7_1768233712194_o_2gw60z1694j: string;
+		readonly OVERWRITE_TEST_98g8r1w6_1767998341931_3m_bb2g8qlaug6: string;
+		readonly OVERWRITE_TEST_98g8r1w6_1767998373609_3z_58n1y85ad0h: string;
+		readonly OVERWRITE_TEST_c8535m8h_1768238181964_3m_73m4rr34u1: string;
+		readonly OVERWRITE_TEST_g4iealq5_1768231387321_3o_lq36c30m6ri: string;
+		readonly OVERWRITE_TEST_qxwf1fy9_1767998635226_3n_iue2c9rcy3: string;
+		readonly OVERWRITE_TEST_qxwf1fy9_1767998667414_3z_yqt6ubo2o9l: string;
+		readonly OVERWRITE_TEST_rxcj14sn_1768232393869_3o_8zb28lrmm59: string;
+		readonly OVERWRITE_TEST_w48vgx74_1768238270771_3n_yqxoqww0zn: string;
+		readonly SECRET_KEY_rxcj14sn_1768232391619_3e_yl3knc3k2zi: string;
+		readonly SOME_CONFIG: string;
+		readonly test: string;
 		}
 	}
 }

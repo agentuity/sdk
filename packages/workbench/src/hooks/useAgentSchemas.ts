@@ -1,5 +1,6 @@
 import type { JSONSchema7 } from 'ai';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { GetAuthHeaders } from '../components/internal/workbench-provider';
 import { useLogger } from './useLogger';
 
 export interface AgentSchema {
@@ -31,11 +32,6 @@ export interface AgentSchemaData {
 export interface AgentSchemasResponse {
 	agents: Record<string, AgentSchemaData>;
 }
-
-/**
- * Callback to get authentication headers for workbench requests.
- */
-export type GetAuthHeaders = (body: string) => Promise<Record<string, string>>;
 
 export interface UseAgentSchemasOptions {
 	apiKey?: string;

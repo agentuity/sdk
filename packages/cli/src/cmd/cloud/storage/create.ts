@@ -6,6 +6,7 @@ import { getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import { addResourceEnvVars } from '../../../env-util';
+import { ErrorCode } from '../../../errors';
 
 export const createSubcommand = defineSubcommand({
 	name: 'create',
@@ -85,7 +86,7 @@ export const createSubcommand = defineSubcommand({
 				name: resource.name,
 			};
 		} else {
-			tui.fatal('Failed to create storage');
+			tui.fatal('Failed to create storage', ErrorCode.INTERNAL_ERROR);
 		}
 	},
 });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { GetAuthHeaders } from '../components/internal/workbench-provider';
 
 interface ReconnectOptions {
 	baseDelay?: number;
@@ -83,11 +84,6 @@ function createReconnectManager(opts: ReconnectOptions): ReconnectManager {
 
 	return { recordFailure, recordSuccess, cancel, reset, dispose, getAttempts };
 }
-
-/**
- * Callback to get authentication headers for workbench requests.
- */
-export type GetAuthHeaders = (body: string) => Promise<Record<string, string>>;
 
 export interface UseWorkbenchWebsocketOptions {
 	apiKey?: string;
