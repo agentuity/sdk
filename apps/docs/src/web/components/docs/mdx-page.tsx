@@ -147,8 +147,6 @@ function MDXRenderer({ modulePath, route }: { modulePath: string; route: string 
 		}
 	}, [mod, setHeadings, setActiveId]);
 
-	// Title is now managed by DocsLayout for instant updates on route change
-
 	if (!mod) return null;
 
 	const Content = mod.default;

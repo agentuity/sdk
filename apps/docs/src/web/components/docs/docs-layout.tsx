@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '../ui';
 import { AppSidebar } from './app-sidebar';
 import { HeaderLinks } from './header-links';
+import { getFrontmatterForRoute } from './mdx-page';
 import { ModeToggle } from './mode-toggle';
 import { SearchDialog } from './search-dialog';
 
@@ -15,6 +16,12 @@ export function DocsLayout() {
 
 	// Convert pathname to currentPage format for backward compatibility
 	const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
+
+	// React 19 hoists <title> to <head> and deduplicates against the static one in index.html
+	const fm = getFrontmatterForRoute(location.pathname);
+	const pageTitle = fm?.title
+		? `${fm.title} — Agentuity Documentation`
+		: 'Agentuity Documentation';
 
 	// Scroll to top on route change
 	React.useLayoutEffect(() => {
@@ -44,6 +51,7 @@ export function DocsLayout() {
 
 	return (
 		<SidebarProvider className="min-h-0! h-full">
+			<title>{pageTitle}</title>
 			<AppSidebar
 				currentPage={currentPage}
 				onNavigate={handleNavigate}
