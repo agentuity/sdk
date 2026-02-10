@@ -1,6 +1,7 @@
 import type { Context, Handler } from 'hono';
 import { returnResponse } from '../_util';
 import type { Env } from '../app';
+import { verifySignature } from '../signature';
 
 /**
  * Handler function for cron jobs.
@@ -19,65 +20,6 @@ export interface CronOptions {
 	 * Signatures are valid for 5 minutes.
 	 */
 	auth: boolean;
-}
-
-// Maximum age for cron signatures (5 minutes)
-const MAX_SIGNATURE_AGE_SECONDS = 300;
-
-/**
- * Verifies the cron request signature from Catalyst.
- * Returns true if signature is valid or if running in local dev mode (no SDK key).
- */
-async function verifyCronSignature(c: Context, body: string): Promise<boolean> {
-	const sdkKey = process.env.AGENTUITY_SDK_KEY;
-
-	// In local dev mode (no SDK key), allow all requests
-	if (!sdkKey) {
-		return true;
-	}
-
-	const signature = c.req.header('X-Agentuity-Cron-Signature');
-	const timestampStr = c.req.header('X-Agentuity-Cron-Timestamp');
-
-	// If no signature headers, reject the request
-	if (!signature || !timestampStr) {
-		return false;
-	}
-
-	// Verify timestamp is within acceptable range (prevent replay attacks)
-	const timestamp = parseInt(timestampStr, 10);
-	const now = Math.floor(Date.now() / 1000);
-	if (isNaN(timestamp) || Math.abs(now - timestamp) > MAX_SIGNATURE_AGE_SECONDS) {
-		return false;
-	}
-
-	// Validate signature format: must be 'v1=' followed by valid hex (64 chars for SHA-256)
-	if (!signature.startsWith('v1=')) {
-		return false;
-	}
-	const hexPayload = signature.slice(3);
-	if (!/^[0-9a-f]{64}$/i.test(hexPayload)) {
-		return false;
-	}
-
-	// Decode hex payload into Uint8Array
-	const incomingSigBytes = new Uint8Array(32);
-	for (let i = 0; i < 32; i++) {
-		incomingSigBytes[i] = parseInt(hexPayload.slice(i * 2, i * 2 + 2), 16);
-	}
-
-	// Verify the signature using constant-time comparison
-	const message = `${timestamp}.${body}`;
-	const encoder = new TextEncoder();
-	const key = await crypto.subtle.importKey(
-		'raw',
-		encoder.encode(sdkKey),
-		{ name: 'HMAC', hash: 'SHA-256' },
-		false,
-		['verify']
-	);
-
-	return crypto.subtle.verify('HMAC', key, incomingSigBytes, encoder.encode(message));
 }
 
 /**
@@ -164,7 +106,11 @@ export function cron<E extends Env = Env>(
 			const body = await clonedReq.text();
 
 			// Verify the cron signature
-			const isValid = await verifyCronSignature(c, body);
+			const isValid = await verifySignature(
+				c.req.header('X-Agentuity-Cron-Signature'),
+				c.req.header('X-Agentuity-Cron-Timestamp'),
+				body
+			);
 			if (!isValid) {
 				return c.json({ error: 'Unauthorized' }, 401);
 			}
