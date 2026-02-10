@@ -51,10 +51,12 @@ export {
 	pgTable,
 	pgSchema,
 	pgEnum,
+	pgView,
 	// Column types
 	bigint,
 	bigserial,
 	boolean,
+	vector,
 	char,
 	cidr,
 	customType,

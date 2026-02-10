@@ -71,6 +71,7 @@ export {
 	between,
 	like,
 	ilike,
+	relations,
 } from 'drizzle-orm';
 
 // Re-export pg-core table and column definitions
@@ -78,10 +79,12 @@ export {
 	pgTable,
 	pgSchema,
 	pgEnum,
+	pgView,
 	// Column types
 	bigint,
 	bigserial,
 	boolean,
+	vector,
 	char,
 	cidr,
 	customType,
