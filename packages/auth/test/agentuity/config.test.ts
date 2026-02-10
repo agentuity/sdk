@@ -138,6 +138,47 @@ describe('Agentuity Auth Config', () => {
 			expect(auth.options.trustedOrigins).toEqual(customOrigins);
 		});
 
+		it('filters out undefined values from trustedOrigins array', () => {
+			// Simulate environment variables that may be undefined
+			const maybeUndefined: string | undefined = undefined;
+			const db = new Database(':memory:');
+			const auth = createAuth({
+				database: db,
+				baseURL: 'https://test.example.com',
+				basePath: '/api/auth',
+				secret: 'test-secret-minimum-32-characters-long',
+				trustedOrigins: [
+					maybeUndefined, // undefined - should be filtered out
+					'https://custom.example.com',
+					undefined, // explicit undefined - should be filtered out
+					'https://another.example.com',
+				],
+			});
+
+			expect(auth.options.trustedOrigins).toEqual([
+				'https://custom.example.com',
+				'https://another.example.com',
+			]);
+		});
+
+		it('filters undefined values from trustedOrigins function', async () => {
+			const db = new Database(':memory:');
+			const auth = createAuth({
+				database: db,
+				baseURL: 'https://test.example.com',
+				basePath: '/api/auth',
+				secret: 'test-secret-minimum-32-characters-long',
+				trustedOrigins: () => [undefined, 'https://dynamic.example.com', undefined],
+			});
+
+			const trustedOrigins = auth.options.trustedOrigins as (
+				request?: Request
+			) => Promise<string[]>;
+			const origins = await trustedOrigins();
+
+			expect(origins).toEqual(['https://dynamic.example.com']);
+		});
+
 		it('includes explicit baseURL origin', async () => {
 			const db = new Database(':memory:');
 			const auth = createAuth({

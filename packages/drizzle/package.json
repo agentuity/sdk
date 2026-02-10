@@ -15,12 +15,22 @@
 		"dist"
 	],
 	"exports": {
-		".": "./dist/index.js"
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./schema": {
+			"types": "./dist/schema.d.ts",
+			"default": "./dist/schema.js"
+		}
 	},
 	"typesVersions": {
 		"*": {
 			".": [
 				"./dist/index.d.ts"
+			],
+			"schema": [
+				"./dist/schema.d.ts"
 			]
 		}
 	},
