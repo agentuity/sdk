@@ -110,6 +110,28 @@ export async function checkCustomDomainForDNS(
 
 	return Promise.all(
 		domains.map(async (domain) => {
+			// Detect if user passed a URL instead of a domain name
+			if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(domain)) {
+				try {
+					const url = new URL(domain);
+					return {
+						domain,
+						target: proxy,
+						recordType: 'CNAME',
+						success: false,
+						error: `Invalid domain format: "${domain}" appears to be a URL. Use just the domain name: "${url.hostname}"`,
+					} as DNSError;
+				} catch {
+					return {
+						domain,
+						target: proxy,
+						recordType: 'CNAME',
+						success: false,
+						error: `Invalid domain format: "${domain}" appears to be a URL. Use just the domain name without the protocol (e.g., "example.com" not "https://example.com")`,
+					} as DNSError;
+				}
+			}
+
 			try {
 				let timeoutId: Timer | undefined;
 
