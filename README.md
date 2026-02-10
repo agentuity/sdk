@@ -44,6 +44,7 @@ To chat with other community members you can join the [Agentuity Discord server]
 The structure of this mono repository:
 
 - `packages/auth` - Agentuity unified Authentication package
+- `packages/claude-code` - Claude Code plugin with multi-agent coding team
 - `packages/cli` - the Agentuity command line tool
 - `packages/core` - Shared utilities used by most packages
 - `packages/drizzle` - Drizzle ORM integration with resilient PostgreSQL connections

@@ -2,7 +2,7 @@
 	"name": "agentuity",
 	"owner": {
 		"name": "Agentuity",
-		"email": "support@agentuity.dev"
+		"email": "support@agentuity.com"
 	},
 	"metadata": {
 		"description": "Agentuity plugins for Claude Code",
