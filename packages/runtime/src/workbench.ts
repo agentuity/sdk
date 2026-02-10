@@ -17,6 +17,31 @@ import { isProduction } from './_config';
 import { createCorsMiddleware } from './middleware';
 
 /**
+ * Trusted Agentuity domain suffixes for workbench CORS.
+ * Any origin matching https://*.{suffix} is allowed.
+ * In development, any origin is allowed.
+ */
+const TRUSTED_WORKBENCH_DOMAIN_SUFFIXES = [
+	'.agentuity.com',
+	'.agentuity.dev',
+	'.agentuity.io',
+];
+
+/**
+ * Check if an origin is a trusted Agentuity app origin.
+ * Matches any HTTPS subdomain of the trusted domain suffixes.
+ */
+function isTrustedWorkbenchOrigin(origin: string): boolean {
+	try {
+		const url = new URL(origin);
+		if (url.protocol !== 'https:') return false;
+		return TRUSTED_WORKBENCH_DOMAIN_SUFFIXES.some((suffix) => url.hostname.endsWith(suffix));
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Middleware that verifies workbench request signatures in production.
  * In development mode, all requests are allowed.
  * Supports both header-based auth (for HTTP) and query param auth (for WebSocket).
@@ -272,19 +297,31 @@ export const createWorkbenchRouter = () => {
 	const router = createRouter();
 
 	// Apply CORS middleware first so that even error responses get CORS headers
-	// Include workbench signature headers for production auth
-	// Origin reflects any origin (default behavior) to allow app.agentuity.* to call deployed agents
-	console.log('[workbench] Setting up CORS middleware with signature headers');
-	router.use('/_agentuity/workbench/*', async (c, next) => {
-		console.log(`[workbench] CORS middleware hit: ${c.req.method} ${c.req.path}`);
-		return next();
-	});
+	// In production, restrict origins to known Agentuity app domains + same-origin
+	// In development, allow any origin for local testing flexibility
 	router.use(
 		'/_agentuity/workbench/*',
 		createCorsMiddleware({
-			origin: (origin: string) => {
-				console.log(`[workbench] CORS origin check: ${origin}`);
-				return origin;
+			origin: (origin: string, c) => {
+				// In dev mode, allow any origin for local testing flexibility
+				if (!isProduction()) {
+					return origin;
+				}
+				// In production, allow any *.agentuity.{com,dev,io} origin
+				if (isTrustedWorkbenchOrigin(origin)) {
+					return origin;
+				}
+				// Allow same-origin requests (agent calling its own workbench)
+				try {
+					const requestOrigin = new URL(c.req.url).origin;
+					if (origin === requestOrigin) {
+						return origin;
+					}
+				} catch {
+					// Invalid URL, reject
+				}
+				// Reject unknown origins — no Access-Control-Allow-Origin header
+				return undefined;
 			},
 			allowHeaders: [
 				'Content-Type',

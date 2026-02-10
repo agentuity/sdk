@@ -17,6 +17,8 @@ const MAX_SIGNATURE_AGE_SECONDS = 300;
  * In non-production environments (dev mode), this function always returns true
  * to allow local development without signature verification.
  *
+ * In production, requests are rejected if AGENTUITY_SDK_KEY is not set.
+ *
  * @param signature - The signature header value (format: "v1=<64 hex chars>")
  * @param timestamp - The timestamp header value (unix seconds as string)
  * @param body - The request body (empty string for GET/DELETE requests)
@@ -34,8 +36,8 @@ export async function verifySignature(
 
 	const sdkKey = process.env.AGENTUITY_SDK_KEY;
 	if (!sdkKey) {
-		// No SDK key in production is a misconfiguration, but allow for safety
-		return true;
+		// No SDK key in production is a misconfiguration — reject the request
+		return false;
 	}
 
 	// If no signature headers, reject the request

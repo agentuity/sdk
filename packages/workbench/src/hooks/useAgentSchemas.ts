@@ -85,7 +85,6 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 	getAuthHeadersRef.current = getAuthHeaders;
 
 	const fetchSchemas = useCallback(async () => {
-		console.log('[useAgentSchemas] fetchSchemas called', { enabled, baseUrl });
 		if (!enabled) return;
 
 		setIsLoading(true);
@@ -93,7 +92,6 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 
 		try {
 			const url = `${baseUrl}/_agentuity/workbench/metadata.json`;
-			console.log('[useAgentSchemas] fetching:', url);
 			const headers: Record<string, string> = {
 				...(configHeaders || {}),
 				'Content-Type': 'application/json',
@@ -163,7 +161,6 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 	}, [fetchSchemas]);
 
 	useEffect(() => {
-		console.log('[useAgentSchemas] effect triggered - fetchSchemas changed');
 		void fetchSchemas();
 	}, [fetchSchemas]);
 

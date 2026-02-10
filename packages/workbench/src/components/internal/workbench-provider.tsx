@@ -63,10 +63,6 @@ export function WorkbenchProvider({
 	getAuthHeaders,
 }: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
-	console.log('[WorkbenchProvider] render', {
-		baseUrl: config.baseUrl,
-		projectId: config.projectId,
-	});
 
 	// Use ref for getAuthHeaders to prevent re-render loops when the callback changes identity
 	const getAuthHeadersRef = useRef(getAuthHeaders);
@@ -187,12 +183,10 @@ export function WorkbenchProvider({
 			body: string,
 			additionalHeaders?: Record<string, string>
 		): Promise<Record<string, string>> => {
-			console.log('[WorkbenchProvider] getRequestHeaders called');
 			const headers = buildRequestHeaders(additionalHeaders);
 
 			// Call getAuthHeaders callback if provided (use ref to avoid re-render loops)
 			if (getAuthHeadersRef.current) {
-				console.log('[WorkbenchProvider] calling getAuthHeaders');
 				try {
 					const authHeaders = await getAuthHeadersRef.current(body);
 					Object.assign(headers, authHeaders);
@@ -267,22 +261,18 @@ export function WorkbenchProvider({
 		apiKey,
 		headers: configHeaders,
 		onConnect: () => {
-			console.log('[WorkbenchProvider] WebSocket onConnect - calling refetchSchemas');
 			setConnectionStatus('connected');
 			refetchSchemas();
 		},
 		onReconnect: () => {
-			console.log('[WorkbenchProvider] WebSocket onReconnect - calling refetchSchemas');
 			setConnectionStatus('connected');
 			refetchSchemas();
 		},
 		onAlive: () => {
-			console.log('[WorkbenchProvider] WebSocket onAlive - calling refetchSchemas');
 			setConnectionStatus('connected');
 			refetchSchemas();
 		},
 		onRestarting: () => {
-			console.log('[WorkbenchProvider] WebSocket onRestarting');
 			setConnectionStatus('restarting');
 		},
 	});
@@ -311,7 +301,6 @@ export function WorkbenchProvider({
 	// Fetch state for an agent
 	const fetchAgentState = useCallback(
 		async (agentId: string) => {
-			console.log('[WorkbenchProvider] fetchAgentState called', { agentId, baseUrl });
 			if (!baseUrl) {
 				logger.debug('⚠️ No baseUrl configured, skipping state fetch');
 				return;
@@ -388,11 +377,6 @@ export function WorkbenchProvider({
 
 	// Set initial agent selection
 	useEffect(() => {
-		console.log('[WorkbenchProvider] agent selection effect', {
-			hasAgents: !!agents,
-			agentCount: agents ? Object.keys(agents).length : 0,
-			selectedAgent,
-		});
 		if (agents && Object.keys(agents).length > 0 && !selectedAgent) {
 			logger.debug('🔍 Available agents:', agents);
 

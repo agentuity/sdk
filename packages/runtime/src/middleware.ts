@@ -199,19 +199,15 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
  * ```
  */
 export function createCorsMiddleware(staticOptions?: CorsConfig) {
-	console.log('[CORS] createCorsMiddleware called with staticOptions:', staticOptions);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Lazy resolve: merge app config with static options
 		const appConfig = getAppConfig();
 		const appCors = appConfig?.cors;
-		console.log('[CORS] appCors:', appCors);
-		console.log('[CORS] staticOptions inside middleware:', staticOptions);
 		const corsOptions = {
 			...appCors,
 			...staticOptions,
 		};
-		console.log('[CORS] merged corsOptions:', corsOptions);
 
 		// Extract Agentuity-specific options
 		const { sameOrigin, allowedOrigins, ...honoCorsOptions } = corsOptions;
@@ -255,8 +251,6 @@ export function createCorsMiddleware(staticOptions?: CorsConfig) {
 			...(honoCorsOptions.allowHeaders ?? defaultAllowHeaders),
 			...requiredAllowHeaders,
 		];
-		console.log('[CORS] honoCorsOptions.allowHeaders:', honoCorsOptions.allowHeaders);
-		console.log('[CORS] finalAllowHeaders:', finalAllowHeaders);
 
 		const corsMiddleware = cors({
 			...honoCorsOptions,
