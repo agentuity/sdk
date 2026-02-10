@@ -235,7 +235,7 @@ export function WorkbenchProvider({
 		error: schemasError,
 		refetch: refetchSchemas,
 	} = useAgentSchemas({
-		baseUrl,
+		baseUrl: baseUrl ?? undefined,
 		apiKey,
 		headers: configHeaders,
 		enabled: !isBaseUrlNull,
@@ -245,7 +245,7 @@ export function WorkbenchProvider({
 	// WebSocket connection for dev server restart detection
 	// Only enable for local dev - deployed agents don't have websocket endpoints
 	const wsEnabled = !isBaseUrlNull && !env.cloud;
-	const wsBaseUrl = wsEnabled ? baseUrl : undefined;
+	const wsBaseUrl = wsEnabled && baseUrl ? baseUrl : undefined;
 
 	useEffect(() => {
 		if (isBaseUrlNull) {
