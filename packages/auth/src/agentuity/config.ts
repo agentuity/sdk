@@ -31,8 +31,24 @@ import type { ApiKeyPluginOptions, DefaultPluginApiMethods } from './plugins';
 import { DEFAULT_API_KEY_OPTIONS } from './plugins';
 
 /**
- * Type for BetterAuth trustedOrigins option.
- * Matches the signature expected by BetterAuthOptions.trustedOrigins.
+ * Type for user-provided trustedOrigins input.
+ * Allows undefined values in arrays to support environment variables directly.
+ *
+ * @example
+ * ```typescript
+ * trustedOrigins: [
+ *   process.env.APP_URL, // string | undefined - OK!
+ *   "https://example.com",
+ * ]
+ * ```
+ */
+type TrustedOriginsInput =
+	| (string | undefined)[]
+	| ((request?: Request) => (string | undefined)[] | Promise<(string | undefined)[]>);
+
+/**
+ * Type for BetterAuth trustedOrigins option (strict string[]).
+ * Used internally after filtering out undefined values.
  */
 type TrustedOrigins = string[] | ((request?: Request) => string[] | Promise<string[]>);
 
@@ -252,17 +268,24 @@ function createDefaultTrustedOrigins(baseURL?: string): (request?: Request) => P
  * Configuration options for auth.
  * Extends BetterAuth options with Agentuity-specific settings.
  *
- * Note: `trustedOrigins` is narrowed to require strict `string[]` (no null/undefined).
- * This ensures type safety for consumers of @agentuity/auth.
+ * Note: `trustedOrigins` accepts arrays with undefined values to support
+ * environment variables directly (e.g., `process.env.APP_URL`).
+ * Undefined values are automatically filtered out.
  */
 export interface AuthOptions extends Omit<BetterAuthOptions, 'trustedOrigins'> {
 	/**
 	 * List of trusted origins for CORS and callback validation.
 	 * Can be a static array of origin strings, or a function that returns origins.
 	 *
-	 * Unlike BetterAuth's type, this requires strict `string[]` with no null/undefined.
+	 * Supports environment variables directly - undefined values are filtered out:
+	 * ```typescript
+	 * trustedOrigins: [
+	 *   process.env.APP_URL, // string | undefined - works!
+	 *   "https://example.com",
+	 * ]
+	 * ```
 	 */
-	trustedOrigins?: TrustedOrigins;
+	trustedOrigins?: TrustedOriginsInput;
 
 	/**
 	 * PostgreSQL connection string.
@@ -380,10 +403,27 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	const basePath = restOptions.basePath ?? '/api/auth';
 	const emailAndPassword = restOptions.emailAndPassword ?? { enabled: true };
 
-	// Handle trustedOrigins with explicit typing to avoid BetterAuth's looser type
-	const trustedOrigins: TrustedOrigins = restOptions.trustedOrigins
-		? (restOptions.trustedOrigins as unknown as TrustedOrigins)
-		: createDefaultTrustedOrigins(resolvedBaseURL);
+	// Handle trustedOrigins - filter out undefined values from user input
+	let trustedOrigins: TrustedOrigins;
+	if (restOptions.trustedOrigins) {
+		const userOrigins = restOptions.trustedOrigins;
+		if (typeof userOrigins === 'function') {
+			// Wrap the function to filter undefined values from its result
+			trustedOrigins = async (request?: Request): Promise<string[]> => {
+				const result = await userOrigins(request);
+				return result.filter(
+					(origin: string | undefined): origin is string => origin !== undefined
+				);
+			};
+		} else {
+			// Filter undefined values from static array
+			trustedOrigins = userOrigins.filter(
+				(origin: string | undefined): origin is string => origin !== undefined
+			);
+		}
+	} else {
+		trustedOrigins = createDefaultTrustedOrigins(resolvedBaseURL);
+	}
 
 	const defaultPlugins = skipDefaultPlugins ? [] : getDefaultPlugins(apiKeyOptions);
 
