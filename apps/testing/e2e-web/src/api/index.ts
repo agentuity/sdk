@@ -1,7 +1,10 @@
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, webrtc } from '@agentuity/runtime';
 import hello from '../agent/hello/agent';
 
 const api = createRouter();
+
+// WebRTC signaling endpoint for E2E tests
+api.get('/webrtc/signal', webrtc({ maxPeers: 10 }));
 
 api.post('/hello', hello.validator(), async (c) => {
 	const data = c.req.valid('json');

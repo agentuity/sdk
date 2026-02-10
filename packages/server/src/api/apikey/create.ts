@@ -2,12 +2,12 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { APIKeyResponseError } from './util';
 
-const APIKeyCreateResponseSchema = z.object({
+export const APIKeyCreateResponseSchema = z.object({
 	id: z.string().describe('the API key id'),
 	value: z.string().describe('the API key value'),
 });
 
-const APIKeyCreateFullResponseSchema = APIResponseSchema(APIKeyCreateResponseSchema);
+export const APIKeyCreateFullResponseSchema = APIResponseSchema(APIKeyCreateResponseSchema);
 
 type _APIKeyCreateFullResponse = z.infer<typeof APIKeyCreateFullResponseSchema>;
 

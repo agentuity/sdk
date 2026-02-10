@@ -11,3 +11,5 @@ export {
 } from './resource-region';
 
 export { getCachedProject, setCachedProject, clearProjectCache } from './project-cache';
+
+export { hasAgentSeenIntro, markAgentIntroSeen } from './agent-intro';

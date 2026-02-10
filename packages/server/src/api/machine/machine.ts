@@ -5,7 +5,7 @@ import { MachineResponseError } from './util';
 // TODO: The old /cli/auth/machine/* endpoints should be aliased to redirect
 // to /cli/auth/org/* in the backend (app repo). Remove aliases in follow-up PR.
 
-const MachineSchema = z.object({
+export const MachineSchema = z.object({
 	id: z.string(),
 	instanceId: z.string().nullable().optional(),
 	privateIPv4: z.string().nullable().optional(),
@@ -28,9 +28,9 @@ const MachineSchema = z.object({
 	metadata: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
-const MachineListResponseSchema = APIResponseSchema(z.array(MachineSchema));
-const MachineGetResponseSchema = APIResponseSchema(MachineSchema);
-const MachineDeleteResponseSchema = APIResponseSchemaNoData();
+export const MachineListResponseSchema = APIResponseSchema(z.array(MachineSchema));
+export const MachineGetResponseSchema = APIResponseSchema(MachineSchema);
+export const MachineDeleteResponseSchema = APIResponseSchemaNoData();
 
 export type Machine = z.infer<typeof MachineSchema>;
 
@@ -57,20 +57,24 @@ export async function machineDelete(client: APIClient, machineId: string): Promi
 	}
 }
 
-const MachineDeploymentProjectSchema = z.object({
+export const MachineDeploymentProjectSchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	identifier: z.string(),
 	domains: z.array(z.string()),
 });
 
-const MachineDeploymentResourcesSchema = z.object({
+export type MachineDeploymentProject = z.infer<typeof MachineDeploymentProjectSchema>;
+
+export const MachineDeploymentResourcesSchema = z.object({
 	cpuUnits: z.number(),
 	memoryUnits: z.number(),
 	diskUnits: z.number(),
 });
 
-const MachineDeploymentSchema = z.object({
+export type MachineDeploymentResources = z.infer<typeof MachineDeploymentResourcesSchema>;
+
+export const MachineDeploymentSchema = z.object({
 	id: z.string(),
 	identifier: z.string().optional(),
 	state: z.string().optional(),
@@ -82,7 +86,7 @@ const MachineDeploymentSchema = z.object({
 	domainSuffix: z.string(),
 });
 
-const MachineDeploymentsResponseSchema = APIResponseSchema(z.array(MachineDeploymentSchema));
+export const MachineDeploymentsResponseSchema = APIResponseSchema(z.array(MachineDeploymentSchema));
 
 export type MachineDeployment = z.infer<typeof MachineDeploymentSchema>;
 
@@ -100,7 +104,7 @@ export async function machineDeployments(
 	throw new MachineResponseError({ message: resp.message });
 }
 
-const OrgAuthEnrollResponseSchema = APIResponseSchema(
+export const OrgAuthEnrollResponseSchema = APIResponseSchema(
 	z.object({
 		orgId: z.string(),
 	})
@@ -122,7 +126,7 @@ export async function orgAuthEnroll(
 	throw new MachineResponseError({ message: resp.message });
 }
 
-const OrgAuthStatusResponseSchema = APIResponseSchema(
+export const OrgAuthStatusResponseSchema = APIResponseSchema(
 	z.object({
 		publicKey: z.string().nullable(),
 	})
@@ -139,7 +143,7 @@ export async function orgAuthStatus(
 	throw new MachineResponseError({ message: resp.message });
 }
 
-const OrgAuthUnenrollResponseSchema = APIResponseSchemaNoData();
+export const OrgAuthUnenrollResponseSchema = APIResponseSchemaNoData();
 
 export async function orgAuthUnenroll(client: APIClient, orgId: string): Promise<void> {
 	const resp = await client.delete(

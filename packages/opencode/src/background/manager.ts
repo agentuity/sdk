@@ -568,6 +568,29 @@ export class BackgroundManager {
 	private async notifyParent(task: BackgroundTask): Promise<void> {
 		if (!task.parentSessionId) return;
 
+		// Prevent duplicate notifications for the same task+status combination
+		// This guards against OpenCode firing multiple events for the same status transition
+		const notifiedStatuses = task.notifiedStatuses ?? new Set();
+
+		// Self-healing for tasks created before deduplication was added:
+		// If a task is already in a terminal state but has no notification history,
+		// assume it was already notified and skip to prevent duplicate notifications.
+		if (
+			notifiedStatuses.size === 0 &&
+			(task.status === 'completed' || task.status === 'error' || task.status === 'cancelled')
+		) {
+			notifiedStatuses.add(task.status);
+			task.notifiedStatuses = notifiedStatuses;
+			return;
+		}
+
+		if (notifiedStatuses.has(task.status)) {
+			return; // Already notified for this status, skip duplicate
+		}
+		// Mark as notified BEFORE sending to prevent race conditions
+		notifiedStatuses.add(task.status);
+		task.notifiedStatuses = notifiedStatuses;
+
 		const statusLine = task.status === 'completed' ? 'completed' : task.status;
 		const message = `[BACKGROUND TASK ${statusLine.toUpperCase()}]
 

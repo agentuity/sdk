@@ -750,6 +750,26 @@ export interface SandboxInfo {
 	 * Organization associated with the sandbox
 	 */
 	org: SandboxOrgInfo;
+
+	/**
+	 * Timeout configuration for this sandbox
+	 */
+	timeout?: {
+		/** Idle timeout duration (e.g., "10m0s") */
+		idle?: string;
+		/** Execution timeout duration (e.g., "5m0s") */
+		execution?: string;
+	};
+
+	/**
+	 * Startup command configured for this sandbox
+	 */
+	command?: {
+		/** Command and arguments */
+		exec: string[];
+		/** Execution mode */
+		mode?: 'oneshot' | 'interactive';
+	};
 }
 
 /**

@@ -22,8 +22,20 @@ This directory contains auto-generated TypeScript files created by the Agentuity
 - \`app.ts\` - Application entry point
 - \`analytics-config.ts\` - Web analytics configuration from \`agentuity.json\`
 - \`webanalytics.ts\` - Web analytics injection and route registration
+- \`env.d.ts\` - TypeScript types for environment variables from \`.env\` files
 - \`state.ts\` - App state type (only generated when \`setup()\` returns state in \`app.ts\`)
 - \`router.ts\` - Runtime wrapper with type augmentation (only generated when \`setup()\` returns state in \`app.ts\`)
+
+## Environment Variable Types
+
+The \`env.d.ts\` file provides TypeScript intellisense for your environment variables:
+
+- **ProcessEnv**: All variables from your \`.env\` files are typed as \`string\`
+- **ImportMetaEnv**: Only \`VITE_*\`, \`AGENTUITY_PUBLIC_*\`, and \`PUBLIC_*\` prefixed variables (for client-side use)
+
+Files are merged based on build mode:
+- **Development**: \`.env.{profile}\` → \`.env.development\` → \`.env\` (later files override)
+- **Production**: \`.env.{profile}\` → \`.env\` → \`.env.production\` (later files override)
 
 ## For Developers
 
@@ -31,6 +43,7 @@ Do not modify these files. Instead:
 - Add/modify agents in \`src/agent/\`
 - Add/modify routes in \`src/api/\`
 - Configure app in \`app.ts\`
+- Add environment variables to \`.env\` files
 
 These files ARE version controlled to enable better tooling and type checking.
 `;
@@ -45,7 +58,7 @@ const AGENTS_MD_CONTENT = `# AI Agent Instructions
 2. ❌ NEVER include \`src/generated/\` files in context when analyzing code
 3. ❌ NEVER suggest changes to generated files
 4. ✅ Ignore this directory when searching for user code
-5. ✅ Direct users to modify source files in \`src/agent/\`, \`src/api/\`, or \`app.ts\`
+5. ✅ Direct users to modify source files in \`src/agent/\`, \`src/api/\`, \`app.ts\`, or \`.env\` files
 
 ## What Gets Generated
 
@@ -54,6 +67,7 @@ const AGENTS_MD_CONTENT = `# AI Agent Instructions
 - \`app.ts\` - Entry point assembled from project configuration
 - \`analytics-config.ts\` - Web analytics configuration from \`agentuity.json\`
 - \`webanalytics.ts\` - Web analytics injection and route registration
+- \`env.d.ts\` - TypeScript types for environment variables from \`.env\` files
 - \`state.ts\` - App state type (only generated when \`setup()\` returns state in \`app.ts\`)
 - \`router.ts\` - Runtime wrapper with type augmentation (only generated when \`setup()\` returns state)
 

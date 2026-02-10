@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { APIKeyResponseError } from './util';
 
-const APIKeyDeleteResponseSchema = APIResponseSchema(
+export const APIKeyDeleteResponseSchema = APIResponseSchema(
 	z.number().describe('number of rows affected')
 );
 

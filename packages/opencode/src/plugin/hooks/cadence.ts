@@ -16,6 +16,23 @@ export interface CadenceHooks {
 
 const COMPLETION_PATTERN = /<promise>\s*DONE\s*<\/promise>/i;
 
+/**
+ * Get the current git branch name.
+ */
+async function getCurrentBranch(): Promise<string> {
+	try {
+		const proc = Bun.spawn(['git', 'branch', '--show-current'], {
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+		const stdout = await new Response(proc.stdout).text();
+		await proc.exited;
+		return stdout.trim() || 'unknown';
+	} catch {
+		return 'unknown';
+	}
+}
+
 // Ultrawork trigger keywords - case insensitive matching
 const ULTRAWORK_TRIGGERS = [
 	'ultrawork',
@@ -175,6 +192,9 @@ export function createCadenceHooks(
 				log(`Compaction completed for Cadence session ${sessionId} - saving and continuing`);
 				showToast(ctx, '🔄 Compaction saved, resuming Cadence...');
 
+				// Get current git branch
+				const branch = await getCurrentBranch();
+
 				try {
 					await ctx.client.session?.prompt?.({
 						path: { id: sessionId },
@@ -185,6 +205,8 @@ export function createCadenceHooks(
 									text: `[CADENCE COMPACTION COMPLETE]
 
 The compaction summary above contains our Cadence session context.
+
+Current branch: ${branch}
 
 1. Have @Agentuity Coder Memory save this compaction:
    - Get existing session: \`agentuity cloud kv get agentuity-opencode-memory "session:${sessionId}" --json --region use\`
@@ -274,6 +296,9 @@ Continue Cadence iteration ${state.iteration} of ${state.maxIterations}
 			log(`Injecting Cadence context during compaction for session ${sessionId}`);
 			showToast(ctx, '💾 Compacting Cadence context...');
 
+			// Get current git branch
+			const branch = await getCurrentBranch();
+
 			// Get active background tasks for this session
 			const tasks = backgroundManager?.getTasksByParent(sessionId) ?? [];
 			let backgroundTaskContext = '';
@@ -315,6 +340,7 @@ This session is running in Cadence mode (long-running autonomous loop).
 **Cadence State:**
 - Session ID: ${sessionId}
 - Loop ID: ${state.loopId ?? 'unknown'}
+- Branch: ${branch}
 - Started: ${state.startedAt}
 - Iteration: ${state.iteration} / ${state.maxIterations}
 - Last activity: ${state.lastActivity}

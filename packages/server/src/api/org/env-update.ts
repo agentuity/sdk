@@ -2,16 +2,16 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchemaNoData } from '../api';
 import { OrgResponseError } from './util';
 
-const _OrgEnvUpdateRequestSchema = z.object({
+export const OrgEnvUpdateRequestSchema = z.object({
 	id: z.string().describe('the organization id'),
 	env: z.record(z.string(), z.string()).optional().describe('environment variables to set/update'),
 	secrets: z.record(z.string(), z.string()).optional().describe('secrets to set/update'),
 });
 
-const OrgEnvUpdateResponseSchema = APIResponseSchemaNoData();
+export const OrgEnvUpdateResponseSchema = APIResponseSchemaNoData();
 
-type OrgEnvUpdateRequest = z.infer<typeof _OrgEnvUpdateRequestSchema>;
-type OrgEnvUpdateResponse = z.infer<typeof OrgEnvUpdateResponseSchema>;
+export type OrgEnvUpdateRequest = z.infer<typeof OrgEnvUpdateRequestSchema>;
+export type OrgEnvUpdateResponse = z.infer<typeof OrgEnvUpdateResponseSchema>;
 
 /**
  * Update environment variables and/or secrets for an organization.

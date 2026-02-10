@@ -3,7 +3,7 @@ import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from
 import { ProjectResponseError } from './util';
 
 // Simplified metadata schema for the client
-const DeploymentMetadataSchema = z.object({
+export const DeploymentMetadataSchema = z.object({
 	git: z
 		.object({
 			repo: z.string().optional(),
@@ -35,7 +35,7 @@ const DeploymentMetadataSchema = z.object({
 		.optional(),
 });
 
-const DeploymentSchema = z.object({
+export const DeploymentSchema = z.object({
 	id: z.string(),
 	state: z.string().optional(),
 	message: z.string().nullable().optional(),
@@ -53,9 +53,9 @@ const DeploymentSchema = z.object({
 	dnsRecords: z.array(z.string()).optional(),
 });
 
-const DeploymentListResponseSchema = APIResponseSchema(z.array(DeploymentSchema));
-const DeploymentGetResponseSchema = APIResponseSchema(DeploymentSchema);
-const DeploymentActionResponseSchema = APIResponseSchemaOptionalData(
+export const DeploymentListResponseSchema = APIResponseSchema(z.array(DeploymentSchema));
+export const DeploymentGetResponseSchema = APIResponseSchema(DeploymentSchema);
+export const DeploymentActionResponseSchema = APIResponseSchemaOptionalData(
 	z.object({ activeDeploymentId: z.string().optional() })
 );
 
@@ -91,7 +91,7 @@ export async function projectDeploymentGet(
 	throw new ProjectResponseError({ message: resp.message });
 }
 
-const DeploymentLookupSchema = z.object({
+export const DeploymentLookupSchema = z.object({
 	id: z.string(),
 	projectId: z.string(),
 	orgId: z.string(),
@@ -100,7 +100,7 @@ const DeploymentLookupSchema = z.object({
 	active: z.boolean(),
 });
 
-const DeploymentLookupResponseSchema = APIResponseSchema(DeploymentLookupSchema);
+export const DeploymentLookupResponseSchema = APIResponseSchema(DeploymentLookupSchema);
 
 export type DeploymentLookup = z.infer<typeof DeploymentLookupSchema>;
 
@@ -171,7 +171,7 @@ export const DeploymentLogSchema = z.object({
 	serviceName: z.string(),
 });
 
-const DeploymentLogsResponseSchema = APIResponseSchema(z.array(DeploymentLogSchema));
+export const DeploymentLogsResponseSchema = APIResponseSchema(z.array(DeploymentLogSchema));
 
 export type DeploymentLog = z.infer<typeof DeploymentLogSchema>;
 

@@ -37,6 +37,9 @@ export { postgres, default } from './postgres';
 // Client class for advanced usage
 export { PostgresClient, createCallableClient, type CallablePostgresClient } from './client';
 
+// Pool class for pg.Pool-based connections
+export { PostgresPool, Pool, createPool } from './pool';
+
 // Transaction and reserved connection classes
 export { Transaction, Savepoint, ReservedConnection } from './transaction';
 
@@ -51,6 +54,9 @@ export type {
 	TLSConfig,
 	TransactionOptions,
 	ReserveOptions,
+	PoolConfig,
+	PoolStats,
+	PoolSSLConfig,
 } from './types';
 
 // Errors
@@ -68,4 +74,10 @@ export {
 export { computeBackoff, sleep, mergeReconnectConfig, DEFAULT_RECONNECT_CONFIG } from './reconnect';
 
 // Global registry for coordinated shutdown
-export { shutdownAll, getClientCount, getClients, hasActiveClients } from './registry';
+export {
+	shutdownAll,
+	getClientCount,
+	getClients,
+	hasActiveClients,
+	type Registrable,
+} from './registry';

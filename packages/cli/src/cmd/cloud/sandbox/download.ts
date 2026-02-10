@@ -2,16 +2,16 @@ import { z } from 'zod';
 import { writeFileSync } from 'node:fs';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, getSandboxRegion } from './util';
+import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxDownloadArchive } from '@agentuity/server';
+import { sandboxDownloadArchive, sandboxResolve } from '@agentuity/server';
 
 export const downloadSubcommand = createCommand({
 	name: 'download',
 	aliases: ['dl'],
 	description: 'Download files from a sandbox as a compressed archive',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox download sbx_abc123 ./backup.tar.gz'),
@@ -46,9 +46,12 @@ export const downloadSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, logger, orgId, config } = ctx;
+		const { args, opts, options, auth, logger, apiClient } = ctx;
 
-		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
+		// Resolve sandbox to get region and orgId using CLI API
+		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+		const { region, orgId } = sandboxInfo;
+
 		const client = createSandboxClient(logger, auth, region);
 
 		const format = opts.format ?? detectFormat(args.output);

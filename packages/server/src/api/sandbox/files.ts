@@ -8,19 +8,19 @@ export const FileToWriteSchema = z.object({
 	content: z.string().describe('Base64-encoded file content'),
 });
 
-const WriteFilesRequestSchema = z
+export const WriteFilesRequestSchema = z
 	.object({
 		files: z.array(FileToWriteSchema).describe('Array of files to write'),
 	})
 	.describe('Request body for writing files to a sandbox');
 
-const WriteFilesDataSchema = z
+export const WriteFilesDataSchema = z
 	.object({
 		filesWritten: z.number().describe('Number of files successfully written'),
 	})
 	.describe('Response data from writing files');
 
-const WriteFilesResponseSchema = z.discriminatedUnion('success', [
+export const WriteFilesResponseSchema = z.discriminatedUnion('success', [
 	z.object({
 		success: z.literal<false>(false),
 		message: z.string().describe('the error message'),
@@ -140,14 +140,14 @@ export async function sandboxReadFile(
 	return response.body;
 }
 
-const MkDirRequestSchema = z
+export const MkDirRequestSchema = z
 	.object({
 		path: z.string().describe('Path to the directory to create'),
 		recursive: z.boolean().optional().describe('Create parent directories if needed'),
 	})
 	.describe('Request body for creating a directory');
 
-const MkDirResponseSchema = z.discriminatedUnion('success', [
+export const MkDirResponseSchema = z.discriminatedUnion('success', [
 	z.object({
 		success: z.literal<false>(false),
 		message: z.string().describe('the error message'),
@@ -200,14 +200,14 @@ export async function sandboxMkDir(client: APIClient, params: MkDirParams): Prom
 	}
 }
 
-const RmDirRequestSchema = z
+export const RmDirRequestSchema = z
 	.object({
 		path: z.string().describe('Path to the directory to remove'),
 		recursive: z.boolean().optional().describe('Remove directory and all contents'),
 	})
 	.describe('Request body for removing a directory');
 
-const RmDirResponseSchema = z.discriminatedUnion('success', [
+export const RmDirResponseSchema = z.discriminatedUnion('success', [
 	z.object({
 		success: z.literal<false>(false),
 		message: z.string().describe('the error message'),
@@ -260,13 +260,13 @@ export async function sandboxRmDir(client: APIClient, params: RmDirParams): Prom
 	}
 }
 
-const RmFileRequestSchema = z
+export const RmFileRequestSchema = z
 	.object({
 		path: z.string().describe('Path to the file to remove'),
 	})
 	.describe('Request body for removing a file');
 
-const RmFileResponseSchema = z.discriminatedUnion('success', [
+export const RmFileResponseSchema = z.discriminatedUnion('success', [
 	z.object({
 		success: z.literal<false>(false),
 		message: z.string().describe('the error message'),
@@ -317,7 +317,7 @@ export async function sandboxRmFile(client: APIClient, params: RmFileParams): Pr
 	}
 }
 
-const FileInfoSchema = z.object({
+export const FileInfoSchema = z.object({
 	path: z.string().describe('File path relative to the listed directory'),
 	size: z.number().describe('File size in bytes'),
 	isDir: z.boolean().describe('Whether the entry is a directory'),
@@ -325,11 +325,11 @@ const FileInfoSchema = z.object({
 	modTime: z.string().describe('Modification time in RFC3339 format'),
 });
 
-const ListFilesDataSchema = z.object({
+export const ListFilesDataSchema = z.object({
 	files: z.array(FileInfoSchema).describe('Array of file information'),
 });
 
-const ListFilesResponseSchema = z.discriminatedUnion('success', [
+export const ListFilesResponseSchema = z.discriminatedUnion('success', [
 	z.object({
 		success: z.literal<false>(false),
 		message: z.string().describe('the error message'),
@@ -467,7 +467,7 @@ export interface UploadArchiveParams {
 	signal?: AbortSignal;
 }
 
-const UploadArchiveResponseSchema = z.discriminatedUnion('success', [
+export const UploadArchiveResponseSchema = z.discriminatedUnion('success', [
 	z.object({
 		success: z.literal<false>(false),
 		message: z.string().describe('the error message'),
@@ -523,17 +523,17 @@ export async function sandboxUploadArchive(
 	}
 }
 
-const SetEnvRequestSchema = z.object({
+export const SetEnvRequestSchema = z.object({
 	env: z
 		.record(z.string(), z.string().nullable())
 		.describe('Environment variables to set (null to delete)'),
 });
 
-const SetEnvDataSchema = z.object({
+export const SetEnvDataSchema = z.object({
 	env: z.record(z.string(), z.string()).describe('Current environment variables after update'),
 });
 
-const SetEnvResponseSchema = z.discriminatedUnion('success', [
+export const SetEnvResponseSchema = z.discriminatedUnion('success', [
 	z.object({
 		success: z.literal<false>(false),
 		message: z.string().describe('the error message'),

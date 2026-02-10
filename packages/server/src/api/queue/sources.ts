@@ -1,31 +1,31 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema, APIResponseSchemaNoData, APIError } from '../api';
+import { type APIClient, APIError, APIResponseSchema, APIResponseSchemaNoData } from '../api';
 import {
-	SourceSchema,
-	type Source,
 	type CreateSourceRequest,
-	type UpdateSourceRequest,
-	type QueueApiOptions,
 	CreateSourceRequestSchema,
+	type QueueApiOptions,
+	type Source,
+	SourceSchema,
+	type UpdateSourceRequest,
 	UpdateSourceRequestSchema,
 } from './types';
 import {
+	buildQueueHeaders,
 	QueueError,
 	QueueNotFoundError,
-	SourceNotFoundError,
-	SourceAlreadyExistsError,
 	queueApiPath,
-	buildQueueHeaders,
+	SourceAlreadyExistsError,
+	SourceNotFoundError,
 } from './util';
 import { validateQueueName, validateSourceId, validateSourceName } from './validation';
 
-const SourceResponseSchema = APIResponseSchema(z.object({ source: SourceSchema }));
-const SourcesListResponseSchema = APIResponseSchema(
+export const SourceResponseSchema = APIResponseSchema(z.object({ source: SourceSchema }));
+export const SourcesListResponseSchema = APIResponseSchema(
 	z.object({
 		sources: z.array(SourceSchema),
 	})
 );
-const DeleteSourceResponseSchema = APIResponseSchemaNoData();
+export const DeleteSourceResponseSchema = APIResponseSchemaNoData();
 
 /**
  * Create a source for a queue.

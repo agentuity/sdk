@@ -1,14 +1,14 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { ProjectResponseError } from './util';
 
-const _ProjectGetRequestSchema = z.object({
+export const ProjectGetRequestSchema = z.object({
 	id: z.string().describe('the project id'),
 	mask: z.boolean().default(true).optional().describe('if the secrets should be returned masked'),
 	keys: z.boolean().default(true).optional().describe('if the project keys should be returned'),
 });
 
-const ProjectSchema = z.object({
+export const ProjectSchema = z.object({
 	id: z.string().describe('the project id'),
 	name: z.string().describe('the project name'),
 	description: z.string().nullable().optional().describe('the project description'),
@@ -20,9 +20,9 @@ const ProjectSchema = z.object({
 	secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),
 });
 
-const ProjectGetResponseSchema = APIResponseSchema(ProjectSchema);
+export const ProjectGetResponseSchema = APIResponseSchema(ProjectSchema);
 
-type ProjectGetRequest = z.infer<typeof _ProjectGetRequestSchema>;
+type ProjectGetRequest = z.infer<typeof ProjectGetRequestSchema>;
 type ProjectGetResponse = z.infer<typeof ProjectGetResponseSchema>;
 
 export type Project = z.infer<typeof ProjectSchema>;

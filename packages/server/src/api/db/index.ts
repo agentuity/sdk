@@ -1,10 +1,27 @@
-export { dbLogs, DbQueryLogSchema, type DbQueryLog, type DbQueryLogs } from './logs';
+export {
+	DbLogsAPIResponseSchema,
+	DbLogsRequestSchema,
+	DbLogsResponseSchema,
+	type DbQueryLog,
+	DbQueryLogSchema,
+	type DbQueryLogs,
+	dbLogs,
+} from './logs';
+export {
+	dbQuery,
+	type QueryColumn,
+	QueryColumnSchema,
+	QueryResponseSchema,
+	type QueryResult,
+	QueryResultSchema,
+} from './query';
 export {
 	dbTables,
 	generateCreateTableSQL,
-	TableSchemaSchema,
 	type TableColumn,
+	TableColumnSchema,
 	type TableSchema,
+	TableSchemaSchema,
+	TablesResponseSchema,
 } from './tables';
-export { dbQuery, type QueryColumn, type QueryResult } from './query';
-export { DbResponseError, DbInvalidArgumentError } from './util';
+export { DbInvalidArgumentError, DbResponseError } from './util';

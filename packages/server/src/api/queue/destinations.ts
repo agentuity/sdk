@@ -1,31 +1,33 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema, APIResponseSchemaNoData, APIError } from '../api';
+import { type APIClient, APIError, APIResponseSchema, APIResponseSchemaNoData } from '../api';
 import {
-	DestinationSchema,
-	type Destination,
 	type CreateDestinationRequest,
-	type UpdateDestinationRequest,
-	type QueueApiOptions,
 	CreateDestinationRequestSchema,
+	type Destination,
+	DestinationSchema,
+	type QueueApiOptions,
+	type UpdateDestinationRequest,
 	UpdateDestinationRequestSchema,
 } from './types';
 import {
+	buildQueueHeaders,
+	DestinationAlreadyExistsError,
+	DestinationNotFoundError,
 	QueueError,
 	QueueNotFoundError,
-	DestinationNotFoundError,
-	DestinationAlreadyExistsError,
 	queueApiPath,
-	buildQueueHeaders,
 } from './util';
-import { validateQueueName, validateDestinationId, validateDestinationConfig } from './validation';
+import { validateDestinationConfig, validateDestinationId, validateQueueName } from './validation';
 
-const DestinationResponseSchema = APIResponseSchema(z.object({ destination: DestinationSchema }));
-const DestinationsListResponseSchema = APIResponseSchema(
+export const DestinationResponseSchema = APIResponseSchema(
+	z.object({ destination: DestinationSchema })
+);
+export const DestinationsListResponseSchema = APIResponseSchema(
 	z.object({
 		destinations: z.array(DestinationSchema),
 	})
 );
-const DeleteDestinationResponseSchema = APIResponseSchemaNoData();
+export const DeleteDestinationResponseSchema = APIResponseSchemaNoData();
 
 /**
  * Create a destination for a queue.

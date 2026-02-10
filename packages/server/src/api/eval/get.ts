@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 
-const EvaluationDetailSchema = z.object({
+export const EvaluationDetailSchema = z.object({
 	id: z.string().describe('Evaluation ID'),
 	name: z.string().describe('Evaluation name'),
 	description: z.string().nullable().describe('Evaluation description'),
@@ -14,7 +14,7 @@ const EvaluationDetailSchema = z.object({
 	updatedAt: z.string().describe('Last updated timestamp'),
 });
 
-const EvalGetResponseSchema = APIResponseSchema(EvaluationDetailSchema);
+export const EvalGetResponseSchema = APIResponseSchema(EvaluationDetailSchema);
 
 export type EvaluationDetail = z.infer<typeof EvaluationDetailSchema>;
 

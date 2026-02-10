@@ -2058,4 +2058,134 @@ describe('registry-generator', () => {
 			expect(routesContent).toContain("'POST /api/old-agent'");
 		});
 	});
+
+	describe('SSE route output schema typing (issue #855)', () => {
+		test('should generate typed SSE route when outputSchemaVariable is provided', async () => {
+			// Create the schema file that will be imported
+			const apiDir = join(srcDir, 'api');
+			mkdirSync(apiDir, { recursive: true });
+			writeFileSync(
+				join(apiDir, 'events.ts'),
+				`
+import { s } from '@agentuity/schema';
+export const StreamEventSchema = s.object({
+	type: s.enum(['token', 'complete']),
+	content: s.optional(s.string()),
+});
+			`
+			);
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/events',
+					filename: './api/events.ts',
+					routeType: 'sse',
+					hasValidator: false,
+					outputSchemaVariable: 'StreamEventSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// SSE route should be in SSERouteRegistry
+			expect(routesContent).toContain("'/api/events'");
+			expect(routesContent).toContain('export interface SSERouteRegistry');
+
+			// Should generate type exports for the SSE route
+			expect(routesContent).toContain('export type GETApiEventsOutput');
+
+			// Should NOT use 'never' for outputSchema
+			expect(routesContent).toContain('GETApiEventsOutputSchema');
+			expect(routesContent).not.toMatch(/'\/api\/events'[^}]*outputSchema: never/);
+		});
+
+		test('should generate never types for SSE route without outputSchemaVariable', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/simple-sse',
+					filename: './api/simple-sse.ts',
+					routeType: 'sse',
+					hasValidator: false,
+					// No outputSchemaVariable
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should be in SSERouteRegistry
+			expect(routesContent).toContain("'/api/simple-sse'");
+
+			// Should have never types since no schema provided
+			expect(routesContent).toMatch(/'\/api\/simple-sse'[^}]*outputSchema: never/);
+		});
+
+		test('should include SSE routes in RPC registry with eventstream method', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/notifications',
+					filename: './api/notifications.ts',
+					routeType: 'sse',
+					hasValidator: false,
+					outputSchemaVariable: 'NotificationSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// RPC registry should have eventstream method for SSE routes
+			expect(routesContent).toContain('notifications: {');
+			expect(routesContent).toContain('eventstream: {');
+			expect(routesContent).toContain("type: 'sse'");
+		});
+
+		test('should handle SSE route with imported schema and track import path', async () => {
+			// Create schema file
+			const schemasDir = join(srcDir, 'schemas');
+			mkdirSync(schemasDir, { recursive: true });
+			writeFileSync(
+				join(schemasDir, 'events.ts'),
+				`
+import { s } from '@agentuity/schema';
+export const EventSchema = s.object({ data: s.string() });
+			`
+			);
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/stream',
+					filename: './api/stream.ts',
+					routeType: 'sse',
+					hasValidator: false,
+					outputSchemaVariable: 'EventSchema',
+					outputSchemaImportPath: '../schemas/events',
+					outputSchemaImportedName: 'EventSchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should import the schema from the correct path
+			expect(routesContent).toContain("from '../schemas/events'");
+			expect(routesContent).toContain('EventSchema');
+
+			// Should generate proper types
+			expect(routesContent).toContain('export type GETApiStreamOutput');
+		});
+	});
 });

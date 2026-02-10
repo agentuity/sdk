@@ -32,15 +32,15 @@ export const listSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['ls'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	idempotent: true,
 	schema: {
 		response: MachineListResponseSchema,
 	},
 	async handler(ctx) {
-		const { options, logger, auth, config, orgId } = ctx;
+		const { options, logger, auth, config } = ctx;
 
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name, orgId);
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		try {
 			const machines = await machineList(catalystClient);

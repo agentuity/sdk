@@ -21,36 +21,92 @@ Lightweight schema validation library with StandardSchema v1 support. Provides t
 
 ```text
 src/
-├── index.ts              # Main entry point, exports all schemas
-├── base.ts               # Base schema class and types
+├── index.ts              # Main entry point, exports all schemas and `s` builder
+├── base.ts               # Base schema class, types (Schema, Infer, ValidationError)
+├── json-schema.ts        # toJSONSchema, fromJSONSchema conversion utilities
 ├── primitives/           # Primitive type schemas
-│   ├── string.ts
-│   ├── number.ts
-│   ├── boolean.ts
-│   ├── null.ts
-│   └── undefined.ts
+│   ├── string.ts         # StringSchema, string()
+│   ├── number.ts         # NumberSchema, number()
+│   ├── boolean.ts        # BooleanSchema, boolean()
+│   ├── null.ts           # NullSchema, null_()
+│   ├── undefined.ts      # UndefinedSchema, undefined_()
+│   ├── unknown.ts        # UnknownSchema, unknown()
+│   └── any.ts            # AnySchema, any()
 ├── complex/              # Complex type schemas
-│   ├── object.ts
-│   └── array.ts
+│   ├── object.ts         # ObjectSchema, object()
+│   ├── array.ts          # ArraySchema, array()
+│   └── record.ts         # RecordSchema, record()
 ├── utils/                # Utility schemas
-│   ├── optional.ts
-│   ├── nullable.ts
-│   ├── union.ts
-│   └── literal.ts
-├── coerce/               # Type coercion schemas
-│   ├── string.ts
-│   ├── number.ts
-│   ├── boolean.ts
-│   └── date.ts
-├── json-schema.ts        # JSON Schema conversion utilities
-└── __tests__/            # Bun unit tests
-    ├── primitives.test.ts
-    ├── complex.test.ts
-    ├── utils.test.ts
-    ├── coerce.test.ts
-    ├── type-inference.test.ts
-    ├── json-schema.test.ts
-    └── errors.test.ts
+│   ├── optional.ts       # OptionalSchema, optional()
+│   ├── nullable.ts       # NullableSchema, nullable()
+│   ├── union.ts          # UnionSchema, union()
+│   └── literal.ts        # LiteralSchema, literal()
+└── coerce/               # Type coercion schemas
+    ├── string.ts         # CoerceStringSchema, coerceString()
+    ├── number.ts         # CoerceNumberSchema, coerceNumber()
+    ├── boolean.ts        # CoerceBooleanSchema, coerceBoolean()
+    └── date.ts           # CoerceDateSchema, coerceDate()
+```
+
+## Key Exports
+
+### Schema Builder (`s`)
+
+```typescript
+import { s } from '@agentuity/schema';
+
+// Define schemas
+const UserSchema = s.object({
+	name: s.string(),
+	age: s.number(),
+	role: s.enum(['admin', 'user', 'guest']),
+	email: s.optional(s.string()),
+});
+
+// Extract TypeScript type from schema
+type User = s.infer<typeof UserSchema>;
+
+// Parse/validate data
+const user = UserSchema.parse(data); // throws on invalid
+const result = UserSchema.safeParse(data); // returns { success, data/issues }
+```
+
+**Note on `s.enum`:** Implemented as `enumSchema()` in `index.ts`, it's a thin wrapper around `union()` and `literal()`. Example: `s.enum(['a', 'b'])` is equivalent to `s.union(s.literal('a'), s.literal('b'))`.
+
+### Individual Schema Exports
+
+```typescript
+import {
+	// Primitives
+	string,
+	number,
+	boolean,
+	null_,
+	undefined_,
+	unknown,
+	any,
+	// Complex
+	object,
+	array,
+	record,
+	// Utils
+	literal,
+	optional,
+	nullable,
+	union,
+	// Coercion
+	coerceString,
+	coerceNumber,
+	coerceBoolean,
+	coerceDate,
+	// JSON Schema
+	toJSONSchema,
+	fromJSONSchema,
+	// Types
+	type Schema,
+	type Infer,
+	type ValidationError,
+} from '@agentuity/schema';
 ```
 
 ## Code Style
@@ -67,15 +123,13 @@ src/
 - Use `'~standard'` property for StandardSchema interface
 - Export main builder as `s` (e.g., `s.string()`, `s.object()`)
 - Error messages should be clear and actionable
-- Support type inference via `Infer<T>` utility type
+- Support type inference via `s.infer<T>` utility type
 
 ## Testing
 
 - **Test Framework**: Bun's built-in test runner
-- **Test Count**: 72 tests across 7 test files
 - **Command**: `bun test` (run from package directory)
 - **Coverage**: Primitives, complex types, utilities, coercion, type inference, JSON Schema, error handling
-- **CI**: Tests run automatically on PR builds
 - All tests must pass before merging
 - When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
 

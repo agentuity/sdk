@@ -17,6 +17,7 @@ import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import type { APIClient } from '../../api';
 import { getUserAgent } from '../../api';
 import { isUnicode } from '../../tui/symbols';
+import { getAgentEnv } from '../../agent-detection';
 import { projectDeploymentFail, type ClientDiagnostics, type Deployment } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
 
@@ -174,6 +175,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			cwd: projectDir,
 			env: {
 				...process.env,
+				...getAgentEnv(),
 				AGENTUITY_FORK_PARENT: '1',
 				AGENTUITY_DEPLOYMENT: deploymentEnvValue,
 				// Force color and unicode output since child stdout/stderr are piped (not TTY)

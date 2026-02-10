@@ -99,7 +99,6 @@ export const monitorAgent: AgentDefinition = {
 			'glob',
 			'grep',
 			'task',
-			'agentuity_coder_delegate',
 			'agentuity_background_task',
 			'agentuity_background_cancel',
 			'agentuity_memory_share',

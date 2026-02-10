@@ -1,6 +1,7 @@
 import type { PaneAction, WindowState, TmuxConfig } from './types';
 import { runTmuxCommand, runTmuxCommandSync } from './utils';
 import { spawn, spawnSync } from 'bun';
+import { getCoderProfile } from '../plugin/hooks/tools';
 
 /**
  * Escape a string for safe use in shell commands.
@@ -432,10 +433,14 @@ async function replacePane(
 	// Use exec to replace bash with opencode attach directly.
 	// This ensures signals go directly to opencode attach (no wrapper process).
 	// When opencode attach exits, the pane closes automatically (tmux remain-on-exit off).
-	// Use shellEscape to prevent shell injection via session IDs
+	// Use shellEscape to prevent shell injection via session IDs and profile
 	const escapedServerUrl = shellEscape(ctx.serverUrl);
 	const escapedSessionId = shellEscape(action.newSessionId);
-	const command = `exec opencode attach ${escapedServerUrl} --session ${escapedSessionId}`;
+	// Inject profile, session ID, and agent mode environment variables
+	const profile = getCoderProfile();
+	const escapedProfile = shellEscape(profile);
+	const envPrefix = `AGENTUITY_PROFILE=${escapedProfile} AGENTUITY_OPENCODE_SESSION=${escapedSessionId} AGENTUITY_AGENT_MODE=opencode`;
+	const command = `${envPrefix} exec opencode attach ${escapedServerUrl} --session ${escapedSessionId}`;
 	const result = await runTmuxCommand(['respawn-pane', '-k', '-t', action.paneId, command]);
 	if (!result.success) {
 		return { success: false, error: result.output };
@@ -473,10 +478,14 @@ async function spawnInAgentsWindow(
 	// Use exec to replace bash with opencode attach directly.
 	// This ensures signals go directly to opencode attach (no wrapper process).
 	// When opencode attach exits, the pane closes automatically (tmux remain-on-exit off).
-	// Use shellEscape to prevent shell injection via session IDs
+	// Use shellEscape to prevent shell injection via session IDs and profile
 	const escapedServerUrl = shellEscape(ctx.serverUrl);
 	const escapedSessionId = shellEscape(action.sessionId);
-	const command = `exec opencode attach ${escapedServerUrl} --session ${escapedSessionId}`;
+	// Inject profile, session ID, and agent mode environment variables
+	const profile = getCoderProfile();
+	const escapedProfile = shellEscape(profile);
+	const envPrefix = `AGENTUITY_PROFILE=${escapedProfile} AGENTUITY_OPENCODE_SESSION=${escapedSessionId} AGENTUITY_AGENT_MODE=opencode`;
+	const command = `${envPrefix} exec opencode attach ${escapedServerUrl} --session ${escapedSessionId}`;
 	const layout = 'tiled'; // Always use tiled layout for grid arrangement
 
 	// Check if we have a cached agents window ID and if it still exists

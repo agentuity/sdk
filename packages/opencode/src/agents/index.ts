@@ -7,8 +7,10 @@ import { architectAgent } from './architect';
 import { reviewerAgent } from './reviewer';
 import { memoryAgent } from './memory';
 import { expertAgent } from './expert';
+import { expertBackendAgent } from './expert-backend';
+import { expertFrontendAgent } from './expert-frontend';
+import { expertOpsAgent } from './expert-ops';
 import { runnerAgent } from './runner';
-import { reasonerAgent } from './reasoner';
 import { productAgent } from './product';
 import { monitorAgent } from './monitor';
 
@@ -22,8 +24,10 @@ export const agents: Record<AgentRole, AgentDefinition> = {
 	reviewer: reviewerAgent,
 	memory: memoryAgent,
 	expert: expertAgent,
+	'expert-backend': expertBackendAgent,
+	'expert-frontend': expertFrontendAgent,
+	'expert-ops': expertOpsAgent,
 	runner: runnerAgent,
-	reasoner: reasonerAgent,
 	product: productAgent,
 	monitor: monitorAgent,
 };

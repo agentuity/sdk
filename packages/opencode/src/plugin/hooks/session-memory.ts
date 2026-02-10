@@ -2,6 +2,23 @@ import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
 import type { BackgroundManager } from '../../background';
 
+/**
+ * Get the current git branch name.
+ */
+async function getCurrentBranch(): Promise<string> {
+	try {
+		const proc = Bun.spawn(['git', 'branch', '--show-current'], {
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+		const stdout = await new Response(proc.stdout).text();
+		await proc.exited;
+		return stdout.trim() || 'unknown';
+	} catch {
+		return 'unknown';
+	}
+}
+
 export interface SessionMemoryHooks {
 	onEvent: (input: {
 		event: { type: string; properties?: Record<string, unknown> };
@@ -54,6 +71,8 @@ export function createSessionMemoryHooks(
 			log(`Compaction complete for session ${sessionId} - triggering memory save`);
 
 			try {
+				const branch = await getCurrentBranch();
+
 				await ctx.client.session.prompt({
 					path: { id: sessionId },
 					body: {
@@ -63,12 +82,14 @@ export function createSessionMemoryHooks(
 								text: `[COMPACTION COMPLETE]
 
 The compaction summary above contains our session context.
+Current branch: ${branch}
 
 Have @Agentuity Coder Memory save this compaction:
 1. Get existing session record (or create new): \`agentuity cloud kv get agentuity-opencode-memory "session:${sessionId}" --json --region use\`
-2. Append this compaction summary to the \`compactions\` array with timestamp
-3. Save back: \`agentuity cloud kv set agentuity-opencode-memory "session:${sessionId}" '{...}' --region use\`
-4. Upsert to Vector for semantic search: \`agentuity cloud vector upsert agentuity-opencode-sessions "session:${sessionId}" --document "..." --metadata '...' --region use\`
+2. Ensure branch field is set to "${branch}"
+3. Append this compaction summary to the \`compactions\` array with timestamp
+4. Save back: \`agentuity cloud kv set agentuity-opencode-memory "session:${sessionId}" '{...}' --region use\`
+5. Upsert to Vector for semantic search: \`agentuity cloud vector upsert agentuity-opencode-sessions "session:${sessionId}" --document "..." --metadata '...' --region use\`
 
 After saving the compaction:
 1. Read back the session record from KV
@@ -76,10 +97,11 @@ After saving the compaction:
 3. Format as a readable summary with timestamps
 4. Include "what's next" - the user's pending request if there is one
 
-After saving the compaction, Memory should consider triggering Reasoner:
+After saving the compaction, Memory should apply inline reasoning:
 - If significant patterns, decisions, or corrections emerged
-- Use: agentuity_background_task({ agent: "reasoner", task: "Extract conclusions from session...", description: "Reason about session" })
-- Reasoner will update entity representations with new conclusions
+- Extract conclusions (explicit, deductive, inductive, abductive, corrections)
+- Update entity representations with new conclusions
+- Assign salience scores to conclusions
 
 Response format:
 \`\`\`
@@ -131,6 +153,9 @@ Then continue with the current task if there is one.`,
 			const sessionId = input.sessionID;
 			log(`Compacting session ${sessionId}`);
 
+			// Get current git branch
+			const branch = await getCurrentBranch();
+
 			// Get active background tasks for this session
 			const tasks = backgroundManager?.getTasksByParent(sessionId) ?? [];
 			let backgroundTaskContext = '';
@@ -160,6 +185,7 @@ Use \`agentuity_background_output({ task_id: "..." })\` to check their status.
 
 This session's context is being saved to persistent memory.
 Session record location: \`session:${sessionId}\` in agentuity-opencode-memory
+Current branch: ${branch}
 
 **Planning State (if active):**
 If this session has planning active (user requested "track progress" or similar), the session record contains:
@@ -172,7 +198,7 @@ ${backgroundTaskContext}
 After compaction:
 1. Memory will save this summary to the session record
 2. If planning is active, Memory should update planning.progress with this compaction
-3. Memory will consider triggering Reasoner if significant patterns/corrections emerged
+3. Memory will apply inline reasoning if significant patterns/corrections emerged
 `);
 		},
 	};

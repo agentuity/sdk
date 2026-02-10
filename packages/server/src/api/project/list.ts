@@ -1,23 +1,23 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { ProjectResponseError } from './util';
 
-const ProjectListResponse = z.array(
-	z.object({
-		id: z.string().describe('the project id'),
-		name: z.string().describe('the project name'),
-		description: z.string().optional().describe('the project description'),
-		orgId: z.string().describe('the organization id that this project is registered with'),
-		orgName: z.string().describe('the organization name'),
-		cloudRegion: z.string().nullable().optional().describe('the cloud region'),
-		latestDeploymentId: z.string().nullable().describe('the latest deployment id'),
-	})
-);
+export const ProjectListItemSchema = z.object({
+	id: z.string().describe('the project id'),
+	name: z.string().describe('the project name'),
+	description: z.string().optional().describe('the project description'),
+	orgId: z.string().describe('the organization id that this project is registered with'),
+	orgName: z.string().describe('the organization name'),
+	cloudRegion: z.string().nullable().optional().describe('the cloud region'),
+	latestDeploymentId: z.string().nullable().describe('the latest deployment id'),
+});
 
-const ProjectListResponseSchema = APIResponseSchema(ProjectListResponse);
+export const ProjectListSchema = z.array(ProjectListItemSchema);
+
+export const ProjectListResponseSchema = APIResponseSchema(ProjectListSchema);
 
 export type ProjectListResponse = z.infer<typeof ProjectListResponseSchema>;
-export type ProjectList = z.infer<typeof ProjectListResponse>;
+export type ProjectList = z.infer<typeof ProjectListSchema>;
 
 /**
  * List all projects

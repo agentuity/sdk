@@ -636,6 +636,21 @@ export class PostgresClient {
 	}
 
 	/**
+	 * Execute an operation with automatic retry on retryable errors.
+	 * If reconnection is in progress, waits for it to complete before executing.
+	 *
+	 * This is the public counterpart of the internal `_executeWithRetry` method,
+	 * exposed for use by integration layers (e.g. the Drizzle resilient proxy).
+	 *
+	 * @param operation - The async operation to execute
+	 * @param maxRetries - Maximum number of retries (default: 3)
+	 * @returns The result of the operation
+	 */
+	async executeWithRetry<T>(operation: () => T | Promise<T>, maxRetries?: number): Promise<T> {
+		return this._executeWithRetry(operation, maxRetries);
+	}
+
+	/**
 	 * Wait for the connection to be established.
 	 * If the connection hasn't been established yet (lazy connection), this will
 	 * warm the connection by executing a test query.
@@ -771,6 +786,7 @@ export function createCallableClient(config?: string | PostgresConfig): Callable
 	callable.shutdown = client.shutdown.bind(client);
 	callable.unsafe = client.unsafe.bind(client);
 	callable.waitForConnection = client.waitForConnection.bind(client);
+	callable.executeWithRetry = client.executeWithRetry.bind(client);
 
 	return callable;
 }

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
 import { RegionResponseError } from './util';
 
-const ResourceListResponse = z.object({
+export const ResourceListResponse = z.object({
 	s3: z.array(
 		z.object({
 			bucket_name: z.string().describe('the S3 bucket name'),
@@ -39,7 +39,7 @@ const ResourceListResponse = z.object({
 		})
 		.optional(),
 });
-const ResourceListResponseSchema = APIResponseSchema(ResourceListResponse);
+export const ResourceListResponseSchema = APIResponseSchema(ResourceListResponse);
 
 export type ResourceListResponse = z.infer<typeof ResourceListResponseSchema>;
 export type ResourceList = z.infer<typeof ResourceListResponse>;

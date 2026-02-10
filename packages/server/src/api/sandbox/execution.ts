@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { throwSandboxError, API_VERSION } from './util';
 import type { ExecutionStatus } from '@agentuity/core';
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '../api';
+import { API_VERSION, throwSandboxError } from './util';
 
-const ExecutionInfoSchema = z
+export const ExecutionInfoSchema = z
 	.object({
 		executionId: z.string().describe('Unique identifier for the execution'),
 		sandboxId: z.string().describe('ID of the sandbox where the execution ran'),
@@ -25,15 +25,15 @@ const ExecutionInfoSchema = z
 	})
 	.describe('Detailed information about a command execution');
 
-const ExecutionGetResponseSchema = APIResponseSchema(ExecutionInfoSchema);
+export const ExecutionGetResponseSchema = APIResponseSchema(ExecutionInfoSchema);
 
-const ExecutionListDataSchema = z
+export const ExecutionListDataSchema = z
 	.object({
 		executions: z.array(ExecutionInfoSchema).describe('List of executions'),
 	})
 	.describe('List of executions for a sandbox');
 
-const ExecutionListResponseSchema = APIResponseSchema(ExecutionListDataSchema);
+export const ExecutionListResponseSchema = APIResponseSchema(ExecutionListDataSchema);
 
 export interface ExecutionInfo {
 	executionId: string;

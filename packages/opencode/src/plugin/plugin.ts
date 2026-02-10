@@ -63,23 +63,6 @@ You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
 // Agents that should receive sandbox context in their prompts
 const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'architect'];
 
-// Agent display names for @mentions
-// Note: Monitor has hidden: true so it won't appear in @ autocomplete,
-// but it's still included here for programmatic invocation via Task tool
-const AGENT_MENTIONS: Record<AgentRole, string> = {
-	lead: '@Agentuity Coder Lead',
-	scout: '@Agentuity Coder Scout',
-	builder: '@Agentuity Coder Builder',
-	architect: '@Agentuity Coder Architect',
-	reviewer: '@Agentuity Coder Reviewer',
-	memory: '@Agentuity Coder Memory',
-	expert: '@Agentuity Coder Expert',
-	runner: '@Agentuity Coder Runner',
-	reasoner: '@Agentuity Coder Reasoner',
-	product: '@Agentuity Coder Product',
-	monitor: '@Agentuity Coder Monitor',
-};
-
 export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	ctx.client.app.log({
 		body: {
@@ -257,13 +240,35 @@ function createConfigHandler(
 		// Validate merged configs and warn about mismatches
 		validateAndWarnConfigs(mergedAgents);
 
-		// In sandbox, allow all permissions without prompts
+		// Permission configuration for external directories
+		// Memory agent and other operations may need to write temp files for CLI piping
 		if (IN_SANDBOX) {
+			// In sandbox, allow all permissions without prompts
 			config.permission = {
 				'*': 'allow',
 				external_directory: {
 					'/home/agentuity/**': 'allow',
 					'*': 'allow',
+				},
+			};
+		} else {
+			// For non-sandbox environments, auto-allow temp directory writes
+			// This prevents blocking prompts when Memory agent writes large JSON for CLI piping
+			const existingPermissions = (config.permission as Record<string, unknown>) ?? {};
+			const existingExternalDir =
+				(existingPermissions.external_directory as Record<string, string>) ?? {};
+
+			// Normalize TMPDIR: strip trailing slashes, then append /**
+			const tmpdir = process.env.TMPDIR?.replace(/\/+$/, '');
+			const tmpdirPattern = tmpdir ? `${tmpdir}/**` : null;
+
+			config.permission = {
+				...existingPermissions,
+				external_directory: {
+					...existingExternalDir,
+					'/tmp/**': 'allow',
+					// Also allow OS-specific temp directories
+					...(tmpdirPattern ? { [tmpdirPattern]: 'allow' } : {}),
 				},
 			};
 		}
@@ -330,9 +335,8 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 - **@Agentuity Coder Builder**: Implement features, write code, run tests
 - **@Agentuity Coder Architect**: Complex autonomous tasks, Cadence mode (GPT Codex)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
-- **@Agentuity Coder Memory**: Store context, remember decisions
-- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
-- **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
+- **@Agentuity Coder Memory**: Store context, remember decisions, extract conclusions
+- **@Agentuity Coder Expert**: Agentuity CLI, SDK, Services, and Documentation specialist
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress
 
@@ -345,7 +349,7 @@ $ARGUMENTS
 3. Delegate implementation to @Agentuity Coder Builder (or Architect for complex work)
 4. Delegate lint/build/test commands to @Agentuity Coder Runner for structured results
 5. Have @Agentuity Coder Reviewer check the work
-6. Use @Agentuity Coder Expert for Agentuity CLI questions
+6. Use @Agentuity Coder Expert for Agentuity CLI, SDK, Services, and Documentation questions
 7. Only use cloud services when genuinely helpful
 8. **When done, tell @Agentuity Coder Memory to memorialize the session**
 </coder-mode>`,
@@ -485,9 +489,8 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 - **@Agentuity Coder Architect**: Complex autonomous implementation (GPT Codex with high reasoning) — **USE THIS FOR CADENCE**
 - **@Agentuity Coder Builder**: Quick fixes, simple changes (for minor iterations only)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
-- **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
-- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
-- **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
+- **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints, extract conclusions
+- **@Agentuity Coder Expert**: Agentuity CLI, SDK, Services, and Documentation specialist
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress, Cadence briefings
 
@@ -586,47 +589,6 @@ function createTools(backgroundManager: BackgroundManager): Hooks['tool'] {
 	// Use the schema from @opencode-ai/plugin's tool helper to avoid Zod version mismatches
 	const s = tool.schema;
 
-	const coderDelegate = tool({
-		description: `Delegate a task to a specialized Agentuity Coder agent.
-
-Use this to:
-- Scout: Explore codebase, find patterns, research documentation
-- Builder: Implement features, write code, run tests (interactive work)
-- Architect: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
-- Reviewer: Review changes, catch issues, apply fixes
-- Memory: Store context, remember decisions across sessions
-- Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
-- Expert: Get help with Agentuity CLI and cloud services
-- Runner: Execute lint/build/test/typecheck/format commands, returns structured results
-- Monitor: Watch background tasks and report when they complete`,
-		args: {
-			agent: s
-				.enum([
-					'scout',
-					'builder',
-					'architect',
-					'reviewer',
-					'memory',
-					'reasoner',
-					'expert',
-					'runner',
-					'product',
-					'monitor',
-				])
-				.describe('Which agent to delegate to'),
-			task: s.string().describe('Clear description of the task'),
-			context: s.string().optional().describe('Additional context from previous tasks'),
-		},
-		async execute(args) {
-			const mention = AGENT_MENTIONS[args.agent as AgentRole];
-			let prompt = `${mention}\n\n## Task\n${args.task}`;
-			if (args.context) {
-				prompt = `${mention}\n\n## Context\n${args.context}\n\n## Task\n${args.task}`;
-			}
-			return `To delegate this task, use the Task tool with this prompt:\n\n${prompt}\n\nThe ${args.agent} agent will handle this task.`;
-		},
-	});
-
 	const backgroundTask = tool({
 		description: `Launch a task to run in the background. Use this for parallel execution of multiple independent tasks.
 
@@ -643,7 +605,6 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'architect',
 					'reviewer',
 					'memory',
-					'reasoner',
 					'expert',
 					'runner',
 					'product',
@@ -793,10 +754,11 @@ Returns the public URL that can be copied and used anywhere.`,
 			compress: s.boolean().optional().describe('Enable gzip compression'),
 			region: s.string().optional().describe('Cloud region (use, usc, usw). Default: usc'),
 		},
-		async execute(args) {
+		async execute(args, context) {
 			// Get the profile first - this ensures checkAuth() and CLI use the same profile
 			const profile = getCoderProfile();
 			const originalProfile = process.env.AGENTUITY_PROFILE;
+			const sessionId = context.sessionID;
 
 			try {
 				// Set profile before auth check so checkAuth reads the correct config
@@ -843,6 +805,8 @@ Returns the public URL that can be copied and used anywhere.`,
 					env: {
 						...process.env,
 						AGENTUITY_PROFILE: profile,
+						AGENTUITY_AGENT_MODE: 'opencode',
+						...(sessionId ? { AGENTUITY_OPENCODE_SESSION: sessionId } : {}),
 					},
 				});
 
@@ -901,7 +865,6 @@ Returns the public URL that can be copied and used anywhere.`,
 	});
 
 	return {
-		agentuity_coder_delegate: coderDelegate,
 		agentuity_background_task: backgroundTask,
 		agentuity_background_output: backgroundOutput,
 		agentuity_background_cancel: backgroundCancel,

@@ -1658,6 +1658,14 @@ export interface SandboxInfo {
 	identifier?: string;
 	networkPort?: number;
 	url?: string;
+	timeout?: {
+		idle?: string;
+		execution?: string;
+	};
+	command?: {
+		exec: string[];
+		mode?: 'oneshot' | 'interactive';
+	};
 }
 
 export interface SandboxCreateOptions {
