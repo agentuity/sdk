@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GetAuthHeaders } from '../components/internal/workbench-provider';
+
 
 interface ReconnectOptions {
 	baseDelay?: number;

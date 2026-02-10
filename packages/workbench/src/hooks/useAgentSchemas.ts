@@ -149,7 +149,7 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 		} finally {
 			setIsLoading(false);
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- getAuthHeadersRef is a ref
+		// eslint-disable-next-line -- getAuthHeadersRef is a ref
 	}, [baseUrl, apiKey, enabled, configHeaders, logger]);
 
 	const refetch = useCallback(() => {
