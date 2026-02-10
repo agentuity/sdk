@@ -114,14 +114,14 @@ verify_removed() {
 	local attempt=0
 	local output
 	while [ $attempt -lt $max_retries ]; do
-		output=$($CLI cloud sandbox exec "$sandbox_id" -- test $type_flag "$path" 2>&1) && {
-			attempt=$((attempt + 1))
-			if [ $attempt -lt $max_retries ]; then
-				sleep $delay
-			fi
-			continue
-		}
-		return 0
+		output=$($CLI cloud sandbox exec "$sandbox_id" -- sh -c "if [ $type_flag \"$path\" ]; then echo STILL_EXISTS; else echo REMOVED; fi" 2>&1) || true
+		if echo "$output" | grep -q "REMOVED"; then
+			return 0
+		fi
+		attempt=$((attempt + 1))
+		if [ $attempt -lt $max_retries ]; then
+			sleep $delay
+		fi
 	done
 	return 1
 }
