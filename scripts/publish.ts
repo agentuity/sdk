@@ -426,11 +426,11 @@ async function validateEnvironment(isDryRun: boolean) {
 			process.exit(1);
 		}
 
-		// Check for amp CLI
+		// Check for opencode CLI
 		try {
-			await $`amp --version`.quiet();
+			await $`opencode --version`.quiet();
 		} catch {
-			console.error('❌ Error: amp CLI not found.');
+			console.error('❌ Error: opencode CLI not found.');
 			console.error('   Required for generating release notes.');
 			process.exit(1);
 		}
@@ -453,7 +453,7 @@ async function generateReleaseNotes(
 	newVersion: string,
 	previousTag: string | null
 ): Promise<string> {
-	console.log('\n📝 Generating release notes with Amp...\n');
+	console.log('\n📝 Generating release notes with Opencode...\n');
 
 	// Get git log since previous tag
 	let gitLog: string;
@@ -494,12 +494,12 @@ Formatting Instructions:
 `;
 
 	try {
-		// Invoke amp to generate release notes (pipe prompt via stdin)
-		const releaseNotes = await $`echo ${prompt} | amp`.text();
+		// Invoke opencode to generate release notes (pipe prompt via stdin)
+		const releaseNotes = await $`echo ${prompt} | opencode run`.text();
 
 		return releaseNotes.trim();
 	} catch (err) {
-		console.error('✗ Failed to generate release notes with Amp:', err);
+		console.error('✗ Failed to generate release notes with OpenCode:', err);
 		throw err;
 	}
 }

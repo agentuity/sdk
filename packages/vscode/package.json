@@ -1,5 +1,6 @@
 {
 	"name": "agentuity-vscode",
+	"private": true,
 	"displayName": "Agentuity VSCode Extension",
 	"description": "Build, deploy, and manage AI agents with Agentuity",
 	"version": "1.0.5",
