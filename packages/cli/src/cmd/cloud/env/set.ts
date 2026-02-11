@@ -156,6 +156,15 @@ export const setSubcommand = createSubcommand({
 			}
 		}
 
+		// Reject duplicate keys
+		const seenKeys = new Set<string>();
+		for (const pair of pairs) {
+			if (seenKeys.has(pair.key)) {
+				tui.fatal(`Duplicate key '${pair.key}'. Each variable may only be specified once.`);
+			}
+			seenKeys.add(pair.key);
+		}
+
 		// Classify each pair as env or secret
 		const envPairs: Record<string, string> = {};
 		const secretPairs: Record<string, string> = {};
