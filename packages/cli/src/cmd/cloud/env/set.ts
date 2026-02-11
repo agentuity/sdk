@@ -13,20 +13,74 @@ import {
 import { getCommand } from '../../../command-prefix';
 import { resolveOrgId, isOrgScope } from './org-util';
 
+interface ParsedEnvPair {
+	key: string;
+	value: string;
+}
+
+/**
+ * Parse env set arguments into key-value pairs.
+ * Supports two formats:
+ * - Legacy: KEY VALUE (exactly 2 args)
+ * - KEY=VALUE format: KEY1=VALUE1 [KEY2=VALUE2 ...]
+ */
+function parseEnvArgs(rawArgs: string[]): ParsedEnvPair[] {
+	if (rawArgs.length === 0) {
+		tui.fatal(
+			'No arguments provided. Usage: env set KEY VALUE or env set KEY=VALUE [KEY2=VALUE2 ...]'
+		);
+	}
+
+	// Check if first arg contains '=' — if so, treat ALL args as KEY=VALUE format
+	const firstArg = rawArgs[0]!;
+	if (firstArg.includes('=')) {
+		const pairs: ParsedEnvPair[] = [];
+		for (const arg of rawArgs) {
+			const eqIndex = arg.indexOf('=');
+			if (eqIndex === -1 || eqIndex === 0) {
+				tui.fatal(`Invalid format: '${arg}'. Expected KEY=VALUE format.`);
+			}
+			const key = arg.substring(0, eqIndex);
+			const value = arg.substring(eqIndex + 1);
+			if (!key) {
+				tui.fatal(`Invalid format: '${arg}'. Key cannot be empty.`);
+			}
+			pairs.push({ key, value });
+		}
+		return pairs;
+	}
+
+	// Legacy format: exactly 2 args = KEY VALUE
+	if (rawArgs.length === 2) {
+		return [{ key: rawArgs[0]!, value: rawArgs[1]! }];
+	}
+
+	// Ambiguous: 1 arg without '=' or 3+ args without '='
+	if (rawArgs.length === 1) {
+		tui.fatal(`Missing value for '${rawArgs[0]}'. Usage: env set KEY VALUE or env set KEY=VALUE`);
+	}
+
+	// 3+ args without '=' in first arg
+	tui.fatal(
+		'Multiple variables must use KEY=VALUE format. Usage: env set KEY1=VALUE1 KEY2=VALUE2 ...'
+	);
+}
+
 const EnvSetResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
-	key: z.string().describe('Environment variable key'),
+	keys: z.array(z.string()).describe('Environment variable keys that were set'),
 	path: z
 		.string()
 		.optional()
-		.describe('Local file path where env var was saved (project scope only)'),
-	secret: z.boolean().describe('Whether the value was stored as a secret'),
-	scope: z.enum(['project', 'org']).describe('The scope where the variable was set'),
+		.describe('Local file path where env vars were saved (project scope only)'),
+	secretKeys: z.array(z.string()).describe('Keys that were stored as secrets'),
+	envKeys: z.array(z.string()).describe('Keys that were stored as env vars'),
+	scope: z.enum(['project', 'org']).describe('The scope where the variables were set'),
 });
 
 export const setSubcommand = createSubcommand({
 	name: 'set',
-	description: 'Set an environment variable or secret',
+	description: 'Set one or more environment variables or secrets',
 	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth'],
 	idempotent: true,
 	requires: { auth: true, apiClient: true },
@@ -36,7 +90,15 @@ export const setSubcommand = createSubcommand({
 			command: getCommand('env set NODE_ENV production'),
 			description: 'Set environment variable',
 		},
+		{
+			command: getCommand('env set NODE_ENV=production'),
+			description: 'Set using KEY=VALUE format',
+		},
 		{ command: getCommand('env set PORT 3000'), description: 'Set port number' },
+		{
+			command: getCommand('env set NODE_ENV=production LOG_LEVEL=info PORT=3000'),
+			description: 'Set multiple variables at once',
+		},
 		{
 			command: getCommand('env set API_KEY "sk_..." --secret'),
 			description: 'Set a secret value',
@@ -48,8 +110,7 @@ export const setSubcommand = createSubcommand({
 	],
 	schema: {
 		args: z.object({
-			key: z.string().describe('the environment variable key'),
-			value: z.string().describe('the environment variable value'),
+			args: z.array(z.string()).describe('KEY VALUE or KEY=VALUE [KEY2=VALUE2 ...]'),
 		}),
 		options: z.object({
 			secret: z
@@ -67,8 +128,9 @@ export const setSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, apiClient, project, projectDir, config } = ctx;
+		const { args: cmdArgs, opts, apiClient, project, projectDir, config } = ctx;
 		const useOrgScope = isOrgScope(opts?.org);
+		const forceSecret = opts?.secret ?? false;
 
 		// Require project context if not using org scope
 		if (!useOrgScope && !project) {
@@ -77,86 +139,136 @@ export const setSubcommand = createSubcommand({
 			);
 		}
 
-		let isSecret = opts?.secret ?? false;
-		const isPublic = isPublicVarKey(args.key);
+		const pairs = parseEnvArgs(cmdArgs.args);
 
-		// Validate key doesn't start with reserved AGENTUITY_ prefix (except AGENTUITY_PUBLIC_)
-		if (isReservedAgentuityKey(args.key)) {
-			tui.fatal('Cannot set AGENTUITY_ prefixed variables. These are reserved for system use.');
-		}
-
-		// Validate public vars cannot be secrets
-		if (isSecret && isPublic) {
-			tui.fatal(
-				`Cannot set public variables as secrets. Keys with prefixes (${PUBLIC_VAR_PREFIXES.join(', ')}) are exposed to the frontend.`
-			);
-		}
-
-		// Auto-detect if this looks like a secret and offer to store as secret
-		// Skip auto-detect for public vars since they can never be secrets
-		if (!isSecret && !isPublic && looksLikeSecret(args.key, args.value)) {
-			tui.warning(`The variable '${args.key}' looks like it should be a secret.`);
-
-			const storeAsSecret = await tui.confirm('Store as a secret instead?', true);
-
-			if (storeAsSecret) {
-				isSecret = true;
+		// Validate all keys first
+		for (const pair of pairs) {
+			if (isReservedAgentuityKey(pair.key)) {
+				tui.fatal(
+					`Cannot set AGENTUITY_ prefixed variables: '${pair.key}'. Reserved for system use.`
+				);
 			}
 		}
 
-		const label = isSecret ? 'secret' : 'environment variable';
+		// Classify each pair as env or secret
+		const envPairs: Record<string, string> = {};
+		const secretPairs: Record<string, string> = {};
+		const secretKeysList: string[] = [];
+		const envKeysList: string[] = [];
+
+		for (const pair of pairs) {
+			const isPublic = isPublicVarKey(pair.key);
+			let isSecret = forceSecret;
+
+			// Validate public vars cannot be secrets
+			if (isSecret && isPublic) {
+				tui.fatal(
+					`Cannot set public variables as secrets. '${pair.key}' (prefix ${PUBLIC_VAR_PREFIXES.join(', ')}) is exposed to the frontend.`
+				);
+			}
+
+			// Auto-detect if this looks like a secret and offer to store as secret
+			// Skip auto-detect for public vars since they can never be secrets
+			if (!isSecret && !isPublic && looksLikeSecret(pair.key, pair.value)) {
+				if (pairs.length === 1) {
+					// Single pair: offer interactive prompt (existing behavior)
+					tui.warning(`The variable '${pair.key}' looks like it should be a secret.`);
+					const storeAsSecret = await tui.confirm('Store as a secret instead?', true);
+					if (storeAsSecret) {
+						isSecret = true;
+					}
+				} else {
+					// Multiple pairs: auto-detect silently
+					isSecret = true;
+					tui.info(`Auto-detected '${pair.key}' as a secret`);
+				}
+			}
+
+			if (isSecret) {
+				secretPairs[pair.key] = pair.value;
+				secretKeysList.push(pair.key);
+			} else {
+				envPairs[pair.key] = pair.value;
+				envKeysList.push(pair.key);
+			}
+		}
+
+		const totalCount = pairs.length;
+		const allKeys = [...envKeysList, ...secretKeysList];
+		const secretSuffix =
+			secretKeysList.length > 0
+				? ` (${secretKeysList.length} secret${secretKeysList.length !== 1 ? 's' : ''})`
+				: '';
 
 		if (useOrgScope) {
 			// Organization scope
 			const orgId = await resolveOrgId(apiClient, config, opts!.org!);
 
-			const updatePayload = isSecret
-				? { id: orgId, secrets: { [args.key]: args.value } }
-				: { id: orgId, env: { [args.key]: args.value } };
+			const updatePayload: {
+				id: string;
+				env?: Record<string, string>;
+				secrets?: Record<string, string>;
+			} = { id: orgId };
+			if (Object.keys(envPairs).length > 0) updatePayload.env = envPairs;
+			if (Object.keys(secretPairs).length > 0) updatePayload.secrets = secretPairs;
 
-			await tui.spinner(`Setting organization ${label} in cloud`, () => {
-				return orgEnvUpdate(apiClient, updatePayload);
-			});
+			await tui.spinner(
+				`Setting ${totalCount} organization variable${totalCount !== 1 ? 's' : ''} in cloud`,
+				() => {
+					return orgEnvUpdate(apiClient, updatePayload);
+				}
+			);
 
 			tui.success(
-				`Organization ${isSecret ? 'secret' : 'environment variable'} '${args.key}' set successfully (affects all projects in org)`
+				`Organization variable${totalCount !== 1 ? 's' : ''} set successfully: ${allKeys.join(', ')}${secretSuffix}`
 			);
 
 			return {
 				success: true,
-				key: args.key,
-				secret: isSecret,
+				keys: allKeys,
+				secretKeys: secretKeysList,
+				envKeys: envKeysList,
 				scope: 'org' as const,
 			};
 		} else {
-			// Project scope (existing behavior)
-			const updatePayload = isSecret
-				? { id: project!.projectId, secrets: { [args.key]: args.value } }
-				: { id: project!.projectId, env: { [args.key]: args.value } };
+			// Project scope
+			const updatePayload: {
+				id: string;
+				env?: Record<string, string>;
+				secrets?: Record<string, string>;
+			} = { id: project!.projectId };
+			if (Object.keys(envPairs).length > 0) updatePayload.env = envPairs;
+			if (Object.keys(secretPairs).length > 0) updatePayload.secrets = secretPairs;
 
-			await tui.spinner(`Setting ${label} in cloud`, () => {
-				return projectEnvUpdate(apiClient, updatePayload);
-			});
+			await tui.spinner(
+				`Setting ${totalCount} variable${totalCount !== 1 ? 's' : ''} in cloud`,
+				() => {
+					return projectEnvUpdate(apiClient, updatePayload);
+				}
+			);
 
 			// Update local .env file only if we have a project directory
-			// (not when using --project-id without being in a project folder)
 			let envFilePath: string | undefined;
 			if (projectDir) {
 				envFilePath = await findExistingEnvFile(projectDir);
-				// Write only the new key - writeEnvFile preserves existing keys by default
-				await writeEnvFile(envFilePath, { [args.key]: args.value });
+				const allPairsForLocal: Record<string, string> = {
+					...envPairs,
+					...secretPairs,
+				};
+				await writeEnvFile(envFilePath, allPairsForLocal);
 			}
 
-			const successMsg = envFilePath
-				? `${isSecret ? 'Secret' : 'Environment variable'} '${args.key}' set successfully (cloud + ${envFilePath})`
-				: `${isSecret ? 'Secret' : 'Environment variable'} '${args.key}' set successfully (cloud only)`;
-			tui.success(successMsg);
+			const locationMsg = envFilePath ? ` (cloud + ${envFilePath})` : ' (cloud only)';
+			tui.success(
+				`Variable${totalCount !== 1 ? 's' : ''} set successfully: ${allKeys.join(', ')}${secretSuffix}${locationMsg}`
+			);
 
 			return {
 				success: true,
-				key: args.key,
+				keys: allKeys,
 				path: envFilePath,
-				secret: isSecret,
+				secretKeys: secretKeysList,
+				envKeys: envKeysList,
 				scope: 'project' as const,
 			};
 		}

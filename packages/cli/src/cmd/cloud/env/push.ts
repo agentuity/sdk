@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server';
+import { projectEnvUpdate, orgEnvUpdate, projectGet, orgEnvGet } from '@agentuity/server';
 import {
 	findExistingEnvFile,
 	readEnvFile,
@@ -11,14 +11,19 @@ import {
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 import { resolveOrgId, isOrgScope } from './org-util';
+import { computeEnvDiff, displayEnvDiff } from './env-diff';
 
 const EnvPushResponseSchema = z.object({
 	success: z.boolean().describe('Whether push succeeded'),
 	pushed: z.number().describe('Number of items pushed'),
 	envCount: z.number().describe('Number of env vars pushed'),
 	secretCount: z.number().describe('Number of secrets pushed'),
+	newCount: z.number().describe('Number of new variables added'),
+	changedCount: z.number().describe('Number of existing variables overwritten'),
+	unchangedCount: z.number().describe('Number of unchanged variables'),
 	source: z.string().describe('Source file path'),
 	scope: z.enum(['project', 'org']).describe('The scope where variables were pushed'),
+	force: z.boolean().describe('Whether force mode was used'),
 });
 
 export const pushSubcommand = createSubcommand({
@@ -39,6 +44,7 @@ export const pushSubcommand = createSubcommand({
 				.union([z.boolean(), z.string()])
 				.optional()
 				.describe('push to organization level (use --org for default org)'),
+			force: z.boolean().default(false).describe('overwrite remote values without confirmation'),
 		}),
 		response: EnvPushResponseSchema,
 	},
@@ -59,6 +65,8 @@ export const pushSubcommand = createSubcommand({
 		// Filter out reserved AGENTUITY_ prefixed keys
 		const filteredEnv = filterAgentuitySdkKeys(localEnv);
 
+		const forceMode = opts?.force ?? false;
+
 		if (Object.keys(filteredEnv).length === 0) {
 			tui.warning('No variables to push');
 			return {
@@ -66,8 +74,12 @@ export const pushSubcommand = createSubcommand({
 				pushed: 0,
 				envCount: 0,
 				secretCount: 0,
+				newCount: 0,
+				changedCount: 0,
+				unchangedCount: 0,
 				source: envFilePath,
 				scope: useOrgScope ? ('org' as const) : ('project' as const),
+				force: forceMode,
 			};
 		}
 
@@ -93,6 +105,38 @@ export const pushSubcommand = createSubcommand({
 			// Organization scope
 			const orgId = await resolveOrgId(apiClient, config, opts!.org!);
 
+			// Fetch remote state to compute diff
+			const orgData = await tui.spinner('Fetching remote variables', () => {
+				return orgEnvGet(apiClient, { id: orgId, mask: false });
+			});
+
+			const diff = computeEnvDiff(env, secrets, orgData.env || {}, orgData.secrets || {});
+
+			displayEnvDiff(diff, { direction: 'push' });
+
+			// Prompt for confirmation if there are changes to existing variables
+			if (diff.changedEntries.length > 0 && !forceMode) {
+				const confirmed = await tui.confirm(
+					`${diff.changedEntries.length} existing variable${diff.changedEntries.length !== 1 ? 's' : ''} will be overwritten. Continue?`,
+					true
+				);
+				if (!confirmed) {
+					tui.info('Push cancelled');
+					return {
+						success: false,
+						pushed: 0,
+						envCount: 0,
+						secretCount: 0,
+						newCount: 0,
+						changedCount: 0,
+						unchangedCount: 0,
+						source: envFilePath,
+						scope: 'org' as const,
+						force: forceMode,
+					};
+				}
+			}
+
 			await tui.spinner('Pushing variables to organization', () => {
 				return orgEnvUpdate(apiClient, {
 					id: orgId,
@@ -106,7 +150,7 @@ export const pushSubcommand = createSubcommand({
 			const totalCount = envCount + secretCount;
 
 			tui.success(
-				`Pushed ${totalCount} variable${totalCount !== 1 ? 's' : ''} to organization (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
+				`Pushed ${totalCount} variable${totalCount !== 1 ? 's' : ''} to organization (${diff.newEntries.length} new, ${diff.changedEntries.length} updated, ${diff.unchangedEntries.length} unchanged)`
 			);
 
 			return {
@@ -114,15 +158,56 @@ export const pushSubcommand = createSubcommand({
 				pushed: totalCount,
 				envCount,
 				secretCount,
+				newCount: diff.newEntries.length,
+				changedCount: diff.changedEntries.length,
+				unchangedCount: diff.unchangedEntries.length,
 				source: envFilePath,
 				scope: 'org' as const,
+				force: forceMode,
 			};
 		} else {
-			// Project scope (existing behavior)
+			// Project scope
 			if (!project) {
 				tui.fatal(
 					'Project context required. Run from a project directory or use --org for organization scope.'
 				);
+			}
+
+			// Fetch remote state to compute diff
+			const projectData = await tui.spinner('Fetching remote variables', () => {
+				return projectGet(apiClient, { id: project.projectId, mask: false });
+			});
+
+			const diff = computeEnvDiff(
+				env,
+				secrets,
+				projectData.env || {},
+				projectData.secrets || {}
+			);
+
+			displayEnvDiff(diff, { direction: 'push' });
+
+			// Prompt for confirmation if there are changes to existing variables
+			if (diff.changedEntries.length > 0 && !forceMode) {
+				const confirmed = await tui.confirm(
+					`${diff.changedEntries.length} existing variable${diff.changedEntries.length !== 1 ? 's' : ''} will be overwritten. Continue?`,
+					true
+				);
+				if (!confirmed) {
+					tui.info('Push cancelled');
+					return {
+						success: false,
+						pushed: 0,
+						envCount: 0,
+						secretCount: 0,
+						newCount: 0,
+						changedCount: 0,
+						unchangedCount: 0,
+						source: envFilePath,
+						scope: 'project' as const,
+						force: forceMode,
+					};
+				}
 			}
 
 			await tui.spinner('Pushing variables to cloud', () => {
@@ -138,7 +223,7 @@ export const pushSubcommand = createSubcommand({
 			const totalCount = envCount + secretCount;
 
 			tui.success(
-				`Pushed ${totalCount} variable${totalCount !== 1 ? 's' : ''} to cloud (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
+				`Pushed ${totalCount} variable${totalCount !== 1 ? 's' : ''} to cloud (${diff.newEntries.length} new, ${diff.changedEntries.length} updated, ${diff.unchangedEntries.length} unchanged)`
 			);
 
 			return {
@@ -146,8 +231,12 @@ export const pushSubcommand = createSubcommand({
 				pushed: totalCount,
 				envCount,
 				secretCount,
+				newCount: diff.newEntries.length,
+				changedCount: diff.changedEntries.length,
+				unchangedCount: diff.unchangedEntries.length,
 				source: envFilePath,
 				scope: 'project' as const,
+				force: forceMode,
 			};
 		}
 	},
