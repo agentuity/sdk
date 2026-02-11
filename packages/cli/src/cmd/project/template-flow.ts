@@ -676,6 +676,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			resourceEnvVars.AGENTUITY_AUTH_SECRET = devSecret;
 		}
 
+		// Add base URL for local development if auth is enabled
+		if (authEnabled && !resourceEnvVars.AGENTUITY_BASE_URL) {
+			resourceEnvVars.AGENTUITY_BASE_URL = 'http://localhost:3500';
+		}
+
 		// Write resource environment variables to .env
 		if (Object.keys(resourceEnvVars).length > 0) {
 			await addResourceEnvVars(dest, resourceEnvVars);
@@ -690,6 +695,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 					tui.info(
 						`Generate one with: ${tui.muted('npx @better-auth/cli secret')} or ${tui.muted('openssl rand -hex 32')}`
 					);
+				}
+				if (resourceEnvVars.AGENTUITY_BASE_URL) {
+					tui.success('AGENTUITY_BASE_URL added to .env');
 				}
 			}
 		}
