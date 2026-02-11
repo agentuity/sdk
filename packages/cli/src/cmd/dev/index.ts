@@ -495,9 +495,8 @@ export const command = createCommand({
 			}
 
 			// Get workbench info from config (new Vite approach)
-			const { loadAgentuityConfig, getWorkbenchConfig } = await import(
-				'../build/vite/config-loader'
-			);
+			const { loadAgentuityConfig, getWorkbenchConfig } =
+				await import('../build/vite/config-loader');
 			const agentuityConfig = await loadAgentuityConfig(rootDir, ctx.logger);
 			const workbenchConfigData = getWorkbenchConfig(agentuityConfig, true); // dev mode
 			const workbench = {
@@ -870,9 +869,8 @@ export const command = createCommand({
 							// Step 1: Generate workbench files if enabled (must be done before entry generation)
 							if (workbenchConfigData.enabled) {
 								logger.debug('Workbench enabled, generating source files before bundle...');
-								const { generateWorkbenchFiles } = await import(
-									'../build/vite/workbench-generator'
-								);
+								const { generateWorkbenchFiles } =
+									await import('../build/vite/workbench-generator');
 								await generateWorkbenchFiles(
 									rootDir,
 									project?.projectId ?? '',
@@ -885,9 +883,8 @@ export const command = createCommand({
 							const srcDir = join(rootDir, 'src');
 							const { discoverAgents } = await import('../build/vite/agent-discovery');
 							const { discoverRoutes } = await import('../build/vite/route-discovery');
-							const { generateAgentRegistry, generateRouteRegistry } = await import(
-								'../build/vite/registry-generator'
-							);
+							const { generateAgentRegistry, generateRouteRegistry } =
+								await import('../build/vite/registry-generator');
 
 							const agentMetadata = await discoverAgents(
 								srcDir,
@@ -923,9 +920,8 @@ export const command = createCommand({
 
 							// Step 4: Bundle the app with LLM patches (dev mode = no minification)
 							// This produces .agentuity/app.js with AI Gateway routing patches applied
-							const { installExternalsAndBuild } = await import(
-								'../build/vite/server-bundler'
-							);
+							const { installExternalsAndBuild } =
+								await import('../build/vite/server-bundler');
 							await installExternalsAndBuild({
 								rootDir,
 								dev: true, // DevMode: no minification, inline sourcemaps
@@ -934,9 +930,8 @@ export const command = createCommand({
 
 							// Generate metadata file (needed for eval ID lookup at runtime)
 							// Reuse agentMetadata and routes from Step 2
-							const { generateMetadata, writeMetadataFile } = await import(
-								'../build/vite/metadata-generator'
-							);
+							const { generateMetadata, writeMetadataFile } =
+								await import('../build/vite/metadata-generator');
 
 							const promises: Promise<void>[] = [];
 
@@ -1050,6 +1045,7 @@ export const command = createCommand({
 					}
 					process.env.PORT = String(opts.port);
 					process.env.AGENTUITY_PORT = process.env.PORT;
+					process.env.AGENTUITY_BASE_URL = `http://localhost:${opts.port}`;
 
 					if (project) {
 						// Set environment variables for LLM provider patches
