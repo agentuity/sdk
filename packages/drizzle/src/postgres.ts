@@ -41,6 +41,98 @@ export function resolvePostgresClientConfig<
 }
 
 /**
+ * Strips leading whitespace and SQL comments (block and line) from a query string.
+ * Returns the remaining query text starting at the first non-comment token.
+ */
+const LEADING_COMMENTS_RE = /^(?:\s+|\/\*[\s\S]*?\*\/|--[^\n]*\n)*/;
+
+/**
+ * Determines whether a SQL query is a non-retryable INSERT statement.
+ *
+ * Handles two patterns:
+ * 1. Direct INSERT: `INSERT INTO ...` (with optional leading comments/whitespace)
+ * 2. CTE INSERT: `WITH cte AS (...) INSERT INTO ...` — scans past the WITH clause
+ *    by tracking parenthesis depth to skip CTE subexpressions, then checks
+ *    if the first top-level DML keyword is INSERT.
+ *
+ * @see https://github.com/agentuity/sdk/issues/911
+ */
+function isNonRetryableInsert(query: string): boolean {
+	// Strip leading whitespace and SQL comments
+	const stripped = query.replace(LEADING_COMMENTS_RE, '');
+
+	// Fast path: direct INSERT statement
+	if (/^INSERT\s/i.test(stripped)) {
+		return true;
+	}
+
+	// Check for WITH (CTE) prefix
+	if (!/^WITH\s/i.test(stripped)) {
+		return false;
+	}
+
+	// Scan past the CTE clause to find the first top-level DML keyword.
+	// We track parenthesis depth so we skip CTE subexpressions like
+	// "WITH cte AS (SELECT ... INSERT ...)" without false-matching the
+	// INSERT inside the parens.
+	let depth = 0;
+	let i = 4; // skip past "WITH"
+	const len = stripped.length;
+
+	while (i < len) {
+		const ch = stripped[i]!;
+
+		if (ch === '(') {
+			depth++;
+			i++;
+			continue;
+		}
+		if (ch === ')') {
+			depth--;
+			i++;
+			continue;
+		}
+
+		// Only inspect keywords at top level (depth === 0)
+		if (depth === 0) {
+			// Skip whitespace at top level
+			if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') {
+				i++;
+				continue;
+			}
+
+			// Skip commas between CTEs: WITH a AS (...), b AS (...)
+			if (ch === ',') {
+				i++;
+				continue;
+			}
+
+			// Check for DML keywords at this position.
+			// We look for INSERT, UPDATE, DELETE, or SELECT — the first one
+			// we find at top level determines whether this is retryable.
+			const rest = stripped.substring(i);
+			const dmlMatch = /^(INSERT|UPDATE|DELETE|SELECT)\s/i.exec(rest);
+			if (dmlMatch) {
+				return dmlMatch[1]!.toUpperCase() === 'INSERT';
+			}
+
+			// Skip over any other word (e.g., CTE names, AS keyword, RECURSIVE)
+			// by advancing past alphanumeric/underscore characters
+			if (/\w/.test(ch)) {
+				while (i < len && /\w/.test(stripped[i]!)) {
+					i++;
+				}
+				continue;
+			}
+		}
+
+		i++;
+	}
+
+	return false;
+}
+
+/**
  * Creates a dynamic SQL proxy that always delegates to the PostgresClient's
  * current raw connection. This ensures that after automatic reconnection,
  * Drizzle ORM uses the fresh connection instead of a stale reference.
@@ -65,6 +157,25 @@ export function createResilientSQLProxy(
 				//   client.unsafe(query, params)           → Promise<rows>
 				//   client.unsafe(query, params).values()   → Promise<rows>
 				return (query: string, params?: unknown[]) => {
+					// INSERT statements (including CTE-based) are NOT retried to prevent
+					// duplicate rows. If an INSERT succeeds on the server but the connection
+					// drops before the response, retrying would re-execute it — creating a
+					// duplicate row when the primary key is server-generated.
+					// See: https://github.com/agentuity/sdk/issues/911
+					const isInsert = isNonRetryableInsert(query);
+
+					if (isInsert) {
+						const makeDirectExecutor = (useValues: boolean) => {
+							const currentRaw = client.raw;
+							const q = currentRaw.unsafe(query, params);
+							return useValues ? q.values() : q;
+						};
+						const result = makeDirectExecutor(false);
+						return Object.assign(result, {
+							values: () => makeDirectExecutor(true),
+						});
+					}
+
 					const makeExecutor = (useValues: boolean) =>
 						client.executeWithRetry(async () => {
 							// Re-resolve raw inside retry to get post-reconnect instance

@@ -181,6 +181,184 @@ describe('createResilientSQLProxy', () => {
 		expect(typeof result.values).toBe('function');
 	});
 
+	it('does not use executeWithRetry for INSERT queries', async () => {
+		const { client, getRaw } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(getRaw().unsafe).toHaveBeenCalledWith('INSERT INTO items (name) VALUES ($1)', [
+			'test',
+		]);
+	});
+
+	it('does not use executeWithRetry for INSERT queries with leading whitespace', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('  INSERT INTO items (name) VALUES ($1)', ['test']);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('does not use executeWithRetry for case-insensitive INSERT queries', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('insert into items (name) VALUES ($1)', ['test']);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('INSERT queries support .values() chaining', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		const result = await proxy
+			.unsafe('INSERT INTO items (name) VALUES ($1) RETURNING *', ['test'])
+			.values();
+
+		expect(result).toEqual([[1]]);
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('does not use executeWithRetry for INSERT with leading block comment', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('/* audit: user-123 */ INSERT INTO items (name) VALUES ($1)', ['test']);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('does not use executeWithRetry for INSERT with leading line comment', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('-- create new item\nINSERT INTO items (name) VALUES ($1)', ['test']);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('does not use executeWithRetry for INSERT with newlines', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('\n\n  INSERT INTO items (name) VALUES ($1)', ['test']);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('does not use executeWithRetry for CTE INSERT', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe(
+			'WITH new_item AS (SELECT $1::text AS name) INSERT INTO items (name) SELECT name FROM new_item RETURNING *',
+			['test']
+		);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('does not use executeWithRetry for CTE INSERT with multiple CTEs', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe(
+			'WITH a AS (SELECT 1), b AS (SELECT 2) INSERT INTO items (name) VALUES ($1)',
+			['test']
+		);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('does not use executeWithRetry for case-insensitive CTE INSERT', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('with cte as (select 1) insert into items (name) values ($1)', ['test']);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('does not use executeWithRetry for CTE INSERT with nested parens', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe(
+			'WITH cte AS (SELECT id FROM (SELECT id FROM items WHERE id IN (1, 2))) INSERT INTO archive (id) SELECT id FROM cte',
+			[]
+		);
+
+		expect(client.executeWithRetry).not.toHaveBeenCalled();
+	});
+
+	it('still uses executeWithRetry for CTE SELECT', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('WITH cte AS (SELECT 1) SELECT * FROM cte');
+
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+	});
+
+	it('still uses executeWithRetry for CTE UPDATE', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('WITH cte AS (SELECT 1) UPDATE items SET name = $1', ['new']);
+
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+	});
+
+	it('still uses executeWithRetry for CTE DELETE', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('WITH cte AS (SELECT 1) DELETE FROM items WHERE id = $1', [1]);
+
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not false-match INSERT keyword inside CTE subexpression', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		// The word "INSERT" appears inside the CTE parens, but the top-level DML is SELECT
+		await proxy.unsafe("WITH cte AS (SELECT 'INSERT' AS label) SELECT * FROM cte");
+
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+	});
+
+	it('still uses executeWithRetry for SELECT queries', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('SELECT * FROM items');
+
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+	});
+
+	it('still uses executeWithRetry for UPDATE queries', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('UPDATE items SET name = $1', ['new']);
+
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+	});
+
+	it('still uses executeWithRetry for DELETE queries', async () => {
+		const { client } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('DELETE FROM items WHERE id = $1', [1]);
+
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+	});
+
 	it('binds methods to the current raw (not stale)', async () => {
 		const { client } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
