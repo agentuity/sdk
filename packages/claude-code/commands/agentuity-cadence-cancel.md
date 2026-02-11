@@ -1,7 +1,12 @@
 ---
 name: agentuity-cadence-cancel
 description: Cancel an active Cadence loop
-allowed-tools: ["Bash(test -f .claude/agentuity-cadence.local.md:*)", "Bash(rm .claude/agentuity-cadence.local.md)", "Read(.claude/agentuity-cadence.local.md)"]
+allowed-tools:
+   [
+      'Bash(test -f .claude/agentuity-cadence.local.md:*)',
+      'Bash(rm .claude/agentuity-cadence.local.md)',
+      'Read(.claude/agentuity-cadence.local.md)',
+   ]
 ---
 
 Check if there's an active Cadence loop and cancel it:

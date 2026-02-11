@@ -5,8 +5,8 @@
  * Sets up permissions for Agentuity Cloud CLI commands.
  */
 
-import { join } from "node:path";
-import { homedir } from "node:os";
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 
 export interface InstallConfig {
 	projectId?: string;
@@ -23,16 +23,13 @@ interface ClaudeSettings {
 	[key: string]: unknown;
 }
 
-const AGENTUITY_PERMISSIONS = [
-	"Bash(agentuity cloud *)",
-	"Bash(agentuity auth whoami *)",
-];
+const AGENTUITY_PERMISSIONS = ['Bash(agentuity cloud *)', 'Bash(agentuity auth whoami *)'];
 
 const AGENTUITY_DENY_PERMISSIONS = [
-	"Bash(agentuity cloud secrets *)",
-	"Bash(agentuity cloud secret *)",
-	"Bash(agentuity cloud apikey *)",
-	"Bash(agentuity auth token *)",
+	'Bash(agentuity cloud secrets *)',
+	'Bash(agentuity cloud secret *)',
+	'Bash(agentuity cloud apikey *)',
+	'Bash(agentuity auth token *)',
 ];
 
 /**
@@ -40,7 +37,7 @@ const AGENTUITY_DENY_PERMISSIONS = [
  */
 export async function readProjectConfig(): Promise<InstallConfig> {
 	try {
-		const file = Bun.file("agentuity.json");
+		const file = Bun.file('agentuity.json');
 		if (await file.exists()) {
 			const config = await file.json();
 			return {
@@ -73,11 +70,8 @@ async function readSettings(path: string): Promise<ClaudeSettings> {
 /**
  * Write a Claude Code settings JSON file.
  */
-async function writeSettings(
-	path: string,
-	settings: ClaudeSettings,
-): Promise<void> {
-	await Bun.write(path, JSON.stringify(settings, null, 2) + "\n");
+async function writeSettings(path: string, settings: ClaudeSettings): Promise<void> {
+	await Bun.write(path, JSON.stringify(settings, null, 2) + '\n');
 }
 
 /**
@@ -85,7 +79,7 @@ async function writeSettings(
  * Adds allow rules for agentuity cloud commands and deny rules for sensitive ones.
  */
 async function configurePermissions(): Promise<{ added: number }> {
-	const settingsPath = join(homedir(), ".claude", "settings.local.json");
+	const settingsPath = join(homedir(), '.claude', 'settings.local.json');
 	const settings = await readSettings(settingsPath);
 
 	if (!settings.permissions) {
@@ -131,18 +125,14 @@ export async function install(): Promise<void> {
 	// Configure Claude Code permissions for Agentuity Cloud commands
 	const { added } = await configurePermissions();
 	if (added > 0) {
-		console.log(
-			`Configured ${added} permission rules for Agentuity Cloud commands`,
-		);
+		console.log(`Configured ${added} permission rules for Agentuity Cloud commands`);
 	}
 
 	if (config.projectId) {
-		console.log(
-			`Agentuity Coder configured for project: ${config.projectId}`,
-		);
+		console.log(`Agentuity Coder configured for project: ${config.projectId}`);
 	} else {
 		console.log(
-			"Agentuity Coder installed (no agentuity.json found - will use session-start hook for context)",
+			'Agentuity Coder installed (no agentuity.json found - will use session-start hook for context)'
 		);
 	}
 }

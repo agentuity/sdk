@@ -29,14 +29,14 @@ agentuity ai claude-code install
 /agentuity-memory-save
 ```
 
-| Command | Description |
-| --- | --- |
-| `/agentuity-coder` | Run a task with the full agent team |
-| `/agentuity-cadence` | Start autonomous long-running task execution |
-| `/agentuity-cadence-cancel` | Cancel an active Cadence session |
-| `/agentuity-memory-save` | Save session context to cloud memory |
-| `/agentuity-memory-share` | Share content via Agentuity Cloud Streams |
-| `/agentuity-sandbox` | Run code in an isolated sandbox |
+| Command                     | Description                                  |
+| --------------------------- | -------------------------------------------- |
+| `/agentuity-coder`          | Run a task with the full agent team          |
+| `/agentuity-cadence`        | Start autonomous long-running task execution |
+| `/agentuity-cadence-cancel` | Cancel an active Cadence session             |
+| `/agentuity-memory-save`    | Save session context to cloud memory         |
+| `/agentuity-memory-share`   | Share content via Agentuity Cloud Streams    |
+| `/agentuity-sandbox`        | Run code in an isolated sandbox              |
 
 Agents also activate automatically based on context. You don't always need a slash command.
 
@@ -44,15 +44,15 @@ Agents also activate automatically based on context. You don't always need a sla
 
 Seven agents with distinct roles, each running on a model tier suited to their task:
 
-| Agent | Role | Model |
-| --- | --- | --- |
-| **Lead** | Orchestrator -- plans, delegates, synthesizes | opus |
-| **Scout** | Explorer -- codebase research, read-only | haiku |
-| **Builder** | Implementer -- code changes, tests, builds | sonnet |
-| **Architect** | Autonomous implementer -- complex multi-file work | opus |
-| **Reviewer** | Code reviewer -- catches issues, verifies quality | sonnet |
-| **Memory** | Context manager -- stores/recalls across sessions | haiku |
-| **Product** | Requirements owner -- PRDs, feature planning | sonnet |
+| Agent         | Role                                              | Model  |
+| ------------- | ------------------------------------------------- | ------ |
+| **Lead**      | Orchestrator -- plans, delegates, synthesizes     | opus   |
+| **Scout**     | Explorer -- codebase research, read-only          | haiku  |
+| **Builder**   | Implementer -- code changes, tests, builds        | sonnet |
+| **Architect** | Autonomous implementer -- complex multi-file work | opus   |
+| **Reviewer**  | Code reviewer -- catches issues, verifies quality | sonnet |
+| **Memory**    | Context manager -- stores/recalls across sessions | haiku  |
+| **Product**   | Requirements owner -- PRDs, feature planning      | sonnet |
 
 Lead handles delegation automatically. For most tasks, just describe what you want and the right agents are chosen for you.
 
@@ -60,13 +60,13 @@ Lead handles delegation automatically. For most tasks, just describe what you wa
 
 Skills inject Agentuity SDK expertise into the conversation automatically when relevant:
 
-| Skill | Covers |
-| --- | --- |
-| **agentuity-backend** | `@agentuity/runtime`, `@agentuity/schema`, `@agentuity/drizzle`, `@agentuity/postgres`, `@agentuity/evals` |
-| **agentuity-frontend** | `@agentuity/react`, `@agentuity/auth`, `@agentuity/frontend`, `@agentuity/workbench` |
-| **agentuity-ops** | CLI commands, cloud services, deployments |
-| **agentuity-cloud** | Package routing, ecosystem overview |
-| **agentuity-command-runner** | Runtime detection, build/test/lint execution |
+| Skill                        | Covers                                                                                                     |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **agentuity-backend**        | `@agentuity/runtime`, `@agentuity/schema`, `@agentuity/drizzle`, `@agentuity/postgres`, `@agentuity/evals` |
+| **agentuity-frontend**       | `@agentuity/react`, `@agentuity/auth`, `@agentuity/frontend`, `@agentuity/workbench`                       |
+| **agentuity-ops**            | CLI commands, cloud services, deployments                                                                  |
+| **agentuity-cloud**          | Package routing, ecosystem overview                                                                        |
+| **agentuity-command-runner** | Runtime detection, build/test/lint execution                                                               |
 
 ## Memory
 
@@ -88,6 +88,7 @@ Cadence runs the agent team autonomously across multiple iterations until a task
 ```
 
 How it works:
+
 1. A Stop hook intercepts session end and re-injects the task prompt
 2. Memory checkpoints at each iteration for recovery
 3. The loop continues until the agent signals `<promise>DONE</promise>` or max iterations is reached
@@ -99,14 +100,14 @@ Cancel with `/agentuity-cadence-cancel` or `Ctrl+C`.
 
 The plugin registers event hooks that run automatically:
 
-| Script | Event | What It Does |
-| --- | --- | --- |
-| `session-start.sh` | SessionStart | Detects Agentuity project, org, user, and git context |
-| `session-end.sh` | SessionEnd | Saves session memory (immediate KV + async processing) |
-| `block-sensitive-commands.sh` | PreToolUse | Blocks access to secrets, API keys, auth tokens |
-| `pre-compact.sh` | PreCompact | Saves memory before context window compaction |
-| `cadence-stop.sh` | Stop | Keeps the Cadence loop running until task is done |
-| `stop-memory-save.sh` | Stop | Prompts memory save before session ends |
+| Script                        | Event        | What It Does                                           |
+| ----------------------------- | ------------ | ------------------------------------------------------ |
+| `session-start.sh`            | SessionStart | Detects Agentuity project, org, user, and git context  |
+| `session-end.sh`              | SessionEnd   | Saves session memory (immediate KV + async processing) |
+| `block-sensitive-commands.sh` | PreToolUse   | Blocks access to secrets, API keys, auth tokens        |
+| `pre-compact.sh`              | PreCompact   | Saves memory before context window compaction          |
+| `cadence-stop.sh`             | Stop         | Keeps the Cadence loop running until task is done      |
+| `stop-memory-save.sh`         | Stop         | Prompts memory save before session ends                |
 
 ## Permissions
 
@@ -122,14 +123,14 @@ Deny rules take precedence. The PreToolUse hook adds a second layer blocking sen
 
 Agents can use any `agentuity cloud` subcommand:
 
-| Service | Examples |
-| --- | --- |
-| **KV** | Key-value storage for structured data |
-| **Vector** | Semantic search over stored content |
-| **Storage** | File upload/download |
-| **Sandbox** | Isolated code execution environments |
-| **Database** | Postgres via `agentuity cloud db` |
-| **SSH** | Connect to deployments |
+| Service      | Examples                              |
+| ------------ | ------------------------------------- |
+| **KV**       | Key-value storage for structured data |
+| **Vector**   | Semantic search over stored content   |
+| **Storage**  | File upload/download                  |
+| **Sandbox**  | Isolated code execution environments  |
+| **Database** | Postgres via `agentuity cloud db`     |
+| **SSH**      | Connect to deployments                |
 
 ## Development
 

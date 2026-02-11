@@ -37,15 +37,15 @@ cat agentuity.json 2>/dev/null | grep region
 
 ## Golden Commands
 
-| Purpose | Command |
-|---------|---------|
-| Create project | `agentuity new` (interactive) or `agentuity new --name <name>` |
-| Start dev server | `bun run dev` → read output for actual URL |
-| Deploy | `agentuity deploy` → read output for deployment URL |
-| Check auth | `agentuity auth whoami` |
-| List regions | `agentuity region list` |
-| Get CLI help | `agentuity <command> --help` |
-| Show all commands | `agentuity ai schema show` |
+| Purpose           | Command                                                        |
+| ----------------- | -------------------------------------------------------------- |
+| Create project    | `agentuity new` (interactive) or `agentuity new --name <name>` |
+| Start dev server  | `bun run dev` → read output for actual URL                     |
+| Deploy            | `agentuity deploy` → read output for deployment URL            |
+| Check auth        | `agentuity auth whoami`                                        |
+| List regions      | `agentuity region list`                                        |
+| Get CLI help      | `agentuity <command> --help`                                   |
+| Show all commands | `agentuity ai schema show`                                     |
 
 ---
 
@@ -127,13 +127,13 @@ agentuity cloud sandbox snapshot list --json
 
 ### Network & Public URLs
 
-| Scenario | Use `--network`? | Use `--port`? |
-|----------|------------------|---------------|
-| Running tests locally | No | No |
-| Installing npm packages | Yes | No |
-| Running web server for internal testing | Yes | No |
-| Exposing dev preview to share | Yes | Yes |
-| API that external services call | Yes | Yes |
+| Scenario                                | Use `--network`? | Use `--port`? |
+| --------------------------------------- | ---------------- | ------------- |
+| Running tests locally                   | No               | No            |
+| Installing npm packages                 | Yes              | No            |
+| Running web server for internal testing | Yes              | No            |
+| Exposing dev preview to share           | Yes              | Yes           |
+| API that external services call         | Yes              | Yes           |
 
 **Public URL format:** `https://s{identifier}.agentuity.run`
 
@@ -186,9 +186,9 @@ agentuity cloud deployment get <deploymentId> --json
 
 ```json
 {
-  "projectId": "proj_abc123",
-  "orgId": "org_xyz",
-  "region": "use"
+	"projectId": "proj_abc123",
+	"orgId": "org_xyz",
+	"region": "use"
 }
 ```
 
@@ -198,10 +198,10 @@ Contains `orgId` from `preferences.orgId` — used as fallback when `agentuity.j
 
 ## Common Mistakes
 
-| Mistake | Better Approach | Why |
-|---------|-----------------|-----|
-| Blindly adding `--region` flag | Check config first | Region may already be configured |
-| Using npm for Agentuity projects | Always use `bun` | Agentuity is Bun-native |
+| Mistake                            | Better Approach       | Why                                  |
+| ---------------------------------- | --------------------- | ------------------------------------ |
+| Blindly adding `--region` flag     | Check config first    | Region may already be configured     |
+| Using npm for Agentuity projects   | Always use `bun`      | Agentuity is Bun-native              |
 | Hardcoding sandbox paths as `/app` | Use `/home/agentuity` | That's the default working directory |
-| Making up CLI flags | Run `--help` first | Flags change between versions |
-| Fabricating deployment URLs | Read actual output | URLs are generated dynamically |
+| Making up CLI flags                | Run `--help` first    | Flags change between versions        |
+| Fabricating deployment URLs        | Read actual output    | URLs are generated dynamically       |

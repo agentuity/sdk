@@ -2,13 +2,24 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectGet, orgEnvGet } from '@agentuity/server';
-import { findExistingEnvFile, readEnvFile, writeEnvFile, mergeEnvVars } from '../../../env-util';
+import {
+	findExistingEnvFile,
+	readEnvFile,
+	writeEnvFile,
+	mergeEnvVars,
+	splitEnvAndSecrets,
+	filterAgentuitySdkKeys,
+} from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 import { resolveOrgId, isOrgScope } from './org-util';
+import { computeEnvDiff, displayEnvDiff } from './env-diff';
 
 const EnvPullResponseSchema = z.object({
 	success: z.boolean().describe('Whether pull succeeded'),
 	pulled: z.number().describe('Number of items pulled'),
+	newCount: z.number().describe('Number of new variables added locally'),
+	changedCount: z.number().describe('Number of local variables overwritten'),
+	unchangedCount: z.number().describe('Number of unchanged variables'),
 	path: z.string().describe('Local file path where variables were saved'),
 	force: z.boolean().describe('Whether force mode was used'),
 	scope: z.enum(['project', 'org']).describe('The scope from which variables were pulled'),
@@ -41,13 +52,15 @@ export const pullSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { opts, apiClient, project, projectDir, config } = ctx;
 		const useOrgScope = isOrgScope(opts?.org);
+		const forceMode = opts?.force ?? false;
 
 		// Require project context for local file operations
 		if (!projectDir) {
 			tui.fatal('Project context required. Run from a project directory.');
 		}
 
-		let cloudEnv: Record<string, string>;
+		let cloudEnvVars: Record<string, string> = {};
+		let cloudSecretVars: Record<string, string> = {};
 		let scope: 'project' | 'org';
 		let cloudApiKey: string | undefined;
 
@@ -62,7 +75,8 @@ export const pullSubcommand = createSubcommand({
 				}
 			);
 
-			cloudEnv = { ...orgData.env, ...orgData.secrets };
+			cloudEnvVars = orgData.env || {};
+			cloudSecretVars = orgData.secrets || {};
 			scope = 'org';
 			cloudApiKey = undefined; // Orgs don't have api_key
 		} else {
@@ -77,7 +91,8 @@ export const pullSubcommand = createSubcommand({
 				return projectGet(apiClient, { id: project.projectId, mask: false });
 			});
 
-			cloudEnv = { ...projectData.env, ...projectData.secrets };
+			cloudEnvVars = projectData.env || {};
+			cloudSecretVars = projectData.secrets || {};
 			scope = 'project';
 			cloudApiKey = projectData.api_key;
 		}
@@ -89,9 +104,43 @@ export const pullSubcommand = createSubcommand({
 		// Preserve local AGENTUITY_SDK_KEY
 		const localSdkKey = localEnv.AGENTUITY_SDK_KEY;
 
+		// Split local env for diff comparison (excluding AGENTUITY_ reserved keys)
+		const localForDiff = { ...localEnv };
+		delete localForDiff.AGENTUITY_SDK_KEY;
+		const filteredLocal = filterAgentuitySdkKeys(localForDiff);
+		const { env: localEnvVars, secrets: localSecretVars } = splitEnvAndSecrets(filteredLocal);
+
+		// Compute diff: cloud (source) → local (target)
+		const diff = computeEnvDiff(cloudEnvVars, cloudSecretVars, localEnvVars, localSecretVars);
+
+		// Display diff
+		displayEnvDiff(diff, { direction: 'pull' });
+
+		// If force mode and there are changes, prompt for confirmation
+		if (forceMode && diff.changedEntries.length > 0) {
+			const confirmed = await tui.confirm(
+				`${diff.changedEntries.length} local variable${diff.changedEntries.length !== 1 ? 's' : ''} will be overwritten. Continue?`,
+				true
+			);
+			if (!confirmed) {
+				tui.info('Pull cancelled');
+				return {
+					success: false,
+					pulled: 0,
+					newCount: 0,
+					changedCount: 0,
+					unchangedCount: 0,
+					path: targetEnvPath,
+					force: forceMode,
+					scope,
+				};
+			}
+		}
+
 		// Merge: cloud values override local if force=true, otherwise keep local
+		const cloudEnv = { ...cloudEnvVars, ...cloudSecretVars };
 		let mergedEnv: Record<string, string>;
-		if (opts?.force) {
+		if (forceMode) {
 			// Cloud values take priority
 			mergedEnv = mergeEnvVars(localEnv, cloudEnv);
 		} else {
@@ -122,15 +171,26 @@ export const pullSubcommand = createSubcommand({
 
 		const count = Object.keys(cloudEnv).length;
 		const scopeLabel = useOrgScope ? 'organization' : 'project';
-		tui.success(
-			`Pulled ${count} environment variable${count !== 1 ? 's' : ''} from ${scopeLabel} to ${targetEnvPath}`
-		);
+
+		// Update success message with diff counts
+		if (forceMode) {
+			tui.success(
+				`Pulled ${count} variable${count !== 1 ? 's' : ''} from ${scopeLabel} (${diff.newEntries.length} new, ${diff.changedEntries.length} updated, ${diff.unchangedEntries.length} unchanged)`
+			);
+		} else {
+			tui.success(
+				`Pulled ${count} variable${count !== 1 ? 's' : ''} from ${scopeLabel} (${diff.newEntries.length} new, ${diff.changedEntries.length} skipped, ${diff.unchangedEntries.length} unchanged)`
+			);
+		}
 
 		return {
 			success: true,
 			pulled: count,
+			newCount: diff.newEntries.length,
+			changedCount: forceMode ? diff.changedEntries.length : 0,
+			unchangedCount: diff.unchangedEntries.length,
 			path: targetEnvPath,
-			force: opts?.force ?? false,
+			force: forceMode,
 			scope,
 		};
 	},

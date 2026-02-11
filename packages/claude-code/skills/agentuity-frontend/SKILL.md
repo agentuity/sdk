@@ -10,16 +10,17 @@ Deep reference material for the Agentuity SDK frontend packages used to build we
 
 ## Package Overview
 
-| Package | Purpose |
-|---------|---------|
-| `@agentuity/react` | React hooks for calling agents (useAPI, useWebsocket) |
-| `@agentuity/frontend` | Framework-agnostic web utilities |
-| `@agentuity/auth` | Authentication (server + client) |
-| `@agentuity/workbench` | Dev UI for testing agents |
+| Package                | Purpose                                               |
+| ---------------------- | ----------------------------------------------------- |
+| `@agentuity/react`     | React hooks for calling agents (useAPI, useWebsocket) |
+| `@agentuity/frontend`  | Framework-agnostic web utilities                      |
+| `@agentuity/auth`      | Authentication (server + client)                      |
+| `@agentuity/workbench` | Dev UI for testing agents                             |
 
 ## Reference URLs
 
 When uncertain, look up:
+
 - **SDK Source**: https://github.com/agentuity/sdk/tree/main/packages
 - **Docs**: https://agentuity.dev
 - **React Package**: https://github.com/agentuity/sdk/tree/main/packages/react/src
@@ -37,11 +38,11 @@ React hooks and components for Agentuity web applications.
 import { AgentuityProvider } from '@agentuity/react';
 
 function App() {
-   return (
-      <AgentuityProvider>
-         <MyApp />
-      </AgentuityProvider>
-   );
+	return (
+		<AgentuityProvider>
+			<MyApp />
+		</AgentuityProvider>
+	);
 }
 ```
 
@@ -55,42 +56,43 @@ Call agents/routes from React components with automatic type inference.
 import { useAPI } from '@agentuity/react';
 
 function ChatComponent() {
-   // For POST/mutation routes
-   const { data, invoke, isLoading, isSuccess, isError, error, reset } = useAPI('POST /agent/chat');
+	// For POST/mutation routes
+	const { data, invoke, isLoading, isSuccess, isError, error, reset } = useAPI('POST /agent/chat');
 
-   const handleSubmit = async (message: string) => {
-      await invoke({ message });
-   };
+	const handleSubmit = async (message: string) => {
+		await invoke({ message });
+	};
 
-   return (
-      <div>
-         {isLoading && <p>Loading...</p>}
-         {data && <p>Response: {data.reply}</p>}
-         {error && <p>Error: {error.message}</p>}
-         <button onClick={() => handleSubmit('Hello!')}>Send</button>
-      </div>
-   );
+	return (
+		<div>
+			{isLoading && <p>Loading...</p>}
+			{data && <p>Response: {data.reply}</p>}
+			{error && <p>Error: {error.message}</p>}
+			<button onClick={() => handleSubmit('Hello!')}>Send</button>
+		</div>
+	);
 }
 
 // For GET routes (auto-fetches on mount)
 function UserProfile() {
-   const { data, isLoading, isFetching, refetch } = useAPI('GET /api/user');
-   // data is fetched automatically on mount
-   // isFetching is true during refetches
+	const { data, isLoading, isFetching, refetch } = useAPI('GET /api/user');
+	// data is fetched automatically on mount
+	// isFetching is true during refetches
 }
 ```
 
 **Options:**
+
 ```typescript
 const { data, invoke } = useAPI({
-   route: 'POST /agent/my-agent',
-   headers: { 'X-Custom': 'value' },
+	route: 'POST /agent/my-agent',
+	headers: { 'X-Custom': 'value' },
 });
 
 // Streaming support
 const { data, invoke } = useAPI('POST /agent/stream', {
-   delimiter: '\n',
-   onChunk: (chunk) => console.log('Received chunk:', chunk),
+	delimiter: '\n',
+	onChunk: (chunk) => console.log('Received chunk:', chunk),
 });
 ```
 
@@ -102,37 +104,40 @@ Real-time bidirectional communication.
 import { useWebsocket } from '@agentuity/react';
 
 function LiveChat() {
-   const {
-      isConnected,
-      send,
-      close,
-      data,           // Latest message
-      messages,       // All messages array
-      clearMessages,  // Clear message history
-      error,
-      readyState
-   } = useWebsocket('/ws/chat');
+	const {
+		isConnected,
+		send,
+		close,
+		data, // Latest message
+		messages, // All messages array
+		clearMessages, // Clear message history
+		error,
+		readyState,
+	} = useWebsocket('/ws/chat');
 
-   // Messages are accessed via data (latest) or messages (all)
-   useEffect(() => {
-      if (data) {
-         console.log('Received:', data);
-      }
-   }, [data]);
+	// Messages are accessed via data (latest) or messages (all)
+	useEffect(() => {
+		if (data) {
+			console.log('Received:', data);
+		}
+	}, [data]);
 
-   return (
-      <div>
-         <p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
-         <button onClick={() => send({ type: 'ping' })}>Ping</button>
-         <ul>
-            {messages.map((msg, i) => <li key={i}>{JSON.stringify(msg)}</li>)}
-         </ul>
-      </div>
-   );
+	return (
+		<div>
+			<p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
+			<button onClick={() => send({ type: 'ping' })}>Ping</button>
+			<ul>
+				{messages.map((msg, i) => (
+					<li key={i}>{JSON.stringify(msg)}</li>
+				))}
+			</ul>
+		</div>
+	);
 }
 ```
 
 **Features:**
+
 - Auto-reconnection on connection loss
 - Message queuing when disconnected
 - Auth tokens auto-injected when AuthProvider is in tree
@@ -146,12 +151,12 @@ Access authentication state.
 import { useAuth } from '@agentuity/react';
 
 function UserProfile() {
-   const { isAuthenticated, authLoading, authHeader } = useAuth();
+	const { isAuthenticated, authLoading, authHeader } = useAuth();
 
-   if (authLoading) return <p>Loading...</p>;
-   if (!isAuthenticated) return <p>Please sign in</p>;
+	if (authLoading) return <p>Loading...</p>;
+	if (!isAuthenticated) return <p>Please sign in</p>;
 
-   return <p>Welcome back!</p>;
+	return <p>Welcome back!</p>;
 }
 ```
 
@@ -171,9 +176,9 @@ import { createRouter } from '@agentuity/runtime';
 
 // Create auth instance
 const auth = createAuth({
-   connectionString: process.env.DATABASE_URL,
-   // Optional: custom base path (default: /api/auth)
-   basePath: '/api/auth',
+	connectionString: process.env.DATABASE_URL,
+	// Optional: custom base path (default: /api/auth)
+	basePath: '/api/auth',
 });
 
 const router = createRouter();
@@ -193,16 +198,16 @@ When using auth middleware, `ctx.auth` is available in agent handlers:
 import { createAgent } from '@agentuity/runtime';
 
 export default createAgent('protected-agent', {
-   handler: async (ctx, input) => {
-      // ctx.auth is null for unauthenticated requests
-      if (!ctx.auth) {
-         return { error: 'Please sign in' };
-      }
+	handler: async (ctx, input) => {
+		// ctx.auth is null for unauthenticated requests
+		if (!ctx.auth) {
+			return { error: 'Please sign in' };
+		}
 
-      // Get authenticated user
-      const user = await ctx.auth.getUser();
-      return { message: `Hello ${user.name}` };
-   },
+		// Get authenticated user
+		const user = await ctx.auth.getUser();
+		return { message: `Hello ${user.name}` };
+	},
 });
 ```
 
@@ -212,13 +217,13 @@ export default createAgent('protected-agent', {
 import { AuthProvider } from '@agentuity/react';
 
 function App() {
-   return (
-      <AuthProvider>
-         <AgentuityProvider>
-            <MyApp />
-         </AgentuityProvider>
-      </AuthProvider>
-   );
+	return (
+		<AuthProvider>
+			<AgentuityProvider>
+				<MyApp />
+			</AgentuityProvider>
+		</AuthProvider>
+	);
 }
 ```
 
@@ -232,7 +237,7 @@ import * as schema from './schema';
 const { db, close } = createPostgresDrizzle({ schema });
 
 const auth = createAuth({
-   database: drizzleAdapter(db, { provider: 'pg' }),
+	database: drizzleAdapter(db, { provider: 'pg' }),
 });
 ```
 
@@ -287,35 +292,35 @@ src/
 import { AuthProvider, AgentuityProvider, useAPI, useAuth } from '@agentuity/react';
 
 function App() {
-   return (
-      <AuthProvider>
-         <AgentuityProvider>
-            <ProtectedChat />
-         </AgentuityProvider>
-      </AuthProvider>
-   );
+	return (
+		<AuthProvider>
+			<AgentuityProvider>
+				<ProtectedChat />
+			</AgentuityProvider>
+		</AuthProvider>
+	);
 }
 
 function ProtectedChat() {
-   const { isAuthenticated } = useAuth();
-   const { data, invoke } = useAPI('POST /agent/chat');
+	const { isAuthenticated } = useAuth();
+	const { data, invoke } = useAPI('POST /agent/chat');
 
-   if (!isAuthenticated) return <SignIn />;
+	if (!isAuthenticated) return <SignIn />;
 
-   return (
-      <div>
-         <button onClick={() => invoke({ message: 'Hello' })}>Chat</button>
-         {data && <p>{data.reply}</p>}
-      </div>
-   );
+	return (
+		<div>
+			<button onClick={() => invoke({ message: 'Hello' })}>Chat</button>
+			{data && <p>{data.reply}</p>}
+		</div>
+	);
 }
 ```
 
 ## Common Mistakes
 
-| Mistake | Better Approach | Why |
-|---------|-----------------|-----|
-| Adding `baseUrl` inside Agentuity project | Omit `baseUrl` | Auto-detected in full-stack projects |
-| Using `fetch` directly for agents | Use `useAPI` hook | Type inference, auth injection, loading states |
-| Manual WebSocket management | Use `useWebsocket` hook | Auto-reconnect, auth injection, message queuing |
-| Missing AuthProvider | Wrap app with AuthProvider | Required for auth token injection |
+| Mistake                                   | Better Approach            | Why                                             |
+| ----------------------------------------- | -------------------------- | ----------------------------------------------- |
+| Adding `baseUrl` inside Agentuity project | Omit `baseUrl`             | Auto-detected in full-stack projects            |
+| Using `fetch` directly for agents         | Use `useAPI` hook          | Type inference, auth injection, loading states  |
+| Manual WebSocket management               | Use `useWebsocket` hook    | Auto-reconnect, auth injection, message queuing |
+| Missing AuthProvider                      | Wrap app with AuthProvider | Required for auth token injection               |

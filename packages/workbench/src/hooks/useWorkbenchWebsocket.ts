@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-
 interface ReconnectOptions {
 	baseDelay?: number;
 	enabled?: () => boolean;
