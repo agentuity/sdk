@@ -149,7 +149,6 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 		} finally {
 			setIsLoading(false);
 		}
-		// eslint-disable-next-line -- getAuthHeadersRef is a ref
 	}, [baseUrl, apiKey, enabled, configHeaders, logger]);
 
 	const refetch = useCallback(() => {
