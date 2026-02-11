@@ -126,7 +126,11 @@ async function main() {
 	const llmsFullTxt = generateLlmsFullTxt(pages);
 	await writeFile(join(OUTPUT_DIR, 'llms-full.txt'), llmsFullTxt, 'utf-8');
 
-	console.log(`Generated ${pages.length} markdown files + llms.txt + llms-full.txt`);
+	// Generate sitemap.xml
+	const sitemapXml = generateSitemapXml(pages);
+	await writeFile(join(OUTPUT_DIR, 'sitemap.xml'), sitemapXml, 'utf-8');
+
+	console.log(`Generated ${pages.length} markdown files + llms.txt + llms-full.txt + sitemap.xml`);
 }
 
 function generateLlmsTxt(pages: DocPage[]): string {
@@ -201,6 +205,24 @@ ${page.content.replace(/^# .+\n\n.+\n\n/, '')}
 		.join('\n\n');
 
 	return preamble + sections + '\n';
+}
+
+function generateSitemapXml(pages: DocPage[]): string {
+	const DOCS_BASE = 'https://agentuity.com/docs';
+	const today = new Date().toISOString().split('T')[0];
+
+	const urls = pages
+		.map((page) => {
+			const loc = page.urlPath === '/' ? DOCS_BASE : `${DOCS_BASE}${page.urlPath}`;
+			return `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${today}</lastmod>\n  </url>`;
+		})
+		.join('\n');
+
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>
+`;
 }
 
 main().catch((err) => {

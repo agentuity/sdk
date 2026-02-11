@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ChevronRight, SearchIcon } from 'lucide-react';
+import { ChevronRight, SearchIcon, SparklesIcon } from 'lucide-react';
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -23,6 +23,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	currentPage: string;
 	onNavigate: (page: string) => void;
 	onOpenSearch: () => void;
+	onOpenAISearch: () => void;
 }
 
 // Agentuity Logo
@@ -263,7 +264,7 @@ function NavMain({
 	);
 }
 
-export function AppSidebar({ currentPage, onNavigate, onOpenSearch, ...props }: AppSidebarProps) {
+export function AppSidebar({ currentPage, onNavigate, onOpenSearch, onOpenAISearch, ...props }: AppSidebarProps) {
 	const currentUrl = currentPage === 'home' ? '/' : `/${currentPage}`;
 
 	return (
@@ -289,17 +290,27 @@ export function AppSidebar({ currentPage, onNavigate, onOpenSearch, ...props }: 
 					</SidebarMenuItem>
 				</SidebarMenu>
 
-				<button
-					type="button"
-					onClick={onOpenSearch}
-					className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
-				>
-					<SearchIcon className="size-4" />
-					<span className="flex-1 text-left">Search...</span>
-					<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-[10px] font-medium text-sidebar-foreground/70">
-						<span className="text-xs">⌘</span>K
-					</kbd>
-				</button>
+				<div className="flex items-center gap-1.5">
+					<button
+						type="button"
+						onClick={onOpenSearch}
+						className="flex flex-1 items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+					>
+						<SearchIcon className="size-4" />
+						<span className="flex-1 text-left">Search</span>
+						<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-[10px] font-medium text-sidebar-foreground/70">
+							<span className="text-xs">⌘</span>K
+						</kbd>
+					</button>
+					<button
+						type="button"
+						onClick={onOpenAISearch}
+						className="flex items-center justify-center size-9 shrink-0 rounded-md border border-sidebar-border bg-sidebar-accent/50 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+						title="Ask AI"
+					>
+						<SparklesIcon className="size-4" />
+					</button>
+				</div>
 			</SidebarHeader>
 
 			<SidebarContent>

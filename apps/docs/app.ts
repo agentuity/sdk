@@ -56,6 +56,11 @@ router.use('*', async (c, next) => {
 		if (res) return res;
 	}
 
+	if (path.endsWith('.xml')) {
+		const res = await serveFile(join(publicDir, path), 'application/xml; charset=utf-8');
+		if (res) return res;
+	}
+
 	return next();
 });
 

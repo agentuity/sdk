@@ -10,6 +10,7 @@ import { SearchDialog } from './search-dialog';
 
 export function DocsLayout() {
 	const [searchOpen, setSearchOpen] = React.useState(false);
+	const [searchInitialMode, setSearchInitialMode] = React.useState<'search' | 'ai'>();
 	const location = useLocation();
 	const navigate = useNavigate();
 	const mainRef = React.useRef<HTMLElement>(null);
@@ -17,11 +18,12 @@ export function DocsLayout() {
 	// Convert pathname to currentPage format for backward compatibility
 	const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
 
-	// React 19 hoists <title> to <head> and deduplicates against the static one in index.html
+	// React 19 hoists <title> and <meta> tags to <head>
 	const fm = getFrontmatterForRoute(location.pathname);
 	const pageTitle = fm?.title
 		? `${fm.title} — Agentuity Documentation`
 		: 'Agentuity Documentation';
+	const pageDescription = fm?.description || 'Agentuity SDK documentation for building AI agents.';
 
 	// Scroll to top on route change
 	React.useLayoutEffect(() => {
@@ -35,6 +37,16 @@ export function DocsLayout() {
 		},
 		[navigate]
 	);
+
+	const openAISearch = React.useCallback(() => {
+		setSearchInitialMode('ai');
+		setSearchOpen(true);
+	}, []);
+
+	const handleSearchOpenChange = React.useCallback((open: boolean) => {
+		setSearchOpen(open);
+		if (!open) setSearchInitialMode(undefined);
+	}, []);
 
 	// Keyboard shortcut for search
 	React.useEffect(() => {
@@ -52,10 +64,15 @@ export function DocsLayout() {
 	return (
 		<SidebarProvider className="min-h-0! h-full">
 			<title>{pageTitle}</title>
+			<meta property="og:title" content={pageTitle} />
+			<meta property="og:description" content={pageDescription} />
+			<meta property="og:image" content="https://agentuity.com/og-image.png" />
+			<meta property="og:type" content="article" />
 			<AppSidebar
 				currentPage={currentPage}
 				onNavigate={handleNavigate}
 				onOpenSearch={() => setSearchOpen(true)}
+				onOpenAISearch={openAISearch}
 			/>
 			<SidebarInset className="flex flex-col">
 				<header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4">
@@ -76,7 +93,7 @@ export function DocsLayout() {
 				</main>
 			</SidebarInset>
 
-			<SearchDialog open={searchOpen} onOpenChange={setSearchOpen} onSelect={handleNavigate} />
+			<SearchDialog open={searchOpen} onOpenChange={handleSearchOpenChange} onSelect={handleNavigate} initialMode={searchInitialMode} />
 		</SidebarProvider>
 	);
 }

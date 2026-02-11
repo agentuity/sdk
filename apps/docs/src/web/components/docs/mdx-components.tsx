@@ -10,6 +10,8 @@ import { Tabs, Tab } from './tabs';
 import { Cards, CardLink, ExternalCard } from './cards';
 import { ThemeImage } from './theme-image';
 import { CLICommand } from './cli-command';
+import { GravityNetworkDiagram } from './gravity-network-diagram';
+import { CopyMigrationPrompt } from './copy-migration-prompt';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MDXComponents = Record<string, React.ComponentType<any>>;
@@ -182,16 +184,34 @@ export const mdxComponents: MDXComponents = {
 	),
 
 	// Links - white/dark text, cyan underline, dim on hover
-	a: ({ className, href, ...props }: ComponentPropsWithoutRef<'a'>) => (
-		<a
-			className={cn(
-				'text-zinc-900 dark:text-zinc-100 underline decoration-cyan-600 dark:decoration-cyan-400 underline-offset-4 hover:opacity-80 transition-opacity duration-200',
-				className
-			)}
-			href={href}
-			{...props}
-		/>
-	),
+	a: ({ className, href, children, ...props }: ComponentPropsWithoutRef<'a'>) => {
+		const isExternal = href?.startsWith('http://') || href?.startsWith('https://');
+		return (
+			<a
+				className={cn(
+					'text-zinc-900 dark:text-zinc-100 underline decoration-cyan-600 dark:decoration-cyan-400 underline-offset-4 hover:opacity-80 transition-opacity duration-200',
+					className
+				)}
+				href={href}
+				{...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+				{...props}
+			>
+				{children}
+				{isExternal && (
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 16 16"
+						fill="currentColor"
+						className="inline-block size-3 ml-0.5 -mt-0.5 opacity-60"
+						aria-hidden="true"
+					>
+						<path d="M6.22 8.72a.75.75 0 0 0 1.06 1.06l5.22-5.22v1.69a.75.75 0 0 0 1.5 0v-3.5a.75.75 0 0 0-.75-.75h-3.5a.75.75 0 0 0 0 1.5h1.69L6.22 8.72Z" />
+						<path d="M3.5 6.75c0-.69.56-1.25 1.25-1.25H7A.75.75 0 0 0 7 4H4.75A2.75 2.75 0 0 0 2 6.75v4.5A2.75 2.75 0 0 0 4.75 14h4.5A2.75 2.75 0 0 0 12 11.25V9a.75.75 0 0 0-1.5 0v2.25c0 .69-.56 1.25-1.25 1.25h-4.5c-.69 0-1.25-.56-1.25-1.25v-4.5Z" />
+					</svg>
+				)}
+			</a>
+		);
+	},
 
 	// Lists
 	ul: ({ className, ...props }: ComponentPropsWithoutRef<'ul'>) => (
@@ -263,6 +283,7 @@ export const mdxComponents: MDXComponents = {
 		<img
 			className={cn('rounded-lg border border-zinc-200 dark:border-zinc-800', className)}
 			alt={alt}
+			loading="lazy"
 			{...props}
 		/>
 	),
@@ -279,4 +300,6 @@ export const mdxComponents: MDXComponents = {
 	Card: CardLink, // Alias for Fumadocs compatibility
 	ThemeImage,
 	CLICommand,
+	GravityNetworkDiagram,
+	CopyMigrationPrompt,
 };

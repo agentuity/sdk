@@ -41,6 +41,29 @@ These changes require code modifications in all agents:
 6. **Trigger Configuration**: Cron schedules are now configured in code using the `cron()` middleware rather than in the cloud console UI
 
 ---
+## Getting Started Quickly
+
+<CopyMigrationPrompt />
+
+If you want to migrate an existing v0 project without manually following every step, you can use the automated migration prompt above with a coding agent (Claude, Cursor, etc.).
+
+The prompt will:
+- Verify your Agentuity CLI is installed, up to date, and authenticated.
+- Read your v0 project **without modifying it**.
+- Create a new v1 project **at the same directory level** as your v0 project.
+- Migrate agents, tools, routes, and dependencies into the v1 structure.
+
+### How to use it:
+
+1. Copy the migration prompt above.
+2. Paste it into your coding agent.
+3. Replace **both occurrences** of `@<V0_PROJECT_FOLDER>` with the path to your v0 project.
+4. Let the agent run through the migration phases step by step.
+
+Your original v0 project remains untouched.
+The new v1 project is created as a sibling directory with `-v1` appended to the name.
+
+---
 
 ## Step-by-Step Migration
 

@@ -12,6 +12,11 @@ import remarkFrontmatter from 'remark-frontmatter';
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter';
 import remarkCodeImport from 'remark-code-import';
 import rehypePrettyCode from 'rehype-pretty-code';
+import {
+	transformerNotationHighlight,
+	transformerNotationFocus,
+	transformerNotationDiff,
+} from '@shikijs/transformers';
 import rehypeSlug from 'rehype-slug';
 import rehypeExtractToc from '@stefanprobst/rehype-extract-toc';
 import rehypeExtractTocExport from '@stefanprobst/rehype-extract-toc/mdx';
@@ -72,6 +77,11 @@ export default {
 							light: 'github-light',
 						},
 						keepBackground: false,
+						transformers: [
+							transformerNotationHighlight(),
+							transformerNotationFocus(),
+							transformerNotationDiff(),
+						],
 					},
 				],
 			],

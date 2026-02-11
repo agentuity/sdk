@@ -30,6 +30,7 @@ import { Route as DocsRoutesCronRouteImport } from './routes/_docs/routes/cron'
 import { Route as DocsReferenceSdkReferenceRouteImport } from './routes/_docs/reference/sdk-reference'
 import { Route as DocsReferenceMigrationGuideRouteImport } from './routes/_docs/reference/migration-guide'
 import { Route as DocsReferenceMdxFeaturesRouteImport } from './routes/_docs/reference/mdx-features'
+import { Route as DocsReferenceGravityNetworkRouteImport } from './routes/_docs/reference/gravity-network'
 import { Route as DocsGetStartedWhatIsAgentuityRouteImport } from './routes/_docs/get-started/what-is-agentuity'
 import { Route as DocsGetStartedQuickstartRouteImport } from './routes/_docs/get-started/quickstart'
 import { Route as DocsGetStartedProjectStructureRouteImport } from './routes/_docs/get-started/project-structure'
@@ -201,6 +202,12 @@ const DocsReferenceMdxFeaturesRoute =
   DocsReferenceMdxFeaturesRouteImport.update({
     id: '/reference/mdx-features',
     path: '/reference/mdx-features',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsReferenceGravityNetworkRoute =
+  DocsReferenceGravityNetworkRouteImport.update({
+    id: '/reference/gravity-network',
+    path: '/reference/gravity-network',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsGetStartedWhatIsAgentuityRoute =
@@ -611,6 +618,7 @@ export interface FileRoutesByFullPath {
   '/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute
   '/get-started/quickstart': typeof DocsGetStartedQuickstartRoute
   '/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute
+  '/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute
   '/reference/mdx-features': typeof DocsReferenceMdxFeaturesRoute
   '/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute
   '/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute
@@ -698,6 +706,7 @@ export interface FileRoutesByTo {
   '/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute
   '/get-started/quickstart': typeof DocsGetStartedQuickstartRoute
   '/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute
+  '/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute
   '/reference/mdx-features': typeof DocsReferenceMdxFeaturesRoute
   '/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute
   '/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute
@@ -787,6 +796,7 @@ export interface FileRoutesById {
   '/_docs/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute
   '/_docs/get-started/quickstart': typeof DocsGetStartedQuickstartRoute
   '/_docs/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute
+  '/_docs/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute
   '/_docs/reference/mdx-features': typeof DocsReferenceMdxFeaturesRoute
   '/_docs/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute
   '/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute
@@ -876,6 +886,7 @@ export interface FileRouteTypes {
     | '/get-started/project-structure'
     | '/get-started/quickstart'
     | '/get-started/what-is-agentuity'
+    | '/reference/gravity-network'
     | '/reference/mdx-features'
     | '/reference/migration-guide'
     | '/reference/sdk-reference'
@@ -963,6 +974,7 @@ export interface FileRouteTypes {
     | '/get-started/project-structure'
     | '/get-started/quickstart'
     | '/get-started/what-is-agentuity'
+    | '/reference/gravity-network'
     | '/reference/mdx-features'
     | '/reference/migration-guide'
     | '/reference/sdk-reference'
@@ -1051,6 +1063,7 @@ export interface FileRouteTypes {
     | '/_docs/get-started/project-structure'
     | '/_docs/get-started/quickstart'
     | '/_docs/get-started/what-is-agentuity'
+    | '/_docs/reference/gravity-network'
     | '/_docs/reference/mdx-features'
     | '/_docs/reference/migration-guide'
     | '/_docs/reference/sdk-reference'
@@ -1264,6 +1277,13 @@ declare module '@tanstack/react-router' {
       path: '/reference/mdx-features'
       fullPath: '/reference/mdx-features'
       preLoaderRoute: typeof DocsReferenceMdxFeaturesRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/reference/gravity-network': {
+      id: '/_docs/reference/gravity-network'
+      path: '/reference/gravity-network'
+      fullPath: '/reference/gravity-network'
+      preLoaderRoute: typeof DocsReferenceGravityNetworkRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/get-started/what-is-agentuity': {
@@ -1750,6 +1770,7 @@ interface DocsRouteRouteChildren {
   DocsGetStartedProjectStructureRoute: typeof DocsGetStartedProjectStructureRoute
   DocsGetStartedQuickstartRoute: typeof DocsGetStartedQuickstartRoute
   DocsGetStartedWhatIsAgentuityRoute: typeof DocsGetStartedWhatIsAgentuityRoute
+  DocsReferenceGravityNetworkRoute: typeof DocsReferenceGravityNetworkRoute
   DocsReferenceMdxFeaturesRoute: typeof DocsReferenceMdxFeaturesRoute
   DocsReferenceMigrationGuideRoute: typeof DocsReferenceMigrationGuideRoute
   DocsReferenceSdkReferenceRoute: typeof DocsReferenceSdkReferenceRoute
@@ -1836,6 +1857,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsGetStartedProjectStructureRoute: DocsGetStartedProjectStructureRoute,
   DocsGetStartedQuickstartRoute: DocsGetStartedQuickstartRoute,
   DocsGetStartedWhatIsAgentuityRoute: DocsGetStartedWhatIsAgentuityRoute,
+  DocsReferenceGravityNetworkRoute: DocsReferenceGravityNetworkRoute,
   DocsReferenceMdxFeaturesRoute: DocsReferenceMdxFeaturesRoute,
   DocsReferenceMigrationGuideRoute: DocsReferenceMigrationGuideRoute,
   DocsReferenceSdkReferenceRoute: DocsReferenceSdkReferenceRoute,
