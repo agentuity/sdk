@@ -100,7 +100,8 @@ export function WorkbenchProvider({
 	const getThreadStorageKey = useCallback(() => {
 		// Use a hash of the baseUrl to create unique storage per endpoint
 		const url = config.baseUrl ?? 'local';
-		const urlHash = typeof url === 'string' ? btoa(encodeURIComponent(url)).slice(0, 16) : 'local';
+		const urlHash =
+			typeof url === 'string' ? btoa(encodeURIComponent(url)).slice(0, 16) : 'local';
 		return getStorageKey(`thread-id-${urlHash}`);
 	}, [getStorageKey, config.baseUrl]);
 

@@ -396,71 +396,71 @@ export function InputSection({
 				)}
 			</div>
 
-		<PromptInput onSubmit={onSubmit}>
-			<PromptInputBody>
-				<div className="min-h-[120px] w-full flex flex-col transition-[min-height] duration-200">
-					{!selectedAgent ? (
-						<div className="flex flex-col flex-1 items-center justify-center py-6 px-4 text-center">
-							<p className="text-sm text-muted-foreground/70">
-								Select an agent to get started.
-							</p>
-						</div>
-					) : (
-						(() => {
-							switch (inputType) {
-								case 'object':
-									return (
-										<JsonEditor
-											aria-invalid={!isValidInput}
-											onChange={onChange}
-											onSubmit={onSubmit}
-											onValidationChange={setMonacoHasErrors}
-											schema={selectedAgentData?.schema.input?.json}
-											schemaUri={`agentuity://schema/${selectedAgentData?.metadata.id}/input`}
-											value={value}
-										/>
-									);
+			<PromptInput onSubmit={onSubmit}>
+				<PromptInputBody>
+					<div className="min-h-[120px] w-full flex flex-col transition-[min-height] duration-200">
+						{!selectedAgent ? (
+							<div className="flex flex-col flex-1 items-center justify-center py-6 px-4 text-center">
+								<p className="text-sm text-muted-foreground/70">
+									Select an agent to get started.
+								</p>
+							</div>
+						) : (
+							(() => {
+								switch (inputType) {
+									case 'object':
+										return (
+											<JsonEditor
+												aria-invalid={!isValidInput}
+												onChange={onChange}
+												onSubmit={onSubmit}
+												onValidationChange={setMonacoHasErrors}
+												schema={selectedAgentData?.schema.input?.json}
+												schemaUri={`agentuity://schema/${selectedAgentData?.metadata.id}/input`}
+												value={value}
+											/>
+										);
 
-							case 'string':
-								return (
-									<PromptInputTextarea
-										className="min-h-[120px]"
-										onChange={(e) => onChange(e.target.value)}
-										placeholder="Enter a message to send..."
-										value={value}
-									/>
-								);
-								default:
-									return (
-										<div className="flex flex-col flex-1 items-center justify-center py-8 px-4 text-center">
-											<p className="text-sm text-muted-foreground">
-												<span className="font-medium">
-													This agent has no input schema.
-												</span>
-											</p>
+									case 'string':
+										return (
+											<PromptInputTextarea
+												className="min-h-[120px]"
+												onChange={(e) => onChange(e.target.value)}
+												placeholder="Enter a message to send..."
+												value={value}
+											/>
+										);
+									default:
+										return (
+											<div className="flex flex-col flex-1 items-center justify-center py-8 px-4 text-center">
+												<p className="text-sm text-muted-foreground">
+													<span className="font-medium">
+														This agent has no input schema.
+													</span>
+												</p>
 
-											<Button
-												aria-label="Run Agent"
-												size="sm"
-												variant="default"
-												disabled={isLoading}
-												onClick={onSubmit}
-												className="mt-2"
-											>
-												{isLoading ? (
-													<Loader2Icon className="size-4 animate-spin mr-2" />
-												) : (
-													<SendIcon className="size-4 mr-2" />
-												)}
-												Run Agent
-											</Button>
-										</div>
-									);
-							}
-						})()
-				)}
-				</div>
-			</PromptInputBody>
+												<Button
+													aria-label="Run Agent"
+													size="sm"
+													variant="default"
+													disabled={isLoading}
+													onClick={onSubmit}
+													className="mt-2"
+												>
+													{isLoading ? (
+														<Loader2Icon className="size-4 animate-spin mr-2" />
+													) : (
+														<SendIcon className="size-4 mr-2" />
+													)}
+													Run Agent
+												</Button>
+											</div>
+										);
+								}
+							})()
+						)}
+					</div>
+				</PromptInputBody>
 
 				<PromptInputFooter className={cn('pt-0', !selectedAgent && 'pb-0')}>
 					{selectedAgent && inputType !== 'none' && (

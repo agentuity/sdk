@@ -52,7 +52,13 @@ function parseEnvArgs(rawArgs: string[]): ParsedEnvPair[] {
 
 	// Legacy format: exactly 2 args = KEY VALUE
 	if (rawArgs.length === 2) {
-		return [{ key: rawArgs[0]!, value: rawArgs[1]! }];
+		const key = rawArgs[0]!.trim();
+		if (!key) {
+			tui.fatal(
+				'Invalid format: key cannot be empty. Usage: env set KEY VALUE or env set KEY=VALUE'
+			);
+		}
+		return [{ key, value: rawArgs[1]! }];
 	}
 
 	// Ambiguous: 1 arg without '=' or 3+ args without '='

@@ -7,7 +7,10 @@ export interface EnvDiffEntry {
 	sourceValue: string;
 	/** The value from the "target" side (the side being overwritten), undefined if new */
 	targetValue?: string;
-	isSecret: boolean;
+	/** Whether the source side stores this as a secret */
+	sourceIsSecret: boolean;
+	/** Whether the target side stores this as a secret (undefined if new, i.e. no target) */
+	targetIsSecret?: boolean;
 }
 
 export interface EnvDiff {
@@ -42,10 +45,17 @@ export function computeEnvDiff(
 					key,
 					sourceValue,
 					targetValue: targetEnv[key],
-					isSecret: false,
+					sourceIsSecret: false,
+					targetIsSecret: false,
 				});
 			} else {
-				changedEntries.push({ key, sourceValue, targetValue: targetEnv[key], isSecret: false });
+				changedEntries.push({
+					key,
+					sourceValue,
+					targetValue: targetEnv[key],
+					sourceIsSecret: false,
+					targetIsSecret: false,
+				});
 			}
 		} else if (key in targetSecrets) {
 			// Key exists but as a different type - treat as changed
@@ -53,10 +63,11 @@ export function computeEnvDiff(
 				key,
 				sourceValue,
 				targetValue: targetSecrets[key],
-				isSecret: false,
+				sourceIsSecret: false,
+				targetIsSecret: true,
 			});
 		} else {
-			newEntries.push({ key, sourceValue, isSecret: false });
+			newEntries.push({ key, sourceValue, sourceIsSecret: false });
 		}
 	}
 
@@ -69,21 +80,29 @@ export function computeEnvDiff(
 					key,
 					sourceValue,
 					targetValue: targetSecrets[key],
-					isSecret: true,
+					sourceIsSecret: true,
+					targetIsSecret: true,
 				});
 			} else {
 				changedEntries.push({
 					key,
 					sourceValue,
 					targetValue: targetSecrets[key],
-					isSecret: true,
+					sourceIsSecret: true,
+					targetIsSecret: true,
 				});
 			}
 		} else if (key in targetEnv) {
 			// Key exists but as a different type - treat as changed
-			changedEntries.push({ key, sourceValue, targetValue: targetEnv[key], isSecret: true });
+			changedEntries.push({
+				key,
+				sourceValue,
+				targetValue: targetEnv[key],
+				sourceIsSecret: true,
+				targetIsSecret: false,
+			});
 		} else {
-			newEntries.push({ key, sourceValue, isSecret: true });
+			newEntries.push({ key, sourceValue, sourceIsSecret: true });
 		}
 	}
 
@@ -139,14 +158,14 @@ export function displayEnvDiff(diff: EnvDiff, options: DisplayEnvDiffOptions): v
 	].sort((a, b) => a.key.localeCompare(b.key));
 
 	for (const entry of allEntries) {
-		const typeLabel = entry.isSecret ? 'secret' : 'env';
-		const val = displayValue(entry.sourceValue, entry.isSecret);
+		const typeLabel = entry.sourceIsSecret ? 'secret' : 'env';
+		const val = displayValue(entry.sourceValue, entry.sourceIsSecret);
 
 		if (entry.status === 'new') {
 			const line = `  ${tui.colorSuccess('+')} ${tui.bold(entry.key)}=${val} ${tui.colorMuted(`(new, ${typeLabel})`)}`;
 			process.stderr.write(line + '\n');
 		} else if (entry.status === 'changed') {
-			const oldVal = displayValue(entry.targetValue!, entry.isSecret);
+			const oldVal = displayValue(entry.targetValue!, entry.targetIsSecret ?? false);
 			// For push: show "remote_old → local_new" (replacing remote with local)
 			// For pull: show "local_old → cloud_new" (replacing local with cloud)
 			const line = `  ${tui.colorWarning('~')} ${tui.bold(entry.key)}=${oldVal} → ${val} ${tui.colorMuted(`(changed, ${typeLabel})`)}`;

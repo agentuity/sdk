@@ -1,67 +1,67 @@
 {
-  "PreToolUse": [
-    {
-      "matcher": "Bash",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-sensitive-commands.sh",
-          "timeout": 5
-        }
-      ]
-    }
-  ],
-  "PreCompact": [
-    {
-      "matcher": "",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-compact.sh",
-          "timeout": 10
-        }
-      ]
-    }
-  ],
-  "Stop": [
-    {
-      "matcher": "",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/cadence-stop.sh",
-          "timeout": 15
-        },
-        {
-          "type": "command",
-          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/stop-memory-save.sh",
-          "timeout": 10
-        }
-      ]
-    }
-  ],
-  "SessionStart": [
-    {
-      "matcher": "",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.sh",
-          "timeout": 15
-        }
-      ]
-    }
-  ],
-  "SessionEnd": [
-    {
-      "matcher": "",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-end.sh",
-          "timeout": 30
-        }
-      ]
-    }
-  ]
+	"PreToolUse": [
+		{
+			"matcher": "Bash",
+			"hooks": [
+				{
+					"type": "command",
+					"command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-sensitive-commands.sh",
+					"timeout": 5
+				}
+			]
+		}
+	],
+	"PreCompact": [
+		{
+			"matcher": "",
+			"hooks": [
+				{
+					"type": "command",
+					"command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-compact.sh",
+					"timeout": 10
+				}
+			]
+		}
+	],
+	"Stop": [
+		{
+			"matcher": "",
+			"hooks": [
+				{
+					"type": "command",
+					"command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/cadence-stop.sh",
+					"timeout": 15
+				},
+				{
+					"type": "command",
+					"command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/stop-memory-save.sh",
+					"timeout": 10
+				}
+			]
+		}
+	],
+	"SessionStart": [
+		{
+			"matcher": "",
+			"hooks": [
+				{
+					"type": "command",
+					"command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.sh",
+					"timeout": 15
+				}
+			]
+		}
+	],
+	"SessionEnd": [
+		{
+			"matcher": "",
+			"hooks": [
+				{
+					"type": "command",
+					"command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-end.sh",
+					"timeout": 30
+				}
+			]
+		}
+	]
 }

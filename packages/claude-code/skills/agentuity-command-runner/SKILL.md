@@ -34,33 +34,33 @@ Before running ANY command, detect the correct runtime:
 
 ### JavaScript/TypeScript (bun/npm/pnpm/yarn)
 
-| Task | bun | npm | pnpm |
-|------|-----|-----|------|
-| install | `bun install` | `npm install` | `pnpm install` |
-| build | `bun run build` | `npm run build` | `pnpm run build` |
-| test | `bun test` | `npm test` | `pnpm test` |
+| Task      | bun                 | npm                 | pnpm                 |
+| --------- | ------------------- | ------------------- | -------------------- |
+| install   | `bun install`       | `npm install`       | `pnpm install`       |
+| build     | `bun run build`     | `npm run build`     | `pnpm run build`     |
+| test      | `bun test`          | `npm test`          | `pnpm test`          |
 | typecheck | `bun run typecheck` | `npm run typecheck` | `pnpm run typecheck` |
-| lint | `bun run lint` | `npm run lint` | `pnpm run lint` |
-| format | `bun run format` | `npm run format` | `pnpm run format` |
-| clean | `bun run clean` | `npm run clean` | `pnpm run clean` |
+| lint      | `bun run lint`      | `npm run lint`      | `pnpm run lint`      |
+| format    | `bun run format`    | `npm run format`    | `pnpm run format`    |
+| clean     | `bun run clean`     | `npm run clean`     | `pnpm run clean`     |
 
 ### Go
 
-| Task | Command |
-|------|---------|
-| build | `go build ./...` |
-| test | `go test ./...` |
-| lint | `golangci-lint run` |
-| format | `go fmt ./...` |
+| Task   | Command             |
+| ------ | ------------------- |
+| build  | `go build ./...`    |
+| test   | `go test ./...`     |
+| lint   | `golangci-lint run` |
+| format | `go fmt ./...`      |
 
 ### Rust (cargo)
 
-| Task | Command |
-|------|---------|
-| build | `cargo build` |
-| test | `cargo test` |
-| lint | `cargo clippy` |
-| format | `cargo fmt` |
+| Task   | Command        |
+| ------ | -------------- |
+| build  | `cargo build`  |
+| test   | `cargo test`   |
+| lint   | `cargo clippy` |
+| format | `cargo fmt`    |
 
 ## Output Parsing Intelligence
 
@@ -74,17 +74,18 @@ Before running ANY command, detect the correct runtime:
 
 ### Error Classification
 
-| Type | Signal Words |
-|------|-------------|
-| Type Error | "Type", "TS", "cannot assign", "not assignable" |
-| Syntax Error | "Unexpected", "SyntaxError", "Parse error" |
-| Lint Error | "eslint", "biome", "warning", "rule" |
-| Test Failure | "FAIL", "AssertionError", "expect", "assert" |
-| Build Error | "Build failed", "Cannot find module" |
+| Type         | Signal Words                                    |
+| ------------ | ----------------------------------------------- |
+| Type Error   | "Type", "TS", "cannot assign", "not assignable" |
+| Syntax Error | "Unexpected", "SyntaxError", "Parse error"      |
+| Lint Error   | "eslint", "biome", "warning", "rule"            |
+| Test Failure | "FAIL", "AssertionError", "expect", "assert"    |
+| Build Error  | "Build failed", "Cannot find module"            |
 
 ### Location Extraction
 
 Extract file:line from common formats:
+
 - TypeScript: `src/foo.ts(10,5): error TS2322`
 - ESLint: `src/foo.ts:10:5 error`
 - Go: `./pkg/foo.go:10:5:`
@@ -103,15 +104,15 @@ Extract file:line from common formats:
 
 ### Errors ([count])
 
-| File | Line | Type | Message |
-|------|------|------|---------|
-| `src/foo.ts` | 45 | Type | Type 'string' is not assignable to type 'number' |
+| File         | Line | Type | Message                                          |
+| ------------ | ---- | ---- | ------------------------------------------------ |
+| `src/foo.ts` | 45   | Type | Type 'string' is not assignable to type 'number' |
 
 ### Warnings ([count])
 
-| File | Line | Message |
-|------|------|---------|
-| `src/baz.ts` | 8 | Unused import 'y' |
+| File         | Line | Message           |
+| ------------ | ---- | ----------------- |
+| `src/baz.ts` | 8    | Unused import 'y' |
 
 ### Summary
 

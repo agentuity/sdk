@@ -21,11 +21,7 @@ import { createCorsMiddleware } from './middleware';
  * Any origin matching https://*.{suffix} is allowed.
  * In development, any origin is allowed.
  */
-const TRUSTED_WORKBENCH_DOMAIN_SUFFIXES = [
-	'.agentuity.com',
-	'.agentuity.dev',
-	'.agentuity.io',
-];
+const TRUSTED_WORKBENCH_DOMAIN_SUFFIXES = ['.agentuity.com', '.agentuity.dev', '.agentuity.io'];
 
 /**
  * Check if an origin is a trusted Agentuity app origin.

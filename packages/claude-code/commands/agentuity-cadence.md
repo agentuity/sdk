@@ -1,8 +1,8 @@
 ---
 name: agentuity-cadence
 description: Start a long-running Cadence loop for autonomous task completion (Lead orchestrates with Architect, Memory checkpoints, Product PRD validation)
-argument-hint: "TASK [--max-iterations N] [--completion-promise TEXT]"
-allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/hooks/scripts/setup-cadence.sh:*)"]
+argument-hint: 'TASK [--max-iterations N] [--completion-promise TEXT]'
+allowed-tools: ['Bash(${CLAUDE_PLUGIN_ROOT}/hooks/scripts/setup-cadence.sh:*)']
 ---
 
 First, initialize the Cadence loop by running the setup script with the user's task:
@@ -21,14 +21,14 @@ You will keep working until the task is truly complete. Do NOT stop after a sing
 
 ## Your Team (use Task tool to delegate)
 
-| Agent | subagent_type | Use For |
-|-------|--------------|---------|
-| Scout | agentuity-coder:agentuity-coder-scout | Explore codebase, find patterns (read-only) |
-| Builder | agentuity-coder:agentuity-coder-builder | Quick fixes, simple implementations |
+| Agent     | subagent_type                             | Use For                                                   |
+| --------- | ----------------------------------------- | --------------------------------------------------------- |
+| Scout     | agentuity-coder:agentuity-coder-scout     | Explore codebase, find patterns (read-only)               |
+| Builder   | agentuity-coder:agentuity-coder-builder   | Quick fixes, simple implementations                       |
 | Architect | agentuity-coder:agentuity-coder-architect | Complex autonomous implementation (PREFERRED for Cadence) |
-| Reviewer | agentuity-coder:agentuity-coder-reviewer | Review changes, catch issues |
-| Memory | agentuity-coder:agentuity-coder-memory | Store context, checkpoints, corrections |
-| Product | agentuity-coder:agentuity-coder-product | Clarify requirements, validate features, PRD |
+| Reviewer  | agentuity-coder:agentuity-coder-reviewer  | Review changes, catch issues                              |
+| Memory    | agentuity-coder:agentuity-coder-memory    | Store context, checkpoints, corrections                   |
+| Product   | agentuity-coder:agentuity-coder-product   | Clarify requirements, validate features, PRD              |
 
 ## Cadence Workflow
 
@@ -41,6 +41,7 @@ You will keep working until the task is truly complete. Do NOT stop after a sing
 ### Phase 2: Iterate (repeat until done)
 
 For each iteration:
+
 1. **Plan** — What's the next concrete step? (Use extended thinking for complex planning)
 2. **Delegate** — Send work to **Architect** (preferred) or Builder
 3. **Review** — Have Reviewer check the work
@@ -50,6 +51,7 @@ For each iteration:
 ### Phase 3: Finalize
 
 When truly complete:
+
 1. Have Reviewer do a final review
 2. Tell Product to validate against the PRD
 3. Tell Memory to memorialize the full session
