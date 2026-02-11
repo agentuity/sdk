@@ -27,6 +27,8 @@ export interface ViteBundleOptions {
 	port?: number;
 	logger: Logger;
 	deploymentOptions?: DeployOptions;
+	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
+	deploymentConfig?: Record<string, unknown>;
 	/** Optional collector for structured error reporting */
 	collector?: BuildReportCollector;
 }
@@ -44,6 +46,7 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		port = 3500,
 		logger,
 		deploymentOptions,
+		deploymentConfig,
 		collector,
 	} = options;
 
@@ -100,6 +103,7 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 			deploymentId,
 			logger,
 			deploymentOptions,
+			deploymentConfig,
 			collector,
 		});
 

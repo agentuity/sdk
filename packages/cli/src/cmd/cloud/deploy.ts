@@ -636,6 +636,7 @@ export const deploySubcommand = createSubcommand({
 									region: project.region,
 									logger: ctx.logger,
 									deploymentOptions: opts,
+									deploymentConfig: project.deployment,
 									collector,
 								});
 								capturedOutput = [...capturedOutput, ...bundleResult.output];

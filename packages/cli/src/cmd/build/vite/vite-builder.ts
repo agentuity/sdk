@@ -61,6 +61,8 @@ export interface ViteBuildOptions {
 	analyticsEnabled?: boolean;
 	logger: Logger;
 	deploymentOptions?: DeployOptions;
+	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
+	deploymentConfig?: Record<string, unknown>;
 	/** Optional collector for structured error reporting */
 	collector?: BuildReportCollector;
 	/** Optional config profile name (e.g., 'staging', 'test') for .env.{profile} files */
@@ -412,6 +414,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger,
 		dev,
 		deploymentOptions: options.deploymentOptions,
+		deploymentConfig: options.deploymentConfig,
 	});
 
 	writeMetadataFile(rootDir, metadata, dev, logger);
