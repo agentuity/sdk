@@ -151,7 +151,7 @@ export const setSubcommand = createSubcommand({
 		for (const pair of pairs) {
 			if (isReservedAgentuityKey(pair.key)) {
 				tui.fatal(
-					`Cannot set AGENTUITY_ prefixed variables: '${pair.key}'. Reserved for system use.`
+					`Cannot set AGENTUITY_ prefixed variables: '${pair.key}'. These are reserved for system use.`
 				);
 			}
 		}
