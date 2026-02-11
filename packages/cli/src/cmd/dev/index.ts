@@ -1045,7 +1045,7 @@ export const command = createCommand({
 					}
 					process.env.PORT = String(opts.port);
 					process.env.AGENTUITY_PORT = process.env.PORT;
-					process.env.AGENTUITY_BASE_URL = `http://localhost:${opts.port}`;
+					process.env.AGENTUITY_BASE_URL = process.env.AGENTUITY_BASE_URL || `http://localhost:${opts.port}`;
 
 					if (project) {
 						// Set environment variables for LLM provider patches
