@@ -5,6 +5,7 @@ import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version';
 import * as tui from './tui';
 import { saveConfig } from './config';
 import { $ } from 'bun';
+import { tmpdir } from 'node:os';
 import { getExecutingAgent } from './agent-detection';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -172,7 +173,8 @@ async function performUpgrade(logger: Logger, targetVersion: string): Promise<vo
 		logger.info('Upgrading to version %s...', npmVersion);
 
 		// Use bun to install the specific version globally
-		await $`bun add -g @agentuity/cli@${npmVersion}`.quiet();
+		// Run from tmpdir to avoid interference from any local package.json/node_modules
+		await $`bun add -g @agentuity/cli@${npmVersion}`.cwd(tmpdir()).quiet();
 
 		// If we got here, the upgrade succeeded
 		// Re-run the original command with the new binary

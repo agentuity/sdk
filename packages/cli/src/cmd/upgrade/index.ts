@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ErrorCode, createError, exitWithError } from '../../errors';
 import * as tui from '../../tui';
 import { $ } from 'bun';
+import { tmpdir } from 'node:os';
 import { getInstallationType, type InstallationType } from '../../utils/installation-type';
 
 const UpgradeOptionsSchema = z.object({
@@ -77,7 +78,8 @@ async function performBunUpgrade(version: string): Promise<void> {
 	const npmVersion = version.replace(/^v/, '');
 
 	// Use bun to install the specific version globally
-	const result = await $`bun add -g @agentuity/cli@${npmVersion}`.quiet().nothrow();
+	// Run from tmpdir to avoid interference from any local package.json/node_modules
+	const result = await $`bun add -g @agentuity/cli@${npmVersion}`.cwd(tmpdir()).quiet().nothrow();
 
 	if (result.exitCode !== 0) {
 		const stderr = result.stderr.toString();
