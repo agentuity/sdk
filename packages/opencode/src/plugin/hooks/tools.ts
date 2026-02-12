@@ -53,6 +53,11 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 			const toolName = extractToolName(input);
 			if (!toolName) return;
 
+			const sessionId = (input as { sessionID?: string }).sessionID;
+			if (sessionId) {
+				process.env.AGENTUITY_OPENCODE_SESSION = sessionId;
+			}
+
 			// Check MCP cloud tools
 			if (isCloudTool(toolName)) {
 				const authResult = await checkAuth();
