@@ -38,18 +38,19 @@ context.setGlobalContextManager({
 	): ReturnType<F> {
 		return als.run(ctx, () => fn.call(thisArg, ...args));
 	},
-	bind<T>(
-		ctx: import('@opentelemetry/api').Context,
-		fn: T,
-	): T {
+	bind<T>(ctx: import('@opentelemetry/api').Context, fn: T): T {
 		if (typeof fn === 'function') {
 			const callable = fn as (...args: unknown[]) => unknown;
 			return ((...args: unknown[]) => als.run(ctx, () => callable(...args))) as T;
 		}
 		return fn;
 	},
-	enable() { return this; },
-	disable() { return this; },
+	enable() {
+		return this;
+	},
+	disable() {
+		return this;
+	},
 });
 
 const exporter = new InMemorySpanExporter();
@@ -93,10 +94,7 @@ describe('enrichContextWithTraceState', () => {
 				isRemote: true,
 				traceState: new TraceState('existing=value'),
 			};
-			const parentCtx = trace.setSpan(
-				ROOT_CONTEXT,
-				trace.wrapSpanContext(parentSctx)
-			);
+			const parentCtx = trace.setSpan(ROOT_CONTEXT, trace.wrapSpanContext(parentSctx));
 
 			const enriched = enrichContextWithTraceState(parentCtx, {
 				pid: 'proj_123',
@@ -125,10 +123,7 @@ describe('enrichContextWithTraceState', () => {
 				traceFlags: TraceFlags.SAMPLED,
 				isRemote: true,
 			};
-			const parentCtx = trace.setSpan(
-				ROOT_CONTEXT,
-				trace.wrapSpanContext(parentSctx)
-			);
+			const parentCtx = trace.setSpan(ROOT_CONTEXT, trace.wrapSpanContext(parentSctx));
 
 			const enriched = enrichContextWithTraceState(parentCtx, { pid: 'p' });
 			const sctx = trace.getSpan(enriched)!.spanContext();
@@ -217,10 +212,7 @@ describe('Recording span inheritance (integration)', () => {
 			traceFlags: TraceFlags.SAMPLED,
 			isRemote: true,
 		};
-		const incomingCtx = trace.setSpan(
-			ROOT_CONTEXT,
-			trace.wrapSpanContext(incomingParent)
-		);
+		const incomingCtx = trace.setSpan(ROOT_CONTEXT, trace.wrapSpanContext(incomingParent));
 
 		// Enrich BEFORE span creation
 		const enriched = enrichContextWithTraceState(incomingCtx, {
@@ -289,16 +281,11 @@ describe('Recording span inheritance (integration)', () => {
 
 		let capturedTraceState: Record<string, string> = {};
 
-		await tracer.startActiveSpan(
-			'test-4arg-span',
-			{},
-			enriched,
-			async (span) => {
-				// Inside the callback, the recording span should have traceState
-				capturedTraceState = parseTraceState(span.spanContext().traceState);
-				span.end();
-			}
-		);
+		await tracer.startActiveSpan('test-4arg-span', {}, enriched, async (span) => {
+			// Inside the callback, the recording span should have traceState
+			capturedTraceState = parseTraceState(span.spanContext().traceState);
+			span.end();
+		});
 
 		// Verify from inside the callback
 		expect(capturedTraceState['pid']).toBe('proj_4arg');
@@ -320,17 +307,12 @@ describe('Recording span inheritance (integration)', () => {
 			oid: 'org_child',
 		});
 
-		await tracer.startActiveSpan(
-			'parent-span',
-			{},
-			enriched,
-			async (parentSpan) => {
-				// Create a child span within the parent's context
-				const childSpan = tracer.startSpan('child-span');
-				childSpan.end();
-				parentSpan.end();
-			}
-		);
+		await tracer.startActiveSpan('parent-span', {}, enriched, async (parentSpan) => {
+			// Create a child span within the parent's context
+			const childSpan = tracer.startSpan('child-span');
+			childSpan.end();
+			parentSpan.end();
+		});
 
 		const exportedSpans = exporter.getFinishedSpans();
 		expect(exportedSpans).toHaveLength(2);
