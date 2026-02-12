@@ -329,12 +329,12 @@ class LocalStream extends WritableStream implements Stream {
 
 	async #persist(): Promise<void> {
 		// Read buffered file
-		let data = readFileSync(this.#tempFilePath);
+		let data: Buffer = readFileSync(this.#tempFilePath);
 
 		// Optional: Apply compression if enabled
 		if (this.#compressed) {
 			const { gzipSync } = await import('node:zlib');
-			data = gzipSync(data);
+			data = gzipSync(data) as Buffer;
 		}
 
 		// Update DB with finalized data
