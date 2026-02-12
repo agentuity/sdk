@@ -320,6 +320,16 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		name: 'agentuity:db-rewrite',
 		setup(build) {
 			build.onResolve({ filter: /^drizzle-orm\/bun-sql$/ }, (args) => {
+				// Don't redirect if the importer is @agentuity/drizzle itself — that would create a cycle.
+				// This check matches published packages in node_modules/@agentuity/drizzle/.
+				// Monorepo source paths (packages/drizzle/src/) don't hit this bundler — they use tsc.
+				if (
+					args.importer &&
+					(args.importer.includes('/node_modules/@agentuity/drizzle/') ||
+						args.importer.includes('\\node_modules\\@agentuity\\drizzle\\'))
+				) {
+					return; // Let default resolution handle it
+				}
 				// Resolve to @agentuity/drizzle — the bundler will find it in node_modules
 				// and bundle it into .agentuity/app.js (NOT kept external).
 				const resolved = import.meta.resolveSync('@agentuity/drizzle', args.importer);
