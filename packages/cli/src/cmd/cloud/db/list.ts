@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 
 const DBListResponseSchema = z.object({
@@ -24,7 +25,7 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List database resources',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud db list'), description: 'List items' },
@@ -51,13 +52,15 @@ export const listSubcommand = createSubcommand({
 	webUrl: '/services/database',
 
 	async handler(ctx) {
-		const { apiClient, opts, options } = ctx;
+		const { logger, opts, options, auth, config } = ctx;
+
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		const resources = await tui.spinner({
 			message: 'Fetching databases',
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(apiClient, { type: 'db', orgId: opts?.orgId });
+				return listOrgResources(catalystClient, { type: 'db', orgId: opts?.orgId });
 			},
 		});
 

@@ -4,6 +4,7 @@ import * as tui from '../../../tui';
 import { machineList } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
+import { getGlobalCatalystAPIClient } from '../../../config';
 
 const MachineListResponseSchema = z.array(
 	z.object({
@@ -31,7 +32,7 @@ export const listSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['ls'],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	idempotent: true,
 	schema: {
 		options: z.object({
@@ -40,10 +41,12 @@ export const listSubcommand = createSubcommand({
 		response: MachineListResponseSchema,
 	},
 	async handler(ctx) {
-		const { options, opts, apiClient } = ctx;
+		const { options, opts, logger, auth, config } = ctx;
+
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		try {
-			const machines = await machineList(apiClient, { orgId: opts?.orgId });
+			const machines = await machineList(catalystClient, { orgId: opts?.orgId });
 
 			const result = machines.map((m) => ({
 				id: m.id,

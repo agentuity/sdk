@@ -4,6 +4,7 @@ import * as tui from '../../../tui';
 import { threadList, type Thread } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
+import { getGlobalCatalystAPIClient } from '../../../config';
 
 const ThreadListResponseSchema = z.array(
 	z.object({
@@ -39,7 +40,7 @@ export const listSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['ls'],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	optional: { project: true },
 	idempotent: true,
 	pagination: {
@@ -66,7 +67,8 @@ export const listSubcommand = createSubcommand({
 		response: ThreadListResponseSchema,
 	},
 	async handler(ctx) {
-		const { apiClient, project, opts, options } = ctx;
+		const { logger, auth, project, opts, options, config } = ctx;
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		if (opts?.orgId && opts?.projectId) {
 			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
@@ -76,7 +78,7 @@ export const listSubcommand = createSubcommand({
 		const orgId = opts.orgId;
 
 		try {
-			const threads = await threadList(apiClient, {
+			const threads = await threadList(catalystClient, {
 				count: opts.count,
 				orgId,
 				projectId,

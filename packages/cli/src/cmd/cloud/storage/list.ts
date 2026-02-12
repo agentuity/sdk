@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { createS3Client } from './utils';
@@ -43,7 +44,7 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List storage resources or files in a bucket',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud storage list'), description: 'List items' },
@@ -85,14 +86,16 @@ export const listSubcommand = createSubcommand({
 			: '/services/storage',
 
 	async handler(ctx) {
-		const { apiClient, args, opts, options, config } = ctx;
+		const { logger, args, opts, options, auth, config } = ctx;
+
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		const profileName = config?.name ?? 'production';
 		const resources = await tui.spinner({
 			message: 'Fetching storage',
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(apiClient, { type: 's3', orgId: opts?.orgId });
+				return listOrgResources(catalystClient, { type: 's3', orgId: opts?.orgId });
 			},
 		});
 

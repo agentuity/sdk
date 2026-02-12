@@ -3,6 +3,7 @@ import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
 import { getCommand } from '../../../../command-prefix';
 import { snapshotList } from '@agentuity/server';
+import { getGlobalCatalystAPIClient } from '../../../../config';
 
 const SnapshotInfoSchema = z.object({
 	snapshotId: z.string(),
@@ -29,7 +30,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List snapshots',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true, apiClient: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox snapshot list'),
@@ -51,10 +52,11 @@ export const listSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { opts, options, apiClient, orgId: ctxOrgId } = ctx;
+		const { opts, options, orgId: ctxOrgId, logger, auth, config } = ctx;
+		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 		const effectiveOrgId = opts?.orgId || ctxOrgId;
 
-		const result = await snapshotList(apiClient, {
+		const result = await snapshotList(client, {
 			sandboxId: opts.sandbox,
 			limit: opts.limit,
 			offset: opts.offset,

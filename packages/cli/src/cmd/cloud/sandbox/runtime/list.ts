@@ -3,6 +3,7 @@ import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
 import { getCommand } from '../../../../command-prefix';
 import { runtimeList } from '@agentuity/server';
+import { getGlobalCatalystAPIClient } from '../../../../config';
 
 const RuntimeInfoSchema = z.object({
 	id: z.string().describe('Runtime ID'),
@@ -20,7 +21,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List available sandbox runtimes',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, org: true, apiClient: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	examples: [
 		{
@@ -38,10 +39,11 @@ export const listSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { opts, options, apiClient, orgId: ctxOrgId } = ctx;
+		const { opts, options, orgId: ctxOrgId, logger, auth, config } = ctx;
+		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 		const effectiveOrgId = opts?.orgId || ctxOrgId;
 
-		const result = await runtimeList(apiClient, {
+		const result = await runtimeList(client, {
 			orgId: effectiveOrgId,
 			limit: opts.limit,
 			offset: opts.offset,
