@@ -108,8 +108,7 @@ export function useAISearch() {
 					},
 				]);
 			}
-		} catch (error) {
-			console.error('AI search error:', error);
+		} catch {
 			setMessages((prev) => [
 				...prev,
 				{

@@ -118,10 +118,8 @@ export function AIGatewayDemo() {
 						);
 					}
 
-					// TODO: Verify this works - HTTP headers are sent before body, so this may
-					// not capture tokens for streaming responses. SSEStreamDemo gets tokens from
-					// the "done" event data instead. If this doesn't work, consider always
-					// showing "(est.)" for raw streaming responses.
+					// Headers are sent before the body, so x-agentuity-tokens won't have
+					// actual counts for streaming responses — falls back to estimate below
 					const tokensHeader = response.headers.get('x-agentuity-tokens');
 					const actualTokens = tokensHeader ? parseTokensHeader(tokensHeader) : 0;
 

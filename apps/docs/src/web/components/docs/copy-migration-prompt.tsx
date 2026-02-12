@@ -263,8 +263,8 @@ export function CopyMigrationPrompt() {
 			await navigator.clipboard.writeText(MIGRATION_PROMPT);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
-		} catch (error) {
-			console.error('Failed to copy to clipboard:', error);
+		} catch {
+			// Clipboard unavailable
 		}
 	}
 

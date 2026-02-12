@@ -44,8 +44,8 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 			) {
 				setPreferredAction(stored as ActionType);
 			}
-		} catch (error) {
-			console.error('Failed to load copy preference:', error);
+		} catch {
+			// Ignore corrupted storage
 		} finally {
 			setIsInitialized(true);
 		}
@@ -55,8 +55,8 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 		try {
 			localStorage.setItem(STORAGE_KEY, action);
 			setPreferredAction(action);
-		} catch (error) {
-			console.error('Failed to save copy preference:', error);
+		} catch {
+			// Storage unavailable
 		}
 	};
 
@@ -83,8 +83,8 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 				document.execCommand('copy');
 				document.body.removeChild(textArea);
 			}
-		} catch (error) {
-			console.error('Failed to copy to clipboard:', error);
+		} catch {
+			// Clipboard unavailable
 		} finally {
 			setIsLoading(false);
 			setIsOpen(false);

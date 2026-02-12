@@ -8,14 +8,10 @@
  * POST /presign/:filename - Generates presigned URL for temporary access
  */
 import { createRouter } from '@agentuity/runtime';
-import { S3Client } from 'bun';
+import { s3 } from 'bun';
 import objectstoreAgent from '../../agent/objectstore/agent';
 
 const router = createRouter();
-
-// TODO: Replace with `import { s3 } from "bun"` once runtime S3 patch covers .list()
-// Issue: https://github.com/agentuity/sdk/issues/241
-const s3 = new S3Client({ virtualHostedStyle: true });
 
 router.get('/', (c) => {
 	return c.json({
