@@ -449,6 +449,24 @@ async function getPreviousReleaseTag(): Promise<string | null> {
 	}
 }
 
+// Known contributor mapping: display name → GitHub profile URL
+// This is used to correctly attribute commits in release notes
+// instead of allowing the LLM to hallucinate profile URLs.
+const CONTRIBUTORS: Record<string, string> = {
+	'Jeff Haynie': 'https://github.com/jhaynie',
+	'Rick Blalock': 'https://github.com/rblalock',
+	'Bobby Christopher': 'https://github.com/potofpie',
+	'Matt Congrove': 'https://github.com/mcongrove',
+	'Robin Diddams': 'https://github.com/robindiddams',
+	'Pedro Enrique': 'https://github.com/pec1985',
+	'Gabriel Rodrigues Campos': 'https://github.com/Huijiro',
+	'Parteek Singh': 'https://github.com/parteeksingh24',
+	'Jason Walkow': 'https://github.com/jsw324',
+	'Nicholas Mirigliani': 'https://github.com/NobbyBop',
+	'Joel Samuel': 'https://github.com/joel13samuel',
+	'Dhilan Fye': 'https://github.com/dhilanfye34',
+};
+
 async function generateReleaseNotes(
 	newVersion: string,
 	previousTag: string | null
@@ -464,6 +482,11 @@ async function generateReleaseNotes(
 		console.log('   No previous release found, using all commits...');
 		gitLog = await $`git log --pretty=format:"%h - %s (%an)"`.text();
 	}
+
+	// Build the contributor mapping section for the prompt
+	const contributorLines = Object.entries(CONTRIBUTORS)
+		.map(([name, url]) => `- ${name}: ${url}`)
+		.join('\n');
 
 	const prompt = `Please analyze the following git commits and create structured release notes for version ${newVersion}.
 
@@ -485,10 +508,13 @@ General Instructions:
 - DO NOT read any other commits than the ones listed above (THIS IS IMPORTANT TO AVOID DUPLICATING THINGS IN OUR CHANGELOG)
 - If a commit was made and then reverted do not include it in the changelog. If the commits only include a revert but not the original commit, then include the revert in the changelog.
 
+Contributor GitHub Profiles (USE ONLY THESE — do NOT guess or fabricate any GitHub URLs):
+${contributorLines}
+
 Formatting Instructions:
 - Use bullet points (- item) for each change. Be concise and user-focused. Only include sections that have changes.
 - If there are no breaking changes, omit that section entirely.
-- Link to the author name and author github url if available.
+- When attributing a commit to an author, link their name to their GitHub profile URL using ONLY the mapping above. For example: [Jeff Haynie](https://github.com/jhaynie). If an author is not in the mapping above, use their plain name WITHOUT any URL — do NOT invent a GitHub URL.
 - Link to Pull Request URLs if relevant such as: [#12](https://github.com/agentuity/sdk/pull/12) [DESCRIPTION]
 - IMPORTANT: ONLY return a bulleted list of changes, do not include any other information. Do not include a preamble like "Based on my analysis..."
 `;
