@@ -1,7 +1,7 @@
 import type { ExecuteOptions, Execution, ExecutionStatus } from '@agentuity/core';
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api';
-import { API_VERSION, throwSandboxError } from './util';
+import { API_VERSION, SandboxBusyError, throwSandboxError } from './util';
 
 export const ExecuteRequestSchema = z
 	.object({
@@ -86,13 +86,36 @@ export async function sandboxExecute(
 	const queryString = queryParams.toString();
 	const url = `/sandbox/${API_VERSION}/${sandboxId}/execute${queryString ? `?${queryString}` : ''}`;
 
-	const resp = await client.post<z.infer<typeof ExecuteResponseSchema>>(
-		url,
-		body,
-		ExecuteResponseSchema,
-		ExecuteRequestSchema,
-		signal ?? options.signal
-	);
+	let resp: z.infer<typeof ExecuteResponseSchema>;
+	try {
+		resp = await client.post<z.infer<typeof ExecuteResponseSchema>>(
+			url,
+			body,
+			ExecuteResponseSchema,
+			ExecuteRequestSchema,
+			signal ?? options.signal
+		);
+	} catch (error: unknown) {
+		// Detect 409 Conflict (sandbox busy) and throw a specific error.
+		// The sandbox API client is configured with maxRetries: 0 to fail fast
+		// when sandbox is busy (retrying wouldn't help - sandbox is still busy).
+		// Convert APIErrorResponse with status 409 to SandboxBusyError for clarity.
+		if (
+			error &&
+			typeof error === 'object' &&
+			'_tag' in error &&
+			(error as { _tag: string })._tag === 'APIErrorResponse' &&
+			'status' in error &&
+			(error as { status: number }).status === 409
+		) {
+			throw new SandboxBusyError({
+				message:
+					'Sandbox is currently busy executing another command. Please wait for the current execution to complete before submitting a new one.',
+				sandboxId,
+			});
+		}
+		throw error;
+	}
 
 	if (resp.success) {
 		return {
