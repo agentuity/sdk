@@ -1,35 +1,20 @@
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createSubcommand, type CommandContext } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
+import {
+	type ClaudeSettings,
+	CLAUDE_DIR,
+	CLAUDE_SETTINGS_FILE,
+	PLUGIN_INSTALL_DIR,
+	AGENTUITY_ALLOW_PERMISSIONS,
+	AGENTUITY_DENY_PERMISSIONS,
+} from './constants';
 
-const CLAUDE_DIR = join(homedir(), '.claude');
-const CLAUDE_SETTINGS_FILE = join(CLAUDE_DIR, 'settings.local.json');
-const PLUGIN_INSTALL_DIR = join(homedir(), '.agentuity', 'plugins', 'claude-code');
-
-interface ClaudeSettings {
-	permissions?: {
-		allow?: string[];
-		deny?: string[];
-	};
-	pluginDirs?: string[];
-	[key: string]: unknown;
-}
-
-const AGENTUITY_ALLOW_PERMISSIONS = ['Bash(agentuity cloud *)', 'Bash(agentuity auth whoami *)'];
-
-const AGENTUITY_DENY_PERMISSIONS = [
-	'Bash(agentuity cloud secrets *)',
-	'Bash(agentuity cloud secret *)',
-	'Bash(agentuity cloud apikey *)',
-	'Bash(agentuity auth token *)',
-];
-
-function readClaudeSettings(): ClaudeSettings {
+async function readClaudeSettings(): Promise<ClaudeSettings> {
 	try {
-		if (existsSync(CLAUDE_SETTINGS_FILE)) {
+		if (await Bun.file(CLAUDE_SETTINGS_FILE).exists()) {
 			const content = readFileSync(CLAUDE_SETTINGS_FILE, 'utf-8');
 			return JSON.parse(content);
 		}
@@ -40,9 +25,7 @@ function readClaudeSettings(): ClaudeSettings {
 }
 
 function writeClaudeSettings(settings: ClaudeSettings): void {
-	if (!existsSync(CLAUDE_DIR)) {
-		mkdirSync(CLAUDE_DIR, { recursive: true });
-	}
+	mkdirSync(CLAUDE_DIR, { recursive: true });
 	writeFileSync(CLAUDE_SETTINGS_FILE, JSON.stringify(settings, null, 2) + '\n');
 }
 
@@ -77,12 +60,10 @@ function configurePermissions(settings: ClaudeSettings): number {
 }
 
 async function installPackage(logger: { debug: (msg: string) => void }): Promise<string | null> {
-	if (!existsSync(PLUGIN_INSTALL_DIR)) {
-		mkdirSync(PLUGIN_INSTALL_DIR, { recursive: true });
-	}
+	mkdirSync(PLUGIN_INSTALL_DIR, { recursive: true });
 
 	const packageJsonPath = join(PLUGIN_INSTALL_DIR, 'package.json');
-	if (!existsSync(packageJsonPath)) {
+	if (!(await Bun.file(packageJsonPath).exists())) {
 		writeFileSync(
 			packageJsonPath,
 			JSON.stringify({ name: 'agentuity-claude-code-plugin', private: true }, null, 2)
@@ -99,7 +80,7 @@ async function installPackage(logger: { debug: (msg: string) => void }): Promise
 	await proc.exited;
 
 	const pluginPath = join(PLUGIN_INSTALL_DIR, 'node_modules', '@agentuity', 'claude-code');
-	if (existsSync(join(pluginPath, '.claude-plugin', 'plugin.json'))) {
+	if (await Bun.file(join(pluginPath, '.claude-plugin', 'plugin.json')).exists()) {
 		return pluginPath;
 	}
 
@@ -135,18 +116,19 @@ export const installSubcommand = createSubcommand({
 		const pluginPath = await installPackage(logger);
 
 		if (!pluginPath) {
-			if (!jsonMode) {
-				tui.error('Failed to install @agentuity/claude-code package');
-				tui.info('Make sure bun is installed and try again');
+			if (jsonMode) {
+				return { success: false, orgId, error: 'Failed to install package' };
 			}
-			return { success: false, orgId };
+			logger.fatal(
+				'Failed to install @agentuity/claude-code package. Make sure bun is installed and try again'
+			);
 		}
 
 		if (!jsonMode) {
 			tui.success(`Plugin installed to: ${pluginPath}`);
 		}
 
-		const settings = readClaudeSettings();
+		const settings = await readClaudeSettings();
 
 		const permissionsAdded = configurePermissions(settings);
 		if (permissionsAdded > 0) {

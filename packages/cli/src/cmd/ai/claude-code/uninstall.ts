@@ -1,30 +1,14 @@
-import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-import { createSubcommand } from '../../../types';
+import { readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { createSubcommand, type CommandContext } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
-
-const CLAUDE_DIR = join(homedir(), '.claude');
-const CLAUDE_SETTINGS_FILE = join(CLAUDE_DIR, 'settings.local.json');
-const PLUGIN_INSTALL_DIR = join(homedir(), '.agentuity', 'plugins', 'claude-code');
-
-interface ClaudeSettings {
-	permissions?: {
-		allow?: string[];
-		deny?: string[];
-	};
-	[key: string]: unknown;
-}
-
-const AGENTUITY_ALLOW_PERMISSIONS = ['Bash(agentuity cloud *)', 'Bash(agentuity auth whoami *)'];
-
-const AGENTUITY_DENY_PERMISSIONS = [
-	'Bash(agentuity cloud secrets *)',
-	'Bash(agentuity cloud secret *)',
-	'Bash(agentuity cloud apikey *)',
-	'Bash(agentuity auth token *)',
-];
+import {
+	type ClaudeSettings,
+	CLAUDE_SETTINGS_FILE,
+	PLUGIN_INSTALL_DIR,
+	AGENTUITY_ALLOW_PERMISSIONS,
+	AGENTUITY_DENY_PERMISSIONS,
+} from './constants';
 
 export const uninstallSubcommand = createSubcommand({
 	name: 'uninstall',
@@ -36,7 +20,7 @@ export const uninstallSubcommand = createSubcommand({
 			description: 'Uninstall Agentuity Coder plugin for Claude Code',
 		},
 	],
-	async handler(ctx) {
+	async handler(ctx: CommandContext) {
 		const { options } = ctx;
 		const jsonMode = !!options?.json;
 
@@ -49,7 +33,7 @@ export const uninstallSubcommand = createSubcommand({
 		let removedPlugin = false;
 		let removedPermissions = false;
 
-		if (existsSync(PLUGIN_INSTALL_DIR)) {
+		if (await Bun.file(`${PLUGIN_INSTALL_DIR}/package.json`).exists()) {
 			try {
 				rmSync(PLUGIN_INSTALL_DIR, { recursive: true, force: true });
 				removedPlugin = true;
@@ -67,7 +51,7 @@ export const uninstallSubcommand = createSubcommand({
 			}
 		}
 
-		if (existsSync(CLAUDE_SETTINGS_FILE)) {
+		if (await Bun.file(CLAUDE_SETTINGS_FILE).exists()) {
 			try {
 				const content = readFileSync(CLAUDE_SETTINGS_FILE, 'utf-8');
 				const settings: ClaudeSettings = JSON.parse(content);
