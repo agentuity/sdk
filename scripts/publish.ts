@@ -459,7 +459,7 @@ const CONTRIBUTORS: Record<string, string> = {
 	'Matt Congrove': 'https://github.com/mcongrove',
 	'Robin Diddams': 'https://github.com/robindiddams',
 	'Pedro Enrique': 'https://github.com/pec1985',
-	'Gabriel Rodqigues Campos': 'https://github.com/Huijiro',
+	'Gabriel Rodrigues Campos': 'https://github.com/Huijiro',
 	'Parteek Singh': 'https://github.com/parteeksingh24',
 	'Jason Walkow': 'https://github.com/jsw324',
 	'Nicholas Mirigliani': 'https://github.com/NobbyBop',
