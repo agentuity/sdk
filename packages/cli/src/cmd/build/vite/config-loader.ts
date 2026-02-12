@@ -96,13 +96,15 @@ const FRAMEWORK_PLUGIN_PREFIXES = [
  * importing every possible framework just to compare names.
  */
 export function hasFrameworkPlugin(userPlugins: import('vite').PluginOption[]): boolean {
-	const flat = (userPlugins as any[]).flat(Infinity).filter(Boolean);
+	const flat = (userPlugins as unknown[]).flat(Infinity).filter(Boolean);
 	return flat.some(
-		(p: any) =>
+		(p: unknown) =>
 			p &&
 			typeof p === 'object' &&
 			'name' in p &&
-			typeof p.name === 'string' &&
-			FRAMEWORK_PLUGIN_PREFIXES.some((prefix) => p.name.startsWith(prefix))
+			typeof (p as { name: unknown }).name === 'string' &&
+			FRAMEWORK_PLUGIN_PREFIXES.some((prefix) =>
+				((p as { name: string }).name).startsWith(prefix)
+			)
 	);
 }
