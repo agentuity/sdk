@@ -12,7 +12,7 @@ import {
 	toCamelCase,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
-import { TraceState } from '@opentelemetry/core';
+import { enrichContextWithTraceState } from './otel/tracestate';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Handler } from 'hono/types';
 import { validator } from 'hono/validator';
@@ -2390,13 +2390,12 @@ const runWithAgentContext = async <T>(agentId: string, handler: () => Promise<T>
 		return handler();
 	}
 
-	const currentSpanContext = activeSpan.spanContext();
-	const existingTraceState = currentSpanContext.traceState ?? new TraceState();
-	const updatedTraceState = existingTraceState.set('aid', agentId);
-
-	const contextWithAgentId = trace.setSpanContext(currentContext, {
-		...currentSpanContext,
-		traceState: updatedTraceState,
+	// Enrich the context's traceState with the agent ID so it propagates
+	// to downstream calls. Note: this does NOT affect the active recording
+	// span's exported traceState (that was set at span creation). This only
+	// affects propagation context for outbound requests.
+	const contextWithAgentId = enrichContextWithTraceState(currentContext, {
+		aid: agentId,
 	});
 
 	return context.with(contextWithAgentId, handler);
@@ -2414,7 +2413,24 @@ const runWithSpan = async <
 	handler: () => Promise<T>
 ): Promise<T> => {
 	const currentContext = context.active();
-	const span = tracer.startSpan('agent.run', {}, currentContext);
+
+	// Build enriched traceState BEFORE span creation so the recording span
+	// inherits it and it gets exported to OTLP. This ensures the agent ID
+	// and other metadata appear in ClickHouse TraceState column.
+	const deploymentId = runtimeConfig.getDeploymentId();
+	const projectId = runtimeConfig.getProjectId();
+	const orgId = runtimeConfig.getOrganizationId();
+	const isDevMode = runtimeConfig.isDevMode();
+
+	const enrichedContext = enrichContextWithTraceState(currentContext, {
+		aid: agent.metadata.id,
+		did: deploymentId,
+		pid: projectId,
+		oid: orgId,
+		d: isDevMode ? '1' : undefined,
+	});
+
+	const span = tracer.startSpan('agent.run', {}, enrichedContext);
 
 	// Set agent attributes on the span immediately after creation
 	span.setAttributes({
@@ -2432,37 +2448,12 @@ const runWithSpan = async <
 	_ctx.set('agentRunSpanId', spanId);
 
 	try {
-		// Create a new context with the span and updated trace state including agent id
+		// Create a new context with the span active.
+		// The span already carries the enriched traceState (inherited from
+		// enrichedContext), so downstream API calls via propagation.inject()
+		// will see aid/pid/oid/did/d.
 		const spanContext = trace.setSpan(currentContext, span);
-
-		// Update trace state with agent identifier (aid) and other context so downstream API calls
-		// (e.g., sandbox, AI gateway) can associate operations with this agent and session.
-		// The trace state is scoped to this execution, so when the agent finishes, the parent
-		// context's trace state is automatically restored.
-		const currentSpanContext = span.spanContext();
-		let updatedTraceState = currentSpanContext.traceState ?? new TraceState();
-
-		// Add agent ID
-		updatedTraceState = updatedTraceState.set('aid', agent.metadata.id);
-
-		// Add deployment ID, project ID, org ID, and devmode if available
-		const deploymentId = runtimeConfig.getDeploymentId();
-		const projectId = runtimeConfig.getProjectId();
-		const orgId = runtimeConfig.getOrganizationId();
-		const isDevMode = runtimeConfig.isDevMode();
-
-		if (deploymentId) updatedTraceState = updatedTraceState.set('did', deploymentId);
-		if (projectId) updatedTraceState = updatedTraceState.set('pid', projectId);
-		if (orgId) updatedTraceState = updatedTraceState.set('oid', orgId);
-		if (isDevMode) updatedTraceState = updatedTraceState.set('d', '1');
-
-		// Create context with both the span and the updated trace state
-		const contextWithAgentId = trace.setSpanContext(spanContext, {
-			...currentSpanContext,
-			traceState: updatedTraceState,
-		});
-
-		return await context.with(contextWithAgentId, handler);
+		return await context.with(spanContext, handler);
 	} catch (error) {
 		span.recordException(error as Error);
 		span.setStatus({ code: SpanStatusCode.ERROR });
