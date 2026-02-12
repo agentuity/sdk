@@ -1,4 +1,4 @@
-import { context, trace, TraceFlags, type Context } from '@opentelemetry/api';
+import { trace, TraceFlags, type Context } from '@opentelemetry/api';
 import { TraceState } from '@opentelemetry/core';
 
 /**

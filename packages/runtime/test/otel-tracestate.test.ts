@@ -9,7 +9,7 @@
  */
 
 import { test, expect, describe, afterAll } from 'bun:test';
-import { context, trace, TraceFlags, ROOT_CONTEXT, type SpanContext } from '@opentelemetry/api';
+import { context, trace, TraceFlags, ROOT_CONTEXT } from '@opentelemetry/api';
 import { TraceState } from '@opentelemetry/core';
 import {
 	BasicTracerProvider,
@@ -43,6 +43,7 @@ context.setGlobalContextManager({
 		fn: T,
 	): T {
 		if (typeof fn === 'function') {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 			return ((...args: unknown[]) => als.run(ctx, () => (fn as Function)(...args))) as T;
 		}
 		return fn;
