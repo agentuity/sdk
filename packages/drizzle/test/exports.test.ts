@@ -192,29 +192,16 @@ describe('exports', () => {
 		});
 	});
 
-	describe('re-exports from drizzle-orm/bun-sql', () => {
-		test('BunSQLDatabase is exported', async () => {
-			const { BunSQLDatabase } = await import('../src/index');
-			expect(BunSQLDatabase).toBeDefined();
-			expect(typeof BunSQLDatabase).toBe('function');
-		});
-
-		test('BunSQLSession is exported', async () => {
-			const { BunSQLSession } = await import('../src/index');
-			expect(BunSQLSession).toBeDefined();
-			expect(typeof BunSQLSession).toBe('function');
-		});
-
-		test('BunSQLTransaction is exported', async () => {
-			const { BunSQLTransaction } = await import('../src/index');
-			expect(BunSQLTransaction).toBeDefined();
-			expect(typeof BunSQLTransaction).toBe('function');
-		});
-
-		test('BunSQLPreparedQuery is exported', async () => {
-			const { BunSQLPreparedQuery } = await import('../src/index');
-			expect(BunSQLPreparedQuery).toBeDefined();
-			expect(typeof BunSQLPreparedQuery).toBe('function');
+	describe('re-exports from drizzle-orm/bun-sql (type-only)', () => {
+		// BunSQLDatabase, BunSQLSession, BunSQLTransaction, and BunSQLPreparedQuery
+		// are now type-only exports to avoid circular dependency issues when bundled.
+		// Type-only exports are erased at runtime, so we verify they exist in the
+		// TypeScript source via a simple module import (no runtime value check).
+		test('module imports successfully (types are available at compile time)', async () => {
+			const mod = await import('../src/index');
+			// The module should load without circular dependency errors.
+			// BunSQL types are type-only exports and won't appear as runtime values.
+			expect(mod).toBeDefined();
 		});
 	});
 

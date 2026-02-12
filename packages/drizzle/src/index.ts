@@ -74,13 +74,8 @@ export {
 	relations,
 } from 'drizzle-orm';
 
-// Re-export Bun SQL driver types for compatibility
-export {
-	BunSQLDatabase,
-	BunSQLPreparedQuery,
-	BunSQLSession,
-	BunSQLTransaction,
-} from 'drizzle-orm/bun-sql';
+// Re-export Bun SQL driver types for compatibility (type-only to avoid circular dependency)
+export type { BunSQLDatabase, BunSQLPreparedQuery, BunSQLSession, BunSQLTransaction } from 'drizzle-orm/bun-sql';
 
 // Re-export pg-core table and column definitions
 export {
