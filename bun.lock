@@ -35,7 +35,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -45,7 +45,7 @@
     },
     "apps/docs": {
       "name": "docs",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/evals": "workspace:*",
@@ -89,7 +89,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "1.0.8",
+      "version": "1.0.9",
     },
     "apps/testing/auth-package-app": {
       "name": "auth-package-app",
@@ -332,7 +332,7 @@
     },
     "packages/auth": {
       "name": "@agentuity/auth",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/drizzle": "workspace:*",
         "better-auth": "^1.4.9",
@@ -358,7 +358,7 @@
     },
     "packages/claude-code": {
       "name": "@agentuity/claude-code",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "devDependencies": {
         "@types/bun": "latest",
         "bun-types": "latest",
@@ -367,7 +367,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -407,7 +407,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "zod": "^4.3.5",
       },
@@ -421,7 +421,7 @@
     },
     "packages/drizzle": {
       "name": "@agentuity/drizzle",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/postgres": "workspace:*",
         "better-auth": "^1.4.9",
@@ -436,7 +436,7 @@
     },
     "packages/evals": {
       "name": "@agentuity/evals",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/runtime": "workspace:*",
@@ -453,7 +453,7 @@
     },
     "packages/frontend": {
       "name": "@agentuity/frontend",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -466,7 +466,7 @@
     },
     "packages/opencode": {
       "name": "@agentuity/opencode",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@opencode-ai/plugin": "^1.1.36",
@@ -482,7 +482,7 @@
     },
     "packages/postgres": {
       "name": "@agentuity/postgres",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "pg": "^8.13.1",
@@ -505,7 +505,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/frontend": "workspace:*",
@@ -524,7 +524,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/auth": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -565,7 +565,7 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -578,7 +578,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
@@ -594,7 +594,7 @@
     },
     "packages/test-utils": {
       "name": "@agentuity/test-utils",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -604,7 +604,7 @@
     },
     "packages/vscode": {
       "name": "agentuity-vscode",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
         "tar": "^7.4.3",
@@ -618,7 +618,7 @@
     },
     "packages/workbench": {
       "name": "@agentuity/workbench",
-      "version": "1.0.8",
+      "version": "1.0.9",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
@@ -1068,9 +1068,9 @@
 
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
 
-    "@opencode-ai/plugin": ["@opencode-ai/plugin@1.1.60", "", { "dependencies": { "@opencode-ai/sdk": "1.1.60", "zod": "4.1.8" } }, "sha512-/lCaBZPczRt6znMGF8rFwJbfFo1hHIy+fQXASKCTEpxNX7JISYCWPhchdxAv6HZ+r0CZGORGFG5CWcnFvGQAZQ=="],
+    "@opencode-ai/plugin": ["@opencode-ai/plugin@1.1.61", "", { "dependencies": { "@opencode-ai/sdk": "1.1.61", "zod": "4.1.8" } }, "sha512-NspBDob+LScGwmrBFUiG4AU/b0acBx/H68d24Zg8lUw5aH8320MK3bwg0jC3/AhT/q0nj+PuaRO1GhClFm+Olw=="],
 
-    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.1.60", "", {}, "sha512-RVbQQCXLr1yXCYnlYiIF0t4lMUPCh4x2EU/FfvnfiDaBAwKOoIvQUjZd+AXSpjbConum6Wa2PzV65waFhtix1w=="],
+    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.1.61", "", {}, "sha512-rOAX1dVzwxxZOFTtY3uMvRhBB4IrGOPiCScyxhcV/3mpaRYw6O+CqjJdoQ5lHvXIVfuW4FQZ2gsImn2xUtrE/Q=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 
@@ -1864,7 +1864,7 @@
 
     "bare-events": ["bare-events@2.8.2", "", { "peerDependencies": { "bare-abort-controller": "*" }, "optionalPeers": ["bare-abort-controller"] }, "sha512-riJjyv1/mHLIPX4RwiK+oW9/4c3TEUeORHKefKAKnZ5kyslbN+HXowtbaVEqt4IMUB7OXlfixcs6gsFeo/jhiQ=="],
 
-    "bare-fs": ["bare-fs@4.5.3", "", { "dependencies": { "bare-events": "^2.5.4", "bare-path": "^3.0.0", "bare-stream": "^2.6.4", "bare-url": "^2.2.2", "fast-fifo": "^1.3.2" }, "peerDependencies": { "bare-buffer": "*" }, "optionalPeers": ["bare-buffer"] }, "sha512-9+kwVx8QYvt3hPWnmb19tPnh38c6Nihz8Lx3t0g9+4GoIf3/fTgYwM4Z6NxgI+B9elLQA7mLE9PpqcWtOMRDiQ=="],
+    "bare-fs": ["bare-fs@4.5.4", "", { "dependencies": { "bare-events": "^2.5.4", "bare-path": "^3.0.0", "bare-stream": "^2.6.4", "bare-url": "^2.2.2", "fast-fifo": "^1.3.2" }, "peerDependencies": { "bare-buffer": "*" }, "optionalPeers": ["bare-buffer"] }, "sha512-POK4oplfA7P7gqvetNmCs4CNtm9fNsx+IAh7jH7GgU0OJdge2rso0R20TNWVq6VoWcCvsTdlNDaleLHGaKx8CA=="],
 
     "bare-os": ["bare-os@3.6.2", "", {}, "sha512-T+V1+1srU2qYNBmJCXZkUY5vQ0B4FSlL3QDROnKQYOqeiQR8UbjNHlPa+TIbM4cuidiN9GaTaOZgSEgsvPbh5A=="],
 
@@ -3752,7 +3752,7 @@
 
     "cloud-deployment-tests/@vitejs/plugin-react": ["@vitejs/plugin-react@4.7.0", "", { "dependencies": { "@babel/core": "^7.28.0", "@babel/plugin-transform-react-jsx-self": "^7.27.1", "@babel/plugin-transform-react-jsx-source": "^7.27.1", "@rolldown/pluginutils": "1.0.0-beta.27", "@types/babel__core": "^7.20.5", "react-refresh": "^0.17.0" }, "peerDependencies": { "vite": "^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, "sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA=="],
 
-    "create-agentuity/@agentuity/cli": ["@agentuity/cli@1.0.7", "", { "dependencies": { "@agentuity/auth": "1.0.7", "@agentuity/core": "1.0.7", "@agentuity/frontend": "1.0.7", "@agentuity/server": "1.0.7", "@datasert/cronjs-parser": "^1.4.0", "@terascope/fetch-github-release": "^2.2.1", "@vitejs/plugin-react": "^5.1.2", "acorn-loose": "^8.5.2", "adm-zip": "^0.5.16", "astring": "^1.9.0", "cli-table3": "^0.6.5", "commander": "^14.0.2", "enquirer": "^2.4.1", "git-url-parse": "^16.1.0", "json-colorizer": "^3.0.1", "json5": "^2.2.3", "tar": "^7.5.2", "tar-fs": "^3.1.1", "typescript": "^5.9.0", "vite": "^7.2.7", "zod": "^4.3.5" }, "bin": { "agentuity": "bin/cli.ts" } }, "sha512-L5j+insNJQbkEK07yP7FnouUm9EkZ3lqZ+3sny+r+J77I1LOsJvnjQ7oMiQkZneZRbugsj7C82MnFyGd/V2row=="],
+    "create-agentuity/@agentuity/cli": ["@agentuity/cli@1.0.8", "", { "dependencies": { "@agentuity/auth": "1.0.8", "@agentuity/core": "1.0.8", "@agentuity/frontend": "1.0.8", "@agentuity/server": "1.0.8", "@datasert/cronjs-parser": "^1.4.0", "@terascope/fetch-github-release": "^2.2.1", "@vitejs/plugin-react": "^5.1.2", "acorn-loose": "^8.5.2", "adm-zip": "^0.5.16", "astring": "^1.9.0", "cli-table3": "^0.6.5", "commander": "^14.0.2", "enquirer": "^2.4.1", "git-url-parse": "^16.1.0", "json-colorizer": "^3.0.1", "json5": "^2.2.3", "tar": "^7.5.2", "tar-fs": "^3.1.1", "typescript": "^5.9.0", "vite": "^7.2.7", "zod": "^4.3.5" }, "bin": { "agentuity": "bin/cli.ts" } }, "sha512-emXQAZFEOeHBkfbMDsOOhh1Uv32WYQW8vP29ri82gRTgmvOtI6nRyhvgaWPYSpEcmFIa2jjQgCd4AKatSE5DHw=="],
 
     "cssstyle/lru-cache": ["lru-cache@11.2.6", "", {}, "sha512-ESL2CrkS/2wTPfuend7Zhkzo2u0daGJ/A2VucJOgQ/C48S/zB8MMeMHSGKYpXhIjbPxfuezITkaBH1wqv00DDQ=="],
 
@@ -3970,13 +3970,13 @@
 
     "cloud-deployment-tests/@vitejs/plugin-react/react-refresh": ["react-refresh@0.17.0", "", {}, "sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ=="],
 
-    "create-agentuity/@agentuity/cli/@agentuity/auth": ["@agentuity/auth@1.0.7", "", { "dependencies": { "@agentuity/drizzle": "1.0.7", "better-auth": "^1.4.9" }, "peerDependencies": { "@agentuity/react": "1.0.7", "@opentelemetry/api": "^1.9.0", "drizzle-orm": ">=0.44.0", "hono": "^4.0.0", "react": "^18.0.0 || ^19.0.0" } }, "sha512-n2WPyPJKIESJi0BjqCwCmuFjtSsQydURKRo1t7vxb5NPtmY8bm/ab5Ksiiek3lMmZBe/c21eTFVif4O7ixXavw=="],
+    "create-agentuity/@agentuity/cli/@agentuity/auth": ["@agentuity/auth@1.0.8", "", { "dependencies": { "@agentuity/drizzle": "1.0.8", "better-auth": "^1.4.9" }, "peerDependencies": { "@agentuity/react": "1.0.8", "@opentelemetry/api": "^1.9.0", "drizzle-orm": ">=0.44.0", "hono": "^4.0.0", "react": "^18.0.0 || ^19.0.0" } }, "sha512-175xLkvGomxADA1+dxO0QUuffLaqoLOquJp23ATn0+eaJBWNiBa7SXoSP44jX8obZvt36yENpGSE82IpKx0H5g=="],
 
-    "create-agentuity/@agentuity/cli/@agentuity/core": ["@agentuity/core@1.0.7", "", { "dependencies": { "zod": "^4.3.5" } }, "sha512-9FxTxJBvURMd9nlEABqCFBxoWix+IqhRMyic9CEWG7p7eN51er/s2RIw6cXBOvjimr4lxI2chqA7ho8Ir32N1g=="],
+    "create-agentuity/@agentuity/cli/@agentuity/core": ["@agentuity/core@1.0.8", "", { "dependencies": { "zod": "^4.3.5" } }, "sha512-jd8+Zl3bCSHbUf+PZEnK88WgVi8OhgZ2/30PPLiP8RMxNN9sPRNiGueA+9cBg20ly6oeohKhlV5qk8QdTfu+0w=="],
 
-    "create-agentuity/@agentuity/cli/@agentuity/frontend": ["@agentuity/frontend@1.0.7", "", { "dependencies": { "@agentuity/core": "1.0.7" } }, "sha512-G0U+XA9l9J+qhS9JEmYMxS4tM68wpFZK8VgRp9c/fxqADJxqdVbDo1aq1EDjj8kJt2alG9D8h+UWmfK8ZUYIBg=="],
+    "create-agentuity/@agentuity/cli/@agentuity/frontend": ["@agentuity/frontend@1.0.8", "", { "dependencies": { "@agentuity/core": "1.0.8" } }, "sha512-JDoDPOpUPXdNNZRYqI8sMQmbiTCBcU702qz/MELoM65EecHeNtHTPgRRhGlpdjSdEd3XEF1v25WzqIvoJ55gKQ=="],
 
-    "create-agentuity/@agentuity/cli/@agentuity/server": ["@agentuity/server@1.0.7", "", { "dependencies": { "@agentuity/core": "1.0.7", "@agentuity/schema": "1.0.7", "zod": "^4.3.5" } }, "sha512-N/mtumNSjmGQj2uvi1khr2B9Qo+SySk9KdmIol3IYqR2jSJ1TBZJ1tQaXLzYZLAesU+pWZ73PkV76Xrd8nlJoA=="],
+    "create-agentuity/@agentuity/cli/@agentuity/server": ["@agentuity/server@1.0.8", "", { "dependencies": { "@agentuity/core": "1.0.8", "@agentuity/schema": "1.0.8", "zod": "^4.3.5" } }, "sha512-t9xK3vhruHzc/iptgG8XF2oIsQhYeV8p5+mdHikoas9wDwKchoid8TQjtBcMLWT2J9FerkE6fdk+fsl3CPSfmA=="],
 
     "cytoscape-fcose/cose-base/layout-base": ["layout-base@2.0.1", "", {}, "sha512-dp3s92+uNI1hWIpPGH3jK2kxE2lMjdXdr+DH8ynZHpd6PUlH6x6cbuXnoMmiNumznqaNO31xu9e79F0uuZ0JFg=="],
 
@@ -4098,9 +4098,9 @@
 
     "@terascope/fetch-github-release/yargs/string-width/strip-ansi": ["strip-ansi@7.1.2", "", { "dependencies": { "ansi-regex": "^6.0.1" } }, "sha512-gmBGslpoQJtgnMAvOVqGZpEz9dyoKTCzy2nfz/n8aIFhN/jCE/rCmcxabB6jOOHV+0WNnylOxaxBQPSvcWklhA=="],
 
-    "create-agentuity/@agentuity/cli/@agentuity/auth/@agentuity/drizzle": ["@agentuity/drizzle@1.0.7", "", { "dependencies": { "@agentuity/postgres": "1.0.7", "better-auth": "^1.4.9", "drizzle-orm": "^0.45.0" } }, "sha512-fZrzGZTPBQp6GN1G/p2sCMjQ6z5TsJCK/Tys/dfH4qrS21OVIPefSI9FQGilq7vP5WnE+ri+DI1CmF/MJzizAw=="],
+    "create-agentuity/@agentuity/cli/@agentuity/auth/@agentuity/drizzle": ["@agentuity/drizzle@1.0.8", "", { "dependencies": { "@agentuity/postgres": "1.0.8", "better-auth": "^1.4.9", "drizzle-orm": "^0.45.0" } }, "sha512-6EExEZQfzO2x3mpR3gZxX4GY4ZfhbtdOw7G3a+6trar/4ASica0gKSya4BSLOFpd8bdOJBJgUj0L+fWYuyUTdA=="],
 
-    "create-agentuity/@agentuity/cli/@agentuity/server/@agentuity/schema": ["@agentuity/schema@1.0.7", "", { "dependencies": { "@agentuity/core": "1.0.7" } }, "sha512-o9Ar33MQCGQFqdMDP9xV5LCGolEk9HWPL9E4c2gXhocIPxa4eN2684GaAIJpRrJX0/HKcTAJpSt2OYDMvykK+Q=="],
+    "create-agentuity/@agentuity/cli/@agentuity/server/@agentuity/schema": ["@agentuity/schema@1.0.8", "", { "dependencies": { "@agentuity/core": "1.0.8" } }, "sha512-Mv63Gs27WPOrMJ5WD4DRG9pBn0a2YC/2eQsJOEYsAVxoBz/jWzzU10SCT4LDl3ITqwdsMJ6NmPUP737EFb59YA=="],
 
     "@terascope/fetch-github-release/yargs/cliui/strip-ansi/ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
 
@@ -4108,7 +4108,7 @@
 
     "@terascope/fetch-github-release/yargs/string-width/strip-ansi/ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
 
-    "create-agentuity/@agentuity/cli/@agentuity/auth/@agentuity/drizzle/@agentuity/postgres": ["@agentuity/postgres@1.0.7", "", { "dependencies": { "@agentuity/core": "1.0.7", "pg": "^8.13.1" }, "peerDependencies": { "@agentuity/runtime": "1.0.7" }, "optionalPeers": ["@agentuity/runtime"] }, "sha512-FniuOsNjAggRJTopLpWHvX6Dl56CQfp/aU/eo4WQ9uNpli3myahv+0sujpVyjYAXEJ7Piaw7PygsTK0j57136w=="],
+    "create-agentuity/@agentuity/cli/@agentuity/auth/@agentuity/drizzle/@agentuity/postgres": ["@agentuity/postgres@1.0.8", "", { "dependencies": { "@agentuity/core": "1.0.8", "pg": "^8.13.1" }, "peerDependencies": { "@agentuity/runtime": "1.0.8" }, "optionalPeers": ["@agentuity/runtime"] }, "sha512-uHSh1jgBVbjSdzx00HuWfY2Y30joEEJrUp1zs2zpOro5vETCZQX7eT0pY46qGUB+gPHH6lWRGikcfMgXUYr2RA=="],
 
     "create-agentuity/@agentuity/cli/@agentuity/auth/@agentuity/drizzle/drizzle-orm": ["drizzle-orm@0.45.1", "", { "peerDependencies": { "@aws-sdk/client-rds-data": ">=3", "@cloudflare/workers-types": ">=4", "@electric-sql/pglite": ">=0.2.0", "@libsql/client": ">=0.10.0", "@libsql/client-wasm": ">=0.10.0", "@neondatabase/serverless": ">=0.10.0", "@op-engineering/op-sqlite": ">=2", "@opentelemetry/api": "^1.4.1", "@planetscale/database": ">=1.13", "@prisma/client": "*", "@tidbcloud/serverless": "*", "@types/better-sqlite3": "*", "@types/pg": "*", "@types/sql.js": "*", "@upstash/redis": ">=1.34.7", "@vercel/postgres": ">=0.8.0", "@xata.io/client": "*", "better-sqlite3": ">=7", "bun-types": "*", "expo-sqlite": ">=14.0.0", "gel": ">=2", "knex": "*", "kysely": "*", "mysql2": ">=2", "pg": ">=8", "postgres": ">=3", "sql.js": ">=1", "sqlite3": ">=5" }, "optionalPeers": ["@aws-sdk/client-rds-data", "@cloudflare/workers-types", "@electric-sql/pglite", "@libsql/client", "@libsql/client-wasm", "@neondatabase/serverless", "@op-engineering/op-sqlite", "@opentelemetry/api", "@planetscale/database", "@prisma/client", "@tidbcloud/serverless", "@types/better-sqlite3", "@types/pg", "@types/sql.js", "@upstash/redis", "@vercel/postgres", "@xata.io/client", "better-sqlite3", "bun-types", "expo-sqlite", "gel", "knex", "kysely", "mysql2", "pg", "postgres", "sql.js", "sqlite3"] }, "sha512-Te0FOdKIistGNPMq2jscdqngBRfBpC8uMFVwqjf6gtTVJHIQ/dosgV/CLBU2N4ZJBsXL5savCba9b0YJskKdcA=="],
   }
