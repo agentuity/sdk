@@ -8,7 +8,7 @@ if (versionArgs.length === 1 && ['version', '-v', '--version', '-V'].includes(ve
 	process.exit(0);
 }
 
-import { ConsoleLogger } from '@agentuity/server';
+import { ConsoleLogger, getAppBaseURL } from '@agentuity/server';
 import { isStructuredError } from '@agentuity/core';
 import { createCLI, registerCommands } from '../src/cli';
 import { validateRuntime } from '../src/runtime';
@@ -20,6 +20,7 @@ import { getVersion, getPackageName } from '../src/version';
 
 import type { CommandContext, LogLevel } from '../src/types';
 import { generateCLISchema } from '../src/schema-generator';
+import { generateAIHelp } from '../src/ai-help';
 import { setOutputOptions } from '../src/output';
 import type { GlobalOptions } from '../src/types';
 import { ensureBunOnPath } from '../src/bun-path';
@@ -28,12 +29,7 @@ import { closeDatabase } from '../src/cache';
 import { createInternalLogger } from '../src/internal-logger';
 import { createCompositeLogger } from '../src/composite-logger';
 import { getAuth } from '../src/config';
-import {
-	startAgentDetection,
-	isExecutingFromAgent,
-	onAgentDetected,
-	flushAgentDetection,
-} from '../src/agent-detection';
+import { getExecutingAgent } from '../src/agent-detection';
 
 /**
  * Extract --dir flag from process.argv before command parsing
@@ -95,10 +91,6 @@ process.on('SIGTERM', () => {
 validateRuntime();
 await ensureBunOnPath();
 
-// Start agent detection early (non-blocking) so it runs in the background
-// while the rest of CLI initialization happens
-startAgentDetection();
-
 // Preprocess arguments to convert --help=json to --help json
 // Commander.js doesn't support --option=value syntax for optional values
 const preprocessedArgs = process.argv.slice(2).flatMap((arg) => {
@@ -126,6 +118,21 @@ if (
 	const commands = await discoverCommands();
 	const cliSchema = generateCLISchema(program, commands, version);
 	console.log(JSON.stringify(cliSchema, null, 2));
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
+	closeDatabase();
+	exit(0);
+}
+
+// Check for --ai-help early (dashdash format for AI agents)
+// This runs before auth/validation per dashdash spec "eager" requirement
+if (preprocessedArgs.includes('--ai-help')) {
+	const version = getVersion();
+	const program = await createCLI(version);
+	const commands = await discoverCommands();
+	const cliSchema = generateCLISchema(program, commands, version);
+	const aiHelp = generateAIHelp(cliSchema);
+	console.log(aiHelp);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
 	closeDatabase();
@@ -228,12 +235,11 @@ if (shouldSkipInternalLogging) {
 	// Set session ID in environment so forked child processes can share the same log file
 	process.env.AGENTUITY_INTERNAL_SESSION_ID = internalLogger.getSessionId();
 
-	// Register callback to update session with detected agent (non-blocking)
-	onAgentDetected((agent) => {
-		if (agent) {
-			internalLogger.setDetectedAgent(agent);
-		}
-	});
+	// Set detected agent in session logs
+	const detectedAgent = getExecutingAgent();
+	if (detectedAgent) {
+		internalLogger.setDetectedAgent(detectedAgent);
+	}
 }
 
 // Create composite logger that writes to both console and internal log
@@ -244,7 +250,7 @@ if (earlyOpts.skipVersionCheck) {
 	process.env.AGENTUITY_SKIP_VERSION_CHECK = '1';
 }
 
-const config = await loadConfig(earlyOpts.config);
+const config = await loadConfig(earlyOpts.config, false, earlyOpts.profile);
 
 // Update internal logger with userId if available from auth (keychain or config)
 try {
@@ -260,7 +266,7 @@ const ctx = {
 	config,
 	logger,
 	options: earlyOpts,
-	isExecutingFromAgent,
+	getExecutingAgent,
 };
 
 // Set global output options for utilities to use
@@ -293,8 +299,6 @@ await registerCommands(program, commands, ctx as unknown as CommandContext);
 
 try {
 	await program.parseAsync(process.argv);
-	// Flush agent detection to ensure it's written to session logs before exit
-	await flushAgentDetection();
 } catch (error) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
@@ -322,7 +326,28 @@ try {
 		closeDatabase();
 		exit(0);
 	}
-	const errorWithMessage = error as { message?: string };
+	const errorWithMessage = error as { message?: string; statusCode?: number; _tag?: string };
+
+	// Handle payment required (402) errors with a friendly TUI message
+	if (
+		isStructuredError(error) &&
+		((errorWithMessage._tag === 'ServiceException' && errorWithMessage.statusCode === 402) ||
+			errorWithMessage._tag === 'PaymentRequiredError')
+	) {
+		const { errorBox, link, newline } = await import('../src/tui');
+		const overrides = config?.overrides as { app_url?: string } | undefined;
+		const appBaseUrl = getAppBaseURL(undefined, overrides);
+		const billingUrl = `${appBaseUrl}/billing`;
+		newline();
+		errorBox(
+			'Out of Credit',
+			`Your organization is out of credit.\n\nPlease add more here:\n${link(billingUrl)}`,
+			false // standalone box, not connected to a guide
+		);
+		closeDatabase();
+		exit(1);
+	}
+
 	if (isStructuredError(error)) {
 		logger.error(error);
 	} else {

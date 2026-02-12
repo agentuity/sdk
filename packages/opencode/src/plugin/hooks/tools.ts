@@ -2,6 +2,7 @@ import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
 import { checkAuth } from '../../services/auth';
 import { entityId, getEntityContext } from '../../agents/memory/entities';
+import { agents } from '../../agents';
 
 export interface ToolHooks {
 	before: (input: unknown, output: unknown) => Promise<void>;
@@ -14,6 +15,15 @@ const CLOUD_TOOL_PREFIXES = [
 	'agentuity.vector',
 	'agentuity.sandbox',
 ];
+
+/**
+ * Escape a string for safe use in shell commands.
+ * Wraps in single quotes and escapes any internal single quotes.
+ */
+function shellEscape(str: string): string {
+	// Replace single quotes with '\'' (end quote, escaped quote, start quote)
+	return `'${str.replace(/'/g, "'\\''")}'`;
+}
 
 /**
  * Get the Agentuity profile to use for CLI commands.
@@ -74,20 +84,40 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 						return;
 					}
 
-					// Inject AGENTUITY_PROFILE environment variable
+					// Inject AGENTUITY_PROFILE and AGENTUITY_OPENCODE_SESSION environment variables
 					const profile = getCoderProfile();
+					const sessionId = (input as { sessionID?: string }).sessionID;
+
+					// Escape values for safe shell interpolation
+					const escapedProfile = shellEscape(profile);
+					const escapedSessionId = sessionId ? shellEscape(sessionId) : undefined;
+
 					let modifiedCommand: string;
 
 					// Check if AGENTUITY_PROFILE already exists (anywhere in the command)
-					if (/AGENTUITY_PROFILE=\S+/.test(command)) {
+					if (/AGENTUITY_PROFILE=(?:'[^']*'|\S+)/.test(command)) {
 						// Replace all existing AGENTUITY_PROFILE occurrences to enforce our profile
 						modifiedCommand = command.replace(
-							/AGENTUITY_PROFILE=\S+/g,
-							`AGENTUITY_PROFILE=${profile}`
+							/AGENTUITY_PROFILE=(?:'[^']*'|\S+)/g,
+							() => `AGENTUITY_PROFILE=${escapedProfile}`
 						);
+						// Add session ID and agent mode if not already present
+						if (
+							escapedSessionId &&
+							!modifiedCommand.includes('AGENTUITY_OPENCODE_SESSION=')
+						) {
+							modifiedCommand = `AGENTUITY_OPENCODE_SESSION=${escapedSessionId} ${modifiedCommand}`;
+						}
+						if (!modifiedCommand.includes('AGENTUITY_AGENT_MODE=')) {
+							modifiedCommand = `AGENTUITY_AGENT_MODE=opencode ${modifiedCommand}`;
+						}
 					} else {
-						// Prepend AGENTUITY_PROFILE
-						modifiedCommand = `AGENTUITY_PROFILE=${profile} ${command}`;
+						// Build environment variable prefix
+						let envVars = `AGENTUITY_PROFILE=${escapedProfile} AGENTUITY_AGENT_MODE=opencode`;
+						if (escapedSessionId) {
+							envVars += ` AGENTUITY_OPENCODE_SESSION=${escapedSessionId}`;
+						}
+						modifiedCommand = `${envVars} ${command}`;
 					}
 					setBashCommand(input, modifiedCommand);
 
@@ -104,6 +134,19 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 						} catch {
 							// Toast may not be available
 						}
+					}
+				}
+			}
+
+			// Normalize short agent role names to full display names for the Task tool
+			// This handles cases where the LLM passes "scout" instead of "Agentuity Coder Scout"
+			if (toolName === 'task') {
+				const out = output as { args?: Record<string, unknown> };
+				const subagentType = out.args?.subagent_type as string | undefined;
+				if (subagentType) {
+					const normalized = normalizeAgentName(subagentType);
+					if (normalized && normalized !== subagentType) {
+						out.args!.subagent_type = normalized;
 					}
 				}
 			}
@@ -196,4 +239,24 @@ function isBlockedCommand(command: string, blockedPatterns: string[]): string | 
 		}
 	}
 	return null;
+}
+
+/**
+ * Normalize a short agent role name to its full display name.
+ * Handles cases where the LLM passes "scout" instead of "Agentuity Coder Scout".
+ * Returns the normalized name, or undefined if no match found.
+ */
+function normalizeAgentName(name: string): string | undefined {
+	// First check if it already matches a display name (no normalization needed)
+	const allAgents = Object.values(agents);
+	if (allAgents.some((a) => a.displayName === name)) {
+		return name;
+	}
+	// Try matching by role (e.g., "scout" → "Agentuity Coder Scout")
+	const byRole = allAgents.find((a) => a.role === name);
+	if (byRole) return byRole.displayName;
+	// Try matching by id (e.g., "ag-scout" → "Agentuity Coder Scout")
+	const byId = allAgents.find((a) => a.id === name);
+	if (byId) return byId.displayName;
+	return undefined;
 }

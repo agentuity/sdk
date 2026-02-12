@@ -169,13 +169,15 @@ jobs:
          - name: Run cloud deployment tests
            run: bash scripts/test-cloud-deployment.sh
 
-         - name: Upload deployment logs
-           if: failure()
-           uses: actions/upload-artifact@v4
-           with:
-              name: deployment-logs
-              path: ~/.config/agentuity/logs/
-              if-no-files-found: ignore
+         # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
+         # - name: Upload deployment logs
+         #   if: failure()
+         #   uses: actions/upload-artifact@v4
+         #   with:
+         #      name: deployment-logs
+         #      path: ~/.config/agentuity/logs/
+         #      if-no-files-found: ignore
+         #      retention-days: 1
 
          - name: Cleanup
            if: always()
@@ -324,7 +326,7 @@ jobs:
 
    playwright-e2e-test:
       runs-on: blacksmith-4vcpu-ubuntu-2204
-      timeout-minutes: 10
+      timeout-minutes: 15
       name: Playwright E2E Smoke Test
       steps:
          - uses: actions/checkout@v4
@@ -339,21 +341,26 @@ jobs:
            run: bunx playwright install --with-deps chromium
 
          - name: Prepare SDK for testing
-           run: bash scripts/prepare-sdk-for-testing.sh
+           timeout-minutes: 5
+           run: bash scripts/prepare-sdk-for-testing.sh --packages-only
 
          - name: Install SDK in e2e-web
            run: bash scripts/install-sdk-tarballs.sh apps/testing/e2e-web
 
+         # No explicit build step needed: playwright.config.ts webServer starts
+         # "bun run dev" which compiles on-the-fly via Vite. A production build
+         # would be redundant since e2e tests run against the dev server.
          - name: Run Playwright E2E tests
-           run: bash scripts/test-e2e.sh
+           run: bun run test:e2e
 
-         - name: Upload Playwright report
-           uses: actions/upload-artifact@v4
-           if: always()
-           with:
-              name: playwright-report
-              path: playwright-report/
-              retention-days: 7
+         # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
+         # - name: Upload Playwright report
+         #   uses: actions/upload-artifact@v4
+         #   if: always()
+         #   with:
+         #      name: playwright-report
+         #      path: playwright-report/
+         #      retention-days: 1
 
    framework-demo-test:
       runs-on: blacksmith-4vcpu-ubuntu-2204
@@ -387,10 +394,11 @@ jobs:
            timeout-minutes: 8
            run: bash scripts/test-framework-demos.sh --skip-build
 
-         - name: Upload Playwright report
-           uses: actions/upload-artifact@v4
-           if: always()
-           with:
-              name: framework-demo-playwright-report
-              path: playwright-report/
-              retention-days: 7
+         # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
+         # - name: Upload Playwright report
+         #   uses: actions/upload-artifact@v4
+         #   if: always()
+         #   with:
+         #      name: framework-demo-playwright-report
+         #      path: playwright-report/
+         #      retention-days: 1

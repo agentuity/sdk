@@ -1,18 +1,16 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
-import { ThreadSchema } from './list';
+import { ThreadSchema, type Thread } from './list';
 import { ThreadResponseError } from './util';
 
-const _ThreadGetRequestSchema = z.object({
+export const _ThreadGetRequestSchema = z.object({
 	id: z.string().describe('the thread id'),
 });
 
-const ThreadGetResponseSchema = APIResponseSchema(ThreadSchema);
+export const ThreadGetResponseSchema = APIResponseSchema(ThreadSchema);
 
-type ThreadGetRequest = z.infer<typeof _ThreadGetRequestSchema>;
-type ThreadGetResponse = z.infer<typeof ThreadGetResponseSchema>;
-
-export type Thread = z.infer<typeof ThreadSchema>;
+export type ThreadGetRequest = z.infer<typeof _ThreadGetRequestSchema>;
+export type ThreadGetResponse = z.infer<typeof ThreadGetResponseSchema>;
 
 /**
  * Get a single thread by id

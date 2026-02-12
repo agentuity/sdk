@@ -1,8 +1,15 @@
 import { z } from 'zod';
+import { streamList, type StreamInfo } from '@agentuity/server';
+import { StructuredError } from '@agentuity/core';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
+
+const StreamListError = StructuredError('StreamListError')<{
+	namespace?: string;
+	projectId?: string;
+	orgId?: string;
+}>();
 
 const StreamInfoSchema = z.object({
 	id: z.string().describe('Stream ID'),
@@ -22,7 +29,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List recent streams with optional filtering',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, region: true },
+	requires: { auth: true, apiClient: true },
 	optional: { project: true },
 	idempotent: true,
 	examples: [
@@ -40,6 +47,14 @@ export const listSubcommand = createCommand({
 			description: 'Filter by metadata',
 		},
 		{ command: getCommand('cloud stream ls --json'), description: 'Output as JSON' },
+		{
+			command: getCommand('cloud stream list --project-id proj_123'),
+			description: 'Filter by project',
+		},
+		{
+			command: getCommand('cloud stream list --org-id org_123'),
+			description: 'Filter by organization',
+		},
 	],
 	schema: {
 		options: z.object({
@@ -50,14 +65,17 @@ export const listSubcommand = createCommand({
 				.string()
 				.optional()
 				.describe('filter by metadata (format: key=value or key1=value1,key2=value2)'),
+			projectId: z.string().optional().describe('filter by project ID'),
+			orgId: z.string().optional().describe('filter by organization ID'),
 		}),
 		response: ListStreamsResponseSchema,
 	},
 	webUrl: '/services/stream',
 
 	async handler(ctx) {
-		const { opts, options } = ctx;
-		const storage = await createStorageAdapter(ctx);
+		const { opts, options, apiClient, project } = ctx;
+		// Use project context if available, or explicit flag
+		const projectId = opts.projectId || project?.projectId;
 
 		// Parse metadata filter if provided
 		let metadataFilter: Record<string, string> | undefined;
@@ -96,53 +114,67 @@ export const listSubcommand = createCommand({
 			}
 		}
 
-		const result = await storage.list({
-			limit: opts.size,
-			offset: opts.offset,
-			namespace: opts.namespace,
-			metadata: metadataFilter,
-		});
+		try {
+			const result = await streamList(apiClient, {
+				limit: opts.size,
+				offset: opts.offset,
+				namespace: opts.namespace,
+				metadata: metadataFilter,
+				projectId,
+				orgId: opts.orgId,
+			});
 
-		if (options.json) {
-			console.log(JSON.stringify(result, null, 2));
+			if (options.json) {
+				console.log(JSON.stringify(result, null, 2));
+				return {
+					streams: result.streams,
+					total: result.total,
+				};
+			}
+
+			if (result.streams.length === 0) {
+				tui.info('No streams found');
+			} else {
+				const tableData = result.streams.map((stream: StreamInfo) => {
+					const sizeBytes = stream.sizeBytes ?? 0;
+					const metadataStr =
+						Object.keys(stream.metadata).length > 0 ? JSON.stringify(stream.metadata) : '-';
+					return {
+						Namespace: stream.namespace,
+						ID: stream.id,
+						Size: tui.formatBytes(sizeBytes),
+						Metadata:
+							metadataStr.length > 40 ? metadataStr.substring(0, 37) + '...' : metadataStr,
+						URL: tui.link(stream.url),
+					};
+				});
+
+				tui.table(tableData, [
+					{ name: 'Namespace', alignment: 'left' },
+					{ name: 'ID', alignment: 'left' },
+					{ name: 'Size', alignment: 'right' },
+					{ name: 'Metadata', alignment: 'left' },
+					{ name: 'URL', alignment: 'left' },
+				]);
+
+				tui.info(`Total: ${result.total} ${tui.plural(result.total, 'stream', 'streams')}`);
+			}
+
 			return {
 				streams: result.streams,
 				total: result.total,
 			};
-		}
-
-		if (result.streams.length === 0) {
-			tui.info('No streams found');
-		} else {
-			const tableData = result.streams.map((stream) => {
-				const sizeBytes = stream.sizeBytes ?? 0;
-				const metadataStr =
-					Object.keys(stream.metadata).length > 0 ? JSON.stringify(stream.metadata) : '-';
-				return {
-					Namespace: stream.namespace,
-					ID: stream.id,
-					Size: tui.formatBytes(sizeBytes),
-					Metadata:
-						metadataStr.length > 40 ? metadataStr.substring(0, 37) + '...' : metadataStr,
-					URL: tui.link(stream.url),
-				};
+		} catch (ex) {
+			if (ex instanceof StreamListError) {
+				throw ex;
+			}
+			throw new StreamListError({
+				message: `Failed to list streams: ${ex}`,
+				namespace: opts.namespace,
+				projectId,
+				orgId: opts.orgId,
 			});
-
-			tui.table(tableData, [
-				{ name: 'Namespace', alignment: 'left' },
-				{ name: 'ID', alignment: 'left' },
-				{ name: 'Size', alignment: 'right' },
-				{ name: 'Metadata', alignment: 'left' },
-				{ name: 'URL', alignment: 'left' },
-			]);
-
-			tui.info(`Total: ${result.total} ${tui.plural(result.total, 'stream', 'streams')}`);
 		}
-
-		return {
-			streams: result.streams,
-			total: result.total,
-		};
 	},
 });
 

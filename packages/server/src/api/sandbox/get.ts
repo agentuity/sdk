@@ -1,14 +1,14 @@
-import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { throwSandboxError, API_VERSION } from './util';
 import type {
 	SandboxInfo,
-	SandboxStatus,
 	SandboxRuntimeInfo,
 	SandboxSnapshotInfo,
+	SandboxStatus,
 } from '@agentuity/core';
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '../api';
+import { API_VERSION, throwSandboxError } from './util';
 
-const SandboxResourcesSchema = z
+export const SandboxResourcesSchema = z
 	.object({
 		memory: z.string().optional().describe('Memory limit (e.g., "512Mi", "1Gi")'),
 		cpu: z.string().optional().describe('CPU limit in millicores (e.g., "500m", "1000m")'),
@@ -16,7 +16,7 @@ const SandboxResourcesSchema = z
 	})
 	.describe('Resource limits for the sandbox');
 
-const SandboxUserInfoSchema = z
+export const SandboxUserInfoSchema = z
 	.object({
 		id: z.string().describe('User ID'),
 		firstName: z.string().optional().describe("User's first name"),
@@ -24,28 +24,28 @@ const SandboxUserInfoSchema = z
 	})
 	.describe('User who created the sandbox');
 
-const SandboxAgentInfoSchema = z
+export const SandboxAgentInfoSchema = z
 	.object({
 		id: z.string().describe('Agent ID'),
 		name: z.string().describe('Agent name'),
 	})
 	.describe('Agent associated with the sandbox');
 
-const SandboxProjectInfoSchema = z
+export const SandboxProjectInfoSchema = z
 	.object({
 		id: z.string().describe('Project ID'),
 		name: z.string().describe('Project name'),
 	})
 	.describe('Project associated with the sandbox');
 
-const SandboxOrgInfoSchema = z
+export const SandboxOrgInfoSchema = z
 	.object({
 		id: z.string().describe('Organization ID'),
 		name: z.string().describe('Organization name'),
 	})
 	.describe('Organization associated with the sandbox');
 
-const SandboxRuntimeInfoSchema = z
+export const SandboxRuntimeInfoSchema = z
 	.object({
 		id: z.string().describe('Runtime ID'),
 		name: z.string().describe('Runtime name (e.g., "bun:1")'),
@@ -55,7 +55,7 @@ const SandboxRuntimeInfoSchema = z
 	})
 	.describe('Runtime information');
 
-const SandboxSnapshotUserInfoSchema = z
+export const SandboxSnapshotUserInfoSchema = z
 	.object({
 		id: z.string().describe('User ID'),
 		firstName: z.string().optional().describe("User's first name"),
@@ -63,7 +63,7 @@ const SandboxSnapshotUserInfoSchema = z
 	})
 	.describe('Snapshot user information');
 
-const SandboxSnapshotOrgInfoSchema = z
+export const SandboxSnapshotOrgInfoSchema = z
 	.object({
 		id: z.string().describe('Organization ID'),
 		name: z.string().describe('Organization name'),
@@ -71,7 +71,7 @@ const SandboxSnapshotOrgInfoSchema = z
 	})
 	.describe('Snapshot organization information');
 
-const SandboxSnapshotInfoSchema = z
+export const SandboxSnapshotInfoSchema = z
 	.union([
 		z
 			.object({
@@ -98,7 +98,7 @@ const SandboxSnapshotInfoSchema = z
 	])
 	.describe('Snapshot information (discriminated union)');
 
-const SandboxInfoDataSchema = z
+export const SandboxInfoDataSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
 		identifier: z.string().optional().describe('Short identifier for DNS hostname'),
@@ -141,10 +141,22 @@ const SandboxInfoDataSchema = z
 		agent: SandboxAgentInfoSchema.optional().describe('Agent associated with the sandbox'),
 		project: SandboxProjectInfoSchema.optional().describe('Project associated with the sandbox'),
 		org: SandboxOrgInfoSchema.describe('Organization associated with the sandbox'),
+		timeout: z
+			.object({
+				idle: z.string().optional(),
+				execution: z.string().optional(),
+			})
+			.optional(),
+		command: z
+			.object({
+				exec: z.array(z.string()),
+				mode: z.enum(['oneshot', 'interactive']).optional(),
+			})
+			.optional(),
 	})
 	.describe('Detailed information about a sandbox');
 
-const SandboxGetResponseSchema = APIResponseSchema(SandboxInfoDataSchema);
+export const SandboxGetResponseSchema = APIResponseSchema(SandboxInfoDataSchema);
 
 export interface SandboxGetParams {
 	sandboxId: string;
@@ -209,6 +221,8 @@ export async function sandboxGet(
 			agent: resp.data.agent,
 			project: resp.data.project,
 			org: resp.data.org,
+			timeout: resp.data.timeout,
+			command: resp.data.command,
 		};
 	}
 

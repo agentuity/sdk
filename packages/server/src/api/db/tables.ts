@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import { DbInvalidArgumentError, DbResponseError } from './util';
 
-const TableColumnSchema = z.object({
+export const TableColumnSchema = z.object({
 	name: z.string().describe('column name'),
 	data_type: z.string().describe('PostgreSQL data type'),
 	is_nullable: z.boolean().describe('whether the column is nullable'),
@@ -15,7 +15,7 @@ export const TableSchemaSchema = z.object({
 	columns: z.array(TableColumnSchema).describe('table columns'),
 });
 
-const TablesResponseSchema = APIResponseSchema(
+export const TablesResponseSchema = APIResponseSchema(
 	z.object({
 		tables: z.array(TableSchemaSchema),
 	})

@@ -47,17 +47,17 @@ The Expert agent can operate any `agentuity cloud` subcommand:
 
 ## Agent Team
 
-| Agent         | Role                   | When to Use                                                         |
-| ------------- | ---------------------- | ------------------------------------------------------------------- |
-| **Lead**      | Orchestrator           | Automatically coordinates all work                                  |
-| **Scout**     | Explorer               | Finding files, patterns, codebase analysis (read-only)              |
-| **Builder**   | Implementer            | Interactive code changes, quick fixes, guided implementation        |
-| **Architect** | Autonomous Implementer | Cadence mode, complex multi-file features, long-running tasks       |
-| **Reviewer**  | Code Reviewer          | Reviewing changes, catching issues, suggesting fixes                |
-| **Memory**    | Context Manager        | Storing/retrieving context, decisions, patterns across sessions     |
-| **Expert**    | Agentuity Specialist   | CLI commands, cloud services, SDK questions                         |
-| **Planner**   | Strategic Advisor      | Complex architecture decisions, deep technical planning (read-only) |
-| **Runner**    | Command Executor       | Run lint/build/test/typecheck/format, returns structured summaries  |
+| Agent         | Role                   | When to Use                                                        |
+| ------------- | ---------------------- | ------------------------------------------------------------------ |
+| **Lead**      | Orchestrator           | Automatically coordinates all work, handles strategic planning     |
+| **Scout**     | Explorer               | Finding files, patterns, codebase analysis (read-only)             |
+| **Builder**   | Implementer            | Interactive code changes, quick fixes, guided implementation       |
+| **Architect** | Autonomous Implementer | Cadence mode, complex multi-file features, long-running tasks      |
+| **Reviewer**  | Code Reviewer          | Reviewing changes, catching issues, suggesting fixes               |
+| **Memory**    | Context Manager        | Storing/retrieving context, decisions, patterns across sessions    |
+| **Expert**    | Agentuity Specialist   | CLI commands, cloud services, SDK questions                        |
+| **Product**   | Requirements Owner     | Define what to build and why, PRDs, validate product intent        |
+| **Runner**    | Command Executor       | Run lint/build/test/typecheck/format, returns structured summaries |
 
 ### Builder vs Architect
 
@@ -86,7 +86,7 @@ Each agent has a default model optimized for its role:
 | Reviewer  | `anthropic/claude-sonnet-4-5-20250929` | high                    |
 | Memory    | `anthropic/claude-haiku-4-5-20251001`  | -                       |
 | Expert    | `anthropic/claude-sonnet-4-5-20250929` | high                    |
-| Planner   | `openai/gpt-5.2`                       | xhigh                   |
+| Product   | `openai/gpt-5.2`                       | high                    |
 | Runner    | `anthropic/claude-haiku-4-5-20251001`  | -                       |
 
 ### Overriding Agent Models
@@ -133,6 +133,33 @@ Sensitive CLI commands are blocked by default:
 - `agentuity cloud secrets` / `secret`
 - `agentuity cloud apikey`
 - `agentuity auth token`
+
+## Permissions
+
+The plugin auto-allows certain operations to prevent blocking prompts during agent execution.
+
+### Auto-Allowed Directories
+
+| Directory    | Reason                                                      |
+| ------------ | ----------------------------------------------------------- |
+| `/tmp/**`    | Memory agent writes temp files for piping large JSON to CLI |
+| `$TMPDIR/**` | OS-specific temp directory (macOS, etc.)                    |
+
+These are standard temp directories designed for ephemeral file operations. In sandbox environments, all permissions are auto-allowed.
+
+### Customizing Permissions
+
+To allow additional directories or override defaults, add to your `opencode.json`:
+
+```json
+{
+	"permission": {
+		"external_directory": {
+			"/my/custom/path/**": "allow"
+		}
+	}
+}
+```
 
 ## Plugin Configuration
 
@@ -233,6 +260,100 @@ Cadence is **agentic-first** — Lead's prompt drives the loop, not deterministi
 - Continues until the task is truly complete
 
 See [docs/cadence.md](docs/cadence.md) for architecture details.
+
+### Lead-of-Leads: Parallel Work Orchestration
+
+For very large tasks with independent workstreams, Lead can spawn **child Leads** to work in parallel.
+
+#### When to Use
+
+| Signal                            | Example                                                       |
+| --------------------------------- | ------------------------------------------------------------- |
+| **Independent workstreams**       | "Build auth, payments, and notifications" — each is separate  |
+| **Explicit parallelism**          | User says "do these in parallel" or "work on multiple fronts" |
+| **Large scope, clear boundaries** | PRD has 3+ phases that don't depend on each other             |
+
+**Don't use Lead-of-Leads for:**
+
+- Small tasks that one team can handle easily
+- Large tasks with clear sequential order
+- Work requiring tight coordination between parts
+
+#### How It Works
+
+```
+User: "Build auth, cart, and payments in parallel"
+           │
+           ▼
+    ┌─────────────┐
+    │ Parent Lead │ ◄── Orchestrates
+    └─────────────┘
+           │
+           │ 1. Ask Product to create PRD with workstreams
+           ▼
+    ┌─────────────┐
+    │   Product   │ ◄── Creates PRD with 3 workstreams (status: available)
+    └─────────────┘
+           │
+           │ 2. Spawn 3 child Leads via background tasks
+           ▼
+    ┌───────┬───────┬───────┐
+    │Child 1│Child 2│Child 3│ ◄── Each claims a workstream
+    │ Auth  │ Cart  │Payment│
+    └───────┴───────┴───────┘
+           │
+           │ 3. Each child works autonomously, updates PRD when done
+           ▼
+    ┌─────────────┐
+    │ Parent Lead │ ◄── Monitors PRD, does integration when all done
+    └─────────────┘
+           │
+           ▼
+    <promise>DONE</promise>
+```
+
+#### Workstream Status
+
+Product manages workstream status in the PRD:
+
+| Status        | Meaning                             |
+| ------------- | ----------------------------------- |
+| `available`   | Ready to be claimed by a child Lead |
+| `in_progress` | Claimed and being worked on         |
+| `done`        | Completed successfully              |
+| `blocked`     | Stuck, needs parent Lead attention  |
+
+#### Workstream Structure
+
+```json
+{
+	"workstreams": [
+		{
+			"phase": "Auth Module",
+			"status": "done",
+			"sessionId": "sess_abc",
+			"completedAt": "2026-02-03T..."
+		},
+		{
+			"phase": "Payment Integration",
+			"status": "in_progress",
+			"sessionId": "sess_xyz",
+			"startedAt": "2026-02-03T..."
+		},
+		{
+			"phase": "Notification System",
+			"status": "available"
+		}
+	]
+}
+```
+
+#### Coordination Rules
+
+- **PRD is source of truth** — All Leads read/update the same PRD
+- **Product manages workstreams** — Child Leads ask Product to claim/complete workstreams
+- **No direct child-to-child communication** — Coordinate through PRD only
+- **Parent handles integration** — After children complete, parent does any glue work
 
 ## Local Development
 

@@ -5,7 +5,7 @@ import * as tui from '../../../tui';
 import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
-import { getResourceInfo, setResourceInfo } from '../../../cache';
+import { setResourceInfo } from '../../../cache';
 
 const StorageGetResponseSchema = z.object({
 	bucket_name: z.string().describe('Storage bucket name'),
@@ -26,7 +26,6 @@ export const getSubcommand = createSubcommand({
 	description: 'Show details about a specific storage bucket',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true },
-	optional: { org: true },
 	idempotent: true,
 	examples: [
 		{
@@ -64,35 +63,25 @@ export const getSubcommand = createSubcommand({
 		const profileName = config?.name ?? 'production';
 		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
 
-		// Check cache first for orgId
-		const cachedInfo = await getResourceInfo('bucket', profileName, args.name);
-		const orgId = ctx.orgId ?? cachedInfo?.orgId;
-
-		if (!orgId) {
-			tui.fatal(
-				`Organization not found for bucket '${args.name}'. Run 'agentuity cloud storage list' first or specify --org-id.`,
-				ErrorCode.INVALID_ARGUMENT
-			);
-		}
-
+		// Search across all orgs the user has access to
 		const resources = await tui.spinner({
 			message: `Fetching storage bucket ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 's3', orgId });
+				return listOrgResources(catalystClient, { type: 's3' });
 			},
 		});
 
 		const bucket = resources.s3.find((s3) => s3.bucket_name === args.name);
 
 		// Cache the bucket info for future lookups
-		if (bucket?.cloud_region) {
+		if (bucket?.cloud_region && bucket.org_id) {
 			await setResourceInfo(
 				'bucket',
 				profileName,
 				bucket.bucket_name,
 				bucket.cloud_region,
-				orgId
+				bucket.org_id
 			);
 		}
 

@@ -9,5 +9,6 @@ export * from './queue';
 export * from './region';
 export * from './sandbox';
 export * from './session';
+export * from './stream';
 export * from './thread';
 export * from './user';

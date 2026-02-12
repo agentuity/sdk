@@ -88,6 +88,7 @@ export interface UseWorkbenchWebsocketOptions {
 	apiKey?: string;
 	baseUrl?: string;
 	enabled?: boolean;
+	headers?: Record<string, string>;
 	onAlive?: () => void;
 	onConnect?: () => void;
 	onReconnect?: () => void;
@@ -102,7 +103,7 @@ export interface UseWorkbenchWebsocketResult {
 export function useWorkbenchWebsocket(
 	options: UseWorkbenchWebsocketOptions = {}
 ): UseWorkbenchWebsocketResult {
-	const { baseUrl, apiKey, onConnect, onReconnect, onAlive, onRestarting } = options;
+	const { baseUrl, apiKey, headers, onConnect, onReconnect, onAlive, onRestarting } = options;
 
 	const [connected, setConnected] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
@@ -138,8 +139,20 @@ export function useWorkbenchWebsocket(
 			url.searchParams.set('apiKey', apiKey);
 		}
 
+		// Pass any manual headers as query params (WebSocket can't use custom headers in browser)
+		if (headers) {
+			const signature = headers['X-Agentuity-Workbench-Signature'];
+			const timestamp = headers['X-Agentuity-Workbench-Timestamp'];
+			if (signature) {
+				url.searchParams.set('signature', signature);
+			}
+			if (timestamp) {
+				url.searchParams.set('timestamp', timestamp);
+			}
+		}
+
 		return url.toString();
-	}, [baseUrl, apiKey]);
+	}, [baseUrl, apiKey, headers]);
 
 	const connect = useCallback(() => {
 		if (manualClose.current || !options.enabled) {

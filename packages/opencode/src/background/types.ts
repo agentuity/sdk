@@ -26,6 +26,7 @@ export interface BackgroundTask {
 	progress?: TaskProgress;
 	concurrencyKey?: string; // Active concurrency slot key
 	concurrencyGroup?: string; // Persistent key for re-acquiring on resume
+	notifiedStatuses?: Set<BackgroundTaskStatus>; // Tracks statuses already notified to prevent duplicates
 }
 
 export interface LaunchInput {
@@ -49,4 +50,20 @@ export interface BackgroundTaskConfig {
 	staleTimeoutMs: number;
 	providerConcurrency?: Record<string, number>;
 	modelConcurrency?: Record<string, number>;
+}
+
+/**
+ * Result of inspecting a background task's session.
+ * Provides access to session details and messages for debugging.
+ */
+export interface TaskInspection {
+	taskId: string;
+	sessionId: string;
+	status: BackgroundTaskStatus;
+	/** Session details from OpenCode SDK */
+	session: unknown;
+	/** Messages from the session */
+	messages: Array<{ info: unknown; parts: unknown[] }>;
+	/** Last activity timestamp from task progress */
+	lastActivity?: string;
 }

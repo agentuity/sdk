@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/drizzle",
-	"version": "0.1.44",
+	"version": "1.0.7",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -15,12 +15,22 @@
 		"dist"
 	],
 	"exports": {
-		".": "./dist/index.js"
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./schema": {
+			"types": "./dist/schema.d.ts",
+			"default": "./dist/schema.js"
+		}
 	},
 	"typesVersions": {
 		"*": {
 			".": [
 				"./dist/index.d.ts"
+			],
+			"schema": [
+				"./dist/schema.d.ts"
 			]
 		}
 	},

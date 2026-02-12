@@ -248,3 +248,189 @@ export interface ReserveOptions {
 	 */
 	timeout?: number;
 }
+
+/**
+ * SSL configuration for pg.Pool connections.
+ */
+export interface PoolSSLConfig {
+	/**
+	 * Whether to reject unauthorized certificates.
+	 * Set to `false` to allow self-signed certificates.
+	 */
+	rejectUnauthorized?: boolean;
+
+	/**
+	 * CA certificate(s) for verifying the server certificate.
+	 */
+	ca?: string | Buffer | (string | Buffer)[];
+
+	/**
+	 * Client certificate for mutual TLS authentication.
+	 */
+	cert?: string | Buffer;
+
+	/**
+	 * Client private key for mutual TLS authentication.
+	 */
+	key?: string | Buffer;
+}
+
+/**
+ * Configuration options for PostgresPool.
+ * Extends standard pg.Pool options with reconnection support.
+ */
+export interface PoolConfig {
+	/**
+	 * PostgreSQL connection URL.
+	 * If not provided, uses `process.env.DATABASE_URL`.
+	 */
+	connectionString?: string;
+
+	/**
+	 * Database hostname.
+	 */
+	host?: string;
+
+	/**
+	 * Database port.
+	 * @default 5432
+	 */
+	port?: number;
+
+	/**
+	 * Database username.
+	 */
+	user?: string;
+
+	/**
+	 * Database password.
+	 */
+	password?: string;
+
+	/**
+	 * Database name.
+	 */
+	database?: string;
+
+	/**
+	 * Maximum number of connections in the pool.
+	 * @default 10
+	 */
+	max?: number;
+
+	/**
+	 * Number of milliseconds a client must sit idle before being disconnected.
+	 * Set to 0 to disable idle timeout.
+	 * @default 10000
+	 */
+	idleTimeoutMillis?: number;
+
+	/**
+	 * Number of milliseconds to wait when connecting a new client before timing out.
+	 * Set to 0 to disable connection timeout.
+	 * @default 0
+	 */
+	connectionTimeoutMillis?: number;
+
+	/**
+	 * SSL configuration.
+	 * Set to `true` to enable SSL with default settings.
+	 * Set to an object to configure SSL options.
+	 * Set to `false` or omit to disable SSL.
+	 */
+	ssl?: boolean | PoolSSLConfig;
+
+	/**
+	 * Reconnection configuration.
+	 */
+	reconnect?: ReconnectConfig;
+
+	/**
+	 * Whether to establish a connection immediately on pool creation.
+	 * If true, the pool will verify connectivity by acquiring and releasing a client.
+	 * If false (default), the first connection is made lazily on first query.
+	 *
+	 * @default false
+	 */
+	preconnect?: boolean;
+
+	/**
+	 * Callback invoked when the pool encounters an error.
+	 */
+	onclose?: (error?: Error) => void;
+
+	/**
+	 * Callback invoked when reconnection starts.
+	 */
+	onreconnect?: (attempt: number) => void;
+
+	/**
+	 * Callback invoked when reconnection succeeds.
+	 */
+	onreconnected?: () => void;
+
+	/**
+	 * Callback invoked when reconnection fails permanently.
+	 */
+	onreconnectfailed?: (error: Error) => void;
+}
+
+/**
+ * Statistics about the pool state and reconnection history.
+ */
+export interface PoolStats {
+	/**
+	 * Whether the pool is currently connected.
+	 */
+	connected: boolean;
+
+	/**
+	 * Whether a reconnection attempt is in progress.
+	 */
+	reconnecting: boolean;
+
+	/**
+	 * Total number of clients in the pool.
+	 */
+	totalCount: number;
+
+	/**
+	 * Number of idle clients in the pool.
+	 */
+	idleCount: number;
+
+	/**
+	 * Number of clients currently waiting to be acquired.
+	 */
+	waitingCount: number;
+
+	/**
+	 * Total number of successful connections (including reconnections).
+	 */
+	totalConnections: number;
+
+	/**
+	 * Total number of reconnection attempts.
+	 */
+	reconnectAttempts: number;
+
+	/**
+	 * Total number of failed reconnection attempts.
+	 */
+	failedReconnects: number;
+
+	/**
+	 * Timestamp of the last successful connection.
+	 */
+	lastConnectedAt: Date | null;
+
+	/**
+	 * Timestamp of the last disconnection.
+	 */
+	lastDisconnectedAt: Date | null;
+
+	/**
+	 * Timestamp of the last reconnection attempt.
+	 */
+	lastReconnectAttemptAt: Date | null;
+}

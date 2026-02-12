@@ -83,6 +83,7 @@ declare module 'hono' {
  * - **sse()** - Server-Sent Events (import { sse } from '@agentuity/runtime')
  * - **stream()** - Streaming responses (import { stream } from '@agentuity/runtime')
  * - **cron()** - Scheduled tasks (import { cron } from '@agentuity/runtime')
+ * - **webrtc()** - WebRTC signaling (import { webrtc } from '@agentuity/runtime')
  *
  * @template E - Environment type (Hono Env)
  * @template S - Schema type for route definitions

@@ -18,7 +18,7 @@ export interface WorkbenchConfig {
 	route?: string;
 	headers?: Record<string, string>;
 	apiKey?: string;
-	baseUrl?: string;
+	baseUrl?: string | null;
 }
 
 /**

@@ -157,6 +157,35 @@ async function updateVersions(version: string) {
 	await writeJSON(rootPkgPath, rootPkg);
 	console.log(`✓ Updated root package.json to ${version}`);
 
+	// Update .claude-plugin/marketplace.json
+	const marketplacePath = join(rootDir, '.claude-plugin', 'marketplace.json');
+	try {
+		const marketplace = await readJSON(marketplacePath);
+		if (marketplace.metadata) {
+			marketplace.metadata.version = version;
+		}
+		if (marketplace.plugins) {
+			for (const plugin of marketplace.plugins) {
+				plugin.version = version;
+			}
+		}
+		await writeJSON(marketplacePath, marketplace);
+		console.log(`✓ Updated .claude-plugin/marketplace.json to ${version}`);
+	} catch {
+		console.log(`⊘ Skipped .claude-plugin/marketplace.json (not found)`);
+	}
+
+	// Update packages/claude-code/.claude-plugin/plugin.json
+	const pluginJsonPath = join(packagesDir, 'claude-code', '.claude-plugin', 'plugin.json');
+	try {
+		const pluginJson = await readJSON(pluginJsonPath);
+		pluginJson.version = version;
+		await writeJSON(pluginJsonPath, pluginJson);
+		console.log(`✓ Updated packages/claude-code/.claude-plugin/plugin.json to ${version}`);
+	} catch {
+		console.log(`⊘ Skipped packages/claude-code/.claude-plugin/plugin.json (not found)`);
+	}
+
 	// Update packages/*
 	const packages = await readdir(packagesDir);
 	for (const pkg of packages) {
@@ -368,7 +397,7 @@ async function getPublishablePackages(): Promise<
 }
 
 async function revertVersionChanges() {
-	await $`git checkout -- package.json packages/*/package.json apps/*/package.json bun.lock`.cwd(
+	await $`git checkout -- package.json packages/*/package.json apps/*/package.json .claude-plugin/marketplace.json packages/claude-code/.claude-plugin/plugin.json bun.lock`.cwd(
 		rootDir
 	);
 }
@@ -397,11 +426,11 @@ async function validateEnvironment(isDryRun: boolean) {
 			process.exit(1);
 		}
 
-		// Check for amp CLI
+		// Check for opencode CLI
 		try {
-			await $`amp --version`.quiet();
+			await $`opencode --version`.quiet();
 		} catch {
-			console.error('❌ Error: amp CLI not found.');
+			console.error('❌ Error: opencode CLI not found.');
 			console.error('   Required for generating release notes.');
 			process.exit(1);
 		}
@@ -424,7 +453,7 @@ async function generateReleaseNotes(
 	newVersion: string,
 	previousTag: string | null
 ): Promise<string> {
-	console.log('\n📝 Generating release notes with Amp...\n');
+	console.log('\n📝 Generating release notes with Opencode...\n');
 
 	// Get git log since previous tag
 	let gitLog: string;
@@ -465,12 +494,12 @@ Formatting Instructions:
 `;
 
 	try {
-		// Invoke amp to generate release notes (pipe prompt via stdin)
-		const releaseNotes = await $`echo ${prompt} | amp`.text();
+		// Invoke opencode to generate release notes (pipe prompt via stdin)
+		const releaseNotes = await $`echo ${prompt} | opencode run`.text();
 
 		return releaseNotes.trim();
 	} catch (err) {
-		console.error('✗ Failed to generate release notes with Amp:', err);
+		console.error('✗ Failed to generate release notes with OpenCode:', err);
 		throw err;
 	}
 }
@@ -508,7 +537,9 @@ async function buildTemplatesTarball(version: string): Promise<string> {
 	const templatesDir = join(rootDir, 'templates');
 	const tarballName = `templates-${version}.tar.gz`;
 	const tarballPath = join('/tmp', tarballName);
-	const tempDir = join('/tmp', `sdk-v${version}`);
+	// Use sdk-main as the directory prefix to match what the CLI expects
+	// The CLI constructs the prefix as `sdk-${branch}` where branch defaults to 'main'
+	const tempDir = join('/tmp', 'sdk-main');
 	const templatesSubdir = join(tempDir, 'templates');
 
 	// Validate templates directory exists
@@ -526,26 +557,28 @@ async function buildTemplatesTarball(version: string): Promise<string> {
 
 	try {
 		// Clean up any existing temp directory and tarball
-		await $`rm -rf ${tempDir} ${tarballPath}`.quiet().nothrow();
+		// Use explicit /tmp/sdk-main path to ensure we always clean up the fixed location
+		await $`rm -rf /tmp/sdk-main ${tarballPath}`.quiet().nothrow();
 
-		// Create temp directory with sdk-v{version}/templates structure
+		// Create temp directory with sdk-main/templates structure
 		await $`mkdir -p ${templatesSubdir}`;
 
 		// Copy all contents including dotfiles using trailing dot syntax
 		// cp -r source/. dest/ copies all files including hidden ones
 		await $`cp -r ${templatesDir}/. ${templatesSubdir}/`;
 
-		// Create tarball from /tmp with sdk-v{version} as root directory
-		await $`tar -czf ${tarballPath} -C /tmp sdk-v${version}`;
+		// Create tarball from /tmp with sdk-main as root directory
+		// COPYFILE_DISABLE=1 prevents macOS from including AppleDouble (._*) resource fork files
+		await $`COPYFILE_DISABLE=1 tar -czf ${tarballPath} -C /tmp sdk-main`;
 
 		// Clean up temp directory
-		await $`rm -rf ${tempDir}`;
+		await $`rm -rf /tmp/sdk-main`;
 
 		console.log(`✓ Built templates tarball: ${tarballName}`);
 		return tarballPath;
 	} catch (err) {
 		// Clean up on error
-		await $`rm -rf ${tempDir} ${tarballPath}`.quiet().nothrow();
+		await $`rm -rf /tmp/sdk-main ${tarballPath}`.quiet().nothrow();
 		console.error('✗ Failed to build templates tarball:', err);
 		throw err;
 	}

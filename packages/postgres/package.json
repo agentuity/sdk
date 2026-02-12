@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/postgres",
-	"version": "0.1.44",
+	"version": "1.0.7",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -31,7 +31,8 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*"
+		"@agentuity/core": "workspace:*",
+		"pg": "^8.13.1"
 	},
 	"peerDependencies": {
 		"@agentuity/runtime": "workspace:*"
@@ -45,7 +46,9 @@
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
+		"@types/pg": "^8.11.14",
 		"bun-types": "latest",
+		"kysely": "^0.27.6",
 		"typescript": "^5.9.0"
 	},
 	"publishConfig": {

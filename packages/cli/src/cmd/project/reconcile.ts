@@ -222,6 +222,30 @@ async function selectRegion(regions: RegionList, defaultRegion?: string): Promis
 		return firstRegion.region;
 	}
 
+	// Check for non-interactive mode before prompting
+	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
+	if (isNonInteractive) {
+		// In non-interactive mode, validate defaultRegion against available regions
+		if (defaultRegion) {
+			const isValidRegion = regions.some((r) => r.region === defaultRegion);
+			if (isValidRegion) {
+				return defaultRegion;
+			}
+			const supportedRegions = regions.map((r) => r.region).join(', ');
+			tui.fatal(
+				`Region "${defaultRegion}" is not supported. ` +
+					`Available regions: ${supportedRegions}. ` +
+					'Use --region flag or set AGENTUITY_REGION environment variable with a valid region.'
+			);
+		}
+		const supportedRegions = regions.map((r) => r.region).join(', ');
+		tui.fatal(
+			'Cannot select region in non-interactive mode. ' +
+				`Available regions: ${supportedRegions}. ` +
+				'Use --region flag or set AGENTUITY_REGION environment variable.'
+		);
+	}
+
 	// Build options from API regions
 	const options = regions.map((r) => ({
 		value: r.region,
@@ -255,6 +279,22 @@ async function textPrompt(options: {
 	initial?: string;
 	validate?: (value: string) => boolean | string;
 }): Promise<string> {
+	// Check for non-interactive mode before prompting
+	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
+	if (isNonInteractive) {
+		// In non-interactive mode, use initial value if available and valid
+		if (options.initial) {
+			const validationResult = options.validate?.(options.initial);
+			if (validationResult === true || validationResult === undefined) {
+				return options.initial;
+			}
+		}
+		tui.fatal(
+			'Cannot prompt for input in non-interactive mode. ' +
+				'Use --name flag to specify the project name.'
+		);
+	}
+
 	const prompt = createPrompt();
 	return prompt.text({
 		message: options.message,

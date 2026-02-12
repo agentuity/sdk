@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -39,8 +39,11 @@ const shouldLog = (messageLevel: LogLevel): boolean => {
 };
 
 export function useLogger(component?: string): Logger {
-	const createLogFunction = useCallback(
-		(level: LogLevel) =>
+	// Memoize the entire logger object to prevent re-render loops
+	// when logger is used as a dependency in useCallback/useEffect
+	return useMemo(() => {
+		const createLogFunction =
+			(level: LogLevel) =>
 			(...args: unknown[]) => {
 				if (!shouldLog(level)) {
 					return;
@@ -50,14 +53,13 @@ export function useLogger(component?: string): Logger {
 				const consoleFn = console[level] || console.log;
 
 				consoleFn(prefix, ...args);
-			},
-		[component]
-	);
+			};
 
-	return {
-		debug: createLogFunction('debug'),
-		info: createLogFunction('info'),
-		warn: createLogFunction('warn'),
-		error: createLogFunction('error'),
-	};
+		return {
+			debug: createLogFunction('debug'),
+			info: createLogFunction('info'),
+			warn: createLogFunction('warn'),
+			error: createLogFunction('error'),
+		};
+	}, [component]);
 }

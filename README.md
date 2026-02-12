@@ -44,15 +44,16 @@ To chat with other community members you can join the [Agentuity Discord server]
 The structure of this mono repository:
 
 - `packages/auth` - Agentuity unified Authentication package
+- `packages/claude-code` - Claude Code plugin with multi-agent coding team
 - `packages/cli` - the Agentuity command line tool
 - `packages/core` - Shared utilities used by most packages
 - `packages/drizzle` - Drizzle ORM integration with resilient PostgreSQL connections
 - `packages/evals` - Reusable Evaluation Presets
-- `packages/frontend` - Reusable code for web frontends
+- `packages/frontend` - Reusable code for web frontends including WebRTC peer connections
 - `packages/opencode` - Opencoder agent plugins for Agentuity
 - `packages/postgres` - Resilient PostgreSQL client with automatic reconnection
-- `packages/react` - React package for the Browser
-- `packages/runtime` - Server-side package for the Agent runtime
+- `packages/react` - React package for the Browser including WebRTC hooks
+- `packages/runtime` - Server-side package for the Agent runtime with WebRTC signaling
 - `packages/schema` - Schema validation library similar to zod and arktype
 - `packages/server` - Runtime-agnostic server-side SDK (Node.js & Bun)
 - `packages/test-utils` - Internal test utilities that can be used by packages
@@ -96,4 +97,3 @@ This script builds all packages, creates tarballs, and installs them in your tar
 # LICENSE
 
 See the [LICENSE](./LICENSE.md) for more information about the license to this project. The code is licensed under the Apache-2 License.
-

@@ -120,27 +120,27 @@ function isIPv4Address(s: string): boolean {
 	return true;
 }
 
-const ResourceSpec = z.object({
+export const ResourceSpec = z.object({
 	type: z.enum(['db', 's3']).describe('the resource type'),
 	name: z.string().optional().describe('optional custom name for db'),
 	description: z.string().optional().describe('optional description for db'),
 });
 
-const CreateResourcesRequest = z.object({
+export const CreateResourcesRequest = z.object({
 	resources: z.array(ResourceSpec).describe('list of resources to create'),
 });
 
-const CreatedResource = z.object({
+export const CreatedResource = z.object({
 	type: z.string().describe('the resource type'),
 	name: z.string().describe('the resource name'),
 	env: z.record(z.string(), z.string()).describe('environment variables for the resource'),
 });
 
-const CreateResourcesResponse = z.object({
+export const CreateResourcesResponse = z.object({
 	created: z.array(CreatedResource),
 });
 
-const CreateResourcesResponseSchema = APIResponseSchema(CreateResourcesResponse);
+export const CreateResourcesResponseSchema = APIResponseSchema(CreateResourcesResponse);
 
 export type CreateResourcesRequest = z.infer<typeof CreateResourcesRequest>;
 export type CreateResourcesResponse = z.infer<typeof CreateResourcesResponseSchema>;

@@ -77,7 +77,7 @@ export { registerDevModeRoutes } from './devmode';
 // router.ts exports
 export { type HonoEnv, type WebSocketConnection, createRouter } from './router';
 
-// protocol handler exports (websocket, sse, stream, cron)
+// protocol handler exports (websocket, sse, stream, cron, webrtc)
 export {
 	websocket,
 	type WebSocketHandler,
@@ -85,12 +85,25 @@ export {
 	type SSEMessage,
 	type SSEStream,
 	type SSEHandler,
+	type SSEOptions,
 	stream,
 	type StreamHandler,
 	cron,
 	type CronHandler,
 	type CronMetadata,
+	webrtc,
+	type WebRTCHandler,
 } from './handlers';
+
+// webrtc-signaling.ts exports
+export {
+	type SignalMessage,
+	type SDPDescription,
+	type ICECandidate,
+	type WebRTCOptions,
+	type WebRTCSignalingCallbacks,
+	WebRTCRoomManager,
+} from './webrtc-signaling';
 
 // eval.ts exports
 export {

@@ -1,16 +1,16 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api';
 import type { Project } from './get';
 import { projectGet } from './get';
 import { ProjectResponseError } from './util';
 
-const _ProjectEnvUpdateRequestSchema = z.object({
+export const ProjectEnvUpdateRequestSchema = z.object({
 	id: z.string().describe('the project id'),
 	env: z.record(z.string(), z.string()).optional().describe('environment variables to set/update'),
 	secrets: z.record(z.string(), z.string()).optional().describe('secrets to set/update'),
 });
 
-const ProjectEnvUpdateResponseSchema = APIResponseSchema(
+export const ProjectEnvUpdateResponseSchema = APIResponseSchema(
 	z
 		.object({
 			id: z.string().describe('the project id'),
@@ -22,7 +22,7 @@ const ProjectEnvUpdateResponseSchema = APIResponseSchema(
 		.optional()
 );
 
-type ProjectEnvUpdateRequest = z.infer<typeof _ProjectEnvUpdateRequestSchema>;
+type ProjectEnvUpdateRequest = z.infer<typeof ProjectEnvUpdateRequestSchema>;
 type ProjectEnvUpdateResponse = z.infer<typeof ProjectEnvUpdateResponseSchema>;
 
 /**

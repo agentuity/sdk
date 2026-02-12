@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { ThreadResponseError } from './util';
 
-const ThreadSchema = z.object({
+export const ThreadSchema = z.object({
 	id: z.string().describe('the thread id'),
 	created_at: z.string().describe('the creation timestamp'),
 	updated_at: z.string().describe('the last update timestamp'),
@@ -19,14 +19,12 @@ const ThreadSchema = z.object({
 		.describe('unencrypted key-value metadata'),
 });
 
-export { ThreadSchema };
+export const ThreadListResponseData = z.array(ThreadSchema);
 
-const ThreadListResponse = z.array(ThreadSchema);
-
-const ThreadListResponseSchema = APIResponseSchema(ThreadListResponse);
+export const ThreadListResponseSchema = APIResponseSchema(ThreadListResponseData);
 
 export type ThreadListResponse = z.infer<typeof ThreadListResponseSchema>;
-export type ThreadList = z.infer<typeof ThreadListResponse>;
+export type ThreadList = z.infer<typeof ThreadListResponseData>;
 export type Thread = z.infer<typeof ThreadSchema>;
 
 export interface ThreadListOptions {

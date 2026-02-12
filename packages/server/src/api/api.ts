@@ -35,7 +35,7 @@ export interface APIClientConfig {
 	headers?: Record<string, string>;
 }
 
-const ZodIssuesSchema = z.array(
+export const ZodIssuesSchema = z.array(
 	z.object({
 		code: z.string(),
 		input: z.unknown().optional(),
@@ -55,7 +55,7 @@ const toIssues = (issues: z.core.$ZodIssue[]): IssuesType => {
 	}));
 };
 
-const APIErrorSchema = z.object({
+export const APIErrorSchema = z.object({
 	success: z.boolean(),
 	code: z.string().optional(),
 	message: z.string().optional(),
@@ -113,6 +113,15 @@ export const MisdirectedRequestError = StructuredError(
 	url: string;
 	region: string;
 	sessionId?: string | null;
+}>();
+
+export const PaymentRequiredError = StructuredError(
+	'PaymentRequiredError',
+	'This action requires a paid plan. Please upgrade your account to continue.'
+)<{
+	url: string;
+	sessionId?: string | null;
+	upgradeUrl?: string;
 }>();
 
 export class APIClient {
@@ -602,6 +611,16 @@ export class APIClient {
 						throw new UpgradeRequiredError({ sessionId });
 					}
 
+					// HTTP 402 Payment Required - user needs to upgrade their plan
+					if (response.status === 402) {
+						const upgradeUrl = response.headers.get('x-upgrade-url');
+						throw new PaymentRequiredError({
+							url,
+							sessionId,
+							upgradeUrl: upgradeUrl ?? undefined,
+						});
+					}
+
 					// Check for UPGRADE_REQUIRED error
 					if (errorData?.code === 'UPGRADE_REQUIRED') {
 						// Skip version check if configured
@@ -789,6 +808,8 @@ export class APIClient {
 				return 'The API request was invalid (HTTP 400). Please check your request parameters.';
 			case 401:
 				return 'Authentication failed (HTTP 401). Please check your credentials or try logging in again.';
+			case 402:
+				return 'This action requires a paid plan. Please upgrade your account at https://app.agentuity.com/billing to continue.';
 			case 403:
 				return 'Access denied (HTTP 403). You do not have permission to perform this action.';
 			case 404:
@@ -826,7 +847,7 @@ export function getAPIBaseURL(region?: string, overrides?: { api_url?: string })
 		return 'https://api.agentuity.io';
 	}
 
-	return 'https://api-v1.agentuity.com';
+	return 'https://api.agentuity.com';
 }
 
 export function getAppBaseURL(region?: string, overrides?: { app_url?: string } | null): string {
@@ -842,7 +863,7 @@ export function getAppBaseURL(region?: string, overrides?: { app_url?: string } 
 		return 'https://app.agentuity.io';
 	}
 
-	return 'https://app-v1.agentuity.com';
+	return 'https://app.agentuity.com';
 }
 
 export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>

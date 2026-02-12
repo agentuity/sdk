@@ -36,13 +36,23 @@ const THREAD_HEADER = 'x-thread-id';
 const DEPLOYMENT_HEADER = 'x-deployment';
 
 /**
- * Paths that should skip OTEL session tracking.
- * These routes are still accessible but won't create session events.
+ * Paths that should skip OTEL session event tracking.
+ * These routes still get thread/session setup but won't create session start/complete events.
  */
-const OTEL_SESSION_SKIP_PATHS = new Set([
+const OTEL_SESSION_EVENT_SKIP_PATHS = new Set([
 	'/_agentuity/workbench/ws',
 	'/_agentuity/workbench/sample',
 	'/_agentuity/workbench/state',
+	'/_agentuity/workbench/metadata.json',
+	'/_agentuity/webanalytics/analytics.js',
+	'/_agentuity/webanalytics/session.js',
+]);
+
+/**
+ * Paths that should skip thread/session setup entirely.
+ * These are lightweight endpoints that don't need any context.
+ */
+const OTEL_FULL_SKIP_PATHS = new Set([
 	'/_agentuity/workbench/metadata.json',
 	'/_agentuity/webanalytics/analytics.js',
 	'/_agentuity/webanalytics/session.js',
@@ -237,14 +247,16 @@ export function createCorsMiddleware(staticOptions?: CorsConfig) {
 		// Default headers to expose (used if none specified)
 		const defaultExposeHeaders = ['Content-Length'];
 
+		const finalAllowHeaders = [
+			...(honoCorsOptions.allowHeaders ?? defaultAllowHeaders),
+			...requiredAllowHeaders,
+		];
+
 		const corsMiddleware = cors({
 			...honoCorsOptions,
 			origin: originHandler,
 			// Always include required headers, merge with user-provided or defaults
-			allowHeaders: [
-				...(honoCorsOptions.allowHeaders ?? defaultAllowHeaders),
-				...requiredAllowHeaders,
-			],
+			allowHeaders: finalAllowHeaders,
 			allowMethods: honoCorsOptions.allowMethods ?? [
 				'POST',
 				'GET',
@@ -274,10 +286,13 @@ export function createCorsMiddleware(staticOptions?: CorsConfig) {
 export function createOtelMiddleware() {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
-		// Skip session tracking for paths in the skip list
-		if (OTEL_SESSION_SKIP_PATHS.has(c.req.path)) {
+		// Skip thread/session setup entirely for lightweight endpoints
+		if (OTEL_FULL_SKIP_PATHS.has(c.req.path)) {
 			return next();
 		}
+
+		// Check if we should skip session events (but still set up thread/session)
+		const skipSessionEvents = OTEL_SESSION_EVENT_SKIP_PATHS.has(c.req.path);
 
 		// Import providers dynamically to avoid circular deps
 		const { getThreadProvider, getSessionProvider } = await import('./_services');
@@ -354,8 +369,9 @@ export function createOtelMiddleware() {
 
 					// Send session start event (so evalruns can reference this session)
 					// The provider decides whether to send based on available data (orgId, projectId, etc.)
+					// Skip for workbench routes that don't need session tracking
 					const sessionEventProvider = getSessionEventProvider();
-					if (sessionEventProvider) {
+					if (sessionEventProvider && !skipSessionEvents) {
 						try {
 							// Look up routeId from build metadata by matching method and path
 							// We need to do this here because the router wrapper hasn't run yet
@@ -428,8 +444,8 @@ export function createOtelMiddleware() {
 						await threadProvider.save(thread);
 						internal.info('[session] thread saved');
 
-						// Send session complete event
-						if (sessionEventProvider) {
+						// Send session complete event (skip for workbench routes)
+						if (sessionEventProvider && !skipSessionEvents) {
 							try {
 								const userData = session.serializeUserData();
 								internal.info(

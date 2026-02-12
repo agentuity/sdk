@@ -79,6 +79,16 @@ export function Chat({
 			>
 				{connectionStatus === 'disconnected' && emptyState ? (
 					<div className="flex flex-col h-full">{emptyState}</div>
+				) : messages.length === 0 ? (
+					<ConversationContent>
+						<div className="flex items-center justify-center h-full py-12 text-muted-foreground">
+							{isLoading ? (
+								<Loader className="size-5 animate-spin" />
+							) : (
+								<p className="text-sm">Send a message to get started.</p>
+							)}
+						</div>
+					</ConversationContent>
 				) : (
 					<ConversationContent>
 						{messages.map((message) => {

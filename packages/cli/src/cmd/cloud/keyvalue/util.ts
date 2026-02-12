@@ -1,6 +1,7 @@
 import { KeyValueStorageService, type Logger } from '@agentuity/core';
-import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
+import { createServerFetchAdapter } from '@agentuity/server';
 import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types';
+import { getCatalystUrl } from '../../../catalyst';
 import * as tui from '../../../tui';
 
 export function createStorageAdapter(ctx: {
@@ -31,7 +32,6 @@ export function createStorageAdapter(ctx: {
 		ctx.logger
 	);
 
-	const urls = getServiceUrls(ctx.region);
-	const baseUrl = urls.catalyst;
+	const baseUrl = getCatalystUrl(ctx.region);
 	return new KeyValueStorageService(baseUrl, adapter);
 }

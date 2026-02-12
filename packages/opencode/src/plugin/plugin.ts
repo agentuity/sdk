@@ -63,21 +63,6 @@ You are running inside an Agentuity Sandbox (ID: ${SANDBOX_ID}).
 // Agents that should receive sandbox context in their prompts
 const SANDBOX_AWARE_AGENTS: AgentRole[] = ['lead', 'builder', 'architect'];
 
-// Agent display names for @mentions
-const AGENT_MENTIONS: Record<AgentRole, string> = {
-	lead: '@Agentuity Coder Lead',
-	scout: '@Agentuity Coder Scout',
-	builder: '@Agentuity Coder Builder',
-	architect: '@Agentuity Coder Architect',
-	reviewer: '@Agentuity Coder Reviewer',
-	memory: '@Agentuity Coder Memory',
-	expert: '@Agentuity Coder Expert',
-	planner: '@Agentuity Coder Planner',
-	runner: '@Agentuity Coder Runner',
-	reasoner: '@Agentuity Coder Reasoner',
-	product: '@Agentuity Coder Product',
-};
-
 export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	ctx.client.app.log({
 		body: {
@@ -94,7 +79,6 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
 	const paramsHooks = createParamsHooks(ctx, coderConfig);
-	const cadenceHooks = createCadenceHooks(ctx, coderConfig);
 	const tmuxManager = coderConfig.tmux?.enabled
 		? new TmuxSessionManager(ctx, coderConfig.tmux, {
 				onLog: (message) =>
@@ -125,9 +109,37 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			: undefined,
 	});
 
+	// Recover any background tasks from previous sessions
+	// This allows tasks to survive plugin restarts
+	void backgroundManager
+		.recoverTasks()
+		.then((count) => {
+			if (count > 0) {
+				ctx.client.app.log({
+					body: {
+						service: 'agentuity-coder',
+						level: 'info',
+						message: `Recovered ${count} background task(s) from previous sessions`,
+					},
+				});
+			}
+		})
+		.catch((error) => {
+			ctx.client.app.log({
+				body: {
+					service: 'agentuity-coder',
+					level: 'warn',
+					message: `Failed to recover background tasks: ${error}`,
+				},
+			});
+		});
+
+	// Create hooks that need backgroundManager for task reference injection during compaction
+	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager);
+
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
 	// Orchestration (deciding which module handles which session) happens below in the hooks
-	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig);
+	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig, backgroundManager);
 
 	const configHandler = createConfigHandler(coderConfig);
 
@@ -228,13 +240,35 @@ function createConfigHandler(
 		// Validate merged configs and warn about mismatches
 		validateAndWarnConfigs(mergedAgents);
 
-		// In sandbox, allow all permissions without prompts
+		// Permission configuration for external directories
+		// Memory agent and other operations may need to write temp files for CLI piping
 		if (IN_SANDBOX) {
+			// In sandbox, allow all permissions without prompts
 			config.permission = {
 				'*': 'allow',
 				external_directory: {
 					'/home/agentuity/**': 'allow',
 					'*': 'allow',
+				},
+			};
+		} else {
+			// For non-sandbox environments, auto-allow temp directory writes
+			// This prevents blocking prompts when Memory agent writes large JSON for CLI piping
+			const existingPermissions = (config.permission as Record<string, unknown>) ?? {};
+			const existingExternalDir =
+				(existingPermissions.external_directory as Record<string, string>) ?? {};
+
+			// Normalize TMPDIR: strip trailing slashes, then append /**
+			const tmpdir = process.env.TMPDIR?.replace(/\/+$/, '');
+			const tmpdirPattern = tmpdir ? `${tmpdir}/**` : null;
+
+			config.permission = {
+				...existingPermissions,
+				external_directory: {
+					...existingExternalDir,
+					'/tmp/**': 'allow',
+					// Also allow OS-specific temp directories
+					...(tmpdirPattern ? { [tmpdirPattern]: 'allow' } : {}),
 				},
 			};
 		}
@@ -280,6 +314,7 @@ function createAgentConfigs(
 			...(agent.maxSteps !== undefined ? { maxSteps: agent.maxSteps } : {}),
 			...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}),
 			...(agent.thinking ? { thinking: agent.thinking } : {}),
+			...(agent.hidden ? { hidden: agent.hidden } : {}),
 		};
 	}
 
@@ -300,10 +335,8 @@ You are the Agentuity Coder Lead agent orchestrating the Agentuity Coder team.
 - **@Agentuity Coder Builder**: Implement features, write code, run tests
 - **@Agentuity Coder Architect**: Complex autonomous tasks, Cadence mode (GPT Codex)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
-- **@Agentuity Coder Memory**: Store context, remember decisions
-- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
-- **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
-- **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
+- **@Agentuity Coder Memory**: Store context, remember decisions, extract conclusions
+- **@Agentuity Coder Expert**: Agentuity CLI, SDK, Services, and Documentation specialist
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress
 
@@ -316,7 +349,7 @@ $ARGUMENTS
 3. Delegate implementation to @Agentuity Coder Builder (or Architect for complex work)
 4. Delegate lint/build/test commands to @Agentuity Coder Runner for structured results
 5. Have @Agentuity Coder Reviewer check the work
-6. Use @Agentuity Coder Expert for Agentuity CLI questions
+6. Use @Agentuity Coder Expert for Agentuity CLI, SDK, Services, and Documentation questions
 7. Only use cloud services when genuinely helpful
 8. **When done, tell @Agentuity Coder Memory to memorialize the session**
 </coder-mode>`,
@@ -345,39 +378,16 @@ $ARGUMENTS`,
 		'agentuity-memory-share': {
 			name: 'agentuity-memory-share',
 			description: '🔗 Share memory content publicly with a shareable URL',
-			template: `Create a public shareable link for memory content.
+			template: `User wants to share content publicly.
 
-The user wants to share: $ARGUMENTS
+**You have current session context. Memory does not (unless given a session ID).**
 
-## Your Task
+- Current session → Handle directly: compile content, call \`agentuity_memory_share\`
+- Stored content (specific ID, past work) → Delegate to Memory
+- Long Cadence cycle? → Ask Memory for past compactions to include
 
-1. **Understand what to share** — Based on the user's request, determine what content to share:
-   - A summary of the current session
-   - The latest compaction
-   - Specific decisions or corrections
-   - A custom selection of context
-   - If the request implies context not in the current chat, pull from memory stores (KV/Vector)
-
-2. **Prepare the content** — Format the content appropriately:
-   - Use clear markdown formatting
-   - Include relevant context (what this is, when it was created)
-   - Be conservative with sensitive information (no secrets, credentials, etc.)
-   - Keep it focused and useful for the recipient
-
-3. **Share it** — Call the \`agentuity_memory_share\` tool with:
-   - \`content\`: The formatted content to share
-   - \`ttl_seconds\`: Only if the user specified a duration (otherwise use default 30-day expiration)
-   - \`metadata\`: Optional tags like \`type=summary\` or \`source=session\`
-   - \`content_type\`: Usually \`text/markdown\` (default)
-
-4. **Return the URL** — Give the user the public URL they can share anywhere.
-
-## Guidelines
-- The URL works without authentication — anyone with the link can view it
-- Content is stored in Agentuity Cloud Streams with automatic expiration
-- Don't include secrets, API keys, or sensitive credentials in shared content
-- If unsure what to share, ask the user for clarification`,
-			agent: 'Agentuity Coder Memory',
+User's request: $ARGUMENTS`,
+			agent: 'Agentuity Coder Lead',
 			argumentHint:
 				'"share a summary of this session" or "share the auth decisions with 1 hour TTL"',
 		},
@@ -479,10 +489,8 @@ You are the Agentuity Coder Lead in **Cadence mode** — a long-running autonomo
 - **@Agentuity Coder Architect**: Complex autonomous implementation (GPT Codex with high reasoning) — **USE THIS FOR CADENCE**
 - **@Agentuity Coder Builder**: Quick fixes, simple changes (for minor iterations only)
 - **@Agentuity Coder Reviewer**: Review changes, catch issues, apply fixes
-- **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints
-- **@Agentuity Coder Reasoner**: Extract structured conclusions, resolve conflicts, surface corrections
-- **@Agentuity Coder Expert**: Agentuity CLI and cloud services specialist
-- **@Agentuity Coder Planner**: Deep planning for complex architecture decisions
+- **@Agentuity Coder Memory**: Store context, remember decisions, checkpoints, extract conclusions
+- **@Agentuity Coder Expert**: Agentuity CLI, SDK, Services, and Documentation specialist
 - **@Agentuity Coder Runner**: Run lint/build/test commands, returns structured results
 - **@Agentuity Coder Product**: Clarify requirements, validate features, track progress, Cadence briefings
 
@@ -491,33 +499,52 @@ $ARGUMENTS
 
 ## Cadence Workflow
 
-1. **Initialize loop state**:
+1. **FIRST: Establish PRD with Product** (REQUIRED):
+   - Ask @Agentuity Coder Product to establish/validate the PRD for this task
+   - Product will check for existing PRD or create one
+   - This defines "what" we're building and success criteria
+
+2. **Initialize loop state**:
    - Generate loop ID (format: \`lp_short_name_01\`)
    - Store in KV: \`agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:state" '{...}'\`
+   - Link session planning to PRD via \`prdKey\`
 
-2. **Each iteration**:
+3. **Each iteration**:
    - Ask @Agentuity Coder Memory for relevant context
    - Use @Agentuity Coder Scout to understand what's needed
-   - For complex planning, consult @Agentuity Coder Planner
+   - For complex planning, use extended thinking (ultrathink) — ground in PRD requirements
    - Delegate implementation to **@Agentuity Coder Architect** (preferred for Cadence)
    - Have @Agentuity Coder Reviewer verify the work
    - Tell @Agentuity Coder Memory to store checkpoint
 
-3. **When truly complete**, output:
+4. **When truly complete**, output:
 \`\`\`
 <promise>DONE</promise>
 \`\`\`
 
-4. **Tell @Agentuity Coder Memory to memorialize** the completed session
+5. **Finalize**:
+   - Tell @Agentuity Coder Product to update the PRD with completed work
+   - Tell @Agentuity Coder Memory to memorialize the session
 
 ## Guidelines
+- **Product first** — Always establish PRD before starting work
 - **Use Architect for implementation** — Architect has GPT Codex with maximum reasoning, ideal for autonomous work
 - Use regular Builder only for trivial fixes within an iteration
 - Ask Memory for context at each iteration start
 - Store checkpoints at each iteration end
-- If stuck on architecture, consult Planner before trying more approaches
+- If stuck on architecture, use extended thinking (ultrathink) for deep planning
 - Use @Agentuity Coder Expert for sandbox/cloud operations
-- Respect max iterations (50 default)`,
+- Respect max iterations (50 default)
+
+## Lead-of-Leads (Parallel Work)
+If the task has **independent workstreams** that can run in parallel (e.g., "build auth, payments, and notifications"):
+1. Ask @Agentuity Coder Product to create PRD with workstreams
+2. Spawn child Leads via \`agentuity_background_task\` for each workstream
+3. Each child Lead claims a workstream, works autonomously, marks done when complete
+4. Monitor progress via PRD workstream status
+5. Do integration work when all children complete
+
+**Don't use Lead-of-Leads for:** small tasks, sequential work, or work requiring tight coordination.`,
 			agent: 'Agentuity Coder Lead',
 			argumentHint: 'build the new auth feature with tests',
 		},
@@ -562,46 +589,6 @@ function createTools(backgroundManager: BackgroundManager): Hooks['tool'] {
 	// Use the schema from @opencode-ai/plugin's tool helper to avoid Zod version mismatches
 	const s = tool.schema;
 
-	const coderDelegate = tool({
-		description: `Delegate a task to a specialized Agentuity Coder agent.
-
-Use this to:
-- Scout: Explore codebase, find patterns, research documentation
-- Builder: Implement features, write code, run tests (interactive work)
-- Architect: Complex autonomous tasks, Cadence mode, deep reasoning (GPT Codex)
-- Reviewer: Review changes, catch issues, apply fixes
-- Memory: Store context, remember decisions across sessions
-- Reasoner: Extract structured conclusions, resolve conflicts, surface corrections
-- Expert: Get help with Agentuity CLI and cloud services
-- Planner: Strategic advisor for complex architecture and deep planning (read-only)
-- Runner: Execute lint/build/test/typecheck/format commands, returns structured results`,
-		args: {
-			agent: s
-				.enum([
-					'scout',
-					'builder',
-					'architect',
-					'reviewer',
-					'memory',
-					'reasoner',
-					'expert',
-					'planner',
-					'runner',
-				])
-				.describe('Which agent to delegate to'),
-			task: s.string().describe('Clear description of the task'),
-			context: s.string().optional().describe('Additional context from previous tasks'),
-		},
-		async execute(args) {
-			const mention = AGENT_MENTIONS[args.agent as AgentRole];
-			let prompt = `${mention}\n\n## Task\n${args.task}`;
-			if (args.context) {
-				prompt = `${mention}\n\n## Context\n${args.context}\n\n## Task\n${args.task}`;
-			}
-			return `To delegate this task, use the Task tool with this prompt:\n\n${prompt}\n\nThe ${args.agent} agent will handle this task.`;
-		},
-	});
-
 	const backgroundTask = tool({
 		description: `Launch a task to run in the background. Use this for parallel execution of multiple independent tasks.
 
@@ -618,11 +605,10 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 					'architect',
 					'reviewer',
 					'memory',
-					'reasoner',
 					'expert',
-					'planner',
 					'runner',
 					'product',
+					'monitor',
 				])
 				.describe('Agent role to run the task'),
 			task: s.string().describe('Task prompt to run in the background'),
@@ -695,6 +681,49 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 		},
 	});
 
+	const backgroundInspect = tool({
+		description: `Inspect a background task to see its session messages and current state. Useful for debugging or checking what a child agent is doing.`,
+		args: {
+			task_id: s.string().describe('Background task ID to inspect'),
+		},
+		async execute(args) {
+			const inspection = await backgroundManager.inspectTask(args.task_id);
+			if (!inspection) {
+				return JSON.stringify({
+					taskId: args.task_id,
+					status: 'unknown',
+					found: false,
+					error: 'Task not found or session no longer exists.',
+				});
+			}
+
+			// Extract last few messages for summary
+			const messages = inspection.messages ?? [];
+			const lastMessages = messages
+				.slice(-3)
+				.map((m) => {
+					const parts = m.parts ?? [];
+					const textParts = parts.filter(
+						(p: unknown) => (p as { type?: string }).type === 'text'
+					);
+					return textParts
+						.map((p: unknown) => ((p as { text?: string }).text ?? '').slice(0, 200))
+						.join(' ')
+						.slice(0, 300);
+				})
+				.filter(Boolean);
+
+			return JSON.stringify({
+				taskId: inspection.taskId,
+				status: inspection.status,
+				found: true,
+				messageCount: messages.length,
+				lastMessages,
+				lastActivity: inspection.lastActivity,
+			});
+		},
+	});
+
 	const memoryShare = tool({
 		description: `Share memory content publicly via Agentuity Cloud Streams.
 
@@ -725,10 +754,11 @@ Returns the public URL that can be copied and used anywhere.`,
 			compress: s.boolean().optional().describe('Enable gzip compression'),
 			region: s.string().optional().describe('Cloud region (use, usc, usw). Default: usc'),
 		},
-		async execute(args) {
+		async execute(args, context) {
 			// Get the profile first - this ensures checkAuth() and CLI use the same profile
 			const profile = getCoderProfile();
 			const originalProfile = process.env.AGENTUITY_PROFILE;
+			const sessionId = context.sessionID;
 
 			try {
 				// Set profile before auth check so checkAuth reads the correct config
@@ -775,6 +805,8 @@ Returns the public URL that can be copied and used anywhere.`,
 					env: {
 						...process.env,
 						AGENTUITY_PROFILE: profile,
+						AGENTUITY_AGENT_MODE: 'opencode',
+						...(sessionId ? { AGENTUITY_OPENCODE_SESSION: sessionId } : {}),
 					},
 				});
 
@@ -833,10 +865,10 @@ Returns the public URL that can be copied and used anywhere.`,
 	});
 
 	return {
-		agentuity_coder_delegate: coderDelegate,
 		agentuity_background_task: backgroundTask,
 		agentuity_background_output: backgroundOutput,
 		agentuity_background_cancel: backgroundCancel,
+		agentuity_background_inspect: backgroundInspect,
 		agentuity_memory_share: memoryShare,
 	};
 }

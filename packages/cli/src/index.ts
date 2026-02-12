@@ -1,4 +1,13 @@
 export { createCLI, registerCommands } from './cli';
+export { generateAIHelp, type DashdashConfig } from './ai-help';
+export {
+	getExecutingAgent,
+	getAgentEnv,
+	getAgentDisplayName,
+	KNOWN_AGENTS,
+	AGENT_DISPLAY_NAMES,
+	type KnownAgent,
+} from './agent-detection';
 export { validateRuntime, isBun } from './runtime';
 export { ensureBunOnPath } from './bun-path';
 export { isGitAvailable, getDefaultBranch } from './git-helper';
@@ -73,6 +82,7 @@ export {
 	getAuth,
 } from './config';
 export { APIClient, getAPIBaseURL, getAppBaseURL } from './api';
+export { getCatalystUrl } from './catalyst';
 export {
 	ConsoleLogger,
 	createLogger,
@@ -111,6 +121,7 @@ export type {
 	Profile,
 	AuthData,
 	CommandSchemas,
+	ResourceSelectionRule,
 	BuildPhase,
 	BuildContext,
 	BuildConfig,

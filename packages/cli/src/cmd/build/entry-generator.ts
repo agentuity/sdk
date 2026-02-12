@@ -133,17 +133,19 @@ ${routeImportsAndMounts.join('\n')}
 `
 			: '';
 
-	// Workbench API routes mounting (if configured)
-	// hasWorkbenchConfig is build-time (from agentuity.config.ts)
-	// hasWorkbench combines config + runtime dev mode check
+	// Workbench API routes mounting
+	// Always mounted - these routes are needed for the cloud workbench to communicate with deployed agents
+	// Auth is handled by middleware inside the router (signature verification in production, no auth in development)
+	// The hasWorkbenchConfig flag only controls whether the local workbench UI is served
 	const workbenchApiMount = `
+// Mount workbench API routes (/_agentuity/workbench/*)
+// Always available for cloud workbench communication
+// Auth is handled inside the router (signature verification in production)
+const workbenchRouter = createWorkbenchRouter();
+app.route('/', workbenchRouter);
+
+// hasWorkbenchConfig controls whether the local workbench UI is served (dev mode only)
 const hasWorkbenchConfig = ${hasWorkbenchConfig};
-const hasWorkbench = isDevelopment() && hasWorkbenchConfig;
-if (hasWorkbench) {
-	// Mount workbench API routes (/_agentuity/workbench/*)
-	const workbenchRouter = createWorkbenchRouter();
-	app.route('/', workbenchRouter);
-}
 `;
 
 	// Asset proxy routes - Always generated, but only active at runtime when:
@@ -373,7 +375,7 @@ ${
 	// 404 for unmatched API/system routes
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	if (!hasWorkbench) {
+	if (!(hasWorkbenchConfig && isDevelopment())) {
 		app.all('/workbench/*', (c: Context) => c.notFound());
 	}
 	
@@ -421,7 +423,7 @@ ${
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	if (!hasWorkbench) {
+	if (!(hasWorkbenchConfig && isDevelopment())) {
 		app.all('/workbench/*', (c: Context) => c.notFound());
 	}
 
@@ -438,25 +440,22 @@ ${
 `;
 	}
 
-	// Workbench routes (if enabled) - runtime mode detection
+	// Workbench UI routes (development only)
+	// The workbench UI is only served in development mode; the API routes are always available
 	const workbenchRoute = workbench?.route ?? '/workbench';
 	const workbenchRoutes = `
-if (hasWorkbench) {
-	// Development mode: Let Vite serve source files with HMR
-	if (isDevelopment()) {
-		const workbenchSrcDir = import.meta.dir + '/workbench-src';
-		const workbenchIndexPath = import.meta.dir + '/workbench-src/index.html';
-		app.get('${workbenchRoute}', async (c: Context) => {
-			const html = await Bun.file(workbenchIndexPath).text();
-			// Rewrite script/css paths to use Vite's @fs protocol
-			const withVite = html
-				.replace('src="./main.tsx"', \`src="/@fs\${workbenchSrcDir}/main.tsx"\`)
-				.replace('href="./styles.css"', \`href="/@fs\${workbenchSrcDir}/styles.css"\`);
-			return c.html(withVite);
-		});
-	} else {
-		// Production mode disables the workbench assets
-	}
+// Workbench UI is only available in development mode (API routes are always available)
+if (hasWorkbenchConfig && isDevelopment()) {
+	const workbenchSrcDir = import.meta.dir + '/workbench-src';
+	const workbenchIndexPath = import.meta.dir + '/workbench-src/index.html';
+	app.get('${workbenchRoute}', async (c: Context) => {
+		const html = await Bun.file(workbenchIndexPath).text();
+		// Rewrite script/css paths to use Vite's @fs protocol
+		const withVite = html
+			.replace('src="./main.tsx"', \`src="/@fs\${workbenchSrcDir}/main.tsx"\`)
+			.replace('href="./styles.css"', \`href="/@fs\${workbenchSrcDir}/styles.css"\`);
+		return c.html(withVite);
+	});
 }
 `;
 
@@ -646,7 +645,8 @@ app.use('*', createBaseMiddleware({
 	meter: otel.meter,
 }));
 
-app.use('/_agentuity/workbench/*', createCorsMiddleware());
+// Note: Workbench routes use their own CORS middleware (defined in createWorkbenchRouter)
+// which includes signature headers for production authentication
 app.use('/api/*', createCorsMiddleware());
 
 // Critical: otelMiddleware creates session/thread/waitUntilHandler

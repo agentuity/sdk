@@ -7,7 +7,7 @@ import { getLatestLogSession } from '../../internal-logger';
 import * as tui from '../../tui';
 import { getVersion, getPackageName } from '../../version';
 import { getAuth } from '../../config';
-import { isExecutingFromAgent } from '../../agent-detection';
+import { getExecutingAgent } from '../../agent-detection';
 
 const argsSchema = z.object({});
 
@@ -77,7 +77,7 @@ export default createSubcommand({
 		}
 
 		// Get detected agent (if any)
-		const detectedAgent = await isExecutingFromAgent();
+		const detectedAgent = getExecutingAgent();
 
 		// Gather system information
 		const systemInfo = {

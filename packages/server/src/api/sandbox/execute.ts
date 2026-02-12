@@ -1,15 +1,20 @@
-import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { throwSandboxError, API_VERSION } from './util';
 import type { ExecuteOptions, Execution, ExecutionStatus } from '@agentuity/core';
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '../api';
+import { API_VERSION, throwSandboxError } from './util';
 
-const ExecuteRequestSchema = z
+export const ExecuteRequestSchema = z
 	.object({
 		command: z.array(z.string()).describe('Command and arguments to execute'),
 		files: z
-			.record(z.string(), z.string())
+			.array(
+				z.object({
+					path: z.string().describe('File path relative to workspace'),
+					content: z.string().describe('Base64-encoded file content'),
+				})
+			)
 			.optional()
-			.describe('Files to write before execution (path -> base64 content)'),
+			.describe('Files to write before execution'),
 		timeout: z.string().optional().describe('Execution timeout (e.g., "30s", "5m")'),
 		stream: z
 			.object({
@@ -22,7 +27,7 @@ const ExecuteRequestSchema = z
 	})
 	.describe('Request body for executing a command in a sandbox');
 
-const ExecuteDataSchema = z
+export const ExecuteDataSchema = z
 	.object({
 		executionId: z.string().describe('Unique identifier for the execution'),
 		status: z
@@ -35,7 +40,7 @@ const ExecuteDataSchema = z
 	})
 	.describe('Response data from command execution');
 
-const ExecuteResponseSchema = APIResponseSchema(ExecuteDataSchema);
+export const ExecuteResponseSchema = APIResponseSchema(ExecuteDataSchema);
 
 export interface SandboxExecuteParams {
 	sandboxId: string;
@@ -62,9 +67,10 @@ export async function sandboxExecute(
 	};
 
 	if (options.files && options.files.length > 0) {
-		body.files = Object.fromEntries(
-			options.files.map((f) => [f.path, f.content.toString('base64')])
-		);
+		body.files = options.files.map((f) => ({
+			path: f.path,
+			content: f.content.toString('base64'),
+		}));
 	}
 	if (options.timeout) {
 		body.timeout = options.timeout;

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getSandboxRegion, createSandboxClient } from './util';
+import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxRmFile } from '@agentuity/server';
+import { sandboxRmFile, sandboxResolve } from '@agentuity/server';
 
 const RmFileResponseSchema = z.object({
 	success: z.boolean(),
@@ -14,7 +14,7 @@ export const rmSubcommand = createCommand({
 	name: 'rm',
 	description: 'Remove a file from a sandbox',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox rm sbx_abc123 /path/to/file.txt'),
@@ -31,8 +31,12 @@ export const rmSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options, auth, logger, orgId, config } = ctx;
-		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
+		const { args, options, auth, logger, apiClient } = ctx;
+
+		// Resolve sandbox to get region and orgId using CLI API
+		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+		const { region, orgId } = sandboxInfo;
+
 		const client = createSandboxClient(logger, auth, region);
 
 		await sandboxRmFile(client, {
