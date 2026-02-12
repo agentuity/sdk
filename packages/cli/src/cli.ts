@@ -1217,13 +1217,25 @@ async function registerSubcommand(
 
 		// Merge global --org-id and --project-id into subcommand options when the schema
 		// defines these fields. Global options (program-level) capture the values first,
-		// so subcommand-level options may not have them.
-		if (hasOrgIdInSchema && options.orgId === undefined && baseCtx.options.orgId) {
+		// so subcommand-level options may not have them. Only merge when the user
+		// explicitly passed the flag on the CLI (not from env var defaults).
+		const argv = process.argv;
+		const hasExplicitOrgId = argv.some((a) => a === '--org-id' || a.startsWith('--org-id='));
+		const hasExplicitProjectId = argv.some(
+			(a) => a === '--project-id' || a.startsWith('--project-id=')
+		);
+		if (
+			hasOrgIdInSchema &&
+			options.orgId === undefined &&
+			hasExplicitOrgId &&
+			baseCtx.options.orgId
+		) {
 			options.orgId = baseCtx.options.orgId;
 		}
 		if (
 			hasProjectIdInSchema &&
 			options.projectId === undefined &&
+			hasExplicitProjectId &&
 			(baseCtx.options as unknown as Record<string, unknown>).projectId
 		) {
 			options.projectId = (baseCtx.options as unknown as Record<string, unknown>).projectId;
