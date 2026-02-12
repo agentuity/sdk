@@ -61,6 +61,6 @@ describe('drizzle compat', () => {
 		const db = drizzle.mock();
 
 		expect(db).toBeDefined();
-		expect(db.$client).toBeDefined();
+		expect(db.$client).toBe('$client is not available on drizzle.mock()');
 	});
 });

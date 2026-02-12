@@ -220,20 +220,29 @@ function isCallablePostgresClient(value: unknown): value is CallablePostgresClie
 }
 
 function createProxyClientFromSql(client: BunSQLClient): CallablePostgresClient {
-	const proxyClient = {
-		get raw() {
-			return client as InstanceType<typeof BunSQL>;
-		},
-		executeWithRetry: async <T>(operation: () => T | Promise<T>) => operation(),
-		close: async () => {
-			const close = (client as { close?: () => Promise<void> | void }).close;
-			if (typeof close === 'function') {
-				await close.call(client);
-			}
-		},
-	} as CallablePostgresClient;
+	// Bun SQL instances are callable as tagged template literals.
+	// Create a function that forwards calls to the client.
+	const proxy = (async (strings: TemplateStringsArray, ...values: unknown[]) => {
+		// Forward tagged template to the Bun SQL client directly
+		return (client as unknown as CallablePostgresClient)(strings, ...values);
+	}) as unknown as CallablePostgresClient;
 
-	return proxyClient;
+	Object.defineProperties(proxy, {
+		raw: {
+			get: () => client as InstanceType<typeof BunSQL>,
+			enumerable: true,
+		},
+	});
+
+	proxy.executeWithRetry = async <T>(operation: () => T | Promise<T>) => operation();
+	proxy.close = async () => {
+		const close = (client as { close?: () => Promise<void> | void }).close;
+		if (typeof close === 'function') {
+			await close.call(client);
+		}
+	};
+
+	return proxy;
 }
 
 function extractPostgresConfigFromSql(client: BunSQLClient): PostgresConfig | undefined {
@@ -352,7 +361,12 @@ function _drizzle<
 _drizzle.mock = <TSchema extends Record<string, unknown> = Record<string, never>>(
 	config?: DrizzleConfig<TSchema>
 ): BunSQLDatabase<TSchema> & { $client: '$client is not available on drizzle.mock()' } => {
-	return upstreamDrizzle.mock(config);
+	const db = upstreamDrizzle.mock(config);
+	(db as unknown as Record<string, unknown>).$client =
+		'$client is not available on drizzle.mock()';
+	return db as BunSQLDatabase<TSchema> & {
+		$client: '$client is not available on drizzle.mock()';
+	};
 };
 
 export const drizzle = _drizzle as typeof _drizzle & {

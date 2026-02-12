@@ -18,6 +18,7 @@
 
 import { readFileSync } from 'fs';
 import { SQL, postgres, PostgresClient, PostgresPool } from '../../src/index';
+import { StructuredError, isStructuredError } from '@agentuity/core';
 
 // ---------------------------------------------------------------------------
 // Config from environment (set by test-postgres.sh)
@@ -69,6 +70,12 @@ const PG_URL = (() => {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+const TestTimeoutError = StructuredError(
+	'TestTimeoutError',
+	`Timed out after ${TEST_TIMEOUT_MS}ms`
+);
+const AssertionError = StructuredError('AssertionError');
+
 let passed = 0;
 let failed = 0;
 async function test(name: string, fn: () => Promise<void>) {
@@ -77,17 +84,22 @@ async function test(name: string, fn: () => Promise<void>) {
 		await Promise.race([
 			fn(),
 			new Promise<never>((_, reject) =>
-				setTimeout(
-					() => reject(new Error(`Timed out after ${TEST_TIMEOUT_MS}ms`)),
-					TEST_TIMEOUT_MS
-				)
+				setTimeout(() => reject(new TestTimeoutError()), TEST_TIMEOUT_MS)
 			),
 		]);
 		console.log('✅ PASS');
 		passed++;
 	} catch (err) {
 		console.log('❌ FAIL');
-		if (err instanceof Error) {
+		if (isStructuredError(err)) {
+			console.log(`     ${err.name}: ${err.message}`);
+			if (err.stack) {
+				const frames = err.stack.split('\n').slice(1, 4);
+				for (const frame of frames) {
+					console.log(`     ${frame.trim()}`);
+				}
+			}
+		} else if (err instanceof Error) {
 			console.log(`     Error: ${err.message}`);
 			if (err.stack) {
 				const frames = err.stack.split('\n').slice(1, 4);
@@ -103,7 +115,7 @@ async function test(name: string, fn: () => Promise<void>) {
 }
 
 function assert(condition: boolean, message: string) {
-	if (!condition) throw new Error(`Assertion failed: ${message}`);
+	if (!condition) throw new AssertionError({ message: `Assertion failed: ${message}` });
 }
 
 // ---------------------------------------------------------------------------
@@ -424,6 +436,19 @@ async function testPostgresPool() {
 	});
 }
 
+function redactCredentials(url: string): string {
+	try {
+		const parsed = new URL(url);
+		if (parsed.username || parsed.password) {
+			parsed.username = '***';
+			parsed.password = '***';
+		}
+		return parsed.toString();
+	} catch {
+		return url.replace(/:\/\/[^@]+@/, '://***:***@');
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -432,8 +457,8 @@ async function main() {
 	console.log('═'.repeat(60));
 	console.log(`   Bun version : ${Bun.version}`);
 	console.log(`   Mode        : ${CA_CERT_PATH ? 'local 🐳' : 'cloud ☁️'}`);
-	console.log(`   SSL URL     : ${SSL_URL}`);
-	console.log(`   Plain URL   : ${PLAIN_URL}`);
+	console.log(`   SSL URL     : ${redactCredentials(SSL_URL!)}`);
+	console.log(`   Plain URL   : ${redactCredentials(PLAIN_URL!)}`);
 	console.log(`   CA cert     : ${CA_CERT_PATH ?? 'none (using system CA store)'}`);
 
 	await testBunSQL();

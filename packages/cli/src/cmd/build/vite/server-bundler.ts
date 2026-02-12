@@ -8,6 +8,7 @@ import { readdir, stat } from 'node:fs/promises';
 import type { Logger } from '../../../types';
 import type { BunPlugin, BuildOutput } from 'bun';
 import { generatePatches, applyPatch } from '../patch';
+import { getLoaderForPath, rewriteBunImports, rewritePgImports } from './db-rewrite';
 
 /**
  * Format a Bun build log (BuildMessage or ResolveMessage) into a readable string
@@ -62,15 +63,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 
 	// Runtime externals: native modules and packages that need to be external
 	// These WILL be installed into .agentuity/node_modules for production
-	const runtimeExternals = [
-		'bun',
-		'fsevents',
-		'chromium-bidi',
-		'sharp',
-		'ws',
-		'@agentuity/postgres',
-		'@agentuity/drizzle',
-	];
+	const runtimeExternals = ['bun', 'fsevents', 'chromium-bidi', 'sharp', 'ws'];
 
 	// Build tool externals: packages that should be external but NOT installed
 	// These are devDependencies that may exist in node_modules but aren't needed at runtime
@@ -326,167 +319,12 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	const dbRewritePlugin: BunPlugin = {
 		name: 'agentuity:db-rewrite',
 		setup(build) {
-			const getLoaderForPath = (filePath: string): Bun.Loader => {
-				if (filePath.endsWith('.tsx')) return 'tsx';
-				if (filePath.endsWith('.jsx')) return 'jsx';
-				if (filePath.endsWith('.ts')) return 'ts';
-				if (filePath.endsWith('.mts') || filePath.endsWith('.cts')) return 'ts';
-				if (filePath.endsWith('.js')) return 'js';
-				if (filePath.endsWith('.mjs')) return 'js';
-				if (filePath.endsWith('.cjs')) return 'js';
-				return 'js';
-			};
-
-			const rewriteNamedSpecifiers = (
-				specifiers: string,
-				targetName: string
-			): {
-				stay: string[];
-				move: string[];
-				moved: boolean;
-			} => {
-				const stay: string[] = [];
-				const move: string[] = [];
-				for (const raw of specifiers.split(',')) {
-					const spec = raw.trim();
-					if (!spec) continue;
-					const isType = spec.startsWith('type ');
-					const specText = isType ? spec.slice(5).trim() : spec;
-					const [importName] = specText.split(/\s+as\s+/);
-					if (!isType && importName === targetName) {
-						move.push(specText);
-					} else {
-						stay.push(spec);
-					}
-				}
-
-				return { stay, move, moved: move.length > 0 };
-			};
-
-			const rewriteBunImports = (contents: string): { contents: string; changed: boolean } => {
-				const bunNamedRegex =
-					/(^|\n)([\t ]*)(import|export)\s+(type\s+)?\{([^}]+)\}\s+from\s+(['"])bun\6\s*;?/g;
-				let changed = false;
-				const updated = contents.replace(
-					bunNamedRegex,
-					(match, prefix, indent, keyword, typeKeyword, specifiers) => {
-						if (typeKeyword) {
-							return match;
-						}
-						const { stay, move, moved } = rewriteNamedSpecifiers(specifiers, 'SQL');
-						if (!moved) {
-							return match;
-						}
-						changed = true;
-						const statements: string[] = [];
-						if (stay.length > 0) {
-							statements.push(`${indent}${keyword} { ${stay.join(', ')} } from 'bun';`);
-						}
-						if (move.length > 0) {
-							statements.push(
-								`${indent}${keyword} { ${move.join(', ')} } from '@agentuity/postgres';`
-							);
-						}
-						return `${prefix}${statements.join('\n')}`;
-					}
-				);
-
-				return { contents: updated, changed };
-			};
-
-			const rewritePgImports = (contents: string): { contents: string; changed: boolean } => {
-				const importRegex =
-					/(^|\n)([\t ]*)(import)\s+(type\s+)?([^;]+?)\s+from\s+(['"])pg\6\s*;?/g;
-				const exportRegex =
-					/(^|\n)([\t ]*)(export)\s+(?!type\b)\{([^}]+)\}\s+from\s+(['"])pg\5\s*;?/g;
-				let changed = false;
-
-				const updatedImports = contents.replace(
-					importRegex,
-					(match, prefix, indent, keyword, typeKeyword, clause) => {
-						if (typeKeyword) {
-							return match; // import type { ... } from 'pg' — skip entirely
-						}
-						const trimmed = clause.trim();
-						if (trimmed.startsWith('*')) {
-							return match;
-						}
-
-						let defaultImport: string | undefined;
-						let namedSpecifiers: string | undefined;
-						if (trimmed.startsWith('{')) {
-							namedSpecifiers = trimmed.slice(1, trimmed.lastIndexOf('}'));
-						} else if (trimmed.includes('{')) {
-							const [defaultPart, rest] = trimmed.split('{', 2);
-							defaultImport = defaultPart.replace(/,\s*$/, '').trim();
-							namedSpecifiers = rest.slice(0, rest.lastIndexOf('}'));
-						} else {
-							defaultImport = trimmed;
-						}
-
-						const movedNamed = namedSpecifiers
-							? rewriteNamedSpecifiers(namedSpecifiers, 'Pool')
-							: { stay: [], move: [], moved: false };
-						const moveDefault = false; // Default import is the entire pg module, not Pool — keep it with 'pg'
-						const shouldMove = moveDefault || movedNamed.moved;
-
-						if (!shouldMove) {
-							return match;
-						}
-
-						changed = true;
-						const statements: string[] = [];
-						const pgNamed = movedNamed.stay;
-						const postgresNamed = movedNamed.move;
-						const pgDefault = moveDefault ? undefined : defaultImport;
-						const postgresDefault = moveDefault ? defaultImport : undefined;
-
-						if (pgDefault || pgNamed.length > 0) {
-							const parts: string[] = [];
-							if (pgDefault) parts.push(pgDefault);
-							if (pgNamed.length > 0) parts.push(`{ ${pgNamed.join(', ')} }`);
-							statements.push(`${indent}${keyword} ${parts.join(', ')} from 'pg';`);
-						}
-						if (postgresDefault || postgresNamed.length > 0) {
-							const parts: string[] = [];
-							if (postgresDefault) parts.push(postgresDefault);
-							if (postgresNamed.length > 0) parts.push(`{ ${postgresNamed.join(', ')} }`);
-							statements.push(
-								`${indent}${keyword} ${parts.join(', ')} from '@agentuity/postgres';`
-							);
-						}
-
-						return `${prefix}${statements.join('\n')}`;
-					}
-				);
-
-				const updatedExports = updatedImports.replace(
-					exportRegex,
-					(match, prefix, indent, keyword, specifiers) => {
-						const { stay, move, moved } = rewriteNamedSpecifiers(specifiers, 'Pool');
-						if (!moved) {
-							return match;
-						}
-						changed = true;
-						const statements: string[] = [];
-						if (stay.length > 0) {
-							statements.push(`${indent}${keyword} { ${stay.join(', ')} } from 'pg';`);
-						}
-						if (move.length > 0) {
-							statements.push(
-								`${indent}${keyword} { ${move.join(', ')} } from '@agentuity/postgres';`
-							);
-						}
-						return `${prefix}${statements.join('\n')}`;
-					}
-				);
-
-				return { contents: updatedExports, changed };
-			};
-
-			build.onResolve({ filter: /^drizzle-orm\/bun-sql$/ }, () => {
+			build.onResolve({ filter: /^drizzle-orm\/bun-sql$/ }, (args) => {
+				// Resolve to @agentuity/drizzle — the bundler will find it in node_modules
+				// and bundle it into .agentuity/app.js (NOT kept external).
+				const resolved = import.meta.resolveSync('@agentuity/drizzle', args.importer);
 				logger.debug('DB rewrite: redirected drizzle-orm/bun-sql → @agentuity/drizzle');
-				return { path: '@agentuity/drizzle', external: true };
+				return { path: resolved };
 			});
 
 			build.onLoad(
@@ -522,7 +360,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 
 					return {
 						contents: updated,
-						loader: getLoaderForPath(args.path),
+						loader: getLoaderForPath(args.path) as Bun.Loader,
 					};
 				}
 			);
