@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectDeploymentList } from '@agentuity/server';
-import { resolveProjectId } from './utils';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 
@@ -49,7 +48,8 @@ export const listSubcommand = createSubcommand({
 	},
 	schema: {
 		options: z.object({
-			'project-id': z.string().optional().describe('Project ID'),
+			orgId: z.string().optional().describe('filter by organization id'),
+			projectId: z.string().optional().describe('filter by project id'),
 			count: z.coerce
 				.number()
 				.int()
@@ -61,15 +61,25 @@ export const listSubcommand = createSubcommand({
 		response: DeploymentListResponseSchema,
 	},
 	webUrl: (ctx) => {
-		const projectId = ctx.opts?.['project-id'] || ctx.project?.projectId;
+		const projectId = ctx.opts?.projectId || ctx.project?.projectId;
 		return projectId ? `/projects/${encodeURIComponent(projectId)}/deployments` : undefined;
 	},
 	async handler(ctx) {
-		const projectId = resolveProjectId(ctx, { projectId: ctx.opts['project-id'] });
-		const { apiClient, opts, options } = ctx;
+		const { opts, options, project, apiClient } = ctx;
+
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
+		const projectId = opts?.projectId || project?.projectId;
+		if (!projectId) {
+			tui.fatal('Project ID is required. Use --project-id or run from a project directory.');
+		}
 
 		try {
-			const deployments = await projectDeploymentList(apiClient, projectId, opts.count);
+			const deployments = await projectDeploymentList(apiClient, projectId, opts.count, {
+				orgId: opts?.orgId,
+			});
 
 			const result = deployments.map((d) => ({
 				id: d.id,

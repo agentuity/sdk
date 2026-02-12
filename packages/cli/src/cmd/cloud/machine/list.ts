@@ -35,15 +35,18 @@ export const listSubcommand = createSubcommand({
 	requires: { auth: true },
 	idempotent: true,
 	schema: {
+		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
+		}),
 		response: MachineListResponseSchema,
 	},
 	async handler(ctx) {
-		const { options, logger, auth, config } = ctx;
+		const { options, opts, logger, auth, config } = ctx;
 
 		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		try {
-			const machines = await machineList(catalystClient);
+			const machines = await machineList(catalystClient, { orgId: opts?.orgId });
 
 			const result = machines.map((m) => ({
 				id: m.id,

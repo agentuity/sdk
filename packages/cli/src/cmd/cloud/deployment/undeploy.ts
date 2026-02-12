@@ -28,12 +28,12 @@ export const undeploySubcommand = createSubcommand({
 	prerequisites: ['cloud deploy'],
 	schema: {
 		options: z.object({
-			'project-id': z.string().optional().describe('Project ID'),
+			projectId: z.string().optional().describe('filter by project id'),
 			force: z.boolean().default(false).describe('Force undeploy without confirmation'),
 		}),
 	},
 	async handler(ctx) {
-		const projectId = resolveProjectId(ctx, { projectId: ctx.opts['project-id'] });
+		const projectId = resolveProjectId(ctx, { projectId: ctx.opts.projectId });
 		const { apiClient, opts } = ctx;
 
 		if (!opts.force) {

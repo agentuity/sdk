@@ -38,6 +38,7 @@ export const listSubcommand = createSubcommand({
 	],
 	schema: {
 		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
 			showCredentials: z
 				.boolean()
 				.optional()
@@ -59,7 +60,7 @@ export const listSubcommand = createSubcommand({
 			message: 'Fetching databases',
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 'db' });
+				return listOrgResources(catalystClient, { type: 'db', orgId: opts?.orgId });
 			},
 		});
 

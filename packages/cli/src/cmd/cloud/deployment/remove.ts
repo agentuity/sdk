@@ -40,13 +40,13 @@ export const removeSubcommand = createSubcommand({
 			deployment_id: z.string().describe('Deployment ID'),
 		}),
 		options: z.object({
-			'project-id': z.string().optional().describe('Project ID'),
+			projectId: z.string().optional().describe('filter by project id'),
 			force: z.boolean().default(false).describe('Force removal without confirmation'),
 		}),
 		response: DeploymentRemoveResponseSchema,
 	},
 	async handler(ctx) {
-		const projectId = resolveProjectId(ctx, { projectId: ctx.opts['project-id'] });
+		const projectId = resolveProjectId(ctx, { projectId: ctx.opts.projectId });
 		const { apiClient, args, opts } = ctx;
 
 		if (!opts.force) {

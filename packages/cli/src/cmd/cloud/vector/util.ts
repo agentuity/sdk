@@ -4,15 +4,19 @@ import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../ty
 import { getCatalystUrl } from '../../../catalyst';
 import * as tui from '../../../tui';
 
-export function createStorageAdapter(ctx: {
-	logger: Logger;
-	auth: AuthData;
-	region: string;
-	project?: ProjectConfig;
-	config: Config | null;
-	options: GlobalOptions;
-}) {
+export function createStorageAdapter(
+	ctx: {
+		logger: Logger;
+		auth: AuthData;
+		region: string;
+		project?: ProjectConfig;
+		config: Config | null;
+		options: GlobalOptions;
+	},
+	explicitOrgId?: string
+) {
 	const orgId =
+		explicitOrgId ??
 		ctx.project?.orgId ??
 		ctx.options.orgId ??
 		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
