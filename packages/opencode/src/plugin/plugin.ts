@@ -158,6 +158,9 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 
 	registerShutdownHandler(backgroundManager, tmuxManager, shutdownLogger);
 
+	// Track the current session ID so shell.env can inject it
+	let currentSessionId: string | undefined;
+
 	// Show startup toast (fire and forget, don't block)
 	try {
 		ctx.client.tui.showToast({
@@ -171,6 +174,10 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		...(tools ? { tool: tools } : {}),
 		config: configHandler,
 		'chat.message': async (input: unknown, output: unknown) => {
+			const inp = input as { sessionID?: string };
+			if (inp.sessionID) {
+				currentSessionId = inp.sessionID;
+			}
 			await keywordHooks.onMessage(input, output);
 			await sessionHooks.onMessage(input, output);
 			await cadenceHooks.onMessage(input, output);
@@ -186,6 +193,9 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			}
 			out.env.AGENTUITY_PROFILE = profile;
 			out.env.AGENTUITY_AGENT_MODE = 'opencode';
+			if (currentSessionId) {
+				out.env.AGENTUITY_OPENCODE_SESSION = currentSessionId;
+			}
 		},
 		event: async (input) => {
 			const event = extractEventFromInput(input);
