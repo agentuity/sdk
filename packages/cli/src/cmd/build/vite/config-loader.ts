@@ -3,7 +3,6 @@
  */
 
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 import type { Logger } from '../../../types';
 import type { AgentuityConfig } from '../../../types';
 
@@ -74,33 +73,36 @@ export function getWorkbenchConfig(
 }
 
 /**
- * Check if the user's plugins include the React Vite plugin.
- * Resolves and instantiates the React plugin to match by name,
- * ensuring forward-compatible detection even if plugin names change.
+ * Known Vite framework plugin name prefixes.
+ * Each framework's Vite plugin registers one or more plugins whose names
+ * start with these prefixes. We match against these to detect whether the
+ * user has already configured a framework plugin in their agentuity.config.ts.
  */
-export async function hasReactPlugin(
-	rootDir: string,
-	userPlugins: import('vite').PluginOption[]
-): Promise<boolean> {
-	// Resolve and instantiate the react plugin to discover its plugin names
-	const projectRequire = createRequire(join(rootDir, 'package.json'));
-	let reactPluginPath = '@vitejs/plugin-react';
-	try {
-		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
-	} catch {
-		// Fall back to CLI's bundled version
-	}
-	const reactModule = await import(reactPluginPath);
-	const reactPlugins = [reactModule.default()].flat();
-	const reactNames = new Set(
-		reactPlugins
-			.filter((p: any): p is { name: string } => p && typeof p === 'object' && 'name' in p)
-			.map((p: { name: string }) => p.name)
-	);
+const FRAMEWORK_PLUGIN_PREFIXES = [
+	'vite:react', // @vitejs/plugin-react  (vite:react-babel, vite:react-refresh, …)
+	'vite:preact', // @preact/preset-vite
+	'vite-plugin-svelte', // @sveltejs/vite-plugin-svelte
+	'vite:vue', // @vitejs/plugin-vue      (vite:vue, vite:vue-jsx)
+	'vite-plugin-solid', // vite-plugin-solid
+	'solid', // vite-plugin-solid also uses plain "solid"
+];
 
-	// Flatten user plugins and check for any name match
+/**
+ * Check if the user's plugins include any known UI-framework Vite plugin
+ * (React, Svelte, Vue, Solid, Preact, …).
+ *
+ * Detection is name-based: Vite plugins expose a `name` property and every
+ * major framework plugin uses a predictable prefix. This avoids dynamically
+ * importing every possible framework just to compare names.
+ */
+export function hasFrameworkPlugin(userPlugins: import('vite').PluginOption[]): boolean {
 	const flat = (userPlugins as any[]).flat(Infinity).filter(Boolean);
 	return flat.some(
-		(p: any) => p && typeof p === 'object' && 'name' in p && reactNames.has(p.name)
+		(p: any) =>
+			p &&
+			typeof p === 'object' &&
+			'name' in p &&
+			typeof p.name === 'string' &&
+			FRAMEWORK_PLUGIN_PREFIXES.some((prefix) => p.name.startsWith(prefix))
 	);
 }

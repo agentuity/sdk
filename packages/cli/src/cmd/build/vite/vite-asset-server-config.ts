@@ -128,31 +128,32 @@ export async function generateAssetServerConfig(
 			'process.env.NODE_ENV': JSON.stringify('development'),
 		},
 
-		// Plugins: User plugins first (includes framework plugin like React), then browser env
+		// Plugins: User plugins first (includes framework plugin like React/Svelte/Vue), then browser env
 		// Try project's node_modules first, fall back to CLI's bundled version
 		plugins: await (async () => {
-			const projectRequire = createRequire(join(rootDir, 'package.json'));
-			let reactPluginPath = '@vitejs/plugin-react';
-			try {
-				reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
-			} catch {
-				// Project doesn't have @vitejs/plugin-react, use CLI's bundled version
-			}
 			const { browserEnvPlugin } = await import('./browser-env-plugin');
 			const { publicAssetPathPlugin } = await import('./public-asset-path-plugin');
-			const { hasReactPlugin } = await import('./config-loader');
+			const { hasFrameworkPlugin } = await import('./config-loader');
 
-			// Auto-add React plugin if not present in user config (backwards compatibility)
+			// Auto-add React plugin if no framework plugin is present (backwards compatibility)
 			const resolvedUserPlugins = [...userPlugins];
-			if (resolvedUserPlugins.length === 0 || !(await hasReactPlugin(rootDir, resolvedUserPlugins))) {
-				logger.debug('React plugin not found in agentuity.config.ts plugins, adding automatically for dev server');
+			if (resolvedUserPlugins.length === 0 || !hasFrameworkPlugin(resolvedUserPlugins)) {
+				logger.debug(
+					'No framework plugin found in agentuity.config.ts plugins, adding React automatically for dev server'
+				);
+				const projectRequire = createRequire(join(rootDir, 'package.json'));
+				let reactPluginPath = '@vitejs/plugin-react';
+				try {
+					reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+				} catch {
+					// Project doesn't have @vitejs/plugin-react, use CLI's bundled version
+				}
 				const reactModule = await import(reactPluginPath);
-				const reactPlugin = reactModule.default();
-				resolvedUserPlugins.unshift(reactPlugin);
+				resolvedUserPlugins.unshift(reactModule.default());
 			}
 
 			return [
-				// User-defined plugins from agentuity.config.ts (includes framework plugin like React)
+				// User-defined plugins from agentuity.config.ts (framework plugin + extras)
 				...resolvedUserPlugins,
 				// Browser env plugin to map process.env to import.meta.env
 				browserEnvPlugin(),

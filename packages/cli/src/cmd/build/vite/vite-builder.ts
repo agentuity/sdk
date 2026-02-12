@@ -180,13 +180,15 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
-		const { loadAgentuityConfig, hasReactPlugin } = await import('./config-loader');
+		const { loadAgentuityConfig, hasFrameworkPlugin } = await import('./config-loader');
 		const userConfig = await loadAgentuityConfig(rootDir, logger);
 		const userPlugins = userConfig?.plugins || [];
 
-		// Auto-add React plugin if not present in user config (backwards compatibility)
-		if (userPlugins.length === 0 || !(await hasReactPlugin(rootDir, userPlugins))) {
-			logger.debug('React plugin not found in agentuity.config.ts plugins, adding automatically');
+		// Auto-add React plugin if no framework plugin is present (backwards compatibility)
+		if (userPlugins.length === 0 || !hasFrameworkPlugin(userPlugins)) {
+			logger.debug(
+				'No framework plugin found in agentuity.config.ts plugins, adding React automatically'
+			);
 			userPlugins.unshift(react());
 		}
 
