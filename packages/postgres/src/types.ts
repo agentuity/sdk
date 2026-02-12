@@ -1,3 +1,5 @@
+import type pg from 'pg';
+
 /**
  * TLS configuration options for PostgreSQL connections.
  */
@@ -279,66 +281,14 @@ export interface PoolSSLConfig {
  * Configuration options for PostgresPool.
  * Extends standard pg.Pool options with reconnection support.
  */
-export interface PoolConfig {
-	/**
-	 * PostgreSQL connection URL.
-	 * If not provided, uses `process.env.DATABASE_URL`.
-	 */
-	connectionString?: string;
-
-	/**
-	 * Database hostname.
-	 */
-	host?: string;
-
-	/**
-	 * Database port.
-	 * @default 5432
-	 */
-	port?: number;
-
-	/**
-	 * Database username.
-	 */
-	user?: string;
-
-	/**
-	 * Database password.
-	 */
-	password?: string;
-
-	/**
-	 * Database name.
-	 */
-	database?: string;
-
-	/**
-	 * Maximum number of connections in the pool.
-	 * @default 10
-	 */
-	max?: number;
-
-	/**
-	 * Number of milliseconds a client must sit idle before being disconnected.
-	 * Set to 0 to disable idle timeout.
-	 * @default 10000
-	 */
-	idleTimeoutMillis?: number;
-
-	/**
-	 * Number of milliseconds to wait when connecting a new client before timing out.
-	 * Set to 0 to disable connection timeout.
-	 * @default 0
-	 */
-	connectionTimeoutMillis?: number;
-
+export interface PoolConfig extends pg.PoolConfig {
 	/**
 	 * SSL configuration.
 	 * Set to `true` to enable SSL with default settings.
 	 * Set to an object to configure SSL options.
 	 * Set to `false` or omit to disable SSL.
 	 */
-	ssl?: boolean | PoolSSLConfig;
+	ssl?: pg.PoolConfig['ssl'] | PoolSSLConfig;
 
 	/**
 	 * Reconnection configuration.

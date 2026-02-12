@@ -11,6 +11,7 @@ import {
 import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect';
 import { Transaction, ReservedConnection } from './transaction';
 import { registerClient, unregisterClient } from './registry';
+import { injectSslMode } from './tls';
 
 /**
  * Bun SQL options for PostgreSQL connections.
@@ -314,12 +315,16 @@ export class PostgresClient {
 			return;
 		}
 
-		const url = this._config.url ?? process.env.DATABASE_URL;
+		let url = this._config.url ?? process.env.DATABASE_URL;
 
 		// Build Bun.SQL options - use type assertion since Bun types are a union
 		const bunOptions: BunPostgresOptions = {
 			adapter: 'postgres',
 		};
+
+		// Bun.SQL requires `sslmode` in the URL to trigger PostgreSQL TLS negotiation.
+		// See: https://github.com/agentuity/sdk/issues/921
+		url = injectSslMode(url, this._config.tls);
 
 		if (url) {
 			bunOptions.url = url;

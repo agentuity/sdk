@@ -1,5 +1,7 @@
-import { SQL as BunSQL } from 'bun';
-import { drizzle } from 'drizzle-orm/bun-sql';
+import { SQL as BunSQL, type SQL as BunSQLClient, type SQLOptions } from 'bun';
+import { drizzle as upstreamDrizzle, type BunSQLDatabase } from 'drizzle-orm/bun-sql';
+import type { DrizzleConfig } from 'drizzle-orm';
+import { isConfig } from 'drizzle-orm/utils';
 import { postgres, type CallablePostgresClient, type PostgresConfig } from '@agentuity/postgres';
 import type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
 
@@ -150,6 +152,10 @@ export function createResilientSQLProxy(
 			// Always resolve from the CURRENT raw connection (changes after reconnect)
 			const raw = client.raw;
 
+			if (prop === 'close') {
+				return () => client.close();
+			}
+
 			if (prop === 'unsafe') {
 				// Wrap unsafe() with retry logic for resilient queries.
 				// Returns a thenable that also supports .values() chaining,
@@ -201,6 +207,171 @@ export function createResilientSQLProxy(
 		},
 	});
 }
+
+type DrizzleConnectionConfig = string | ({ url?: string } & SQLOptions);
+
+function isCallablePostgresClient(value: unknown): value is CallablePostgresClient {
+	return (
+		typeof value === 'function' &&
+		value !== null &&
+		'raw' in (value as CallablePostgresClient) &&
+		typeof (value as CallablePostgresClient).executeWithRetry === 'function'
+	);
+}
+
+function createProxyClientFromSql(client: BunSQLClient): CallablePostgresClient {
+	// Bun SQL instances are callable as tagged template literals.
+	// Create a function that forwards calls to the client.
+	const proxy = (async (strings: TemplateStringsArray, ...values: unknown[]) => {
+		// Forward tagged template to the Bun SQL client directly
+		return (client as unknown as CallablePostgresClient)(strings, ...values);
+	}) as unknown as CallablePostgresClient;
+
+	Object.defineProperties(proxy, {
+		raw: {
+			get: () => client as InstanceType<typeof BunSQL>,
+			enumerable: true,
+		},
+	});
+
+	proxy.executeWithRetry = async <T>(operation: () => T | Promise<T>) => operation();
+	proxy.close = async () => {
+		const close = (client as { close?: () => Promise<void> | void }).close;
+		if (typeof close === 'function') {
+			await close.call(client);
+		}
+	};
+
+	return proxy;
+}
+
+function extractPostgresConfigFromSql(client: BunSQLClient): PostgresConfig | undefined {
+	const options = (client as { options?: Record<string, unknown> }).options;
+	if (!options || typeof options !== 'object') {
+		return undefined;
+	}
+
+	const config: PostgresConfig = {};
+	const keys = [
+		'url',
+		'hostname',
+		'port',
+		'username',
+		'password',
+		'database',
+		'tls',
+		'max',
+		'idleTimeout',
+		'connectionTimeout',
+	] as const;
+
+	for (const key of keys) {
+		if (key in options) {
+			(config as Record<string, unknown>)[key] = options[key];
+		}
+	}
+
+	return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function resolvePostgresClient<TClient extends BunSQLClient>(
+	client: TClient
+): CallablePostgresClient {
+	if (isCallablePostgresClient(client)) {
+		return client;
+	}
+
+	const config = extractPostgresConfigFromSql(client);
+	if (config) {
+		return postgres(config);
+	}
+
+	return createProxyClientFromSql(client);
+}
+
+function resolvePostgresClientFromConnection(
+	connection?: DrizzleConnectionConfig
+): CallablePostgresClient {
+	if (!connection) {
+		return postgres();
+	}
+
+	if (typeof connection === 'string') {
+		return postgres(connection);
+	}
+
+	if (typeof connection === 'object' && connection.url !== undefined) {
+		const { url, ...config } = connection;
+		return postgres({ url, ...(config as PostgresConfig) });
+	}
+
+	return postgres(connection as PostgresConfig);
+}
+
+function createDrizzleDatabase<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+	TClient extends BunSQLClient = BunSQLClient,
+>(
+	client: CallablePostgresClient,
+	config?: DrizzleConfig<TSchema>
+): BunSQLDatabase<TSchema> & {
+	$client: TClient;
+} {
+	const resilientSQL = createResilientSQLProxy(client);
+	return upstreamDrizzle({
+		client: resilientSQL,
+		...(config ?? {}),
+	}) as BunSQLDatabase<TSchema> & { $client: TClient };
+}
+
+function _drizzle<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+	TClient extends BunSQLClient = BunSQLClient,
+>(
+	...params:
+		| [TClient | string]
+		| [TClient | string, DrizzleConfig<TSchema>]
+		| [DrizzleConfig<TSchema> & ({ connection: DrizzleConnectionConfig } | { client: TClient })]
+): BunSQLDatabase<TSchema> & { $client: TClient } {
+	if (typeof params[0] === 'string') {
+		const client = resolvePostgresClientFromConnection(params[0]);
+		return createDrizzleDatabase(client, params[1]);
+	}
+
+	if (isConfig(params[0])) {
+		const config = params[0] as DrizzleConfig<TSchema> & {
+			connection?: DrizzleConnectionConfig;
+			client?: TClient;
+		};
+		const { connection, client, ...drizzleConfig } = config;
+
+		if (client) {
+			const resolvedClient = resolvePostgresClient(client);
+			return createDrizzleDatabase(resolvedClient, drizzleConfig);
+		}
+
+		const resolvedClient = resolvePostgresClientFromConnection(connection);
+		return createDrizzleDatabase(resolvedClient, drizzleConfig);
+	}
+
+	const client = resolvePostgresClient(params[0] as TClient);
+	return createDrizzleDatabase(client, params[1]);
+}
+
+_drizzle.mock = <TSchema extends Record<string, unknown> = Record<string, never>>(
+	config?: DrizzleConfig<TSchema>
+): BunSQLDatabase<TSchema> & { $client: '$client is not available on drizzle.mock()' } => {
+	const db = upstreamDrizzle.mock(config);
+	(db as unknown as Record<string, unknown>).$client =
+		'$client is not available on drizzle.mock()';
+	return db as BunSQLDatabase<TSchema> & {
+		$client: '$client is not available on drizzle.mock()';
+	};
+};
+
+export const drizzle = _drizzle as typeof _drizzle & {
+	mock: typeof _drizzle.mock;
+};
 
 /**
  * Creates a Drizzle ORM instance with a resilient PostgreSQL connection.
@@ -270,7 +441,7 @@ export function createPostgresDrizzle<
 
 	// Create Drizzle instance using the resilient proxy instead of a static
 	// reference to client.raw, which would become stale after reconnection.
-	const db = drizzle({
+	const db = upstreamDrizzle({
 		client: resilientSQL,
 		schema: config?.schema,
 		logger: config?.logger,
