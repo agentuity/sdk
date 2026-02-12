@@ -316,18 +316,26 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		},
 	};
 
+	// Detect files belonging to @agentuity/postgres or @agentuity/drizzle.
+	// Matches both published paths (node_modules/@agentuity/postgres/) and
+	// symlinked/monorepo paths (packages/postgres/dist/, packages/postgres/src/).
+	const isAgentuityPostgres = (filePath: string) =>
+		filePath.includes('/@agentuity/postgres/') ||
+		filePath.includes('\\@agentuity\\postgres\\') ||
+		filePath.includes('/packages/postgres/');
+
+	const isAgentuityDrizzle = (filePath: string) =>
+		filePath.includes('/@agentuity/drizzle/') ||
+		filePath.includes('\\@agentuity\\drizzle\\') ||
+		filePath.includes('/packages/drizzle/');
+
 	const dbRewritePlugin: BunPlugin = {
 		name: 'agentuity:db-rewrite',
 		setup(build) {
 			build.onResolve({ filter: /^drizzle-orm\/bun-sql$/ }, (args) => {
 				// Don't redirect if the importer is @agentuity/drizzle itself — that would create a cycle.
-				// This check matches published packages in node_modules/@agentuity/drizzle/.
-				// Monorepo source paths (packages/drizzle/src/) don't hit this bundler — they use tsc.
-				if (
-					args.importer &&
-					(args.importer.includes('/node_modules/@agentuity/drizzle/') ||
-						args.importer.includes('\\node_modules\\@agentuity\\drizzle\\'))
-				) {
+				// Matches both published packages in node_modules and symlinked monorepo paths.
+				if (args.importer && isAgentuityDrizzle(args.importer)) {
 					return; // Let default resolution handle it
 				}
 				// Resolve to @agentuity/drizzle — the bundler will find it in node_modules
@@ -343,7 +351,16 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 					namespace: 'file',
 				},
 				async (args) => {
-					if (args.path.includes('/node_modules/')) {
+					// Skip node_modules and the rewrite-target packages themselves.
+					// The symlink check is needed because symlinked packages (e.g. via
+					// workspace links) resolve to paths outside node_modules/ (like
+					// ../../sdk/packages/postgres/dist/) and would otherwise be rewritten,
+					// creating circular imports (postgres importing from itself).
+					if (
+						args.path.includes('/node_modules/') ||
+						isAgentuityPostgres(args.path) ||
+						isAgentuityDrizzle(args.path)
+					) {
 						return;
 					}
 					const contents = await Bun.file(args.path).text();
