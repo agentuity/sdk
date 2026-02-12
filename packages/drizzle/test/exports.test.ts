@@ -12,6 +12,12 @@ describe('exports', () => {
 			expect(createPostgresDrizzle).toBeDefined();
 			expect(typeof createPostgresDrizzle).toBe('function');
 		});
+
+		test('drizzle is exported and is a function', async () => {
+			const { drizzle } = await import('../src/index');
+			expect(drizzle).toBeDefined();
+			expect(typeof drizzle).toBe('function');
+		});
 	});
 
 	describe('re-exports from @agentuity/postgres', () => {
@@ -183,6 +189,32 @@ describe('exports', () => {
 			expect(typeof index).toBe('function');
 			expect(check).toBeDefined();
 			expect(typeof check).toBe('function');
+		});
+	});
+
+	describe('re-exports from drizzle-orm/bun-sql', () => {
+		test('BunSQLDatabase is exported', async () => {
+			const { BunSQLDatabase } = await import('../src/index');
+			expect(BunSQLDatabase).toBeDefined();
+			expect(typeof BunSQLDatabase).toBe('function');
+		});
+
+		test('BunSQLSession is exported', async () => {
+			const { BunSQLSession } = await import('../src/index');
+			expect(BunSQLSession).toBeDefined();
+			expect(typeof BunSQLSession).toBe('function');
+		});
+
+		test('BunSQLTransaction is exported', async () => {
+			const { BunSQLTransaction } = await import('../src/index');
+			expect(BunSQLTransaction).toBeDefined();
+			expect(typeof BunSQLTransaction).toBe('function');
+		});
+
+		test('BunSQLPreparedQuery is exported', async () => {
+			const { BunSQLPreparedQuery } = await import('../src/index');
+			expect(BunSQLPreparedQuery).toBeDefined();
+			expect(typeof BunSQLPreparedQuery).toBe('function');
 		});
 	});
 
