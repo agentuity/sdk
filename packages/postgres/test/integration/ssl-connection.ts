@@ -376,14 +376,18 @@ async function testPostgresPool() {
 		}
 	});
 
-	// Test 3b: SSL URL with sslmode=require (pg handles sslmode internally)
+	// Test 3b: SSL URL with sslmode=require embedded in the URL
 	await test('PostgresPool: URL with sslmode=require — SELECT 1', async () => {
-		// pg promotes sslmode=require → verify-full; against cloud this works
-		// (valid certs), against Docker self-signed certs need the CA
+		// pg promotes sslmode=require → verify-full internally, which needs a
+		// valid CA chain. In Docker mode the self-signed CA isn't in the system
+		// store, so this path only works against cloud (real certs).
+		if (CA_CERT) {
+			console.log('SKIP (Docker self-signed certs incompatible with pg verify-full promotion)');
+			return;
+		}
 		const pool = new PostgresPool({
-			connectionString: PG_URL,
+			connectionString: SSL_URL,
 			max: 1,
-			ssl: PG_SSL_CONFIG,
 		});
 		try {
 			await pool.waitForConnection(5000);

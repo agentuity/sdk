@@ -79,20 +79,18 @@ describe('injectSslMode', () => {
 		expect(result).toContain('sslmode=require');
 	});
 
-	it('does NOT inject when tls is 0 (falsy)', () => {
+	it('injects when tls is 0 (edge case — not explicitly false or undefined)', () => {
 		const url = 'postgresql://user:pass@localhost:5432/db';
 		const result = injectSslMode(url, 0);
-		// 0 is falsy but not === false or === undefined — it's truthy-ish check
-		// Actually 0 passes the check since it's not === undefined and not === false
-		// This is correct behavior: `tls: 0` is unusual but not `false`
+		// 0 is falsy in JS but injectSslMode only skips on `=== false` or `=== undefined`,
+		// so 0 is treated as a truthy-ish TLS intent and injection occurs.
 		expect(result).toContain('sslmode=require');
 	});
 
-	it('does NOT inject when tls is null', () => {
+	it('injects when tls is null (edge case — not explicitly false or undefined)', () => {
 		const url = 'postgresql://user:pass@localhost:5432/db';
 		const result = injectSslMode(url, null);
-		// null is not === undefined and not === false, so it passes the guard
-		// This is intentional — null is truthy for our purposes
+		// null is not `=== false` and not `=== undefined`, so injection occurs.
 		expect(result).toContain('sslmode=require');
 	});
 });
