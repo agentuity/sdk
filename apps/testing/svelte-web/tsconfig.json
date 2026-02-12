@@ -1,0 +1,12 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"types": ["bun-types"],
+		"outDir": "./.agentuity",
+		"rootDir": ".",
+		"verbatimModuleSyntax": true
+	},
+	"include": ["src/**/*", "src/**/*.svelte", "app.ts"],
+	"exclude": ["node_modules", ".agentuity"]
+}

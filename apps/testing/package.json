@@ -11,6 +11,7 @@
 		"build": "cd integration-suite && bun run build",
 		"build:tanstack": "cd tanstack-start && bun run build:agent",
 		"build:nextjs": "cd nextjs-app && bun run build:agent",
+		"build:svelte": "cd svelte-web && bun run build",
 		"test": "cd integration-suite && bun run test",
 		"test:frameworks": "bash ../../scripts/test-framework-demos.sh",
 		"test:frameworks:tanstack": "bash ../../scripts/test-framework-demos.sh --tanstack-only",
