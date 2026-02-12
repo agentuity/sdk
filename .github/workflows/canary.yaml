@@ -58,16 +58,35 @@ jobs:
                    packagesTable += `| \`${pkg.name}\` | \`${version}\` | ${url} |\n`;
                  }
 
-                 // Build dependencies object with all packages
-                 const deps = {};
+                 // Build overrides object with all packages
+                 const overrides = {};
                  for (const pkg of packagesJson) {
-                   deps[pkg.name] = `${npmBaseUrl}/${pkg.tarball}`;
+                   overrides[pkg.name] = `${npmBaseUrl}/${pkg.tarball}`;
                  }
-                 const depsJson = JSON.stringify({ dependencies: deps }, null, 2);
+                 const overridesJson = JSON.stringify({ overrides }, null, 2);
+
+                 // Build agent prompt
+                 const packageList = packagesJson.map(pkg => `- ${pkg.name}`).join('\n');
+                 const agentPrompt = `Add canary overrides to root package.json and run bun install.
+
+version: ${version}
+base url: ${npmBaseUrl}
+tarball pattern: {package-name-without-scope}-${version}.tgz
+
+packages:
+${packageList}`;
 
                  const body = `<!-- agentuity-canary-bot -->
                  ## 📦 Canary Packages Published
                  **version:** \`${version}\`
+
+                 <details open>
+                 <summary>Agent Prompt</summary>
+
+                 \`\`\`
+                 ${agentPrompt}
+                 \`\`\`
+                 </details>
 
                  <details>
                  <summary>Packages</summary>
@@ -78,16 +97,10 @@ jobs:
                  <details>
                  <summary>Install</summary>
 
-                 Add to your \`package.json\`:
+                 Add to the \`overrides\` field in your \`package.json\`, then run \`bun install\`:
 
                  \`\`\`json
-                 ${depsJson}
-                 \`\`\`
-
-                 Or install directly:
-
-                 \`\`\`bash
-                 ${packagesJson.map(pkg => `bun add ${npmBaseUrl}/${pkg.tarball}`).join('\n')}
+                 ${overridesJson}
                  \`\`\`
                  </details>
                  `;
