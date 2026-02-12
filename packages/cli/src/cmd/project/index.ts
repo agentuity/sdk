@@ -6,6 +6,8 @@ import { deleteSubcommand } from './delete';
 import { showSubcommand } from './show';
 import { authCommand } from './auth';
 import { addCommand } from './add';
+import { hostnameCommand } from './hostname';
+import { domainCommand } from './domain';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -22,6 +24,14 @@ export const command = createCommand({
 			command: getCommand('project add storage'),
 			description: 'Link an existing storage bucket',
 		},
+		{
+			command: getCommand('project hostname get'),
+			description: 'Show current vanity hostname',
+		},
+		{
+			command: getCommand('project domain check'),
+			description: 'Check DNS for custom domains',
+		},
 	],
 	subcommands: [
 		createProjectSubcommand,
@@ -31,5 +41,7 @@ export const command = createCommand({
 		showSubcommand,
 		authCommand,
 		addCommand,
+		hostnameCommand,
+		domainCommand,
 	],
 });

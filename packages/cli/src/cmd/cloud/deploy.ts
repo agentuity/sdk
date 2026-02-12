@@ -1185,15 +1185,18 @@ export const deploySubcommand = createSubcommand({
 						);
 					}
 				} else {
+					// Prefer vanity URLs, fall back to hash-based
+					const deploymentUrl = complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment;
+					const latestUrl = complete.publicUrls.vanityProject ?? complete.publicUrls.latest;
 					lines.push(
 						`${tui.ICONS.arrow} ${
 							tui.bold(tui.padRight('Deployment:', 12)) +
-							tui.link(complete.publicUrls.deployment)
+							tui.link(deploymentUrl)
 						}`
 					);
 					lines.push(
 						`${tui.ICONS.arrow} ${
-							tui.bold(tui.padRight('Project:', 12)) + tui.link(complete.publicUrls.latest)
+							tui.bold(tui.padRight('Project:', 12)) + tui.link(latestUrl)
 						}`
 					);
 				}
@@ -1220,14 +1223,14 @@ export const deploySubcommand = createSubcommand({
 				deploymentId: deployment.id,
 				projectId: project.projectId,
 				logs,
-				urls: complete?.publicUrls
-					? {
-							deployment: complete.publicUrls.deployment,
-							latest: complete.publicUrls.latest,
-							custom: complete.publicUrls.custom,
-							dashboard,
-						}
-					: undefined,
+			urls: complete?.publicUrls
+				? {
+						deployment: complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment,
+						latest: complete.publicUrls.vanityProject ?? complete.publicUrls.latest,
+						custom: complete.publicUrls.custom,
+						dashboard,
+					}
+				: undefined,
 			};
 		} catch (ex) {
 			collector.addGeneralError('deploy', String(ex), 'DEPLOY004');

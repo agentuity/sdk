@@ -1,0 +1,144 @@
+import { z } from 'zod';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
+import { loadProjectConfig } from '../../../config';
+import {
+	checkCustomDomainForDNS,
+	isSuccess,
+	isPending,
+	isMissing,
+	isMisconfigured,
+	isError,
+} from '../../../domain';
+
+export const checkSubcommand = createSubcommand({
+	name: 'check',
+	description: 'Check DNS configuration for custom domains',
+	tags: ['read-only', 'slow', 'requires-auth', 'requires-project'],
+	requires: { auth: true, project: true },
+	idempotent: true,
+	examples: [
+		{
+			command: getCommand('project domain check'),
+			description: 'Check all configured domains',
+		},
+		{
+			command: getCommand('project domain check --domain example.com'),
+			description: 'Check a specific domain',
+		},
+	],
+	schema: {
+		options: z.object({
+			domain: z.string().optional().describe('Specific domain to check'),
+		}),
+		response: z.object({
+			domains: z.array(
+				z.object({
+					domain: z.string(),
+					recordType: z.string(),
+					target: z.string(),
+					status: z.string(),
+					success: z.boolean(),
+				})
+			),
+		}),
+	},
+
+	async handler(ctx) {
+		const { opts, options, projectDir, config, project } = ctx;
+
+		// Determine which domains to check
+		let domainsToCheck: string[];
+
+		if (opts?.domain) {
+			domainsToCheck = [opts.domain.toLowerCase().trim()];
+		} else {
+			const projectConfig = await loadProjectConfig(projectDir, config);
+			domainsToCheck = projectConfig.deployment?.domains ?? [];
+		}
+
+		if (domainsToCheck.length === 0) {
+			if (!options.json) {
+				tui.info('No custom domains configured for this project');
+				tui.info(
+					`Use ${tui.bold(getCommand('project add domain <domain>'))} to add one`
+				);
+			}
+			return { domains: [] };
+		}
+
+		const results = await tui.spinner({
+			message: `Checking DNS for ${domainsToCheck.length} ${tui.plural(domainsToCheck.length, 'domain', 'domains')}`,
+			clearOnSuccess: true,
+			callback: () => checkCustomDomainForDNS(project.projectId, domainsToCheck, config),
+		});
+
+		const domainResults = results.map((r) => {
+			let status: string;
+			let statusRaw: string;
+			let success = false;
+
+			if (isSuccess(r)) {
+				status = tui.colorSuccess(`${tui.ICONS.success} Configured`);
+				statusRaw = 'configured';
+				success = true;
+			} else if (isPending(r)) {
+				status = tui.colorWarning('⏳ Pending');
+				statusRaw = 'pending';
+			} else if (isMisconfigured(r)) {
+				status = tui.colorWarning(`${tui.ICONS.warning} ${r.misconfigured}`);
+				statusRaw = 'misconfigured';
+			} else if (isError(r)) {
+				status = tui.colorError(`${tui.ICONS.error} ${r.error}`);
+				statusRaw = 'error';
+			} else if (isMissing(r)) {
+				status = tui.colorError(`${tui.ICONS.error} Missing`);
+				statusRaw = 'missing';
+			} else {
+				status = tui.colorError(`${tui.ICONS.error} Unknown`);
+				statusRaw = 'unknown';
+			}
+
+			return {
+				domain: r.domain,
+				recordType: r.recordType,
+				target: r.target,
+				status,
+				statusRaw,
+				success,
+			};
+		});
+
+		if (!options.json) {
+			tui.newline();
+			for (const r of domainResults) {
+				console.log(`  ${tui.colorInfo('Domain:')}  ${tui.colorPrimary(r.domain)}`);
+				console.log(`  ${tui.colorInfo('Type:')}    ${tui.colorPrimary(r.recordType)}`);
+				console.log(`  ${tui.colorInfo('Target:')}  ${tui.colorPrimary(r.target)}`);
+				console.log(`  ${tui.colorInfo('Status:')}  ${r.status}`);
+				console.log();
+			}
+
+			const allGood = domainResults.every((r) => r.success);
+			if (allGood) {
+				tui.success('All domains are correctly configured');
+			} else {
+				const failCount = domainResults.filter((r) => !r.success).length;
+				tui.warning(
+					`${failCount} ${tui.plural(failCount, 'domain has', 'domains have')} DNS issues — add a CNAME record pointing to the target shown above`
+				);
+			}
+		}
+
+		return {
+			domains: domainResults.map((r) => ({
+				domain: r.domain,
+				recordType: r.recordType,
+				target: r.target,
+				status: r.statusRaw,
+				success: r.success,
+			})),
+		};
+	},
+});
