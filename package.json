@@ -30,7 +30,7 @@
 		"test:pkginstall": "./scripts/test-package-install.sh",
 		"test:standalone": "cd apps/testing/standalone-agent && bun run test",
 		"test:queues": "bash scripts/test-queues.sh",
-		"typecheck:apps": "bun run --filter='./apps/testing/integration-suite' typecheck",
+		"typecheck:apps": "bun run --filter='./apps/testing/integration-suite' typecheck && bun run --filter='./apps/testing/svelte-web' typecheck",
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
 		"typecheck": "bun run typecheck:apps && bun run typecheck:packages",
 		"clean": "rm -rf packages/*/dist apps/**/dist packages/*/*.tsbuildinfo",
