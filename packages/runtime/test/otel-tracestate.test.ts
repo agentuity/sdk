@@ -43,8 +43,8 @@ context.setGlobalContextManager({
 		fn: T,
 	): T {
 		if (typeof fn === 'function') {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-			return ((...args: unknown[]) => als.run(ctx, () => (fn as Function)(...args))) as T;
+			const callable = fn as (...args: unknown[]) => unknown;
+			return ((...args: unknown[]) => als.run(ctx, () => callable(...args))) as T;
 		}
 		return fn;
 	},
