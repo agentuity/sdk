@@ -71,3 +71,40 @@ export function getWorkbenchConfig(
 		headers: workbench.headers ?? {},
 	};
 }
+
+/**
+ * Known Vite framework plugin name prefixes.
+ * Each framework's Vite plugin registers one or more plugins whose names
+ * start with these prefixes. We match against these to detect whether the
+ * user has already configured a framework plugin in their agentuity.config.ts.
+ */
+const FRAMEWORK_PLUGIN_PREFIXES = [
+	'vite:react', // @vitejs/plugin-react  (vite:react-babel, vite:react-refresh, …)
+	'vite:preact', // @preact/preset-vite
+	'vite-plugin-svelte', // @sveltejs/vite-plugin-svelte
+	'vite:vue', // @vitejs/plugin-vue      (vite:vue, vite:vue-jsx)
+	'vite-plugin-solid', // vite-plugin-solid
+	'solid', // vite-plugin-solid also uses plain "solid"
+];
+
+/**
+ * Check if the user's plugins include any known UI-framework Vite plugin
+ * (React, Svelte, Vue, Solid, Preact, …).
+ *
+ * Detection is name-based: Vite plugins expose a `name` property and every
+ * major framework plugin uses a predictable prefix. This avoids dynamically
+ * importing every possible framework just to compare names.
+ */
+export function hasFrameworkPlugin(userPlugins: import('vite').PluginOption[]): boolean {
+	const flat = (userPlugins as unknown[]).flat(Infinity).filter(Boolean);
+	return flat.some(
+		(p: unknown) =>
+			p &&
+			typeof p === 'object' &&
+			'name' in p &&
+			typeof (p as { name: unknown }).name === 'string' &&
+			FRAMEWORK_PLUGIN_PREFIXES.some((prefix) =>
+				((p as { name: string }).name).startsWith(prefix)
+			)
+	);
+}

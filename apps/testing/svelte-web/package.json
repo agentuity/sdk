@@ -1,0 +1,29 @@
+{
+	"name": "svelte-web-tests",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"private": true,
+	"type": "module",
+	"description": "Svelte web framework test for Agentuity SDK",
+	"scripts": {
+		"build": "bun ../../../packages/cli/bin/cli.ts build --dir .",
+		"dev": "DEVMODE_SYNC_SERVICE_MOCK=true bun ../../../packages/cli/bin/cli.ts dev --dir . --port 3500 --local --no-public --no-interactive",
+		"typecheck": "bunx svelte-check --tsconfig tsconfig.json"
+	},
+	"dependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"@agentuity/workbench": "workspace:*",
+		"hono": "^4.7.13",
+		"svelte": "^5.33.0"
+	},
+	"devDependencies": {
+		"@sveltejs/vite-plugin-svelte": "^6.2.4",
+		"@types/bun": "latest",
+		"svelte-check": "^4.2.1",
+		"vite": "^7.2.7"
+	}
+}
