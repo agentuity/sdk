@@ -3,6 +3,7 @@
  */
 
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import type { Logger } from '../../../types';
 import type { AgentuityConfig } from '../../../types';
 
@@ -70,4 +71,36 @@ export function getWorkbenchConfig(
 		route: workbench.route ?? '/workbench',
 		headers: workbench.headers ?? {},
 	};
+}
+
+/**
+ * Check if the user's plugins include the React Vite plugin.
+ * Resolves and instantiates the React plugin to match by name,
+ * ensuring forward-compatible detection even if plugin names change.
+ */
+export async function hasReactPlugin(
+	rootDir: string,
+	userPlugins: import('vite').PluginOption[]
+): Promise<boolean> {
+	// Resolve and instantiate the react plugin to discover its plugin names
+	const projectRequire = createRequire(join(rootDir, 'package.json'));
+	let reactPluginPath = '@vitejs/plugin-react';
+	try {
+		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+	} catch {
+		// Fall back to CLI's bundled version
+	}
+	const reactModule = await import(reactPluginPath);
+	const reactPlugins = [reactModule.default()].flat();
+	const reactNames = new Set(
+		reactPlugins
+			.filter((p: any): p is { name: string } => p && typeof p === 'object' && 'name' in p)
+			.map((p: { name: string }) => p.name)
+	);
+
+	// Flatten user plugins and check for any name match
+	const flat = (userPlugins as any[]).flat(Infinity).filter(Boolean);
+	return flat.some(
+		(p: any) => p && typeof p === 'object' && 'name' in p && reactNames.has(p.name)
+	);
 }

@@ -180,8 +180,22 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
+		const { loadAgentuityConfig, hasReactPlugin } = await import('./config-loader');
+		const userConfig = await loadAgentuityConfig(rootDir, logger);
+		const userPlugins = userConfig?.plugins || [];
+
+		// Auto-add React plugin if not present in user config (backwards compatibility)
+		if (userPlugins.length === 0 || !(await hasReactPlugin(rootDir, userPlugins))) {
+			logger.debug('React plugin not found in agentuity.config.ts plugins, adding automatically');
+			userPlugins.unshift(react());
+		}
+
+		if (userPlugins.length > 0) {
+			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
+		}
+
 		const plugins = [
-			react(),
+			...userPlugins,
 			browserEnvPlugin(),
 			// Fix incorrect public asset paths and rewrite to CDN URLs
 			publicAssetPathPlugin({ cdnBaseUrl }),
@@ -189,13 +203,6 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			// Emit analytics beacon as hashed CDN asset (prod builds only)
 			beaconPlugin({ enabled: analyticsEnabled && !dev }),
 		];
-		const { loadAgentuityConfig } = await import('./config-loader');
-		const userConfig = await loadAgentuityConfig(rootDir, logger);
-		const userPlugins = userConfig?.plugins || [];
-		plugins.push(...userPlugins);
-		if (userPlugins.length > 0) {
-			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
-		}
 
 		// Merge custom define values from user config
 		const userDefine = userConfig?.define || {};
