@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { listResources } from '@agentuity/server';
+import { listResources, projectEnvUpdate } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createPrompt } from '../../../tui';
@@ -7,7 +7,13 @@ import { getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import { ErrorCode } from '../../../errors';
-import { addResourceEnvVars } from '../../../env-util';
+import {
+	addResourceEnvVars,
+	findExistingEnvFile,
+	readEnvFile,
+	filterAgentuitySdkKeys,
+	splitEnvAndSecrets,
+} from '../../../env-util';
 
 export const databaseSubcommand = createSubcommand({
 	name: 'database',
@@ -42,7 +48,7 @@ export const databaseSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, orgId, region, auth, options, projectDir } = ctx;
+		const { logger, args, orgId, region, auth, options, projectDir, project } = ctx;
 
 		if (isDryRunMode(options)) {
 			const message = args.name
@@ -130,6 +136,51 @@ export const databaseSubcommand = createSubcommand({
 			if (!options.json) {
 				tui.success(`Linked database: ${tui.bold(selectedDatabase.name)}`);
 				tui.info('Environment variables written to .env');
+			}
+
+			// Sync to cloud
+			const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
+			let shouldSync = true;
+
+			if (!isHeadless && !options.json) {
+				shouldSync = await tui.confirm('Sync environment variables to cloud project?', true);
+				if (process.stdin.isTTY) {
+					process.stdin.pause();
+				}
+			}
+
+			if (shouldSync) {
+				try {
+					const envFilePath = await findExistingEnvFile(projectDir);
+					const localEnv = await readEnvFile(envFilePath);
+					const filteredEnv = filterAgentuitySdkKeys(localEnv);
+
+					if (Object.keys(filteredEnv).length > 0) {
+						const { env, secrets } = splitEnvAndSecrets(filteredEnv);
+						await tui.spinner({
+							message: 'Syncing environment variables to cloud',
+							clearOnSuccess: true,
+							callback: async () => {
+								await projectEnvUpdate(catalystClient, {
+									id: project.projectId,
+									env,
+									secrets,
+								});
+							},
+						});
+						if (!options.json) {
+							tui.success('Environment variables synced to cloud');
+						}
+					}
+				} catch (error) {
+					if (!options.json) {
+						tui.warning(
+							'Failed to sync environment variables to cloud. You can sync later with: ' +
+								tui.bold(getCommand('cloud env push'))
+						);
+					}
+					logger.debug('Failed to sync env to cloud:', error);
+				}
 			}
 		} else {
 			if (!options.json) {
