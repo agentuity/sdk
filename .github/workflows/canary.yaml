@@ -67,14 +67,16 @@ jobs:
 
                  // Build agent prompt
                  const packageList = packagesJson.map(pkg => `- ${pkg.name}`).join('\n');
-                 const agentPrompt = `Add canary overrides to root package.json and run bun install.
-
-version: ${version}
-base url: ${npmBaseUrl}
-tarball pattern: {package-name-without-scope}-${version}.tgz
-
-packages:
-${packageList}`;
+                 const agentPrompt = [
+                   'Add canary overrides to root package.json and run bun install.',
+                   '',
+                   `version: ${version}`,
+                   `base url: ${npmBaseUrl}`,
+                   `tarball pattern: {package-name-without-scope}-${version}.tgz`,
+                   '',
+                   'packages:',
+                   packageList,
+                 ].join('\n');
 
                  const body = `<!-- agentuity-canary-bot -->
                  ## 📦 Canary Packages Published
