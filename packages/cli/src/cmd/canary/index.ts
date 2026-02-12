@@ -1,6 +1,7 @@
 import { createCommand } from '../../types';
 import { z } from 'zod';
 import { $ } from 'bun';
+import { tmpdir } from 'node:os';
 import * as tui from '../../tui';
 
 const CANARY_BASE_URL = 'https://agentuity-sdk-objects.t3.storageapi.dev/npm';
@@ -99,7 +100,8 @@ export const command = createCommand({
 
 		try {
 			// Install the canary version globally using the tarball URL
-			const installResult = await $`bun add -g ${tarballUrl}`.quiet().nothrow();
+			// Run from tmpdir to avoid interference from any local package.json/node_modules
+			const installResult = await $`bun add -g ${tarballUrl}`.cwd(tmpdir()).quiet().nothrow();
 
 			if (installResult.exitCode !== 0) {
 				const stderr = installResult.stderr.toString();
