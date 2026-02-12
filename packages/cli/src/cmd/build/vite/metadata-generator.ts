@@ -6,7 +6,8 @@
 
 import { join } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, readdirSync } from 'node:fs';
-import type { BuildMetadata } from '@agentuity/server';
+import { type BuildMetadata, DeploymentConfig } from '@agentuity/server';
+import type { z } from 'zod';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteMetadata } from './route-discovery';
 import type { Logger, DeployOptions } from '../../../types';
@@ -164,6 +165,8 @@ export interface MetadataGeneratorOptions {
 	dev?: boolean;
 	logger: Logger;
 	deploymentOptions?: DeployOptions;
+	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
+	deploymentConfig?: z.infer<typeof DeploymentConfig>;
 }
 
 /**
@@ -473,6 +476,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 			orgId,
 		},
 		deployment: {
+			...options.deploymentConfig, // deployment config from agentuity.json (resources, mode, dependencies, domains)
 			id: options.deploymentId || '',
 			date: new Date().toISOString(),
 			build: {

@@ -23,6 +23,8 @@ export interface AgentuityPluginOptions {
 	deploymentId?: string;
 	logLevel?: LogLevel;
 	deploymentOptions?: DeployOptions;
+	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
+	deploymentConfig?: Record<string, unknown>;
 	/** Optional config profile name (e.g., 'staging', 'test') for .env.{profile} files */
 	profile?: string;
 }
@@ -48,6 +50,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 		deploymentId = '',
 		logLevel = 'info',
 		deploymentOptions,
+		deploymentConfig,
 		profile,
 	} = options;
 	const logger = createLogger(logLevel);
@@ -173,6 +176,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 				dev,
 				logger,
 				deploymentOptions,
+				deploymentConfig,
 			});
 
 			// Write metadata file
