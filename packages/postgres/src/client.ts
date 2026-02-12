@@ -314,12 +314,31 @@ export class PostgresClient {
 			return;
 		}
 
-		const url = this._config.url ?? process.env.DATABASE_URL;
+		let url = this._config.url ?? process.env.DATABASE_URL;
 
 		// Build Bun.SQL options - use type assertion since Bun types are a union
 		const bunOptions: BunPostgresOptions = {
 			adapter: 'postgres',
 		};
+
+		// Bun.SQL requires `sslmode` in the URL to trigger PostgreSQL TLS
+		// negotiation (SSLRequest). The `tls` option alone configures *how*
+		// TLS works but doesn't initiate the protocol handshake. When the
+		// user explicitly requests TLS via the `tls` config but the URL
+		// doesn't contain `sslmode`, inject `sslmode=require` so the
+		// connection is properly encrypted.
+		// See: https://github.com/agentuity/sdk/issues/921
+		if (url && this._config.tls !== undefined && this._config.tls !== false) {
+			try {
+				const parsed = new URL(url);
+				if (!parsed.searchParams.has('sslmode')) {
+					parsed.searchParams.set('sslmode', 'require');
+					url = parsed.toString();
+				}
+			} catch {
+				// Not a parseable URL — leave as-is
+			}
+		}
 
 		if (url) {
 			bunOptions.url = url;
