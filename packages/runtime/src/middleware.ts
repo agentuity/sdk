@@ -22,9 +22,8 @@ import {
 	SpanStatusCode,
 	trace,
 	propagation,
-	Meter,
-	Tracer,
 } from '@opentelemetry/api';
+import type { Meter, Tracer } from '@opentelemetry/api';
 import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
 import { internal } from './logger/internal';
