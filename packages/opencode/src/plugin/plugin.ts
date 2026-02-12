@@ -178,6 +178,15 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		'chat.params': paramsHooks.onParams,
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
+		'shell.env': async (_input: unknown, output: unknown) => {
+			const profile = getCoderProfile();
+			const out = output as { env?: Record<string, string> };
+			if (!out.env) {
+				out.env = {};
+			}
+			out.env.AGENTUITY_PROFILE = profile;
+			out.env.AGENTUITY_AGENT_MODE = 'opencode';
+		},
 		event: async (input) => {
 			const event = extractEventFromInput(input);
 			if (event) {
