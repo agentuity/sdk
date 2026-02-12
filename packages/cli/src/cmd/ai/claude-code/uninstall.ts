@@ -1,0 +1,138 @@
+import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
+
+const CLAUDE_DIR = join(homedir(), '.claude');
+const CLAUDE_SETTINGS_FILE = join(CLAUDE_DIR, 'settings.local.json');
+const PLUGIN_INSTALL_DIR = join(homedir(), '.agentuity', 'plugins', 'claude-code');
+
+interface ClaudeSettings {
+	permissions?: {
+		allow?: string[];
+		deny?: string[];
+	};
+	[key: string]: unknown;
+}
+
+const AGENTUITY_ALLOW_PERMISSIONS = ['Bash(agentuity cloud *)', 'Bash(agentuity auth whoami *)'];
+
+const AGENTUITY_DENY_PERMISSIONS = [
+	'Bash(agentuity cloud secrets *)',
+	'Bash(agentuity cloud secret *)',
+	'Bash(agentuity cloud apikey *)',
+	'Bash(agentuity auth token *)',
+];
+
+export const uninstallSubcommand = createSubcommand({
+	name: 'uninstall',
+	description: 'Uninstall Agentuity Coder plugin for Claude Code',
+	tags: ['fast'],
+	examples: [
+		{
+			command: getCommand('ai claude-code uninstall'),
+			description: 'Uninstall Agentuity Coder plugin for Claude Code',
+		},
+	],
+	async handler(ctx) {
+		const { options } = ctx;
+		const jsonMode = !!options?.json;
+
+		if (!jsonMode) {
+			tui.newline();
+			tui.output(tui.bold('Uninstalling Agentuity Coder plugin for Claude Code'));
+			tui.newline();
+		}
+
+		let removedPlugin = false;
+		let removedPermissions = false;
+
+		if (existsSync(PLUGIN_INSTALL_DIR)) {
+			try {
+				rmSync(PLUGIN_INSTALL_DIR, { recursive: true, force: true });
+				removedPlugin = true;
+				if (!jsonMode) {
+					tui.success('Removed plugin installation directory');
+				}
+			} catch (error) {
+				if (!jsonMode) {
+					tui.warning(`Failed to remove plugin directory: ${error}`);
+				}
+			}
+		} else {
+			if (!jsonMode) {
+				tui.info('Plugin installation directory not found - nothing to remove');
+			}
+		}
+
+		if (existsSync(CLAUDE_SETTINGS_FILE)) {
+			try {
+				const content = readFileSync(CLAUDE_SETTINGS_FILE, 'utf-8');
+				const settings: ClaudeSettings = JSON.parse(content);
+
+				if (settings.permissions) {
+					const allPerms = [...AGENTUITY_ALLOW_PERMISSIONS, ...AGENTUITY_DENY_PERMISSIONS];
+
+					if (settings.permissions.allow) {
+						const originalAllowLen = settings.permissions.allow.length;
+						settings.permissions.allow = settings.permissions.allow.filter(
+							(p) => !allPerms.includes(p)
+						);
+						if (settings.permissions.allow.length < originalAllowLen) {
+							removedPermissions = true;
+						}
+					}
+
+					if (settings.permissions.deny) {
+						const originalDenyLen = settings.permissions.deny.length;
+						settings.permissions.deny = settings.permissions.deny.filter(
+							(p) => !allPerms.includes(p)
+						);
+						if (settings.permissions.deny.length < originalDenyLen) {
+							removedPermissions = true;
+						}
+					}
+
+					if (removedPermissions) {
+						writeFileSync(CLAUDE_SETTINGS_FILE, JSON.stringify(settings, null, 2) + '\n');
+						if (!jsonMode) {
+							tui.success('Removed Agentuity permissions from Claude Code settings');
+						}
+					} else {
+						if (!jsonMode) {
+							tui.info('No Agentuity permissions found in Claude Code settings');
+						}
+					}
+				}
+			} catch (error) {
+				if (!jsonMode) {
+					tui.warning(`Failed to update Claude Code settings: ${error}`);
+				}
+			}
+		} else {
+			if (!jsonMode) {
+				tui.info('Claude Code settings file not found');
+			}
+		}
+
+		if (!jsonMode) {
+			tui.newline();
+
+			if (removedPlugin || removedPermissions) {
+				tui.output(tui.bold('Agentuity Coder plugin uninstalled successfully'));
+			} else {
+				tui.output(tui.bold('Agentuity Coder plugin was not installed'));
+			}
+
+			tui.newline();
+			tui.info(`To reinstall, run: ${tui.bold(getCommand('ai claude-code install'))}`);
+			tui.newline();
+		}
+
+		return { success: true, removedPlugin, removedPermissions };
+	},
+});
+
+export default uninstallSubcommand;
