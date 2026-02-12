@@ -72,7 +72,7 @@ export const listSubcommand = createSubcommand({
 			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
 		}
 
-		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
+		const projectId = opts.all || opts.orgId ? undefined : opts.projectId || project?.projectId;
 		const orgId = opts.orgId;
 
 		try {

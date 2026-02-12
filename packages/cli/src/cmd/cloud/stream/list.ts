@@ -79,8 +79,8 @@ export const listSubcommand = createCommand({
 			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
 		}
 
-		// Use project context if available, or explicit flag
-		const projectId = opts.projectId || project?.projectId;
+		// Use explicit projectId flag; only fall back to project context when --org-id is not set
+		const projectId = opts.projectId || (opts.orgId ? undefined : project?.projectId);
 
 		// Parse metadata filter if provided
 		let metadataFilter: Record<string, string> | undefined;
