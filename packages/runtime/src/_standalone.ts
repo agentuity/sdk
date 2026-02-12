@@ -1,5 +1,5 @@
 import { context, SpanKind, SpanStatusCode, type Context, trace } from '@opentelemetry/api';
-import { TraceState } from '@opentelemetry/core';
+import { enrichContextWithTraceState } from './otel/tracestate';
 import type {
 	KeyValueStorage,
 	StreamStorage,
@@ -371,6 +371,20 @@ export class StandaloneAgentContext<
 
 		// Execute within parent context (for distributed tracing)
 		return await context.with(this.parentContext, async () => {
+			// Build enriched traceState BEFORE span creation so the
+			// recording span inherits it and it gets exported to OTLP.
+			const projectId = runtimeConfig.getProjectId();
+			const orgId = runtimeConfig.getOrganizationId();
+			const deploymentId = runtimeConfig.getDeploymentId();
+			const isDevMode = runtimeConfig.isDevMode();
+
+			const enrichedContext = enrichContextWithTraceState(context.active(), {
+				pid: projectId,
+				oid: orgId,
+				did: deploymentId,
+				d: isDevMode ? '1' : undefined,
+			});
+
 			// Create a span for this invocation (similar to otelMiddleware's HTTP span)
 			return await trace.getTracer('standalone-agent').startActiveSpan(
 				options?.spanName ?? 'agent-invocation',
@@ -380,6 +394,7 @@ export class StandaloneAgentContext<
 						trigger: this.trigger,
 					},
 				},
+				enrichedContext,
 				async (span) => {
 					const sctx = span.spanContext();
 
@@ -388,38 +403,6 @@ export class StandaloneAgentContext<
 						this.initialSessionId ??
 						(sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess'));
 					callContext.sessionId = invocationSessionId;
-
-					// Add to tracestate (like otelMiddleware does)
-					// Note: SpanContext.traceState is readonly, so we update it by setting the span with a new context
-					let traceState = sctx.traceState ?? new TraceState();
-					const projectId = runtimeConfig.getProjectId();
-					const orgId = runtimeConfig.getOrganizationId();
-					const deploymentId = runtimeConfig.getDeploymentId();
-					const isDevMode = runtimeConfig.isDevMode();
-					if (projectId) {
-						traceState = traceState.set('pid', projectId);
-					}
-					if (orgId) {
-						traceState = traceState.set('oid', orgId);
-					}
-					if (deploymentId) {
-						traceState = traceState.set('did', deploymentId);
-					}
-					if (isDevMode) {
-						traceState = traceState.set('d', '1');
-					}
-
-					// Update the active context with the new trace state
-					// We do this by setting the span in the context with updated trace state
-					// Note: This creates a new context but we don't need to use it directly
-					// as the span already has the trace state we need for propagation
-					trace.setSpan(
-						context.active(),
-						trace.wrapSpanContext({
-							...sctx,
-							traceState,
-						})
-					);
 
 					// Restore thread and session (like otelMiddleware does)
 					// For standalone contexts, we create a simple thread/session if not provided
