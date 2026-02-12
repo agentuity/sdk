@@ -11,7 +11,8 @@ export const listSubcommand = createSubcommand({
 	name: 'list',
 	description: 'List agents for a project',
 	aliases: ['ls'],
-	requires: { auth: true, apiClient: true, project: true },
+	requires: { auth: true, apiClient: true },
+	optional: { project: true },
 	examples: [
 		{ command: getCommand('cloud agent list'), description: 'List items' },
 		{ command: getCommand('cloud agent list --verbose'), description: 'Use verbose option' },
@@ -21,13 +22,26 @@ export const listSubcommand = createSubcommand({
 		options: z.object({
 			deploymentId: z.string().optional().describe('Filter by deployment ID'),
 			verbose: z.boolean().optional().default(false).describe('Show full descriptions'),
+			orgId: z.string().optional().describe('filter by organization id'),
+			projectId: z.string().optional().describe('filter by project id'),
 		}),
 		response: z.array(AgentSchema),
 	},
-	webUrl: (ctx) => `/projects/${encodeURIComponent(ctx.project.projectId)}/agents`,
+	webUrl: (ctx) => {
+		const projectId = ctx.opts?.projectId || ctx.project?.projectId;
+		return projectId ? `/projects/${encodeURIComponent(projectId)}/agents` : undefined;
+	},
 	async handler(ctx) {
-		const { opts, apiClient, project, options } = ctx;
-		const projectId = project.projectId;
+		const { opts, project, options, apiClient } = ctx;
+
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
+		const projectId = opts?.projectId || project?.projectId;
+		if (!projectId) {
+			tui.fatal('Project ID is required. Use --project-id or run from a project directory.');
+		}
 		const verbose = opts?.verbose ?? false;
 
 		const agents = await tui.spinner({
@@ -36,6 +50,7 @@ export const listSubcommand = createSubcommand({
 			callback: async () => {
 				return projectAgentList(apiClient, projectId, {
 					deploymentId: opts?.deploymentId,
+					orgId: opts?.orgId,
 				});
 			},
 		});

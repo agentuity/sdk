@@ -56,6 +56,7 @@ export const listSubcommand = createSubcommand({
 	},
 	schema: {
 		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
 			count: z.coerce
 				.number()
 				.int()
@@ -76,10 +77,15 @@ export const listSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { apiClient, project, opts, options } = ctx;
 
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
 		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
 
 		try {
 			const evals = await evalList(apiClient, {
+				orgId: opts?.orgId,
 				projectId,
 				agentId: opts.agentId,
 			});

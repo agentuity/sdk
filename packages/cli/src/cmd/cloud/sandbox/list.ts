@@ -82,6 +82,10 @@ export const listSubcommand = createCommand({
 	async handler(ctx) {
 		const { opts, options, project, apiClient } = ctx;
 
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
 		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
 
 		const result = await cliSandboxList(apiClient, {

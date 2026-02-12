@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 
 const DBListResponseSchema = z.object({
@@ -25,7 +24,7 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List database resources',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true },
+	requires: { auth: true, apiClient: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud db list'), description: 'List items' },
@@ -38,6 +37,7 @@ export const listSubcommand = createSubcommand({
 	],
 	schema: {
 		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
 			showCredentials: z
 				.boolean()
 				.optional()
@@ -51,15 +51,13 @@ export const listSubcommand = createSubcommand({
 	webUrl: '/services/database',
 
 	async handler(ctx) {
-		const { logger, opts, options, auth, config } = ctx;
-
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { apiClient, opts, options } = ctx;
 
 		const resources = await tui.spinner({
 			message: 'Fetching databases',
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 'db' });
+				return listOrgResources(apiClient, { type: 'db', orgId: opts?.orgId });
 			},
 		});
 

@@ -1051,9 +1051,9 @@ async function registerSubcommand(
 		cmd.option('--dir <path>', 'project directory (default: current directory)');
 	}
 
-	if (requiresOrg || optionalOrg) {
-		cmd.option('--org-id <id>', 'organization ID');
-	}
+	// Note: --org-id may also be added below if the schema defines orgId;
+	// in that case we skip adding it here to avoid conflicts.
+	const _deferOrgIdFlag = requiresOrg || optionalOrg;
 
 	if (requiresRegion || optionalRegion) {
 		cmd.option('--region <region>', 'cloud region');
@@ -1072,8 +1072,9 @@ async function registerSubcommand(
 		}
 	}
 
-	// Track if projectId is defined in schema options
+	// Track if projectId/orgId is defined in schema options
 	let hasProjectIdInSchema = false;
+	let hasOrgIdInSchema = false;
 
 	if (subcommand.schema?.options) {
 		const parsed = parseOptionsSchema(subcommand.schema.options);
@@ -1087,6 +1088,11 @@ async function registerSubcommand(
 			// Track if this schema defines projectId (as 'projectId' or 'project-id')
 			if (opt.name === 'projectId' || opt.name === 'project-id' || flag === 'project-id') {
 				hasProjectIdInSchema = true;
+			}
+
+			// Track if this schema defines orgId (as 'orgId' or 'org-id')
+			if (opt.name === 'orgId' || opt.name === 'org-id' || flag === 'org-id') {
+				hasOrgIdInSchema = true;
 			}
 
 			const desc = opt.description || '';
@@ -1194,6 +1200,11 @@ async function registerSubcommand(
 		}
 	}
 
+	// Add --org-id if command requires/optional org and doesn't define it in schema
+	if (_deferOrgIdFlag && !hasOrgIdInSchema) {
+		cmd.option('--org-id <id>', 'organization ID');
+	}
+
 	// Add --project-id if command requires/optional project and doesn't define it in schema
 	if ((requiresProject || optionalProject) && !hasProjectIdInSchema) {
 		cmd.option('--project-id <id>', 'project ID (alternative to --dir)');
@@ -1203,6 +1214,20 @@ async function registerSubcommand(
 		const cmdObj = rawArgs[rawArgs.length - 1] as { opts: () => Record<string, unknown> };
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
+
+		// Merge global --org-id and --project-id into subcommand options when the schema
+		// defines these fields. Global options (program-level) capture the values first,
+		// so subcommand-level options may not have them.
+		if (hasOrgIdInSchema && options.orgId === undefined && baseCtx.options.orgId) {
+			options.orgId = baseCtx.options.orgId;
+		}
+		if (
+			hasProjectIdInSchema &&
+			options.projectId === undefined &&
+			(baseCtx.options as unknown as Record<string, unknown>).projectId
+		) {
+			options.projectId = (baseCtx.options as unknown as Record<string, unknown>).projectId;
+		}
 
 		if (subcommand.banner) {
 			showBanner();

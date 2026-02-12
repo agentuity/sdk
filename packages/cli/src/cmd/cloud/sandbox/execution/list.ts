@@ -43,18 +43,26 @@ export const listSubcommand = createCommand({
 		}),
 		options: z.object({
 			limit: z.number().optional().describe('Maximum number of results (default: 50, max: 100)'),
+			orgId: z.string().optional().describe('filter by organization id'),
 		}),
 		response: ExecutionListResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, logger, orgId, config } = ctx;
-		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
+		const { args, opts, options, auth, logger, orgId: ctxOrgId, config } = ctx;
+		const effectiveOrgId = opts?.orgId || ctxOrgId;
+		const region = await getSandboxRegion(
+			logger,
+			auth,
+			config?.name,
+			args.sandboxId,
+			effectiveOrgId
+		);
 		const client = createSandboxClient(logger, auth, region);
 
 		const result = await executionList(client, {
 			sandboxId: args.sandboxId,
-			orgId,
+			orgId: effectiveOrgId,
 			limit: opts.limit,
 		});
 

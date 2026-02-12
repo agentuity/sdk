@@ -4,7 +4,6 @@ import * as tui from '../../../tui';
 import { sessionList } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
-import { getGlobalCatalystAPIClient } from '../../../config';
 
 const SessionListResponseSchema = z.array(
 	z.object({
@@ -59,7 +58,7 @@ export const listSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['ls'],
-	requires: { auth: true },
+	requires: { auth: true, apiClient: true },
 	optional: { project: true },
 	idempotent: true,
 	pagination: {
@@ -72,6 +71,7 @@ export const listSubcommand = createSubcommand({
 	},
 	schema: {
 		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
 			count: z.coerce
 				.number()
 				.int()
@@ -98,14 +98,18 @@ export const listSubcommand = createSubcommand({
 		return projectId ? `/projects/${encodeURIComponent(projectId)}/sessions` : undefined;
 	},
 	async handler(ctx) {
-		const { logger, auth, project, opts, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { apiClient, project, opts, options } = ctx;
+
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
 
 		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
 
 		try {
-			const sessions = await sessionList(catalystClient, {
+			const sessions = await sessionList(apiClient, {
 				count: opts.count,
+				orgId: opts?.orgId,
 				projectId,
 				deploymentId: opts.deploymentId,
 				trigger: opts.trigger,

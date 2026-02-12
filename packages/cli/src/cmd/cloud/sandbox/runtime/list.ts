@@ -3,7 +3,6 @@ import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
 import { getCommand } from '../../../../command-prefix';
 import { runtimeList } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../../config';
 
 const RuntimeInfoSchema = z.object({
 	id: z.string().describe('Runtime ID'),
@@ -21,7 +20,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List available sandbox runtimes',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, org: true, apiClient: true },
 	idempotent: true,
 	examples: [
 		{
@@ -33,16 +32,17 @@ export const listSubcommand = createCommand({
 		options: z.object({
 			limit: z.number().optional().describe('Maximum number of results'),
 			offset: z.number().optional().describe('Offset for pagination'),
+			orgId: z.string().optional().describe('filter by organization id'),
 		}),
 		response: RuntimeListResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { opts, options, auth, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { opts, options, apiClient, orgId: ctxOrgId } = ctx;
+		const effectiveOrgId = opts?.orgId || ctxOrgId;
 
-		const result = await runtimeList(client, {
-			orgId,
+		const result = await runtimeList(apiClient, {
+			orgId: effectiveOrgId,
 			limit: opts.limit,
 			offset: opts.offset,
 		});

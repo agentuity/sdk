@@ -3,7 +3,6 @@ import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
 import { getCommand } from '../../../../command-prefix';
 import { snapshotList } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../../config';
 
 const SnapshotInfoSchema = z.object({
 	snapshotId: z.string(),
@@ -30,7 +29,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List snapshots',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, org: true, apiClient: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox snapshot list'),
@@ -46,19 +45,20 @@ export const listSubcommand = createCommand({
 			sandbox: z.string().optional().describe('Filter by sandbox ID'),
 			limit: z.number().optional().describe('Maximum number of results'),
 			offset: z.number().optional().describe('Offset for pagination'),
+			orgId: z.string().optional().describe('filter by organization id'),
 		}),
 		response: SnapshotListResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { opts, options, auth, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { opts, options, apiClient, orgId: ctxOrgId } = ctx;
+		const effectiveOrgId = opts?.orgId || ctxOrgId;
 
-		const result = await snapshotList(client, {
+		const result = await snapshotList(apiClient, {
 			sandboxId: opts.sandbox,
 			limit: opts.limit,
 			offset: opts.offset,
-			orgId,
+			orgId: effectiveOrgId,
 		});
 
 		if (!options.json) {

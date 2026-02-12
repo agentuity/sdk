@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { createS3Client } from './utils';
@@ -44,7 +43,7 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List storage resources or files in a bucket',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true },
+	requires: { auth: true, apiClient: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud storage list'), description: 'List items' },
@@ -69,6 +68,7 @@ export const listSubcommand = createSubcommand({
 			prefix: z.string().optional().describe('Path prefix to filter files'),
 		}),
 		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
 			showCredentials: z
 				.boolean()
 				.optional()
@@ -85,16 +85,14 @@ export const listSubcommand = createSubcommand({
 			: '/services/storage',
 
 	async handler(ctx) {
-		const { logger, args, opts, options, auth, config } = ctx;
-
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { apiClient, args, opts, options, config } = ctx;
 
 		const profileName = config?.name ?? 'production';
 		const resources = await tui.spinner({
 			message: 'Fetching storage',
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 's3' });
+				return listOrgResources(apiClient, { type: 's3', orgId: opts?.orgId });
 			},
 		});
 

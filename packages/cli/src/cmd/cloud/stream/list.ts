@@ -74,6 +74,11 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options, apiClient, project } = ctx;
+
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
 		// Use project context if available, or explicit flag
 		const projectId = opts.projectId || project?.projectId;
 
