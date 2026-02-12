@@ -39,7 +39,7 @@ Add your SSH public key before connecting:
 agentuity auth ssh add --file ~/.ssh/id_rsa.pub
 ```
 
-See [Getting Started](/reference/CLI/getting-started) for authentication setup.
+See [Getting Started](/reference/cli/getting-started) for authentication setup.
 </Callout>
 
 **Interactive session:**
@@ -261,7 +261,7 @@ agentuity cloud deployment logs dep_abc123xyz --project-id=proj_abc123xyz
 
 ## JSON Output for Scripting
 
-All commands support `--json` for machine-readable output. Combined with [jq](/reference/CLI/getting-started#json-output), you can filter and transform results:
+All commands support `--json` for machine-readable output. Combined with [jq](/reference/cli/getting-started#json-output), you can filter and transform results:
 
 ```bash
 # Get session list as JSON
@@ -341,6 +341,6 @@ Support reports automatically redact sensitive information like API keys, tokens
 
 ## Next Steps
 
-- [Managing Cloud Data](/reference/CLI/data-management): Inspect storage, env vars, and secrets
-- [Deploying to the Cloud](/reference/CLI/deployment): Deploy and manage projects
+- [Managing Cloud Storage](/reference/cli/storage): Inspect storage, env vars, and secrets
+- [Deploying to the Cloud](/reference/cli/deployment): Deploy and manage projects
 - [Logging](/services/observability/logging): Configure logging in your agents

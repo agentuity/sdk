@@ -46,7 +46,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]\*.json
 
 .claude/
 
-# Generated markdown files for LLM consumption
+# Generated files (markdown for LLM consumption, sitemap)
 src/web/public/**/*.md
 src/web/public/llms.txt
 src/web/public/llms-full.txt
+src/web/public/sitemap.xml

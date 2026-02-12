@@ -37,26 +37,22 @@ async function queryDocQa(message: string): Promise<DocQaResponse> {
 }
 
 export function useAISearch() {
-	const [messages, setMessages] = useState<AIMessage[]>([]);
-	const [loading, setLoading] = useState(false);
-
-	// Load history from localStorage on mount
-	useEffect(() => {
+	const [messages, setMessages] = useState<AIMessage[]>(() => {
 		try {
 			const saved = localStorage.getItem(STORAGE_KEY);
 			if (saved) {
 				const parsed = JSON.parse(saved) as AIMessage[];
-				setMessages(
-					parsed.map((msg) => ({
-						...msg,
-						timestamp: new Date(msg.timestamp),
-					}))
-				);
+				return parsed.map((msg) => ({
+					...msg,
+					timestamp: new Date(msg.timestamp),
+				}));
 			}
 		} catch {
 			// Ignore corrupted storage
 		}
-	}, []);
+		return [];
+	});
+	const [loading, setLoading] = useState(false);
 
 	// Persist messages to localStorage
 	useEffect(() => {
@@ -84,31 +80,43 @@ export function useAISearch() {
 		try {
 			const result = await queryDocQa(trimmed);
 
-			const aiMessage: AIMessage = {
-				id: `ai-${Date.now()}`,
-				type: 'ai',
-				content:
-					result.answer ||
-					"I couldn't find a relevant answer. Please try rephrasing your question.",
-				timestamp: new Date(),
-				sources:
-					result.documents && result.documents.length > 0
-						? result.documents.map((doc, i) => ({
-								id: `doc-${Date.now()}-${i}`,
-								title: doc.title,
-								url: doc.url || '#',
-							}))
-						: undefined,
-			};
-
-			setMessages((prev) => [...prev, aiMessage]);
-		} catch {
+			if (result?.answer) {
+				const aiMessage: AIMessage = {
+					id: `ai-${Date.now()}`,
+					type: 'ai',
+					content: result.answer,
+					timestamp: new Date(),
+					sources:
+						result.documents && result.documents.length > 0
+							? result.documents.map((doc, i) => ({
+									id: `doc-${Date.now()}-${i}`,
+									title: doc.title,
+									url: doc.url || '#',
+								}))
+							: undefined,
+				};
+				setMessages((prev) => [...prev, aiMessage]);
+			} else {
+				setMessages((prev) => [
+					...prev,
+					{
+						id: `ai-${Date.now()}`,
+						type: 'ai' as const,
+						content:
+							"I couldn't find a relevant answer to your question. Please try rephrasing or check our documentation directly.",
+						timestamp: new Date(),
+					},
+				]);
+			}
+		} catch (error) {
+			console.error('AI search error:', error);
 			setMessages((prev) => [
 				...prev,
 				{
 					id: `ai-${Date.now()}`,
-					type: 'ai',
-					content: 'Sorry, I encountered an error while searching. Please try again.',
+					type: 'ai' as const,
+					content:
+						'Sorry, I encountered an error while searching. Please try again.',
 					timestamp: new Date(),
 				},
 			]);
@@ -119,6 +127,7 @@ export function useAISearch() {
 
 	const handleClear = useCallback(() => {
 		setMessages([]);
+		setLoading(false);
 		try {
 			localStorage.removeItem(STORAGE_KEY);
 		} catch {

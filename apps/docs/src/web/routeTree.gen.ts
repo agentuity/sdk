@@ -29,7 +29,6 @@ import { Route as DocsRoutesHttpRouteImport } from './routes/_docs/routes/http'
 import { Route as DocsRoutesCronRouteImport } from './routes/_docs/routes/cron'
 import { Route as DocsReferenceSdkReferenceRouteImport } from './routes/_docs/reference/sdk-reference'
 import { Route as DocsReferenceMigrationGuideRouteImport } from './routes/_docs/reference/migration-guide'
-import { Route as DocsReferenceMdxFeaturesRouteImport } from './routes/_docs/reference/mdx-features'
 import { Route as DocsReferenceGravityNetworkRouteImport } from './routes/_docs/reference/gravity-network'
 import { Route as DocsGetStartedWhatIsAgentuityRouteImport } from './routes/_docs/get-started/what-is-agentuity'
 import { Route as DocsGetStartedQuickstartRouteImport } from './routes/_docs/get-started/quickstart'
@@ -67,10 +66,10 @@ import { Route as DocsServicesStorageVectorRouteImport } from './routes/_docs/se
 import { Route as DocsServicesStorageObjectRouteImport } from './routes/_docs/services/storage/object'
 import { Route as DocsServicesStorageKeyValueRouteImport } from './routes/_docs/services/storage/key-value'
 import { Route as DocsServicesStorageDurableStreamsRouteImport } from './routes/_docs/services/storage/durable-streams'
-import { Route as DocsServicesStorageDatabaseRouteImport } from './routes/_docs/services/storage/database'
 import { Route as DocsServicesStorageCustomRouteImport } from './routes/_docs/services/storage/custom'
 import { Route as DocsServicesSandboxSnapshotsRouteImport } from './routes/_docs/services/sandbox/snapshots'
 import { Route as DocsServicesSandboxSdkUsageRouteImport } from './routes/_docs/services/sandbox/sdk-usage'
+import { Route as DocsServicesObservabilityWebAnalyticsRouteImport } from './routes/_docs/services/observability/web-analytics'
 import { Route as DocsServicesObservabilityTracingRouteImport } from './routes/_docs/services/observability/tracing'
 import { Route as DocsServicesObservabilitySessionsDebuggingRouteImport } from './routes/_docs/services/observability/sessions-debugging'
 import { Route as DocsServicesObservabilityLoggingRouteImport } from './routes/_docs/services/observability/logging'
@@ -84,6 +83,7 @@ import { Route as DocsReferenceCliDevelopmentRouteImport } from './routes/_docs/
 import { Route as DocsReferenceCliDeploymentRouteImport } from './routes/_docs/reference/cli/deployment'
 import { Route as DocsReferenceCliDebuggingRouteImport } from './routes/_docs/reference/cli/debugging'
 import { Route as DocsReferenceCliConfigurationRouteImport } from './routes/_docs/reference/cli/configuration'
+import { Route as DocsReferenceCliClaudeCodePluginRouteImport } from './routes/_docs/reference/cli/claude-code-plugin'
 import { Route as DocsReferenceCliBuildConfigurationRouteImport } from './routes/_docs/reference/cli/build-configuration'
 import { Route as DocsReferenceCliAiCommandsRouteImport } from './routes/_docs/reference/cli/ai-commands'
 import { Route as DocsCookbookTutorialsUnderstandingAgentsRouteImport } from './routes/_docs/cookbook/tutorials/understanding-agents'
@@ -196,12 +196,6 @@ const DocsReferenceMigrationGuideRoute =
   DocsReferenceMigrationGuideRouteImport.update({
     id: '/reference/migration-guide',
     path: '/reference/migration-guide',
-    getParentRoute: () => DocsRouteRoute,
-  } as any)
-const DocsReferenceMdxFeaturesRoute =
-  DocsReferenceMdxFeaturesRouteImport.update({
-    id: '/reference/mdx-features',
-    path: '/reference/mdx-features',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsReferenceGravityNetworkRoute =
@@ -417,12 +411,6 @@ const DocsServicesStorageDurableStreamsRoute =
     path: '/services/storage/durable-streams',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsServicesStorageDatabaseRoute =
-  DocsServicesStorageDatabaseRouteImport.update({
-    id: '/services/storage/database',
-    path: '/services/storage/database',
-    getParentRoute: () => DocsRouteRoute,
-  } as any)
 const DocsServicesStorageCustomRoute =
   DocsServicesStorageCustomRouteImport.update({
     id: '/services/storage/custom',
@@ -439,6 +427,12 @@ const DocsServicesSandboxSdkUsageRoute =
   DocsServicesSandboxSdkUsageRouteImport.update({
     id: '/services/sandbox/sdk-usage',
     path: '/services/sandbox/sdk-usage',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsServicesObservabilityWebAnalyticsRoute =
+  DocsServicesObservabilityWebAnalyticsRouteImport.update({
+    id: '/services/observability/web-analytics',
+    path: '/services/observability/web-analytics',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsServicesObservabilityTracingRoute =
@@ -515,6 +509,12 @@ const DocsReferenceCliConfigurationRoute =
   DocsReferenceCliConfigurationRouteImport.update({
     id: '/reference/cli/configuration',
     path: '/reference/cli/configuration',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsReferenceCliClaudeCodePluginRoute =
+  DocsReferenceCliClaudeCodePluginRouteImport.update({
+    id: '/reference/cli/claude-code-plugin',
+    path: '/reference/cli/claude-code-plugin',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsReferenceCliBuildConfigurationRoute =
@@ -619,7 +619,6 @@ export interface FileRoutesByFullPath {
   '/get-started/quickstart': typeof DocsGetStartedQuickstartRoute
   '/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute
   '/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute
-  '/reference/mdx-features': typeof DocsReferenceMdxFeaturesRoute
   '/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute
   '/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute
   '/routes/cron': typeof DocsRoutesCronRoute
@@ -649,6 +648,7 @@ export interface FileRoutesByFullPath {
   '/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute
   '/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
+  '/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute
   '/reference/cli/configuration': typeof DocsReferenceCliConfigurationRoute
   '/reference/cli/debugging': typeof DocsReferenceCliDebuggingRoute
   '/reference/cli/deployment': typeof DocsReferenceCliDeploymentRoute
@@ -662,10 +662,10 @@ export interface FileRoutesByFullPath {
   '/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute
   '/services/observability/sessions-debugging': typeof DocsServicesObservabilitySessionsDebuggingRoute
   '/services/observability/tracing': typeof DocsServicesObservabilityTracingRoute
+  '/services/observability/web-analytics': typeof DocsServicesObservabilityWebAnalyticsRoute
   '/services/sandbox/sdk-usage': typeof DocsServicesSandboxSdkUsageRoute
   '/services/sandbox/snapshots': typeof DocsServicesSandboxSnapshotsRoute
   '/services/storage/custom': typeof DocsServicesStorageCustomRoute
-  '/services/storage/database': typeof DocsServicesStorageDatabaseRoute
   '/services/storage/durable-streams': typeof DocsServicesStorageDurableStreamsRoute
   '/services/storage/key-value': typeof DocsServicesStorageKeyValueRoute
   '/services/storage/object': typeof DocsServicesStorageObjectRoute
@@ -707,7 +707,6 @@ export interface FileRoutesByTo {
   '/get-started/quickstart': typeof DocsGetStartedQuickstartRoute
   '/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute
   '/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute
-  '/reference/mdx-features': typeof DocsReferenceMdxFeaturesRoute
   '/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute
   '/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute
   '/routes/cron': typeof DocsRoutesCronRoute
@@ -737,6 +736,7 @@ export interface FileRoutesByTo {
   '/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute
   '/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
+  '/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute
   '/reference/cli/configuration': typeof DocsReferenceCliConfigurationRoute
   '/reference/cli/debugging': typeof DocsReferenceCliDebuggingRoute
   '/reference/cli/deployment': typeof DocsReferenceCliDeploymentRoute
@@ -750,10 +750,10 @@ export interface FileRoutesByTo {
   '/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute
   '/services/observability/sessions-debugging': typeof DocsServicesObservabilitySessionsDebuggingRoute
   '/services/observability/tracing': typeof DocsServicesObservabilityTracingRoute
+  '/services/observability/web-analytics': typeof DocsServicesObservabilityWebAnalyticsRoute
   '/services/sandbox/sdk-usage': typeof DocsServicesSandboxSdkUsageRoute
   '/services/sandbox/snapshots': typeof DocsServicesSandboxSnapshotsRoute
   '/services/storage/custom': typeof DocsServicesStorageCustomRoute
-  '/services/storage/database': typeof DocsServicesStorageDatabaseRoute
   '/services/storage/durable-streams': typeof DocsServicesStorageDurableStreamsRoute
   '/services/storage/key-value': typeof DocsServicesStorageKeyValueRoute
   '/services/storage/object': typeof DocsServicesStorageObjectRoute
@@ -797,7 +797,6 @@ export interface FileRoutesById {
   '/_docs/get-started/quickstart': typeof DocsGetStartedQuickstartRoute
   '/_docs/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute
   '/_docs/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute
-  '/_docs/reference/mdx-features': typeof DocsReferenceMdxFeaturesRoute
   '/_docs/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute
   '/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute
   '/_docs/routes/cron': typeof DocsRoutesCronRoute
@@ -827,6 +826,7 @@ export interface FileRoutesById {
   '/_docs/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute
   '/_docs/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/_docs/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
+  '/_docs/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute
   '/_docs/reference/cli/configuration': typeof DocsReferenceCliConfigurationRoute
   '/_docs/reference/cli/debugging': typeof DocsReferenceCliDebuggingRoute
   '/_docs/reference/cli/deployment': typeof DocsReferenceCliDeploymentRoute
@@ -840,10 +840,10 @@ export interface FileRoutesById {
   '/_docs/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute
   '/_docs/services/observability/sessions-debugging': typeof DocsServicesObservabilitySessionsDebuggingRoute
   '/_docs/services/observability/tracing': typeof DocsServicesObservabilityTracingRoute
+  '/_docs/services/observability/web-analytics': typeof DocsServicesObservabilityWebAnalyticsRoute
   '/_docs/services/sandbox/sdk-usage': typeof DocsServicesSandboxSdkUsageRoute
   '/_docs/services/sandbox/snapshots': typeof DocsServicesSandboxSnapshotsRoute
   '/_docs/services/storage/custom': typeof DocsServicesStorageCustomRoute
-  '/_docs/services/storage/database': typeof DocsServicesStorageDatabaseRoute
   '/_docs/services/storage/durable-streams': typeof DocsServicesStorageDurableStreamsRoute
   '/_docs/services/storage/key-value': typeof DocsServicesStorageKeyValueRoute
   '/_docs/services/storage/object': typeof DocsServicesStorageObjectRoute
@@ -887,7 +887,6 @@ export interface FileRouteTypes {
     | '/get-started/quickstart'
     | '/get-started/what-is-agentuity'
     | '/reference/gravity-network'
-    | '/reference/mdx-features'
     | '/reference/migration-guide'
     | '/reference/sdk-reference'
     | '/routes/cron'
@@ -917,6 +916,7 @@ export interface FileRouteTypes {
     | '/cookbook/tutorials/understanding-agents'
     | '/reference/cli/ai-commands'
     | '/reference/cli/build-configuration'
+    | '/reference/cli/claude-code-plugin'
     | '/reference/cli/configuration'
     | '/reference/cli/debugging'
     | '/reference/cli/deployment'
@@ -930,10 +930,10 @@ export interface FileRouteTypes {
     | '/services/observability/logging'
     | '/services/observability/sessions-debugging'
     | '/services/observability/tracing'
+    | '/services/observability/web-analytics'
     | '/services/sandbox/sdk-usage'
     | '/services/sandbox/snapshots'
     | '/services/storage/custom'
-    | '/services/storage/database'
     | '/services/storage/durable-streams'
     | '/services/storage/key-value'
     | '/services/storage/object'
@@ -975,7 +975,6 @@ export interface FileRouteTypes {
     | '/get-started/quickstart'
     | '/get-started/what-is-agentuity'
     | '/reference/gravity-network'
-    | '/reference/mdx-features'
     | '/reference/migration-guide'
     | '/reference/sdk-reference'
     | '/routes/cron'
@@ -1005,6 +1004,7 @@ export interface FileRouteTypes {
     | '/cookbook/tutorials/understanding-agents'
     | '/reference/cli/ai-commands'
     | '/reference/cli/build-configuration'
+    | '/reference/cli/claude-code-plugin'
     | '/reference/cli/configuration'
     | '/reference/cli/debugging'
     | '/reference/cli/deployment'
@@ -1018,10 +1018,10 @@ export interface FileRouteTypes {
     | '/services/observability/logging'
     | '/services/observability/sessions-debugging'
     | '/services/observability/tracing'
+    | '/services/observability/web-analytics'
     | '/services/sandbox/sdk-usage'
     | '/services/sandbox/snapshots'
     | '/services/storage/custom'
-    | '/services/storage/database'
     | '/services/storage/durable-streams'
     | '/services/storage/key-value'
     | '/services/storage/object'
@@ -1064,7 +1064,6 @@ export interface FileRouteTypes {
     | '/_docs/get-started/quickstart'
     | '/_docs/get-started/what-is-agentuity'
     | '/_docs/reference/gravity-network'
-    | '/_docs/reference/mdx-features'
     | '/_docs/reference/migration-guide'
     | '/_docs/reference/sdk-reference'
     | '/_docs/routes/cron'
@@ -1094,6 +1093,7 @@ export interface FileRouteTypes {
     | '/_docs/cookbook/tutorials/understanding-agents'
     | '/_docs/reference/cli/ai-commands'
     | '/_docs/reference/cli/build-configuration'
+    | '/_docs/reference/cli/claude-code-plugin'
     | '/_docs/reference/cli/configuration'
     | '/_docs/reference/cli/debugging'
     | '/_docs/reference/cli/deployment'
@@ -1107,10 +1107,10 @@ export interface FileRouteTypes {
     | '/_docs/services/observability/logging'
     | '/_docs/services/observability/sessions-debugging'
     | '/_docs/services/observability/tracing'
+    | '/_docs/services/observability/web-analytics'
     | '/_docs/services/sandbox/sdk-usage'
     | '/_docs/services/sandbox/snapshots'
     | '/_docs/services/storage/custom'
-    | '/_docs/services/storage/database'
     | '/_docs/services/storage/durable-streams'
     | '/_docs/services/storage/key-value'
     | '/_docs/services/storage/object'
@@ -1270,13 +1270,6 @@ declare module '@tanstack/react-router' {
       path: '/reference/migration-guide'
       fullPath: '/reference/migration-guide'
       preLoaderRoute: typeof DocsReferenceMigrationGuideRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
-    '/_docs/reference/mdx-features': {
-      id: '/_docs/reference/mdx-features'
-      path: '/reference/mdx-features'
-      fullPath: '/reference/mdx-features'
-      preLoaderRoute: typeof DocsReferenceMdxFeaturesRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/reference/gravity-network': {
@@ -1538,13 +1531,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsServicesStorageDurableStreamsRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/services/storage/database': {
-      id: '/_docs/services/storage/database'
-      path: '/services/storage/database'
-      fullPath: '/services/storage/database'
-      preLoaderRoute: typeof DocsServicesStorageDatabaseRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
     '/_docs/services/storage/custom': {
       id: '/_docs/services/storage/custom'
       path: '/services/storage/custom'
@@ -1564,6 +1550,13 @@ declare module '@tanstack/react-router' {
       path: '/services/sandbox/sdk-usage'
       fullPath: '/services/sandbox/sdk-usage'
       preLoaderRoute: typeof DocsServicesSandboxSdkUsageRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/services/observability/web-analytics': {
+      id: '/_docs/services/observability/web-analytics'
+      path: '/services/observability/web-analytics'
+      fullPath: '/services/observability/web-analytics'
+      preLoaderRoute: typeof DocsServicesObservabilityWebAnalyticsRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/services/observability/tracing': {
@@ -1655,6 +1648,13 @@ declare module '@tanstack/react-router' {
       path: '/reference/cli/configuration'
       fullPath: '/reference/cli/configuration'
       preLoaderRoute: typeof DocsReferenceCliConfigurationRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/reference/cli/claude-code-plugin': {
+      id: '/_docs/reference/cli/claude-code-plugin'
+      path: '/reference/cli/claude-code-plugin'
+      fullPath: '/reference/cli/claude-code-plugin'
+      preLoaderRoute: typeof DocsReferenceCliClaudeCodePluginRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/reference/cli/build-configuration': {
@@ -1771,7 +1771,6 @@ interface DocsRouteRouteChildren {
   DocsGetStartedQuickstartRoute: typeof DocsGetStartedQuickstartRoute
   DocsGetStartedWhatIsAgentuityRoute: typeof DocsGetStartedWhatIsAgentuityRoute
   DocsReferenceGravityNetworkRoute: typeof DocsReferenceGravityNetworkRoute
-  DocsReferenceMdxFeaturesRoute: typeof DocsReferenceMdxFeaturesRoute
   DocsReferenceMigrationGuideRoute: typeof DocsReferenceMigrationGuideRoute
   DocsReferenceSdkReferenceRoute: typeof DocsReferenceSdkReferenceRoute
   DocsRoutesCronRoute: typeof DocsRoutesCronRoute
@@ -1801,6 +1800,7 @@ interface DocsRouteRouteChildren {
   DocsCookbookTutorialsUnderstandingAgentsRoute: typeof DocsCookbookTutorialsUnderstandingAgentsRoute
   DocsReferenceCliAiCommandsRoute: typeof DocsReferenceCliAiCommandsRoute
   DocsReferenceCliBuildConfigurationRoute: typeof DocsReferenceCliBuildConfigurationRoute
+  DocsReferenceCliClaudeCodePluginRoute: typeof DocsReferenceCliClaudeCodePluginRoute
   DocsReferenceCliConfigurationRoute: typeof DocsReferenceCliConfigurationRoute
   DocsReferenceCliDebuggingRoute: typeof DocsReferenceCliDebuggingRoute
   DocsReferenceCliDeploymentRoute: typeof DocsReferenceCliDeploymentRoute
@@ -1814,10 +1814,10 @@ interface DocsRouteRouteChildren {
   DocsServicesObservabilityLoggingRoute: typeof DocsServicesObservabilityLoggingRoute
   DocsServicesObservabilitySessionsDebuggingRoute: typeof DocsServicesObservabilitySessionsDebuggingRoute
   DocsServicesObservabilityTracingRoute: typeof DocsServicesObservabilityTracingRoute
+  DocsServicesObservabilityWebAnalyticsRoute: typeof DocsServicesObservabilityWebAnalyticsRoute
   DocsServicesSandboxSdkUsageRoute: typeof DocsServicesSandboxSdkUsageRoute
   DocsServicesSandboxSnapshotsRoute: typeof DocsServicesSandboxSnapshotsRoute
   DocsServicesStorageCustomRoute: typeof DocsServicesStorageCustomRoute
-  DocsServicesStorageDatabaseRoute: typeof DocsServicesStorageDatabaseRoute
   DocsServicesStorageDurableStreamsRoute: typeof DocsServicesStorageDurableStreamsRoute
   DocsServicesStorageKeyValueRoute: typeof DocsServicesStorageKeyValueRoute
   DocsServicesStorageObjectRoute: typeof DocsServicesStorageObjectRoute
@@ -1858,7 +1858,6 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsGetStartedQuickstartRoute: DocsGetStartedQuickstartRoute,
   DocsGetStartedWhatIsAgentuityRoute: DocsGetStartedWhatIsAgentuityRoute,
   DocsReferenceGravityNetworkRoute: DocsReferenceGravityNetworkRoute,
-  DocsReferenceMdxFeaturesRoute: DocsReferenceMdxFeaturesRoute,
   DocsReferenceMigrationGuideRoute: DocsReferenceMigrationGuideRoute,
   DocsReferenceSdkReferenceRoute: DocsReferenceSdkReferenceRoute,
   DocsRoutesCronRoute: DocsRoutesCronRoute,
@@ -1897,6 +1896,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsReferenceCliAiCommandsRoute: DocsReferenceCliAiCommandsRoute,
   DocsReferenceCliBuildConfigurationRoute:
     DocsReferenceCliBuildConfigurationRoute,
+  DocsReferenceCliClaudeCodePluginRoute: DocsReferenceCliClaudeCodePluginRoute,
   DocsReferenceCliConfigurationRoute: DocsReferenceCliConfigurationRoute,
   DocsReferenceCliDebuggingRoute: DocsReferenceCliDebuggingRoute,
   DocsReferenceCliDeploymentRoute: DocsReferenceCliDeploymentRoute,
@@ -1911,10 +1911,11 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsServicesObservabilitySessionsDebuggingRoute:
     DocsServicesObservabilitySessionsDebuggingRoute,
   DocsServicesObservabilityTracingRoute: DocsServicesObservabilityTracingRoute,
+  DocsServicesObservabilityWebAnalyticsRoute:
+    DocsServicesObservabilityWebAnalyticsRoute,
   DocsServicesSandboxSdkUsageRoute: DocsServicesSandboxSdkUsageRoute,
   DocsServicesSandboxSnapshotsRoute: DocsServicesSandboxSnapshotsRoute,
   DocsServicesStorageCustomRoute: DocsServicesStorageCustomRoute,
-  DocsServicesStorageDatabaseRoute: DocsServicesStorageDatabaseRoute,
   DocsServicesStorageDurableStreamsRoute:
     DocsServicesStorageDurableStreamsRoute,
   DocsServicesStorageKeyValueRoute: DocsServicesStorageKeyValueRoute,

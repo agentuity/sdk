@@ -69,14 +69,14 @@ function RecursiveNavItem({
 	const hasChildren = item.items && item.items.length > 0;
 	const isActive = item.url === currentUrl;
 	const hasActiveDescendant = hasChildren && hasActiveChild(item.items!, currentUrl);
-	const [open, setOpen] = React.useState(hasActiveDescendant);
+	const [open, setOpen] = React.useState(hasActiveDescendant || (isActive && !!hasChildren));
 
-	// Auto-expand when a descendant becomes active
+	// Auto-expand when this item or a descendant becomes active
 	React.useEffect(() => {
-		if (hasActiveDescendant) {
+		if (hasActiveDescendant || (isActive && hasChildren)) {
 			setOpen(true);
 		}
-	}, [hasActiveDescendant]);
+	}, [hasActiveDescendant, isActive, hasChildren]);
 
 	const handleClick = (e: React.MouseEvent) => {
 		e.preventDefault();

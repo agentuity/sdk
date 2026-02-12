@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 import { useTheme } from './ThemeContext';
+import { cn } from '../lib/utils';
 import githubDarkModule from '@shikijs/themes/github-dark';
 import githubLightModule from '@shikijs/themes/github-light';
 import typescriptLang from '@shikijs/langs/typescript';
@@ -67,7 +69,6 @@ export function ChatCodeBlock({ code, language = 'typescript' }: ChatCodeBlockPr
 	const { resolvedTheme } = useTheme();
 	const [copied, setCopied] = useState(false);
 	const [html, setHtml] = useState<string>('');
-	const [isHovered, setIsHovered] = useState(false);
 	const mounted = useRef(false);
 
 	useEffect(() => {
@@ -90,49 +91,23 @@ export function ChatCodeBlock({ code, language = 'typescript' }: ChatCodeBlockPr
 	};
 
 	return (
-		<div
-			className="relative my-2 rounded-md overflow-hidden bg-zinc-100 dark:bg-[#24292e] border border-zinc-300 dark:border-zinc-700"
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
-		>
+		<div className="group relative my-2 rounded-lg overflow-hidden bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
 			{/* Copy button (appears on hover) */}
 			<button
 				type="button"
 				onClick={handleCopy}
-				className={`absolute top-1.5 right-1.5 p-1 rounded transition-opacity ${
-					isHovered || copied ? 'opacity-100' : 'opacity-0'
-				} hover:bg-zinc-200 dark:hover:bg-zinc-700`}
+				className={cn(
+					'absolute top-2 right-2 p-1.5 rounded-md cursor-pointer',
+					'opacity-0 group-hover:opacity-100 transition-opacity',
+					copied && 'opacity-100',
+					'bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-zinc-300 dark:hover:bg-zinc-600',
+					'text-zinc-600 dark:text-zinc-400'
+				)}
 			>
 				{copied ? (
-					<svg
-						aria-hidden="true"
-						className="w-3.5 h-3.5 text-green-600 dark:text-green-400"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							strokeWidth={2}
-							d="M5 13l4 4L19 7"
-						/>
-					</svg>
+					<Check className="size-3.5 text-green-600 dark:text-green-400" />
 				) : (
-					<svg
-						aria-hidden="true"
-						className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							strokeWidth={2}
-							d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-						/>
-					</svg>
+					<Copy className="size-3.5" />
 				)}
 			</button>
 

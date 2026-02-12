@@ -26,7 +26,7 @@ Agentuity sandboxes handle this automatically. Every execution runs in an isolat
 |--------|----------|
 | **[Web App](https://app-v1.agentuity.com)** | Visual management, browsing runtimes and snapshots |
 | **[SDK](/services/sandbox/sdk-usage)** | Programmatic use in agents and routes (`ctx.sandbox`) |
-| **[CLI](/reference/CLI/sandbox)** | Local development, scripting, CI/CD |
+| **[CLI](/reference/cli/sandbox)** | Local development, scripting, CI/CD |
 
 <Callout type="info" title="Multi-language Execution">
 Your agents are written in TypeScript, but the sandbox can run any language safely. Use `ctx.sandbox.run()` to execute Python, Node.js, shell scripts, or anything available via `apt install` in isolated containers.
@@ -217,4 +217,4 @@ Sandboxes provide isolation through:
 
 - [SDK Usage](/services/sandbox/sdk-usage): Detailed API for file I/O, streaming, and advanced configuration
 - [Snapshots](/services/sandbox/snapshots): Skip dependency installation with pre-configured environments
-- [CLI Commands](/reference/CLI/sandbox): Debug sandboxes and create snapshots manually
+- [CLI Commands](/reference/cli/sandbox): Debug sandboxes and create snapshots manually
