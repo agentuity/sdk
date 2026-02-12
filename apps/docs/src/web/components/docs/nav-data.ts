@@ -171,6 +171,7 @@ export const navData: NavSection[] = [
 	{
 		title: 'Community',
 		url: '/community',
+		hideItems: true,
 		items: [{ title: 'Community Examples', url: '/community', description: 'Real-world integrations and tutorials built with Agentuity' }],
 	},
 	{
