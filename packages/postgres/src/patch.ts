@@ -1,6 +1,7 @@
 import { SQL as BunSQL } from 'bun';
 import type { ReconnectConfig } from './types';
 import { mergeReconnectConfig, DEFAULT_RECONNECT_CONFIG } from './reconnect';
+import { injectSslMode } from './tls';
 
 /**
  * Whether Bun.SQL has already been patched.
@@ -18,48 +19,6 @@ let _globalReconnectConfig: Required<ReconnectConfig> = { ...DEFAULT_RECONNECT_C
 let _onReconnect: ((attempt: number) => void) | undefined;
 let _onReconnected: (() => void) | undefined;
 let _onReconnectFailed: ((error: Error) => void) | undefined;
-
-/**
- * Normalizes Bun.SQL constructor options to ensure TLS works correctly.
- *
- * Bun.SQL requires `sslmode` in the connection URL to trigger PostgreSQL
- * TLS negotiation (SSLRequest). The `tls` option alone configures *how*
- * TLS works but doesn't initiate the protocol handshake. When the caller
- * sets `tls` but the URL doesn't contain `sslmode`, we inject
- * `sslmode=require` so the connection is properly encrypted.
- *
- * @see https://github.com/agentuity/sdk/issues/921
- */
-function normalizeOptions(args: unknown[]): unknown[] {
-	if (args.length === 0 || typeof args[0] !== 'object' || args[0] === null) {
-		return args;
-	}
-
-	const opts = args[0] as Record<string, unknown>;
-
-	// Only act when tls is explicitly set to a truthy value
-	const tls = opts.tls;
-	if (tls === undefined || tls === false) {
-		return args;
-	}
-
-	const url = opts.url;
-	if (typeof url !== 'string') {
-		return args;
-	}
-
-	try {
-		const parsed = new URL(url);
-		if (!parsed.searchParams.has('sslmode')) {
-			parsed.searchParams.set('sslmode', 'require');
-			return [{ ...opts, url: parsed.toString() }];
-		}
-	} catch {
-		// Not a parseable URL — leave as-is
-	}
-
-	return args;
-}
 
 /**
  * Patched Bun SQL class that normalizes TLS configuration.
@@ -84,7 +43,25 @@ function normalizeOptions(args: unknown[]): unknown[] {
  */
 const SQL: typeof BunSQL = new Proxy(BunSQL, {
 	construct(target, args, newTarget) {
-		return Reflect.construct(target, normalizeOptions(args), newTarget);
+		if (args.length > 0 && typeof args[0] === 'object' && args[0] !== null) {
+			const opts = args[0] as Record<string, unknown>;
+			const url = opts.url;
+			if (typeof url === 'string') {
+				const injected = injectSslMode(url, opts.tls);
+				if (injected !== url) {
+					args = [{ ...opts, url: injected }];
+				}
+			}
+		}
+		return Reflect.construct(target, args, newTarget);
+	},
+	get(target, prop, receiver) {
+		// Ensure Symbol.hasInstance resolves to BunSQL's check so
+		// `new SQL(...) instanceof SQL` works correctly.
+		if (prop === Symbol.hasInstance) {
+			return (instance: unknown) => instance instanceof BunSQL;
+		}
+		return Reflect.get(target, prop, receiver);
 	},
 });
 

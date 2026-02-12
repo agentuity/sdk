@@ -11,6 +11,7 @@ import {
 import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect';
 import { Transaction, ReservedConnection } from './transaction';
 import { registerClient, unregisterClient } from './registry';
+import { injectSslMode } from './tls';
 
 /**
  * Bun SQL options for PostgreSQL connections.
@@ -321,24 +322,9 @@ export class PostgresClient {
 			adapter: 'postgres',
 		};
 
-		// Bun.SQL requires `sslmode` in the URL to trigger PostgreSQL TLS
-		// negotiation (SSLRequest). The `tls` option alone configures *how*
-		// TLS works but doesn't initiate the protocol handshake. When the
-		// user explicitly requests TLS via the `tls` config but the URL
-		// doesn't contain `sslmode`, inject `sslmode=require` so the
-		// connection is properly encrypted.
+		// Bun.SQL requires `sslmode` in the URL to trigger PostgreSQL TLS negotiation.
 		// See: https://github.com/agentuity/sdk/issues/921
-		if (url && this._config.tls !== undefined && this._config.tls !== false) {
-			try {
-				const parsed = new URL(url);
-				if (!parsed.searchParams.has('sslmode')) {
-					parsed.searchParams.set('sslmode', 'require');
-					url = parsed.toString();
-				}
-			} catch {
-				// Not a parseable URL — leave as-is
-			}
-		}
+		url = injectSslMode(url, this._config.tls);
 
 		if (url) {
 			bunOptions.url = url;

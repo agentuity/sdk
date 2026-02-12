@@ -182,6 +182,23 @@ async function testBunSQL() {
 			await sql.close();
 		}
 	});
+
+	// Test 1e: tls: false — should NOT inject sslmode, uses plain connection
+	await test('SQL: plain URL + tls:false — no sslmode injection', async () => {
+		const sql = new SQL({
+			url: PLAIN_URL,
+			adapter: 'postgres',
+			max: 1,
+			tls: false,
+		});
+		try {
+			const rows = await sql`SELECT 1 AS val`;
+			assert(Array.isArray(rows), 'Expected array result');
+			assert((rows as Array<{ val: number }>)[0]?.val === 1, 'Expected val=1');
+		} finally {
+			await sql.close();
+		}
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -317,6 +334,19 @@ async function testPostgresClient() {
 			);
 
 			await client.unsafe('DROP TABLE ssl_tx_test');
+		} finally {
+			await client.close();
+		}
+	});
+
+	// Test 2g: tls: false — should NOT inject sslmode
+	await test('PostgresClient: plain URL + tls:false — no sslmode injection', async () => {
+		const client = new PostgresClient({ url: PLAIN_URL, max: 1, tls: false });
+		try {
+			await client.waitForConnection(5000);
+			const rows = await client.query`SELECT 1 AS val`;
+			assert(Array.isArray(rows), 'Expected array result');
+			assert((rows as Array<{ val: number }>)[0]?.val === 1, 'Expected val=1');
 		} finally {
 			await client.close();
 		}

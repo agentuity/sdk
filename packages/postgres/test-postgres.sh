@@ -62,8 +62,8 @@ if [ "$MODE" = "cloud" ]; then
 	# The cloud URL already has ?sslmode=require
 	SSL_URL="$CLOUD_URL"
 
-	# Build a plain URL by stripping sslmode
-	PLAIN_URL=$(echo "$CLOUD_URL" | sed 's/[?&]sslmode=[^&]*//')
+	# Build a plain URL by stripping sslmode (use bun for robust URL parsing)
+	PLAIN_URL=$(bun -e "const u = new URL('$CLOUD_URL'); u.searchParams.delete('sslmode'); console.log(u.toString())")
 
 	echo "📋 Connection URLs:"
 	echo "   SSL   : ${SSL_URL%%@*}@<redacted>"
@@ -146,6 +146,14 @@ openssl x509 -req \
 	2>/dev/null
 
 chmod 600 "$CERT_DIR/server-key.pem"
+
+# Verify certificates were generated successfully
+for cert_file in ca-cert.pem ca-key.pem server-cert.pem server-key.pem; do
+	if [ ! -f "$CERT_DIR/$cert_file" ]; then
+		echo "❌ Failed to generate $cert_file"
+		exit 1
+	fi
+done
 echo "   Certificates written to $CERT_DIR"
 
 # Start PostgreSQL container with SSL
@@ -157,14 +165,21 @@ docker run -d \
 	-e POSTGRES_USER="$PG_USER" \
 	-e POSTGRES_PASSWORD="$PG_PASS" \
 	-e POSTGRES_DB="$PG_DB" \
-	-v "$CERT_DIR/server-cert.pem:/var/lib/postgresql/server.crt:ro" \
-	-v "$CERT_DIR/server-key.pem:/var/lib/postgresql/server.key:ro" \
-	-v "$CERT_DIR/ca-cert.pem:/var/lib/postgresql/ca.crt:ro" \
+	-v "$CERT_DIR/server-cert.pem:/tmp/certs/server.crt:ro" \
+	-v "$CERT_DIR/server-key.pem:/tmp/certs/server.key:ro" \
+	-v "$CERT_DIR/ca-cert.pem:/tmp/certs/ca.crt:ro" \
 	postgres:17-alpine \
-	-c ssl=on \
-	-c ssl_cert_file=/var/lib/postgresql/server.crt \
-	-c ssl_key_file=/var/lib/postgresql/server.key \
-	-c ssl_ca_file=/var/lib/postgresql/ca.crt \
+	sh -c "\
+		cp /tmp/certs/server.crt /var/lib/postgresql/server.crt && \
+		cp /tmp/certs/server.key /var/lib/postgresql/server.key && \
+		cp /tmp/certs/ca.crt /var/lib/postgresql/ca.crt && \
+		chown postgres:postgres /var/lib/postgresql/server.crt /var/lib/postgresql/server.key /var/lib/postgresql/ca.crt && \
+		chmod 600 /var/lib/postgresql/server.key && \
+		exec docker-entrypoint.sh postgres \
+			-c ssl=on \
+			-c ssl_cert_file=/var/lib/postgresql/server.crt \
+			-c ssl_key_file=/var/lib/postgresql/server.key \
+			-c ssl_ca_file=/var/lib/postgresql/ca.crt" \
 	>/dev/null
 
 # Wait for PostgreSQL to accept connections
