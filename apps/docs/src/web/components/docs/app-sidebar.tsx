@@ -238,7 +238,9 @@ function NavMain({
 										href={section.url || '#'}
 										onClick={(e) => {
 											e.preventDefault();
-											onNavigate(section.url === '/' ? 'home' : (section.url || '').slice(1));
+											onNavigate(
+												section.url === '/' ? 'home' : (section.url || '').slice(1)
+											);
 										}}
 									>
 										<span>{section.title}</span>
@@ -264,7 +266,13 @@ function NavMain({
 	);
 }
 
-export function AppSidebar({ currentPage, onNavigate, onOpenSearch, onOpenAISearch, ...props }: AppSidebarProps) {
+export function AppSidebar({
+	currentPage,
+	onNavigate,
+	onOpenSearch,
+	onOpenAISearch,
+	...props
+}: AppSidebarProps) {
 	const currentUrl = currentPage === 'home' ? '/' : `/${currentPage}`;
 
 	return (
@@ -284,7 +292,7 @@ export function AppSidebar({ currentPage, onNavigate, onOpenSearch, onOpenAISear
 								<div className="flex aspect-square size-6 items-center justify-center">
 									<AgentuityLogo className="size-6" />
 								</div>
-								<span className="font-medium text-sm">Agentuity</span>
+								<span className="font-normal text-sm">Agentuity</span>
 							</a>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
