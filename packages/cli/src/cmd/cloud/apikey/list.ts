@@ -25,6 +25,10 @@ export const listSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { opts, apiClient, options } = ctx;
 
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
 		const apiKeys = await tui.spinner('Fetching API keys', () => {
 			return apikeyList(apiClient, {
 				orgId: opts?.orgId,

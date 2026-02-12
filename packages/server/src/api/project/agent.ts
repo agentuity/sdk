@@ -41,11 +41,15 @@ export async function projectAgentList(
 	projectId: string,
 	options?: {
 		deploymentId?: string;
+		orgId?: string;
 	}
 ): Promise<Agent[]> {
 	const queryParams = new URLSearchParams();
 	if (options?.deploymentId) {
 		queryParams.set('deploymentId', options.deploymentId);
+	}
+	if (options?.orgId) {
+		queryParams.set('orgId', options.orgId);
 	}
 
 	const url = `/cli/agent/${projectId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;

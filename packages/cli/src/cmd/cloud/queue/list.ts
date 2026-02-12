@@ -31,6 +31,7 @@ export const listSubcommand = createCommand({
 	schema: {
 		args: z.object({}),
 		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
 			limit: z.coerce.number().optional().describe('Maximum number of queues to return'),
 			offset: z.coerce.number().optional().describe('Offset for pagination'),
 		}),
@@ -41,13 +42,14 @@ export const listSubcommand = createCommand({
 	async handler(ctx) {
 		const { options, opts } = ctx;
 		const client = await createQueueAPIClient(ctx);
+		const queueOptions = opts?.orgId ? { orgId: opts.orgId } : getQueueApiOptions(ctx);
 		const result = await listQueues(
 			client,
 			{
 				limit: opts.limit,
 				offset: opts.offset,
 			},
-			getQueueApiOptions(ctx)
+			queueOptions
 		);
 
 		if (!options.json) {

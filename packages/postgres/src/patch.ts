@@ -1,6 +1,7 @@
-import { SQL } from 'bun';
+import { SQL as BunSQL } from 'bun';
 import type { ReconnectConfig } from './types';
 import { mergeReconnectConfig, DEFAULT_RECONNECT_CONFIG } from './reconnect';
+import { injectSslMode } from './tls';
 
 /**
  * Whether Bun.SQL has already been patched.
@@ -18,6 +19,51 @@ let _globalReconnectConfig: Required<ReconnectConfig> = { ...DEFAULT_RECONNECT_C
 let _onReconnect: ((attempt: number) => void) | undefined;
 let _onReconnected: (() => void) | undefined;
 let _onReconnectFailed: ((error: Error) => void) | undefined;
+
+/**
+ * Patched Bun SQL class that normalizes TLS configuration.
+ *
+ * This is a Proxy around Bun's native `SQL` class that intercepts
+ * construction to ensure `sslmode=require` is present in the URL
+ * when `tls` config is provided. This works around a Bun issue where
+ * the `tls` option alone doesn't trigger PostgreSQL TLS negotiation.
+ *
+ * All other behavior is identical to `Bun.SQL`.
+ *
+ * @example
+ * ```typescript
+ * import { SQL } from '@agentuity/postgres';
+ *
+ * // This now works correctly — sslmode=require is injected automatically
+ * const sql = new SQL({
+ *   url: 'postgresql://user:pass@host/db',
+ *   tls: true,
+ * });
+ * ```
+ */
+const SQL: typeof BunSQL = new Proxy(BunSQL, {
+	construct(target, args, newTarget) {
+		if (args.length > 0 && typeof args[0] === 'object' && args[0] !== null) {
+			const opts = args[0] as Record<string, unknown>;
+			const url = opts.url;
+			if (typeof url === 'string') {
+				const injected = injectSslMode(url, opts.tls);
+				if (injected !== url) {
+					args = [{ ...opts, url: injected }];
+				}
+			}
+		}
+		return Reflect.construct(target, args, newTarget);
+	},
+	get(target, prop, receiver) {
+		// Ensure Symbol.hasInstance resolves to BunSQL's check so
+		// `new SQL(...) instanceof SQL` works correctly.
+		if (prop === Symbol.hasInstance) {
+			return (instance: unknown) => instance instanceof BunSQL;
+		}
+		return Reflect.get(target, prop, receiver);
+	},
+});
 
 /**
  * Patches Bun's native SQL class to add automatic reconnection support.
@@ -77,14 +123,6 @@ export function patchBunSQL(config?: {
 	_onReconnected = config?.onreconnected;
 	_onReconnectFailed = config?.onreconnectfailed;
 
-	// Note: True monkey-patching of Bun.SQL internals is not feasible
-	// because Bun.SQL is a native class. Instead, users should use
-	// PostgresClient from this package which provides the same API
-	// with automatic reconnection built in.
-	//
-	// This function exists to set global reconnection configuration
-	// that could be used by future implementations.
-
 	_patched = true;
 }
 
@@ -107,17 +145,4 @@ export function _resetPatch(): void {
 	_onReconnectFailed = undefined;
 }
 
-/**
- * Re-export of Bun's SQL class.
- *
- * When using the patched version, import SQL from this module instead of 'bun':
- *
- * @example
- * ```typescript
- * import { patchBunSQL, SQL } from '@agentuity/postgres';
- *
- * patchBunSQL();
- * const sql = new SQL({ url: process.env.DATABASE_URL });
- * ```
- */
 export { SQL };

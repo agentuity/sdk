@@ -52,6 +52,7 @@ export type Session = z.infer<typeof SessionSchema>;
 
 export interface SessionListOptions {
 	count?: number;
+	orgId?: string;
 	projectId?: string;
 	deploymentId?: string;
 	trigger?: string;
@@ -78,6 +79,7 @@ export async function sessionList(
 ): Promise<SessionList> {
 	const {
 		count = 10,
+		orgId,
 		projectId,
 		deploymentId,
 		trigger,
@@ -91,6 +93,7 @@ export async function sessionList(
 		metadata,
 	} = options;
 	const params = new URLSearchParams({ count: count.toString() });
+	if (orgId) params.set('orgId', orgId);
 	if (projectId) params.set('projectId', projectId);
 	if (deploymentId) params.set('deploymentId', deploymentId);
 	if (trigger) params.set('trigger', trigger);

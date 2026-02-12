@@ -1,62 +1,51 @@
 /**
  * npm registry availability checking utilities.
- * Used to verify a version is available on npm before attempting upgrade.
+ * Used to verify a version is available via bun's resolver before attempting upgrade.
  */
 
-const NPM_REGISTRY_URL = 'https://registry.npmjs.org';
-const PACKAGE_NAME = '@agentuity/cli';
+import { $ } from 'bun';
+import { tmpdir } from 'node:os';
 
-/** Default timeout for quick checks (implicit version check) */
-const QUICK_CHECK_TIMEOUT_MS = 1000;
-
-/** Default timeout for explicit upgrade command */
-const EXPLICIT_CHECK_TIMEOUT_MS = 5000;
-
-export interface CheckNpmOptions {
-	/** Timeout in milliseconds (default: 5000 for explicit, 1000 for quick) */
-	timeoutMs?: number;
-}
+const PACKAGE_SPEC = '@agentuity/cli';
 
 /**
- * Check if a specific version of @agentuity/cli is available on npm registry.
- * Uses the npm registry API directly for faster response than `npm view`.
+ * Check if a specific version of @agentuity/cli is resolvable by bun.
+ * Uses `bun info` to verify bun's own resolver/CDN can see the version,
+ * which avoids the race where npm registry returns 200 but bun's CDN
+ * has not yet propagated the version.
  *
  * @param version - Version to check (with or without 'v' prefix)
- * @param options - Optional configuration
  * @returns true if version is available, false otherwise
  */
-export async function isVersionAvailableOnNpm(
-	version: string,
-	options: CheckNpmOptions = {}
-): Promise<boolean> {
-	const { timeoutMs = EXPLICIT_CHECK_TIMEOUT_MS } = options;
+export async function isVersionAvailableOnNpm(version: string): Promise<boolean> {
 	const normalizedVersion = version.replace(/^v/, '');
-	const url = `${NPM_REGISTRY_URL}/${encodeURIComponent(PACKAGE_NAME)}/${normalizedVersion}`;
-
 	try {
-		const response = await fetch(url, {
-			method: 'HEAD', // Only need to check existence, not full metadata
-			signal: AbortSignal.timeout(timeoutMs),
-			headers: {
-				Accept: 'application/json',
-			},
-		});
-		return response.ok;
+		const result = await $`bun info ${PACKAGE_SPEC}@${normalizedVersion} --json`
+			.cwd(tmpdir())
+			.quiet()
+			.nothrow();
+		if (result.exitCode !== 0) {
+			return false;
+		}
+		const info = JSON.parse(result.stdout.toString());
+		if (info.error) {
+			return false;
+		}
+		return info.version === normalizedVersion;
 	} catch {
-		// Network error or timeout - assume not available
 		return false;
 	}
 }
 
 /**
- * Quick check if a version is available on npm with a short timeout.
- * Used for implicit version checks (auto-upgrade flow) to avoid blocking the user's command.
+ * Quick check if a version is available via bun's resolver.
+ * Used for implicit version checks (auto-upgrade flow).
  *
  * @param version - Version to check (with or without 'v' prefix)
- * @returns true if version is available, false if unavailable or timeout
+ * @returns true if version is available, false if unavailable or error
  */
 export async function isVersionAvailableOnNpmQuick(version: string): Promise<boolean> {
-	return isVersionAvailableOnNpm(version, { timeoutMs: QUICK_CHECK_TIMEOUT_MS });
+	return isVersionAvailableOnNpm(version);
 }
 
 export interface WaitForNpmOptions {
@@ -102,4 +91,85 @@ export async function waitForNpmAvailability(
 	}
 
 	return false;
+}
+
+/**
+ * Patterns in bun's stderr that indicate a resolution/CDN propagation failure
+ * (as opposed to a permanent install error like permissions or disk space).
+ */
+const RESOLUTION_ERROR_PATTERNS = [/failed to resolve/i, /no version matching/i];
+
+/**
+ * Check whether a bun install failure is a transient resolution error
+ * caused by npm CDN propagation delays.
+ */
+export function isResolutionError(stderr: string): boolean {
+	return RESOLUTION_ERROR_PATTERNS.some((pattern) => pattern.test(stderr));
+}
+
+export interface InstallWithRetryOptions {
+	/** Maximum number of attempts including the first (default: 7 → 1 initial + 6 retries) */
+	maxAttempts?: number;
+	/** Initial delay in ms before the first retry (default: 5000) */
+	initialDelayMs?: number;
+	/** Maximum delay cap in ms (default: 30000) */
+	maxDelayMs?: number;
+	/** Multiplier applied to the delay after each retry (default: 2) */
+	multiplier?: number;
+	/** Callback invoked before each retry with the attempt number and upcoming delay */
+	onRetry?: (attempt: number, delayMs: number) => void;
+}
+
+/**
+ * Run an install function and retry on transient resolution errors with
+ * exponential backoff. This covers the window (~2 min) where npm CDN nodes
+ * have not yet propagated a newly-published version.
+ *
+ * Total wait with defaults: 5 + 10 + 20 + 30 + 30 + 30 = 125 s ≈ 2 min
+ *
+ * @param installFn - Async function that performs the install and returns exitCode + stderr
+ * @param options - Retry configuration
+ * @returns The successful result (exitCode 0)
+ * @throws Error if all retries are exhausted or a non-resolution error occurs
+ */
+export async function installWithRetry(
+	installFn: () => Promise<{ exitCode: number; stderr: Buffer }>,
+	options: InstallWithRetryOptions = {}
+): Promise<{ exitCode: number; stderr: Buffer }> {
+	const {
+		maxAttempts = 7,
+		initialDelayMs = 5000,
+		maxDelayMs = 30000,
+		multiplier = 2,
+		onRetry,
+	} = options;
+
+	let delay = initialDelayMs;
+
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		const result = await installFn();
+
+		if (result.exitCode === 0) {
+			return result;
+		}
+
+		const stderr = result.stderr.toString();
+
+		// Only retry on resolution/propagation errors — bail immediately for anything else
+		if (!isResolutionError(stderr)) {
+			throw new Error(stderr);
+		}
+
+		// Last attempt exhausted — throw
+		if (attempt === maxAttempts) {
+			throw new Error(stderr);
+		}
+
+		onRetry?.(attempt, delay);
+		await new Promise((resolve) => setTimeout(resolve, delay));
+		delay = Math.min(Math.round(delay * multiplier), maxDelayMs);
+	}
+
+	// Unreachable, but satisfies TypeScript
+	throw new Error('Install failed after retries');
 }

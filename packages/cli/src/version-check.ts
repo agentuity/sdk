@@ -5,6 +5,7 @@ import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version';
 import * as tui from './tui';
 import { saveConfig } from './config';
 import { $ } from 'bun';
+import { tmpdir } from 'node:os';
 import { getExecutingAgent } from './agent-detection';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -171,8 +172,27 @@ async function performUpgrade(logger: Logger, targetVersion: string): Promise<vo
 
 		logger.info('Upgrading to version %s...', npmVersion);
 
-		// Use bun to install the specific version globally
-		await $`bun add -g @agentuity/cli@${npmVersion}`.quiet();
+		// Use bun to install the specific version globally with retry for CDN propagation delays
+		// Run from tmpdir to avoid interference from any local package.json/node_modules
+		const { installWithRetry } = await import('./cmd/upgrade/npm-availability');
+		await installWithRetry(
+			async () => {
+				const result = await $`bun add -g @agentuity/cli@${npmVersion}`
+					.cwd(tmpdir())
+					.quiet()
+					.nothrow();
+				return { exitCode: result.exitCode, stderr: result.stderr };
+			},
+			{
+				onRetry: (attempt, delayMs) => {
+					logger.info(
+						'Package not yet available on CDN, retrying in %ds (attempt %d)...',
+						Math.round(delayMs / 1000),
+						attempt
+					);
+				},
+			}
+		);
 
 		// If we got here, the upgrade succeeded
 		// Re-run the original command with the new binary

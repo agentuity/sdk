@@ -46,6 +46,9 @@ export { Transaction, Savepoint, ReservedConnection } from './transaction';
 // Patch function for modifying Bun.SQL globally
 export { patchBunSQL, isPatched, SQL } from './patch';
 
+// TLS utilities
+export { injectSslMode } from './tls';
+
 // Types
 export type {
 	PostgresConfig,

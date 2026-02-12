@@ -43,6 +43,8 @@ export const listSubcommand = createSubcommand({
 				.union([z.boolean(), z.string()])
 				.optional()
 				.describe('list organization-level variables only (use --org for default org)'),
+			orgId: z.string().optional().describe('filter by organization id'),
+			projectId: z.string().optional().describe('filter by project id'),
 		}),
 		response: EnvListResponseSchema,
 	},
@@ -58,7 +60,12 @@ export const listSubcommand = createSubcommand({
 
 	async handler(ctx) {
 		const { opts, apiClient, project, options, config } = ctx;
-		const useOrgScope = isOrgScope(opts?.org);
+
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
+		const useOrgScope = isOrgScope(opts?.org) || !!opts?.orgId;
 
 		// Build combined result with type info and scope
 		const result: Record<string, { value: string; secret: boolean; scope: 'project' | 'org' }> =
@@ -70,7 +77,12 @@ export const listSubcommand = createSubcommand({
 
 		if (useOrgScope) {
 			// Organization scope only
-			const orgId = await resolveOrgId(apiClient, config, opts!.org!);
+			const orgId =
+				opts?.orgId ??
+				(opts?.org ? await resolveOrgId(apiClient, config, opts.org) : undefined);
+			if (!orgId) {
+				tui.fatal('Organization ID is required. Use --org-id or --org flag.');
+			}
 
 			const orgData = await tui.spinner('Fetching organization variables', () => {
 				return orgEnvGet(apiClient, { id: orgId, mask: false });
@@ -90,11 +102,12 @@ export const listSubcommand = createSubcommand({
 					result[key] = { value, secret: true, scope: 'org' };
 				}
 			}
-		} else if (project) {
+		} else if (opts?.projectId || project) {
 			// Project context: show merged view (org + project, project takes precedence)
 			// First, get project's org ID and fetch org env
+			const effectiveProjectId = opts?.projectId || project!.projectId;
 			const projectData = await tui.spinner('Fetching variables', () => {
-				return projectGet(apiClient, { id: project.projectId, mask: false });
+				return projectGet(apiClient, { id: effectiveProjectId, mask: false });
 			});
 
 			const projectEnv = projectData.env || {};

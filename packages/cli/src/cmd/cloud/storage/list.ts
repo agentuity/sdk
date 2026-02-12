@@ -69,6 +69,7 @@ export const listSubcommand = createSubcommand({
 			prefix: z.string().optional().describe('Path prefix to filter files'),
 		}),
 		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
 			showCredentials: z
 				.boolean()
 				.optional()
@@ -94,7 +95,7 @@ export const listSubcommand = createSubcommand({
 			message: 'Fetching storage',
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 's3' });
+				return listOrgResources(catalystClient, { type: 's3', orgId: opts?.orgId });
 			},
 		});
 
