@@ -879,6 +879,24 @@ describe('registry-generator', () => {
 			expect(existsSync(routesPath)).toBe(false);
 		});
 
+		test('should clean up stale routes.ts from previous build when all routes are removed (issue #924)', async () => {
+			// Simulate a previous build that generated routes.ts
+			mkdirSync(generatedDir, { recursive: true });
+			writeFileSync(
+				join(generatedDir, 'routes.ts'),
+				`// @generated\nimport type { StateSchema } from '../api/index';\n`
+			);
+			expect(existsSync(join(generatedDir, 'routes.ts'))).toBe(true);
+
+			// Now rebuild with no routes (user deleted their API files)
+			const routes: RouteInfo[] = [];
+			await generateRouteRegistry(srcDir, routes);
+
+			// Stale file should be cleaned up
+			const routesPath = join(generatedDir, 'routes.ts');
+			expect(existsSync(routesPath)).toBe(false);
+		});
+
 		test('should handle trailing slashes in routes', async () => {
 			const routes: RouteInfo[] = [
 				{
