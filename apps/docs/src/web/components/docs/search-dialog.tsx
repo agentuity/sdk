@@ -14,7 +14,6 @@ import {
 	SendIcon,
 	SparklesIcon,
 	UsersIcon,
-	XIcon,
 	type LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
@@ -26,7 +25,6 @@ import {
 	CommandItem,
 	CommandList,
 	Dialog,
-	DialogClose,
 	DialogContent,
 	DialogDescription,
 	DialogHeader,
