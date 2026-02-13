@@ -3,12 +3,7 @@
 import { useLocation } from '@tanstack/react-router';
 import { ChevronDown, Copy, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from '../ui';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui';
 import { ClaudeIcon, OpenAIIcon } from '../icons';
 import { cn } from '../../lib/utils';
 
@@ -188,24 +183,19 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 							<ChevronDown className="size-3.5" />
 						</button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="w-48">
+					<DropdownMenuContent align="end" className="w-auto min-w-48">
 						{actionConfigs.map((action) => (
 							<DropdownMenuItem
 								key={action.id}
 								onClick={() => handleActionSelect(action.id)}
 								disabled={isLoading}
 								className={cn(
-									'flex items-center gap-2',
+									'flex items-center gap-2 whitespace-nowrap',
 									action.id === preferredAction && 'bg-zinc-100 dark:bg-zinc-800'
 								)}
 							>
 								<action.icon className="size-4" />
 								{action.label}
-								{action.id === preferredAction && (
-									<span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
-										Default
-									</span>
-								)}
 							</DropdownMenuItem>
 						))}
 					</DropdownMenuContent>
@@ -225,21 +215,23 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 					<Copy className="size-4 text-zinc-500 dark:text-zinc-400" />
 				</button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-48">
+			<DropdownMenuContent align="end" className="w-auto min-w-48">
 				{actionConfigs.map((action) => (
 					<DropdownMenuItem
 						key={action.id}
 						onClick={() => handleActionSelect(action.id)}
 						disabled={isLoading}
 						className={cn(
-							'flex items-center gap-2',
+							'flex items-center gap-2 whitespace-nowrap',
 							action.id === preferredAction && 'bg-zinc-100 dark:bg-zinc-800'
 						)}
 					>
 						<action.icon className="size-4" />
 						{action.label}
 						{action.id === preferredAction && (
-							<span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">Default</span>
+							<span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
+								Default
+							</span>
 						)}
 					</DropdownMenuItem>
 				))}

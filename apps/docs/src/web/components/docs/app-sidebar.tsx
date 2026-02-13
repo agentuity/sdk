@@ -288,7 +288,7 @@ export function AppSidebar({
 								}}
 								aria-label="Go to home"
 							>
-								<div className="flex aspect-square size-6 items-center justify-center">
+								<div className="flex aspect-square size-6 mr-1 items-center justify-center">
 									<AgentuityLogo className="size-6" />
 								</div>
 								<span className="font-normal text-sm">Agentuity</span>

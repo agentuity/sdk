@@ -23,12 +23,7 @@ function DiscordIcon({ className }: { className?: string }) {
 // X (Twitter) icon
 function XIcon({ className }: { className?: string }) {
 	return (
-		<svg
-			aria-hidden="true"
-			className={className}
-			viewBox="0 0 24 24"
-			fill="currentColor"
-		>
+		<svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
 			<title>X</title>
 			<path d="M 18.242188 2.25 L 21.554688 2.25 L 14.324219 10.507812 L 22.828125 21.75 L 16.171875 21.75 L 10.953125 14.933594 L 4.992188 21.75 L 1.679688 21.75 L 9.40625 12.914062 L 1.257812 2.25 L 8.082031 2.25 L 12.792969 8.480469 Z M 17.082031 19.773438 L 18.914062 19.773438 L 7.082031 4.125 L 5.113281 4.125 Z M 17.082031 19.773438" />
 		</svg>
@@ -59,11 +54,11 @@ function HeaderLink({ href, children, label }: HeaderLinkProps) {
 export function HeaderLinks() {
 	return (
 		<div className="hidden md:flex items-center gap-1">
-			<HeaderLink href="https://agentuity.com/blog" label="Blog">
-				<span className="text-sm">Blog</span>
-			</HeaderLink>
 			<HeaderLink href="https://app.agentuity.com" label="App">
 				<span className="text-sm">App</span>
+			</HeaderLink>
+			<HeaderLink href="https://agentuity.com/blog" label="Blog">
+				<span className="text-sm">Blog</span>
 			</HeaderLink>
 			<HeaderLink href="https://discord.gg/agentuity" label="Community">
 				<DiscordIcon className="size-4" />
