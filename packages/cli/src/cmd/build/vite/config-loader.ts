@@ -103,8 +103,6 @@ export function hasFrameworkPlugin(userPlugins: import('vite').PluginOption[]): 
 			typeof p === 'object' &&
 			'name' in p &&
 			typeof (p as { name: unknown }).name === 'string' &&
-			FRAMEWORK_PLUGIN_PREFIXES.some((prefix) =>
-				((p as { name: string }).name).startsWith(prefix)
-			)
+			FRAMEWORK_PLUGIN_PREFIXES.some((prefix) => (p as { name: string }).name.startsWith(prefix))
 	);
 }

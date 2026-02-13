@@ -85,6 +85,10 @@ export async function discoverRoutes(
 
 	const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 
+	// Track files that are mounted as sub-routers via .route()
+	// These files will be parsed standalone AND via .route() — we need to deduplicate
+	const mountedSubrouters = new Set<string>();
+
 	// Scan all .ts files in api directory
 	const glob = new Bun.Glob('**/*.ts');
 	for await (const file of glob.scan(apiDir)) {
@@ -104,7 +108,14 @@ export async function discoverRoutes(
 			const relativeFilename = './' + relative(srcDir, filePath);
 
 			try {
-				const parsedRoutes = await parseRoute(rootDir, filePath, projectId, deploymentId);
+				const parsedRoutes = await parseRoute(
+					rootDir,
+					filePath,
+					projectId,
+					deploymentId,
+					undefined,
+					mountedSubrouters
+				);
 
 				if (parsedRoutes.length > 0) {
 					logger.trace('Discovered %d route(s) in %s', parsedRoutes.length, relativeFilename);
@@ -163,6 +174,28 @@ export async function discoverRoutes(
 		} catch (error) {
 			logger.warn(`Failed to parse route file ${filePath}: ${error}`);
 		}
+	}
+
+	// Filter out routes from standalone-parsed sub-router files
+	// When a file is mounted via .route(), its standalone routes have wrong prefixes
+	// Only the .route()-prefixed routes (attached to the parent file) are correct
+	if (mountedSubrouters.size > 0) {
+		const rootDir = join(srcDir, '..');
+		const subrouterRelPaths = new Set<string>();
+		for (const absPath of mountedSubrouters) {
+			subrouterRelPaths.add(relative(rootDir, absPath));
+		}
+
+		// Remove routes whose filename matches a sub-router file
+		// (these are the incorrectly-prefixed standalone routes)
+		const filteredRoutes = routes.filter((r) => !subrouterRelPaths.has(r.filename));
+		const filteredRouteInfoList = routeInfoList.filter((r) => !subrouterRelPaths.has(r.filename));
+
+		// Replace arrays in-place
+		routes.length = 0;
+		routes.push(...filteredRoutes);
+		routeInfoList.length = 0;
+		routeInfoList.push(...filteredRouteInfoList);
 	}
 
 	logger.debug('Discovered %d route(s)', routes.length);
