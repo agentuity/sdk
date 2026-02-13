@@ -11,6 +11,19 @@ import { ValidationInputError, ValidationOutputError, type IssuesType } from '@a
 import { clearLastLines, isTTYLike } from './tui';
 import { appendLog, isLogCollectionEnabled } from './log-collector';
 
+/**
+ * Error thrown when step execution is interrupted by a signal (e.g., Ctrl+C).
+ * Callers can catch this to perform cleanup before exiting.
+ */
+export class StepInterruptError extends Error {
+	public readonly exitCode: number;
+	constructor(exitCode = 130) {
+		super('Step execution interrupted');
+		this.name = 'StepInterruptError';
+		this.exitCode = exitCode;
+	}
+}
+
 // Spinner frames
 const FRAMES = ['◐', '◓', '◑', '◒'];
 
@@ -77,6 +90,7 @@ export const stepError = (message: string, cause?: Error, output?: string[]): St
  */
 export interface StepContext {
 	progress: (n: number) => void;
+	signal: AbortSignal;
 }
 
 /**
@@ -301,14 +315,6 @@ export function pauseStepUI(clear = false): () => void {
 }
 
 /**
- * Get exit function (Bun.exit or process.exit)
- */
-function getExitFn(): (code: number) => never {
-	const bunExit = (globalThis as { Bun?: { exit?: (code: number) => never } }).Bun?.exit;
-	return typeof bunExit === 'function' ? bunExit : process.exit.bind(process);
-}
-
-/**
  * Install interrupt handlers (SIGINT/SIGTERM + raw mode)
  */
 function installInterruptHandlers(onInterrupt: () => void): () => void {
@@ -367,19 +373,24 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 	let currentStepIndex = -1;
 	let currentFrameIndex = 0;
 
+	// Create abort controller for cooperative cancellation
+	const abortController = new AbortController();
+
 	// Hide cursor
 	process.stdout.write('\x1B[?25l');
 
 	// Set up interrupt handler
-	const exit = getExitFn();
+	let restoreInterrupts: (() => void) | null = null;
 	const onInterrupt = () => {
 		if (interrupted) return;
 		interrupted = true;
+		abortController.abort();
 		if (activeInterval) clearInterval(activeInterval);
+		restoreInterrupts?.();
+		restoreInterrupts = null;
 		process.stdout.write('\x1B[?25h\n'); // Show cursor
-		exit(130);
 	};
-	const restoreInterrupts = installInterruptHandlers(onInterrupt);
+	restoreInterrupts = installInterruptHandlers(onInterrupt);
 
 	// Force re-render function
 	const forceRerender = (skipMove = false) => {
@@ -476,7 +487,10 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 
 			// Run the step
 			try {
-				const outcome = await step.run({ progress: progressCallback });
+				const outcome = await step.run({
+					progress: progressCallback,
+					signal: abortController.signal,
+				});
 
 				// Update state from outcome
 				if (outcome.status === 'success') {
@@ -537,13 +551,19 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 			}
 		}
 
+		// If interrupted during step execution, throw so callers' finally blocks run
+		if (interrupted) {
+			throw new StepInterruptError();
+		}
+
 		// Show cursor
 		process.stdout.write('\x1B[?25h');
 	} catch (err) {
 		process.stdout.write('\x1B[?25h');
 		throw err;
 	} finally {
-		restoreInterrupts();
+		restoreInterrupts?.();
+		restoreInterrupts = null;
 		getTotalLinesFn = null; // Clear pause capability
 		forceRerenderFn = null;
 	}
@@ -558,76 +578,98 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
 	const yellowColor = getColor('yellow');
 	const redColor = getColor('red');
 
-	for (const step of steps) {
-		let outcome: StepOutcome;
+	const abortController = new AbortController();
+	let interrupted = false;
+	const onInterrupt = () => {
+		if (interrupted) return;
+		interrupted = true;
+		abortController.abort();
+	};
+	process.on('SIGINT', onInterrupt);
+	process.on('SIGTERM', onInterrupt);
 
-		try {
-			outcome = await step.run({ progress: () => {} });
-		} catch (err) {
-			outcome = {
-				status: 'error',
-				message: err instanceof Error ? err.message : String(err),
-				cause: err instanceof Error ? err : undefined,
+	try {
+		for (const step of steps) {
+			if (abortController.signal.aborted) break;
+
+			let outcome: StepOutcome;
+
+			try {
+				outcome = await step.run({ progress: () => {}, signal: abortController.signal });
+			} catch (err) {
+				outcome = {
+					status: 'error',
+					message: err instanceof Error ? err.message : String(err),
+					cause: err instanceof Error ? err : undefined,
+				};
+			}
+
+			// Build step state for clean log emission
+			const stepState: StepState = {
+				label: step.label,
+				status: outcome.status,
+				output: outcome.output,
+				skipReason: outcome.status === 'skipped' ? outcome.reason : undefined,
+				errorMessage: outcome.status === 'error' ? outcome.message : undefined,
+				errorCause: outcome.status === 'error' ? outcome.cause : undefined,
 			};
+
+			// Emit clean log for this step
+			emitCleanStepLog(stepState);
+
+			// Print final state
+			if (outcome.status === 'success') {
+				console.log(`${greenColor}${ICONS.success}${COLORS.reset} ${step.label}`);
+				if (outcome.output && outcome.output.length > 0) {
+					console.log(`${grayColor}╭─ Output${COLORS.reset}`);
+					for (const line of outcome.output) {
+						console.log(`${grayColor}│${COLORS.reset} ${line}`);
+					}
+					console.log(`${grayColor}╰─${COLORS.reset}`);
+					console.log('');
+				}
+			} else if (outcome.status === 'skipped') {
+				const reason = outcome.reason ? ` ${grayColor}(${outcome.reason})${COLORS.reset}` : '';
+				console.log(`${yellowColor}${ICONS.skipped}${COLORS.reset} ${step.label}${reason}`);
+				if (outcome.output && outcome.output.length > 0) {
+					console.log(`${grayColor}╭─ Output${COLORS.reset}`);
+					for (const line of outcome.output) {
+						console.log(`${grayColor}│${COLORS.reset} ${line}`);
+					}
+					console.log(`${grayColor}╰─${COLORS.reset}`);
+					console.log('');
+				}
+			} else {
+				console.log(`${redColor}${ICONS.error}${COLORS.reset} ${step.label}`);
+				if (outcome.output && outcome.output.length > 0) {
+					console.log(`${grayColor}╭─ Output${COLORS.reset}`);
+					for (const line of outcome.output) {
+						console.log(`${grayColor}│${COLORS.reset} ${line}`);
+					}
+					console.log(`${grayColor}╰─${COLORS.reset}`);
+					console.log('');
+				}
+				const errorColor = getColor('red');
+				const errorMsg = outcome.message || 'An unknown error occurred';
+				console.error(`\n${errorColor}Error: ${errorMsg}${COLORS.reset}`);
+				if (
+					outcome.cause instanceof ValidationInputError ||
+					outcome.cause instanceof ValidationOutputError
+				) {
+					printValidationIssues(outcome.cause.issues);
+				}
+				console.error('');
+				process.exit(1);
+			}
 		}
 
-		// Build step state for clean log emission
-		const stepState: StepState = {
-			label: step.label,
-			status: outcome.status,
-			output: outcome.output,
-			skipReason: outcome.status === 'skipped' ? outcome.reason : undefined,
-			errorMessage: outcome.status === 'error' ? outcome.message : undefined,
-			errorCause: outcome.status === 'error' ? outcome.cause : undefined,
-		};
-
-		// Emit clean log for this step
-		emitCleanStepLog(stepState);
-
-		// Print final state
-		if (outcome.status === 'success') {
-			console.log(`${greenColor}${ICONS.success}${COLORS.reset} ${step.label}`);
-			if (outcome.output && outcome.output.length > 0) {
-				console.log(`${grayColor}╭─ Output${COLORS.reset}`);
-				for (const line of outcome.output) {
-					console.log(`${grayColor}│${COLORS.reset} ${line}`);
-				}
-				console.log(`${grayColor}╰─${COLORS.reset}`);
-				console.log('');
-			}
-		} else if (outcome.status === 'skipped') {
-			const reason = outcome.reason ? ` ${grayColor}(${outcome.reason})${COLORS.reset}` : '';
-			console.log(`${yellowColor}${ICONS.skipped}${COLORS.reset} ${step.label}${reason}`);
-			if (outcome.output && outcome.output.length > 0) {
-				console.log(`${grayColor}╭─ Output${COLORS.reset}`);
-				for (const line of outcome.output) {
-					console.log(`${grayColor}│${COLORS.reset} ${line}`);
-				}
-				console.log(`${grayColor}╰─${COLORS.reset}`);
-				console.log('');
-			}
-		} else {
-			console.log(`${redColor}${ICONS.error}${COLORS.reset} ${step.label}`);
-			if (outcome.output && outcome.output.length > 0) {
-				console.log(`${grayColor}╭─ Output${COLORS.reset}`);
-				for (const line of outcome.output) {
-					console.log(`${grayColor}│${COLORS.reset} ${line}`);
-				}
-				console.log(`${grayColor}╰─${COLORS.reset}`);
-				console.log('');
-			}
-			const errorColor = getColor('red');
-			const errorMsg = outcome.message || 'An unknown error occurred';
-			console.error(`\n${errorColor}Error: ${errorMsg}${COLORS.reset}`);
-			if (
-				outcome.cause instanceof ValidationInputError ||
-				outcome.cause instanceof ValidationOutputError
-			) {
-				printValidationIssues(outcome.cause.issues);
-			}
-			console.error('');
-			process.exit(1);
+		// If interrupted during step execution, throw so callers' finally blocks run
+		if (interrupted) {
+			throw new StepInterruptError();
 		}
+	} finally {
+		process.off('SIGINT', onInterrupt);
+		process.off('SIGTERM', onInterrupt);
 	}
 }
 

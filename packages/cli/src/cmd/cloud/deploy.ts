@@ -22,6 +22,7 @@ import {
 	stepSkipped,
 	stepError,
 	pauseStepUI,
+	StepInterruptError,
 	type Step,
 	type StepContext,
 } from '../../steps';
@@ -428,6 +429,13 @@ export const deploySubcommand = createSubcommand({
 			}
 		}
 
+		// Create a unified abort controller for the entire deploy flow
+		const deployAbortController = new AbortController();
+		const deployAbortHandler = () => {
+			deployAbortController.abort();
+		};
+		process.on('SIGINT', deployAbortHandler);
+
 		// Start malware check async (runs in parallel with build)
 		if (deployment) {
 			malwareCheckPromise = (async () => {
@@ -444,7 +452,8 @@ export const deploySubcommand = createSubcommand({
 					const result = await projectDeploymentMalwareCheck(
 						catalystClient,
 						deployment!.id,
-						packages
+						packages,
+						deployAbortController.signal
 					);
 					logger.debug(
 						'Malware check complete: action=%s, flagged=%d',
@@ -599,7 +608,7 @@ export const deploySubcommand = createSubcommand({
 
 					{
 						label: 'Build, Verify and Package',
-						run: async () => {
+						run: async (stepCtx: StepContext) => {
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
@@ -644,7 +653,8 @@ export const deploySubcommand = createSubcommand({
 								instructions = await projectDeploymentUpdate(
 									apiClient,
 									deployment.id,
-									build
+									build,
+									stepCtx.signal
 								);
 								return stepSuccess(capturedOutput.length > 0 ? capturedOutput : undefined);
 							} catch (ex) {
@@ -790,6 +800,7 @@ export const deploySubcommand = createSubcommand({
 										'Content-Type': 'application/zip',
 									},
 									body: zipfile,
+									signal: stepCtx.signal,
 								});
 								ctx.logger.trace(`Upload response: ${resp.status}`);
 								if (!resp.ok) {
@@ -877,6 +888,7 @@ export const deploySubcommand = createSubcommand({
 												duplex: 'half',
 												headers,
 												body,
+												signal: stepCtx.signal,
 											})
 										);
 									}
@@ -911,11 +923,15 @@ export const deploySubcommand = createSubcommand({
 					},
 					{
 						label: 'Provision Deployment',
-						run: async () => {
+						run: async (stepCtx: StepContext) => {
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
-							complete = await projectDeploymentComplete(apiClient, deployment.id);
+							complete = await projectDeploymentComplete(
+								apiClient,
+								deployment.id,
+								stepCtx.signal
+							);
 							return stepSuccess();
 						},
 					},
@@ -946,12 +962,7 @@ export const deploySubcommand = createSubcommand({
 			const maxAttempts = 600;
 			let attempts = 0;
 
-			// Create abort controller to allow Ctrl+C to interrupt polling
-			const pollAbortController = new AbortController();
-			const sigintHandler = () => {
-				pollAbortController.abort();
-			};
-			process.on('SIGINT', sigintHandler);
+			// Reuse the deploy abort controller for polling (already aborted on Ctrl+C)
 
 			try {
 				if (streamId) {
@@ -1015,7 +1026,7 @@ export const deploySubcommand = createSubcommand({
 								// Poll for deployment status
 								while (attempts < maxAttempts) {
 									// Check if user pressed Ctrl+C
-									if (pollAbortController.signal.aborted) {
+									if (deployAbortController.signal.aborted) {
 										logStreamController.abort();
 										throw new DeploymentCancelledError();
 									}
@@ -1024,7 +1035,8 @@ export const deploySubcommand = createSubcommand({
 									try {
 										statusResult = await projectDeploymentStatus(
 											apiClient,
-											deployment?.id ?? ''
+											deployment?.id ?? '',
+											deployAbortController.signal
 										);
 
 										logger.trace('status result: %s', statusResult);
@@ -1116,14 +1128,15 @@ export const deploySubcommand = createSubcommand({
 						callback: async () => {
 							while (attempts < maxAttempts) {
 								// Check if user pressed Ctrl+C
-								if (pollAbortController.signal.aborted) {
+								if (deployAbortController.signal.aborted) {
 									throw new DeploymentCancelledError();
 								}
 
 								attempts++;
 								statusResult = await projectDeploymentStatus(
 									apiClient,
-									deployment?.id ?? ''
+									deployment?.id ?? '',
+									deployAbortController.signal
 								);
 
 								if (statusResult.state === 'completed') {
@@ -1173,7 +1186,7 @@ export const deploySubcommand = createSubcommand({
 				tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 			} finally {
 				// Clean up signal handler
-				process.off('SIGINT', sigintHandler);
+				process.off('SIGINT', deployAbortHandler);
 			}
 
 			// Show deployment URLs
@@ -1231,12 +1244,19 @@ export const deploySubcommand = createSubcommand({
 					: undefined,
 			};
 		} catch (ex) {
+			// Handle step interruption (Ctrl+C during build steps)
+			if (ex instanceof StepInterruptError) {
+				tui.warning('Deployment cancelled');
+				process.exit(ex.exitCode);
+			}
 			collector.addGeneralError('deploy', String(ex), 'DEPLOY004');
 			if (opts.reportFile) {
 				await collector.forceWrite();
 			}
 			clearGlobalCollector();
 			tui.fatal(`unexpected error trying to deploy project. ${ex}`);
+		} finally {
+			process.off('SIGINT', deployAbortHandler);
 		}
 	},
 });
