@@ -235,14 +235,16 @@ export type DeploymentInstructions = z.infer<typeof DeploymentInstructionsSchema
 export async function projectDeploymentUpdate(
 	client: APIClient,
 	deploymentId: string,
-	deployment: BuildMetadata
+	deployment: BuildMetadata,
+	signal?: AbortSignal
 ): Promise<DeploymentInstructions> {
 	const resp = await client.request<DeploymentInstructionsResponse, BuildMetadata>(
 		'PUT',
 		`/cli/deploy/2/start/${deploymentId}`,
 		DeploymentInstructionsResponseSchema,
 		deployment,
-		BuildMetadataSchema
+		BuildMetadataSchema,
+		signal
 	);
 	if (resp.success) {
 		return resp.data;
@@ -306,12 +308,16 @@ export type DeploymentStatusResult = z.infer<typeof DeploymentStatusSchema>;
  */
 export async function projectDeploymentComplete(
 	client: APIClient,
-	deploymentId: string
+	deploymentId: string,
+	signal?: AbortSignal
 ): Promise<DeploymentComplete> {
 	const resp = await client.request<DeploymentCompleteResponse>(
 		'POST',
 		`/cli/deploy/2/complete/${deploymentId}`,
-		DeploymentCompleteResponseSchema
+		DeploymentCompleteResponseSchema,
+		undefined,
+		undefined,
+		signal
 	);
 	if (resp.success) {
 		return resp.data;
@@ -330,12 +336,16 @@ export async function projectDeploymentComplete(
  */
 export async function projectDeploymentStatus(
 	client: APIClient,
-	deploymentId: string
+	deploymentId: string,
+	signal?: AbortSignal
 ): Promise<DeploymentStatusResult> {
 	const resp = await client.request<DeploymentStatusResponse>(
 		'GET',
 		`/cli/deploy/2/status/${deploymentId}`,
-		DeploymentStatusResponseSchema
+		DeploymentStatusResponseSchema,
+		undefined,
+		undefined,
+		signal
 	);
 	if (resp.success) {
 		return resp.data;

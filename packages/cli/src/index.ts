@@ -102,7 +102,7 @@ export {
 	type CommandHandler,
 	type TableColumn,
 } from './repl';
-export { runSteps, stepSuccess, stepSkipped, stepError } from './steps';
+export { runSteps, stepSuccess, stepSkipped, stepError, StepInterruptError } from './steps';
 export { playSound } from './sound';
 export {
 	downloadWithProgress,

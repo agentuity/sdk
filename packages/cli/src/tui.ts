@@ -737,7 +737,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 /**
  * Wait for any key press before continuing
  * Displays a prompt message and waits for user input
- * Exits with code 1 if CTRL+C is pressed
+ * Raises SIGINT if CTRL+C is pressed
  */
 export async function waitForAnyKey(message = 'Press Enter to continue...'): Promise<void> {
 	process.stdout.write(muted(message));
@@ -765,7 +765,8 @@ export async function waitForAnyKey(message = 'Press Enter to continue...'): Pro
 			// Check for CTRL+C (character code 3)
 			if (data.length === 1 && data[0] === 3) {
 				console.log('\n');
-				process.exit(1);
+				process.kill(process.pid, 'SIGINT');
+				return;
 			}
 
 			console.log('');
@@ -777,7 +778,7 @@ export async function waitForAnyKey(message = 'Press Enter to continue...'): Pro
 /**
  * Prompts user with a yes/no question
  * Returns true for yes, false for no
- * Exits with code 1 if CTRL+C is pressed
+ * Raises SIGINT if CTRL+C is pressed
  */
 export async function confirm(message: string, defaultValue = true): Promise<boolean> {
 	const suffix = defaultValue ? '[Y/n]' : '[y/N]';
@@ -805,7 +806,8 @@ export async function confirm(message: string, defaultValue = true): Promise<boo
 			// Check for CTRL+C (character code 3)
 			if (data.length === 1 && data[0] === 3) {
 				console.log('\n');
-				process.exit(1);
+				process.kill(process.pid, 'SIGINT');
+				return;
 			}
 
 			const input = data.toString().trim().toLowerCase();
