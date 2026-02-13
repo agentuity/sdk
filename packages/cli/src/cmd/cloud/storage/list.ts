@@ -70,6 +70,7 @@ export const listSubcommand = createSubcommand({
 		}),
 		options: z.object({
 			orgId: z.string().optional().describe('filter by organization id'),
+			name: z.string().optional().describe('Filter by bucket name'),
 			showCredentials: z
 				.boolean()
 				.optional()
@@ -78,13 +79,12 @@ export const listSubcommand = createSubcommand({
 				),
 			nameOnly: z.boolean().optional().describe('Print the name only'),
 			sort: z
-				.enum(['name', 'created'])
-				.optional()
-				.describe('field to sort by (default: created)'),
-			direction: z
-				.enum(['asc', 'desc'])
-				.optional()
-				.describe('sort direction (default: desc)'),
+				.enum(['name', 'created', 'region'])
+				.default('created')
+				.describe('field to sort by'),
+			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),
+			limit: z.coerce.number().min(0).optional().describe('Maximum number of results to return'),
+			offset: z.coerce.number().min(0).optional().describe('Offset for pagination'),
 		}),
 		response: StorageListResponseSchema,
 	},
@@ -106,8 +106,15 @@ export const listSubcommand = createSubcommand({
 				return listOrgResources(catalystClient, {
 					type: 's3',
 					orgId: opts?.orgId,
-					sort: opts?.sort,
-					direction: opts?.direction,
+					...(args.name
+						? { name: args.name }
+						: {
+								name: opts?.name,
+								sort: opts?.sort,
+								direction: opts?.direction,
+								limit: opts?.limit,
+								offset: opts?.offset,
+							}),
 				});
 			},
 		});

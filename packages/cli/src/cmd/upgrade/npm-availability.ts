@@ -41,9 +41,7 @@ export async function spawnWithTimeout(
 		]);
 
 		if (timedOut) {
-			throw new Error(
-				`Command timed out after ${options.timeout}ms: ${cmd.join(' ')}`
-			);
+			throw new Error(`Command timed out after ${options.timeout}ms: ${cmd.join(' ')}`);
 		}
 
 		return {

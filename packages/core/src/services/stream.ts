@@ -67,16 +67,24 @@ export interface CreateStreamProps {
 	ttl?: number | null;
 }
 
-export type StreamSortField = 'name' | 'created' | 'updated' | 'size';
+export type StreamSortField = 'name' | 'created' | 'updated' | 'size' | 'count' | 'lastUsed';
 
 /**
- * Parameters for listing streams
+ * Parameters for listing streams.
+ *
+ * Note: If both `namespace` and `name` are provided, `namespace` takes precedence
+ * and `name` is ignored in the API request body.
  */
 export interface ListStreamsParams extends ListParams<StreamSortField> {
 	/**
 	 * optional namespace filter to search for streams
 	 */
 	namespace?: string;
+
+	/**
+	 * optional name filter to search for streams
+	 */
+	name?: string;
 
 	/**
 	 * optional metadata filters to match streams
@@ -725,6 +733,9 @@ export class StreamStorageService implements StreamStorage {
 		if (params?.namespace) {
 			attributes['namespace'] = params.namespace;
 		}
+		if (params?.name) {
+			attributes['name'] = params.name;
+		}
 		if (params?.metadata) {
 			attributes['metadata'] = JSON.stringify(params.metadata);
 		}
@@ -733,6 +744,8 @@ export class StreamStorageService implements StreamStorage {
 		const requestBody: Record<string, unknown> = {};
 		if (params?.namespace) {
 			requestBody.name = params.namespace;
+		} else if (params?.name) {
+			requestBody.name = params.name;
 		}
 		if (params?.metadata) {
 			requestBody.metadata = params.metadata;

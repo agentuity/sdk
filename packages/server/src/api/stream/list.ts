@@ -40,6 +40,10 @@ export interface StreamListOptions {
 	 */
 	namespace?: string;
 	/**
+	 * Filter by stream name
+	 */
+	name?: string;
+	/**
 	 * Maximum number of streams to return (default: 100, max: 1000)
 	 */
 	limit?: number;
@@ -93,12 +97,13 @@ export async function streamList(
 	client: APIClient,
 	options: StreamListOptions = {}
 ): Promise<StreamListData> {
-	const { projectId, orgId, namespace, limit, offset, metadata } = options;
+	const { projectId, orgId, namespace, name, limit, offset, metadata } = options;
 	const params = new URLSearchParams();
 
 	if (projectId) params.set('projectId', projectId);
 	if (orgId) params.set('orgId', orgId);
 	if (namespace) params.set('namespace', namespace);
+	if (name) params.set('name', name);
 	if (limit !== undefined) params.set('limit', limit.toString());
 	if (offset !== undefined) params.set('offset', offset.toString());
 	if (metadata && Object.keys(metadata).length > 0) {

@@ -26,8 +26,14 @@ export interface SandboxResources {
  */
 export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'failed' | 'deleted';
 
-export type SandboxSortField = 'name' | 'created' | 'updated' | 'status';
-export type SnapshotSortField = 'name' | 'created' | 'size';
+export type SandboxSortField =
+	| 'name'
+	| 'created'
+	| 'updated'
+	| 'status'
+	| 'mode'
+	| 'execution_count';
+export type SnapshotSortField = 'name' | 'created' | 'size' | 'files';
 export type RuntimeSortField = 'name' | 'created';
 
 /**
@@ -781,6 +787,16 @@ export interface SandboxInfo {
  * Parameters for listing sandboxes
  */
 export interface ListSandboxesParams {
+	/**
+	 * Filter by sandbox name
+	 */
+	name?: string;
+
+	/**
+	 * Filter by sandbox mode
+	 */
+	mode?: 'oneshot' | 'interactive';
+
 	/**
 	 * Filter by project ID
 	 */

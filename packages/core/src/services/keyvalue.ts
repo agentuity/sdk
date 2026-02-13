@@ -122,6 +122,10 @@ export type KVSortField = 'name' | 'size' | 'records' | 'created' | 'lastUsed';
  */
 export interface GetAllStatsParams {
 	/**
+	 * Filter namespaces by name substring
+	 */
+	name?: string;
+	/**
 	 * Maximum number of namespaces to return (default: 100, max: 1000)
 	 */
 	limit?: number;
@@ -137,6 +141,22 @@ export interface GetAllStatsParams {
 	 * Sort direction (default: 'desc')
 	 */
 	direction?: SortDirection;
+	/**
+	 * Filter by project ID
+	 */
+	projectId?: string;
+	/**
+	 * Filter by agent ID
+	 */
+	agentId?: string;
+	/**
+	 * Filter by project name
+	 */
+	projectName?: string;
+	/**
+	 * Filter by agent name
+	 */
+	agentName?: string;
 }
 
 /**
@@ -417,6 +437,21 @@ export class KeyValueStorageService implements KeyValueStorage {
 		}
 		if (params?.direction) {
 			queryParams.set('direction', params.direction);
+		}
+		if (params?.name) {
+			queryParams.set('name', params.name);
+		}
+		if (params?.projectId) {
+			queryParams.set('project_id', params.projectId);
+		}
+		if (params?.agentId) {
+			queryParams.set('agent_id', params.agentId);
+		}
+		if (params?.projectName) {
+			queryParams.set('project_name', params.projectName);
+		}
+		if (params?.agentName) {
+			queryParams.set('agent_name', params.agentName);
 		}
 		const queryString = queryParams.toString();
 		const url = buildUrl(

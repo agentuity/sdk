@@ -27,6 +27,14 @@ export type CLISandboxInfo = z.infer<typeof SandboxInfoSchema>;
 
 export interface CLISandboxListOptions {
 	/**
+	 * Filter by sandbox name
+	 */
+	name?: string;
+	/**
+	 * Filter by sandbox mode
+	 */
+	mode?: 'oneshot' | 'interactive';
+	/**
 	 * Filter by specific project ID
 	 */
 	projectId?: string;
@@ -86,6 +94,8 @@ export async function cliSandboxList(
 	const { projectId, orgId, status, limit, offset, sort, direction } = options;
 	const params = new URLSearchParams();
 
+	if (options.name) params.set('name', options.name);
+	if (options.mode) params.set('mode', options.mode);
 	if (projectId) params.set('projectId', projectId);
 	if (orgId) params.set('orgId', orgId);
 	if (status) params.set('status', status);

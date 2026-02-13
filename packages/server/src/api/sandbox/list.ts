@@ -139,6 +139,12 @@ export async function sandboxList(
 	if (params?.orgId) {
 		queryParams.set('orgId', params.orgId);
 	}
+	if (params?.name) {
+		queryParams.set('name', params.name);
+	}
+	if (params?.mode) {
+		queryParams.set('mode', params.mode);
+	}
 	if (params?.projectId) {
 		queryParams.set('projectId', params.projectId);
 	}
