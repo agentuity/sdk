@@ -4,7 +4,6 @@ import { fetchLatestVersion } from './cmd/upgrade';
 import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version';
 import * as tui from './tui';
 import { saveConfig } from './config';
-import { $ } from 'bun';
 import { tmpdir } from 'node:os';
 import { getExecutingAgent } from './agent-detection';
 
@@ -174,13 +173,14 @@ async function performUpgrade(logger: Logger, targetVersion: string): Promise<vo
 
 		// Use bun to install the specific version globally with retry for CDN propagation delays
 		// Run from tmpdir to avoid interference from any local package.json/node_modules
-		const { installWithRetry } = await import('./cmd/upgrade/npm-availability');
+		const { installWithRetry, spawnWithTimeout } = await import('./cmd/upgrade/npm-availability');
 		await installWithRetry(
 			async () => {
-				const result = await $`bun add -g @agentuity/cli@${npmVersion}`
-					.cwd(tmpdir())
-					.quiet()
-					.nothrow();
+				// spawnWithTimeout kills the process if it exceeds 30s
+				const result = await spawnWithTimeout(
+					['bun', 'add', '-g', `@agentuity/cli@${npmVersion}`],
+					{ cwd: tmpdir(), timeout: 30_000 }
+				);
 				return { exitCode: result.exitCode, stderr: result.stderr };
 			},
 			{

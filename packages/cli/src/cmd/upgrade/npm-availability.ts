@@ -3,10 +3,81 @@
  * Used to verify a version is available via bun's resolver before attempting upgrade.
  */
 
-import { $ } from 'bun';
 import { tmpdir } from 'node:os';
 
 const PACKAGE_SPEC = '@agentuity/cli';
+
+/** Default timeout for `bun info` subprocess calls (10 seconds) */
+const BUN_INFO_TIMEOUT_MS = 10_000;
+
+/** Default timeout for install (`bun add -g`) subprocess calls (30 seconds) */
+const INSTALL_TIMEOUT_MS = 30_000;
+
+/**
+ * Run a command via Bun.spawn with a timeout that kills the process.
+ * Returns { exitCode, stdout, stderr } similar to Bun's $ shell result.
+ */
+export async function spawnWithTimeout(
+	cmd: string[],
+	options: { cwd?: string; timeout: number }
+): Promise<{ exitCode: number; stdout: Buffer; stderr: Buffer }> {
+	const proc = Bun.spawn(cmd, {
+		cwd: options.cwd,
+		stdout: 'pipe',
+		stderr: 'pipe',
+	});
+
+	let timedOut = false;
+	const timer = setTimeout(() => {
+		timedOut = true;
+		proc.kill();
+	}, options.timeout);
+
+	try {
+		const [exitCode, stdoutBytes, stderrBytes] = await Promise.all([
+			proc.exited,
+			new Response(proc.stdout).arrayBuffer(),
+			new Response(proc.stderr).arrayBuffer(),
+		]);
+
+		if (timedOut) {
+			throw new Error(
+				`Command timed out after ${options.timeout}ms: ${cmd.join(' ')}`
+			);
+		}
+
+		return {
+			exitCode,
+			stdout: Buffer.from(stdoutBytes),
+			stderr: Buffer.from(stderrBytes),
+		};
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/**
+ * Race a promise against a timeout. Unlike spawnWithTimeout (which kills a process),
+ * this is a generic wrapper for any async operation (e.g. the installFn callback).
+ */
+async function withTimeout<T>(
+	promise: Promise<T>,
+	timeoutMs: number,
+	description: string
+): Promise<T> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeoutPromise = new Promise<never>((_, reject) => {
+		timer = setTimeout(
+			() => reject(new Error(`${description} timed out after ${timeoutMs}ms`)),
+			timeoutMs
+		);
+	});
+	try {
+		return await Promise.race([promise, timeoutPromise]);
+	} finally {
+		clearTimeout(timer!);
+	}
+}
 
 /**
  * Check if a specific version of @agentuity/cli is resolvable by bun.
@@ -20,10 +91,10 @@ const PACKAGE_SPEC = '@agentuity/cli';
 export async function isVersionAvailableOnNpm(version: string): Promise<boolean> {
 	const normalizedVersion = version.replace(/^v/, '');
 	try {
-		const result = await $`bun info ${PACKAGE_SPEC}@${normalizedVersion} --json`
-			.cwd(tmpdir())
-			.quiet()
-			.nothrow();
+		const result = await spawnWithTimeout(
+			['bun', 'info', `${PACKAGE_SPEC}@${normalizedVersion}`, '--json'],
+			{ cwd: tmpdir(), timeout: BUN_INFO_TIMEOUT_MS }
+		);
 		if (result.exitCode !== 0) {
 			return false;
 		}
@@ -147,7 +218,20 @@ export async function installWithRetry(
 	let delay = initialDelayMs;
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-		const result = await installFn();
+		let result: { exitCode: number; stderr: Buffer };
+		try {
+			result = await withTimeout(installFn(), INSTALL_TIMEOUT_MS, 'Install command');
+		} catch (error) {
+			// Treat timeouts as retryable resolution errors
+			const message = error instanceof Error ? error.message : String(error);
+			if (attempt === maxAttempts) {
+				throw new Error(message);
+			}
+			onRetry?.(attempt, delay);
+			await new Promise((resolve) => setTimeout(resolve, delay));
+			delay = Math.min(Math.round(delay * multiplier), maxDelayMs);
+			continue;
+		}
 
 		if (result.exitCode === 0) {
 			return result;
