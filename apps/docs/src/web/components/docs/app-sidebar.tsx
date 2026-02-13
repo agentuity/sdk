@@ -3,7 +3,6 @@ import { ChevronRight, SearchIcon, SparklesIcon } from 'lucide-react';
 import {
 	Collapsible,
 	CollapsibleContent,
-	CollapsibleTrigger,
 	Sidebar,
 	SidebarContent,
 	SidebarGroup,
@@ -81,15 +80,14 @@ function RecursiveNavItem({
 	const handleClick = (e: React.MouseEvent) => {
 		e.preventDefault();
 		if (hasChildren) {
-			// If we're already on this page or a child page, just toggle
-			if (isActive || hasActiveDescendant) {
-				setOpen((prev) => !prev);
-			} else {
-				// Navigate to the item's URL (if it has one) and expand
+			if (item.url) {
+				// Always navigate to the item's URL
+				onNavigate(item.url === '/' ? 'home' : item.url.slice(1));
+				// Ensure children are expanded when navigating
 				setOpen(true);
-				if (item.url) {
-					onNavigate(item.url === '/' ? 'home' : item.url.slice(1));
-				}
+			} else {
+				// No URL — just toggle (e.g. grouping header with no page)
+				setOpen((prev) => !prev);
 			}
 		} else if (item.url) {
 			// Leaf node - just navigate
@@ -98,6 +96,7 @@ function RecursiveNavItem({
 	};
 
 	const handleChevronClick = (e: React.MouseEvent) => {
+		e.preventDefault();
 		e.stopPropagation();
 		setOpen((prev) => !prev);
 	};
@@ -132,13 +131,14 @@ function RecursiveNavItem({
 	if (depth === 0) {
 		// Top-level collapsible section
 		return (
-			<Collapsible asChild open={open} onOpenChange={setOpen} className="group/collapsible">
+			<Collapsible asChild open={open} className="group/collapsible">
 				<SidebarMenuItem>
 					<SidebarMenuButton tooltip={item.title} isActive={isActive} onClick={handleClick}>
 						<span>{item.title}</span>
-						<CollapsibleTrigger asChild onClick={handleChevronClick}>
-							<ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-						</CollapsibleTrigger>
+						<ChevronRight
+							onClick={handleChevronClick}
+							className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+						/>
 					</SidebarMenuButton>
 					<CollapsibleContent>
 						<SidebarMenuSub>
@@ -163,7 +163,7 @@ function RecursiveNavItem({
 	const groupName = `collapsible-d${depth}-${item.title.replace(/\s+/g, '-').toLowerCase()}`;
 
 	return (
-		<Collapsible asChild open={open} onOpenChange={setOpen} className={`group/${groupName}`}>
+		<Collapsible asChild open={open} className={`group/${groupName}`}>
 			<SidebarMenuSubItem>
 				<SidebarMenuSubButton
 					asChild
@@ -172,14 +172,13 @@ function RecursiveNavItem({
 				>
 					<a href={item.url || '#'} onClick={handleClick}>
 						<span>{item.title}</span>
-						<CollapsibleTrigger asChild onClick={handleChevronClick}>
-							<ChevronRight
-								className={cn(
-									'ml-auto size-4 transition-transform duration-200',
-									open && 'rotate-90'
-								)}
-							/>
-						</CollapsibleTrigger>
+						<ChevronRight
+							onClick={handleChevronClick}
+							className={cn(
+								'ml-auto size-4 transition-transform duration-200',
+								open && 'rotate-90'
+							)}
+						/>
 					</a>
 				</SidebarMenuSubButton>
 				<CollapsibleContent>

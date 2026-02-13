@@ -1,15 +1,7 @@
 import { MDXProvider } from '@mdx-js/react';
 import { useEffect } from 'react';
-import { useNavigate } from '@tanstack/react-router';
 import { mdxComponents } from './mdx-components';
 import { useToc, type TocItem } from '../../hooks/use-toc';
-import { findCurrentNav } from './nav-data';
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbLink,
-	BreadcrumbList,
-} from '../ui';
 import { CopyPageDropdown } from './copy-page-dropdown';
 
 interface Frontmatter {
@@ -76,40 +68,6 @@ function NotFound({ route }: { route: string }) {
 	);
 }
 
-// Breadcrumb showing current section
-function PageBreadcrumb({ route }: { route: string }) {
-	const navigate = useNavigate();
-	const { section, item } = findCurrentNav(route);
-
-	// Only show breadcrumb if we're on a child page (not the section index)
-	if (!section || !item) return null;
-
-	const handleClick = (e: React.MouseEvent, url: string) => {
-		e.preventDefault();
-		const to = url === '/' ? '/' : url;
-		void navigate({ to });
-	};
-
-	return (
-		<Breadcrumb className="mb-4">
-			<BreadcrumbList>
-				<BreadcrumbItem>
-					{section.url ? (
-						<BreadcrumbLink
-							href={section.url}
-							onClick={(e) => handleClick(e, section.url!)}
-						>
-							{section.title}
-						</BreadcrumbLink>
-					) : (
-						<span className="text-muted-foreground">{section.title}</span>
-					)}
-				</BreadcrumbItem>
-			</BreadcrumbList>
-		</Breadcrumb>
-	);
-}
-
 // Page header with title and description from frontmatter
 function PageHeader({ title, description }: Frontmatter) {
 	if (!title && !description) return null;
@@ -154,7 +112,6 @@ function MDXRenderer({ modulePath, route }: { modulePath: string; route: string 
 
 	return (
 		<>
-			<PageBreadcrumb route={route} />
 			<PageHeader {...frontmatter} />
 			<article className="prose prose-zinc dark:prose-invert max-w-none">
 				<MDXProvider components={mdxComponents}>
