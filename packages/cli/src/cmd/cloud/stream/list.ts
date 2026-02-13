@@ -58,7 +58,7 @@ export const listSubcommand = createCommand({
 	],
 	schema: {
 		options: z.object({
-			size: z.number().min(0).default(100).describe('maximum number of streams to return'),
+			size: z.number().min(1).default(100).describe('maximum number of streams to return'),
 			offset: z.number().min(0).optional().describe('number of streams to skip for pagination'),
 			namespace: z.string().optional().describe('filter by stream namespace'),
 			name: z.string().optional().describe('Filter by stream name'),

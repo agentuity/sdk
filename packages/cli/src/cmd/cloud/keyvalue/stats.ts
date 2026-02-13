@@ -113,8 +113,20 @@ export const statsSubcommand = createCommand({
 				...(opts?.agentName && { agentName: opts.agentName }),
 			});
 
-			// Handle both paginated and flat response formats
-			const isPaginated = allStats && typeof allStats === 'object' && 'namespaces' in allStats;
+			// Handle both paginated and flat response formats.
+			// Strictly validate pagination shape to avoid misclassifying a flat response
+			// that happens to contain a namespace literally named "namespaces".
+			const isPaginated =
+				allStats != null &&
+				typeof allStats === 'object' &&
+				'namespaces' in allStats &&
+				'total' in allStats &&
+				typeof (allStats as Record<string, unknown>).total === 'number' &&
+				typeof (allStats as Record<string, unknown>).namespaces === 'object' &&
+				(allStats as Record<string, unknown>).namespaces != null &&
+				// A paginated namespaces value is a Record of namespace entries (each with count/sum),
+				// not itself a single namespace entry (which would have count/sum at the top level).
+				!('count' in ((allStats as Record<string, unknown>).namespaces as object));
 			const namespaceMap = isPaginated
 				? (
 						allStats as {
@@ -178,7 +190,7 @@ export const statsSubcommand = createCommand({
 					};
 				}
 				return {
-					...namespaces,
+					namespaces,
 					total: paginatedResult.total,
 					limit: paginatedResult.limit,
 					offset: paginatedResult.offset,
