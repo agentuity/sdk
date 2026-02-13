@@ -507,6 +507,11 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 					stepState.output = outcome.output;
 				}
 			} catch (err) {
+				// If the step was aborted due to cancellation, treat as interrupt
+				if (err instanceof Error && err.name === 'AbortError') {
+					interrupted = true;
+					throw new StepInterruptError();
+				}
 				stepState.status = 'error';
 				stepState.errorMessage = err instanceof Error ? err.message : String(err);
 				stepState.errorCause = err instanceof Error ? err : undefined;
@@ -536,6 +541,14 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 
 			// Handle errors
 			if (stepState.status === 'error') {
+				// If the error is due to abort/cancellation, treat as interrupt
+				if (
+					stepState.errorCause instanceof Error &&
+					stepState.errorCause.name === 'AbortError'
+				) {
+					interrupted = true;
+					throw new StepInterruptError();
+				}
 				const errorColor = getColor('red');
 				const errorMsg = stepState.errorMessage || 'An unknown error occurred';
 				console.error(`\n${errorColor}Error: ${errorMsg}${COLORS.reset}`);
@@ -597,6 +610,11 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
 			try {
 				outcome = await step.run({ progress: () => {}, signal: abortController.signal });
 			} catch (err) {
+				// If the step was aborted due to cancellation, treat as interrupt
+				if (err instanceof Error && err.name === 'AbortError') {
+					interrupted = true;
+					throw new StepInterruptError();
+				}
 				outcome = {
 					status: 'error',
 					message: err instanceof Error ? err.message : String(err),
@@ -640,6 +658,11 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
 					console.log('');
 				}
 			} else {
+				// If the error is due to abort/cancellation, treat as interrupt
+				if (outcome.cause instanceof Error && outcome.cause.name === 'AbortError') {
+					interrupted = true;
+					throw new StepInterruptError();
+				}
 				console.log(`${redColor}${ICONS.error}${COLORS.reset} ${step.label}`);
 				if (outcome.output && outcome.output.length > 0) {
 					console.log(`${grayColor}╭─ Output${COLORS.reset}`);
