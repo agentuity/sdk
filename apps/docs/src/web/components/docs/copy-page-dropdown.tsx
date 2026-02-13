@@ -168,7 +168,7 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 					onClick={handlePrimaryAction}
 					disabled={isLoading}
 					aria-label={`${primaryAction.label} (primary action)`}
-					className="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-200 disabled:opacity-50 touch-manipulation border-r border-zinc-200 dark:border-zinc-800"
+					className="cursor-pointer inline-flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-200 disabled:opacity-50 touch-manipulation border-r border-zinc-200 dark:border-zinc-800"
 				>
 					<primaryAction.icon className="size-3.5" />
 					{primaryAction.label}
@@ -178,21 +178,18 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 						<button
 							type="button"
 							aria-label="More copy options"
-							className="inline-flex items-center px-1.5 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-200 touch-manipulation"
+							className="cursor-pointer inline-flex items-center px-1.5 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-200 touch-manipulation"
 						>
 							<ChevronDown className="size-3.5" />
 						</button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="w-auto min-w-48">
+					<DropdownMenuContent align="end" className="w-auto">
 						{actionConfigs.map((action) => (
 							<DropdownMenuItem
 								key={action.id}
 								onClick={() => handleActionSelect(action.id)}
 								disabled={isLoading}
-								className={cn(
-									'flex items-center gap-2 whitespace-nowrap',
-									action.id === preferredAction && 'bg-zinc-100 dark:bg-zinc-800'
-								)}
+								className="cursor-pointer flex items-center gap-2 whitespace-nowrap"
 							>
 								<action.icon className="size-4" />
 								{action.label}

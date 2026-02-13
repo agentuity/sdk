@@ -176,7 +176,7 @@ function renderTreeItems(
 	items: NavItem[],
 	onSelect: (url: string) => void,
 	sectionIcon: LucideIcon,
-	depth: number = 0,
+	depth: number = 0
 ): React.ReactNode[] {
 	return items.flatMap((item) => {
 		const nodes: React.ReactNode[] = [];
@@ -194,7 +194,7 @@ function renderTreeItems(
 				>
 					<Icon className="mr-2 size-3.5 shrink-0" />
 					<span className="text-sm">{item.title}</span>
-				</CommandItem>,
+				</CommandItem>
 			);
 		} else if (item.items) {
 			nodes.push(
@@ -204,7 +204,7 @@ function renderTreeItems(
 					style={{ paddingLeft: `${12 + indent}px` }}
 				>
 					{item.title}
-				</div>,
+				</div>
 			);
 		}
 
@@ -248,17 +248,25 @@ function KeywordSearchContent({
 		<Command className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
 			<div className="flex items-center [&>[data-slot=command-input-wrapper]]:flex-1 [&>[data-slot=command-input-wrapper]]:border-b-0 border-b">
 				<CommandInput placeholder="Search pages..." value={search} onValueChange={setSearch} />
-				<kbd className="pointer-events-none inline-flex h-5 select-none items-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground mr-2">
-					ESC
-				</kbd>
 				<button
 					type="button"
 					onClick={onSwitchMode}
-					className="flex items-center gap-1.5 px-3 py-2 mr-2 text-xs text-muted-foreground hover:text-foreground bg-muted hover:bg-accent rounded-md transition-colors shrink-0"
+					className="cursor-pointer flex items-center gap-1.5 pl-3 pr-2 py-2 mr-2 text-xs text-muted-foreground hover:text-foreground bg-muted hover:bg-accent rounded-md transition-colors shrink-0"
 					title="Switch to Ask AI"
 				>
 					<SparklesIcon className="size-3.5" />
 					<span>Ask AI</span>
+					<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-xs font-medium text-sidebar-foreground/70">
+						<span>
+							{typeof navigator !== 'undefined' &&
+							/Mac|iPhone|iPad|iPod/.test(navigator.userAgent) ? (
+								<span className="text-sm">⌘</span>
+							) : (
+								'Ctrl '
+							)}
+						</span>
+						K
+					</kbd>
 				</button>
 			</div>
 			<CommandList className="max-h-[400px]">
@@ -278,7 +286,9 @@ function KeywordSearchContent({
 										>
 											<Icon className="mr-3 size-4 shrink-0 mt-0.5" />
 											<div className="flex flex-col gap-0.5 min-w-0 flex-1">
-												<span className="text-sm font-medium truncate">{item.title}</span>
+												<span className="text-sm font-medium truncate">
+													{item.title}
+												</span>
 												{item.description && (
 													<span className="text-xs text-muted-foreground line-clamp-1">
 														{item.description}
@@ -360,29 +370,34 @@ function AISearchContent({
 	return (
 		<>
 			{/* Header */}
-			<div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b">
+			<div className="flex items-center gap-3 pl-4 pr-2 pt-4 pb-3 border-b">
 				<div className="bg-muted rounded-lg p-2 shrink-0">
 					<SparklesIcon className="size-4 text-muted-foreground" />
 				</div>
 				<div className="flex-1 min-w-0 flex flex-col gap-0.5">
 					<h2 className="text-sm font-semibold">Ask AI</h2>
-					<p className="text-xs text-muted-foreground">
-						Search documentation with AI
-					</p>
+					<p className="text-xs text-muted-foreground">Search documentation with AI</p>
 				</div>
 				<button
 					type="button"
 					onClick={onSwitchMode}
-					className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-md hover:bg-accent transition-colors shrink-0"
+					className="cursor-pointer flex items-center gap-1.5 pl-3 pr-2 py-2 mr-2 text-xs text-muted-foreground hover:text-foreground bg-muted hover:bg-accent rounded-md transition-colors shrink-0"
 					title="Switch to keyword search"
 				>
 					<SearchIcon className="size-3.5" />
 					<span>Search</span>
+					<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-xs font-medium text-sidebar-foreground/70">
+						<span>
+							{typeof navigator !== 'undefined' &&
+							/Mac|iPhone|iPad|iPod/.test(navigator.userAgent) ? (
+								<span className="text-sm">⌘</span>
+							) : (
+								'Ctrl '
+							)}
+						</span>
+						K
+					</kbd>
 				</button>
-				<DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 shrink-0">
-					<XIcon className="size-4" />
-					<span className="sr-only">Close</span>
-				</DialogClose>
 			</div>
 
 			{/* Scrollable messages area */}
@@ -432,7 +447,7 @@ function AISearchContent({
 						onRetry={handleRetry}
 						onClear={handleClear}
 					/>
-					<span className={cn("text-[10px] text-muted-foreground", !input.trim() && "invisible")}>
+					<span className="text-xs text-muted-foreground/60">
 						Enter to send, Shift+Enter for newline
 					</span>
 				</div>

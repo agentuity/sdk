@@ -301,18 +301,26 @@ export function AppSidebar({
 					<button
 						type="button"
 						onClick={onOpenSearch}
-						className="flex flex-1 items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+						className="h-9.5 flex flex-1 items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 p-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
 					>
 						<SearchIcon className="size-4" />
 						<span className="flex-1 text-left">Search</span>
-						<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-[10px] font-medium text-sidebar-foreground/70">
-							<span className="text-xs">⌘</span>K
+						<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-xs font-medium text-sidebar-foreground/70">
+							<span>
+								{typeof navigator !== 'undefined' &&
+								/Mac|iPhone|iPad|iPod/.test(navigator.userAgent) ? (
+									<span className="text-sm">⌘</span>
+								) : (
+									'Ctrl '
+								)}
+							</span>
+							K
 						</kbd>
 					</button>
 					<button
 						type="button"
 						onClick={onOpenAISearch}
-						className="flex items-center justify-center size-9 shrink-0 rounded-md border border-sidebar-border bg-sidebar-accent/50 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+						className="flex items-center justify-center size-9.5 shrink-0 rounded-md border border-sidebar-border bg-sidebar-accent/50 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
 						title="Ask AI"
 					>
 						<SparklesIcon className="size-4" />
