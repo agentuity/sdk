@@ -1,5 +1,6 @@
 import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException, toPayload } from './_util';
+import type { SortDirection } from './pagination';
 
 /**
  * Minimum TTL value in seconds (1 minute)
@@ -114,6 +115,8 @@ export interface KeyValueItemWithMetadata<T = unknown> {
 	updated_at: string;
 }
 
+export type KVSortField = 'name' | 'size' | 'records' | 'created' | 'lastUsed';
+
 /**
  * Parameters for getting all namespace statistics with optional pagination
  */
@@ -126,6 +129,14 @@ export interface GetAllStatsParams {
 	 * Number of namespaces to skip for pagination (default: 0)
 	 */
 	offset?: number;
+	/**
+	 * Field to sort by
+	 */
+	sort?: KVSortField;
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**
@@ -400,6 +411,12 @@ export class KeyValueStorageService implements KeyValueStorage {
 		}
 		if (params?.offset !== undefined) {
 			queryParams.set('offset', String(params.offset));
+		}
+		if (params?.sort) {
+			queryParams.set('sort', params.sort);
+		}
+		if (params?.direction) {
+			queryParams.set('direction', params.direction);
 		}
 		const queryString = queryParams.toString();
 		const url = buildUrl(

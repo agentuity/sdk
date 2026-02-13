@@ -1,5 +1,6 @@
 import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
+import type { ListParams } from './pagination';
 import { safeStringify } from '../json';
 import { StructuredError } from '../error';
 
@@ -301,19 +302,12 @@ export interface VectorNamespaceStatsWithSamples extends VectorNamespaceStats {
 	sampledResults?: Record<string, VectorItemStats>;
 }
 
+export type VectorSortField = 'name' | 'size' | 'records' | 'created' | 'lastUsed';
+
 /**
  * Parameters for getting all namespace statistics with optional pagination
  */
-export interface VectorGetAllStatsParams {
-	/**
-	 * Maximum number of namespaces to return (default: 100, max: 1000)
-	 */
-	limit?: number;
-	/**
-	 * Number of namespaces to skip for pagination (default: 0)
-	 */
-	offset?: number;
-}
+export type VectorGetAllStatsParams = ListParams<VectorSortField>;
 
 /**
  * Paginated response for vector namespace statistics
@@ -1033,6 +1027,12 @@ export class VectorStorageService implements VectorStorage {
 		}
 		if (params?.offset !== undefined) {
 			queryParams.set('offset', String(params.offset));
+		}
+		if (params?.sort) {
+			queryParams.set('sort', params.sort);
+		}
+		if (params?.direction) {
+			queryParams.set('direction', params.direction);
 		}
 		const queryString = queryParams.toString();
 		const url = buildUrl(

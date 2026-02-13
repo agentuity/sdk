@@ -1,3 +1,4 @@
+import type { SortDirection } from '@agentuity/core';
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api';
 import { StreamResponseError } from './util';
@@ -50,6 +51,14 @@ export interface StreamListOptions {
 	 * Filter by metadata key-value pairs
 	 */
 	metadata?: Record<string, string>;
+	/**
+	 * Field to sort by
+	 */
+	sort?: string;
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**
@@ -95,6 +104,8 @@ export async function streamList(
 	if (metadata && Object.keys(metadata).length > 0) {
 		params.set('metadata', JSON.stringify(metadata));
 	}
+	if (options.sort) params.set('sort', options.sort);
+	if (options.direction) params.set('direction', options.direction);
 
 	const queryString = params.toString();
 	const resp = await client.request<StreamListResponse>(

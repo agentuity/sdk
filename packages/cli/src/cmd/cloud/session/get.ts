@@ -46,10 +46,10 @@ const SessionGetResponseSchema = z.object({
 	pending: z.boolean().describe('Pending'),
 	success: z.boolean().describe('Success'),
 	error: z.string().nullable().describe('Error message'),
-	method: z.string().describe('HTTP method'),
-	url: z.string().describe('Request URL'),
-	route_id: z.string().describe('Route ID'),
-	thread_id: z.string().describe('Thread ID'),
+	method: z.string().nullable().describe('HTTP method'),
+	url: z.string().nullable().describe('Request URL'),
+	route_id: z.string().nullable().describe('Route ID'),
+	thread_id: z.string().nullable().describe('Thread ID'),
 	agents: z
 		.array(
 			z.object({
@@ -148,10 +148,10 @@ export const getSubcommand = createSubcommand({
 				pending: session.pending,
 				success: session.success,
 				error: session.error,
-				method: session.method,
-				url: session.url,
-				route_id: session.route_id,
-				thread_id: session.thread_id,
+				method: session.method ?? null,
+				url: session.url ?? null,
+				route_id: session.route_id ?? null,
+				thread_id: session.thread_id ?? null,
 				agents: enriched.agents,
 				eval_runs: enriched.evalRuns.map((run: EvalRun) => ({
 					id: run.id,
@@ -183,8 +183,8 @@ export const getSubcommand = createSubcommand({
 			if (session.duration != null && session.end_time != null) {
 				tableData['Duration'] = `${(session.duration / 1_000_000).toFixed(0)}ms`;
 			}
-			tableData['Method'] = session.method;
-			tableData['URL'] = tui.link(session.url, session.url);
+			tableData['Method'] = session.method ?? '-';
+			tableData['URL'] = session.url ? tui.link(session.url, session.url) : '-';
 			tableData['Trigger'] = session.trigger;
 			if (session.env !== 'production') {
 				tableData['Environment'] = session.env;
@@ -204,9 +204,9 @@ export const getSubcommand = createSubcommand({
 				tableData['Route'] =
 					`${enriched.route.method.toUpperCase()} ${enriched.route.path} ${tui.muted(`(${enriched.route.id})`)}`;
 			} else {
-				tableData['Route ID'] = session.route_id;
+				tableData['Route ID'] = session.route_id ?? '-';
 			}
-			tableData['Thread ID'] = session.thread_id;
+			tableData['Thread ID'] = session.thread_id ?? '-';
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 

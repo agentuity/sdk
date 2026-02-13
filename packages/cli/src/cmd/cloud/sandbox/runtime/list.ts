@@ -34,6 +34,14 @@ export const listSubcommand = createCommand({
 			limit: z.number().optional().describe('Maximum number of results'),
 			offset: z.number().optional().describe('Offset for pagination'),
 			orgId: z.string().optional().describe('filter by organization id'),
+			sort: z
+				.enum(['name', 'created'])
+				.optional()
+				.describe('field to sort by (default: created)'),
+			direction: z
+				.enum(['asc', 'desc'])
+				.optional()
+				.describe('sort direction (default: desc)'),
 		}),
 		response: RuntimeListResponseSchema,
 	},
@@ -47,6 +55,8 @@ export const listSubcommand = createCommand({
 			orgId: effectiveOrgId,
 			limit: opts.limit,
 			offset: opts.offset,
+			sort: opts.sort,
+			direction: opts.direction,
 		});
 
 		if (!options.json) {

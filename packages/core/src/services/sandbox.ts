@@ -1,4 +1,5 @@
 import { StructuredError } from '../error';
+import type { SortDirection } from './pagination';
 
 /**
  * Resource limits for a sandbox using Kubernetes-style units
@@ -24,6 +25,10 @@ export interface SandboxResources {
  * Sandbox status
  */
 export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'failed' | 'deleted';
+
+export type SandboxSortField = 'name' | 'created' | 'updated' | 'status';
+export type SnapshotSortField = 'name' | 'created' | 'size';
+export type RuntimeSortField = 'name' | 'created';
 
 /**
  * Runtime information for a sandbox
@@ -807,6 +812,16 @@ export interface ListSandboxesParams {
 	 * Pagination offset
 	 */
 	offset?: number;
+
+	/**
+	 * Field to sort by
+	 */
+	sort?: SandboxSortField;
+
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**
@@ -837,6 +852,16 @@ export interface ListRuntimesParams {
 	 * Pagination offset
 	 */
 	offset?: number;
+
+	/**
+	 * Field to sort by
+	 */
+	sort?: RuntimeSortField;
+
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**
@@ -1139,6 +1164,16 @@ export interface SnapshotListParams {
 	 * Number of snapshots to skip for pagination
 	 */
 	offset?: number;
+
+	/**
+	 * Field to sort by
+	 */
+	sort?: SnapshotSortField;
+
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**

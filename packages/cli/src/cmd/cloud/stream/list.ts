@@ -67,6 +67,14 @@ export const listSubcommand = createCommand({
 				.describe('filter by metadata (format: key=value or key1=value1,key2=value2)'),
 			projectId: z.string().optional().describe('filter by project ID'),
 			orgId: z.string().optional().describe('filter by organization ID'),
+			sort: z
+				.enum(['name', 'created', 'updated', 'size'])
+				.optional()
+				.describe('field to sort by (default: created)'),
+			direction: z
+				.enum(['asc', 'desc'])
+				.optional()
+				.describe('sort direction (default: desc)'),
 		}),
 		response: ListStreamsResponseSchema,
 	},
@@ -120,14 +128,16 @@ export const listSubcommand = createCommand({
 		}
 
 		try {
-			const result = await streamList(apiClient, {
-				limit: opts.size,
-				offset: opts.offset,
-				namespace: opts.namespace,
-				metadata: metadataFilter,
-				projectId,
-				orgId: opts.orgId,
-			});
+		const result = await streamList(apiClient, {
+			limit: opts.size,
+			offset: opts.offset,
+			namespace: opts.namespace,
+			metadata: metadataFilter,
+			projectId,
+			orgId: opts.orgId,
+			sort: opts.sort,
+			direction: opts.direction,
+		});
 
 			if (options.json) {
 				console.log(JSON.stringify(result, null, 2));

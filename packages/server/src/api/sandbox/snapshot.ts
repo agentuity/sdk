@@ -162,6 +162,8 @@ const _SnapshotListParamsSchema = z
 		sandboxId: z.string().optional().describe('Filter by sandbox ID'),
 		limit: z.number().optional().describe('Maximum number of snapshots to return'),
 		offset: z.number().optional().describe('Number of snapshots to skip'),
+		sort: z.string().optional().describe('Field to sort by'),
+		direction: z.enum(['asc', 'desc']).optional().describe('Sort direction (asc or desc)'),
 		orgId: z.string().optional().describe('Organization ID'),
 	})
 	.describe('Parameters for listing snapshots');
@@ -303,8 +305,8 @@ export async function snapshotList(
 	client: APIClient,
 	params: SnapshotListParams = {}
 ): Promise<SnapshotListResponse> {
-	const { sandboxId, limit, offset, orgId } = params;
-	const queryString = buildQueryString({ sandboxId, limit, offset, orgId });
+	const { sandboxId, limit, offset, sort, direction, orgId } = params;
+	const queryString = buildQueryString({ sandboxId, limit, offset, sort, direction, orgId });
 	const url = `/sandbox/${API_VERSION}/snapshots${queryString}`;
 
 	const resp = await client.get<z.infer<typeof SnapshotListResponseSchema>>(

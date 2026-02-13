@@ -201,6 +201,12 @@ export async function listQueues(
 	if (params?.offset !== undefined) {
 		searchParams.set('offset', String(params.offset));
 	}
+	if (params?.sort) {
+		searchParams.set('sort', params.sort);
+	}
+	if (params?.direction) {
+		searchParams.set('direction', params.direction);
+	}
 
 	const queryString = searchParams.toString();
 	const url = queueApiPathWithQuery('list', queryString || undefined);
