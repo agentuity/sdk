@@ -54,6 +54,7 @@ export type Session = z.infer<typeof SessionSchema>;
 export type SessionSortField = 'created' | 'updated' | 'duration' | 'startTime';
 
 export interface SessionListOptions {
+	/** @deprecated Use `limit` instead. Will be removed in a future version. */
 	count?: number;
 	limit?: number;
 	offset?: number;

@@ -70,7 +70,7 @@ export const listSubcommand = createCommand({
 			sort: z
 				.enum(['name', 'created', 'updated', 'size'])
 				.optional()
-				.describe('field to sort by (default: updated)'),
+				.describe('field to sort by (default: created)'),
 			direction: z
 				.enum(['asc', 'desc'])
 				.optional()

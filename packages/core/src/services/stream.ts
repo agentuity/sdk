@@ -2,7 +2,7 @@ import { safeStringify } from '../json';
 import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { StructuredError } from '../error';
-import type { SortDirection } from './pagination';
+import type { ListParams } from './pagination';
 
 /**
  * Minimum TTL value in seconds (1 minute)
@@ -72,7 +72,7 @@ export type StreamSortField = 'name' | 'created' | 'updated' | 'size';
 /**
  * Parameters for listing streams
  */
-export interface ListStreamsParams {
+export interface ListStreamsParams extends ListParams<StreamSortField> {
 	/**
 	 * optional namespace filter to search for streams
 	 */
@@ -82,26 +82,6 @@ export interface ListStreamsParams {
 	 * optional metadata filters to match streams
 	 */
 	metadata?: Record<string, string>;
-
-	/**
-	 * maximum number of streams to return (default: 100, max: 1000)
-	 */
-	limit?: number;
-
-	/**
-	 * number of streams to skip for pagination
-	 */
-	offset?: number;
-
-	/**
-	 * Field to sort by
-	 */
-	sort?: StreamSortField;
-
-	/**
-	 * Sort direction (default: 'desc')
-	 */
-	direction?: SortDirection;
 }
 
 /**

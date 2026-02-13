@@ -479,7 +479,7 @@ export const ListQueuesRequestSchema = z.object({
 	/** Number of queues to skip for pagination. */
 	offset: z.number().optional(),
 	/** Field to sort by. */
-	sort: z.string().optional(),
+	sort: z.enum(['name', 'created', 'updated']).optional(),
 	/** Sort direction (asc or desc). */
 	direction: z.enum(['asc', 'desc']).optional(),
 });

@@ -1,6 +1,6 @@
 import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
-import type { SortDirection } from './pagination';
+import type { ListParams } from './pagination';
 import { safeStringify } from '../json';
 import { StructuredError } from '../error';
 
@@ -307,24 +307,7 @@ export type VectorSortField = 'name' | 'size' | 'records' | 'created' | 'lastUse
 /**
  * Parameters for getting all namespace statistics with optional pagination
  */
-export interface VectorGetAllStatsParams {
-	/**
-	 * Maximum number of namespaces to return (default: 100, max: 1000)
-	 */
-	limit?: number;
-	/**
-	 * Number of namespaces to skip for pagination (default: 0)
-	 */
-	offset?: number;
-	/**
-	 * Field to sort by
-	 */
-	sort?: VectorSortField;
-	/**
-	 * Sort direction (default: 'desc')
-	 */
-	direction?: SortDirection;
-}
+export type VectorGetAllStatsParams = ListParams<VectorSortField>;
 
 /**
  * Paginated response for vector namespace statistics
