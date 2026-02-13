@@ -307,12 +307,12 @@ export type VectorSortField = 'name' | 'size' | 'records' | 'created' | 'lastUse
 /**
  * Parameters for getting all namespace statistics with optional pagination
  */
-export type VectorGetAllStatsParams = ListParams<VectorSortField> & {
+export interface VectorGetAllStatsParams extends ListParams<VectorSortField> {
 	/**
 	 * Filter namespaces by name substring
 	 */
 	name?: string;
-};
+}
 
 /**
  * Paginated response for vector namespace statistics

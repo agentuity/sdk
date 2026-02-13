@@ -58,8 +58,8 @@ export const listSubcommand = createCommand({
 	],
 	schema: {
 		options: z.object({
-			size: z.number().optional().describe('maximum number of streams to return (default: 100)'),
-			offset: z.number().optional().describe('number of streams to skip for pagination'),
+			size: z.number().min(0).default(100).describe('maximum number of streams to return'),
+			offset: z.number().min(0).optional().describe('number of streams to skip for pagination'),
 			namespace: z.string().optional().describe('filter by stream namespace'),
 			name: z.string().optional().describe('Filter by stream name'),
 			metadata: z
@@ -69,10 +69,10 @@ export const listSubcommand = createCommand({
 			projectId: z.string().optional().describe('filter by project ID'),
 			orgId: z.string().optional().describe('filter by organization ID'),
 			sort: z
-				.enum(['name', 'created', 'updated', 'size'])
-				.optional()
-				.describe('field to sort by (default: created)'),
-			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
+				.enum(['name', 'created', 'updated', 'size', 'count'])
+				.default('created')
+				.describe('field to sort by'),
+			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),
 		}),
 		response: ListStreamsResponseSchema,
 	},

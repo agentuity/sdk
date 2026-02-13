@@ -67,10 +67,13 @@ export interface CreateStreamProps {
 	ttl?: number | null;
 }
 
-export type StreamSortField = 'name' | 'created' | 'updated' | 'size';
+export type StreamSortField = 'name' | 'created' | 'updated' | 'size' | 'count';
 
 /**
- * Parameters for listing streams
+ * Parameters for listing streams.
+ *
+ * Note: If both `namespace` and `name` are provided, `namespace` takes precedence
+ * and `name` is ignored in the API request body.
  */
 export interface ListStreamsParams extends ListParams<StreamSortField> {
 	/**

@@ -26,7 +26,13 @@ export interface SandboxResources {
  */
 export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'failed' | 'deleted';
 
-export type SandboxSortField = 'name' | 'created' | 'updated' | 'status';
+export type SandboxSortField =
+	| 'name'
+	| 'created'
+	| 'updated'
+	| 'status'
+	| 'mode'
+	| 'execution_count';
 export type SnapshotSortField = 'name' | 'created' | 'size';
 export type RuntimeSortField = 'name' | 'created';
 

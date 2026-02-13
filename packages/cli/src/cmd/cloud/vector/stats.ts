@@ -63,11 +63,11 @@ export const statsSubcommand = createCommand({
 			name: z.string().optional().describe('Filter namespaces by name'),
 			sort: z
 				.enum(['name', 'size', 'records', 'created', 'lastUsed'])
-				.optional()
-				.describe('field to sort by (default: name)'),
-			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: asc)'),
-			limit: z.coerce.number().optional().describe('Maximum number of results to return'),
-			offset: z.coerce.number().optional().describe('Offset for pagination'),
+				.default('name')
+				.describe('field to sort by'),
+			direction: z.enum(['asc', 'desc']).default('asc').describe('sort direction'),
+			limit: z.coerce.number().min(0).optional().describe('Maximum number of results to return'),
+			offset: z.coerce.number().min(0).optional().describe('Offset for pagination'),
 		}),
 		response: VectorStatsResponseSchema,
 	},
@@ -144,11 +144,20 @@ export const statsSubcommand = createCommand({
 			});
 
 			// Handle both paginated and flat response formats
-			const isPaginated =
-				allStats && typeof allStats === 'object' && 'namespaces' in allStats;
+			const isPaginated = allStats && typeof allStats === 'object' && 'namespaces' in allStats;
 			const namespaceMap = isPaginated
-				? (allStats as { namespaces: Record<string, { sum: number; count: number; createdAt?: number; lastUsed?: number }> }).namespaces
-				: (allStats as Record<string, { sum: number; count: number; createdAt?: number; lastUsed?: number }>);
+				? (
+						allStats as {
+							namespaces: Record<
+								string,
+								{ sum: number; count: number; createdAt?: number; lastUsed?: number }
+							>;
+						}
+					).namespaces
+				: (allStats as Record<
+						string,
+						{ sum: number; count: number; createdAt?: number; lastUsed?: number }
+					>);
 			const entries = Object.entries(namespaceMap);
 
 			if (!options.json) {

@@ -67,10 +67,7 @@ export const listSubcommand = createSubcommand({
 				.enum(['created', 'updated'])
 				.optional()
 				.describe('field to sort by (default: created)'),
-			direction: z
-				.enum(['asc', 'desc'])
-				.optional()
-				.describe('sort direction (default: desc)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: ThreadListResponseSchema,
 	},
@@ -86,13 +83,13 @@ export const listSubcommand = createSubcommand({
 		const orgId = opts.orgId;
 
 		try {
-		const threads = await threadList(catalystClient, {
-			count: opts.count,
-			orgId,
-			projectId,
-			sort: opts.sort,
-			direction: opts.direction,
-		});
+			const threads = await threadList(catalystClient, {
+				count: opts.count,
+				orgId,
+				projectId,
+				sort: opts.sort,
+				direction: opts.direction,
+			});
 
 			const result = threads.map((t: Thread) => ({
 				id: t.id,

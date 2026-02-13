@@ -75,13 +75,13 @@ export const listSubcommand = createCommand({
 			projectId: z.string().optional().describe('Filter by project ID'),
 			orgId: z.string().optional().describe('Filter by organization ID'),
 			all: z.boolean().optional().describe('List all sandboxes regardless of project context'),
-			limit: z.number().optional().describe('Maximum number of results (default: 50, max: 100)'),
-			offset: z.number().optional().describe('Pagination offset'),
+			limit: z.number().min(0).default(50).describe('Maximum number of results (max: 100)'),
+			offset: z.number().min(0).optional().describe('Pagination offset'),
 			sort: z
-				.enum(['name', 'created', 'updated', 'status'])
-				.optional()
-				.describe('field to sort by (default: created)'),
-			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
+				.enum(['name', 'created', 'updated', 'status', 'mode', 'execution_count'])
+				.default('created')
+				.describe('field to sort by'),
+			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),
 		}),
 		response: SandboxListResponseSchema,
 	},

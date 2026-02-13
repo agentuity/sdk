@@ -49,11 +49,11 @@ export const listSubcommand = createSubcommand({
 			nameOnly: z.boolean().optional().describe('Print the name only'),
 			sort: z
 				.enum(['name', 'created', 'region'])
-				.optional()
-				.describe('field to sort by (default: created)'),
-			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
-			limit: z.coerce.number().optional().describe('Maximum number of results to return'),
-			offset: z.coerce.number().optional().describe('Offset for pagination'),
+				.default('created')
+				.describe('field to sort by'),
+			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),
+			limit: z.coerce.number().min(0).optional().describe('Maximum number of results to return'),
+			offset: z.coerce.number().min(0).optional().describe('Offset for pagination'),
 		}),
 		response: DBListResponseSchema,
 	},

@@ -51,10 +51,7 @@ export const listSubcommand = createCommand({
 				.enum(['name', 'created', 'size'])
 				.optional()
 				.describe('field to sort by (default: created)'),
-			direction: z
-				.enum(['asc', 'desc'])
-				.optional()
-				.describe('sort direction (default: desc)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: SnapshotListResponseSchema,
 	},

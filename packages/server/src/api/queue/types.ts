@@ -481,7 +481,7 @@ export const ListQueuesRequestSchema = z.object({
 	/** Filter by queue name substring. */
 	name: z.string().optional(),
 	/** Filter by queue type. */
-	queue_type: z.enum(['worker', 'pubsub']).optional(),
+	queue_type: QueueTypeSchema.optional(),
 	/** Filter by queue status. */
 	status: z.enum(['active', 'paused']).optional(),
 	/** Field to sort by. */

@@ -95,10 +95,7 @@ export const listSubcommand = createSubcommand({
 				.enum(['created', 'updated', 'duration', 'startTime'])
 				.optional()
 				.describe('field to sort by (default: created)'),
-			direction: z
-				.enum(['asc', 'desc'])
-				.optional()
-				.describe('sort direction (default: desc)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: SessionListResponseSchema,
 	},
@@ -117,22 +114,22 @@ export const listSubcommand = createSubcommand({
 		const projectId = opts.all || opts.orgId ? undefined : opts.projectId || project?.projectId;
 
 		try {
-		const sessions = await sessionList(catalystClient, {
-			count: opts.count,
-			orgId: opts?.orgId,
-			projectId,
-			deploymentId: opts.deploymentId,
-			trigger: opts.trigger,
-			env: opts.env,
-			devmode: opts.devmode,
-			success: opts.success,
-			threadId: opts.threadId,
-			agentIdentifier: opts.agentIdentifier,
-			startAfter: opts.startAfter,
-			startBefore: opts.startBefore,
-			sort: opts.sort,
-			direction: opts.direction,
-		});
+			const sessions = await sessionList(catalystClient, {
+				count: opts.count,
+				orgId: opts?.orgId,
+				projectId,
+				deploymentId: opts.deploymentId,
+				trigger: opts.trigger,
+				env: opts.env,
+				devmode: opts.devmode,
+				success: opts.success,
+				threadId: opts.threadId,
+				agentIdentifier: opts.agentIdentifier,
+				startAfter: opts.startAfter,
+				startBefore: opts.startBefore,
+				sort: opts.sort,
+				direction: opts.direction,
+			});
 
 			const result = sessions.map((s) => ({
 				id: s.id,

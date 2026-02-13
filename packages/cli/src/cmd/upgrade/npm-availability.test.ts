@@ -43,23 +43,15 @@ test('spawnWithTimeout returns non-zero exit code without throwing', async () =>
 	expect(result.exitCode).not.toBe(0);
 });
 
-test(
-	'isVersionAvailableOnNpm returns true for a known version',
-	async () => {
-		const { isVersionAvailableOnNpm } = await import('./npm-availability');
-		// Use a known-good old version that definitely exists
-		const result = await isVersionAvailableOnNpm('1.0.10');
-		expect(result).toBe(true);
-	},
-	15_000
-); // generous test timeout but the function itself has 10s subprocess timeout
+test('isVersionAvailableOnNpm returns true for a known version', async () => {
+	const { isVersionAvailableOnNpm } = await import('./npm-availability');
+	// Use a known-good old version that definitely exists
+	const result = await isVersionAvailableOnNpm('1.0.10');
+	expect(result).toBe(true);
+}, 15_000); // generous test timeout but the function itself has 10s subprocess timeout
 
-test(
-	'isVersionAvailableOnNpm returns false for non-existent version',
-	async () => {
-		const { isVersionAvailableOnNpm } = await import('./npm-availability');
-		const result = await isVersionAvailableOnNpm('999.999.999');
-		expect(result).toBe(false);
-	},
-	15_000
-);
+test('isVersionAvailableOnNpm returns false for non-existent version', async () => {
+	const { isVersionAvailableOnNpm } = await import('./npm-availability');
+	const result = await isVersionAvailableOnNpm('999.999.999');
+	expect(result).toBe(false);
+}, 15_000);

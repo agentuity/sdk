@@ -223,9 +223,7 @@ export const command = createCommand({
 
 			if (!isAvailable) {
 				tui.warning('The new version is not yet available on npm.');
-				tui.info(
-					'This can happen right after a release. Please try again in a few minutes.'
-				);
+				tui.info('This can happen right after a release. Please try again in a few minutes.');
 				tui.newline();
 				tui.info('You can also upgrade manually:');
 				console.log(`  ${tui.muted('curl -fsSL https://agentuity.sh | sh')}`);

@@ -3,6 +3,15 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
+const KVStatsPaginatedSchema = z
+	.object({
+		total: z.number().describe('Total number of namespaces across all pages'),
+		limit: z.number().describe('Number of namespaces requested per page'),
+		offset: z.number().describe('Number of namespaces skipped'),
+		hasMore: z.boolean().describe('Whether there are more namespaces available'),
+	})
+	.passthrough();
+
 const KVStatsResponseSchema = z.union([
 	z.object({
 		namespace: z.string().describe('Namespace name'),
@@ -20,6 +29,7 @@ const KVStatsResponseSchema = z.union([
 			lastUsedAt: z.string().optional().describe('Last used timestamp'),
 		})
 	),
+	KVStatsPaginatedSchema,
 ]);
 
 export const statsSubcommand = createCommand({
@@ -45,11 +55,13 @@ export const statsSubcommand = createCommand({
 			name: z.string().optional().describe('Filter namespaces by name'),
 			sort: z
 				.enum(['name', 'size', 'records', 'created', 'lastUsed'])
-				.optional()
-				.describe('field to sort by (default: name)'),
-			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: asc)'),
-			limit: z.coerce.number().optional().describe('Maximum number of results to return'),
-			offset: z.coerce.number().optional().describe('Offset for pagination'),
+				.default('name')
+				.describe('field to sort by'),
+			direction: z.enum(['asc', 'desc']).default('asc').describe('sort direction'),
+			limit: z.coerce.number().min(0).optional().describe('Maximum number of results to return'),
+			offset: z.coerce.number().min(0).optional().describe('Offset for pagination'),
+			projectId: z.string().optional().describe('Filter by project ID'),
+			agentId: z.string().optional().describe('Filter by agent ID'),
 		}),
 		response: KVStatsResponseSchema,
 	},
@@ -93,14 +105,25 @@ export const statsSubcommand = createCommand({
 				...(opts?.direction && { direction: opts.direction }),
 				...(opts?.limit !== undefined && { limit: opts.limit }),
 				...(opts?.offset !== undefined && { offset: opts.offset }),
+				...(opts?.projectId && { projectId: opts.projectId }),
+				...(opts?.agentId && { agentId: opts.agentId }),
 			});
 
 			// Handle both paginated and flat response formats
-			const isPaginated =
-				allStats && typeof allStats === 'object' && 'namespaces' in allStats;
+			const isPaginated = allStats && typeof allStats === 'object' && 'namespaces' in allStats;
 			const namespaceMap = isPaginated
-				? (allStats as { namespaces: Record<string, { count: number; sum: number; createdAt?: string; lastUsedAt?: string }> }).namespaces
-				: (allStats as Record<string, { count: number; sum: number; createdAt?: string; lastUsedAt?: string }>);
+				? (
+						allStats as {
+							namespaces: Record<
+								string,
+								{ count: number; sum: number; createdAt?: string; lastUsedAt?: string }
+							>;
+						}
+					).namespaces
+				: (allStats as Record<
+						string,
+						{ count: number; sum: number; createdAt?: string; lastUsedAt?: string }
+					>);
 			const entries = Object.entries(namespaceMap);
 
 			if (!options.json) {
@@ -125,15 +148,44 @@ export const statsSubcommand = createCommand({
 				}
 			}
 
-			// Convert timestamp fields to strings
+			// For JSON output with pagination, include metadata
+			if (isPaginated) {
+				const paginatedResult = allStats as {
+					namespaces: Record<
+						string,
+						{ count: number; sum: number; createdAt?: string; lastUsedAt?: string }
+					>;
+					total: number;
+					limit: number;
+					offset: number;
+					hasMore: boolean;
+				};
+				// Convert timestamps to strings in namespaces
+				const namespaces: Record<
+					string,
+					{ count: number; sum: number; createdAt?: string; lastUsedAt?: string }
+				> = {};
+				for (const [name, stats] of entries) {
+					namespaces[name] = {
+						count: stats.count,
+						sum: stats.sum,
+						createdAt: stats.createdAt ? String(stats.createdAt) : undefined,
+						lastUsedAt: stats.lastUsedAt ? String(stats.lastUsedAt) : undefined,
+					};
+				}
+				return {
+					...namespaces,
+					total: paginatedResult.total,
+					limit: paginatedResult.limit,
+					offset: paginatedResult.offset,
+					hasMore: paginatedResult.hasMore,
+				};
+			}
+
+			// Non-paginated: return flat map
 			const result: Record<
 				string,
-				{
-					count: number;
-					sum: number;
-					createdAt?: string;
-					lastUsedAt?: string;
-				}
+				{ count: number; sum: number; createdAt?: string; lastUsedAt?: string }
 			> = {};
 			for (const [name, stats] of entries) {
 				result[name] = {

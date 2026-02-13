@@ -141,6 +141,14 @@ export interface GetAllStatsParams {
 	 * Sort direction (default: 'desc')
 	 */
 	direction?: SortDirection;
+	/**
+	 * Filter by project ID
+	 */
+	projectId?: string;
+	/**
+	 * Filter by agent ID
+	 */
+	agentId?: string;
 }
 
 /**
@@ -424,6 +432,12 @@ export class KeyValueStorageService implements KeyValueStorage {
 		}
 		if (params?.name) {
 			queryParams.set('name', params.name);
+		}
+		if (params?.projectId) {
+			queryParams.set('project_id', params.projectId);
+		}
+		if (params?.agentId) {
+			queryParams.set('agent_id', params.agentId);
 		}
 		const queryString = queryParams.toString();
 		const url = buildUrl(
