@@ -6,8 +6,9 @@
 import { join } from 'node:path';
 import { readdir, stat } from 'node:fs/promises';
 import type { Logger } from '../../../types';
-import type { BunPlugin } from 'bun';
+import type { BunPlugin, BuildOutput } from 'bun';
 import { generatePatches, applyPatch } from '../patch';
+import { getLoaderForPath, rewriteBunImports, rewritePgImports } from './db-rewrite';
 
 /**
  * Format a Bun build log (BuildMessage or ResolveMessage) into a readable string
@@ -73,6 +74,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	// Load custom externals and define from agentuity.config.ts if it exists
 	const customExternals: string[] = [];
 	let userDefine: Record<string, string> = {};
+	let dbRewriteEnabled = true;
 	const configPath = join(rootDir, 'agentuity.config.ts');
 	if (await Bun.file(configPath).exists()) {
 		try {
@@ -95,6 +97,12 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 						Object.keys(userDefine).length
 					);
 				}
+			}
+
+			// Allow users to disable db rewrite plugin
+			if (userConfig?.build?.dbRewrite === false) {
+				dbRewriteEnabled = false;
+				logger.debug('DB rewrite: disabled via agentuity.config.ts');
 			}
 		} catch (error) {
 			logger.debug('Failed to load agentuity.config.ts for externals:', error);
@@ -308,6 +316,84 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		},
 	};
 
+	// Detect files belonging to @agentuity/postgres or @agentuity/drizzle.
+	// Matches both published paths (node_modules/@agentuity/postgres/) and
+	// symlinked/monorepo paths (packages/postgres/dist/, packages/postgres/src/).
+	const isAgentuityPostgres = (filePath: string) =>
+		filePath.includes('/@agentuity/postgres/') ||
+		filePath.includes('\\@agentuity\\postgres\\') ||
+		filePath.includes('/packages/postgres/');
+
+	const isAgentuityDrizzle = (filePath: string) =>
+		filePath.includes('/@agentuity/drizzle/') ||
+		filePath.includes('\\@agentuity\\drizzle\\') ||
+		filePath.includes('/packages/drizzle/');
+
+	const dbRewritePlugin: BunPlugin = {
+		name: 'agentuity:db-rewrite',
+		setup(build) {
+			build.onResolve({ filter: /^drizzle-orm\/bun-sql$/ }, (args) => {
+				// Don't redirect if the importer is @agentuity/drizzle itself — that would create a cycle.
+				// Matches both published packages in node_modules and symlinked monorepo paths.
+				if (args.importer && isAgentuityDrizzle(args.importer)) {
+					return; // Let default resolution handle it
+				}
+				// Resolve to @agentuity/drizzle — the bundler will find it in node_modules
+				// and bundle it into .agentuity/app.js (NOT kept external).
+				const resolved = import.meta.resolveSync('@agentuity/drizzle', args.importer);
+				logger.debug('DB rewrite: redirected drizzle-orm/bun-sql → @agentuity/drizzle');
+				return { path: resolved };
+			});
+
+			build.onLoad(
+				{
+					filter: /\.[cm]?[jt]sx?$/,
+					namespace: 'file',
+				},
+				async (args) => {
+					// Skip node_modules and the rewrite-target packages themselves.
+					// The symlink check is needed because symlinked packages (e.g. via
+					// workspace links) resolve to paths outside node_modules/ (like
+					// ../../sdk/packages/postgres/dist/) and would otherwise be rewritten,
+					// creating circular imports (postgres importing from itself).
+					if (
+						args.path.includes('/node_modules/') ||
+						isAgentuityPostgres(args.path) ||
+						isAgentuityDrizzle(args.path)
+					) {
+						return;
+					}
+					const contents = await Bun.file(args.path).text();
+					let updated = contents;
+					let didRewrite = false;
+
+					const bunResult = rewriteBunImports(updated);
+					if (bunResult.changed) {
+						logger.debug('DB rewrite: redirected bun → @agentuity/postgres');
+						updated = bunResult.contents;
+						didRewrite = true;
+					}
+
+					const pgResult = rewritePgImports(updated);
+					if (pgResult.changed) {
+						logger.debug('DB rewrite: redirected pg → @agentuity/postgres');
+						updated = pgResult.contents;
+						didRewrite = true;
+					}
+
+					if (!didRewrite) {
+						return;
+					}
+
+					return {
+						contents: updated,
+						loader: getLoaderForPath(args.path) as Bun.Loader,
+					};
+				}
+			);
+		},
+	};
+
 	const buildConfig = {
 		entrypoints: [entryPath],
 		outdir: outDir, // Output to .agentuity/ directly (not .agentuity/server/)
@@ -322,7 +408,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		// Without this, NODE_ENV and other env vars get inlined as string literals
 		env: 'disable' as const,
 		define: userDefine, // Include custom define values from agentuity.config.ts
-		plugins: [patchPlugin],
+		plugins: dbRewriteEnabled ? [patchPlugin, dbRewritePlugin] : [patchPlugin],
 		naming: {
 			entry: 'app.js', // Output as app.js (not app.generated.js)
 		},
@@ -345,7 +431,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 
 	logger.debug(`Entry point verified: ${entryPath}`);
 
-	let result;
+	let result: BuildOutput;
 	try {
 		result = await Bun.build(buildConfig);
 	} catch (error: unknown) {

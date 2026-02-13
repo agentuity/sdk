@@ -3,6 +3,11 @@ import type { CoderConfig } from '../../types';
 import { checkAuth } from '../../services/auth';
 import { entityId, getEntityContext } from '../../agents/memory/entities';
 import { agents } from '../../agents';
+import { z } from 'zod';
+
+const sessionInputSchema = z.object({
+	sessionID: z.string().optional(),
+});
 
 export interface ToolHooks {
 	before: (input: unknown, output: unknown) => Promise<void>;
@@ -53,6 +58,11 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 			const toolName = extractToolName(input);
 			if (!toolName) return;
 
+			const sessionResult = sessionInputSchema.safeParse(input);
+			if (sessionResult.success && sessionResult.data.sessionID) {
+				process.env.AGENTUITY_OPENCODE_SESSION = sessionResult.data.sessionID;
+			}
+
 			// Check MCP cloud tools
 			if (isCloudTool(toolName)) {
 				const authResult = await checkAuth();
@@ -86,7 +96,10 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 
 					// Inject AGENTUITY_PROFILE and AGENTUITY_OPENCODE_SESSION environment variables
 					const profile = getCoderProfile();
-					const sessionId = (input as { sessionID?: string }).sessionID;
+					const bashSessionResult = sessionInputSchema.safeParse(input);
+					const sessionId = bashSessionResult.success
+						? bashSessionResult.data.sessionID
+						: undefined;
 
 					// Escape values for safe shell interpolation
 					const escapedProfile = shellEscape(profile);

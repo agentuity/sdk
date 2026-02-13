@@ -61,6 +61,8 @@ export interface ViteBuildOptions {
 	analyticsEnabled?: boolean;
 	logger: Logger;
 	deploymentOptions?: DeployOptions;
+	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
+	deploymentConfig?: Record<string, unknown>;
 	/** Optional collector for structured error reporting */
 	collector?: BuildReportCollector;
 	/** Optional config profile name (e.g., 'staging', 'test') for .env.{profile} files */
@@ -180,16 +182,24 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
-		const { loadAgentuityConfig } = await import('./config-loader');
+		const { loadAgentuityConfig, hasFrameworkPlugin } = await import('./config-loader');
 		const userConfig = await loadAgentuityConfig(rootDir, logger);
 		const userPlugins = userConfig?.plugins || [];
+
+		// Auto-add React plugin if no framework plugin is present (backwards compatibility)
+		if (userPlugins.length === 0 || !hasFrameworkPlugin(userPlugins)) {
+			logger.debug(
+				'No framework plugin found in agentuity.config.ts plugins, adding React automatically'
+			);
+			userPlugins.unshift(react());
+		}
+
 		if (userPlugins.length > 0) {
 			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
 		}
-		// User plugins come FIRST (e.g., TanStack Router must precede React)
+
 		const plugins = [
 			...userPlugins,
-			react(),
 			browserEnvPlugin(),
 			// Fix incorrect public asset paths and rewrite to CDN URLs
 			publicAssetPathPlugin({ cdnBaseUrl }),
@@ -413,6 +423,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger,
 		dev,
 		deploymentOptions: options.deploymentOptions,
+		deploymentConfig: options.deploymentConfig,
 	});
 
 	writeMetadataFile(rootDir, metadata, dev, logger);

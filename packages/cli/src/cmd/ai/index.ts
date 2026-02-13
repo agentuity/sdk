@@ -3,6 +3,7 @@ import capabilitiesCommand from './capabilities';
 import promptCommand from './prompt';
 import schemaCommand from './schema';
 import opencodeCommand from './opencode';
+import claudeCodeCommand from './claude-code';
 import introSubcommand from './intro';
 import detectSubcommand from './detect';
 import { getCommand } from '../../command-prefix';
@@ -26,6 +27,10 @@ export const command = createCommand({
 			description: 'Install Agentuity Open Code plugin',
 		},
 		{
+			command: getCommand('ai claude-code install'),
+			description: 'Install Agentuity Coder plugin for Claude Code',
+		},
+		{
 			command: getCommand('ai capabilities show'),
 			description: 'Show CLI capabilities for AI agents',
 		},
@@ -38,6 +43,7 @@ export const command = createCommand({
 		detectSubcommand,
 		introSubcommand,
 		opencodeCommand,
+		claudeCodeCommand,
 		capabilitiesCommand,
 		promptCommand,
 		schemaCommand,

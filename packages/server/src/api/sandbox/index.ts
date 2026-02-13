@@ -177,6 +177,7 @@ export {
 	ExecutionCancelledError,
 	ExecutionNotFoundError,
 	ExecutionTimeoutError,
+	SandboxBusyError,
 	SandboxNotFoundError,
 	SandboxResponseError,
 	SandboxTerminatedError,

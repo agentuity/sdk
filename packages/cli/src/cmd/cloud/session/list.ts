@@ -72,6 +72,7 @@ export const listSubcommand = createSubcommand({
 	},
 	schema: {
 		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
 			count: z.coerce
 				.number()
 				.int()
@@ -101,11 +102,16 @@ export const listSubcommand = createSubcommand({
 		const { logger, auth, project, opts, options, config } = ctx;
 		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
-		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
+		const projectId = opts.all || opts.orgId ? undefined : opts.projectId || project?.projectId;
 
 		try {
 			const sessions = await sessionList(catalystClient, {
 				count: opts.count,
+				orgId: opts?.orgId,
 				projectId,
 				deploymentId: opts.deploymentId,
 				trigger: opts.trigger,

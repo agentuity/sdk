@@ -4,6 +4,7 @@
  */
 
 import type { AgentuityConfig } from '@agentuity/cli';
+import react from '@vitejs/plugin-react';
 
 export default {
 	/**
@@ -20,15 +21,11 @@ export default {
 	/**
 	 * Vite Plugins
 	 *
-	 * Custom Vite plugins for the client build (src/web/).
-	 * Added after built-in plugins: React, browserEnvPlugin, patchPlugin
-	 *
-	 * Example (Tailwind CSS):
-	 *   bun add -d tailwindcss @tailwindcss/vite
-	 *   import tailwindcss from '@tailwindcss/vite';
-	 *   plugins: [tailwindcss()]
+	 * Plugins for the client build (src/web/).
+	 * The React plugin is included by default — replace it with your
+	 * framework of choice (e.g., @sveltejs/vite-plugin-svelte).
 	 *
 	 * @see https://vitejs.dev/plugins/
 	 */
-	// plugins: [],
+	plugins: [react()],
 } satisfies AgentuityConfig;

@@ -18,14 +18,17 @@ export const listNamespacesSubcommand = createCommand({
 		{ command: getCommand('kv ns'), description: 'List namespaces (short alias)' },
 	],
 	schema: {
+		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
+		}),
 		response: NamespaceListResponseSchema,
 	},
 	webUrl: '/services/kv',
 	idempotent: true,
 
 	async handler(ctx) {
-		const { options } = ctx;
-		const storage = await createStorageAdapter(ctx);
+		const { options, opts } = ctx;
+		const storage = await createStorageAdapter(ctx, opts?.orgId);
 		const namespaces = await storage.getNamespaces();
 
 		if (!options.json) {

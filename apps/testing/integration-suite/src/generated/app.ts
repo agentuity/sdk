@@ -274,18 +274,11 @@ if (isDevelopment() && process.env.VITE_PORT) {
 				const url = new URL(c.req.url);
 				const queryString = url.search; // Includes the '?' prefix
 
-				// Get the requested WebSocket subprotocol (Vite uses 'vite-hmr')
-				const requestedProtocol = c.req.header('sec-websocket-protocol');
-
 				const success = server.upgrade(c.req.raw, {
 					data: { type: 'vite-hmr', queryString },
-					// Echo back the requested subprotocol so the browser accepts the connection
-					headers: requestedProtocol ? {
-						'Sec-WebSocket-Protocol': requestedProtocol,
-					} : undefined,
 				});
 				if (success) {
-					otel.logger.debug('[HMR Proxy] WebSocket upgrade successful (protocol: %s)', requestedProtocol || 'none');
+					otel.logger.debug('[HMR Proxy] WebSocket upgrade successful');
 					return new Response(null);
 				}
 				otel.logger.error('[HMR Proxy] WebSocket upgrade returned false');

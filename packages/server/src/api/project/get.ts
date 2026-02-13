@@ -15,6 +15,7 @@ export const ProjectSchema = z.object({
 	tags: z.array(z.string()).nullable().optional().describe('the project tags'),
 	orgId: z.string().describe('the organization id'),
 	cloudRegion: z.string().nullable().optional().describe('the cloud region'),
+	vanityHostname: z.string().nullable().optional().describe('the vanity hostname'),
 	api_key: z.string().optional().describe('the SDK api key for the project'),
 	env: z.record(z.string(), z.string()).optional().describe('the environment key/values'),
 	secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),

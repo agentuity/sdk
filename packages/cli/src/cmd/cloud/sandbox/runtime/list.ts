@@ -33,16 +33,18 @@ export const listSubcommand = createCommand({
 		options: z.object({
 			limit: z.number().optional().describe('Maximum number of results'),
 			offset: z.number().optional().describe('Offset for pagination'),
+			orgId: z.string().optional().describe('filter by organization id'),
 		}),
 		response: RuntimeListResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { opts, options, auth, logger, orgId, config } = ctx;
+		const { opts, options, orgId: ctxOrgId, logger, auth, config } = ctx;
 		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const effectiveOrgId = opts?.orgId || ctxOrgId;
 
 		const result = await runtimeList(client, {
-			orgId,
+			orgId: effectiveOrgId,
 			limit: opts.limit,
 			offset: opts.offset,
 		});

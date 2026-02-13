@@ -658,6 +658,13 @@ export async function generateRouteRegistry(
 	});
 
 	if (apiRoutes.length === 0 && websocketRoutes.length === 0 && sseRoutes.length === 0) {
+		// Clean up stale routes.ts from previous builds (issue #924)
+		// When all API routes are removed, the old file would reference deleted modules
+		const generatedDir = join(srcDir, 'generated');
+		const registryPath = join(generatedDir, 'routes.ts');
+		if (existsSync(registryPath)) {
+			unlinkSync(registryPath);
+		}
 		return;
 	}
 

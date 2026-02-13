@@ -1,5 +1,5 @@
 import * as acornLoose from 'acorn-loose';
-import { dirname, relative, join, basename } from 'node:path';
+import { dirname, relative, join, basename, resolve } from 'node:path';
 import { parse as parseCronExpression } from '@datasert/cronjs-parser';
 import { generate } from 'astring';
 import type { BuildMetadata } from '../../types';
@@ -8,7 +8,7 @@ import * as ts from 'typescript';
 import { StructuredError, type WorkbenchConfig } from '@agentuity/core';
 import type { LogLevel } from '../../types';
 
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync } from 'node:fs';
 import JSON5 from 'json5';
 import { formatSchemaCode } from './format-schema';
 import {
@@ -1408,12 +1408,56 @@ function findSchemaValidateCall(node: ASTNode): string | undefined {
 	return undefined;
 }
 
+/**
+ * Resolve an import path to an actual file on disk.
+ * Tries the path as-is, then with common extensions.
+ * Returns null for non-relative (package) imports or if no file is found.
+ */
+function resolveImportPath(fromDir: string, importPath: string): string | null {
+	// If it's a package import (not relative), skip
+	if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
+		return null;
+	}
+
+	const basePath = resolve(fromDir, importPath);
+	const extensions = ['.ts', '.tsx', '/index.ts', '/index.tsx'];
+
+	// Try exact path first (might already have extension)
+	if (existsSync(basePath)) {
+		try {
+			const stat = statSync(basePath);
+			if (stat.isFile()) return basePath;
+		} catch {
+			// ignore stat errors
+		}
+	}
+
+	// Try with extensions
+	for (const ext of extensions) {
+		const candidate = basePath + ext;
+		if (existsSync(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
 export async function parseRoute(
 	rootDir: string,
 	filename: string,
 	projectId: string,
-	deploymentId: string
+	deploymentId: string,
+	visitedFiles?: Set<string>,
+	mountedSubrouters?: Set<string>
 ): Promise<BuildMetadata['routes']> {
+	// Track visited files to prevent infinite recursion
+	const visited = visitedFiles ?? new Set<string>();
+	const resolvedFilename = resolve(filename);
+	if (visited.has(resolvedFilename)) {
+		return []; // Already parsed this file, avoid infinite loop
+	}
+	visited.add(resolvedFilename);
 	const rawContents = await Bun.file(filename).text();
 	const version = hash(rawContents);
 	// Transpile TypeScript to JavaScript so acorn-loose can parse it properly
@@ -1607,9 +1651,101 @@ export async function parseRoute(
 							SUPPORTED_HTTP_METHODS.includes(m.toLowerCase() as SupportedHttpMethod);
 
 						switch (method) {
-							case 'use':
+							case 'use': {
+								// Skip Hono middleware - they don't represent API routes
+								continue;
+							}
 							case 'route': {
-								// Skip Hono middleware and sub-router mounting - they don't represent API routes
+								// router.route(mountPath, subRouterVariable)
+								// Follow the import to discover sub-router routes
+								const mountPathArg = statement.expression.arguments[0];
+								const subRouterArg = statement.expression.arguments[1];
+
+								// First arg must be a string literal (the mount path)
+								if (!mountPathArg || (mountPathArg as ASTLiteral).type !== 'Literal') {
+									continue;
+								}
+								// Second arg must be an identifier (the sub-router variable)
+								if (
+									!subRouterArg ||
+									(subRouterArg as ASTNodeIdentifier).type !== 'Identifier'
+								) {
+									continue;
+								}
+
+								const mountPath = String((mountPathArg as ASTLiteral).value);
+								const subRouterName = (subRouterArg as ASTNodeIdentifier).name;
+
+								// Look up import path
+								const subRouterImportPath = importMap.get(subRouterName);
+								if (!subRouterImportPath) {
+									continue; // Can't resolve, skip
+								}
+
+								// Resolve to actual file path
+								const resolvedFile = resolveImportPath(
+									dirname(filename),
+									subRouterImportPath
+								);
+								if (!resolvedFile || visited.has(resolve(resolvedFile))) {
+									continue;
+								}
+
+								try {
+									// Parse sub-router's routes
+									const subRoutes = await parseRoute(
+										rootDir,
+										resolvedFile,
+										projectId,
+										deploymentId,
+										visited,
+										mountedSubrouters
+									);
+
+									// Track this file as a mounted sub-router
+									if (mountedSubrouters) {
+										mountedSubrouters.add(resolve(resolvedFile));
+									}
+
+									// Compute the sub-router's own basePath so we can strip it
+									const subSrcDir = join(rootDir, 'src');
+									const subRelativeApiPath = extractRelativeApiPath(
+										resolvedFile,
+										subSrcDir
+									);
+									const subBasePath = computeApiMountPath(subRelativeApiPath);
+
+									// The combined mount point for sub-routes
+									const combinedBase = joinMountAndRoute(basePath, mountPath);
+
+									for (const subRoute of subRoutes) {
+										// Strip the sub-router's own basePath from the route path
+										let routeSuffix = subRoute.path;
+										if (routeSuffix.startsWith(subBasePath)) {
+											routeSuffix = routeSuffix.slice(subBasePath.length) || '/';
+										}
+
+										const fullPath = joinMountAndRoute(combinedBase, routeSuffix);
+										const id = generateRouteId(
+											projectId,
+											deploymentId,
+											subRoute.type,
+											subRoute.method,
+											rel,
+											fullPath,
+											version
+										);
+
+										routes.push({
+											...subRoute,
+											id,
+											path: fullPath,
+											filename: rel, // Keep parent file as the filename since routes are mounted here
+										});
+									}
+								} catch {
+									// Sub-router parse failure - skip silently (could be a non-route file)
+								}
 								continue;
 							}
 							case 'on': {

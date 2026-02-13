@@ -15,16 +15,9 @@ import { generateId } from './session';
 import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
 import { extractTraceContextFromRequest } from './otel/http';
-import {
-	context,
-	SpanKind,
-	SpanStatusCode,
-	trace,
-	propagation,
-	Meter,
-	Tracer,
-} from '@opentelemetry/api';
-import { TraceState } from '@opentelemetry/core';
+import { enrichContextWithTraceState } from './otel/tracestate';
+import { context, SpanKind, SpanStatusCode, trace, propagation } from '@opentelemetry/api';
+import type { Meter, Tracer } from '@opentelemetry/api';
 import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
 import { internal } from './logger/internal';
@@ -306,6 +299,33 @@ export function createOtelMiddleware() {
 
 		await context.with(extractedContext, async (): Promise<void> => {
 			const tracer = trace.getTracer('http-server');
+
+			// Build enriched traceState BEFORE span creation so the
+			// recording span inherits it and it gets exported to OTLP.
+			// Previously, traceState was set on a NonRecordingSpan *after*
+			// the recording span was created, which meant it was propagated
+			// to outbound requests but never appeared in the exported span
+			// data (ClickHouse TraceState column was empty).
+			const projectId = runtimeConfig.getProjectId();
+			const orgId = runtimeConfig.getOrganizationId();
+			const deploymentId = runtimeConfig.getDeploymentId();
+			const isDevMode = runtimeConfig.isDevMode();
+
+			internal.info(
+				'[session] config: orgId=%s, projectId=%s, deploymentId=%s, isDevMode=%s',
+				orgId ?? 'NOT SET (AGENTUITY_CLOUD_ORG_ID)',
+				projectId ?? 'NOT SET (AGENTUITY_CLOUD_PROJECT_ID)',
+				deploymentId ?? 'none',
+				isDevMode
+			);
+
+			const enrichedContext = enrichContextWithTraceState(context.active(), {
+				pid: projectId,
+				oid: orgId,
+				did: deploymentId,
+				d: isDevMode ? '1' : undefined,
+			});
+
 			await tracer.startActiveSpan(
 				`${method} ${url.pathname}`,
 				{
@@ -317,40 +337,12 @@ export function createOtelMiddleware() {
 						'http.path': url.pathname,
 					},
 				},
+				enrichedContext,
 				async (span): Promise<void> => {
 					// Track request duration from the SDK's perspective
 					const requestStartTime = performance.now();
 					const sctx = span.spanContext();
 					const sessionId = sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess');
-
-					let traceState = sctx.traceState ?? new TraceState();
-					const projectId = runtimeConfig.getProjectId();
-					const orgId = runtimeConfig.getOrganizationId();
-					const deploymentId = runtimeConfig.getDeploymentId();
-					const isDevMode = runtimeConfig.isDevMode();
-
-					internal.info(
-						'[session] config: orgId=%s, projectId=%s, deploymentId=%s, isDevMode=%s',
-						orgId ?? 'NOT SET (AGENTUITY_CLOUD_ORG_ID)',
-						projectId ?? 'NOT SET (AGENTUITY_CLOUD_PROJECT_ID)',
-						deploymentId ?? 'none',
-						isDevMode
-					);
-
-					if (projectId) traceState = traceState.set('pid', projectId);
-					if (orgId) traceState = traceState.set('oid', orgId);
-					if (deploymentId) traceState = traceState.set('did', deploymentId);
-					if (isDevMode) traceState = traceState.set('d', '1');
-
-					// Update the active context with the new trace state
-					// Note: SpanContext.traceState is readonly, so we update it by setting the span with a new context
-					trace.setSpan(
-						context.active(),
-						trace.wrapSpanContext({
-							...sctx,
-							traceState,
-						})
-					);
 
 					const thread = await threadProvider.restore(c);
 					const session = await sessionProvider.restore(thread, sessionId);
