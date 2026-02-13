@@ -157,6 +157,12 @@ export async function sandboxList(
 	if (params?.offset !== undefined) {
 		queryParams.set('offset', params.offset.toString());
 	}
+	if (params?.sort) {
+		queryParams.set('sort', params.sort);
+	}
+	if (params?.direction) {
+		queryParams.set('direction', params.direction);
+	}
 	if (params?.deletedOnly) {
 		queryParams.set('deletedOnly', 'true');
 	}

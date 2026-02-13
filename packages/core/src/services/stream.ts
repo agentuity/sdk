@@ -2,6 +2,7 @@ import { safeStringify } from '../json';
 import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { StructuredError } from '../error';
+import type { SortDirection } from './pagination';
 
 /**
  * Minimum TTL value in seconds (1 minute)
@@ -66,6 +67,8 @@ export interface CreateStreamProps {
 	ttl?: number | null;
 }
 
+export type StreamSortField = 'name' | 'created' | 'updated' | 'size';
+
 /**
  * Parameters for listing streams
  */
@@ -89,6 +92,16 @@ export interface ListStreamsParams {
 	 * number of streams to skip for pagination
 	 */
 	offset?: number;
+
+	/**
+	 * Field to sort by
+	 */
+	sort?: StreamSortField;
+
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**
@@ -749,6 +762,12 @@ export class StreamStorageService implements StreamStorage {
 		}
 		if (params?.offset) {
 			requestBody.offset = params.offset;
+		}
+		if (params?.sort) {
+			requestBody.sort = params.sort;
+		}
+		if (params?.direction) {
+			requestBody.direction = params.direction;
 		}
 
 		const signal = AbortSignal.timeout(30_000);

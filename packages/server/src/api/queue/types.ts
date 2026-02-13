@@ -18,6 +18,8 @@ export const QueueTypeSchema = z.enum(['worker', 'pubsub']);
  */
 export type QueueType = z.infer<typeof QueueTypeSchema>;
 
+export type QueueSortField = 'name' | 'created' | 'updated';
+
 /**
  * Base queue settings schema without defaults - used for partial updates.
  *
@@ -476,6 +478,10 @@ export const ListQueuesRequestSchema = z.object({
 	limit: z.number().optional(),
 	/** Number of queues to skip for pagination. */
 	offset: z.number().optional(),
+	/** Field to sort by. */
+	sort: z.string().optional(),
+	/** Sort direction (asc or desc). */
+	direction: z.enum(['asc', 'desc']).optional(),
 });
 
 /** Request type for listing queues. */

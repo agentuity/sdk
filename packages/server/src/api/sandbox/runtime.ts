@@ -62,6 +62,12 @@ export async function runtimeList(
 	if (params?.offset !== undefined) {
 		queryParams.set('offset', params.offset.toString());
 	}
+	if (params?.sort) {
+		queryParams.set('sort', params.sort);
+	}
+	if (params?.direction) {
+		queryParams.set('direction', params.direction);
+	}
 
 	const queryString = queryParams.toString();
 	const url = `/sandbox/${API_VERSION}/runtimes${queryString ? `?${queryString}` : ''}`;

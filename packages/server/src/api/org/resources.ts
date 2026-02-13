@@ -1,3 +1,4 @@
+import type { SortDirection } from '@agentuity/core';
 import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
 import { OrgResourceResponseError } from './util';
@@ -40,11 +41,21 @@ export type OrgResourceList = z.infer<typeof OrgResourceListResponse>;
 export type OrgS3Resource = z.infer<typeof OrgS3Resource>;
 export type OrgDBResource = z.infer<typeof OrgDBResource>;
 
+export type ResourceSortField = 'name' | 'created';
+
 export interface ListOrgResourcesOptions {
 	/** Filter by resource type (default: "all") */
 	type?: 'all' | 's3' | 'db';
 	/** Organization ID (required for CLI auth, extracted from context for SDK auth) */
 	orgId?: string;
+	/** Maximum number of resources to return */
+	limit?: number;
+	/** Number of resources to skip for pagination */
+	offset?: number;
+	/** Field to sort by */
+	sort?: ResourceSortField;
+	/** Sort direction (default: 'desc') */
+	direction?: SortDirection;
 }
 
 /**
@@ -77,6 +88,18 @@ export async function listOrgResources(
 	const params = new URLSearchParams();
 	if (options?.type && options.type !== 'all') {
 		params.set('type', options.type);
+	}
+	if (options?.limit !== undefined) {
+		params.set('limit', options.limit.toString());
+	}
+	if (options?.offset !== undefined) {
+		params.set('offset', options.offset.toString());
+	}
+	if (options?.sort) {
+		params.set('sort', options.sort);
+	}
+	if (options?.direction) {
+		params.set('direction', options.direction);
 	}
 
 	const query = params.toString();

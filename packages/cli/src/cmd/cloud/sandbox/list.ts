@@ -75,6 +75,14 @@ export const listSubcommand = createCommand({
 			all: z.boolean().optional().describe('List all sandboxes regardless of project context'),
 			limit: z.number().optional().describe('Maximum number of results (default: 50, max: 100)'),
 			offset: z.number().optional().describe('Pagination offset'),
+			sort: z
+				.enum(['name', 'created', 'updated', 'status'])
+				.optional()
+				.describe('field to sort by (default: created)'),
+			direction: z
+				.enum(['asc', 'desc'])
+				.optional()
+				.describe('sort direction (default: desc)'),
 		}),
 		response: SandboxListResponseSchema,
 	},
@@ -94,6 +102,8 @@ export const listSubcommand = createCommand({
 			status: opts.status,
 			limit: opts.limit,
 			offset: opts.offset,
+			sort: opts.sort,
+			direction: opts.direction,
 		});
 
 		// Check if results span multiple orgs

@@ -1,5 +1,6 @@
 import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
+import type { SortDirection } from './pagination';
 import { safeStringify } from '../json';
 import { StructuredError } from '../error';
 
@@ -301,6 +302,8 @@ export interface VectorNamespaceStatsWithSamples extends VectorNamespaceStats {
 	sampledResults?: Record<string, VectorItemStats>;
 }
 
+export type VectorSortField = 'name' | 'size' | 'records' | 'created' | 'lastUsed';
+
 /**
  * Parameters for getting all namespace statistics with optional pagination
  */
@@ -313,6 +316,14 @@ export interface VectorGetAllStatsParams {
 	 * Number of namespaces to skip for pagination (default: 0)
 	 */
 	offset?: number;
+	/**
+	 * Field to sort by
+	 */
+	sort?: VectorSortField;
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**
@@ -1033,6 +1044,12 @@ export class VectorStorageService implements VectorStorage {
 		}
 		if (params?.offset !== undefined) {
 			queryParams.set('offset', String(params.offset));
+		}
+		if (params?.sort) {
+			queryParams.set('sort', params.sort);
+		}
+		if (params?.direction) {
+			queryParams.set('direction', params.direction);
 		}
 		const queryString = queryParams.toString();
 		const url = buildUrl(

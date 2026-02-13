@@ -46,6 +46,14 @@ export const listSubcommand = createSubcommand({
 					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
 				),
 			nameOnly: z.boolean().optional().describe('Print the name only'),
+			sort: z
+				.enum(['name', 'created'])
+				.optional()
+				.describe('field to sort by (default: created)'),
+			direction: z
+				.enum(['asc', 'desc'])
+				.optional()
+				.describe('sort direction (default: desc)'),
 		}),
 		response: DBListResponseSchema,
 	},
@@ -60,7 +68,12 @@ export const listSubcommand = createSubcommand({
 			message: 'Fetching databases',
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 'db', orgId: opts?.orgId });
+				return listOrgResources(catalystClient, {
+					type: 'db',
+					orgId: opts?.orgId,
+					sort: opts?.sort,
+					direction: opts?.direction,
+				});
 			},
 		});
 
