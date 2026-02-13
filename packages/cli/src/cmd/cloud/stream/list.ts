@@ -69,7 +69,7 @@ export const listSubcommand = createCommand({
 			projectId: z.string().optional().describe('filter by project ID'),
 			orgId: z.string().optional().describe('filter by organization ID'),
 			sort: z
-				.enum(['name', 'created', 'updated', 'size', 'count'])
+				.enum(['name', 'created', 'updated', 'size', 'count', 'lastUsed'])
 				.default('created')
 				.describe('field to sort by'),
 			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),

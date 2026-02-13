@@ -62,6 +62,8 @@ export const statsSubcommand = createCommand({
 			offset: z.coerce.number().min(0).optional().describe('Offset for pagination'),
 			projectId: z.string().optional().describe('Filter by project ID'),
 			agentId: z.string().optional().describe('Filter by agent ID'),
+			projectName: z.string().optional().describe('Filter by project name'),
+			agentName: z.string().optional().describe('Filter by agent name'),
 		}),
 		response: KVStatsResponseSchema,
 	},
@@ -107,6 +109,8 @@ export const statsSubcommand = createCommand({
 				...(opts?.offset !== undefined && { offset: opts.offset }),
 				...(opts?.projectId && { projectId: opts.projectId }),
 				...(opts?.agentId && { agentId: opts.agentId }),
+				...(opts?.projectName && { projectName: opts.projectName }),
+				...(opts?.agentName && { agentName: opts.agentName }),
 			});
 
 			// Handle both paginated and flat response formats

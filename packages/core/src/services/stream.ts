@@ -67,7 +67,7 @@ export interface CreateStreamProps {
 	ttl?: number | null;
 }
 
-export type StreamSortField = 'name' | 'created' | 'updated' | 'size' | 'count';
+export type StreamSortField = 'name' | 'created' | 'updated' | 'size' | 'count' | 'lastUsed';
 
 /**
  * Parameters for listing streams.

@@ -149,6 +149,14 @@ export interface GetAllStatsParams {
 	 * Filter by agent ID
 	 */
 	agentId?: string;
+	/**
+	 * Filter by project name
+	 */
+	projectName?: string;
+	/**
+	 * Filter by agent name
+	 */
+	agentName?: string;
 }
 
 /**
@@ -438,6 +446,12 @@ export class KeyValueStorageService implements KeyValueStorage {
 		}
 		if (params?.agentId) {
 			queryParams.set('agent_id', params.agentId);
+		}
+		if (params?.projectName) {
+			queryParams.set('project_name', params.projectName);
+		}
+		if (params?.agentName) {
+			queryParams.set('agent_name', params.agentName);
 		}
 		const queryString = queryParams.toString();
 		const url = buildUrl(

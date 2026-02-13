@@ -33,7 +33,7 @@ export type SandboxSortField =
 	| 'status'
 	| 'mode'
 	| 'execution_count';
-export type SnapshotSortField = 'name' | 'created' | 'size';
+export type SnapshotSortField = 'name' | 'created' | 'size' | 'files';
 export type RuntimeSortField = 'name' | 'created';
 
 /**
