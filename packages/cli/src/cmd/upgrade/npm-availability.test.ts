@@ -24,18 +24,22 @@ afterAll(async () => {
 });
 
 test('spawnWithTimeout kills process on timeout', async () => {
-	// spawn a command that hangs (sleep 60) with a short timeout (500ms)
-	await expect(spawnWithTimeout(['sleep', '60'], { timeout: 500 })).rejects.toThrow(/timed out/);
+	// spawn a command that hangs with a short timeout (500ms)
+	await expect(
+		spawnWithTimeout(['bun', '-e', 'setTimeout(()=>{},60000)'], { timeout: 500 })
+	).rejects.toThrow(/timed out/);
 });
 
 test('spawnWithTimeout returns result when command completes in time', async () => {
-	const result = await spawnWithTimeout(['echo', 'hello'], { timeout: 5_000 });
+	const result = await spawnWithTimeout(['bun', '-e', "console.log('hello')"], {
+		timeout: 5_000,
+	});
 	expect(result.exitCode).toBe(0);
 	expect(result.stdout.toString().trim()).toBe('hello');
 });
 
 test('spawnWithTimeout returns non-zero exit code without throwing', async () => {
-	const result = await spawnWithTimeout(['false'], { timeout: 5_000 });
+	const result = await spawnWithTimeout(['bun', '-e', 'process.exit(1)'], { timeout: 5_000 });
 	expect(result.exitCode).not.toBe(0);
 });
 

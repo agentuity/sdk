@@ -57,8 +57,22 @@ export async function spawnWithTimeout(
 }
 
 /**
+ * Sentinel error thrown exclusively by withTimeout so the retry loop can
+ * distinguish a genuine timeout from other failures (e.g. permission errors).
+ */
+class TimeoutError extends Error {
+	constructor(description: string, timeoutMs: number) {
+		super(`${description} timed out after ${timeoutMs}ms`);
+		this.name = 'TimeoutError';
+	}
+}
+
+/**
  * Race a promise against a timeout. Unlike spawnWithTimeout (which kills a process),
  * this is a generic wrapper for any async operation (e.g. the installFn callback).
+ *
+ * Throws a {@link TimeoutError} (not a plain Error) so callers can tell
+ * timeouts apart from other exceptions.
  */
 async function withTimeout<T>(
 	promise: Promise<T>,
@@ -67,10 +81,7 @@ async function withTimeout<T>(
 ): Promise<T> {
 	let timer: ReturnType<typeof setTimeout>;
 	const timeoutPromise = new Promise<never>((_, reject) => {
-		timer = setTimeout(
-			() => reject(new Error(`${description} timed out after ${timeoutMs}ms`)),
-			timeoutMs
-		);
+		timer = setTimeout(() => reject(new TimeoutError(description, timeoutMs)), timeoutMs);
 	});
 	try {
 		return await Promise.race([promise, timeoutPromise]);
@@ -222,10 +233,12 @@ export async function installWithRetry(
 		try {
 			result = await withTimeout(installFn(), INSTALL_TIMEOUT_MS, 'Install command');
 		} catch (error) {
-			// Treat timeouts as retryable resolution errors
-			const message = error instanceof Error ? error.message : String(error);
+			// Only retry on timeouts — non-timeout errors (permissions, disk, etc.) are fatal
+			if (!(error instanceof TimeoutError)) {
+				throw error;
+			}
 			if (attempt === maxAttempts) {
-				throw new Error(message);
+				throw error;
 			}
 			onRetry?.(attempt, delay);
 			await new Promise((resolve) => setTimeout(resolve, delay));
