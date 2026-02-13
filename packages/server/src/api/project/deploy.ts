@@ -200,7 +200,7 @@ export async function projectDeploymentCreate(
 ): Promise<Deployment> {
 	const resp = await client.request<CreateProjectDeploymentPayload>(
 		'POST',
-		`/cli/deploy/1/start/${projectId}`,
+		`/cli/deploy/2/start/${projectId}`,
 		CreateProjectDeploymentResponseSchema,
 		deploymentConfig ?? {}
 	);
@@ -239,7 +239,7 @@ export async function projectDeploymentUpdate(
 ): Promise<DeploymentInstructions> {
 	const resp = await client.request<DeploymentInstructionsResponse, BuildMetadata>(
 		'PUT',
-		`/cli/deploy/1/start/${deploymentId}`,
+		`/cli/deploy/2/start/${deploymentId}`,
 		DeploymentInstructionsResponseSchema,
 		deployment,
 		BuildMetadataSchema
@@ -257,6 +257,18 @@ export const DeploymentCompleteSchema = z.object({
 			latest: z.string().url().describe('the public url for the latest deployment'),
 			deployment: z.string().url().describe('the public url for this deployment'),
 			custom: z.array(z.string().describe('the custom domain')),
+			vanityDeployment: z
+				.string()
+				.url()
+				.nullable()
+				.optional()
+				.describe('the vanity url for this deployment'),
+			vanityProject: z
+				.string()
+				.url()
+				.nullable()
+				.optional()
+				.describe('the vanity url for the latest deployment'),
 		})
 		.describe('the map of public urls'),
 });
@@ -298,7 +310,7 @@ export async function projectDeploymentComplete(
 ): Promise<DeploymentComplete> {
 	const resp = await client.request<DeploymentCompleteResponse>(
 		'POST',
-		`/cli/deploy/1/complete/${deploymentId}`,
+		`/cli/deploy/2/complete/${deploymentId}`,
 		DeploymentCompleteResponseSchema
 	);
 	if (resp.success) {
@@ -322,7 +334,7 @@ export async function projectDeploymentStatus(
 ): Promise<DeploymentStatusResult> {
 	const resp = await client.request<DeploymentStatusResponse>(
 		'GET',
-		`/cli/deploy/1/status/${deploymentId}`,
+		`/cli/deploy/2/status/${deploymentId}`,
 		DeploymentStatusResponseSchema
 	);
 	if (resp.success) {
@@ -413,7 +425,7 @@ export async function projectDeploymentFail(
 ): Promise<void> {
 	const resp = await client.request<DeploymentFailResponse, DeploymentFailPayload>(
 		'POST',
-		`/cli/deploy/1/fail/${deploymentId}`,
+		`/cli/deploy/2/fail/${deploymentId}`,
 		DeploymentFailAPIResponseSchema,
 		payload,
 		DeploymentFailPayloadSchema

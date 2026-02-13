@@ -7,6 +7,7 @@ export * from './env-delete';
 export * from './env-update';
 export * from './exists';
 export * from './get';
+export * from './hostname';
 export * from './list';
 export * from './malware';
 export * from './update-region';
