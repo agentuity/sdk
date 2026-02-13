@@ -3,6 +3,7 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
 import { loadProjectConfig } from '../../../config';
+import { isJSONMode } from '../../../output';
 import {
 	checkCustomDomainForDNS,
 	isSuccess,
@@ -47,6 +48,7 @@ export const checkSubcommand = createSubcommand({
 
 	async handler(ctx) {
 		const { opts, options, projectDir, config, project } = ctx;
+		const jsonMode = isJSONMode(options);
 
 		// Determine which domains to check
 		let domainsToCheck: string[];
@@ -59,20 +61,20 @@ export const checkSubcommand = createSubcommand({
 		}
 
 		if (domainsToCheck.length === 0) {
-			if (!options.json) {
+			if (!jsonMode) {
 				tui.info('No custom domains configured for this project');
-				tui.info(
-					`Use ${tui.bold(getCommand('project add domain <domain>'))} to add one`
-				);
+				tui.info(`Use ${tui.bold(getCommand('project add domain <domain>'))} to add one`);
 			}
 			return { domains: [] };
 		}
 
-		const results = await tui.spinner({
-			message: `Checking DNS for ${domainsToCheck.length} ${tui.plural(domainsToCheck.length, 'domain', 'domains')}`,
-			clearOnSuccess: true,
-			callback: () => checkCustomDomainForDNS(project.projectId, domainsToCheck, config),
-		});
+		const results = jsonMode
+			? await checkCustomDomainForDNS(project.projectId, domainsToCheck, config)
+			: await tui.spinner({
+					message: `Checking DNS for ${domainsToCheck.length} ${tui.plural(domainsToCheck.length, 'domain', 'domains')}`,
+					clearOnSuccess: true,
+					callback: () => checkCustomDomainForDNS(project.projectId, domainsToCheck, config),
+				});
 
 		const domainResults = results.map((r) => {
 			let status: string;
@@ -110,7 +112,7 @@ export const checkSubcommand = createSubcommand({
 			};
 		});
 
-		if (!options.json) {
+		if (!jsonMode) {
 			tui.newline();
 			for (const r of domainResults) {
 				console.log(`  ${tui.colorInfo('Domain:')}  ${tui.colorPrimary(r.domain)}`);

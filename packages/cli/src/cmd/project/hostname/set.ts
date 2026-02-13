@@ -3,6 +3,7 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectHostnameSet } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
+import { isJSONMode } from '../../../output';
 import { ErrorCode } from '../../../errors';
 
 // Client-side reserved names list (mirrors server-side list)
@@ -52,15 +53,14 @@ export const setSubcommand = createSubcommand({
 	],
 	schema: {
 		args: z.object({
-			hostname: z
-				.string()
-				.describe('the vanity hostname (e.g., my-cool-api)'),
+			hostname: z.string().describe('the vanity hostname (e.g., my-cool-api)'),
 		}),
 		response: HostnameSetResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, apiClient, project, logger } = ctx;
+		const { args, apiClient, project, options, logger } = ctx;
+		const jsonMode = isJSONMode(options);
 
 		const hostname = args.hostname.toLowerCase().trim();
 
@@ -98,15 +98,22 @@ export const setSubcommand = createSubcommand({
 			);
 		}
 
-		const result = await tui.spinner('Setting hostname', () => {
-			return projectHostnameSet(apiClient, {
-				projectId: project.projectId,
-				hostname,
-			});
-		});
+		const result = jsonMode
+			? await projectHostnameSet(apiClient, {
+					projectId: project.projectId,
+					hostname,
+				})
+			: await tui.spinner('Setting hostname', () => {
+					return projectHostnameSet(apiClient, {
+						projectId: project.projectId,
+						hostname,
+					});
+				});
 
-		tui.success(`Hostname set: ${tui.bold(result.hostname + '.agentuity.run')}`);
-		tui.info('Hostname will be active after next deployment');
+		if (!jsonMode) {
+			tui.success(`Hostname set: ${tui.bold(result.url)}`);
+			tui.info('Hostname will be active after next deployment');
+		}
 
 		return {
 			hostname: result.hostname,

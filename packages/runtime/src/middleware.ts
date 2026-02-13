@@ -16,13 +16,7 @@ import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
 import { extractTraceContextFromRequest } from './otel/http';
 import { enrichContextWithTraceState } from './otel/tracestate';
-import {
-	context,
-	SpanKind,
-	SpanStatusCode,
-	trace,
-	propagation,
-} from '@opentelemetry/api';
+import { context, SpanKind, SpanStatusCode, trace, propagation } from '@opentelemetry/api';
 import type { Meter, Tracer } from '@opentelemetry/api';
 import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
