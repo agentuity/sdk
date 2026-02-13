@@ -782,6 +782,16 @@ export interface SandboxInfo {
  */
 export interface ListSandboxesParams {
 	/**
+	 * Filter by sandbox name
+	 */
+	name?: string;
+
+	/**
+	 * Filter by sandbox mode
+	 */
+	mode?: 'oneshot' | 'interactive';
+
+	/**
 	 * Filter by project ID
 	 */
 	projectId?: string;

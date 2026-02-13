@@ -41,13 +41,23 @@ export const statsSubcommand = createCommand({
 		args: z.object({
 			name: z.string().optional().describe('the keyvalue namespace'),
 		}),
+		options: z.object({
+			name: z.string().optional().describe('Filter namespaces by name'),
+			sort: z
+				.enum(['name', 'size', 'records', 'created', 'lastUsed'])
+				.optional()
+				.describe('field to sort by (default: name)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: asc)'),
+			limit: z.coerce.number().optional().describe('Maximum number of results to return'),
+			offset: z.coerce.number().optional().describe('Offset for pagination'),
+		}),
 		response: KVStatsResponseSchema,
 	},
 	webUrl: (ctx) =>
 		ctx.args.name ? `/services/kv/${encodeURIComponent(ctx.args.name)}` : '/services/kv',
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, options, opts } = ctx;
 		const kv = await createStorageAdapter(ctx);
 
 		if (args.name) {
@@ -77,15 +87,31 @@ export const statsSubcommand = createCommand({
 				lastUsedAt: stats.lastUsedAt ? String(stats.lastUsedAt) : undefined,
 			};
 		} else {
-			const allStats = await kv.getAllStats();
-			const entries = Object.entries(allStats);
+			const allStats = await kv.getAllStats({
+				...(opts?.name && { name: opts.name }),
+				...(opts?.sort && { sort: opts.sort }),
+				...(opts?.direction && { direction: opts.direction }),
+				...(opts?.limit !== undefined && { limit: opts.limit }),
+				...(opts?.offset !== undefined && { offset: opts.offset }),
+			});
+
+			// Handle both paginated and flat response formats
+			const isPaginated =
+				allStats && typeof allStats === 'object' && 'namespaces' in allStats;
+			const namespaceMap = isPaginated
+				? (allStats as { namespaces: Record<string, { count: number; sum: number; createdAt?: string; lastUsedAt?: string }> }).namespaces
+				: (allStats as Record<string, { count: number; sum: number; createdAt?: string; lastUsedAt?: string }>);
+			const entries = Object.entries(namespaceMap);
 
 			if (!options.json) {
 				if (entries.length === 0) {
 					tui.info('No namespaces found');
 				} else {
+					const totalInfo = isPaginated
+						? ` (showing ${entries.length} of ${(allStats as { total: number }).total})`
+						: '';
 					tui.info(
-						`Found ${entries.length} ${tui.plural(entries.length, 'namespace', 'namespaces')}:`
+						`Found ${entries.length} ${tui.plural(entries.length, 'namespace', 'namespaces')}${totalInfo}:`
 					);
 					for (const [name, stats] of entries) {
 						const sizeDisplay =

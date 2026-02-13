@@ -39,6 +39,7 @@ export const listSubcommand = createSubcommand({
 	schema: {
 		options: z.object({
 			orgId: z.string().optional().describe('filter by organization id'),
+			name: z.string().optional().describe('Filter by database name'),
 			showCredentials: z
 				.boolean()
 				.optional()
@@ -47,13 +48,12 @@ export const listSubcommand = createSubcommand({
 				),
 			nameOnly: z.boolean().optional().describe('Print the name only'),
 			sort: z
-				.enum(['name', 'created'])
+				.enum(['name', 'created', 'region'])
 				.optional()
 				.describe('field to sort by (default: created)'),
-			direction: z
-				.enum(['asc', 'desc'])
-				.optional()
-				.describe('sort direction (default: desc)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
+			limit: z.coerce.number().optional().describe('Maximum number of results to return'),
+			offset: z.coerce.number().optional().describe('Offset for pagination'),
 		}),
 		response: DBListResponseSchema,
 	},
@@ -71,8 +71,11 @@ export const listSubcommand = createSubcommand({
 				return listOrgResources(catalystClient, {
 					type: 'db',
 					orgId: opts?.orgId,
+					name: opts?.name,
 					sort: opts?.sort,
 					direction: opts?.direction,
+					limit: opts?.limit,
+					offset: opts?.offset,
 				});
 			},
 		});

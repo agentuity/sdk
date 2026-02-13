@@ -201,6 +201,15 @@ export async function listQueues(
 	if (params?.offset !== undefined) {
 		searchParams.set('offset', String(params.offset));
 	}
+	if (params?.name) {
+		searchParams.set('name', params.name);
+	}
+	if (params?.queue_type) {
+		searchParams.set('queue_type', params.queue_type);
+	}
+	if (params?.status) {
+		searchParams.set('status', params.status);
+	}
 	if (params?.sort) {
 		searchParams.set('sort', params.sort);
 	}

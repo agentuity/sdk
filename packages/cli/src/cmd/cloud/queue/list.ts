@@ -34,14 +34,17 @@ export const listSubcommand = createCommand({
 			orgId: z.string().optional().describe('filter by organization id'),
 			limit: z.coerce.number().optional().describe('Maximum number of queues to return'),
 			offset: z.coerce.number().optional().describe('Offset for pagination'),
+			name: z.string().optional().describe('Filter by queue name'),
+			queueType: z.enum(['worker', 'pubsub']).optional().describe('Filter by queue type'),
+			status: z
+				.enum(['active', 'paused'])
+				.optional()
+				.describe('Filter by queue status (active or paused)'),
 			sort: z
-				.enum(['name', 'created', 'updated'])
+				.enum(['name', 'created', 'updated', 'message_count', 'dlq_count'])
 				.optional()
 				.describe('field to sort by (default: created)'),
-			direction: z
-				.enum(['asc', 'desc'])
-				.optional()
-				.describe('sort direction (default: desc)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: QueueListResponseSchema,
 	},
@@ -58,6 +61,9 @@ export const listSubcommand = createCommand({
 				offset: opts.offset,
 				sort: opts.sort,
 				direction: opts.direction,
+				name: opts.name,
+				queue_type: opts.queueType,
+				status: opts.status,
 			},
 			queueOptions
 		);

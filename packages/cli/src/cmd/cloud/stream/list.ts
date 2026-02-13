@@ -61,6 +61,7 @@ export const listSubcommand = createCommand({
 			size: z.number().optional().describe('maximum number of streams to return (default: 100)'),
 			offset: z.number().optional().describe('number of streams to skip for pagination'),
 			namespace: z.string().optional().describe('filter by stream namespace'),
+			name: z.string().optional().describe('Filter by stream name'),
 			metadata: z
 				.string()
 				.optional()
@@ -71,10 +72,7 @@ export const listSubcommand = createCommand({
 				.enum(['name', 'created', 'updated', 'size'])
 				.optional()
 				.describe('field to sort by (default: created)'),
-			direction: z
-				.enum(['asc', 'desc'])
-				.optional()
-				.describe('sort direction (default: desc)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: ListStreamsResponseSchema,
 	},
@@ -128,16 +126,17 @@ export const listSubcommand = createCommand({
 		}
 
 		try {
-		const result = await streamList(apiClient, {
-			limit: opts.size,
-			offset: opts.offset,
-			namespace: opts.namespace,
-			metadata: metadataFilter,
-			projectId,
-			orgId: opts.orgId,
-			sort: opts.sort,
-			direction: opts.direction,
-		});
+			const result = await streamList(apiClient, {
+				limit: opts.size,
+				offset: opts.offset,
+				namespace: opts.namespace,
+				name: opts.name,
+				metadata: metadataFilter,
+				projectId,
+				orgId: opts.orgId,
+				sort: opts.sort,
+				direction: opts.direction,
+			});
 
 			if (options.json) {
 				console.log(JSON.stringify(result, null, 2));

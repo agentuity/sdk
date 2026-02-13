@@ -66,6 +66,8 @@ export const listSubcommand = createCommand({
 	],
 	schema: {
 		options: z.object({
+			name: z.string().optional().describe('Filter by sandbox name'),
+			mode: z.enum(['oneshot', 'interactive']).optional().describe('Filter by sandbox mode'),
 			status: z
 				.enum(['creating', 'idle', 'running', 'terminated', 'failed'])
 				.optional()
@@ -79,10 +81,7 @@ export const listSubcommand = createCommand({
 				.enum(['name', 'created', 'updated', 'status'])
 				.optional()
 				.describe('field to sort by (default: created)'),
-			direction: z
-				.enum(['asc', 'desc'])
-				.optional()
-				.describe('sort direction (default: desc)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: SandboxListResponseSchema,
 	},
@@ -97,6 +96,8 @@ export const listSubcommand = createCommand({
 		const projectId = opts.all || opts.orgId ? undefined : opts.projectId || project?.projectId;
 
 		const result = await cliSandboxList(apiClient, {
+			name: opts.name,
+			mode: opts.mode,
 			projectId,
 			orgId: opts.orgId,
 			status: opts.status,

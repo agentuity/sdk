@@ -79,6 +79,11 @@ export interface ListStreamsParams extends ListParams<StreamSortField> {
 	namespace?: string;
 
 	/**
+	 * optional name filter to search for streams
+	 */
+	name?: string;
+
+	/**
 	 * optional metadata filters to match streams
 	 */
 	metadata?: Record<string, string>;
@@ -725,6 +730,9 @@ export class StreamStorageService implements StreamStorage {
 		if (params?.namespace) {
 			attributes['namespace'] = params.namespace;
 		}
+		if (params?.name) {
+			attributes['name'] = params.name;
+		}
 		if (params?.metadata) {
 			attributes['metadata'] = JSON.stringify(params.metadata);
 		}
@@ -733,6 +741,8 @@ export class StreamStorageService implements StreamStorage {
 		const requestBody: Record<string, unknown> = {};
 		if (params?.namespace) {
 			requestBody.name = params.namespace;
+		} else if (params?.name) {
+			requestBody.name = params.name;
 		}
 		if (params?.metadata) {
 			requestBody.metadata = params.metadata;

@@ -59,13 +59,23 @@ export const statsSubcommand = createCommand({
 		args: z.object({
 			name: z.string().optional().describe('the vector namespace (optional)'),
 		}),
+		options: z.object({
+			name: z.string().optional().describe('Filter namespaces by name'),
+			sort: z
+				.enum(['name', 'size', 'records', 'created', 'lastUsed'])
+				.optional()
+				.describe('field to sort by (default: name)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: asc)'),
+			limit: z.coerce.number().optional().describe('Maximum number of results to return'),
+			offset: z.coerce.number().optional().describe('Offset for pagination'),
+		}),
 		response: VectorStatsResponseSchema,
 	},
 	webUrl: (ctx) =>
 		ctx.args.name ? `/services/vector/${encodeURIComponent(ctx.args.name)}` : '/services/vector',
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, options, opts } = ctx;
 		const storage = await createStorageAdapter(ctx);
 
 		if (args.name) {
@@ -125,15 +135,31 @@ export const statsSubcommand = createCommand({
 				...stats,
 			};
 		} else {
-			const allStats = await storage.getAllStats();
-			const entries = Object.entries(allStats);
+			const allStats = await storage.getAllStats({
+				...(opts?.name && { name: opts.name }),
+				...(opts?.sort && { sort: opts.sort }),
+				...(opts?.direction && { direction: opts.direction }),
+				...(opts?.limit !== undefined && { limit: opts.limit }),
+				...(opts?.offset !== undefined && { offset: opts.offset }),
+			});
+
+			// Handle both paginated and flat response formats
+			const isPaginated =
+				allStats && typeof allStats === 'object' && 'namespaces' in allStats;
+			const namespaceMap = isPaginated
+				? (allStats as { namespaces: Record<string, { sum: number; count: number; createdAt?: number; lastUsed?: number }> }).namespaces
+				: (allStats as Record<string, { sum: number; count: number; createdAt?: number; lastUsed?: number }>);
+			const entries = Object.entries(namespaceMap);
 
 			if (!options.json) {
 				if (entries.length === 0) {
 					tui.info('No vector namespaces found');
 				} else {
+					const totalInfo = isPaginated
+						? ` (showing ${entries.length} of ${(allStats as { total: number }).total})`
+						: '';
 					tui.info(
-						`Found ${entries.length} ${tui.plural(entries.length, 'namespace', 'namespaces')}:`
+						`Found ${entries.length} ${tui.plural(entries.length, 'namespace', 'namespaces')}${totalInfo}:`
 					);
 
 					const tableData = entries.map(([name, stats]) => {
