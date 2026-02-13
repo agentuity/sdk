@@ -1,6 +1,7 @@
 import type { PluginInput, Hooks } from '@opencode-ai/plugin';
 import { tool } from '@opencode-ai/plugin';
 import { StructuredError } from '@agentuity/core';
+import { z } from 'zod';
 import type { AgentConfig, CommandDefinition } from '../types';
 import { loadAllSkills, type LoadedSkill } from '../skills';
 import { agents } from '../agents';
@@ -15,6 +16,10 @@ import type { AgentRole } from '../types';
 import { BackgroundManager } from '../background';
 import { TmuxSessionManager } from '../tmux';
 import { checkAuth } from '../services/auth';
+
+const sessionInputSchema = z.object({
+	sessionID: z.string().optional(),
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Memory Share Tool Errors
@@ -179,8 +184,12 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
 		'shell.env': async (_input: unknown, output: unknown) => {
+			if (typeof output !== 'object' || output === null) {
+				return;
+			}
 			const profile = getCoderProfile();
 			const out = output as { env: Record<string, string> };
+			out.env ??= {} as Record<string, string>;
 			out.env.AGENTUITY_PROFILE = profile;
 			out.env.AGENTUITY_AGENT_MODE = 'opencode';
 			const sessionId = process.env.AGENTUITY_OPENCODE_SESSION;
@@ -189,9 +198,9 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			}
 		},
 		'command.execute.before': async (input: unknown, _output: unknown) => {
-			const inp = input as { sessionID?: string };
-			if (inp.sessionID) {
-				process.env.AGENTUITY_OPENCODE_SESSION = inp.sessionID;
+			const result = sessionInputSchema.safeParse(input);
+			if (result.success && result.data.sessionID) {
+				process.env.AGENTUITY_OPENCODE_SESSION = result.data.sessionID;
 			}
 		},
 		event: async (input) => {
