@@ -321,7 +321,28 @@ export interface AuthOptions extends Omit<BetterAuthOptions, 'trustedOrigins'> {
  */
 export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const plugins: any[] = [organization(), jwt(), bearer()];
+	const plugins: any[] = [
+		organization(),
+		jwt({
+			jwt: {
+				definePayload: ({ user, session }) => ({
+					sub: user.id,
+					email: user.email,
+					name: user.name,
+					emailVerified: user.emailVerified,
+					createdAt: user.createdAt,
+					updatedAt: user.updatedAt,
+					sessionId: session.id,
+					activeOrganizationId: (session as Record<string, unknown>).activeOrganizationId,
+					// Deliberately exclude user.image to keep JWT tokens small.
+					// Profile images (especially base64-encoded data URIs from OAuth)
+					// can significantly bloat the token. Consumers should fetch the
+					// image separately via the user API if needed.
+				}),
+			},
+		}),
+		bearer(),
+	];
 
 	// Add API key plugin unless explicitly disabled
 	if (apiKeyOptions !== false) {
