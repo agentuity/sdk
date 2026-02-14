@@ -129,7 +129,10 @@ export function DocsLayout() {
 			<AppSidebar
 				currentPage={currentPage}
 				onNavigate={handleNavigate}
-				onOpenSearch={() => setSearchOpen(true)}
+				onOpenSearch={() => {
+					setSearchInitialMode('search');
+					setSearchOpen(true);
+				}}
 				onOpenAISearch={openAISearch}
 			/>
 			<SidebarInset className="flex flex-col">

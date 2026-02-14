@@ -381,6 +381,45 @@
 	border-top-right-radius: 0;
 }
 
+/* ReactFlow Controls */
+.react-flow__controls {
+	background: var(--color-white, #fff);
+	border: 1px solid var(--color-gray-200);
+	border-radius: 0.375rem;
+	box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.react-flow__controls-button {
+	background: var(--color-white, #fff);
+	border: none;
+	border-bottom: 1px solid var(--color-gray-200);
+	fill: var(--color-gray-600);
+}
+
+.react-flow__controls-button:hover {
+	background: var(--color-gray-100);
+}
+
+.react-flow__controls-button:last-child {
+	border-bottom: none;
+}
+
+/* ReactFlow Controls - Dark mode */
+.dark .react-flow__controls {
+	background: var(--color-gray-800);
+	border-color: var(--color-gray-700);
+}
+
+.dark .react-flow__controls-button {
+	background: var(--color-gray-800);
+	border-bottom-color: var(--color-gray-700);
+	fill: var(--color-gray-300);
+}
+
+.dark .react-flow__controls-button:hover {
+	background: var(--color-gray-700);
+}
+
 @layer base {
 	* {
 		@apply border-border outline-ring/50;

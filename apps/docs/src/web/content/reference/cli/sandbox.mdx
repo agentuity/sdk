@@ -35,6 +35,25 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 
 **Alias:** `sb` (e.g., `agentuity cloud sb list`)
 
+## SSH Access
+
+You can SSH directly into a running sandbox for interactive debugging. See [Debugging Deployments](/reference/cli/debugging#ssh-access) for full SSH documentation, including setup and key management.
+
+```bash
+# SSH into a sandbox
+agentuity cloud ssh sbx_abc123xyz
+
+# Run a command and exit
+agentuity cloud ssh sbx_abc123xyz 'ls -la /workspace'
+
+# Show SSH command without executing
+agentuity cloud ssh sbx_abc123xyz --show
+```
+
+<Callout type="warning" title="SSH Key Required">
+Before you can SSH into a sandbox, you must add your SSH public key to your Agentuity account. See [SSH Key Management](/reference/cli/getting-started#ssh-key-management) for setup instructions.
+</Callout>
+
 ## One-shot Execution
 
 Run a single command in a new sandbox that's automatically destroyed afterward.
