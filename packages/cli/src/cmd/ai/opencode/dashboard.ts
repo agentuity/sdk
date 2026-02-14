@@ -326,7 +326,7 @@ async function loadDashboardData(
 				 FROM part p
 				 WHERE json_valid(p.data)
 					AND json_extract(p.data, '$.type') IN ('tool-invocation', 'tool')
-					AND json_extract(p.data, '$.state.status') = 'running'`
+					AND json_extract(p.data, '$.state.status') IN ('running', 'pending')`
 			)
 			.all() as ActiveToolRow[];
 

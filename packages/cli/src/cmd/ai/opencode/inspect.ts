@@ -240,7 +240,7 @@ export const inspectSubcommand = createSubcommand({
 					 WHERE p.session_id = ?
 						AND json_valid(p.data)
 						AND json_extract(p.data, '$.type') IN ('tool-invocation', 'tool')
-						AND json_extract(p.data, '$.state.status') = 'running'`
+						AND json_extract(p.data, '$.state.status') IN ('running', 'pending')`
 				)
 				.all(sessionId) as ToolRow[];
 
@@ -260,7 +260,7 @@ export const inspectSubcommand = createSubcommand({
 					 WHERE p.session_id = ?
 						AND json_valid(p.data)
 						AND json_extract(p.data, '$.type') IN ('tool-invocation', 'tool')
-						AND json_extract(p.data, '$.state.status') != 'running'
+						AND json_extract(p.data, '$.state.status') NOT IN ('running', 'pending')
 					 ORDER BY p.time_created DESC
 					 LIMIT 20`
 				)

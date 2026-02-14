@@ -115,7 +115,6 @@ export const monitorAgent: AgentDefinition = {
 			'agentuity_background_task',
 			'agentuity_background_cancel',
 			'agentuity_memory_share',
-			'agentuity_session_dashboard',
 		],
 	},
 	temperature: 0.0, // Deterministic - just poll and report

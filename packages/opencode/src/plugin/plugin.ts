@@ -45,6 +45,11 @@ const MemoryShareError = StructuredError(
 	'Failed to create public memory share'
 )<{ reason: string }>();
 
+const OpenCodeDashboardUnavailableError = StructuredError(
+	'OpenCodeDashboardUnavailableError',
+	'OpenCode SQLite database is not available. Requires OpenCode v1.2.0+ with SQLite storage.'
+);
+
 // Sandbox environment detection
 const SANDBOX_ID = process.env.AGENTUITY_SANDBOX_ID;
 const IN_SANDBOX = !!SANDBOX_ID;
@@ -797,9 +802,11 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 		},
 		async execute(args) {
 			if (!dbReader || !dbReader.isAvailable()) {
+				const err = new OpenCodeDashboardUnavailableError();
 				return JSON.stringify({
 					success: false,
-					error: 'OpenCode SQLite database not available.',
+					error: err._tag,
+					message: err.message,
 				});
 			}
 

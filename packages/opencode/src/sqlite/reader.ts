@@ -190,7 +190,7 @@ function mapMessage(row: MessageRow): DBMessage {
 
 function mapToolCall(row: PartRow): DBToolCall | null {
 	const payload = safeParseJSON<PartData>(row.data);
-	if (!payload || payload.type !== 'tool') {
+	if (!payload || (payload.type !== 'tool' && payload.type !== 'tool-invocation')) {
 		return null;
 	}
 

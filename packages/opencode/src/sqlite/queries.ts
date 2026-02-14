@@ -19,12 +19,12 @@ export const QUERIES = {
 
 	GET_ACTIVE_TOOLS: `SELECT * FROM part WHERE session_id = ?
 		AND json_valid(data)
-		AND json_extract(data, '$.type') = 'tool' 
+		AND json_extract(data, '$.type') IN ('tool', 'tool-invocation') 
 		AND json_extract(data, '$.state.status') IN ('pending', 'running')
 		ORDER BY time_created DESC`,
 	GET_TOOL_HISTORY: `SELECT * FROM part WHERE session_id = ?
 		AND json_valid(data)
-		AND json_extract(data, '$.type') = 'tool'
+		AND json_extract(data, '$.type') IN ('tool', 'tool-invocation')
 		ORDER BY time_created DESC LIMIT ?`,
 	GET_TEXT_PARTS: `SELECT * FROM part WHERE session_id = ?
 		AND json_valid(data)
