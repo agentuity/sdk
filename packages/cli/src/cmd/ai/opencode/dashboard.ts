@@ -1,11 +1,10 @@
 import { Database } from 'bun:sqlite';
-import { homedir, platform } from 'node:os';
-import { join } from 'node:path';
 import { createSubcommand, type CommandContext } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
 import { isJSONMode, outputJSON } from '../../../output';
 import { z } from 'zod';
+import { REQUIRED_TABLES, isMemoryPath, getDefaultDBCandidates, resolveOpenCodeDBPath } from './db';
 
 const DashboardOptionsSchema = z.object({
 	json: z.boolean().optional().describe('Output JSON format'),
@@ -20,6 +19,10 @@ const DashboardOptionsSchema = z.object({
 	status: z.string().optional().describe('Filter by status: active, idle, error, archived'),
 	all: z.boolean().optional().describe('Show all sessions (overrides default limit)'),
 	search: z.string().optional().describe('Search sessions by title (fuzzy, case-insensitive)'),
+	allTodos: z
+		.boolean()
+		.optional()
+		.describe('Show all todos including completed (default: pending only)'),
 });
 
 type SessionRow = {
@@ -97,50 +100,6 @@ type DashboardData = {
 	sessions: SessionNode[];
 	allSessions: SessionNode[];
 };
-
-const REQUIRED_TABLES = new Set(['session', 'message', 'part', 'todo']);
-
-function isMemoryPath(path: string): boolean {
-	return path === ':memory:' || path.includes('mode=memory');
-}
-
-function getDefaultDBCandidates(): string[] {
-	const home = homedir();
-	const candidates: string[] = [];
-	const currentPlatform = platform();
-
-	if (currentPlatform === 'darwin') {
-		candidates.push(join(home, 'Library', 'Application Support', 'opencode', 'opencode.db'));
-	}
-
-	if (currentPlatform === 'win32') {
-		const appData = process.env.APPDATA ?? join(home, 'AppData', 'Roaming');
-		const localAppData = process.env.LOCALAPPDATA ?? join(home, 'AppData', 'Local');
-		candidates.push(join(appData, 'opencode', 'opencode.db'));
-		candidates.push(join(localAppData, 'opencode', 'opencode.db'));
-	}
-
-	candidates.push(join(home, '.local', 'share', 'opencode', 'opencode.db'));
-
-	return candidates;
-}
-
-async function resolveOpenCodeDBPath(): Promise<string | null> {
-	const envPath = process.env.OPENCODE_DB_PATH;
-	if (envPath) {
-		if (isMemoryPath(envPath)) return envPath;
-		if (await Bun.file(envPath).exists()) return envPath;
-	}
-
-	const candidates = getDefaultDBCandidates();
-	for (const candidate of candidates) {
-		if (await Bun.file(candidate).exists()) {
-			return candidate;
-		}
-	}
-
-	return null;
-}
 
 function formatCost(cost: CostSummary): string {
 	if (!cost || cost.totalCost <= 0) {
@@ -297,6 +256,15 @@ function flattenSessionRows(nodes: SessionNode[]): SessionNode[] {
 		walk(node);
 	}
 	return flattened;
+}
+
+function filterTreeByStatus(nodes: SessionNode[], targetStatus: string): SessionNode[] {
+	return nodes
+		.map((node) => ({
+			...node,
+			children: filterTreeByStatus(node.children, targetStatus),
+		}))
+		.filter((node) => node.status === targetStatus || node.children.length > 0);
 }
 
 type FilterOptions = {
@@ -472,10 +440,10 @@ async function loadDashboardData(
 			}
 		}
 
-		// Filter by --status (computed status)
+		// Filter by --status (recursively prune non-matching nodes from tree)
 		if (filterOpts?.status) {
 			const targetStatus = filterOpts.status.toLowerCase();
-			filteredRoots = filteredRoots.filter((node) => node.status === targetStatus);
+			filteredRoots = filterTreeByStatus(filteredRoots, targetStatus);
 		}
 
 		// Apply --limit (default 10) unless --all is set
@@ -518,13 +486,18 @@ function renderMissingDatabase(expectedPaths: string[], envPath?: string): void 
 	tui.output('Tip: Set OPENCODE_DB_PATH to override the database location.');
 }
 
-function renderDashboard(data: DashboardData, watchMode: boolean, intervalSeconds?: number): void {
+function renderDashboard(
+	data: DashboardData,
+	watchMode: boolean,
+	intervalSeconds?: number,
+	showAllTodos?: boolean
+): void {
 	const flattened = flattenSessionRows(data.sessions);
 	const activeCount = flattened.filter((node) => node.status === 'active').length;
 
 	tui.newline();
-	tui.output(tui.bold('📊 OpenCode Dashboard'));
-	tui.output('─────────────────────');
+	tui.output(tui.bold('Coder Dashboard'));
+	tui.output('────────────────');
 	tui.newline();
 	tui.output(`Database: ${data.database}`);
 	tui.newline();
@@ -567,24 +540,33 @@ function renderDashboard(data: DashboardData, watchMode: boolean, intervalSecond
 		tui.table(rows, ['Session', 'Status', 'Last Active', 'Messages', 'Tools', 'Cost']);
 	}
 
-	const allTodos: Array<{ sessionId: string; todo: TodoItem }> = [];
+	const allTodoItems: Array<{ sessionId: string; todo: TodoItem }> = [];
 	for (const node of flattened) {
 		for (const todo of node.todos) {
-			allTodos.push({ sessionId: node.session.id, todo });
+			allTodoItems.push({ sessionId: node.session.id, todo });
 		}
 	}
 
-	const totalTodos = allTodos.length;
-	const completedTodos = allTodos.filter((item) => item.todo.status === 'completed').length;
-	const pendingTodos = totalTodos - completedTodos;
+	const totalTodos = allTodoItems.length;
+	const pendingTodos = allTodoItems.filter((item) => item.todo.status !== 'completed').length;
+
+	const displayTodos = showAllTodos
+		? allTodoItems
+		: allTodoItems.filter((item) => item.todo.status !== 'completed');
 
 	tui.newline();
-	tui.output(tui.bold(`Todos (${pendingTodos} pending / ${totalTodos} total)`));
-	if (allTodos.length === 0) {
+	const todosLabel = showAllTodos
+		? `Todos (${pendingTodos} pending / ${totalTodos} total)`
+		: `Todos (${pendingTodos} pending)`;
+	tui.output(tui.bold(todosLabel));
+
+	if (displayTodos.length === 0 && totalTodos > 0) {
+		tui.output(tui.muted(`${totalTodos} completed (use --all-todos to show)`));
+	} else if (displayTodos.length === 0) {
 		tui.output(tui.muted('No todos found'));
 	} else {
-		const showSessionLabel = new Set(allTodos.map((item) => item.sessionId)).size > 1;
-		for (const { sessionId, todo } of allTodos) {
+		const showSessionLabel = new Set(displayTodos.map((item) => item.sessionId)).size > 1;
+		for (const { sessionId, todo } of displayTodos) {
 			const checked = todo.status === 'completed' ? 'x' : ' ';
 			const sessionLabel = showSessionLabel ? `(${sessionId}) ` : '';
 			tui.output(`- [${checked}] ${sessionLabel}${todo.content}`);
@@ -621,7 +603,7 @@ function clearTerminal(): void {
 
 export const dashboardSubcommand = createSubcommand({
 	name: 'dashboard',
-	description: 'View Lead-of-Leads session dashboard',
+	description: 'View Coder session dashboard',
 	tags: ['read-only', 'fast'],
 	schema: {
 		options: DashboardOptionsSchema,
@@ -663,6 +645,10 @@ export const dashboardSubcommand = createSubcommand({
 			command: getCommand('ai opencode dashboard --json'),
 			description: 'Output dashboard data as JSON',
 		},
+		{
+			command: getCommand('ai opencode dashboard --all-todos'),
+			description: 'Show all todos including completed',
+		},
 	],
 	async handler(
 		ctx: CommandContext<undefined, undefined, undefined, typeof DashboardOptionsSchema>
@@ -672,6 +658,7 @@ export const dashboardSubcommand = createSubcommand({
 		const watchMode = opts?.watch === true;
 		const intervalSeconds = opts?.interval ?? 5;
 		const intervalMs = Math.max(1, intervalSeconds) * 1000;
+		const showAllTodos = opts?.allTodos ?? false;
 
 		const filterOpts: FilterOptions = {
 			focusSessionId: opts?.session,
@@ -725,7 +712,7 @@ export const dashboardSubcommand = createSubcommand({
 				return true;
 			}
 
-			renderDashboard(result.data, watchMode, intervalSeconds);
+			renderDashboard(result.data, watchMode, intervalSeconds, showAllTodos);
 			return true;
 		};
 
