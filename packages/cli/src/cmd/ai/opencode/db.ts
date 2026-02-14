@@ -54,8 +54,10 @@ export function parseDisplayTitle(title: string): string {
 	if (!title) return '';
 	try {
 		const parsed = JSON.parse(title);
-		if (typeof parsed === 'object' && parsed !== null && typeof parsed.title === 'string') {
-			return parsed.title;
+		if (typeof parsed === 'object' && parsed !== null) {
+			if (typeof parsed.description === 'string') return parsed.description;
+			if (typeof parsed.title === 'string') return parsed.title;
+			if (typeof parsed.name === 'string') return parsed.name;
 		}
 	} catch {
 		// Not JSON, return as-is

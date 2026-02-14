@@ -12,8 +12,11 @@ import {
 	parseDisplayTitle,
 } from './db';
 
-const InspectOptionsSchema = z.object({
+const InspectArgsSchema = z.object({
 	session: z.string().describe('Session ID to inspect'),
+});
+
+const InspectOptionsSchema = z.object({
 	json: z.boolean().optional().describe('Output JSON format'),
 });
 
@@ -114,36 +117,30 @@ export const inspectSubcommand = createSubcommand({
 	description: 'Inspect a specific session in detail',
 	tags: ['read-only', 'fast'],
 	schema: {
+		args: InspectArgsSchema,
 		options: InspectOptionsSchema,
 	},
 	examples: [
 		{
-			command: getCommand('ai opencode inspect --session ses_abc123'),
+			command: getCommand('ai opencode inspect ses_abc123'),
 			description: 'Inspect a specific session in detail',
 		},
 		{
-			command: getCommand('ai opencode inspect --session ses_abc123 --json'),
+			command: getCommand('ai opencode inspect ses_abc123 --json'),
 			description: 'Inspect session as JSON',
 		},
 	],
 	async handler(
-		ctx: CommandContext<undefined, undefined, undefined, typeof InspectOptionsSchema>
+		ctx: CommandContext<
+			undefined,
+			undefined,
+			typeof InspectArgsSchema,
+			typeof InspectOptionsSchema
+		>
 	) {
-		const { options, opts } = ctx;
+		const { options, opts, args } = ctx;
 		const jsonMode = isJSONMode(options) || opts?.json === true;
-		const sessionId = opts?.session;
-
-		if (!sessionId) {
-			if (jsonMode) {
-				outputJSON({
-					error: 'missing_session',
-					message: 'Session ID is required (--session).',
-				});
-			} else {
-				tui.error('Session ID is required. Use --session <id>');
-			}
-			return { success: false };
-		}
+		const sessionId = args.session;
 
 		const resolvedDbPath = await resolveOpenCodeDBPath();
 		if (!resolvedDbPath) {

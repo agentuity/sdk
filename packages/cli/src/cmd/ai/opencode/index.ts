@@ -28,7 +28,7 @@ export const command = createCommand({
 			description: 'View Coder session dashboard',
 		},
 		{
-			command: getCommand('ai opencode inspect --session ses_abc123'),
+			command: getCommand('ai opencode inspect ses_abc123'),
 			description: 'Inspect a specific session in detail',
 		},
 	],
