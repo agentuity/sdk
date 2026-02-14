@@ -804,11 +804,13 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 			}
 
 			const dashboard = dbReader.getSessionDashboard(args.session_id);
+			const builtTree = buildDashboardTree(dbReader, dashboard.sessions);
 			return JSON.stringify({
 				success: true,
 				sessionId: args.session_id,
 				totalCost: dashboard.totalCost,
-				sessions: buildDashboardTree(dbReader, dashboard.sessions),
+				summary: computeHealthSummary(builtTree),
+				sessions: builtTree,
 			});
 		},
 	});
@@ -993,42 +995,129 @@ function extractEventFromInput(
 	return { type: inp.event.type, properties: inp.event.properties };
 }
 
-function buildDashboardTree(
-	reader: OpenCodeDBReader,
-	sessions: SessionTreeNode[]
-): Array<{
+function parseDisplayTitle(rawTitle: string): string {
+	try {
+		const parsed = JSON.parse(rawTitle);
+		if (typeof parsed === 'object' && parsed !== null) {
+			if (typeof parsed.description === 'string') return parsed.description;
+			if (typeof parsed.title === 'string') return parsed.title;
+			if (typeof parsed.name === 'string') return parsed.name;
+		}
+		// Parsed but no useful field — return as-is
+		return rawTitle;
+	} catch {
+		// Not JSON, return as-is
+		return rawTitle;
+	}
+}
+
+function getCurrentActivity(reader: OpenCodeDBReader, sessionId: string): string | null {
+	// First check active tools
+	const activeTools = reader.getActiveToolCalls(sessionId);
+	const firstTool = activeTools[0];
+	if (firstTool) {
+		return `Running ${firstTool.tool}`;
+	}
+
+	// Fall back to latest message
+	const latestMsg = reader.getLatestMessage(sessionId);
+	if (!latestMsg) return null;
+
+	if (latestMsg.error) return `Error: ${latestMsg.error.substring(0, 100)}`;
+
+	// Try to get latest text part for a snippet
+	const textParts = reader.getTextParts(sessionId, { limit: 1 });
+	const firstPart = textParts[0];
+	if (firstPart) {
+		const text = firstPart.text.trim();
+		if (text.length > 80) return text.substring(0, 77) + '...';
+		return text;
+	}
+
+	return null;
+}
+
+type DashboardNode = {
 	session: {
 		id: string;
 		title: string;
+		displayTitle: string;
 		parentId?: string | null;
 		timeUpdated: number;
+		timeUpdatedISO: string;
 	};
 	status: string;
 	lastActivity: number;
+	lastActivityISO: string;
+	currentActivity: string | null;
 	messageCount: number;
 	activeToolCount: number;
-	todoSummary?: SessionTreeNode['todoSummary'];
+	activeTools: Array<{ tool: string; status: string }>;
+	todoSummary: { total: number; pending: number; completed: number };
 	costSummary?: SessionTreeNode['costSummary'];
-	children: ReturnType<typeof buildDashboardTree>;
-}> {
+	children: DashboardNode[];
+};
+
+function buildDashboardTree(
+	reader: OpenCodeDBReader,
+	sessions: SessionTreeNode[]
+): DashboardNode[] {
 	return sessions.map((node) => {
 		const status = reader.getSessionStatus(node.session.id);
+		const activeTools = reader.getActiveToolCalls(node.session.id);
 		return {
 			session: {
 				id: node.session.id,
 				title: node.session.title,
+				displayTitle: parseDisplayTitle(node.session.title),
 				parentId: node.session.parentId,
 				timeUpdated: node.session.timeUpdated,
+				timeUpdatedISO: new Date(node.session.timeUpdated).toISOString(),
 			},
 			status: status.status,
 			lastActivity: status.lastActivity,
+			lastActivityISO: new Date(status.lastActivity).toISOString(),
+			currentActivity: getCurrentActivity(reader, node.session.id),
 			messageCount: node.messageCount,
 			activeToolCount: node.activeToolCount,
-			todoSummary: node.todoSummary,
+			activeTools: activeTools.map((t) => ({ tool: t.tool, status: t.status })),
+			todoSummary: node.todoSummary ?? { total: 0, pending: 0, completed: 0 },
 			costSummary: node.costSummary,
 			children: buildDashboardTree(reader, node.children),
 		};
 	});
+}
+
+type HealthSummary = {
+	active: number;
+	idle: number;
+	error: number;
+	archived: number;
+	compacting: number;
+	total: number;
+};
+
+function computeHealthSummary(nodes: DashboardNode[]): HealthSummary {
+	const summary: HealthSummary = {
+		active: 0,
+		idle: 0,
+		error: 0,
+		archived: 0,
+		compacting: 0,
+		total: 0,
+	};
+	function walk(nodeList: DashboardNode[]): void {
+		for (const node of nodeList) {
+			summary.total++;
+			const status = node.status as keyof Omit<HealthSummary, 'total'>;
+			if (status in summary) {
+				summary[status]++;
+			}
+			if (node.children.length > 0) walk(node.children);
+		}
+	}
+	walk(nodes);
+	return summary;
 }
 
 function resolveOpenCodeDBPath(): string | null {

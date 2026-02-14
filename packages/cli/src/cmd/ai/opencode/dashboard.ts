@@ -12,6 +12,14 @@ const DashboardOptionsSchema = z.object({
 	session: z.string().optional().describe('Focus on a specific session ID'),
 	watch: z.boolean().optional().describe('Continuously refresh the dashboard'),
 	interval: z.number().optional().describe('Refresh interval in seconds (default: 5)'),
+	limit: z.number().optional().describe('Maximum number of sessions to show (default: 10)'),
+	since: z
+		.string()
+		.optional()
+		.describe('Show sessions updated within duration (e.g., 1h, 6h, 24h, 7d)'),
+	status: z.string().optional().describe('Filter by status: active, idle, error, archived'),
+	all: z.boolean().optional().describe('Show all sessions (overrides default limit)'),
+	search: z.string().optional().describe('Search sessions by title (fuzzy, case-insensitive)'),
 });
 
 type SessionRow = {
@@ -141,6 +149,55 @@ function formatCost(cost: CostSummary): string {
 	return `$${cost.totalCost.toFixed(2)}`;
 }
 
+const DURATION_UNITS: Record<string, number> = {
+	m: 60 * 1000,
+	h: 60 * 60 * 1000,
+	d: 24 * 60 * 60 * 1000,
+};
+
+function parseDuration(duration: string): number {
+	const match = duration.match(/^(\d+)([mhd])$/);
+	if (!match) {
+		throw new Error(
+			`Invalid duration format: "${duration}". Use a number followed by m (minutes), h (hours), or d (days). Examples: 30m, 1h, 7d`
+		);
+	}
+	const value = parseInt(match[1]!, 10);
+	const unit = match[2]!;
+	const ms = DURATION_UNITS[unit];
+	if (!ms) {
+		throw new Error(`Unknown duration unit: "${unit}"`);
+	}
+	return Date.now() - value * ms;
+}
+
+function formatRelativeTime(epochMs: number): string {
+	const now = Date.now();
+	const diffMs = now - epochMs;
+
+	if (diffMs < 60 * 1000) {
+		return 'just now';
+	}
+	if (diffMs < 60 * 60 * 1000) {
+		const minutes = Math.floor(diffMs / (60 * 1000));
+		return `${minutes}m ago`;
+	}
+	if (diffMs < 24 * 60 * 60 * 1000) {
+		const hours = Math.floor(diffMs / (60 * 60 * 1000));
+		return `${hours}h ago`;
+	}
+	if (diffMs < 7 * 24 * 60 * 60 * 1000) {
+		const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+		return `${days}d ago`;
+	}
+
+	const date = new Date(epochMs);
+	const yyyy = date.getFullYear();
+	const mm = String(date.getMonth() + 1).padStart(2, '0');
+	const dd = String(date.getDate()).padStart(2, '0');
+	return `${yyyy}-${mm}-${dd}`;
+}
+
 function formatToolCount(activeTools: ActiveTool[]): string {
 	const count = activeTools.length;
 	if (count === 0) return '0';
@@ -242,10 +299,20 @@ function flattenSessionRows(nodes: SessionNode[]): SessionNode[] {
 	return flattened;
 }
 
+type FilterOptions = {
+	focusSessionId?: string;
+	search?: string;
+	since?: string;
+	status?: string;
+	limit?: number;
+	all?: boolean;
+};
+
 async function loadDashboardData(
 	dbPath: string,
-	focusSessionId?: string
+	filterOpts?: FilterOptions
 ): Promise<{ data?: DashboardData; error?: string; message?: string }> {
+	const focusSessionId = filterOpts?.focusSessionId;
 	const isMemory = isMemoryPath(dbPath);
 	let db: Database | null = null;
 
@@ -361,8 +428,16 @@ async function loadDashboardData(
 			latestMessages.set(row.session_id, row);
 		}
 
+		let filteredSessions = sessions;
+
+		// Apply search filter at session level (case-insensitive LIKE)
+		if (filterOpts?.search) {
+			const query = filterOpts.search.toLowerCase();
+			filteredSessions = filteredSessions.filter((s) => s.title.toLowerCase().includes(query));
+		}
+
 		const { roots, allNodes } = buildSessionTree(
-			sessions,
+			filteredSessions,
 			messageCounts,
 			activeTools,
 			todos,
@@ -381,7 +456,35 @@ async function loadDashboardData(
 			return { data: { database: dbPath, sessions: [focusNode], allSessions: allNodes } };
 		}
 
-		return { data: { database: dbPath, sessions: roots, allSessions: allNodes } };
+		// Apply post-build filters on root nodes
+		let filteredRoots = roots;
+
+		// Filter by --since (compare lastActivity against parsed timestamp)
+		if (filterOpts?.since) {
+			try {
+				const sinceTimestamp = parseDuration(filterOpts.since);
+				filteredRoots = filteredRoots.filter((node) => node.lastActivity >= sinceTimestamp);
+			} catch {
+				return {
+					error: 'invalid_duration',
+					message: `Invalid --since value: "${filterOpts.since}". Use format like 30m, 1h, 6h, 24h, 7d.`,
+				};
+			}
+		}
+
+		// Filter by --status (computed status)
+		if (filterOpts?.status) {
+			const targetStatus = filterOpts.status.toLowerCase();
+			filteredRoots = filteredRoots.filter((node) => node.status === targetStatus);
+		}
+
+		// Apply --limit (default 10) unless --all is set
+		if (!filterOpts?.all) {
+			const limit = filterOpts?.limit ?? 10;
+			filteredRoots = filteredRoots.slice(0, limit);
+		}
+
+		return { data: { database: dbPath, sessions: filteredRoots, allSessions: allNodes } };
 	} catch (error) {
 		return {
 			error: 'query_failed',
@@ -415,7 +518,7 @@ function renderMissingDatabase(expectedPaths: string[], envPath?: string): void 
 	tui.output('Tip: Set OPENCODE_DB_PATH to override the database location.');
 }
 
-function renderDashboard(data: DashboardData, watchMode: boolean): void {
+function renderDashboard(data: DashboardData, watchMode: boolean, intervalSeconds?: number): void {
 	const flattened = flattenSessionRows(data.sessions);
 	const activeCount = flattened.filter((node) => node.status === 'active').length;
 
@@ -439,6 +542,7 @@ function renderDashboard(data: DashboardData, watchMode: boolean): void {
 			rows.push({
 				Session: `${prefix}${connector}${node.session.id}`,
 				Status: node.status,
+				'Last Active': formatRelativeTime(node.lastActivity),
 				Messages: String(node.messageCount),
 				Tools: formatToolCount(node.activeTools),
 				Cost: formatCost(node.cost),
@@ -460,7 +564,7 @@ function renderDashboard(data: DashboardData, watchMode: boolean): void {
 			walk(root, '', i === lastIndex, true);
 		}
 
-		tui.table(rows, ['Session', 'Status', 'Messages', 'Tools', 'Cost']);
+		tui.table(rows, ['Session', 'Status', 'Last Active', 'Messages', 'Tools', 'Cost']);
 	}
 
 	const allTodos: Array<{ sessionId: string; todo: TodoItem }> = [];
@@ -489,7 +593,8 @@ function renderDashboard(data: DashboardData, watchMode: boolean): void {
 
 	if (watchMode) {
 		tui.newline();
-		tui.output(tui.muted('Press Ctrl+C to exit'));
+		const interval = intervalSeconds ?? 5;
+		tui.output(tui.muted(`Press q to quit · r to refresh · refreshing every ${interval}s`));
 	}
 }
 
@@ -498,6 +603,7 @@ function serializeNode(node: SessionNode): Record<string, unknown> {
 		id: node.session.id,
 		title: node.session.title,
 		status: node.status,
+		lastActivity: node.lastActivity,
 		messageCount: node.messageCount,
 		activeTools: node.activeTools,
 		todos: node.todos,
@@ -523,7 +629,31 @@ export const dashboardSubcommand = createSubcommand({
 	examples: [
 		{
 			command: getCommand('ai opencode dashboard'),
-			description: 'View session dashboard',
+			description: 'Recent 10 sessions',
+		},
+		{
+			command: getCommand('ai opencode dashboard --all'),
+			description: 'All sessions',
+		},
+		{
+			command: getCommand('ai opencode dashboard --since 1h'),
+			description: 'Sessions active in last hour',
+		},
+		{
+			command: getCommand('ai opencode dashboard --status active'),
+			description: 'Only active sessions',
+		},
+		{
+			command: getCommand('ai opencode dashboard --search "auth"'),
+			description: 'Search by title',
+		},
+		{
+			command: getCommand('ai opencode dashboard --limit 5 --status idle'),
+			description: '5 most recent idle sessions',
+		},
+		{
+			command: getCommand('ai opencode dashboard --watch --since 1h'),
+			description: 'Watch recent sessions',
 		},
 		{
 			command: getCommand('ai opencode dashboard --session ses_abc123'),
@@ -542,7 +672,15 @@ export const dashboardSubcommand = createSubcommand({
 		const watchMode = opts?.watch === true;
 		const intervalSeconds = opts?.interval ?? 5;
 		const intervalMs = Math.max(1, intervalSeconds) * 1000;
-		const focusSessionId = opts?.session;
+
+		const filterOpts: FilterOptions = {
+			focusSessionId: opts?.session,
+			search: opts?.search,
+			since: opts?.since,
+			status: opts?.status,
+			limit: opts?.limit,
+			all: opts?.all,
+		};
 
 		const resolvedDbPath = await resolveOpenCodeDBPath();
 		if (!resolvedDbPath) {
@@ -561,8 +699,8 @@ export const dashboardSubcommand = createSubcommand({
 			return { success: false };
 		}
 
-		const runOnce = async () => {
-			const result = await loadDashboardData(resolvedDbPath, focusSessionId);
+		const runOnce = async (): Promise<boolean> => {
+			const result = await loadDashboardData(resolvedDbPath, filterOpts);
 			if (result.error || !result.data) {
 				if (jsonMode) {
 					outputJSON({
@@ -571,12 +709,12 @@ export const dashboardSubcommand = createSubcommand({
 						error: result.error,
 						message: result.message,
 					});
-					return;
+					return false;
 				}
 
 				tui.newline();
 				tui.error(result.message ?? 'Failed to load dashboard data.');
-				return;
+				return false;
 			}
 
 			if (jsonMode) {
@@ -584,22 +722,63 @@ export const dashboardSubcommand = createSubcommand({
 					database: result.data.database,
 					sessions: result.data.sessions.map(serializeNode),
 				});
-				return;
+				return true;
 			}
 
-			renderDashboard(result.data, watchMode);
+			renderDashboard(result.data, watchMode, intervalSeconds);
+			return true;
 		};
 
 		if (!watchMode || jsonMode) {
-			await runOnce();
-			return { success: true };
+			const ok = await runOnce();
+			return { success: ok };
 		}
 
-		while (true) {
+		// Set up keyboard input handling for watch mode
+		if (process.stdin.isTTY) {
+			process.stdin.setRawMode(true);
+			process.stdin.resume();
+			process.stdin.setEncoding('utf8');
+		}
+
+		let shouldExit = false;
+		let shouldRefresh = false;
+
+		process.stdin.on('data', (key: string) => {
+			if (key === 'q' || key === '\x03') {
+				// 'q' or Ctrl+C
+				shouldExit = true;
+			}
+			if (key === 'r') {
+				shouldRefresh = true;
+			}
+		});
+
+		while (!shouldExit) {
 			clearTerminal();
 			await runOnce();
-			await Bun.sleep(intervalMs);
+
+			// Sleep in small increments so we can respond to keypresses quickly
+			const sleepChunk = 100;
+			let elapsed = 0;
+			while (elapsed < intervalMs && !shouldExit && !shouldRefresh) {
+				await Bun.sleep(sleepChunk);
+				elapsed += sleepChunk;
+			}
+
+			if (shouldRefresh) {
+				shouldRefresh = false;
+				// Loop continues immediately to refresh
+			}
 		}
+
+		// Cleanup stdin state
+		if (process.stdin.isTTY) {
+			process.stdin.setRawMode(false);
+			process.stdin.pause();
+		}
+
+		return { success: true };
 	},
 });
 

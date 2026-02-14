@@ -322,6 +322,7 @@ ${taskList}
 
 **CRITICAL:** Task IDs and session IDs persist across compaction - these tasks are still running.
 Use \`agentuity_background_output({ task_id: "..." })\` to check their status.
+Use \`agentuity_session_dashboard({ session_id: "..." })\` to get a full session tree with status, costs, and health summary for Lead-of-Leads monitoring.
 
 **Tip:** If you spawned child Leads for parallel work, delegate monitoring to BackgroundMonitor:
 \`\`\`typescript

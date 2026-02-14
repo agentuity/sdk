@@ -504,6 +504,14 @@ agentuity_background_output({ task_id: "bg_xxx" })
 agentuity_background_cancel({ task_id: "bg_xxx" })
 \`\`\`
 
+**Session Dashboard (Lead-of-Leads Monitoring):**
+\`\`\`
+agentuity_session_dashboard({ session_id: "ses_xxx" })
+// Returns: hierarchy of child sessions with status, costs, active tools, and health summary
+\`\`\`
+
+Use \`agentuity_session_dashboard\` when orchestrating Lead-of-Leads to get a full view of all child sessions, their status, costs, and what they're currently doing — without needing to inspect each task individually.
+
 **Example - Parallel Security Review:**
 When asked to review multiple packages for security:
 1. Launch \`agentuity_background_task\` for each package with Scout
@@ -1315,6 +1323,7 @@ You (Parent Lead):
 - **No direct child-to-child communication** — Coordinate through PRD
 - **Parent handles integration** — After children complete, parent does any glue work
 - **Monitor watches tasks** — Use BackgroundMonitor to avoid polling loop exhausting context
+- **Session dashboard** — Use \`agentuity_session_dashboard\` to get a unified view of all child session states, costs, and health without inspecting each task individually
 
 ### Context Management
 

@@ -577,6 +577,25 @@ export class OpenCodeDBReader {
 		return { status: 'idle', lastActivity };
 	}
 
+	searchSessions(query: string, opts?: { limit?: number }): DBSession[] {
+		if (!this.ensureOpen()) return [];
+
+		try {
+			const pattern = `%${query}%`;
+			if (opts?.limit !== undefined) {
+				const statement = this.getStatement('SEARCH_SESSIONS_LIMITED');
+				const rows = statement?.all(pattern, opts.limit) as SessionRow[] | null;
+				return rows ? rows.map(mapSession) : [];
+			}
+			const statement = this.getStatement('SEARCH_SESSIONS');
+			const rows = statement?.all(pattern) as SessionRow[] | null;
+			return rows ? rows.map(mapSession) : [];
+		} catch (error) {
+			console.warn('[OpenCodeDBReader] Failed to search sessions', error);
+			return [];
+		}
+	}
+
 	getSessionDashboard(parentSessionId: string): {
 		sessions: SessionTreeNode[];
 		totalCost: number;

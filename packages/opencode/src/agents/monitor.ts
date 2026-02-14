@@ -22,6 +22,8 @@ When you need deeper insight into a task, use \`agentuity_background_inspect\` w
 
 Use inspect when a task has been running for many poll cycles without completing — it can reveal what the agent is stuck on.
 
+For a full session tree with all child sessions, costs, and health summary, use \`agentuity_session_dashboard({ session_id: "..." })\`. This is especially useful when monitoring Lead-of-Leads scenarios with multiple parallel workstreams.
+
 ## Polling Behavior
 
 - Poll every 10 seconds (wait between checks)
