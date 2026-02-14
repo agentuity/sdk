@@ -1,6 +1,8 @@
 import { describe, expect, it, beforeEach } from 'bun:test';
 import { ConcurrencyManager } from '../src/background/concurrency';
+import { BackgroundManager } from '../src/background/manager';
 import type { BackgroundTask, BackgroundTaskStatus, TaskProgress } from '../src/background/types';
+import type { PluginInput } from '@opencode-ai/plugin';
 
 describe('Background', () => {
 	describe('ConcurrencyManager', () => {
@@ -264,6 +266,144 @@ describe('Background', () => {
 
 			expect(progress.toolCalls).toBe(10);
 			expect(progress.lastTool).toBe('bash');
+		});
+	});
+
+	describe('BackgroundManager', () => {
+		function createMockCtx(overrides?: {
+			sessionList?: () => Promise<unknown>;
+			sessionChildren?: () => Promise<unknown>;
+		}): PluginInput {
+			return {
+				client: {
+					session: {
+						list: overrides?.sessionList ?? (async () => ({ data: [] })),
+						children: overrides?.sessionChildren ?? (async () => ({ data: [] })),
+						get: async () => ({ data: {} }),
+						messages: async () => ({ data: [] }),
+						create: async () => ({ data: { id: 'sess_1' } }),
+						prompt: async () => ({}),
+						abort: async () => ({}),
+						status: async () => ({ data: {} }),
+					},
+				},
+			} as unknown as PluginInput;
+		}
+
+		describe('recoverTasks', () => {
+			it('does not throw when session.list returns an empty object instead of an array', async () => {
+				const ctx = createMockCtx({
+					sessionList: async () => ({ data: {} }),
+				});
+				const mgr = new BackgroundManager(ctx);
+				const recovered = await mgr.recoverTasks();
+				expect(recovered).toBe(0);
+			});
+
+			it('does not throw when session.list returns undefined', async () => {
+				const ctx = createMockCtx({
+					sessionList: async () => ({ data: undefined }),
+				});
+				const mgr = new BackgroundManager(ctx);
+				const recovered = await mgr.recoverTasks();
+				expect(recovered).toBe(0);
+			});
+
+			it('does not throw when session.list returns null', async () => {
+				const ctx = createMockCtx({
+					sessionList: async () => ({ data: null }),
+				});
+				const mgr = new BackgroundManager(ctx);
+				const recovered = await mgr.recoverTasks();
+				expect(recovered).toBe(0);
+			});
+
+			it('returns 0 when session.list returns an empty array', async () => {
+				const ctx = createMockCtx({
+					sessionList: async () => ({ data: [] }),
+				});
+				const mgr = new BackgroundManager(ctx);
+				const recovered = await mgr.recoverTasks();
+				expect(recovered).toBe(0);
+			});
+
+			it('recovers tasks from valid session data', async () => {
+				const taskMeta = JSON.stringify({
+					taskId: 'bg_abc123',
+					agent: 'scout',
+					description: 'Test task',
+					createdAt: new Date().toISOString(),
+				});
+				const ctx = createMockCtx({
+					sessionList: async () => ({
+						data: [
+							{
+								id: 'sess_1',
+								title: taskMeta,
+								parentID: 'parent_1',
+								status: { type: 'running' },
+							},
+						],
+					}),
+				});
+				const mgr = new BackgroundManager(ctx);
+				const recovered = await mgr.recoverTasks();
+				expect(recovered).toBe(1);
+				const task = mgr.getTask('bg_abc123');
+				expect(task).toBeDefined();
+				expect(task!.agent).toBe('scout');
+				expect(task!.sessionId).toBe('sess_1');
+				expect(task!.status).toBe('running');
+			});
+
+			it('skips sessions without bg_ prefixed taskId', async () => {
+				const ctx = createMockCtx({
+					sessionList: async () => ({
+						data: [
+							{
+								id: 'sess_1',
+								title: JSON.stringify({ taskId: 'not_a_bg_task' }),
+								status: { type: 'idle' },
+							},
+						],
+					}),
+				});
+				const mgr = new BackgroundManager(ctx);
+				const recovered = await mgr.recoverTasks();
+				expect(recovered).toBe(0);
+			});
+		});
+
+		describe('refreshStatuses', () => {
+			it('does not throw when session.children returns an empty object instead of an array', async () => {
+				const ctx = createMockCtx({
+					sessionChildren: async () => ({ data: {} }),
+				});
+				const mgr = new BackgroundManager(ctx);
+
+				const taskMeta = JSON.stringify({
+					taskId: 'bg_test1',
+					agent: 'scout',
+					description: 'test',
+				});
+				const listCtx = createMockCtx({
+					sessionList: async () => ({
+						data: [
+							{
+								id: 'sess_1',
+								title: taskMeta,
+								parentID: 'parent_1',
+								status: { type: 'running' },
+							},
+						],
+					}),
+				});
+				const listMgr = new BackgroundManager(listCtx);
+				await listMgr.recoverTasks();
+
+				const results = await mgr.refreshStatuses();
+				expect(results).toBeDefined();
+			});
 		});
 	});
 });
