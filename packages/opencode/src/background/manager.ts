@@ -1,6 +1,7 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import { agents } from '../agents';
 import type { AgentDefinition } from '../agents';
+import type { DBTextPart, OpenCodeDBReader } from '../sqlite';
 import type {
 	BackgroundTask,
 	BackgroundTaskConfig,
@@ -46,6 +47,7 @@ export class BackgroundManager {
 	private config: BackgroundTaskConfig;
 	private concurrency: ConcurrencyManager;
 	private callbacks?: BackgroundManagerCallbacks;
+	private dbReader?: OpenCodeDBReader;
 	private tasks = new Map<string, BackgroundTask>();
 	private tasksByParent = new Map<string, Set<string>>();
 	private tasksBySession = new Map<string, string>();
@@ -56,7 +58,8 @@ export class BackgroundManager {
 	constructor(
 		ctx: PluginInput,
 		config?: BackgroundTaskConfig,
-		callbacks?: BackgroundManagerCallbacks
+		callbacks?: BackgroundManagerCallbacks,
+		dbReader?: OpenCodeDBReader
 	) {
 		this.ctx = ctx;
 		this.config = { ...DEFAULT_BACKGROUND_CONFIG, ...config };
@@ -65,6 +68,7 @@ export class BackgroundManager {
 			limits: buildConcurrencyLimits(this.config),
 		});
 		this.callbacks = callbacks;
+		this.dbReader = dbReader;
 	}
 
 	async launch(input: LaunchInput): Promise<BackgroundTask> {
@@ -122,6 +126,64 @@ export class BackgroundManager {
 		if (!task?.sessionId) return undefined;
 
 		try {
+			if (this.dbReader?.isAvailable()) {
+				const session = this.dbReader.getSession(task.sessionId);
+				const messageCount = this.dbReader.getMessageCount(task.sessionId);
+				const messageLimit = messageCount > 0 ? messageCount : 100;
+				const messageRows = this.dbReader.getMessages(task.sessionId, {
+					limit: messageLimit,
+					offset: 0,
+				});
+				const textParts = this.dbReader.getTextParts(task.sessionId, {
+					limit: Math.max(messageLimit * 5, 200),
+				});
+				const partsByMessage = groupTextPartsByMessage(textParts);
+				const messages = messageRows
+					.sort((a, b) => a.timeCreated - b.timeCreated)
+					.map((message) => ({
+						info: {
+							role: message.role,
+							agent: message.agent,
+							model: message.model,
+							cost: message.cost,
+							tokens: message.tokens,
+							error: message.error,
+							timeCreated: message.timeCreated,
+							timeUpdated: message.timeUpdated,
+						},
+						parts: buildTextParts(partsByMessage.get(message.id)),
+					}));
+				const activeTools = this.dbReader.getActiveToolCalls(task.sessionId).map((tool) => ({
+					tool: tool.tool,
+					status: tool.status,
+					callId: tool.callId,
+				}));
+				const todos = this.dbReader.getTodos(task.sessionId).map((todo) => ({
+					content: todo.content,
+					status: todo.status,
+					priority: todo.priority,
+				}));
+				const cost = this.dbReader.getSessionCost(task.sessionId);
+				const childSessionCount = this.dbReader.getChildSessions(task.sessionId).length;
+
+				return {
+					taskId: task.id,
+					sessionId: task.sessionId,
+					status: task.status,
+					session,
+					messages,
+					lastActivity: task.progress?.lastUpdate?.toISOString(),
+					messageCount,
+					activeTools,
+					todos,
+					costSummary: {
+						totalCost: cost.totalCost,
+						totalTokens: cost.totalTokens,
+					},
+					childSessionCount,
+				};
+			}
+
 			// Get session details
 			const sessionResponse = await this.ctx.client.session.get({
 				path: { id: task.sessionId },
@@ -235,6 +297,61 @@ export class BackgroundManager {
 		let recovered = 0;
 
 		try {
+			if (this.dbReader?.isAvailable()) {
+				const parentSessionId = process.env.AGENTUITY_OPENCODE_SESSION;
+				if (parentSessionId) {
+					const sessions = this.dbReader.getChildSessions(parentSessionId);
+					for (const sess of sessions) {
+						if (!sess.title?.startsWith('{')) continue;
+
+						try {
+							const metadata = JSON.parse(sess.title) as {
+								taskId?: string;
+								agent?: string;
+								description?: string;
+								createdAt?: string;
+							};
+
+							if (!metadata.taskId || !metadata.taskId.startsWith('bg_')) continue;
+							if (this.tasks.has(metadata.taskId)) continue;
+
+							const agentName = metadata.agent ?? 'unknown';
+							const task: BackgroundTask = {
+								id: metadata.taskId,
+								sessionId: sess.id,
+								parentSessionId: sess.parentId ?? '',
+								agent: agentName,
+								description: metadata.description ?? '',
+								prompt: '',
+								status: this.mapDbStatusToTaskStatus(sess.id),
+								queuedAt: metadata.createdAt ? new Date(metadata.createdAt) : new Date(),
+								startedAt: metadata.createdAt ? new Date(metadata.createdAt) : new Date(),
+								concurrencyGroup: this.getConcurrencyGroup(agentName),
+								progress: {
+									toolCalls: 0,
+									lastUpdate: new Date(),
+								},
+							};
+
+							this.tasks.set(task.id, task);
+							this.tasksBySession.set(sess.id, task.id);
+
+							if (task.parentSessionId) {
+								const parentTasks =
+									this.tasksByParent.get(task.parentSessionId) ?? new Set();
+								parentTasks.add(task.id);
+								this.tasksByParent.set(task.parentSessionId, parentTasks);
+							}
+
+							recovered++;
+						} catch {
+							continue;
+						}
+					}
+					return recovered;
+				}
+			}
+
 			// Get all sessions
 			const sessionsResponse = await this.ctx.client.session.list({
 				throwOnError: false,
@@ -628,6 +745,18 @@ Use the agentuity_background_output tool with task_id "${task.id}" to view the r
 
 	private async fetchLatestResult(sessionId: string): Promise<string | undefined> {
 		try {
+			if (this.dbReader?.isAvailable()) {
+				const messages = this.dbReader.getMessages(sessionId, { limit: 100, offset: 0 });
+				const textParts = this.dbReader.getTextParts(sessionId, { limit: 300 });
+				const partsByMessage = groupTextPartsByMessage(textParts);
+				for (const message of messages) {
+					if (message.role !== 'assistant') continue;
+					const text = joinTextParts(partsByMessage.get(message.id));
+					if (text) return text;
+				}
+				return undefined;
+			}
+
 			const messagesResult = await this.ctx.client.session.messages({
 				path: { id: sessionId },
 				throwOnError: true,
@@ -645,6 +774,23 @@ Use the agentuity_background_output tool with task_id "${task.id}" to view the r
 		}
 
 		return undefined;
+	}
+
+	private mapDbStatusToTaskStatus(sessionId: string): BackgroundTaskStatus {
+		if (!this.dbReader) return 'pending';
+		const status = this.dbReader.getSessionStatus(sessionId).status;
+		switch (status) {
+			case 'idle':
+			case 'archived':
+				return 'completed';
+			case 'active':
+			case 'compacting':
+				return 'running';
+			case 'error':
+				return 'error';
+			default:
+				return 'pending';
+		}
 	}
 
 	private getConcurrencyGroup(agentName: string): string | undefined {
@@ -731,6 +877,29 @@ function extractTextFromParts(parts: Array<unknown>): string | undefined {
 	}
 	if (textParts.length === 0) return undefined;
 	return textParts.join('\n');
+}
+
+function groupTextPartsByMessage(parts: DBTextPart[]): Map<string, DBTextPart[]> {
+	const grouped = new Map<string, DBTextPart[]>();
+	for (const part of parts) {
+		const list = grouped.get(part.messageId) ?? [];
+		list.push(part);
+		grouped.set(part.messageId, list);
+	}
+	for (const list of grouped.values()) {
+		list.sort((a, b) => a.timeCreated - b.timeCreated);
+	}
+	return grouped;
+}
+
+function buildTextParts(parts?: DBTextPart[]): Array<{ type: string; text: string }> {
+	if (!parts || parts.length === 0) return [];
+	return parts.map((part) => ({ type: 'text', text: part.text }));
+}
+
+function joinTextParts(parts?: DBTextPart[]): string | undefined {
+	if (!parts || parts.length === 0) return undefined;
+	return parts.map((part) => part.text).join('\n');
 }
 
 function unwrapResponse<T>(result: unknown): T | undefined {
