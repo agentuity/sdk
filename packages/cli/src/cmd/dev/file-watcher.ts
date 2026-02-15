@@ -84,6 +84,40 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		'src/generated', // Generated files shouldn't trigger rebuilds
 	];
 
+	// File extensions to ignore - non-code files that shouldn't trigger reload
+	const ignoreExtensions = new Set([
+		'.md',
+		'.mdx',
+		'.txt',
+		'.log',
+		'.lock',
+		'.yaml',
+		'.yml',
+		'.toml',
+		'.csv',
+		'.svg',
+		'.png',
+		'.jpg',
+		'.jpeg',
+		'.gif',
+		'.webp',
+		'.ico',
+		'.woff',
+		'.woff2',
+		'.ttf',
+		'.eot',
+		'.mp4',
+		'.mp3',
+		'.wav',
+		'.ogg',
+		'.webm',
+		'.pdf',
+		'.zip',
+		'.tar',
+		'.gz',
+		'.map',
+	]);
+
 	/**
 	 * Check if a path should be ignored
 	 */
@@ -134,10 +168,14 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 			return true;
 		}
 
-		// Ignore markdown files - documentation changes shouldn't trigger reload
-		if (changedFile.endsWith('.md')) {
-			logger.trace('File change ignored (markdown): %s', changedFile);
-			return true;
+		// Ignore files with non-code extensions
+		const extIndex = changedFile.lastIndexOf('.');
+		if (extIndex !== -1) {
+			const ext = changedFile.slice(extIndex).toLowerCase();
+			if (ignoreExtensions.has(ext)) {
+				logger.trace('File change ignored (%s): %s', ext, changedFile);
+				return true;
+			}
 		}
 
 		// Ignore hidden files (except .env)
