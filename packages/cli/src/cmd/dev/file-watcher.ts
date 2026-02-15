@@ -134,6 +134,12 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 			return true;
 		}
 
+		// Ignore markdown files - documentation changes shouldn't trigger reload
+		if (changedFile.endsWith('.md')) {
+			logger.trace('File change ignored (markdown): %s', changedFile);
+			return true;
+		}
+
 		// Ignore hidden files (except .env)
 		if (changedFile.startsWith('.') && !changedFile.startsWith('.env')) {
 			logger.trace('File change ignored (hidden file): %s', changedFile);
