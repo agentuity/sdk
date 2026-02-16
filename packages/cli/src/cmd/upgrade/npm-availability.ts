@@ -1,14 +1,9 @@
 /**
  * npm registry availability checking utilities.
- * Used to verify a version is available via bun's resolver before attempting upgrade.
+ * Used to verify a version is available on npm before attempting upgrade.
  */
 
-import { tmpdir } from 'node:os';
-
 const PACKAGE_SPEC = '@agentuity/cli';
-
-/** Default timeout for `bun info` subprocess calls (10 seconds) */
-const BUN_INFO_TIMEOUT_MS = 10_000;
 
 /** Default timeout for install (`bun add -g`) subprocess calls (30 seconds) */
 const INSTALL_TIMEOUT_MS = 30_000;
@@ -89,28 +84,24 @@ async function withTimeout<T>(
 }
 
 /**
- * Check if a specific version of @agentuity/cli is resolvable by bun.
- * Uses `bun info` to verify bun's own resolver/CDN can see the version,
- * which avoids the race where npm registry returns 200 but bun's CDN
- * has not yet propagated the version.
+ * Check if a specific version of @agentuity/cli is available on the npm registry.
  *
  * @param version - Version to check (with or without 'v' prefix)
  * @returns true if version is available, false otherwise
  */
-export async function isVersionAvailableOnNpm(version: string): Promise<boolean> {
+export async function isVersionAvailableOnNpm(
+	version: string,
+	options?: { timeoutMs?: number }
+): Promise<boolean> {
 	const normalizedVersion = version.replace(/^v/, '');
+	const timeoutMs = options?.timeoutMs ?? 10_000;
 	try {
-		const result = await spawnWithTimeout(
-			['bun', 'info', `${PACKAGE_SPEC}@${normalizedVersion}`, '--json'],
-			{ cwd: tmpdir(), timeout: BUN_INFO_TIMEOUT_MS }
+		const response = await fetch(
+			`https://registry.npmjs.org/${PACKAGE_SPEC}/${normalizedVersion}`,
+			{ signal: AbortSignal.timeout(timeoutMs) }
 		);
-		if (result.exitCode !== 0) {
-			return false;
-		}
-		const info = JSON.parse(result.stdout.toString());
-		if (info.error) {
-			return false;
-		}
+		if (!response.ok) return false;
+		const info = (await response.json()) as { version?: string };
 		return info.version === normalizedVersion;
 	} catch {
 		return false;
@@ -118,14 +109,14 @@ export async function isVersionAvailableOnNpm(version: string): Promise<boolean>
 }
 
 /**
- * Quick check if a version is available via bun's resolver.
+ * Quick check if a version is available on npm.
  * Used for implicit version checks (auto-upgrade flow).
  *
  * @param version - Version to check (with or without 'v' prefix)
  * @returns true if version is available, false if unavailable or error
  */
 export async function isVersionAvailableOnNpmQuick(version: string): Promise<boolean> {
-	return isVersionAvailableOnNpm(version);
+	return isVersionAvailableOnNpm(version, { timeoutMs: 1_000 });
 }
 
 export interface WaitForNpmOptions {
