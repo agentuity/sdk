@@ -5,6 +5,7 @@
 declare global {
 	namespace NodeJS {
 		interface ProcessEnv {
+		readonly AGENTUITY_REGION: string;
 		readonly AGENTUITY_SDK_KEY: string;
 		}
 	}

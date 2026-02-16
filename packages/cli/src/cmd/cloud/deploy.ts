@@ -1,67 +1,68 @@
-import { z } from 'zod';
-import { join, resolve } from 'node:path';
 import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { StructuredError } from '@agentuity/core';
-import { createSubcommand, DeployOptionsSchema } from '../../types';
-import { getUserAgent } from '../../api';
-import * as tui from '../../tui';
 import {
-	saveProjectDir,
-	getDefaultConfigDir,
-	loadProjectSDKKey,
-	updateProjectConfig,
-	getGlobalCatalystAPIClient,
-} from '../../config';
-import { getProjectGithubStatus } from '../git/api';
-import { runGitLink } from '../git/link';
-import {
-	runSteps,
-	stepSuccess,
-	stepSkipped,
-	stepError,
-	pauseStepUI,
-	type Step,
-	type StepContext,
-} from '../../steps';
-import { viteBundle } from '../build/vite-bundler';
-import { loadBuildMetadata, getStreamURL } from '../../config';
-import {
-	projectEnvUpdate,
-	projectDeploymentCreate,
-	projectDeploymentUpdate,
+	type BuildMetadata,
+	type Deployment,
+	type DeploymentComplete,
+	type DeploymentInstructions,
+	type DeploymentStatusResult,
+	getAppBaseURL,
+	type MalwareCheckResult,
 	projectDeploymentComplete,
-	projectDeploymentStatus,
+	projectDeploymentCreate,
 	projectDeploymentMalwareCheck,
-	validateResources,
+	projectDeploymentStatus,
+	projectDeploymentUpdate,
+	projectEnvUpdate,
 	projectGet,
 	projectUpdateRegion,
-	type Deployment,
-	type BuildMetadata,
-	type DeploymentInstructions,
-	type DeploymentComplete,
-	type DeploymentStatusResult,
-	type MalwareCheckResult,
-	getAppBaseURL,
+	validateResources,
 } from '@agentuity/server';
+import { z } from 'zod';
+import { getUserAgent } from '../../api';
+import { BuildReportCollector, clearGlobalCollector, setGlobalCollector } from '../../build-report';
+import { getCachedProject, setCachedProject } from '../../cache';
+import { getCommand } from '../../command-prefix';
 import {
+	getDefaultConfigDir,
+	getGlobalCatalystAPIClient,
+	getStreamURL,
+	loadBuildMetadata,
+	loadProjectSDKKey,
+	saveProjectDir,
+	updateProjectConfig,
+} from '../../config';
+import { encryptFIPSKEMDEMStream } from '../../crypto/box';
+import * as domain from '../../domain';
+import {
+	filterAgentuitySdkKeys,
 	findExistingEnvFile,
 	readEnvFile,
-	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 } from '../../env-util';
-import { zipDir } from '../../utils/zip';
-import { encryptFIPSKEMDEMStream } from '../../crypto/box';
-import { getCommand } from '../../command-prefix';
-import * as domain from '../../domain';
 import { ErrorCode, getExitCode } from '../../errors';
-import { typecheck } from '../build/typecheck';
-import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
-import { runForkedDeploy } from './deploy-fork';
+import {
+	pauseStepUI,
+	runSteps,
+	type Step,
+	type StepContext,
+	stepError,
+	stepSkipped,
+	stepSuccess,
+} from '../../steps';
+import * as tui from '../../tui';
+import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { validateAptDependencies } from '../../utils/apt-validator';
 import { extractDependencies } from '../../utils/deps';
-import { getCachedProject, setCachedProject } from '../../cache';
+import { zipDir } from '../../utils/zip';
+import { typecheck } from '../build/typecheck';
+import { viteBundle } from '../build/vite-bundler';
+import { getProjectGithubStatus } from '../git/api';
+import { runGitLink } from '../git/link';
+import { runForkedDeploy } from './deploy-fork';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -130,9 +131,7 @@ export const deploySubcommand = createSubcommand({
 				reportFile: z
 					.string()
 					.optional()
-					.describe(
-						'file path to save build report JSON with errors, warnings, and diagnostics'
-					),
+					.describe('file path to save build report JSON with errors, warnings, and diagnostics'),
 				childMode: z
 					.boolean()
 					.optional()
@@ -372,8 +371,7 @@ export const deploySubcommand = createSubcommand({
 			if (opts.provider) childArgs.push(`--provider=${opts.provider}`);
 			if (opts.repo) childArgs.push(`--repo=${opts.repo}`);
 			if (opts.event) childArgs.push(`--event=${opts.event}`);
-			if (opts.pullRequestNumber)
-				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
+			if (opts.pullRequestNumber) childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 
 			const result = await runForkedDeploy({
@@ -492,7 +490,6 @@ export const deploySubcommand = createSubcommand({
 							const result = await runGitLink({
 								apiClient,
 								projectId: project.projectId,
-								orgId: project.orgId,
 								logger,
 								skipAlreadyLinkedCheck: true,
 								config,
@@ -506,7 +503,8 @@ export const deploySubcommand = createSubcommand({
 								tui.info('Push a commit to trigger your first deployment.');
 								tui.newline();
 								throw new DeploymentCancelledError();
-							} else if (result.linked) {
+							}
+							if (result.linked) {
 								// Linked but auto-deploy disabled, continue with manual deploy
 								tui.newline();
 								tui.info('GitHub repository linked. Continuing with deployment...');
@@ -614,9 +612,7 @@ export const deploySubcommand = createSubcommand({
 
 							if (typeResult.success) {
 								capturedOutput.push(
-									tui.muted(
-										`✓ Typechecked in ${Math.floor(Date.now() - started).toFixed(0)}ms`
-									)
+									tui.muted(`✓ Typechecked in ${Math.floor(Date.now() - started).toFixed(0)}ms`)
 								);
 							} else {
 								// Errors already added to collector by typecheck()
@@ -641,11 +637,7 @@ export const deploySubcommand = createSubcommand({
 								});
 								capturedOutput = [...capturedOutput, ...bundleResult.output];
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
-								instructions = await projectDeploymentUpdate(
-									apiClient,
-									deployment.id,
-									build
-								);
+								instructions = await projectDeploymentUpdate(apiClient, deployment.id, build);
 								return stepSuccess(capturedOutput.length > 0 ? capturedOutput : undefined);
 							} catch (ex) {
 								const _ex = ex as Error;
@@ -825,8 +817,7 @@ export const deploySubcommand = createSubcommand({
 								const endCdnUploadDiagnostic = collector.startDiagnostic('cdn-upload');
 								ctx.logger.trace(`Uploading ${build.assets.length} assets`);
 								if (!instructions.assets) {
-									const errorMsg =
-										'server did not provide asset upload URLs; upload aborted';
+									const errorMsg = 'server did not provide asset upload URLs; upload aborted';
 									collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
 									if (opts.reportFile) {
 										await collector.forceWrite();
@@ -934,10 +925,7 @@ export const deploySubcommand = createSubcommand({
 			// TODO: send the deployment failure to the backend otherwise we staying in a deploying state
 
 			const streamId = complete?.streamId;
-			const appUrl = getAppBaseURL(
-				process.env.AGENTUITY_REGION ?? config?.name,
-				config?.overrides
-			);
+			const appUrl = getAppBaseURL(process.env.AGENTUITY_REGION ?? config?.name, config?.overrides);
 			const dashboard = `${appUrl}/r/${deployment.id}`;
 
 			// Poll for deployment status with optional log streaming
@@ -978,9 +966,7 @@ export const deploySubcommand = createSubcommand({
 											},
 										});
 										if (!resp.ok || !resp.body) {
-											ctx.logger.trace(
-												`Failed to connect to warmup log stream: ${resp.status}`
-											);
+											ctx.logger.trace(`Failed to connect to warmup log stream: ${resp.status}`);
 											return;
 										}
 										const reader = resp.body.getReader();
@@ -1022,10 +1008,7 @@ export const deploySubcommand = createSubcommand({
 
 									attempts++;
 									try {
-										statusResult = await projectDeploymentStatus(
-											apiClient,
-											deployment?.id ?? ''
-										);
+										statusResult = await projectDeploymentStatus(apiClient, deployment?.id ?? '');
 
 										logger.trace('status result: %s', statusResult);
 
@@ -1069,9 +1052,7 @@ export const deploySubcommand = createSubcommand({
 							}
 							const exwithmessage = ex as { message: string };
 							const msg =
-								exwithmessage.message === 'Deployment failed'
-									? ''
-									: exwithmessage.toString();
+								exwithmessage.message === 'Deployment failed' ? '' : exwithmessage.toString();
 
 							// Add error to collector
 							const isTimeout = exwithmessage.message === 'Deployment timed out';
@@ -1121,10 +1102,7 @@ export const deploySubcommand = createSubcommand({
 								}
 
 								attempts++;
-								statusResult = await projectDeploymentStatus(
-									apiClient,
-									deployment?.id ?? ''
-								);
+								statusResult = await projectDeploymentStatus(apiClient, deployment?.id ?? '');
 
 								if (statusResult.state === 'completed') {
 									break;
@@ -1161,9 +1139,7 @@ export const deploySubcommand = createSubcommand({
 
 				const lines = [`${ex}`, ''];
 				lines.push(
-					`${tui.ICONS.arrow} ${
-						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
-					}`
+					`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)}`
 				);
 				tui.banner(tui.colorError(`Deployment: ${deployment.id} Failed`), lines.join('\n'), {
 					centerTitle: false,
@@ -1188,8 +1164,7 @@ export const deploySubcommand = createSubcommand({
 				} else {
 					lines.push(
 						`${tui.ICONS.arrow} ${
-							tui.bold(tui.padRight('Deployment:', 12)) +
-							tui.link(complete.publicUrls.deployment)
+							tui.bold(tui.padRight('Deployment:', 12)) + tui.link(complete.publicUrls.deployment)
 						}`
 					);
 					lines.push(
@@ -1199,9 +1174,7 @@ export const deploySubcommand = createSubcommand({
 					);
 				}
 				lines.push(
-					`${tui.ICONS.arrow} ${
-						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
-					}`
+					`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)}`
 				);
 				tui.banner(`Deployment: ${tui.colorPrimary(deployment.id)}`, lines.join('\n'), {
 					centerTitle: false,

@@ -1,40 +1,54 @@
-import { z } from 'zod';
-import { APIResponseSchema } from '@agentuity/server';
-import type { APIClient } from '../../api';
 import { StructuredError } from '@agentuity/core';
+import { APIResponseSchema } from '@agentuity/server';
+import { z } from 'zod';
+import type { APIClient } from '../../api';
 
 const GithubStartDataSchema = z.object({
 	shortId: z.string(),
+	hasIdentity: z.boolean(),
 });
 
-const GithubIntegrationSchema = z.object({
-	id: z.string(),
-	githubAccountName: z.string(),
-	githubAccountType: z.enum(['user', 'org']),
-	connectedBy: z.string(),
-	connectedAt: z.string(),
+const GithubInstallationSchema = z.object({
+	installationId: z.string(),
+	integrationId: z.string().optional(),
+	accountName: z.string(),
+	accountType: z.enum(['User', 'Organization']),
+	avatarUrl: z.string().optional(),
 });
 
 const GithubStatusDataSchema = z.object({
 	connected: z.boolean(),
-	integrations: z.array(GithubIntegrationSchema).optional(),
+	identity: z
+		.object({
+			githubUsername: z.string(),
+			githubEmail: z.string().optional(),
+			avatarUrl: z.string().optional(),
+		})
+		.nullable(),
+	installations: z.array(GithubInstallationSchema),
 });
 
-export interface GithubIntegration {
-	id: string;
-	githubAccountName: string;
-	githubAccountType: 'user' | 'org';
-	connectedBy: string;
-	connectedAt: string;
+export interface GithubInstallation {
+	installationId: string;
+	integrationId?: string;
+	accountName: string;
+	accountType: 'User' | 'Organization';
+	avatarUrl?: string;
 }
 
 export interface GithubIntegrationStartResult {
 	shortId: string;
+	hasIdentity: boolean;
 }
 
 export interface GithubIntegrationStatusResult {
 	connected: boolean;
-	integrations: GithubIntegration[];
+	identity: {
+		githubUsername: string;
+		githubEmail?: string;
+		avatarUrl?: string;
+	} | null;
+	installations: GithubInstallation[];
 }
 
 const GithubIntegrationStartError = StructuredError(
@@ -43,13 +57,9 @@ const GithubIntegrationStartError = StructuredError(
 );
 
 export async function startGithubIntegration(
-	apiClient: APIClient,
-	orgId: string
+	apiClient: APIClient
 ): Promise<GithubIntegrationStartResult> {
-	const resp = await apiClient.get(
-		`/cli/github/start?orgId=${encodeURIComponent(orgId)}`,
-		APIResponseSchema(GithubStartDataSchema)
-	);
+	const resp = await apiClient.get('/cli/github/start', APIResponseSchema(GithubStartDataSchema));
 
 	if (!resp.success) {
 		throw new GithubIntegrationStartError();
@@ -59,7 +69,7 @@ export async function startGithubIntegration(
 		throw new GithubIntegrationStartError();
 	}
 
-	return { shortId: resp.data.shortId };
+	return { shortId: resp.data.shortId, hasIdentity: resp.data.hasIdentity };
 }
 
 const GithubIntegrationStatusError = StructuredError(
@@ -68,13 +78,9 @@ const GithubIntegrationStatusError = StructuredError(
 );
 
 export async function getGithubIntegrationStatus(
-	apiClient: APIClient,
-	orgId: string
+	apiClient: APIClient
 ): Promise<GithubIntegrationStatusResult> {
-	const resp = await apiClient.get(
-		`/cli/github/status?orgId=${encodeURIComponent(orgId)}`,
-		APIResponseSchema(GithubStatusDataSchema)
-	);
+	const resp = await apiClient.get('/cli/github/status', APIResponseSchema(GithubStatusDataSchema));
 
 	if (!resp.success) {
 		throw new GithubIntegrationStatusError();
@@ -86,7 +92,8 @@ export async function getGithubIntegrationStatus(
 
 	return {
 		connected: resp.data.connected,
-		integrations: resp.data.integrations ?? [],
+		identity: resp.data.identity,
+		installations: resp.data.installations,
 	};
 }
 
@@ -105,13 +112,13 @@ const GithubDisconnectError = StructuredError(
 
 export async function disconnectGithubIntegration(
 	apiClient: APIClient,
-	orgId: string,
-	integrationId: string
+	installationId?: string
 ): Promise<GithubDisconnectResult> {
-	const resp = await apiClient.delete(
-		`/cli/github/disconnect?orgId=${encodeURIComponent(orgId)}&integrationId=${encodeURIComponent(integrationId)}`,
-		APIResponseSchema(GithubDisconnectDataSchema)
-	);
+	let url = '/cli/github/disconnect';
+	if (installationId) {
+		url += `?installationId=${encodeURIComponent(installationId)}`;
+	}
+	const resp = await apiClient.delete(url, APIResponseSchema(GithubDisconnectDataSchema));
 
 	if (!resp.success) {
 		throw new GithubDisconnectError();
@@ -124,76 +131,6 @@ export async function disconnectGithubIntegration(
 	return { disconnected: resp.data.disconnected };
 }
 
-// Existing integrations
-
-const GithubExistingIntegrationSchema = z.object({
-	id: z.string(),
-	integrationId: z.string().nullable(),
-	orgId: z.string(),
-	orgName: z.string(),
-	githubAccountName: z.string(),
-});
-
-const GithubExistingDataSchema = z.object({
-	integrations: z.array(GithubExistingIntegrationSchema),
-});
-
-export interface ExistingGithubIntegration {
-	id: string;
-	integrationId: string | null;
-	orgId: string;
-	orgName: string;
-	githubAccountName: string;
-}
-
-const GithubExistingError = StructuredError(
-	'GithubExistingError',
-	'Error fetching existing GitHub integrations'
-);
-
-export async function getExistingGithubIntegrations(
-	apiClient: APIClient,
-	excludeOrgId?: string
-): Promise<ExistingGithubIntegration[]> {
-	const query = excludeOrgId ? `?excludeOrgId=${encodeURIComponent(excludeOrgId)}` : '';
-	const resp = await apiClient.get(
-		`/cli/github/existing${query}`,
-		APIResponseSchema(GithubExistingDataSchema)
-	);
-
-	if (!resp.success || !resp.data) {
-		throw new GithubExistingError();
-	}
-
-	return resp.data.integrations;
-}
-
-// Copy integration
-
-const GithubCopyDataSchema = z.object({
-	copied: z.boolean(),
-});
-
-const GithubCopyError = StructuredError('GithubCopyError', 'Error copying GitHub integration');
-
-export async function copyGithubIntegration(
-	apiClient: APIClient,
-	fromOrgId: string,
-	toOrgId: string
-): Promise<boolean> {
-	const resp = await apiClient.post(
-		'/cli/github/copy',
-		{ fromOrgId, toOrgId },
-		APIResponseSchema(GithubCopyDataSchema)
-	);
-
-	if (!resp.success || !resp.data) {
-		throw new GithubCopyError();
-	}
-
-	return resp.data.copied;
-}
-
 // Polling
 
 const PollForGithubIntegrationError = StructuredError('PollForGithubIntegrationError');
@@ -204,7 +141,6 @@ const PollForGithubIntegrationTimeout = StructuredError(
 
 export async function pollForGithubIntegration(
 	apiClient: APIClient,
-	orgId: string,
 	initialCount: number,
 	timeoutMs = 600000 // 10 minutes
 ): Promise<GithubIntegrationStatusResult> {
@@ -214,7 +150,7 @@ export async function pollForGithubIntegration(
 
 	while (Date.now() - started < timeoutMs) {
 		const resp = await apiClient.get(
-			`/cli/github/status?orgId=${encodeURIComponent(orgId)}`,
+			'/cli/github/status',
 			APIResponseSchema(GithubStatusDataSchema)
 		);
 
@@ -222,11 +158,12 @@ export async function pollForGithubIntegration(
 			throw new PollForGithubIntegrationError();
 		}
 
-		const currentCount = resp.data.integrations?.length ?? 0;
+		const currentCount = resp.data.installations?.length ?? 0;
 		if (currentCount > initialCount) {
 			return {
 				connected: true,
-				integrations: resp.data.integrations ?? [],
+				identity: resp.data.identity,
+				installations: resp.data.installations,
 			};
 		}
 
@@ -265,12 +202,11 @@ const GithubReposError = StructuredError('GithubReposError', 'Error fetching Git
 
 export async function listGithubRepos(
 	apiClient: APIClient,
-	orgId: string,
 	integrationId?: string
 ): Promise<GithubRepo[]> {
-	let url = `/cli/github/repos?orgId=${encodeURIComponent(orgId)}`;
+	let url = '/cli/github/repos';
 	if (integrationId) {
-		url += `&integrationId=${encodeURIComponent(integrationId)}`;
+		url += `?integrationId=${encodeURIComponent(integrationId)}`;
 	}
 	const resp = await apiClient.get(url, APIResponseSchema(GithubReposDataSchema));
 
@@ -292,7 +228,6 @@ export interface LinkProjectOptions {
 	autoDeploy: boolean;
 	previewDeploy: boolean;
 	directory?: string;
-	integrationId?: string;
 }
 
 const ProjectLinkError = StructuredError('ProjectLinkError', 'Error linking project to repository');
