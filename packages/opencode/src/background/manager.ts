@@ -183,7 +183,8 @@ export class BackgroundManager {
 					throwOnError: false,
 				});
 
-				const children = unwrapResponse<Array<unknown>>(childrenResponse) ?? [];
+				const rawChildren = unwrapResponse<Array<unknown>>(childrenResponse);
+				const children = Array.isArray(rawChildren) ? rawChildren : [];
 				for (const child of children) {
 					const childSession = child as { id?: string; status?: { type?: string } };
 					if (!childSession.id) continue;
@@ -240,7 +241,8 @@ export class BackgroundManager {
 				throwOnError: false,
 			});
 
-			const sessions = unwrapResponse<Array<unknown>>(sessionsResponse) ?? [];
+			const rawSessions = unwrapResponse<Array<unknown>>(sessionsResponse);
+			const sessions = Array.isArray(rawSessions) ? rawSessions : [];
 
 			for (const session of sessions) {
 				const sess = session as {
