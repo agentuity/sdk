@@ -49,6 +49,7 @@ import {
 	runSteps,
 	type Step,
 	type StepContext,
+	StepInterruptError,
 	stepError,
 	stepSkipped,
 	stepSuccess,
@@ -921,11 +922,7 @@ export const deploySubcommand = createSubcommand({
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
-							complete = await projectDeploymentComplete(
-								apiClient,
-								deployment.id,
-								stepCtx.signal
-							);
+							complete = await projectDeploymentComplete(apiClient, deployment.id, stepCtx.signal);
 							return stepSuccess();
 						},
 					},
@@ -1194,9 +1191,7 @@ export const deploySubcommand = createSubcommand({
 						}`
 					);
 					lines.push(
-						`${tui.ICONS.arrow} ${
-							tui.bold(tui.padRight('Project:', 12)) + tui.link(latestUrl)
-						}`
+						`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Project:', 12)) + tui.link(latestUrl)}`
 					);
 				}
 				lines.push(
@@ -1222,8 +1217,7 @@ export const deploySubcommand = createSubcommand({
 				logs,
 				urls: complete?.publicUrls
 					? {
-							deployment:
-								complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment,
+							deployment: complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment,
 							latest: complete.publicUrls.vanityProject ?? complete.publicUrls.latest,
 							custom: complete.publicUrls.custom,
 							dashboard,
