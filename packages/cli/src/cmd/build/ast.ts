@@ -1733,7 +1733,7 @@ export async function parseRoute(
 											subRoute.method,
 											rel,
 											fullPath,
-											version
+											subRoute.version
 										);
 
 										routes.push({
