@@ -1,3 +1,4 @@
+import type { SortDirection } from '@agentuity/core';
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api';
 import { StreamResponseError } from './util';
@@ -39,6 +40,10 @@ export interface StreamListOptions {
 	 */
 	namespace?: string;
 	/**
+	 * Filter by stream name
+	 */
+	name?: string;
+	/**
 	 * Maximum number of streams to return (default: 100, max: 1000)
 	 */
 	limit?: number;
@@ -50,6 +55,14 @@ export interface StreamListOptions {
 	 * Filter by metadata key-value pairs
 	 */
 	metadata?: Record<string, string>;
+	/**
+	 * Field to sort by
+	 */
+	sort?: string;
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**
@@ -84,17 +97,20 @@ export async function streamList(
 	client: APIClient,
 	options: StreamListOptions = {}
 ): Promise<StreamListData> {
-	const { projectId, orgId, namespace, limit, offset, metadata } = options;
+	const { projectId, orgId, namespace, name, limit, offset, metadata } = options;
 	const params = new URLSearchParams();
 
 	if (projectId) params.set('projectId', projectId);
 	if (orgId) params.set('orgId', orgId);
 	if (namespace) params.set('namespace', namespace);
+	if (name) params.set('name', name);
 	if (limit !== undefined) params.set('limit', limit.toString());
 	if (offset !== undefined) params.set('offset', offset.toString());
 	if (metadata && Object.keys(metadata).length > 0) {
 		params.set('metadata', JSON.stringify(metadata));
 	}
+	if (options.sort) params.set('sort', options.sort);
+	if (options.direction) params.set('direction', options.direction);
 
 	const queryString = params.toString();
 	const resp = await client.request<StreamListResponse>(

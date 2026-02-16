@@ -17,6 +17,13 @@ export type {
 	Body,
 	HttpMethod,
 } from './services/adapter';
+export type {
+	SortDirection,
+	PaginationParams,
+	SortParams,
+	ListParams,
+	PaginatedList,
+} from './services/pagination';
 export { ServiceException } from './services/exception';
 export {
 	type DataResult,
@@ -29,6 +36,7 @@ export {
 	type CreateNamespaceParams,
 	type GetAllStatsParams,
 	type KeyValueStatsPaginated,
+	type KVSortField,
 	KV_MIN_TTL_SECONDS,
 	KV_MAX_TTL_SECONDS,
 	KV_DEFAULT_TTL_SECONDS,
@@ -50,6 +58,7 @@ export {
 	type ListStreamsResponse,
 	type Stream,
 	type StreamStorage,
+	type StreamSortField,
 	STREAM_MIN_TTL_SECONDS,
 	STREAM_MAX_TTL_SECONDS,
 	STREAM_DEFAULT_TTL_SECONDS,
@@ -73,6 +82,7 @@ export {
 	type VectorGetAllStatsParams,
 	type VectorStatsPaginated,
 	type VectorStorage,
+	type VectorSortField,
 	VECTOR_MIN_TTL_SECONDS,
 	VECTOR_MAX_TTL_SECONDS,
 	VECTOR_DEFAULT_TTL_SECONDS,
@@ -99,8 +109,10 @@ export {
 export {
 	type SandboxResources,
 	type SandboxStatus,
+	type SandboxSortField,
 	type SandboxRuntimeRequirements,
 	type SandboxRuntime,
+	type RuntimeSortField,
 	type ExecutionStatus,
 	type StreamReader,
 	type SandboxStreamConfig,
@@ -116,6 +128,7 @@ export {
 	type SandboxSnapshotInfoPrivate,
 	type SandboxSnapshotUserInfo,
 	type SandboxSnapshotOrgInfo,
+	type SnapshotSortField,
 	type SandboxUserInfo,
 	type SandboxAgentInfo,
 	type SandboxProjectInfo,

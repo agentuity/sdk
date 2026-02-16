@@ -47,6 +47,11 @@ export const listSubcommand = createCommand({
 			limit: z.number().optional().describe('Maximum number of results'),
 			offset: z.number().optional().describe('Offset for pagination'),
 			orgId: z.string().optional().describe('filter by organization id'),
+			sort: z
+				.enum(['name', 'created', 'size', 'files'])
+				.optional()
+				.describe('field to sort by (default: created)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: SnapshotListResponseSchema,
 	},
@@ -61,6 +66,8 @@ export const listSubcommand = createCommand({
 			limit: opts.limit,
 			offset: opts.offset,
 			orgId: effectiveOrgId,
+			sort: opts.sort,
+			direction: opts.direction,
 		});
 
 		if (!options.json) {

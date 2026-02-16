@@ -63,6 +63,11 @@ export const listSubcommand = createSubcommand({
 			orgId: z.string().optional().describe('Filter by organization ID'),
 			projectId: z.string().optional().describe('Filter by project ID'),
 			all: z.boolean().optional().describe('List all threads regardless of project context'),
+			sort: z
+				.enum(['created', 'updated'])
+				.optional()
+				.describe('field to sort by (default: created)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: ThreadListResponseSchema,
 	},
@@ -82,6 +87,8 @@ export const listSubcommand = createSubcommand({
 				count: opts.count,
 				orgId,
 				projectId,
+				sort: opts.sort,
+				direction: opts.direction,
 			});
 
 			const result = threads.map((t: Thread) => ({

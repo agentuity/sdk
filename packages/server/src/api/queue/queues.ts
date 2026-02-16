@@ -194,12 +194,45 @@ export async function listQueues(
 		validateOffset(params.offset);
 	}
 
+	// Validate filter params
+	if (params?.queue_type) {
+		const validTypes = ['worker', 'pubsub'];
+		if (!validTypes.includes(params.queue_type)) {
+			throw new QueueError({
+				message: `Invalid queue_type filter: '${params.queue_type}'. Must be one of: ${validTypes.join(', ')}`,
+			});
+		}
+	}
+	if (params?.status) {
+		const validStatuses = ['active', 'paused'];
+		if (!validStatuses.includes(params.status)) {
+			throw new QueueError({
+				message: `Invalid status filter: '${params.status}'. Must be one of: ${validStatuses.join(', ')}`,
+			});
+		}
+	}
+
 	const searchParams = new URLSearchParams();
 	if (params?.limit !== undefined) {
 		searchParams.set('limit', String(params.limit));
 	}
 	if (params?.offset !== undefined) {
 		searchParams.set('offset', String(params.offset));
+	}
+	if (params?.name) {
+		searchParams.set('name', params.name);
+	}
+	if (params?.queue_type) {
+		searchParams.set('queue_type', params.queue_type);
+	}
+	if (params?.status) {
+		searchParams.set('status', params.status);
+	}
+	if (params?.sort) {
+		searchParams.set('sort', params.sort);
+	}
+	if (params?.direction) {
+		searchParams.set('direction', params.direction);
 	}
 
 	const queryString = searchParams.toString();

@@ -244,7 +244,9 @@ export class SandboxClient {
 
 		const logger = options.logger ?? new ConsoleLogger('warn');
 
-		this.#client = new APIClient(url, logger, apiKey ?? '', {});
+		// Disable retries for sandbox operations - 409 Conflict means sandbox is busy,
+		// not a retryable rate limit. Retrying would waste ~360s (4 attempts × 90s timeout).
+		this.#client = new APIClient(url, logger, apiKey ?? '', { maxRetries: 0 });
 		this.#orgId = options.orgId;
 		this.#apiKey = apiKey;
 		this.#region = region;

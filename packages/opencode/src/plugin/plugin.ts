@@ -1,6 +1,10 @@
 import type { PluginInput, Hooks } from '@opencode-ai/plugin';
 import { tool } from '@opencode-ai/plugin';
 import { StructuredError } from '@agentuity/core';
+import { existsSync } from 'node:fs';
+import { homedir, platform } from 'node:os';
+import { join } from 'node:path';
+import { z } from 'zod';
 import type { AgentConfig, CommandDefinition } from '../types';
 import { loadAllSkills, type LoadedSkill } from '../skills';
 import { agents } from '../agents';
@@ -13,8 +17,14 @@ import { createCadenceHooks } from './hooks/cadence';
 import { createSessionMemoryHooks } from './hooks/session-memory';
 import type { AgentRole } from '../types';
 import { BackgroundManager } from '../background';
+import type { SessionTreeNode } from '../sqlite';
+import { OpenCodeDBReader } from '../sqlite';
 import { TmuxSessionManager } from '../tmux';
 import { checkAuth } from '../services/auth';
+
+const sessionInputSchema = z.object({
+	sessionID: z.string().optional(),
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Memory Share Tool Errors
@@ -34,6 +44,11 @@ const MemoryShareError = StructuredError(
 	'MemoryShareError',
 	'Failed to create public memory share'
 )<{ reason: string }>();
+
+const OpenCodeDashboardUnavailableError = StructuredError(
+	'OpenCodeDashboardUnavailableError',
+	'OpenCode SQLite database is not available. Requires OpenCode v1.2.0+ with SQLite storage.'
+);
 
 // Sandbox environment detection
 const SANDBOX_ID = process.env.AGENTUITY_SANDBOX_ID;
@@ -74,6 +89,8 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 
 	const userConfig = await loadCoderConfig();
 	const coderConfig = mergeConfig(getDefaultConfig(), userConfig);
+	const resolvedDbPath = resolveOpenCodeDBPath();
+	const dbReader = new OpenCodeDBReader(resolvedDbPath ? { dbPath: resolvedDbPath } : undefined);
 
 	const sessionHooks = createSessionHooks(ctx, coderConfig);
 	const toolHooks = createToolHooks(ctx, coderConfig);
@@ -91,23 +108,28 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 					}),
 			})
 		: undefined;
-	const backgroundManager = new BackgroundManager(ctx, coderConfig.background, {
-		onSubagentSessionCreated: tmuxManager
-			? (event) => {
-					void tmuxManager.onSessionCreated(event);
-				}
-			: undefined,
-		onSubagentSessionDeleted: tmuxManager
-			? (event) => {
-					void tmuxManager.onSessionDeleted(event);
-				}
-			: undefined,
-		onShutdown: tmuxManager
-			? () => {
-					void tmuxManager.cleanup();
-				}
-			: undefined,
-	});
+	const backgroundManager = new BackgroundManager(
+		ctx,
+		coderConfig.background,
+		{
+			onSubagentSessionCreated: tmuxManager
+				? (event) => {
+						void tmuxManager.onSessionCreated(event);
+					}
+				: undefined,
+			onSubagentSessionDeleted: tmuxManager
+				? (event) => {
+						void tmuxManager.onSessionDeleted(event);
+					}
+				: undefined,
+			onShutdown: tmuxManager
+				? () => {
+						void tmuxManager.cleanup();
+					}
+				: undefined,
+		},
+		dbReader
+	);
 
 	// Recover any background tasks from previous sessions
 	// This allows tasks to survive plugin restarts
@@ -135,7 +157,7 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		});
 
 	// Create hooks that need backgroundManager for task reference injection during compaction
-	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager);
+	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager, dbReader);
 
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
 	// Orchestration (deciding which module handles which session) happens below in the hooks
@@ -144,7 +166,7 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	const configHandler = createConfigHandler(coderConfig);
 
 	// Create plugin tools using the @opencode-ai/plugin tool helper
-	const tools = createTools(backgroundManager);
+	const tools = createTools(backgroundManager, dbReader);
 
 	// Create a logger for shutdown handler
 	const shutdownLogger = (message: string) =>
@@ -156,7 +178,7 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			},
 		});
 
-	registerShutdownHandler(backgroundManager, tmuxManager, shutdownLogger);
+	registerShutdownHandler(backgroundManager, tmuxManager, shutdownLogger, dbReader);
 
 	// Show startup toast (fire and forget, don't block)
 	try {
@@ -178,6 +200,29 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		'chat.params': paramsHooks.onParams,
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
+		'shell.env': async (_input: unknown, output: unknown) => {
+			if (typeof output !== 'object' || output === null) {
+				return;
+			}
+			const profile = getCoderProfile();
+			const out = output as { env: Record<string, string> };
+			out.env ??= {} as Record<string, string>;
+			out.env.AGENTUITY_PROFILE = profile;
+			out.env.AGENTUITY_AGENT_MODE = 'opencode';
+			if (resolvedDbPath) {
+				out.env.OPENCODE_DB_PATH = resolvedDbPath;
+			}
+			const sessionId = process.env.AGENTUITY_OPENCODE_SESSION;
+			if (sessionId) {
+				out.env.AGENTUITY_OPENCODE_SESSION = sessionId;
+			}
+		},
+		'command.execute.before': async (input: unknown, _output: unknown) => {
+			const result = sessionInputSchema.safeParse(input);
+			if (result.success && result.data.sessionID) {
+				process.env.AGENTUITY_OPENCODE_SESSION = result.data.sessionID;
+			}
+		},
 		event: async (input) => {
 			const event = extractEventFromInput(input);
 			if (event) {
@@ -585,7 +630,10 @@ function normalizeBaseDir(path: string): string {
 	return path.replace(/[\\/]+$/, '');
 }
 
-function createTools(backgroundManager: BackgroundManager): Hooks['tool'] {
+function createTools(
+	backgroundManager: BackgroundManager,
+	dbReader?: OpenCodeDBReader
+): Hooks['tool'] {
 	// Use the schema from @opencode-ai/plugin's tool helper to avoid Zod version mismatches
 	const s = tool.schema;
 
@@ -697,8 +745,30 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 				});
 			}
 
-			// Extract last few messages for summary
 			const messages = inspection.messages ?? [];
+			const enhanced =
+				inspection.messageCount !== undefined ||
+				inspection.activeTools !== undefined ||
+				inspection.todos !== undefined ||
+				inspection.costSummary !== undefined ||
+				inspection.childSessionCount !== undefined;
+
+			if (enhanced) {
+				return JSON.stringify({
+					taskId: inspection.taskId,
+					status: inspection.status,
+					found: true,
+					messageCount: inspection.messageCount ?? messages.length,
+					messages,
+					lastActivity: inspection.lastActivity,
+					activeTools: inspection.activeTools,
+					todos: inspection.todos,
+					costSummary: inspection.costSummary,
+					childSessionCount: inspection.childSessionCount,
+				});
+			}
+
+			// Extract last few messages for summary (fallback)
 			const lastMessages = messages
 				.slice(-3)
 				.map((m) => {
@@ -720,6 +790,34 @@ IMPORTANT: Use this tool instead of the 'task' tool when:
 				messageCount: messages.length,
 				lastMessages,
 				lastActivity: inspection.lastActivity,
+			});
+		},
+	});
+
+	const sessionDashboard = tool({
+		description:
+			'Inspect a parent session dashboard from the local OpenCode SQLite database. Useful for Lead-of-Leads monitoring and nested session visibility.',
+		args: {
+			session_id: s.string().describe('Parent session ID to inspect'),
+		},
+		async execute(args) {
+			if (!dbReader || !dbReader.isAvailable()) {
+				const err = new OpenCodeDashboardUnavailableError();
+				return JSON.stringify({
+					success: false,
+					error: err._tag,
+					message: err.message,
+				});
+			}
+
+			const dashboard = dbReader.getSessionDashboard(args.session_id);
+			const builtTree = buildDashboardTree(dbReader, dashboard.sessions);
+			return JSON.stringify({
+				success: true,
+				sessionId: args.session_id,
+				totalCost: dashboard.totalCost,
+				summary: computeHealthSummary(builtTree),
+				sessions: builtTree,
 			});
 		},
 	});
@@ -869,6 +967,7 @@ Returns the public URL that can be copied and used anywhere.`,
 		agentuity_background_output: backgroundOutput,
 		agentuity_background_cancel: backgroundCancel,
 		agentuity_background_inspect: backgroundInspect,
+		agentuity_session_dashboard: sessionDashboard,
 		agentuity_memory_share: memoryShare,
 	};
 }
@@ -903,10 +1002,174 @@ function extractEventFromInput(
 	return { type: inp.event.type, properties: inp.event.properties };
 }
 
+function parseDisplayTitle(rawTitle: string): string {
+	try {
+		const parsed = JSON.parse(rawTitle);
+		if (typeof parsed === 'object' && parsed !== null) {
+			if (typeof parsed.description === 'string') return parsed.description;
+			if (typeof parsed.title === 'string') return parsed.title;
+			if (typeof parsed.name === 'string') return parsed.name;
+		}
+		// Parsed but no useful field — return as-is
+		return rawTitle;
+	} catch {
+		// Not JSON, return as-is
+		return rawTitle;
+	}
+}
+
+function getCurrentActivity(reader: OpenCodeDBReader, sessionId: string): string | null {
+	// First check active tools
+	const activeTools = reader.getActiveToolCalls(sessionId);
+	const firstTool = activeTools[0];
+	if (firstTool) {
+		return `Running ${firstTool.tool}`;
+	}
+
+	// Fall back to latest message
+	const latestMsg = reader.getLatestMessage(sessionId);
+	if (!latestMsg) return null;
+
+	if (latestMsg.error) return `Error: ${latestMsg.error.substring(0, 100)}`;
+
+	// Try to get latest text part for a snippet
+	const textParts = reader.getTextParts(sessionId, { limit: 1 });
+	const firstPart = textParts[0];
+	if (firstPart) {
+		const text = firstPart.text.trim();
+		if (text.length > 80) return text.substring(0, 77) + '...';
+		return text;
+	}
+
+	return null;
+}
+
+type DashboardNode = {
+	session: {
+		id: string;
+		title: string;
+		displayTitle: string;
+		parentId?: string | null;
+		timeUpdated: number;
+		timeUpdatedISO: string;
+	};
+	status: string;
+	lastActivity: number;
+	lastActivityISO: string;
+	currentActivity: string | null;
+	messageCount: number;
+	activeToolCount: number;
+	activeTools: Array<{ tool: string; status: string }>;
+	todoSummary: { total: number; pending: number; completed: number };
+	costSummary?: SessionTreeNode['costSummary'];
+	children: DashboardNode[];
+};
+
+function buildDashboardTree(
+	reader: OpenCodeDBReader,
+	sessions: SessionTreeNode[]
+): DashboardNode[] {
+	return sessions.map((node) => {
+		const status = reader.getSessionStatus(node.session.id);
+		const activeTools = reader.getActiveToolCalls(node.session.id);
+		return {
+			session: {
+				id: node.session.id,
+				title: node.session.title,
+				displayTitle: parseDisplayTitle(node.session.title),
+				parentId: node.session.parentId,
+				timeUpdated: node.session.timeUpdated,
+				timeUpdatedISO: new Date(node.session.timeUpdated).toISOString(),
+			},
+			status: status.status,
+			lastActivity: status.lastActivity,
+			lastActivityISO: new Date(status.lastActivity).toISOString(),
+			currentActivity: getCurrentActivity(reader, node.session.id),
+			messageCount: node.messageCount,
+			activeToolCount: node.activeToolCount,
+			activeTools: activeTools.map((t) => ({ tool: t.tool, status: t.status })),
+			todoSummary: node.todoSummary ?? { total: 0, pending: 0, completed: 0 },
+			costSummary: node.costSummary,
+			children: buildDashboardTree(reader, node.children),
+		};
+	});
+}
+
+type HealthSummary = {
+	active: number;
+	idle: number;
+	error: number;
+	archived: number;
+	compacting: number;
+	total: number;
+};
+
+function computeHealthSummary(nodes: DashboardNode[]): HealthSummary {
+	const summary: HealthSummary = {
+		active: 0,
+		idle: 0,
+		error: 0,
+		archived: 0,
+		compacting: 0,
+		total: 0,
+	};
+	function walk(nodeList: DashboardNode[]): void {
+		for (const node of nodeList) {
+			summary.total++;
+			const status = node.status as keyof Omit<HealthSummary, 'total'>;
+			if (status in summary) {
+				summary[status]++;
+			}
+			if (node.children.length > 0) walk(node.children);
+		}
+	}
+	walk(nodes);
+	return summary;
+}
+
+function resolveOpenCodeDBPath(): string | null {
+	const envPath = process.env.OPENCODE_DB_PATH;
+	if (envPath) {
+		if (isMemoryPath(envPath)) return envPath;
+		if (existsSync(envPath)) return envPath;
+	}
+
+	const home = homedir();
+	const candidates: string[] = [];
+	const currentPlatform = platform();
+
+	if (currentPlatform === 'darwin') {
+		candidates.push(join(home, 'Library', 'Application Support', 'opencode', 'opencode.db'));
+	}
+
+	if (currentPlatform === 'win32') {
+		const appData = process.env.APPDATA ?? join(home, 'AppData', 'Roaming');
+		const localAppData = process.env.LOCALAPPDATA ?? join(home, 'AppData', 'Local');
+		candidates.push(join(appData, 'opencode', 'opencode.db'));
+		candidates.push(join(localAppData, 'opencode', 'opencode.db'));
+	}
+
+	// Linux default
+	candidates.push(join(home, '.local', 'share', 'opencode', 'opencode.db'));
+
+	for (const candidate of candidates) {
+		if (existsSync(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
+function isMemoryPath(path: string): boolean {
+	return path === ':memory:' || path.includes('mode=memory');
+}
+
 function registerShutdownHandler(
 	manager: BackgroundManager,
 	tmuxManager?: TmuxSessionManager,
-	logger?: (msg: string) => void
+	logger?: (msg: string) => void,
+	dbReader?: OpenCodeDBReader
 ): void {
 	if (typeof process === 'undefined') {
 		logger?.('[shutdown] process is undefined, cannot register handlers');
@@ -947,6 +1210,16 @@ function registerShutdownHandler(
 				log('Tmux cleanup complete');
 			} catch (error) {
 				log(`Tmux cleanup error: ${error}`);
+			}
+		}
+
+		if (dbReader) {
+			try {
+				log('Closing OpenCode DB reader...');
+				dbReader.close();
+				log('OpenCode DB reader closed');
+			} catch (error) {
+				log(`OpenCode DB reader error: ${error}`);
 			}
 		}
 

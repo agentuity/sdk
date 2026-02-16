@@ -4,7 +4,6 @@ import { getCommand } from '../../command-prefix';
 import { z } from 'zod';
 import { ErrorCode, createError, exitWithError } from '../../errors';
 import * as tui from '../../tui';
-import { $ } from 'bun';
 import { tmpdir } from 'node:os';
 import { getInstallationType, type InstallationType } from '../../utils/installation-type';
 
@@ -84,14 +83,17 @@ async function performBunUpgrade(
 	const { installWithRetry } = await import('./npm-availability');
 
 	try {
+		const { spawnWithTimeout } = await import('./npm-availability');
+
 		await installWithRetry(
 			async () => {
 				// Use bun to install the specific version globally
 				// Run from tmpdir to avoid interference from any local package.json/node_modules
-				const result = await $`bun add -g @agentuity/cli@${npmVersion}`
-					.cwd(tmpdir())
-					.quiet()
-					.nothrow();
+				// spawnWithTimeout kills the process if it exceeds 30s (INSTALL_TIMEOUT_MS)
+				const result = await spawnWithTimeout(
+					['bun', 'add', '-g', `@agentuity/cli@${npmVersion}`],
+					{ cwd: tmpdir(), timeout: 30_000 }
+				);
 				return { exitCode: result.exitCode, stderr: result.stderr };
 			},
 			{ onRetry }
@@ -107,8 +109,10 @@ async function performBunUpgrade(
  * Verify the upgrade was successful by checking the installed version
  */
 async function verifyUpgrade(expectedVersion: string): Promise<void> {
-	// Run agentuity version to check the installed version
-	const result = await $`agentuity version`.quiet().nothrow();
+	const { spawnWithTimeout } = await import('./npm-availability');
+
+	// Run agentuity version to check the installed version (5s timeout — local command, sub-second normally)
+	const result = await spawnWithTimeout(['agentuity', 'version'], { timeout: 5_000 });
 
 	if (result.exitCode !== 0) {
 		throw new Error('Failed to verify upgrade - could not run agentuity version');
@@ -220,7 +224,9 @@ export const command = createCommand({
 			if (!isAvailable) {
 				tui.warning('The new version is not yet available on npm.');
 				tui.info('This can happen right after a release. Please try again in a few minutes.');
-				tui.info(`You can also run: ${tui.muted('bun add -g @agentuity/cli@latest')}`);
+				tui.newline();
+				tui.info('You can also upgrade manually:');
+				console.log(`  ${tui.muted('curl -fsSL https://agentuity.sh | sh')}`);
 				return {
 					upgraded: false,
 					from: currentVersion,
@@ -300,6 +306,12 @@ export const command = createCommand({
 				error: error instanceof Error ? error.message : 'Unknown error',
 				installationType,
 			};
+
+			tui.newline();
+			tui.info('If the upgrade continues to fail, you can reinstall manually:');
+			tui.newline();
+			console.log(`  ${tui.muted('curl -fsSL https://agentuity.sh | sh')}`);
+			tui.newline();
 
 			exitWithError(
 				createError(ErrorCode.INTERNAL_ERROR, 'Upgrade failed', errorDetails),

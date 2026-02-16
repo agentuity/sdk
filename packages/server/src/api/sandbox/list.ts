@@ -139,6 +139,12 @@ export async function sandboxList(
 	if (params?.orgId) {
 		queryParams.set('orgId', params.orgId);
 	}
+	if (params?.name) {
+		queryParams.set('name', params.name);
+	}
+	if (params?.mode) {
+		queryParams.set('mode', params.mode);
+	}
 	if (params?.projectId) {
 		queryParams.set('projectId', params.projectId);
 	}
@@ -156,6 +162,12 @@ export async function sandboxList(
 	}
 	if (params?.offset !== undefined) {
 		queryParams.set('offset', params.offset.toString());
+	}
+	if (params?.sort) {
+		queryParams.set('sort', params.sort);
+	}
+	if (params?.direction) {
+		queryParams.set('direction', params.direction);
 	}
 	if (params?.deletedOnly) {
 		queryParams.set('deletedOnly', 'true');

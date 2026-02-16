@@ -1,6 +1,7 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
 import type { BackgroundManager } from '../../background';
+import type { OpenCodeDBReader, SessionTreeNode } from '../../sqlite';
 
 /** Compacting hook input/output types */
 type CompactingInput = { sessionID: string };
@@ -69,7 +70,8 @@ interface CadenceSessionState {
 export function createCadenceHooks(
 	ctx: PluginInput,
 	_config: CoderConfig,
-	backgroundManager?: BackgroundManager
+	backgroundManager?: BackgroundManager,
+	dbReader?: OpenCodeDBReader
 ): CadenceHooks {
 	const activeCadenceSessions = new Map<string, CadenceSessionState>();
 
@@ -320,6 +322,7 @@ ${taskList}
 
 **CRITICAL:** Task IDs and session IDs persist across compaction - these tasks are still running.
 Use \`agentuity_background_output({ task_id: "..." })\` to check their status.
+Use \`agentuity_session_dashboard({ session_id: "..." })\` to get a full session tree with status, costs, and health summary for Lead-of-Leads monitoring.
 
 **Tip:** If you spawned child Leads for parallel work, delegate monitoring to BackgroundMonitor:
 \`\`\`typescript
@@ -363,6 +366,11 @@ After compaction:
 3. Lead will continue the loop from iteration ${state.iteration}
 4. Use 5-Question Reboot to re-orient: Where am I? Where going? Goal? Learned? Done?
 `);
+
+			const dashboardSummary = buildSqliteDashboardSummary(dbReader, sessionId);
+			if (dashboardSummary) {
+				output.context.push(dashboardSummary);
+			}
 		},
 
 		/**
@@ -453,6 +461,69 @@ function isCadenceStop(text: string): boolean {
 		text.includes("status: 'cancelled'") ||
 		text.includes('status":"cancelled')
 	);
+}
+
+function buildSqliteDashboardSummary(
+	dbReader: OpenCodeDBReader | undefined,
+	parentSessionId: string
+): string | undefined {
+	if (!dbReader || !dbReader.isAvailable()) return undefined;
+
+	const dashboard = dbReader.getSessionDashboard(parentSessionId);
+	if (!dashboard.sessions.length) return undefined;
+
+	const lines: string[] = [];
+	for (const node of dashboard.sessions) {
+		appendDashboardNode(dbReader, node, 0, lines);
+	}
+
+	return `
+## SQLite Session Dashboard
+
+- Parent session: ${parentSessionId}
+- Total child cost: ${dashboard.totalCost}
+
+${lines.join('\n')}
+`;
+}
+
+function appendDashboardNode(
+	reader: OpenCodeDBReader,
+	node: SessionTreeNode,
+	depth: number,
+	lines: string[]
+): void {
+	const status = reader.getSessionStatus(node.session.id);
+	const todoSummary = node.todoSummary
+		? `${node.todoSummary.pending}/${node.todoSummary.total} pending`
+		: 'no todos';
+	const costSummary = node.costSummary
+		? `${node.costSummary.totalCost} (${node.costSummary.totalTokens} tokens)`
+		: '0 (0 tokens)';
+	const label = formatSessionLabel(node.session.title);
+	const indent = `${'  '.repeat(depth)}-`;
+
+	lines.push(
+		`${indent} ${label} [${node.session.id}] status: ${status.status}, tools: ${node.activeToolCount}, todos: ${todoSummary}, messages: ${node.messageCount}, cost: ${costSummary}`
+	);
+
+	for (const child of node.children) {
+		appendDashboardNode(reader, child, depth + 1, lines);
+	}
+}
+
+function formatSessionLabel(title: string): string {
+	if (!title) return 'Session';
+	if (title.startsWith('{')) {
+		try {
+			const parsed = JSON.parse(title) as { description?: string; taskId?: string };
+			if (parsed.description) return parsed.description;
+			if (parsed.taskId) return parsed.taskId;
+		} catch {
+			return title;
+		}
+	}
+	return title;
 }
 
 function showToast(ctx: PluginInput, message: string): void {

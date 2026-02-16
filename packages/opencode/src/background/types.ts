@@ -66,4 +66,14 @@ export interface TaskInspection {
 	messages: Array<{ info: unknown; parts: unknown[] }>;
 	/** Last activity timestamp from task progress */
 	lastActivity?: string;
+	/** Total message count when available */
+	messageCount?: number;
+	/** Active tools with status when available */
+	activeTools?: Array<{ tool: string; status: string; callId: string }>;
+	/** Todo items when available */
+	todos?: Array<{ content: string; status: string; priority: string }>;
+	/** Cost summary when available */
+	costSummary?: { totalCost: number; totalTokens: number };
+	/** Count of child sessions (nested LoL) when available */
+	childSessionCount?: number;
 }

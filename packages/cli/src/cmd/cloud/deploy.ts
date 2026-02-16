@@ -426,6 +426,13 @@ export const deploySubcommand = createSubcommand({
 			}
 		}
 
+		// Create a unified abort controller for the entire deploy flow
+		const deployAbortController = new AbortController();
+		const deployAbortHandler = () => {
+			deployAbortController.abort();
+		};
+		process.on('SIGINT', deployAbortHandler);
+
 		// Start malware check async (runs in parallel with build)
 		if (deployment) {
 			malwareCheckPromise = (async () => {
@@ -442,7 +449,8 @@ export const deploySubcommand = createSubcommand({
 					const result = await projectDeploymentMalwareCheck(
 						catalystClient,
 						deployment!.id,
-						packages
+						packages,
+						deployAbortController.signal
 					);
 					logger.debug(
 						'Malware check complete: action=%s, flagged=%d',
@@ -597,7 +605,7 @@ export const deploySubcommand = createSubcommand({
 
 					{
 						label: 'Build, Verify and Package',
-						run: async () => {
+						run: async (stepCtx: StepContext) => {
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
@@ -637,7 +645,12 @@ export const deploySubcommand = createSubcommand({
 								});
 								capturedOutput = [...capturedOutput, ...bundleResult.output];
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
-								instructions = await projectDeploymentUpdate(apiClient, deployment.id, build);
+								instructions = await projectDeploymentUpdate(
+									apiClient,
+									deployment.id,
+									build,
+									stepCtx.signal
+								);
 								return stepSuccess(capturedOutput.length > 0 ? capturedOutput : undefined);
 							} catch (ex) {
 								const _ex = ex as Error;
@@ -782,6 +795,7 @@ export const deploySubcommand = createSubcommand({
 										'Content-Type': 'application/zip',
 									},
 									body: zipfile,
+									signal: stepCtx.signal,
 								});
 								ctx.logger.trace(`Upload response: ${resp.status}`);
 								if (!resp.ok) {
@@ -868,6 +882,7 @@ export const deploySubcommand = createSubcommand({
 												duplex: 'half',
 												headers,
 												body,
+												signal: stepCtx.signal,
 											})
 										);
 									}
@@ -902,11 +917,15 @@ export const deploySubcommand = createSubcommand({
 					},
 					{
 						label: 'Provision Deployment',
-						run: async () => {
+						run: async (stepCtx: StepContext) => {
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
-							complete = await projectDeploymentComplete(apiClient, deployment.id);
+							complete = await projectDeploymentComplete(
+								apiClient,
+								deployment.id,
+								stepCtx.signal
+							);
 							return stepSuccess();
 						},
 					},
@@ -934,12 +953,7 @@ export const deploySubcommand = createSubcommand({
 			const maxAttempts = 600;
 			let attempts = 0;
 
-			// Create abort controller to allow Ctrl+C to interrupt polling
-			const pollAbortController = new AbortController();
-			const sigintHandler = () => {
-				pollAbortController.abort();
-			};
-			process.on('SIGINT', sigintHandler);
+			// Reuse the deploy abort controller for polling (already aborted on Ctrl+C)
 
 			try {
 				if (streamId) {
@@ -1001,14 +1015,22 @@ export const deploySubcommand = createSubcommand({
 								// Poll for deployment status
 								while (attempts < maxAttempts) {
 									// Check if user pressed Ctrl+C
-									if (pollAbortController.signal.aborted) {
+									if (deployAbortController.signal.aborted) {
 										logStreamController.abort();
 										throw new DeploymentCancelledError();
 									}
 
 									attempts++;
 									try {
+<<<<<<< HEAD
 										statusResult = await projectDeploymentStatus(apiClient, deployment?.id ?? '');
+=======
+										statusResult = await projectDeploymentStatus(
+											apiClient,
+											deployment?.id ?? '',
+											deployAbortController.signal
+										);
+>>>>>>> 086376d908c46f80a56cd75bba2df256bd07cedc
 
 										logger.trace('status result: %s', statusResult);
 
@@ -1097,12 +1119,20 @@ export const deploySubcommand = createSubcommand({
 						callback: async () => {
 							while (attempts < maxAttempts) {
 								// Check if user pressed Ctrl+C
-								if (pollAbortController.signal.aborted) {
+								if (deployAbortController.signal.aborted) {
 									throw new DeploymentCancelledError();
 								}
 
 								attempts++;
+<<<<<<< HEAD
 								statusResult = await projectDeploymentStatus(apiClient, deployment?.id ?? '');
+=======
+								statusResult = await projectDeploymentStatus(
+									apiClient,
+									deployment?.id ?? '',
+									deployAbortController.signal
+								);
+>>>>>>> 086376d908c46f80a56cd75bba2df256bd07cedc
 
 								if (statusResult.state === 'completed') {
 									break;
@@ -1149,7 +1179,7 @@ export const deploySubcommand = createSubcommand({
 				tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 			} finally {
 				// Clean up signal handler
-				process.off('SIGINT', sigintHandler);
+				process.off('SIGINT', deployAbortHandler);
 			}
 
 			// Show deployment URLs
@@ -1162,14 +1192,22 @@ export const deploySubcommand = createSubcommand({
 						);
 					}
 				} else {
+					// Prefer vanity URLs, fall back to hash-based
+					const deploymentUrl =
+						complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment;
+					const latestUrl = complete.publicUrls.vanityProject ?? complete.publicUrls.latest;
 					lines.push(
 						`${tui.ICONS.arrow} ${
+<<<<<<< HEAD
 							tui.bold(tui.padRight('Deployment:', 12)) + tui.link(complete.publicUrls.deployment)
+=======
+							tui.bold(tui.padRight('Deployment:', 12)) + tui.link(deploymentUrl)
+>>>>>>> 086376d908c46f80a56cd75bba2df256bd07cedc
 						}`
 					);
 					lines.push(
 						`${tui.ICONS.arrow} ${
-							tui.bold(tui.padRight('Project:', 12)) + tui.link(complete.publicUrls.latest)
+							tui.bold(tui.padRight('Project:', 12)) + tui.link(latestUrl)
 						}`
 					);
 				}
@@ -1196,20 +1234,28 @@ export const deploySubcommand = createSubcommand({
 				logs,
 				urls: complete?.publicUrls
 					? {
-							deployment: complete.publicUrls.deployment,
-							latest: complete.publicUrls.latest,
+							deployment:
+								complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment,
+							latest: complete.publicUrls.vanityProject ?? complete.publicUrls.latest,
 							custom: complete.publicUrls.custom,
 							dashboard,
 						}
 					: undefined,
 			};
 		} catch (ex) {
+			// Handle step interruption (Ctrl+C during build steps)
+			if (ex instanceof StepInterruptError) {
+				tui.warning('Deployment cancelled');
+				process.exit(ex.exitCode);
+			}
 			collector.addGeneralError('deploy', String(ex), 'DEPLOY004');
 			if (opts.reportFile) {
 				await collector.forceWrite();
 			}
 			clearGlobalCollector();
 			tui.fatal(`unexpected error trying to deploy project. ${ex}`);
+		} finally {
+			process.off('SIGINT', deployAbortHandler);
 		}
 	},
 });
