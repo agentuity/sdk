@@ -5,7 +5,7 @@ import { APIClient, PaymentRequiredError } from '../api';
 import { sandboxCreate } from './create';
 import { sandboxDestroy } from './destroy';
 import { sandboxGetStatus } from './getStatus';
-import { ExecutionCancelledError, ExecutionTimeoutError, writeAndDrain } from './util';
+import { ExecutionCancelledError, writeAndDrain } from './util';
 import type { SandboxRunOptions, SandboxRunResult } from '@agentuity/core';
 import { getServiceUrls } from '../../config';
 
@@ -181,7 +181,7 @@ export async function sandboxRun(
 		if (streamPromises.length > 0) {
 			if (signal) {
 				// Race streams against abort signal
-				const raceResults = await Promise.race([
+				await Promise.race([
 					Promise.allSettled(streamPromises),
 					new Promise<never>((_, reject) => {
 						const onAbort = () => {
@@ -201,7 +201,7 @@ export async function sandboxRun(
 					}),
 				]);
 			} else {
-				const results = await Promise.allSettled(streamPromises);
+				await Promise.allSettled(streamPromises);
 			}
 		} else {
 			// No streams available (shouldn't happen for oneshot, but handle defensively).
