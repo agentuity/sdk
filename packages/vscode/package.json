@@ -3,7 +3,7 @@
 	"private": true,
 	"displayName": "Agentuity VSCode Extension",
 	"description": "Build, deploy, and manage AI agents with Agentuity",
-	"version": "1.0.13",
+	"version": "1.0.14",
 	"publisher": "agentuity",
 	"license": "Apache-2.0",
 	"repository": {
