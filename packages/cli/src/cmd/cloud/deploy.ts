@@ -1022,15 +1022,11 @@ export const deploySubcommand = createSubcommand({
 
 									attempts++;
 									try {
-<<<<<<< HEAD
-										statusResult = await projectDeploymentStatus(apiClient, deployment?.id ?? '');
-=======
 										statusResult = await projectDeploymentStatus(
 											apiClient,
 											deployment?.id ?? '',
 											deployAbortController.signal
 										);
->>>>>>> 086376d908c46f80a56cd75bba2df256bd07cedc
 
 										logger.trace('status result: %s', statusResult);
 
@@ -1124,15 +1120,11 @@ export const deploySubcommand = createSubcommand({
 								}
 
 								attempts++;
-<<<<<<< HEAD
-								statusResult = await projectDeploymentStatus(apiClient, deployment?.id ?? '');
-=======
 								statusResult = await projectDeploymentStatus(
 									apiClient,
 									deployment?.id ?? '',
 									deployAbortController.signal
 								);
->>>>>>> 086376d908c46f80a56cd75bba2df256bd07cedc
 
 								if (statusResult.state === 'completed') {
 									break;
@@ -1198,11 +1190,7 @@ export const deploySubcommand = createSubcommand({
 					const latestUrl = complete.publicUrls.vanityProject ?? complete.publicUrls.latest;
 					lines.push(
 						`${tui.ICONS.arrow} ${
-<<<<<<< HEAD
-							tui.bold(tui.padRight('Deployment:', 12)) + tui.link(complete.publicUrls.deployment)
-=======
 							tui.bold(tui.padRight('Deployment:', 12)) + tui.link(deploymentUrl)
->>>>>>> 086376d908c46f80a56cd75bba2df256bd07cedc
 						}`
 					);
 					lines.push(
