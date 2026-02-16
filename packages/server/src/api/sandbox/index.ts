@@ -91,6 +91,8 @@ export {
 	SandboxUserInfoSchema,
 	sandboxGet,
 } from './get';
+export type { SandboxGetStatusParams, SandboxStatusResult } from './getStatus';
+export { sandboxGetStatus } from './getStatus';
 export type { SandboxListParams } from './list';
 export {
 	ListSandboxesDataSchema,
