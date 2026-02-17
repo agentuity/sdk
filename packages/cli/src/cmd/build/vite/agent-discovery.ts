@@ -11,6 +11,7 @@ import { dirname, join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
 import type { Logger } from '../../../types';
 import { formatSchemaCode } from '../format-schema';
+import { toForwardSlash } from '../../../utils/normalize-path';
 
 interface ASTNode {
 	type: string;
@@ -728,7 +729,7 @@ export async function discoverAgents(
 
 			// Use 'src/' prefix for consistency with bun bundler and registry imports
 			const rootDir = join(srcDir, '..');
-			const relativeFilename = relative(rootDir, filePath);
+			const relativeFilename = toForwardSlash(relative(rootDir, filePath));
 			const agentMetadata = extractAgentMetadata(
 				contents,
 				relativeFilename,
@@ -763,7 +764,7 @@ export async function discoverAgents(
 				// 2. Check for evals in separate eval.ts file in same directory
 				const agentDir = dirname(filePath);
 				const evalsPath = join(agentDir, 'eval.ts');
-				const relativeEvalsPath = relative(rootDir, evalsPath);
+				const relativeEvalsPath = toForwardSlash(relative(rootDir, evalsPath));
 				const evalsInSeparateFile = await extractEvalMetadata(
 					evalsPath,
 					relativeEvalsPath,

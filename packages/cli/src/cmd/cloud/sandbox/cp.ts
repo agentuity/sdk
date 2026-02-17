@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { readFileSync, writeFileSync, mkdirSync, statSync, readdirSync } from 'node:fs';
 import { dirname, resolve, basename, join, relative } from 'node:path';
 import { createCommand } from '../../../types';
+import { toForwardSlash } from '../../../utils/normalize-path';
 import * as tui from '../../../tui';
 import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
@@ -265,7 +266,7 @@ async function uploadDirectory(
 		: effectiveRemotePath;
 
 	for (const filePath of allFiles) {
-		const relativePath = relative(localDir, filePath);
+		const relativePath = toForwardSlash(relative(localDir, filePath));
 		const targetPath = `${baseRemotePath}/${relativePath}`;
 		const buffer = readFileSync(filePath);
 		files.push({ path: targetPath, content: buffer });

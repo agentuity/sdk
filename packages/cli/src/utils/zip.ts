@@ -1,6 +1,7 @@
 import { relative } from 'node:path';
 import { Glob } from 'bun';
 import AdmZip from 'adm-zip';
+import { toForwardSlash } from './normalize-path';
 
 interface Options {
 	progress?: (val: number) => void;
@@ -15,7 +16,7 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 	const total = files.length;
 	let count = 0;
 	for (const file of files) {
-		const rel = relative(dir, file);
+		const rel = toForwardSlash(relative(dir, file));
 		let skip = false;
 		if (options?.filter) {
 			if (!options.filter(file, rel)) {
