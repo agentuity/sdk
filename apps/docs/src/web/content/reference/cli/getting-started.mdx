@@ -337,28 +337,6 @@ agentuity --log-level=debug project create
 agentuity --log-level=error build
 ```
 
-## Configuration Profiles
-
-The CLI supports multiple configuration profiles for different environments (development, staging, production).
-
-### Switch Profiles
-
-Switch to a different profile:
-
-```bash
-agentuity profile use production
-```
-
-### List Profiles
-
-View available profiles:
-
-```bash
-agentuity profile list
-```
-
-Configuration is stored in `~/.config/agentuity/production.yaml` by default. Override with `--config=/path/to/config.yaml`.
-
 ## SSH Key Management
 
 Add SSH keys to your account for secure container access during development and debugging.

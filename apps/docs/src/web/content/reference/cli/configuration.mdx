@@ -40,7 +40,7 @@ agentuity cloud env delete OLD_CONFIG
 
 ### Push from Local File
 
-Upload variables from `.env.production` (or `.env`) to cloud:
+Upload variables from `.env` to cloud:
 
 ```bash
 agentuity cloud env push
@@ -50,7 +50,7 @@ This filters out `AGENTUITY_` prefixed keys automatically.
 
 ### Pull to Local File
 
-Download cloud variables to `.env.production`:
+Download cloud variables to `.env`:
 
 ```bash
 # Merge with local (local values take priority)
