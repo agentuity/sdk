@@ -272,6 +272,81 @@ coder:
     defaultConcurrency: 3
 ```
 
+## Monitoring Sessions
+
+View and inspect OpenCode coding sessions from the CLI.
+
+### Dashboard
+
+Display an overview of recent sessions with status, message counts, active tools, costs, and todos:
+
+```bash
+agentuity ai opencode dashboard
+```
+
+| Option | Description |
+|--------|-------------|
+| `--watch` | Continuously refresh the dashboard (press `q` to quit, `r` to refresh) |
+| `--interval <seconds>` | Refresh interval in watch mode (default: `5`) |
+| `--limit <n>` | Maximum sessions to show (default: `10`) |
+| `--all` | Show all sessions (overrides default limit) |
+| `--since <duration>` | Filter by recent activity (`30m`, `1h`, `6h`, `24h`, `7d`) |
+| `--status <status>` | Filter by status: `active`, `idle`, `error`, `archived`, `compacting` |
+| `--search <query>` | Search sessions by title (case-insensitive) |
+| `--session <id>` | Focus on a specific session tree |
+| `--all-todos` | Show all todos including completed (default: pending only) |
+| `--json` | Output as JSON |
+
+```bash
+# Watch active sessions updated in the last hour
+agentuity ai opencode dashboard --watch --since 1h
+
+# Only active sessions
+agentuity ai opencode dashboard --status active
+
+# Search by title
+agentuity ai opencode dashboard --search "auth"
+
+# 5 most recent idle sessions
+agentuity ai opencode dashboard --limit 5 --status idle
+
+# JSON output for scripting
+agentuity ai opencode dashboard --json
+```
+
+### Inspect
+
+View detailed information about a specific session, including messages, active tools, recent tool history, todos, cost breakdown, and child sessions:
+
+```bash
+agentuity ai opencode inspect <session-id>
+```
+
+```bash
+agentuity ai opencode inspect ses_abc123
+
+# JSON output
+agentuity ai opencode inspect ses_abc123 --json
+```
+
+### Database Location
+
+<Callout type="info" title="Requires OpenCode v1.2.0+">
+The dashboard and inspect commands require OpenCode v1.2.0+ with SQLite storage.
+</Callout>
+
+Both commands read from the local OpenCode SQLite database. The CLI searches standard platform locations automatically:
+
+- **macOS**: `~/Library/Application Support/opencode/opencode.db`
+- **Linux**: `~/.local/share/opencode/opencode.db`
+- **Windows**: `%APPDATA%\opencode\opencode.db` (fallback: `%LOCALAPPDATA%\opencode\opencode.db`)
+
+Override the path with the `OPENCODE_DB_PATH` environment variable:
+
+```bash
+OPENCODE_DB_PATH=/path/to/opencode.db agentuity ai opencode dashboard
+```
+
 ## Next Steps
 
 - [AI Commands](/reference/cli/ai-commands): Other AI-related CLI commands

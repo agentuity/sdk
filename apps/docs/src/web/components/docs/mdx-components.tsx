@@ -1,7 +1,7 @@
 'use client';
 
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
-import { useState } from 'react';
+import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from 'react';
+import { Children, createContext, isValidElement, useContext, useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Callout } from './callout';
@@ -22,10 +22,20 @@ interface PreProps extends ComponentPropsWithoutRef<'pre'> {
 	'data-theme'?: string;
 }
 
+interface FigureProps extends ComponentPropsWithoutRef<'figure'> {
+	'data-rehype-pretty-code-figure'?: string;
+}
+
 interface CodeProps extends ComponentPropsWithoutRef<'code'> {
 	'data-language'?: string;
 	'data-theme'?: string;
 }
+
+const FigureContext = createContext<{ inFigure: boolean; hasTitle: boolean }>({
+	inFigure: false,
+	hasTitle: false,
+});
+const InPreContext = createContext(false);
 
 // Helper to extract text from React children
 function extractTextContent(node: ReactNode): string {
@@ -40,56 +50,186 @@ function extractTextContent(node: ReactNode): string {
 	return '';
 }
 
-// Code block with copy button - handles rehype-pretty-code output
-function Pre({ className, children, ...props }: PreProps) {
-	const [copied, setCopied] = useState(false);
+function findCodeNode(node: ReactNode): ReactElement<{ children?: ReactNode }> | null {
+	for (const child of Children.toArray(node)) {
+		if (!isValidElement(child)) continue;
 
-	const handleCopy = () => {
-		const text = extractTextContent(children);
-		if (text) {
-			navigator.clipboard.writeText(text);
+		const childProps = child.props as Record<string, unknown>;
+		if (
+			child.type === 'pre' ||
+			childProps['data-language'] !== undefined ||
+			childProps['data-theme'] !== undefined
+		) {
+			return child as ReactElement<{ children?: ReactNode }>;
+		}
+
+		const nested = findCodeNode(childProps.children as ReactNode);
+		if (nested) return nested;
+	}
+
+	return null;
+}
+
+// Code figure with sticky header + copy button
+function Figure({ className, children, ...props }: FigureProps) {
+	const isCodeFigure = props['data-rehype-pretty-code-figure'] !== undefined;
+	const [copied, setCopied] = useState(false);
+	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+	if (!isCodeFigure) {
+		return (
+			<figure className={className} {...props}>
+				{children}
+			</figure>
+		);
+	}
+
+	let titleText = '';
+	let language = '';
+	const contentChildren: ReactNode[] = [];
+
+	for (const child of Children.toArray(children)) {
+		if (!isValidElement(child)) {
+			contentChildren.push(child);
+			continue;
+		}
+
+		const childProps = child.props as Record<string, unknown>;
+		if (childProps['data-rehype-pretty-code-title'] !== undefined) {
+			titleText = extractTextContent(childProps.children as ReactNode).trim();
+			const titleLanguage = childProps['data-language'];
+			if (typeof titleLanguage === 'string') {
+				language = titleLanguage;
+			}
+			continue;
+		}
+
+		contentChildren.push(child);
+	}
+
+	const hasTitle = titleText.length > 0;
+
+	const handleCopy = async () => {
+		const codeNode = findCodeNode(contentChildren);
+		const text = extractTextContent(codeNode?.props.children ?? contentChildren).trimEnd();
+		if (!text) return;
+
+		try {
+			await navigator.clipboard.writeText(text);
+			if (timerRef.current) clearTimeout(timerRef.current);
 			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
+			timerRef.current = setTimeout(() => setCopied(false), 2000);
+		} catch {
+			// Clipboard unavailable (HTTP context or permission denied)
 		}
 	};
 
 	return (
-		<div className="group relative mt-4">
+		<FigureContext.Provider value={{ inFigure: true, hasTitle }}>
+			<figure
+				{...props}
+				data-has-title={hasTitle ? 'true' : undefined}
+				className={cn('group/code', className)}
+			>
+				{hasTitle && (
+					<div className="docs-code-header sticky top-0 z-10 flex items-center gap-2 bg-zinc-100/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-zinc-100/80 dark:bg-zinc-900/95 dark:supports-[backdrop-filter]:bg-zinc-900/80">
+						{language && (
+							<span className="rounded bg-zinc-200 px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+								{language}
+							</span>
+						)}
+						<span className="min-w-0 truncate font-mono text-xs text-zinc-600 dark:text-zinc-400">
+							{titleText}
+						</span>
+						<button
+							type="button"
+							onClick={handleCopy}
+							className="ml-auto inline-flex size-8 cursor-pointer items-center justify-center rounded-md border border-zinc-300 bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+							aria-label={copied ? 'Copied!' : 'Copy code'}
+						>
+							{copied ? (
+								<Check className="size-4 text-green-600 dark:text-green-400" />
+							) : (
+								<Copy className="size-4" />
+							)}
+						</button>
+					</div>
+				)}
+				{contentChildren}
+			</figure>
+		</FigureContext.Provider>
+	);
+}
+
+// Code block body - handles rehype-pretty-code output
+function Pre({ className, children, ...props }: PreProps) {
+	const { inFigure, hasTitle } = useContext(FigureContext);
+	const showOverlayCopy = !hasTitle;
+	const isStandaloneFence = !inFigure;
+	const [copied, setCopied] = useState(false);
+	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+	const handleCopy = async () => {
+		const text = extractTextContent(children).trimEnd();
+		if (!text) return;
+
+		try {
+			await navigator.clipboard.writeText(text);
+			if (timerRef.current) clearTimeout(timerRef.current);
+			setCopied(true);
+			timerRef.current = setTimeout(() => setCopied(false), 2000);
+		} catch {
+			// Clipboard unavailable (HTTP context or permission denied)
+		}
+	};
+
+	return (
+		<div
+			className={cn(
+				'relative group/pre',
+				isStandaloneFence &&
+					'my-4 max-h-[min(55vh,28rem)] overflow-y-auto overscroll-contain rounded-lg border border-zinc-200 bg-zinc-50 md:max-h-[min(65vh,42rem)] dark:border-zinc-800 dark:bg-zinc-900'
+			)}
+		>
+			{showOverlayCopy && (
+				<button
+					type="button"
+					onClick={handleCopy}
+					className="docs-code-copy-overlay absolute top-3 right-3 z-10 inline-flex size-8 cursor-pointer items-center justify-center rounded-md border border-zinc-300 bg-zinc-100 text-zinc-600 opacity-0 transition-opacity group-hover/pre:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 [@media(hover:none)]:opacity-100 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+					aria-label={copied ? 'Copied!' : 'Copy code'}
+				>
+					{copied ? (
+						<Check className="size-4 text-green-600 dark:text-green-400" />
+					) : (
+						<Copy className="size-4" />
+					)}
+				</button>
+			)}
 			<pre
 				className={cn(
-					'overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-4 text-sm',
+					'overflow-x-auto bg-transparent p-4 text-sm',
+					showOverlayCopy && 'pr-14',
 					'[&>code]:bg-transparent [&>code]:p-0 [&>code]:text-inherit',
 					className
 				)}
 				{...props}
 			>
-				{children}
+				<InPreContext.Provider value={true}>{children}</InPreContext.Provider>
 			</pre>
-			<button
-				type="button"
-				onClick={handleCopy}
-				className={cn(
-					'absolute top-3 right-3 p-1.5 rounded-md cursor-pointer',
-					'opacity-0 group-hover:opacity-100 transition-opacity',
-					'bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-zinc-300 dark:hover:bg-zinc-600',
-					'text-zinc-600 dark:text-zinc-400'
-				)}
-				aria-label={copied ? 'Copied!' : 'Copy code'}
-			>
-				{copied ? (
-					<Check className="size-4 text-green-600 dark:text-green-400" />
-				) : (
-					<Copy className="size-4" />
-				)}
-			</button>
 		</div>
 	);
 }
 
 // Inline code (not in a pre block)
 function InlineCode({ className, ...props }: CodeProps) {
+	const inPre = useContext(InPreContext);
+
 	// If inside a pre block (has data-* attributes from rehype-pretty-code), don't style as inline
-	const isCodeBlock = props['data-language'] || props['data-theme'];
+	const isCodeBlock = inPre || props['data-language'] || props['data-theme'];
 	if (isCodeBlock) {
 		return <code className={cn('font-mono', className)} {...props} />;
 	}
@@ -236,6 +376,7 @@ export const mdxComponents: MDXComponents = {
 	),
 
 	// Code blocks (with copy button)
+	figure: Figure,
 	pre: Pre,
 	code: InlineCode,
 

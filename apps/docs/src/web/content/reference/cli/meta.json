@@ -5,6 +5,7 @@
     "development",
     "build-configuration",
     "deployment",
+    "git-integration",
     "storage",
     "sandbox",
     "configuration",

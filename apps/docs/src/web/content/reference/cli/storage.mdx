@@ -80,7 +80,33 @@ agentuity cloud kv stats
 
 # Stats for specific namespace
 agentuity cloud kv stats production
+
+# Filter by name
+agentuity cloud kv stats --name cache
+
+# Sort by size, largest first
+agentuity cloud kv stats --sort=size --direction=desc
+
+# Paginate results
+agentuity cloud kv stats --limit=10 --offset=20
+
+# Filter by project or agent
+agentuity cloud kv stats --project-id=proj_abc --agent-id=agt_xyz
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Filter namespaces by name |
+| `--sort <field>` | Sort by `name`, `size`, `records`, `created`, or `lastUsed` (default: `name`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `asc`) |
+| `--limit <n>` | Maximum number of results |
+| `--offset <n>` | Pagination offset |
+| `--project-id <id>` | Filter by project ID |
+| `--agent-id <id>` | Filter by agent ID |
+| `--project-name <name>` | Filter by project name |
+| `--agent-name <name>` | Filter by agent name |
+
+Sort field values are case-sensitive and use camelCase (e.g., `--sort=lastUsed`, not `--sort=last-used`).
 
 ### Namespace Management
 
@@ -109,8 +135,8 @@ Both `cloud storage` and `cloud s3` work interchangeably. Examples below use `s3
 ### Create Storage Resource
 
 ```bash
-agentuity cloud storage create --name my-storage
-# or: agentuity cloud s3 create --name my-storage
+agentuity cloud storage create
+# or: agentuity cloud s3 create
 ```
 
 This adds S3 credentials to your local `.env` file automatically.
@@ -119,7 +145,27 @@ This adds S3 credentials to your local `.env` file automatically.
 
 ```bash
 agentuity cloud s3 list
+
+# Filter by name
+agentuity cloud s3 list --name my-bucket
+
+# Sort by name
+agentuity cloud s3 list --sort=name --direction=asc
+
+# Paginate results
+agentuity cloud s3 list --limit=10 --offset=0
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Filter by bucket name |
+| `--sort <field>` | Sort by `name`, `created`, or `region` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
+| `--limit <n>` | Maximum number of results |
+| `--offset <n>` | Pagination offset |
+| `--org-id <id>` | Filter by organization |
+| `--show-credentials` | Show credentials in plain text (masked by default) |
+| `--name-only` | Print only the bucket name |
 
 ### Upload a File
 
@@ -170,7 +216,7 @@ agentuity cloud vector search embeddings "neural networks" --metadata category=a
 ### Get Vector by ID
 
 ```bash
-agentuity cloud vec get <vector-id>
+agentuity cloud vec get <namespace> <key>
 ```
 
 ### Upsert Vectors
@@ -204,7 +250,7 @@ Example `vectors.json`:
 ### Delete a Vector
 
 ```bash
-agentuity cloud vec delete <vector-id>
+agentuity cloud vec delete <namespace> <key> [<key>...]
 ```
 
 ### View Statistics
@@ -215,7 +261,24 @@ agentuity cloud vector stats
 
 # Stats for specific namespace
 agentuity cloud vector stats products
+
+# Filter by name
+agentuity cloud vector stats --name embeddings
+
+# Sort by record count, descending
+agentuity cloud vector stats --sort=records --direction=desc
+
+# Paginate results
+agentuity cloud vector stats --limit=10 --offset=0
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Filter namespaces by name |
+| `--sort <field>` | Sort by `name`, `size`, `records`, `created`, or `lastUsed` (default: `name`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `asc`) |
+| `--limit <n>` | Maximum number of results |
+| `--offset <n>` | Pagination offset |
 
 ### List Namespaces
 
@@ -245,7 +308,27 @@ Manage database resources and run SQL queries.
 
 ```bash
 agentuity cloud db list
+
+# Filter by name
+agentuity cloud db list --name analytics-db
+
+# Sort by name, ascending
+agentuity cloud db list --sort=name --direction=asc
+
+# Paginate results
+agentuity cloud db list --limit=10 --offset=0
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Filter by database name |
+| `--sort <field>` | Sort by `name`, `created`, or `region` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
+| `--limit <n>` | Maximum number of results |
+| `--offset <n>` | Pagination offset |
+| `--org-id <id>` | Filter by organization |
+| `--show-credentials` | Show credentials in plain text (masked by default) |
+| `--name-only` | Print only the database name |
 
 ### Create a Database
 
@@ -304,7 +387,39 @@ List and manage durable event streams.
 
 ```bash
 agentuity cloud stream list
+
+# Filter by namespace
+agentuity cloud stream list --namespace agent-logs
+
+# Filter by metadata
+agentuity cloud stream list --metadata type=export
+
+# Sort by size, largest first
+agentuity cloud stream list --sort=size --direction=desc
+
+# Paginate results (uses --size for limit, not --limit)
+agentuity cloud stream list --size=50 --offset=10
+
+# Filter by project or organization
+agentuity cloud stream list --project-id=proj_abc123
+agentuity cloud stream list --org-id=org_abc123
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--size <n>` | Maximum number of streams to return (default: `100`) |
+| `--offset <n>` | Pagination offset |
+| `--name <name>` | Filter by stream name |
+| `--namespace <ns>` | Filter by namespace |
+| `--metadata <key=value>` | Filter by metadata (comma-separated pairs) |
+| `--sort <field>` | Sort by `name`, `created`, `updated`, `size`, `count`, or `lastUsed` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
+| `--project-id <id>` | Filter by project |
+| `--org-id <id>` | Filter by organization |
+
+<Callout type="warning" title="Mutual Exclusivity">
+`--org-id` and `--project-id` cannot be used together. Use one or the other.
+</Callout>
 
 ### Get Stream Details
 

@@ -42,6 +42,7 @@ import { Route as DocsFrontendProviderSetupRouteImport } from './routes/_docs/fr
 import { Route as DocsFrontendDeploymentScenariosRouteImport } from './routes/_docs/frontend/deployment-scenarios'
 import { Route as DocsFrontendAuthenticationRouteImport } from './routes/_docs/frontend/authentication'
 import { Route as DocsFrontendAdvancedHooksRouteImport } from './routes/_docs/frontend/advanced-hooks'
+import { Route as DocsCommunityInboundEmailAgentRouteImport } from './routes/_docs/community/inbound-email-agent'
 import { Route as DocsApisWhenToUseRouteImport } from './routes/_docs/apis/when-to-use'
 import { Route as DocsApisCallingAgentsRouteImport } from './routes/_docs/apis/calling-agents'
 import { Route as DocsAgentsWorkbenchRouteImport } from './routes/_docs/agents/workbench'
@@ -78,6 +79,7 @@ import { Route as DocsServicesDatabaseDrizzleRouteImport } from './routes/_docs/
 import { Route as DocsReferenceCliStorageRouteImport } from './routes/_docs/reference/cli/storage'
 import { Route as DocsReferenceCliSandboxRouteImport } from './routes/_docs/reference/cli/sandbox'
 import { Route as DocsReferenceCliOpencodePluginRouteImport } from './routes/_docs/reference/cli/opencode-plugin'
+import { Route as DocsReferenceCliGitIntegrationRouteImport } from './routes/_docs/reference/cli/git-integration'
 import { Route as DocsReferenceCliGettingStartedRouteImport } from './routes/_docs/reference/cli/getting-started'
 import { Route as DocsReferenceCliDevelopmentRouteImport } from './routes/_docs/reference/cli/development'
 import { Route as DocsReferenceCliDeploymentRouteImport } from './routes/_docs/reference/cli/deployment'
@@ -271,6 +273,12 @@ const DocsFrontendAdvancedHooksRoute =
   DocsFrontendAdvancedHooksRouteImport.update({
     id: '/frontend/advanced-hooks',
     path: '/frontend/advanced-hooks',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsCommunityInboundEmailAgentRoute =
+  DocsCommunityInboundEmailAgentRouteImport.update({
+    id: '/community/inbound-email-agent',
+    path: '/community/inbound-email-agent',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsApisWhenToUseRoute = DocsApisWhenToUseRouteImport.update({
@@ -481,6 +489,12 @@ const DocsReferenceCliOpencodePluginRoute =
     path: '/reference/cli/opencode-plugin',
     getParentRoute: () => DocsRouteRoute,
   } as any)
+const DocsReferenceCliGitIntegrationRoute =
+  DocsReferenceCliGitIntegrationRouteImport.update({
+    id: '/reference/cli/git-integration',
+    path: '/reference/cli/git-integration',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
 const DocsReferenceCliGettingStartedRoute =
   DocsReferenceCliGettingStartedRouteImport.update({
     id: '/reference/cli/getting-started',
@@ -606,6 +620,7 @@ export interface FileRoutesByFullPath {
   '/agents/workbench': typeof DocsAgentsWorkbenchRoute
   '/apis/calling-agents': typeof DocsApisCallingAgentsRoute
   '/apis/when-to-use': typeof DocsApisWhenToUseRoute
+  '/community/inbound-email-agent': typeof DocsCommunityInboundEmailAgentRoute
   '/frontend/advanced-hooks': typeof DocsFrontendAdvancedHooksRoute
   '/frontend/authentication': typeof DocsFrontendAuthenticationRoute
   '/frontend/deployment-scenarios': typeof DocsFrontendDeploymentScenariosRoute
@@ -654,6 +669,7 @@ export interface FileRoutesByFullPath {
   '/reference/cli/deployment': typeof DocsReferenceCliDeploymentRoute
   '/reference/cli/development': typeof DocsReferenceCliDevelopmentRoute
   '/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute
+  '/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute
   '/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute
   '/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute
   '/reference/cli/storage': typeof DocsReferenceCliStorageRoute
@@ -694,6 +710,7 @@ export interface FileRoutesByTo {
   '/agents/workbench': typeof DocsAgentsWorkbenchRoute
   '/apis/calling-agents': typeof DocsApisCallingAgentsRoute
   '/apis/when-to-use': typeof DocsApisWhenToUseRoute
+  '/community/inbound-email-agent': typeof DocsCommunityInboundEmailAgentRoute
   '/frontend/advanced-hooks': typeof DocsFrontendAdvancedHooksRoute
   '/frontend/authentication': typeof DocsFrontendAuthenticationRoute
   '/frontend/deployment-scenarios': typeof DocsFrontendDeploymentScenariosRoute
@@ -742,6 +759,7 @@ export interface FileRoutesByTo {
   '/reference/cli/deployment': typeof DocsReferenceCliDeploymentRoute
   '/reference/cli/development': typeof DocsReferenceCliDevelopmentRoute
   '/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute
+  '/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute
   '/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute
   '/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute
   '/reference/cli/storage': typeof DocsReferenceCliStorageRoute
@@ -784,6 +802,7 @@ export interface FileRoutesById {
   '/_docs/agents/workbench': typeof DocsAgentsWorkbenchRoute
   '/_docs/apis/calling-agents': typeof DocsApisCallingAgentsRoute
   '/_docs/apis/when-to-use': typeof DocsApisWhenToUseRoute
+  '/_docs/community/inbound-email-agent': typeof DocsCommunityInboundEmailAgentRoute
   '/_docs/frontend/advanced-hooks': typeof DocsFrontendAdvancedHooksRoute
   '/_docs/frontend/authentication': typeof DocsFrontendAuthenticationRoute
   '/_docs/frontend/deployment-scenarios': typeof DocsFrontendDeploymentScenariosRoute
@@ -832,6 +851,7 @@ export interface FileRoutesById {
   '/_docs/reference/cli/deployment': typeof DocsReferenceCliDeploymentRoute
   '/_docs/reference/cli/development': typeof DocsReferenceCliDevelopmentRoute
   '/_docs/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute
+  '/_docs/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute
   '/_docs/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute
   '/_docs/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute
   '/_docs/reference/cli/storage': typeof DocsReferenceCliStorageRoute
@@ -874,6 +894,7 @@ export interface FileRouteTypes {
     | '/agents/workbench'
     | '/apis/calling-agents'
     | '/apis/when-to-use'
+    | '/community/inbound-email-agent'
     | '/frontend/advanced-hooks'
     | '/frontend/authentication'
     | '/frontend/deployment-scenarios'
@@ -922,6 +943,7 @@ export interface FileRouteTypes {
     | '/reference/cli/deployment'
     | '/reference/cli/development'
     | '/reference/cli/getting-started'
+    | '/reference/cli/git-integration'
     | '/reference/cli/opencode-plugin'
     | '/reference/cli/sandbox'
     | '/reference/cli/storage'
@@ -962,6 +984,7 @@ export interface FileRouteTypes {
     | '/agents/workbench'
     | '/apis/calling-agents'
     | '/apis/when-to-use'
+    | '/community/inbound-email-agent'
     | '/frontend/advanced-hooks'
     | '/frontend/authentication'
     | '/frontend/deployment-scenarios'
@@ -1010,6 +1033,7 @@ export interface FileRouteTypes {
     | '/reference/cli/deployment'
     | '/reference/cli/development'
     | '/reference/cli/getting-started'
+    | '/reference/cli/git-integration'
     | '/reference/cli/opencode-plugin'
     | '/reference/cli/sandbox'
     | '/reference/cli/storage'
@@ -1051,6 +1075,7 @@ export interface FileRouteTypes {
     | '/_docs/agents/workbench'
     | '/_docs/apis/calling-agents'
     | '/_docs/apis/when-to-use'
+    | '/_docs/community/inbound-email-agent'
     | '/_docs/frontend/advanced-hooks'
     | '/_docs/frontend/authentication'
     | '/_docs/frontend/deployment-scenarios'
@@ -1099,6 +1124,7 @@ export interface FileRouteTypes {
     | '/_docs/reference/cli/deployment'
     | '/_docs/reference/cli/development'
     | '/_docs/reference/cli/getting-started'
+    | '/_docs/reference/cli/git-integration'
     | '/_docs/reference/cli/opencode-plugin'
     | '/_docs/reference/cli/sandbox'
     | '/_docs/reference/cli/storage'
@@ -1363,6 +1389,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsFrontendAdvancedHooksRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/community/inbound-email-agent': {
+      id: '/_docs/community/inbound-email-agent'
+      path: '/community/inbound-email-agent'
+      fullPath: '/community/inbound-email-agent'
+      preLoaderRoute: typeof DocsCommunityInboundEmailAgentRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
     '/_docs/apis/when-to-use': {
       id: '/_docs/apis/when-to-use'
       path: '/apis/when-to-use'
@@ -1615,6 +1648,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsReferenceCliOpencodePluginRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/reference/cli/git-integration': {
+      id: '/_docs/reference/cli/git-integration'
+      path: '/reference/cli/git-integration'
+      fullPath: '/reference/cli/git-integration'
+      preLoaderRoute: typeof DocsReferenceCliGitIntegrationRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
     '/_docs/reference/cli/getting-started': {
       id: '/_docs/reference/cli/getting-started'
       path: '/reference/cli/getting-started'
@@ -1758,6 +1798,7 @@ interface DocsRouteRouteChildren {
   DocsAgentsWorkbenchRoute: typeof DocsAgentsWorkbenchRoute
   DocsApisCallingAgentsRoute: typeof DocsApisCallingAgentsRoute
   DocsApisWhenToUseRoute: typeof DocsApisWhenToUseRoute
+  DocsCommunityInboundEmailAgentRoute: typeof DocsCommunityInboundEmailAgentRoute
   DocsFrontendAdvancedHooksRoute: typeof DocsFrontendAdvancedHooksRoute
   DocsFrontendAuthenticationRoute: typeof DocsFrontendAuthenticationRoute
   DocsFrontendDeploymentScenariosRoute: typeof DocsFrontendDeploymentScenariosRoute
@@ -1806,6 +1847,7 @@ interface DocsRouteRouteChildren {
   DocsReferenceCliDeploymentRoute: typeof DocsReferenceCliDeploymentRoute
   DocsReferenceCliDevelopmentRoute: typeof DocsReferenceCliDevelopmentRoute
   DocsReferenceCliGettingStartedRoute: typeof DocsReferenceCliGettingStartedRoute
+  DocsReferenceCliGitIntegrationRoute: typeof DocsReferenceCliGitIntegrationRoute
   DocsReferenceCliOpencodePluginRoute: typeof DocsReferenceCliOpencodePluginRoute
   DocsReferenceCliSandboxRoute: typeof DocsReferenceCliSandboxRoute
   DocsReferenceCliStorageRoute: typeof DocsReferenceCliStorageRoute
@@ -1845,6 +1887,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsAgentsWorkbenchRoute: DocsAgentsWorkbenchRoute,
   DocsApisCallingAgentsRoute: DocsApisCallingAgentsRoute,
   DocsApisWhenToUseRoute: DocsApisWhenToUseRoute,
+  DocsCommunityInboundEmailAgentRoute: DocsCommunityInboundEmailAgentRoute,
   DocsFrontendAdvancedHooksRoute: DocsFrontendAdvancedHooksRoute,
   DocsFrontendAuthenticationRoute: DocsFrontendAuthenticationRoute,
   DocsFrontendDeploymentScenariosRoute: DocsFrontendDeploymentScenariosRoute,
@@ -1902,6 +1945,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsReferenceCliDeploymentRoute: DocsReferenceCliDeploymentRoute,
   DocsReferenceCliDevelopmentRoute: DocsReferenceCliDevelopmentRoute,
   DocsReferenceCliGettingStartedRoute: DocsReferenceCliGettingStartedRoute,
+  DocsReferenceCliGitIntegrationRoute: DocsReferenceCliGitIntegrationRoute,
   DocsReferenceCliOpencodePluginRoute: DocsReferenceCliOpencodePluginRoute,
   DocsReferenceCliSandboxRoute: DocsReferenceCliSandboxRoute,
   DocsReferenceCliStorageRoute: DocsReferenceCliStorageRoute,

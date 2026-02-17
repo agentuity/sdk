@@ -278,14 +278,43 @@
 	display: block;
 }
 
-/* rehype-pretty-code: Code block styling */
+/* rehype-pretty-code: Unified code block shell */
 [data-rehype-pretty-code-figure] {
 	position: relative;
+	margin: 1rem 0;
+	max-height: min(55vh, 28rem);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
+	border: 1px solid var(--color-gray-200);
+	border-radius: var(--radius-lg);
+	background: var(--color-gray-50);
+}
+
+@media (min-width: 768px) {
+	[data-rehype-pretty-code-figure] {
+		max-height: min(65vh, 42rem);
+	}
+}
+
+.dark [data-rehype-pretty-code-figure] {
+	border-color: var(--color-gray-800);
+	background: var(--color-gray-900);
 }
 
 [data-rehype-pretty-code-figure] pre {
+	margin: 0;
 	overflow-x: auto;
+	overflow-y: visible;
 	padding: 1rem;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+}
+
+[data-rehype-pretty-code-figure] pre code {
+	display: block;
+	min-width: max-content;
 }
 
 [data-rehype-pretty-code-figure] [data-line] {
@@ -356,29 +385,10 @@
 	--shiki-dark-bg: transparent !important;
 }
 
-/* rehype-pretty-code: Filename tab above code blocks (opt-in via title="filename.ts") */
+/* Title node is extracted by the MDX Figure component (mdx-components.tsx) and
+   rendered in a sticky header. display:none prevents it appearing as raw DOM. */
 [data-rehype-pretty-code-title] {
-	font-size: 0.75rem;
-	font-family: var(--font-mono);
-	padding: 0.5rem 1rem;
-	border: 1px solid;
-	border-bottom: 0;
-	border-radius: 0.5rem 0.5rem 0 0;
-	border-color: theme('colors.zinc.200');
-	background: theme('colors.zinc.100');
-	color: theme('colors.zinc.500');
-}
-
-.dark [data-rehype-pretty-code-title] {
-	border-color: theme('colors.zinc.800');
-	background: theme('colors.zinc.900');
-	color: theme('colors.zinc.400');
-}
-
-[data-rehype-pretty-code-title] + div pre,
-[data-rehype-pretty-code-title] + pre {
-	border-top-left-radius: 0;
-	border-top-right-radius: 0;
+	display: none;
 }
 
 /* ReactFlow Controls */

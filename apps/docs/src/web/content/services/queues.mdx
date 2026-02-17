@@ -222,14 +222,39 @@ Create and manage queues using the CLI or `@agentuity/server` package.
 
 ```bash
 # Create a worker queue
-agentuity cloud queue create --name order-processing --type worker
+agentuity cloud queue create worker --name order-processing
 
 # Create a pubsub queue for broadcasting
-agentuity cloud queue create --name events --type pubsub
+agentuity cloud queue create pubsub --name events
 
 # List all queues
 agentuity cloud queue list
 
+# Filter by type and status
+agentuity cloud queue list --queue-type worker --status active
+
+# Filter by name
+agentuity cloud queue list --name order-processing
+
+# Sort by message count, descending
+agentuity cloud queue list --sort message_count --direction desc
+
+# Paginate results
+agentuity cloud queue list --limit 10 --offset 0
+```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Filter by queue name |
+| `--queue-type <type>` | Filter by type: `worker` or `pubsub` |
+| `--status <status>` | Filter by status: `active` or `paused` |
+| `--org-id <id>` | Filter by organization |
+| `--sort <field>` | Sort by `name`, `created`, `updated`, `message_count`, or `dlq_count` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
+| `--limit <n>` | Maximum number of results |
+| `--offset <n>` | Pagination offset |
+
+```bash
 # Get queue details and stats
 agentuity cloud queue get order-processing
 

@@ -127,6 +127,9 @@ agentuity cloud session list --count=25
 # Filter by project
 agentuity cloud session list --project-id=proj_abc123xyz
 
+# Filter by organization
+agentuity cloud session list --org-id=org_abc123xyz
+
 # Filter by deployment
 agentuity cloud session list --deployment-id=dep_abc123xyz
 
@@ -141,6 +144,9 @@ agentuity cloud session list --trigger=api
 
 # Filter by specific environment
 agentuity cloud session list --env=production
+
+# Sort by duration, newest first
+agentuity cloud session list --sort=duration --direction=desc
 ```
 
 **Get session details:**
@@ -169,6 +175,25 @@ agentuity cloud session logs sess_abc123xyz --no-timestamps
 Session logs show output for a single request. Deployment logs show all output from a deployment, including startup, errors, and background tasks.
 </Callout>
 
+### Session List Options
+
+| Option | Description |
+|--------|-------------|
+| `--count <n>` | Number of sessions to return (1-100, default: `10`) |
+| `--project-id <id>` | Filter by project |
+| `--org-id <id>` | Filter by organization |
+| `--deployment-id <id>` | Filter by deployment |
+| `--trigger <type>` | Filter by trigger type (`api`, `cron`, `webhook`) |
+| `--env <env>` | Filter by environment |
+| `--success <bool>` | Filter by success status |
+| `--sort <field>` | Sort by `created`, `updated`, `duration`, or `startTime` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
+| `--all` | List all sessions regardless of project context |
+
+<Callout type="warning" title="Mutual Exclusivity">
+`--org-id` and `--project-id` cannot be used together. Use one or the other.
+</Callout>
+
 ## Thread Inspection
 
 List and manage conversation threads. For details on how threads work in agents, see [State Management](/agents/state-management).
@@ -182,6 +207,12 @@ agentuity cloud thread list --count=25
 
 # Filter by project
 agentuity cloud thread list --project-id=proj_abc123xyz
+
+# Filter by organization
+agentuity cloud thread list --org-id=org_abc123xyz
+
+# Sort by last updated
+agentuity cloud thread list --sort=updated --direction=desc
 
 # Get thread details
 agentuity cloud thread get thrd_abc123xyz
@@ -201,6 +232,17 @@ Use thread inspection to:
 - Clean up old threads
 - Verify thread metadata
 - Track thread lifecycle
+
+### Thread List Options
+
+| Option | Description |
+|--------|-------------|
+| `--count <n>` | Number of threads to return (1-100, default: `10`) |
+| `--project-id <id>` | Filter by project |
+| `--org-id <id>` | Filter by organization |
+| `--sort <field>` | Sort by `created` or `updated` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
+| `--all` | List all threads regardless of project context |
 
 ## Evaluation Commands
 

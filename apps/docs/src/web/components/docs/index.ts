@@ -15,4 +15,4 @@ export { mdxComponents } from './mdx-components';
 export { Callout } from './callout';
 export { Steps, Step } from './steps';
 export { Tabs, Tab } from './tabs';
-export { Cards, CardLink } from './cards';
+export { Cards, CardLink, ExternalCard } from './cards';

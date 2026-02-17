@@ -462,12 +462,17 @@ export const navData: NavSection[] = [
 	{
 		title: 'Community',
 		url: '/community',
-		hideItems: true,
 		items: [
 			{
-				title: 'Community Examples',
+				title: 'Overview',
 				url: '/community',
 				description: 'Real-world integrations and tutorials built with Agentuity',
+			},
+			{
+				title: 'Inbound Email Agent',
+				url: '/community/inbound-email-agent',
+				description:
+					'Build an AI auto-responder that handles inbound emails via webhooks and sends replies',
 			},
 		],
 	},
@@ -502,6 +507,12 @@ export const navData: NavSection[] = [
 						url: '/reference/cli/deployment',
 						description:
 							'Deploy your agents to Agentuity Cloud with automatic infrastructure provisioning',
+					},
+					{
+						title: 'Git Integration',
+						url: '/reference/cli/git-integration',
+						description:
+							'Link your GitHub account and repositories to enable preview deployments and CI/CD',
 					},
 					{
 						title: 'Storage',

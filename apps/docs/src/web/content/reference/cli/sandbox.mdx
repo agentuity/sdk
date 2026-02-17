@@ -162,16 +162,23 @@ agentuity cloud sandbox list [options]
 | Option | Description |
 |--------|-------------|
 | `--status <status>` | Filter by status (`idle`, `running`, `creating`, `terminated`, `failed`) |
+| `--name <name>` | Filter by sandbox name |
+| `--mode <mode>` | Filter by mode (`oneshot`, `interactive`) |
 | `--project-id <id>` | Filter by project |
+| `--org-id <id>` | Filter by organization |
 | `--all` | List all sandboxes (bypass project filter) |
 | `--limit <n>` | Max results (default: 50, max: 100) |
 | `--offset <n>` | Pagination offset |
+| `--sort <field>` | Sort by `name`, `created`, `updated`, `status`, `mode`, or `execution_count` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
 | `--json` | JSON output |
 
 ```bash
 agentuity cloud sandbox list
 agentuity cloud sandbox list --status idle
+agentuity cloud sandbox list --name my-sandbox
 agentuity cloud sandbox list --project-id proj_abc123
+agentuity cloud sandbox list --sort=created --direction=desc
 agentuity cloud sandbox list --all  # Show all sandboxes
 agentuity cloud sandbox list --json
 ```
@@ -415,11 +422,15 @@ agentuity cloud sandbox snapshot list [options]
 |--------|-------------|
 | `--sandbox <id>` | Filter by source sandbox |
 | `--limit <n>` | Max results |
+| `--offset <n>` | Pagination offset |
+| `--sort <field>` | Sort by `name`, `created`, `size`, or `files` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
 | `--json` | JSON output |
 
 ```bash
 agentuity cloud sandbox snapshot list
 agentuity cloud sandbox snapshot list --sandbox sbx_abc123
+agentuity cloud sandbox snapshot list --sort=size --direction=desc
 ```
 
 ### Get Snapshot Details
@@ -658,11 +669,16 @@ agentuity cloud sandbox runtime list [options]
 |--------|-------------|
 | `--limit <n>` | Max results (default: 50, max: 100) |
 | `--offset <n>` | Pagination offset |
+| `--sort <field>` | Sort by `name` or `created` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
 | `--json` | JSON output |
 
 ```bash
 # List available runtimes
 agentuity cloud sandbox runtime list
+
+# Sort alphabetically
+agentuity cloud sandbox runtime list --sort=name --direction=asc
 
 # With pagination
 agentuity cloud sandbox runtime list --limit 10 --offset 20
