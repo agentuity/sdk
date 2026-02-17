@@ -54,6 +54,7 @@ export default agent;
 Add context with a system message:
 
 ```typescript
+// Inside your handler:
 const { text } = await generateText({
   model: openai('gpt-5-mini'),
   system: 'You are a concise technical assistant. Keep responses under 100 words.',
@@ -66,6 +67,7 @@ const { text } = await generateText({
 Pass conversation history for multi-turn interactions:
 
 ```typescript
+// Inside your handler:
 const { text } = await generateText({
   model: openai('gpt-5-mini'),
   messages: [
@@ -105,7 +107,7 @@ const agent = createAgent('SentimentAnalyzer', {
       prompt: `Analyze the sentiment of: "${input.text}"`,
     });
 
-    // object is fully typed as { sentiment, confidence, keywords }
+    // Schema match means no runtime type assertion needed
     return object;
   },
 });
@@ -186,9 +188,7 @@ export default agent;
 
 For detailed streaming patterns, see [Streaming Responses](/agents/streaming-responses).
 
-## Provider Configuration
-
-### Switching Providers
+## Switching Providers
 
 Change providers by swapping the import and model:
 
@@ -215,21 +215,32 @@ const model = groq('llama-3.3-70b-versatile');
 Wrap LLM calls in try-catch to handle errors gracefully:
 
 ```typescript
-handler: async (ctx, input) => {
-  try {
-    const { text } = await generateText({
-      model: openai('gpt-5-mini'),
-      prompt: input.prompt,
-    });
+import { createAgent } from '@agentuity/runtime';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
 
-    return { response: text };
-  } catch (error) {
-    ctx.logger.error('LLM request failed', { error });
+const agent = createAgent('SafeGenerator', {
+  schema: {
+    input: z.object({ prompt: z.string() }),
+    output: z.object({ response: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    try {
+      const { text } = await generateText({
+        model: openai('gpt-5-mini'),
+        prompt: input.prompt,
+      });
 
-    // Return fallback response
-    return { response: 'I encountered an error processing your request.' };
-  }
-}
+      return { response: text };
+    } catch (error) {
+      ctx.logger.error('LLM request failed', { error });
+      return { response: 'I encountered an error processing your request.' };
+    }
+  },
+});
+
+export default agent;
 ```
 
 ## Best Practices

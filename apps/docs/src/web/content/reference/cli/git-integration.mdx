@@ -1,9 +1,9 @@
 ---
-title: Git Integration
+title: Connecting GitHub Repositories
 description: Link your GitHub account and repositories to enable preview deployments and CI/CD.
 ---
 
-Connect your GitHub identity to Agentuity, then link repositories for automatic preview deployments.
+Automatic deployments require a GitHub connection. Connect your identity, install the GitHub App on your organization, then link a repository to your project.
 
 ## Connecting Your GitHub Identity
 
@@ -35,7 +35,7 @@ agentuity git identity disconnect
 agentuity git identity disconnect --confirm
 ```
 
-## Managing GitHub App Installations
+## Installing the GitHub App
 
 After connecting your identity, install the Agentuity GitHub App on organizations or personal accounts to grant repository access.
 
@@ -43,6 +43,9 @@ Install the GitHub App on a new account:
 
 ```bash
 agentuity git account add
+
+# Add to a specific organization
+agentuity git account add --org org_abc123
 ```
 
 This opens a browser flow to select an organization or personal account for the installation. You must have your identity connected first.
@@ -62,7 +65,10 @@ Remove an installation:
 agentuity git account remove
 
 # Remove a specific installation without prompts
-agentuity git account remove --account inst_xyz --confirm
+agentuity git account remove --account int_xyz --confirm
+
+# Remove from a specific organization
+agentuity git account remove --org org_abc123 --account int_xyz --confirm
 ```
 
 <Callout type="info" title="Identity vs Installations">
@@ -121,6 +127,9 @@ agentuity git list
 
 # Filter by GitHub account
 agentuity git list --account my-org
+
+# Filter by organization
+agentuity git list --org org_abc123
 
 # JSON output
 agentuity --json git list
