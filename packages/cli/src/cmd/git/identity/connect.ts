@@ -158,7 +158,8 @@ export const connectSubcommand = createSubcommand({
 		} catch (error) {
 			const isCancel =
 				error === '' ||
-				(error instanceof Error && (error.message === '' || error.message === 'User cancelled'));
+				(error instanceof Error &&
+					(error.message === '' || error.message === 'User cancelled'));
 
 			if (isCancel) {
 				tui.newline();
