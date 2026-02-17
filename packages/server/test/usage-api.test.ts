@@ -1,15 +1,14 @@
-import { describe, test, expect, mock, beforeAll, afterEach, afterAll } from 'bun:test';
-import { createMockLogger, mockFetch } from '@agentuity/test-utils';
+import { mockFetch } from '@agentuity/test-utils';
+import { afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import {
 	APIClient,
-	UsageError,
-	UsageNotFoundError,
-	getUsageSummary,
-	getUsageBreakdown,
-	getUsageTimeseries,
 	createDefaultClient,
-	UsageSummarySchema,
+	getUsageBreakdown,
+	getUsageSummary,
+	getUsageTimeseries,
 	UsageBreakdownSchema,
+	UsageError,
+	UsageSummarySchema,
 	UsageTimeseriesSchema,
 } from '../src/api';
 import { resolveProjectId } from '../src/api/usage/util';

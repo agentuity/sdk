@@ -1,8 +1,8 @@
-import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
+import { beforeAll, describe, expect, test } from 'bun:test';
+import { getUsageBreakdown, getUsageSummary, getUsageTimeseries } from '../src/api';
 import { APIClient } from '../src/api/api';
-import { createLogger } from '../src/logger';
-import { getUsageSummary, getUsageBreakdown, getUsageTimeseries } from '../src/api';
 import { getServiceUrls } from '../src/config';
+import { createLogger } from '../src/logger';
 
 // Skip this test suite unless explicitly enabled via env var
 // These tests require a valid API key and real Catalyst environment
