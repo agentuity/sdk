@@ -276,7 +276,10 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 		});
 
 		const finalAutoDeploy = await tui.confirm('Enable automatic deployments on push?', !noAuto);
-		const finalPreviewDeploy = await tui.confirm('Enable preview deployments on PRs?', !noPreview);
+		const finalPreviewDeploy = await tui.confirm(
+			'Enable preview deployments on PRs?',
+			!noPreview
+		);
 
 		tui.newline();
 		console.log(tui.bold('Link Settings:'));
