@@ -1033,4 +1033,291 @@ export default router;
 			cleanup();
 		}
 	});
+
+	test('zValidator with param AND json validators - should extract json schema (issue #979)', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+
+export const paramSchema = z.object({ id: z.string() });
+export const bodySchema = z.object({ name: z.string(), email: z.string() });
+
+const router = createRouter();
+router.patch('/:id', zValidator('param', paramSchema), zValidator('json', bodySchema), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			// Should extract the JSON body schema, not the param schema
+			expect(routes[0].config?.inputSchemaVariable).toBe('bodySchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('zValidator with json AND param validators (reversed order) - should extract json schema (issue #979)', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+
+export const bodySchema = z.object({ name: z.string() });
+export const paramSchema = z.object({ id: z.string() });
+
+const router = createRouter();
+router.patch('/:id', zValidator('json', bodySchema), zValidator('param', paramSchema), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			// Should extract the JSON body schema regardless of order
+			expect(routes[0].config?.inputSchemaVariable).toBe('bodySchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('zValidator param + json with middleware between them (issue #979)', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import { authMiddleware } from './middleware';
+
+export const paramSchema = z.object({ id: z.string() });
+export const updateSchema = z.object({ title: z.string() });
+
+const router = createRouter();
+router.patch('/:id', authMiddleware, zValidator('param', paramSchema), zValidator('json', updateSchema), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('updateSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('zValidator with query AND json validators - should extract json schema', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+
+export const querySchema = z.object({ page: z.string() });
+export const bodySchema = z.object({ name: z.string() });
+
+const router = createRouter();
+router.post('/search', zValidator('query', querySchema), zValidator('json', bodySchema), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('bodySchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('zValidator with header AND json validators - should extract json schema', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+
+export const headerSchema = z.object({ 'x-api-key': z.string() });
+export const bodySchema = z.object({ data: z.string() });
+
+const router = createRouter();
+router.post('/test', zValidator('header', headerSchema), zValidator('json', bodySchema), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('bodySchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('zValidator with cookie AND json validators - should extract json schema', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+
+export const cookieSchema = z.object({ session: z.string() });
+export const bodySchema = z.object({ payload: z.string() });
+
+const router = createRouter();
+router.post('/test', zValidator('cookie', cookieSchema), zValidator('json', bodySchema), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('bodySchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('three validators: param + query + json - should extract json schema', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+
+export const paramSchema = z.object({ id: z.string() });
+export const querySchema = z.object({ fields: z.string() });
+export const bodySchema = z.object({ name: z.string(), email: z.string() });
+
+const router = createRouter();
+router.patch('/:id', zValidator('param', paramSchema), zValidator('query', querySchema), zValidator('json', bodySchema), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('bodySchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('agent.validator() with zValidator param - should extract agent and ignore param', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import myAgent from '@agent/hello';
+
+const paramSchema = z.object({ id: z.string() });
+
+const router = createRouter();
+router.patch('/:id', myAgent.validator(), zValidator('param', paramSchema), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.agentVariable).toBe('myAgent');
+			expect(routes[0].config?.agentImportPath).toBe('@agent/hello');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('standalone validator({ input, output }) with zValidator param - should extract schemas from validator', async () => {
+		const content = `
+import { createRouter, validator } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import { MyInputSchema, MyOutputSchema } from './schemas';
+
+const paramSchema = z.object({ id: z.string() });
+
+const router = createRouter();
+router.patch('/:id', validator({ input: MyInputSchema, output: MyOutputSchema }), zValidator('param', paramSchema), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('MyInputSchema');
+			expect(routes[0].config?.outputSchemaVariable).toBe('MyOutputSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('two zValidator json on same route - first schema wins (first-match-wins)', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+
+export const schemaA = z.object({ first: z.string() });
+export const schemaB = z.object({ second: z.string() });
+
+const router = createRouter();
+router.post('/test', zValidator('json', schemaA), zValidator('json', schemaB), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			// First-match-wins: schemaA was encountered first
+			expect(routes[0].config?.inputSchemaVariable).toBe('schemaA');
+		} finally {
+			cleanup();
+		}
+	});
 });
