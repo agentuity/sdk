@@ -620,9 +620,7 @@ export const deploySubcommand = createSubcommand({
 							endTypecheckDiagnostic();
 
 							if (typeResult.success) {
-								capturedOutput.push(
-									tui.muted(`✓ Typechecked in ${Math.floor(Date.now() - started).toFixed(0)}ms`)
-								);
+								capturedOutput.push(tui.muted(`✓ Typechecked in ${Date.now() - started}ms`));
 							} else {
 								// Errors already added to collector by typecheck()
 								// Write report before returning error

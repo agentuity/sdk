@@ -61,11 +61,11 @@ export const statusSubcommand = createSubcommand({
 			}
 
 			tui.newline();
-			console.log(tui.bold('GitHub Identity'));
+			tui.output(tui.bold('GitHub Identity'));
 			tui.newline();
 
 			if (!status.connected || !status.identity) {
-				console.log(
+				tui.output(
 					tui.muted(
 						`No GitHub identity connected. Run ${tui.bold('agentuity git identity connect')} to connect one.`
 					)
@@ -74,11 +74,11 @@ export const statusSubcommand = createSubcommand({
 				return result;
 			}
 
-			console.log(
+			tui.output(
 				`  ${tui.colorSuccess('✓')} Connected as ${tui.bold(status.identity.githubUsername)}`
 			);
 			if (status.identity.githubEmail) {
-				console.log(`    Email: ${status.identity.githubEmail}`);
+				tui.output(`    Email: ${status.identity.githubEmail}`);
 			}
 
 			tui.newline();

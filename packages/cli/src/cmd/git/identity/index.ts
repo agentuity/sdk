@@ -8,5 +8,3 @@ export const identityCommand = createCommand({
 	description: 'Manage your GitHub identity',
 	subcommands: [connectSubcommand, disconnectSubcommand, statusSubcommand],
 });
-
-export default identityCommand;

@@ -61,7 +61,7 @@ export const listSubcommand = createSubcommand({
 			tui.newline();
 
 			if (!status.connected || !status.identity) {
-				console.log(
+				tui.output(
 					tui.muted(
 						`No GitHub identity connected. Run ${tui.bold('agentuity git identity connect')} to connect one.`
 					)
@@ -70,11 +70,11 @@ export const listSubcommand = createSubcommand({
 				return result;
 			}
 
-			console.log(tui.bold('GitHub App Installations'));
+			tui.output(tui.bold('GitHub App Installations'));
 			tui.newline();
 
 			if (status.installations.length === 0) {
-				console.log(
+				tui.output(
 					tui.muted(
 						`No installations found. Run ${tui.bold('agentuity git account add')} to install the GitHub App.`
 					)
@@ -82,14 +82,14 @@ export const listSubcommand = createSubcommand({
 			} else {
 				for (const installation of status.installations) {
 					const typeLabel = installation.accountType === 'Organization' ? 'org' : 'user';
-					console.log(
+					tui.output(
 						`  ${tui.colorSuccess('✓')} ${installation.accountName} ${tui.muted(`(${typeLabel})`)}`
 					);
 				}
 			}
 
 			tui.newline();
-			console.log(
+			tui.output(
 				tui.muted(
 					`${status.installations.length} installation${status.installations.length !== 1 ? 's' : ''}`
 				)

@@ -97,49 +97,51 @@ export const statusSubcommand = createSubcommand({
 			}
 
 			tui.newline();
-			console.log(tui.bold('GitHub Status'));
+			tui.output(tui.bold('GitHub Status'));
 			tui.newline();
 
 			// GitHub identity status
 			if (githubStatus.connected && githubStatus.identity) {
-				console.log(
+				tui.output(
 					`${tui.bold('GitHub:')} ${tui.colorSuccess('✓')} Connected as ${tui.bold(githubStatus.identity.githubUsername)}`
 				);
 				if (githubStatus.installations.length > 0) {
-					console.log(
+					tui.output(
 						`  ${githubStatus.installations.length} installation${githubStatus.installations.length > 1 ? 's' : ''}`
 					);
 					for (const installation of githubStatus.installations) {
 						const typeLabel = installation.accountType === 'Organization' ? 'org' : 'user';
-						console.log(`    - ${installation.accountName} ${tui.muted(`(${typeLabel})`)}`);
+						tui.output(`    - ${installation.accountName} ${tui.muted(`(${typeLabel})`)}`);
 					}
 				}
 			} else {
-				console.log(`${tui.bold('GitHub:')} ${tui.colorError('✗')} No GitHub account connected`);
-				console.log(tui.muted(`    Run ${tui.bold('agentuity git account add')} to connect one`));
+				tui.output(`${tui.bold('GitHub:')} ${tui.colorError('✗')} No GitHub account connected`);
+				tui.output(
+					tui.muted(`    Run ${tui.bold('agentuity git identity connect')} to connect one`)
+				);
 			}
 
 			tui.newline();
 
 			// Project status
-			console.log(`${tui.bold('Project:')} ${project.projectId}`);
+			tui.output(`${tui.bold('Project:')} ${project.projectId}`);
 			if (projectStatus.linked) {
-				console.log(
+				tui.output(
 					`  ${tui.colorSuccess('✓')} Linked to ${tui.bold(projectStatus.repoFullName ?? '<unknown repository>')}`
 				);
-				console.log(`    Branch: ${projectStatus.branch}`);
+				tui.output(`    Branch: ${projectStatus.branch}`);
 				if (projectStatus.directory) {
-					console.log(`    Directory: ${projectStatus.directory}`);
+					tui.output(`    Directory: ${projectStatus.directory}`);
 				}
-				console.log(
+				tui.output(
 					`    Auto-deploy: ${projectStatus.autoDeploy ? tui.colorSuccess('enabled') : tui.muted('disabled')}`
 				);
-				console.log(
+				tui.output(
 					`    Preview deploys: ${projectStatus.previewDeploy ? tui.colorSuccess('enabled') : tui.muted('disabled')}`
 				);
 			} else {
-				console.log(`  ${tui.muted('○')} Not linked to a repository`);
-				console.log(tui.muted(`    Run ${tui.bold('agentuity git link')} to link one`));
+				tui.output(`  ${tui.muted('○')} Not linked to a repository`);
+				tui.output(tui.muted(`    Run ${tui.bold('agentuity git link')} to link one`));
 			}
 
 			tui.newline();

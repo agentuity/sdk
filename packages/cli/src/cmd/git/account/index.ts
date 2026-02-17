@@ -8,5 +8,3 @@ export const accountCommand = createCommand({
 	description: 'Manage GitHub App installations',
 	subcommands: [addSubcommand, listSubcommand, removeSubcommand],
 });
-
-export default accountCommand;

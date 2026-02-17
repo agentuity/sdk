@@ -67,14 +67,14 @@ export async function runGitAccountAdd(
 
 		tui.newline();
 		if (copied) {
-			console.log('GitHub installation URL copied to clipboard! Open it in your browser:');
+			tui.output('GitHub installation URL copied to clipboard! Open it in your browser:');
 		} else {
-			console.log('Open this URL in your browser to install the GitHub App:');
+			tui.output('Open this URL in your browser to install the GitHub App:');
 		}
 		tui.newline();
-		console.log(`  ${tui.link(url)}`);
+		tui.output(`  ${tui.link(url)}`);
 		tui.newline();
-		console.log(tui.muted('Press Enter to open in your browser, or Ctrl+C to cancel'));
+		tui.output(tui.muted('Press Enter to open in your browser, or Ctrl+C to cancel'));
 		tui.newline();
 
 		const result = await tui.spinner({

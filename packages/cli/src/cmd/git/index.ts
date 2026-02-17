@@ -18,5 +18,3 @@ export const gitCommand = createCommand({
 		statusSubcommand,
 	],
 });
-
-export default gitCommand;

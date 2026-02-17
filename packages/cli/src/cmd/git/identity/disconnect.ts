@@ -54,7 +54,7 @@ export const disconnectSubcommand = createSubcommand({
 
 			if (!opts.confirm) {
 				tui.newline();
-				console.log(
+				tui.output(
 					`Connected as ${tui.bold(status.identity.githubUsername)} with ${status.installations.length} installation${status.installations.length !== 1 ? 's' : ''}.`
 				);
 				tui.newline();
