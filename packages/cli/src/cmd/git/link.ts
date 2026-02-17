@@ -1,19 +1,20 @@
-import { createSubcommand, type Config } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
+import type { Logger } from '@agentuity/core';
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import {
-	getGithubIntegrationStatus,
-	listGithubRepos,
-	linkProjectToRepo,
-	getProjectGithubStatus,
-	type GithubRepo,
-} from './api';
 import type { APIClient } from '../../api';
-import type { Logger } from '@agentuity/core';
-import { runGitAccountConnect } from './account/add';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
+import * as tui from '../../tui';
+import { type Config, createSubcommand } from '../../types';
+import {
+	type GithubInstallation,
+	type GithubRepo,
+	getGithubIntegrationStatus,
+	getProjectGithubStatus,
+	linkProjectToRepo,
+	listGithubRepos,
+} from './api';
+import { runGitIdentityConnect } from './identity/connect';
 
 export interface DetectedGitInfo {
 	repo: string | null;
@@ -60,7 +61,6 @@ export function detectGitInfo(): DetectedGitInfo {
 export interface RunGitLinkOptions {
 	apiClient: APIClient;
 	projectId: string;
-	orgId: string;
 	logger: Logger;
 	branchOption?: string;
 	rootOption?: string;
@@ -84,7 +84,6 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 	const {
 		apiClient,
 		projectId,
-		orgId,
 		logger,
 		branchOption,
 		rootOption,
@@ -120,12 +119,12 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 		let githubStatus = await tui.spinner({
 			message: 'Checking GitHub connection...',
 			clearOnSuccess: true,
-			callback: () => getGithubIntegrationStatus(apiClient, orgId),
+			callback: () => getGithubIntegrationStatus(apiClient),
 		});
 
-		if (!githubStatus.connected || githubStatus.integrations.length === 0) {
+		if (!githubStatus.connected || githubStatus.installations.length === 0) {
 			tui.newline();
-			tui.warning('No GitHub accounts connected to this organization.');
+			tui.warning('No GitHub accounts connected.');
 			tui.newline();
 
 			const wantConnect = await tui.confirm('Would you like to connect a GitHub account now?');
@@ -134,9 +133,8 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 				return { linked: false, cancelled: true };
 			}
 
-			const connectResult = await runGitAccountConnect({
+			const connectResult = await runGitIdentityConnect({
 				apiClient,
-				orgId,
 				logger,
 				config,
 			});
@@ -148,9 +146,9 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 				return { linked: false, noGithubConnected: true };
 			}
 
-			githubStatus = await getGithubIntegrationStatus(apiClient, orgId);
+			githubStatus = await getGithubIntegrationStatus(apiClient);
 
-			if (!githubStatus.connected || githubStatus.integrations.length === 0) {
+			if (!githubStatus.connected || githubStatus.installations.length === 0) {
 				tui.error('GitHub connection failed. Please try again.');
 				return { linked: false, noGithubConnected: true };
 			}
@@ -165,7 +163,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 		const allRepos = await tui.spinner({
 			message: 'Fetching available repositories...',
 			clearOnSuccess: true,
-			callback: () => listGithubRepos(apiClient, orgId),
+			callback: () => listGithubRepos(apiClient),
 		});
 
 		if (allRepos.length === 0) {
@@ -198,14 +196,16 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 		if (!selectedRepo) {
 			let repos = allRepos;
 
-			if (githubStatus.integrations.length > 1) {
+			if (githubStatus.installations.length > 1) {
 				tui.newline();
 
-				const accountChoices = githubStatus.integrations.map((integration) => ({
-					name: integration.githubAccountName,
-					value: integration.id,
-					message: `${integration.githubAccountName} ${tui.muted(`(${integration.githubAccountType})`)}`,
-				}));
+				const accountChoices = githubStatus.installations.map(
+					(installation: GithubInstallation) => ({
+						name: installation.accountName,
+						value: installation.integrationId ?? installation.installationId,
+						message: `${installation.accountName} ${tui.muted(`(${installation.accountType})`)}`,
+					})
+				);
 
 				const accountResponse = await enquirer.prompt<{ integrationId: string }>({
 					type: 'select',
@@ -213,8 +213,10 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 					message: 'Select a GitHub account',
 					choices: accountChoices,
 					result(name: string) {
-						// Return the value (id) instead of the name
-						const choice = accountChoices.find((c) => c.name === name);
+						// Return the value (integrationId) instead of the name
+						const choice = accountChoices.find(
+							(c: { name: string; value: string; message: string }) => c.name === name
+						);
 						return choice?.value ?? name;
 					},
 				});
@@ -222,7 +224,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 				repos = await tui.spinner({
 					message: 'Fetching repositories...',
 					clearOnSuccess: true,
-					callback: () => listGithubRepos(apiClient, orgId, accountResponse.integrationId),
+					callback: () => listGithubRepos(apiClient, accountResponse.integrationId),
 				});
 
 				if (repos.length === 0) {
@@ -254,7 +256,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 		}
 
 		// Prompt for settings with defaults
-		const defaultBranch = branchOption ?? gitInfo.branch ?? selectedRepo.defaultBranch;
+		const defaultBranch = branchOption ?? selectedRepo.defaultBranch;
 		const defaultRoot = rootOption ?? '.';
 
 		tui.newline();
@@ -274,10 +276,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 		});
 
 		const finalAutoDeploy = await tui.confirm('Enable automatic deployments on push?', !noAuto);
-		const finalPreviewDeploy = await tui.confirm(
-			'Enable preview deployments on PRs?',
-			!noPreview
-		);
+		const finalPreviewDeploy = await tui.confirm('Enable preview deployments on PRs?', !noPreview);
 
 		tui.newline();
 		console.log(tui.bold('Link Settings:'));
@@ -309,7 +308,6 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 					autoDeploy: finalAutoDeploy,
 					previewDeploy: finalPreviewDeploy,
 					directory: directory === '.' ? undefined : directory,
-					integrationId: selectedRepo.integrationId,
 				}),
 		});
 
@@ -414,9 +412,6 @@ export const linkSubcommand = createSubcommand({
 
 		try {
 			// Non-interactive mode when repo is provided
-			// Note: integrationId is not passed in non-interactive mode. The API will
-			// attempt to find a matching integration based on the repo owner. This may
-			// fail if the org has multiple GitHub integrations with access to the same repo.
 			if (opts.repo && opts.confirm) {
 				const branch = opts.branch ?? 'main';
 				const directory = opts.root === '.' ? undefined : opts.root;
@@ -446,7 +441,6 @@ export const linkSubcommand = createSubcommand({
 			const result = await runGitLink({
 				apiClient,
 				projectId: project.projectId,
-				orgId: project.orgId,
 				logger,
 				branchOption: opts.branch,
 				rootOption: opts.root,

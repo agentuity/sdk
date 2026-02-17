@@ -13,50 +13,44 @@ import {
 	startGithubIntegration,
 } from '../api';
 
-export interface RunGitAccountAddOptions {
+export interface RunGitIdentityConnectOptions {
 	apiClient: APIClient;
 	logger: Logger;
 	config?: Config | null;
 }
 
-export interface RunGitAccountAddResult {
-	added: boolean;
+export interface RunGitIdentityConnectResult {
+	connected: boolean;
 	cancelled?: boolean;
 }
 
-export async function runGitAccountAdd(
-	options: RunGitAccountAddOptions
-): Promise<RunGitAccountAddResult> {
+export async function runGitIdentityConnect(
+	options: RunGitIdentityConnectOptions
+): Promise<RunGitIdentityConnectResult> {
 	const { apiClient, logger, config } = options;
 
 	try {
 		const currentStatus = await getGithubIntegrationStatus(apiClient);
-
-		if (!currentStatus.connected || !currentStatus.identity) {
-			tui.newline();
-			tui.error(
-				`No GitHub identity connected. Run ${tui.bold('agentuity git identity connect')} first.`
-			);
-			return { added: false };
-		}
-
 		const initialCount = currentStatus.installations?.length ?? 0;
 
-		tui.newline();
-		tui.info(
-			`Connected as ${tui.bold(currentStatus.identity.githubUsername)}. Opening GitHub to install the app on a new account...`
-		);
-		tui.newline();
+		if (currentStatus.connected && currentStatus.identity) {
+			tui.newline();
+			tui.info(
+				`Already connected as ${tui.bold(currentStatus.identity.githubUsername)}. Use ${tui.bold('agentuity git account add')} to install the GitHub App on additional accounts.`
+			);
+			tui.newline();
+			return { connected: true };
+		}
 
 		const startResult = await tui.spinner({
-			message: 'Getting GitHub installation URL...',
+			message: 'Getting GitHub authorization URL...',
 			clearOnSuccess: true,
 			callback: () => startGithubIntegration(apiClient),
 		});
 
 		if (!startResult) {
-			tui.error('Failed to start GitHub installation flow');
-			return { added: false };
+			tui.error('Failed to start GitHub authorization');
+			return { connected: false };
 		}
 
 		const { shortId } = startResult;
@@ -67,9 +61,9 @@ export async function runGitAccountAdd(
 
 		tui.newline();
 		if (copied) {
-			tui.output('GitHub installation URL copied to clipboard! Open it in your browser:');
+			tui.output('GitHub authorization URL copied to clipboard! Open it in your browser:');
 		} else {
-			tui.output('Open this URL in your browser to install the GitHub App:');
+			tui.output('Open this URL in your browser to authorize GitHub access:');
 		}
 		tui.newline();
 		tui.output(`  ${tui.link(url)}`);
@@ -79,7 +73,7 @@ export async function runGitAccountAdd(
 
 		const result = await tui.spinner({
 			type: 'countdown',
-			message: 'Waiting for GitHub App installation',
+			message: 'Waiting for GitHub authorization',
 			timeoutMs: 600000,
 			clearOnSuccess: true,
 			onEnterPress: () => {
@@ -101,11 +95,16 @@ export async function runGitAccountAdd(
 
 		tui.newline();
 		if (result.connected) {
-			tui.success('GitHub App installed on new account');
-			return { added: true };
+			const username = result.identity?.githubUsername;
+			if (username) {
+				tui.success(`GitHub identity connected as ${tui.bold(username)}`);
+			} else {
+				tui.success('GitHub identity connected');
+			}
+			return { connected: true };
 		}
 
-		return { added: false };
+		return { connected: false };
 	} catch (error) {
 		const isCancel =
 			error === '' ||
@@ -114,7 +113,7 @@ export async function runGitAccountAdd(
 		if (isCancel) {
 			tui.newline();
 			tui.info('Cancelled');
-			return { added: false, cancelled: true };
+			return { connected: false, cancelled: true };
 		}
 
 		logger.trace(error);
@@ -122,26 +121,26 @@ export async function runGitAccountAdd(
 	}
 }
 
-const AddOptionsSchema = z.object({});
+const ConnectOptionsSchema = z.object({});
 
-const AddResponseSchema = z.object({
-	added: z.boolean().describe('Whether the installation was added'),
+const ConnectResponseSchema = z.object({
+	connected: z.boolean().describe('Whether the identity was connected'),
 });
 
-export const addSubcommand = createSubcommand({
-	name: 'add',
-	description: 'Install the GitHub App on a new account or organization',
+export const connectSubcommand = createSubcommand({
+	name: 'connect',
+	description: 'Connect your GitHub identity',
 	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive'],
 	idempotent: false,
 	requires: { auth: true, apiClient: true },
 	schema: {
-		options: AddOptionsSchema,
-		response: AddResponseSchema,
+		options: ConnectOptionsSchema,
+		response: ConnectResponseSchema,
 	},
 	examples: [
 		{
-			command: getCommand('git account add'),
-			description: 'Install the GitHub App on a new account',
+			command: getCommand('git identity connect'),
+			description: 'Connect your GitHub identity',
 		},
 	],
 
@@ -149,13 +148,13 @@ export const addSubcommand = createSubcommand({
 		const { logger, apiClient, config } = ctx;
 
 		try {
-			const result = await runGitAccountAdd({
+			const result = await runGitIdentityConnect({
 				apiClient,
 				logger,
 				config,
 			});
 
-			return { added: result.added };
+			return { connected: result.connected };
 		} catch (error) {
 			const isCancel =
 				error === '' ||
@@ -164,11 +163,15 @@ export const addSubcommand = createSubcommand({
 			if (isCancel) {
 				tui.newline();
 				tui.info('Cancelled');
-				return { added: false };
+				return { connected: false };
 			}
 
 			logger.trace(error);
-			return logger.fatal('Failed to add GitHub account: %s', error, ErrorCode.INTEGRATION_FAILED);
+			return logger.fatal(
+				'Failed to connect GitHub identity: %s',
+				error,
+				ErrorCode.INTEGRATION_FAILED
+			);
 		}
 	},
 });
