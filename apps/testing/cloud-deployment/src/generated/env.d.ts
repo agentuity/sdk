@@ -5,7 +5,12 @@
 declare global {
 	namespace NodeJS {
 		interface ProcessEnv {
+		readonly AGENTUITY_PUBLIC_TEST_URL: string;
 		readonly AGENTUITY_SDK_KEY: string;
+		readonly MY_TEST_SECRET_KEY: string;
+		readonly PUBLIC_TEST_ENDPOINT: string;
+		readonly TEST_DATABASE_URL: string;
+		readonly VITE_TEST_API_URL: string;
 		}
 	}
 }
@@ -13,7 +18,9 @@ declare global {
 // Vite-compatible environment types
 // Only includes variables with VITE_, AGENTUITY_PUBLIC_, or PUBLIC_ prefix
 interface ImportMetaEnv {
-	// No VITE_*, AGENTUITY_PUBLIC_*, or PUBLIC_* prefixed variables found
+	readonly AGENTUITY_PUBLIC_TEST_URL: string;
+	readonly PUBLIC_TEST_ENDPOINT: string;
+	readonly VITE_TEST_API_URL: string;
 }
 
 interface ImportMeta {
