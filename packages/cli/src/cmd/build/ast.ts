@@ -1651,8 +1651,12 @@ export async function parseRoute(
 							SUPPORTED_HTTP_METHODS.includes(m.toLowerCase() as SupportedHttpMethod);
 
 						switch (method) {
-							case 'use': {
-								// Skip Hono middleware - they don't represent API routes
+							case 'use':
+							case 'onError':
+							case 'notFound':
+							case 'basePath':
+							case 'mount': {
+								// Skip Hono middleware, lifecycle handlers, and configuration methods - they don't represent API routes
 								continue;
 							}
 							case 'route': {
