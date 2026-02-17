@@ -11,4 +11,5 @@ export * from './sandbox';
 export * from './session';
 export * from './stream';
 export * from './thread';
+export * from './usage';
 export * from './user';
