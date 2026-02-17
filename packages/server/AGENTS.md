@@ -38,6 +38,7 @@ src/
     ├── sandbox/          # Sandbox management (create, execute, files, snapshot)
     ├── session/          # Session logs
     ├── thread/           # Thread management
+    ├── usage/            # Usage & spending tracking
     └── user/             # User operations (whoami)
 ```
 
@@ -54,7 +55,16 @@ src/
 - **Config**: `getServiceUrls`, `resolveRegion`
 - **Logging**: `createLogger`, `ConsoleLogger`
 - **Validation**: `validateResources`, `validateCPUSpec`, `validateMemorySpec`
-- **API Clients**: All functions from `api/*` (listProjects, createSandbox, etc.)
+- **API Clients**: All functions from `api/*` (listProjects, createSandbox, getUsageSummary, etc.)
+
+## Key APIs by Module
+
+### Usage & Spending Tracking
+
+- **Zero-config**: `getUsageSummary()`, `getUsageBreakdown()`, `getUsageTimeseries()`
+- Auto-resolves API client and project ID from environment when running in Agentuity
+- Provides cost metrics, token usage, and session counts
+- Supports time-series data, grouping by agent/deployment/day/hour
 
 ## Publishing
 
