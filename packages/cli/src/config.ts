@@ -19,6 +19,7 @@ import {
 	deleteAuthFromKeychain,
 } from './keychain';
 import { clearProfileCache } from './cache';
+import { readEnvFile, writeEnvFile } from './env-util';
 
 export const defaultProfileName = 'production';
 
@@ -634,12 +635,20 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	};
 	await Bun.write(configPath, JSON.stringify(configData, null, 2) + '\n');
 
-	// generate the .env file with initial secret
+	// generate or update the .env file with SDK key
 	const envPath = join(dir, '.env');
-	const comment =
-		'# AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
-	const content = `${comment}\nAGENTUITY_SDK_KEY=${sdkKey}\n`;
-	await Bun.write(envPath, content);
+	const envFile = Bun.file(envPath);
+	if (await envFile.exists()) {
+		// Preserve existing .env content, just update SDK key
+		const existing = await readEnvFile(envPath);
+		existing.AGENTUITY_SDK_KEY = sdkKey;
+		await writeEnvFile(envPath, existing, { preserveExisting: false });
+	} else {
+		const comment =
+			'# AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
+		const content = `${comment}\nAGENTUITY_SDK_KEY=${sdkKey}\n`;
+		await Bun.write(envPath, content);
+	}
 	await chmod(envPath, 0o600);
 
 	// generate the vscode settings (only if they don't already exist)

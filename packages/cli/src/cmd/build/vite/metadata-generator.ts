@@ -11,6 +11,7 @@ import type { z } from 'zod';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteMetadata } from './route-discovery';
 import type { Logger, DeployOptions } from '../../../types';
+import { toForwardSlash } from '../../../utils/normalize-path';
 import { getVersion } from '../../../version';
 import { getGitInfo, buildGitTags } from '../../../utils/git';
 
@@ -174,7 +175,7 @@ export interface MetadataGeneratorOptions {
  */
 function normalizeImportKey(path: string): string {
 	// Strip leading './' or 'src/' or '@'
-	let p = path.replace(/^src\//, '');
+	let p = toForwardSlash(path).replace(/^src\//, '');
 	if (p.startsWith('./')) p = p.slice(2);
 	if (p.startsWith('@')) p = p.slice(1);
 

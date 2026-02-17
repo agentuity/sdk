@@ -319,7 +319,7 @@ export const scoutAgent: AgentDefinition = {
 	defaultModel: 'anthropic/claude-haiku-4-5-20251001',
 	systemPrompt: SCOUT_SYSTEM_PROMPT,
 	tools: {
-		exclude: ['write', 'edit', 'apply_patch', 'bash'],
+		exclude: ['write', 'edit', 'apply_patch'],
 	},
 	// Scout uses default variant (speed over depth) and low temp for factual exploration
 	temperature: 0.0,
