@@ -11,6 +11,7 @@ import type { LogLevel } from '../../types';
 import { existsSync, mkdirSync, statSync } from 'node:fs';
 import JSON5 from 'json5';
 import { formatSchemaCode } from './format-schema';
+import { toForwardSlash } from '../../utils/normalize-path';
 import {
 	computeApiMountPath,
 	joinMountAndRoute,
@@ -488,7 +489,7 @@ export async function parseEvalMetadata(
 		ecmaVersion: 'latest',
 		sourceType: 'module',
 	});
-	const rel = relative(rootDir, filename);
+	const rel = toForwardSlash(relative(rootDir, filename));
 	const version = hash(contents);
 	const evals: Array<{
 		filename: string;
@@ -706,7 +707,7 @@ export async function parseAgentMetadata(
 		sourceType: 'module',
 	});
 	let exportName: string | undefined;
-	const rel = relative(rootDir, filename);
+	const rel = toForwardSlash(relative(rootDir, filename));
 	let name: string | undefined; // Will be set from createAgent identifier
 	const version = hash(contents);
 	const id = getAgentId(projectId, deploymentId, rel, version);
@@ -910,7 +911,7 @@ export async function parseAgentMetadata(
 		| 'error';
 	const logger = createLogger(logLevel);
 	const agentDir = dirname(filename);
-	const evalsPath = `${agentDir}/eval.ts`;
+	const evalsPath = join(agentDir, 'eval.ts');
 	logger.trace(`Checking for evals file at ${evalsPath}`);
 	const evalsFile = Bun.file(evalsPath);
 	if (await evalsFile.exists()) {
@@ -1599,7 +1600,7 @@ export async function parseRoute(
 		});
 	}
 
-	const rel = relative(rootDir, filename);
+	const rel = toForwardSlash(relative(rootDir, filename));
 
 	// Compute the API mount path using the shared helper
 	// This ensures consistency between route type generation (here) and runtime mounting (entry-generator.ts)
@@ -2703,7 +2704,7 @@ export async function generateLifecycleTypes(
 	// local dev (symlinked to packages/) and CI (actual node_modules)
 	if (existsSync(runtimePkgPath)) {
 		// Calculate relative path from src/generated/ to node_modules package
-		const relPath = relative(outDir, runtimePkgPath);
+		const relPath = toForwardSlash(relative(outDir, runtimePkgPath));
 		runtimeImportPath = relPath;
 		logger.debug(`Using relative path to runtime package: ${relPath}`);
 	} else {

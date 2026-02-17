@@ -1,3 +1,5 @@
+import { toForwardSlash } from './normalize-path';
+
 /**
  * Detects if a file path represents a subagent based on path structure.
  *
@@ -18,6 +20,9 @@ export function detectSubagent(
 	if (srcDir && normalizedPath.startsWith(srcDir)) {
 		normalizedPath = normalizedPath.replace(srcDir, '');
 	}
+
+	// Normalize path separators for cross-platform compatibility
+	normalizedPath = toForwardSlash(normalizedPath);
 
 	// Strip leading './' and split into parts, filtering out empty segments
 	const pathParts = normalizedPath.replace(/^\.\//, '').split('/').filter(Boolean);

@@ -342,7 +342,7 @@ let cachedResult: string | undefined | null = null;
  */
 function matchAgentPath(path: string): string | undefined {
 	// Extract basename from path
-	const basename = path.split('/').pop()?.toLowerCase() ?? '';
+	const basename = path.split(/[/\\]/).pop()?.toLowerCase() ?? '';
 	for (const [processName, agentName] of KNOWN_AGENTS) {
 		if (basename.includes(processName)) {
 			return agentName;
@@ -375,7 +375,7 @@ function matchAgentCmdline(cmdline: string): string | undefined {
 		const isSimpleCommand = !part.includes('/') && !part.includes('=') && part.length < 50;
 
 		if (isPath || isSimpleCommand) {
-			const basename = part.split('/').pop()?.toLowerCase() ?? '';
+			const basename = part.split(/[/\\]/).pop()?.toLowerCase() ?? '';
 			for (const [processName, agentName] of KNOWN_AGENTS) {
 				if (basename.includes(processName)) {
 					return agentName;
