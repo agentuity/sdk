@@ -27,6 +27,14 @@ export type CLISandboxInfo = z.infer<typeof SandboxInfoSchema>;
 
 export interface CLISandboxListOptions {
 	/**
+	 * Filter by sandbox name
+	 */
+	name?: string;
+	/**
+	 * Filter by sandbox mode
+	 */
+	mode?: 'oneshot' | 'interactive';
+	/**
 	 * Filter by specific project ID
 	 */
 	projectId?: string;
@@ -46,6 +54,14 @@ export interface CLISandboxListOptions {
 	 * Number of sandboxes to skip for pagination
 	 */
 	offset?: number;
+	/**
+	 * Field to sort by
+	 */
+	sort?: string;
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: 'asc' | 'desc';
 }
 
 /**
@@ -75,14 +91,18 @@ export async function cliSandboxList(
 	client: APIClient,
 	options: CLISandboxListOptions = {}
 ): Promise<CLISandboxListData> {
-	const { projectId, orgId, status, limit, offset } = options;
+	const { projectId, orgId, status, limit, offset, sort, direction } = options;
 	const params = new URLSearchParams();
 
+	if (options.name) params.set('name', options.name);
+	if (options.mode) params.set('mode', options.mode);
 	if (projectId) params.set('projectId', projectId);
 	if (orgId) params.set('orgId', orgId);
 	if (status) params.set('status', status);
 	if (limit !== undefined) params.set('limit', limit.toString());
 	if (offset !== undefined) params.set('offset', offset.toString());
+	if (sort) params.set('sort', sort);
+	if (direction) params.set('direction', direction);
 
 	const queryString = params.toString();
 	const resp = await client.request<CLISandboxListResponse>(

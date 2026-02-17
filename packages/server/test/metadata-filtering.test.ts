@@ -243,7 +243,7 @@ describe('Metadata Query Combinations', () => {
 		});
 
 		expect(capturedUrl).toBeDefined();
-		expect(capturedUrl).toContain('count=20');
+		expect(capturedUrl).toContain('limit=20');
 		expect(capturedUrl).toContain('projectId=proj_123');
 		expect(capturedUrl).toContain('devmode=true');
 		expect(capturedUrl).toContain('success=true');
@@ -270,7 +270,7 @@ describe('Metadata Query Combinations', () => {
 		});
 
 		expect(capturedUrl).toBeDefined();
-		expect(capturedUrl).toContain('count=15');
+		expect(capturedUrl).toContain('limit=15');
 		expect(capturedUrl).toContain('projectId=proj_456');
 		expect(capturedUrl).toContain('metadata=');
 	});

@@ -1,119 +1,62 @@
-import { createSubcommand } from '../../../types';
-import type { Config } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import { getAPIBaseURL } from '../../../api';
-import type { APIClient } from '../../../api';
-import { ErrorCode } from '../../../errors';
-import { listOrganizations } from '@agentuity/server';
-import enquirer from 'enquirer';
 import type { Logger } from '@agentuity/core';
 import { z } from 'zod';
+import type { APIClient } from '../../../api';
+import { getAPIBaseURL } from '../../../api';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import type { Config } from '../../../types';
+import { createSubcommand } from '../../../types';
 import {
-	startGithubIntegration,
-	pollForGithubIntegration,
 	getGithubIntegrationStatus,
-	getExistingGithubIntegrations,
-	copyGithubIntegration,
+	pollForGithubIntegration,
+	startGithubIntegration,
 } from '../api';
 
-export interface RunGitAccountConnectOptions {
+export interface RunGitAccountAddOptions {
 	apiClient: APIClient;
-	orgId: string;
-	orgName?: string;
 	logger: Logger;
 	config?: Config | null;
 }
 
-export interface RunGitAccountConnectResult {
-	connected: boolean;
+export interface RunGitAccountAddResult {
+	added: boolean;
 	cancelled?: boolean;
 }
 
-export async function runGitAccountConnect(
-	options: RunGitAccountConnectOptions
-): Promise<RunGitAccountConnectResult> {
-	const { apiClient, orgId, orgName, logger, config } = options;
-	const orgDisplay = orgName ?? orgId;
+export async function runGitAccountAdd(
+	options: RunGitAccountAddOptions
+): Promise<RunGitAccountAddResult> {
+	const { apiClient, logger, config } = options;
 
 	try {
-		const currentStatus = await getGithubIntegrationStatus(apiClient, orgId);
-		const initialCount = currentStatus.integrations?.length ?? 0;
+		const currentStatus = await getGithubIntegrationStatus(apiClient);
 
-		const existingIntegrations = await tui.spinner({
-			message: 'Checking for existing GitHub connections...',
-			clearOnSuccess: true,
-			callback: () => getExistingGithubIntegrations(apiClient, orgId),
-		});
-
-		const alreadyConnectedNames = new Set(
-			currentStatus.integrations?.map((i) => i.githubAccountName) ?? []
-		);
-		const availableIntegrations = existingIntegrations.filter(
-			(i) => !alreadyConnectedNames.has(i.githubAccountName)
-		);
-
-		if (availableIntegrations.length > 0) {
+		if (!currentStatus.connected || !currentStatus.identity) {
 			tui.newline();
-
-			const integrationChoices = availableIntegrations.map((i) => ({
-				name: i.id,
-				message: `${i.githubAccountName} ${tui.muted(`(from ${i.orgName})`)}`,
-			}));
-
-			console.log(tui.muted('Press enter with none selected to add a new account'));
-			tui.newline();
-
-			const selectResponse = await enquirer.prompt<{ integrationIds: string[] }>({
-				type: 'multiselect',
-				name: 'integrationIds',
-				message: 'Select GitHub accounts to add',
-				choices: integrationChoices,
-			});
-
-			if (selectResponse.integrationIds.length > 0) {
-				const selectedIntegrations = availableIntegrations.filter((i) =>
-					selectResponse.integrationIds.includes(i.id)
-				);
-
-				const accountNames = selectedIntegrations.map((i) => i.githubAccountName).join(', ');
-
-				const confirmResponse = await enquirer.prompt<{ confirm: boolean }>({
-					type: 'confirm',
-					name: 'confirm',
-					message: `Add ${tui.bold(accountNames)} to ${tui.bold(orgDisplay)}?`,
-					initial: true,
-				});
-
-				if (confirmResponse.confirm) {
-					await tui.spinner({
-						message: `Adding ${selectedIntegrations.length} GitHub account${selectedIntegrations.length > 1 ? 's' : ''}...`,
-						clearOnSuccess: true,
-						callback: async () => {
-							for (const integration of selectedIntegrations) {
-								await copyGithubIntegration(apiClient, integration.orgId, orgId);
-							}
-						},
-					});
-
-					tui.newline();
-					tui.success(
-						`Added GitHub account${selectedIntegrations.length > 1 ? 's' : ''} to ${tui.bold(orgDisplay)}`
-					);
-					return { connected: true };
-				}
-			}
+			tui.error(
+				`No GitHub identity connected. Run ${tui.bold('agentuity git identity connect')} first.`
+			);
+			return { added: false };
 		}
 
+		const initialCount = currentStatus.installations?.length ?? 0;
+
+		tui.newline();
+		tui.info(
+			`Connected as ${tui.bold(currentStatus.identity.githubUsername)}. Opening GitHub to install the app on a new account...`
+		);
+		tui.newline();
+
 		const startResult = await tui.spinner({
-			message: 'Getting GitHub authorization URL...',
+			message: 'Getting GitHub installation URL...',
 			clearOnSuccess: true,
-			callback: () => startGithubIntegration(apiClient, orgId),
+			callback: () => startGithubIntegration(apiClient),
 		});
 
 		if (!startResult) {
-			tui.error('Failed to start GitHub authorization');
-			return { connected: false };
+			tui.error('Failed to start GitHub installation flow');
+			return { added: false };
 		}
 
 		const { shortId } = startResult;
@@ -124,19 +67,19 @@ export async function runGitAccountConnect(
 
 		tui.newline();
 		if (copied) {
-			console.log('GitHub authorization URL copied to clipboard! Open it in your browser:');
+			tui.output('GitHub installation URL copied to clipboard! Open it in your browser:');
 		} else {
-			console.log('Open this URL in your browser to authorize GitHub access:');
+			tui.output('Open this URL in your browser to install the GitHub App:');
 		}
 		tui.newline();
-		console.log(`  ${tui.link(url)}`);
+		tui.output(`  ${tui.link(url)}`);
 		tui.newline();
-		console.log(tui.muted('Press Enter to open in your browser, or Ctrl+C to cancel'));
+		tui.output(tui.muted('Press Enter to open in your browser, or Ctrl+C to cancel'));
 		tui.newline();
 
 		const result = await tui.spinner({
 			type: 'countdown',
-			message: 'Waiting for GitHub authorization',
+			message: 'Waiting for GitHub App installation',
 			timeoutMs: 600000,
 			clearOnSuccess: true,
 			onEnterPress: () => {
@@ -152,17 +95,17 @@ export async function runGitAccountConnect(
 				}
 			},
 			callback: async () => {
-				return await pollForGithubIntegration(apiClient, orgId, initialCount);
+				return await pollForGithubIntegration(apiClient, initialCount);
 			},
 		});
 
 		tui.newline();
 		if (result.connected) {
-			tui.success(`GitHub account added to ${tui.bold(orgDisplay)}`);
-			return { connected: true };
+			tui.success('GitHub App installed on new account');
+			return { added: true };
 		}
 
-		return { connected: false };
+		return { added: false };
 	} catch (error) {
 		const isCancel =
 			error === '' ||
@@ -171,7 +114,7 @@ export async function runGitAccountConnect(
 		if (isCancel) {
 			tui.newline();
 			tui.info('Cancelled');
-			return { connected: false, cancelled: true };
+			return { added: false, cancelled: true };
 		}
 
 		logger.trace(error);
@@ -179,18 +122,15 @@ export async function runGitAccountConnect(
 	}
 }
 
-const AddOptionsSchema = z.object({
-	org: z.string().optional().describe('Organization ID to add the account to'),
-});
+const AddOptionsSchema = z.object({});
 
 const AddResponseSchema = z.object({
-	connected: z.boolean().describe('Whether the account was connected'),
-	orgId: z.string().optional().describe('Organization ID'),
+	added: z.boolean().describe('Whether the installation was added'),
 });
 
 export const addSubcommand = createSubcommand({
 	name: 'add',
-	description: 'Add a GitHub account to your organization',
+	description: 'Install the GitHub App on a new account or organization',
 	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive'],
 	idempotent: false,
 	requires: { auth: true, apiClient: true },
@@ -201,118 +141,34 @@ export const addSubcommand = createSubcommand({
 	examples: [
 		{
 			command: getCommand('git account add'),
-			description: 'Add a GitHub account to your organization',
-		},
-		{
-			command: getCommand('git account add --org org_abc123'),
-			description: 'Add to a specific organization',
+			description: 'Install the GitHub App on a new account',
 		},
 	],
 
 	async handler(ctx) {
-		const { logger, apiClient, config, opts } = ctx;
+		const { logger, apiClient, config } = ctx;
 
 		try {
-			const orgs = await tui.spinner({
-				message: 'Fetching organizations...',
-				clearOnSuccess: true,
-				callback: () => listOrganizations(apiClient),
-			});
-
-			if (orgs.length === 0) {
-				tui.fatal('No organizations found for your account');
-			}
-
-			let orgId = opts.org;
-			let selectedOrg: (typeof orgs)[0] | undefined;
-
-			if (orgId) {
-				selectedOrg = orgs.find((o) => o.id === orgId);
-				if (!selectedOrg) {
-					tui.fatal(`Organization ${orgId} not found`);
-				}
-			} else {
-				const orgStatuses = await tui.spinner({
-					message: 'Checking GitHub integration status...',
-					clearOnSuccess: true,
-					callback: async () => {
-						const statuses = await Promise.all(
-							orgs.map(async (org) => {
-								const status = await getGithubIntegrationStatus(apiClient, org.id);
-								return {
-									...org,
-									connected: status.connected,
-									integrations: status.integrations,
-								};
-							})
-						);
-						return statuses;
-					},
-				});
-
-				const sortedOrgs = [...orgStatuses].sort((a, b) => a.name.localeCompare(b.name));
-
-				const firstOrg = orgs[0];
-				if (orgs.length === 1 && firstOrg) {
-					orgId = firstOrg.id;
-					selectedOrg = firstOrg;
-				} else {
-					const choices = sortedOrgs.map((org) => {
-						const count = org.integrations.length;
-						const suffix =
-							count > 0
-								? tui.muted(` (${count} GitHub account${count > 1 ? 's' : ''})`)
-								: '';
-						return {
-							name: org.name,
-							message: `${org.name}${suffix}`,
-							value: org.id,
-						};
-					});
-
-					const response = await enquirer.prompt<{ orgName: string }>({
-						type: 'select',
-						name: 'orgName',
-						message: 'Select an organization',
-						choices,
-						result(name: string) {
-							// @ts-expect-error - this.map exists at runtime
-							return this.map(name)[name];
-						},
-					});
-
-					orgId = response.orgName;
-					selectedOrg = sortedOrgs.find((o) => o.id === orgId);
-				}
-			}
-
-			const result = await runGitAccountConnect({
+			const result = await runGitAccountAdd({
 				apiClient,
-				orgId: orgId!,
-				orgName: selectedOrg?.name,
 				logger,
 				config,
 			});
 
-			return { connected: result.connected, orgId };
+			return { added: result.added };
 		} catch (error) {
 			const isCancel =
 				error === '' ||
-				(error instanceof Error &&
-					(error.message === '' || error.message === 'User cancelled'));
+				(error instanceof Error && (error.message === '' || error.message === 'User cancelled'));
 
 			if (isCancel) {
 				tui.newline();
 				tui.info('Cancelled');
-				return { connected: false };
+				return { added: false };
 			}
 
 			logger.trace(error);
-			return logger.fatal(
-				'Failed to add GitHub account: %s',
-				error,
-				ErrorCode.INTEGRATION_FAILED
-			);
+			return logger.fatal('Failed to add GitHub account: %s', error, ErrorCode.INTEGRATION_FAILED);
 		}
 	},
 });

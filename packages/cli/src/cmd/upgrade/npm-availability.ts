@@ -1,36 +1,107 @@
 /**
  * npm registry availability checking utilities.
- * Used to verify a version is available via bun's resolver before attempting upgrade.
+ * Used to verify a version is available on npm before attempting upgrade.
  */
-
-import { $ } from 'bun';
-import { tmpdir } from 'node:os';
 
 const PACKAGE_SPEC = '@agentuity/cli';
 
+/** Default timeout for install (`bun add -g`) subprocess calls (30 seconds) */
+const INSTALL_TIMEOUT_MS = 30_000;
+
 /**
- * Check if a specific version of @agentuity/cli is resolvable by bun.
- * Uses `bun info` to verify bun's own resolver/CDN can see the version,
- * which avoids the race where npm registry returns 200 but bun's CDN
- * has not yet propagated the version.
+ * Run a command via Bun.spawn with a timeout that kills the process.
+ * Returns { exitCode, stdout, stderr } similar to Bun's $ shell result.
+ */
+export async function spawnWithTimeout(
+	cmd: string[],
+	options: { cwd?: string; timeout: number }
+): Promise<{ exitCode: number; stdout: Buffer; stderr: Buffer }> {
+	const proc = Bun.spawn(cmd, {
+		cwd: options.cwd,
+		stdout: 'pipe',
+		stderr: 'pipe',
+	});
+
+	let timedOut = false;
+	const timer = setTimeout(() => {
+		timedOut = true;
+		proc.kill();
+	}, options.timeout);
+
+	try {
+		const [exitCode, stdoutBytes, stderrBytes] = await Promise.all([
+			proc.exited,
+			new Response(proc.stdout).arrayBuffer(),
+			new Response(proc.stderr).arrayBuffer(),
+		]);
+
+		if (timedOut) {
+			throw new Error(`Command timed out after ${options.timeout}ms: ${cmd.join(' ')}`);
+		}
+
+		return {
+			exitCode,
+			stdout: Buffer.from(stdoutBytes),
+			stderr: Buffer.from(stderrBytes),
+		};
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/**
+ * Sentinel error thrown exclusively by withTimeout so the retry loop can
+ * distinguish a genuine timeout from other failures (e.g. permission errors).
+ */
+class TimeoutError extends Error {
+	constructor(description: string, timeoutMs: number) {
+		super(`${description} timed out after ${timeoutMs}ms`);
+		this.name = 'TimeoutError';
+	}
+}
+
+/**
+ * Race a promise against a timeout. Unlike spawnWithTimeout (which kills a process),
+ * this is a generic wrapper for any async operation (e.g. the installFn callback).
+ *
+ * Throws a {@link TimeoutError} (not a plain Error) so callers can tell
+ * timeouts apart from other exceptions.
+ */
+async function withTimeout<T>(
+	promise: Promise<T>,
+	timeoutMs: number,
+	description: string
+): Promise<T> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeoutPromise = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => reject(new TimeoutError(description, timeoutMs)), timeoutMs);
+	});
+	try {
+		return await Promise.race([promise, timeoutPromise]);
+	} finally {
+		clearTimeout(timer!);
+	}
+}
+
+/**
+ * Check if a specific version of @agentuity/cli is available on the npm registry.
  *
  * @param version - Version to check (with or without 'v' prefix)
  * @returns true if version is available, false otherwise
  */
-export async function isVersionAvailableOnNpm(version: string): Promise<boolean> {
+export async function isVersionAvailableOnNpm(
+	version: string,
+	options?: { timeoutMs?: number }
+): Promise<boolean> {
 	const normalizedVersion = version.replace(/^v/, '');
+	const timeoutMs = options?.timeoutMs ?? 10_000;
 	try {
-		const result = await $`bun info ${PACKAGE_SPEC}@${normalizedVersion} --json`
-			.cwd(tmpdir())
-			.quiet()
-			.nothrow();
-		if (result.exitCode !== 0) {
-			return false;
-		}
-		const info = JSON.parse(result.stdout.toString());
-		if (info.error) {
-			return false;
-		}
+		const response = await fetch(
+			`https://registry.npmjs.org/${PACKAGE_SPEC}/${normalizedVersion}`,
+			{ signal: AbortSignal.timeout(timeoutMs) }
+		);
+		if (!response.ok) return false;
+		const info = (await response.json()) as { version?: string };
 		return info.version === normalizedVersion;
 	} catch {
 		return false;
@@ -38,14 +109,14 @@ export async function isVersionAvailableOnNpm(version: string): Promise<boolean>
 }
 
 /**
- * Quick check if a version is available via bun's resolver.
+ * Quick check if a version is available on npm.
  * Used for implicit version checks (auto-upgrade flow).
  *
  * @param version - Version to check (with or without 'v' prefix)
  * @returns true if version is available, false if unavailable or error
  */
 export async function isVersionAvailableOnNpmQuick(version: string): Promise<boolean> {
-	return isVersionAvailableOnNpm(version);
+	return isVersionAvailableOnNpm(version, { timeoutMs: 1_000 });
 }
 
 export interface WaitForNpmOptions {
@@ -147,7 +218,22 @@ export async function installWithRetry(
 	let delay = initialDelayMs;
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-		const result = await installFn();
+		let result: { exitCode: number; stderr: Buffer };
+		try {
+			result = await withTimeout(installFn(), INSTALL_TIMEOUT_MS, 'Install command');
+		} catch (error) {
+			// Only retry on timeouts — non-timeout errors (permissions, disk, etc.) are fatal
+			if (!(error instanceof TimeoutError)) {
+				throw error;
+			}
+			if (attempt === maxAttempts) {
+				throw error;
+			}
+			onRetry?.(attempt, delay);
+			await new Promise((resolve) => setTimeout(resolve, delay));
+			delay = Math.min(Math.round(delay * multiplier), maxDelayMs);
+			continue;
+		}
 
 		if (result.exitCode === 0) {
 			return result;

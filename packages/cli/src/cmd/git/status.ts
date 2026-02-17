@@ -1,22 +1,28 @@
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
+import { z } from 'zod';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { getProjectGithubStatus, getGithubIntegrationStatus } from './api';
-import { z } from 'zod';
+import * as tui from '../../tui';
+import { createSubcommand } from '../../types';
+import { getGithubIntegrationStatus, getProjectGithubStatus } from './api';
 
 const StatusResponseSchema = z.object({
-	orgId: z.string().describe('Organization ID'),
-	connected: z.boolean().describe('Whether GitHub is connected to the org'),
-	integrations: z
+	connected: z.boolean().describe('Whether GitHub is connected'),
+	identity: z
+		.object({
+			githubUsername: z.string(),
+			githubEmail: z.string().optional(),
+		})
+		.nullable()
+		.describe('Connected GitHub identity'),
+	installations: z
 		.array(
 			z.object({
-				id: z.string(),
-				githubAccountName: z.string(),
-				githubAccountType: z.enum(['user', 'org']),
+				installationId: z.string(),
+				accountName: z.string(),
+				accountType: z.enum(['User', 'Organization']),
 			})
 		)
-		.describe('Connected GitHub accounts'),
+		.describe('GitHub App installations'),
 	projectId: z.string().describe('Project ID'),
 	linked: z.boolean().describe('Whether the project is linked to a repo'),
 	repoFullName: z.string().optional().describe('Full repository name'),
@@ -50,11 +56,11 @@ export const statusSubcommand = createSubcommand({
 		const { logger, apiClient, project, options } = ctx;
 
 		try {
-			// Get org-level GitHub status
-			const orgStatus = await tui.spinner({
+			// Get user-level GitHub status
+			const githubStatus = await tui.spinner({
 				message: 'Checking GitHub connection...',
 				clearOnSuccess: true,
-				callback: () => getGithubIntegrationStatus(apiClient, project.orgId),
+				callback: () => getGithubIntegrationStatus(apiClient),
 			});
 
 			// Get project-level link status
@@ -65,12 +71,17 @@ export const statusSubcommand = createSubcommand({
 			});
 
 			const result = {
-				orgId: project.orgId,
-				connected: orgStatus.connected,
-				integrations: orgStatus.integrations.map((i) => ({
-					id: i.id,
-					githubAccountName: i.githubAccountName,
-					githubAccountType: i.githubAccountType,
+				connected: githubStatus.connected,
+				identity: githubStatus.identity
+					? {
+							githubUsername: githubStatus.identity.githubUsername,
+							githubEmail: githubStatus.identity.githubEmail,
+						}
+					: null,
+				installations: githubStatus.installations.map((i) => ({
+					installationId: i.installationId,
+					accountName: i.accountName,
+					accountType: i.accountType,
 				})),
 				projectId: project.projectId,
 				linked: projectStatus.linked,
@@ -86,47 +97,51 @@ export const statusSubcommand = createSubcommand({
 			}
 
 			tui.newline();
-			console.log(tui.bold('GitHub Status'));
+			tui.output(tui.bold('GitHub Status'));
 			tui.newline();
 
-			// Organization status
-			console.log(`${tui.bold('Organization:')} ${project.orgId}`);
-			if (orgStatus.connected && orgStatus.integrations.length > 0) {
-				console.log(
-					`  ${tui.colorSuccess('✓')} ${orgStatus.integrations.length} GitHub account${orgStatus.integrations.length > 1 ? 's' : ''} connected`
+			// GitHub identity status
+			if (githubStatus.connected && githubStatus.identity) {
+				tui.output(
+					`${tui.bold('GitHub:')} ${tui.colorSuccess('✓')} Connected as ${tui.bold(githubStatus.identity.githubUsername)}`
 				);
-				for (const integration of orgStatus.integrations) {
-					const typeLabel = integration.githubAccountType === 'org' ? 'org' : 'user';
-					console.log(`    - ${integration.githubAccountName} ${tui.muted(`(${typeLabel})`)}`);
+				if (githubStatus.installations.length > 0) {
+					tui.output(
+						`  ${githubStatus.installations.length} installation${githubStatus.installations.length > 1 ? 's' : ''}`
+					);
+					for (const installation of githubStatus.installations) {
+						const typeLabel = installation.accountType === 'Organization' ? 'org' : 'user';
+						tui.output(`    - ${installation.accountName} ${tui.muted(`(${typeLabel})`)}`);
+					}
 				}
 			} else {
-				console.log(`  ${tui.colorError('✗')} No GitHub accounts connected`);
-				console.log(
-					tui.muted(`    Run ${tui.bold('agentuity git account add')} to connect one`)
+				tui.output(`${tui.bold('GitHub:')} ${tui.colorError('✗')} No GitHub account connected`);
+				tui.output(
+					tui.muted(`    Run ${tui.bold('agentuity git identity connect')} to connect one`)
 				);
 			}
 
 			tui.newline();
 
 			// Project status
-			console.log(`${tui.bold('Project:')} ${project.projectId}`);
+			tui.output(`${tui.bold('Project:')} ${project.projectId}`);
 			if (projectStatus.linked) {
-				console.log(
+				tui.output(
 					`  ${tui.colorSuccess('✓')} Linked to ${tui.bold(projectStatus.repoFullName ?? '<unknown repository>')}`
 				);
-				console.log(`    Branch: ${projectStatus.branch}`);
+				tui.output(`    Branch: ${projectStatus.branch}`);
 				if (projectStatus.directory) {
-					console.log(`    Directory: ${projectStatus.directory}`);
+					tui.output(`    Directory: ${projectStatus.directory}`);
 				}
-				console.log(
+				tui.output(
 					`    Auto-deploy: ${projectStatus.autoDeploy ? tui.colorSuccess('enabled') : tui.muted('disabled')}`
 				);
-				console.log(
+				tui.output(
 					`    Preview deploys: ${projectStatus.previewDeploy ? tui.colorSuccess('enabled') : tui.muted('disabled')}`
 				);
 			} else {
-				console.log(`  ${tui.muted('○')} Not linked to a repository`);
-				console.log(tui.muted(`    Run ${tui.bold('agentuity git link')} to link one`));
+				tui.output(`  ${tui.muted('○')} Not linked to a repository`);
+				tui.output(tui.muted(`    Run ${tui.bold('agentuity git link')} to link one`));
 			}
 
 			tui.newline();
@@ -134,11 +149,7 @@ export const statusSubcommand = createSubcommand({
 			return result;
 		} catch (error) {
 			logger.trace(error);
-			return logger.fatal(
-				'Failed to get GitHub status: %s',
-				error,
-				ErrorCode.INTEGRATION_FAILED
-			);
+			return logger.fatal('Failed to get GitHub status: %s', error, ErrorCode.INTEGRATION_FAILED);
 		}
 	},
 });

@@ -85,7 +85,7 @@ describe('upgrade command', () => {
 		});
 
 		test('isVersionAvailableOnNpm is exported and callable', async () => {
-			mockFetch(async () => new Response(null, { status: 200 }));
+			mockFetch(async () => new Response(JSON.stringify({ version: '1.0.0' }), { status: 200 }));
 
 			const result = await isVersionAvailableOnNpm('1.0.0');
 			expect(typeof result).toBe('boolean');
@@ -93,7 +93,7 @@ describe('upgrade command', () => {
 		});
 
 		test('waitForNpmAvailability is exported and callable', async () => {
-			mockFetch(async () => new Response(null, { status: 200 }));
+			mockFetch(async () => new Response(JSON.stringify({ version: '1.0.0' }), { status: 200 }));
 
 			const result = await waitForNpmAvailability('1.0.0', {
 				maxAttempts: 1,
@@ -111,7 +111,7 @@ describe('upgrade command', () => {
 		});
 
 		test('isVersionAvailableOnNpmQuick is exported for implicit version checks', async () => {
-			mockFetch(async () => new Response(null, { status: 200 }));
+			mockFetch(async () => new Response(JSON.stringify({ version: '1.0.0' }), { status: 200 }));
 
 			const result = await isVersionAvailableOnNpmQuick('1.0.0');
 			expect(typeof result).toBe('boolean');

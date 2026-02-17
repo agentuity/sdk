@@ -1,20 +1,18 @@
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import { getGithubIntegrationStatus, listGithubRepos } from './api';
+import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { listOrganizations } from '@agentuity/server';
+import * as tui from '../../tui';
+import { createSubcommand } from '../../types';
+import { getGithubIntegrationStatus, listGithubRepos } from './api';
 
 const ListOptionsSchema = z.object({
-	org: z.string().optional().describe('Organization ID to list repos for'),
-	account: z.string().optional().describe('GitHub account/integration ID to filter by'),
+	account: z.string().optional().describe('GitHub account name to filter by'),
 });
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
-	description: 'List GitHub repositories accessible to your organization',
+	description: 'List GitHub repositories accessible to your account',
 	aliases: ['ls'],
 	tags: ['read-only'],
 	idempotent: true,
@@ -28,8 +26,8 @@ export const listSubcommand = createSubcommand({
 			description: 'List all accessible GitHub repositories',
 		},
 		{
-			command: getCommand('git list --org org_abc123'),
-			description: 'List repos for a specific organization',
+			command: getCommand('git list --account my-org'),
+			description: 'List repos for a specific GitHub account',
 		},
 		{
 			command: getCommand('--json git list'),
@@ -41,78 +39,69 @@ export const listSubcommand = createSubcommand({
 		const { logger, apiClient, opts, options } = ctx;
 
 		try {
-			// Get orgs
-			const orgs = await tui.spinner({
-				message: 'Fetching organizations...',
-				clearOnSuccess: true,
-				callback: () => listOrganizations(apiClient),
-			});
-
-			if (orgs.length === 0) {
-				tui.error('No organizations found');
-				return [];
-			}
-
-			// Select org
-			let orgId = opts.org;
-			if (!orgId) {
-				const firstOrg = orgs[0];
-				if (orgs.length === 1 && firstOrg) {
-					orgId = firstOrg.id;
-				} else {
-					tui.newline();
-					const orgChoices = orgs.map((o) => ({
-						name: o.id,
-						message: o.name,
-					}));
-
-					const response = await enquirer.prompt<{ orgId: string }>({
-						type: 'select',
-						name: 'orgId',
-						message: 'Select an organization',
-						choices: orgChoices,
-					});
-					orgId = response.orgId;
-				}
-			}
-
-			// Check GitHub integrations
+			// Check GitHub connection
 			const githubStatus = await tui.spinner({
 				message: 'Checking GitHub connection...',
 				clearOnSuccess: true,
-				callback: () => getGithubIntegrationStatus(apiClient, orgId!),
+				callback: () => getGithubIntegrationStatus(apiClient),
 			});
 
-			if (!githubStatus.connected || githubStatus.integrations.length === 0) {
+			if (!githubStatus.connected || githubStatus.installations.length === 0) {
 				tui.newline();
-				tui.error('No GitHub accounts connected to this organization.');
+				tui.error('No GitHub accounts connected.');
 				console.log(tui.muted(`Run ${tui.bold('agentuity git account add')} to connect one`));
 				return [];
 			}
 
-			// Select account if multiple and not specified
-			let integrationId = opts.account;
-			if (!integrationId && githubStatus.integrations.length > 1) {
+			// Select installation if multiple and not specified
+			let integrationId: string | undefined;
+
+			if (opts.account) {
+				// Match by account name
+				const matched = githubStatus.installations.find(
+					(inst) => inst.accountName.toLowerCase() === opts.account!.toLowerCase()
+				);
+				if (!matched) {
+					tui.newline();
+					tui.error(`No installation found for account "${opts.account}"`);
+					console.log(
+						tui.muted(
+							`Available: ${githubStatus.installations.map((i) => i.accountName).join(', ')}`
+						)
+					);
+					return [];
+				}
+				integrationId = matched.integrationId;
+			} else if (githubStatus.installations.length > 1) {
 				tui.newline();
-				const accountChoices = githubStatus.integrations.map((integration) => ({
-					name: integration.id,
-					message: `${integration.githubAccountName} ${tui.muted(`(${integration.githubAccountType})`)}`,
+				const accountChoices = githubStatus.installations.map((installation) => ({
+					name: installation.installationId,
+					message: `${installation.accountName} ${tui.muted(`(${installation.accountType})`)}`,
+					value: installation.integrationId,
 				}));
 
-				const response = await enquirer.prompt<{ integrationId: string }>({
+				const response = await enquirer.prompt<{ installationId: string }>({
 					type: 'select',
-					name: 'integrationId',
+					name: 'installationId',
 					message: 'Select a GitHub account',
 					choices: accountChoices,
+					result(name: string) {
+						// Return the value (integrationId) instead of the display name
+						const choice = accountChoices.find((c) => c.name === name);
+						return choice?.value ?? name;
+					},
 				});
-				integrationId = response.integrationId;
+				integrationId = response.installationId;
+			} else {
+				// Single installation — use its integrationId
+				integrationId = githubStatus.installations[0]?.integrationId;
 			}
 
 			// Fetch repos
 			const repos = await tui.spinner({
 				message: 'Fetching repositories...',
 				clearOnSuccess: true,
-				callback: () => listGithubRepos(apiClient, orgId!, integrationId),
+				callback: () => listGithubRepos(apiClient, integrationId),
 			});
 
 			if (repos.length === 0) {
@@ -131,9 +120,7 @@ export const listSubcommand = createSubcommand({
 
 				for (const repo of repos) {
 					const visibility = repo.private ? tui.muted('private') : 'public';
-					console.log(
-						`  ${repo.fullName} ${tui.muted(`[${repo.defaultBranch}]`)} ${visibility}`
-					);
+					console.log(`  ${repo.fullName} ${tui.muted(`[${repo.defaultBranch}]`)} ${visibility}`);
 				}
 				tui.newline();
 			}
@@ -142,8 +129,7 @@ export const listSubcommand = createSubcommand({
 		} catch (error) {
 			const isCancel =
 				error === '' ||
-				(error instanceof Error &&
-					(error.message === '' || error.message === 'User cancelled'));
+				(error instanceof Error && (error.message === '' || error.message === 'User cancelled'));
 
 			if (isCancel) {
 				tui.newline();
@@ -152,11 +138,7 @@ export const listSubcommand = createSubcommand({
 			}
 
 			logger.trace(error);
-			return logger.fatal(
-				'Failed to list repositories: %s',
-				error,
-				ErrorCode.INTEGRATION_FAILED
-			);
+			return logger.fatal('Failed to list repositories: %s', error, ErrorCode.INTEGRATION_FAILED);
 		}
 	},
 });
