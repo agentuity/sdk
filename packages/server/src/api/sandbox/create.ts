@@ -86,6 +86,10 @@ export const SandboxCreateRequestSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Apt packages to install when creating the sandbox'),
+		packages: z
+			.array(z.string())
+			.optional()
+			.describe('npm/bun packages to install globally when creating the sandbox'),
 		metadata: z
 			.record(z.string(), z.unknown())
 			.optional()
@@ -201,6 +205,9 @@ export async function sandboxCreate(
 	}
 	if (options.dependencies && options.dependencies.length > 0) {
 		body.dependencies = options.dependencies;
+	}
+	if (options.packages && options.packages.length > 0) {
+		body.packages = options.packages;
 	}
 	if (options.metadata) {
 		body.metadata = options.metadata;

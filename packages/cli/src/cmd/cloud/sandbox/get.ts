@@ -40,6 +40,7 @@ const SandboxGetResponseSchema = z.object({
 	stdoutStreamUrl: z.string().optional().describe('URL to stdout output stream'),
 	stderrStreamUrl: z.string().optional().describe('URL to stderr output stream'),
 	dependencies: z.array(z.string()).optional().describe('Apt packages installed'),
+	packages: z.array(z.string()).optional().describe('npm/bun packages installed globally'),
 	metadata: z.record(z.string(), z.unknown()).optional().describe('User-defined metadata'),
 	resources: SandboxResourcesSchema.optional().describe('Resource limits'),
 	url: z.string().optional().describe('Public URL for the sandbox (if network port configured)'),

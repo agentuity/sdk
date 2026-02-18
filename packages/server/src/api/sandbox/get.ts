@@ -123,6 +123,10 @@ export const SandboxInfoDataSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Apt packages installed in the sandbox'),
+		packages: z
+			.array(z.string())
+			.optional()
+			.describe('npm/bun packages installed globally in the sandbox'),
 		metadata: z
 			.record(z.string(), z.unknown())
 			.optional()
@@ -209,6 +213,7 @@ export async function sandboxGet(
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
 			dependencies: resp.data.dependencies,
+			packages: resp.data.packages,
 			metadata: resp.data.metadata as Record<string, unknown> | undefined,
 			resources: resp.data.resources,
 			cpuTimeMs: resp.data.cpuTimeMs,
