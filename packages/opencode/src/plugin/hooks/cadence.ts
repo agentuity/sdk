@@ -69,7 +69,8 @@ export function createCadenceHooks(
 	ctx: PluginInput,
 	config: CoderConfig,
 	backgroundManager?: BackgroundManager,
-	dbReader?: OpenCodeDBReader
+	dbReader?: OpenCodeDBReader,
+	lastUserMessages?: Map<string, string>
 ): CadenceHooks {
 	const activeCadenceSessions = new Map<string, CadenceSessionState>();
 	const nonCadenceSessions = new Set<string>();
@@ -89,11 +90,11 @@ export function createCadenceHooks(
 			const sessionId = extractSessionId(input);
 			if (!sessionId) return;
 
-			const messageText = extractMessageText(output);
-			if (!messageText) return;
-
-			// Check if this is a Cadence start command or ultrawork trigger
-			const cadenceType = getCadenceTriggerType(messageText);
+			// Use the USER's message (from chat.params) for trigger detection,
+			// not the model's output — avoids false positives when the model
+			// uses phrases like "go deep" or "be thorough" in its response.
+			const userText = lastUserMessages?.get(sessionId) ?? '';
+			const cadenceType = getCadenceTriggerType(userText);
 			if (cadenceType && !activeCadenceSessions.has(sessionId)) {
 				log(`Cadence started for session ${sessionId} via ${cadenceType}`);
 				const now = new Date().toISOString();
@@ -115,6 +116,12 @@ export function createCadenceHooks(
 				showToast(ctx, `⚡ Cadence started · ${state.iteration}/${state.maxIterations}`);
 				return;
 			}
+
+			// Everything below parses the MODEL's output for structured tags
+			// (CADENCE_STATUS, iteration counts, completion signals) that the
+			// model intentionally emits — these are NOT false-positive-prone.
+			const messageText = extractMessageText(output);
+			if (!messageText) return;
 
 			// Check if this session is in Cadence mode
 			const state = activeCadenceSessions.get(sessionId);

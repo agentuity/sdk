@@ -92,10 +92,14 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	const resolvedDbPath = resolveOpenCodeDBPath();
 	const dbReader = new OpenCodeDBReader(resolvedDbPath ? { dbPath: resolvedDbPath } : undefined);
 
+	// Shared Map: chat.params stores the user's message text per session,
+	// chat.message reads it for trigger detection (avoids scanning model output).
+	const lastUserMessages = new Map<string, string>();
+
 	const sessionHooks = createSessionHooks(ctx, coderConfig);
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
-	const paramsHooks = createParamsHooks(ctx, coderConfig);
+	const paramsHooks = createParamsHooks(ctx, coderConfig, lastUserMessages);
 	const tmuxManager = coderConfig.tmux?.enabled
 		? new TmuxSessionManager(ctx, coderConfig.tmux, {
 				onLog: (message) =>
@@ -157,7 +161,13 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		});
 
 	// Create hooks that need backgroundManager for task reference injection during compaction
-	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager, dbReader);
+	const cadenceHooks = createCadenceHooks(
+		ctx,
+		coderConfig,
+		backgroundManager,
+		dbReader,
+		lastUserMessages
+	);
 
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
 	// Orchestration (deciding which module handles which session) happens below in the hooks

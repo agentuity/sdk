@@ -1,11 +1,5 @@
 import type { OpenCodeDBReader } from '../../sqlite/reader';
-import type {
-	CompactionStats,
-	DBNonTextPart,
-	DBToolCallSummary,
-	PreCompactionSnapshot,
-} from '../../sqlite/types';
-import type { CompactionConfig } from '../../types';
+import type { CompactionStats, DBNonTextPart, PreCompactionSnapshot } from '../../sqlite/types';
 
 /**
  * Get the current git branch name.
