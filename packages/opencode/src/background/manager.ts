@@ -95,9 +95,14 @@ export class BackgroundManager {
 
 	/**
 	 * Resolve authentication headers from environment variables.
+	 *
+	 * Reads `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD` (set
+	 * automatically by the OpenCode server in sandbox environments) and
+	 * produces a Basic Auth header (`base64("username:password")`).
+	 *
 	 * In sandbox environments the SDK client's default auth may not carry over
 	 * when a per-call `baseUrl` override is provided, so we need to explicitly
-	 * attach Basic Auth credentials derived from the server env vars.
+	 * attach these credentials for server-to-server requests.
 	 */
 	private resolveAuthHeaders(): Record<string, string> | undefined {
 		const username = process.env.OPENCODE_SERVER_USERNAME;
