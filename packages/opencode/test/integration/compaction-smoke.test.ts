@@ -3,7 +3,6 @@ import {
 	buildCustomCompactionPrompt,
 	fetchAndFormatPlanningState,
 	formatCompactionDiagnostics,
-	countListItems,
 	getCurrentBranch,
 } from '../../src/plugin/hooks/compaction-utils';
 import type { CompactionStats } from '../../src/sqlite/types';
