@@ -48,6 +48,8 @@ export class BackgroundManager {
 	private concurrency: ConcurrencyManager;
 	private callbacks?: BackgroundManagerCallbacks;
 	private dbReader?: OpenCodeDBReader;
+	private serverUrl: string | undefined;
+	private authHeaders: Record<string, string> | undefined;
 	private tasks = new Map<string, BackgroundTask>();
 	private tasksByParent = new Map<string, Set<string>>();
 	private tasksBySession = new Map<string, string>();
@@ -69,6 +71,57 @@ export class BackgroundManager {
 		});
 		this.callbacks = callbacks;
 		this.dbReader = dbReader;
+		this.serverUrl = this.resolveServerUrl();
+		this.authHeaders = this.resolveAuthHeaders();
+	}
+
+	/**
+	 * Resolve the server URL from the plugin context.
+	 * Mirrors the defensive pattern used in the tmux manager to handle
+	 * sandbox environments where the client may not have a baseUrl configured.
+	 */
+	private resolveServerUrl(): string | undefined {
+		const ctx = this.ctx as unknown as {
+			serverUrl?: string | URL;
+			baseUrl?: string | URL;
+			client?: { baseUrl?: string | URL };
+		};
+		const serverUrl = ctx.serverUrl ?? ctx.baseUrl ?? ctx.client?.baseUrl;
+		if (!serverUrl) return undefined;
+		const urlStr = typeof serverUrl === 'string' ? serverUrl : serverUrl.toString();
+		// Strip trailing slash to prevent double-slash when SDK appends paths like /session
+		return urlStr.replace(/\/+$/, '');
+	}
+
+	/**
+	 * Resolve authentication headers from environment variables.
+	 *
+	 * Reads `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD` (set
+	 * automatically by the OpenCode server in sandbox environments) and
+	 * produces a Basic Auth header (`base64("username:password")`).
+	 *
+	 * In sandbox environments the SDK client's default auth may not carry over
+	 * when a per-call `baseUrl` override is provided, so we need to explicitly
+	 * attach these credentials for server-to-server requests.
+	 */
+	private resolveAuthHeaders(): Record<string, string> | undefined {
+		const username = process.env.OPENCODE_SERVER_USERNAME;
+		const password = process.env.OPENCODE_SERVER_PASSWORD;
+		if (!username || !password) return undefined;
+		const encoded = Buffer.from(username + ':' + password).toString('base64');
+		return { Authorization: `Basic ${encoded}` };
+	}
+
+	/**
+	 * Build the per-call client overrides (baseUrl + auth headers).
+	 * Spread this into every SDK client call so both the server URL and
+	 * authentication are correctly forwarded in sandbox environments.
+	 */
+	private getClientOverrides(): { baseUrl?: string; headers?: Record<string, string> } {
+		const overrides: { baseUrl?: string; headers?: Record<string, string> } = {};
+		if (this.serverUrl) overrides.baseUrl = this.serverUrl;
+		if (this.authHeaders) overrides.headers = this.authHeaders;
+		return overrides;
 	}
 
 	async launch(input: LaunchInput): Promise<BackgroundTask> {
@@ -188,12 +241,14 @@ export class BackgroundManager {
 			const sessionResponse = await this.ctx.client.session.get({
 				path: { id: task.sessionId },
 				throwOnError: false,
+				...this.getClientOverrides(),
 			});
 
 			// Get messages from the session
 			const messagesResponse = await this.ctx.client.session.messages({
 				path: { id: task.sessionId },
 				throwOnError: false,
+				...this.getClientOverrides(),
 			});
 
 			const session = unwrapResponse<unknown>(sessionResponse);
@@ -243,6 +298,7 @@ export class BackgroundManager {
 				const childrenResponse = await this.ctx.client.session.children({
 					path: { id: parentId },
 					throwOnError: false,
+					...this.getClientOverrides(),
 				});
 
 				const rawChildren = unwrapResponse<Array<unknown>>(childrenResponse);
@@ -356,6 +412,7 @@ export class BackgroundManager {
 			// Get all sessions
 			const sessionsResponse = await this.ctx.client.session.list({
 				throwOnError: false,
+				...this.getClientOverrides(),
 			});
 
 			const rawSessions = unwrapResponse<Array<unknown>>(sessionsResponse);
@@ -552,7 +609,7 @@ export class BackgroundManager {
 		} catch (error) {
 			if (task.status !== 'cancelled') {
 				task.status = 'error';
-				task.error = error instanceof Error ? error.message : 'Failed to acquire slot.';
+				task.error = extractErrorMessage(error, 'Failed to acquire slot.');
 				task.completedAt = new Date();
 				this.markForNotification(task);
 			}
@@ -579,6 +636,7 @@ export class BackgroundManager {
 					title: taskMetadata,
 				},
 				throwOnError: true,
+				...this.getClientOverrides(),
 			});
 			const session = unwrapResponse<{ id: string }>(sessionResult);
 			if (!session?.id) {
@@ -602,12 +660,26 @@ export class BackgroundManager {
 					parts: [{ type: 'text', text: task.prompt }],
 				},
 				throwOnError: true,
+				...this.getClientOverrides(),
 			});
 		} catch (error) {
-			this.failTask(
-				task,
-				error instanceof Error ? error.message : 'Failed to launch background task.'
-			);
+			const errorMsg = extractErrorMessage(error, 'Failed to launch background task.');
+			// Log the actual error for debugging — critical in sandbox environments
+			// where the client may silently fail due to missing baseUrl
+			try {
+				void this.ctx.client.app.log({
+					body: {
+						service: 'agentuity-coder',
+						level: 'error',
+						message: `Background task ${task.id} failed to start: ${errorMsg}`,
+					},
+					...this.getClientOverrides(),
+				});
+			} catch {
+				// If logging also fails, fall back to console
+				console.error(`[BackgroundManager] Task ${task.id} failed to start:`, errorMsg);
+			}
+			this.failTask(task, errorMsg);
 		}
 	}
 
@@ -728,9 +800,13 @@ Use the agentuity_background_output tool with task_id "${task.id}" to view the r
 				},
 				throwOnError: true,
 				responseStyle: 'data',
+				...this.getClientOverrides(),
 			});
-		} catch {
-			// Ignore notification errors
+		} catch (error) {
+			console.error(
+				`[BackgroundManager] Failed to notify parent for task ${task.id}:`,
+				extractErrorMessage(error, 'notification failed')
+			);
 		}
 	}
 
@@ -739,6 +815,7 @@ Use the agentuity_background_output tool with task_id "${task.id}" to view the r
 			await this.ctx.client.session.abort({
 				path: { id: sessionId },
 				throwOnError: false,
+				...this.getClientOverrides(),
 			});
 		} catch {
 			// Ignore abort errors
@@ -762,6 +839,7 @@ Use the agentuity_background_output tool with task_id "${task.id}" to view the r
 			const messagesResult = await this.ctx.client.session.messages({
 				path: { id: sessionId },
 				throwOnError: true,
+				...this.getClientOverrides(),
 			});
 			const messages = unwrapResponse<Array<unknown>>(messagesResult) ?? [];
 			const entries = Array.isArray(messages) ? messages : [];
@@ -909,4 +987,25 @@ function unwrapResponse<T>(result: unknown): T | undefined {
 		return (result as { data?: T }).data;
 	}
 	return result as T;
+}
+
+/**
+ * Extract an error message from an unknown thrown value.
+ *
+ * The OpenCode SDK client (with `throwOnError: true`) throws **plain objects**
+ * (e.g. `{ message: "Not Found" }`) or raw strings rather than `Error` instances.
+ * This helper normalises all shapes into a usable string.
+ */
+function extractErrorMessage(error: unknown, fallback: string): string {
+	if (error instanceof Error) return error.message;
+	if (typeof error === 'string') return error || fallback;
+	if (typeof error === 'object' && error !== null) {
+		const obj = error as Record<string, unknown>;
+		if (typeof obj.message === 'string') return obj.message || fallback;
+		if (typeof obj.error === 'string') return obj.error || fallback;
+		if (typeof obj.error === 'object' && obj.error !== null) {
+			return extractErrorMessage(obj.error, fallback);
+		}
+	}
+	return fallback;
 }

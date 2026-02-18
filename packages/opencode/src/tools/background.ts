@@ -33,6 +33,7 @@ export function createBackgroundTools(manager: BackgroundManager): {
 			context: ToolContext
 		) => Promise<{
 			taskId: string;
+			sessionId?: string;
 			status: string;
 			message: string;
 		}>;
@@ -43,6 +44,7 @@ export function createBackgroundTools(manager: BackgroundManager): {
 		args: typeof BackgroundOutputArgsSchema;
 		execute: (args: BackgroundOutputArgs) => Promise<{
 			taskId: string;
+			sessionId?: string;
 			status: string;
 			result?: string;
 			error?: string;
@@ -68,6 +70,7 @@ export function createBackgroundTools(manager: BackgroundManager): {
 			context: ToolContext
 		): Promise<{
 			taskId: string;
+			sessionId?: string;
 			status: string;
 			message: string;
 		}> {
@@ -82,6 +85,7 @@ export function createBackgroundTools(manager: BackgroundManager): {
 
 			return {
 				taskId: task.id,
+				sessionId: task.sessionId,
 				status: task.status,
 				message:
 					task.status === 'error'
@@ -97,6 +101,7 @@ export function createBackgroundTools(manager: BackgroundManager): {
 		args: BackgroundOutputArgsSchema,
 		async execute(args: BackgroundOutputArgs): Promise<{
 			taskId: string;
+			sessionId?: string;
 			status: string;
 			result?: string;
 			error?: string;
@@ -111,6 +116,7 @@ export function createBackgroundTools(manager: BackgroundManager): {
 			}
 			return {
 				taskId: task.id,
+				sessionId: task.sessionId,
 				status: task.status,
 				result: task.result,
 				error: task.error,
