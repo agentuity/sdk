@@ -316,7 +316,7 @@ export const scoutAgent: AgentDefinition = {
 	displayName: 'Agentuity Coder Scout',
 	description:
 		'Agentuity Coder explorer - analyzes codebases, finds patterns, researches docs (read-only)',
-	defaultModel: 'anthropic/claude-haiku-4-5-20251001',
+	defaultModel: 'anthropic/claude-sonnet-4-6',
 	systemPrompt: SCOUT_SYSTEM_PROMPT,
 	tools: {
 		exclude: ['write', 'edit', 'apply_patch'],

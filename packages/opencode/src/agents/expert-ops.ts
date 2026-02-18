@@ -369,7 +369,7 @@ export const expertOpsAgent: AgentDefinition = {
 	id: 'ag-expert-ops',
 	displayName: 'Agentuity Coder Expert Ops',
 	description: 'Agentuity operations specialist - CLI, cloud services, deployments, sandboxes',
-	defaultModel: 'anthropic/claude-sonnet-4-5-20250929',
+	defaultModel: 'anthropic/claude-sonnet-4-6',
 	systemPrompt: EXPERT_OPS_SYSTEM_PROMPT,
 	mode: 'subagent',
 	hidden: true, // Only invoked by Expert orchestrator
