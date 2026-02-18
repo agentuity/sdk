@@ -366,4 +366,72 @@ describe('OpenCodeDBReader', () => {
 		reader.close();
 		db.close();
 	});
+
+	describe('compaction support', () => {
+		it('returns non-text parts excluding text type', () => {
+			ctx.reader.open();
+			const parts = ctx.reader.getNonTextParts('session-root');
+			// Seed data has 2 tool parts and 1 text part on session-root
+			// getNonTextParts should return the 2 tool parts only
+			expect(parts.length).toBe(2);
+			for (const part of parts) {
+				expect(part.type).not.toBe('text');
+				expect(part.type).toBe('tool');
+				expect(part.id).toBeDefined();
+				expect(part.messageId).toBeDefined();
+				expect(part.timestamp).toBeDefined();
+			}
+		});
+
+		it('returns correct metadata on non-text parts', () => {
+			ctx.reader.open();
+			const parts = ctx.reader.getNonTextParts('session-root');
+			// Both tool parts belong to message-2 and have toolName='search'
+			for (const part of parts) {
+				expect(part.messageId).toBe('message-2');
+				expect(part.toolName).toBe('search');
+			}
+		});
+
+		it('returns empty array for unknown session', () => {
+			ctx.reader.open();
+			const parts = ctx.reader.getNonTextParts('nonexistent-session');
+			expect(parts).toEqual([]);
+		});
+
+		it('returns recent tool call summaries', () => {
+			ctx.reader.open();
+			const calls = ctx.reader.getRecentToolCalls('session-root', 5);
+			// Seed data has 2 tool parts (part-1 running, part-2 completed)
+			expect(calls.length).toBe(2);
+			for (const call of calls) {
+				expect(call.toolName).toBe('search');
+				expect(call.timestamp).toBeDefined();
+				expect(call.id).toBeDefined();
+				expect(call.messageId).toBe('message-2');
+			}
+		});
+
+		it('includes truncated input/output on tool call summaries', () => {
+			ctx.reader.open();
+			const calls = ctx.reader.getRecentToolCalls('session-root', 5);
+			// part-2 (completed) has both input and output in seed data
+			const completed = calls.find((c) => c.output !== undefined);
+			expect(completed).toBeDefined();
+			expect(completed!.input).toContain('sqlite');
+			expect(completed!.output).toContain('ok');
+		});
+
+		it('respects limit on tool calls', () => {
+			ctx.reader.open();
+			const calls = ctx.reader.getRecentToolCalls('session-root', 1);
+			expect(calls.length).toBeLessThanOrEqual(1);
+		});
+
+		it('returns empty array for tool calls on unknown session', () => {
+			ctx.reader.open();
+			const calls = ctx.reader.getRecentToolCalls('nonexistent-session', 5);
+			expect(calls).toEqual([]);
+		});
+	});
 });
