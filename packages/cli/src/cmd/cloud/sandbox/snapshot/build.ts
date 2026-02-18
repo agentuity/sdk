@@ -297,6 +297,7 @@ async function generateContentHash(params: {
 	runtime: string;
 	description?: string;
 	dependencies?: string[];
+	packages?: string[];
 	files: SnapshotFileInfo[];
 	fileHashes: Map<string, string>;
 	env?: Record<string, string>;
@@ -313,6 +314,11 @@ async function generateContentHash(params: {
 	if (params.dependencies && params.dependencies.length > 0) {
 		const sortedDeps = [...params.dependencies].sort();
 		hash.update(`dependencies:${sortedDeps.join(',')}\n`);
+	}
+
+	if (params.packages && params.packages.length > 0) {
+		const sortedPkgs = [...params.packages].sort();
+		hash.update(`packages:${sortedPkgs.join(',')}\n`);
 	}
 
 	if (params.files.length > 0) {
@@ -575,6 +581,22 @@ export const buildSubcommand = createCommand({
 			}
 		}
 
+		if (buildConfig.packages && buildConfig.packages.length > 0) {
+			// Basic validation: no shell metacharacters
+			const packageNameRegex =
+				/^(@[a-zA-Z0-9._-]+\/)?[a-zA-Z0-9._-]+(@[a-zA-Z0-9._^~><=\-]+)?$/;
+			const invalidPackages = buildConfig.packages.filter(
+				(pkg) => !packageNameRegex.test(pkg)
+			);
+			if (invalidPackages.length > 0) {
+				tui.error('Invalid package names:');
+				for (const pkg of invalidPackages) {
+					tui.bullet(`${pkg}: package name contains invalid characters`);
+				}
+				process.exit(1);
+			}
+		}
+
 		let files = new Map<string, FileEntry>();
 		if (buildConfig.files && buildConfig.files.length > 0) {
 			files = await resolveFileGlobs(directory, buildConfig.files);
@@ -613,6 +635,7 @@ export const buildSubcommand = createCommand({
 			runtime: buildConfig.runtime,
 			description: finalDescription,
 			dependencies: buildConfig.dependencies,
+			packages: buildConfig.packages,
 			files: fileList,
 			fileHashes,
 			env: finalEnv,
@@ -644,6 +667,14 @@ export const buildSubcommand = createCommand({
 					tui.info('Dependencies:');
 					for (const dep of buildConfig.dependencies) {
 						console.log(`  ${tui.muted('•')} ${dep}`);
+					}
+				}
+
+				if (buildConfig.packages && buildConfig.packages.length > 0) {
+					console.log('');
+					tui.info('Packages (npm/bun):');
+					for (const pkg of buildConfig.packages) {
+						console.log(`  ${tui.muted('•')} ${pkg}`);
 					}
 				}
 
@@ -914,6 +945,7 @@ export const buildSubcommand = createCommand({
 						fileCount: fileList.length,
 						files: fileList,
 						dependencies: buildConfig.dependencies,
+						packages: buildConfig.packages,
 						env: finalEnv,
 						metadata: finalMetadata,
 						orgId,
@@ -941,23 +973,31 @@ export const buildSubcommand = createCommand({
 					{ layout: 'vertical', padStart: '  ' }
 				);
 
-				if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
-					console.log('');
-					tui.info('Dependencies:');
-					for (const dep of buildConfig.dependencies) {
-						console.log(`  ${tui.muted('•')} ${dep}`);
-					}
+			if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
+				console.log('');
+				tui.info('Dependencies:');
+				for (const dep of buildConfig.dependencies) {
+					console.log(`  ${tui.muted('•')} ${dep}`);
 				}
+			}
 
-				if (finalEnv && Object.keys(finalEnv).length > 0) {
-					console.log('');
-					tui.info('Environment:');
-					for (const [envKey, envValue] of Object.entries(finalEnv)) {
-						console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
-					}
+			if (buildConfig.packages && buildConfig.packages.length > 0) {
+				console.log('');
+				tui.info('Packages (npm/bun):');
+				for (const pkg of buildConfig.packages) {
+					console.log(`  ${tui.muted('•')} ${pkg}`);
 				}
+			}
 
-				if (finalMetadata && Object.keys(finalMetadata).length > 0) {
+			if (finalEnv && Object.keys(finalEnv).length > 0) {
+				console.log('');
+				tui.info('Environment:');
+				for (const [envKey, envValue] of Object.entries(finalEnv)) {
+					console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
+				}
+			}
+
+			if (finalMetadata && Object.keys(finalMetadata).length > 0) {
 					console.log('');
 					tui.info('Metadata:');
 					for (const key of Object.keys(finalMetadata)) {

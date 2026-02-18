@@ -22,6 +22,12 @@ export const SnapshotBuildFileBaseSchema = z
 			.describe(
 				'List of apt packages to install. Supports version pinning: package=version or package=version* for prefix matching'
 			),
+		packages: z
+			.array(z.string())
+			.optional()
+			.describe(
+				'List of npm/bun packages to install globally via bun install -g. Example: opencode-ai, typescript'
+			),
 		files: z
 			.array(z.string())
 			.optional()
@@ -49,17 +55,18 @@ export const SnapshotBuildFileBaseSchema = z
 
 /**
  * Schema with validation refinement - use this for parsing/validation.
- * Ensures at least one of dependencies, files, or env is specified.
+ * Ensures at least one of dependencies, files, env, or packages is specified.
  */
 export const SnapshotBuildFileSchema = SnapshotBuildFileBaseSchema.refine(
 	(data) => {
 		const hasDependencies = data.dependencies && data.dependencies.length > 0;
 		const hasFiles = data.files && data.files.length > 0;
 		const hasEnv = data.env && Object.keys(data.env).length > 0;
-		return hasDependencies || hasFiles || hasEnv;
+		const hasPackages = data.packages && data.packages.length > 0;
+		return hasDependencies || hasFiles || hasEnv || hasPackages;
 	},
 	{
-		message: 'At least one of dependencies, files, or env must be specified',
+		message: 'At least one of dependencies, files, env, or packages must be specified',
 	}
 );
 
