@@ -50,8 +50,8 @@ export function generateBanner(version?: string, compact?: true): string {
 
 	const dashboardLabel = ' Dashboard:      ';
 	const dashboardLink = LINKS
-		? link('https://app-v1.agentuity.com', 'app-v1.agentuity.com', WHITE!)
-		: WHITE + 'https://app-v1.agentuity.com' + RESET;
+		? link('https://app.agentuity.com', 'app.agentuity.com', WHITE!)
+		: WHITE + 'https://app.agentuity.com' + RESET;
 	const dashboardWidth = getDisplayWidth(stripAnsi(dashboardLink));
 	const dashboardPadding = width - dashboardLabel.length - dashboardWidth - 1;
 

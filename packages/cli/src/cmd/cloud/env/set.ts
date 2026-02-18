@@ -3,8 +3,6 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server';
 import {
-	findExistingEnvFile,
-	writeEnvFile,
 	looksLikeSecret,
 	isReservedAgentuityKey,
 	isPublicVarKey,
@@ -75,10 +73,6 @@ function parseEnvArgs(rawArgs: string[]): ParsedEnvPair[] {
 const EnvSetResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	keys: z.array(z.string()).describe('Environment variable keys that were set'),
-	path: z
-		.string()
-		.optional()
-		.describe('Local file path where env vars were saved (project scope only)'),
 	secretKeys: z.array(z.string()).describe('Keys that were stored as secrets'),
 	envKeys: z.array(z.string()).describe('Keys that were stored as env vars'),
 	scope: z.enum(['project', 'org']).describe('The scope where the variables were set'),
@@ -134,7 +128,7 @@ export const setSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args: cmdArgs, opts, apiClient, project, projectDir, config } = ctx;
+		const { args: cmdArgs, opts, apiClient, project, config } = ctx;
 		const useOrgScope = isOrgScope(opts?.org);
 		const forceSecret = opts?.secret ?? false;
 
@@ -262,26 +256,13 @@ export const setSubcommand = createSubcommand({
 				}
 			);
 
-			// Update local .env file only if we have a project directory
-			let envFilePath: string | undefined;
-			if (projectDir) {
-				envFilePath = await findExistingEnvFile(projectDir);
-				const allPairsForLocal: Record<string, string> = {
-					...envPairs,
-					...secretPairs,
-				};
-				await writeEnvFile(envFilePath, allPairsForLocal);
-			}
-
-			const locationMsg = envFilePath ? ` (cloud + ${envFilePath})` : ' (cloud only)';
 			tui.success(
-				`Variable${totalCount !== 1 ? 's' : ''} set successfully: ${allKeys.join(', ')}${secretSuffix}${locationMsg}`
+				`Variable${totalCount !== 1 ? 's' : ''} set successfully: ${allKeys.join(', ')}${secretSuffix}`
 			);
 
 			return {
 				success: true,
 				keys: allKeys,
-				path: envFilePath,
 				secretKeys: secretKeysList,
 				envKeys: envKeysList,
 				scope: 'project' as const,

@@ -3,9 +3,7 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server';
 import {
-	findExistingEnvFile,
 	readEnvFile,
-	writeEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 	validateNoPublicSecrets,
@@ -19,17 +17,13 @@ const EnvImportResponseSchema = z.object({
 	envCount: z.number().describe('Number of env vars imported'),
 	secretCount: z.number().describe('Number of secrets imported'),
 	skipped: z.number().describe('Number of items skipped'),
-	path: z
-		.string()
-		.optional()
-		.describe('Local file path where variables were saved (project scope only)'),
 	file: z.string().describe('Source file path'),
 	scope: z.enum(['project', 'org']).describe('The scope where variables were imported'),
 });
 
 export const importSubcommand = createSubcommand({
 	name: 'import',
-	description: 'Import environment variables and secrets from a file to cloud and local .env',
+	description: 'Import environment variables and secrets from a file to cloud',
 	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive', 'requires-auth'],
 	examples: [
 		{
@@ -62,7 +56,7 @@ export const importSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, apiClient, project, projectDir, config, opts } = ctx;
+		const { args, apiClient, project, config, opts } = ctx;
 		const useOrgScope = isOrgScope(opts?.org);
 
 		// Require project context if not using org scope
@@ -161,15 +155,6 @@ export const importSubcommand = createSubcommand({
 				});
 			});
 
-			// Merge with local .env file only if we have a project directory
-			let localEnvPath: string | undefined;
-			if (projectDir) {
-				localEnvPath = await findExistingEnvFile(projectDir);
-				// writeEnvFile preserves existing keys by default, so just write the filtered vars
-				// This will merge with existing .env content, preserving AGENTUITY_SDK_KEY and other keys
-				await writeEnvFile(localEnvPath, filteredVars);
-			}
-
 			tui.success(
 				`Imported ${totalCount} variable${totalCount !== 1 ? 's' : ''} from ${args.file} (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
 			);
@@ -180,7 +165,6 @@ export const importSubcommand = createSubcommand({
 				envCount,
 				secretCount,
 				skipped: Object.keys(importedVars).length - totalCount,
-				path: localEnvPath,
 				file: args.file,
 				scope: 'project' as const,
 			};

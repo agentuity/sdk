@@ -120,7 +120,9 @@ export const listSubcommand = createSubcommand({
 
 				for (const repo of repos) {
 					const visibility = repo.private ? tui.muted('private') : 'public';
-					console.log(`  ${repo.fullName} ${tui.muted(`[${repo.defaultBranch}]`)} ${visibility}`);
+					console.log(
+						`  ${repo.fullName} ${tui.muted(`[${repo.defaultBranch}]`)} ${visibility}`
+					);
 				}
 				tui.newline();
 			}
@@ -129,7 +131,8 @@ export const listSubcommand = createSubcommand({
 		} catch (error) {
 			const isCancel =
 				error === '' ||
-				(error instanceof Error && (error.message === '' || error.message === 'User cancelled'));
+				(error instanceof Error &&
+					(error.message === '' || error.message === 'User cancelled'));
 
 			if (isCancel) {
 				tui.newline();
@@ -138,7 +141,11 @@ export const listSubcommand = createSubcommand({
 			}
 
 			logger.trace(error);
-			return logger.fatal('Failed to list repositories: %s', error, ErrorCode.INTEGRATION_FAILED);
+			return logger.fatal(
+				'Failed to list repositories: %s',
+				error,
+				ErrorCode.INTEGRATION_FAILED
+			);
 		}
 	},
 });

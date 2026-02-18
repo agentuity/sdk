@@ -80,7 +80,10 @@ const GithubIntegrationStatusError = StructuredError(
 export async function getGithubIntegrationStatus(
 	apiClient: APIClient
 ): Promise<GithubIntegrationStatusResult> {
-	const resp = await apiClient.get('/cli/github/status', APIResponseSchema(GithubStatusDataSchema));
+	const resp = await apiClient.get(
+		'/cli/github/status',
+		APIResponseSchema(GithubStatusDataSchema)
+	);
 
 	if (!resp.success) {
 		throw new GithubIntegrationStatusError();
