@@ -246,8 +246,10 @@ function mapToolCallSummary(row: PartRow): DBToolCallSummary | null {
 	if (!payload || (payload.type !== 'tool' && payload.type !== 'tool-invocation')) return null;
 
 	const state = payload.state ?? {};
-	const inputStr = state.input ? String(JSON.stringify(state.input)).slice(0, 200) : undefined;
-	const outputStr = state.output ? String(JSON.stringify(state.output)).slice(0, 200) : undefined;
+	const inputStr =
+		state.input !== undefined ? String(JSON.stringify(state.input)).slice(0, 200) : undefined;
+	const outputStr =
+		state.output !== undefined ? String(JSON.stringify(state.output)).slice(0, 200) : undefined;
 
 	return {
 		id: row.id,
