@@ -23,7 +23,7 @@ description: |
    assistant: "I'll search the codebase for Hono middleware patterns, check official docs via WebFetch, and compile a report of what I find."
    <commentary>Scout combines codebase exploration with external research.</commentary>
    </example>
-model: haiku
+model: sonnet
 color: cyan
 tools: ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch']
 ---

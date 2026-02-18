@@ -214,7 +214,7 @@ export const expertAgent: AgentDefinition = {
 	id: 'ag-expert',
 	displayName: 'Agentuity Coder Expert',
 	description: 'Agentuity Coder Agentuity specialist - knows CLI, SDK, cloud services deeply',
-	defaultModel: 'anthropic/claude-sonnet-4-5-20250929',
+	defaultModel: 'anthropic/claude-sonnet-4-6',
 	systemPrompt: EXPERT_SYSTEM_PROMPT,
 	variant: 'high', // Careful thinking for technical guidance
 	temperature: 0.1, // Accurate, consistent technical answers
