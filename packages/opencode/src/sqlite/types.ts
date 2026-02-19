@@ -119,3 +119,43 @@ export interface OpenCodeDBConfig {
 	dbPath?: string;
 	enableSchemaValidation?: boolean;
 }
+
+/** Non-text message part (image, file attachment, etc.) */
+export interface DBNonTextPart {
+	id: string;
+	messageId: string;
+	type: string;
+	toolName?: string;
+	timestamp?: string;
+}
+
+/** Tool call summary for compaction context */
+export interface DBToolCallSummary {
+	id: string;
+	messageId: string;
+	toolName: string;
+	input?: string;
+	output?: string;
+	timestamp: string;
+}
+
+/** Stats about what compaction preserved */
+export interface CompactionStats {
+	planningPhasesCount: number;
+	backgroundTasksCount: number;
+	imageDescriptionsCount: number;
+	toolCallSummariesCount: number;
+	estimatedTokens: number;
+}
+
+/** Pre-compaction state snapshot stored to KV */
+export interface PreCompactionSnapshot {
+	timestamp: string;
+	sessionId: string;
+	planningState?: Record<string, unknown>;
+	backgroundTasks?: Array<{ id: string; description: string; status: string }>;
+	imageDescriptions?: string[];
+	toolCallSummaries?: string[];
+	cadenceState?: Record<string, unknown>;
+	branch?: string;
+}

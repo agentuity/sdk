@@ -47,4 +47,9 @@ export const QUERIES = {
 	SEARCH_SESSIONS: `SELECT id, project_id, parent_id, slug, directory, title, version, share_url, summary_additions, summary_deletions, summary_files, summary_diffs, time_created, time_updated, time_compacting, time_archived FROM session WHERE title LIKE ? COLLATE NOCASE ORDER BY time_updated DESC`,
 
 	SEARCH_SESSIONS_LIMITED: `SELECT id, project_id, parent_id, slug, directory, title, version, share_url, summary_additions, summary_deletions, summary_files, summary_diffs, time_created, time_updated, time_compacting, time_archived FROM session WHERE title LIKE ? COLLATE NOCASE ORDER BY time_updated DESC LIMIT ?`,
+
+	GET_NON_TEXT_PARTS: `SELECT * FROM part WHERE session_id = ?
+		AND json_valid(data)
+		AND json_extract(data, '$.type') != 'text'
+		ORDER BY time_created DESC LIMIT ?`,
 } as const;

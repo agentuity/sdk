@@ -95,7 +95,11 @@ function detectMode(
 	return null;
 }
 
-export function createParamsHooks(ctx: PluginInput, _config: CoderConfig): ParamsHooks {
+export function createParamsHooks(
+	ctx: PluginInput,
+	_config: CoderConfig,
+	lastUserMessages?: Map<string, string>
+): ParamsHooks {
 	return {
 		async onParams(input: unknown, output: unknown): Promise<void> {
 			// Input contains: sessionID, agent, model, provider, message
@@ -116,6 +120,11 @@ export function createParamsHooks(ctx: PluginInput, _config: CoderConfig): Param
 			// Get message content for mode detection
 			const messageContent = inputObj.message?.content || '';
 			if (!messageContent) return;
+
+			// Store user message text for downstream hooks (e.g. cadence trigger detection)
+			if (lastUserMessages && inputObj.sessionID) {
+				lastUserMessages.set(inputObj.sessionID, messageContent);
+			}
 
 			// Check for dynamic mode triggers
 			const detected = detectMode(messageContent);
