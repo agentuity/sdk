@@ -348,10 +348,11 @@ function createConfigHandler(
 		// Compaction config: increase reserved token buffer to accommodate our enriched
 		// compaction prompts (planning state, image descriptions, tool summaries, diagnostics).
 		// Default OpenCode reserved buffer is too small for the context we inject.
-		const existingCompaction = (config.compaction as Record<string, unknown>) ?? {};
+		const existingCompaction = (config.compaction ?? {}) as Record<string, unknown>;
+		const existingReserved = existingCompaction.reserved;
 		config.compaction = {
 			...existingCompaction,
-			reserved: (existingCompaction.reserved as number) ?? 40_000,
+			reserved: typeof existingReserved === 'number' ? existingReserved : 40_000,
 		};
 
 		config.command = {

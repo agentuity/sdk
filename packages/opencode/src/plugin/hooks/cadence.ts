@@ -74,6 +74,7 @@ export function createCadenceHooks(
 ): CadenceHooks {
 	const activeCadenceSessions = new Map<string, CadenceSessionState>();
 	const nonCadenceSessions = new Set<string>();
+	const NON_CADENCE_CACHE_MAX = 500;
 
 	const log = (msg: string) => {
 		ctx.client.app.log({
@@ -474,6 +475,9 @@ agentuity_background_task({
 			try {
 				const kvState = await restoreCadenceStateFromKV(sessionId);
 				if (!kvState) {
+					if (nonCadenceSessions.size >= NON_CADENCE_CACHE_MAX) {
+						nonCadenceSessions.clear();
+					}
 					nonCadenceSessions.add(sessionId);
 					return false;
 				}

@@ -165,6 +165,8 @@ export interface CompactionConfig {
 	snapshotToKV?: boolean;
 	/** Max tokens budget for ALL injected compaction context combined (default: 4000) */
 	maxContextTokens?: number;
+	/** Reserved token buffer for compaction prompts (default: 40000). Must not exceed OpenCode's max context window. */
+	reserved?: number;
 }
 
 export interface CoderConfig {
@@ -206,6 +208,7 @@ export const CompactionConfigSchema = z.object({
 	toolCallSummaryLimit: z.number().optional(),
 	snapshotToKV: z.boolean().optional(),
 	maxContextTokens: z.number().optional(),
+	reserved: z.number().optional(),
 });
 
 export const CoderConfigSchema = z.object({

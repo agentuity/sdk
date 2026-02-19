@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import type { PluginInput } from '@opencode-ai/plugin';
 import { createCadenceHooks } from '../../src/plugin/hooks/cadence';
 import { createSessionMemoryHooks } from '../../src/plugin/hooks/session-memory';
@@ -10,82 +10,10 @@ import { createSessionMemoryHooks } from '../../src/plugin/hooks/session-memory'
  * compaction paths, including post-compaction event routing and false
  * positive prevention.
  *
- * External dependencies (KV, SQLite, git) are mocked to keep tests fast
- * and hermetic.
+ * No module-level mocks — all compaction-utils functions degrade gracefully
+ * when external dependencies (KV CLI, SQLite) are unavailable. This avoids
+ * mock.module() leaking into other test files in the same process.
  */
-
-// ---------------------------------------------------------------------------
-// Mocks for compaction-utils (KV, SQLite, git)
-// ---------------------------------------------------------------------------
-
-// We mock the entire compaction-utils module so that no real Bun.spawn or KV
-// calls are made.  Each mock returns a safe no-op / null value.
-mock.module('../../src/plugin/hooks/compaction-utils', () => ({
-	getCurrentBranch: async () => 'test-branch',
-	buildCustomCompactionPrompt: (mode: 'cadence' | 'regular') => {
-		const cadenceSection =
-			mode === 'cadence'
-				? `
-
-## Cadence Loop State
-- Loop ID, iteration number, max iterations
-- Current phase and what's in progress
-- Whether this is a Lead-of-Leads session with child tasks`
-				: '';
-
-		return `You are generating a continuation context for a multi-agent coding system (Agentuity Coder). Your summary will be the ONLY context the orchestrating Lead agent has after this compaction. Preserve everything needed for seamless continuation.
-
-## CRITICAL \u2014 Preserve These Verbatim
-1. The current task/objective (quote the user's original request exactly)
-2. All background task IDs (bg_xxx) with status, purpose, and session IDs
-3. Active planning state: current phase, completed phases, next steps, blockers
-4. ALL file paths being actively worked on (with role: created/modified/read)
-5. Key decisions made and their rationale
-6. Any corrections or gotchas discovered during the session
-7. Todo list state (what's done, in progress, pending)
-8. Descriptions of any images or attachments that appeared in conversation${cadenceSection}
-
-## Structure Your Summary As:
-
-### Active Task
-[Verbatim objective + what the agent was doing when compaction fired]
-
-### Planning State
-[Phases with status. Include phase notes, not just titles.]
-
-### Background Tasks
-[bg_xxx: description \u2192 status (running/completed/errored). Include session IDs.]
-
-### Key Context
-[Decisions, constraints, user preferences, corrections discovered]
-
-### Active Files
-[filepath \u2192 role (creating/modifying/reading) + what's being done to it]
-
-### Images & Attachments
-[Describe any images/screenshots: what they showed, when they appeared, why they mattered]
-
-### Next Steps
-[What should happen immediately after compaction resumes]
-
-## Rules
-- Use specific file paths, task IDs, phase names \u2014 NOT vague references.
-- State what tools returned, not just that they were called.
-- NEVER drop background task references \u2014 the agent MUST know what's still running.
-- Prefer completeness over brevity \u2014 this is the agent's entire working memory.`;
-	},
-	fetchAndFormatPlanningState: async () => null,
-	getImageDescriptions: () => null,
-	getRecentToolCallSummaries: () => null,
-	storePreCompactionSnapshot: async () => {},
-	persistCadenceStateToKV: async () => {},
-	restoreCadenceStateFromKV: async () => null,
-	formatCompactionDiagnostics: () => '',
-	countListItems: (s: string | null) => {
-		if (!s) return 0;
-		return (s.match(/^- /gm) ?? []).length;
-	},
-}));
 
 // ---------------------------------------------------------------------------
 // Helpers
