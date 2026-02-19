@@ -93,7 +93,10 @@ export function createCadenceHooks(
 			// Use the USER's message (from chat.params) for trigger detection,
 			// not the model's output — avoids false positives when the model
 			// uses phrases like "go deep" or "be thorough" in its response.
+			// Delete after read — entries are transient (set in chat.params,
+			// consumed here in chat.message) so no unbounded Map growth.
 			const userText = lastUserMessages?.get(sessionId) ?? '';
+			lastUserMessages?.delete(sessionId);
 			const cadenceType = getCadenceTriggerType(userText);
 			if (cadenceType && !activeCadenceSessions.has(sessionId)) {
 				log(`Cadence started for session ${sessionId} via ${cadenceType}`);
