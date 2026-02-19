@@ -1,4 +1,5 @@
-import { describe, it, expect, mock, beforeEach } from 'bun:test';
+import { describe, it, expect, mock } from 'bun:test';
+import type { PluginInput } from '@opencode-ai/plugin';
 import { createCadenceHooks } from '../../src/plugin/hooks/cadence';
 import { createSessionMemoryHooks } from '../../src/plugin/hooks/session-memory';
 
@@ -121,12 +122,12 @@ function createMockCtx() {
 				},
 			},
 		},
-	} as any;
+	} as unknown as PluginInput;
 
 	return { ctx, capturedPrompts, logMessages };
 }
 
-function createMockConfig(overrides: Record<string, unknown> = {}): any {
+function createMockConfig(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 	return {
 		compaction: {
 			customPrompt: true,
