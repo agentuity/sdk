@@ -14,7 +14,7 @@ import { ConcurrencyManager } from './concurrency';
 
 const DEFAULT_BACKGROUND_CONFIG: BackgroundTaskConfig = {
 	enabled: true,
-	defaultConcurrency: 1,
+	defaultConcurrency: 5,
 	staleTimeoutMs: 30 * 60 * 1000,
 };
 
@@ -56,6 +56,7 @@ export class BackgroundManager {
 	private notifications = new Map<string, Set<string>>();
 	private toolCallIds = new Map<string, Set<string>>();
 	private shuttingDown = false;
+	private refreshIntervalId: ReturnType<typeof setInterval> | undefined;
 
 	constructor(
 		ctx: PluginInput,
@@ -73,6 +74,17 @@ export class BackgroundManager {
 		this.dbReader = dbReader;
 		this.serverUrl = this.resolveServerUrl();
 		this.authHeaders = this.resolveAuthHeaders();
+
+		// Periodic safety net: refresh task statuses every 30s in case events are missed
+		this.refreshIntervalId = setInterval(() => {
+			if (this.shuttingDown) return;
+			const hasActive = Array.from(this.tasks.values()).some(
+				(t) => t.status === 'pending' || t.status === 'running'
+			);
+			if (hasActive) {
+				void this.refreshStatuses();
+			}
+		}, 30_000);
 	}
 
 	/**
@@ -135,6 +147,7 @@ export class BackgroundManager {
 			status: 'pending',
 			queuedAt: new Date(),
 			concurrencyGroup: this.getConcurrencyGroup(input.agent),
+			notifiedStatuses: new Set(),
 		};
 
 		this.tasks.set(task.id, task);
@@ -390,6 +403,15 @@ export class BackgroundManager {
 								},
 							};
 
+							// Mark recovered terminal tasks as already notified
+							if (
+								task.status === 'completed' ||
+								task.status === 'error' ||
+								task.status === 'cancelled'
+							) {
+								task.notifiedStatuses = new Set([task.status]);
+							}
+
 							this.tasks.set(task.id, task);
 							this.tasksBySession.set(sess.id, task.id);
 
@@ -465,6 +487,15 @@ export class BackgroundManager {
 							lastUpdate: new Date(),
 						},
 					};
+
+					// Mark recovered terminal tasks as already notified
+					if (
+						task.status === 'completed' ||
+						task.status === 'error' ||
+						task.status === 'cancelled'
+					) {
+						task.notifiedStatuses = new Set([task.status]);
+					}
 
 					// Add to our tracking maps
 					this.tasks.set(task.id, task);
@@ -583,6 +614,10 @@ export class BackgroundManager {
 
 	shutdown(): void {
 		this.shuttingDown = true;
+		if (this.refreshIntervalId) {
+			clearInterval(this.refreshIntervalId);
+			this.refreshIntervalId = undefined;
+		}
 		this.concurrency.clear();
 		this.notifications.clear();
 		try {
@@ -758,29 +793,15 @@ export class BackgroundManager {
 
 	private async notifyParent(task: BackgroundTask): Promise<void> {
 		if (!task.parentSessionId) return;
+		if (this.shuttingDown) return;
 
 		// Prevent duplicate notifications for the same task+status combination
 		// This guards against OpenCode firing multiple events for the same status transition
 		const notifiedStatuses = task.notifiedStatuses ?? new Set();
 
-		// Self-healing for tasks created before deduplication was added:
-		// If a task is already in a terminal state but has no notification history,
-		// assume it was already notified and skip to prevent duplicate notifications.
-		if (
-			notifiedStatuses.size === 0 &&
-			(task.status === 'completed' || task.status === 'error' || task.status === 'cancelled')
-		) {
-			notifiedStatuses.add(task.status);
-			task.notifiedStatuses = notifiedStatuses;
-			return;
-		}
-
 		if (notifiedStatuses.has(task.status)) {
 			return; // Already notified for this status, skip duplicate
 		}
-		// Mark as notified BEFORE sending to prevent race conditions
-		notifiedStatuses.add(task.status);
-		task.notifiedStatuses = notifiedStatuses;
 
 		const statusLine = task.status === 'completed' ? 'completed' : task.status;
 		const message = `[BACKGROUND TASK ${statusLine.toUpperCase()}]
@@ -792,21 +813,36 @@ Task ID: ${task.id}
 
 Use the agentuity_background_output tool with task_id "${task.id}" to view the result.`;
 
-		try {
-			await this.ctx.client.session.prompt({
-				path: { id: task.parentSessionId },
-				body: {
-					parts: [{ type: 'text', text: message }],
-				},
-				throwOnError: true,
-				responseStyle: 'data',
-				...this.getClientOverrides(),
-			});
-		} catch (error) {
-			console.error(
-				`[BackgroundManager] Failed to notify parent for task ${task.id}:`,
-				extractErrorMessage(error, 'notification failed')
-			);
+		const maxRetries = 3;
+		for (let attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				await this.ctx.client.session.prompt({
+					path: { id: task.parentSessionId },
+					body: {
+						parts: [{ type: 'text', text: message }],
+					},
+					throwOnError: true,
+					responseStyle: 'data',
+					...this.getClientOverrides(),
+				});
+				// Mark as notified only AFTER confirmed delivery
+				notifiedStatuses.add(task.status);
+				task.notifiedStatuses = notifiedStatuses;
+				return; // Success
+			} catch (error) {
+				const errorMsg = extractErrorMessage(error, 'notification failed');
+				if (attempt < maxRetries - 1) {
+					// Exponential backoff: 1s, 2s, 4s
+					await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+					if (this.shuttingDown) return;
+				} else {
+					console.error(
+						`[BackgroundManager] Failed to notify parent for task ${task.id} after ${maxRetries} attempts:`,
+						errorMsg
+					);
+					// Don't mark as notified — allow future retry via refreshStatuses or Monitor
+				}
+			}
 		}
 	}
 
