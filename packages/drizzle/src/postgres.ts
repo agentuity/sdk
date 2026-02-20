@@ -216,11 +216,21 @@ export function createResilientSQLProxy(
 								}
 							});
 
-						// Use a lazy thenable so execution is deferred until the
-						// result is consumed (via await or .then()). This prevents
-						// double execution when Drizzle calls .values() — without
-						// lazy deferral, the base promise starts immediately AND
-						// .values() starts a second transaction.
+						// DESIGN: Single shared promise prevents duplicate mutations.
+						//
+						// The `started` variable ensures only ONE transaction ever
+						// executes, regardless of how the thenable is consumed
+						// (.then(), .values(), .catch(), .finally(), or combinations).
+						//
+						// Drizzle always uses exactly one consumption path per query:
+						//   await proxy.unsafe(q)           → .then() path (row objects)
+						//   await proxy.unsafe(q).values()  → .values() path (arrays)
+						//
+						// If both paths were somehow called on the same thenable, the
+						// first caller determines the result format. This is deliberate:
+						// separate promises per mode would cause DOUBLE transaction
+						// execution (two BEGIN/INSERT/COMMIT), risking duplicate data.
+						// A wrong result format is always preferable to data corruption.
 						let started: Promise<unknown> | null = null;
 						const startExecution = (useValues: boolean): Promise<unknown> => {
 							if (!started) {
