@@ -402,22 +402,32 @@ describe('createResilientSQLProxy', () => {
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 	});
 
-	it('still uses executeWithRetry for CTE UPDATE', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for CTE UPDATE', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('WITH cte AS (SELECT 1) UPDATE items SET name = $1', ['new']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'WITH cte AS (SELECT 1) UPDATE items SET name = $1',
+			'COMMIT',
+		]);
 	});
 
-	it('still uses executeWithRetry for CTE DELETE', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for CTE DELETE', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('WITH cte AS (SELECT 1) DELETE FROM items WHERE id = $1', [1]);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'WITH cte AS (SELECT 1) DELETE FROM items WHERE id = $1',
+			'COMMIT',
+		]);
 	});
 
 	it('does not false-match INSERT keyword inside CTE subexpression', async () => {
@@ -439,22 +449,32 @@ describe('createResilientSQLProxy', () => {
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 	});
 
-	it('still uses executeWithRetry for UPDATE queries', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for UPDATE queries', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('UPDATE items SET name = $1', ['new']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'UPDATE items SET name = $1',
+			'COMMIT',
+		]);
 	});
 
-	it('still uses executeWithRetry for DELETE queries', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for DELETE queries', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('DELETE FROM items WHERE id = $1', [1]);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'DELETE FROM items WHERE id = $1',
+			'COMMIT',
+		]);
 	});
 
 	it('rolls back INSERT transaction on query error', async () => {

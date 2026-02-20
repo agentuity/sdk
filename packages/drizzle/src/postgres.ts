@@ -49,28 +49,31 @@ export function resolvePostgresClientConfig<
 const LEADING_COMMENTS_RE = /^(?:\s+|\/\*[\s\S]*?\*\/|--[^\n]*\n)*/;
 
 /**
- * Determines whether a SQL query is an INSERT statement that requires
- * transaction wrapping for safe retry.
+ * Determines whether a SQL query is a mutation (INSERT, UPDATE, or DELETE)
+ * that requires transaction wrapping for safe retry.
  *
- * INSERT statements wrapped in a transaction can be safely retried because
+ * Mutation statements wrapped in a transaction can be safely retried because
  * PostgreSQL guarantees that uncommitted transactions are rolled back when
- * the connection drops. This prevents duplicate rows while still allowing
- * retry on connection errors.
+ * the connection drops. This prevents:
+ * - Duplicate rows from retried INSERTs
+ * - Double-applied changes from retried UPDATEs (e.g., counter increments)
+ * - Repeated side effects from retried DELETEs (e.g., cascade triggers)
  *
  * Handles two patterns:
- * 1. Direct INSERT: `INSERT INTO ...` (with optional leading comments/whitespace)
- * 2. CTE INSERT: `WITH cte AS (...) INSERT INTO ...` — scans past the WITH clause
- *    by tracking parenthesis depth to skip CTE subexpressions, then checks
- *    if the first top-level DML keyword is INSERT.
+ * 1. Direct mutations: `INSERT INTO ...`, `UPDATE ... SET`, `DELETE FROM ...`
+ *    (with optional leading comments/whitespace)
+ * 2. CTE mutations: `WITH cte AS (...) INSERT|UPDATE|DELETE ...` — scans past
+ *    the WITH clause by tracking parenthesis depth to skip CTE subexpressions,
+ *    then checks if the first top-level DML keyword is a mutation.
  *
  * @see https://github.com/agentuity/sdk/issues/911
  */
-function isInsertStatement(query: string): boolean {
+function isMutationStatement(query: string): boolean {
 	// Strip leading whitespace and SQL comments
 	const stripped = query.replace(LEADING_COMMENTS_RE, '');
 
-	// Fast path: direct INSERT statement
-	if (/^INSERT\s/i.test(stripped)) {
+	// Fast path: direct mutation statement
+	if (/^(INSERT|UPDATE|DELETE)\s/i.test(stripped)) {
 		return true;
 	}
 
@@ -117,11 +120,11 @@ function isInsertStatement(query: string): boolean {
 
 			// Check for DML keywords at this position.
 			// We look for INSERT, UPDATE, DELETE, or SELECT — the first one
-			// we find at top level determines whether this is retryable.
+			// we find at top level determines whether this is a mutation.
 			const rest = stripped.substring(i);
 			const dmlMatch = /^(INSERT|UPDATE|DELETE|SELECT)\s/i.exec(rest);
 			if (dmlMatch) {
-				return dmlMatch[1]!.toUpperCase() === 'INSERT';
+				return dmlMatch[1]!.toUpperCase() !== 'SELECT';
 			}
 
 			// Skip over any other word (e.g., CTE names, AS keyword, RECURSIVE)
@@ -169,27 +172,28 @@ export function createResilientSQLProxy(
 				//   client.unsafe(query, params)           → Promise<rows>
 				//   client.unsafe(query, params).values()   → Promise<rows>
 				return (query: string, params?: unknown[]) => {
-					// INSERT statements require special handling for safe retry.
-					// They are wrapped in a transaction (BEGIN/INSERT/COMMIT) so
-					// that if the connection drops, PostgreSQL auto-rolls back,
-					// making retry safe without risk of duplicate rows.
-					const isInsert = isInsertStatement(query);
+					// Mutation statements (INSERT, UPDATE, DELETE) require special
+					// handling for safe retry. They are wrapped in a transaction
+					// (BEGIN/query/COMMIT) so that if the connection drops,
+					// PostgreSQL auto-rolls back, preventing duplicate inserts,
+					// double-applied updates, or repeated delete side effects.
+					const isMutation = isMutationStatement(query);
 
-					if (isInsert) {
-						// INSERT statements are wrapped in a transaction and retried
+					if (isMutation) {
+						// Mutation statements are wrapped in a transaction and retried
 						// via executeWithRetry. This is safe because PostgreSQL
 						// guarantees that uncommitted transactions are automatically
 						// rolled back when the connection drops. If the connection
-						// fails before COMMIT completes, no rows are inserted, and
+						// fails before COMMIT completes, no changes are applied, and
 						// the retry starts a fresh transaction on the new connection.
 						//
 						// NOTE: If the connection drops after the server processes
 						// COMMIT but before the client receives the response, the
-						// row IS committed. A retry would then insert a duplicate.
+						// changes ARE committed. A retry would then apply them again.
 						// This window is extremely small (< 1ms typically) and is an
 						// inherent limitation of any retry-based approach without
 						// application-level idempotency (e.g., unique constraints
-						// with ON CONFLICT).
+						// with ON CONFLICT for INSERTs).
 						// See: https://github.com/agentuity/sdk/issues/911
 						const makeTransactionalExecutor = (useValues: boolean) =>
 							client.executeWithRetry(async () => {
