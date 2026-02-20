@@ -13,6 +13,9 @@ export { createServerFetchAdapter } from './server';
 // schema.ts exports
 export { toJSONSchema } from './schema';
 
+// util/mime.ts exports
+export { getContentType, mimeTypes } from './util/mime';
+
 // util/resources.ts exports
 export {
 	validateCPUSpec,

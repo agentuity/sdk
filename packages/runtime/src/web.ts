@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
 import { join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
+import { mimeTypes } from '@agentuity/server';
 
 /**
  * Create a router that serves the web application.
@@ -64,48 +65,11 @@ export async function createWebRouter(): Promise<Hono> {
 			relIndexPath = './' + relIndexPath;
 		}
 
-		// Extended MIME types for types Hono may not recognize
-		const customMimes: Record<string, string> = {
-			md: 'text/markdown',
-			markdown: 'text/markdown',
-			txt: 'text/plain',
-			csv: 'text/csv',
-			ics: 'text/calendar',
-			vcf: 'text/vcard',
-			yaml: 'text/yaml',
-			yml: 'text/yaml',
-			avif: 'image/avif',
-			jxl: 'image/jxl',
-			apng: 'image/apng',
-			otf: 'font/otf',
-			aac: 'audio/aac',
-			flac: 'audio/flac',
-			opus: 'audio/opus',
-			m4a: 'audio/mp4',
-			weba: 'audio/webm',
-			mkv: 'video/x-matroska',
-			mov: 'video/quicktime',
-			doc: 'application/msword',
-			docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-			xls: 'application/vnd.ms-excel',
-			xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-			ppt: 'application/vnd.ms-powerpoint',
-			pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-			odt: 'application/vnd.oasis.opendocument.text',
-			ods: 'application/vnd.oasis.opendocument.spreadsheet',
-			odp: 'application/vnd.oasis.opendocument.presentation',
-			rtf: 'application/rtf',
-			webmanifest: 'application/manifest+json',
-			wasm: 'application/wasm',
-			glb: 'model/gltf-binary',
-			gltf: 'model/gltf+json',
-		};
-
 		// Serve static files from .agentuity/client/
-		router.use('/*', serveStatic({ root: relClientDir, mimes: customMimes }));
+		router.use('/*', serveStatic({ root: relClientDir, mimes: mimeTypes }));
 
 		// Fallback to index.html for SPA routing
-		router.get('*', serveStatic({ path: relIndexPath, mimes: customMimes }));
+		router.get('*', serveStatic({ path: relIndexPath, mimes: mimeTypes }));
 	}
 
 	return router;
