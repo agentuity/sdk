@@ -1,11 +1,12 @@
-import { z } from 'zod';
 import { resolve } from 'node:path';
-import { createSubcommand } from '../../types';
-import { getCommand } from '../../command-prefix';
-import { runProjectImport } from './reconcile';
-import * as tui from '../../tui';
-import { ErrorCode } from '../../errors';
+import { z } from 'zod';
 import { isTTY } from '../../auth';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
+import * as tui from '../../tui';
+import { createSubcommand } from '../../types';
+import { runProjectImport } from './reconcile';
+import { runRemoteImport } from './remote-import';
 
 const ProjectImportResponseSchema = z.object({
 	success: z.boolean().describe('Whether the import succeeded'),
@@ -20,7 +21,7 @@ const ProjectImportResponseSchema = z.object({
 
 export const importSubcommand = createSubcommand({
 	name: 'import',
-	description: 'Import or register a local project with Agentuity Cloud',
+	description: 'Import or register a local or remote project with Agentuity Cloud',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
 	examples: [
 		{ command: getCommand('project import'), description: 'Import project in current directory' },
@@ -28,10 +29,19 @@ export const importSubcommand = createSubcommand({
 			command: getCommand('project import --dir ./my-agent'),
 			description: 'Import project from specified directory',
 		},
+		{
+			command: getCommand('project import https://github.com/owner/repo'),
+			description: 'Import a remote project from GitHub',
+		},
+		{
+			command: getCommand('project import https://github.com/owner/repo --deploy --name my-agent'),
+			description: 'Import remote project, name it, and deploy',
+		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { region: true },
 	schema: {
+		args: z.tuple([z.string().optional().describe('GitHub URL to import from')]),
 		options: z.object({
 			dir: z
 				.string()
@@ -41,17 +51,44 @@ export const importSubcommand = createSubcommand({
 				.boolean()
 				.optional()
 				.describe('Only validate the project structure without prompting'),
+			deploy: z.boolean().optional().default(false).describe('Deploy the project after importing'),
+			projectId: z.string().optional().describe('Use a pre-created project ID (skip creation)'),
+			repo: z.string().optional().describe('Target GitHub repo URL to push imported code to'),
+			name: z.string().optional().describe('Project name (for non-interactive mode)'),
 		}),
 		response: ProjectImportResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { opts, auth, apiClient, config, logger } = ctx;
+		const { args, opts, auth, apiClient, config, logger } = ctx;
 
 		if (!config) {
 			tui.fatal('Configuration not loaded. Please try again.', ErrorCode.CONFIG_INVALID);
 		}
 
+		// If a URL positional arg is provided, run remote import flow
+		const url = args[0];
+		if (url) {
+			await runRemoteImport({
+				url,
+				deploy: opts.deploy ?? false,
+				projectId: opts.projectId,
+				repo: opts.repo,
+				name: opts.name,
+				apiClient,
+				auth,
+				config,
+				logger,
+			});
+
+			return {
+				success: true,
+				status: 'imported' as const,
+				message: 'Remote project imported successfully',
+			};
+		}
+
+		// No URL — fall through to existing local import behavior
 		const dir = opts.dir ? resolve(opts.dir) : process.cwd();
 		const validateOnly = opts.validateOnly ?? false;
 

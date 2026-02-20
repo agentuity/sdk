@@ -113,6 +113,36 @@ function getShape(schema: ZodType): Record<string, unknown> {
 		return { ...leftShape, ...rightShape };
 	}
 
+	if (typeId === 'ZodTuple' || typeId === 'tuple') {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const items = (unwrapped as any)._def?.items as unknown[];
+		if (Array.isArray(items)) {
+			const result: Record<string, unknown> = {};
+			for (let i = 0; i < items.length; i++) {
+				const item = items[i] as ZodTypeInternal;
+				// Try to extract a name from the description — check the item directly (Zod 4),
+				// the _def (Zod 3), and the unwrapped inner schema
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const desc =
+					(item as any)?.description ||
+					item?._def?.description ||
+					(unwrapSchema(item) as ZodTypeInternal)?._def?.description ||
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(unwrapSchema(item) as any)?.description;
+				let name = `arg${i}`;
+				if (desc) {
+					// Slugify: lowercase, replace non-alphanumeric with dashes, trim
+					name = desc
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, '-')
+						.replace(/^-|-$/g, '');
+				}
+				result[name] = item;
+			}
+			return result;
+		}
+	}
+
 	return {};
 }
 
@@ -371,11 +401,23 @@ export function buildValidationInput(
 	const result = { args: {} as Record<string, unknown>, options: {} as Record<string, unknown> };
 
 	if (schemas.args) {
-		const parsed = parseArgsSchema(schemas.args);
-		for (let i = 0; i < parsed.names.length; i++) {
-			const name = parsed.names[i];
-			if (name !== undefined) {
-				result.args[name] = rawArgs[i];
+		// Check if the schema is a tuple — tuples need array input, not object
+		const unwrapped = unwrapSchema(schemas.args) as ZodTypeInternal;
+		const typeId = unwrapped?._def?.typeName || unwrapped?._def?.type;
+		if (typeId === 'ZodTuple' || typeId === 'tuple') {
+			// Tuple schemas expect array input — take only the declared item count
+			// (rawArgs may include trailing Commander.js options object)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const items = (unwrapped as any)._def?.items;
+			const itemCount = Array.isArray(items) ? items.length : rawArgs.length;
+			result.args = rawArgs.slice(0, itemCount) as unknown as Record<string, unknown>;
+		} else {
+			const parsed = parseArgsSchema(schemas.args);
+			for (let i = 0; i < parsed.names.length; i++) {
+				const name = parsed.names[i];
+				if (name !== undefined) {
+					result.args[name] = rawArgs[i];
+				}
 			}
 		}
 	}
@@ -421,7 +463,7 @@ export async function buildValidationInputAsync(
 	if (schemas.options && !options?.usesStdin) {
 		// Use getShape() instead of parseOptionsSchema() to avoid re-evaluating function defaults
 		const shape = getShape(schemas.options);
-		const hasConfirmOption = Object.prototype.hasOwnProperty.call(shape, 'confirm');
+		const hasConfirmOption = Object.hasOwn(shape, 'confirm');
 		const confirmValue = result.options.confirm;
 
 		if (hasConfirmOption && confirmValue === undefined) {
