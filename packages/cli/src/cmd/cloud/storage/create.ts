@@ -116,6 +116,9 @@ export const createSubcommand = defineSubcommand({
 						ErrorCode.INVALID_ARGUMENT
 					);
 				}
+				if (ex.status === 400) {
+					tui.fatal(ex.message || 'invalid bucket name', ErrorCode.INVALID_ARGUMENT);
+				}
 			}
 			throw ex;
 		}
