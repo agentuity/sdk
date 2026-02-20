@@ -257,7 +257,7 @@ describe('createResilientSQLProxy', () => {
 		const valuesResult = thenable.values();
 
 		// Also await the base thenable — this should reuse the same execution
-		const baseResult = await thenable;
+		const _baseResult = await thenable;
 
 		// Wait for values too
 		await valuesResult;
