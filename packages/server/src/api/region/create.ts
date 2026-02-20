@@ -103,6 +103,13 @@ export function validateBucketName(name: string): { valid: boolean; error?: stri
 	if (isIPv4Address(name)) {
 		return { valid: false, error: 'bucket name cannot be an IP address' };
 	}
+	// Reserved prefixes (system-generated names)
+	if (name.startsWith('ag-') || name.startsWith('ago-')) {
+		return {
+			valid: false,
+			error: 'bucket names starting with "ag-" or "ago-" are reserved for system use',
+		};
+	}
 	return { valid: true };
 }
 
