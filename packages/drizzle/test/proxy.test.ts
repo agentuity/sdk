@@ -20,8 +20,12 @@ import type { CallablePostgresClient } from '@agentuity/postgres';
  * (i.e., swapping the underlying raw SQL instance).
  */
 function createMockClient() {
+	// Track all unsafe calls for transaction verification
+	const unsafeCalls: string[] = [];
+
 	let currentRaw: Record<string, unknown> = {
-		unsafe: mock((_query: string, _params?: unknown[]) => {
+		unsafe: mock((query: string, _params?: unknown[]) => {
+			unsafeCalls.push(query);
 			const result = Promise.resolve([{ id: 1 }]);
 			return Object.assign(result, {
 				values: () => Promise.resolve([[1]]),
@@ -44,7 +48,7 @@ function createMockClient() {
 		},
 	} as unknown as CallablePostgresClient & { _setRaw: (raw: Record<string, unknown>) => void };
 
-	return { client, getRaw: () => currentRaw };
+	return { client, getRaw: () => currentRaw, unsafeCalls };
 }
 
 describe('createResilientSQLProxy', () => {
@@ -181,38 +185,50 @@ describe('createResilientSQLProxy', () => {
 		expect(typeof result.values).toBe('function');
 	});
 
-	it('does not use executeWithRetry for INSERT queries', async () => {
-		const { client, getRaw } = createMockClient();
+	it('uses transaction-wrapped executeWithRetry for INSERT queries', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
-		expect(getRaw().unsafe).toHaveBeenCalledWith('INSERT INTO items (name) VALUES ($1)', [
-			'test',
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'INSERT INTO items (name) VALUES ($1)',
+			'COMMIT',
 		]);
 	});
 
-	it('does not use executeWithRetry for INSERT queries with leading whitespace', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for INSERT with leading whitespace', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('  INSERT INTO items (name) VALUES ($1)', ['test']);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'  INSERT INTO items (name) VALUES ($1)',
+			'COMMIT',
+		]);
 	});
 
-	it('does not use executeWithRetry for case-insensitive INSERT queries', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for case-insensitive INSERT', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('insert into items (name) VALUES ($1)', ['test']);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'insert into items (name) VALUES ($1)',
+			'COMMIT',
+		]);
 	});
 
 	it('INSERT queries support .values() chaining', async () => {
-		const { client } = createMockClient();
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		const result = await proxy
@@ -220,38 +236,100 @@ describe('createResilientSQLProxy', () => {
 			.values();
 
 		expect(result).toEqual([[1]]);
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		// With lazy thenable, .values() is called before .then(), so only
+		// one transaction executes (in values mode)
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'INSERT INTO items (name) VALUES ($1) RETURNING *',
+			'COMMIT',
+		]);
 	});
 
-	it('does not use executeWithRetry for INSERT with leading block comment', async () => {
-		const { client } = createMockClient();
+	it('INSERT lazy thenable prevents double execution when values() is called', async () => {
+		const { client, unsafeCalls } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		// Get the thenable (no execution yet)
+		const thenable = proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
+
+		// Call .values() — this should start execution
+		const valuesResult = thenable.values();
+
+		// Also await the base thenable — this should reuse the same execution
+		const baseResult = await thenable;
+
+		// Wait for values too
+		await valuesResult;
+
+		// Only ONE execution should have run
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'INSERT INTO items (name) VALUES ($1)',
+			'COMMIT',
+		]);
+	});
+
+	it('INSERT lazy thenable executes on direct await (without .values())', async () => {
+		const { client, unsafeCalls } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		const result = await proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
+
+		expect(result).toEqual([{ id: 1 }]);
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'INSERT INTO items (name) VALUES ($1)',
+			'COMMIT',
+		]);
+	});
+
+	it('uses transaction-wrapped retry for INSERT with leading block comment', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('/* audit: user-123 */ INSERT INTO items (name) VALUES ($1)', ['test']);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'/* audit: user-123 */ INSERT INTO items (name) VALUES ($1)',
+			'COMMIT',
+		]);
 	});
 
-	it('does not use executeWithRetry for INSERT with leading line comment', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for INSERT with leading line comment', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('-- create new item\nINSERT INTO items (name) VALUES ($1)', ['test']);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'-- create new item\nINSERT INTO items (name) VALUES ($1)',
+			'COMMIT',
+		]);
 	});
 
-	it('does not use executeWithRetry for INSERT with newlines', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for INSERT with newlines', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('\n\n  INSERT INTO items (name) VALUES ($1)', ['test']);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'\n\n  INSERT INTO items (name) VALUES ($1)',
+			'COMMIT',
+		]);
 	});
 
-	it('does not use executeWithRetry for CTE INSERT', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for CTE INSERT', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe(
@@ -259,11 +337,16 @@ describe('createResilientSQLProxy', () => {
 			['test']
 		);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'WITH new_item AS (SELECT $1::text AS name) INSERT INTO items (name) SELECT name FROM new_item RETURNING *',
+			'COMMIT',
+		]);
 	});
 
-	it('does not use executeWithRetry for CTE INSERT with multiple CTEs', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for CTE INSERT with multiple CTEs', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe(
@@ -271,20 +354,30 @@ describe('createResilientSQLProxy', () => {
 			['test']
 		);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'WITH a AS (SELECT 1), b AS (SELECT 2) INSERT INTO items (name) VALUES ($1)',
+			'COMMIT',
+		]);
 	});
 
-	it('does not use executeWithRetry for case-insensitive CTE INSERT', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for case-insensitive CTE INSERT', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe('with cte as (select 1) insert into items (name) values ($1)', ['test']);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'with cte as (select 1) insert into items (name) values ($1)',
+			'COMMIT',
+		]);
 	});
 
-	it('does not use executeWithRetry for CTE INSERT with nested parens', async () => {
-		const { client } = createMockClient();
+	it('uses transaction-wrapped retry for CTE INSERT with nested parens', async () => {
+		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
 		await proxy.unsafe(
@@ -292,7 +385,12 @@ describe('createResilientSQLProxy', () => {
 			[]
 		);
 
-		expect(client.executeWithRetry).not.toHaveBeenCalled();
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'WITH cte AS (SELECT id FROM (SELECT id FROM items WHERE id IN (1, 2))) INSERT INTO archive (id) SELECT id FROM cte',
+			'COMMIT',
+		]);
 	});
 
 	it('still uses executeWithRetry for CTE SELECT', async () => {
@@ -357,6 +455,115 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('DELETE FROM items WHERE id = $1', [1]);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+	});
+
+	it('rolls back INSERT transaction on query error', async () => {
+		const unsafeCalls: string[] = [];
+		let callIndex = 0;
+		const mockUnsafe = mock((query: string, _params?: unknown[]) => {
+			unsafeCalls.push(query);
+			callIndex++;
+			// First call: BEGIN succeeds
+			// Second call: INSERT fails
+			// Third call: ROLLBACK succeeds
+			if (callIndex === 2) {
+				return Promise.reject(new Error('query failed'));
+			}
+			const result = Promise.resolve([{ id: 1 }]);
+			return Object.assign(result, {
+				values: () => Promise.resolve([[1]]),
+			});
+		});
+
+		const raw: Record<string, unknown> = {
+			unsafe: mockUnsafe,
+			begin: mock(() => Promise.resolve()),
+			close: mock(() => Promise.resolve()),
+			options: { parsers: {}, serializers: {} },
+		};
+
+		const client = {
+			get raw() {
+				return raw;
+			},
+			executeWithRetry: mock(async <T>(op: () => T | Promise<T>) => {
+				return op();
+			}),
+		} as unknown as CallablePostgresClient;
+
+		const proxy = createResilientSQLProxy(client);
+
+		// Wrap in Promise.resolve() because the lazy thenable is a plain
+		// object (not a Promise instance) and expect().rejects needs a real Promise
+		await expect(
+			Promise.resolve(proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']))
+		).rejects.toThrow('query failed');
+
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'INSERT INTO items (name) VALUES ($1)',
+			'ROLLBACK',
+		]);
+	});
+
+	it('INSERT transaction re-resolves raw on retry after reconnection', async () => {
+		const firstUnsafeCalls: string[] = [];
+		const secondUnsafeCalls: string[] = [];
+
+		const firstRaw: Record<string, unknown> = {
+			unsafe: mock((query: string, _params?: unknown[]) => {
+				firstUnsafeCalls.push(query);
+				const result = Promise.resolve([{ id: 1 }]);
+				return Object.assign(result, {
+					values: () => Promise.resolve([[1]]),
+				});
+			}),
+			begin: mock(() => Promise.resolve()),
+			close: mock(() => Promise.resolve()),
+			options: { parsers: {}, serializers: {} },
+		};
+
+		const secondRaw: Record<string, unknown> = {
+			unsafe: mock((query: string, _params?: unknown[]) => {
+				secondUnsafeCalls.push(query);
+				const result = Promise.resolve([{ id: 2 }]);
+				return Object.assign(result, {
+					values: () => Promise.resolve([[2]]),
+				});
+			}),
+			begin: mock(() => Promise.resolve()),
+			close: mock(() => Promise.resolve()),
+			options: { parsers: {}, serializers: {} },
+		};
+
+		let currentRaw = firstRaw;
+		let retryCount = 0;
+		const client = {
+			get raw() {
+				return currentRaw;
+			},
+			executeWithRetry: mock(async <T>(op: () => T | Promise<T>) => {
+				retryCount++;
+				if (retryCount === 1) {
+					// Simulate reconnection: swap to second raw
+					currentRaw = secondRaw;
+				}
+				return op();
+			}),
+		} as unknown as CallablePostgresClient;
+
+		const proxy = createResilientSQLProxy(client);
+		const result = await proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
+
+		// Should have used the second raw (post-reconnection) since
+		// raw is re-resolved inside the retry callback
+		expect(result).toEqual([{ id: 2 }]);
+		expect(firstUnsafeCalls).toEqual([]); // First raw was never used
+		expect(secondUnsafeCalls).toEqual([
+			'BEGIN',
+			'INSERT INTO items (name) VALUES ($1)',
+			'COMMIT',
+		]);
 	});
 
 	it('binds methods to the current raw (not stale)', async () => {

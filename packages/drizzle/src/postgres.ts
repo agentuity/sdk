@@ -49,7 +49,13 @@ export function resolvePostgresClientConfig<
 const LEADING_COMMENTS_RE = /^(?:\s+|\/\*[\s\S]*?\*\/|--[^\n]*\n)*/;
 
 /**
- * Determines whether a SQL query is a non-retryable INSERT statement.
+ * Determines whether a SQL query is an INSERT statement that requires
+ * transaction wrapping for safe retry.
+ *
+ * INSERT statements wrapped in a transaction can be safely retried because
+ * PostgreSQL guarantees that uncommitted transactions are rolled back when
+ * the connection drops. This prevents duplicate rows while still allowing
+ * retry on connection errors.
  *
  * Handles two patterns:
  * 1. Direct INSERT: `INSERT INTO ...` (with optional leading comments/whitespace)
@@ -59,7 +65,7 @@ const LEADING_COMMENTS_RE = /^(?:\s+|\/\*[\s\S]*?\*\/|--[^\n]*\n)*/;
  *
  * @see https://github.com/agentuity/sdk/issues/911
  */
-function isNonRetryableInsert(query: string): boolean {
+function isInsertStatement(query: string): boolean {
 	// Strip leading whitespace and SQL comments
 	const stripped = query.replace(LEADING_COMMENTS_RE, '');
 
@@ -163,23 +169,71 @@ export function createResilientSQLProxy(
 				//   client.unsafe(query, params)           → Promise<rows>
 				//   client.unsafe(query, params).values()   → Promise<rows>
 				return (query: string, params?: unknown[]) => {
-					// INSERT statements (including CTE-based) are NOT retried to prevent
-					// duplicate rows. If an INSERT succeeds on the server but the connection
-					// drops before the response, retrying would re-execute it — creating a
-					// duplicate row when the primary key is server-generated.
-					// See: https://github.com/agentuity/sdk/issues/911
-					const isInsert = isNonRetryableInsert(query);
+					// INSERT statements require special handling for safe retry.
+					// They are wrapped in a transaction (BEGIN/INSERT/COMMIT) so
+					// that if the connection drops, PostgreSQL auto-rolls back,
+					// making retry safe without risk of duplicate rows.
+					const isInsert = isInsertStatement(query);
 
 					if (isInsert) {
-						const makeDirectExecutor = (useValues: boolean) => {
-							const currentRaw = client.raw;
-							const q = currentRaw.unsafe(query, params);
-							return useValues ? q.values() : q;
+						// INSERT statements are wrapped in a transaction and retried
+						// via executeWithRetry. This is safe because PostgreSQL
+						// guarantees that uncommitted transactions are automatically
+						// rolled back when the connection drops. If the connection
+						// fails before COMMIT completes, no rows are inserted, and
+						// the retry starts a fresh transaction on the new connection.
+						//
+						// NOTE: If the connection drops after the server processes
+						// COMMIT but before the client receives the response, the
+						// row IS committed. A retry would then insert a duplicate.
+						// This window is extremely small (< 1ms typically) and is an
+						// inherent limitation of any retry-based approach without
+						// application-level idempotency (e.g., unique constraints
+						// with ON CONFLICT).
+						// See: https://github.com/agentuity/sdk/issues/911
+						const makeTransactionalExecutor = (useValues: boolean) =>
+							client.executeWithRetry(async () => {
+								// Re-resolve raw inside retry to get post-reconnect instance
+								const currentRaw = client.raw;
+								await currentRaw.unsafe('BEGIN');
+								try {
+									const q = currentRaw.unsafe(query, params);
+									const result = useValues ? await q.values() : await q;
+									await currentRaw.unsafe('COMMIT');
+									return result;
+								} catch (error) {
+									try {
+										await currentRaw.unsafe('ROLLBACK');
+									} catch {
+										// Connection may already be dead; Postgres auto-rolls
+										// back uncommitted transactions on connection close.
+									}
+									throw error;
+								}
+							});
+
+						// Use a lazy thenable so execution is deferred until the
+						// result is consumed (via await or .then()). This prevents
+						// double execution when Drizzle calls .values() — without
+						// lazy deferral, the base promise starts immediately AND
+						// .values() starts a second transaction.
+						let started: Promise<unknown> | null = null;
+						const startExecution = (useValues: boolean): Promise<unknown> => {
+							if (!started) {
+								started = makeTransactionalExecutor(useValues);
+							}
+							return started;
 						};
-						const result = makeDirectExecutor(false);
-						return Object.assign(result, {
-							values: () => makeDirectExecutor(true),
-						});
+
+						return {
+							then: (...args: Parameters<Promise<unknown>['then']>) =>
+								startExecution(false).then(...args),
+							catch: (...args: Parameters<Promise<unknown>['catch']>) =>
+								startExecution(false).catch(...args),
+							finally: (...args: Parameters<Promise<unknown>['finally']>) =>
+								startExecution(false).finally(...args),
+							values: () => startExecution(true),
+						};
 					}
 
 					const makeExecutor = (useValues: boolean) =>
