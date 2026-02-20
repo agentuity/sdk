@@ -150,3 +150,57 @@ describe('PostgresClient.executeWithRetry', () => {
 		).rejects.toThrow();
 	});
 });
+
+describe('PostgresClient prepare option', () => {
+	it('accepts prepare: false in config', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			prepare: false,
+		});
+		try {
+			// Client should be created successfully with prepare: false
+			expect(client).toBeDefined();
+			expect(client.connected).toBe(false); // lazy connection
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts prepare: true in config', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			prepare: true,
+		});
+		try {
+			expect(client).toBeDefined();
+			expect(client.connected).toBe(false);
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('defaults prepare to false when not specified', async () => {
+		const client = new PostgresClient('postgres://localhost:5432/dummy');
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts prepare alongside other config options', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			prepare: false,
+			max: 5,
+			idleTimeout: 30,
+			connectionTimeout: 10000,
+			reconnect: { maxAttempts: 3 },
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+});

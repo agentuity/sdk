@@ -349,6 +349,12 @@ export class PostgresClient {
 			}
 		}
 
+		// Default to unnamed prepared statements (prepare: false) to prevent
+		// "prepared statement did not exist" errors when backend connections
+		// rotate (e.g., connection poolers, hot reloads, server restarts).
+		// See: https://github.com/agentuity/sdk/issues/1005
+		bunOptions.prepare = this._config.prepare ?? false;
+
 		// Set up onclose handler for reconnection
 		bunOptions.onclose = (err: Error | null) => {
 			this._handleClose(err ?? undefined);

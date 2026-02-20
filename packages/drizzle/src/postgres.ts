@@ -39,6 +39,11 @@ export function resolvePostgresClientConfig<
 		clientConfig.onreconnected = config.onReconnected;
 	}
 
+	// Forward prepare option
+	if (config?.prepare !== undefined) {
+		clientConfig.prepare = config.prepare;
+	}
+
 	return clientConfig;
 }
 
@@ -263,6 +268,7 @@ function extractPostgresConfigFromSql(client: BunSQLClient): PostgresConfig | un
 		'max',
 		'idleTimeout',
 		'connectionTimeout',
+		'prepare',
 	] as const;
 
 	for (const key of keys) {

@@ -182,6 +182,21 @@ export interface PostgresConfig {
 	idleTimeout?: number;
 
 	/**
+	 * Whether to use named prepared statements.
+	 *
+	 * When `true`, Bun's SQL driver caches named prepared statements on the
+	 * server for better performance with repeated queries.
+	 *
+	 * When `false`, queries use unnamed prepared statements that are parsed
+	 * fresh each time. This is required when using connection poolers like
+	 * PGBouncer (in transaction mode) or Supavisor, where the backend
+	 * connection may change between queries, invalidating cached statements.
+	 *
+	 * @default false
+	 */
+	prepare?: boolean;
+
+	/**
 	 * Reconnection configuration.
 	 */
 	reconnect?: ReconnectConfig;

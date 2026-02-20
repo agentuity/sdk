@@ -47,6 +47,21 @@ export interface PostgresDrizzleConfig<
 	reconnect?: ReconnectConfig;
 
 	/**
+	 * Whether to use named prepared statements for the underlying connection.
+	 *
+	 * When `false` (default), queries use unnamed prepared statements that
+	 * are safe for connection poolers (PGBouncer, Supavisor) and
+	 * environments where backend connections may rotate.
+	 *
+	 * When `true`, enables named prepared statement caching for better
+	 * performance with repeated queries, but requires a stable backend
+	 * connection.
+	 *
+	 * @default false
+	 */
+	prepare?: boolean;
+
+	/**
 	 * Callback invoked when the initial connection is established.
 	 */
 	onConnect?: () => void;
