@@ -204,3 +204,135 @@ describe('PostgresClient prepare option', () => {
 		}
 	});
 });
+
+describe('PostgresClient connection options', () => {
+	it('accepts bigint: true in config', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			bigint: true,
+		});
+		try {
+			expect(client).toBeDefined();
+			expect(client.connected).toBe(false);
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts bigint: false in config', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			bigint: false,
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts maxLifetime in config', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			maxLifetime: 3600,
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts maxLifetime: 0 for no limit', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			maxLifetime: 0,
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts connection runtime parameters', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			connection: {
+				search_path: 'myapp,public',
+				statement_timeout: '30s',
+				application_name: 'test-app',
+			},
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts path for Unix socket', async () => {
+		const client = new PostgresClient({
+			path: '/var/run/postgresql/.s.PGSQL.5432',
+			database: 'dummy',
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts onconnect callback', async () => {
+		const onconnect = (_err: Error | null) => {};
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			onconnect,
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts password as function', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			password: () => 'dynamic-password',
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts password as async function', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			password: async () => 'async-dynamic-password',
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+
+	it('accepts all new options together', async () => {
+		const client = new PostgresClient({
+			url: 'postgres://localhost:5432/dummy',
+			prepare: false,
+			bigint: true,
+			maxLifetime: 3600,
+			connection: { application_name: 'test' },
+			onconnect: () => {},
+		});
+		try {
+			expect(client).toBeDefined();
+		} finally {
+			await client.close();
+		}
+	});
+});

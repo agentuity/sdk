@@ -62,6 +62,25 @@ export interface PostgresDrizzleConfig<
 	prepare?: boolean;
 
 	/**
+	 * Whether to return large integers as BigInt instead of strings.
+	 *
+	 * When `true`, integers outside the i32 range are returned as `BigInt`.
+	 * When `false` (default), they are returned as strings.
+	 *
+	 * @default false
+	 */
+	bigint?: boolean;
+
+	/**
+	 * Maximum lifetime of a connection in seconds.
+	 * After this time, the connection is closed and a new one is created.
+	 * Set to `0` for no maximum lifetime.
+	 *
+	 * @default 0 (no maximum lifetime)
+	 */
+	maxLifetime?: number;
+
+	/**
 	 * Callback invoked when the initial connection is established.
 	 */
 	onConnect?: () => void;

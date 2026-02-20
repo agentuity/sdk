@@ -335,10 +335,12 @@ export class PostgresClient {
 		if (this._config.username) bunOptions.username = this._config.username;
 		if (this._config.password) bunOptions.password = this._config.password;
 		if (this._config.database) bunOptions.database = this._config.database;
+		if (this._config.path) bunOptions.path = this._config.path;
 		if (this._config.max) bunOptions.max = this._config.max;
 		if (this._config.idleTimeout !== undefined) bunOptions.idleTimeout = this._config.idleTimeout;
 		if (this._config.connectionTimeout !== undefined)
 			bunOptions.connectionTimeout = this._config.connectionTimeout;
+		if (this._config.maxLifetime !== undefined) bunOptions.maxLifetime = this._config.maxLifetime;
 
 		// Handle TLS configuration
 		if (this._config.tls !== undefined) {
@@ -349,11 +351,22 @@ export class PostgresClient {
 			}
 		}
 
+		// Postgres client runtime configuration (search_path, statement_timeout, etc.)
+		if (this._config.connection) bunOptions.connection = this._config.connection;
+
 		// Default to unnamed prepared statements (prepare: false) to prevent
 		// "prepared statement did not exist" errors when backend connections
 		// rotate (e.g., connection poolers, hot reloads, server restarts).
 		// See: https://github.com/agentuity/sdk/issues/1005
 		bunOptions.prepare = this._config.prepare ?? false;
+
+		// BigInt handling for integers outside i32 range
+		if (this._config.bigint !== undefined) bunOptions.bigint = this._config.bigint;
+
+		// Set up onconnect handler
+		if (this._config.onconnect) {
+			bunOptions.onconnect = this._config.onconnect;
+		}
 
 		// Set up onclose handler for reconnection
 		bunOptions.onclose = (err: Error | null) => {
