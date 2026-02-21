@@ -256,10 +256,10 @@ export type { RouteSchema, GetRouteSchema } from './_validation';
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AppState {}
 
-// Re-export bootstrapRuntimeEnv from @agentuity/server for convenience
+// Re-export bootstrapRuntimeEnv and mimeTypes from @agentuity/server for convenience
 // This allows generated code to import from @agentuity/runtime instead of having
 // a direct dependency on @agentuity/server
-export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions } from '@agentuity/server';
+export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions, mimeTypes } from '@agentuity/server';
 
 // bun-s3-patch.ts exports
 export { patchBunS3ForStorageDev, isAgentuityStorageEndpoint } from './bun-s3-patch';

@@ -461,6 +461,12 @@ export interface SandboxCreateOptions {
 	dependencies?: string[];
 
 	/**
+	 * npm/bun packages to install globally when creating the sandbox.
+	 * These are installed via `bun install -g` before executing any commands.
+	 */
+	packages?: string[];
+
+	/**
 	 * Optional user-defined metadata to associate with the sandbox.
 	 * This can be used to store arbitrary key-value data for tracking or identification.
 	 */
@@ -701,6 +707,11 @@ export interface SandboxInfo {
 	 * Apt packages installed in the sandbox
 	 */
 	dependencies?: string[];
+
+	/**
+	 * npm/bun packages installed globally in the sandbox
+	 */
+	packages?: string[];
 
 	/**
 	 * User-defined metadata associated with the sandbox

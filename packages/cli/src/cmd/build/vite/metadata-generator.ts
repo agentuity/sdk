@@ -6,7 +6,7 @@
 
 import { join } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, readdirSync } from 'node:fs';
-import { type BuildMetadata, DeploymentConfig } from '@agentuity/server';
+import { type BuildMetadata, DeploymentConfig, getContentType } from '@agentuity/server';
 import type { z } from 'zod';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteMetadata } from './route-discovery';
@@ -29,44 +29,6 @@ interface AssetInfo {
 	contentType: string;
 	size: number;
 	contentEncoding?: string;
-}
-
-function getContentType(filename: string): string {
-	const ext = filename.split('.').pop()?.toLowerCase();
-	switch (ext) {
-		case 'js':
-		case 'mjs':
-			return 'application/javascript';
-		case 'css':
-			return 'text/css';
-		case 'html':
-			return 'text/html';
-		case 'json':
-			return 'application/json';
-		case 'png':
-			return 'image/png';
-		case 'jpg':
-		case 'jpeg':
-			return 'image/jpeg';
-		case 'gif':
-			return 'image/gif';
-		case 'svg':
-			return 'image/svg+xml';
-		case 'webp':
-			return 'image/webp';
-		case 'ico':
-			return 'image/x-icon';
-		case 'woff':
-			return 'font/woff';
-		case 'woff2':
-			return 'font/woff2';
-		case 'ttf':
-			return 'font/ttf';
-		case 'eot':
-			return 'application/vnd.ms-fontobject';
-		default:
-			return 'application/octet-stream';
-	}
 }
 
 /**

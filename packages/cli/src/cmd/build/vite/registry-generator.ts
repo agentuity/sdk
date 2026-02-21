@@ -71,6 +71,21 @@ function sanitizePathSegment(segment: string): string {
 }
 
 /**
+ * Valid unquoted TypeScript/JavaScript property name pattern.
+ * A property name can be unquoted if it starts with a letter, underscore, or dollar sign,
+ * and contains only letters, digits, underscores, or dollar signs.
+ */
+const VALID_UNQUOTED_PROPERTY = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+
+/**
+ * Quote a property name for TypeScript object type definitions if it contains
+ * characters that require quoting (e.g., dots, hyphens, spaces).
+ */
+function quotePropertyName(name: string): string {
+	return VALID_UNQUOTED_PROPERTY.test(name) ? name : JSON.stringify(name);
+}
+
+/**
  * Generate TypeScript type for path parameters.
  * Returns 'never' if no path params, or '{ param1: string; param2: string }' format.
  */
@@ -479,11 +494,11 @@ function generateRPCRegistryType(
 				const pathParamsType = generatePathParamsType(routeInfo.pathParams);
 				const pathParamsTupleType = generatePathParamsTupleType(routeInfo.pathParams);
 				lines.push(
-					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType}; paramsTuple: ${pathParamsTupleType} };`
+					`${indent}${quotePropertyName(key)}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType}; paramsTuple: ${pathParamsTupleType} };`
 				);
 			} else {
 				// Nested node
-				lines.push(`${indent}${key}: {`);
+				lines.push(`${indent}${quotePropertyName(key)}: {`);
 				lines.push(treeToTypeString(value as NestedNode, indent + '\t'));
 				lines.push(`${indent}};`);
 			}
