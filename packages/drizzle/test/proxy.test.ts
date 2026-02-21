@@ -535,6 +535,30 @@ describe('createResilientSQLProxy', () => {
 		});
 	});
 
+	it('detects INSERT with inline comment between keyword and INTO', async () => {
+		const { client, unsafeCalls } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('INSERT/*hint*/INTO items (name) VALUES ($1)', ['test']);
+
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual(['BEGIN', 'INSERT/*hint*/INTO items (name) VALUES ($1)', 'COMMIT']);
+	});
+
+	it('detects CTE mutation with inline comment after DML keyword', async () => {
+		const { client, unsafeCalls } = createMockClient();
+		const proxy = createResilientSQLProxy(client);
+
+		await proxy.unsafe('WITH cte AS (SELECT 1) DELETE/*where*/FROM items WHERE id = $1', [1]);
+
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'WITH cte AS (SELECT 1) DELETE/*where*/FROM items WHERE id = $1',
+			'COMMIT',
+		]);
+	});
+
 	it('still uses executeWithRetry for SELECT queries', async () => {
 		const { client } = createMockClient();
 		const proxy = createResilientSQLProxy(client);

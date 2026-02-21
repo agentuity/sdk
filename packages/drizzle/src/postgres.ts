@@ -76,7 +76,7 @@ function isMutationStatement(query: string): boolean {
 	const stripped = query.replace(LEADING_COMMENTS_RE, '');
 
 	// Fast path: direct mutation statement
-	if (/^(INSERT|UPDATE|DELETE)\s/i.test(stripped)) {
+	if (/^(INSERT|UPDATE|DELETE)\b/i.test(stripped)) {
 		return true;
 	}
 
@@ -199,7 +199,7 @@ function isMutationStatement(query: string): boolean {
 			// We look for INSERT, UPDATE, DELETE, or SELECT — the first one
 			// we find at top level determines whether this is a mutation.
 			const rest = stripped.substring(i);
-			const dmlMatch = /^(INSERT|UPDATE|DELETE|SELECT)\s/i.exec(rest);
+			const dmlMatch = /^(INSERT|UPDATE|DELETE|SELECT)\b/i.exec(rest);
 			if (dmlMatch) {
 				return dmlMatch[1]!.toUpperCase() !== 'SELECT';
 			}
