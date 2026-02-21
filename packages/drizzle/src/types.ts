@@ -47,6 +47,40 @@ export interface PostgresDrizzleConfig<
 	reconnect?: ReconnectConfig;
 
 	/**
+	 * Whether to use named prepared statements for the underlying connection.
+	 *
+	 * When `false` (default), queries use unnamed prepared statements that
+	 * are safe for connection poolers (PGBouncer, Supavisor) and
+	 * environments where backend connections may rotate.
+	 *
+	 * When `true`, enables named prepared statement caching for better
+	 * performance with repeated queries, but requires a stable backend
+	 * connection.
+	 *
+	 * @default false
+	 */
+	prepare?: boolean;
+
+	/**
+	 * Whether to return large integers as BigInt instead of strings.
+	 *
+	 * When `true`, integers outside the i32 range are returned as `BigInt`.
+	 * When `false` (default), they are returned as strings.
+	 *
+	 * @default false
+	 */
+	bigint?: boolean;
+
+	/**
+	 * Maximum lifetime of a connection in seconds.
+	 * After this time, the connection is closed and a new one is created.
+	 * Set to `0` for no maximum lifetime.
+	 *
+	 * @default 0 (no maximum lifetime)
+	 */
+	maxLifetime?: number;
+
+	/**
 	 * Callback invoked when the initial connection is established.
 	 */
 	onConnect?: () => void;

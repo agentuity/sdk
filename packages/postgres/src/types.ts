@@ -149,9 +149,12 @@ export interface PostgresConfig {
 	username?: string;
 
 	/**
-	 * Database password.
+	 * Database password for authentication.
+	 * Can be a string or a function that returns the password (sync or async).
+	 * Using a function enables rotating credentials (e.g., AWS RDS IAM tokens,
+	 * GCP Cloud SQL IAM authentication).
 	 */
-	password?: string;
+	password?: string | (() => string | Promise<string>);
 
 	/**
 	 * Database name.
@@ -159,9 +162,37 @@ export interface PostgresConfig {
 	database?: string;
 
 	/**
+	 * Unix domain socket path for local PostgreSQL connections.
+	 * Alternative to hostname/port for same-machine connections.
+	 *
+	 * @example '/var/run/postgresql/.s.PGSQL.5432'
+	 */
+	path?: string;
+
+	/**
 	 * TLS configuration.
 	 */
 	tls?: TLSConfig | boolean;
+
+	/**
+	 * PostgreSQL client runtime configuration parameters sent during
+	 * connection startup.
+	 *
+	 * These correspond to PostgreSQL runtime configuration settings.
+	 *
+	 * @see https://www.postgresql.org/docs/current/runtime-config-client.html
+	 *
+	 * @example
+	 * ```typescript
+	 * {
+	 *   search_path: 'myapp,public',
+	 *   statement_timeout: '30s',
+	 *   application_name: 'my-service',
+	 *   timezone: 'UTC',
+	 * }
+	 * ```
+	 */
+	connection?: Record<string, string | boolean | number>;
 
 	/**
 	 * Maximum number of connections in the pool.
@@ -182,6 +213,43 @@ export interface PostgresConfig {
 	idleTimeout?: number;
 
 	/**
+	 * Maximum lifetime of a connection in seconds.
+	 * After this time, the connection is closed and a new one is created.
+	 * Set to `0` for no maximum lifetime.
+	 *
+	 * This is useful in pooled environments to prevent stale connections
+	 * and coordinate with connection pooler behavior.
+	 *
+	 * @default 0 (no maximum lifetime)
+	 */
+	maxLifetime?: number;
+
+	/**
+	 * Whether to use named prepared statements.
+	 *
+	 * When `true`, Bun's SQL driver caches named prepared statements on the
+	 * server for better performance with repeated queries.
+	 *
+	 * When `false`, queries use unnamed prepared statements that are parsed
+	 * fresh each time. This is required when using connection poolers like
+	 * PGBouncer (in transaction mode) or Supavisor, where the backend
+	 * connection may change between queries, invalidating cached statements.
+	 *
+	 * @default false
+	 */
+	prepare?: boolean;
+
+	/**
+	 * Whether to return large integers as BigInt instead of strings.
+	 *
+	 * When `true`, integers outside the i32 range are returned as `BigInt`.
+	 * When `false`, they are returned as strings.
+	 *
+	 * @default false
+	 */
+	bigint?: boolean;
+
+	/**
 	 * Reconnection configuration.
 	 */
 	reconnect?: ReconnectConfig;
@@ -198,6 +266,12 @@ export interface PostgresConfig {
 	 * @default false
 	 */
 	preconnect?: boolean;
+
+	/**
+	 * Callback invoked when a connection attempt completes.
+	 * Receives an Error on failure, or null on success.
+	 */
+	onconnect?: (error: Error | null) => void;
 
 	/**
 	 * Callback invoked when the connection is closed.
