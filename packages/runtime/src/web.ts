@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
 import { join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
+import { mimeTypes } from '@agentuity/server';
 
 /**
  * Create a router that serves the web application.
@@ -65,10 +66,10 @@ export async function createWebRouter(): Promise<Hono> {
 		}
 
 		// Serve static files from .agentuity/client/
-		router.use('/*', serveStatic({ root: relClientDir }));
+		router.use('/*', serveStatic({ root: relClientDir, mimes: mimeTypes }));
 
 		// Fallback to index.html for SPA routing
-		router.get('*', serveStatic({ path: relIndexPath }));
+		router.get('*', serveStatic({ path: relIndexPath, mimes: mimeTypes }));
 	}
 
 	return router;

@@ -474,7 +474,7 @@ export const expertFrontendAgent: AgentDefinition = {
 	id: 'ag-expert-frontend',
 	displayName: 'Agentuity Coder Expert Frontend',
 	description: 'Agentuity frontend specialist - React hooks, auth, workbench, web utilities',
-	defaultModel: 'anthropic/claude-sonnet-4-5-20250929',
+	defaultModel: 'anthropic/claude-sonnet-4-6',
 	systemPrompt: EXPERT_FRONTEND_SYSTEM_PROMPT,
 	mode: 'subagent',
 	hidden: true, // Only invoked by Expert orchestrator

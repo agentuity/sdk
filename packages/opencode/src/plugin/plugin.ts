@@ -92,10 +92,14 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	const resolvedDbPath = resolveOpenCodeDBPath();
 	const dbReader = new OpenCodeDBReader(resolvedDbPath ? { dbPath: resolvedDbPath } : undefined);
 
+	// Shared Map: chat.params stores the user's message text per session,
+	// chat.message reads it for trigger detection (avoids scanning model output).
+	const lastUserMessages = new Map<string, string>();
+
 	const sessionHooks = createSessionHooks(ctx, coderConfig);
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
-	const paramsHooks = createParamsHooks(ctx, coderConfig);
+	const paramsHooks = createParamsHooks(ctx, coderConfig, lastUserMessages);
 	const tmuxManager = coderConfig.tmux?.enabled
 		? new TmuxSessionManager(ctx, coderConfig.tmux, {
 				onLog: (message) =>
@@ -157,11 +161,22 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		});
 
 	// Create hooks that need backgroundManager for task reference injection during compaction
-	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager, dbReader);
+	const cadenceHooks = createCadenceHooks(
+		ctx,
+		coderConfig,
+		backgroundManager,
+		dbReader,
+		lastUserMessages
+	);
 
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
 	// Orchestration (deciding which module handles which session) happens below in the hooks
-	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig, backgroundManager);
+	const sessionMemoryHooks = createSessionMemoryHooks(
+		ctx,
+		coderConfig,
+		backgroundManager,
+		dbReader
+	);
 
 	const configHandler = createConfigHandler(coderConfig);
 
@@ -230,16 +245,28 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			}
 			// Orchestrate: route to appropriate module based on session type
 			const sessionId = extractSessionIdFromEvent(input);
-			if (sessionId && cadenceHooks.isActiveCadenceSession(sessionId)) {
-				await cadenceHooks.onEvent(input);
-			} else if (sessionId) {
-				// Non-Cadence sessions - handle session.compacted for checkpointing
-				await sessionMemoryHooks.onEvent(
-					input as { event: { type: string; properties?: Record<string, unknown> } }
-				);
+			if (sessionId) {
+				// Try lazy restore from KV if not in memory (survives plugin restarts)
+				if (!cadenceHooks.isActiveCadenceSession(sessionId)) {
+					await cadenceHooks.tryRestoreFromKV(sessionId);
+				}
+
+				if (cadenceHooks.isActiveCadenceSession(sessionId)) {
+					await cadenceHooks.onEvent(input);
+				} else {
+					// Non-Cadence sessions - handle session.compacted for checkpointing
+					await sessionMemoryHooks.onEvent(
+						input as { event: { type: string; properties?: Record<string, unknown> } }
+					);
+				}
 			}
 		},
 		'experimental.session.compacting': async (input, output) => {
+			// Try lazy restore from KV if not in memory (survives plugin restarts)
+			if (!cadenceHooks.isActiveCadenceSession(input.sessionID)) {
+				await cadenceHooks.tryRestoreFromKV(input.sessionID);
+			}
+
 			// Orchestrate: route to appropriate module based on session type
 			if (cadenceHooks.isActiveCadenceSession(input.sessionID)) {
 				await cadenceHooks.onCompacting(input, output);
@@ -317,6 +344,16 @@ function createConfigHandler(
 				},
 			};
 		}
+
+		// Compaction config: increase reserved token buffer to accommodate our enriched
+		// compaction prompts (planning state, image descriptions, tool summaries, diagnostics).
+		// Default OpenCode reserved buffer is too small for the context we inject.
+		const existingCompaction = (config.compaction ?? {}) as Record<string, unknown>;
+		const existingReserved = existingCompaction.reserved;
+		config.compaction = {
+			...existingCompaction,
+			reserved: typeof existingReserved === 'number' ? existingReserved : 40_000,
+		};
 
 		config.command = {
 			...(config.command as Record<string, CommandDefinition> | undefined),

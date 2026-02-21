@@ -487,7 +487,7 @@ export const expertBackendAgent: AgentDefinition = {
 	id: 'ag-expert-backend',
 	displayName: 'Agentuity Coder Expert Backend',
 	description: 'Agentuity backend specialist - runtime, agents, schemas, drizzle, postgres, evals',
-	defaultModel: 'anthropic/claude-sonnet-4-5-20250929',
+	defaultModel: 'anthropic/claude-sonnet-4-6',
 	systemPrompt: EXPERT_BACKEND_SYSTEM_PROMPT,
 	mode: 'subagent',
 	hidden: true, // Only invoked by Expert orchestrator

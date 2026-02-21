@@ -363,7 +363,7 @@ export const reviewerAgent: AgentDefinition = {
 	id: 'ag-reviewer',
 	displayName: 'Agentuity Coder Reviewer',
 	description: 'Agentuity Coder reviewer - reviews code, catches issues, applies fixes',
-	defaultModel: 'anthropic/claude-sonnet-4-5-20250929',
+	defaultModel: 'anthropic/claude-sonnet-4-6',
 	systemPrompt: REVIEWER_SYSTEM_PROMPT,
 	variant: 'high', // Careful thinking for thorough review
 	temperature: 0.1, // Consistent, deterministic reviews

@@ -92,7 +92,7 @@ export async function generateAssetServerConfig(
 		server: {
 			// Use the port we selected
 			port,
-			strictPort: false, // Allow fallback if port is taken
+			strictPort: true, // Port is pre-verified as available by findAvailablePort()
 			host: '127.0.0.1',
 
 			// CORS headers to allow Bun server on port 3500 to proxy requests

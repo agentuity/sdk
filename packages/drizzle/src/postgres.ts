@@ -39,6 +39,21 @@ export function resolvePostgresClientConfig<
 		clientConfig.onreconnected = config.onReconnected;
 	}
 
+	// Forward prepare option
+	if (config?.prepare !== undefined) {
+		clientConfig.prepare = config.prepare;
+	}
+
+	// Forward bigint option
+	if (config?.bigint !== undefined) {
+		clientConfig.bigint = config.bigint;
+	}
+
+	// Forward maxLifetime option
+	if (config?.maxLifetime !== undefined) {
+		clientConfig.maxLifetime = config.maxLifetime;
+	}
+
 	return clientConfig;
 }
 
@@ -263,6 +278,11 @@ function extractPostgresConfigFromSql(client: BunSQLClient): PostgresConfig | un
 		'max',
 		'idleTimeout',
 		'connectionTimeout',
+		'prepare',
+		'bigint',
+		'maxLifetime',
+		'path',
+		'connection',
 	] as const;
 
 	for (const key of keys) {
