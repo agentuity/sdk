@@ -1,5 +1,11 @@
 import { SQL as BunSQL, type SQLQuery, type SQL } from 'bun';
-import type { PostgresConfig, ConnectionStats, TransactionOptions, ReserveOptions } from './types';
+import type {
+	PostgresConfig,
+	ConnectionStats,
+	TransactionOptions,
+	ReserveOptions,
+	UnsafeQueryResult,
+} from './types';
 import {
 	ConnectionClosedError,
 	PostgresError,
@@ -12,6 +18,73 @@ import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect';
 import { Transaction, ReservedConnection } from './transaction';
 import { registerClient, unregisterClient } from './registry';
 import { injectSslMode } from './tls';
+import { isMutationStatement } from './mutation';
+
+/**
+ * Creates a lazy thenable with format locking for safe query execution.
+ *
+ * The returned object implements the {@link UnsafeQueryResult} interface: it is
+ * thenable (`.then()`, `.catch()`, `.finally()`) and exposes a `.values()`
+ * method for array-format results. Execution is deferred until the first
+ * consumption method is called.
+ *
+ * **Format locking:** The first access (`.then()` or `.values()`) determines
+ * the result format for the lifetime of the thenable. Attempting the other
+ * format afterwards throws an error, preventing accidental duplicate execution.
+ *
+ * @param makeExecutor - Factory that creates the execution promise.
+ *   Called with `true` for array format (`.values()`) or `false` for row-object
+ *   format (`.then()`).
+ * @returns A lazy thenable with `.values()` support
+ *
+ * @internal Exported for use by `@agentuity/drizzle` — not part of the public API.
+ */
+export function createThenable(
+	makeExecutor: (useValues: boolean) => Promise<unknown>
+): UnsafeQueryResult {
+	let started: Promise<unknown> | null = null;
+	let executionMode: boolean | null = null; // tracks useValues for first call
+
+	const startExecution = (useValues: boolean): Promise<unknown> => {
+		if (started) {
+			if (executionMode !== useValues) {
+				throw new Error(
+					`Cannot access .${useValues ? 'values()' : 'then()'} after .${!useValues ? 'values()' : 'then()'} ` +
+						'on the same query result. The result format is locked to the first access mode ' +
+						'to prevent duplicate query execution. Create a new unsafeQuery() call for a different format.'
+				);
+			}
+			return started;
+		}
+		executionMode = useValues;
+		started = makeExecutor(useValues);
+		return started;
+	};
+
+	return new Proxy({} as UnsafeQueryResult, {
+		get(_target, prop) {
+			if (prop === 'then') {
+				return <TResult1 = unknown, TResult2 = never>(
+					onfulfilled?: ((value: unknown) => TResult1 | PromiseLike<TResult1>) | null,
+					onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+				): Promise<TResult1 | TResult2> => startExecution(false).then(onfulfilled, onrejected);
+			}
+			if (prop === 'catch') {
+				return <TResult = never>(
+					onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null
+				): Promise<unknown | TResult> => startExecution(false).catch(onrejected);
+			}
+			if (prop === 'finally') {
+				return (onfinally?: (() => void) | null): Promise<unknown> =>
+					startExecution(false).finally(onfinally ?? undefined);
+			}
+			if (prop === 'values') {
+				return () => startExecution(true);
+			}
+			return undefined;
+		},
+	});
+}
 
 /**
  * Bun SQL options for PostgreSQL connections.
@@ -149,8 +222,29 @@ export class PostgresClient {
 	 * ```
 	 */
 	query(strings: TemplateStringsArray, ...values: unknown[]): Promise<unknown[]> {
+		// Reconstruct query shape for mutation detection.
+		// Space as separator is safe — doesn't affect SQL keyword detection.
+		const queryShape = strings.join(' ');
+		const mutation = isMutationStatement(queryShape);
+
 		return this._executeWithRetry(async () => {
 			const sql = await this._ensureConnectedAsync();
+			if (mutation) {
+				await sql.unsafe('BEGIN');
+				try {
+					const result = await sql(strings, ...values);
+					await sql.unsafe('COMMIT');
+					return result as unknown[];
+				} catch (error) {
+					try {
+						await sql.unsafe('ROLLBACK');
+					} catch {
+						// Connection may already be dead; Postgres auto-rolls
+						// back uncommitted transactions on connection close.
+					}
+					throw error;
+				}
+			}
 			return sql(strings, ...values);
 		});
 	}
@@ -276,6 +370,87 @@ export class PostgresClient {
 	unsafe(query: string): SQLQuery {
 		const sql = this._ensureConnected();
 		return sql.unsafe(query);
+	}
+
+	/**
+	 * Execute a raw SQL query with automatic retry and transaction wrapping for mutations.
+	 *
+	 * Unlike {@link unsafe}, this method:
+	 * - Automatically retries on retryable errors (connection drops, resets)
+	 * - Wraps mutation statements in transactions for safe retry
+	 * - Returns a thenable with `.values()` support matching Bun's SQLQuery interface
+	 *
+	 * Detected mutation types: INSERT, UPDATE, DELETE, COPY, TRUNCATE, MERGE, CALL, DO.
+	 * EXPLAIN queries are never wrapped (read-only analysis).
+	 *
+	 * For SELECT queries, retries without transaction wrapping (idempotent).
+	 * For mutations, wraps in BEGIN/COMMIT so PostgreSQL auto-rolls back
+	 * uncommitted transactions on connection drop, making retry safe.
+	 *
+	 * **⚠️ COMMIT Uncertainty Window:**
+	 * If the connection drops after the server processes COMMIT but before the client
+	 * receives confirmation (~<1ms window), changes ARE committed but the client sees
+	 * a failure. Retry will then duplicate the mutation. This is an inherent limitation
+	 * of retry-based approaches. Use application-level idempotency (e.g., unique
+	 * constraints with ON CONFLICT) for critical operations.
+	 *
+	 * **⚠️ Result Format Locking:**
+	 * Each unsafeQuery() result can only be consumed via ONE access pattern — either
+	 * `await result` (row objects) or `await result.values()` (arrays), not both.
+	 * Attempting the second pattern throws an error to prevent accidental duplicate execution.
+	 *
+	 * @param query - The raw SQL query string
+	 * @param params - Optional query parameters
+	 * @returns A thenable that resolves to rows (objects) or arrays via `.values()`
+	 *
+	 * @see https://github.com/agentuity/sdk/issues/911
+	 *
+	 * @example
+	 * ```typescript
+	 * // INSERT with safe retry
+	 * const rows = await client.unsafeQuery('INSERT INTO items (name) VALUES ($1) RETURNING *', ['test']);
+	 *
+	 * // SELECT with retry (no transaction overhead)
+	 * const items = await client.unsafeQuery('SELECT * FROM items WHERE id = $1', [42]);
+	 *
+	 * // Get raw arrays via .values()
+	 * const arrays = await client.unsafeQuery('SELECT id, name FROM items').values();
+	 * ```
+	 */
+	unsafeQuery(query: string, params?: unknown[]): UnsafeQueryResult {
+		if (isMutationStatement(query)) {
+			const makeTransactionalExecutor = (useValues: boolean) =>
+				this._executeWithRetry(async () => {
+					const raw = this._ensureConnected();
+					await raw.unsafe('BEGIN');
+					try {
+						const q = params ? raw.unsafe(query, params) : raw.unsafe(query);
+						const result = useValues ? await q.values() : await q;
+						await raw.unsafe('COMMIT');
+						return result;
+					} catch (error) {
+						try {
+							await raw.unsafe('ROLLBACK');
+						} catch {
+							// Connection may already be dead; Postgres auto-rolls
+							// back uncommitted transactions on connection close.
+						}
+						throw error;
+					}
+				});
+
+			return createThenable(makeTransactionalExecutor);
+		}
+
+		// Non-mutation: plain retry without transaction overhead
+		const makeExecutor = (useValues: boolean) =>
+			this._executeWithRetry(async () => {
+				const raw = this._ensureConnected();
+				const q = params ? raw.unsafe(query, params) : raw.unsafe(query);
+				return useValues ? q.values() : q;
+			});
+
+		return createThenable(makeExecutor);
 	}
 
 	/**
@@ -754,6 +929,7 @@ export class PostgresClient {
  */
 export type CallablePostgresClient = PostgresClient & {
 	(strings: TemplateStringsArray, ...values: unknown[]): Promise<unknown[]>;
+	unsafeQuery(query: string, params?: unknown[]): UnsafeQueryResult;
 };
 
 /**
@@ -809,6 +985,7 @@ export function createCallableClient(config?: string | PostgresConfig): Callable
 	callable.close = client.close.bind(client);
 	callable.shutdown = client.shutdown.bind(client);
 	callable.unsafe = client.unsafe.bind(client);
+	callable.unsafeQuery = client.unsafeQuery.bind(client);
 	callable.waitForConnection = client.waitForConnection.bind(client);
 	callable.executeWithRetry = client.executeWithRetry.bind(client);
 
