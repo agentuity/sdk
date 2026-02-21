@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build';
 import { API_VERSION, SandboxResponseError, throwSandboxError } from './util';
 
 export const SnapshotFileInfoSchema = z
@@ -595,7 +596,14 @@ const _SnapshotBuildFinalizeParamsSchema = z
 		files: z.array(SnapshotFileInfoSchema).describe('List of files with path and size'),
 		dependencies: z.array(z.string()).optional().describe('List of apt packages to install'),
 		packages: z
-			.array(z.string())
+			.array(
+				z
+					.string()
+					.regex(
+						NPM_PACKAGE_NAME_PATTERN,
+						'Invalid npm/bun package specifier: must not contain whitespace, semicolons, backticks, pipes, or dollar signs'
+					)
+			)
 			.optional()
 			.describe('List of npm/bun packages to install globally'),
 		env: z.record(z.string(), z.string()).optional().describe('Environment variables to set'),
