@@ -1,6 +1,7 @@
 import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api';
+import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build';
 import { API_VERSION, throwSandboxError } from './util';
 
 export const SandboxCreateRequestSchema = z
@@ -86,6 +87,17 @@ export const SandboxCreateRequestSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Apt packages to install when creating the sandbox'),
+		packages: z
+			.array(
+				z
+					.string()
+					.regex(
+						NPM_PACKAGE_NAME_PATTERN,
+						'Invalid npm/bun package specifier: must not contain whitespace, semicolons, backticks, pipes, or dollar signs'
+					)
+			)
+			.optional()
+			.describe('npm/bun packages to install globally when creating the sandbox'),
 		metadata: z
 			.record(z.string(), z.unknown())
 			.optional()
@@ -201,6 +213,9 @@ export async function sandboxCreate(
 	}
 	if (options.dependencies && options.dependencies.length > 0) {
 		body.dependencies = options.dependencies;
+	}
+	if (options.packages && options.packages.length > 0) {
+		body.packages = options.packages;
 	}
 	if (options.metadata) {
 		body.metadata = options.metadata;
