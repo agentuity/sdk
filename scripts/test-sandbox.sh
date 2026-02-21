@@ -98,15 +98,40 @@ delete_and_untrack_snapshot() {
 fail() {
 	echo -e "${RED}✗ $1${NC}"
 	echo -e "${RED}  Output: $2${NC}"
+	# Show raw CLI output if provided as 3rd arg (when $2 is a comparison string)
+	if [ -n "$3" ]; then
+		echo -e "${RED}  CLI Response:${NC}"
+		echo "$3" | while IFS= read -r line; do
+			echo -e "${RED}    ${line}${NC}"
+		done
+	fi
 	# Log sandbox ID for OTel trace correlation
 	if [ -n "$SANDBOX_ID" ]; then
 		echo -e "${RED}  SandboxId: $SANDBOX_ID${NC}"
+	fi
+	# Log CLI session ID for log correlation
+	local cli_session
+	cli_session=$(find_latest_cli_session)
+	if [ -n "$cli_session" ]; then
+		echo -e "${RED}  CliSession: $cli_session${NC}"
 	fi
 	TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 info() {
 	echo -e "${YELLOW}→ $1${NC}"
+}
+
+# Find the latest CLI session ID from internal logs for debugging correlation
+find_latest_cli_session() {
+	local logs_dir="$HOME/.config/agentuity/logs"
+	if [ -d "$logs_dir" ]; then
+		local latest
+		latest=$(ls -1t "$logs_dir" 2>/dev/null | head -1)
+		if [ -n "$latest" ]; then
+			echo "$latest"
+		fi
+	fi
 }
 
 section() {
@@ -367,7 +392,7 @@ while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
 	WAIT_COUNT=$((WAIT_COUNT + 1))
 done
 if [ $WAIT_COUNT -eq $MAX_WAIT ]; then
-	fail "sandbox did not become ready within ${MAX_WAIT}s" "status: $CURRENT_STATUS"
+	fail "sandbox did not become ready within ${MAX_WAIT}s" "status: $CURRENT_STATUS" "$STATUS_OUTPUT"
 fi
 
 # ============================================
@@ -912,7 +937,7 @@ CREATED_TAG=$(echo "$NAMED_SNAP_CREATE" | grep -o '"tag"[[:space:]]*:[[:space:]]
 if [ "$CREATED_NAME" = "$SNAP_NAME" ] && [ "$CREATED_TAG" = "$SNAP_TAG" ]; then
 	pass "snapshot create with --name and --tag: name=$CREATED_NAME, tag=$CREATED_TAG"
 else
-	fail "snapshot create did not set name/tag correctly" "expected name=$SNAP_NAME tag=$SNAP_TAG, got name=$CREATED_NAME tag=$CREATED_TAG"
+	fail "snapshot create did not set name/tag correctly" "expected name=$SNAP_NAME tag=$SNAP_TAG, got name=$CREATED_NAME tag=$CREATED_TAG" "$NAMED_SNAP_CREATE"
 fi
 
 # Test: Create sandbox using name:tag format
@@ -941,7 +966,7 @@ LATEST_TAG=$(echo "$LATEST_SNAP_CREATE" | grep -o '"tag"[[:space:]]*:[[:space:]]
 if [ "$LATEST_TAG" = "latest" ]; then
 	pass "snapshot create without --tag defaults to 'latest'"
 else
-	fail "snapshot create did not default to 'latest' tag" "got tag=$LATEST_TAG"
+	fail "snapshot create did not default to 'latest' tag" "got tag=$LATEST_TAG" "$LATEST_SNAP_CREATE"
 fi
 
 # Test: Create sandbox using name:latest format
@@ -1052,7 +1077,7 @@ BUILD_TAG=$(echo "$BUILD_OUTPUT" | grep -o '"tag"[[:space:]]*:[[:space:]]*"[^"]*
 if [ "$BUILD_TAG" = "v1" ]; then
 	pass "snapshot build respects --tag option"
 else
-	fail "snapshot build did not use correct tag (expected v1)" "$BUILD_TAG"
+	fail "snapshot build did not use correct tag (expected v1)" "$BUILD_TAG" "$BUILD_OUTPUT"
 fi
 
 # Test: Create sandbox from built snapshot
