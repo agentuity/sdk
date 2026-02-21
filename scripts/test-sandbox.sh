@@ -704,12 +704,39 @@ $CLI cloud sandbox rmdir "$SANDBOX_ID" /home/agentuity/testrmdir >/dev/null 2>&1
 
 # Test: JSON output
 info "Test: sandbox rm --json"
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "json test" > /home/agentuity/jsontest.txt' >/dev/null 2>&1 || true
-RM_JSON=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/jsontest.txt --json 2>&1) || true
-if echo "$RM_JSON" | grep -q '"success"' && echo "$RM_JSON" | grep -q '"path"'; then
-	pass "sandbox rm --json returns structured data"
+RM_JSON_READY=0
+set +e
+RM_JSON_CREATE=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "json test" > /home/agentuity/jsontest.txt' 2>&1)
+RM_JSON_CREATE_EXIT=$?
+set -e
+if [ "$RM_JSON_CREATE_EXIT" -ne 0 ]; then
+	fail "sandbox rm --json setup failed to create file (exit code $RM_JSON_CREATE_EXIT)" "$RM_JSON_CREATE"
 else
-	fail "sandbox rm --json missing expected fields" "$RM_JSON"
+	set +e
+	RM_JSON_EXISTS=$($CLI cloud sandbox exec "$SANDBOX_ID" -- test -f /home/agentuity/jsontest.txt 2>&1)
+	RM_JSON_EXISTS_EXIT=$?
+	set -e
+	if [ "$RM_JSON_EXISTS_EXIT" -ne 0 ]; then
+		fail "sandbox rm --json setup could not verify file exists" "$RM_JSON_EXISTS"
+	else
+		RM_JSON_READY=1
+	fi
+fi
+if [ "$RM_JSON_READY" -eq 1 ]; then
+	set +e
+	RM_JSON=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/jsontest.txt --json 2>&1)
+	RM_JSON_EXIT=$?
+	set -e
+	if [ "$RM_JSON_EXIT" -ne 0 ]; then
+		fail "sandbox rm --json failed to remove file (exit code $RM_JSON_EXIT)" "$RM_JSON"
+	else
+		pass "sandbox rm --json exits successfully"
+	fi
+	if echo "$RM_JSON" | grep -q '"success"' && echo "$RM_JSON" | grep -q '"path"'; then
+		pass "sandbox rm --json returns structured data"
+	else
+		fail "sandbox rm --json missing expected fields" "$RM_JSON"
+	fi
 fi
 
 # ============================================
