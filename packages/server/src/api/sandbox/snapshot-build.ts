@@ -1,6 +1,18 @@
 import { z } from 'zod';
 
 /**
+ * Regex pattern for validating npm/bun package specifiers.
+ * Uses a blocklist approach: rejects shell injection characters while allowing
+ * all legitimate specifier formats (names, scoped packages, URLs, git refs, etc.).
+ *
+ * Valid examples: "typescript", "@types/node", "opencode-ai@1.2.3",
+ *   "https://github.com/user/repo", "git+https://github.com/user/repo.git",
+ *   "github:user/repo", "file:../local-pkg"
+ * Invalid examples: "foo bar", "pkg;rm -rf", "pkg|cat /etc/passwd", "$(evil)"
+ */
+export const NPM_PACKAGE_NAME_PATTERN = /^[^\s;`|$]+$/;
+
+/**
  * Base schema for snapshot build configuration file (agentuity-snapshot.yaml)
  * This is the canonical schema - used for JSON Schema generation.
  */
@@ -23,7 +35,14 @@ export const SnapshotBuildFileBaseSchema = z
 				'List of apt packages to install. Supports version pinning: package=version or package=version* for prefix matching'
 			),
 		packages: z
-			.array(z.string())
+			.array(
+				z
+					.string()
+					.regex(
+						NPM_PACKAGE_NAME_PATTERN,
+						'Invalid npm/bun package specifier: must not contain whitespace, semicolons, backticks, pipes, or dollar signs'
+					)
+			)
 			.optional()
 			.describe(
 				'List of npm/bun packages to install globally via bun install -g. Example: opencode-ai, typescript'

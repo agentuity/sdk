@@ -12,6 +12,7 @@ import {
 	snapshotBuildFinalize,
 	snapshotUpload,
 	SnapshotBuildFileSchema,
+	NPM_PACKAGE_NAME_PATTERN,
 } from '@agentuity/server';
 import type { SnapshotFileInfo, SnapshotBuildGitInfo } from '@agentuity/server';
 import { getCatalystAPIClient } from '../../../../config';
@@ -582,16 +583,16 @@ export const buildSubcommand = createCommand({
 		}
 
 		if (buildConfig.packages && buildConfig.packages.length > 0) {
-			// Basic validation: no shell metacharacters
-			const packageNameRegex =
-				/^(@[a-zA-Z0-9._-]+\/)?[a-zA-Z0-9._-]+(@[a-zA-Z0-9._^~><=\-]+)?$/;
+			// Validate package specifiers using shared pattern (also enforced at schema level)
 			const invalidPackages = buildConfig.packages.filter(
-				(pkg) => !packageNameRegex.test(pkg)
+				(pkg) => !NPM_PACKAGE_NAME_PATTERN.test(pkg)
 			);
 			if (invalidPackages.length > 0) {
-				tui.error('Invalid package names:');
+				tui.error('Invalid package specifiers:');
 				for (const pkg of invalidPackages) {
-					tui.bullet(`${pkg}: package name contains invalid characters`);
+					tui.bullet(
+						`${pkg}: must not contain whitespace, semicolons, backticks, pipes, or dollar signs`
+					);
 				}
 				process.exit(1);
 			}
@@ -973,31 +974,31 @@ export const buildSubcommand = createCommand({
 					{ layout: 'vertical', padStart: '  ' }
 				);
 
-			if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
-				console.log('');
-				tui.info('Dependencies:');
-				for (const dep of buildConfig.dependencies) {
-					console.log(`  ${tui.muted('•')} ${dep}`);
+				if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
+					console.log('');
+					tui.info('Dependencies:');
+					for (const dep of buildConfig.dependencies) {
+						console.log(`  ${tui.muted('•')} ${dep}`);
+					}
 				}
-			}
 
-			if (buildConfig.packages && buildConfig.packages.length > 0) {
-				console.log('');
-				tui.info('Packages (npm/bun):');
-				for (const pkg of buildConfig.packages) {
-					console.log(`  ${tui.muted('•')} ${pkg}`);
+				if (buildConfig.packages && buildConfig.packages.length > 0) {
+					console.log('');
+					tui.info('Packages (npm/bun):');
+					for (const pkg of buildConfig.packages) {
+						console.log(`  ${tui.muted('•')} ${pkg}`);
+					}
 				}
-			}
 
-			if (finalEnv && Object.keys(finalEnv).length > 0) {
-				console.log('');
-				tui.info('Environment:');
-				for (const [envKey, envValue] of Object.entries(finalEnv)) {
-					console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
+				if (finalEnv && Object.keys(finalEnv).length > 0) {
+					console.log('');
+					tui.info('Environment:');
+					for (const [envKey, envValue] of Object.entries(finalEnv)) {
+						console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
+					}
 				}
-			}
 
-			if (finalMetadata && Object.keys(finalMetadata).length > 0) {
+				if (finalMetadata && Object.keys(finalMetadata).length > 0) {
 					console.log('');
 					tui.info('Metadata:');
 					for (const key of Object.keys(finalMetadata)) {

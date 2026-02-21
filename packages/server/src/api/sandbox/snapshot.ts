@@ -594,7 +594,10 @@ const _SnapshotBuildFinalizeParamsSchema = z
 		fileCount: z.number().describe('Number of files in the snapshot'),
 		files: z.array(SnapshotFileInfoSchema).describe('List of files with path and size'),
 		dependencies: z.array(z.string()).optional().describe('List of apt packages to install'),
-		packages: z.array(z.string()).optional().describe('List of npm/bun packages to install globally'),
+		packages: z
+			.array(z.string())
+			.optional()
+			.describe('List of npm/bun packages to install globally'),
 		env: z.record(z.string(), z.string()).optional().describe('Environment variables to set'),
 		metadata: z
 			.record(z.string(), z.string())

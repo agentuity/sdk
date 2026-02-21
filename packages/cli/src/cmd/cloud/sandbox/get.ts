@@ -139,6 +139,9 @@ export const getSubcommand = createCommand({
 			if (result.dependencies && result.dependencies.length > 0) {
 				tableData['Dependencies'] = result.dependencies.join(', ');
 			}
+			if (result.packages && result.packages.length > 0) {
+				tableData['Packages'] = result.packages.join(', ');
+			}
 			if (resourceParts.length > 0) {
 				tableData['Resources'] = resourceParts.join(', ');
 			}
@@ -165,6 +168,7 @@ export const getSubcommand = createCommand({
 			stdoutStreamUrl: result.stdoutStreamUrl,
 			stderrStreamUrl: result.stderrStreamUrl,
 			dependencies: result.dependencies,
+			packages: result.packages,
 			metadata: result.metadata,
 			resources: result.resources,
 			url: result.url,

@@ -171,7 +171,7 @@ export {
 	snapshotUpload,
 } from './snapshot';
 export type { SnapshotBuildFile } from './snapshot-build';
-export { SnapshotBuildFileSchema } from './snapshot-build';
+export { SnapshotBuildFileSchema, NPM_PACKAGE_NAME_PATTERN } from './snapshot-build';
 export type { SandboxErrorCode, SandboxErrorContext } from './util';
 export {
 	ExecutionCancelledError,
