@@ -795,7 +795,7 @@ export class StreamStorageService implements StreamStorage {
 				streams: res.data.streams.map((s) => ({
 					id: s.id,
 					namespace: s.name,
-					metadata: s.metadata,
+					metadata: s.metadata ?? {},
 					url: s.url,
 					sizeBytes: s.size_bytes,
 					...(s.expires_at && { expiresAt: s.expires_at }),
@@ -836,7 +836,7 @@ export class StreamStorageService implements StreamStorage {
 			return {
 				id: res.data.id,
 				namespace: res.data.name,
-				metadata: res.data.metadata,
+				metadata: res.data.metadata ?? {},
 				url: res.data.url,
 				sizeBytes: res.data.size_bytes,
 				...(res.data.expires_at && { expiresAt: res.data.expires_at }),
