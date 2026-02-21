@@ -1,5 +1,12 @@
 import type pg from 'pg';
 
+export type UnsafeQueryResult = {
+	then: Promise<unknown>['then'];
+	catch: Promise<unknown>['catch'];
+	finally: Promise<unknown>['finally'];
+	values: () => Promise<unknown>;
+};
+
 /**
  * TLS configuration options for PostgreSQL connections.
  */

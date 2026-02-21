@@ -542,7 +542,11 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('INSERT/*hint*/INTO items (name) VALUES ($1)', ['test']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual(['BEGIN', 'INSERT/*hint*/INTO items (name) VALUES ($1)', 'COMMIT']);
+		expect(unsafeCalls).toEqual([
+			'BEGIN',
+			'INSERT/*hint*/INTO items (name) VALUES ($1)',
+			'COMMIT',
+		]);
 	});
 
 	it('detects CTE mutation with inline comment after DML keyword', async () => {

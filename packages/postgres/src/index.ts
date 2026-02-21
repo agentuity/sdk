@@ -49,6 +49,9 @@ export { patchBunSQL, isPatched, SQL } from './patch';
 // TLS utilities
 export { injectSslMode } from './tls';
 
+// Mutation detection utility
+export { isMutationStatement } from './mutation';
+
 // Types
 export type {
 	PostgresConfig,
