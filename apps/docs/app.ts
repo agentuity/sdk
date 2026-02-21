@@ -1,5 +1,5 @@
-import { createApp } from '@agentuity/runtime';
-import { getContentType } from '@agentuity/server';
+import { createApp, isDevMode } from '@agentuity/runtime';
+import { mimeTypes } from '@agentuity/server';
 import { join } from 'node:path';
 
 const { server, logger, router } = await createApp({
@@ -16,22 +16,12 @@ const { server, logger, router } = await createApp({
 	},
 });
 
-// Dev mode: serve static files (.md, .txt, .xml) from src/web/public/.
+// Dev mode: serve static files from src/web/public/.
 // In production, these are served automatically by the runtime with correct MIME types.
-const publicDir = join(import.meta.dir, '..', 'src/web/public');
-const staticExtensions = ['.md', '.txt', '.xml', '.ico'];
-
-router.use('*', async (c, next) => {
-	const path = c.req.path;
-	if (staticExtensions.some((ext) => path.endsWith(ext))) {
-		const file = Bun.file(join(publicDir, path));
-		if (await file.exists()) {
-			return new Response(file, {
-				headers: { 'Content-Type': getContentType(path) },
-			});
-		}
-	}
-	return next();
-});
+if (isDevMode()) {
+	const { serveStatic } = await import('hono/bun');
+	const publicDir = join(import.meta.dir, '..', 'src/web/public');
+	router.use('/*', serveStatic({ root: publicDir, mimes: mimeTypes }));
+}
 
 logger.debug('Running %s', server.url);
