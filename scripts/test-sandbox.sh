@@ -1887,6 +1887,11 @@ set +e
 NONEXIST_SNAP=$($CLI cloud sandbox snapshot create "sbx_nonexistent_${RUN_ID}" --json 2>&1)
 NONEXIST_SNAP_EXIT=$?
 set -e
+if [ "$NONEXIST_SNAP_EXIT" -ne 0 ]; then
+	pass "snapshot create from non-existent sandbox returns non-zero exit code ($NONEXIST_SNAP_EXIT)"
+else
+	fail "snapshot create from non-existent sandbox exited with code 0 (expected non-zero)" "$NONEXIST_SNAP"
+fi
 if echo "$NONEXIST_SNAP" | grep -qi "not found\|404\|error\|invalid"; then
 	pass "snapshot create from non-existent sandbox returns error"
 else
@@ -1930,6 +1935,11 @@ if [ -n "$TEMP_SBX_ID" ] && [[ "$TEMP_SBX_ID" == sbx_* ]]; then
 	DELETED_SNAP=$($CLI cloud sandbox snapshot create "$TEMP_SBX_ID" --json 2>&1)
 	DELETED_SNAP_EXIT=$?
 	set -e
+	if [ "$DELETED_SNAP_EXIT" -ne 0 ]; then
+		pass "snapshot create from deleted sandbox returns non-zero exit code ($DELETED_SNAP_EXIT)"
+	else
+		fail "snapshot create from deleted sandbox exited with code 0 (expected non-zero)" "$DELETED_SNAP"
+	fi
 	if echo "$DELETED_SNAP" | grep -qi "not found\|deleted\|404\|error"; then
 		pass "snapshot create from deleted sandbox returns error"
 	else
@@ -1950,6 +1960,11 @@ set +e
 NONEXIST_SNAP_GET=$($CLI cloud sandbox snapshot get "snp_nonexistent_${RUN_ID}" --json 2>&1)
 NONEXIST_SNAP_GET_EXIT=$?
 set -e
+if [ "$NONEXIST_SNAP_GET_EXIT" -ne 0 ]; then
+	pass "snapshot get for non-existent snapshot returns non-zero exit code ($NONEXIST_SNAP_GET_EXIT)"
+else
+	fail "snapshot get for non-existent snapshot exited with code 0 (expected non-zero)" "$NONEXIST_SNAP_GET"
+fi
 if echo "$NONEXIST_SNAP_GET" | grep -qi "not found\|404\|error"; then
 	pass "snapshot get for non-existent snapshot returns error"
 else
@@ -1964,14 +1979,22 @@ LONG_NAME_SNAP=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "$LONG_
 LONG_NAME_SNAP_EXIT=$?
 set -e
 if echo "$LONG_NAME_SNAP" | grep -qi "error\|invalid\|too long\|validation\|exceeds"; then
-	pass "snapshot create with 300-char name returns validation error"
+	if [ "$LONG_NAME_SNAP_EXIT" -ne 0 ]; then
+		pass "snapshot create with 300-char name returns validation error (exit code $LONG_NAME_SNAP_EXIT)"
+	else
+		fail "snapshot create with 300-char name returned error text but exit code 0" "$LONG_NAME_SNAP"
+	fi
 else
 	# If it somehow succeeded, clean it up
 	LONG_NAME_SNAP_ID=$(echo "$LONG_NAME_SNAP" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 	if [ -n "$LONG_NAME_SNAP_ID" ] && [[ "$LONG_NAME_SNAP_ID" == snp_* ]]; then
 		track_snapshot "$LONG_NAME_SNAP_ID"
 		delete_and_untrack_snapshot "$LONG_NAME_SNAP_ID"
-		pass "snapshot create with 300-char name was accepted (server allows it)"
+		if [ "$LONG_NAME_SNAP_EXIT" -eq 0 ]; then
+			pass "snapshot create with 300-char name was accepted (exit code 0)"
+		else
+			fail "snapshot create with 300-char name returned snapshot but non-zero exit code ($LONG_NAME_SNAP_EXIT)" "$LONG_NAME_SNAP"
+		fi
 	else
 		fail "snapshot create with 300-char name gave unexpected response" "$LONG_NAME_SNAP"
 	fi
@@ -1984,14 +2007,22 @@ SPECIAL_NAME_SNAP=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name 'tes
 SPECIAL_NAME_SNAP_EXIT=$?
 set -e
 if echo "$SPECIAL_NAME_SNAP" | grep -qi "error\|invalid\|validation"; then
-	pass "snapshot create with special characters returns validation error"
+	if [ "$SPECIAL_NAME_SNAP_EXIT" -ne 0 ]; then
+		pass "snapshot create with special characters returns validation error (exit code $SPECIAL_NAME_SNAP_EXIT)"
+	else
+		fail "snapshot create with special characters returned error text but exit code 0" "$SPECIAL_NAME_SNAP"
+	fi
 else
 	# If it somehow succeeded, clean it up
 	SPECIAL_NAME_SNAP_ID=$(echo "$SPECIAL_NAME_SNAP" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 	if [ -n "$SPECIAL_NAME_SNAP_ID" ] && [[ "$SPECIAL_NAME_SNAP_ID" == snp_* ]]; then
 		track_snapshot "$SPECIAL_NAME_SNAP_ID"
 		delete_and_untrack_snapshot "$SPECIAL_NAME_SNAP_ID"
-		pass "snapshot create with special characters was accepted (server allows it)"
+		if [ "$SPECIAL_NAME_SNAP_EXIT" -eq 0 ]; then
+			pass "snapshot create with special characters was accepted (exit code 0)"
+		else
+			fail "snapshot create with special characters returned snapshot but non-zero exit code ($SPECIAL_NAME_SNAP_EXIT)" "$SPECIAL_NAME_SNAP"
+		fi
 	else
 		fail "snapshot create with special characters gave unexpected response" "$SPECIAL_NAME_SNAP"
 	fi
