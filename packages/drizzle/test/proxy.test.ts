@@ -420,6 +420,121 @@ describe('createResilientSQLProxy', () => {
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 	});
 
+	describe('CTE with parentheses inside strings/comments', () => {
+		it('handles CTE with closing paren in single-quoted string', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			await proxy.unsafe("WITH cte AS (SELECT ')' AS x) INSERT INTO items VALUES ($1)", [1]);
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual([
+				'BEGIN',
+				"WITH cte AS (SELECT ')' AS x) INSERT INTO items VALUES ($1)",
+				'COMMIT',
+			]);
+		});
+
+		it('handles CTE with opening paren in single-quoted string', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			await proxy.unsafe("WITH cte AS (SELECT '(' AS x) INSERT INTO items VALUES ($1)", [1]);
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual([
+				'BEGIN',
+				"WITH cte AS (SELECT '(' AS x) INSERT INTO items VALUES ($1)",
+				'COMMIT',
+			]);
+		});
+
+		it('handles CTE with escaped single quotes and parens', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			await proxy.unsafe("WITH cte AS (SELECT 'it''s ()' AS x) INSERT INTO items VALUES ($1)", [
+				1,
+			]);
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual([
+				'BEGIN',
+				"WITH cte AS (SELECT 'it''s ()' AS x) INSERT INTO items VALUES ($1)",
+				'COMMIT',
+			]);
+		});
+
+		it('handles CTE with parens in double-quoted identifier', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			await proxy.unsafe('WITH cte AS (SELECT "col(1)" FROM t) INSERT INTO items VALUES ($1)', [
+				1,
+			]);
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual([
+				'BEGIN',
+				'WITH cte AS (SELECT "col(1)" FROM t) INSERT INTO items VALUES ($1)',
+				'COMMIT',
+			]);
+		});
+
+		it('handles CTE with parens in block comment', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			await proxy.unsafe('WITH cte AS (SELECT /* ) */ 1) INSERT INTO items VALUES ($1)', [1]);
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual([
+				'BEGIN',
+				'WITH cte AS (SELECT /* ) */ 1) INSERT INTO items VALUES ($1)',
+				'COMMIT',
+			]);
+		});
+
+		it('handles CTE with parens in line comment', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			await proxy.unsafe('WITH cte AS (SELECT 1 -- )\nFROM t) INSERT INTO items VALUES ($1)', [
+				1,
+			]);
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual([
+				'BEGIN',
+				'WITH cte AS (SELECT 1 -- )\nFROM t) INSERT INTO items VALUES ($1)',
+				'COMMIT',
+			]);
+		});
+
+		it('handles CTE with parens in dollar-quoted string', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			await proxy.unsafe('WITH cte AS (SELECT $$)$$ AS x) INSERT INTO items VALUES ($1)', [1]);
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual([
+				'BEGIN',
+				'WITH cte AS (SELECT $$)$$ AS x) INSERT INTO items VALUES ($1)',
+				'COMMIT',
+			]);
+		});
+
+		it('handles CTE with parens in tagged dollar-quoted string', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			await proxy.unsafe('WITH cte AS (SELECT $fn$)($fn$ AS x) INSERT INTO items VALUES ($1)', [
+				1,
+			]);
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual([
+				'BEGIN',
+				'WITH cte AS (SELECT $fn$)($fn$ AS x) INSERT INTO items VALUES ($1)',
+				'COMMIT',
+			]);
+		});
+
+		it('CTE with string parens and SELECT is still non-mutation', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			await proxy.unsafe("WITH cte AS (SELECT '(' AS x) SELECT * FROM cte");
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			// Should NOT have transaction wrapping — this is a SELECT
+			expect(unsafeCalls).toEqual(["WITH cte AS (SELECT '(' AS x) SELECT * FROM cte"]);
+		});
+	});
+
 	it('still uses executeWithRetry for SELECT queries', async () => {
 		const { client } = createMockClient();
 		const proxy = createResilientSQLProxy(client);

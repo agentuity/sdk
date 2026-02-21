@@ -64,7 +64,10 @@ const LEADING_COMMENTS_RE = /^(?:\s+|\/\*[\s\S]*?\*\/|--[^\n]*\n)*/;
  *    (with optional leading comments/whitespace)
  * 2. CTE mutations: `WITH cte AS (...) INSERT|UPDATE|DELETE ...` — scans past
  *    the WITH clause by tracking parenthesis depth to skip CTE subexpressions,
- *    then checks if the first top-level DML keyword is a mutation.
+ *    then checks if the first top-level DML keyword is a mutation. The scanner
+ *    treats single-quoted strings, double-quoted identifiers, dollar-quoted
+ *    strings, line comments (--), and block comments as atomic regions so
+ *    parentheses inside them do not corrupt depth tracking.
  *
  * @see https://github.com/agentuity/sdk/issues/911
  */
@@ -93,6 +96,80 @@ function isMutationStatement(query: string): boolean {
 	while (i < len) {
 		const ch = stripped[i]!;
 
+		// ── Skip atomic regions (at any depth) ──────────────────────
+		// These regions may contain parentheses that must not affect depth.
+
+		// Single-quoted string: 'it''s a (test)'
+		if (ch === "'") {
+			i++;
+			while (i < len) {
+				if (stripped[i] === "'") {
+					i++;
+					if (i < len && stripped[i] === "'") {
+						i++; // escaped '' → still inside string
+					} else {
+						break; // end of string
+					}
+				} else {
+					i++;
+				}
+			}
+			continue;
+		}
+
+		// Double-quoted identifier: "col(1)"
+		if (ch === '"') {
+			i++;
+			while (i < len) {
+				if (stripped[i] === '"') {
+					i++;
+					if (i < len && stripped[i] === '"') {
+						i++; // escaped "" → still inside identifier
+					} else {
+						break;
+					}
+				} else {
+					i++;
+				}
+			}
+			continue;
+		}
+
+		// Line comment: -- has (parens)\n
+		if (ch === '-' && i + 1 < len && stripped[i + 1] === '-') {
+			i += 2;
+			while (i < len && stripped[i] !== '\n') i++;
+			if (i < len) i++; // skip newline
+			continue;
+		}
+
+		// Block comment: /* has (parens) */
+		if (ch === '/' && i + 1 < len && stripped[i + 1] === '*') {
+			i += 2;
+			while (i < len && !(stripped[i] === '*' && i + 1 < len && stripped[i + 1] === '/')) i++;
+			if (i < len) i += 2; // skip */
+			continue;
+		}
+
+		// Dollar-quoted string: $$has (parens)$$ or $tag$...$tag$
+		if (ch === '$') {
+			let tagEnd = i + 1;
+			while (tagEnd < len && /[a-zA-Z0-9_]/.test(stripped[tagEnd]!)) tagEnd++;
+			if (tagEnd < len && stripped[tagEnd] === '$') {
+				const tag = stripped.substring(i, tagEnd + 1);
+				i = tagEnd + 1;
+				const closeIdx = stripped.indexOf(tag, i);
+				if (closeIdx !== -1) {
+					i = closeIdx + tag.length;
+				} else {
+					i = len; // unterminated — skip to end
+				}
+				continue;
+			}
+			// Not a dollar-quote tag, fall through
+		}
+
+		// ── Track parenthesis depth ─────────────────────────────────
 		if (ch === '(') {
 			depth++;
 			i++;
