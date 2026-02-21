@@ -6,7 +6,7 @@ Writing conventions for Agentuity docs pages in this directory.
 
 1. **Context-then-code**: 1-2 sentences of motivation, then working code immediately
 2. **Lean**: Avoid walls of text. Progressive disclosure: basic first, advanced later
-3. **Complete**: Every code block has imports, is runnable, includes error handling in substantial examples
+3. **Complete**: Standalone examples include imports and are runnable. Short inline references are fine without imports
 4. **Scannable**: Headings, callouts, inline comments that explain "why" not "what"
 5. **Benefit-focused, not salesy**: Explain *why* someone would use a feature without hollow adjectives
 6. **Source-verified**: Read SDK source and AGENTS.md files before documenting APIs or CLI flags.
@@ -67,13 +67,20 @@ Agentuity supports raw provider SDKs and AI SDK providers. When writing docs:
 
 ## Code Examples
 
-- Always include imports at the top
+Code blocks fall into two categories:
+
+- **Inline references**: Show API shape, config values, or method signatures. Imports not needed. Use these freely in prose to keep things scannable.
+- **Standalone examples**: Demonstrate a concept or pattern. Include imports at the top, should be copy-pasteable.
+
+General rules:
+
 - Use `ctx.logger` in server/agent examples, not `console.log`
 - Inline comments explain intent ("why"), not syntax ("what")
 - No `// @ts-ignore`, `// eslint-disable`, or other suppression comments
-- Error handling: required in full examples, optional in minimal snippets
+- Error handling: include in substantial examples, optional in short ones
 - Strip boilerplate: show only the feature being demonstrated
 - Use a balance of raw SDK providers and AI SDK providers (`openai()`, `anthropic()`) in examples
+- Prefer `s` from `@agentuity/schema` for schemas. Other StandardSchema libraries (Zod, ArkType, Valibot) are equally valid and should appear across examples to show the SDK is schema-agnostic
 
 ## MDX Components
 
@@ -133,7 +140,7 @@ Available components in doc pages:
 ### Code
 
 - First code block appears early
-- All code blocks have imports and are runnable
+- Standalone examples have imports and are runnable
 - `ctx.logger` in agents, `c.var.logger` in routes (not `console.log`)
 - No suppression comments (`@ts-ignore`, `eslint-disable`)
 - Optional parameters explicitly marked

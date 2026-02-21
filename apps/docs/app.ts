@@ -1,4 +1,5 @@
 import { createApp } from '@agentuity/runtime';
+import { getContentType } from '@agentuity/server';
 import { join } from 'node:path';
 
 const { server, logger, router } = await createApp({
@@ -15,52 +16,21 @@ const { server, logger, router } = await createApp({
 	},
 });
 
-// Serve markdown files at clean URLs (without /public/ prefix)
-// import.meta.dir is .agentuity in dev, so go up one level to project root
+// Dev mode: serve static files (.md, .txt, .xml) from src/web/public/.
+// In production, these are served automatically by the runtime with correct MIME types.
 const publicDir = join(import.meta.dir, '..', 'src/web/public');
+const staticExtensions = ['.md', '.txt', '.xml', '.ico'];
 
-const serveFile = async (filePath: string, contentType: string) => {
-	const file = Bun.file(filePath);
-	if (await file.exists()) {
-		return new Response(file, {
-			headers: { 'Content-Type': contentType },
-		});
-	}
-	return null;
-};
-
-// Serve static files at clean URLs (without /public/ prefix)
-// This handles: favicon.ico, *.md, *.txt
 router.use('*', async (c, next) => {
 	const path = c.req.path;
-
-	// Map of paths/extensions to content types
-	const staticFiles: Record<string, string> = {
-		'/favicon.ico': 'image/x-icon',
-	};
-
-	// Check exact path matches first
-	if (staticFiles[path]) {
-		const res = await serveFile(join(publicDir, path), staticFiles[path]);
-		if (res) return res;
+	if (staticExtensions.some((ext) => path.endsWith(ext))) {
+		const file = Bun.file(join(publicDir, path));
+		if (await file.exists()) {
+			return new Response(file, {
+				headers: { 'Content-Type': getContentType(path) },
+			});
+		}
 	}
-
-	// Then check extensions
-	if (path.endsWith('.md')) {
-		const res = await serveFile(join(publicDir, path), 'text/markdown; charset=utf-8');
-		if (res) return res;
-	}
-
-	if (path.endsWith('.txt')) {
-		const res = await serveFile(join(publicDir, path), 'text/plain; charset=utf-8');
-		if (res) return res;
-	}
-
-	if (path.endsWith('.xml')) {
-		const res = await serveFile(join(publicDir, path), 'application/xml; charset=utf-8');
-		if (res) return res;
-	}
-
 	return next();
 });
 
