@@ -1,12 +1,66 @@
 /**
  * Strips leading whitespace and SQL comments (block and line) from a query string.
  * Returns the remaining query text starting at the first non-comment token.
+ *
+ * Note: This regex does NOT support nested block comments. Use
+ * {@link stripLeadingComments} for full nested comment support.
  */
 export const LEADING_COMMENTS_RE = /^(?:\s+|\/\*[\s\S]*?\*\/|--[^\n]*\n)*/;
 
 /**
- * Determines whether a SQL query is a mutation (INSERT, UPDATE, or DELETE)
- * that requires transaction wrapping for safe retry.
+ * Strips leading whitespace and SQL comments from a query string.
+ * Supports nested block comments.
+ * Returns the remaining query text starting at the first non-comment token.
+ */
+function stripLeadingComments(query: string): string {
+	let i = 0;
+	const len = query.length;
+	while (i < len) {
+		const ch = query[i]!;
+		// Skip whitespace
+		if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') {
+			i++;
+			continue;
+		}
+		// Skip line comment: -- ...\n
+		if (ch === '-' && i + 1 < len && query[i + 1] === '-') {
+			i += 2;
+			while (i < len && query[i] !== '\n') i++;
+			if (i < len) i++; // skip newline
+			continue;
+		}
+		// Skip block comment with nesting: /* ... /* ... */ ... */
+		if (ch === '/' && i + 1 < len && query[i + 1] === '*') {
+			let commentDepth = 1;
+			i += 2;
+			while (i < len && commentDepth > 0) {
+				if (query[i] === '/' && i + 1 < len && query[i + 1] === '*') {
+					commentDepth++;
+					i += 2;
+				} else if (query[i] === '*' && i + 1 < len && query[i + 1] === '/') {
+					commentDepth--;
+					i += 2;
+				} else {
+					i++;
+				}
+			}
+			continue;
+		}
+		break;
+	}
+	return query.substring(i);
+}
+
+/** Regex matching the first keyword of a mutation statement. */
+const MUTATION_KEYWORD_RE = /^(INSERT|UPDATE|DELETE|COPY|TRUNCATE|MERGE|CALL|DO)\b/i;
+
+/**
+ * Determines whether a SQL query is a mutation that requires transaction
+ * wrapping for safe retry.
+ *
+ * Detected mutation types: INSERT, UPDATE, DELETE, COPY, TRUNCATE, MERGE,
+ * CALL, DO. EXPLAIN queries are never wrapped (read-only analysis, even
+ * when the explained statement is a mutation like `EXPLAIN INSERT INTO ...`).
  *
  * Mutation statements wrapped in a transaction can be safely retried because
  * PostgreSQL guarantees that uncommitted transactions are rolled back when
@@ -15,38 +69,46 @@ export const LEADING_COMMENTS_RE = /^(?:\s+|\/\*[\s\S]*?\*\/|--[^\n]*\n)*/;
  * - Double-applied changes from retried UPDATEs (e.g., counter increments)
  * - Repeated side effects from retried DELETEs (e.g., cascade triggers)
  *
- * Handles two patterns:
- * 1. Direct mutations: `INSERT INTO ...`, `UPDATE ... SET`, `DELETE FROM ...`
+ * Handles three patterns:
+ * 1. Direct mutations: `INSERT INTO ...`, `UPDATE ... SET`, `DELETE FROM ...`,
+ *    `COPY ...`, `TRUNCATE ...`, `MERGE ...`, `CALL ...`, `DO ...`
  *    (with optional leading comments/whitespace)
- * 2. CTE mutations: `WITH cte AS (...) INSERT|UPDATE|DELETE ...` — scans past
- *    the WITH clause by tracking parenthesis depth to skip CTE subexpressions,
- *    then checks if the first top-level DML keyword is a mutation. The scanner
- *    treats single-quoted strings, double-quoted identifiers, dollar-quoted
- *    strings, line comments (--), and block comments as atomic regions so
- *    parentheses inside them do not corrupt depth tracking.
+ * 2. CTE mutations: `WITH cte AS (...) INSERT|UPDATE|DELETE|... ...` — scans
+ *    past the WITH clause by tracking parenthesis depth to skip CTE
+ *    subexpressions, then checks if the first top-level DML keyword is a
+ *    mutation. The scanner treats single-quoted strings, double-quoted
+ *    identifiers, dollar-quoted strings, line comments (--), and block
+ *    comments (including nested) as atomic regions so parentheses inside
+ *    them do not corrupt depth tracking.
+ * 3. Multi-statement queries: `SELECT 1; INSERT INTO items VALUES (1)` —
+ *    scans past semicolons at depth 0 to find mutation keywords in
+ *    subsequent statements.
  *
  * @see https://github.com/agentuity/sdk/issues/911
  */
 export function isMutationStatement(query: string): boolean {
-	// Strip leading whitespace and SQL comments
-	const stripped = query.replace(LEADING_COMMENTS_RE, '');
+	// Strip leading whitespace and SQL comments (supports nested block comments)
+	const stripped = stripLeadingComments(query);
+
+	// EXPLAIN never mutates (even EXPLAIN INSERT INTO...)
+	if (/^EXPLAIN\b/i.test(stripped)) return false;
 
 	// Fast path: direct mutation statement
-	if (/^(INSERT|UPDATE|DELETE)\b/i.test(stripped)) {
+	if (MUTATION_KEYWORD_RE.test(stripped)) {
 		return true;
 	}
 
-	// Check for WITH (CTE) prefix
-	if (!/^WITH\s/i.test(stripped)) {
+	// Fast path: no CTE prefix and no multi-statement separator → not a mutation
+	if (!/^WITH\s/i.test(stripped) && !stripped.includes(';')) {
 		return false;
 	}
 
-	// Scan past the CTE clause to find the first top-level DML keyword.
-	// We track parenthesis depth so we skip CTE subexpressions like
-	// "WITH cte AS (SELECT ... INSERT ...)" without false-matching the
-	// INSERT inside the parens.
+	// Full scan: walk the entire query character-by-character.
+	// Track parenthesis depth and check for mutation keywords at depth 0.
+	// This handles both CTE queries (WITH ... AS (...) DML ...) and
+	// multi-statement queries (SELECT ...; INSERT ...).
 	let depth = 0;
-	let i = 4; // skip past "WITH"
+	let i = 0;
 	const len = stripped.length;
 
 	while (i < len) {
@@ -99,11 +161,21 @@ export function isMutationStatement(query: string): boolean {
 			continue;
 		}
 
-		// Block comment: /* has (parens) */
+		// Block comment: /* has (parens) */ — supports nesting
 		if (ch === '/' && i + 1 < len && stripped[i + 1] === '*') {
+			let commentDepth = 1;
 			i += 2;
-			while (i < len && !(stripped[i] === '*' && i + 1 < len && stripped[i + 1] === '/')) i++;
-			if (i < len) i += 2; // skip */
+			while (i < len && commentDepth > 0) {
+				if (stripped[i] === '/' && i + 1 < len && stripped[i + 1] === '*') {
+					commentDepth++;
+					i += 2;
+				} else if (stripped[i] === '*' && i + 1 < len && stripped[i + 1] === '/') {
+					commentDepth--;
+					i += 2;
+				} else {
+					i++;
+				}
+			}
 			continue;
 		}
 
@@ -145,24 +217,20 @@ export function isMutationStatement(query: string): boolean {
 				continue;
 			}
 
-			// Skip commas between CTEs: WITH a AS (...), b AS (...)
-			if (ch === ',') {
+			// Skip semicolons and commas between CTEs or statements
+			if (ch === ';' || ch === ',') {
 				i++;
 				continue;
 			}
 
-			// Check for DML keywords at this position.
-			// We look for INSERT, UPDATE, DELETE, or SELECT — the first one
-			// we find at top level determines whether this is a mutation.
-			const rest = stripped.substring(i);
-			const dmlMatch = /^(INSERT|UPDATE|DELETE|SELECT)\b/i.exec(rest);
-			if (dmlMatch) {
-				return dmlMatch[1]!.toUpperCase() !== 'SELECT';
-			}
-
-			// Skip over any other word (e.g., CTE names, AS keyword, RECURSIVE)
-			// by advancing past alphanumeric/underscore characters
+			// Check for mutation keyword or skip other words
+			// (CTE names, AS, RECURSIVE, SELECT, WITH, etc.)
 			if (/\w/.test(ch)) {
+				const rest = stripped.substring(i);
+				if (MUTATION_KEYWORD_RE.test(rest)) {
+					return true;
+				}
+				// Skip past this word
 				while (i < len && /\w/.test(stripped[i]!)) {
 					i++;
 				}

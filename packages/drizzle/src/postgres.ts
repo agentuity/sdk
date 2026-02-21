@@ -5,6 +5,7 @@ import { isConfig } from 'drizzle-orm/utils';
 import {
 	postgres,
 	isMutationStatement,
+	createThenable,
 	type CallablePostgresClient,
 	type PostgresConfig,
 } from '@agentuity/postgres';
@@ -120,70 +121,7 @@ export function createResilientSQLProxy(
 								}
 							});
 
-						// DESIGN: Single shared promise prevents duplicate mutations.
-						//
-						// The `started` variable ensures only ONE transaction ever
-						// executes, regardless of how the thenable is consumed
-						// (.then(), .values(), .catch(), .finally(), or combinations).
-						//
-						// Drizzle always uses exactly one consumption path per query:
-						//   await proxy.unsafe(q)           → .then() path (row objects)
-						//   await proxy.unsafe(q).values()  → .values() path (arrays)
-						//
-						// If both paths were somehow called on the same thenable, the
-						// first caller determines the result format. This is deliberate:
-						// separate promises per mode would cause DOUBLE transaction
-						// execution (two BEGIN/INSERT/COMMIT), risking duplicate data.
-						// A wrong result format is always preferable to data corruption.
-						let started: Promise<unknown> | null = null;
-						const startExecution = (useValues: boolean): Promise<unknown> => {
-							if (!started) {
-								started = makeTransactionalExecutor(useValues);
-							}
-							return started;
-						};
-
-						const thenable = new Proxy(
-							{} as {
-								then: Promise<unknown>['then'];
-								catch: Promise<unknown>['catch'];
-								finally: Promise<unknown>['finally'];
-								values: () => Promise<unknown>;
-							},
-							{
-								get(_target, prop) {
-									if (prop === 'then') {
-										return <TResult1 = unknown, TResult2 = never>(
-											onfulfilled?:
-												| ((value: unknown) => TResult1 | PromiseLike<TResult1>)
-												| null,
-											onrejected?:
-												| ((reason: unknown) => TResult2 | PromiseLike<TResult2>)
-												| null
-										): Promise<TResult1 | TResult2> =>
-											startExecution(false).then(onfulfilled, onrejected);
-									}
-									if (prop === 'catch') {
-										return <TResult = never>(
-											onrejected?:
-												| ((reason: unknown) => TResult | PromiseLike<TResult>)
-												| null
-										): Promise<unknown | TResult> =>
-											startExecution(false).catch(onrejected);
-									}
-									if (prop === 'finally') {
-										return (onfinally?: (() => void) | null): Promise<unknown> =>
-											startExecution(false).finally(onfinally ?? undefined);
-									}
-									if (prop === 'values') {
-										return () => startExecution(true);
-									}
-									return undefined;
-								},
-							}
-						);
-
-						return thenable;
+						return createThenable(makeTransactionalExecutor);
 					}
 
 					const makeExecutor = (useValues: boolean) =>
@@ -194,11 +132,7 @@ export function createResilientSQLProxy(
 							return useValues ? q.values() : q;
 						});
 
-					// Return a thenable with .values() to match Bun's SQLQuery interface
-					const result = makeExecutor(false);
-					return Object.assign(result, {
-						values: () => makeExecutor(true),
-					});
+					return createThenable(makeExecutor);
 				};
 			}
 

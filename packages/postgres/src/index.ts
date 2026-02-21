@@ -35,7 +35,12 @@
 export { postgres, default } from './postgres';
 
 // Client class for advanced usage
-export { PostgresClient, createCallableClient, type CallablePostgresClient } from './client';
+export {
+	PostgresClient,
+	createCallableClient,
+	createThenable,
+	type CallablePostgresClient,
+} from './client';
 
 // Pool class for pg.Pool-based connections
 export { PostgresPool, Pool, createPool } from './pool';

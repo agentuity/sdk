@@ -77,9 +77,8 @@ describe('createResilientSQLProxy', () => {
 		const result = await proxy.unsafe('SELECT 1').values();
 
 		expect(result).toEqual([[1]]);
-		// values() creates a separate makeExecutor(true) call, so executeWithRetry
-		// is called once for the base promise and once for values()
-		expect(client.executeWithRetry).toHaveBeenCalledTimes(2);
+		// With lazy thenable, .values() starts execution — only one call
+		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 	});
 
 	it('picks up new raw after reconnection', async () => {
@@ -234,7 +233,7 @@ describe('createResilientSQLProxy', () => {
 		]);
 	});
 
-	it('INSERT lazy thenable prevents double execution when values() is called', async () => {
+	it('INSERT lazy thenable only executes once via .values()', async () => {
 		const { client, unsafeCalls } = createMockClient();
 		const proxy = createResilientSQLProxy(client);
 
@@ -242,14 +241,9 @@ describe('createResilientSQLProxy', () => {
 		const thenable = proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
 
 		// Call .values() — this should start execution
-		const valuesResult = thenable.values();
+		const valuesResult = await thenable.values();
 
-		// Also await the base thenable — this should reuse the same execution
-		const _baseResult = await thenable;
-
-		// Wait for values too
-		await valuesResult;
-
+		expect(valuesResult).toEqual([[1]]);
 		// Only ONE execution should have run
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
@@ -716,39 +710,24 @@ describe('createResilientSQLProxy', () => {
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		});
 
-		it('concurrent await and .values() via Promise.all runs single transaction', async () => {
-			const { client, unsafeCalls } = createMockClient();
+		it('throws when mixing .then() and .values() on same mutation thenable', async () => {
+			const { client } = createMockClient();
 			const proxy = createResilientSQLProxy(client);
 			const thenable = proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
-			// Both consume the thenable concurrently
-			await Promise.all([thenable, thenable.values()]);
-			// MUST be exactly one transaction — no duplicate INSERT
-			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
-		});
-
-		it('.values() then await reuses same execution (no duplicate mutation)', async () => {
-			const { client, unsafeCalls } = createMockClient();
-			const proxy = createResilientSQLProxy(client);
-			const thenable = proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
-			const valuesPromise = thenable.values();
-			// Await thenable AFTER .values() already started execution
+			// Await first (locks to row-object mode)
 			await thenable;
-			await valuesPromise;
-			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
+			// .values() on the locked thenable must throw
+			expect(() => thenable.values()).toThrow('Cannot access');
 		});
 
-		it('await then .values() reuses same execution (no duplicate mutation)', async () => {
-			const { client, unsafeCalls } = createMockClient();
+		it('throws when mixing .values() and .then() on same mutation thenable', async () => {
+			const { client } = createMockClient();
 			const proxy = createResilientSQLProxy(client);
 			const thenable = proxy.unsafe('DELETE FROM items WHERE id = $1', [1]);
-			// Await first (starts execution in row-object mode)
-			await thenable;
-			// Then call .values() — must reuse, not re-execute
+			// Call .values() first (locks to array mode)
 			await thenable.values();
-			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'DELETE FROM items WHERE id = $1', 'COMMIT']);
+			// .then() on the locked thenable must throw
+			expect(() => Promise.resolve(thenable)).toThrow('Cannot access');
 		});
 
 		it('multiple awaits of same thenable run single transaction', async () => {
@@ -851,5 +830,98 @@ describe('createResilientSQLProxy', () => {
 		await (proxy as unknown as Record<string, (...args: unknown[]) => unknown>).begin('tx-arg');
 
 		expect(newBegin).toHaveBeenCalledWith('tx-arg');
+	});
+
+	describe('thenable format locking', () => {
+		it('throws when .values() called after .then() on mutation', async () => {
+			const { client } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			const thenable = proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
+			// Lock to row-object mode
+			await thenable;
+			// Attempting .values() must throw
+			expect(() => thenable.values()).toThrow('Cannot access .values() after .then()');
+		});
+
+		it('throws when .then() called after .values() on mutation', async () => {
+			const { client } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			const thenable = proxy.unsafe('UPDATE items SET name = $1', ['new']);
+			// Lock to values mode
+			await thenable.values();
+			// Attempting .then() must throw
+			expect(() => Promise.resolve(thenable)).toThrow('Cannot access .then() after .values()');
+		});
+
+		it('allows repeated .then() calls on same mutation', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			const thenable = proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
+			await thenable;
+			await thenable;
+			await thenable;
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
+		});
+
+		it('allows repeated .values() calls on same mutation', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			const thenable = proxy.unsafe('DELETE FROM items WHERE id = $1', [1]);
+			const v1 = thenable.values();
+			const v2 = thenable.values();
+			const [r1, r2] = await Promise.all([v1, v2]);
+			expect(r1).toEqual([[1]]);
+			expect(r2).toEqual([[1]]);
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual(['BEGIN', 'DELETE FROM items WHERE id = $1', 'COMMIT']);
+		});
+
+		it('throws when .values() called after .then() on non-mutation', async () => {
+			const { client } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			const thenable = proxy.unsafe('SELECT * FROM items');
+			// Lock to row-object mode
+			await thenable;
+			// Attempting .values() must throw
+			expect(() => thenable.values()).toThrow('Cannot access .values() after .then()');
+		});
+
+		it('throws when .then() called after .values() on non-mutation', async () => {
+			const { client } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			const thenable = proxy.unsafe('SELECT * FROM items');
+			// Lock to values mode
+			await thenable.values();
+			// Attempting .then() must throw
+			expect(() => Promise.resolve(thenable)).toThrow('Cannot access .then() after .values()');
+		});
+	});
+
+	describe('non-mutation single execution', () => {
+		it('executes SELECT only once via .then()', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			const thenable = proxy.unsafe('SELECT * FROM items');
+			await thenable;
+			await thenable;
+			// Exactly one execution
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual(['SELECT * FROM items']);
+		});
+
+		it('executes SELECT only once via .values()', async () => {
+			const { client, unsafeCalls } = createMockClient();
+			const proxy = createResilientSQLProxy(client);
+			const thenable = proxy.unsafe('SELECT id, name FROM items');
+			const v1 = thenable.values();
+			const v2 = thenable.values();
+			const [r1, r2] = await Promise.all([v1, v2]);
+			expect(r1).toEqual([[1]]);
+			expect(r2).toEqual([[1]]);
+			// Exactly one execution
+			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
+			expect(unsafeCalls).toEqual(['SELECT id, name FROM items']);
+		});
 	});
 });
