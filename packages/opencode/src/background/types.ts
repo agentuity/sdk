@@ -7,6 +7,8 @@ export interface TaskProgress {
 	lastUpdate: Date;
 	lastMessage?: string;
 	lastMessageAt?: Date;
+	/** Number of tool calls currently in-flight (pending/running state) */
+	activeToolCallsInFlight: number;
 }
 
 export interface BackgroundTask {
@@ -27,6 +29,7 @@ export interface BackgroundTask {
 	concurrencyKey?: string; // Active concurrency slot key
 	concurrencyGroup?: string; // Persistent key for re-acquiring on resume
 	notifiedStatuses?: Set<BackgroundTaskStatus>; // Tracks statuses already notified to prevent duplicates
+	isMonitor?: boolean; // True if this task is an auto-launched Monitor agent
 }
 
 export interface LaunchInput {

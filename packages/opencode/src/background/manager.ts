@@ -55,6 +55,10 @@ export class BackgroundManager {
 	private tasksBySession = new Map<string, string>();
 	private notifications = new Map<string, Set<string>>();
 	private toolCallIds = new Map<string, Set<string>>();
+	/** Tracks tool call IDs that are currently in-flight (pending/running state) per task */
+	private activeToolCallIds = new Map<string, Set<string>>();
+	/** Maps parent session ID → monitor task ID for auto-launched monitors */
+	private monitorsPerParent = new Map<string, string>();
 	private shuttingDown = false;
 	private refreshIntervalId: ReturnType<typeof setInterval> | undefined;
 
@@ -162,6 +166,12 @@ export class BackgroundManager {
 		}
 
 		void this.startTask(task);
+
+		// Auto-launch a Monitor for this parent session if not already running.
+		// Monitor uses session_dashboard scoped to the parent session ID, so it only
+		// sees sibling tasks — not unrelated sessions across the server.
+		void this.ensureMonitorForParent(input.parentSessionId);
+
 		return task;
 	}
 
@@ -400,6 +410,7 @@ export class BackgroundManager {
 								progress: {
 									toolCalls: 0,
 									lastUpdate: new Date(),
+									activeToolCallsInFlight: 0,
 								},
 							};
 
@@ -485,6 +496,7 @@ export class BackgroundManager {
 						progress: {
 							toolCalls: 0,
 							lastUpdate: new Date(),
+							activeToolCallsInFlight: 0,
 						},
 					};
 
@@ -593,6 +605,9 @@ export class BackgroundManager {
 	}
 
 	markForNotification(task: BackgroundTask): void {
+		// Monitor tasks are infrastructure — never notify Lead about them.
+		// Monitor pushes its own consolidated report as its final output.
+		if (task.isMonitor) return;
 		const sessionId = task.parentSessionId;
 		if (!sessionId) return;
 		const queue = this.notifications.get(sessionId) ?? new Set<string>();
@@ -631,6 +646,67 @@ export class BackgroundManager {
 		const parentList = this.tasksByParent.get(task.parentSessionId) ?? new Set<string>();
 		parentList.add(task.id);
 		this.tasksByParent.set(task.parentSessionId, parentList);
+	}
+
+	/**
+	 * Ensure a Monitor agent is watching all background tasks for the given parent session.
+	 *
+	 * Called automatically whenever a new background task is launched. If a Monitor is
+	 * already running for this parent, this is a no-op. The Monitor uses
+	 * `agentuity_session_dashboard({ session_id: parentSessionId })` which is scoped
+	 * to child sessions of that parent only — it does not see unrelated sessions.
+	 *
+	 * The Monitor pushes a consolidated status update to Lead when all tasks complete,
+	 * so Lead doesn't need to self-poll.
+	 */
+	private async ensureMonitorForParent(parentSessionId: string): Promise<void> {
+		if (this.shuttingDown) return;
+
+		// Check if we already have a live monitor for this parent
+		const existingMonitorId = this.monitorsPerParent.get(parentSessionId);
+		if (existingMonitorId) {
+			const existing = this.tasks.get(existingMonitorId);
+			if (existing && (existing.status === 'pending' || existing.status === 'running')) {
+				return; // Monitor already active
+			}
+		}
+
+		// Find the Monitor agent display name
+		const monitorAgent = Object.values(agents).find((a) => a.role === 'monitor');
+		if (!monitorAgent) return; // Monitor agent not registered
+
+		const monitorPrompt = `You are watching background tasks for parent session: ${parentSessionId}
+
+Use \`agentuity_session_dashboard({ session_id: "${parentSessionId}" })\` to see all child task sessions and their current status.
+
+Monitor all non-monitor background tasks until they complete. When all tasks are done (completed, error, or cancelled), send a consolidated summary back. Use \`agentuity_background_output\` to retrieve results for completed tasks.
+
+Do not poll more than once every 30 seconds. Be patient — Scout tasks reading large codebases typically take 3–8 minutes.`;
+
+		try {
+			const monitorTask: BackgroundTask = {
+				id: createTaskId(),
+				parentSessionId,
+				description: 'Monitor background tasks',
+				prompt: monitorPrompt,
+				agent: monitorAgent.displayName,
+				status: 'pending',
+				queuedAt: new Date(),
+				concurrencyGroup: this.getConcurrencyGroup(monitorAgent.displayName),
+				notifiedStatuses: new Set(),
+				isMonitor: true,
+			};
+
+			this.tasks.set(monitorTask.id, monitorTask);
+			this.monitorsPerParent.set(parentSessionId, monitorTask.id);
+			// Index monitor task so it's tracked by parent (but flagged as monitor)
+			this.indexTask(monitorTask);
+
+			void this.startTask(monitorTask);
+		} catch {
+			// Non-fatal: if monitor launch fails, the event-driven notifyParent
+			// still works as the primary completion signal
+		}
 	}
 
 	private async startTask(task: BackgroundTask): Promise<void> {
@@ -725,16 +801,32 @@ export class BackgroundManager {
 		if (part.type === 'tool') {
 			const callId = part.callID;
 			const toolName = part.tool;
+			const toolStatus = part.state?.status;
+
 			if (toolName) {
 				progress.lastTool = toolName;
 			}
+
 			if (callId) {
 				const seen = this.toolCallIds.get(task.id) ?? new Set<string>();
+				const active = this.activeToolCallIds.get(task.id) ?? new Set<string>();
+
 				if (!seen.has(callId)) {
+					// First time seeing this callId — it's a new tool call starting
 					seen.add(callId);
 					progress.toolCalls += 1;
 					this.toolCallIds.set(task.id, seen);
 				}
+
+				// Track in-flight status based on tool state
+				if (toolStatus === 'pending' || toolStatus === 'running') {
+					active.add(callId);
+				} else {
+					// completed, error, cancelled — no longer in-flight
+					active.delete(callId);
+				}
+				this.activeToolCallIds.set(task.id, active);
+				progress.activeToolCallsInFlight = active.size;
 			}
 		}
 
@@ -750,6 +842,7 @@ export class BackgroundManager {
 		return {
 			toolCalls: 0,
 			lastUpdate: new Date(),
+			activeToolCallsInFlight: 0,
 		};
 	}
 
@@ -794,6 +887,8 @@ export class BackgroundManager {
 	private async notifyParent(task: BackgroundTask): Promise<void> {
 		if (!task.parentSessionId) return;
 		if (this.shuttingDown) return;
+		// Monitor tasks push their own report as their session output — no separate notification needed.
+		if (task.isMonitor) return;
 
 		// Prevent duplicate notifications for the same task+status combination
 		// This guards against OpenCode firing multiple events for the same status transition
@@ -931,10 +1026,16 @@ Use the agentuity_background_output tool with task_id "${task.id}" to view the r
 		const now = Date.now();
 		for (const task of this.tasks.values()) {
 			if (task.status !== 'pending' && task.status !== 'running') continue;
-			const start = task.startedAt?.getTime() ?? task.queuedAt?.getTime();
-			if (!start) continue;
-			if (now - start > this.config.staleTimeoutMs) {
-				this.failTask(task, 'Background task timed out.');
+			// Use last activity time (last event received) rather than start time.
+			// A task actively doing tool calls every minute should never expire —
+			// only tasks that have gone silent for staleTimeoutMs should be killed.
+			const lastActivity =
+				task.progress?.lastUpdate.getTime() ??
+				task.startedAt?.getTime() ??
+				task.queuedAt?.getTime();
+			if (!lastActivity) continue;
+			if (now - lastActivity > this.config.staleTimeoutMs) {
+				this.failTask(task, 'Background task timed out (no activity).');
 			}
 		}
 	}
