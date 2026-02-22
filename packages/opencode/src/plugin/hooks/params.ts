@@ -1,5 +1,5 @@
 import type { PluginInput } from '@opencode-ai/plugin';
-import type { CoderConfig } from '../../types';
+import type { AgentConfig, CoderConfig } from '../../types';
 
 export interface ParamsHooks {
 	onParams: (input: unknown, output: unknown) => Promise<void>;
@@ -199,3 +199,99 @@ export function createParamsHooks(
  *
  * Note: Triggers use multi-word phrases to avoid false positives from common words.
  */
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Model Fallback Chain
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Retryable HTTP status codes that should trigger model fallback */
+export const RETRYABLE_STATUS_CODES = [429, 500, 502, 503] as const;
+
+/**
+ * Tracks API errors per agent to enable model fallback on subsequent calls.
+ *
+ * When an agent's primary model fails with a retryable error (429, 500, 502, 503),
+ * the next `chat.params` call can select a fallback model from the agent's
+ * `fallbackModels` list.
+ *
+ * Current limitation: The `chat.params` hook can modify temperature/topP/topK/options
+ * but CANNOT change the model itself (model is in the input, not output). Full model
+ * fallback requires one of:
+ *   1. A `chat.error` hook that allows retrying with a different model
+ *   2. A `chat.model` hook that allows overriding the model selection
+ *   3. Adding `model` to the `chat.params` output type
+ *
+ * TODO: When OpenCode adds a suitable hook, implement the retry logic here:
+ *   - On API error (429/5xx), record the failure in `agentErrorState`
+ *   - On next `chat.params` call for the same agent, select next fallback model
+ *   - Log: `[ModelFallback] Switching from ${currentModel} to ${fallbackModel} due to ${error}`
+ *   - Reset fallback state after successful completion or after TTL expires
+ */
+export class ModelFallbackTracker {
+	/**
+	 * Map of agent name → { failedModel, failedAt, errorCode, fallbackIndex }
+	 * Used to track which agents have experienced API errors.
+	 */
+	private agentErrorState = new Map<
+		string,
+		{
+			failedModel: string;
+			failedAt: number;
+			errorCode: number;
+			fallbackIndex: number;
+		}
+	>();
+
+	/** TTL for error state — reset after 5 minutes */
+	private readonly ERROR_STATE_TTL_MS = 5 * 60 * 1000;
+
+	/**
+	 * Record an API error for an agent. Call this from an event handler
+	 * when a retryable API error is detected.
+	 */
+	recordError(agentName: string, model: string, errorCode: number): void {
+		const existing = this.agentErrorState.get(agentName);
+		const fallbackIndex = existing ? existing.fallbackIndex + 1 : 0;
+		this.agentErrorState.set(agentName, {
+			failedModel: model,
+			failedAt: Date.now(),
+			errorCode,
+			fallbackIndex,
+		});
+		console.debug(
+			`[ModelFallback] Recorded error for ${agentName}: model=${model} code=${errorCode} fallbackIndex=${fallbackIndex}`
+		);
+	}
+
+	/**
+	 * Get the next fallback model for an agent, if one is available.
+	 * Returns undefined if no fallback is needed or available.
+	 */
+	getNextFallback(agentName: string, agentConfig: AgentConfig): string | undefined {
+		const state = this.agentErrorState.get(agentName);
+		if (!state) return undefined;
+
+		// Check TTL
+		if (Date.now() - state.failedAt > this.ERROR_STATE_TTL_MS) {
+			this.agentErrorState.delete(agentName);
+			return undefined;
+		}
+
+		const fallbacks = agentConfig.fallbackModels;
+		if (!fallbacks?.length) return undefined;
+
+		if (state.fallbackIndex >= fallbacks.length) {
+			// Exhausted all fallbacks
+			return undefined;
+		}
+
+		return fallbacks[state.fallbackIndex];
+	}
+
+	/**
+	 * Clear error state for an agent (e.g., after successful completion).
+	 */
+	clearError(agentName: string): void {
+		this.agentErrorState.delete(agentName);
+	}
+}

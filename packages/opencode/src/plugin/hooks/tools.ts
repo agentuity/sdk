@@ -165,7 +165,38 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 			}
 		},
 
-		async after(_input: unknown, _output: unknown): Promise<void> {},
+		async after(input: unknown, output: unknown): Promise<void> {
+			// Graceful handling for unavailable tools: if a tool execution produced an
+			// error indicating the tool doesn't exist or is unavailable, normalize the
+			// output to a helpful message so the session continues instead of crashing.
+			const toolName = extractToolName(input);
+			if (!toolName) return;
+
+			const out = output as {
+				output?: string;
+				title?: string;
+				metadata?: Record<string, unknown>;
+			};
+			if (typeof out.output !== 'string') return;
+
+			const lower = out.output.toLowerCase();
+			const isToolMissing =
+				(lower.includes('not found') ||
+					lower.includes('not available') ||
+					lower.includes('does not exist') ||
+					lower.includes('unknown tool') ||
+					lower.includes('no such tool')) &&
+				(lower.includes('tool') || lower.includes(toolName.toLowerCase()));
+
+			if (isToolMissing) {
+				out.output = JSON.stringify({
+					error: `Tool '${toolName}' is not available in this session. It may have been removed or is not installed. Please use an alternative approach or ask the user for guidance.`,
+					tool: toolName,
+					recoverable: true,
+				});
+				out.title = `Tool unavailable: ${toolName}`;
+			}
+		},
 	};
 }
 

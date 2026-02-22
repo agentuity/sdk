@@ -6,12 +6,10 @@ You are a specialized Agentuity frontend expert. You deeply understand the Agent
 
 ## Your Expertise
 
-| Package | Purpose |
-|---------|---------|
-| \`@agentuity/react\` | React hooks for calling agents (useAPI, useWebsocket) |
-| \`@agentuity/frontend\` | Framework-agnostic web utilities |
-| \`@agentuity/auth\` | Authentication (server + client) |
-| \`@agentuity/workbench\` | Dev UI for testing agents |
+- **\`@agentuity/react\`:** React hooks for calling agents (useAPI, useWebsocket).
+- **\`@agentuity/frontend\`:** Framework-agnostic web utilities.
+- **\`@agentuity/auth\`:** Authentication (server + client).
+- **\`@agentuity/workbench\`:** Dev UI for testing agents.
 
 ## Reference URLs
 
@@ -217,14 +215,12 @@ export default createAgent('protected-agent', {
 
 ### Auth Properties
 
-| Property | Description |
-|----------|-------------|
-| \`ctx.auth.getUser()\` | Get authenticated user |
-| \`ctx.auth.org\` | Active organization context (if any) |
-| \`ctx.auth.getOrgRole()\` | Get user's role in active org |
-| \`ctx.auth.hasOrgRole(...roles)\` | Check if user has one of the roles |
-| \`ctx.auth.authMethod\` | 'session' \\| 'api-key' \\| 'bearer' |
-| \`ctx.auth.hasPermission(resource, ...actions)\` | Check API key permissions |
+- **\`ctx.auth.getUser()\`:** Get authenticated user.
+- **\`ctx.auth.org\`:** Active organization context (if any).
+- **\`ctx.auth.getOrgRole()\`:** Get user's role in active org.
+- **\`ctx.auth.hasOrgRole(...roles)\`:** Check if user has one of the roles.
+- **\`ctx.auth.authMethod\`:** 'session' \\| 'api-key' \\| 'bearer'.
+- **\`ctx.auth.hasPermission(resource, ...actions)\`:** Check API key permissions.
 
 ### React Client Setup
 
@@ -458,15 +454,13 @@ All frontend packages build on @agentuity/core types:
 
 ## Common Mistakes
 
-| Mistake | Better Approach | Why |
-|---------|-----------------|-----|
-| \`fetch('/agent/my-agent', ...)\` | \`useAPI('POST /agent/my-agent')\` | Type-safe, auto-auth |
-| Manual WebSocket handling | \`useWebsocket('/ws/path')\` | Auto-reconnect, queuing |
-| Using \`call()\` on useAPI | Use \`invoke()\` | Correct method name |
-| Using \`connected\` on useWebsocket | Use \`isConnected\` | Correct property name |
-| \`window.location.origin\` everywhere | \`defaultBaseUrl\` from frontend | Cross-platform |
-| Rolling custom auth | Consider \`@agentuity/auth\` | Battle-tested, multi-tenant |
-| Storing tokens in localStorage | Use AuthProvider | More secure, auto-refresh |
+- **\`fetch('/agent/my-agent', ...)\`:** Use \`useAPI('POST /agent/my-agent')\` — type-safe, auto-auth.
+- **Manual WebSocket handling:** Use \`useWebsocket('/ws/path')\` — auto-reconnect, queuing.
+- **Using \`call()\` on useAPI:** Use \`invoke()\` — correct method name.
+- **Using \`connected\` on useWebsocket:** Use \`isConnected\` — correct property name.
+- **\`window.location.origin\` everywhere:** Use \`defaultBaseUrl\` from frontend — cross-platform.
+- **Rolling custom auth:** Consider \`@agentuity/auth\` — battle-tested, multi-tenant.
+- **Storing tokens in localStorage:** Use AuthProvider — more secure, auto-refresh.
 `;
 
 export const expertFrontendAgent: AgentDefinition = {

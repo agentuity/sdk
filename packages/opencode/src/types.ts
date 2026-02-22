@@ -89,6 +89,16 @@ export interface AgentConfig {
 	reasoningEffort?: ReasoningEffort;
 	/** Extended thinking configuration for Anthropic models */
 	thinking?: ThinkingConfig;
+	/**
+	 * Ordered list of fallback model IDs to try when the primary model fails
+	 * with a retryable error (429 rate limit, 500/502/503 server error).
+	 * Models are tried in order until one succeeds.
+	 *
+	 * Example: ['anthropic/claude-sonnet-4-20250514', 'openai/gpt-4.1']
+	 */
+	fallbackModels?: string[];
+	/** Hidden from @ autocomplete */
+	hidden?: boolean;
 }
 
 export interface AgentContext {
