@@ -1406,10 +1406,10 @@ describe('SandboxClient', () => {
 			mockFetch(async (url, opts) => {
 				if (opts?.method === 'POST' && url.includes('/pause')) {
 					pauseCalled = true;
-					return new Response(
-						JSON.stringify({ success: true }),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
+					return new Response(JSON.stringify({ success: true }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					});
 				}
 				return new Response(null, { status: 404 });
 			});
@@ -1462,10 +1462,10 @@ describe('SandboxClient', () => {
 			mockFetch(async (url, opts) => {
 				if (opts?.method === 'POST' && url.includes('/resume')) {
 					resumeCalled = true;
-					return new Response(
-						JSON.stringify({ success: true }),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
+					return new Response(JSON.stringify({ success: true }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					});
 				}
 				return new Response(null, { status: 404 });
 			});

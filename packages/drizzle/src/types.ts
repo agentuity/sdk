@@ -1,5 +1,6 @@
 import type { Logger as DrizzleLogger } from 'drizzle-orm';
 import type { BunSQLDatabase } from 'drizzle-orm/bun-sql';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { PostgresConfig, ReconnectConfig, CallablePostgresClient } from '@agentuity/postgres';
 
 /**
@@ -89,6 +90,22 @@ export interface PostgresDrizzleConfig<
 	 * Callback invoked when the connection is re-established after a disconnect.
 	 */
 	onReconnected?: () => void;
+
+	/**
+	 * The database driver to use.
+	 *
+	 * - `'bun-sql'` (default): Uses Bun's native SQL driver via `drizzle-orm/bun-sql`.
+	 *   Provides maximum performance with Bun's built-in PostgreSQL support.
+	 *
+	 * - `'pg'`: Uses the `pg` (node-postgres) driver via `drizzle-orm/node-postgres`.
+	 *   Recommended when using Better Auth or other libraries that generate complex
+	 *   prepared statements with many parameters, as Bun's native driver has known
+	 *   parameter binding issues in some scenarios.
+	 *   See: https://github.com/agentuity/sdk/issues/1030
+	 *
+	 * @default 'bun-sql'
+	 */
+	driver?: 'bun-sql' | 'pg';
 }
 
 /**
@@ -111,5 +128,19 @@ export interface PostgresDrizzle<TSchema extends Record<string, unknown> = Recor
 	/**
 	 * Closes the database connection and releases resources.
 	 */
+	close: () => Promise<void>;
+}
+
+/**
+ * The result of creating a PostgreSQL Drizzle instance with the 'pg' driver.
+ *
+ * @template TSchema - The Drizzle schema type
+ */
+export interface PostgresDrizzlePg<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+> {
+	/** The Drizzle database instance (node-postgres backed). */
+	db: NodePgDatabase<TSchema>;
+	/** Closes the underlying pg.Pool and releases resources. */
 	close: () => Promise<void>;
 }

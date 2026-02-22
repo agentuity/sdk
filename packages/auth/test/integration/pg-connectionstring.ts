@@ -1,18 +1,16 @@
 /**
  * Integration test for the node-postgres (pg) path used by createAuth({ connectionString }).
  *
- * This validates the fix for GitHub issue #1030, which switched from Bun's native
- * SQL driver (createPostgresDrizzle / Bun.SQL) to node-postgres via:
+ * This validates the fix for GitHub issue #1030, which uses:
  *
- *   import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
- *   const db = pgDrizzle(connectionString);
+ *   createPostgresDrizzle({ connectionString, driver: 'pg' })
  *
- * The original bug caused parameter binding failures in prepared statements with
- * multiple parameters — specifically Better Auth's verification table INSERT which
- * sends 6 parameters (id, identifier, value, expiresAt, createdAt, updatedAt).
+ * instead of Bun's native SQL driver to avoid parameter binding failures in
+ * prepared statements with multiple parameters — specifically Better Auth's
+ * verification table INSERT which sends 6 parameters.
  *
- * This test exercises that exact scenario through the drizzle-orm/node-postgres
- * driver to prove the path works correctly with multi-parameter queries.
+ * This test exercises that exact scenario through createPostgresDrizzle with
+ * the 'pg' driver to prove the path works correctly with multi-parameter queries.
  *
  * Run:
  *   DATABASE_URL=postgres://user:pass@host:5432/db bun run packages/auth/test/integration/pg-connectionstring.ts
@@ -21,8 +19,9 @@
  */
 
 import { eq, sql } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
-import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
+import { createPostgresDrizzle } from '@agentuity/drizzle';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -86,7 +85,7 @@ async function test(name: string, fn: () => Promise<void>): Promise<void> {
 // Setup / Teardown (uses drizzle's sql tag for DDL — no direct pg dependency needed)
 // ───────────────────────────────────────────────────────────────────────
 
-async function setup(db: ReturnType<typeof pgDrizzle>) {
+async function setup(db: NodePgDatabase) {
 	await db.execute(sql.raw(`DROP TABLE IF EXISTS ${ITEMS_TABLE}`));
 	await db.execute(sql.raw(`DROP TABLE IF EXISTS ${VERIFICATION_TABLE}`));
 	await db.execute(
@@ -113,7 +112,7 @@ async function setup(db: ReturnType<typeof pgDrizzle>) {
 	);
 }
 
-async function teardown(db: ReturnType<typeof pgDrizzle>) {
+async function teardown(db: NodePgDatabase) {
 	await db.execute(sql.raw(`DROP TABLE IF EXISTS ${ITEMS_TABLE}`));
 	await db.execute(sql.raw(`DROP TABLE IF EXISTS ${VERIFICATION_TABLE}`));
 }
@@ -123,11 +122,16 @@ async function teardown(db: ReturnType<typeof pgDrizzle>) {
 // ───────────────────────────────────────────────────────────────────────
 
 async function testPgDrizzle() {
-	console.log('\n📦 drizzle-orm/node-postgres — the createAuth({ connectionString }) path');
+	console.log(
+		'\n📦 createPostgresDrizzle({ driver: "pg" }) — the createAuth({ connectionString }) path'
+	);
 
 	// This is the EXACT pattern from the fix in packages/auth/src/agentuity/config.ts:
-	//   const db = pgDrizzle(connectionString);
-	const db = pgDrizzle(DATABASE_URL!);
+	//   const { db } = createPostgresDrizzle({ connectionString, driver: 'pg' });
+	const { db, close } = createPostgresDrizzle({
+		connectionString: DATABASE_URL!,
+		driver: 'pg',
+	});
 
 	// Verify the adapter chain works — this is how Better Auth consumes the db instance
 	const adapter = drizzleAdapter(db, { provider: 'pg' });
@@ -299,6 +303,8 @@ async function testPgDrizzle() {
 			// ignore cleanup errors
 		}
 		throw err;
+	} finally {
+		await close();
 	}
 }
 
@@ -307,7 +313,7 @@ async function testPgDrizzle() {
 // ───────────────────────────────────────────────────────────────────────
 
 async function main() {
-	console.log('🔬 node-postgres / drizzle-orm Integration Test (issue #1030)');
+	console.log('🔬 createPostgresDrizzle({ driver: "pg" }) Integration Test (issue #1030)');
 	console.log(`   Database: ${DATABASE_URL?.replace(/\/\/.*@/, '//***@')}`);
 
 	await testPgDrizzle();

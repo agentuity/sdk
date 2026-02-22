@@ -1586,7 +1586,16 @@ export interface SessionLog {
 }
 
 // Sandbox types
-export type SandboxStatus = 'creating' | 'idle' | 'running' | 'paused' | 'stopping' | 'suspended' | 'terminated' | 'failed' | 'deleted';
+export type SandboxStatus =
+	| 'creating'
+	| 'idle'
+	| 'running'
+	| 'paused'
+	| 'stopping'
+	| 'suspended'
+	| 'terminated'
+	| 'failed'
+	| 'deleted';
 export type ExecutionStatus =
 	| 'queued'
 	| 'running'

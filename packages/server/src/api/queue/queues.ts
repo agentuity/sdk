@@ -342,7 +342,12 @@ export async function deleteQueue(
 	const url = queueApiPath('delete', name);
 	const resp = await withQueueErrorHandling(
 		() =>
-			client.delete(url, DeleteQueueResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+			client.delete(
+				url,
+				DeleteQueueResponseSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
 		{ queueName: name }
 	);
 

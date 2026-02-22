@@ -9,13 +9,12 @@ import {
 	type UpdateDestinationRequest,
 	UpdateDestinationRequestSchema,
 } from './types.ts';
+import { buildQueueHeaders, QueueError, queueApiPath, withQueueErrorHandling } from './util.ts';
 import {
-	buildQueueHeaders,
-	QueueError,
-	queueApiPath,
-	withQueueErrorHandling,
-} from './util.ts';
-import { validateDestinationConfig, validateDestinationId, validateQueueName } from './validation.ts';
+	validateDestinationConfig,
+	validateDestinationId,
+	validateQueueName,
+} from './validation.ts';
 
 export const DestinationResponseSchema = APIResponseSchema(
 	z.object({ destination: DestinationSchema })

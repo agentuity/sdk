@@ -9,12 +9,7 @@ import {
 	type UpdateSourceRequest,
 	UpdateSourceRequestSchema,
 } from './types.ts';
-import {
-	buildQueueHeaders,
-	QueueError,
-	queueApiPath,
-	withQueueErrorHandling,
-} from './util.ts';
+import { buildQueueHeaders, QueueError, queueApiPath, withQueueErrorHandling } from './util.ts';
 import { validateQueueName, validateSourceId, validateSourceName } from './validation.ts';
 
 export const SourceResponseSchema = APIResponseSchema(z.object({ source: SourceSchema }));

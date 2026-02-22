@@ -210,7 +210,7 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 					message: `Failed to create WebSocket connection: ${err instanceof Error ? err.message : String(err)}`,
 					queueName,
 					cause: err instanceof Error ? err : undefined,
-				}),
+				})
 			);
 			scheduleReconnect();
 			return;
@@ -319,7 +319,7 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 				new QueueError({
 					message: 'WebSocket connection error',
 					queueName,
-				}),
+				})
 			);
 		};
 	}
@@ -331,7 +331,7 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 				new QueueError({
 					message: `Exceeded maximum reconnection attempts (${maxReconnectAttempts})`,
 					queueName,
-				}),
+				})
 			);
 			return;
 		}
@@ -405,7 +405,7 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
  * ```
  */
 export async function* subscribeToQueue(
-	options: SubscribeToQueueOptions,
+	options: SubscribeToQueueOptions
 ): AsyncGenerator<Message, void, unknown> {
 	const { signal } = options;
 

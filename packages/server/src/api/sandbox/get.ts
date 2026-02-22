@@ -105,7 +105,17 @@ export const SandboxInfoDataSchema = z
 		name: z.string().optional().describe('Sandbox name'),
 		description: z.string().optional().describe('Sandbox description'),
 		status: z
-			.enum(['creating', 'idle', 'running', 'paused', 'stopping', 'suspended', 'terminated', 'failed', 'deleted'])
+			.enum([
+				'creating',
+				'idle',
+				'running',
+				'paused',
+				'stopping',
+				'suspended',
+				'terminated',
+				'failed',
+				'deleted',
+			])
 			.describe('Current status of the sandbox'),
 		mode: z.string().optional().describe('Sandbox mode (interactive or oneshot)'),
 		createdAt: z.string().describe('ISO timestamp when the sandbox was created'),

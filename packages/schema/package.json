@@ -26,10 +26,10 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*"
+		"@agentuity/core": "1.0.18"
 	},
 	"devDependencies": {
-		"@agentuity/test-utils": "workspace:*",
+		"@agentuity/test-utils": "1.0.18",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"
