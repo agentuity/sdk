@@ -4,7 +4,6 @@ import { SandboxClient } from '../src/api/sandbox/client.ts';
 import { APIClient } from '../src/api/api.ts';
 import { sandboxPause } from '../src/api/sandbox/pause.ts';
 import { sandboxResume } from '../src/api/sandbox/resume.ts';
-import { SandboxNotFoundError } from '../src/api/sandbox/util.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('SandboxClient', () => {
