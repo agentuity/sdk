@@ -51,6 +51,12 @@ export function validateDatabaseName(name: string): { valid: boolean; error?: st
 			error: 'database name must start with a letter or underscore and contain only lowercase letters, digits, and underscores',
 		};
 	}
+	if (name.startsWith('pg_')) {
+		return {
+			valid: false,
+			error: "database name cannot start with 'pg_' (reserved by PostgreSQL)",
+		};
+	}
 	return { valid: true };
 }
 
