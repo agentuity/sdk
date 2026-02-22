@@ -24,7 +24,7 @@ export interface SandboxResources {
 /**
  * Sandbox status
  */
-export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'failed' | 'deleted';
+export type SandboxStatus = 'creating' | 'idle' | 'running' | 'paused' | 'stopping' | 'suspended' | 'terminated' | 'failed' | 'deleted';
 
 export type SandboxSortField =
 	| 'name'
