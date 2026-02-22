@@ -12,7 +12,13 @@ import {
 	type TimeSeriesData,
 	TimeSeriesDataSchema,
 } from './types.ts';
-import { buildQueueHeaders, QueueError, QueueNotFoundError, queueApiPathWithQuery } from './util.ts';
+import {
+	buildQueueHeaders,
+	QueueError,
+	QueueNotFoundError,
+	queueApiPathWithQuery,
+	withQueueErrorHandling,
+} from './util.ts';
 import { validateQueueName } from './validation.ts';
 
 export const OrgAnalyticsResponseSchema = APIResponseSchema(
@@ -113,22 +119,19 @@ export async function getQueueAnalytics(
 	validateQueueName(name);
 	const queryString = buildAnalyticsQuery(options);
 	const url = queueApiPathWithQuery('analytics/queue', queryString, name);
-	const resp = await client.get(
-		url,
-		QueueAnalyticsResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.get(
+				url,
+				QueueAnalyticsResponseSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.analytics;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -168,22 +171,19 @@ export async function getQueueTimeSeries(
 	validateQueueName(name);
 	const queryString = buildAnalyticsQuery(options);
 	const url = queueApiPathWithQuery('analytics/timeseries', queryString, name);
-	const resp = await client.get(
-		url,
-		TimeSeriesResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.get(
+				url,
+				TimeSeriesResponseSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.timeseries;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({

@@ -18,6 +18,7 @@ import {
 	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
+	withQueueErrorHandling,
 } from './util.ts';
 import {
 	validateBatchSize,
@@ -99,24 +100,21 @@ export async function publishMessage(
 	const url = options?.sync
 		? queueApiPathWithQuery('messages/publish', 'sync=true', queueName)
 		: queueApiPath('messages/publish', queueName);
-	const resp = await client.post(
-		url,
-		params,
-		MessageResponseSchema,
-		PublishMessageRequestSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				params,
+				MessageResponseSchema,
+				PublishMessageRequestSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return resp.data.message;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -172,24 +170,21 @@ export async function batchPublishMessages(
 	}
 
 	const url = queueApiPath('messages/batch', queueName);
-	const resp = await client.post(
-		url,
-		{ messages },
-		BatchPublishResponseSchema,
-		BatchPublishMessagesRequestSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				{ messages },
+				BatchPublishResponseSchema,
+				BatchPublishMessagesRequestSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return { messages: resp.data.messages, failed: resp.data.failed };
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -228,30 +223,13 @@ export async function getMessage(
 	validateMessageId(messageId);
 
 	const url = queueApiPath('messages/get', queueName, messageId);
-	const resp = await client.get(
-		url,
-		MessageResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() => client.get(url, MessageResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName, messageId }
 	);
 
 	if (resp.success) {
 		return resp.data.message;
-	}
-
-	if (resp.message?.includes('message') && resp.message?.includes('not found')) {
-		throw new MessageNotFoundError({
-			queueName,
-			messageId,
-			message: resp.message,
-		});
-	}
-
-	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -290,23 +268,13 @@ export async function getMessageByOffset(
 	validateOffset(offset);
 
 	const url = queueApiPath('messages/offset', queueName, String(offset));
-	const resp = await client.get(
-		url,
-		MessageResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() => client.get(url, MessageResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName, messageId: `offset:${offset}` }
 	);
 
 	if (resp.success) {
 		return resp.data.message;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new MessageNotFoundError({
-			queueName,
-			messageId: `offset:${offset}`,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -369,22 +337,14 @@ export async function listMessages(
 
 	const queryString = searchParams.toString();
 	const url = queueApiPathWithQuery('messages/list', queryString || undefined, queueName);
-	const resp = await client.get(
-		url,
-		MessagesListResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.get(url, MessagesListResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return { messages: resp.data.messages, total: resp.data.total };
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -422,23 +382,19 @@ export async function deleteMessage(
 	validateMessageId(messageId);
 
 	const url = queueApiPath('messages/delete', queueName, messageId);
-	const resp = await client.delete(
-		url,
-		DeleteMessageResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.delete(
+				url,
+				DeleteMessageResponseSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, messageId }
 	);
 
 	if (resp.success) {
 		return;
-	}
-
-	if (resp.message?.includes('message') && resp.message?.includes('not found')) {
-		throw new MessageNotFoundError({
-			queueName,
-			messageId,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -478,25 +434,21 @@ export async function replayMessage(
 	validateMessageId(messageId);
 
 	const url = queueApiPath('messages/replay', queueName, messageId);
-	const resp = await client.post(
-		url,
-		undefined,
-		MessageResponseSchema,
-		undefined,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				undefined,
+				MessageResponseSchema,
+				undefined,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, messageId }
 	);
 
 	if (resp.success) {
 		return resp.data.message;
-	}
-
-	if (resp.message?.includes('message') && resp.message?.includes('not found')) {
-		throw new MessageNotFoundError({
-			queueName,
-			messageId,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -554,22 +506,14 @@ export async function consumeMessages(
 	}
 
 	const url = queueApiPathWithQuery('consume', searchParams.toString(), queueName);
-	const resp = await client.get(
-		url,
-		MessagesListResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.get(url, MessagesListResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return { messages: resp.data.messages };
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -604,22 +548,13 @@ export async function getQueueHead(
 ): Promise<number> {
 	validateQueueName(queueName);
 	const url = queueApiPath('head', queueName);
-	const resp = await client.get(
-		url,
-		OffsetResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() => client.get(url, OffsetResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return resp.data.offset;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -654,22 +589,13 @@ export async function getQueueTail(
 ): Promise<number> {
 	validateQueueName(queueName);
 	const url = queueApiPath('tail', queueName);
-	const resp = await client.get(
-		url,
-		OffsetResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() => client.get(url, OffsetResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return resp.data.offset;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -720,22 +646,13 @@ export async function receiveMessage(
 
 	const queryString = searchParams.toString();
 	const url = queueApiPathWithQuery('receive', queryString || undefined, queueName);
-	const resp = await client.get(
-		url,
-		ReceiveResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() => client.get(url, ReceiveResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return resp.data.message;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -782,25 +699,21 @@ export async function ackMessage(
 	validateMessageId(messageId);
 
 	const url = queueApiPath('ack', queueName, messageId);
-	const resp = await client.post(
-		url,
-		undefined,
-		AckNackResponseSchema,
-		undefined,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				undefined,
+				AckNackResponseSchema,
+				undefined,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, messageId }
 	);
 
 	if (resp.success) {
 		return;
-	}
-
-	if (resp.message?.includes('message') && resp.message?.includes('not found')) {
-		throw new MessageNotFoundError({
-			queueName,
-			messageId,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -849,25 +762,21 @@ export async function nackMessage(
 	validateMessageId(messageId);
 
 	const url = queueApiPath('nack', queueName, messageId);
-	const resp = await client.post(
-		url,
-		undefined,
-		AckNackResponseSchema,
-		undefined,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				undefined,
+				AckNackResponseSchema,
+				undefined,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, messageId }
 	);
 
 	if (resp.success) {
 		return;
-	}
-
-	if (resp.message?.includes('message') && resp.message?.includes('not found')) {
-		throw new MessageNotFoundError({
-			queueName,
-			messageId,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({

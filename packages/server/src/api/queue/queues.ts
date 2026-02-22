@@ -16,6 +16,7 @@ import {
 	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
+	withQueueErrorHandling,
 } from './util.ts';
 import {
 	validateDescription,
@@ -138,22 +139,13 @@ export async function getQueue(
 ): Promise<Queue> {
 	validateQueueName(name);
 	const url = queueApiPath('get', name);
-	const resp = await client.get(
-		url,
-		QueueResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() => client.get(url, QueueResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.queue;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -302,24 +294,21 @@ export async function updateQueue(
 	}
 
 	const url = queueApiPath('update', name);
-	const resp = await client.patch(
-		url,
-		params,
-		QueueResponseSchema,
-		UpdateQueueRequestSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.patch(
+				url,
+				params,
+				QueueResponseSchema,
+				UpdateQueueRequestSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.queue;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -352,22 +341,14 @@ export async function deleteQueue(
 ): Promise<void> {
 	validateQueueName(name);
 	const url = queueApiPath('delete', name);
-	const resp = await client.delete(
-		url,
-		DeleteQueueResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.delete(url, DeleteQueueResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -402,24 +383,21 @@ export async function pauseQueue(
 ): Promise<Queue> {
 	validateQueueName(name);
 	const url = queueApiPath('pause', name);
-	const resp = await client.post(
-		url,
-		{},
-		QueueResponseSchema,
-		z.object({}),
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				{},
+				QueueResponseSchema,
+				z.object({}),
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.queue;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -454,24 +432,21 @@ export async function resumeQueue(
 ): Promise<Queue> {
 	validateQueueName(name);
 	const url = queueApiPath('resume', name);
-	const resp = await client.post(
-		url,
-		{},
-		QueueResponseSchema,
-		z.object({}),
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				{},
+				QueueResponseSchema,
+				z.object({}),
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.queue;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
