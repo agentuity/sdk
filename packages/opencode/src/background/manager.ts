@@ -734,7 +734,10 @@ Do not poll more than once every 30 seconds. Be patient — Scout tasks reading 
 				agent: monitorAgent.displayName,
 				status: 'pending',
 				queuedAt: new Date(),
-				concurrencyGroup: this.getConcurrencyGroup(monitorAgent.displayName),
+				// Monitor uses a dedicated concurrency lane so it can never be blocked
+				// by the tasks it's watching. If Monitor queued behind regular tasks it
+				// would never start, and Lead would receive no consolidated report.
+				concurrencyGroup: 'monitor',
 				notifiedStatuses: new Set(),
 				isMonitor: true,
 			};
@@ -754,7 +757,10 @@ Do not poll more than once every 30 seconds. Be patient — Scout tasks reading 
 	private async startTask(task: BackgroundTask): Promise<void> {
 		if (this.shuttingDown) return;
 
-		const concurrencyKey = this.getConcurrencyKey(task.agent);
+		// Use task.concurrencyGroup if explicitly set (e.g. 'monitor' for the auto-launched
+		// Monitor agent), otherwise derive from the agent name. This lets Monitor run in its
+		// own concurrency lane so it can never be blocked by the tasks it's watching.
+		const concurrencyKey = task.concurrencyGroup ?? this.getConcurrencyKey(task.agent);
 		task.concurrencyKey = concurrencyKey;
 
 		try {
@@ -967,8 +973,7 @@ Do not poll more than once every 30 seconds. Be patient — Scout tasks reading 
 		// must remain unmarked so future retry attempts (via refreshStatuses
 		// or Monitor) are not blocked. Mark only on confirmed delivery below.
 
-		const statusLine = statusAtCallTime === 'completed' ? 'completed' : statusAtCallTime;
-		const message = `[BACKGROUND TASK ${statusLine.toUpperCase()}]
+		const message = `[BACKGROUND TASK ${statusAtCallTime.toUpperCase()}]
 
 Task: ${task.description}
 Agent: ${task.agent}

@@ -506,9 +506,9 @@ Use \`agentuity_session_dashboard\` when orchestrating Lead-of-Leads to get a fu
 **Example - Parallel Security Review:**
 When asked to review multiple packages for security:
 1. Launch \`agentuity_background_task\` for each package with Scout
-2. Track all task IDs
-3. Periodically check \`agentuity_background_output\` for completed tasks
-4. Synthesize results when all complete
+2. Report the task IDs and descriptions to the user, then STOP
+3. Wait for \`[BACKGROUND TASK COMPLETED]\` notifications (event-driven, no polling)
+4. Synthesize results after all notifications arrive
 
 ## Orchestration Patterns
 
