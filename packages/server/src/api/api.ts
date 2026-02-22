@@ -416,7 +416,6 @@ export class APIClient {
 		const canRetry = !(body instanceof ReadableStream); // we cannot safely retry a ReadableStream as body
 
 		let attempt = 0;
-		// eslint-disable-next-line no-constant-condition
 		while (true) {
 			try {
 				let response: Response;

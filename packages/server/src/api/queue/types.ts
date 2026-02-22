@@ -1272,3 +1272,54 @@ export const UpdateSourceRequestSchema = z.object({
  * Update source request type.
  */
 export type UpdateSourceRequest = z.infer<typeof UpdateSourceRequestSchema>;
+
+// ============================================================================
+// WebSocket Types
+// ============================================================================
+
+/**
+ * WebSocket authentication request.
+ * This must be the first message sent after the WebSocket connection is established.
+ */
+export const WebSocketAuthRequestSchema = z.object({
+	/** The API key for authentication (raw key, not "Bearer ..."). */
+	authorization: z.string(),
+	/** Optional client ID from a previous connection for reconnection. */
+	client_id: z.string().optional(),
+	/** Offset of the last message successfully processed. Server replays from here. */
+	last_offset: z.number().optional(),
+});
+
+export type WebSocketAuthRequest = z.infer<typeof WebSocketAuthRequestSchema>;
+
+/**
+ * WebSocket authentication response from the server.
+ */
+export const WebSocketAuthResponseSchema = z.object({
+	/** Whether authentication was successful. */
+	success: z.boolean(),
+	/** Error message if authentication failed. */
+	error: z.string().optional(),
+	/** The client/subscription ID assigned to this connection. Store and reuse on reconnect. */
+	client_id: z.string().optional(),
+});
+
+export type WebSocketAuthResponse = z.infer<typeof WebSocketAuthResponseSchema>;
+
+/**
+ * WebSocket message pushed by the server.
+ *
+ * Messages are always delivered as an array. A single live push contains one
+ * element (`type: "message"`), while a replay batch may contain many
+ * (`type: "replay"`).
+ */
+export const WebSocketMessageSchema = z.object({
+	/** Message type — "message" for live pushes, "replay" for reconnect replay batches. */
+	type: z.enum(['message', 'replay']),
+	/** Queue ID the messages belong to. */
+	queue_id: z.string(),
+	/** The queue messages. Always an array — single live pushes contain one element. */
+	messages: z.array(MessageSchema),
+});
+
+export type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;

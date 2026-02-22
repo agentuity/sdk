@@ -130,6 +130,12 @@ export {
 	UpdateQueueRequestSchema,
 	type UpdateSourceRequest,
 	UpdateSourceRequestSchema,
+	type WebSocketAuthRequest,
+	WebSocketAuthRequestSchema,
+	type WebSocketAuthResponse,
+	WebSocketAuthResponseSchema,
+	type WebSocketMessage,
+	WebSocketMessageSchema,
 } from './types';
 
 // ============================================================================
@@ -248,6 +254,19 @@ export {
 	streamQueueAnalytics,
 	TimeSeriesResponseSchema,
 } from './analytics';
+
+// ============================================================================
+// WebSocket Operations
+// ============================================================================
+
+export {
+	createQueueWebSocket,
+	subscribeToQueue,
+	type QueueWebSocketOptions,
+	type QueueWebSocketConnection,
+	type QueueWebSocketState,
+	type SubscribeToQueueOptions,
+} from './websocket';
 
 // ============================================================================
 // Validation Utilities
