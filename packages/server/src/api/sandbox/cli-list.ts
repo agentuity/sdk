@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { SandboxResponseError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { SandboxResponseError } from './util.ts';
 
 export const SandboxInfoSchema = z.object({
 	id: z.string().describe('the sandbox id'),
@@ -45,7 +45,15 @@ export interface CLISandboxListOptions {
 	/**
 	 * Filter by sandbox status
 	 */
-	status?: 'creating' | 'idle' | 'running' | 'terminated' | 'failed';
+	status?:
+		| 'creating'
+		| 'idle'
+		| 'running'
+		| 'paused'
+		| 'stopping'
+		| 'suspended'
+		| 'terminated'
+		| 'failed';
 	/**
 	 * Maximum number of sandboxes to return (default: 50, max: 100)
 	 */

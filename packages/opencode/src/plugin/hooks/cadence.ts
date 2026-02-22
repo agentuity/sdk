@@ -1,6 +1,19 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
-import type { BackgroundManager } from '../../background';
+import type { OpenCodeDBReader, SessionTreeNode } from '../../sqlite';
+import type { CompactionStats } from '../../sqlite/types';
+import {
+	getCurrentBranch,
+	buildCustomCompactionPrompt,
+	fetchAndFormatPlanningState,
+	getImageDescriptions,
+	getRecentToolCallSummaries,
+	storePreCompactionSnapshot,
+	persistCadenceStateToKV,
+	restoreCadenceStateFromKV,
+	formatCompactionDiagnostics,
+	countListItems,
+} from './compaction-utils';
 
 /** Compacting hook input/output types */
 type CompactingInput = { sessionID: string };
@@ -12,26 +25,11 @@ export interface CadenceHooks {
 	onCompacting: (input: CompactingInput, output: CompactingOutput) => Promise<void>;
 	/** Check if a session is currently in Cadence mode */
 	isActiveCadenceSession: (sessionId: string) => boolean;
+	/** Lazy restore: check KV for persisted Cadence state and populate in-memory Map */
+	tryRestoreFromKV: (sessionId: string) => Promise<boolean>;
 }
 
 const COMPLETION_PATTERN = /<promise>\s*DONE\s*<\/promise>/i;
-
-/**
- * Get the current git branch name.
- */
-async function getCurrentBranch(): Promise<string> {
-	try {
-		const proc = Bun.spawn(['git', 'branch', '--show-current'], {
-			stdout: 'pipe',
-			stderr: 'pipe',
-		});
-		const stdout = await new Response(proc.stdout).text();
-		await proc.exited;
-		return stdout.trim() || 'unknown';
-	} catch {
-		return 'unknown';
-	}
-}
 
 // Ultrawork trigger keywords - case insensitive matching
 const ULTRAWORK_TRIGGERS = [
@@ -68,10 +66,13 @@ interface CadenceSessionState {
  */
 export function createCadenceHooks(
 	ctx: PluginInput,
-	_config: CoderConfig,
-	backgroundManager?: BackgroundManager
+	config: CoderConfig,
+	dbReader?: OpenCodeDBReader,
+	lastUserMessages?: Map<string, string>
 ): CadenceHooks {
 	const activeCadenceSessions = new Map<string, CadenceSessionState>();
+	const nonCadenceSessions = new Set<string>();
+	const NON_CADENCE_CACHE_MAX = 500;
 
 	const log = (msg: string) => {
 		ctx.client.app.log({
@@ -88,11 +89,14 @@ export function createCadenceHooks(
 			const sessionId = extractSessionId(input);
 			if (!sessionId) return;
 
-			const messageText = extractMessageText(output);
-			if (!messageText) return;
-
-			// Check if this is a Cadence start command or ultrawork trigger
-			const cadenceType = getCadenceTriggerType(messageText);
+			// Use the USER's message (from chat.params) for trigger detection,
+			// not the model's output — avoids false positives when the model
+			// uses phrases like "go deep" or "be thorough" in its response.
+			// Delete after read — entries are transient (set in chat.params,
+			// consumed here in chat.message) so no unbounded Map growth.
+			const userText = lastUserMessages?.get(sessionId) ?? '';
+			lastUserMessages?.delete(sessionId);
+			const cadenceType = getCadenceTriggerType(userText);
 			if (cadenceType && !activeCadenceSessions.has(sessionId)) {
 				log(`Cadence started for session ${sessionId} via ${cadenceType}`);
 				const now = new Date().toISOString();
@@ -103,6 +107,8 @@ export function createCadenceHooks(
 					lastActivity: now,
 				};
 				activeCadenceSessions.set(sessionId, state);
+				nonCadenceSessions.delete(sessionId);
+				persistCadenceStateToKV(sessionId, { ...state }).catch(() => {});
 
 				// If triggered by ultrawork keywords, inject [CADENCE MODE] tag
 				if (cadenceType === 'ultrawork') {
@@ -112,6 +118,12 @@ export function createCadenceHooks(
 				showToast(ctx, `⚡ Cadence started · ${state.iteration}/${state.maxIterations}`);
 				return;
 			}
+
+			// Everything below parses the MODEL's output for structured tags
+			// (CADENCE_STATUS, iteration counts, completion signals) that the
+			// model intentionally emits — these are NOT false-positive-prone.
+			const messageText = extractMessageText(output);
+			if (!messageText) return;
 
 			// Check if this session is in Cadence mode
 			const state = activeCadenceSessions.get(sessionId);
@@ -144,6 +156,7 @@ export function createCadenceHooks(
 				if (changed) {
 					const loopInfo = state.loopId ? ` · ${state.loopId}` : '';
 					showToast(ctx, `⚡ Cadence · ${state.iteration}/${state.maxIterations}${loopInfo}`);
+					persistCadenceStateToKV(sessionId, { ...state }).catch(() => {});
 				}
 				return;
 			}
@@ -156,6 +169,7 @@ export function createCadenceHooks(
 					state.iteration = newIteration;
 					const loopInfo = state.loopId ? ` · ${state.loopId}` : '';
 					showToast(ctx, `⚡ Cadence · ${state.iteration}/${state.maxIterations}${loopInfo}`);
+					persistCadenceStateToKV(sessionId, { ...state }).catch(() => {});
 				}
 			}
 
@@ -181,7 +195,10 @@ export function createCadenceHooks(
 
 			log(`Event received: ${event.type}`);
 
-			// Handle session.compacted - save compaction AND continue loop
+			// Handle session.compacted - save compaction AND continue loop.
+			// Note: Compaction continues in the SAME session (via session.prompt with
+			// the existing sessionId), so permissions configured in the config hook
+			// (plugin.ts) are automatically inherited — no re-application needed.
 			if (event.type === 'session.compacted') {
 				const sessionId = event.sessionId;
 				if (!sessionId) return;
@@ -283,6 +300,8 @@ Continue Cadence iteration ${state.iteration} of ${state.maxIterations}
 		/**
 		 * Called during context compaction to inject Cadence state.
 		 * This ensures the compaction summary includes critical loop state.
+		 * Uses output.prompt to REPLACE the default compaction prompt with
+		 * enriched context (planning state, images, tool calls, diagnostics).
 		 */
 		async onCompacting(input: CompactingInput, output: CompactingOutput): Promise<void> {
 			const sessionId = input.sessionID;
@@ -296,44 +315,30 @@ Continue Cadence iteration ${state.iteration} of ${state.maxIterations}
 			log(`Injecting Cadence context during compaction for session ${sessionId}`);
 			showToast(ctx, '💾 Compacting Cadence context...');
 
-			// Get current git branch
-			const branch = await getCurrentBranch();
+			// Config flags for compaction behavior
+			const compactionCfg = config?.compaction ?? {};
+			const useCustomPrompt = compactionCfg.customPrompt !== false;
+			const useInlinePlanning = compactionCfg.inlinePlanning !== false;
+			const useImageAwareness = compactionCfg.imageAwareness !== false;
+			const useSnapshotToKV = compactionCfg.snapshotToKV !== false;
+			const maxTokens = compactionCfg.maxContextTokens ?? 4000;
 
-			// Get active background tasks for this session
-			const tasks = backgroundManager?.getTasksByParent(sessionId) ?? [];
-			let backgroundTaskContext = '';
+			// 1. Build custom compaction instructions
+			const instructions = useCustomPrompt ? buildCustomCompactionPrompt('cadence') : null;
 
-			if (tasks.length > 0) {
-				const taskList = tasks
-					.map(
-						(t) =>
-							`- **${t.id}**: ${t.description || 'No description'} (session: ${t.sessionId ?? 'pending'}, status: ${t.status})`
-					)
-					.join('\n');
+			// 2. Gather enrichment data in parallel
+			const toolCallLimit = config?.compaction?.toolCallSummaryLimit ?? 5;
+			const [branch, planningState, imageDescs, toolSummaries] = await Promise.all([
+				getCurrentBranch(),
+				useInlinePlanning ? fetchAndFormatPlanningState(sessionId) : Promise.resolve(null),
+				useImageAwareness
+					? Promise.resolve(getImageDescriptions(dbReader ?? null, sessionId))
+					: Promise.resolve(null),
+				Promise.resolve(getRecentToolCallSummaries(dbReader ?? null, sessionId, toolCallLimit)),
+			]);
 
-				backgroundTaskContext = `
-
-## Active Background Tasks
-
-This session has ${tasks.length} background task(s) running in separate sessions:
-${taskList}
-
-**CRITICAL:** Task IDs and session IDs persist across compaction - these tasks are still running.
-Use \`agentuity_background_output({ task_id: "..." })\` to check their status.
-
-**Tip:** If you spawned child Leads for parallel work, delegate monitoring to BackgroundMonitor:
-\`\`\`typescript
-agentuity_background_task({
-  agent: "monitor",
-  task: "Monitor these background tasks and report when all complete:\\n${tasks.map((t) => `- ${t.id}`).join('\\n')}",
-  description: "Monitor child tasks"
-})
-\`\`\`
-`;
-			}
-
-			output.context.push(`
-## CADENCE MODE ACTIVE
+			// 3. Build Cadence state section
+			const cadenceStateSection = `## CADENCE MODE ACTIVE
 
 This session is running in Cadence mode (long-running autonomous loop).
 
@@ -348,21 +353,67 @@ This session is running in Cadence mode (long-running autonomous loop).
 **Session Record Location:**
 \`session:${sessionId}\` in agentuity-opencode-memory
 
-**Planning State:**
-If this session has planning active, the session record contains:
-- \`planning.prdKey\` - Link to the PRD being executed
-- \`planning.objective\` - What we're trying to accomplish
-- \`planning.phases\` - Current phases with status and notes
-- \`planning.current\` - Current phase
-- \`planning.findings\` - Discoveries made during work
-- \`planning.errors\` - Failures to avoid repeating
-${backgroundTaskContext}
 After compaction:
 1. Memory will save this summary and update the session record
 2. Memory should update planning.progress with this compaction
 3. Lead will continue the loop from iteration ${state.iteration}
-4. Use 5-Question Reboot to re-orient: Where am I? Where going? Goal? Learned? Done?
-`);
+4. Use 5-Question Reboot to re-orient: Where am I? Where going? Goal? Learned? Done?`;
+
+			// 4. Build SQLite dashboard section
+			const dashboardSection = buildSqliteDashboardSummary(dbReader, sessionId);
+
+			// 5. Combine everything into the full prompt
+			const sections: string[] = [];
+			if (instructions) sections.push(instructions);
+			sections.push(cadenceStateSection);
+			if (planningState) sections.push(planningState);
+			if (imageDescs) sections.push(imageDescs);
+			if (toolSummaries) sections.push(toolSummaries);
+			if (dashboardSection) sections.push(dashboardSection);
+
+			// 6. Add diagnostics
+			const stats: CompactionStats = {
+				planningPhasesCount: countListItems(planningState),
+				imageDescriptionsCount: countListItems(imageDescs),
+				toolCallSummariesCount: countListItems(toolSummaries),
+				estimatedTokens: Math.ceil(sections.join('\n\n').length / 4),
+			};
+			const diagnostics = formatCompactionDiagnostics(stats);
+			if (diagnostics) sections.push(diagnostics);
+
+			// 7. Enforce token budget
+			let fullPrompt = sections.join('\n\n');
+			const estimatedTokens = Math.ceil(fullPrompt.length / 4);
+			if (maxTokens > 0 && estimatedTokens > maxTokens) {
+				// Trim least-critical sections first
+				const trimOrder = [diagnostics, toolSummaries, imageDescs, planningState].filter(
+					Boolean
+				);
+				let trimmed = [...sections];
+				for (const candidate of trimOrder) {
+					if (Math.ceil(trimmed.join('\n\n').length / 4) <= maxTokens) break;
+					trimmed = trimmed.filter((s) => s !== candidate);
+				}
+				fullPrompt = trimmed.join('\n\n');
+			}
+
+			// 8. Set the full prompt or push to context
+			if (useCustomPrompt) {
+				output.prompt = fullPrompt;
+			} else {
+				output.context.push(fullPrompt);
+			}
+
+			// 9. Store pre-compaction snapshot to KV (fire-and-forget)
+			if (useSnapshotToKV) {
+				storePreCompactionSnapshot(sessionId, {
+					timestamp: new Date().toISOString(),
+					sessionId,
+					planningState: planningState ? { raw: planningState } : undefined,
+					cadenceState: state ? { ...state } : undefined,
+					branch,
+				}).catch(() => {}); // Fire and forget
+			}
 		},
 
 		/**
@@ -371,6 +422,44 @@ After compaction:
 		 */
 		isActiveCadenceSession(sessionId: string): boolean {
 			return activeCadenceSessions.has(sessionId);
+		},
+
+		/**
+		 * Lazy restore: check KV for persisted Cadence state and populate in-memory Map.
+		 * Called before routing decisions to recover state after plugin restarts.
+		 * Returns true if state was found and restored.
+		 */
+		async tryRestoreFromKV(sessionId: string): Promise<boolean> {
+			// Already in memory — nothing to restore
+			if (activeCadenceSessions.has(sessionId)) return true;
+			// Known non-Cadence session — skip KV lookup
+			if (nonCadenceSessions.has(sessionId)) return false;
+
+			try {
+				const kvState = await restoreCadenceStateFromKV(sessionId);
+				if (!kvState) {
+					if (nonCadenceSessions.size >= NON_CADENCE_CACHE_MAX) {
+						nonCadenceSessions.clear();
+					}
+					nonCadenceSessions.add(sessionId);
+					return false;
+				}
+
+				const state: CadenceSessionState = {
+					startedAt: (kvState.startedAt as string) ?? new Date().toISOString(),
+					loopId: kvState.loopId as string | undefined,
+					iteration: (kvState.iteration as number) ?? 1,
+					maxIterations: (kvState.maxIterations as number) ?? 50,
+					lastActivity: (kvState.lastActivity as string) ?? new Date().toISOString(),
+				};
+				activeCadenceSessions.set(sessionId, state);
+				log(
+					`Restored Cadence state from KV for session ${sessionId} (iteration ${state.iteration}/${state.maxIterations})`
+				);
+				return true;
+			} catch {
+				return false;
+			}
 		},
 	};
 }
@@ -453,6 +542,69 @@ function isCadenceStop(text: string): boolean {
 		text.includes("status: 'cancelled'") ||
 		text.includes('status":"cancelled')
 	);
+}
+
+function buildSqliteDashboardSummary(
+	dbReader: OpenCodeDBReader | undefined,
+	parentSessionId: string
+): string | undefined {
+	if (!dbReader || !dbReader.isAvailable()) return undefined;
+
+	const dashboard = dbReader.getSessionDashboard(parentSessionId);
+	if (!dashboard.sessions.length) return undefined;
+
+	const lines: string[] = [];
+	for (const node of dashboard.sessions) {
+		appendDashboardNode(dbReader, node, 0, lines);
+	}
+
+	return `
+## SQLite Session Dashboard
+
+- Parent session: ${parentSessionId}
+- Total child cost: ${dashboard.totalCost}
+
+${lines.join('\n')}
+`;
+}
+
+function appendDashboardNode(
+	reader: OpenCodeDBReader,
+	node: SessionTreeNode,
+	depth: number,
+	lines: string[]
+): void {
+	const status = reader.getSessionStatus(node.session.id);
+	const todoSummary = node.todoSummary
+		? `${node.todoSummary.pending}/${node.todoSummary.total} pending`
+		: 'no todos';
+	const costSummary = node.costSummary
+		? `${node.costSummary.totalCost} (${node.costSummary.totalTokens} tokens)`
+		: '0 (0 tokens)';
+	const label = formatSessionLabel(node.session.title);
+	const indent = `${'  '.repeat(depth)}-`;
+
+	lines.push(
+		`${indent} ${label} [${node.session.id}] status: ${status.status}, tools: ${node.activeToolCount}, todos: ${todoSummary}, messages: ${node.messageCount}, cost: ${costSummary}`
+	);
+
+	for (const child of node.children) {
+		appendDashboardNode(reader, child, depth + 1, lines);
+	}
+}
+
+function formatSessionLabel(title: string): string {
+	if (!title) return 'Session';
+	if (title.startsWith('{')) {
+		try {
+			const parsed = JSON.parse(title) as { description?: string; taskId?: string };
+			if (parsed.description) return parsed.description;
+			if (parsed.taskId) return parsed.taskId;
+		} catch {
+			return title;
+		}
+	}
+	return title;
 }
 
 function showToast(ctx: PluginInput, message: string): void {

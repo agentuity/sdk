@@ -1,15 +1,15 @@
 import { EventEmitter } from 'node:events';
 import pg from 'pg';
-import type { PoolConfig, PoolStats } from './types';
+import type { PoolConfig, PoolStats } from './types.ts';
 import {
 	ConnectionClosedError,
 	PostgresError,
 	QueryTimeoutError,
 	ReconnectFailedError,
 	isRetryableError,
-} from './errors';
-import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect';
-import { registerClient, unregisterClient, type Registrable } from './registry';
+} from './errors.ts';
+import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect.ts';
+import { registerClient, unregisterClient, type Registrable } from './registry.ts';
 
 /**
  * A resilient PostgreSQL connection pool with automatic reconnection.
@@ -447,6 +447,23 @@ export class PostgresPool extends EventEmitter implements Registrable {
 		const poolConfig: pg.PoolConfig = { ...pgConfig };
 		if (!poolConfig.connectionString) {
 			poolConfig.connectionString = process.env.DATABASE_URL;
+		}
+
+		// Normalize sslmode=require to sslmode=verify-full to suppress pg v8
+		// deprecation warning. pg currently treats 'require' as 'verify-full'
+		// but warns that v9 will use weaker libpq semantics. Since we want the
+		// stronger behavior, explicitly use verify-full.
+		if (poolConfig.connectionString) {
+			try {
+				const parsed = new URL(poolConfig.connectionString);
+				const sslmode = parsed.searchParams.get('sslmode');
+				if (sslmode === 'require') {
+					parsed.searchParams.set('sslmode', 'verify-full');
+					poolConfig.connectionString = parsed.toString();
+				}
+			} catch {
+				// Not a parseable URL — leave as-is
+			}
 		}
 
 		this._poolConfig = poolConfig;

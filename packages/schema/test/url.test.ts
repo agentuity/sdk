@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { s, ValidationError } from '../src';
+import { s, ValidationError } from '../src/index.ts';
 
 describe('URL Validation', () => {
 	test('should validate valid URLs', () => {

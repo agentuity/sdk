@@ -1,6 +1,9 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { Writable } from 'node:stream';
-import { SandboxClient } from '../src/api/sandbox/client';
+import { SandboxClient } from '../src/api/sandbox/client.ts';
+import { APIClient } from '../src/api/api.ts';
+import { sandboxPause } from '../src/api/sandbox/pause.ts';
+import { sandboxResume } from '../src/api/sandbox/resume.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('SandboxClient', () => {
@@ -1393,6 +1396,118 @@ describe('SandboxClient', () => {
 			await client.destroy('sandbox-xyz');
 
 			expect(destroyCalled).toBe(true);
+		});
+	});
+
+	describe('sandboxPause', () => {
+		test('should pause a sandbox successfully', async () => {
+			let pauseCalled = false;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/pause')) {
+					pauseCalled = true;
+					return new Response(JSON.stringify({ success: true }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					});
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new APIClient(
+				'https://sandbox.example.com',
+				createMockLogger(),
+				'test-sdk-key'
+			);
+
+			await sandboxPause(client, { sandboxId: 'sandbox-123' });
+			expect(pauseCalled).toBe(true);
+		});
+
+		test('should throw SandboxNotFoundError when sandbox not found', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/pause')) {
+					return new Response(
+						JSON.stringify({
+							success: false,
+							message: 'Sandbox not found',
+							code: 'SANDBOX_NOT_FOUND',
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new APIClient(
+				'https://sandbox.example.com',
+				createMockLogger(),
+				'test-sdk-key'
+			);
+
+			try {
+				await sandboxPause(client, { sandboxId: 'nonexistent' });
+				expect(true).toBe(false); // should not reach here
+			} catch (error) {
+				expect((error as { _tag: string })._tag).toBe('SandboxNotFoundError');
+				expect((error as { sandboxId: string }).sandboxId).toBe('nonexistent');
+			}
+		});
+	});
+
+	describe('sandboxResume', () => {
+		test('should resume a sandbox successfully', async () => {
+			let resumeCalled = false;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/resume')) {
+					resumeCalled = true;
+					return new Response(JSON.stringify({ success: true }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					});
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new APIClient(
+				'https://sandbox.example.com',
+				createMockLogger(),
+				'test-sdk-key'
+			);
+
+			await sandboxResume(client, { sandboxId: 'sandbox-123' });
+			expect(resumeCalled).toBe(true);
+		});
+
+		test('should throw SandboxNotFoundError when sandbox not found', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/resume')) {
+					return new Response(
+						JSON.stringify({
+							success: false,
+							message: 'Sandbox not found',
+							code: 'SANDBOX_NOT_FOUND',
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new APIClient(
+				'https://sandbox.example.com',
+				createMockLogger(),
+				'test-sdk-key'
+			);
+
+			try {
+				await sandboxResume(client, { sandboxId: 'nonexistent' });
+				expect(true).toBe(false); // should not reach here
+			} catch (error) {
+				expect((error as { _tag: string })._tag).toBe('SandboxNotFoundError');
+				expect((error as { sandboxId: string }).sandboxId).toBe('nonexistent');
+			}
 		});
 	});
 });

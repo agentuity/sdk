@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/drizzle",
-	"version": "1.0.12",
+	"version": "1.0.19",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -41,6 +41,7 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@agentuity/core": "workspace:*",
 		"@agentuity/postgres": "workspace:*",
 		"drizzle-orm": "^0.45.0",
 		"better-auth": "^1.4.9"

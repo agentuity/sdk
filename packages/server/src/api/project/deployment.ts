@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from '../api';
-import { ProjectResponseError } from './util';
+import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from '../api.ts';
+import { ProjectResponseError } from './util.ts';
 
 // Simplified metadata schema for the client
 export const DeploymentMetadataSchema = z.object({

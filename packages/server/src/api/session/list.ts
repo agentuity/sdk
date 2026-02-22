@@ -1,7 +1,7 @@
 import type { SortDirection } from '@agentuity/core';
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { SessionResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { SessionResponseError } from './util.ts';
 
 const SessionSchema = z.object({
 	id: z.string().describe('the session id'),

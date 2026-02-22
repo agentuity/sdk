@@ -12,6 +12,7 @@ import {
 	snapshotBuildFinalize,
 	snapshotUpload,
 	SnapshotBuildFileSchema,
+	NPM_PACKAGE_NAME_PATTERN,
 } from '@agentuity/server';
 import type { SnapshotFileInfo, SnapshotBuildGitInfo } from '@agentuity/server';
 import { getCatalystAPIClient } from '../../../../config';
@@ -297,6 +298,7 @@ async function generateContentHash(params: {
 	runtime: string;
 	description?: string;
 	dependencies?: string[];
+	packages?: string[];
 	files: SnapshotFileInfo[];
 	fileHashes: Map<string, string>;
 	env?: Record<string, string>;
@@ -313,6 +315,11 @@ async function generateContentHash(params: {
 	if (params.dependencies && params.dependencies.length > 0) {
 		const sortedDeps = [...params.dependencies].sort();
 		hash.update(`dependencies:${sortedDeps.join(',')}\n`);
+	}
+
+	if (params.packages && params.packages.length > 0) {
+		const sortedPkgs = [...params.packages].sort();
+		hash.update(`packages:${sortedPkgs.join(',')}\n`);
 	}
 
 	if (params.files.length > 0) {
@@ -575,6 +582,22 @@ export const buildSubcommand = createCommand({
 			}
 		}
 
+		if (buildConfig.packages && buildConfig.packages.length > 0) {
+			// Validate package specifiers using shared pattern (also enforced at schema level)
+			const invalidPackages = buildConfig.packages.filter(
+				(pkg) => !NPM_PACKAGE_NAME_PATTERN.test(pkg)
+			);
+			if (invalidPackages.length > 0) {
+				tui.error('Invalid package specifiers:');
+				for (const pkg of invalidPackages) {
+					tui.bullet(
+						`${pkg}: must not contain whitespace, semicolons, backticks, pipes, or dollar signs`
+					);
+				}
+				process.exit(1);
+			}
+		}
+
 		let files = new Map<string, FileEntry>();
 		if (buildConfig.files && buildConfig.files.length > 0) {
 			files = await resolveFileGlobs(directory, buildConfig.files);
@@ -613,6 +636,7 @@ export const buildSubcommand = createCommand({
 			runtime: buildConfig.runtime,
 			description: finalDescription,
 			dependencies: buildConfig.dependencies,
+			packages: buildConfig.packages,
 			files: fileList,
 			fileHashes,
 			env: finalEnv,
@@ -644,6 +668,14 @@ export const buildSubcommand = createCommand({
 					tui.info('Dependencies:');
 					for (const dep of buildConfig.dependencies) {
 						console.log(`  ${tui.muted('•')} ${dep}`);
+					}
+				}
+
+				if (buildConfig.packages && buildConfig.packages.length > 0) {
+					console.log('');
+					tui.info('Packages (npm/bun):');
+					for (const pkg of buildConfig.packages) {
+						console.log(`  ${tui.muted('•')} ${pkg}`);
 					}
 				}
 
@@ -914,6 +946,7 @@ export const buildSubcommand = createCommand({
 						fileCount: fileList.length,
 						files: fileList,
 						dependencies: buildConfig.dependencies,
+						packages: buildConfig.packages,
 						env: finalEnv,
 						metadata: finalMetadata,
 						orgId,
@@ -946,6 +979,14 @@ export const buildSubcommand = createCommand({
 					tui.info('Dependencies:');
 					for (const dep of buildConfig.dependencies) {
 						console.log(`  ${tui.muted('•')} ${dep}`);
+					}
+				}
+
+				if (buildConfig.packages && buildConfig.packages.length > 0) {
+					console.log('');
+					tui.info('Packages (npm/bun):');
+					for (const pkg of buildConfig.packages) {
+						console.log(`  ${tui.muted('•')} ${pkg}`);
 					}
 				}
 

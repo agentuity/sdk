@@ -21,6 +21,7 @@ export async function ensureBunOnPath(): Promise<void> {
 	// Check if bun exists in $HOME/.bun/bin
 	if (await Bun.file(bunPath).exists()) {
 		// Add to PATH for this process
-		process.env.PATH = process.env.PATH ? `${bunBinDir}:${process.env.PATH}` : bunBinDir;
+		const pathSep = process.platform === 'win32' ? ';' : ':';
+		process.env.PATH = process.env.PATH ? `${bunBinDir}${pathSep}${process.env.PATH}` : bunBinDir;
 	}
 }

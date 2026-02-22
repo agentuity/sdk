@@ -1,23 +1,17 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
-import type { BackgroundManager } from '../../background';
-
-/**
- * Get the current git branch name.
- */
-async function getCurrentBranch(): Promise<string> {
-	try {
-		const proc = Bun.spawn(['git', 'branch', '--show-current'], {
-			stdout: 'pipe',
-			stderr: 'pipe',
-		});
-		const stdout = await new Response(proc.stdout).text();
-		await proc.exited;
-		return stdout.trim() || 'unknown';
-	} catch {
-		return 'unknown';
-	}
-}
+import type { OpenCodeDBReader } from '../../sqlite';
+import type { CompactionStats } from '../../sqlite/types';
+import {
+	getCurrentBranch,
+	buildCustomCompactionPrompt,
+	fetchAndFormatPlanningState,
+	getImageDescriptions,
+	getRecentToolCallSummaries,
+	storePreCompactionSnapshot,
+	formatCompactionDiagnostics,
+	countListItems,
+} from './compaction-utils';
 
 export interface SessionMemoryHooks {
 	onEvent: (input: {
@@ -38,8 +32,8 @@ export interface SessionMemoryHooks {
  */
 export function createSessionMemoryHooks(
 	ctx: PluginInput,
-	_config: CoderConfig,
-	backgroundManager?: BackgroundManager
+	config: CoderConfig,
+	dbReader?: OpenCodeDBReader
 ): SessionMemoryHooks {
 	const log = (msg: string) => {
 		ctx.client.app.log({
@@ -55,6 +49,10 @@ export function createSessionMemoryHooks(
 		/**
 		 * Listen for session.compacted event.
 		 * The compaction summary is already in context - just tell Lead to save it.
+		 *
+		 * Note: Compaction continues in the SAME session (via session.prompt with
+		 * the existing sessionId), so permissions configured in the config hook
+		 * (plugin.ts) are automatically inherited — no re-application needed.
 		 */
 		async onEvent(input: {
 			event: { type: string; properties?: Record<string, unknown> };
@@ -144,7 +142,8 @@ Then continue with the current task if there is one.`,
 
 		/**
 		 * Inject Memory system info during compaction.
-		 * This gets included in OpenCode's generated summary.
+		 * Uses output.prompt to REPLACE the default compaction prompt with
+		 * enriched context (planning state, images, tool calls, diagnostics).
 		 */
 		async onCompacting(
 			input: { sessionID: string },
@@ -153,53 +152,90 @@ Then continue with the current task if there is one.`,
 			const sessionId = input.sessionID;
 			log(`Compacting session ${sessionId}`);
 
-			// Get current git branch
-			const branch = await getCurrentBranch();
+			// Config flags for compaction behavior
+			const compactionCfg = config?.compaction ?? {};
+			const useCustomPrompt = compactionCfg.customPrompt !== false;
+			const useInlinePlanning = compactionCfg.inlinePlanning !== false;
+			const useImageAwareness = compactionCfg.imageAwareness !== false;
+			const useSnapshotToKV = compactionCfg.snapshotToKV !== false;
+			const maxTokens = compactionCfg.maxContextTokens ?? 4000;
 
-			// Get active background tasks for this session
-			const tasks = backgroundManager?.getTasksByParent(sessionId) ?? [];
-			let backgroundTaskContext = '';
+			// 1. Build custom compaction instructions
+			const instructions = useCustomPrompt ? buildCustomCompactionPrompt('regular') : null;
 
-			if (tasks.length > 0) {
-				const taskList = tasks
-					.map(
-						(t) =>
-							`- **${t.id}**: ${t.description || 'No description'} (session: ${t.sessionId ?? 'pending'}, status: ${t.status})`
-					)
-					.join('\n');
+			// 2. Gather enrichment data in parallel
+			const toolCallLimit = config?.compaction?.toolCallSummaryLimit ?? 5;
+			const [branch, planningState, imageDescs, toolSummaries] = await Promise.all([
+				getCurrentBranch(),
+				useInlinePlanning ? fetchAndFormatPlanningState(sessionId) : Promise.resolve(null),
+				useImageAwareness
+					? Promise.resolve(getImageDescriptions(dbReader ?? null, sessionId))
+					: Promise.resolve(null),
+				Promise.resolve(getRecentToolCallSummaries(dbReader ?? null, sessionId, toolCallLimit)),
+			]);
 
-				backgroundTaskContext = `
-
-## Active Background Tasks
-
-This session has ${tasks.length} background task(s) running in separate sessions:
-${taskList}
-
-**CRITICAL:** Task IDs and session IDs persist across compaction - these tasks are still running.
-Use \`agentuity_background_output({ task_id: "..." })\` to check their status.
-`;
-			}
-
-			output.context.push(`
-## Session Memory
+			// 3. Build session state section
+			const sessionStateSection = `## Session Memory
 
 This session's context is being saved to persistent memory.
 Session record location: \`session:${sessionId}\` in agentuity-opencode-memory
 Current branch: ${branch}
 
-**Planning State (if active):**
-If this session has planning active (user requested "track progress" or similar), the session record contains:
-- \`planning.prdKey\` - Link to PRD if one exists
-- \`planning.objective\` - What we're trying to accomplish
-- \`planning.phases\` - Current phases with status and notes
-- \`planning.findings\` - Discoveries made during work
-- \`planning.errors\` - Failures to avoid repeating
-${backgroundTaskContext}
 After compaction:
 1. Memory will save this summary to the session record
 2. If planning is active, Memory should update planning.progress with this compaction
-3. Memory will apply inline reasoning if significant patterns/corrections emerged
-`);
+3. Memory will apply inline reasoning if significant patterns/corrections emerged`;
+
+			// 4. Combine everything into the full prompt
+			const sections: string[] = [];
+			if (instructions) sections.push(instructions);
+			sections.push(sessionStateSection);
+			if (planningState) sections.push(planningState);
+			if (imageDescs) sections.push(imageDescs);
+			if (toolSummaries) sections.push(toolSummaries);
+
+			// 5. Add diagnostics
+			const stats: CompactionStats = {
+				planningPhasesCount: countListItems(planningState),
+				imageDescriptionsCount: countListItems(imageDescs),
+				toolCallSummariesCount: countListItems(toolSummaries),
+				estimatedTokens: Math.ceil(sections.join('\n\n').length / 4),
+			};
+			const diagnostics = formatCompactionDiagnostics(stats);
+			if (diagnostics) sections.push(diagnostics);
+
+			// 6. Enforce token budget
+			let fullPrompt = sections.join('\n\n');
+			const estimatedTokens = Math.ceil(fullPrompt.length / 4);
+			if (maxTokens > 0 && estimatedTokens > maxTokens) {
+				// Trim least-critical sections first
+				const trimOrder = [diagnostics, toolSummaries, imageDescs, planningState].filter(
+					Boolean
+				);
+				let trimmed = [...sections];
+				for (const candidate of trimOrder) {
+					if (Math.ceil(trimmed.join('\n\n').length / 4) <= maxTokens) break;
+					trimmed = trimmed.filter((s) => s !== candidate);
+				}
+				fullPrompt = trimmed.join('\n\n');
+			}
+
+			// 7. Set the full prompt or push to context
+			if (useCustomPrompt) {
+				output.prompt = fullPrompt;
+			} else {
+				output.context.push(fullPrompt);
+			}
+
+			// 8. Store pre-compaction snapshot to KV (fire-and-forget)
+			if (useSnapshotToKV) {
+				storePreCompactionSnapshot(sessionId, {
+					timestamp: new Date().toISOString(),
+					sessionId,
+					planningState: planningState ? { raw: planningState } : undefined,
+					branch,
+				}).catch(() => {}); // Fire and forget
+			}
 		},
 	};
 }

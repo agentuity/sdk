@@ -1,7 +1,7 @@
 import { SQL as BunSQL } from 'bun';
-import type { ReconnectConfig } from './types';
-import { mergeReconnectConfig, DEFAULT_RECONNECT_CONFIG } from './reconnect';
-import { injectSslMode } from './tls';
+import type { ReconnectConfig } from './types.ts';
+import { mergeReconnectConfig, DEFAULT_RECONNECT_CONFIG } from './reconnect.ts';
+import { injectSslMode } from './tls.ts';
 
 /**
  * Whether Bun.SQL has already been patched.

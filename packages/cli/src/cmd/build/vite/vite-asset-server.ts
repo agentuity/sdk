@@ -7,6 +7,7 @@
 
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import { createServer as createNetServer } from 'node:net';
 import type { ViteDevServer } from 'vite';
 import type { Logger } from '../../../types';
 import { generateAssetServerConfig } from './vite-asset-server-config';
@@ -23,6 +24,44 @@ export interface StartViteAssetServerOptions {
 }
 
 /**
+ * Check if a specific port is available on the given host.
+ */
+function isPortAvailable(port: number, host: string): Promise<boolean> {
+	return new Promise((resolve) => {
+		const server = createNetServer();
+		server.once('error', () => {
+			resolve(false);
+		});
+		server.listen(port, host, () => {
+			server.close(() => {
+				resolve(true);
+			});
+		});
+	});
+}
+
+/**
+ * Find an available port starting from the preferred port.
+ * Tries incrementing ports up to maxAttempts times.
+ */
+async function findAvailablePort(
+	preferredPort: number,
+	host: string = '127.0.0.1',
+	maxAttempts: number = 20
+): Promise<number> {
+	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		const port = preferredPort + attempt;
+		const available = await isPortAvailable(port, host);
+		if (available) {
+			return port;
+		}
+	}
+	throw new Error(
+		`Could not find an available port after ${maxAttempts} attempts starting from ${preferredPort}`
+	);
+}
+
+/**
  * Start Vite asset server on a dynamically-chosen port
  * Returns the server instance and the actual port number
  */
@@ -33,16 +72,23 @@ export async function startViteAssetServer(
 
 	logger.debug('Starting Vite asset server (HMR only)...');
 
-	// Pick a port for Vite asset server (try 5173 first, Vite default)
-	// strictPort: false allows Vite to choose alternate if 5173 is taken
+	// Find an available port before starting Vite
+	// This avoids relying on Vite's strictPort:false fallback which can fail
 	const preferredPort = 5173;
+	const availablePort = await findAvailablePort(preferredPort, '127.0.0.1');
 
-	// Generate minimal config with preferred port
+	if (availablePort !== preferredPort) {
+		logger.info(
+			`Port ${preferredPort} is in use, using port ${availablePort} for Vite asset server`
+		);
+	}
+
+	// Generate minimal config with the available port
 	const config = await generateAssetServerConfig({
 		rootDir,
 		logger,
 		workbenchPath,
-		port: preferredPort,
+		port: availablePort,
 	});
 
 	// Dynamically import vite from the project's node_modules
@@ -54,7 +100,6 @@ export async function startViteAssetServer(
 	const server = await createServer(config);
 
 	// Start listening with timeout to prevent hangs
-	// Vite will choose alternate port if preferred is taken
 	const STARTUP_TIMEOUT_MS = 30000; // 30 seconds
 
 	try {
@@ -82,42 +127,10 @@ export async function startViteAssetServer(
 		throw error;
 	}
 
-	// Helper to get port from httpServer
-	const getPortFromHttpServer = (): number | null => {
-		const httpServer = server.httpServer;
-		if (httpServer) {
-			const address = httpServer.address();
-			if (address && typeof address === 'object' && 'port' in address) {
-				return address.port;
-			}
-		}
-		return null;
-	};
+	// Port was pre-verified and strictPort:true ensures Vite uses exactly this port
+	const actualPort = availablePort;
 
-	// Get the actual port Vite is using from the httpServer
-	// server.config.server.port is the requested port, not the actual one
-	let actualPort = preferredPort;
-
-	// The resolved URL contains the actual port being used
-	const resolvedUrls = server.resolvedUrls;
-	if (resolvedUrls?.local && resolvedUrls.local.length > 0) {
-		try {
-			const url = new URL(resolvedUrls.local[0]);
-			actualPort = parseInt(url.port, 10) || preferredPort;
-		} catch {
-			actualPort = getPortFromHttpServer() ?? preferredPort;
-		}
-	} else {
-		actualPort = getPortFromHttpServer() ?? preferredPort;
-	}
-
-	if (actualPort === preferredPort) {
-		logger.info(`Vite asset server running on port ${actualPort}`);
-	} else {
-		logger.warn(
-			`Vite asset server running on port ${actualPort} (preferred port ${preferredPort} was in use)`
-		);
-	}
+	logger.info(`Vite asset server running on port ${actualPort}`);
 	logger.debug(`Asset server will handle: HMR, React transformation, source maps`);
 	logger.debug(
 		`HMR WebSocket configured at /__vite_hmr (proxied through Bun server for tunnel support)`

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { validateDatabaseName, validateBucketName } from '../src/api/region/create';
+import { validateDatabaseName, validateBucketName } from '../src/api/region/create.ts';
 
 describe('validateDatabaseName', () => {
 	test('should accept valid database names', () => {
@@ -51,6 +51,22 @@ describe('validateDatabaseName', () => {
 		const result = validateDatabaseName('');
 		expect(result.valid).toBe(false);
 		expect(result.error).toContain('too short');
+	});
+
+	test('should reject names starting with pg_', () => {
+		const result = validateDatabaseName('pg_fix_test');
+		expect(result.valid).toBe(false);
+		expect(result.error).toContain("'pg_'");
+	});
+
+	test('should reject any pg_ prefixed name', () => {
+		const result = validateDatabaseName('pg_something');
+		expect(result.valid).toBe(false);
+		expect(result.error).toContain('reserved by PostgreSQL');
+	});
+
+	test('should allow names containing pg_ not at start', () => {
+		expect(validateDatabaseName('my_pg_database')).toEqual({ valid: true });
 	});
 });
 

@@ -1,5 +1,10 @@
 import { describe, test, expect, mock } from 'bun:test';
-import { APIClient, APIError, ValidationInputError, ValidationOutputError } from '../src/api/api';
+import {
+	APIClient,
+	APIError,
+	ValidationInputError,
+	ValidationOutputError,
+} from '../src/api/api.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('APIClient', () => {

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { buildUrl, toServiceException, toPayload, fromResponse } from '../src/services/_util';
+import { buildUrl, toServiceException, toPayload, fromResponse } from '../src/services/_util.ts';
 
 describe('buildUrl', () => {
 	describe('basic URL construction', () => {

@@ -5,8 +5,8 @@ import type {
 	SandboxStatus,
 } from '@agentuity/core';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { API_VERSION, throwSandboxError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { API_VERSION, throwSandboxError } from './util.ts';
 
 export const SandboxResourcesSchema = z
 	.object({
@@ -105,7 +105,17 @@ export const SandboxInfoDataSchema = z
 		name: z.string().optional().describe('Sandbox name'),
 		description: z.string().optional().describe('Sandbox description'),
 		status: z
-			.enum(['creating', 'idle', 'running', 'terminated', 'failed', 'deleted'])
+			.enum([
+				'creating',
+				'idle',
+				'running',
+				'paused',
+				'stopping',
+				'suspended',
+				'terminated',
+				'failed',
+				'deleted',
+			])
 			.describe('Current status of the sandbox'),
 		mode: z.string().optional().describe('Sandbox mode (interactive or oneshot)'),
 		createdAt: z.string().describe('ISO timestamp when the sandbox was created'),
@@ -119,10 +129,16 @@ export const SandboxInfoDataSchema = z
 			.describe('Exit code from the last execution (only for terminated/failed sandboxes)'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		auditStreamId: z.string().optional().describe('ID of the audit event stream'),
+		auditStreamUrl: z.string().optional().describe('URL for streaming audit events'),
 		dependencies: z
 			.array(z.string())
 			.optional()
 			.describe('Apt packages installed in the sandbox'),
+		packages: z
+			.array(z.string())
+			.optional()
+			.describe('npm/bun packages installed globally in the sandbox'),
 		metadata: z
 			.record(z.string(), z.unknown())
 			.optional()
@@ -208,7 +224,10 @@ export async function sandboxGet(
 			exitCode: resp.data.exitCode,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
+			auditStreamId: resp.data.auditStreamId,
+			auditStreamUrl: resp.data.auditStreamUrl,
 			dependencies: resp.data.dependencies,
+			packages: resp.data.packages,
 			metadata: resp.data.metadata as Record<string, unknown> | undefined,
 			resources: resp.data.resources,
 			cpuTimeMs: resp.data.cpuTimeMs,

@@ -33,6 +33,12 @@ export interface APIClientConfig {
 	maxRetries?: number;
 	retryDelayMs?: number;
 	headers?: Record<string, string>;
+	/**
+	 * Maximum time in milliseconds to keep retrying 502/503 responses.
+	 * These indicate the service is restarting (hot-swap) and typically
+	 * resolve within seconds. Defaults to 30000 (30 seconds).
+	 */
+	serviceUnavailableTimeoutMs?: number;
 }
 
 export const ZodIssuesSchema = z.array(
@@ -362,6 +368,10 @@ export class APIClient {
 
 		const maxRetries = this.#config?.maxRetries ?? 3;
 		const baseDelayMs = this.#config?.retryDelayMs ?? 100;
+		const serviceUnavailableTimeoutMs = this.#config?.serviceUnavailableTimeoutMs ?? 30_000;
+
+		// Track when we first see a 502/503 so we can retry for up to the timeout
+		let serviceUnavailableStart: number | null = null;
 
 		const url = `${this.#baseUrl}${endpoint}`;
 		const headers: Record<string, string> = {
@@ -404,7 +414,8 @@ export class APIClient {
 
 		const canRetry = !(body instanceof ReadableStream); // we cannot safely retry a ReadableStream as body
 
-		for (let attempt = 0; attempt <= maxRetries; attempt++) {
+		let attempt = 0;
+		while (true) {
 			try {
 				let response: Response;
 
@@ -520,8 +531,30 @@ export class APIClient {
 					}
 				}
 
-				// Check if we should retry on specific status codes (409, 501, 503)
-				const retryableStatuses = [409, 501, 503];
+				// 502/503 indicate the service is restarting (hot-swap) — retry
+				// for up to serviceUnavailableTimeoutMs (default 30s) with a
+				// slower backoff (1s base) so we survive typical restart windows.
+				const isServiceUnavailable = response.status === 502 || response.status === 503;
+
+				if (isServiceUnavailable && canRetry) {
+					if (serviceUnavailableStart === null) {
+						serviceUnavailableStart = Date.now();
+					}
+					const elapsed = Date.now() - serviceUnavailableStart;
+					if (elapsed < serviceUnavailableTimeoutMs) {
+						// Use 1s base delay with exponential backoff, capped at 5s
+						const delayMs = Math.min(this.#getRetryDelay(attempt, 1000), 5000);
+						this.#logger.debug(
+							`Got ${response.status} sending to ${url}, service unavailable for ${Math.round(elapsed / 1000)}s, retrying (will delay ${delayMs}ms), sessionId: ${sessionId ?? null}`
+						);
+						await this.#sleep(delayMs);
+						attempt++;
+						continue;
+					}
+				}
+
+				// Check if we should retry on specific status codes (409, 501)
+				const retryableStatuses = [409, 501];
 				if (canRetry && retryableStatuses.includes(response.status) && attempt < maxRetries) {
 					let delayMs = this.#getRetryDelay(attempt, baseDelayMs);
 
@@ -548,6 +581,7 @@ export class APIClient {
 
 					this.#logger.debug(`after sleep for ${url}, sessionId: ${sessionId ?? null}`);
 
+					attempt++;
 					continue;
 				}
 
@@ -693,16 +727,13 @@ export class APIClient {
 						error
 					);
 					await this.#sleep(this.#getRetryDelay(attempt, baseDelayMs));
+					attempt++;
 					continue;
 				}
 
 				throw error;
 			}
 		}
-
-		this.#logger.debug('max retries trying: %s', url);
-
-		throw new MaxRetriesError();
 	}
 
 	#isRetryableError(error: unknown): boolean {

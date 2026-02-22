@@ -9,6 +9,7 @@ import { join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
 import type { Logger } from '../../../types';
 import { parseRoute } from '../ast';
+import { toForwardSlash } from '../../../utils/normalize-path';
 
 export interface RouteMetadata {
 	id: string;
@@ -105,7 +106,7 @@ export async function discoverRoutes(
 			}
 
 			const rootDir = join(srcDir, '..');
-			const relativeFilename = './' + relative(srcDir, filePath);
+			const relativeFilename = './' + toForwardSlash(relative(srcDir, filePath));
 
 			try {
 				const parsedRoutes = await parseRoute(
@@ -183,7 +184,7 @@ export async function discoverRoutes(
 		const rootDir = join(srcDir, '..');
 		const subrouterRelPaths = new Set<string>();
 		for (const absPath of mountedSubrouters) {
-			subrouterRelPaths.add(relative(rootDir, absPath));
+			subrouterRelPaths.add(toForwardSlash(relative(rootDir, absPath)));
 		}
 
 		// Remove routes whose filename matches a sub-router file

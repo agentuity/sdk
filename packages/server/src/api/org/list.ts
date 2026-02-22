@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '../api';
-import { OrgResponseError } from './util';
+import { APIResponseSchema, APIClient } from '../api.ts';
+import { OrgResponseError } from './util.ts';
 
 export const ListOrganizationsResponse = z.array(
 	z.object({

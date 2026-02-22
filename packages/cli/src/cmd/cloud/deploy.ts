@@ -1,68 +1,69 @@
-import { z } from 'zod';
-import { join, resolve } from 'node:path';
 import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { StructuredError } from '@agentuity/core';
-import { createSubcommand, DeployOptionsSchema } from '../../types';
-import { getUserAgent } from '../../api';
-import * as tui from '../../tui';
 import {
-	saveProjectDir,
-	getDefaultConfigDir,
-	loadProjectSDKKey,
-	updateProjectConfig,
-	getGlobalCatalystAPIClient,
-} from '../../config';
-import { getProjectGithubStatus } from '../git/api';
-import { runGitLink } from '../git/link';
-import {
-	runSteps,
-	stepSuccess,
-	stepSkipped,
-	stepError,
-	pauseStepUI,
-	StepInterruptError,
-	type Step,
-	type StepContext,
-} from '../../steps';
-import { viteBundle } from '../build/vite-bundler';
-import { loadBuildMetadata, getStreamURL } from '../../config';
-import {
-	projectEnvUpdate,
-	projectDeploymentCreate,
-	projectDeploymentUpdate,
+	type BuildMetadata,
+	type Deployment,
+	type DeploymentComplete,
+	type DeploymentInstructions,
+	type DeploymentStatusResult,
+	getAppBaseURL,
+	type MalwareCheckResult,
 	projectDeploymentComplete,
-	projectDeploymentStatus,
+	projectDeploymentCreate,
 	projectDeploymentMalwareCheck,
-	validateResources,
+	projectDeploymentStatus,
+	projectDeploymentUpdate,
+	projectEnvUpdate,
 	projectGet,
 	projectUpdateRegion,
-	type Deployment,
-	type BuildMetadata,
-	type DeploymentInstructions,
-	type DeploymentComplete,
-	type DeploymentStatusResult,
-	type MalwareCheckResult,
-	getAppBaseURL,
+	validateResources,
 } from '@agentuity/server';
+import { z } from 'zod';
+import { getUserAgent } from '../../api';
+import { BuildReportCollector, clearGlobalCollector, setGlobalCollector } from '../../build-report';
+import { getCachedProject, setCachedProject } from '../../cache';
+import { getCommand } from '../../command-prefix';
 import {
+	getDefaultConfigDir,
+	getGlobalCatalystAPIClient,
+	getStreamURL,
+	loadBuildMetadata,
+	loadProjectSDKKey,
+	saveProjectDir,
+	updateProjectConfig,
+} from '../../config';
+import { encryptFIPSKEMDEMStream } from '../../crypto/box';
+import * as domain from '../../domain';
+import {
+	filterAgentuitySdkKeys,
 	findExistingEnvFile,
 	readEnvFile,
-	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 } from '../../env-util';
-import { zipDir } from '../../utils/zip';
-import { encryptFIPSKEMDEMStream } from '../../crypto/box';
-import { getCommand } from '../../command-prefix';
-import * as domain from '../../domain';
 import { ErrorCode, getExitCode } from '../../errors';
-import { typecheck } from '../build/typecheck';
-import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
-import { runForkedDeploy } from './deploy-fork';
+import {
+	pauseStepUI,
+	runSteps,
+	type Step,
+	type StepContext,
+	StepInterruptError,
+	stepError,
+	stepSkipped,
+	stepSuccess,
+} from '../../steps';
+import * as tui from '../../tui';
+import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { validateAptDependencies } from '../../utils/apt-validator';
 import { extractDependencies } from '../../utils/deps';
-import { getCachedProject, setCachedProject } from '../../cache';
+import { zipDir } from '../../utils/zip';
+import { typecheck } from '../build/typecheck';
+import { viteBundle } from '../build/vite-bundler';
+import { getProjectGithubStatus } from '../git/api';
+import { runGitLink } from '../git/link';
+import { runForkedDeploy } from './deploy-fork';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -501,7 +502,6 @@ export const deploySubcommand = createSubcommand({
 							const result = await runGitLink({
 								apiClient,
 								projectId: project.projectId,
-								orgId: project.orgId,
 								logger,
 								skipAlreadyLinkedCheck: true,
 								config,
@@ -515,7 +515,8 @@ export const deploySubcommand = createSubcommand({
 								tui.info('Push a commit to trigger your first deployment.');
 								tui.newline();
 								throw new DeploymentCancelledError();
-							} else if (result.linked) {
+							}
+							if (result.linked) {
 								// Linked but auto-deploy disabled, continue with manual deploy
 								tui.newline();
 								tui.info('GitHub repository linked. Continuing with deployment...');
@@ -623,9 +624,7 @@ export const deploySubcommand = createSubcommand({
 
 							if (typeResult.success) {
 								capturedOutput.push(
-									tui.muted(
-										`✓ Typechecked in ${Math.floor(Date.now() - started).toFixed(0)}ms`
-									)
+									tui.muted(`✓ Typechecked in ${Date.now() - started}ms`)
 								);
 							} else {
 								// Errors already added to collector by typecheck()
@@ -1174,9 +1173,7 @@ export const deploySubcommand = createSubcommand({
 
 				const lines = [`${ex}`, ''];
 				lines.push(
-					`${tui.ICONS.arrow} ${
-						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
-					}`
+					`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)}`
 				);
 				tui.banner(tui.colorError(`Deployment: ${deployment.id} Failed`), lines.join('\n'), {
 					centerTitle: false,
@@ -1209,15 +1206,11 @@ export const deploySubcommand = createSubcommand({
 						}`
 					);
 					lines.push(
-						`${tui.ICONS.arrow} ${
-							tui.bold(tui.padRight('Project:', 12)) + tui.link(latestUrl)
-						}`
+						`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Project:', 12)) + tui.link(latestUrl)}`
 					);
 				}
 				lines.push(
-					`${tui.ICONS.arrow} ${
-						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
-					}`
+					`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)}`
 				);
 				tui.banner(`Deployment: ${tui.colorPrimary(deployment.id)}`, lines.join('\n'), {
 					centerTitle: false,

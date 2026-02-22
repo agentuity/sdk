@@ -4,7 +4,7 @@ import type {
 	FetchRequest,
 	FetchResponse,
 	FetchAdapter,
-} from '../src/services/adapter';
+} from '../src/services/adapter.ts';
 
 describe('adapter types', () => {
 	test('should define HTTP methods', () => {

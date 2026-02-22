@@ -2,7 +2,7 @@
 
 // NOTE: these ideas are borrowed from https://github.com/Effect-TS/effect
 
-import { safeStringify } from './json';
+import { safeStringify } from './json.ts';
 
 // Conditionally import util for Node.js environments only
 let util: typeof import('node:util') | undefined;

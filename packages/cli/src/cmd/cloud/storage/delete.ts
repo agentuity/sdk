@@ -14,7 +14,7 @@ import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../..
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	aliases: ['rm', 'del', 'remove'],
-	description: 'Delete a storage resource or file',
+	description: 'Delete a storage resource, file, or folder',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: false,
 	requires: { auth: true },
@@ -33,6 +33,10 @@ export const deleteSubcommand = createSubcommand({
 			description: 'Interactive selection to delete a bucket',
 		},
 		{
+			command: getCommand('cloud storage delete my-bucket path/to/folder'),
+			description: 'Delete a folder and all its contents from a bucket',
+		},
+		{
 			command: getCommand('--dry-run cloud storage delete my-bucket'),
 			description: 'Dry-run: show what would be deleted without making changes',
 		},
@@ -48,6 +52,7 @@ export const deleteSubcommand = createSubcommand({
 		response: z.object({
 			success: z.boolean().describe('Whether deletion succeeded'),
 			name: z.string().describe('Deleted bucket or file name'),
+			count: z.number().optional().describe('Number of files deleted (for folder deletion)'),
 		}),
 	},
 
@@ -116,7 +121,7 @@ export const deleteSubcommand = createSubcommand({
 			bucketName = response.bucket;
 		}
 
-		// If filename is provided, delete the file from the bucket
+		// If filename is provided, delete the file or folder from the bucket
 		if (args.filename) {
 			const bucket = resources.s3.find((s3) => s3.bucket_name === bucketName);
 
@@ -131,22 +136,143 @@ export const deleteSubcommand = createSubcommand({
 				);
 			}
 
+			const s3Client = createS3Client({
+				endpoint: bucket.endpoint,
+				access_key: bucket.access_key,
+				secret_key: bucket.secret_key,
+				region: bucket.region,
+			});
+
+			const filePath = args.filename;
+
+			// Check if path represents a folder by listing objects under it
+			const folderPrefix = filePath.endsWith('/') ? filePath : filePath + '/';
+			const folderContents: Array<{ key: string }> = [];
+			let continuationToken: string | undefined;
+			let isTruncated = false;
+
+			do {
+				const folderResult = await s3Client.list({
+					prefix: folderPrefix,
+					...(continuationToken ? { continuationToken } : {}),
+				});
+				if (folderResult.contents) {
+					folderContents.push(...folderResult.contents);
+				}
+				continuationToken = folderResult.nextContinuationToken;
+				isTruncated = folderResult.isTruncated ?? false;
+			} while (isTruncated);
+
+			if (folderContents.length > 0) {
+				// Path is a folder — recursive delete
+				const keysToDelete = folderContents.map((obj: { key: string }) => obj.key);
+
+				// Handle dry-run mode
+				if (isDryRunMode(options)) {
+					outputDryRun(
+						`Would delete ${keysToDelete.length} file${keysToDelete.length === 1 ? '' : 's'} under ${folderPrefix} from bucket ${bucketName}`,
+						options
+					);
+					if (!options.json) {
+						tui.newline();
+						tui.info('[DRY RUN] Folder deletion skipped');
+					}
+					return { success: false, name: filePath, count: keysToDelete.length };
+				}
+
+				// Confirm
+				if (!opts.confirm) {
+					tui.warning(
+						`You are about to delete ${tui.bold(String(keysToDelete.length))} file${keysToDelete.length === 1 ? '' : 's'} under folder: ${tui.bold(folderPrefix)} from bucket: ${tui.bold(bucketName)}`
+					);
+					const confirm = await enquirer.prompt<{ confirm: boolean }>({
+						type: 'confirm',
+						name: 'confirm',
+						message: 'Are you sure you want to delete this folder and all its contents?',
+						initial: false,
+					});
+					if (!confirm.confirm) {
+						tui.info('Deletion cancelled');
+						return { success: false, name: filePath };
+					}
+				}
+
+				// Delete all files
+				await tui.spinner({
+					message: `Deleting ${keysToDelete.length} file${keysToDelete.length === 1 ? '' : 's'} under ${folderPrefix} from ${bucketName}`,
+					clearOnSuccess: true,
+					callback: async () => {
+						const errors: Array<{ key: string; error: string }> = [];
+						for (const key of keysToDelete) {
+							try {
+								await s3Client.delete(key);
+							} catch (err) {
+								errors.push({
+									key,
+									error: err instanceof Error ? err.message : String(err),
+								});
+							}
+						}
+						if (errors.length > 0) {
+							const failedKeys = errors.map((e) => e.key).join(', ');
+							throw new Error(
+								`Failed to delete ${errors.length} file${errors.length === 1 ? '' : 's'}: ${failedKeys}`
+							);
+						}
+					},
+				});
+
+				// Also delete the exact file if it exists (handles file+folder name conflicts)
+				// Skip if filePath was already deleted as part of folder contents (e.g., trailing-slash folder markers)
+				if (!keysToDelete.includes(filePath)) {
+					const exactFileCheck = await s3Client.list({ prefix: filePath });
+					const exactFile = (exactFileCheck.contents || []).find(
+						(obj: { key: string }) => obj.key === filePath
+					);
+					if (exactFile) {
+						await s3Client.delete(filePath);
+						keysToDelete.push(filePath);
+					}
+				}
+
+				if (!options.json) {
+					tui.success(
+						`Deleted ${tui.bold(String(keysToDelete.length))} file${keysToDelete.length === 1 ? '' : 's'} under ${tui.bold(folderPrefix)} from ${tui.bold(bucketName)}`
+					);
+				}
+
+				return { success: true, name: filePath, count: keysToDelete.length };
+			}
+
+			// Not a folder — check if exact file exists
+			const fileResult = await s3Client.list({ prefix: filePath });
+			const exactMatch = (fileResult.contents || []).find(
+				(obj: { key: string }) => obj.key === filePath
+			);
+
+			if (!exactMatch) {
+				tui.fatal(
+					`No file or folder found at '${filePath}' in bucket '${bucketName}'`,
+					ErrorCode.RESOURCE_NOT_FOUND
+				);
+			}
+
 			// Handle dry-run mode
 			if (isDryRunMode(options)) {
-				outputDryRun(`Would delete file ${args.filename} from bucket ${bucketName}`, options);
+				outputDryRun(`Would delete file ${filePath} from bucket ${bucketName}`, options);
 				if (!options.json) {
 					tui.newline();
 					tui.info('[DRY RUN] File deletion skipped');
 				}
 				return {
 					success: false,
-					name: args.filename,
+					name: filePath,
 				};
 			}
 
 			if (!opts.confirm) {
 				tui.warning(
-					`You are about to delete file: ${tui.bold(args.filename)} from bucket: ${tui.bold(bucketName)}`
+					`You are about to delete file: ${tui.bold(filePath)} from bucket: ${tui.bold(bucketName)}`
 				);
 
 				const confirm = await enquirer.prompt<{ confirm: boolean }>({
@@ -158,32 +284,25 @@ export const deleteSubcommand = createSubcommand({
 
 				if (!confirm.confirm) {
 					tui.info('Deletion cancelled');
-					return { success: false, name: args.filename };
+					return { success: false, name: filePath };
 				}
 			}
 
-			const s3Client = createS3Client({
-				endpoint: bucket.endpoint,
-				access_key: bucket.access_key,
-				secret_key: bucket.secret_key,
-				region: bucket.region,
-			});
-
 			await tui.spinner({
-				message: `Deleting ${args.filename} from ${bucketName}`,
+				message: `Deleting ${filePath} from ${bucketName}`,
 				clearOnSuccess: true,
 				callback: async () => {
-					await s3Client.delete(args.filename!);
+					await s3Client.delete(filePath);
 				},
 			});
 
 			if (!options.json) {
-				tui.success(`Deleted file: ${tui.bold(args.filename)} from ${tui.bold(bucketName)}`);
+				tui.success(`Deleted file: ${tui.bold(filePath)} from ${tui.bold(bucketName)}`);
 			}
 
 			return {
 				success: true,
-				name: args.filename,
+				name: filePath,
 			};
 		}
 

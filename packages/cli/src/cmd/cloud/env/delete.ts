@@ -2,12 +2,7 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectEnvDelete, projectGet, orgEnvDelete, orgEnvGet } from '@agentuity/server';
-import {
-	findExistingEnvFile,
-	readEnvFile,
-	writeEnvFile,
-	isReservedAgentuityKey,
-} from '../../../env-util';
+import { isReservedAgentuityKey } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { resolveOrgId, isOrgScope } from './org-util';
@@ -15,10 +10,6 @@ import { resolveOrgId, isOrgScope } from './org-util';
 const EnvDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	keys: z.array(z.string()).describe('Variable keys that were deleted'),
-	path: z
-		.string()
-		.optional()
-		.describe('Local file path where variables were removed (project scope only)'),
 	secrets: z.array(z.string()).describe('Keys that were secrets'),
 	env: z.array(z.string()).describe('Keys that were environment variables'),
 	scope: z.enum(['project', 'org']).describe('The scope from which the variables were deleted'),
@@ -61,7 +52,7 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, project, projectDir, apiClient, config, opts } = ctx;
+		const { args, project, apiClient, config, opts } = ctx;
 		const useOrgScope = isOrgScope(opts?.org);
 		const keys = args.key;
 
@@ -174,38 +165,16 @@ export const deleteSubcommand = createSubcommand({
 				});
 			});
 
-			// Update local .env file only if we have a project directory and an existing .env file
-			let envFilePath: string | undefined;
-			if (projectDir) {
-				envFilePath = await findExistingEnvFile(projectDir);
-				if (envFilePath) {
-					const currentEnv = await readEnvFile(envFilePath);
-					const originalKeyCount = Object.keys(currentEnv).length;
-					for (const key of [...secretKeys, ...envKeys]) {
-						delete currentEnv[key];
-					}
-					// Only write if we actually removed keys (avoid creating empty file)
-					const keysRemoved = originalKeyCount > Object.keys(currentEnv).length;
-					if (keysRemoved) {
-						await writeEnvFile(envFilePath, currentEnv, { preserveExisting: false });
-					}
-				}
-			}
-
 			const deletedKeys = [...secretKeys, ...envKeys];
 			if (notFoundKeys.length > 0) {
 				tui.warning(`Variables not found (skipped): ${notFoundKeys.join(', ')}`);
 			}
 
-			const locationMsg = envFilePath ? ` (cloud + ${envFilePath})` : ' (cloud only)';
-			tui.success(
-				`Deleted ${deletedKeys.length} variable(s): ${deletedKeys.join(', ')}${locationMsg}`
-			);
+			tui.success(`Deleted ${deletedKeys.length} variable(s): ${deletedKeys.join(', ')}`);
 
 			return {
 				success: true,
 				keys: deletedKeys,
-				path: envFilePath,
 				secrets: secretKeys,
 				env: envKeys,
 				scope: 'project' as const,

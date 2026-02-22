@@ -1,6 +1,9 @@
 import type { PluginInput, Hooks } from '@opencode-ai/plugin';
 import { tool } from '@opencode-ai/plugin';
 import { StructuredError } from '@agentuity/core';
+import { existsSync } from 'node:fs';
+import { homedir, platform } from 'node:os';
+import { join } from 'node:path';
 import { z } from 'zod';
 import type { AgentConfig, CommandDefinition } from '../types';
 import { loadAllSkills, type LoadedSkill } from '../skills';
@@ -12,8 +15,10 @@ import { createKeywordHooks } from './hooks/keyword';
 import { createParamsHooks } from './hooks/params';
 import { createCadenceHooks } from './hooks/cadence';
 import { createSessionMemoryHooks } from './hooks/session-memory';
+import { createCompletionHooks } from './hooks/completion';
 import type { AgentRole } from '../types';
-import { BackgroundManager } from '../background';
+import type { SessionTreeNode } from '../sqlite';
+import { OpenCodeDBReader } from '../sqlite';
 import { TmuxSessionManager } from '../tmux';
 import { checkAuth } from '../services/auth';
 
@@ -39,6 +44,11 @@ const MemoryShareError = StructuredError(
 	'MemoryShareError',
 	'Failed to create public memory share'
 )<{ reason: string }>();
+
+const OpenCodeDashboardUnavailableError = StructuredError(
+	'OpenCodeDashboardUnavailableError',
+	'OpenCode SQLite database is not available. Requires OpenCode v1.2.0+ with SQLite storage.'
+);
 
 // Sandbox environment detection
 const SANDBOX_ID = process.env.AGENTUITY_SANDBOX_ID;
@@ -79,11 +89,18 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 
 	const userConfig = await loadCoderConfig();
 	const coderConfig = mergeConfig(getDefaultConfig(), userConfig);
+	const resolvedDbPath = resolveOpenCodeDBPath();
+	const dbReader = new OpenCodeDBReader(resolvedDbPath ? { dbPath: resolvedDbPath } : undefined);
+
+	// Shared Map: chat.params stores the user's message text per session,
+	// chat.message reads it for trigger detection (avoids scanning model output).
+	const lastUserMessages = new Map<string, string>();
 
 	const sessionHooks = createSessionHooks(ctx, coderConfig);
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
 	const paramsHooks = createParamsHooks(ctx, coderConfig);
+	const completionHooks = createCompletionHooks(ctx, coderConfig);
 	const tmuxManager = coderConfig.tmux?.enabled
 		? new TmuxSessionManager(ctx, coderConfig.tmux, {
 				onLog: (message) =>
@@ -96,60 +113,18 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 					}),
 			})
 		: undefined;
-	const backgroundManager = new BackgroundManager(ctx, coderConfig.background, {
-		onSubagentSessionCreated: tmuxManager
-			? (event) => {
-					void tmuxManager.onSessionCreated(event);
-				}
-			: undefined,
-		onSubagentSessionDeleted: tmuxManager
-			? (event) => {
-					void tmuxManager.onSessionDeleted(event);
-				}
-			: undefined,
-		onShutdown: tmuxManager
-			? () => {
-					void tmuxManager.cleanup();
-				}
-			: undefined,
-	});
 
-	// Recover any background tasks from previous sessions
-	// This allows tasks to survive plugin restarts
-	void backgroundManager
-		.recoverTasks()
-		.then((count) => {
-			if (count > 0) {
-				ctx.client.app.log({
-					body: {
-						service: 'agentuity-coder',
-						level: 'info',
-						message: `Recovered ${count} background task(s) from previous sessions`,
-					},
-				});
-			}
-		})
-		.catch((error) => {
-			ctx.client.app.log({
-				body: {
-					service: 'agentuity-coder',
-					level: 'warn',
-					message: `Failed to recover background tasks: ${error}`,
-				},
-			});
-		});
-
-	// Create hooks that need backgroundManager for task reference injection during compaction
-	const cadenceHooks = createCadenceHooks(ctx, coderConfig, backgroundManager);
+	// Create hooks for session routing and compaction behavior
+	const cadenceHooks = createCadenceHooks(ctx, coderConfig, dbReader, lastUserMessages);
 
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
 	// Orchestration (deciding which module handles which session) happens below in the hooks
-	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig, backgroundManager);
+	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig, dbReader);
 
 	const configHandler = createConfigHandler(coderConfig);
 
 	// Create plugin tools using the @opencode-ai/plugin tool helper
-	const tools = createTools(backgroundManager);
+	const tools = createTools(dbReader);
 
 	// Create a logger for shutdown handler
 	const shutdownLogger = (message: string) =>
@@ -161,7 +136,7 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			},
 		});
 
-	registerShutdownHandler(backgroundManager, tmuxManager, shutdownLogger);
+	registerShutdownHandler(tmuxManager, shutdownLogger, dbReader);
 
 	// Show startup toast (fire and forget, don't block)
 	try {
@@ -176,11 +151,15 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		...(tools ? { tool: tools } : {}),
 		config: configHandler,
 		'chat.message': async (input: unknown, output: unknown) => {
+			completionHooks.onMessage(input);
 			await keywordHooks.onMessage(input, output);
 			await sessionHooks.onMessage(input, output);
 			await cadenceHooks.onMessage(input, output);
 		},
-		'chat.params': paramsHooks.onParams,
+		'chat.params': async (input: unknown, output: unknown) => {
+			completionHooks.onParams(input);
+			await paramsHooks.onParams(input, output);
+		},
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
 		'shell.env': async (_input: unknown, output: unknown) => {
@@ -192,6 +171,9 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			out.env ??= {} as Record<string, string>;
 			out.env.AGENTUITY_PROFILE = profile;
 			out.env.AGENTUITY_AGENT_MODE = 'opencode';
+			if (resolvedDbPath) {
+				out.env.OPENCODE_DB_PATH = resolvedDbPath;
+			}
 			const sessionId = process.env.AGENTUITY_OPENCODE_SESSION;
 			if (sessionId) {
 				out.env.AGENTUITY_OPENCODE_SESSION = sessionId;
@@ -204,22 +186,30 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			}
 		},
 		event: async (input) => {
-			const event = extractEventFromInput(input);
-			if (event) {
-				backgroundManager.handleEvent(event);
-			}
 			// Orchestrate: route to appropriate module based on session type
 			const sessionId = extractSessionIdFromEvent(input);
-			if (sessionId && cadenceHooks.isActiveCadenceSession(sessionId)) {
-				await cadenceHooks.onEvent(input);
-			} else if (sessionId) {
-				// Non-Cadence sessions - handle session.compacted for checkpointing
-				await sessionMemoryHooks.onEvent(
-					input as { event: { type: string; properties?: Record<string, unknown> } }
-				);
+			if (sessionId) {
+				// Try lazy restore from KV if not in memory (survives plugin restarts)
+				if (!cadenceHooks.isActiveCadenceSession(sessionId)) {
+					await cadenceHooks.tryRestoreFromKV(sessionId);
+				}
+
+				if (cadenceHooks.isActiveCadenceSession(sessionId)) {
+					await cadenceHooks.onEvent(input);
+				} else {
+					// Non-Cadence sessions - handle session.compacted for checkpointing
+					await sessionMemoryHooks.onEvent(
+						input as { event: { type: string; properties?: Record<string, unknown> } }
+					);
+				}
 			}
 		},
 		'experimental.session.compacting': async (input, output) => {
+			// Try lazy restore from KV if not in memory (survives plugin restarts)
+			if (!cadenceHooks.isActiveCadenceSession(input.sessionID)) {
+				await cadenceHooks.tryRestoreFromKV(input.sessionID);
+			}
+
 			// Orchestrate: route to appropriate module based on session type
 			if (cadenceHooks.isActiveCadenceSession(input.sessionID)) {
 				await cadenceHooks.onCompacting(input, output);
@@ -298,6 +288,16 @@ function createConfigHandler(
 			};
 		}
 
+		// Compaction config: increase reserved token buffer to accommodate our enriched
+		// compaction prompts (planning state, image descriptions, tool summaries, diagnostics).
+		// Default OpenCode reserved buffer is too small for the context we inject.
+		const existingCompaction = (config.compaction ?? {}) as Record<string, unknown>;
+		const existingReserved = existingCompaction.reserved;
+		config.compaction = {
+			...existingCompaction,
+			reserved: typeof existingReserved === 'number' ? existingReserved : 40_000,
+		};
+
 		config.command = {
 			...(config.command as Record<string, CommandDefinition> | undefined),
 			...commands,
@@ -340,6 +340,7 @@ function createAgentConfigs(
 			...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}),
 			...(agent.thinking ? { thinking: agent.thinking } : {}),
 			...(agent.hidden ? { hidden: agent.hidden } : {}),
+			...(agent.fallbackModels?.length ? { fallbackModels: agent.fallbackModels } : {}),
 		};
 	}
 
@@ -564,7 +565,7 @@ $ARGUMENTS
 ## Lead-of-Leads (Parallel Work)
 If the task has **independent workstreams** that can run in parallel (e.g., "build auth, payments, and notifications"):
 1. Ask @Agentuity Coder Product to create PRD with workstreams
-2. Spawn child Leads via \`agentuity_background_task\` for each workstream
+2. Spawn child Leads using the \`task\` tool (issue multiple task calls in a single response for parallel work)
 3. Each child Lead claims a workstream, works autonomously, marks done when complete
 4. Monitor progress via PRD workstream status
 5. Do integration work when all children complete
@@ -610,141 +611,34 @@ function normalizeBaseDir(path: string): string {
 	return path.replace(/[\\/]+$/, '');
 }
 
-function createTools(backgroundManager: BackgroundManager): Hooks['tool'] {
+function createTools(dbReader?: OpenCodeDBReader): Hooks['tool'] {
 	// Use the schema from @opencode-ai/plugin's tool helper to avoid Zod version mismatches
 	const s = tool.schema;
 
-	const backgroundTask = tool({
-		description: `Launch a task to run in the background. Use this for parallel execution of multiple independent tasks.
-
-IMPORTANT: Use this tool instead of the 'task' tool when:
-- You need to run multiple agents in parallel
-- Tasks are independent and don't need sequential execution
-- The user asks for "parallel", "background", or "concurrent" work`,
+	const sessionDashboard = tool({
+		description:
+			'Inspect a parent session dashboard from the local OpenCode SQLite database. Useful for Lead-of-Leads monitoring and nested session visibility.',
 		args: {
-			agent: s
-				.enum([
-					'lead',
-					'scout',
-					'builder',
-					'architect',
-					'reviewer',
-					'memory',
-					'expert',
-					'runner',
-					'product',
-					'monitor',
-				])
-				.describe('Agent role to run the task'),
-			task: s.string().describe('Task prompt to run in the background'),
-			description: s.string().optional().describe('Short description of the task'),
+			session_id: s.string().describe('Parent session ID to inspect'),
 		},
-		async execute(args, context) {
-			const parentSessionId = context.sessionID;
-			if (!parentSessionId) {
+		async execute(args) {
+			if (!dbReader || !dbReader.isAvailable()) {
+				const err = new OpenCodeDashboardUnavailableError();
 				return JSON.stringify({
-					taskId: 'unknown',
-					status: 'error',
-					message: 'Missing session context for background task.',
+					success: false,
+					error: err._tag,
+					message: err.message,
 				});
 			}
 
-			const agentName = resolveAgentName(args.agent as AgentRole);
-			const bgTask = await backgroundManager.launch({
-				description: args.description ?? args.task,
-				prompt: args.task,
-				agent: agentName,
-				parentSessionId,
-				parentMessageId: context.messageID,
-			});
+			const dashboard = dbReader.getSessionDashboard(args.session_id);
+			const builtTree = buildDashboardTree(dbReader, dashboard.sessions);
 			return JSON.stringify({
-				taskId: bgTask.id,
-				status: bgTask.status,
-				message:
-					bgTask.status === 'error'
-						? (bgTask.error ?? 'Failed to launch background task.')
-						: 'Background task launched.',
-			});
-		},
-	});
-
-	const backgroundOutput = tool({
-		description: 'Retrieve output for a background task.',
-		args: {
-			task_id: s.string().describe('Background task ID'),
-		},
-		async execute(args) {
-			const bgTask = backgroundManager.getTask(args.task_id);
-			if (!bgTask) {
-				return JSON.stringify({
-					taskId: args.task_id,
-					status: 'error',
-					error: 'Task not found.',
-				});
-			}
-			return JSON.stringify({
-				taskId: bgTask.id,
-				status: bgTask.status,
-				result: bgTask.result,
-				error: bgTask.error,
-			});
-		},
-	});
-
-	const backgroundCancel = tool({
-		description: 'Cancel a running background task.',
-		args: {
-			task_id: s.string().describe('Background task ID'),
-		},
-		async execute(args) {
-			const success = backgroundManager.cancel(args.task_id);
-			return JSON.stringify({
-				taskId: args.task_id,
-				success,
-				message: success ? 'Background task cancelled.' : 'Unable to cancel task.',
-			});
-		},
-	});
-
-	const backgroundInspect = tool({
-		description: `Inspect a background task to see its session messages and current state. Useful for debugging or checking what a child agent is doing.`,
-		args: {
-			task_id: s.string().describe('Background task ID to inspect'),
-		},
-		async execute(args) {
-			const inspection = await backgroundManager.inspectTask(args.task_id);
-			if (!inspection) {
-				return JSON.stringify({
-					taskId: args.task_id,
-					status: 'unknown',
-					found: false,
-					error: 'Task not found or session no longer exists.',
-				});
-			}
-
-			// Extract last few messages for summary
-			const messages = inspection.messages ?? [];
-			const lastMessages = messages
-				.slice(-3)
-				.map((m) => {
-					const parts = m.parts ?? [];
-					const textParts = parts.filter(
-						(p: unknown) => (p as { type?: string }).type === 'text'
-					);
-					return textParts
-						.map((p: unknown) => ((p as { text?: string }).text ?? '').slice(0, 200))
-						.join(' ')
-						.slice(0, 300);
-				})
-				.filter(Boolean);
-
-			return JSON.stringify({
-				taskId: inspection.taskId,
-				status: inspection.status,
-				found: true,
-				messageCount: messages.length,
-				lastMessages,
-				lastActivity: inspection.lastActivity,
+				success: true,
+				sessionId: args.session_id,
+				totalCost: dashboard.totalCost,
+				summary: computeHealthSummary(builtTree),
+				sessions: builtTree,
 			});
 		},
 	});
@@ -890,10 +784,7 @@ Returns the public URL that can be copied and used anywhere.`,
 	});
 
 	return {
-		agentuity_background_task: backgroundTask,
-		agentuity_background_output: backgroundOutput,
-		agentuity_background_cancel: backgroundCancel,
-		agentuity_background_inspect: backgroundInspect,
+		agentuity_session_dashboard: sessionDashboard,
 		agentuity_memory_share: memoryShare,
 	};
 }
@@ -914,24 +805,173 @@ function extractSessionIdFromEvent(input: unknown): string | undefined {
 	);
 }
 
-function resolveAgentName(role: AgentRole): string {
-	const agent = agents[role];
-	return agent?.displayName ?? role;
+function parseDisplayTitle(rawTitle: string): string {
+	try {
+		const parsed = JSON.parse(rawTitle);
+		if (typeof parsed === 'object' && parsed !== null) {
+			if (typeof parsed.description === 'string') return parsed.description;
+			if (typeof parsed.title === 'string') return parsed.title;
+			if (typeof parsed.name === 'string') return parsed.name;
+		}
+		// Parsed but no useful field — return as-is
+		return rawTitle;
+	} catch {
+		// Not JSON, return as-is
+		return rawTitle;
+	}
 }
 
-function extractEventFromInput(
-	input: unknown
-): { type: string; properties?: Record<string, unknown> } | undefined {
-	if (typeof input !== 'object' || input === null) return undefined;
-	const inp = input as { event?: { type?: string; properties?: Record<string, unknown> } };
-	if (!inp.event || typeof inp.event.type !== 'string') return undefined;
-	return { type: inp.event.type, properties: inp.event.properties };
+function getCurrentActivity(reader: OpenCodeDBReader, sessionId: string): string | null {
+	// First check active tools
+	const activeTools = reader.getActiveToolCalls(sessionId);
+	const firstTool = activeTools[0];
+	if (firstTool) {
+		return `Running ${firstTool.tool}`;
+	}
+
+	// Fall back to latest message
+	const latestMsg = reader.getLatestMessage(sessionId);
+	if (!latestMsg) return null;
+
+	if (latestMsg.error) return `Error: ${latestMsg.error.substring(0, 100)}`;
+
+	// Try to get latest text part for a snippet
+	const textParts = reader.getTextParts(sessionId, { limit: 1 });
+	const firstPart = textParts[0];
+	if (firstPart) {
+		const text = firstPart.text.trim();
+		if (text.length > 80) return text.substring(0, 77) + '...';
+		return text;
+	}
+
+	return null;
+}
+
+type DashboardNode = {
+	session: {
+		id: string;
+		title: string;
+		displayTitle: string;
+		parentId?: string | null;
+		timeUpdated: number;
+		timeUpdatedISO: string;
+	};
+	status: string;
+	lastActivity: number;
+	lastActivityISO: string;
+	currentActivity: string | null;
+	messageCount: number;
+	activeToolCount: number;
+	activeTools: Array<{ tool: string; status: string }>;
+	todoSummary: { total: number; pending: number; completed: number };
+	costSummary?: SessionTreeNode['costSummary'];
+	children: DashboardNode[];
+};
+
+function buildDashboardTree(
+	reader: OpenCodeDBReader,
+	sessions: SessionTreeNode[]
+): DashboardNode[] {
+	return sessions.map((node) => {
+		const status = reader.getSessionStatus(node.session.id);
+		const activeTools = reader.getActiveToolCalls(node.session.id);
+		return {
+			session: {
+				id: node.session.id,
+				title: node.session.title,
+				displayTitle: parseDisplayTitle(node.session.title),
+				parentId: node.session.parentId,
+				timeUpdated: node.session.timeUpdated,
+				timeUpdatedISO: new Date(node.session.timeUpdated).toISOString(),
+			},
+			status: status.status,
+			lastActivity: status.lastActivity,
+			lastActivityISO: new Date(status.lastActivity).toISOString(),
+			currentActivity: getCurrentActivity(reader, node.session.id),
+			messageCount: node.messageCount,
+			activeToolCount: node.activeToolCount,
+			activeTools: activeTools.map((t) => ({ tool: t.tool, status: t.status })),
+			todoSummary: node.todoSummary ?? { total: 0, pending: 0, completed: 0 },
+			costSummary: node.costSummary,
+			children: buildDashboardTree(reader, node.children),
+		};
+	});
+}
+
+type HealthSummary = {
+	active: number;
+	idle: number;
+	error: number;
+	archived: number;
+	compacting: number;
+	total: number;
+};
+
+function computeHealthSummary(nodes: DashboardNode[]): HealthSummary {
+	const summary: HealthSummary = {
+		active: 0,
+		idle: 0,
+		error: 0,
+		archived: 0,
+		compacting: 0,
+		total: 0,
+	};
+	function walk(nodeList: DashboardNode[]): void {
+		for (const node of nodeList) {
+			summary.total++;
+			const status = node.status as keyof Omit<HealthSummary, 'total'>;
+			if (status in summary) {
+				summary[status]++;
+			}
+			if (node.children.length > 0) walk(node.children);
+		}
+	}
+	walk(nodes);
+	return summary;
+}
+
+function resolveOpenCodeDBPath(): string | null {
+	const envPath = process.env.OPENCODE_DB_PATH;
+	if (envPath) {
+		if (isMemoryPath(envPath)) return envPath;
+		if (existsSync(envPath)) return envPath;
+	}
+
+	const home = homedir();
+	const candidates: string[] = [];
+	const currentPlatform = platform();
+
+	if (currentPlatform === 'darwin') {
+		candidates.push(join(home, 'Library', 'Application Support', 'opencode', 'opencode.db'));
+	}
+
+	if (currentPlatform === 'win32') {
+		const appData = process.env.APPDATA ?? join(home, 'AppData', 'Roaming');
+		const localAppData = process.env.LOCALAPPDATA ?? join(home, 'AppData', 'Local');
+		candidates.push(join(appData, 'opencode', 'opencode.db'));
+		candidates.push(join(localAppData, 'opencode', 'opencode.db'));
+	}
+
+	// Linux default
+	candidates.push(join(home, '.local', 'share', 'opencode', 'opencode.db'));
+
+	for (const candidate of candidates) {
+		if (existsSync(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
+function isMemoryPath(path: string): boolean {
+	return path === ':memory:' || path.includes('mode=memory');
 }
 
 function registerShutdownHandler(
-	manager: BackgroundManager,
 	tmuxManager?: TmuxSessionManager,
-	logger?: (msg: string) => void
+	logger?: (msg: string) => void,
+	dbReader?: OpenCodeDBReader
 ): void {
 	if (typeof process === 'undefined') {
 		logger?.('[shutdown] process is undefined, cannot register handlers');
@@ -956,14 +996,6 @@ function registerShutdownHandler(
 
 		log(`Shutdown triggered by ${signal ?? 'unknown'} signal`);
 
-		try {
-			log('Shutting down background manager...');
-			manager.shutdown();
-			log('Background manager shutdown complete');
-		} catch (error) {
-			log(`Background manager shutdown error: ${error}`);
-		}
-
 		if (tmuxManager) {
 			try {
 				log('Cleaning up tmux sessions...');
@@ -972,6 +1004,16 @@ function registerShutdownHandler(
 				log('Tmux cleanup complete');
 			} catch (error) {
 				log(`Tmux cleanup error: ${error}`);
+			}
+		}
+
+		if (dbReader) {
+			try {
+				log('Closing OpenCode DB reader...');
+				dbReader.close();
+				log('OpenCode DB reader closed');
+			} catch (error) {
+				log(`OpenCode DB reader error: ${error}`);
 			}
 		}
 

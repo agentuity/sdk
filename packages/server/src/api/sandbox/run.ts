@@ -1,13 +1,13 @@
 import type { Logger } from '@agentuity/core';
 import type { Readable, Writable } from 'node:stream';
 import { PassThrough } from 'node:stream';
-import { APIClient, PaymentRequiredError } from '../api';
-import { sandboxCreate } from './create';
-import { sandboxDestroy } from './destroy';
-import { sandboxGetStatus } from './getStatus';
-import { ExecutionCancelledError, writeAndDrain } from './util';
+import { APIClient, PaymentRequiredError } from '../api.ts';
+import { sandboxCreate } from './create.ts';
+import { sandboxDestroy } from './destroy.ts';
+import { sandboxGetStatus } from './getStatus.ts';
+import { ExecutionCancelledError, writeAndDrain } from './util.ts';
 import type { SandboxRunOptions, SandboxRunResult } from '@agentuity/core';
-import { getServiceUrls } from '../../config';
+import { getServiceUrls } from '../../config.ts';
 
 const timingLogsEnabled = false;
 
@@ -105,8 +105,8 @@ export async function sandboxRun(
 		stdoutStreamUrl ?? 'none',
 		stderrStreamUrl ?? 'none'
 	);
-	if (timingLogsEnabled) console.error(`[TIMING] +${Date.now() - started}ms: sandbox created (${sandboxId})`);
-
+	if (timingLogsEnabled)
+		console.error(`[TIMING] +${Date.now() - started}ms: sandbox created (${sandboxId})`);
 
 	const abortController = new AbortController();
 	const streamPromises: Promise<void>[] = [];
@@ -209,7 +209,8 @@ export async function sandboxRun(
 			logger?.debug('no streams to wait on, checking sandbox status directly');
 		}
 
-		if (timingLogsEnabled) console.error(`[TIMING] +${Date.now() - started}ms: all streams done, fetching exit code`);
+		if (timingLogsEnabled)
+			console.error(`[TIMING] +${Date.now() - started}ms: all streams done, fetching exit code`);
 		logger?.debug('streams completed, fetching final status');
 
 		// Stream EOF means the sandbox is done — hadron only closes streams after the
@@ -229,7 +230,10 @@ export async function sandboxRun(
 			logger?.debug('sandboxGetStatus failed after stream EOF, using default exit code 0');
 		}
 
-		if (timingLogsEnabled) console.error(`[TIMING] +${Date.now() - started}ms: sandboxGet complete (exit: ${exitCode})`);
+		if (timingLogsEnabled)
+			console.error(
+				`[TIMING] +${Date.now() - started}ms: sandboxGet complete (exit: ${exitCode})`
+			);
 
 		// Build captured output strings
 		const capturedStdout = Buffer.concat(stdoutChunks).toString('utf-8');
@@ -379,7 +383,10 @@ async function streamUrlToWritable(
 		logger?.debug('fetching stream: %s', url);
 		const response = await fetch(url, { signal });
 		logger?.debug('stream response status: %d', response.status);
-		if (timingLogsEnabled && started) console.error(`[TIMING] +${Date.now() - started}ms: stream response received (status: ${response.status})`);
+		if (timingLogsEnabled && started)
+			console.error(
+				`[TIMING] +${Date.now() - started}ms: stream response received (status: ${response.status})`
+			);
 
 		if (!response.ok || !response.body) {
 			logger?.debug('stream response not ok or no body');
@@ -394,13 +401,17 @@ async function streamUrlToWritable(
 			const { done, value } = await reader.read();
 			if (done) {
 				logger?.debug('stream EOF');
-				if (timingLogsEnabled && started) console.error(`[TIMING] +${Date.now() - started}ms: stream EOF`);
+				if (timingLogsEnabled && started)
+					console.error(`[TIMING] +${Date.now() - started}ms: stream EOF`);
 				break;
 			}
 
 			if (value) {
 				if (firstChunk && started) {
-					if (timingLogsEnabled) console.error(`[TIMING] +${Date.now() - started}ms: first chunk (${value.length} bytes)`);
+					if (timingLogsEnabled)
+						console.error(
+							`[TIMING] +${Date.now() - started}ms: first chunk (${value.length} bytes)`
+						);
 					firstChunk = false;
 				}
 				logger?.debug('stream chunk: %d bytes', value.length);

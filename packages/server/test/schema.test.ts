@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
 import { z } from 'zod';
 import { s } from '@agentuity/schema';
-import { toJSONSchema } from '../src/schema';
+import { toJSONSchema } from '../src/schema.ts';
 
 describe('toJSONSchema', () => {
 	describe('Zod schemas', () => {

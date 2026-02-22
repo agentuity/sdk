@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
 import {
 	type DeadLetterMessage,
 	DeadLetterMessageSchema,
@@ -7,16 +7,20 @@ import {
 	type Message,
 	MessageSchema,
 	type QueueApiOptions,
-} from './types';
+} from './types.ts';
 import {
 	buildQueueHeaders,
-	MessageNotFoundError,
 	QueueError,
-	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
-} from './util';
-import { validateLimit, validateMessageId, validateOffset, validateQueueName } from './validation';
+	withQueueErrorHandling,
+} from './util.ts';
+import {
+	validateLimit,
+	validateMessageId,
+	validateOffset,
+	validateQueueName,
+} from './validation.ts';
 
 export const DlqListResponseSchema = APIResponseSchema(
 	z.object({
@@ -75,22 +79,13 @@ export async function listDeadLetterMessages(
 
 	const queryString = searchParams.toString();
 	const url = queueApiPathWithQuery('dlq/list', queryString || undefined, queueName);
-	const resp = await client.get(
-		url,
-		DlqListResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() => client.get(url, DlqListResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return { messages: resp.data.messages, total: resp.data.total };
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -132,32 +127,21 @@ export async function replayDeadLetterMessage(
 	validateMessageId(messageId);
 
 	const url = queueApiPath('dlq/replay', queueName, messageId);
-	const resp = await client.post(
-		url,
-		undefined,
-		ReplayDlqResponseSchema,
-		undefined,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				undefined,
+				ReplayDlqResponseSchema,
+				undefined,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, messageId }
 	);
 
 	if (resp.success) {
 		return resp.data.message;
-	}
-
-	if (resp.message?.includes('message') && resp.message?.includes('not found')) {
-		throw new MessageNotFoundError({
-			queueName,
-			messageId,
-			message: resp.message,
-		});
-	}
-
-	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -194,22 +178,14 @@ export async function purgeDeadLetter(
 ): Promise<void> {
 	validateQueueName(queueName);
 	const url = queueApiPath('dlq/purge', queueName);
-	const resp = await client.delete(
-		url,
-		DeleteDlqResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.delete(url, DeleteDlqResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -250,30 +226,14 @@ export async function deleteDeadLetterMessage(
 	validateMessageId(messageId);
 
 	const url = queueApiPath('dlq/delete', queueName, messageId);
-	const resp = await client.delete(
-		url,
-		DeleteDlqResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.delete(url, DeleteDlqResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName, messageId }
 	);
 
 	if (resp.success) {
 		return;
-	}
-
-	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
-	}
-
-	if (resp.message?.includes('message') && resp.message?.includes('not found')) {
-		throw new MessageNotFoundError({
-			queueName,
-			messageId,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({

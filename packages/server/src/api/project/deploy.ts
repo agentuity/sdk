@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { ProjectResponseError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { ProjectResponseError } from './util.ts';
 
 export const Resources = z.object({
 	memory: z.string().default('500Mi').describe('The memory requirements'),
