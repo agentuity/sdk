@@ -62,10 +62,8 @@ export function createCompletionHooks(ctx: PluginInput, _config: CoderConfig): C
 
 			const logLine = `Completion: agent=${start.agent} model=${start.model} duration=${durationSec}s`;
 
-			// Verbose local logging for immediate visibility
-			console.debug(`[agentuity-coder] ${logLine}`);
-
-			// Also send to the OpenCode log service
+			// Send to the OpenCode log service (never use console.* in a TUI context —
+			// raw stdout writes bypass the terminal renderer and corrupt the display)
 			ctx.client.app.log({
 				body: {
 					service: 'agentuity-coder',
