@@ -178,6 +178,11 @@ export interface SandboxInstance {
 	stderrStreamUrl?: string;
 
 	/**
+	 * URL to stream audit events (eBPF/Tetragon security events)
+	 */
+	auditStreamUrl?: string;
+
+	/**
 	 * Execute a command in the sandbox
 	 */
 	execute(options: ExecuteOptions): Promise<Execution>;
@@ -313,6 +318,7 @@ export class SandboxClient {
 			status: response.status,
 			stdoutStreamUrl: response.stdoutStreamUrl,
 			stderrStreamUrl: response.stderrStreamUrl,
+			auditStreamUrl: response.auditStreamUrl,
 
 			async execute(executeOptions: ExecuteOptions): Promise<Execution> {
 				const { pipe, ...coreOptions } = executeOptions;
