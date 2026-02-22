@@ -719,6 +719,11 @@ export interface SandboxInfo {
 	stderrStreamUrl?: string;
 
 	/**
+	 * ID of the audit event stream (eBPF/Tetragon security events)
+	 */
+	auditStreamId?: string;
+
+	/**
 	 * URL to the audit event stream (eBPF/Tetragon security events)
 	 */
 	auditStreamUrl?: string;
