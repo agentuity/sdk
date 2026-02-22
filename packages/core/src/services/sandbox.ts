@@ -532,6 +532,12 @@ export interface Sandbox {
 	interleaved: boolean;
 
 	/**
+	 * Stream ID for the audit event stream (eBPF/Tetragon security events).
+	 * Only present when audit streaming was successfully configured during sandbox creation.
+	 */
+	auditStreamId?: string;
+
+	/**
 	 * Execute a command in the sandbox
 	 */
 	execute(options: ExecuteOptions): Promise<Execution>;
@@ -711,6 +717,11 @@ export interface SandboxInfo {
 	 * URL to the stderr output stream
 	 */
 	stderrStreamUrl?: string;
+
+	/**
+	 * URL to the audit event stream (eBPF/Tetragon security events)
+	 */
+	auditStreamUrl?: string;
 
 	/**
 	 * Apt packages installed in the sandbox

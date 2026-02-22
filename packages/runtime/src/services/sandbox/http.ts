@@ -108,7 +108,8 @@ function createSandboxInstance(
 	status: SandboxStatus,
 	streamBaseUrl: string,
 	stdoutStreamId?: string,
-	stderrStreamId?: string
+	stderrStreamId?: string,
+	auditStreamId?: string
 ): Sandbox {
 	const interleaved = !!(stdoutStreamId && stderrStreamId && stdoutStreamId === stderrStreamId);
 	return {
@@ -117,6 +118,7 @@ function createSandboxInstance(
 		stdout: createStreamReader(stdoutStreamId, streamBaseUrl),
 		stderr: createStreamReader(stderrStreamId, streamBaseUrl),
 		interleaved,
+		auditStreamId,
 
 		async execute(options: ExecuteOptions): Promise<Execution> {
 			return withSpan(
@@ -272,7 +274,8 @@ export class HTTPSandboxService implements SandboxService {
 					response.status,
 					this.streamBaseUrl,
 					response.stdoutStreamId,
-					response.stderrStreamId
+					response.stderrStreamId,
+					response.auditStreamId
 				);
 			}
 		);
