@@ -16,6 +16,10 @@ export {
 } from './create';
 export type { SandboxDestroyParams } from './destroy';
 export { DestroyResponseSchema, sandboxDestroy } from './destroy';
+export type { SandboxPauseParams } from './pause';
+export { PauseResponseSchema, sandboxPause } from './pause';
+export type { SandboxResumeParams } from './resume';
+export { ResumeResponseSchema, sandboxResume } from './resume';
 export type { SandboxExecuteParams } from './execute';
 export {
 	ExecuteDataSchema,
