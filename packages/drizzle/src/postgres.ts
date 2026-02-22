@@ -352,11 +352,14 @@ export const drizzle = _drizzle as typeof _drizzle & {
  * import { createPostgresDrizzle } from '@agentuity/drizzle';
  * import * as schema from './schema';
  *
- * // Basic usage with DATABASE_URL
- * const { db, close } = createPostgresDrizzle({ schema });
+ * // Basic usage with DATABASE_URL (defaults to pg driver with resilient pool)
+ * const { db, client, close } = createPostgresDrizzle({ schema });
  *
  * // Query with type safety
  * const users = await db.select().from(schema.users);
+ *
+ * // Access connection stats from the resilient pool
+ * console.log(client.stats);
  *
  * // Clean up when done
  * await close();
@@ -364,7 +367,7 @@ export const drizzle = _drizzle as typeof _drizzle & {
  *
  * @example
  * ```typescript
- * // With custom connection configuration
+ * // With custom connection and reconnection configuration
  * const { db, client, close } = createPostgresDrizzle({
  *   connectionString: 'postgres://user:pass@localhost:5432/mydb',
  *   schema,
@@ -375,18 +378,15 @@ export const drizzle = _drizzle as typeof _drizzle & {
  *   },
  *   onReconnected: () => console.log('Database reconnected'),
  * });
- *
- * // Access connection stats
- * console.log(client.stats);
  * ```
  *
  * @example
  * ```typescript
- * // Using the node-postgres (pg) driver for Better Auth compatibility
- * const { db, close } = createPostgresDrizzle({
- *   connectionString: process.env.DATABASE_URL,
- *   driver: 'pg',
+ * // Opt-in to Bun's native SQL driver for maximum performance
+ * const { db, client, close } = createPostgresDrizzle({
+ *   url: process.env.DATABASE_URL,
  *   schema,
+ *   driver: 'bun-sql',
  * });
  * ```
  */
