@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { ProjectResponseError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { ProjectResponseError } from './util.ts';
 
 export const ProjectGetRequestSchema = z.object({
 	id: z.string().describe('the project id'),

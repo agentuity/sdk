@@ -1,4 +1,4 @@
-import type { ReconnectConfig } from './types';
+import type { ReconnectConfig } from './types.ts';
 
 /**
  * Default reconnection configuration values.

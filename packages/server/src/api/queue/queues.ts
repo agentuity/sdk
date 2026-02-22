@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
 import {
 	type CreateQueueRequest,
 	CreateQueueRequestSchema,
@@ -9,14 +9,14 @@ import {
 	QueueSchema,
 	type UpdateQueueRequest,
 	UpdateQueueRequestSchema,
-} from './types';
+} from './types.ts';
 import {
 	buildQueueHeaders,
 	QueueError,
 	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
-} from './util';
+} from './util.ts';
 import {
 	validateDescription,
 	validateLimit,
@@ -27,7 +27,7 @@ import {
 	validateQueueType,
 	validateTTL,
 	validateVisibilityTimeout,
-} from './validation';
+} from './validation.ts';
 
 export const QueueResponseSchema = APIResponseSchema(z.object({ queue: QueueSchema }));
 export const QueuesListResponseSchema = APIResponseSchema(

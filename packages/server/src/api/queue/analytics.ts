@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api.ts';
 import {
 	type AnalyticsOptions,
 	type OrgAnalytics,
@@ -11,9 +11,9 @@ import {
 	type StreamAnalyticsOptions,
 	type TimeSeriesData,
 	TimeSeriesDataSchema,
-} from './types';
-import { buildQueueHeaders, QueueError, QueueNotFoundError, queueApiPathWithQuery } from './util';
-import { validateQueueName } from './validation';
+} from './types.ts';
+import { buildQueueHeaders, QueueError, QueueNotFoundError, queueApiPathWithQuery } from './util.ts';
+import { validateQueueName } from './validation.ts';
 
 export const OrgAnalyticsResponseSchema = APIResponseSchema(
 	z.object({ analytics: OrgAnalyticsSchema })

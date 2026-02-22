@@ -1,5 +1,5 @@
 import type { SQL, SQLQuery } from 'bun';
-import { TransactionError } from './errors';
+import { TransactionError } from './errors.ts';
 
 /**
  * Represents a PostgreSQL transaction with support for savepoints.

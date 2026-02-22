@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIResponseSchemaNoData, APIClient } from '../api';
-import { MachineResponseError } from './util';
+import { APIResponseSchema, APIResponseSchemaNoData, APIClient } from '../api.ts';
+import { MachineResponseError } from './util.ts';
 
 // TODO: The old /cli/auth/machine/* endpoints should be aliased to redirect
 // to /cli/auth/org/* in the backend (app repo). Remove aliases in follow-up PR.

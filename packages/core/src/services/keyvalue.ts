@@ -1,6 +1,6 @@
-import { FetchAdapter } from './adapter';
-import { buildUrl, toServiceException, toPayload } from './_util';
-import type { SortDirection } from './pagination';
+import { FetchAdapter } from './adapter.ts';
+import { buildUrl, toServiceException, toPayload } from './_util.ts';
+import type { SortDirection } from './pagination.ts';
 
 /**
  * Minimum TTL value in seconds (1 minute)

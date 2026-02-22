@@ -1,4 +1,4 @@
-import type { StandardSchemaV1 } from './standard_schema';
+import type { StandardSchemaV1 } from './standard_schema.ts';
 
 export type InferInput<T> = T extends StandardSchemaV1 ? StandardSchemaV1.InferInput<T> : never;
 

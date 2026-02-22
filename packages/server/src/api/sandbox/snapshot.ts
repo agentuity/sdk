@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
-import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build';
-import { API_VERSION, SandboxResponseError, throwSandboxError } from './util';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
+import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build.ts';
+import { API_VERSION, SandboxResponseError, throwSandboxError } from './util.ts';
 
 export const SnapshotFileInfoSchema = z
 	.object({

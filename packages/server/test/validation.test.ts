@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { validateDatabaseName, validateBucketName } from '../src/api/region/create';
+import { validateDatabaseName, validateBucketName } from '../src/api/region/create.ts';
 
 describe('validateDatabaseName', () => {
 	test('should accept valid database names', () => {

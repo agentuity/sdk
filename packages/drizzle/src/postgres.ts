@@ -9,7 +9,7 @@ import {
 	type CallablePostgresClient,
 	type PostgresConfig,
 } from '@agentuity/postgres';
-import type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
+import type { PostgresDrizzleConfig, PostgresDrizzle } from './types.ts';
 
 /**
  * Resolves the PostgreSQL client configuration from Drizzle config options.

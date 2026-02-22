@@ -3,7 +3,7 @@ export {
 	type EvaluationDetail,
 	EvaluationDetailSchema,
 	evalGet,
-} from './get';
+} from './get.ts';
 export {
 	EvalListResponseData,
 	EvalListResponseSchema,
@@ -11,13 +11,13 @@ export {
 	type EvaluationListRequest,
 	EvaluationSchema,
 	evalList,
-} from './list';
+} from './list.ts';
 export {
 	type EvalRunDetail,
 	EvalRunDetailSchema,
 	EvalRunGetResponseSchema,
 	evalRunGet,
-} from './run-get';
+} from './run-get.ts';
 export {
 	type EvalRunListItem,
 	type EvalRunListRequest,
@@ -25,4 +25,4 @@ export {
 	EvalRunListResponseSchema,
 	EvalRunSchema,
 	evalRunList,
-} from './run-list';
+} from './run-list.ts';

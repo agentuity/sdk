@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
 import {
 	type DeadLetterMessage,
 	DeadLetterMessageSchema,
@@ -7,7 +7,7 @@ import {
 	type Message,
 	MessageSchema,
 	type QueueApiOptions,
-} from './types';
+} from './types.ts';
 import {
 	buildQueueHeaders,
 	MessageNotFoundError,
@@ -15,8 +15,8 @@ import {
 	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
-} from './util';
-import { validateLimit, validateMessageId, validateOffset, validateQueueName } from './validation';
+} from './util.ts';
+import { validateLimit, validateMessageId, validateOffset, validateQueueName } from './validation.ts';
 
 export const DlqListResponseSchema = APIResponseSchema(
 	z.object({

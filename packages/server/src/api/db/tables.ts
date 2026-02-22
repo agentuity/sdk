@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { DbInvalidArgumentError, DbResponseError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { DbInvalidArgumentError, DbResponseError } from './util.ts';
 
 export const TableColumnSchema = z.object({
 	name: z.string().describe('column name'),

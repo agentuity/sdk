@@ -1,1 +1,1 @@
-export * from './whoami';
+export * from './whoami.ts';

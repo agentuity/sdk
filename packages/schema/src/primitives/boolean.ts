@@ -1,7 +1,7 @@
-import type { Schema } from '../base';
-import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
-import { optional } from '../utils/optional';
-import { nullable } from '../utils/nullable';
+import type { Schema } from '../base.ts';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base.ts';
+import { optional } from '../utils/optional.ts';
+import { nullable } from '../utils/nullable.ts';
 
 const parseMethods = createParseMethods<boolean>();
 

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import type { Logger, LogLevel } from '../src/logger';
+import type { Logger, LogLevel } from '../src/logger.ts';
 
 describe('Logger interface', () => {
 	test('should define correct log levels', () => {

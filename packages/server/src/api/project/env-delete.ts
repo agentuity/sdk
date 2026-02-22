@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchemaNoData } from '../api';
-import { ProjectResponseError } from './util';
+import { type APIClient, APIResponseSchemaNoData } from '../api.ts';
+import { ProjectResponseError } from './util.ts';
 
 export const ProjectEnvDeleteRequestSchema = z
 	.object({

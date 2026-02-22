@@ -37,7 +37,7 @@
 // Config
 // =============================================================================
 
-export { createAuth, getDefaultPlugins, DEFAULT_API_KEY_OPTIONS } from './agentuity/config';
+export { createAuth, getDefaultPlugins, DEFAULT_API_KEY_OPTIONS } from './agentuity/config.ts';
 export type {
 	AuthOptions,
 	AuthInstance,
@@ -47,7 +47,7 @@ export type {
 	ApiKeyApiMethods,
 	JwtApiMethods,
 	DefaultPluginApiMethods,
-} from './agentuity/config';
+} from './agentuity/config.ts';
 
 // =============================================================================
 // Server (Hono middleware and handlers)
@@ -57,14 +57,14 @@ export {
 	createSessionMiddleware,
 	createApiKeyMiddleware,
 	mountAuthRoutes,
-} from './agentuity/server';
+} from './agentuity/server.ts';
 export type {
 	AuthMiddlewareOptions,
 	ApiKeyMiddlewareOptions,
 	AuthEnv,
 	OtelSpansConfig,
 	MountAuthRoutesOptions,
-} from './agentuity/server';
+} from './agentuity/server.ts';
 
 // =============================================================================
 // Types
@@ -81,6 +81,6 @@ export type {
 	AuthInterface,
 	AuthUser,
 	AuthSession,
-} from './agentuity/types';
+} from './agentuity/types.ts';
 
-export type { AgentuityAuth } from './types';
+export type { AgentuityAuth } from './types.ts';

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIClient, APIError } from '../api';
-import { DbInvalidArgumentError, DbResponseError } from './util';
+import { APIClient, APIError } from '../api.ts';
+import { DbInvalidArgumentError, DbResponseError } from './util.ts';
 
 export const QueryColumnSchema = z.object({
 	name: z.string().describe('column name'),

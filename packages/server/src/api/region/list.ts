@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '../api';
-import { RegionResponseError } from './util';
+import { APIResponseSchema, APIClient } from '../api.ts';
+import { RegionResponseError } from './util.ts';
 
 export const ListRegionsResponse = z.array(
 	z.object({

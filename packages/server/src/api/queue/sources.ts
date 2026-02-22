@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIError, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIError, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
 import {
 	type CreateSourceRequest,
 	CreateSourceRequestSchema,
@@ -8,7 +8,7 @@ import {
 	SourceSchema,
 	type UpdateSourceRequest,
 	UpdateSourceRequestSchema,
-} from './types';
+} from './types.ts';
 import {
 	buildQueueHeaders,
 	QueueError,
@@ -16,8 +16,8 @@ import {
 	queueApiPath,
 	SourceAlreadyExistsError,
 	SourceNotFoundError,
-} from './util';
-import { validateQueueName, validateSourceId, validateSourceName } from './validation';
+} from './util.ts';
+import { validateQueueName, validateSourceId, validateSourceName } from './validation.ts';
 
 export const SourceResponseSchema = APIResponseSchema(z.object({ source: SourceSchema }));
 export const SourcesListResponseSchema = APIResponseSchema(

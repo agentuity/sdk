@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '../api';
-import { UserResponseError } from './util';
+import { APIResponseSchema, APIClient } from '../api.ts';
+import { UserResponseError } from './util.ts';
 
 export const OrganizationSchema = z.object({
 	id: z.string().describe('the unique id for the organization'),

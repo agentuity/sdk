@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { ProjectResponseError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { ProjectResponseError } from './util.ts';
 
 export const ProjectDeleteRequestSchema = z.object({ ids: z.array(z.string()) });
 export const ProjectDeleteResponseSchema = APIResponseSchema(z.array(z.string()));

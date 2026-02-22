@@ -1,5 +1,5 @@
-import { StructuredError } from '../error';
-import type { SortDirection } from './pagination';
+import { StructuredError } from '../error.ts';
+import type { SortDirection } from './pagination.ts';
 
 /**
  * Resource limits for a sandbox using Kubernetes-style units
@@ -24,7 +24,16 @@ export interface SandboxResources {
 /**
  * Sandbox status
  */
-export type SandboxStatus = 'creating' | 'idle' | 'running' | 'paused' | 'stopping' | 'suspended' | 'terminated' | 'failed' | 'deleted';
+export type SandboxStatus =
+	| 'creating'
+	| 'idle'
+	| 'running'
+	| 'paused'
+	| 'stopping'
+	| 'suspended'
+	| 'terminated'
+	| 'failed'
+	| 'deleted';
 
 export type SandboxSortField =
 	| 'name'

@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { Writable } from 'node:stream';
-import { SandboxClient } from '../src/api/sandbox/client';
+import { SandboxClient } from '../src/api/sandbox/client.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('SandboxClient', () => {

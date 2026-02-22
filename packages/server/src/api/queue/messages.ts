@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
 import {
 	type BatchPublishMessagesRequest,
 	BatchPublishMessagesRequestSchema,
@@ -10,7 +10,7 @@ import {
 	type PublishMessageRequest,
 	PublishMessageRequestSchema,
 	type QueueApiOptions,
-} from './types';
+} from './types.ts';
 import {
 	buildQueueHeaders,
 	MessageNotFoundError,
@@ -18,7 +18,7 @@ import {
 	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
-} from './util';
+} from './util.ts';
 import {
 	validateBatchSize,
 	validateIdempotencyKey,
@@ -29,7 +29,7 @@ import {
 	validatePayload,
 	validateQueueName,
 	validateTTL,
-} from './validation';
+} from './validation.ts';
 
 export const MessageResponseSchema = APIResponseSchema(z.object({ message: MessageSchema }));
 export const MessagesListResponseSchema = APIResponseSchema(

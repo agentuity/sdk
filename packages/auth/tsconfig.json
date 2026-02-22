@@ -5,7 +5,8 @@
 		"outDir": "./dist",
 		"rootDir": "./src",
 		"jsx": "react-jsx",
-		"lib": ["ESNext", "DOM"]
+		"lib": ["ESNext", "DOM"],
+		"rewriteRelativeImportExtensions": true
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],

@@ -1,8 +1,8 @@
 import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build';
-import { API_VERSION, throwSandboxError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build.ts';
+import { API_VERSION, throwSandboxError } from './util.ts';
 
 export const SandboxCreateRequestSchema = z
 	.object({

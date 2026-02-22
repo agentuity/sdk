@@ -1,6 +1,6 @@
-import { safeStringify } from '../json';
-import type { Body, HttpMethod } from './adapter';
-import { ServiceException } from './exception';
+import { safeStringify } from '../json.ts';
+import type { Body, HttpMethod } from './adapter.ts';
+import { ServiceException } from './exception.ts';
 
 export const buildUrl = (
 	base: string,

@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import { APIClient } from '../src/api/api';
-import { whoami } from '../src/api/user/whoami';
+import { APIClient } from '../src/api/api.ts';
+import { whoami } from '../src/api/user/whoami.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('user API', () => {
