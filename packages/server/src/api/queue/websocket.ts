@@ -306,12 +306,9 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 
 			onClose?.(event.code, event.reason);
 
-			// Only reconnect if it was not an intentional close.
-			if (!intentionallyClosed && (wasConnected || authenticated)) {
-				scheduleReconnect();
-			} else if (!intentionallyClosed && !authenticated) {
-				// Connection closed before auth succeeded — still try to reconnect
-				// (could be a transient network issue).
+			// Reconnect on any unintentional close — whether we were fully
+			// connected, mid-auth, or never authenticated (transient network issue).
+			if (!intentionallyClosed) {
 				scheduleReconnect();
 			}
 		};
