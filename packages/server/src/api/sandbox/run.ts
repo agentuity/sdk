@@ -1,13 +1,13 @@
 import type { Logger } from '@agentuity/core';
 import type { Readable, Writable } from 'node:stream';
 import { PassThrough } from 'node:stream';
-import { APIClient, PaymentRequiredError } from '../api';
-import { sandboxCreate } from './create';
-import { sandboxDestroy } from './destroy';
-import { sandboxGet } from './get';
-import { ExecutionCancelledError, ExecutionTimeoutError, writeAndDrain } from './util';
+import { APIClient, PaymentRequiredError } from '../api.ts';
+import { sandboxCreate } from './create.ts';
+import { sandboxDestroy } from './destroy.ts';
+import { sandboxGet } from './get.ts';
+import { ExecutionCancelledError, ExecutionTimeoutError, writeAndDrain } from './util.ts';
 import type { SandboxRunOptions, SandboxRunResult } from '@agentuity/core';
-import { getServiceUrls } from '../../config';
+import { getServiceUrls } from '../../config.ts';
 
 /**
  * Creates a Writable stream that captures all chunks to a buffer array

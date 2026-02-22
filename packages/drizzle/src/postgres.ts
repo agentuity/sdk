@@ -9,7 +9,7 @@ import {
 	type CallablePostgresClient,
 	type PostgresConfig,
 } from '@agentuity/postgres';
-import type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
+import type { PostgresDrizzleConfig, PostgresDrizzle } from './types.ts';
 
 /**
  * Resolves the PostgreSQL client configuration from Drizzle config options.
@@ -99,45 +99,40 @@ export function createResilientSQLProxy(
 					// double-applied updates, or repeated delete side effects.
 					const isMutation = isMutationStatement(query);
 
-					if (isMutation) {
-						// Mutation statements are wrapped in a transaction and retried
-						// via executeWithRetry. This is safe because PostgreSQL
-						// guarantees that uncommitted transactions are automatically
-						// rolled back when the connection drops. If the connection
-						// fails before COMMIT completes, no changes are applied, and
-						// the retry starts a fresh transaction on the new connection.
-						//
-						// NOTE: If the connection drops after the server processes
-						// COMMIT but before the client receives the response, the
-						// changes ARE committed. A retry would then apply them again.
-						// This window is extremely small (< 1ms typically) and is an
-						// inherent limitation of any retry-based approach without
-						// application-level idempotency (e.g., unique constraints
-						// with ON CONFLICT for INSERTs).
-						// See: https://github.com/agentuity/sdk/issues/911
-						const makeTransactionalExecutor = (useValues: boolean) =>
-							client.executeWithRetry(async () => {
-								// Re-resolve raw inside retry to get post-reconnect instance
-								const currentRaw = client.raw;
-								await currentRaw.unsafe('BEGIN');
-								try {
-									const q = currentRaw.unsafe(query, params);
-									const result = useValues ? await q.values() : await q;
-									await currentRaw.unsafe('COMMIT');
-									return result;
-								} catch (error) {
-									try {
-										await currentRaw.unsafe('ROLLBACK');
-									} catch {
-										// Connection may already be dead; Postgres auto-rolls
-										// back uncommitted transactions on connection close.
-									}
-									throw error;
-								}
+				if (isMutation) {
+					// Mutation statements are wrapped in a transaction and retried
+					// via executeWithRetry. This is safe because PostgreSQL
+					// guarantees that uncommitted transactions are automatically
+					// rolled back when the connection drops. If the connection
+					// fails before COMMIT completes, no changes are applied, and
+					// the retry starts a fresh transaction on the new connection.
+					//
+					// We use sql.begin(callback) instead of manual BEGIN/COMMIT
+					// because Bun's SQL driver requires it for pool-safe
+					// transactions (ERR_POSTGRES_UNSAFE_TRANSACTION when max > 1).
+					// sql.begin() reserves a specific connection, auto-COMMITs on
+					// success, and auto-ROLLBACKs on error.
+					//
+					// NOTE: If the connection drops after the server processes
+					// COMMIT but before the client receives the response, the
+					// changes ARE committed. A retry would then apply them again.
+					// This window is extremely small (< 1ms typically) and is an
+					// inherent limitation of any retry-based approach without
+					// application-level idempotency (e.g., unique constraints
+					// with ON CONFLICT for INSERTs).
+					// See: https://github.com/agentuity/sdk/issues/911
+					const makeTransactionalExecutor = (useValues: boolean) =>
+						client.executeWithRetry(async () => {
+							// Re-resolve raw inside retry to get post-reconnect instance
+							const currentRaw = client.raw;
+							return currentRaw.begin(async (tx) => {
+								const q = tx.unsafe(query, params);
+								return useValues ? await q.values() : await q;
 							});
+						});
 
-						return createThenable(makeTransactionalExecutor);
-					}
+					return createThenable(makeTransactionalExecutor);
+				}
 
 					const makeExecutor = (useValues: boolean) =>
 						client.executeWithRetry(async () => {

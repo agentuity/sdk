@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { ServiceException } from '../src/services/exception';
+import { ServiceException } from '../src/services/exception.ts';
 
 describe('ServiceException', () => {
 	test('should create exception with required data fields', () => {

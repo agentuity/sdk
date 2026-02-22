@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { SandboxResponseError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { SandboxResponseError } from './util.ts';
 
 export const SandboxInfoSchema = z.object({
 	id: z.string().describe('the sandbox id'),

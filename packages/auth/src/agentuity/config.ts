@@ -10,7 +10,7 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
 import { createPostgresDrizzle } from '@agentuity/drizzle';
-import * as authSchema from '../schema';
+import * as authSchema from '../schema.ts';
 
 // Re-export plugin types for convenience
 export type {
@@ -23,12 +23,12 @@ export type {
 	ApiKeyApiMethods,
 	JwtApiMethods,
 	DefaultPluginApiMethods,
-} from './plugins';
+} from './plugins/index.ts';
 
-export { DEFAULT_API_KEY_OPTIONS } from './plugins';
+export { DEFAULT_API_KEY_OPTIONS } from './plugins/index.ts';
 
-import type { ApiKeyPluginOptions, DefaultPluginApiMethods } from './plugins';
-import { DEFAULT_API_KEY_OPTIONS } from './plugins';
+import type { ApiKeyPluginOptions, DefaultPluginApiMethods } from './plugins/index.ts';
+import { DEFAULT_API_KEY_OPTIONS } from './plugins/index.ts';
 
 /**
  * Type for user-provided trustedOrigins input.

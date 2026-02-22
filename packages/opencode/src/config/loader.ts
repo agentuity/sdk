@@ -146,7 +146,7 @@ const DEFAULT_BLOCKED_COMMANDS = [
 
 const DEFAULT_BACKGROUND_CONFIG: BackgroundTaskConfig = {
 	enabled: true,
-	defaultConcurrency: 1,
+	defaultConcurrency: 5,
 	staleTimeoutMs: 30 * 60 * 1000,
 	providerConcurrency: {},
 	modelConcurrency: {},
@@ -199,7 +199,7 @@ function mergeBackgroundConfig(
 	if (!base && !override) return undefined;
 	return {
 		enabled: override?.enabled ?? base?.enabled ?? true,
-		defaultConcurrency: override?.defaultConcurrency ?? base?.defaultConcurrency ?? 1,
+		defaultConcurrency: override?.defaultConcurrency ?? base?.defaultConcurrency ?? 5,
 		staleTimeoutMs: override?.staleTimeoutMs ?? base?.staleTimeoutMs ?? 30 * 60 * 1000,
 		providerConcurrency: {
 			...(base?.providerConcurrency ?? {}),

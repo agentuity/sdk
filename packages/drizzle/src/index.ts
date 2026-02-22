@@ -32,10 +32,10 @@
  */
 
 // Main factory function
-export { createPostgresDrizzle, drizzle } from './postgres';
+export { createPostgresDrizzle, drizzle } from './postgres.ts';
 
 // Types
-export type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
+export type { PostgresDrizzleConfig, PostgresDrizzle } from './types.ts';
 
 // Re-export from @agentuity/postgres for convenience
 export {

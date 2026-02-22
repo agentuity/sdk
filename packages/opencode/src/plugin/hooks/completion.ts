@@ -17,16 +17,36 @@ export function createCompletionHooks(ctx: PluginInput, _config: CoderConfig): C
 
 	return {
 		onParams(input: unknown): void {
+			// OpenCode passes agent and model as structured objects (not plain strings)
+			// in the chat.params hook. Normalize to string here so template literals
+			// don't produce '[object Object]' in the completion log.
 			const inp = input as {
 				sessionID?: string;
-				agent?: string;
-				model?: string;
+				agent?: unknown;
+				model?: unknown;
 			};
 			if (!inp.sessionID) return;
+
+			const agentStr =
+				typeof inp.agent === 'string'
+					? inp.agent
+					: ((inp.agent as { id?: string; name?: string; displayName?: string } | null)
+							?.displayName ??
+						(inp.agent as { id?: string; name?: string } | null)?.name ??
+						(inp.agent as { id?: string } | null)?.id ??
+						String(inp.agent ?? 'unknown'));
+
+			const modelStr =
+				typeof inp.model === 'string'
+					? inp.model
+					: ((inp.model as { id?: string; name?: string } | null)?.id ??
+						(inp.model as { name?: string } | null)?.name ??
+						String(inp.model ?? 'unknown'));
+
 			startTimes.set(inp.sessionID, {
 				startedAt: Date.now(),
-				agent: inp.agent,
-				model: inp.model,
+				agent: agentStr,
+				model: modelStr,
 			});
 		},
 
@@ -40,7 +60,7 @@ export function createCompletionHooks(ctx: PluginInput, _config: CoderConfig): C
 			const durationMs = Date.now() - start.startedAt;
 			const durationSec = (durationMs / 1000).toFixed(1);
 
-			const logLine = `Completion: agent=${start.agent ?? 'unknown'} model=${start.model ?? 'unknown'} duration=${durationSec}s`;
+			const logLine = `Completion: agent=${start.agent} model=${start.model} duration=${durationSec}s`;
 
 			// Verbose local logging for immediate visibility
 			console.debug(`[agentuity-coder] ${logLine}`);

@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { Writable } from 'node:stream';
-import { SandboxClient } from '../src/api/sandbox/client';
-import { APIClient } from '../src/api/api';
-import { sandboxPause } from '../src/api/sandbox/pause';
-import { sandboxResume } from '../src/api/sandbox/resume';
-import { SandboxNotFoundError } from '../src/api/sandbox/util';
+import { SandboxClient } from '../src/api/sandbox/client.ts';
+import { APIClient } from '../src/api/api.ts';
+import { sandboxPause } from '../src/api/sandbox/pause.ts';
+import { sandboxResume } from '../src/api/sandbox/resume.ts';
+import { SandboxNotFoundError } from '../src/api/sandbox/util.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('SandboxClient', () => {

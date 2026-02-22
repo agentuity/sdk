@@ -116,12 +116,12 @@ export class SandboxTreeItem extends vscode.TreeItem {
 				return 'vm';
 			case 'running':
 				return 'vm-running';
-		case 'creating':
-		case 'stopping':
-			return 'loading~spin';
-		case 'paused':
-		case 'suspended':
-			return 'debug-pause';
+			case 'creating':
+			case 'stopping':
+				return 'loading~spin';
+			case 'paused':
+			case 'suspended':
+				return 'debug-pause';
 			case 'terminated':
 				return 'vm-outline';
 			case 'failed':

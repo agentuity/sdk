@@ -9,7 +9,7 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { context, trace, SpanStatusCode } from '@opentelemetry/api';
 
-import type { AuthBase } from './config';
+import type { AuthBase } from './config.ts';
 import type {
 	AuthUser,
 	AuthSession,
@@ -17,7 +17,7 @@ import type {
 	AuthApiKeyContext,
 	AuthMethod,
 	AuthInterface,
-} from './types';
+} from './types.ts';
 
 /**
  * Configuration for OpenTelemetry span attributes.

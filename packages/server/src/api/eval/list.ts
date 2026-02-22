@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api.ts';
 
 export const EvaluationSchema = z.object({
 	id: z.string().describe('Evaluation ID'),

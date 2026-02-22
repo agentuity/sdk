@@ -200,7 +200,21 @@ export class BackgroundManager {
 	 */
 	async inspectTask(taskId: string): Promise<TaskInspection | undefined> {
 		const task = this.tasks.get(taskId);
-		if (!task?.sessionId) return undefined;
+		if (!task) return undefined;
+
+		// Task exists but has not yet acquired a concurrency slot — it is queued
+		// and no session has been created yet. Return a lightweight inspection so
+		// callers can distinguish "queued/pending" from "not found".
+		if (!task.sessionId) {
+			return {
+				taskId: task.id,
+				sessionId: '',
+				status: task.status,
+				session: null,
+				messages: [],
+				lastActivity: task.queuedAt?.toISOString(),
+			};
+		}
 
 		try {
 			if (this.dbReader?.isAvailable()) {
@@ -335,6 +349,17 @@ export class BackgroundManager {
 					if (matchedTaskId) {
 						const task = this.tasks.get(matchedTaskId);
 						if (task) {
+							// Terminal tasks are final — never overwrite their status.
+							// The API can return undefined/unknown status for cleaned-up sessions
+							// which maps to 'pending' by default; without this guard that would
+							// illegally resurrect a completed/errored/cancelled task.
+							if (
+								task.status === 'completed' ||
+								task.status === 'error' ||
+								task.status === 'cancelled'
+							) {
+								continue;
+							}
 							const newStatus = this.mapSessionStatusToTaskStatus(childSession);
 							if (newStatus !== task.status) {
 								// Use proper handlers to trigger side effects (concurrency, notifications, etc.)
@@ -535,7 +560,7 @@ export class BackgroundManager {
 
 	private mapSessionStatusToTaskStatus(session: unknown): BackgroundTaskStatus {
 		// Map OpenCode session status to our task status
-		// Session status types: 'idle' | 'pending' | 'running' | 'error'
+		// Session status types: 'idle' | 'pending' | 'running' | 'compacting' | 'error'
 		const status = (session as { status?: { type?: string } })?.status?.type;
 		switch (status) {
 			case 'idle':
@@ -543,11 +568,14 @@ export class BackgroundManager {
 			case 'pending':
 				return 'pending';
 			case 'running':
+			case 'compacting': // Session is compacting context — still actively running
 				return 'running';
 			case 'error':
 				return 'error';
 			default:
-				// Unknown session status - default to pending for best-effort recovery
+				// Unknown session status - default to pending for best-effort recovery.
+				// Note: refreshStatuses() guards terminal tasks before calling this,
+				// so a 'pending' default can never downgrade a completed/errored task.
 				return 'pending';
 		}
 	}
@@ -706,7 +734,10 @@ Do not poll more than once every 30 seconds. Be patient — Scout tasks reading 
 				agent: monitorAgent.displayName,
 				status: 'pending',
 				queuedAt: new Date(),
-				concurrencyGroup: this.getConcurrencyGroup(monitorAgent.displayName),
+				// Monitor uses a dedicated concurrency lane so it can never be blocked
+				// by the tasks it's watching. If Monitor queued behind regular tasks it
+				// would never start, and Lead would receive no consolidated report.
+				concurrencyGroup: 'monitor',
 				notifiedStatuses: new Set(),
 				isMonitor: true,
 			};
@@ -726,7 +757,10 @@ Do not poll more than once every 30 seconds. Be patient — Scout tasks reading 
 	private async startTask(task: BackgroundTask): Promise<void> {
 		if (this.shuttingDown) return;
 
-		const concurrencyKey = this.getConcurrencyKey(task.agent);
+		// Use task.concurrencyGroup if explicitly set (e.g. 'monitor' for the auto-launched
+		// Monitor agent), otherwise derive from the agent name. This lets Monitor run in its
+		// own concurrency lane so it can never be blocked by the tasks it's watching.
+		const concurrencyKey = task.concurrencyGroup ?? this.getConcurrencyKey(task.agent);
 		task.concurrencyKey = concurrencyKey;
 
 		try {
@@ -916,14 +950,19 @@ Do not poll more than once every 30 seconds. Be patient — Scout tasks reading 
 			return;
 		}
 
+		// Snapshot status at call-time to prevent race conditions where concurrent
+		// refreshStatuses() calls mutate task.status during our async awaits below.
+		// Without this, the wrong status could be recorded as notified after delivery.
+		const statusAtCallTime = task.status;
+
 		const notifiedStatuses = task.notifiedStatuses;
-		if (notifiedStatuses.has(task.status)) {
+		if (notifiedStatuses.has(statusAtCallTime)) {
 			return; // Already notified for this status, skip duplicate
 		}
 
 		// Belt-and-suspenders: rate limit notifications per task+status to 1 per 10s
 		const now = Date.now();
-		const lastNotifyKey = `${task.id}:${task.status}`;
+		const lastNotifyKey = `${task.id}:${statusAtCallTime}`;
 		const lastTime = this.lastNotifyTimes.get(lastNotifyKey);
 		if (lastTime && now - lastTime < 10_000) {
 			return;
@@ -934,12 +973,11 @@ Do not poll more than once every 30 seconds. Be patient — Scout tasks reading 
 		// must remain unmarked so future retry attempts (via refreshStatuses
 		// or Monitor) are not blocked. Mark only on confirmed delivery below.
 
-		const statusLine = task.status === 'completed' ? 'completed' : task.status;
-		const message = `[BACKGROUND TASK ${statusLine.toUpperCase()}]
+		const message = `[BACKGROUND TASK ${statusAtCallTime.toUpperCase()}]
 
 Task: ${task.description}
 Agent: ${task.agent}
-Status: ${task.status}
+Status: ${statusAtCallTime}
 Task ID: ${task.id}
 
 Use the agentuity_background_output tool with task_id "${task.id}" to view the result.`;
@@ -956,8 +994,10 @@ Use the agentuity_background_output tool with task_id "${task.id}" to view the r
 					responseStyle: 'data',
 					...this.getClientOverrides(),
 				});
-				// Mark as notified only AFTER confirmed delivery
-				notifiedStatuses.add(task.status);
+				// Mark the snapshotted status as notified only AFTER confirmed delivery.
+				// Using the snapshot prevents recording the wrong status if task.status
+				// was mutated concurrently during the await above.
+				notifiedStatuses.add(statusAtCallTime);
 				task.notifiedStatuses = notifiedStatuses;
 				return; // Success
 			} catch (error) {
@@ -973,7 +1013,7 @@ Use the agentuity_background_output tool with task_id "${task.id}" to view the r
 					);
 					// Safety net: ensure status is NOT marked as notified so future
 					// retry attempts (via refreshStatuses or Monitor) are not blocked
-					notifiedStatuses.delete(task.status);
+					notifiedStatuses.delete(statusAtCallTime);
 				}
 			}
 		}

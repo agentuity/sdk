@@ -1,7 +1,7 @@
-import type { Schema, Infer } from '../base';
-import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
-import { optional, OptionalSchema } from '../utils/optional';
-import { nullable } from '../utils/nullable';
+import type { Schema, Infer } from '../base.ts';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base.ts';
+import { optional, OptionalSchema } from '../utils/optional.ts';
+import { nullable } from '../utils/nullable.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ObjectShape = Record<string, Schema<any, any>>;
