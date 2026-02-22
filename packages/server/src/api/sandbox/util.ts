@@ -184,6 +184,12 @@ export interface SandboxErrorContext {
  * when the backend returns a known error code, and falling back to
  * SandboxResponseError for unknown codes.
  *
+ * Note: Pause and resume operations use standard error codes. The backend
+ * returns SANDBOX_NOT_FOUND when the sandbox doesn't exist, and HTTP 409
+ * Conflict (handled by APIClient retries) for invalid state transitions
+ * (e.g. pausing a non-running sandbox, resuming a non-suspended sandbox).
+ * No additional error codes are needed for pause/resume.
+ *
  * @param resp - The API response containing message and optional code
  * @param context - Context about the operation (sandbox ID, execution ID, etc.)
  * @throws {SandboxNotFoundError} When code is 'SANDBOX_NOT_FOUND'

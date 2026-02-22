@@ -17,7 +17,7 @@ export const resumeSubcommand = createCommand({
 	description: 'Resume a paused sandbox',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, apiClient: true },
-	idempotent: true,
+	idempotent: false,
 	examples: [
 		{
 			command: getCommand('cloud sandbox resume abc123'),

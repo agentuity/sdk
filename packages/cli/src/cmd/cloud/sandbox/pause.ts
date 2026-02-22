@@ -17,7 +17,7 @@ export const pauseSubcommand = createCommand({
 	description: 'Pause a running sandbox',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, apiClient: true },
-	idempotent: true,
+	idempotent: false,
 	examples: [
 		{
 			command: getCommand('cloud sandbox pause abc123'),
