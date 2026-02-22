@@ -183,7 +183,10 @@ export function createCadenceHooks(
 
 			log(`Event received: ${event.type}`);
 
-			// Handle session.compacted - save compaction AND continue loop
+			// Handle session.compacted - save compaction AND continue loop.
+			// Note: Compaction continues in the SAME session (via session.prompt with
+			// the existing sessionId), so permissions configured in the config hook
+			// (plugin.ts) are automatically inherited — no re-application needed.
 			if (event.type === 'session.compacted') {
 				const sessionId = event.sessionId;
 				if (!sessionId) return;
@@ -328,7 +331,7 @@ Use \`agentuity_session_dashboard({ session_id: "..." })\` to get a full session
 \`\`\`typescript
 agentuity_background_task({
   agent: "monitor",
-  task: "Monitor these background tasks and report when all complete:\\n${tasks.map((t) => `- ${t.id}`).join('\\n')}",
+  task: "Monitor these background tasks and report when all complete:\\n${tasks.map((t) => `- ${t.id}`).join('\\n')}\\n\\nCRITICAL: Wait at least 20 seconds between each check. Maximum 10 cycles. After each check, output \\"⏳ Waiting 20 seconds...\\" to pace yourself.",
   description: "Monitor child tasks"
 })
 \`\`\`

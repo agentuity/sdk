@@ -55,6 +55,10 @@ export function createSessionMemoryHooks(
 		/**
 		 * Listen for session.compacted event.
 		 * The compaction summary is already in context - just tell Lead to save it.
+		 *
+		 * Note: Compaction continues in the SAME session (via session.prompt with
+		 * the existing sessionId), so permissions configured in the config hook
+		 * (plugin.ts) are automatically inherited — no re-application needed.
 		 */
 		async onEvent(input: {
 			event: { type: string; properties?: Record<string, unknown> };

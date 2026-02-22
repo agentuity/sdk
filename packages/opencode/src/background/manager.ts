@@ -55,6 +55,7 @@ export class BackgroundManager {
 	private tasksBySession = new Map<string, string>();
 	private notifications = new Map<string, Set<string>>();
 	private toolCallIds = new Map<string, Set<string>>();
+	private lastNotifyTimes = new Map<string, number>();
 	private shuttingDown = false;
 
 	constructor(
@@ -135,6 +136,7 @@ export class BackgroundManager {
 			status: 'pending',
 			queuedAt: new Date(),
 			concurrencyGroup: this.getConcurrencyGroup(input.agent),
+			notifiedStatuses: new Set(),
 		};
 
 		this.tasks.set(task.id, task);
@@ -556,7 +558,20 @@ export class BackgroundManager {
 			const task = sessionId ? this.findBySession(sessionId) : undefined;
 			if (!task) return;
 			const error = extractError(event.properties);
-			this.failTask(task, error ?? 'Session error.');
+			const errorMsg = error ?? 'Session error.';
+
+			// Log extra context for timeout errors — the server fires these when
+			// a model generates a long text response without tool activity.
+			if (
+				errorMsg.toLowerCase().includes('timeout') ||
+				errorMsg.toLowerCase().includes('no activity')
+			) {
+				console.debug(
+					`[BackgroundManager] Task ${task.id} timed out - may have been generating long response. Progress: ${JSON.stringify(task.progress)}`
+				);
+			}
+
+			this.failTask(task, errorMsg);
 			return;
 		}
 	}
@@ -759,28 +774,29 @@ export class BackgroundManager {
 	private async notifyParent(task: BackgroundTask): Promise<void> {
 		if (!task.parentSessionId) return;
 
-		// Prevent duplicate notifications for the same task+status combination
-		// This guards against OpenCode firing multiple events for the same status transition
-		const notifiedStatuses = task.notifiedStatuses ?? new Set();
-
-		// Self-healing for tasks created before deduplication was added:
-		// If a task is already in a terminal state but has no notification history,
-		// assume it was already notified and skip to prevent duplicate notifications.
-		if (
-			notifiedStatuses.size === 0 &&
-			(task.status === 'completed' || task.status === 'error' || task.status === 'cancelled')
-		) {
-			notifiedStatuses.add(task.status);
-			task.notifiedStatuses = notifiedStatuses;
+		// Recovered tasks (from recoverTasks) have no notifiedStatuses.
+		// Assume they were already notified and skip to prevent duplicate notifications.
+		if (!task.notifiedStatuses) {
+			task.notifiedStatuses = new Set([task.status]);
 			return;
 		}
 
+		const notifiedStatuses = task.notifiedStatuses;
 		if (notifiedStatuses.has(task.status)) {
 			return; // Already notified for this status, skip duplicate
 		}
+
+		// Belt-and-suspenders: rate limit notifications per task+status to 1 per 10s
+		const now = Date.now();
+		const lastNotifyKey = `${task.id}:${task.status}`;
+		const lastTime = this.lastNotifyTimes.get(lastNotifyKey);
+		if (lastTime && now - lastTime < 10_000) {
+			return;
+		}
+		this.lastNotifyTimes.set(lastNotifyKey, now);
+
 		// Mark as notified BEFORE sending to prevent race conditions
 		notifiedStatuses.add(task.status);
-		task.notifiedStatuses = notifiedStatuses;
 
 		const statusLine = task.status === 'completed' ? 'completed' : task.status;
 		const message = `[BACKGROUND TASK ${statusLine.toUpperCase()}]

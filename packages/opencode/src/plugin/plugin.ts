@@ -15,6 +15,7 @@ import { createKeywordHooks } from './hooks/keyword';
 import { createParamsHooks } from './hooks/params';
 import { createCadenceHooks } from './hooks/cadence';
 import { createSessionMemoryHooks } from './hooks/session-memory';
+import { createCompletionHooks } from './hooks/completion';
 import type { AgentRole } from '../types';
 import { BackgroundManager } from '../background';
 import type { SessionTreeNode } from '../sqlite';
@@ -96,6 +97,7 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
 	const paramsHooks = createParamsHooks(ctx, coderConfig);
+	const completionHooks = createCompletionHooks(ctx, coderConfig);
 	const tmuxManager = coderConfig.tmux?.enabled
 		? new TmuxSessionManager(ctx, coderConfig.tmux, {
 				onLog: (message) =>
@@ -193,11 +195,15 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		...(tools ? { tool: tools } : {}),
 		config: configHandler,
 		'chat.message': async (input: unknown, output: unknown) => {
+			completionHooks.onMessage(input);
 			await keywordHooks.onMessage(input, output);
 			await sessionHooks.onMessage(input, output);
 			await cadenceHooks.onMessage(input, output);
 		},
-		'chat.params': paramsHooks.onParams,
+		'chat.params': async (input: unknown, output: unknown) => {
+			completionHooks.onParams(input);
+			await paramsHooks.onParams(input, output);
+		},
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
 		'shell.env': async (_input: unknown, output: unknown) => {
@@ -360,6 +366,7 @@ function createAgentConfigs(
 			...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}),
 			...(agent.thinking ? { thinking: agent.thinking } : {}),
 			...(agent.hidden ? { hidden: agent.hidden } : {}),
+			...(agent.fallbackModels?.length ? { fallbackModels: agent.fallbackModels } : {}),
 		};
 	}
 

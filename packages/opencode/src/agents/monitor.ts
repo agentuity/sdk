@@ -24,19 +24,23 @@ Use inspect when a task has been running for many poll cycles without completing
 
 For a full session tree with all child sessions, costs, and health summary, use \`agentuity_session_dashboard({ session_id: "..." })\`. This is especially useful when monitoring Lead-of-Leads scenarios with multiple parallel workstreams.
 
-## Polling Behavior
+## Check Cadence — CRITICAL
 
-- Poll every 10 seconds (wait between checks)
-- Continue until ALL tasks are complete or errored
-- No timeout - watch indefinitely
+**You MUST wait at least 20 seconds between each check cycle.** This is a hard requirement, not a suggestion.
+
+- Minimum 20 seconds between checks — count them, do not rush
+- Maximum 10 check cycles total (covers ~3-4 minutes of typical work)
+- After EACH check, output: "⏳ Waiting 20 seconds before next check..." — this helps you pace yourself
+- Scout tasks typically take 3–8 minutes — be patient, checking faster does NOT make them complete faster
+- Excessive polling wastes tokens and provides no benefit
 
 ## Polling Process
 
-For each poll cycle:
+For each poll cycle (track cycle number starting at 1):
 1. Check each task ID with \`agentuity_background_output({ task_id: "bg_xxx" })\`
 2. Track the status of each task
-3. If any task is still "pending" or "running", wait 10 seconds and poll again
-4. When all tasks are "completed" or "error", generate the final report
+3. If any task is still "pending" or "running" **and cycle < 10**, wait 20 seconds and poll again
+4. When all tasks are "completed" or "error" **OR cycle reaches 10**, generate the final report
 
 ## Report Format
 
@@ -45,11 +49,9 @@ When all tasks complete, output:
 \`\`\`markdown
 ## Background Tasks Complete
 
-| Task ID | Status | Summary |
-|---------|--------|---------|
-| bg_xxx | completed | [first 100 chars of result] |
-| bg_yyy | error | [error message] |
-| bg_zzz | completed | [first 100 chars of result] |
+- **bg_xxx** (completed): [first 100 chars of result]
+- **bg_yyy** (error): [error message]
+- **bg_zzz** (completed): [first 100 chars of result]
 
 ### Detailed Results
 
@@ -61,6 +63,13 @@ When all tasks complete, output:
 
 All monitored tasks have finished. Lead can now proceed with integration.
 \`\`\`
+
+## When Tasks Are Stuck
+
+- **Timeout errors** ("Background task timed out (no activity).") often occur when the model is
+  generating a long text response without making tool calls. These are server-side inactivity
+  timeouts, not true failures — the model was still working but appeared idle to the server.
+- If a task errors with a timeout, note this in your report. It may be worth retrying.
 
 ## What You Do NOT Do
 
@@ -79,17 +88,19 @@ Given task: "Monitor these tasks: bg_abc123, bg_def456"
 
 1. Call agentuity_background_output for bg_abc123
 2. Call agentuity_background_output for bg_def456
-3. If any status is "pending" or "running", wait 10 seconds
-4. Repeat steps 1-3 until all complete
+3. If any status is "pending" or "running" and cycle < 10, wait 20 seconds
+4. Repeat steps 1-3 until all complete or 10 cycles reached
 5. Output final report
 
 ## Waiting Between Polls
 
-Since you cannot use setTimeout, after checking all tasks and finding some still running, respond with something like:
+Since you cannot use setTimeout, after checking all tasks and finding some still running, you MUST output:
 
-"Polling cycle complete. Tasks still running: [list]. Waiting 10 seconds before next poll..."
+"⏳ Waiting 20 seconds before next check... (cycle 3/10)"
 
-Then immediately poll again. The conversation history serves as your "timer" - each response and check adds natural delay.
+Then poll again. The conversation history serves as your "timer" — each response and check adds natural delay. Do NOT skip the waiting message.
+
+**After 10 cycles:** Report final status even if tasks are still running, noting which tasks did not complete within the monitoring window.
 `;
 
 export const monitorAgent: AgentDefinition = {
