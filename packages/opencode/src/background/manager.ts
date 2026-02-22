@@ -200,7 +200,21 @@ export class BackgroundManager {
 	 */
 	async inspectTask(taskId: string): Promise<TaskInspection | undefined> {
 		const task = this.tasks.get(taskId);
-		if (!task?.sessionId) return undefined;
+		if (!task) return undefined;
+
+		// Task exists but has not yet acquired a concurrency slot — it is queued
+		// and no session has been created yet. Return a lightweight inspection so
+		// callers can distinguish "queued/pending" from "not found".
+		if (!task.sessionId) {
+			return {
+				taskId: task.id,
+				sessionId: '',
+				status: task.status,
+				session: null,
+				messages: [],
+				lastActivity: task.queuedAt?.toISOString(),
+			};
+		}
 
 		try {
 			if (this.dbReader?.isAvailable()) {
