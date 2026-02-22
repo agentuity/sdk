@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { BackgroundTaskConfig } from './background/types';
 import type { SkillsConfig } from './skills/types';
 import type { TmuxConfig } from './tmux/types';
 
@@ -11,7 +10,6 @@ export type {
 	ToolDefinition,
 } from '@opencode-ai/plugin';
 
-export type { BackgroundTaskConfig } from './background/types';
 export type { SkillsConfig, LoadedSkill, SkillMetadata, SkillScope } from './skills';
 export type { TmuxConfig } from './tmux/types';
 
@@ -28,7 +26,6 @@ export const AgentRoleSchema = z.enum([
 	'expert-ops',
 	'runner',
 	'product',
-	'monitor',
 ]);
 export type AgentRole = z.infer<typeof AgentRoleSchema>;
 
@@ -184,19 +181,10 @@ export interface CoderConfig {
 	disabledMcps?: string[];
 	/** CLI command patterns to block for security (e.g., 'cloud secrets', 'auth token') */
 	blockedCommands?: string[];
-	background?: BackgroundTaskConfig;
 	skills?: SkillsConfig;
 	tmux?: TmuxConfig;
 	compaction?: CompactionConfig;
 }
-
-export const BackgroundTaskConfigSchema = z.object({
-	enabled: z.boolean(),
-	defaultConcurrency: z.number(),
-	staleTimeoutMs: z.number(),
-	providerConcurrency: z.record(z.string(), z.number()).optional(),
-	modelConcurrency: z.record(z.string(), z.number()).optional(),
-});
 
 export const SkillsConfigSchema = z.object({
 	enabled: z.boolean(),
@@ -225,7 +213,6 @@ export const CoderConfigSchema = z.object({
 	org: z.string().optional(),
 	disabledMcps: z.array(z.string()).optional(),
 	blockedCommands: z.array(z.string()).optional(),
-	background: BackgroundTaskConfigSchema.optional(),
 	skills: SkillsConfigSchema.optional(),
 	tmux: TmuxConfigSchema.optional(),
 	compaction: CompactionConfigSchema.optional(),

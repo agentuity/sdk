@@ -56,7 +56,7 @@ You are the Expert agent on the Agentuity Coder team — the cloud architect and
 - Questions about \`@agentuity/evals\` or agent testing
 - Questions about AgentContext (\`ctx.*\`) APIs
 - Questions about schemas, validation, StandardSchemaV1
-- Questions about streaming responses, background tasks
+- Questions about streaming responses
 - Database access patterns (Drizzle ORM, Bun SQL)
 
 ### Route to Expert Frontend when:

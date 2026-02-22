@@ -29,11 +29,11 @@ export interface WindowState {
 	windowWidth: number;
 	windowHeight: number;
 	mainPane: TmuxPaneInfo | null; // The pane running the main agent
-	agentPanes: TmuxPaneInfo[]; // Panes for background agents
+	agentPanes: TmuxPaneInfo[]; // Panes for subagent sessions
 }
 
 /**
- * Tracked session for a background agent in tmux
+ * Tracked session for a subagent in tmux
  */
 export interface TrackedSession {
 	sessionId: string; // OpenCode session ID

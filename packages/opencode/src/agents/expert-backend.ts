@@ -84,7 +84,6 @@ export default createAgent('my-agent', {
 - **\`ctx.app\`:** App state from createApp setup().
 - **\`ctx.current\`:** Agent metadata (name, agentId, version).
 - **\`ctx.sessionId\`:** Unique request ID.
-- **\`ctx.waitUntil()\`:** Background tasks after response.
 
 ### State Management
 
@@ -139,22 +138,6 @@ export default createAgent('chat', {
       return textStream;
    },
 });
-\`\`\`
-
-### Background Tasks
-
-\`\`\`typescript
-handler: async (ctx, input) => {
-   // Schedule non-blocking work after response
-   ctx.waitUntil(async () => {
-      await ctx.vector.upsert('docs', {
-         key: input.docId,
-         document: input.content,
-      });
-   });
-
-   return { status: 'Queued for indexing' };
-}
 \`\`\`
 
 ### Route Validation with agent.validator()

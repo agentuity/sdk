@@ -70,13 +70,12 @@ export function buildCustomCompactionPrompt(mode: 'cadence' | 'regular'): string
 
 ## CRITICAL — Preserve These Verbatim
 1. The current task/objective (quote the user's original request exactly)
-2. All background task IDs (bg_xxx) with status, purpose, and session IDs
-3. Active planning state: current phase, completed phases, next steps, blockers
-4. ALL file paths being actively worked on (with role: created/modified/read)
-5. Key decisions made and their rationale
-6. Any corrections or gotchas discovered during the session
-7. Todo list state (what's done, in progress, pending)
-8. Descriptions of any images or attachments that appeared in conversation${cadenceSection}
+2. Active planning state: current phase, completed phases, next steps, blockers
+3. ALL file paths being actively worked on (with role: created/modified/read)
+4. Key decisions made and their rationale
+5. Any corrections or gotchas discovered during the session
+6. Todo list state (what's done, in progress, pending)
+7. Descriptions of any images or attachments that appeared in conversation${cadenceSection}
 
 ## Structure Your Summary As:
 
@@ -85,9 +84,6 @@ export function buildCustomCompactionPrompt(mode: 'cadence' | 'regular'): string
 
 ### Planning State
 [Phases with status. Include phase notes, not just titles.]
-
-### Background Tasks
-[bg_xxx: description → status (running/completed/errored). Include session IDs.]
 
 ### Key Context
 [Decisions, constraints, user preferences, corrections discovered]
@@ -104,7 +100,6 @@ export function buildCustomCompactionPrompt(mode: 'cadence' | 'regular'): string
 ## Rules
 - Use specific file paths, task IDs, phase names — NOT vague references.
 - State what tools returned, not just that they were called.
-- NEVER drop background task references — the agent MUST know what's still running.
 - Prefer completeness over brevity — this is the agent's entire working memory.`;
 }
 
@@ -267,7 +262,6 @@ export async function restoreCadenceStateFromKV(
 export function formatCompactionDiagnostics(stats: CompactionStats): string {
 	const parts: string[] = [];
 	if (stats.planningPhasesCount > 0) parts.push(`${stats.planningPhasesCount} planning phases`);
-	if (stats.backgroundTasksCount > 0) parts.push(`${stats.backgroundTasksCount} background tasks`);
 	if (stats.imageDescriptionsCount > 0) parts.push(`${stats.imageDescriptionsCount} image refs`);
 	if (stats.toolCallSummariesCount > 0) parts.push(`${stats.toolCallSummariesCount} tool calls`);
 
