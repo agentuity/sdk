@@ -20,7 +20,7 @@ export const pauseSubcommand = createCommand({
 	idempotent: false,
 	examples: [
 		{
-			command: getCommand('cloud sandbox pause abc123'),
+			command: getCommand('cloud sandbox pause sbx_abc123'),
 			description: 'Pause a sandbox',
 		},
 	],

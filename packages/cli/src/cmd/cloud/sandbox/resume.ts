@@ -20,7 +20,7 @@ export const resumeSubcommand = createCommand({
 	idempotent: false,
 	examples: [
 		{
-			command: getCommand('cloud sandbox resume abc123'),
+			command: getCommand('cloud sandbox resume sbx_abc123'),
 			description: 'Resume a paused sandbox',
 		},
 	],
