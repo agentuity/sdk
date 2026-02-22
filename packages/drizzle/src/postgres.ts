@@ -1,8 +1,13 @@
 import { SQL as BunSQL, type SQL as BunSQLClient, type SQLOptions } from 'bun';
 import { drizzle as upstreamDrizzle, type BunSQLDatabase } from 'drizzle-orm/bun-sql';
-import { drizzle as nodePgDrizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
+import {
+	drizzle as nodePgDrizzle,
+	type NodePgDatabase,
+	type NodePgClient,
+} from 'drizzle-orm/node-postgres';
 import type { DrizzleConfig } from 'drizzle-orm';
 import { isConfig } from 'drizzle-orm/utils';
+import { StructuredError } from '@agentuity/core';
 import {
 	postgres,
 	PostgresPool,
@@ -13,6 +18,8 @@ import {
 	type PoolConfig,
 } from '@agentuity/postgres';
 import type { PostgresDrizzleConfig, PostgresDrizzle, PostgresDrizzlePg } from './types.ts';
+
+const DrizzleConfigError = StructuredError('DrizzleConfigError');
 
 /**
  * Resolves the PostgreSQL client configuration from Drizzle config options.
@@ -443,10 +450,11 @@ function createPgDrizzle<TSchema extends Record<string, unknown> = Record<string
 		if (conn.username) poolConfig.user = conn.username;
 		if (conn.password) poolConfig.password = conn.password;
 	} else {
-		throw new Error(
-			'createPostgresDrizzle(): No connection configuration found. ' +
-				'Provide url, connectionString, connection.url, connection fields, or set DATABASE_URL.'
-		);
+		throw new DrizzleConfigError({
+			message:
+				'createPostgresDrizzle(): No connection configuration found. ' +
+				'Provide url, connectionString, connection.url, connection fields, or set DATABASE_URL.',
+		});
 	}
 
 	// Create resilient pool
@@ -456,17 +464,25 @@ function createPgDrizzle<TSchema extends Record<string, unknown> = Record<string
 	// PostgresPool implements the same query()/connect() interface as pg.Pool
 	// but with automatic retry and reconnection. Drizzle calls pool.query()
 	// for each operation, so all queries go through our resilience layer.
-	// biome-ignore lint: PostgresPool is API-compatible with pg.Pool (query, connect, end)
-	const db = nodePgDrizzle(pool as any, {
+	const db = nodePgDrizzle(pool as unknown as NodePgClient, {
 		schema: config?.schema,
 		logger: config?.logger,
 	}) as NodePgDatabase<TSchema>;
 
 	// Fire onConnect callback once the pool is warm
 	if (config?.onConnect) {
-		pool.waitForConnection().then(() => {
-			config.onConnect!();
-		});
+		pool
+			.waitForConnection()
+			.then(() => {
+				try {
+					config.onConnect!();
+				} catch {
+					// Swallow synchronous exceptions from onConnect callback
+				}
+			})
+			.catch(() => {
+				// Connection failed — onConnect is not invoked
+			});
 	}
 
 	return {
