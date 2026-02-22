@@ -737,7 +737,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 /**
  * Wait for any key press before continuing
  * Displays a prompt message and waits for user input
- * Raises SIGINT if CTRL+C is pressed
+ * Exits the process on CTRL+C
  */
 export async function waitForAnyKey(message = 'Press Enter to continue...'): Promise<void> {
 	process.stdout.write(muted(message));
