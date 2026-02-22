@@ -379,14 +379,7 @@ ${taskList}
 Use \`agentuity_background_output({ task_id: "..." })\` to check their status.
 Use \`agentuity_session_dashboard({ session_id: "..." })\` to get a full session tree with status, costs, and health summary for Lead-of-Leads monitoring.
 
-**Tip:** If you spawned child Leads for parallel work, delegate monitoring to BackgroundMonitor:
-\`\`\`typescript
-agentuity_background_task({
-  agent: "monitor",
-  task: "Monitor these background tasks and report when all complete:\\n${tasks.map((t) => `- ${t.id}`).join('\\n')}",
-  description: "Monitor child tasks"
-})
-\`\`\``;
+**Tip:** A Monitor agent is auto-launched to watch these tasks. You will receive \`[BACKGROUND TASK COMPLETED]\` notifications as each task finishes, and \`[ALL BACKGROUND TASKS COMPLETE]\` when all are done. Use \`agentuity_session_dashboard\` for a unified progress view.`;
 			}
 
 			// 5. Build SQLite dashboard section

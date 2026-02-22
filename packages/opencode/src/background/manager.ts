@@ -819,11 +819,16 @@ Do not poll more than once every 30 seconds. Be patient — Scout tasks reading 
 				}
 
 				// Track in-flight status based on tool state
-				if (toolStatus === 'pending' || toolStatus === 'running') {
-					active.add(callId);
-				} else {
-					// completed, error, cancelled — no longer in-flight
+				// Only remove for explicit terminal statuses; treat unknown/missing as in-flight
+				if (
+					toolStatus === 'completed' ||
+					toolStatus === 'error' ||
+					toolStatus === 'cancelled'
+				) {
 					active.delete(callId);
+				} else {
+					// pending, running, unknown, or missing status — treat as in-flight
+					active.add(callId);
 				}
 				this.activeToolCallIds.set(task.id, active);
 				progress.activeToolCallsInFlight = active.size;

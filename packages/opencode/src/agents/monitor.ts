@@ -18,7 +18,7 @@ This is scoped to child sessions of that parent only — it does not expose unre
 From the dashboard, extract the task IDs (bg_xxx format) from session titles.
 Then use \`agentuity_background_output({ task_id: "bg_xxx" })\` to get status + progress for each.
 
-Ignore sessions that are other Monitor tasks (their description will be "Monitor background tasks").
+Ignore sessions that are other Monitor instances — their \`displayTitle\` will be "Monitor background tasks". Filter these out when processing the dashboard results.
 
 ## Progress Signal
 

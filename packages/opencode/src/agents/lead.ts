@@ -1295,43 +1295,25 @@ agentuity cloud kv get agentuity-opencode-memory "project:{label}:prd" --json --
 # Ask Product: "Claim workstream 'Auth Module' for session {sessionId}"
 \`\`\`
 
-**4. Delegate Monitoring to BackgroundMonitor**
+**4. Wait for Event-Driven Notifications**
 
-After spawning child Leads, delegate monitoring to BackgroundMonitor:
+After spawning child Leads, you will automatically receive notifications as each task completes:
 
-\`\`\`typescript
-// After spawning all child tasks, delegate monitoring
-agentuity_background_task({
-  agent: "monitor",
-  task: \`Monitor these background tasks and report when all complete:
-- bg_xxx (Auth workstream)
-- bg_yyy (Cart workstream)
-- bg_zzz (Payments workstream)
+- \`[BACKGROUND TASK COMPLETED]\` — fires for each task as it finishes
+- A Monitor agent is auto-launched to provide a consolidated \`[ALL BACKGROUND TASKS COMPLETE]\` report when all tasks are done
 
-Poll every 10 seconds. Report back when ALL tasks are complete or errored.\`,
-  description: "Monitor child Lead tasks"
-})
-\`\`\`
-
-**Why use BackgroundMonitor?**
-- Keeps Lead's context clean (no polling loop exhausting context)
-- Monitor runs in background, reports only on completion
+**You do NOT need to spawn a Monitor manually or poll.** The system handles this:
+- Event-driven notifications arrive in real-time as each child completes
+- The auto-launched Monitor watches all sibling tasks and sends a final summary
 - If Lead compacts, task references are preserved in context (injected by hooks)
-- Lead can continue other work while waiting
+- Use \`agentuity_session_dashboard({ session_id: "<your_session_id>" })\` to check overall progress
+- Use \`agentuity_background_output({ task_id: "bg_xxx" })\` to retrieve results after a notification arrives
+- Use \`agentuity_background_inspect\` only if a task appears stuck (no activity for 5+ minutes)
 
-**5. Wait for Monitor Report**
-
-BackgroundMonitor will report back when all tasks complete. You'll receive a notification like:
-\`\`\`
-[BACKGROUND TASK COMPLETED: bg_monitor_xxx]
-\`\`\`
-
-Then check the result with \`agentuity_background_output({ task_id: "bg_monitor_xxx" })\` to see which child tasks succeeded/failed.
-
-**6. Completion**
+**5. Completion**
 
 Parent Lead completes when:
-- Monitor reports all child tasks done
+- All child task notifications have arrived (or Monitor sends consolidated report)
 - All workstreams in PRD show status "done"
 - Any integration/coordination work is complete
 
@@ -1346,15 +1328,10 @@ You (Parent Lead):
    - bg_auth: Auth workstream
    - bg_cart: Cart workstream  
    - bg_payments: Payments workstream
-3. Spawn BackgroundMonitor to watch all 3 tasks:
-   agentuity_background_task({
-     agent: "monitor",
-     task: "Monitor bg_auth, bg_cart, bg_payments...",
-     description: "Monitor child Leads"
-   })
-4. Continue other work or wait for monitor notification
-5. When monitor reports completion, check results and PRD status
-6. Do integration work if needed
+3. Wait for [BACKGROUND TASK COMPLETED] notifications (auto-delivered for each)
+4. Monitor auto-launches to send [ALL BACKGROUND TASKS COMPLETE] when all finish
+5. Use agentuity_background_output to retrieve results after each notification
+6. Check PRD status, do integration work if needed
 7. Output <promise>DONE</promise>
 \`\`\`
 
@@ -1364,7 +1341,7 @@ You (Parent Lead):
 - **Product manages workstreams** — Ask Product to claim/update workstream status
 - **No direct child-to-child communication** — Coordinate through PRD
 - **Parent handles integration** — After children complete, parent does any glue work
-- **Monitor watches tasks** — Use BackgroundMonitor to avoid polling loop exhausting context
+- **Notifications are automatic** — Each task sends [BACKGROUND TASK COMPLETED] on finish; Monitor auto-launches for consolidated reports
 - **Session dashboard** — Use \`agentuity_session_dashboard\` to get a unified view of all child session states, costs, and health without inspecting each task individually
 
 ### Context Management
