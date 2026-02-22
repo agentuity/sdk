@@ -86,6 +86,8 @@ export const SandboxInfoSchema = z
 		executions: z.number().describe('Total number of executions in this sandbox'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		auditStreamId: z.string().optional().describe('ID of the audit event stream'),
+		auditStreamUrl: z.string().optional().describe('URL for streaming audit events'),
 		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
 		networkPort: z.number().optional().describe('Network port exposed from the sandbox'),
 		url: z
@@ -197,6 +199,8 @@ export async function sandboxList(
 				executions: s.executions,
 				stdoutStreamUrl: s.stdoutStreamUrl,
 				stderrStreamUrl: s.stderrStreamUrl,
+				auditStreamId: s.auditStreamId,
+				auditStreamUrl: s.auditStreamUrl,
 				networkEnabled: s.networkEnabled,
 				networkPort: s.networkPort,
 				url: s.url,

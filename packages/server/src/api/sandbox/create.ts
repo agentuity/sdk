@@ -128,6 +128,8 @@ export const SandboxCreateDataSchema = z
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamId: z.string().optional().describe('Stream ID for reading stderr'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		auditStreamId: z.string().optional().describe('Stream ID for reading audit events'),
+		auditStreamUrl: z.string().optional().describe('URL for streaming audit events'),
 	})
 	.describe('Response data from sandbox creation');
 
@@ -140,6 +142,8 @@ export interface SandboxCreateResponse {
 	stdoutStreamUrl?: string;
 	stderrStreamId?: string;
 	stderrStreamUrl?: string;
+	auditStreamId?: string;
+	auditStreamUrl?: string;
 }
 
 export interface SandboxCreateParams {

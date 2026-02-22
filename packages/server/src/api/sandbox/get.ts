@@ -119,6 +119,8 @@ export const SandboxInfoDataSchema = z
 			.describe('Exit code from the last execution (only for terminated/failed sandboxes)'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		auditStreamId: z.string().optional().describe('ID of the audit event stream'),
+		auditStreamUrl: z.string().optional().describe('URL for streaming audit events'),
 		dependencies: z
 			.array(z.string())
 			.optional()
@@ -212,6 +214,8 @@ export async function sandboxGet(
 			exitCode: resp.data.exitCode,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
+			auditStreamId: resp.data.auditStreamId,
+			auditStreamUrl: resp.data.auditStreamUrl,
 			dependencies: resp.data.dependencies,
 			packages: resp.data.packages,
 			metadata: resp.data.metadata as Record<string, unknown> | undefined,

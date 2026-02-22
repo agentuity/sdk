@@ -1650,6 +1650,8 @@ export interface SandboxInfo {
 	resources?: SandboxResources;
 	stdoutStreamUrl?: string;
 	stderrStreamUrl?: string;
+	auditStreamId?: string;
+	auditStreamUrl?: string;
 	name?: string;
 	description?: string;
 	runtime?: SandboxRuntimeInfo;
