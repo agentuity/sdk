@@ -11,10 +11,7 @@ import {
 } from './types.ts';
 import {
 	buildQueueHeaders,
-	DestinationAlreadyExistsError,
-	DestinationNotFoundError,
 	QueueError,
-	QueueNotFoundError,
 	queueApiPath,
 	withQueueErrorHandling,
 } from './util.ts';

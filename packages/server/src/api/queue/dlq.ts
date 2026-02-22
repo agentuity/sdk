@@ -10,9 +10,7 @@ import {
 } from './types.ts';
 import {
 	buildQueueHeaders,
-	MessageNotFoundError,
 	QueueError,
-	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
 	withQueueErrorHandling,
