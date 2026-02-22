@@ -258,9 +258,6 @@ export class ModelFallbackTracker {
 			errorCode,
 			fallbackIndex,
 		});
-		console.debug(
-			`[ModelFallback] Recorded error for ${agentName}: model=${model} code=${errorCode} fallbackIndex=${fallbackIndex}`
-		);
 	}
 
 	/**
