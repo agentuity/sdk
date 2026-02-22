@@ -172,13 +172,7 @@ export async function getQueueTimeSeries(
 	const queryString = buildAnalyticsQuery(options);
 	const url = queueApiPathWithQuery('analytics/timeseries', queryString, name);
 	const resp = await withQueueErrorHandling(
-		() =>
-			client.get(
-				url,
-				TimeSeriesResponseSchema,
-				undefined,
-				buildQueueHeaders(options?.orgId)
-			),
+		() => client.get(url, TimeSeriesResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
 		{ queueName: name }
 	);
 

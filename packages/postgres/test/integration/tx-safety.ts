@@ -70,7 +70,7 @@ async function teardown(sql: InstanceType<typeof SQL>) {
 async function testBunSql() {
 	console.log('\n📦 Part 1: Raw Bun SQL (baseline)');
 
-	const sql = new SQL({ url: DATABASE_URL, adapter: 'postgres' });
+	const sql = new SQL({ url: DATABASE_URL, adapter: 'postgres', prepare: false });
 
 	try {
 		await setup(sql);
@@ -88,7 +88,8 @@ async function testBunSql() {
 				);
 			});
 			if (result.length !== 1) throw new Error(`Expected 1 row, got ${result.length}`);
-			if (result[0].name !== 'bun-tx') throw new Error(`Expected 'bun-tx', got '${result[0].name}'`);
+			if (result[0].name !== 'bun-tx')
+				throw new Error(`Expected 'bun-tx', got '${result[0].name}'`);
 		});
 
 		await test('sql.begin() — multiple operations in one transaction', async () => {
@@ -110,10 +111,10 @@ async function testBunSql() {
 			const countBefore = await sql.unsafe(`SELECT COUNT(*) AS cnt FROM ${TEST_TABLE}`);
 			try {
 				await sql.begin(async (tx) => {
-					await tx.unsafe(
-						`INSERT INTO ${TEST_TABLE} (name, value) VALUES ($1, $2)`,
-						['should-rollback', 'x']
-					);
+					await tx.unsafe(`INSERT INTO ${TEST_TABLE} (name, value) VALUES ($1, $2)`, [
+						'should-rollback',
+						'x',
+					]);
 					throw new Error('intentional error');
 				});
 			} catch {
@@ -168,12 +169,15 @@ async function testPostgresClient() {
 		});
 
 		await test('unsafeQuery INSERT .values() works', async () => {
-			const result = await client.unsafeQuery(
-				`INSERT INTO ${TEST_TABLE} (name, value) VALUES ($1, $2) RETURNING id, name`,
-				['unsafe-values', 'val']
-			).values();
+			const result = await client
+				.unsafeQuery(
+					`INSERT INTO ${TEST_TABLE} (name, value) VALUES ($1, $2) RETURNING id, name`,
+					['unsafe-values', 'val']
+				)
+				.values();
 			if ((result as unknown[][]).length !== 1) throw new Error('Expected 1 row');
-			if (!Array.isArray((result as unknown[][])[0])) throw new Error('Expected array row format');
+			if (!Array.isArray((result as unknown[][])[0]))
+				throw new Error('Expected array row format');
 		});
 
 		await test('unsafeQuery UPDATE works', async () => {
@@ -188,10 +192,10 @@ async function testPostgresClient() {
 
 		await test('unsafeQuery DELETE works', async () => {
 			// Insert then delete
-			await client.unsafeQuery(
-				`INSERT INTO ${TEST_TABLE} (name, value) VALUES ($1, $2)`,
-				['to-delete', 'x']
-			);
+			await client.unsafeQuery(`INSERT INTO ${TEST_TABLE} (name, value) VALUES ($1, $2)`, [
+				'to-delete',
+				'x',
+			]);
 			const result = await client.unsafeQuery(
 				`DELETE FROM ${TEST_TABLE} WHERE name = $1 RETURNING *`,
 				['to-delete']
@@ -208,10 +212,9 @@ async function testPostgresClient() {
 				await tx.rollback();
 				throw e;
 			}
-			const rows = await client.unsafeQuery(
-				`SELECT * FROM ${TEST_TABLE} WHERE name = $1`,
-				['tx-insert']
-			);
+			const rows = await client.unsafeQuery(`SELECT * FROM ${TEST_TABLE} WHERE name = $1`, [
+				'tx-insert',
+			]);
 			if ((rows as unknown[]).length !== 1) throw new Error('Expected 1 row after commit');
 		});
 

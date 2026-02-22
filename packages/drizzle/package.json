@@ -41,6 +41,7 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@agentuity/core": "workspace:*",
 		"@agentuity/postgres": "workspace:*",
 		"drizzle-orm": "^0.45.0",
 		"better-auth": "^1.4.9"

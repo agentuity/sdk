@@ -45,7 +45,15 @@ export interface CLISandboxListOptions {
 	/**
 	 * Filter by sandbox status
 	 */
-	status?: 'creating' | 'idle' | 'running' | 'paused' | 'stopping' | 'suspended' | 'terminated' | 'failed';
+	status?:
+		| 'creating'
+		| 'idle'
+		| 'running'
+		| 'paused'
+		| 'stopping'
+		| 'suspended'
+		| 'terminated'
+		| 'failed';
 	/**
 	 * Maximum number of sandboxes to return (default: 50, max: 100)
 	 */

@@ -82,7 +82,12 @@ export {
 } from './errors.ts';
 
 // Reconnection utilities
-export { computeBackoff, sleep, mergeReconnectConfig, DEFAULT_RECONNECT_CONFIG } from './reconnect.ts';
+export {
+	computeBackoff,
+	sleep,
+	mergeReconnectConfig,
+	DEFAULT_RECONNECT_CONFIG,
+} from './reconnect.ts';
 
 // Global registry for coordinated shutdown
 export {

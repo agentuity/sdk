@@ -289,12 +289,13 @@ export interface AuthOptions extends Omit<BetterAuthOptions, 'trustedOrigins'> {
 
 	/**
 	 * PostgreSQL connection string.
-	 * When provided, we create a Bun SQL connection and Drizzle instance internally.
-	 * This is the simplest path - just provide the connection string.
+	 * When provided, creates a resilient PostgreSQL pool and Drizzle instance
+	 * internally using `createPostgresDrizzle()` with automatic reconnection.
+	 * This is the simplest path — just provide the connection string.
 	 *
 	 * @example
 	 * ```typescript
-	 * createAuth({
+	 * const auth = createAuth({
 	 *   connectionString: process.env.DATABASE_URL,
 	 * });
 	 * ```
@@ -451,7 +452,9 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	// Handle database configuration
 	let database = restOptions.database;
 
-	// ConnectionString provided - create resilient Drizzle connection internally
+	// ConnectionString provided — use createPostgresDrizzle (defaults to pg driver
+	// with resilient PostgresPool for automatic reconnection).
+	// See: https://github.com/agentuity/sdk/issues/1030
 	if (connectionString && !database) {
 		const { db } = createPostgresDrizzle({
 			connectionString,

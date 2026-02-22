@@ -35,7 +35,7 @@
 export { createPostgresDrizzle, drizzle } from './postgres.ts';
 
 // Types
-export type { PostgresDrizzleConfig, PostgresDrizzle } from './types.ts';
+export type { PostgresDrizzleConfig, PostgresDrizzle, PostgresDrizzlePg } from './types.ts';
 
 // Re-export from @agentuity/postgres for convenience
 export {

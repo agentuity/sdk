@@ -15,7 +15,12 @@ import {
 	queueApiPathWithQuery,
 	withQueueErrorHandling,
 } from './util.ts';
-import { validateLimit, validateMessageId, validateOffset, validateQueueName } from './validation.ts';
+import {
+	validateLimit,
+	validateMessageId,
+	validateOffset,
+	validateQueueName,
+} from './validation.ts';
 
 export const DlqListResponseSchema = APIResponseSchema(
 	z.object({
@@ -223,12 +228,7 @@ export async function deleteDeadLetterMessage(
 	const url = queueApiPath('dlq/delete', queueName, messageId);
 	const resp = await withQueueErrorHandling(
 		() =>
-			client.delete(
-				url,
-				DeleteDlqResponseSchema,
-				undefined,
-				buildQueueHeaders(options?.orgId)
-			),
+			client.delete(url, DeleteDlqResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
 		{ queueName, messageId }
 	);
 

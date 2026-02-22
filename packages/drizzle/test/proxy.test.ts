@@ -289,9 +289,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('/* audit: user-123 */ INSERT INTO items (name) VALUES ($1)', ['test']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual([
-			'/* audit: user-123 */ INSERT INTO items (name) VALUES ($1)',
-		]);
+		expect(unsafeCalls).toEqual(['/* audit: user-123 */ INSERT INTO items (name) VALUES ($1)']);
 	});
 
 	it('uses transaction-wrapped retry for INSERT with leading line comment', async () => {
@@ -301,9 +299,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('-- create new item\nINSERT INTO items (name) VALUES ($1)', ['test']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual([
-			'-- create new item\nINSERT INTO items (name) VALUES ($1)',
-		]);
+		expect(unsafeCalls).toEqual(['-- create new item\nINSERT INTO items (name) VALUES ($1)']);
 	});
 
 	it('uses transaction-wrapped retry for INSERT with newlines', async () => {
@@ -353,9 +349,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('with cte as (select 1) insert into items (name) values ($1)', ['test']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual([
-			'with cte as (select 1) insert into items (name) values ($1)',
-		]);
+		expect(unsafeCalls).toEqual(['with cte as (select 1) insert into items (name) values ($1)']);
 	});
 
 	it('uses transaction-wrapped retry for CTE INSERT with nested parens', async () => {
@@ -389,9 +383,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('WITH cte AS (SELECT 1) UPDATE items SET name = $1', ['new']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual([
-			'WITH cte AS (SELECT 1) UPDATE items SET name = $1',
-		]);
+		expect(unsafeCalls).toEqual(['WITH cte AS (SELECT 1) UPDATE items SET name = $1']);
 	});
 
 	it('uses transaction-wrapped retry for CTE DELETE', async () => {
@@ -401,9 +393,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('WITH cte AS (SELECT 1) DELETE FROM items WHERE id = $1', [1]);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual([
-			'WITH cte AS (SELECT 1) DELETE FROM items WHERE id = $1',
-		]);
+		expect(unsafeCalls).toEqual(['WITH cte AS (SELECT 1) DELETE FROM items WHERE id = $1']);
 	});
 
 	it('does not false-match INSERT keyword inside CTE subexpression', async () => {
@@ -568,19 +558,17 @@ describe('createResilientSQLProxy', () => {
 
 	it('rolls back INSERT transaction on query error', async () => {
 		const unsafeCalls: string[] = [];
-		const mockBegin = mock(
-			async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-				// Create a transaction-scoped mock where unsafe fails
-				const txUnsafe = mock((query: string, _params?: unknown[]) => {
-					unsafeCalls.push(query);
-					return Promise.reject(new Error('query failed'));
-				});
-				const txMock = { unsafe: txUnsafe };
-				// sql.begin() calls the callback; if it throws, the driver
-				// auto-rolls back and propagates the error
-				return fn(txMock);
-			}
-		);
+		const mockBegin = mock(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+			// Create a transaction-scoped mock where unsafe fails
+			const txUnsafe = mock((query: string, _params?: unknown[]) => {
+				unsafeCalls.push(query);
+				return Promise.reject(new Error('query failed'));
+			});
+			const txMock = { unsafe: txUnsafe };
+			// sql.begin() calls the callback; if it throws, the driver
+			// auto-rolls back and propagates the error
+			return fn(txMock);
+		});
 
 		const raw: Record<string, unknown> = {
 			unsafe: mock((query: string, _params?: unknown[]) => {

@@ -16,10 +16,7 @@ export interface SandboxResumeParams {
  * @param params - Parameters including the sandbox ID to resume
  * @throws {SandboxResponseError} If the sandbox is not found or resume fails
  */
-export async function sandboxResume(
-	client: APIClient,
-	params: SandboxResumeParams
-): Promise<void> {
+export async function sandboxResume(client: APIClient, params: SandboxResumeParams): Promise<void> {
 	const { sandboxId, orgId } = params;
 	const queryParams = new URLSearchParams();
 	if (orgId) {

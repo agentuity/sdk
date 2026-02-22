@@ -109,6 +109,7 @@ async function testDrizzle() {
 	const { db, client, close } = createPostgresDrizzle({
 		url: DATABASE_URL,
 		schema: { items, verification },
+		driver: 'bun-sql',
 	});
 
 	await client.waitForConnection();
@@ -183,10 +184,7 @@ async function testDrizzle() {
 
 		await test('db.transaction() — single INSERT works (no double-wrapping)', async () => {
 			const result = await db.transaction(async (tx) => {
-				return tx
-					.insert(items)
-					.values({ name: 'tx-insert', value: 'in-tx' })
-					.returning();
+				return tx.insert(items).values({ name: 'tx-insert', value: 'in-tx' }).returning();
 			});
 			if (result.length !== 1) throw new Error(`Expected 1 row, got ${result.length}`);
 			if (result[0].name !== 'tx-insert') {

@@ -16,10 +16,7 @@ export interface SandboxPauseParams {
  * @param params - Parameters including the sandbox ID to pause
  * @throws {SandboxResponseError} If the sandbox is not found or pause fails
  */
-export async function sandboxPause(
-	client: APIClient,
-	params: SandboxPauseParams
-): Promise<void> {
+export async function sandboxPause(client: APIClient, params: SandboxPauseParams): Promise<void> {
 	const { sandboxId, orgId } = params;
 	const queryParams = new URLSearchParams();
 	if (orgId) {

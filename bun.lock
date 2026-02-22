@@ -442,6 +442,7 @@
       "name": "@agentuity/drizzle",
       "version": "1.0.18",
       "dependencies": {
+        "@agentuity/core": "workspace:*",
         "@agentuity/postgres": "workspace:*",
         "better-auth": "^1.4.9",
         "drizzle-orm": "^0.45.0",
