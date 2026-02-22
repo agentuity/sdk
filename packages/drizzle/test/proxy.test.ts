@@ -18,6 +18,11 @@ import type { CallablePostgresClient } from '@agentuity/postgres';
  * Creates a minimal mock that satisfies the proxy's needs.
  * The mock exposes a `_setRaw` helper to simulate reconnection
  * (i.e., swapping the underlying raw SQL instance).
+ *
+ * The `begin` mock simulates `sql.begin(callback)` behavior:
+ * it accepts a callback, creates a transaction-scoped mock connection,
+ * and passes it to the callback. This mirrors how the production code
+ * uses `currentRaw.begin(async (tx) => { ... })` for pool-safe transactions.
  */
 function createMockClient() {
 	// Track all unsafe calls for transaction verification
@@ -31,7 +36,22 @@ function createMockClient() {
 				values: () => Promise.resolve([[1]]),
 			});
 		}),
-		begin: mock(() => Promise.resolve()),
+		begin: mock(async (fn: unknown) => {
+			if (typeof fn === 'function') {
+				// Simulate sql.begin(callback) behavior for mutation transactions
+				const txUnsafe = mock((query: string, _params?: unknown[]) => {
+					unsafeCalls.push(query);
+					const result = Promise.resolve([{ id: 1 }]);
+					return Object.assign(result, {
+						values: () => Promise.resolve([[1]]),
+					});
+				});
+				const txMock = { unsafe: txUnsafe };
+				return (fn as (tx: Record<string, unknown>) => Promise<unknown>)(txMock);
+			}
+			// For non-callback calls (delegation tests), just resolve
+			return Promise.resolve();
+		}),
 		close: mock(() => Promise.resolve()),
 		options: { parsers: {}, serializers: {} },
 	};
@@ -94,7 +114,10 @@ describe('createResilientSQLProxy', () => {
 		});
 		const newRaw: Record<string, unknown> = {
 			unsafe: newUnsafe,
-			begin: mock(() => Promise.resolve()),
+			begin: mock(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+				const txMock = { unsafe: newUnsafe };
+				return fn(txMock);
+			}),
 			options: { parsers: {}, serializers: {} },
 		};
 
@@ -140,7 +163,10 @@ describe('createResilientSQLProxy', () => {
 		});
 		const newRaw: Record<string, unknown> = {
 			unsafe: newUnsafe,
-			begin: mock(() => Promise.resolve()),
+			begin: mock(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+				const txMock = { unsafe: newUnsafe };
+				return fn(txMock);
+			}),
 			options: { parsers: {}, serializers: {} },
 		};
 
@@ -191,7 +217,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
+		expect(unsafeCalls).toEqual(['INSERT INTO items (name) VALUES ($1)']);
 	});
 
 	it('uses transaction-wrapped retry for INSERT with leading whitespace', async () => {
@@ -201,7 +227,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('  INSERT INTO items (name) VALUES ($1)', ['test']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual(['BEGIN', '  INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
+		expect(unsafeCalls).toEqual(['  INSERT INTO items (name) VALUES ($1)']);
 	});
 
 	it('uses transaction-wrapped retry for case-insensitive INSERT', async () => {
@@ -211,7 +237,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('insert into items (name) VALUES ($1)', ['test']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual(['BEGIN', 'insert into items (name) VALUES ($1)', 'COMMIT']);
+		expect(unsafeCalls).toEqual(['insert into items (name) VALUES ($1)']);
 	});
 
 	it('INSERT queries support .values() chaining', async () => {
@@ -226,11 +252,7 @@ describe('createResilientSQLProxy', () => {
 		// With lazy thenable, .values() is called before .then(), so only
 		// one transaction executes (in values mode)
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual([
-			'BEGIN',
-			'INSERT INTO items (name) VALUES ($1) RETURNING *',
-			'COMMIT',
-		]);
+		expect(unsafeCalls).toEqual(['INSERT INTO items (name) VALUES ($1) RETURNING *']);
 	});
 
 	it('INSERT lazy thenable only executes once via .values()', async () => {
@@ -246,7 +268,7 @@ describe('createResilientSQLProxy', () => {
 		expect(valuesResult).toEqual([[1]]);
 		// Only ONE execution should have run
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
+		expect(unsafeCalls).toEqual(['INSERT INTO items (name) VALUES ($1)']);
 	});
 
 	it('INSERT lazy thenable executes on direct await (without .values())', async () => {
@@ -257,7 +279,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(result).toEqual([{ id: 1 }]);
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
+		expect(unsafeCalls).toEqual(['INSERT INTO items (name) VALUES ($1)']);
 	});
 
 	it('uses transaction-wrapped retry for INSERT with leading block comment', async () => {
@@ -268,9 +290,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual([
-			'BEGIN',
 			'/* audit: user-123 */ INSERT INTO items (name) VALUES ($1)',
-			'COMMIT',
 		]);
 	});
 
@@ -282,9 +302,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual([
-			'BEGIN',
 			'-- create new item\nINSERT INTO items (name) VALUES ($1)',
-			'COMMIT',
 		]);
 	});
 
@@ -295,11 +313,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('\n\n  INSERT INTO items (name) VALUES ($1)', ['test']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual([
-			'BEGIN',
-			'\n\n  INSERT INTO items (name) VALUES ($1)',
-			'COMMIT',
-		]);
+		expect(unsafeCalls).toEqual(['\n\n  INSERT INTO items (name) VALUES ($1)']);
 	});
 
 	it('uses transaction-wrapped retry for CTE INSERT', async () => {
@@ -313,9 +327,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual([
-			'BEGIN',
 			'WITH new_item AS (SELECT $1::text AS name) INSERT INTO items (name) SELECT name FROM new_item RETURNING *',
-			'COMMIT',
 		]);
 	});
 
@@ -330,9 +342,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual([
-			'BEGIN',
 			'WITH a AS (SELECT 1), b AS (SELECT 2) INSERT INTO items (name) VALUES ($1)',
-			'COMMIT',
 		]);
 	});
 
@@ -344,9 +354,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual([
-			'BEGIN',
 			'with cte as (select 1) insert into items (name) values ($1)',
-			'COMMIT',
 		]);
 	});
 
@@ -361,9 +369,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual([
-			'BEGIN',
 			'WITH cte AS (SELECT id FROM (SELECT id FROM items WHERE id IN (1, 2))) INSERT INTO archive (id) SELECT id FROM cte',
-			'COMMIT',
 		]);
 	});
 
@@ -384,9 +390,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual([
-			'BEGIN',
 			'WITH cte AS (SELECT 1) UPDATE items SET name = $1',
-			'COMMIT',
 		]);
 	});
 
@@ -398,9 +402,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual([
-			'BEGIN',
 			'WITH cte AS (SELECT 1) DELETE FROM items WHERE id = $1',
-			'COMMIT',
 		]);
 	});
 
@@ -421,9 +423,7 @@ describe('createResilientSQLProxy', () => {
 			await proxy.unsafe("WITH cte AS (SELECT ')' AS x) INSERT INTO items VALUES ($1)", [1]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
-				'BEGIN',
 				"WITH cte AS (SELECT ')' AS x) INSERT INTO items VALUES ($1)",
-				'COMMIT',
 			]);
 		});
 
@@ -433,9 +433,7 @@ describe('createResilientSQLProxy', () => {
 			await proxy.unsafe("WITH cte AS (SELECT '(' AS x) INSERT INTO items VALUES ($1)", [1]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
-				'BEGIN',
 				"WITH cte AS (SELECT '(' AS x) INSERT INTO items VALUES ($1)",
-				'COMMIT',
 			]);
 		});
 
@@ -447,9 +445,7 @@ describe('createResilientSQLProxy', () => {
 			]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
-				'BEGIN',
 				"WITH cte AS (SELECT 'it''s ()' AS x) INSERT INTO items VALUES ($1)",
-				'COMMIT',
 			]);
 		});
 
@@ -461,9 +457,7 @@ describe('createResilientSQLProxy', () => {
 			]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
-				'BEGIN',
 				'WITH cte AS (SELECT "col(1)" FROM t) INSERT INTO items VALUES ($1)',
-				'COMMIT',
 			]);
 		});
 
@@ -473,9 +467,7 @@ describe('createResilientSQLProxy', () => {
 			await proxy.unsafe('WITH cte AS (SELECT /* ) */ 1) INSERT INTO items VALUES ($1)', [1]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
-				'BEGIN',
 				'WITH cte AS (SELECT /* ) */ 1) INSERT INTO items VALUES ($1)',
-				'COMMIT',
 			]);
 		});
 
@@ -487,9 +479,7 @@ describe('createResilientSQLProxy', () => {
 			]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
-				'BEGIN',
 				'WITH cte AS (SELECT 1 -- )\nFROM t) INSERT INTO items VALUES ($1)',
-				'COMMIT',
 			]);
 		});
 
@@ -499,9 +489,7 @@ describe('createResilientSQLProxy', () => {
 			await proxy.unsafe('WITH cte AS (SELECT $$)$$ AS x) INSERT INTO items VALUES ($1)', [1]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
-				'BEGIN',
 				'WITH cte AS (SELECT $$)$$ AS x) INSERT INTO items VALUES ($1)',
-				'COMMIT',
 			]);
 		});
 
@@ -513,9 +501,7 @@ describe('createResilientSQLProxy', () => {
 			]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
-				'BEGIN',
 				'WITH cte AS (SELECT $fn$)($fn$ AS x) INSERT INTO items VALUES ($1)',
-				'COMMIT',
 			]);
 		});
 
@@ -536,11 +522,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('INSERT/*hint*/INTO items (name) VALUES ($1)', ['test']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual([
-			'BEGIN',
-			'INSERT/*hint*/INTO items (name) VALUES ($1)',
-			'COMMIT',
-		]);
+		expect(unsafeCalls).toEqual(['INSERT/*hint*/INTO items (name) VALUES ($1)']);
 	});
 
 	it('detects CTE mutation with inline comment after DML keyword', async () => {
@@ -551,9 +533,7 @@ describe('createResilientSQLProxy', () => {
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 		expect(unsafeCalls).toEqual([
-			'BEGIN',
 			'WITH cte AS (SELECT 1) DELETE/*where*/FROM items WHERE id = $1',
-			'COMMIT',
 		]);
 	});
 
@@ -573,7 +553,7 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('UPDATE items SET name = $1', ['new']);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual(['BEGIN', 'UPDATE items SET name = $1', 'COMMIT']);
+		expect(unsafeCalls).toEqual(['UPDATE items SET name = $1']);
 	});
 
 	it('uses transaction-wrapped retry for DELETE queries', async () => {
@@ -583,30 +563,34 @@ describe('createResilientSQLProxy', () => {
 		await proxy.unsafe('DELETE FROM items WHERE id = $1', [1]);
 
 		expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-		expect(unsafeCalls).toEqual(['BEGIN', 'DELETE FROM items WHERE id = $1', 'COMMIT']);
+		expect(unsafeCalls).toEqual(['DELETE FROM items WHERE id = $1']);
 	});
 
 	it('rolls back INSERT transaction on query error', async () => {
 		const unsafeCalls: string[] = [];
-		let callIndex = 0;
-		const mockUnsafe = mock((query: string, _params?: unknown[]) => {
-			unsafeCalls.push(query);
-			callIndex++;
-			// First call: BEGIN succeeds
-			// Second call: INSERT fails
-			// Third call: ROLLBACK succeeds
-			if (callIndex === 2) {
-				return Promise.reject(new Error('query failed'));
+		const mockBegin = mock(
+			async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+				// Create a transaction-scoped mock where unsafe fails
+				const txUnsafe = mock((query: string, _params?: unknown[]) => {
+					unsafeCalls.push(query);
+					return Promise.reject(new Error('query failed'));
+				});
+				const txMock = { unsafe: txUnsafe };
+				// sql.begin() calls the callback; if it throws, the driver
+				// auto-rolls back and propagates the error
+				return fn(txMock);
 			}
-			const result = Promise.resolve([{ id: 1 }]);
-			return Object.assign(result, {
-				values: () => Promise.resolve([[1]]),
-			});
-		});
+		);
 
 		const raw: Record<string, unknown> = {
-			unsafe: mockUnsafe,
-			begin: mock(() => Promise.resolve()),
+			unsafe: mock((query: string, _params?: unknown[]) => {
+				unsafeCalls.push(query);
+				const result = Promise.resolve([{ id: 1 }]);
+				return Object.assign(result, {
+					values: () => Promise.resolve([[1]]),
+				});
+			}),
+			begin: mockBegin,
 			close: mock(() => Promise.resolve()),
 			options: { parsers: {}, serializers: {} },
 		};
@@ -628,7 +612,9 @@ describe('createResilientSQLProxy', () => {
 			Promise.resolve(proxy.unsafe('INSERT INTO items (name) VALUES ($1)', ['test']))
 		).rejects.toThrow('query failed');
 
-		expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'ROLLBACK']);
+		// With sql.begin(callback), BEGIN/ROLLBACK are handled internally by the driver.
+		// Only the actual query that was executed inside the callback appears in unsafeCalls.
+		expect(unsafeCalls).toEqual(['INSERT INTO items (name) VALUES ($1)']);
 	});
 
 	it('INSERT transaction re-resolves raw on retry after reconnection', async () => {
@@ -643,7 +629,17 @@ describe('createResilientSQLProxy', () => {
 					values: () => Promise.resolve([[1]]),
 				});
 			}),
-			begin: mock(() => Promise.resolve()),
+			begin: mock(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+				const txUnsafe = mock((query: string, _params?: unknown[]) => {
+					firstUnsafeCalls.push(query);
+					const result = Promise.resolve([{ id: 1 }]);
+					return Object.assign(result, {
+						values: () => Promise.resolve([[1]]),
+					});
+				});
+				const txMock = { unsafe: txUnsafe };
+				return fn(txMock);
+			}),
 			close: mock(() => Promise.resolve()),
 			options: { parsers: {}, serializers: {} },
 		};
@@ -656,7 +652,17 @@ describe('createResilientSQLProxy', () => {
 					values: () => Promise.resolve([[2]]),
 				});
 			}),
-			begin: mock(() => Promise.resolve()),
+			begin: mock(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+				const txUnsafe = mock((query: string, _params?: unknown[]) => {
+					secondUnsafeCalls.push(query);
+					const result = Promise.resolve([{ id: 2 }]);
+					return Object.assign(result, {
+						values: () => Promise.resolve([[2]]),
+					});
+				});
+				const txMock = { unsafe: txUnsafe };
+				return fn(txMock);
+			}),
 			close: mock(() => Promise.resolve()),
 			options: { parsers: {}, serializers: {} },
 		};
@@ -684,11 +690,8 @@ describe('createResilientSQLProxy', () => {
 		// raw is re-resolved inside the retry callback
 		expect(result).toEqual([{ id: 2 }]);
 		expect(firstUnsafeCalls).toEqual([]); // First raw was never used
-		expect(secondUnsafeCalls).toEqual([
-			'BEGIN',
-			'INSERT INTO items (name) VALUES ($1)',
-			'COMMIT',
-		]);
+		// With sql.begin(callback), only the actual query appears (no BEGIN/COMMIT)
+		expect(secondUnsafeCalls).toEqual(['INSERT INTO items (name) VALUES ($1)']);
 	});
 
 	describe('data safety: single-execution guarantee', () => {
@@ -738,7 +741,7 @@ describe('createResilientSQLProxy', () => {
 			await thenable;
 			await thenable;
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'UPDATE items SET name = $1', 'COMMIT']);
+			expect(unsafeCalls).toEqual(['UPDATE items SET name = $1']);
 		});
 
 		it('multiple .values() calls run single transaction', async () => {
@@ -754,7 +757,7 @@ describe('createResilientSQLProxy', () => {
 			expect(r2).toEqual([[1]]);
 			expect(r3).toEqual([[1]]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
+			expect(unsafeCalls).toEqual(['INSERT INTO items (name) VALUES ($1)']);
 		});
 
 		it('.catch() triggers execution exactly once', async () => {
@@ -765,7 +768,7 @@ describe('createResilientSQLProxy', () => {
 			await thenable.catch(() => {});
 			// Verify single execution
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
+			expect(unsafeCalls).toEqual(['INSERT INTO items (name) VALUES ($1)']);
 		});
 
 		it('.finally() triggers execution exactly once', async () => {
@@ -775,7 +778,7 @@ describe('createResilientSQLProxy', () => {
 			// .finally() should start execution (via startExecution(false))
 			await thenable.finally(() => {});
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'UPDATE items SET active = false', 'COMMIT']);
+			expect(unsafeCalls).toEqual(['UPDATE items SET active = false']);
 		});
 
 		it('UPDATE queries support .values() chaining with single transaction', async () => {
@@ -786,7 +789,7 @@ describe('createResilientSQLProxy', () => {
 				.values();
 			expect(result).toEqual([[1]]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'UPDATE items SET name = $1 RETURNING *', 'COMMIT']);
+			expect(unsafeCalls).toEqual(['UPDATE items SET name = $1 RETURNING *']);
 		});
 
 		it('DELETE queries support .values() chaining with single transaction', async () => {
@@ -797,11 +800,7 @@ describe('createResilientSQLProxy', () => {
 				.values();
 			expect(result).toEqual([[1]]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual([
-				'BEGIN',
-				'DELETE FROM items WHERE id = $1 RETURNING *',
-				'COMMIT',
-			]);
+			expect(unsafeCalls).toEqual(['DELETE FROM items WHERE id = $1 RETURNING *']);
 		});
 	});
 
@@ -861,7 +860,7 @@ describe('createResilientSQLProxy', () => {
 			await thenable;
 			await thenable;
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'INSERT INTO items (name) VALUES ($1)', 'COMMIT']);
+			expect(unsafeCalls).toEqual(['INSERT INTO items (name) VALUES ($1)']);
 		});
 
 		it('allows repeated .values() calls on same mutation', async () => {
@@ -874,7 +873,7 @@ describe('createResilientSQLProxy', () => {
 			expect(r1).toEqual([[1]]);
 			expect(r2).toEqual([[1]]);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
-			expect(unsafeCalls).toEqual(['BEGIN', 'DELETE FROM items WHERE id = $1', 'COMMIT']);
+			expect(unsafeCalls).toEqual(['DELETE FROM items WHERE id = $1']);
 		});
 
 		it('throws when .values() called after .then() on non-mutation', async () => {

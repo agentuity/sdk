@@ -230,20 +230,14 @@ export class PostgresClient {
 		return this._executeWithRetry(async () => {
 			const sql = await this._ensureConnectedAsync();
 			if (mutation) {
-				await sql.unsafe('BEGIN');
-				try {
-					const result = await sql(strings, ...values);
-					await sql.unsafe('COMMIT');
-					return result as unknown[];
-				} catch (error) {
-					try {
-						await sql.unsafe('ROLLBACK');
-					} catch {
-						// Connection may already be dead; Postgres auto-rolls
-						// back uncommitted transactions on connection close.
-					}
-					throw error;
-				}
+				// Use sql.begin() callback API for pool-safe transactions.
+				// Bun requires this instead of manual BEGIN/COMMIT when max > 1,
+				// because sql.begin() reserves a specific connection for the
+				// transaction. Manual BEGIN via sql.unsafe('BEGIN') would throw
+				// ERR_POSTGRES_UNSAFE_TRANSACTION on pooled connections.
+				return sql.begin(async (tx) => {
+					return tx(strings, ...values) as unknown as unknown[];
+				});
 			}
 			return sql(strings, ...values);
 		});
@@ -273,6 +267,13 @@ export class PostgresClient {
 		// This ensures _warmConnection() updates connection stats before we proceed
 		const sql = await this._ensureConnectedAsync();
 
+		// Reserve a dedicated connection from the pool. Bun requires either
+		// sql.begin(callback), sql.reserve(), or max:1 for transactions.
+		// Since this API returns a Transaction object for manual commit/rollback,
+		// we need a reserved connection to guarantee all queries hit the same
+		// connection as the BEGIN.
+		const reserved = await sql.reserve();
+
 		// Build BEGIN statement with options
 		let beginStatement = 'BEGIN';
 
@@ -292,10 +293,15 @@ export class PostgresClient {
 			beginStatement += ' NOT DEFERRABLE';
 		}
 
-		// Execute BEGIN
-		const connection = await sql.unsafe(beginStatement);
-
-		return new Transaction(sql, connection);
+		// Execute BEGIN on the reserved connection
+		try {
+			const connection = await reserved.unsafe(beginStatement);
+			return new Transaction(reserved, connection);
+		} catch (error) {
+			// Release the reserved connection if BEGIN fails
+			reserved.release();
+			throw error;
+		}
 	}
 
 	/**
@@ -419,24 +425,16 @@ export class PostgresClient {
 	 */
 	unsafeQuery(query: string, params?: unknown[]): UnsafeQueryResult {
 		if (isMutationStatement(query)) {
+			// Use sql.begin() callback API for pool-safe transactions.
+			// Bun requires this instead of manual BEGIN/COMMIT when max > 1.
+			// sql.begin() auto-COMMITs on success and auto-ROLLBACKs on error.
 			const makeTransactionalExecutor = (useValues: boolean) =>
 				this._executeWithRetry(async () => {
 					const raw = this._ensureConnected();
-					await raw.unsafe('BEGIN');
-					try {
-						const q = params ? raw.unsafe(query, params) : raw.unsafe(query);
-						const result = useValues ? await q.values() : await q;
-						await raw.unsafe('COMMIT');
-						return result;
-					} catch (error) {
-						try {
-							await raw.unsafe('ROLLBACK');
-						} catch {
-							// Connection may already be dead; Postgres auto-rolls
-							// back uncommitted transactions on connection close.
-						}
-						throw error;
-					}
+					return raw.begin(async (tx) => {
+						const q = params ? tx.unsafe(query, params) : tx.unsafe(query);
+						return useValues ? await q.values() : await q;
+					});
 				});
 
 			return createThenable(makeTransactionalExecutor);
