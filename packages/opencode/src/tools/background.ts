@@ -105,6 +105,12 @@ export function createBackgroundTools(manager: BackgroundManager): {
 			status: string;
 			result?: string;
 			error?: string;
+			progress?: {
+				toolCalls: number;
+				lastTool?: string;
+				lastToolSec: number;
+				activeTools: number;
+			};
 		}> {
 			const task = manager.getTask(args.task_id);
 			if (!task) {
@@ -114,12 +120,34 @@ export function createBackgroundTools(manager: BackgroundManager): {
 					error: 'Task not found.',
 				};
 			}
+
+			// Include compact progress snapshot only for active tasks.
+			// Three numbers + optional tool name — minimal context cost.
+			// lastToolSec: seconds since the last tool call event was received.
+			//   0 = active right now; >300 with activeTools=0 = genuinely stuck.
+			let progress:
+				| { toolCalls: number; lastTool?: string; lastToolSec: number; activeTools: number }
+				| undefined;
+
+			if ((task.status === 'running' || task.status === 'pending') && task.progress) {
+				const lastToolSec = Math.floor(
+					(Date.now() - task.progress.lastUpdate.getTime()) / 1000
+				);
+				progress = {
+					toolCalls: task.progress.toolCalls,
+					lastTool: task.progress.lastTool,
+					lastToolSec,
+					activeTools: task.progress.activeToolCallsInFlight,
+				};
+			}
+
 			return {
 				taskId: task.id,
 				sessionId: task.sessionId,
 				status: task.status,
 				result: task.result,
 				error: task.error,
+				progress,
 			};
 		},
 	};

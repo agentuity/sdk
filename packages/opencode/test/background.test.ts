@@ -245,6 +245,7 @@ describe('Background', () => {
 					lastUpdate: new Date(),
 					lastMessage: 'Working...',
 					lastMessageAt: new Date(),
+					activeToolCallsInFlight: 0,
 				},
 				concurrencyKey: 'anthropic/claude',
 				concurrencyGroup: 'anthropic/claude',
@@ -262,6 +263,7 @@ describe('Background', () => {
 				lastUpdate: new Date(),
 				lastMessage: 'Completed',
 				lastMessageAt: new Date(),
+				activeToolCallsInFlight: 2,
 			};
 
 			expect(progress.toolCalls).toBe(10);
@@ -286,6 +288,9 @@ describe('Background', () => {
 			sessionPrompt?: (args: unknown) => Promise<unknown>;
 		}): PluginInput & { promptCalls: unknown[] } {
 			const promptCalls: unknown[] = [];
+			// Each session.create call returns a unique ID so that background tasks
+			// (including auto-launched Monitor tasks) don't collide in tasksBySession.
+			let sessionSeq = 0;
 			return {
 				promptCalls,
 				client: {
@@ -294,7 +299,12 @@ describe('Background', () => {
 						children: overrides?.sessionChildren ?? (async () => ({ data: [] })),
 						get: async () => ({ data: {} }),
 						messages: async () => ({ data: [] }),
-						create: overrides?.sessionCreate ?? (async () => ({ data: { id: 'sess_1' } })),
+						create:
+							overrides?.sessionCreate ??
+							(async () => {
+								sessionSeq += 1;
+								return { data: { id: `sess_${sessionSeq}` } };
+							}),
 						prompt:
 							overrides?.sessionPrompt ??
 							(async (args: unknown) => {
