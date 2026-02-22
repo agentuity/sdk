@@ -197,7 +197,10 @@ export function createCadenceHooks(
 
 			log(`Event received: ${event.type}`);
 
-			// Handle session.compacted - save compaction AND continue loop
+			// Handle session.compacted - save compaction AND continue loop.
+			// Note: Compaction continues in the SAME session (via session.prompt with
+			// the existing sessionId), so permissions configured in the config hook
+			// (plugin.ts) are automatically inherited — no re-application needed.
 			if (event.type === 'session.compacted') {
 				const sessionId = event.sessionId;
 				if (!sessionId) return;

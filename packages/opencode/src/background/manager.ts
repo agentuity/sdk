@@ -59,6 +59,7 @@ export class BackgroundManager {
 	private activeToolCallIds = new Map<string, Set<string>>();
 	/** Maps parent session ID → monitor task ID for auto-launched monitors */
 	private monitorsPerParent = new Map<string, string>();
+	private lastNotifyTimes = new Map<string, number>();
 	private shuttingDown = false;
 	private refreshIntervalId: ReturnType<typeof setInterval> | undefined;
 
@@ -599,7 +600,20 @@ export class BackgroundManager {
 			const task = sessionId ? this.findBySession(sessionId) : undefined;
 			if (!task) return;
 			const error = extractError(event.properties);
-			this.failTask(task, error ?? 'Session error.');
+			const errorMsg = error ?? 'Session error.';
+
+			// Log extra context for timeout errors — the server fires these when
+			// a model generates a long text response without tool activity.
+			if (
+				errorMsg.toLowerCase().includes('timeout') ||
+				errorMsg.toLowerCase().includes('no activity')
+			) {
+				console.debug(
+					`[BackgroundManager] Task ${task.id} timed out - may have been generating long response. Progress: ${JSON.stringify(task.progress)}`
+				);
+			}
+
+			this.failTask(task, errorMsg);
 			return;
 		}
 	}
@@ -895,13 +909,30 @@ Do not poll more than once every 30 seconds. Be patient — Scout tasks reading 
 		// Monitor tasks push their own report as their session output — no separate notification needed.
 		if (task.isMonitor) return;
 
-		// Prevent duplicate notifications for the same task+status combination
-		// This guards against OpenCode firing multiple events for the same status transition
-		const notifiedStatuses = task.notifiedStatuses ?? new Set();
+		// Recovered tasks (from recoverTasks) have no notifiedStatuses.
+		// Assume they were already notified and skip to prevent duplicate notifications.
+		if (!task.notifiedStatuses) {
+			task.notifiedStatuses = new Set([task.status]);
+			return;
+		}
 
+		const notifiedStatuses = task.notifiedStatuses;
 		if (notifiedStatuses.has(task.status)) {
 			return; // Already notified for this status, skip duplicate
 		}
+
+		// Belt-and-suspenders: rate limit notifications per task+status to 1 per 10s
+		const now = Date.now();
+		const lastNotifyKey = `${task.id}:${task.status}`;
+		const lastTime = this.lastNotifyTimes.get(lastNotifyKey);
+		if (lastTime && now - lastTime < 10_000) {
+			return;
+		}
+		this.lastNotifyTimes.set(lastNotifyKey, now);
+
+		// Do NOT pre-mark as notified here — if all retries fail, the status
+		// must remain unmarked so future retry attempts (via refreshStatuses
+		// or Monitor) are not blocked. Mark only on confirmed delivery below.
 
 		const statusLine = task.status === 'completed' ? 'completed' : task.status;
 		const message = `[BACKGROUND TASK ${statusLine.toUpperCase()}]
@@ -940,7 +971,9 @@ Use the agentuity_background_output tool with task_id "${task.id}" to view the r
 						`[BackgroundManager] Failed to notify parent for task ${task.id} after ${maxRetries} attempts:`,
 						errorMsg
 					);
-					// Don't mark as notified — allow future retry via refreshStatuses or Monitor
+					// Safety net: ensure status is NOT marked as notified so future
+					// retry attempts (via refreshStatuses or Monitor) are not blocked
+					notifiedStatuses.delete(task.status);
 				}
 			}
 		}
