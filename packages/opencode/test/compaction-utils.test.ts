@@ -23,7 +23,7 @@ describe('compaction-utils', () => {
 
 		it('includes critical preservation instructions', () => {
 			const prompt = buildCustomCompactionPrompt('cadence');
-			expect(prompt).toContain('background task IDs');
+			expect(prompt).toContain('Active planning state');
 			expect(prompt).toContain('Active Task');
 			expect(prompt).toContain('Planning State');
 			expect(prompt).toContain('Next Steps');
@@ -34,7 +34,6 @@ describe('compaction-utils', () => {
 			for (const mode of ['cadence', 'regular'] as const) {
 				const prompt = buildCustomCompactionPrompt(mode);
 				expect(prompt).toContain('### Active Task');
-				expect(prompt).toContain('### Background Tasks');
 				expect(prompt).toContain('### Key Context');
 				expect(prompt).toContain('### Active Files');
 				expect(prompt).toContain('### Next Steps');
@@ -44,7 +43,6 @@ describe('compaction-utils', () => {
 		it('includes rules about specificity', () => {
 			const prompt = buildCustomCompactionPrompt('regular');
 			expect(prompt).toContain('specific file paths');
-			expect(prompt).toContain('NEVER drop background task references');
 			expect(prompt).toContain('completeness over brevity');
 		});
 	});
@@ -53,7 +51,6 @@ describe('compaction-utils', () => {
 		it('returns empty string when no stats', () => {
 			const stats: CompactionStats = {
 				planningPhasesCount: 0,
-				backgroundTasksCount: 0,
 				imageDescriptionsCount: 0,
 				toolCallSummariesCount: 0,
 				estimatedTokens: 0,
@@ -64,14 +61,12 @@ describe('compaction-utils', () => {
 		it('includes all non-zero counts', () => {
 			const stats: CompactionStats = {
 				planningPhasesCount: 3,
-				backgroundTasksCount: 2,
 				imageDescriptionsCount: 1,
 				toolCallSummariesCount: 5,
 				estimatedTokens: 2500,
 			};
 			const result = formatCompactionDiagnostics(stats);
 			expect(result).toContain('3 planning phases');
-			expect(result).toContain('2 background tasks');
 			expect(result).toContain('1 image refs');
 			expect(result).toContain('5 tool calls');
 			expect(result).toContain('2500 tokens');
@@ -80,7 +75,6 @@ describe('compaction-utils', () => {
 		it('returns empty string when all counts are zero', () => {
 			const stats: CompactionStats = {
 				planningPhasesCount: 0,
-				backgroundTasksCount: 0,
 				imageDescriptionsCount: 0,
 				toolCallSummariesCount: 0,
 				estimatedTokens: 1000,
@@ -92,15 +86,13 @@ describe('compaction-utils', () => {
 		it('only includes non-zero items', () => {
 			const stats: CompactionStats = {
 				planningPhasesCount: 0,
-				backgroundTasksCount: 4,
-				imageDescriptionsCount: 0,
+				imageDescriptionsCount: 2,
 				toolCallSummariesCount: 0,
 				estimatedTokens: 500,
 			};
 			const result = formatCompactionDiagnostics(stats);
-			expect(result).toContain('4 background tasks');
+			expect(result).toContain('2 image refs');
 			expect(result).not.toContain('planning phases');
-			expect(result).not.toContain('image refs');
 			expect(result).not.toContain('tool calls');
 			expect(result).toContain('500 tokens');
 		});
@@ -108,7 +100,6 @@ describe('compaction-utils', () => {
 		it('starts with blockquote formatting', () => {
 			const stats: CompactionStats = {
 				planningPhasesCount: 1,
-				backgroundTasksCount: 0,
 				imageDescriptionsCount: 0,
 				toolCallSummariesCount: 0,
 				estimatedTokens: 100,

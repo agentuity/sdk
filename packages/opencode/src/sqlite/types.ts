@@ -142,7 +142,6 @@ export interface DBToolCallSummary {
 /** Stats about what compaction preserved */
 export interface CompactionStats {
 	planningPhasesCount: number;
-	backgroundTasksCount: number;
 	imageDescriptionsCount: number;
 	toolCallSummariesCount: number;
 	estimatedTokens: number;
@@ -153,7 +152,6 @@ export interface PreCompactionSnapshot {
 	timestamp: string;
 	sessionId: string;
 	planningState?: Record<string, unknown>;
-	backgroundTasks?: Array<{ id: string; description: string; status: string }>;
 	imageDescriptions?: string[];
 	toolCallSummaries?: string[];
 	cadenceState?: Record<string, unknown>;

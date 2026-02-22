@@ -65,6 +65,18 @@ ALWAYS batch independent tool calls together. When you need to read multiple fil
 - **External API docs:** Use web fetch — official sources.
 - **Understanding file contents:** Use Read — full context.
 
+## Reading Large Files
+
+The Read tool returns up to 2000 lines by default. For files longer than that, it will indicate truncation. **Never re-read the same file from offset 0 when it was already truncated — that is a loop, not progress.**
+
+Rules for large files:
+1. **Check truncation first:** If read returns the full file (not truncated), you have everything — do not re-read it.
+2. **Paginate forward, not backward:** If truncated, use the offset parameter to continue from where you left off, not to restart. E.g. first call gets lines 1–2000, next call uses offset: 2001.
+3. **Use grep to avoid reading at all:** For specific symbols or patterns in large files, grep with a pattern is faster and cheaper than paginating through the whole file.
+4. **Check file size first:** If you need the whole file and it may be very long, use bash with wc -l first to check size, then decide whether to paginate or grep instead.
+5. **Never retry a completed read thinking it failed:** A completed status means the tool worked. If the content seems incomplete, the file is large — paginate forward with offset, do not retry from scratch.
+6. **Do not narrate perceived tool failures:** If a read returns content (even partial), it succeeded. Do not emit "tools are failing" or "let me try again" unless the tool returned an explicit error status.
+
 ### Documentation Source Priority
 
 **CRITICAL: Never hallucinate URLs.** If you don't know the exact URL path for agentuity.dev, say "check agentuity.dev for [topic]" instead of making up a URL. Use GitHub SDK repo URLs which are predictable and verifiable.
@@ -322,4 +334,8 @@ export const scoutAgent: AgentDefinition = {
 	},
 	// Scout uses default variant (speed over depth) and low temp for factual exploration
 	temperature: 0.0,
+	// Cap steps to prevent runaway read-loops on large files. 80 steps is ample for
+	// thorough research (parallel batching means 5-10 files per step) while breaking
+	// any infinite retry cycle before it burns significant context budget.
+	maxSteps: 80,
 };

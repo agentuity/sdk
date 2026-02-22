@@ -52,7 +52,7 @@ export interface TmuxSessionManagerCallbacks {
 }
 
 /**
- * Manages tmux panes for background agents.
+ * Manages tmux panes for agent sessions.
  *
  * Architecture:
  * 1. QUERY: Get actual tmux pane state (source of truth)
@@ -106,8 +106,8 @@ export class TmuxSessionManager {
 	}
 
 	/**
-	 * Handle a new background session being created
-	 * This is called by BackgroundManager when a background task starts
+	 * Handle a new subagent session being created
+	 * This is called when a delegated session starts
 	 *
 	 * Operations are queued to prevent race conditions when multiple sessions
 	 * are created rapidly.
@@ -251,7 +251,7 @@ export class TmuxSessionManager {
 	/**
 	 * Handle a session being deleted
 	 *
-	 * Explicitly kills the pane when a background session completes.
+	 * Explicitly kills the pane when a subagent session completes.
 	 * We can't rely on `opencode attach` exiting because it's an interactive
 	 * terminal that keeps running even after the session goes idle.
 	 *

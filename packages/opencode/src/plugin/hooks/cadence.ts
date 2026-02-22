@@ -1,6 +1,5 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
-import type { BackgroundManager } from '../../background';
 import type { OpenCodeDBReader, SessionTreeNode } from '../../sqlite';
 import type { CompactionStats } from '../../sqlite/types';
 import {
@@ -68,7 +67,6 @@ interface CadenceSessionState {
 export function createCadenceHooks(
 	ctx: PluginInput,
 	config: CoderConfig,
-	backgroundManager?: BackgroundManager,
 	dbReader?: OpenCodeDBReader,
 	lastUserMessages?: Map<string, string>
 ): CadenceHooks {
@@ -361,47 +359,21 @@ After compaction:
 3. Lead will continue the loop from iteration ${state.iteration}
 4. Use 5-Question Reboot to re-orient: Where am I? Where going? Goal? Learned? Done?`;
 
-			// 4. Build background tasks section
-			const tasks = backgroundManager?.getTasksByParent(sessionId) ?? [];
-			let backgroundSection: string | null = null;
-
-			if (tasks.length > 0) {
-				const taskList = tasks
-					.map(
-						(t) =>
-							`- **${t.id}**: ${t.description || 'No description'} (session: ${t.sessionId ?? 'pending'}, status: ${t.status})`
-					)
-					.join('\n');
-
-				backgroundSection = `## Active Background Tasks
-
-This session has ${tasks.length} background task(s) running in separate sessions:
-${taskList}
-
-**CRITICAL:** Task IDs and session IDs persist across compaction - these tasks are still running.
-Use \`agentuity_background_output({ task_id: "..." })\` to check their status.
-Use \`agentuity_session_dashboard({ session_id: "..." })\` to get a full session tree with status, costs, and health summary for Lead-of-Leads monitoring.
-
-**Tip:** A Monitor agent is auto-launched to watch these tasks. You will receive \`[BACKGROUND TASK COMPLETED]\` notifications as each task finishes, and \`[ALL BACKGROUND TASKS COMPLETE]\` when all are done. Use \`agentuity_session_dashboard\` for a unified progress view.`;
-			}
-
-			// 5. Build SQLite dashboard section
+			// 4. Build SQLite dashboard section
 			const dashboardSection = buildSqliteDashboardSummary(dbReader, sessionId);
 
-			// 6. Combine everything into the full prompt
+			// 5. Combine everything into the full prompt
 			const sections: string[] = [];
 			if (instructions) sections.push(instructions);
 			sections.push(cadenceStateSection);
-			if (backgroundSection) sections.push(backgroundSection);
 			if (planningState) sections.push(planningState);
 			if (imageDescs) sections.push(imageDescs);
 			if (toolSummaries) sections.push(toolSummaries);
 			if (dashboardSection) sections.push(dashboardSection);
 
-			// 7. Add diagnostics
+			// 6. Add diagnostics
 			const stats: CompactionStats = {
 				planningPhasesCount: countListItems(planningState),
-				backgroundTasksCount: tasks.length,
 				imageDescriptionsCount: countListItems(imageDescs),
 				toolCallSummariesCount: countListItems(toolSummaries),
 				estimatedTokens: Math.ceil(sections.join('\n\n').length / 4),
@@ -409,7 +381,7 @@ Use \`agentuity_session_dashboard({ session_id: "..." })\` to get a full session
 			const diagnostics = formatCompactionDiagnostics(stats);
 			if (diagnostics) sections.push(diagnostics);
 
-			// 8. Enforce token budget
+			// 7. Enforce token budget
 			let fullPrompt = sections.join('\n\n');
 			const estimatedTokens = Math.ceil(fullPrompt.length / 4);
 			if (maxTokens > 0 && estimatedTokens > maxTokens) {
@@ -425,24 +397,19 @@ Use \`agentuity_session_dashboard({ session_id: "..." })\` to get a full session
 				fullPrompt = trimmed.join('\n\n');
 			}
 
-			// 9. Set the full prompt or push to context
+			// 8. Set the full prompt or push to context
 			if (useCustomPrompt) {
 				output.prompt = fullPrompt;
 			} else {
 				output.context.push(fullPrompt);
 			}
 
-			// 10. Store pre-compaction snapshot to KV (fire-and-forget)
+			// 9. Store pre-compaction snapshot to KV (fire-and-forget)
 			if (useSnapshotToKV) {
 				storePreCompactionSnapshot(sessionId, {
 					timestamp: new Date().toISOString(),
 					sessionId,
 					planningState: planningState ? { raw: planningState } : undefined,
-					backgroundTasks: tasks.map((t) => ({
-						id: t.id,
-						description: t.description || 'No description',
-						status: t.status,
-					})),
 					cadenceState: state ? { ...state } : undefined,
 					branch,
 				}).catch(() => {}); // Fire and forget

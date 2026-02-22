@@ -1,6 +1,5 @@
 import type { PluginInput } from '@opencode-ai/plugin';
 import type { CoderConfig } from '../../types';
-import type { BackgroundManager } from '../../background';
 import type { OpenCodeDBReader } from '../../sqlite';
 import type { CompactionStats } from '../../sqlite/types';
 import {
@@ -34,7 +33,6 @@ export interface SessionMemoryHooks {
 export function createSessionMemoryHooks(
 	ctx: PluginInput,
 	config: CoderConfig,
-	backgroundManager?: BackgroundManager,
 	dbReader?: OpenCodeDBReader
 ): SessionMemoryHooks {
 	const log = (msg: string) => {
@@ -188,40 +186,17 @@ After compaction:
 2. If planning is active, Memory should update planning.progress with this compaction
 3. Memory will apply inline reasoning if significant patterns/corrections emerged`;
 
-			// 4. Build background tasks section
-			const tasks = backgroundManager?.getTasksByParent(sessionId) ?? [];
-			let backgroundSection: string | null = null;
-
-			if (tasks.length > 0) {
-				const taskList = tasks
-					.map(
-						(t) =>
-							`- **${t.id}**: ${t.description || 'No description'} (session: ${t.sessionId ?? 'pending'}, status: ${t.status})`
-					)
-					.join('\n');
-
-				backgroundSection = `## Active Background Tasks
-
-This session has ${tasks.length} background task(s) running in separate sessions:
-${taskList}
-
-**CRITICAL:** Task IDs and session IDs persist across compaction - these tasks are still running.
-Use \`agentuity_background_output({ task_id: "..." })\` to check their status.`;
-			}
-
-			// 5. Combine everything into the full prompt
+			// 4. Combine everything into the full prompt
 			const sections: string[] = [];
 			if (instructions) sections.push(instructions);
 			sections.push(sessionStateSection);
-			if (backgroundSection) sections.push(backgroundSection);
 			if (planningState) sections.push(planningState);
 			if (imageDescs) sections.push(imageDescs);
 			if (toolSummaries) sections.push(toolSummaries);
 
-			// 6. Add diagnostics
+			// 5. Add diagnostics
 			const stats: CompactionStats = {
 				planningPhasesCount: countListItems(planningState),
-				backgroundTasksCount: tasks.length,
 				imageDescriptionsCount: countListItems(imageDescs),
 				toolCallSummariesCount: countListItems(toolSummaries),
 				estimatedTokens: Math.ceil(sections.join('\n\n').length / 4),
@@ -229,7 +204,7 @@ Use \`agentuity_background_output({ task_id: "..." })\` to check their status.`;
 			const diagnostics = formatCompactionDiagnostics(stats);
 			if (diagnostics) sections.push(diagnostics);
 
-			// 7. Enforce token budget
+			// 6. Enforce token budget
 			let fullPrompt = sections.join('\n\n');
 			const estimatedTokens = Math.ceil(fullPrompt.length / 4);
 			if (maxTokens > 0 && estimatedTokens > maxTokens) {
@@ -245,24 +220,19 @@ Use \`agentuity_background_output({ task_id: "..." })\` to check their status.`;
 				fullPrompt = trimmed.join('\n\n');
 			}
 
-			// 8. Set the full prompt or push to context
+			// 7. Set the full prompt or push to context
 			if (useCustomPrompt) {
 				output.prompt = fullPrompt;
 			} else {
 				output.context.push(fullPrompt);
 			}
 
-			// 9. Store pre-compaction snapshot to KV (fire-and-forget)
+			// 8. Store pre-compaction snapshot to KV (fire-and-forget)
 			if (useSnapshotToKV) {
 				storePreCompactionSnapshot(sessionId, {
 					timestamp: new Date().toISOString(),
 					sessionId,
 					planningState: planningState ? { raw: planningState } : undefined,
-					backgroundTasks: tasks.map((t) => ({
-						id: t.id,
-						description: t.description || 'No description',
-						status: t.status,
-					})),
 					branch,
 				}).catch(() => {}); // Fire and forget
 			}
