@@ -150,25 +150,6 @@ export class SandboxTreeItem extends vscode.TreeItem {
 		}
 	}
 
-	private getStatusColor(status: SandboxStatus): vscode.ThemeColor | undefined {
-		switch (status) {
-			case 'idle':
-				return new vscode.ThemeColor('charts.blue');
-			case 'running':
-				return new vscode.ThemeColor('charts.green');
-			case 'paused':
-			case 'stopping':
-			case 'suspended':
-				return new vscode.ThemeColor('charts.yellow');
-			case 'failed':
-				return new vscode.ThemeColor('charts.red');
-			case 'terminated':
-				return new vscode.ThemeColor('disabledForeground');
-			default:
-				return undefined;
-		}
-	}
-
 	private formatSandboxTooltip(): string {
 		if (!this.sandboxData) return '';
 
