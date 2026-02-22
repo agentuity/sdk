@@ -765,8 +765,7 @@ export async function waitForAnyKey(message = 'Press Enter to continue...'): Pro
 			// Check for CTRL+C (character code 3)
 			if (data.length === 1 && data[0] === 3) {
 				console.log('\n');
-				process.kill(process.pid, 'SIGINT');
-				return;
+				process.exit(0);
 			}
 
 			console.log('');
@@ -778,7 +777,7 @@ export async function waitForAnyKey(message = 'Press Enter to continue...'): Pro
 /**
  * Prompts user with a yes/no question
  * Returns true for yes, false for no
- * Raises SIGINT if CTRL+C is pressed
+ * Exits process if CTRL+C is pressed
  */
 export async function confirm(message: string, defaultValue = true): Promise<boolean> {
 	const suffix = defaultValue ? '[Y/n]' : '[y/N]';
@@ -806,8 +805,7 @@ export async function confirm(message: string, defaultValue = true): Promise<boo
 			// Check for CTRL+C (character code 3)
 			if (data.length === 1 && data[0] === 3) {
 				console.log('\n');
-				process.kill(process.pid, 'SIGINT');
-				return;
+				process.exit(0);
 			}
 
 			const input = data.toString().trim().toLowerCase();
