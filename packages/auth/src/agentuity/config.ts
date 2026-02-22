@@ -9,7 +9,7 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
-import { createPostgresDrizzle } from '@agentuity/drizzle';
+import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
 import * as authSchema from '../schema.ts';
 
 // Re-export plugin types for convenience
@@ -289,8 +289,10 @@ export interface AuthOptions extends Omit<BetterAuthOptions, 'trustedOrigins'> {
 
 	/**
 	 * PostgreSQL connection string.
-	 * When provided, we create a Bun SQL connection and Drizzle instance internally.
-	 * This is the simplest path - just provide the connection string.
+	 * When provided, we create a pg-based pool and Drizzle instance internally.
+	 * Uses `drizzle-orm/node-postgres` (pg) instead of Bun's native driver to
+	 * avoid parameter binding issues with prepared statements.
+	 * This is the simplest path — just provide the connection string.
 	 *
 	 * @example
 	 * ```typescript
@@ -451,12 +453,12 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	// Handle database configuration
 	let database = restOptions.database;
 
-	// ConnectionString provided - create resilient Drizzle connection internally
+	// ConnectionString provided — use drizzle-orm/node-postgres (pg-based pool)
+	// instead of drizzle-orm/bun-sql to avoid Bun's native postgres driver
+	// parameter binding issues with Better Auth prepared statements.
+	// See: https://github.com/agentuity/sdk/issues/1030
 	if (connectionString && !database) {
-		const { db } = createPostgresDrizzle({
-			connectionString,
-			schema: authSchema,
-		});
+		const db = pgDrizzle(connectionString);
 		database = drizzleAdapter(db, {
 			provider: 'pg',
 			schema: authSchema,
