@@ -13,7 +13,6 @@ import {
 import {
 	buildQueueHeaders,
 	QueueError,
-	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
 	withQueueErrorHandling,
