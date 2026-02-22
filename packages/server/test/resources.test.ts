@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { validateCPUSpec, validateMemorySpec, validateResources } from '../src/util/resources';
+import { validateCPUSpec, validateMemorySpec, validateResources } from '../src/util/resources.ts';
 
 describe('validateCPUSpec', () => {
 	test('should validate millicores format (e.g., 500m)', () => {

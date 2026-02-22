@@ -1,8 +1,8 @@
-import { safeStringify } from '../json';
-import { FetchAdapter } from './adapter';
-import { buildUrl, toServiceException } from './_util';
-import { StructuredError } from '../error';
-import type { ListParams } from './pagination';
+import { safeStringify } from '../json.ts';
+import { FetchAdapter } from './adapter.ts';
+import { buildUrl, toServiceException } from './_util.ts';
+import { StructuredError } from '../error.ts';
+import type { ListParams } from './pagination.ts';
 
 /**
  * Minimum TTL value in seconds (1 minute)

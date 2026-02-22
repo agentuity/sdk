@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
-import { KeyValueStorageService } from '../src/services/keyvalue';
-import { createMockAdapter } from './mock-adapter';
-import { ServiceException } from '../src/services/exception';
+import { KeyValueStorageService } from '../src/services/keyvalue.ts';
+import { createMockAdapter } from './mock-adapter.ts';
+import { ServiceException } from '../src/services/exception.ts';
 
 describe('KeyValueStorageService', () => {
 	const baseUrl = 'https://api.example.com';

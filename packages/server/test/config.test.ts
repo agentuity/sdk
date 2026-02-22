@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { getServiceUrls, resolveRegion } from '../src/config';
+import { getServiceUrls, resolveRegion } from '../src/config.ts';
 
 describe('resolveRegion', () => {
 	beforeEach(() => {

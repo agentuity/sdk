@@ -1,34 +1,34 @@
-export type { CLISandboxInfo, CLISandboxListData, CLISandboxListOptions } from './cli-list';
-export { cliSandboxList, SandboxListDataSchema, SandboxListResponseSchema } from './cli-list';
+export type { CLISandboxInfo, CLISandboxListData, CLISandboxListOptions } from './cli-list.ts';
+export { cliSandboxList, SandboxListDataSchema, SandboxListResponseSchema } from './cli-list.ts';
 export type {
 	ExecuteOptions,
 	SandboxClientOptions,
 	SandboxClientRunIO,
 	SandboxInstance,
-} from './client';
-export { SandboxClient } from './client';
-export type { SandboxCreateParams, SandboxCreateResponse } from './create';
+} from './client.ts';
+export { SandboxClient } from './client.ts';
+export type { SandboxCreateParams, SandboxCreateResponse } from './create.ts';
 export {
 	SandboxCreateDataSchema,
 	SandboxCreateRequestSchema,
 	SandboxCreateResponseSchema,
 	sandboxCreate,
-} from './create';
-export type { SandboxDestroyParams } from './destroy';
-export { DestroyResponseSchema, sandboxDestroy } from './destroy';
-export type { SandboxExecuteParams } from './execute';
+} from './create.ts';
+export type { SandboxDestroyParams } from './destroy.ts';
+export { DestroyResponseSchema, sandboxDestroy } from './destroy.ts';
+export type { SandboxExecuteParams } from './execute.ts';
 export {
 	ExecuteDataSchema,
 	ExecuteRequestSchema,
 	ExecuteResponseSchema,
 	sandboxExecute,
-} from './execute';
+} from './execute.ts';
 export type {
 	ExecutionGetParams,
 	ExecutionInfo,
 	ExecutionListParams,
 	ExecutionListResponse,
-} from './execution';
+} from './execution.ts';
 export {
 	ExecutionGetResponseSchema,
 	ExecutionInfoSchema,
@@ -36,7 +36,7 @@ export {
 	ExecutionListResponseSchema,
 	executionGet,
 	executionList,
-} from './execution';
+} from './execution.ts';
 export type {
 	ArchiveFormat,
 	DownloadArchiveParams,
@@ -52,7 +52,7 @@ export type {
 	UploadArchiveParams,
 	WriteFilesParams,
 	WriteFilesResult,
-} from './files';
+} from './files.ts';
 export {
 	FileInfoSchema,
 	FileToWriteSchema,
@@ -80,8 +80,8 @@ export {
 	WriteFilesDataSchema,
 	WriteFilesRequestSchema,
 	WriteFilesResponseSchema,
-} from './files';
-export type { SandboxGetParams } from './get';
+} from './files.ts';
+export type { SandboxGetParams } from './get.ts';
 export {
 	SandboxAgentInfoSchema,
 	SandboxGetResponseSchema,
@@ -90,8 +90,8 @@ export {
 	SandboxResourcesSchema,
 	SandboxUserInfoSchema,
 	sandboxGet,
-} from './get';
-export type { SandboxListParams } from './list';
+} from './get.ts';
+export type { SandboxListParams } from './list.ts';
 export {
 	ListSandboxesDataSchema,
 	ListSandboxesResponseSchema,
@@ -102,24 +102,24 @@ export {
 	SandboxSnapshotOrgInfoSchema,
 	SandboxSnapshotUserInfoSchema,
 	sandboxList,
-} from './list';
-export type { ResolvedSandboxInfo } from './resolve';
+} from './list.ts';
+export type { ResolvedSandboxInfo } from './resolve.ts';
 export {
 	SandboxResolveDataSchema,
 	SandboxResolveError,
 	SandboxResolveResponseSchema,
 	sandboxResolve,
-} from './resolve';
-export type { SandboxRunParams } from './run';
-export { sandboxRun } from './run';
-export type { RuntimeListParams } from './runtime';
+} from './resolve.ts';
+export type { SandboxRunParams } from './run.ts';
+export { sandboxRun } from './run.ts';
+export type { RuntimeListParams } from './runtime.ts';
 export {
 	ListRuntimesDataSchema,
 	ListRuntimesResponseSchema,
 	RuntimeInfoSchema,
 	RuntimeRequirementsSchema,
 	runtimeList,
-} from './runtime';
+} from './runtime.ts';
 export type {
 	SnapshotBuildFinalizeParams,
 	SnapshotBuildGitInfo,
@@ -140,7 +140,7 @@ export type {
 	SnapshotTagParams,
 	SnapshotUploadParams,
 	SnapshotUploadResponse,
-} from './snapshot';
+} from './snapshot.ts';
 export {
 	SnapshotBuildGitInfoSchema,
 	SnapshotBuildInitAPIResponseSchema,
@@ -169,10 +169,10 @@ export {
 	snapshotPublicList,
 	snapshotTag,
 	snapshotUpload,
-} from './snapshot';
-export type { SnapshotBuildFile } from './snapshot-build';
-export { SnapshotBuildFileSchema, NPM_PACKAGE_NAME_PATTERN } from './snapshot-build';
-export type { SandboxErrorCode, SandboxErrorContext } from './util';
+} from './snapshot.ts';
+export type { SnapshotBuildFile } from './snapshot-build.ts';
+export { SnapshotBuildFileSchema, NPM_PACKAGE_NAME_PATTERN } from './snapshot-build.ts';
+export type { SandboxErrorCode, SandboxErrorContext } from './util.ts';
 export {
 	ExecutionCancelledError,
 	ExecutionNotFoundError,
@@ -184,4 +184,4 @@ export {
 	SnapshotNotFoundError,
 	throwSandboxError,
 	writeAndDrain,
-} from './util';
+} from './util.ts';

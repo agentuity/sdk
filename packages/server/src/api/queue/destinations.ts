@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIError, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIError, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
 import {
 	type CreateDestinationRequest,
 	CreateDestinationRequestSchema,
@@ -8,7 +8,7 @@ import {
 	type QueueApiOptions,
 	type UpdateDestinationRequest,
 	UpdateDestinationRequestSchema,
-} from './types';
+} from './types.ts';
 import {
 	buildQueueHeaders,
 	DestinationAlreadyExistsError,
@@ -16,8 +16,8 @@ import {
 	QueueError,
 	QueueNotFoundError,
 	queueApiPath,
-} from './util';
-import { validateDestinationConfig, validateDestinationId, validateQueueName } from './validation';
+} from './util.ts';
+import { validateDestinationConfig, validateDestinationId, validateQueueName } from './validation.ts';
 
 export const DestinationResponseSchema = APIResponseSchema(
 	z.object({ destination: DestinationSchema })

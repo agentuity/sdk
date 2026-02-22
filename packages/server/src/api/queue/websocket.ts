@@ -41,10 +41,10 @@
  * ```
  */
 
-import type { Message } from './types';
-import { WebSocketAuthResponseSchema, WebSocketMessageSchema } from './types';
-import { QueueError } from './util';
-import { validateQueueName } from './validation';
+import type { Message } from './types.ts';
+import { WebSocketAuthResponseSchema, WebSocketMessageSchema } from './types.ts';
+import { QueueError } from './util.ts';
+import { validateQueueName } from './validation.ts';
 
 // ============================================================================
 // Types

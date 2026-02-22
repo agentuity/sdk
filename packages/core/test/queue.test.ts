@@ -3,9 +3,9 @@ import {
 	QueueStorageService,
 	QueueValidationError,
 	QueueNotFoundError,
-} from '../src/services/queue';
-import { createMockAdapter } from './mock-adapter';
-import { ServiceException } from '../src/services/exception';
+} from '../src/services/queue.ts';
+import { createMockAdapter } from './mock-adapter.ts';
+import { ServiceException } from '../src/services/exception.ts';
 
 describe('QueueStorageService', () => {
 	const baseUrl = 'https://api.example.com';

@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
-import { StreamStorageService } from '../src/services/stream';
-import { createMockAdapter } from './mock-adapter';
-import { ServiceException } from '../src/services/exception';
+import { StreamStorageService } from '../src/services/stream.ts';
+import { createMockAdapter } from './mock-adapter.ts';
+import { ServiceException } from '../src/services/exception.ts';
 
 describe('StreamStorageService', () => {
 	const baseUrl = 'https://api.example.com/stream';

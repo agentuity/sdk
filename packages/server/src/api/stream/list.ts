@@ -1,7 +1,7 @@
 import type { SortDirection } from '@agentuity/core';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { StreamResponseError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { StreamResponseError } from './util.ts';
 
 export const StreamInfoSchema = z.object({
 	id: z.string().describe('the stream id'),

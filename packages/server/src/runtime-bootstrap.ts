@@ -5,7 +5,7 @@
  * Does not depend on CLI config files or .env file parsing.
  */
 
-import { getServiceUrls } from './config';
+import { getServiceUrls } from './config.ts';
 
 export interface RuntimeBootstrapOptions {
 	/**

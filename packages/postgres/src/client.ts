@@ -5,7 +5,7 @@ import type {
 	TransactionOptions,
 	ReserveOptions,
 	UnsafeQueryResult,
-} from './types';
+} from './types.ts';
 import {
 	ConnectionClosedError,
 	PostgresError,
@@ -13,12 +13,12 @@ import {
 	QueryTimeoutError,
 	UnsupportedOperationError,
 	isRetryableError,
-} from './errors';
-import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect';
-import { Transaction, ReservedConnection } from './transaction';
-import { registerClient, unregisterClient } from './registry';
-import { injectSslMode } from './tls';
-import { isMutationStatement } from './mutation';
+} from './errors.ts';
+import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect.ts';
+import { Transaction, ReservedConnection } from './transaction.ts';
+import { registerClient, unregisterClient } from './registry.ts';
+import { injectSslMode } from './tls.ts';
+import { isMutationStatement } from './mutation.ts';
 
 /**
  * Creates a lazy thenable with format locking for safe query execution.

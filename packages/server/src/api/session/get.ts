@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { SessionSchema, type Session } from './list';
-import { SessionResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { SessionSchema, type Session } from './list.ts';
+import { SessionResponseError } from './util.ts';
 
 export const _SessionGetRequestSchema = z.object({
 	id: z.string().describe('the session id'),

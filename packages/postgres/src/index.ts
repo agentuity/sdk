@@ -32,7 +32,7 @@
  */
 
 // Main factory function
-export { postgres, default } from './postgres';
+export { postgres, default } from './postgres.ts';
 
 // Client class for advanced usage
 export {
@@ -40,22 +40,22 @@ export {
 	createCallableClient,
 	createThenable,
 	type CallablePostgresClient,
-} from './client';
+} from './client.ts';
 
 // Pool class for pg.Pool-based connections
-export { PostgresPool, Pool, createPool } from './pool';
+export { PostgresPool, Pool, createPool } from './pool.ts';
 
 // Transaction and reserved connection classes
-export { Transaction, Savepoint, ReservedConnection } from './transaction';
+export { Transaction, Savepoint, ReservedConnection } from './transaction.ts';
 
 // Patch function for modifying Bun.SQL globally
-export { patchBunSQL, isPatched, SQL } from './patch';
+export { patchBunSQL, isPatched, SQL } from './patch.ts';
 
 // TLS utilities
-export { injectSslMode } from './tls';
+export { injectSslMode } from './tls.ts';
 
 // Mutation detection utility
-export { isMutationStatement } from './mutation';
+export { isMutationStatement } from './mutation.ts';
 
 // Types
 export type {
@@ -68,7 +68,7 @@ export type {
 	PoolConfig,
 	PoolStats,
 	PoolSSLConfig,
-} from './types';
+} from './types.ts';
 
 // Errors
 export {
@@ -79,10 +79,10 @@ export {
 	TransactionError,
 	UnsupportedOperationError,
 	isRetryableError,
-} from './errors';
+} from './errors.ts';
 
 // Reconnection utilities
-export { computeBackoff, sleep, mergeReconnectConfig, DEFAULT_RECONNECT_CONFIG } from './reconnect';
+export { computeBackoff, sleep, mergeReconnectConfig, DEFAULT_RECONNECT_CONFIG } from './reconnect.ts';
 
 // Global registry for coordinated shutdown
 export {
@@ -91,4 +91,4 @@ export {
 	getClients,
 	hasActiveClients,
 	type Registrable,
-} from './registry';
+} from './registry.ts';

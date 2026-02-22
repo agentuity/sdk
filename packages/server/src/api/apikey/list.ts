@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { APIKeyResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { APIKeyResponseError } from './util.ts';
 
 export const APIKeySchema = z.object({
 	id: z.string().describe('the API key id'),

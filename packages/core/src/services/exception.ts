@@ -1,5 +1,5 @@
-import { StructuredError } from '../error';
-import { HttpMethod } from './adapter';
+import { StructuredError } from '../error.ts';
+import { HttpMethod } from './adapter.ts';
 
 export const ServiceException = StructuredError('ServiceException')<{
 	statusCode: number;

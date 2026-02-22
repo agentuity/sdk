@@ -9,17 +9,17 @@ import type {
 	SandboxRunResult,
 } from '@agentuity/core';
 import type { Readable, Writable } from 'node:stream';
-import { APIClient } from '../api';
-import { sandboxCreate, type SandboxCreateResponse } from './create';
-import { sandboxDestroy } from './destroy';
-import { sandboxGet } from './get';
-import { sandboxExecute } from './execute';
-import { sandboxWriteFiles, sandboxReadFile } from './files';
-import { sandboxRun } from './run';
-import { executionGet, type ExecutionInfo } from './execution';
-import { ConsoleLogger } from '../../logger';
-import { getServiceUrls } from '../../config';
-import { writeAndDrain } from './util';
+import { APIClient } from '../api.ts';
+import { sandboxCreate, type SandboxCreateResponse } from './create.ts';
+import { sandboxDestroy } from './destroy.ts';
+import { sandboxGet } from './get.ts';
+import { sandboxExecute } from './execute.ts';
+import { sandboxWriteFiles, sandboxReadFile } from './files.ts';
+import { sandboxRun } from './run.ts';
+import { executionGet, type ExecutionInfo } from './execution.ts';
+import { ConsoleLogger } from '../../logger.ts';
+import { getServiceUrls } from '../../config.ts';
+import { writeAndDrain } from './util.ts';
 
 // Server-side long-poll wait duration (max 5 minutes supported by server)
 const EXECUTION_WAIT_DURATION = '5m';

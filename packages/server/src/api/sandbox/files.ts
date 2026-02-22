@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIClient } from '../api';
-import { SandboxResponseError, throwSandboxError, API_VERSION } from './util';
+import { APIClient } from '../api.ts';
+import { SandboxResponseError, throwSandboxError, API_VERSION } from './util.ts';
 import type { FileToWrite } from '@agentuity/core';
 
 export const FileToWriteSchema = z.object({

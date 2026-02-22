@@ -8,61 +8,61 @@ export type {
 	SafeParseResult,
 	SafeParseSuccess,
 	SafeParseError,
-} from './base';
-export { createIssue, success, failure, ValidationError, SCHEMA_KIND } from './base';
+} from './base.ts';
+export { createIssue, success, failure, ValidationError, SCHEMA_KIND } from './base.ts';
 
-export { StringSchema, string } from './primitives/string';
-export { NumberSchema, number } from './primitives/number';
-export { BooleanSchema, boolean } from './primitives/boolean';
-export { NullSchema, null_ } from './primitives/null';
-export { UndefinedSchema, undefined_ } from './primitives/undefined';
-export { UnknownSchema, unknown } from './primitives/unknown';
-export { AnySchema, any } from './primitives/any';
+export { StringSchema, string } from './primitives/string.ts';
+export { NumberSchema, number } from './primitives/number.ts';
+export { BooleanSchema, boolean } from './primitives/boolean.ts';
+export { NullSchema, null_ } from './primitives/null.ts';
+export { UndefinedSchema, undefined_ } from './primitives/undefined.ts';
+export { UnknownSchema, unknown } from './primitives/unknown.ts';
+export { AnySchema, any } from './primitives/any.ts';
 
-export { ObjectSchema, object } from './complex/object';
-export { ArraySchema, array } from './complex/array';
-export { RecordSchema, record } from './complex/record';
+export { ObjectSchema, object } from './complex/object.ts';
+export { ArraySchema, array } from './complex/array.ts';
+export { RecordSchema, record } from './complex/record.ts';
 
-export { LiteralSchema, literal } from './utils/literal';
-export { OptionalSchema, optional } from './utils/optional';
-export { NullableSchema, nullable } from './utils/nullable';
-export { UnionSchema, union } from './utils/union';
+export { LiteralSchema, literal } from './utils/literal.ts';
+export { OptionalSchema, optional } from './utils/optional.ts';
+export { NullableSchema, nullable } from './utils/nullable.ts';
+export { UnionSchema, union } from './utils/union.ts';
 
 export {
 	toJSONSchema,
 	fromJSONSchema,
 	type JSONSchema,
 	type ToJSONSchemaOptions,
-} from './json-schema';
+} from './json-schema.ts';
 
-export { CoerceStringSchema, coerceString } from './coerce/string';
-export { CoerceNumberSchema, coerceNumber } from './coerce/number';
-export { CoerceBooleanSchema, coerceBoolean } from './coerce/boolean';
-export { CoerceDateSchema, coerceDate } from './coerce/date';
+export { CoerceStringSchema, coerceString } from './coerce/string.ts';
+export { CoerceNumberSchema, coerceNumber } from './coerce/number.ts';
+export { CoerceBooleanSchema, coerceBoolean } from './coerce/boolean.ts';
+export { CoerceDateSchema, coerceDate } from './coerce/date.ts';
 
-import { string } from './primitives/string';
-import { number } from './primitives/number';
-import { boolean } from './primitives/boolean';
-import { null_ } from './primitives/null';
-import { undefined_ } from './primitives/undefined';
-import { unknown } from './primitives/unknown';
-import { any } from './primitives/any';
-import { object } from './complex/object';
-import { array } from './complex/array';
-import { record } from './complex/record';
-import { literal } from './utils/literal';
-import { optional } from './utils/optional';
-import { nullable } from './utils/nullable';
-import { union } from './utils/union';
-import { toJSONSchema, fromJSONSchema } from './json-schema';
-import { coerceString } from './coerce/string';
-import { coerceNumber } from './coerce/number';
-import { coerceBoolean } from './coerce/boolean';
-import { coerceDate } from './coerce/date';
+import { string } from './primitives/string.ts';
+import { number } from './primitives/number.ts';
+import { boolean } from './primitives/boolean.ts';
+import { null_ } from './primitives/null.ts';
+import { undefined_ } from './primitives/undefined.ts';
+import { unknown } from './primitives/unknown.ts';
+import { any } from './primitives/any.ts';
+import { object } from './complex/object.ts';
+import { array } from './complex/array.ts';
+import { record } from './complex/record.ts';
+import { literal } from './utils/literal.ts';
+import { optional } from './utils/optional.ts';
+import { nullable } from './utils/nullable.ts';
+import { union } from './utils/union.ts';
+import { toJSONSchema, fromJSONSchema } from './json-schema.ts';
+import { coerceString } from './coerce/string.ts';
+import { coerceNumber } from './coerce/number.ts';
+import { coerceBoolean } from './coerce/boolean.ts';
+import { coerceDate } from './coerce/date.ts';
 
-import type { Infer as InferType, Schema } from './base';
-import { LiteralSchema } from './utils/literal';
-import { UnionSchema } from './utils/union';
+import type { Infer as InferType, Schema } from './base.ts';
+import { LiteralSchema } from './utils/literal.ts';
+import { UnionSchema } from './utils/union.ts';
 
 /**
  * Create an enum schema (union of literal values).

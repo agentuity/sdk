@@ -1,15 +1,15 @@
 import { EventEmitter } from 'node:events';
 import pg from 'pg';
-import type { PoolConfig, PoolStats } from './types';
+import type { PoolConfig, PoolStats } from './types.ts';
 import {
 	ConnectionClosedError,
 	PostgresError,
 	QueryTimeoutError,
 	ReconnectFailedError,
 	isRetryableError,
-} from './errors';
-import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect';
-import { registerClient, unregisterClient, type Registrable } from './registry';
+} from './errors.ts';
+import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect.ts';
+import { registerClient, unregisterClient, type Registrable } from './registry.ts';
 
 /**
  * A resilient PostgreSQL connection pool with automatic reconnection.

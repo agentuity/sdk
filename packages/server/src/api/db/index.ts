@@ -6,7 +6,7 @@ export {
 	DbQueryLogSchema,
 	type DbQueryLogs,
 	dbLogs,
-} from './logs';
+} from './logs.ts';
 export {
 	dbQuery,
 	type QueryColumn,
@@ -14,7 +14,7 @@ export {
 	QueryResponseSchema,
 	type QueryResult,
 	QueryResultSchema,
-} from './query';
+} from './query.ts';
 export {
 	dbTables,
 	generateCreateTableSQL,
@@ -23,5 +23,5 @@ export {
 	type TableSchema,
 	TableSchemaSchema,
 	TablesResponseSchema,
-} from './tables';
-export { DbInvalidArgumentError, DbResponseError } from './util';
+} from './tables.ts';
+export { DbInvalidArgumentError, DbResponseError } from './util.ts';

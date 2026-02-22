@@ -136,7 +136,7 @@ export {
 	WebSocketAuthResponseSchema,
 	type WebSocketMessage,
 	WebSocketMessageSchema,
-} from './types';
+} from './types.ts';
 
 // ============================================================================
 // Errors
@@ -151,7 +151,7 @@ export {
 	QueueNotFoundError,
 	SourceAlreadyExistsError,
 	SourceNotFoundError,
-} from './util';
+} from './util.ts';
 
 // ============================================================================
 // Queue Operations
@@ -168,7 +168,7 @@ export {
 	QueuesListResponseSchema,
 	resumeQueue,
 	updateQueue,
-} from './queues';
+} from './queues.ts';
 
 // ============================================================================
 // Message Operations
@@ -195,7 +195,7 @@ export {
 	ReceiveResponseSchema,
 	receiveMessage,
 	replayMessage,
-} from './messages';
+} from './messages.ts';
 
 // ============================================================================
 // Dead Letter Queue Operations
@@ -209,7 +209,7 @@ export {
 	purgeDeadLetter,
 	ReplayDlqResponseSchema,
 	replayDeadLetterMessage,
-} from './dlq';
+} from './dlq.ts';
 
 // ============================================================================
 // Destination Operations
@@ -223,7 +223,7 @@ export {
 	deleteDestination,
 	listDestinations,
 	updateDestination,
-} from './destinations';
+} from './destinations.ts';
 
 // ============================================================================
 // Source Operations
@@ -238,7 +238,7 @@ export {
 	SourceResponseSchema,
 	SourcesListResponseSchema,
 	updateSource,
-} from './sources';
+} from './sources.ts';
 
 // ============================================================================
 // Analytics Operations
@@ -253,7 +253,7 @@ export {
 	streamOrgAnalytics,
 	streamQueueAnalytics,
 	TimeSeriesResponseSchema,
-} from './analytics';
+} from './analytics.ts';
 
 // ============================================================================
 // WebSocket Operations
@@ -266,7 +266,7 @@ export {
 	type QueueWebSocketConnection,
 	type QueueWebSocketState,
 	type SubscribeToQueueOptions,
-} from './websocket';
+} from './websocket.ts';
 
 // ============================================================================
 // Validation Utilities
@@ -305,4 +305,4 @@ export {
 	validateTTL,
 	validateVisibilityTimeout,
 	validateWebhookUrl,
-} from './validation';
+} from './validation.ts';

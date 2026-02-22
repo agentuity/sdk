@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
-import { VectorStorageService } from '../src/services/vector';
-import type { VectorUpsertParams } from '../src/services/vector';
-import { createMockAdapter } from './mock-adapter';
+import { VectorStorageService } from '../src/services/vector.ts';
+import type { VectorUpsertParams } from '../src/services/vector.ts';
+import { createMockAdapter } from './mock-adapter.ts';
 
 describe('VectorStorageService', () => {
 	const baseUrl = 'https://api.example.com';

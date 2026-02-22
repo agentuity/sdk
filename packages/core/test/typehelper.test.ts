@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import type { InferInput, InferOutput } from '../src/typehelper';
-import type { StandardSchemaV1 } from '../src/standard_schema';
+import type { InferInput, InferOutput } from '../src/typehelper.ts';
+import type { StandardSchemaV1 } from '../src/standard_schema.ts';
 
 describe('InferOutput type helper', () => {
 	test('should infer output type from StandardSchema', () => {
