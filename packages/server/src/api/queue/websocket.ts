@@ -300,7 +300,6 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 		};
 
 		ws.onclose = (event: CloseEvent) => {
-			const wasConnected = state === 'connected';
 			state = 'closed';
 			ws = null;
 
