@@ -122,7 +122,7 @@ export const SandboxCreateDataSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the created sandbox'),
 		status: z
-			.enum(['creating', 'idle', 'running', 'terminated', 'failed'])
+			.enum(['creating', 'idle', 'running', 'paused', 'stopping', 'suspended', 'terminated', 'failed'])
 			.describe('Current status of the sandbox'),
 		stdoutStreamId: z.string().optional().describe('Stream ID for reading stdout'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),

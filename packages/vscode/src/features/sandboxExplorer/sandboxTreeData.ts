@@ -118,6 +118,10 @@ export class SandboxTreeItem extends vscode.TreeItem {
 				return 'vm-running';
 			case 'creating':
 				return 'loading~spin';
+			case 'paused':
+			case 'stopping':
+			case 'suspended':
+				return 'debug-pause';
 			case 'terminated':
 				return 'vm-outline';
 			case 'failed':
@@ -133,6 +137,10 @@ export class SandboxTreeItem extends vscode.TreeItem {
 				return new vscode.ThemeColor('charts.blue');
 			case 'running':
 				return new vscode.ThemeColor('charts.green');
+			case 'paused':
+			case 'stopping':
+			case 'suspended':
+				return new vscode.ThemeColor('charts.yellow');
 			case 'failed':
 				return new vscode.ThemeColor('charts.red');
 			case 'terminated':
