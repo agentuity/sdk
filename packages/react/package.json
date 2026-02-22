@@ -34,12 +34,12 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "1.0.18",
-		"@agentuity/frontend": "1.0.18"
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*"
 	},
 	"devDependencies": {
-		"@agentuity/schema": "1.0.18",
-		"@agentuity/test-utils": "1.0.18",
+		"@agentuity/schema": "workspace:*",
+		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"

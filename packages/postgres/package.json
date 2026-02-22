@@ -31,11 +31,11 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "1.0.18",
+		"@agentuity/core": "workspace:*",
 		"pg": "^8.13.1"
 	},
 	"peerDependencies": {
-		"@agentuity/runtime": "1.0.18"
+		"@agentuity/runtime": "workspace:*"
 	},
 	"peerDependenciesMeta": {
 		"@agentuity/runtime": {
@@ -43,8 +43,8 @@
 		}
 	},
 	"devDependencies": {
-		"@agentuity/runtime": "1.0.18",
-		"@agentuity/test-utils": "1.0.18",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"@types/pg": "^8.11.14",
 		"bun-types": "latest",

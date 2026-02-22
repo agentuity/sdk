@@ -504,12 +504,12 @@
       "name": "@agentuity/postgres",
       "version": "1.0.18",
       "dependencies": {
-        "@agentuity/core": "1.0.18",
+        "@agentuity/core": "workspace:*",
         "pg": "^8.13.1",
       },
       "devDependencies": {
-        "@agentuity/runtime": "1.0.18",
-        "@agentuity/test-utils": "1.0.18",
+        "@agentuity/runtime": "workspace:*",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "@types/pg": "^8.11.14",
         "bun-types": "latest",
@@ -517,7 +517,7 @@
         "typescript": "^5.9.0",
       },
       "peerDependencies": {
-        "@agentuity/runtime": "1.0.18",
+        "@agentuity/runtime": "workspace:*",
       },
       "optionalPeers": [
         "@agentuity/runtime",
@@ -527,12 +527,12 @@
       "name": "@agentuity/react",
       "version": "1.0.18",
       "dependencies": {
-        "@agentuity/core": "1.0.18",
-        "@agentuity/frontend": "1.0.18",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/frontend": "workspace:*",
       },
       "devDependencies": {
-        "@agentuity/schema": "1.0.18",
-        "@agentuity/test-utils": "1.0.18",
+        "@agentuity/schema": "workspace:*",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -546,11 +546,11 @@
       "name": "@agentuity/runtime",
       "version": "1.0.18",
       "dependencies": {
-        "@agentuity/auth": "1.0.18",
-        "@agentuity/core": "1.0.18",
-        "@agentuity/frontend": "1.0.18",
-        "@agentuity/schema": "1.0.18",
-        "@agentuity/server": "1.0.18",
+        "@agentuity/auth": "workspace:*",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/frontend": "workspace:*",
+        "@agentuity/schema": "workspace:*",
+        "@agentuity/server": "workspace:*",
         "@opentelemetry/api": "^1.9.0",
         "@opentelemetry/api-logs": "^0.207.0",
         "@opentelemetry/auto-instrumentations-node": "^0.66.0",
@@ -570,7 +570,7 @@
         "zod": "^4.3.5",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "1.0.18",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "@types/react": "^19.2.2",
         "@types/react-dom": "^19.2.2",
@@ -587,10 +587,10 @@
       "name": "@agentuity/schema",
       "version": "1.0.18",
       "dependencies": {
-        "@agentuity/core": "1.0.18",
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "1.0.18",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -600,12 +600,12 @@
       "name": "@agentuity/server",
       "version": "1.0.18",
       "dependencies": {
-        "@agentuity/core": "1.0.18",
-        "@agentuity/schema": "1.0.18",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/schema": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "1.0.18",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "@types/node": "^22.0.0",
         "bun-types": "latest",

@@ -25,12 +25,12 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "1.0.18",
-		"@agentuity/schema": "1.0.18",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/schema": "workspace:*",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
-		"@agentuity/test-utils": "1.0.18",
+		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"@types/node": "^22.0.0",
 		"bun-types": "latest",
