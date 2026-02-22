@@ -449,6 +449,23 @@ export class PostgresPool extends EventEmitter implements Registrable {
 			poolConfig.connectionString = process.env.DATABASE_URL;
 		}
 
+		// Normalize sslmode=require to sslmode=verify-full to suppress pg v8
+		// deprecation warning. pg currently treats 'require' as 'verify-full'
+		// but warns that v9 will use weaker libpq semantics. Since we want the
+		// stronger behavior, explicitly use verify-full.
+		if (poolConfig.connectionString) {
+			try {
+				const parsed = new URL(poolConfig.connectionString);
+				const sslmode = parsed.searchParams.get('sslmode');
+				if (sslmode === 'require') {
+					parsed.searchParams.set('sslmode', 'verify-full');
+					poolConfig.connectionString = parsed.toString();
+				}
+			} catch {
+				// Not a parseable URL — leave as-is
+			}
+		}
+
 		this._poolConfig = poolConfig;
 		this._pool = new pg.Pool(poolConfig);
 
