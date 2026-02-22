@@ -1315,7 +1315,7 @@ export type WebSocketAuthResponse = z.infer<typeof WebSocketAuthResponseSchema>;
  */
 export const WebSocketMessageSchema = z.object({
 	/** Message type — "message" for live pushes, "replay" for reconnect replay batches. */
-	type: z.string(),
+	type: z.enum(['message', 'replay']),
 	/** Queue ID the messages belong to. */
 	queue_id: z.string(),
 	/** The queue messages. Always an array — single live pushes contain one element. */

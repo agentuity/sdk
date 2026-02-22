@@ -206,7 +206,11 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 		} catch (err) {
 			state = 'closed';
 			onError?.(
-				err instanceof Error ? err : new Error(String(err)),
+				new QueueError({
+					message: `Failed to create WebSocket connection: ${err instanceof Error ? err.message : String(err)}`,
+					queueName,
+					cause: err instanceof Error ? err : undefined,
+				}),
 			);
 			scheduleReconnect();
 			return;
@@ -253,6 +257,8 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 							queueName,
 						});
 						onError?.(err);
+						// Auth rejection is terminal — do not reconnect with the same bad credentials.
+						intentionallyClosed = true;
 						ws?.close(4001, 'Auth failed');
 						return;
 					}
