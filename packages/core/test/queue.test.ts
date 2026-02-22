@@ -4,7 +4,7 @@ import {
 	QueueValidationError,
 	QueueNotFoundError,
 } from '../src/services/queue.ts';
-import { createMockAdapter } from './mock-adapter.ts';
+import { createMockAdapter } from '@agentuity/test-utils';
 import { ServiceException } from '../src/services/exception.ts';
 
 describe('QueueStorageService', () => {

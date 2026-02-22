@@ -1,9 +1,11 @@
 import { StructuredError } from '../error.ts';
-import { HttpMethod } from './adapter.ts';
+import type { HttpMethod } from './adapter.ts';
 
-export const ServiceException = StructuredError('ServiceException')<{
+export interface ServiceExceptionPayload {
 	statusCode: number;
 	method: HttpMethod;
 	url: string;
 	sessionId?: string | null;
-}>();
+}
+
+export const ServiceException = StructuredError('ServiceException')<ServiceExceptionPayload>();
