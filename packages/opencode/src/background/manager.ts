@@ -630,17 +630,6 @@ export class BackgroundManager {
 			const error = extractError(event.properties);
 			const errorMsg = error ?? 'Session error.';
 
-			// Log extra context for timeout errors — the server fires these when
-			// a model generates a long text response without tool activity.
-			if (
-				errorMsg.toLowerCase().includes('timeout') ||
-				errorMsg.toLowerCase().includes('no activity')
-			) {
-				console.debug(
-					`[BackgroundManager] Task ${task.id} timed out - may have been generating long response. Progress: ${JSON.stringify(task.progress)}`
-				);
-			}
-
 			this.failTask(task, errorMsg);
 			return;
 		}
