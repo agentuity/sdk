@@ -1,16 +1,10 @@
 /**
- * Integration test for the node-postgres (pg) path used by createAuth({ connectionString }).
+ * Integration test for the pg path used by createAuth({ connectionString }).
  *
- * This validates the fix for GitHub issue #1030, which uses:
- *
- *   createPostgresDrizzle({ connectionString, driver: 'pg' })
- *
- * instead of Bun's native SQL driver to avoid parameter binding failures in
- * prepared statements with multiple parameters — specifically Better Auth's
- * verification table INSERT which sends 6 parameters.
- *
- * This test exercises that exact scenario through createPostgresDrizzle with
- * the 'pg' driver to prove the path works correctly with multi-parameter queries.
+ * This validates the fix for GitHub issue #1030. createPostgresDrizzle now
+ * defaults to the pg (node-postgres) driver backed by a resilient PostgresPool,
+ * avoiding Bun's native SQL driver parameter binding failures with Better Auth's
+ * prepared statements (e.g. verification table INSERT with 6 parameters).
  *
  * Run:
  *   DATABASE_URL=postgres://user:pass@host:5432/db bun run packages/auth/test/integration/pg-connectionstring.ts
@@ -122,15 +116,13 @@ async function teardown(db: NodePgDatabase) {
 // ───────────────────────────────────────────────────────────────────────
 
 async function testPgDrizzle() {
-	console.log(
-		'\n📦 createPostgresDrizzle({ driver: "pg" }) — the createAuth({ connectionString }) path'
-	);
+	console.log('\n📦 createPostgresDrizzle() — the createAuth({ connectionString }) path');
 
-	// This is the EXACT pattern from the fix in packages/auth/src/agentuity/config.ts:
-	//   const { db } = createPostgresDrizzle({ connectionString, driver: 'pg' });
+	// This is the EXACT pattern from packages/auth/src/agentuity/config.ts:
+	//   const { db } = createPostgresDrizzle({ connectionString });
+	// pg driver is the default, backed by resilient PostgresPool
 	const { db, close } = createPostgresDrizzle({
 		connectionString: DATABASE_URL!,
-		driver: 'pg',
 	});
 
 	// Verify the adapter chain works — this is how Better Auth consumes the db instance
@@ -313,7 +305,7 @@ async function testPgDrizzle() {
 // ───────────────────────────────────────────────────────────────────────
 
 async function main() {
-	console.log('🔬 createPostgresDrizzle({ driver: "pg" }) Integration Test (issue #1030)');
+	console.log('🔬 createPostgresDrizzle() Integration Test (issue #1030)');
 	console.log(`   Database: ${DATABASE_URL?.replace(/\/\/.*@/, '//***@')}`);
 
 	await testPgDrizzle();

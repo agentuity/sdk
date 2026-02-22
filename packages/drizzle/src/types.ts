@@ -1,7 +1,12 @@
 import type { Logger as DrizzleLogger } from 'drizzle-orm';
 import type { BunSQLDatabase } from 'drizzle-orm/bun-sql';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { PostgresConfig, ReconnectConfig, CallablePostgresClient } from '@agentuity/postgres';
+import type {
+	PostgresConfig,
+	ReconnectConfig,
+	CallablePostgresClient,
+	PostgresPool,
+} from '@agentuity/postgres';
 
 /**
  * Configuration options for creating a PostgreSQL Drizzle instance.
@@ -94,18 +99,18 @@ export interface PostgresDrizzleConfig<
 	/**
 	 * The database driver to use.
 	 *
-	 * - `'bun-sql'` (default): Uses Bun's native SQL driver via `drizzle-orm/bun-sql`.
-	 *   Provides maximum performance with Bun's built-in PostgreSQL support.
+	 * - `'pg'` (default): Uses the `pg` (node-postgres) driver via `drizzle-orm/node-postgres`
+	 *   backed by a resilient {@link PostgresPool} with automatic reconnection.
+	 *   This is the recommended driver for all use cases.
 	 *
-	 * - `'pg'`: Uses the `pg` (node-postgres) driver via `drizzle-orm/node-postgres`.
-	 *   Recommended when using Better Auth or other libraries that generate complex
-	 *   prepared statements with many parameters, as Bun's native driver has known
-	 *   parameter binding issues in some scenarios.
+	 * - `'bun-sql'`: Uses Bun's native SQL driver via `drizzle-orm/bun-sql`.
+	 *   May offer slightly better performance but has known parameter binding
+	 *   issues with some libraries (e.g. Better Auth).
 	 *   See: https://github.com/agentuity/sdk/issues/1030
 	 *
-	 * @default 'bun-sql'
+	 * @default 'pg'
 	 */
-	driver?: 'bun-sql' | 'pg';
+	driver?: 'pg' | 'bun-sql';
 }
 
 /**
@@ -141,6 +146,13 @@ export interface PostgresDrizzlePg<
 > {
 	/** The Drizzle database instance (node-postgres backed). */
 	db: NodePgDatabase<TSchema>;
-	/** Closes the underlying pg.Pool and releases resources. */
+
+	/**
+	 * The underlying resilient PostgreSQL pool with reconnection support.
+	 * Can be used for raw queries or accessing connection state.
+	 */
+	client: PostgresPool;
+
+	/** Closes the underlying pool and releases resources. */
 	close: () => Promise<void>;
 }

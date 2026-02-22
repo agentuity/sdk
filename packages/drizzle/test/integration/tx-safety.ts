@@ -109,6 +109,7 @@ async function testDrizzle() {
 	const { db, client, close } = createPostgresDrizzle({
 		url: DATABASE_URL,
 		schema: { items, verification },
+		driver: 'bun-sql',
 	});
 
 	await client.waitForConnection();

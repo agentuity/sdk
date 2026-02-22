@@ -5,10 +5,12 @@ import type { DrizzleConfig } from 'drizzle-orm';
 import { isConfig } from 'drizzle-orm/utils';
 import {
 	postgres,
+	PostgresPool,
 	isMutationStatement,
 	createThenable,
 	type CallablePostgresClient,
 	type PostgresConfig,
+	type PoolConfig,
 } from '@agentuity/postgres';
 import type { PostgresDrizzleConfig, PostgresDrizzle, PostgresDrizzlePg } from './types.ts';
 
@@ -381,54 +383,108 @@ export const drizzle = _drizzle as typeof _drizzle & {
  * });
  * ```
  */
-export function createPostgresDrizzle<
-	TSchema extends Record<string, unknown> = Record<string, never>,
->(config: PostgresDrizzleConfig<TSchema> & { driver: 'pg' }): PostgresDrizzlePg<TSchema>;
-
 /**
- * Creates a Drizzle ORM instance using Bun's native SQL driver (default).
+ * Creates a Drizzle ORM instance using Bun's native SQL driver.
  */
 export function createPostgresDrizzle<
 	TSchema extends Record<string, unknown> = Record<string, never>,
->(config?: PostgresDrizzleConfig<TSchema>): PostgresDrizzle<TSchema>;
+>(config: PostgresDrizzleConfig<TSchema> & { driver: 'bun-sql' }): PostgresDrizzle<TSchema>;
+
+/**
+ * Creates a Drizzle ORM instance using the pg (node-postgres) driver (default).
+ */
+export function createPostgresDrizzle<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+>(config?: PostgresDrizzleConfig<TSchema>): PostgresDrizzlePg<TSchema>;
 
 // Implementation signature
 export function createPostgresDrizzle<
 	TSchema extends Record<string, unknown> = Record<string, never>,
 >(config?: PostgresDrizzleConfig<TSchema>): PostgresDrizzle<TSchema> | PostgresDrizzlePg<TSchema> {
-	// node-postgres (pg) driver path
-	if (config?.driver === 'pg') {
-		// Resolve connection URL using the same priority chain
-		const url =
-			config.url ??
-			config.connectionString ??
-			config.connection?.url ??
-			process.env.DATABASE_URL;
-
-		if (!url) {
-			throw new Error(
-				'createPostgresDrizzle({ driver: "pg" }): No connection URL found. ' +
-					'Provide url, connectionString, connection.url, or set DATABASE_URL.'
-			);
-		}
-
-		const db = nodePgDrizzle(url, {
-			schema: config.schema,
-			logger: config.logger,
-		}) as NodePgDatabase<TSchema>;
-
-		return {
-			db,
-			close: async () => {
-				// drizzle-orm/node-postgres stores the pg.Pool as $client
-				const pool = (db as unknown as { $client: { end: () => Promise<void> } }).$client;
-				if (pool && typeof pool.end === 'function') {
-					await pool.end();
-				}
-			},
-		};
+	// bun-sql driver path (opt-in)
+	if (config?.driver === 'bun-sql') {
+		return createBunSqlDrizzle(config);
 	}
 
+	// Default: pg (node-postgres) driver backed by resilient PostgresPool
+	return createPgDrizzle(config);
+}
+
+/**
+ * Creates a Drizzle instance using the pg (node-postgres) driver
+ * backed by a resilient PostgresPool with automatic reconnection.
+ */
+function createPgDrizzle<TSchema extends Record<string, unknown> = Record<string, never>>(
+	config?: PostgresDrizzleConfig<TSchema>
+): PostgresDrizzlePg<TSchema> {
+	// Build PostgresPool config from drizzle config.
+	// PoolConfig extends pg.PoolConfig so it supports both connectionString
+	// and individual fields (host, port, database, user, password).
+	const poolConfig: PoolConfig = {
+		reconnect: config?.reconnect,
+		onreconnected: config?.onReconnected,
+	};
+
+	// Resolve connection: URL string takes priority, then individual fields
+	const url =
+		config?.url ??
+		config?.connectionString ??
+		config?.connection?.url ??
+		process.env.DATABASE_URL;
+
+	if (url) {
+		poolConfig.connectionString = url;
+	} else if (config?.connection) {
+		// Map PostgresConfig fields to pg.PoolConfig fields
+		const conn = config.connection;
+		if (conn.hostname) poolConfig.host = conn.hostname;
+		if (conn.port) poolConfig.port = conn.port;
+		if (conn.database) poolConfig.database = conn.database;
+		if (conn.username) poolConfig.user = conn.username;
+		if (conn.password) poolConfig.password = conn.password;
+	} else {
+		throw new Error(
+			'createPostgresDrizzle(): No connection configuration found. ' +
+				'Provide url, connectionString, connection.url, connection fields, or set DATABASE_URL.'
+		);
+	}
+
+	// Create resilient pool
+	const pool = new PostgresPool(poolConfig);
+
+	// Pass the pool to drizzle-orm/node-postgres.
+	// PostgresPool implements the same query()/connect() interface as pg.Pool
+	// but with automatic retry and reconnection. Drizzle calls pool.query()
+	// for each operation, so all queries go through our resilience layer.
+	// biome-ignore lint: PostgresPool is API-compatible with pg.Pool (query, connect, end)
+	const db = nodePgDrizzle(pool as any, {
+		schema: config?.schema,
+		logger: config?.logger,
+	}) as NodePgDatabase<TSchema>;
+
+	// Fire onConnect callback once the pool is warm
+	if (config?.onConnect) {
+		pool.waitForConnection().then(() => {
+			config.onConnect!();
+		});
+	}
+
+	return {
+		db,
+		client: pool,
+		close: async () => {
+			await pool.close();
+		},
+	};
+}
+
+/**
+ * Creates a Drizzle instance using Bun's native SQL driver
+ * with the resilient SQL proxy for automatic reconnection.
+ */
+function createBunSqlDrizzle<TSchema extends Record<string, unknown> = Record<string, never>>(
+	config?: PostgresDrizzleConfig<TSchema>
+): PostgresDrizzle<TSchema> {
 	// Resolve the postgres client configuration
 	const clientConfig = resolvePostgresClientConfig(config);
 
