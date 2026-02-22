@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIError, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
 import {
 	type CreateDestinationRequest,
 	CreateDestinationRequestSchema,
@@ -11,11 +11,9 @@ import {
 } from './types.ts';
 import {
 	buildQueueHeaders,
-	DestinationAlreadyExistsError,
-	DestinationNotFoundError,
 	QueueError,
-	QueueNotFoundError,
 	queueApiPath,
+	withQueueErrorHandling,
 } from './util.ts';
 import { validateDestinationConfig, validateDestinationId, validateQueueName } from './validation.ts';
 
@@ -68,63 +66,27 @@ export async function createDestination(
 	}
 
 	const url = queueApiPath('destinations/create', queueName);
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				params,
+				DestinationResponseSchema,
+				CreateDestinationRequestSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, destinationUrl: params.config?.url }
+	);
 
-	try {
-		const resp = await client.post(
-			url,
-			params,
-			DestinationResponseSchema,
-			CreateDestinationRequestSchema,
-			undefined,
-			buildQueueHeaders(options?.orgId)
-		);
-
-		if (resp.success) {
-			return resp.data.destination;
-		}
-
-		if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-			throw new QueueNotFoundError({
-				queueName,
-				message: resp.message,
-			});
-		}
-
-		if (resp.message?.includes('already exists')) {
-			throw new DestinationAlreadyExistsError({
-				queueName,
-				url: params.config?.url,
-				message: `A destination with URL "${params.config?.url}" already exists for queue "${queueName}"`,
-			});
-		}
-
-		throw new QueueError({
-			queueName,
-			message: resp.message || 'Failed to create destination',
-		});
-	} catch (error) {
-		if (error instanceof APIError) {
-			const message = error.message || '';
-			if (message.includes('already exists')) {
-				throw new DestinationAlreadyExistsError({
-					queueName,
-					url: params.config?.url,
-					message: `A destination with URL "${params.config?.url}" already exists for queue "${queueName}"`,
-				});
-			}
-			if (message.includes('queue') && message.includes('not found')) {
-				throw new QueueNotFoundError({
-					queueName,
-					message,
-				});
-			}
-			throw new QueueError({
-				queueName,
-				message: message || 'Failed to create destination',
-			});
-		}
-		throw error;
+	if (resp.success) {
+		return resp.data.destination;
 	}
+
+	throw new QueueError({
+		queueName,
+		message: resp.message || 'Failed to create destination',
+	});
 }
 
 /**
@@ -155,22 +117,19 @@ export async function listDestinations(
 ): Promise<Destination[]> {
 	validateQueueName(queueName);
 	const url = queueApiPath('destinations/list', queueName);
-	const resp = await client.get(
-		url,
-		DestinationsListResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.get(
+				url,
+				DestinationsListResponseSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return resp.data.destinations;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -225,32 +184,21 @@ export async function updateDestination(
 	}
 
 	const url = queueApiPath('destinations/update', queueName, destinationId);
-	const resp = await client.patch(
-		url,
-		params,
-		DestinationResponseSchema,
-		UpdateDestinationRequestSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.patch(
+				url,
+				params,
+				DestinationResponseSchema,
+				UpdateDestinationRequestSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, destinationId }
 	);
 
 	if (resp.success) {
 		return resp.data.destination;
-	}
-
-	if (resp.message?.includes('destination') && resp.message?.includes('not found')) {
-		throw new DestinationNotFoundError({
-			queueName,
-			destinationId,
-			message: resp.message,
-		});
-	}
-
-	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -290,30 +238,19 @@ export async function deleteDestination(
 	validateDestinationId(destinationId);
 
 	const url = queueApiPath('destinations/delete', queueName, destinationId);
-	const resp = await client.delete(
-		url,
-		DeleteDestinationResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.delete(
+				url,
+				DeleteDestinationResponseSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, destinationId }
 	);
 
 	if (resp.success) {
 		return;
-	}
-
-	if (resp.message?.includes('destination') && resp.message?.includes('not found')) {
-		throw new DestinationNotFoundError({
-			queueName,
-			destinationId,
-			message: resp.message,
-		});
-	}
-
-	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
