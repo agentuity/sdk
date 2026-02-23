@@ -302,6 +302,7 @@ interface BuildResult {
 	workbench: { included: boolean; duration: number };
 	client: { included: boolean; duration: number };
 	server: { included: boolean; duration: number };
+	static: { included: boolean; duration: number; routes: number };
 }
 
 /**
@@ -318,6 +319,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		workbench: { included: false, duration: 0 },
 		client: { included: false, duration: 0 },
 		server: { included: false, duration: 0 },
+		static: { included: false, duration: 0, routes: 0 },
 	};
 
 	// Load config to check if workbench is enabled (dev mode only)
@@ -380,6 +382,22 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		endClientDiagnostic?.();
 	} else {
 		logger.debug('Skipping client build - no src/web/index.html found');
+	}
+
+	// 2b. Static rendering (if configured)
+	if (config?.render === 'static' && hasWebFrontend) {
+		logger.debug('Running static rendering (pre-rendering all routes)...');
+		const endStaticDiagnostic = collector?.startDiagnostic('static-render');
+		const { runStaticRender } = await import('./static-renderer');
+		const staticResult = await runStaticRender({
+			rootDir,
+			logger,
+			userPlugins: config?.plugins || [],
+		});
+		result.static.included = true;
+		result.static.duration = staticResult.duration;
+		result.static.routes = staticResult.routes;
+		endStaticDiagnostic?.();
 	}
 
 	// 3. Build workbench (if enabled in config)

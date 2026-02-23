@@ -1,40 +1,20 @@
-import { createFileRoute, notFound } from '@tanstack/react-router';
 import { BookOpenIcon } from '@heroicons/react/24/outline';
 import { useCallback, useEffect } from 'react';
-import { CodeBlock } from '../../components/CodeBlock';
-import { TerminalOutput } from '../../components/TerminalOutput';
-import { Separator } from '../../components/ui';
-import { useSandboxRunner } from '../../hooks/useSandboxRunner';
-import { TEST_OUTPUTS } from '../../test-outputs';
-import { getDemoById, type DemoConfig } from '../../demo-config';
+import { CodeBlock } from './CodeBlock';
+import { TerminalOutput } from './TerminalOutput';
+import { Separator } from './ui';
+import { useSandboxRunner } from '../hooks/useSandboxRunner';
+import { getDemoById } from '../demo-config';
 
-export const Route = createFileRoute('/demo/$demoId')({
-	component: DemoView,
-	loader: ({ params }) => {
-		const demo = getDemoById(params.demoId);
-		if (!demo) {
-			throw notFound();
-		}
-		return { demo };
-	},
-	staticData: { crumb: 'Demo' },
-});
-
-const TEST_MODE = false;
-
-function DemoView() {
-	const { demo } = Route.useLoaderData();
-	const DemoComponent = demo.component;
+export function DemoView({ demoId }: { demoId: string }) {
+	const demo = getDemoById(demoId);
 	const sandbox = useSandboxRunner();
 
-	const testOutput =
-		TEST_MODE && demo.sandboxScript ? (TEST_OUTPUTS[demo.sandboxScript] ?? null) : null;
-
 	const handleRun = useCallback(() => {
-		if (!TEST_MODE && demo.sandboxScript) {
+		if (demo?.sandboxScript) {
 			sandbox.run(demo.sandboxScript, demo.sandboxInput);
 		}
-	}, [demo.sandboxScript, demo.sandboxInput, sandbox.run]);
+	}, [demo?.sandboxScript, demo?.sandboxInput, sandbox.run]);
 
 	useEffect(() => {
 		return () => {
@@ -42,9 +22,16 @@ function DemoView() {
 		};
 	}, [sandbox.reset]);
 
+	if (!demo) {
+		return (
+			<div className="flex items-center justify-center h-full text-zinc-500">
+				Demo not found: {demoId}
+			</div>
+		);
+	}
+
+	const DemoComponent = demo.component;
 	const isRunning = sandbox.state.status === 'creating' || sandbox.state.status === 'running';
-	const output = testOutput ?? sandbox.state.output;
-	const status = testOutput ? 'completed' : sandbox.state.status;
 
 	return (
 		<div className="flex flex-col lg:grid lg:grid-cols-[55fr_45fr] gap-4 min-h-0 flex-1 p-4">
@@ -90,10 +77,10 @@ function DemoView() {
 							highlights={demo.codeHighlights}
 						/>
 						<TerminalOutput
-							output={output}
-							status={status}
+							output={sandbox.state.output}
+							status={sandbox.state.status}
 							error={sandbox.state.error}
-							exitCode={testOutput ? 0 : sandbox.state.exitCode}
+							exitCode={sandbox.state.exitCode}
 							onClear={sandbox.reset}
 							isRoute={demo.isRoute}
 						/>

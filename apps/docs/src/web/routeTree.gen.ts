@@ -11,7 +11,20 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DocsRouteRouteImport } from './routes/_docs/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DemoDemoIdRouteImport } from './routes/demo/$demoId'
+import { Route as DemoVectorStorageRouteImport } from './routes/demo/vector-storage'
+import { Route as DemoStreamingRouteImport } from './routes/demo/streaming'
+import { Route as DemoSseStreamRouteImport } from './routes/demo/sse-stream'
+import { Route as DemoObjectStorageRouteImport } from './routes/demo/object-storage'
+import { Route as DemoModelArenaRouteImport } from './routes/demo/model-arena'
+import { Route as DemoKeyValueRouteImport } from './routes/demo/key-value'
+import { Route as DemoHelloRouteImport } from './routes/demo/hello'
+import { Route as DemoHandlerContextRouteImport } from './routes/demo/handler-context'
+import { Route as DemoEvalsRouteImport } from './routes/demo/evals'
+import { Route as DemoDurableStreamRouteImport } from './routes/demo/durable-stream'
+import { Route as DemoCronRouteImport } from './routes/demo/cron'
+import { Route as DemoChatRouteImport } from './routes/demo/chat'
+import { Route as DemoAiGatewayRouteImport } from './routes/demo/ai-gateway'
+import { Route as DemoAgentCallsRouteImport } from './routes/demo/agent-calls'
 import { Route as DocsServicesIndexRouteImport } from './routes/_docs/services/index'
 import { Route as DocsRoutesIndexRouteImport } from './routes/_docs/routes/index'
 import { Route as DocsReferenceIndexRouteImport } from './routes/_docs/reference/index'
@@ -36,6 +49,7 @@ import { Route as DocsGetStartedProjectStructureRouteImport } from './routes/_do
 import { Route as DocsGetStartedInstallationRouteImport } from './routes/_docs/get-started/installation'
 import { Route as DocsGetStartedAppConfigurationRouteImport } from './routes/_docs/get-started/app-configuration'
 import { Route as DocsFrontendWorkbenchRouteImport } from './routes/_docs/frontend/workbench'
+import { Route as DocsFrontendStaticRenderingRouteImport } from './routes/_docs/frontend/static-rendering'
 import { Route as DocsFrontendRpcClientRouteImport } from './routes/_docs/frontend/rpc-client'
 import { Route as DocsFrontendReactHooksRouteImport } from './routes/_docs/frontend/react-hooks'
 import { Route as DocsFrontendProviderSetupRouteImport } from './routes/_docs/frontend/provider-setup'
@@ -108,9 +122,74 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoDemoIdRoute = DemoDemoIdRouteImport.update({
-  id: '/demo/$demoId',
-  path: '/demo/$demoId',
+const DemoVectorStorageRoute = DemoVectorStorageRouteImport.update({
+  id: '/demo/vector-storage',
+  path: '/demo/vector-storage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoStreamingRoute = DemoStreamingRouteImport.update({
+  id: '/demo/streaming',
+  path: '/demo/streaming',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoSseStreamRoute = DemoSseStreamRouteImport.update({
+  id: '/demo/sse-stream',
+  path: '/demo/sse-stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoObjectStorageRoute = DemoObjectStorageRouteImport.update({
+  id: '/demo/object-storage',
+  path: '/demo/object-storage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoModelArenaRoute = DemoModelArenaRouteImport.update({
+  id: '/demo/model-arena',
+  path: '/demo/model-arena',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoKeyValueRoute = DemoKeyValueRouteImport.update({
+  id: '/demo/key-value',
+  path: '/demo/key-value',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoHelloRoute = DemoHelloRouteImport.update({
+  id: '/demo/hello',
+  path: '/demo/hello',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoHandlerContextRoute = DemoHandlerContextRouteImport.update({
+  id: '/demo/handler-context',
+  path: '/demo/handler-context',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoEvalsRoute = DemoEvalsRouteImport.update({
+  id: '/demo/evals',
+  path: '/demo/evals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoDurableStreamRoute = DemoDurableStreamRouteImport.update({
+  id: '/demo/durable-stream',
+  path: '/demo/durable-stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoCronRoute = DemoCronRouteImport.update({
+  id: '/demo/cron',
+  path: '/demo/cron',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoChatRoute = DemoChatRouteImport.update({
+  id: '/demo/chat',
+  path: '/demo/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoAiGatewayRoute = DemoAiGatewayRouteImport.update({
+  id: '/demo/ai-gateway',
+  path: '/demo/ai-gateway',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoAgentCallsRoute = DemoAgentCallsRouteImport.update({
+  id: '/demo/agent-calls',
+  path: '/demo/agent-calls',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsServicesIndexRoute = DocsServicesIndexRouteImport.update({
@@ -241,6 +320,12 @@ const DocsFrontendWorkbenchRoute = DocsFrontendWorkbenchRouteImport.update({
   path: '/frontend/workbench',
   getParentRoute: () => DocsRouteRoute,
 } as any)
+const DocsFrontendStaticRenderingRoute =
+  DocsFrontendStaticRenderingRouteImport.update({
+    id: '/frontend/static-rendering',
+    path: '/frontend/static-rendering',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
 const DocsFrontendRpcClientRoute = DocsFrontendRpcClientRouteImport.update({
   id: '/frontend/rpc-client',
   path: '/frontend/rpc-client',
@@ -606,7 +691,20 @@ const DocsCookbookPatternsBackgroundTasksRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/demo/$demoId': typeof DemoDemoIdRoute
+  '/demo/agent-calls': typeof DemoAgentCallsRoute
+  '/demo/ai-gateway': typeof DemoAiGatewayRoute
+  '/demo/chat': typeof DemoChatRoute
+  '/demo/cron': typeof DemoCronRoute
+  '/demo/durable-stream': typeof DemoDurableStreamRoute
+  '/demo/evals': typeof DemoEvalsRoute
+  '/demo/handler-context': typeof DemoHandlerContextRoute
+  '/demo/hello': typeof DemoHelloRoute
+  '/demo/key-value': typeof DemoKeyValueRoute
+  '/demo/model-arena': typeof DemoModelArenaRoute
+  '/demo/object-storage': typeof DemoObjectStorageRoute
+  '/demo/sse-stream': typeof DemoSseStreamRoute
+  '/demo/streaming': typeof DemoStreamingRoute
+  '/demo/vector-storage': typeof DemoVectorStorageRoute
   '/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute
   '/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute
   '/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute
@@ -627,6 +725,7 @@ export interface FileRoutesByFullPath {
   '/frontend/provider-setup': typeof DocsFrontendProviderSetupRoute
   '/frontend/react-hooks': typeof DocsFrontendReactHooksRoute
   '/frontend/rpc-client': typeof DocsFrontendRpcClientRoute
+  '/frontend/static-rendering': typeof DocsFrontendStaticRenderingRoute
   '/frontend/workbench': typeof DocsFrontendWorkbenchRoute
   '/get-started/app-configuration': typeof DocsGetStartedAppConfigurationRoute
   '/get-started/installation': typeof DocsGetStartedInstallationRoute
@@ -696,7 +795,20 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/demo/$demoId': typeof DemoDemoIdRoute
+  '/demo/agent-calls': typeof DemoAgentCallsRoute
+  '/demo/ai-gateway': typeof DemoAiGatewayRoute
+  '/demo/chat': typeof DemoChatRoute
+  '/demo/cron': typeof DemoCronRoute
+  '/demo/durable-stream': typeof DemoDurableStreamRoute
+  '/demo/evals': typeof DemoEvalsRoute
+  '/demo/handler-context': typeof DemoHandlerContextRoute
+  '/demo/hello': typeof DemoHelloRoute
+  '/demo/key-value': typeof DemoKeyValueRoute
+  '/demo/model-arena': typeof DemoModelArenaRoute
+  '/demo/object-storage': typeof DemoObjectStorageRoute
+  '/demo/sse-stream': typeof DemoSseStreamRoute
+  '/demo/streaming': typeof DemoStreamingRoute
+  '/demo/vector-storage': typeof DemoVectorStorageRoute
   '/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute
   '/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute
   '/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute
@@ -717,6 +829,7 @@ export interface FileRoutesByTo {
   '/frontend/provider-setup': typeof DocsFrontendProviderSetupRoute
   '/frontend/react-hooks': typeof DocsFrontendReactHooksRoute
   '/frontend/rpc-client': typeof DocsFrontendRpcClientRoute
+  '/frontend/static-rendering': typeof DocsFrontendStaticRenderingRoute
   '/frontend/workbench': typeof DocsFrontendWorkbenchRoute
   '/get-started/app-configuration': typeof DocsGetStartedAppConfigurationRoute
   '/get-started/installation': typeof DocsGetStartedInstallationRoute
@@ -788,7 +901,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_docs': typeof DocsRouteRouteWithChildren
-  '/demo/$demoId': typeof DemoDemoIdRoute
+  '/demo/agent-calls': typeof DemoAgentCallsRoute
+  '/demo/ai-gateway': typeof DemoAiGatewayRoute
+  '/demo/chat': typeof DemoChatRoute
+  '/demo/cron': typeof DemoCronRoute
+  '/demo/durable-stream': typeof DemoDurableStreamRoute
+  '/demo/evals': typeof DemoEvalsRoute
+  '/demo/handler-context': typeof DemoHandlerContextRoute
+  '/demo/hello': typeof DemoHelloRoute
+  '/demo/key-value': typeof DemoKeyValueRoute
+  '/demo/model-arena': typeof DemoModelArenaRoute
+  '/demo/object-storage': typeof DemoObjectStorageRoute
+  '/demo/sse-stream': typeof DemoSseStreamRoute
+  '/demo/streaming': typeof DemoStreamingRoute
+  '/demo/vector-storage': typeof DemoVectorStorageRoute
   '/_docs/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute
   '/_docs/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute
   '/_docs/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute
@@ -809,6 +935,7 @@ export interface FileRoutesById {
   '/_docs/frontend/provider-setup': typeof DocsFrontendProviderSetupRoute
   '/_docs/frontend/react-hooks': typeof DocsFrontendReactHooksRoute
   '/_docs/frontend/rpc-client': typeof DocsFrontendRpcClientRoute
+  '/_docs/frontend/static-rendering': typeof DocsFrontendStaticRenderingRoute
   '/_docs/frontend/workbench': typeof DocsFrontendWorkbenchRoute
   '/_docs/get-started/app-configuration': typeof DocsGetStartedAppConfigurationRoute
   '/_docs/get-started/installation': typeof DocsGetStartedInstallationRoute
@@ -880,7 +1007,20 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/demo/$demoId'
+    | '/demo/agent-calls'
+    | '/demo/ai-gateway'
+    | '/demo/chat'
+    | '/demo/cron'
+    | '/demo/durable-stream'
+    | '/demo/evals'
+    | '/demo/handler-context'
+    | '/demo/hello'
+    | '/demo/key-value'
+    | '/demo/model-arena'
+    | '/demo/object-storage'
+    | '/demo/sse-stream'
+    | '/demo/streaming'
+    | '/demo/vector-storage'
     | '/agents/ai-gateway'
     | '/agents/ai-sdk-integration'
     | '/agents/calling-other-agents'
@@ -901,6 +1041,7 @@ export interface FileRouteTypes {
     | '/frontend/provider-setup'
     | '/frontend/react-hooks'
     | '/frontend/rpc-client'
+    | '/frontend/static-rendering'
     | '/frontend/workbench'
     | '/get-started/app-configuration'
     | '/get-started/installation'
@@ -970,7 +1111,20 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/demo/$demoId'
+    | '/demo/agent-calls'
+    | '/demo/ai-gateway'
+    | '/demo/chat'
+    | '/demo/cron'
+    | '/demo/durable-stream'
+    | '/demo/evals'
+    | '/demo/handler-context'
+    | '/demo/hello'
+    | '/demo/key-value'
+    | '/demo/model-arena'
+    | '/demo/object-storage'
+    | '/demo/sse-stream'
+    | '/demo/streaming'
+    | '/demo/vector-storage'
     | '/agents/ai-gateway'
     | '/agents/ai-sdk-integration'
     | '/agents/calling-other-agents'
@@ -991,6 +1145,7 @@ export interface FileRouteTypes {
     | '/frontend/provider-setup'
     | '/frontend/react-hooks'
     | '/frontend/rpc-client'
+    | '/frontend/static-rendering'
     | '/frontend/workbench'
     | '/get-started/app-configuration'
     | '/get-started/installation'
@@ -1061,7 +1216,20 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_docs'
-    | '/demo/$demoId'
+    | '/demo/agent-calls'
+    | '/demo/ai-gateway'
+    | '/demo/chat'
+    | '/demo/cron'
+    | '/demo/durable-stream'
+    | '/demo/evals'
+    | '/demo/handler-context'
+    | '/demo/hello'
+    | '/demo/key-value'
+    | '/demo/model-arena'
+    | '/demo/object-storage'
+    | '/demo/sse-stream'
+    | '/demo/streaming'
+    | '/demo/vector-storage'
     | '/_docs/agents/ai-gateway'
     | '/_docs/agents/ai-sdk-integration'
     | '/_docs/agents/calling-other-agents'
@@ -1082,6 +1250,7 @@ export interface FileRouteTypes {
     | '/_docs/frontend/provider-setup'
     | '/_docs/frontend/react-hooks'
     | '/_docs/frontend/rpc-client'
+    | '/_docs/frontend/static-rendering'
     | '/_docs/frontend/workbench'
     | '/_docs/get-started/app-configuration'
     | '/_docs/get-started/installation'
@@ -1153,7 +1322,20 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DocsRouteRoute: typeof DocsRouteRouteWithChildren
-  DemoDemoIdRoute: typeof DemoDemoIdRoute
+  DemoAgentCallsRoute: typeof DemoAgentCallsRoute
+  DemoAiGatewayRoute: typeof DemoAiGatewayRoute
+  DemoChatRoute: typeof DemoChatRoute
+  DemoCronRoute: typeof DemoCronRoute
+  DemoDurableStreamRoute: typeof DemoDurableStreamRoute
+  DemoEvalsRoute: typeof DemoEvalsRoute
+  DemoHandlerContextRoute: typeof DemoHandlerContextRoute
+  DemoHelloRoute: typeof DemoHelloRoute
+  DemoKeyValueRoute: typeof DemoKeyValueRoute
+  DemoModelArenaRoute: typeof DemoModelArenaRoute
+  DemoObjectStorageRoute: typeof DemoObjectStorageRoute
+  DemoSseStreamRoute: typeof DemoSseStreamRoute
+  DemoStreamingRoute: typeof DemoStreamingRoute
+  DemoVectorStorageRoute: typeof DemoVectorStorageRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1172,11 +1354,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/$demoId': {
-      id: '/demo/$demoId'
-      path: '/demo/$demoId'
-      fullPath: '/demo/$demoId'
-      preLoaderRoute: typeof DemoDemoIdRouteImport
+    '/demo/vector-storage': {
+      id: '/demo/vector-storage'
+      path: '/demo/vector-storage'
+      fullPath: '/demo/vector-storage'
+      preLoaderRoute: typeof DemoVectorStorageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/streaming': {
+      id: '/demo/streaming'
+      path: '/demo/streaming'
+      fullPath: '/demo/streaming'
+      preLoaderRoute: typeof DemoStreamingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/sse-stream': {
+      id: '/demo/sse-stream'
+      path: '/demo/sse-stream'
+      fullPath: '/demo/sse-stream'
+      preLoaderRoute: typeof DemoSseStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/object-storage': {
+      id: '/demo/object-storage'
+      path: '/demo/object-storage'
+      fullPath: '/demo/object-storage'
+      preLoaderRoute: typeof DemoObjectStorageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/model-arena': {
+      id: '/demo/model-arena'
+      path: '/demo/model-arena'
+      fullPath: '/demo/model-arena'
+      preLoaderRoute: typeof DemoModelArenaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/key-value': {
+      id: '/demo/key-value'
+      path: '/demo/key-value'
+      fullPath: '/demo/key-value'
+      preLoaderRoute: typeof DemoKeyValueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/hello': {
+      id: '/demo/hello'
+      path: '/demo/hello'
+      fullPath: '/demo/hello'
+      preLoaderRoute: typeof DemoHelloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/handler-context': {
+      id: '/demo/handler-context'
+      path: '/demo/handler-context'
+      fullPath: '/demo/handler-context'
+      preLoaderRoute: typeof DemoHandlerContextRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/evals': {
+      id: '/demo/evals'
+      path: '/demo/evals'
+      fullPath: '/demo/evals'
+      preLoaderRoute: typeof DemoEvalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/durable-stream': {
+      id: '/demo/durable-stream'
+      path: '/demo/durable-stream'
+      fullPath: '/demo/durable-stream'
+      preLoaderRoute: typeof DemoDurableStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/cron': {
+      id: '/demo/cron'
+      path: '/demo/cron'
+      fullPath: '/demo/cron'
+      preLoaderRoute: typeof DemoCronRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/chat': {
+      id: '/demo/chat'
+      path: '/demo/chat'
+      fullPath: '/demo/chat'
+      preLoaderRoute: typeof DemoChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/ai-gateway': {
+      id: '/demo/ai-gateway'
+      path: '/demo/ai-gateway'
+      fullPath: '/demo/ai-gateway'
+      preLoaderRoute: typeof DemoAiGatewayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/agent-calls': {
+      id: '/demo/agent-calls'
+      path: '/demo/agent-calls'
+      fullPath: '/demo/agent-calls'
+      preLoaderRoute: typeof DemoAgentCallsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_docs/services/': {
@@ -1345,6 +1618,13 @@ declare module '@tanstack/react-router' {
       path: '/frontend/workbench'
       fullPath: '/frontend/workbench'
       preLoaderRoute: typeof DocsFrontendWorkbenchRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/frontend/static-rendering': {
+      id: '/_docs/frontend/static-rendering'
+      path: '/frontend/static-rendering'
+      fullPath: '/frontend/static-rendering'
+      preLoaderRoute: typeof DocsFrontendStaticRenderingRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/frontend/rpc-client': {
@@ -1805,6 +2085,7 @@ interface DocsRouteRouteChildren {
   DocsFrontendProviderSetupRoute: typeof DocsFrontendProviderSetupRoute
   DocsFrontendReactHooksRoute: typeof DocsFrontendReactHooksRoute
   DocsFrontendRpcClientRoute: typeof DocsFrontendRpcClientRoute
+  DocsFrontendStaticRenderingRoute: typeof DocsFrontendStaticRenderingRoute
   DocsFrontendWorkbenchRoute: typeof DocsFrontendWorkbenchRoute
   DocsGetStartedAppConfigurationRoute: typeof DocsGetStartedAppConfigurationRoute
   DocsGetStartedInstallationRoute: typeof DocsGetStartedInstallationRoute
@@ -1894,6 +2175,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsFrontendProviderSetupRoute: DocsFrontendProviderSetupRoute,
   DocsFrontendReactHooksRoute: DocsFrontendReactHooksRoute,
   DocsFrontendRpcClientRoute: DocsFrontendRpcClientRoute,
+  DocsFrontendStaticRenderingRoute: DocsFrontendStaticRenderingRoute,
   DocsFrontendWorkbenchRoute: DocsFrontendWorkbenchRoute,
   DocsGetStartedAppConfigurationRoute: DocsGetStartedAppConfigurationRoute,
   DocsGetStartedInstallationRoute: DocsGetStartedInstallationRoute,
@@ -1981,7 +2263,20 @@ const DocsRouteRouteWithChildren = DocsRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DocsRouteRoute: DocsRouteRouteWithChildren,
-  DemoDemoIdRoute: DemoDemoIdRoute,
+  DemoAgentCallsRoute: DemoAgentCallsRoute,
+  DemoAiGatewayRoute: DemoAiGatewayRoute,
+  DemoChatRoute: DemoChatRoute,
+  DemoCronRoute: DemoCronRoute,
+  DemoDurableStreamRoute: DemoDurableStreamRoute,
+  DemoEvalsRoute: DemoEvalsRoute,
+  DemoHandlerContextRoute: DemoHandlerContextRoute,
+  DemoHelloRoute: DemoHelloRoute,
+  DemoKeyValueRoute: DemoKeyValueRoute,
+  DemoModelArenaRoute: DemoModelArenaRoute,
+  DemoObjectStorageRoute: DemoObjectStorageRoute,
+  DemoSseStreamRoute: DemoSseStreamRoute,
+  DemoStreamingRoute: DemoStreamingRoute,
+  DemoVectorStorageRoute: DemoVectorStorageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

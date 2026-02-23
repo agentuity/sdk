@@ -33,7 +33,7 @@ function LandingPage() {
 	const navigate = useNavigate();
 
 	const handleSelectDemo = (id: DemoId) => {
-		void navigate({ to: '/demo/$demoId', params: { demoId: id } });
+		void navigate({ to: `/demo/${id}` });
 	};
 
 	const basics = DEMOS.filter((d) => d.category === 'basics');
@@ -65,7 +65,9 @@ function LandingPage() {
 
 			{/* I/O Patterns Section */}
 			<section className="mb-12">
-				<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-6">I/O Patterns</h2>
+				<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-6">
+					I/O Patterns
+				</h2>
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 					{ioPatterns.map((demo) => (
 						<DemoCard key={demo.id} demo={demo} onClick={() => handleSelectDemo(demo.id)} />

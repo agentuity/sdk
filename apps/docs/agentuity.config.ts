@@ -23,6 +23,8 @@ import rehypeExtractTocExport from '@stefanprobst/rehype-extract-toc/mdx';
 import rehypeMermaid from 'rehype-mermaid';
 
 export default {
+	render: 'static',
+
 	/**
 	 * Workbench (development only)
 	 *
