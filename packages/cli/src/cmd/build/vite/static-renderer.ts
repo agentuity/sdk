@@ -19,14 +19,21 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node
 import type { Logger } from '../../../types';
 import { hasFrameworkPlugin } from './config-loader';
 
+/** Minimal shape of a TanStack Router route tree node. */
+interface RouteTreeNode {
+	path?: string;
+	options?: { path?: string };
+	children?: Record<string, RouteTreeNode>;
+}
+
 /**
  * Walks a TanStack Router route tree and extracts all non-parameterized paths.
  * Skips layout routes (no path) and parameterized routes (containing $).
  */
-function extractRoutePaths(node: any): string[] {
+function extractRoutePaths(node: RouteTreeNode): string[] {
 	const paths = new Set<string>();
 
-	function walk(route: any) {
+	function walk(route: RouteTreeNode) {
 		const path: string | undefined = route.path ?? route.options?.path;
 		if (path && !path.includes('$')) {
 			// Normalize: strip trailing slashes, ensure leading slash
@@ -39,8 +46,8 @@ function extractRoutePaths(node: any): string[] {
 		// Recurse into children (TanStack Router stores them as an object)
 		const children = route.children;
 		if (children && typeof children === 'object') {
-			for (const key of Object.keys(children)) {
-				walk(children[key]);
+			for (const child of Object.values(children)) {
+				if (child) walk(child);
 			}
 		}
 	}
