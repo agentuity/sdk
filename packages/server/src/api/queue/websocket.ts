@@ -26,6 +26,22 @@
  * connection.close();
  * ```
  *
+ * @example Resuming from a previous session
+ * ```typescript
+ * import { createQueueWebSocket } from '@agentuity/server';
+ *
+ * // Use a previously obtained clientId and lastOffset to resume
+ * const connection = createQueueWebSocket({
+ *     queueName: 'order-processing',
+ *     baseUrl: 'https://catalyst.agentuity.cloud',
+ *     clientId: previousClientId,
+ *     lastOffset: previousOffset,
+ *     onMessage: (message) => {
+ *         console.log('Received:', message.id, message.payload);
+ *     },
+ * });
+ * ```
+ *
  * @example Async iterator API
  * ```typescript
  * import { subscribeToQueue } from '@agentuity/server';
@@ -82,6 +98,10 @@ export interface QueueWebSocketOptions {
 	reconnectDelayMs?: number;
 	/** Maximum reconnection delay in ms (default: 30000). */
 	maxReconnectDelayMs?: number;
+	/** Optional client ID from a previous session to resume a subscription. */
+	clientId?: string;
+	/** Optional last processed offset from a previous session to resume from. */
+	lastOffset?: number;
 }
 
 /** Return type from {@link createQueueWebSocket}. */
@@ -106,6 +126,10 @@ export interface SubscribeToQueueOptions {
 	baseUrl: string;
 	/** AbortSignal to stop the subscription. */
 	signal?: AbortSignal;
+	/** Optional client ID from a previous session to resume a subscription. */
+	clientId?: string;
+	/** Optional last processed offset from a previous session to resume from. */
+	lastOffset?: number;
 }
 
 // ============================================================================
@@ -192,8 +216,8 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 	let intentionallyClosed = false;
 	let reconnectAttempts = 0;
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-	let clientId: string | undefined;
-	let lastProcessedOffset: number | undefined;
+	let clientId: string | undefined = options.clientId;
+	let lastProcessedOffset: number | undefined = options.lastOffset;
 
 	function connect() {
 		if (intentionallyClosed) return;
@@ -440,6 +464,8 @@ export async function* subscribeToQueue(
 		queueName: options.queueName,
 		apiKey: options.apiKey,
 		baseUrl: options.baseUrl,
+		clientId: options.clientId,
+		lastOffset: options.lastOffset,
 		onMessage: push,
 		onError: (err) => finish(err),
 		onClose: () => {
