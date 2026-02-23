@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { StructuredError, isStructuredError } from '../src/error';
+import { StructuredError, isStructuredError } from '../src/error.ts';
 
 describe('StructuredError', () => {
 	describe('basic creation', () => {

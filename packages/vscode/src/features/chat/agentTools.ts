@@ -493,7 +493,15 @@ export class GetHealthSummaryTool implements vscode.LanguageModelTool<GetHealthS
 // ==================== Sandbox Tools ====================
 
 export interface ListSandboxesInput {
-	status?: 'creating' | 'idle' | 'running' | 'terminated' | 'failed';
+	status?:
+		| 'creating'
+		| 'idle'
+		| 'running'
+		| 'paused'
+		| 'stopping'
+		| 'suspended'
+		| 'terminated'
+		| 'failed';
 }
 
 export class ListSandboxesTool implements vscode.LanguageModelTool<ListSandboxesInput> {

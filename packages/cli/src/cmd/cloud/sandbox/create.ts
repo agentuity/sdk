@@ -18,6 +18,7 @@ const SandboxCreateResponseSchema = z.object({
 	status: z.string().describe('Current sandbox status'),
 	stdoutStreamUrl: z.string().optional().describe('URL to the stdout output stream'),
 	stderrStreamUrl: z.string().optional().describe('URL to the stderr output stream'),
+	auditStreamUrl: z.string().optional().describe('URL to the audit event stream'),
 });
 
 export const createSubcommand = createCommand({
@@ -206,6 +207,7 @@ export const createSubcommand = createCommand({
 			status: result.status,
 			stdoutStreamUrl: result.stdoutStreamUrl,
 			stderrStreamUrl: result.stderrStreamUrl,
+			auditStreamUrl: result.auditStreamUrl,
 		};
 	},
 });

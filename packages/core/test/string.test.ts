@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { toCamelCase, toPascalCase } from '../src/string';
+import { toCamelCase, toPascalCase } from '../src/string.ts';
 
 describe('toCamelCase', () => {
 	describe('dash-separated strings', () => {

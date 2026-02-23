@@ -368,8 +368,7 @@ export class APIClient {
 
 		const maxRetries = this.#config?.maxRetries ?? 3;
 		const baseDelayMs = this.#config?.retryDelayMs ?? 100;
-		const serviceUnavailableTimeoutMs =
-			this.#config?.serviceUnavailableTimeoutMs ?? 30_000;
+		const serviceUnavailableTimeoutMs = this.#config?.serviceUnavailableTimeoutMs ?? 30_000;
 
 		// Track when we first see a 502/503 so we can retry for up to the timeout
 		let serviceUnavailableStart: number | null = null;
@@ -416,7 +415,6 @@ export class APIClient {
 		const canRetry = !(body instanceof ReadableStream); // we cannot safely retry a ReadableStream as body
 
 		let attempt = 0;
-		// eslint-disable-next-line no-constant-condition
 		while (true) {
 			try {
 				let response: Response;
@@ -536,8 +534,7 @@ export class APIClient {
 				// 502/503 indicate the service is restarting (hot-swap) — retry
 				// for up to serviceUnavailableTimeoutMs (default 30s) with a
 				// slower backoff (1s base) so we survive typical restart windows.
-				const isServiceUnavailable =
-					response.status === 502 || response.status === 503;
+				const isServiceUnavailable = response.status === 502 || response.status === 503;
 
 				if (isServiceUnavailable && canRetry) {
 					if (serviceUnavailableStart === null) {
@@ -546,10 +543,7 @@ export class APIClient {
 					const elapsed = Date.now() - serviceUnavailableStart;
 					if (elapsed < serviceUnavailableTimeoutMs) {
 						// Use 1s base delay with exponential backoff, capped at 5s
-						const delayMs = Math.min(
-							this.#getRetryDelay(attempt, 1000),
-							5000
-						);
+						const delayMs = Math.min(this.#getRetryDelay(attempt, 1000), 5000);
 						this.#logger.debug(
 							`Got ${response.status} sending to ${url}, service unavailable for ${Math.round(elapsed / 1000)}s, retrying (will delay ${delayMs}ms), sessionId: ${sessionId ?? null}`
 						);

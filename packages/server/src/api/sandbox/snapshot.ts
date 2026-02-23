@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
-import { API_VERSION, SandboxResponseError, throwSandboxError } from './util';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
+import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build.ts';
+import { API_VERSION, SandboxResponseError, throwSandboxError } from './util.ts';
 
 export const SnapshotFileInfoSchema = z
 	.object({
@@ -594,6 +595,17 @@ const _SnapshotBuildFinalizeParamsSchema = z
 		fileCount: z.number().describe('Number of files in the snapshot'),
 		files: z.array(SnapshotFileInfoSchema).describe('List of files with path and size'),
 		dependencies: z.array(z.string()).optional().describe('List of apt packages to install'),
+		packages: z
+			.array(
+				z
+					.string()
+					.regex(
+						NPM_PACKAGE_NAME_PATTERN,
+						'Invalid npm/bun package specifier: must not contain whitespace, semicolons, backticks, pipes, or dollar signs'
+					)
+			)
+			.optional()
+			.describe('List of npm/bun packages to install globally'),
 		env: z.record(z.string(), z.string()).optional().describe('Environment variables to set'),
 		metadata: z
 			.record(z.string(), z.string())
@@ -671,7 +683,8 @@ export async function snapshotBuildFinalize(
 	client: APIClient,
 	params: SnapshotBuildFinalizeParams
 ): Promise<SnapshotInfo> {
-	const { snapshotId, sizeBytes, fileCount, files, dependencies, env, metadata, orgId } = params;
+	const { snapshotId, sizeBytes, fileCount, files, dependencies, packages, env, metadata, orgId } =
+		params;
 	const queryString = buildQueryString({ orgId });
 	const url = `/sandbox/${API_VERSION}/snapshots/${snapshotId}/finalize${queryString}`;
 
@@ -681,6 +694,7 @@ export async function snapshotBuildFinalize(
 		files,
 	};
 	if (dependencies) body.dependencies = dependencies;
+	if (packages) body.packages = packages;
 	if (env) body.env = env;
 	if (metadata) body.metadata = metadata;
 

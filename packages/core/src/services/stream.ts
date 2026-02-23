@@ -1,8 +1,8 @@
-import { safeStringify } from '../json';
-import { FetchAdapter } from './adapter';
-import { buildUrl, toServiceException } from './_util';
-import { StructuredError } from '../error';
-import type { ListParams } from './pagination';
+import { safeStringify } from '../json.ts';
+import { FetchAdapter } from './adapter.ts';
+import { buildUrl, toServiceException } from './_util.ts';
+import { StructuredError } from '../error.ts';
+import type { ListParams } from './pagination.ts';
 
 /**
  * Minimum TTL value in seconds (1 minute)
@@ -795,7 +795,7 @@ export class StreamStorageService implements StreamStorage {
 				streams: res.data.streams.map((s) => ({
 					id: s.id,
 					namespace: s.name,
-					metadata: s.metadata,
+					metadata: s.metadata ?? {},
 					url: s.url,
 					sizeBytes: s.size_bytes,
 					...(s.expires_at && { expiresAt: s.expires_at }),
@@ -836,7 +836,7 @@ export class StreamStorageService implements StreamStorage {
 			return {
 				id: res.data.id,
 				namespace: res.data.name,
-				metadata: res.data.metadata,
+				metadata: res.data.metadata ?? {},
 				url: res.data.url,
 				sizeBytes: res.data.size_bytes,
 				...(res.data.expires_at && { expiresAt: res.data.expires_at }),

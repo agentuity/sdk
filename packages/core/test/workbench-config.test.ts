@@ -6,7 +6,7 @@ import {
 	WorkbenchConfigError,
 	WorkbenchNotFoundError,
 	type WorkbenchConfig,
-} from '../src/workbench-config';
+} from '../src/workbench-config.ts';
 
 describe('encodeWorkbenchConfig', () => {
 	test('should encode a simple config', () => {

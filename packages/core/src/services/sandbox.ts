@@ -1,5 +1,5 @@
-import { StructuredError } from '../error';
-import type { SortDirection } from './pagination';
+import { StructuredError } from '../error.ts';
+import type { SortDirection } from './pagination.ts';
 
 /**
  * Resource limits for a sandbox using Kubernetes-style units
@@ -24,7 +24,16 @@ export interface SandboxResources {
 /**
  * Sandbox status
  */
-export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'failed' | 'deleted';
+export type SandboxStatus =
+	| 'creating'
+	| 'idle'
+	| 'running'
+	| 'paused'
+	| 'stopping'
+	| 'suspended'
+	| 'terminated'
+	| 'failed'
+	| 'deleted';
 
 export type SandboxSortField =
 	| 'name'
@@ -461,6 +470,12 @@ export interface SandboxCreateOptions {
 	dependencies?: string[];
 
 	/**
+	 * npm/bun packages to install globally when creating the sandbox.
+	 * These are installed via `bun install -g` before executing any commands.
+	 */
+	packages?: string[];
+
+	/**
 	 * Optional user-defined metadata to associate with the sandbox.
 	 * This can be used to store arbitrary key-value data for tracking or identification.
 	 */
@@ -515,6 +530,12 @@ export interface Sandbox {
 	 * When true, reading from stdout or stderr will return the same interleaved data.
 	 */
 	interleaved: boolean;
+
+	/**
+	 * Stream ID for the audit event stream (eBPF/Tetragon security events).
+	 * Only present when audit streaming was successfully configured during sandbox creation.
+	 */
+	auditStreamId?: string;
 
 	/**
 	 * Execute a command in the sandbox
@@ -698,9 +719,24 @@ export interface SandboxInfo {
 	stderrStreamUrl?: string;
 
 	/**
+	 * ID of the audit event stream (eBPF/Tetragon security events)
+	 */
+	auditStreamId?: string;
+
+	/**
+	 * URL to the audit event stream (eBPF/Tetragon security events)
+	 */
+	auditStreamUrl?: string;
+
+	/**
 	 * Apt packages installed in the sandbox
 	 */
 	dependencies?: string[];
+
+	/**
+	 * npm/bun packages installed globally in the sandbox
+	 */
+	packages?: string[];
 
 	/**
 	 * User-defined metadata associated with the sandbox

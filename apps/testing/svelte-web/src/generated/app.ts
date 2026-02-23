@@ -404,10 +404,20 @@ if (isDevelopment()) {
 	}
 	
 	// SPA fallback - serve index.html for client-side routing
-	app.get('*', (c: Context) => {
+	app.get('*', async (c: Context) => {
 		const path = c.req.path;
-		// If path has a file extension, return 404 (prevents serving HTML for missing assets)
+		// If path has a file extension, try proxying to Vite first (serves public files like robots.txt, llms.txt)
+		// Fall back to 404 if Vite also returns 404
 		if (/\.[a-zA-Z0-9]+$/.test(path)) {
+			try {
+				const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${path}`;
+				const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
+				if (res.status !== 404) {
+					return new Response(res.body, { status: res.status, headers: res.headers });
+				}
+			} catch {
+				// Vite unavailable, fall through to 404
+			}
 			return c.notFound();
 		}
 		return devHtmlHandler(c);

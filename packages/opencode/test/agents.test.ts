@@ -3,8 +3,8 @@ import { agents, getAgentByRole, getAgentById } from '../src/agents';
 
 describe('Agents', () => {
 	describe('agent definitions', () => {
-		it('exports all 13 agents', () => {
-			expect(Object.keys(agents)).toHaveLength(13);
+		it('exports all 12 agents', () => {
+			expect(Object.keys(agents)).toHaveLength(12);
 			expect(agents.lead).toBeDefined();
 			expect(agents.scout).toBeDefined();
 			expect(agents.builder).toBeDefined();
@@ -17,7 +17,6 @@ describe('Agents', () => {
 			expect(agents['expert-ops']).toBeDefined();
 			expect(agents.runner).toBeDefined();
 			expect(agents.product).toBeDefined();
-			expect(agents.monitor).toBeDefined();
 		});
 
 		it('each agent has required properties', () => {

@@ -128,7 +128,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// Activate Cadence for this session by simulating a user message
 			// containing [CADENCE MODE]
@@ -154,7 +154,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// Activate Cadence
 			lastUserMessages.set('test-123', '[CADENCE MODE] Start working');
@@ -174,7 +174,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// Activate Cadence
 			lastUserMessages.set('test-123', '[CADENCE MODE] Start working');
@@ -195,7 +195,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// Do NOT activate Cadence
 			const output: { context: string[]; prompt?: string } = { context: [] };
@@ -246,7 +246,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// Activate Cadence first
 			lastUserMessages.set('test-789', '[CADENCE MODE] Start');
@@ -275,7 +275,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// Activate Cadence
 			lastUserMessages.set('test-789', '[CADENCE MODE] Start');
@@ -319,7 +319,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// Simulate a user message that does NOT contain Cadence triggers
 			lastUserMessages.set('test-fp-1', 'Please fix the bug in auth.ts');
@@ -345,7 +345,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// User message without triggers
 			lastUserMessages.set('test-fp-2', 'Review the test coverage');
@@ -371,7 +371,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// User explicitly says "go deep"
 			lastUserMessages.set('test-fp-3', 'go deep on refactoring the API');
@@ -389,7 +389,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// User explicitly says "be thorough"
 			lastUserMessages.set('test-fp-4', 'be thorough and check everything');
@@ -407,7 +407,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const hooks = createCadenceHooks(ctx, config, undefined, undefined, lastUserMessages);
+			const hooks = createCadenceHooks(ctx, config, undefined, lastUserMessages);
 
 			// No user message recorded at all for this session
 			// Model output contains multiple trigger words
@@ -434,13 +434,7 @@ describe('compaction flow integration', () => {
 			const config = createMockConfig();
 			const lastUserMessages = new Map<string, string>();
 
-			const cadenceHooks = createCadenceHooks(
-				ctx1,
-				config,
-				undefined,
-				undefined,
-				lastUserMessages
-			);
+			const cadenceHooks = createCadenceHooks(ctx1, config, undefined, lastUserMessages);
 			const sessionMemoryHooks = createSessionMemoryHooks(ctx2, config);
 
 			// Activate Cadence for session-A

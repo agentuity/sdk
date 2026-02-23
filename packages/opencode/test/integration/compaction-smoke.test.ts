@@ -15,7 +15,6 @@ describe('compaction integration', () => {
 			const requiredSections = [
 				'Active Task',
 				'Planning State',
-				'Background Tasks',
 				'Key Context',
 				'Active Files',
 				'Images',
@@ -55,14 +54,12 @@ describe('compaction integration', () => {
 		it('diagnostics reflect accurate counts', () => {
 			const stats: CompactionStats = {
 				planningPhasesCount: 5,
-				backgroundTasksCount: 3,
 				imageDescriptionsCount: 2,
 				toolCallSummariesCount: 4,
 				estimatedTokens: 3500,
 			};
 			const diag = formatCompactionDiagnostics(stats);
 			expect(diag).toContain('5 planning phases');
-			expect(diag).toContain('3 background tasks');
 			expect(diag).toContain('2 image refs');
 			expect(diag).toContain('4 tool calls');
 			expect(diag).toContain('3500 tokens');

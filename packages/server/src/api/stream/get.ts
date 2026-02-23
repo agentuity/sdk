@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { StreamResponseError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { StreamResponseError } from './util.ts';
 
 export const StreamDetailSchema = z.object({
 	id: z.string().describe('the stream id'),

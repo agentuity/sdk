@@ -1,9 +1,2 @@
-export {
-	createBackgroundTools,
-	BackgroundTaskArgsSchema,
-	BackgroundOutputArgsSchema,
-	BackgroundCancelArgsSchema,
-	type BackgroundTaskArgs,
-	type BackgroundOutputArgs,
-	type BackgroundCancelArgs,
-} from './background';
+// Tools are registered directly in plugin/plugin.ts
+export {};

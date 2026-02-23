@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
-import { APIClient } from '../src/api/api';
-import { projectGet } from '../src/api/project/get';
-import { projectList } from '../src/api/project/list';
+import { APIClient } from '../src/api/api.ts';
+import { projectGet } from '../src/api/project/get.ts';
+import { projectList } from '../src/api/project/list.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('project API', () => {

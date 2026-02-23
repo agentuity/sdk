@@ -1,5 +1,5 @@
-import type { Schema, Infer } from '../base';
-import { success, createParseMethods, SCHEMA_KIND } from '../base';
+import type { Schema, Infer } from '../base.ts';
+import { success, createParseMethods, SCHEMA_KIND } from '../base.ts';
 
 /**
  * Schema for nullable values (T | null).

@@ -15,8 +15,8 @@ import { createKeywordHooks } from './hooks/keyword';
 import { createParamsHooks } from './hooks/params';
 import { createCadenceHooks } from './hooks/cadence';
 import { createSessionMemoryHooks } from './hooks/session-memory';
+import { createCompletionHooks } from './hooks/completion';
 import type { AgentRole } from '../types';
-import { BackgroundManager } from '../background';
 import type { SessionTreeNode } from '../sqlite';
 import { OpenCodeDBReader } from '../sqlite';
 import { TmuxSessionManager } from '../tmux';
@@ -99,7 +99,8 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 	const sessionHooks = createSessionHooks(ctx, coderConfig);
 	const toolHooks = createToolHooks(ctx, coderConfig);
 	const keywordHooks = createKeywordHooks(ctx, coderConfig);
-	const paramsHooks = createParamsHooks(ctx, coderConfig, lastUserMessages);
+	const paramsHooks = createParamsHooks(ctx, coderConfig);
+	const completionHooks = createCompletionHooks(ctx, coderConfig);
 	const tmuxManager = coderConfig.tmux?.enabled
 		? new TmuxSessionManager(ctx, coderConfig.tmux, {
 				onLog: (message) =>
@@ -112,76 +113,18 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 					}),
 			})
 		: undefined;
-	const backgroundManager = new BackgroundManager(
-		ctx,
-		coderConfig.background,
-		{
-			onSubagentSessionCreated: tmuxManager
-				? (event) => {
-						void tmuxManager.onSessionCreated(event);
-					}
-				: undefined,
-			onSubagentSessionDeleted: tmuxManager
-				? (event) => {
-						void tmuxManager.onSessionDeleted(event);
-					}
-				: undefined,
-			onShutdown: tmuxManager
-				? () => {
-						void tmuxManager.cleanup();
-					}
-				: undefined,
-		},
-		dbReader
-	);
 
-	// Recover any background tasks from previous sessions
-	// This allows tasks to survive plugin restarts
-	void backgroundManager
-		.recoverTasks()
-		.then((count) => {
-			if (count > 0) {
-				ctx.client.app.log({
-					body: {
-						service: 'agentuity-coder',
-						level: 'info',
-						message: `Recovered ${count} background task(s) from previous sessions`,
-					},
-				});
-			}
-		})
-		.catch((error) => {
-			ctx.client.app.log({
-				body: {
-					service: 'agentuity-coder',
-					level: 'warn',
-					message: `Failed to recover background tasks: ${error}`,
-				},
-			});
-		});
-
-	// Create hooks that need backgroundManager for task reference injection during compaction
-	const cadenceHooks = createCadenceHooks(
-		ctx,
-		coderConfig,
-		backgroundManager,
-		dbReader,
-		lastUserMessages
-	);
+	// Create hooks for session routing and compaction behavior
+	const cadenceHooks = createCadenceHooks(ctx, coderConfig, dbReader, lastUserMessages);
 
 	// Session memory hooks handle checkpointing and compaction for non-Cadence sessions
 	// Orchestration (deciding which module handles which session) happens below in the hooks
-	const sessionMemoryHooks = createSessionMemoryHooks(
-		ctx,
-		coderConfig,
-		backgroundManager,
-		dbReader
-	);
+	const sessionMemoryHooks = createSessionMemoryHooks(ctx, coderConfig, dbReader);
 
 	const configHandler = createConfigHandler(coderConfig);
 
 	// Create plugin tools using the @opencode-ai/plugin tool helper
-	const tools = createTools(backgroundManager, dbReader);
+	const tools = createTools(dbReader);
 
 	// Create a logger for shutdown handler
 	const shutdownLogger = (message: string) =>
@@ -193,7 +136,7 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			},
 		});
 
-	registerShutdownHandler(backgroundManager, tmuxManager, shutdownLogger, dbReader);
+	registerShutdownHandler(tmuxManager, shutdownLogger, dbReader);
 
 	// Show startup toast (fire and forget, don't block)
 	try {
@@ -208,11 +151,15 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 		...(tools ? { tool: tools } : {}),
 		config: configHandler,
 		'chat.message': async (input: unknown, output: unknown) => {
+			completionHooks.onMessage(input);
 			await keywordHooks.onMessage(input, output);
 			await sessionHooks.onMessage(input, output);
 			await cadenceHooks.onMessage(input, output);
 		},
-		'chat.params': paramsHooks.onParams,
+		'chat.params': async (input: unknown, output: unknown) => {
+			completionHooks.onParams(input);
+			await paramsHooks.onParams(input, output);
+		},
 		'tool.execute.before': toolHooks.before,
 		'tool.execute.after': toolHooks.after,
 		'shell.env': async (_input: unknown, output: unknown) => {
@@ -239,10 +186,6 @@ export async function createCoderPlugin(ctx: PluginInput): Promise<Hooks> {
 			}
 		},
 		event: async (input) => {
-			const event = extractEventFromInput(input);
-			if (event) {
-				backgroundManager.handleEvent(event);
-			}
 			// Orchestrate: route to appropriate module based on session type
 			const sessionId = extractSessionIdFromEvent(input);
 			if (sessionId) {
@@ -397,6 +340,7 @@ function createAgentConfigs(
 			...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}),
 			...(agent.thinking ? { thinking: agent.thinking } : {}),
 			...(agent.hidden ? { hidden: agent.hidden } : {}),
+			...(agent.fallbackModels?.length ? { fallbackModels: agent.fallbackModels } : {}),
 		};
 	}
 
@@ -621,7 +565,7 @@ $ARGUMENTS
 ## Lead-of-Leads (Parallel Work)
 If the task has **independent workstreams** that can run in parallel (e.g., "build auth, payments, and notifications"):
 1. Ask @Agentuity Coder Product to create PRD with workstreams
-2. Spawn child Leads via \`agentuity_background_task\` for each workstream
+2. Spawn child Leads using the \`task\` tool (issue multiple task calls in a single response for parallel work)
 3. Each child Lead claims a workstream, works autonomously, marks done when complete
 4. Monitor progress via PRD workstream status
 5. Do integration work when all children complete
@@ -667,169 +611,9 @@ function normalizeBaseDir(path: string): string {
 	return path.replace(/[\\/]+$/, '');
 }
 
-function createTools(
-	backgroundManager: BackgroundManager,
-	dbReader?: OpenCodeDBReader
-): Hooks['tool'] {
+function createTools(dbReader?: OpenCodeDBReader): Hooks['tool'] {
 	// Use the schema from @opencode-ai/plugin's tool helper to avoid Zod version mismatches
 	const s = tool.schema;
-
-	const backgroundTask = tool({
-		description: `Launch a task to run in the background. Use this for parallel execution of multiple independent tasks.
-
-IMPORTANT: Use this tool instead of the 'task' tool when:
-- You need to run multiple agents in parallel
-- Tasks are independent and don't need sequential execution
-- The user asks for "parallel", "background", or "concurrent" work`,
-		args: {
-			agent: s
-				.enum([
-					'lead',
-					'scout',
-					'builder',
-					'architect',
-					'reviewer',
-					'memory',
-					'expert',
-					'runner',
-					'product',
-					'monitor',
-				])
-				.describe('Agent role to run the task'),
-			task: s.string().describe('Task prompt to run in the background'),
-			description: s.string().optional().describe('Short description of the task'),
-		},
-		async execute(args, context) {
-			const parentSessionId = context.sessionID;
-			if (!parentSessionId) {
-				return JSON.stringify({
-					taskId: 'unknown',
-					status: 'error',
-					message: 'Missing session context for background task.',
-				});
-			}
-
-			const agentName = resolveAgentName(args.agent as AgentRole);
-			const bgTask = await backgroundManager.launch({
-				description: args.description ?? args.task,
-				prompt: args.task,
-				agent: agentName,
-				parentSessionId,
-				parentMessageId: context.messageID,
-			});
-			return JSON.stringify({
-				taskId: bgTask.id,
-				status: bgTask.status,
-				message:
-					bgTask.status === 'error'
-						? (bgTask.error ?? 'Failed to launch background task.')
-						: 'Background task launched.',
-			});
-		},
-	});
-
-	const backgroundOutput = tool({
-		description: 'Retrieve output for a background task.',
-		args: {
-			task_id: s.string().describe('Background task ID'),
-		},
-		async execute(args) {
-			const bgTask = backgroundManager.getTask(args.task_id);
-			if (!bgTask) {
-				return JSON.stringify({
-					taskId: args.task_id,
-					status: 'error',
-					error: 'Task not found.',
-				});
-			}
-			return JSON.stringify({
-				taskId: bgTask.id,
-				status: bgTask.status,
-				result: bgTask.result,
-				error: bgTask.error,
-			});
-		},
-	});
-
-	const backgroundCancel = tool({
-		description: 'Cancel a running background task.',
-		args: {
-			task_id: s.string().describe('Background task ID'),
-		},
-		async execute(args) {
-			const success = backgroundManager.cancel(args.task_id);
-			return JSON.stringify({
-				taskId: args.task_id,
-				success,
-				message: success ? 'Background task cancelled.' : 'Unable to cancel task.',
-			});
-		},
-	});
-
-	const backgroundInspect = tool({
-		description: `Inspect a background task to see its session messages and current state. Useful for debugging or checking what a child agent is doing.`,
-		args: {
-			task_id: s.string().describe('Background task ID to inspect'),
-		},
-		async execute(args) {
-			const inspection = await backgroundManager.inspectTask(args.task_id);
-			if (!inspection) {
-				return JSON.stringify({
-					taskId: args.task_id,
-					status: 'unknown',
-					found: false,
-					error: 'Task not found or session no longer exists.',
-				});
-			}
-
-			const messages = inspection.messages ?? [];
-			const enhanced =
-				inspection.messageCount !== undefined ||
-				inspection.activeTools !== undefined ||
-				inspection.todos !== undefined ||
-				inspection.costSummary !== undefined ||
-				inspection.childSessionCount !== undefined;
-
-			if (enhanced) {
-				return JSON.stringify({
-					taskId: inspection.taskId,
-					status: inspection.status,
-					found: true,
-					messageCount: inspection.messageCount ?? messages.length,
-					messages,
-					lastActivity: inspection.lastActivity,
-					activeTools: inspection.activeTools,
-					todos: inspection.todos,
-					costSummary: inspection.costSummary,
-					childSessionCount: inspection.childSessionCount,
-				});
-			}
-
-			// Extract last few messages for summary (fallback)
-			const lastMessages = messages
-				.slice(-3)
-				.map((m) => {
-					const parts = m.parts ?? [];
-					const textParts = parts.filter(
-						(p: unknown) => (p as { type?: string }).type === 'text'
-					);
-					return textParts
-						.map((p: unknown) => ((p as { text?: string }).text ?? '').slice(0, 200))
-						.join(' ')
-						.slice(0, 300);
-				})
-				.filter(Boolean);
-
-			return JSON.stringify({
-				taskId: inspection.taskId,
-				status: inspection.status,
-				found: true,
-				messageCount: messages.length,
-				lastMessages,
-				lastActivity: inspection.lastActivity,
-			});
-		},
-	});
 
 	const sessionDashboard = tool({
 		description:
@@ -1000,10 +784,6 @@ Returns the public URL that can be copied and used anywhere.`,
 	});
 
 	return {
-		agentuity_background_task: backgroundTask,
-		agentuity_background_output: backgroundOutput,
-		agentuity_background_cancel: backgroundCancel,
-		agentuity_background_inspect: backgroundInspect,
 		agentuity_session_dashboard: sessionDashboard,
 		agentuity_memory_share: memoryShare,
 	};
@@ -1023,20 +803,6 @@ function extractSessionIdFromEvent(input: unknown): string | undefined {
 		(inp.event.properties.sessionId as string | undefined) ??
 		(inp.event.properties.sessionID as string | undefined)
 	);
-}
-
-function resolveAgentName(role: AgentRole): string {
-	const agent = agents[role];
-	return agent?.displayName ?? role;
-}
-
-function extractEventFromInput(
-	input: unknown
-): { type: string; properties?: Record<string, unknown> } | undefined {
-	if (typeof input !== 'object' || input === null) return undefined;
-	const inp = input as { event?: { type?: string; properties?: Record<string, unknown> } };
-	if (!inp.event || typeof inp.event.type !== 'string') return undefined;
-	return { type: inp.event.type, properties: inp.event.properties };
 }
 
 function parseDisplayTitle(rawTitle: string): string {
@@ -1203,7 +969,6 @@ function isMemoryPath(path: string): boolean {
 }
 
 function registerShutdownHandler(
-	manager: BackgroundManager,
 	tmuxManager?: TmuxSessionManager,
 	logger?: (msg: string) => void,
 	dbReader?: OpenCodeDBReader
@@ -1230,14 +995,6 @@ function registerShutdownHandler(
 		shutdownCalled = true;
 
 		log(`Shutdown triggered by ${signal ?? 'unknown'} signal`);
-
-		try {
-			log('Shutting down background manager...');
-			manager.shutdown();
-			log('Background manager shutdown complete');
-		} catch (error) {
-			log(`Background manager shutdown error: ${error}`);
-		}
 
 		if (tmuxManager) {
 			try {
