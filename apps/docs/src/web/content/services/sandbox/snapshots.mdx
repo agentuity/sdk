@@ -1,0 +1,302 @@
+---
+title: Creating and Using Snapshots
+description: Save and restore sandbox filesystem states for faster cold starts
+---
+
+Skip slow dependency installation on every run by saving sandbox filesystem states as snapshots.
+
+Manage snapshots via the [Web App](https://app-v1.agentuity.com) under **Services > Sandbox > Snapshots**, the [SDK](/services/sandbox/sdk-usage), or [CLI](/reference/cli/sandbox).
+
+<Callout type="warning" title="Snapshots Are Not Executable">
+A snapshot captures the filesystem state of a sandbox at a point in time. You create new sandboxes *from* snapshots, not run them directly.
+</Callout>
+
+## How Snapshots Work
+
+Snapshots build on top of [runtimes](/services/Sandbox#runtimes). When you create a snapshot:
+
+1. Start with a **runtime** (e.g., `bun:1`) as the base layer
+2. Add your **dependencies** (apt packages, npm modules, etc.)
+3. Include your **files** (source code, config)
+4. The snapshot captures everything: runtime + dependencies + files
+
+When you create a sandbox from a snapshot, it starts with all of this pre-configured.
+
+## The Snapshot Workflow
+
+1. Create a sandbox
+2. Install dependencies and configure the environment
+3. Save a snapshot (captures the filesystem state)
+4. Later, create new sandboxes from that snapshot
+5. New sandboxes start with everything pre-configured
+
+## Declarative Snapshots (Recommended)
+
+Define snapshots in a YAML file for reproducible, version-controlled environments. This approach is ideal for CI/CD pipelines and team collaboration.
+
+### Quick Start
+
+Generate a template with helpful comments explaining each field:
+
+```bash
+agentuity cloud sandbox snapshot generate > agentuity-snapshot.yaml
+```
+
+The generated file includes documentation for all options: runtime selection, apt dependencies, file patterns, environment variables, and metadata. Customize it for your needs, then build:
+
+```bash
+agentuity cloud sandbox snapshot build .
+```
+
+### Build File Example
+
+```yaml
+version: 1
+runtime: bun:1  # Base runtime - snapshot layers on top of this
+description: Node.js environment with common dependencies
+
+dependencies:  # Apt packages to install
+  - curl
+  - jq
+
+files:  # Files to include from your project
+  - src/**
+  - package.json
+  - "!**/*.test.ts"    # Exclude test files
+  - "!node_modules/**" # Exclude node_modules
+
+env:
+  NODE_ENV: production
+```
+
+### Build Options
+
+```bash
+# Build with a custom tag
+agentuity cloud sandbox snapshot build . --tag production
+
+# Build with environment variable substitution
+agentuity cloud sandbox snapshot build . --env API_KEY=secret
+
+# Force rebuild even if content unchanged
+agentuity cloud sandbox snapshot build . --force
+```
+
+### When to Use Declarative vs Manual
+
+| Approach | Best For |
+|----------|----------|
+| **Declarative** | CI/CD pipelines, reproducible environments, team collaboration, version control |
+| **Manual** | Quick experimentation, one-off debugging, exploring new configurations |
+
+## Creating a Snapshot Manually
+
+Create a sandbox, configure it, then save a snapshot:
+
+```bash
+# Create a sandbox with a runtime
+agentuity cloud sandbox create --runtime bun:1 --memory 1Gi --network
+# Returns: sbx_abc123
+
+# Install dependencies
+agentuity cloud sandbox exec sbx_abc123 -- npm init -y
+agentuity cloud sandbox exec sbx_abc123 -- npm install typescript zod
+
+# Create snapshot with a tag
+agentuity cloud sandbox snapshot create sbx_abc123 --tag node-typescript
+
+# Clean up the original sandbox
+agentuity cloud sandbox delete sbx_abc123
+```
+
+## Using Snapshots in Code
+
+Create sandboxes from snapshots using the `snapshot` option:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('TypeScriptRunner', {
+  handler: async (ctx, input) => {
+    // Create sandbox from snapshot - dependencies already installed
+    const sandbox = await ctx.sandbox.create({
+      snapshot: 'node-typescript',  // Use tag or snapshot ID
+      resources: { memory: '512Mi' },
+    });
+
+    try {
+      // Write the user's code
+      await sandbox.writeFiles([
+        { path: 'index.ts', content: Buffer.from(input.code) },
+      ]);
+
+      // Run immediately - no npm install needed
+      const result = await sandbox.execute({
+        command: ['npx', 'tsx', 'index.ts'],
+      });
+
+      return { success: true, exitCode: result.exitCode };
+    } catch (error) {
+      ctx.logger.error('Sandbox execution failed', { error });
+      return { success: false, exitCode: -1, error: String(error) };
+    } finally {
+      await sandbox.destroy();
+    }
+  },
+});
+```
+
+## CLI Commands
+
+### Create Snapshot
+
+```bash
+agentuity cloud sandbox snapshot create <sandbox-id> [--tag <name>]
+
+# Examples
+agentuity cloud sandbox snapshot create sbx_abc123
+agentuity cloud sandbox snapshot create sbx_abc123 --tag python-ml
+```
+
+### List Snapshots
+
+```bash
+agentuity cloud sandbox snapshot list [--sandbox <id>] [--limit <n>]
+
+# Examples
+agentuity cloud sandbox snapshot list
+agentuity cloud sandbox snapshot list --sandbox sbx_abc123
+```
+
+### Get Snapshot Details
+
+```bash
+agentuity cloud sandbox snapshot get <snapshot-id>
+
+# Shows file listing, size, and sandboxes using this snapshot
+```
+
+### Tag a Snapshot
+
+```bash
+agentuity cloud sandbox snapshot tag <snapshot-id> <tag-name>
+agentuity cloud sandbox snapshot tag <snapshot-id> --clear
+
+# Examples
+agentuity cloud sandbox snapshot tag snp_xyz789 v1.0
+agentuity cloud sandbox snapshot tag snp_xyz789 latest
+agentuity cloud sandbox snapshot tag snp_xyz789 --clear  # Remove tag
+```
+
+### Delete Snapshot
+
+```bash
+agentuity cloud sandbox snapshot delete <snapshot-id> [--confirm]
+
+# Example
+agentuity cloud sandbox snapshot delete snp_xyz789 --confirm
+```
+
+### Create Sandbox from Snapshot
+
+```bash
+agentuity cloud sandbox create --snapshot <id-or-tag> [options]
+
+# Examples
+agentuity cloud sandbox create --snapshot node-typescript
+agentuity cloud sandbox create --snapshot snp_xyz789 --memory 1Gi
+```
+
+## Use Cases
+
+### Pre-configured Language Environments
+
+Create snapshots for each language you support:
+
+```bash
+# Python with common packages
+agentuity cloud sandbox create --runtime base:latest --network
+agentuity cloud sandbox exec sbx_... -- apt-get update
+agentuity cloud sandbox exec sbx_... -- apt-get install -y python3 python3-pip
+agentuity cloud sandbox exec sbx_... -- pip install numpy pandas requests
+agentuity cloud sandbox snapshot create sbx_... --tag python-data
+
+# Node.js with TypeScript
+agentuity cloud sandbox create --runtime bun:1 --network
+agentuity cloud sandbox exec sbx_... -- npm install -g typescript tsx
+agentuity cloud sandbox snapshot create sbx_... --tag node-typescript
+```
+
+Then use in your agent:
+
+```typescript
+const languageSnapshots: Record<string, string> = {
+  python: 'python-data',
+  typescript: 'node-typescript',
+  javascript: 'node-typescript',
+};
+
+const sandbox = await ctx.sandbox.create({
+  snapshot: languageSnapshots[input.language],
+});
+```
+
+### Version-controlled Environments
+
+Use tags for versioning:
+
+```bash
+# Create v1.0
+agentuity cloud sandbox snapshot create sbx_... --tag project-env-v1.0
+
+# Later, create v2.0 with updated dependencies
+agentuity cloud sandbox snapshot create sbx_... --tag project-env-v2.0
+
+# Keep "latest" pointing to current version
+agentuity cloud sandbox snapshot tag snp_newid latest
+```
+
+### Faster Cold Starts
+
+Without snapshots, every sandbox creation requires dependency installation:
+
+```typescript
+// Slow: Install dependencies every time
+const sandbox = await ctx.sandbox.create({ network: { enabled: true } });
+await sandbox.execute({ command: ['npm', 'install'] });  // 30+ seconds
+await sandbox.execute({ command: ['npm', 'run', 'build'] });
+```
+
+With snapshots:
+
+```typescript
+// Fast: Dependencies already installed
+const sandbox = await ctx.sandbox.create({ snapshot: 'project-deps' });
+await sandbox.execute({ command: ['npm', 'run', 'build'] });  // Immediate
+```
+
+## Snapshot Data
+
+When you create a snapshot, it captures:
+
+- All files in the sandbox workspace
+- Installed packages and dependencies
+- File permissions and structure
+
+Snapshots don't include:
+
+- Running processes
+- Network connections
+- Environment variables (set these when creating the sandbox)
+
+## Best Practices
+
+- **Tag important snapshots**: Use descriptive tags like `python-ml-v2` instead of relying on IDs
+- **Keep snapshots lean**: Only include necessary dependencies to minimize size
+- **Version your snapshots**: Use semantic versioning tags for reproducibility
+- **Clean up unused snapshots**: Delete snapshots you no longer need
+
+## Next Steps
+
+- [SDK Usage](/services/sandbox/sdk-usage): File I/O, streaming, and advanced configuration options
+- [CLI Commands](/reference/cli/sandbox): Debug sandboxes and manage snapshots from the terminal

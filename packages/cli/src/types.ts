@@ -216,6 +216,14 @@ export interface AnalyticsConfig {
  */
 export interface AgentuityConfig {
 	/**
+	 * Rendering mode for the web frontend.
+	 * - 'spa' (default): Single-page application with client-side routing
+	 * - 'static': Pre-renders all routes to static HTML at build time (SSG).
+	 *   Requires src/web/entry-server.tsx exporting render(url) and getStaticPaths()
+	 */
+	render?: 'spa' | 'static';
+
+	/**
 	 * Workbench configuration
 	 */
 	workbench?: WorkbenchConfig;

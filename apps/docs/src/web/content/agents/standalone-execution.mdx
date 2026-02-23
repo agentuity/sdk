@@ -1,0 +1,223 @@
+---
+title: Running Agents Without HTTP
+description: Execute agents programmatically for cron jobs, bots, CLI tools, and background workers
+---
+
+Sometimes your agent logic needs to run without an incoming HTTP request. `createAgentContext()` gives standalone code the same infrastructure that HTTP handlers get automatically: tracing, sessions, and storage access.
+
+<Callout type="warning" title="Agentuity Runtime Only">
+`createAgentContext()` requires Agentuity's runtime initialization and only works within the Agentuity runtime (Discord bots, CLI tools, queue workers deployed alongside your agents). It will throw an error if called from external frameworks like Next.js or Express. To access storage from external backends, see [SDK Utilities for External Apps](/cookbook/patterns/server-utilities).
+</Callout>
+
+## Basic Usage
+
+```typescript
+import { createAgentContext } from '@agentuity/runtime';
+import chatAgent from '@agent/chat';
+
+const ctx = createAgentContext();
+const result = await ctx.run(chatAgent, { message: 'Hello' });
+```
+
+The `run()` method executes your agent with full infrastructure support: tracing, session management, and access to all storage services.
+
+For agents that don't require input:
+
+```typescript
+const result = await ctx.run(statusAgent);
+```
+
+<Callout type="info" title="ctx.run() vs ctx.invoke()">
+`ctx.run(agent, input)` is a convenience wrapper around `ctx.invoke()`. Use `ctx.run()` for single agent calls; use `ctx.invoke()` when you need to run arbitrary functions or multiple agents in a single invocation. See [Using invoke() Directly](#using-invoke-directly) below.
+</Callout>
+
+## Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `sessionId` | `string` | Custom session ID. Auto-generated from trace context if not provided |
+| `trigger` | `string` | Trigger type for telemetry: `'discord'`, `'cron'`, `'websocket'`, `'manual'` |
+| `thread` | `Thread` | Custom thread for conversation state |
+| `session` | `Session` | Custom session instance |
+| `parentContext` | `Context` | Parent OpenTelemetry context for distributed tracing |
+
+## External Cron Job Example
+
+For scheduled tasks managed outside of Agentuity:
+
+```typescript
+import { createApp, createAgentContext } from '@agentuity/runtime';
+import cron from 'node-cron';
+import cleanupAgent from '@agent/cleanup';
+
+await createApp();
+
+// Run cleanup every hour
+cron.schedule('0 * * * *', async () => {
+  const ctx = createAgentContext({ trigger: 'cron' });
+  await ctx.run(cleanupAgent, { task: 'expired-sessions' });
+});
+```
+
+<Callout type="info" title="Built-in Cron Support">
+For most scheduled tasks, use the [`cron()` middleware](/routes/cron) instead. It handles infrastructure automatically without needing `createAgentContext`. Use standalone execution only when you need external cron management.
+</Callout>
+
+## Multiple Agents in Sequence
+
+Run multiple agents in sequence with the same context:
+
+```typescript
+const ctx = createAgentContext();
+
+// First agent analyzes the input
+const analysis = await ctx.run(analyzeAgent, { text: userInput });
+
+// Second agent generates response based on analysis
+const response = await ctx.run(respondAgent, {
+  analysis: analysis.summary,
+  sentiment: analysis.sentiment,
+});
+```
+
+Each `ctx.run()` call gets its own session and tracing span, while sharing the logger, tracer, and app state.
+
+## Reusing Contexts
+
+Create a context once and reuse it for multiple invocations:
+
+```typescript
+const ctx = createAgentContext({ trigger: 'websocket' });
+
+// Each run gets its own session and tracing span
+websocket.on('message', async (data) => {
+  const result = await ctx.run(messageAgent, data);
+  websocket.send(result);
+});
+```
+
+## Using invoke() Directly
+
+`ctx.run()` is syntactic sugar over `ctx.invoke()`. Use `invoke()` when you need more control:
+
+- Run arbitrary async functions (not just agents) within agent context
+- Execute multiple agents in a single invocation with a shared session and tracing span
+- Set a custom OpenTelemetry span name
+
+### Running Arbitrary Functions
+
+```typescript
+const ctx = createAgentContext({ trigger: 'cron' });
+
+await ctx.invoke(async () => {
+  // Any async code runs with full agent infrastructure
+  const data = await ctx.kv.get('config', 'settings');
+  await ctx.stream.create('audit', {
+    contentType: 'text/plain',
+  });
+  ctx.logger.info('Cron task complete');
+});
+```
+
+### Multiple Agents in One Invocation
+
+When agents share a session and tracing span:
+
+```typescript
+const ctx = createAgentContext();
+
+const result = await ctx.invoke(async () => {
+  const analysis = await analyzeAgent.run({ text: userInput });
+  const response = await respondAgent.run({
+    analysis: analysis.summary,
+  });
+  return response;
+});
+```
+
+Both agent calls share the same OpenTelemetry span, session, and thread. Compare this with calling `ctx.run()` twice, where each call gets its own session and span.
+
+### Custom Span Names
+
+```typescript
+const result = await ctx.invoke(() => agent.run(input), { spanName: 'daily-cleanup' });
+```
+
+### invoke() Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `spanName` | `string` | `'agent-invocation'` | Span name for this invocation |
+
+## Invocation Lifecycle
+
+Each call to `ctx.run()` or `ctx.invoke()` follows this lifecycle:
+
+<Steps>
+### Create tracing span
+An OpenTelemetry span is created within the parent context. Trace state includes project, org, and deployment IDs for distributed tracing.
+
+### Restore session and thread
+A new thread is created and the session is restored from the session provider using the session ID.
+
+### Fire session start event
+A `start` event is sent to the session event provider with the trigger type, session ID, thread ID, and deployment metadata.
+
+### Execute function
+Your function runs within `AsyncLocalStorage` context, giving it access to `ctx.kv`, `ctx.stream`, `ctx.vector`, `ctx.logger`, and `waitUntil`.
+
+### Wait for background tasks
+Any `ctx.waitUntil()` callbacks are awaited before the invocation completes.
+
+### Save session and thread
+Session and thread state are persisted via their providers.
+
+### Fire session complete event
+A `complete` event is sent with the final status code, agent IDs that participated, and any user data.
+</Steps>
+
+If background tasks are pending (`waitUntil`), session save and the complete event happen after all tasks finish. Errors during execution set the span status to `ERROR` and include the error message in the session complete event.
+
+## What's Included
+
+<Callout type="info" title="Full Infrastructure Support">
+Each `ctx.run()` or `ctx.invoke()` call provides the same infrastructure as HTTP request handlers:
+
+- **Tracing**: OpenTelemetry spans with proper hierarchy
+- **Sessions**: Automatic save/restore via providers
+- **Threads**: Conversation state management
+- **Storage**: Full access to `kv`, `stream`, `vector`
+- **Background tasks**: `waitUntil` support for fire-and-forget work
+- **Session events**: Start/complete events for observability
+</Callout>
+
+## Detecting Context
+
+Use `inAgentContext()` to check if code is running inside an agent handler with ambient context available:
+
+```typescript
+import { inAgentContext, createAgentContext } from '@agentuity/runtime';
+import myAgent from '@agent/my-agent';
+
+async function processRequest(data: unknown) {
+  if (inAgentContext()) {
+    // Inside an agent handler, ambient context is available
+    // so agent.run() works directly without explicit context
+    return myAgent.run(data);
+  }
+
+  // Outside agent handler, create context first
+  const ctx = createAgentContext();
+  return ctx.run(myAgent, data);
+}
+```
+
+This is useful for writing utility functions that work both inside agent handlers and in standalone scripts.
+
+To check if the Agentuity runtime is initialized (but not necessarily inside a handler), use `isInsideAgentRuntime()` instead.
+
+## Next Steps
+
+- [Calling Other Agents](/agents/calling-other-agents): Agent-to-agent communication patterns
+- [Cron Routes](/routes/cron): Built-in scheduled task support
+- [State Management](/agents/state-management): Thread and session state

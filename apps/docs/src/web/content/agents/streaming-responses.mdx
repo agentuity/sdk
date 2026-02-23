@@ -1,0 +1,237 @@
+---
+title: Returning Streaming Responses
+description: Return real-time LLM output with streaming agents
+---
+
+Show LLM output as it's generated instead of waiting for the full response. Streaming reduces perceived latency and creates a more responsive experience.
+
+## Streaming Types
+
+Agentuity supports two streaming patterns:
+
+### Ephemeral Streaming
+
+Uses `stream()` middleware for direct streaming to the HTTP client. Data flows through and is not stored. Use this for real-time chat responses.
+
+```typescript
+// In src/api/index.ts
+import { createRouter, stream } from '@agentuity/runtime';
+import chatAgent from '@agent/chat';
+
+const router = createRouter();
+
+router.post('/', stream(async (c) => {
+  return await chatAgent.run({ message: '...' });
+}));
+
+export default router;
+```
+
+### Persistent Streaming
+
+Uses `ctx.stream.create()` to create stored streams with public URLs. Data persists and can be accessed after the connection closes. Use this for batch processing, exports, or content that needs to be accessed later.
+
+```typescript
+// In agent.ts
+const stream = await ctx.stream.create('my-export', {
+  contentType: 'text/csv',
+});
+await stream.write('data');
+await stream.close();
+```
+
+This page focuses on ephemeral streaming with the AI SDK. For persistent streaming patterns, see the [Storage documentation](/services/storage/durable-streams).
+
+<Callout type="info" title="Two Parts to Streaming">
+Streaming requires both: `schema.stream: true` in your agent (so the handler returns a stream) and `stream()` middleware in your route (so the response is streamed to the client).
+</Callout>
+
+## Basic Streaming
+
+Enable streaming by setting `stream: true` in your schema and returning a `textStream`:
+
+<Callout type="info" title="AI SDK Integration">
+The `textStream` from AI SDK's `streamText()` works directly with Agentuity's streaming middleware. Return it from your handler without additional processing.
+</Callout>
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { streamText } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
+import { s } from '@agentuity/schema';
+
+const agent = createAgent('ChatStream', {
+  schema: {
+    input: s.object({ message: s.string() }),
+    stream: true,
+  },
+  handler: async (ctx, input) => {
+    const { textStream } = streamText({
+      model: anthropic('claude-sonnet-4-5'),
+      prompt: input.message,
+    });
+
+    return textStream;
+  },
+});
+
+export default agent;
+```
+
+## Route Configuration
+
+Use `stream()` middleware to handle streaming responses:
+
+```typescript
+// src/api/index.ts
+import { createRouter, stream } from '@agentuity/runtime';
+import chatAgent from '@agent/chat';
+
+const router = createRouter();
+
+router.post('/chat', chatAgent.validator(), stream(async (c) => {
+  const body = c.req.valid('json');
+  return chatAgent.run(body);
+}));
+
+export default router;
+```
+
+<Callout type="info" title="Route Methods">
+Use `stream()` middleware for streaming agents. Regular `router.post()` works but may buffer the response depending on the client.
+</Callout>
+
+## Consuming Streams
+
+### With Fetch API
+
+Read the stream using the Fetch API:
+
+```typescript
+const response = await fetch('http://localhost:3500/api/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ message: 'Tell me a story' }),
+});
+
+const reader = response.body?.getReader();
+const decoder = new TextDecoder();
+
+while (reader) {
+  const { done, value } = await reader.read();
+  if (done) break;
+
+  const text = decoder.decode(value);
+  // Process each chunk as it arrives
+  appendToUI(text);
+}
+```
+
+### With React
+
+Use the `useAPI` hook from `@agentuity/react`:
+
+```tsx
+import { useAPI } from '@agentuity/react';
+
+function Chat() {
+  const { data, isLoading, invoke } = useAPI('POST /api/chat');
+
+  const handleSubmit = async (message: string) => {
+    await invoke({ message });
+  };
+
+  return (
+    <div>
+      {isLoading && <p>Generating...</p>}
+      {data && <p>{data}</p>}
+      <button onClick={() => handleSubmit('Hello!')}>Send</button>
+    </div>
+  );
+}
+```
+
+For streaming with React, see [Frontend Hooks](/frontend/react-hooks).
+
+## Streaming with System Prompts
+
+Add context to streaming responses:
+
+```typescript
+handler: async (ctx, input) => {
+  const { textStream } = streamText({
+    model: anthropic('claude-sonnet-4-5'),
+    system: 'You are a helpful assistant. Be concise.',
+    messages: [
+      { role: 'user', content: input.message },
+    ],
+  });
+
+  return textStream;
+}
+```
+
+## Streaming with Conversation History
+
+Combine streaming with thread state for multi-turn conversations:
+
+```typescript
+handler: async (ctx, input) => {
+  // Get existing messages from thread state (async)
+  const messages = (await ctx.thread.state.get('messages')) || [];
+
+  // Add new user message
+  messages.push({ role: 'user', content: input.message });
+
+  const { textStream, text } = streamText({
+    model: anthropic('claude-sonnet-4-5'),
+    messages,
+  });
+
+  // Save assistant response after streaming completes
+  ctx.waitUntil(async () => {
+    const fullText = await text;
+    messages.push({ role: 'assistant', content: fullText });
+    await ctx.thread.state.set('messages', messages);
+  });
+
+  return textStream;
+}
+```
+
+<Callout type="tip" title="Background Tasks">
+Use `ctx.waitUntil()` to save conversation history without blocking the stream. The response starts immediately while state updates happen in the background.
+</Callout>
+
+## When to Stream
+
+| Scenario | Recommendation |
+|----------|----------------|
+| Chat interfaces | Stream for better UX |
+| Long-form content | Stream to show progress |
+| Quick classifications | Buffer (faster overall, consider Groq for speed) |
+| Structured data | Buffer (use `generateObject`) |
+
+## Error Handling
+
+Handle streaming errors with the `onError` callback:
+
+```typescript
+const { textStream } = streamText({
+  model: anthropic('claude-sonnet-4-5'),
+  prompt: input.message,
+  onError: (error) => {
+    ctx.logger.error('Stream error', { error });
+  },
+});
+```
+
+<Callout type="warning" title="Stream Errors">
+Errors in streaming are part of the stream, not thrown exceptions. Always provide an `onError` callback.
+</Callout>
+
+## Next Steps
+
+- [Using the AI SDK](/agents/ai-sdk-integration): Structured output and non-streaming responses
+- [State Management](/agents/state-management): Multi-turn conversations with memory
+- [Server-Sent Events](/routes/sse): Server-push updates without polling

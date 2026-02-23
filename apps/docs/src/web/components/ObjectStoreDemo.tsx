@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Button, Separator } from './ui';
 
 interface FileInfo {
 	key: string;
@@ -163,23 +164,22 @@ export function ObjectStoreDemo() {
 					>
 						{SAMPLE_DOC.name}
 					</span>
-					{!seeded && (
-						<button
-							onClick={seedData}
-							disabled={loading}
-							type="button"
-							className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-xs px-3 py-1.5 cursor-pointer ${
-								loading ? 'opacity-50' : 'hover:bg-cyan-400 dark:hover:bg-cyan-300'
-							}`}
-						>
-							<span data-loading={seeding ? 'true' : undefined}>
-								{seeding ? 'Loading' : 'Load Sample Data'}
-							</span>
-						</button>
-					)}
-					{seeded && (
-						<span className="text-green-600 dark:text-green-400 text-xs">Loaded</span>
-					)}
+					<Button
+						variant="success"
+						size="sm"
+						onClick={seedData}
+						disabled={loading || seeded}
+					>
+						<span className="relative">
+							<span className={seeding || seeded ? 'invisible' : ''}>Load Sample Data</span>
+							{seeding && !seeded && (
+								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+							)}
+							{seeded && (
+								<span className="absolute inset-0 flex items-center justify-center">Loaded</span>
+							)}
+						</span>
+					</Button>
 				</div>
 			</div>
 
@@ -192,9 +192,10 @@ export function ObjectStoreDemo() {
 
 			{/* File list */}
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg">
-				<div className="border-b border-zinc-200 dark:border-zinc-900 text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
+				<div className="text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
 					Files ({files.length})
 				</div>
+				<Separator />
 				{files.length === 0 ? (
 					<div className="text-zinc-500 dark:text-zinc-600 text-sm p-8 text-center">
 						No files yet. Click "Load Sample Data" to add a sample file.
@@ -213,21 +214,22 @@ export function ObjectStoreDemo() {
 											` | ${new Date(file.lastModified).toLocaleDateString()}`}
 									</span>
 								</div>
-								<div className="flex gap-3">
-									<button
-										type="button"
+								<div className="flex items-center gap-3">
+									<Button
+										variant="ghost"
+										size="xs"
 										onClick={() => handlePresign(file.filename)}
-										className="text-cyan-700 dark:text-cyan-400 text-xs hover:text-cyan-500 dark:hover:text-cyan-300 cursor-pointer bg-transparent border-none"
 									>
 										Presign URL
-									</button>
-									<a
-										href={`/api/object-storage/download/${encodeURIComponent(file.filename)}`}
-										className="text-blue-600 dark:text-blue-400 text-xs hover:text-blue-500 dark:hover:text-blue-300"
-										download
-									>
-										Download
-									</a>
+									</Button>
+									<Button variant="ghost" size="xs" asChild>
+										<a
+											href={`/api/object-storage/download/${encodeURIComponent(file.filename)}`}
+											download
+										>
+											Download
+										</a>
+									</Button>
 								</div>
 							</div>
 						))}
@@ -245,17 +247,48 @@ export function ObjectStoreDemo() {
 								({presignInfo.filename} · expires in {presignInfo.expiresIn})
 							</span>
 						</div>
-						<button
-							type="button"
+						<Button
+							variant="outline"
+							size="xs"
 							onClick={copyToClipboard}
-							className={`text-xs px-2 py-1 rounded cursor-pointer transition-colors ${
-								copied
-									? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400'
-									: 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-300'
-							}`}
 						>
-							{copied ? 'Copied!' : 'Copy URL'}
-						</button>
+							{copied ? (
+								<>
+									<svg
+										aria-hidden="true"
+										className="text-green-600 dark:text-green-400"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M5 13l4 4L19 7"
+										/>
+									</svg>
+									<span className="text-green-600 dark:text-green-400">Copied!</span>
+								</>
+							) : (
+								<>
+									<svg
+										aria-hidden="true"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+										/>
+									</svg>
+									<span>Copy</span>
+								</>
+							)}
+						</Button>
 					</div>
 					<div className="text-zinc-600 dark:text-zinc-400 text-sm font-mono break-all bg-zinc-100 dark:bg-zinc-950 rounded p-3 border border-zinc-300 dark:border-zinc-800">
 						{presignInfo.url}

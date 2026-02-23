@@ -1,0 +1,4 @@
+{
+  "title": "Frontend",
+  "pages": ["react-hooks", "rpc-client", "provider-setup", "authentication", "workbench", "deployment-scenarios", "advanced-hooks"]
+}

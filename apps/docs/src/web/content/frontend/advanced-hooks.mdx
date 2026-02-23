@@ -1,0 +1,142 @@
+---
+title: Advanced Hooks
+description: Connect to custom WebSocket and SSE endpoints with useWebsocket and useEventStream
+---
+
+For custom endpoints that aren't agents, use the low-level hooks directly.
+
+<Callout type="info" title="Standard Hooks">
+For most use cases, the standard hooks (`useAPI`, `useWebsocket`, `useEventStream`) work directly with your routes. These advanced patterns are for custom message handlers and third-party integrations.
+</Callout>
+
+## useWebsocket
+
+Connect to any WebSocket endpoint:
+
+```tsx
+import { useWebsocket } from '@agentuity/react';
+import { useEffect } from 'react';
+
+function CustomWebSocket() {
+  const { isConnected, send, data, setHandler, close } = useWebsocket<
+    { action: string },  // Input type
+    { result: string }   // Output type
+  >('/custom/websocket');
+
+  // Set a custom message handler
+  useEffect(() => {
+    setHandler((message) => {
+      console.log('Received:', message);
+      // Process message as needed
+    });
+  }, [setHandler]);
+
+  const handleClick = () => {
+    send({ action: 'ping' });
+  };
+
+  return (
+    <div>
+      <p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
+      <button onClick={handleClick} disabled={!isConnected}>
+        Send Ping
+      </button>
+      <button onClick={close}>Disconnect</button>
+    </div>
+  );
+}
+```
+
+**Return values:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isConnected` | `boolean` | True when WebSocket is open |
+| `send` | `(data: TInput) => void` | Send a message |
+| `data` | `TOutput \| undefined` | Last received message |
+| `setHandler` | `(fn: (data: TOutput) => void) => void` | Custom message handler |
+| `readyState` | `number` | WebSocket ready state |
+| `close` | `() => void` | Close the connection |
+| `reset` | `() => void` | Clear error state |
+| `error` | `Error \| null` | Connection error |
+
+## useEventStream
+
+Connect to any Server-Sent Events endpoint:
+
+```tsx
+import { useEventStream } from '@agentuity/react';
+import { useEffect } from 'react';
+
+function CustomEventStream() {
+  const { isConnected, data, setHandler, close, error } = useEventStream<
+    { event: string; timestamp: number }
+  >('/custom/events');
+
+  useEffect(() => {
+    setHandler((event) => {
+      console.log('Event received:', event);
+    });
+  }, [setHandler]);
+
+  if (error) {
+    return <p>Error: {error.message}</p>;
+  }
+
+  return (
+    <div>
+      <p>Stream: {isConnected ? 'Active' : 'Connecting...'}</p>
+      <p>Last event: {data?.event ?? 'None'}</p>
+      <button onClick={close}>Stop Stream</button>
+    </div>
+  );
+}
+```
+
+**Return values:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isConnected` | `boolean` | True when stream is active |
+| `data` | `TOutput \| undefined` | Last received event |
+| `setHandler` | `(fn: (data: TOutput) => void) => void` | Custom event handler |
+| `readyState` | `number` | Connection state |
+| `close` | `() => void` | Close the stream |
+| `reset` | `() => void` | Clear error state |
+| `error` | `Error \| null` | Connection error |
+
+## Options
+
+Both hooks accept options for customizing the connection:
+
+```tsx
+const { isConnected, send } = useWebsocket('/path', {
+  query: new URLSearchParams({ token: 'abc123' }),
+  subpath: '/room/1',  // Appends to path
+  signal: abortController.signal,
+});
+```
+
+## Reconnection Behavior
+
+Both hooks automatically reconnect when the connection drops using exponential backoff (delays increase between attempts, capped at 30 seconds).
+
+<Callout type="tip" title="Cleanup">
+Connections are automatically closed when the component unmounts. You don't need to manually call `close()` in a cleanup effect.
+</Callout>
+
+## When to Use These
+
+| Use Case | Recommended Hook |
+|----------|------------------|
+| HTTP API routes | `useAPI` |
+| WebSocket routes | `useWebsocket` |
+| SSE routes | `useEventStream` |
+| Third-party WebSocket | `useWebsocket` with custom handler |
+| Custom SSE endpoint | `useEventStream` with custom handler |
+
+## Next Steps
+
+- [React Hooks](/frontend/react-hooks): Agent-specific hooks for common use cases
+- [WebSockets](/routes/websockets): Create WebSocket routes in your agents
+- [Server-Sent Events](/routes/sse): Create SSE routes in your agents

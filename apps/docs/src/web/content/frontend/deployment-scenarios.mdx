@@ -1,0 +1,121 @@
+---
+title: Deployment Scenarios
+description: Deploy your frontend alongside agents or separately on Vercel, Netlify, etc.
+---
+
+Choose where your frontend lives based on your project needs.
+
+## All-in-One Deployment
+
+Put your frontend code in `src/web/` and deploy everything together:
+
+```
+my-project/
+├── src/
+│   ├── agent/
+│   │   └── chat/
+│   │       └── agent.ts
+│   ├── api/
+│   │   └── index.ts
+│   └── web/
+│       ├── App.tsx
+│       ├── frontend.tsx
+│       └── index.html
+└── agentuity.json
+```
+
+When you run `agentuity deploy`, both your agents and frontend are bundled and deployed together.
+
+```tsx
+// src/web/App.tsx
+import { AgentuityProvider, useAPI } from '@agentuity/react';
+
+function Chat() {
+  const { invoke, data, isLoading } = useAPI('POST /api/chat');
+  // ... your chat UI
+}
+
+export default function App() {
+  return (
+    <AgentuityProvider>
+      <Chat />
+    </AgentuityProvider>
+  );
+}
+```
+
+<Callout type="info" title="No baseUrl Needed">
+When frontend and agents are deployed together, you don't need to set `baseUrl`. The provider automatically connects to the same origin.
+</Callout>
+
+**Best for:**
+- New projects starting from scratch
+- Simple deployments with one codebase
+- Projects that don't need separate frontend scaling
+
+## Separate Frontend
+
+Deploy your frontend on Vercel, Netlify, or any hosting platform while agents run on Agentuity:
+
+```
+Frontend (e.g., Vercel)                Agents (Agentuity)
+┌───────────────────────┐           ┌───────────────────────┐
+│     your-app.com      │ ────────► │    project.cloud      │
+│     React/Next.js     │           │     Agent routes      │
+└───────────────────────┘           └───────────────────────┘
+```
+
+```tsx
+// In your React app
+import { AgentuityProvider, useAPI } from '@agentuity/react';
+
+export default function App() {
+  return (
+    <AgentuityProvider baseUrl="https://your-project.agentuity.cloud">
+      <YourApp />
+    </AgentuityProvider>
+  );
+}
+```
+
+**Best for:**
+- Existing projects adding AI agents
+- Teams with separate frontend and backend deployments
+
+## CORS Configuration
+
+When your frontend and agents are on different domains, configure CORS in `app.ts`:
+
+```typescript
+// app.ts
+import { createApp } from '@agentuity/runtime';
+
+const { server, logger } = await createApp({
+  cors: {
+    origin: ['https://your-frontend.com', 'http://localhost:3000'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+  },
+});
+
+logger.debug('Running %s', server.url);
+```
+
+<Callout type="warning" title="Required for Cross-Origin">
+Without CORS configuration, browsers will block requests from your frontend to your agents when they're on different domains.
+</Callout>
+
+## Comparison
+
+| Aspect | All-in-One | Separate Frontend |
+|--------|------------|-------------------|
+| Deployment | Single `agentuity deploy` | Deploy frontend and agents separately |
+| Configuration | Minimal | Requires `baseUrl` and CORS |
+| Scaling | Tied together | Independent scaling |
+| Best for | New projects | Existing frontends |
+
+## Next Steps
+
+- [React Hooks](/frontend/react-hooks): Call agents from your components
+- [Provider Setup](/frontend/provider-setup): Configure the provider for your environment
+- [App Configuration](/get-started/app-configuration): CORS and other app-level settings

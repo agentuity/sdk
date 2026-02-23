@@ -1,0 +1,254 @@
+---
+title: Local Development
+description: Run the development server with hot reload, local mode, and the interactive Workbench.
+---
+
+Run your Agentuity project locally with automatic hot reload, type checking, and the interactive Workbench UI.
+
+## Starting the Dev Server
+
+```bash
+agentuity dev
+# or
+bun run dev
+```
+
+The server starts on port 3500 by default with:
+- Hot reload on file changes
+- TypeScript type checking
+- Public URL tunneling (optional, for webhooks and sharing)
+- Interactive keyboard shortcuts
+
+## Dev Server Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--port` | 3500 (or `PORT` env) | TCP port for the dev server |
+| `--local` | false | Use local services instead of cloud |
+| `--no-public` | - | Disable public URL tunneling |
+| `--no-interactive` | - | Disable interactive keyboard shortcuts |
+| `--inspect` | - | Enable Bun debugger for debugging |
+| `--inspect-wait` | - | Enable debugger and wait for connection before starting |
+| `--inspect-brk` | - | Enable debugger and break on first line |
+
+<Callout type="tip" title="PORT Environment Variable">
+The dev server respects the `PORT` environment variable. The `--port` flag takes precedence if both are set.
+</Callout>
+
+```bash
+# Custom port
+agentuity dev --port 8080
+
+# Local mode (offline development)
+agentuity dev --local
+
+# Disable public URL
+agentuity dev --no-public
+
+# Non-interactive mode (useful for CI/CD)
+agentuity dev --no-interactive
+```
+
+## Debugging with Inspector
+
+Use the inspector flags to debug your agents with Chrome DevTools or VS Code:
+
+```bash
+# Enable inspector (attach debugger anytime)
+agentuity dev --inspect
+
+# Wait for debugger before starting the server
+agentuity dev --inspect-wait
+
+# Break on first line of executed code
+agentuity dev --inspect-brk
+```
+
+Bun dynamically selects an available port and prints it to the console. Check the output for the debugger URL and port number.
+
+After starting, open `chrome://inspect` in Chrome or use VS Code's debugger to attach.
+
+<Callout type="tip" title="VS Code Debugging">
+Create a launch configuration that attaches to the running process. Update the port to match the one shown in the console output:
+
+```json
+{
+  "type": "node",
+  "request": "attach",
+  "name": "Attach to Agentuity",
+  "port": 6499
+}
+```
+</Callout>
+
+## Keyboard Shortcuts
+
+Press keys during development to control the server:
+
+| Key | Action |
+|-----|--------|
+| `h` | Show help |
+| `c` | Clear console |
+| `r` | Restart server |
+| `o` | Show routes |
+| `a` | Show agents |
+| `q` | Quit |
+
+## Local Mode
+
+Use `--local` to develop offline without cloud services:
+
+```bash
+agentuity dev --local
+```
+
+<Callout type="info" title="When to Use Local Mode">
+Local mode disables cloud services (KV, Vector, Object Storage). Use when developing without internet or testing with mock data.
+</Callout>
+
+**What happens in local mode:**
+- No connection to Agentuity cloud
+- Storage APIs disabled unless you provide [custom implementations](/services/storage/custom)
+- Public URL tunneling disabled
+- Requires your own API keys for AI providers (in `.env`), since the [AI Gateway](/agents/ai-gateway) is not available
+
+**Bring Your Own Storage:**
+
+```typescript
+// app.ts
+import { createApp } from '@agentuity/runtime';
+import { MyCustomKV } from './storage';
+
+const app = createApp({
+  services: {
+    useLocal: true,
+    keyvalue: new MyCustomKV(), // Your implementation
+  },
+});
+```
+
+See [Custom Storage](/services/storage/custom) for implementation details.
+
+## Public URLs
+
+Public URLs are enabled by default to share your local dev server or receive webhooks:
+
+```bash
+# Public URL enabled by default
+agentuity dev
+
+# Disable if not needed
+agentuity dev --no-public
+```
+
+### Why Public URLs?
+
+Testing webhooks and external integrations during local development is painful. You either deploy constantly, configure port forwarding, or pay for third-party tunneling services. Each option adds friction to the development loop.
+
+Agentuity's Gravity network handles this automatically. When you run `agentuity dev`, your local server gets a public HTTPS URL instantly. No configuration, no separate tools, no accounts to manage. External services can reach your local agents as if they were already deployed.
+
+**This means:**
+
+- **Instant HTTPS URLs**: Automatic certificate generation
+- **Zero setup**: Works out of the box, no firewall rules or port forwarding
+- **Secure tunneling**: Encrypted connections through Agentuity's edge network
+- **Automatic reconnection**: Handles network interruptions gracefully
+
+**Example output:**
+```
+⨺ Agentuity DevMode
+  Local:   http://127.0.0.1:3500
+  Public:  https://abc123.devmode.agentuity.com
+
+  Press h for keyboard shortcuts
+```
+
+**Example use cases:**
+- Testing Slack, Discord, or Twilio webhooks
+- Sharing with team members
+- Testing from mobile devices
+- OAuth callback URLs
+
+## Workbench UI
+
+Access the interactive Workbench at `http://localhost:3500/workbench` to test agents visually. It displays agent schemas, handles input validation, and shows execution results with timing metrics.
+
+See [Testing with Workbench](/agents/workbench) for setup and configuration.
+
+## Building Your Project
+
+Bundle your project for deployment:
+
+```bash
+agentuity build
+```
+
+**What happens during build:**
+1. TypeScript compilation
+2. Bundle agents, routes, and frontend
+3. Generate registry and types
+4. Type check with `tsc`
+5. Create `.agentuity/` output directory
+
+### Build Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--dev` | false | Enable development mode |
+| `--outdir` | `.agentuity` | Output directory |
+| `--skip-type-check` | false | Skip TypeScript type checking |
+
+```bash
+# Skip type checking (faster builds)
+agentuity build --skip-type-check
+
+# Custom output directory
+agentuity build --outdir ./dist
+```
+
+<Callout type="warning" title="Type Check Failures">
+Build fails if TypeScript errors are detected. Fix type errors or use `--skip-type-check` to override (not recommended for deployments).
+</Callout>
+
+## Hot Reload Behavior
+
+The dev server watches for file changes and automatically:
+- Rebuilds on source file changes (`.ts`, `.tsx`, `.js`, `.jsx`)
+- Runs TypeScript type checking
+- Restarts the server
+- Preserves background tasks
+
+**Ignored files:**
+- `node_modules/`
+- `.agentuity/` (build output)
+- Generated files (`*.generated.ts`)
+- Temporary files
+
+**Cooldown period:** 500ms after build completes to prevent restart loops.
+
+## Dev Server Architecture
+
+The dev server uses Vite for frontend hot module replacement (HMR) and Bun for server-side code. All requests go through a single port (3500), so you don't need to manage multiple servers or ports during development.
+
+- **Frontend changes** (React, CSS) reload instantly via Vite HMR
+- **Server changes** (agents, routes) trigger a fast Bun rebuild
+- **WebSocket connections** work seamlessly
+
+## Development vs Production
+
+Understanding the differences between local development and deployed production:
+
+| Aspect | Local (`agentuity dev`) | Production (`agentuity deploy`) |
+|--------|------------------------|--------------------------------|
+| **Storage** | Cloud services (or local with `--local`) | Cloud services always |
+| **AI Gateway** | Available (or BYO keys with `--local`) | Available always |
+| **URL** | `localhost:3500` + optional public tunnel | `*.agentuity.cloud` or custom domain |
+| **Hot Reload** | Yes | No (redeploy required) |
+| **Debugging** | Local logs, Workbench | SSH access, cloud logs |
+| **Environment** | `.env` | Cloud variables (via `cloud env`) |
+
+## Next Steps
+
+- [Deploying to the Cloud](/reference/cli/deployment): Deploy to Agentuity Cloud
+- [Creating Agents](/agents/creating-agents): Create your first agent
+- [HTTP Routes](/routes/http): Add HTTP endpoints

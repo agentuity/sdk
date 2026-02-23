@@ -1,0 +1,64 @@
+---
+title: Observability
+description: Logging, tracing, and debugging for agents
+---
+
+import { FileText, GitBranch, Bug } from 'lucide-react';
+
+Monitor and debug your agents with built-in observability tools.
+
+<Cards>
+  <CardLink
+    href="/services/observability/logging"
+    title="Logging"
+    description="Structured logging with context"
+    icon={<FileText />}
+  />
+  <CardLink
+    href="/services/observability/tracing"
+    title="Tracing"
+    description="Distributed tracing with OpenTelemetry"
+    icon={<GitBranch />}
+  />
+  <CardLink
+    href="/services/observability/sessions-debugging"
+    title="Sessions & Debugging"
+    description="Debug sessions and inspect state"
+    icon={<Bug />}
+  />
+</Cards>
+
+## Quick Reference
+
+### Logging
+
+```typescript
+ctx.logger.info('Processing request', { userId, action });
+ctx.logger.error('Failed to process', { error: err.message });
+```
+
+### Tracing
+
+```typescript
+await ctx.tracer.withSpan('fetch-data', async (span) => {
+  span.setAttribute('source', 'api');
+  return await fetchData();
+});
+```
+
+### Sessions
+
+```typescript
+// Access session ID for debugging
+const sessionId = ctx.session.id;
+ctx.logger.info('Session started', { sessionId });
+```
+
+## Access Patterns
+
+| Context | Logger | Tracer |
+|---------|--------|--------|
+| Agents | `ctx.logger` | `ctx.tracer` |
+| Routes | `c.var.logger` | `c.var.tracer` |
+
+All logs and traces are automatically correlated with session IDs for easy debugging in the Agentuity dashboard.

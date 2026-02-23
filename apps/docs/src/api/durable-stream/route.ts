@@ -23,7 +23,7 @@ const router = createRouter();
 const STREAM_NAME = 'ai-summary';
 const MAX_STREAMS = 10;
 
-const PROMPT = `You are a technical writer. Based on the following documentation about Agentuity, write a clear and engaging summary (3-4 paragraphs) that explains what Agentuity is and why developers would use it. Be specific about key features.
+const PROMPT = `You are a technical writer. Based on the following documentation about Agentuity, write a clear and engaging summary (3-4 paragraphs) that explains what Agentuity is and why developers would use it. Be specific about key features. Ensure the summary ends with a complete sentence ending in a period.
 
 Documentation:
 ${agentuityDocs}

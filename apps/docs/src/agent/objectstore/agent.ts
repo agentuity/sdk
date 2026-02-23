@@ -19,11 +19,7 @@
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { S3Client } from 'bun';
-
-// TODO: Replace with `import { s3 } from "bun"` once runtime S3 patch covers .list()
-// Issue: https://github.com/agentuity/sdk/issues/241
-const s3 = new S3Client({ virtualHostedStyle: true });
+import { s3 } from 'bun';
 
 const prefix = 'sdk-explorer/';
 
