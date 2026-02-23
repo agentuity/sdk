@@ -12,11 +12,11 @@ Three steps to enable static rendering:
 **1. Set the render mode** in your app configuration:
 
 ```typescript title="agentuity.config.ts"
-import { defineConfig } from '@agentuity/core';
+import type { AgentuityConfig } from '@agentuity/cli';
 
-export default defineConfig({
+export default {
 	render: 'static',
-});
+} satisfies AgentuityConfig;
 ```
 
 **2. Create `src/web/entry-server.tsx`** with two exports:
@@ -63,11 +63,11 @@ The `render` option in your app configuration controls how the frontend is built
 | `'static'`        | Pre-renders all routes at build time. Full HTML in the initial response      |
 
 ```typescript title="agentuity.config.ts"
-import { defineConfig } from '@agentuity/core';
+import type { AgentuityConfig } from '@agentuity/cli';
 
-export default defineConfig({
+export default {
 	render: 'static', // 'spa' | 'static'
-});
+} satisfies AgentuityConfig;
 ```
 
 ## Entry Server
@@ -195,11 +195,11 @@ if (container.innerHTML.trim()) {
 A complete minimal setup with all four files:
 
 ```typescript title="agentuity.config.ts"
-import { defineConfig } from '@agentuity/core';
+import type { AgentuityConfig } from '@agentuity/cli';
 
-export default defineConfig({
+export default {
 	render: 'static',
-});
+} satisfies AgentuityConfig;
 ```
 
 ```html title="src/web/index.html"

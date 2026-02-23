@@ -1,7 +1,7 @@
 {
 	"$schema": "https://agentuity.dev/schema/cli/v1/agentuity.json",
-	"projectId": "proj_5700392ea496e83f6f9b3d250d2e1234",
-	"orgId": "org_2sr8VkWocx9J2ZRgCohc00I5m3d",
+	"projectId": "proj_5ed7da797bef771d65e1bd6946a052b1",
+	"orgId": "org_2u8RgDTwcZWrZrZ3sZh24T5FCtz",
 	"deployment": {
 		"domains": []
 	},
