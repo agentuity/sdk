@@ -5,6 +5,18 @@ import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 
 /**
+ * Context key for WebSocket close promise.
+ * Used by middleware to defer session finalization until WebSocket closes.
+ */
+export const WS_DONE_PROMISE_KEY = '_wsDonePromise';
+
+/**
+ * Context key to mark a response as a WebSocket upgrade.
+ * Used by middleware to detect WebSocket responses.
+ */
+export const IS_WEBSOCKET_RESPONSE_KEY = '_isWebSocketResponse';
+
+/**
  * WebSocket connection interface for handling WebSocket events.
  */
 export interface WebSocketConnection {
@@ -96,6 +108,22 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 		const asyncLocalStorage = getAgentAsyncLocalStorage();
 		const capturedContext = asyncLocalStorage.getStore();
 
+		// Create done promise for session lifecycle deferral
+		// Session finalization is deferred until onClose fires
+		let resolveDone: (() => void) | undefined;
+		const donePromise = new Promise<void>((resolve) => {
+			resolveDone = resolve;
+		});
+
+		// Prevent unhandled rejection warnings
+		donePromise.catch(() => {});
+
+		// Set on context so middleware defers session finalization until WS closes
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(c as any).set(WS_DONE_PROMISE_KEY, donePromise);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(c as any).set(IS_WEBSOCKET_RESPONSE_KEY, true);
+
 		const wsConnection: WebSocketConnection = {
 			onOpen: (h) => {
 				openHandler = h;
@@ -186,6 +214,10 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 					}
 				} catch (err) {
 					c.var.logger?.error('WebSocket onClose error:', err);
+				} finally {
+					// Resolve the done promise to trigger session finalization
+					// This must fire even if the user's onClose handler throws
+					resolveDone?.();
 				}
 			},
 		};
