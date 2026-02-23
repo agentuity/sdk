@@ -5,8 +5,9 @@
  * It is included in `src/index.html`.
  */
 
+import './app.css';
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { hydrateRoot, createRoot } from 'react-dom/client';
 import { App } from './App';
 
 const elem = document.getElementById('root');
@@ -27,6 +28,6 @@ if (import.meta.hot) {
 	}
 	import.meta.hot.data.root.render(app);
 } else {
-	// The hot module reloading API is not available in production.
-	createRoot(elem).render(app);
+	// Production: hydrate pre-rendered HTML
+	hydrateRoot(elem, app);
 }

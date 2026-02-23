@@ -76,7 +76,7 @@ const DEMOS: DemoConfig[] = [
 				comes out, the <em>handler</em> processes requests. Once you're comfortable here,
 				explore the{' '}
 				<a
-					href="?handler-context"
+					href="/handler-context"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					Handler Context
@@ -133,7 +133,7 @@ const DEMOS: DemoConfig[] = [
 				</span>
 				. For searching by meaning or similarity, use{' '}
 				<a
-					href="?vector-storage"
+					href="/vector-storage"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					Vector storage
@@ -168,7 +168,7 @@ const DEMOS: DemoConfig[] = [
 				</span>{' '}
 				rather than exact keywords. For exact key lookups, use{' '}
 				<a
-					href="?key-value"
+					href="/key-value"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					KV storage
@@ -204,7 +204,7 @@ const DEMOS: DemoConfig[] = [
 				widely-used standard for file storage), so the patterns you learn here work anywhere.
 				For simple key-value data, see{' '}
 				<a
-					href="?key-value"
+					href="/key-value"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					KV storage
@@ -260,7 +260,7 @@ const DEMOS: DemoConfig[] = [
 				where you just want text to appear word-by-word. If you need typed events, message IDs,
 				or automatic reconnection, see{' '}
 				<a
-					href="?sse-stream"
+					href="/sse-stream"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					SSE streaming
@@ -292,7 +292,7 @@ const DEMOS: DemoConfig[] = [
 				</span>
 				. For simpler use cases where you just need raw bytes, see{' '}
 				<a
-					href="?streaming"
+					href="/streaming"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					Text Stream
@@ -324,7 +324,7 @@ const DEMOS: DemoConfig[] = [
 				</span>
 				. For real-time use cases where data streams in as it's generated, see{' '}
 				<a
-					href="?sse-stream"
+					href="/sse-stream"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					SSE streaming
@@ -383,7 +383,7 @@ const DEMOS: DemoConfig[] = [
 				</span>{' '}
 				like fetching data, cleaning up old records, or sending reports. Combine with{' '}
 				<a
-					href="?key-value"
+					href="/key-value"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					KV storage
@@ -415,7 +415,7 @@ const DEMOS: DemoConfig[] = [
 				</span>
 				. See{' '}
 				<a
-					href="?handler-context"
+					href="/handler-context"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					Handler Context
@@ -444,7 +444,7 @@ const DEMOS: DemoConfig[] = [
 				</span>
 				. Generate content from multiple providers in parallel via the{' '}
 				<a
-					href="?ai-gateway"
+					href="/ai-gateway"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-400"
 				>
 					AI Gateway
@@ -709,19 +709,25 @@ function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 	);
 }
 
-// Helper to get demo ID from URL (e.g., ?ai-gateway)
-function getDemoFromUrl(): DemoId | null {
-	const search = window.location.search.slice(1); // Remove leading "?"
+// Helper to get demo ID from URL pathname (e.g., /ai-gateway)
+// SSR-safe: accepts optional url parameter for server-side rendering
+function getDemoFromUrl(url?: string): DemoId | null {
+	const path = url
+		? new URL(url, 'http://localhost').pathname
+		: typeof window !== 'undefined'
+			? window.location.pathname
+			: '/';
+	const segment = path.replace(/^\/+|\/+$/g, ''); // strip leading/trailing slashes
 	const demoIds = DEMOS.map((d) => d.id);
-	if (demoIds.includes(search as DemoId)) {
-		return search as DemoId;
+	if (demoIds.includes(segment as DemoId)) {
+		return segment as DemoId;
 	}
 	return null;
 }
 
 // Main App component
-export function App() {
-	const [activeDemo, setActiveDemo] = useState<DemoId | null>(getDemoFromUrl);
+export function App({ url }: { url?: string }) {
+	const [activeDemo, setActiveDemo] = useState<DemoId | null>(() => getDemoFromUrl(url));
 
 	// Handle browser back/forward navigation
 	useEffect(() => {
@@ -735,7 +741,7 @@ export function App() {
 	// Select a demo and update URL
 	const selectDemo = useCallback((demoId: DemoId) => {
 		setActiveDemo(demoId);
-		window.history.pushState({}, '', `?${demoId}`);
+		window.history.pushState({}, '', `/${demoId}`);
 	}, []);
 
 	// Go back to landing page and clear URL

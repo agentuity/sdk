@@ -27,6 +27,7 @@ import {
   bootstrapRuntimeEnv,
   patchBunS3ForStorageDev,
   runShutdown,
+  mimeTypes,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { websocket, serveStatic } from 'hono/bun';
@@ -75,7 +76,8 @@ app.use('*', createBaseMiddleware({
 	meter: otel.meter,
 }));
 
-app.use('/_agentuity/workbench/*', createCorsMiddleware());
+// Note: Workbench routes use their own CORS middleware (defined in createWorkbenchRouter)
+// which includes signature headers for production authentication
 app.use('/api/*', createCorsMiddleware());
 
 // Critical: otelMiddleware creates session/thread/waitUntilHandler
@@ -177,10 +179,11 @@ registerAnalyticsRoutes(app);
 if (isDevelopment() && process.env.VITE_PORT) {
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT, 10);
 
-	const proxyToVite = async (c: Context) => {
-		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${c.req.path}`;
+	const proxyToVite = async (c: Context, pathOverride?: string) => {
+		const targetPath = pathOverride ?? c.req.path;
+		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${targetPath}`;
 		try {
-			otel.logger.debug(`[Proxy] ${c.req.method} ${c.req.path} -> Vite:${VITE_ASSET_PORT}`);
+			otel.logger.debug(`[Proxy] ${c.req.method} ${c.req.path} -> Vite:${VITE_ASSET_PORT}${targetPath}`);
 			const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
 			otel.logger.debug(`[Proxy] ${c.req.path} -> ${res.status} (${res.headers.get('content-type')})`);
 			return new Response(res.body, {
@@ -197,35 +200,137 @@ if (isDevelopment() && process.env.VITE_PORT) {
 		}
 	};
 
+	// HMR WebSocket proxy - enables hot reload through tunnels (*.agentuity.live)
+	// This proxies the Vite HMR WebSocket connection from the Bun server to Vite
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const viteHmrWebsocket = (globalThis as any).__AGENTUITY_VITE_HMR_WEBSOCKET__ = {
+		// Map of client WebSocket -> Vite WebSocket
+		connections: new Map<WebSocket, WebSocket>(),
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		open(clientWs: any) {
+			// Get the query string from ws.data (set during upgrade)
+			const queryString = clientWs.data?.queryString || '';
+			const viteWsUrl = `ws://127.0.0.1:${VITE_ASSET_PORT}/__vite_hmr${queryString}`;
+			otel.logger.debug('[HMR Proxy] Client connected, opening connection to Vite at %s', viteWsUrl);
+
+			// Connect to Vite with the 'vite-hmr' subprotocol (required by Vite)
+			const viteWs = new WebSocket(viteWsUrl, ['vite-hmr']);
+
+			viteWs.onopen = () => {
+				otel.logger.debug('[HMR Proxy] Connected to Vite HMR server');
+			};
+
+			viteWs.onmessage = (event) => {
+				// Forward messages from Vite to client
+				if (clientWs.readyState === WebSocket.OPEN) {
+					clientWs.send(event.data);
+				}
+			};
+
+			viteWs.onerror = (error) => {
+				otel.logger.error('[HMR Proxy] Vite WebSocket error: %s', error);
+			};
+
+			viteWs.onclose = () => {
+				otel.logger.debug('[HMR Proxy] Vite WebSocket closed');
+				viteHmrWebsocket.connections.delete(clientWs);
+				if (clientWs.readyState === WebSocket.OPEN) {
+					clientWs.close();
+				}
+			};
+
+			viteHmrWebsocket.connections.set(clientWs, viteWs);
+		},
+
+		message(clientWs: WebSocket, message: string | Buffer) {
+			// Forward messages from client to Vite
+			const viteWs = viteHmrWebsocket.connections.get(clientWs);
+			if (viteWs && viteWs.readyState === WebSocket.OPEN) {
+				viteWs.send(message);
+			}
+		},
+
+		close(clientWs: WebSocket) {
+			otel.logger.debug('[HMR Proxy] Client WebSocket closed');
+			const viteWs = viteHmrWebsocket.connections.get(clientWs);
+			if (viteWs) {
+				viteWs.close();
+				viteHmrWebsocket.connections.delete(clientWs);
+			}
+		},
+	};
+
+	// Register HMR WebSocket route - must be before other routes
+	app.get('/__vite_hmr', (c: Context) => {
+		const upgradeHeader = c.req.header('upgrade');
+		if (upgradeHeader?.toLowerCase() === 'websocket') {
+			// Get the Bun server from context using Hono's pattern
+			// When app.fetch(req, server) is called, Hono stores server as c.env
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const server = 'server' in (c.env as any) ? (c.env as any).server : c.env;
+
+			if (server?.upgrade) {
+				// Extract query string to forward to Vite (includes token parameter)
+				const url = new URL(c.req.url);
+				const queryString = url.search; // Includes the '?' prefix
+
+				const success = server.upgrade(c.req.raw, {
+					data: { type: 'vite-hmr', queryString },
+				});
+				if (success) {
+					otel.logger.debug('[HMR Proxy] WebSocket upgrade successful');
+					return new Response(null);
+				}
+				otel.logger.error('[HMR Proxy] WebSocket upgrade returned false');
+			} else {
+				otel.logger.error('[HMR Proxy] Server upgrade method not available. c.env type: %s, keys: %s',
+					typeof c.env,
+					Object.keys(c.env || {}).join(', '));
+			}
+			return c.text('WebSocket upgrade failed', 500);
+		}
+		// Non-WebSocket request to HMR endpoint - proxy to Vite
+		return proxyToVite(c);
+	});
+
 	// Vite client scripts and HMR
-	app.get('/@vite/*', proxyToVite);
-	app.get('/@react-refresh', proxyToVite);
+	app.get('/@vite/*', (c: Context) => proxyToVite(c));
+	app.get('/@react-refresh', (c: Context) => proxyToVite(c));
 
 	// Source files for HMR
-	app.get('/src/web/*', proxyToVite);
-	app.get('/src/*', proxyToVite); // Catch-all for other source files
+	app.get('/src/web/*', (c: Context) => proxyToVite(c));
+	app.get('/src/*', (c: Context) => proxyToVite(c)); // Catch-all for other source files
 
 	// Workbench source files (in .agentuity/workbench-src/)
-	app.get('/.agentuity/workbench-src/*', proxyToVite);
+	app.get('/.agentuity/workbench-src/*', (c: Context) => proxyToVite(c));
 
 	// Node modules (Vite transforms these)
-	app.get('/node_modules/*', proxyToVite);
+	app.get('/node_modules/*', (c: Context) => proxyToVite(c));
 
 	// Scoped packages (e.g., @agentuity/*, @types/*)
-	app.get('/@*', proxyToVite);
+	app.get('/@*', (c: Context) => proxyToVite(c));
 
 	// File system access (for Vite's @fs protocol)
-	app.get('/@fs/*', proxyToVite);
+	app.get('/@fs/*', (c: Context) => proxyToVite(c));
 
 	// Module resolution (for Vite's @id protocol)
-	app.get('/@id/*', proxyToVite);
+	app.get('/@id/*', (c: Context) => proxyToVite(c));
+
+	// Static assets - Vite serves src/web/public/* at root, but code uses /public/* paths
+	// In production, the plugin transforms /public/foo.svg to CDN URLs
+	// Rewrite /public/foo.svg -> /foo.svg before proxying to Vite
+	app.get('/public/*', (c: Context) => {
+		const rootPath = c.req.path.replace(/^\/public/, '');
+		return proxyToVite(c, rootPath);
+	});
 
 	// Any .js, .jsx, .ts, .tsx files (catch remaining modules)
-	app.get('/*.js', proxyToVite);
-	app.get('/*.jsx', proxyToVite);
-	app.get('/*.ts', proxyToVite);
-	app.get('/*.tsx', proxyToVite);
-	app.get('/*.css', proxyToVite);
+	app.get('/*.js', (c: Context) => proxyToVite(c));
+	app.get('/*.jsx', (c: Context) => proxyToVite(c));
+	app.get('/*.ts', (c: Context) => proxyToVite(c));
+	app.get('/*.tsx', (c: Context) => proxyToVite(c));
+	app.get('/*.css', (c: Context) => proxyToVite(c));
 }
 
 // Mount API routes
@@ -260,30 +365,27 @@ app.route('/api/vector-storage', router_13);
 const { default: router_14 } = await import('../api/websocket/route.js');
 app.route('/api/websocket', router_14);
 
-const hasWorkbenchConfig = true;
-const hasWorkbench = isDevelopment() && hasWorkbenchConfig;
-if (hasWorkbench) {
-	// Mount workbench API routes (/_agentuity/workbench/*)
-	const workbenchRouter = createWorkbenchRouter();
-	app.route('/', workbenchRouter);
-}
+// Mount workbench API routes (/_agentuity/workbench/*)
+// Always available for cloud workbench communication
+// Auth is handled inside the router (signature verification in production)
+const workbenchRouter = createWorkbenchRouter();
+app.route('/', workbenchRouter);
 
-if (hasWorkbench) {
-	// Development mode: Let Vite serve source files with HMR
-	if (isDevelopment()) {
-		const workbenchSrcDir = import.meta.dir + '/workbench-src';
-		const workbenchIndexPath = import.meta.dir + '/workbench-src/index.html';
-		app.get('/workbench', async (c: Context) => {
-			const html = await Bun.file(workbenchIndexPath).text();
-			// Rewrite script/css paths to use Vite's @fs protocol
-			const withVite = html
-				.replace('src="./main.tsx"', `src="/@fs${workbenchSrcDir}/main.tsx"`)
-				.replace('href="./styles.css"', `href="/@fs${workbenchSrcDir}/styles.css"`);
-			return c.html(withVite);
-		});
-	} else {
-		// Production mode disables the workbench assets
-	}
+// hasWorkbenchConfig controls whether the local workbench UI is served (dev mode only)
+const hasWorkbenchConfig = true;
+
+// Workbench UI is only available in development mode (API routes are always available)
+if (hasWorkbenchConfig && isDevelopment()) {
+	const workbenchSrcDir = import.meta.dir + '/workbench-src';
+	const workbenchIndexPath = import.meta.dir + '/workbench-src/index.html';
+	app.get('/workbench', async (c: Context) => {
+		const html = await Bun.file(workbenchIndexPath).text();
+		// Rewrite script/css paths to use Vite's @fs protocol
+		const withVite = html
+			.replace('src="./main.tsx"', `src="/@fs${workbenchSrcDir}/main.tsx"`)
+			.replace('href="./styles.css"', `href="/@fs${workbenchSrcDir}/styles.css"`);
+		return c.html(withVite);
+	});
 }
 
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
@@ -325,15 +427,25 @@ if (isDevelopment()) {
 	// 404 for unmatched API/system routes
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	if (!hasWorkbench) {
+	if (!(hasWorkbenchConfig && isDevelopment())) {
 		app.all('/workbench/*', (c: Context) => c.notFound());
 	}
 	
 	// SPA fallback - serve index.html for client-side routing
-	app.get('*', (c: Context) => {
+	app.get('*', async (c: Context) => {
 		const path = c.req.path;
-		// If path has a file extension, return 404 (prevents serving HTML for missing assets)
+		// If path has a file extension, try proxying to Vite first (serves public files like robots.txt, llms.txt)
+		// Fall back to 404 if Vite also returns 404
 		if (/\.[a-zA-Z0-9]+$/.test(path)) {
+			try {
+				const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${path}`;
+				const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
+				if (res.status !== 404) {
+					return new Response(res.body, { status: res.status, headers: res.headers });
+				}
+			} catch {
+				// Vite unavailable, fall through to 404
+			}
 			return c.notFound();
 		}
 		return devHtmlHandler(c);
@@ -361,15 +473,15 @@ if (isDevelopment()) {
 	app.get('/', prodHtmlHandler);
 
 	// Serve static assets from /assets/* (Vite bundled output)
-	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client' }));
+	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client', mimes: mimeTypes }));
 
 	// Serve static public assets (favicon.ico, robots.txt, etc.)
-	app.use('/*', serveStatic({ root: import.meta.dir + '/client', rewriteRequestPath: (path) => path }));
+	app.use('/*', serveStatic({ root: import.meta.dir + '/client', rewriteRequestPath: (path) => path, mimes: mimeTypes }));
 
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	if (!hasWorkbench) {
+	if (!(hasWorkbenchConfig && isDevelopment())) {
 		app.all('/workbench/*', (c: Context) => c.notFound());
 	}
 
@@ -393,13 +505,48 @@ if (typeof Bun !== 'undefined') {
 	enableProcessExitProtection();
 
 	const port = parseInt(process.env.PORT || '3500', 10);
+
+	// Create custom WebSocket handler that supports both regular WebSockets and HMR proxy
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const hmrHandler = (globalThis as any).__AGENTUITY_VITE_HMR_WEBSOCKET__;
+	const customWebsocket = {
+		...websocket,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		open(ws: any) {
+			// Check if this is an HMR connection
+			if (ws.data?.type === 'vite-hmr' && hmrHandler) {
+				hmrHandler.open(ws);
+			} else if (websocket.open) {
+				websocket.open(ws);
+			}
+		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		message(ws: any, message: string | Buffer) {
+			// Check if this is an HMR connection
+			if (ws.data?.type === 'vite-hmr' && hmrHandler) {
+				hmrHandler.message(ws, message);
+			} else if (websocket.message) {
+				websocket.message(ws, message);
+			}
+		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		close(ws: any, code?: number, reason?: string) {
+			// Check if this is an HMR connection
+			if (ws.data?.type === 'vite-hmr' && hmrHandler) {
+				hmrHandler.close(ws);
+			} else if (websocket.close) {
+				websocket.close(ws, code, reason);
+			}
+		},
+	};
+
 	const server = Bun.serve({
 		fetch: (req, server) => {
 			// Get timeout from config on each request (0 = no timeout)
 			server.timeout(req, getAppConfig()?.requestTimeout ?? 0);
 			return app.fetch(req, server);
 		},
-		websocket,
+		websocket: customWebsocket,
 		port,
 		hostname: '127.0.0.1',
 		development: isDevelopment(),
