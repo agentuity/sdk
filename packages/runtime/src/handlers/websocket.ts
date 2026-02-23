@@ -17,19 +17,35 @@ export interface WebSocketConnection {
 /**
  * Handler function for WebSocket connections.
  * Receives the Hono context and WebSocket connection with a flattened signature.
+ *
+ * **This handler must be synchronous** (returns `void`, not `Promise<void>`).
+ * The handler is called inside Hono's `upgradeWebSocket` factory, which must
+ * return event handlers synchronously for the HTTP upgrade to complete. If the
+ * handler were async, any `ws.onOpen`/`ws.onMessage`/`ws.onClose` registrations
+ * after an `await` would be silently lost because the factory returns before
+ * they are registered.
+ *
+ * To perform async work, place it inside the `onOpen`, `onMessage`, or `onClose`
+ * callbacks, which are properly awaited by the runtime.
  */
 export type WebSocketHandler<E extends Env = Env> = (
 	c: Context<E>,
 	ws: WebSocketConnection
-) => void | Promise<void>;
+) => void;
 
 /**
  * Creates a WebSocket middleware for handling WebSocket connections.
+ *
+ * The handler must be **synchronous** — it runs inside Hono's `upgradeWebSocket`
+ * factory which must return event handlers synchronously for the HTTP upgrade to
+ * complete. Async work should go inside `onOpen`, `onMessage`, or `onClose`
+ * callbacks, which are properly awaited by the runtime.
  *
  * Use with router.get() to create a WebSocket endpoint:
  *
  * @example
  * ```typescript
+ * // Basic synchronous usage
  * import { createRouter, websocket } from '@agentuity/runtime';
  *
  * const router = createRouter();
@@ -51,7 +67,23 @@ export type WebSocketHandler<E extends Env = Env> = (
  * }));
  * ```
  *
- * @param handler - Handler function receiving context and WebSocket connection
+ * @example
+ * ```typescript
+ * // Async work inside callbacks (correct pattern)
+ * router.get('/ws', websocket((c, ws) => {
+ *   ws.onOpen(async () => {
+ *     const user = await fetchUser(c.var.auth);
+ *     ws.send(JSON.stringify({ welcome: user.name }));
+ *   });
+ *
+ *   ws.onMessage(async (event) => {
+ *     const result = await processMessage(event.data);
+ *     ws.send(JSON.stringify(result));
+ *   });
+ * }));
+ * ```
+ *
+ * @param handler - Synchronous handler function receiving context and WebSocket connection
  * @returns Hono middleware handler for WebSocket upgrade
  */
 export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): MiddlewareHandler<E> {
