@@ -76,6 +76,8 @@ async function fetchDNSRecord(name: string, type: string): Promise<string | null
 		headers: {
 			Accept: 'application/dns-json',
 		},
+		// @ts-expect-error - cache is supported by Bun's fetch at runtime but missing from type definitions
+		cache: 'no-store',
 	});
 	if (res.ok) {
 		const result = (await res.json()) as CFRecord;
