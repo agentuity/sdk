@@ -19,13 +19,16 @@ export default {
 } satisfies AgentuityConfig;
 ```
 
-**2. Create `src/web/entry-server.tsx`** with two exports:
+**2. Create `src/web/entry-server.tsx`** with your render function and route tree:
 
 ```tsx title="src/web/entry-server.tsx"
 import { renderToString } from 'react-dom/server';
 import { StrictMode } from 'react';
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router';
 import { routeTree } from './routeTree.gen';
+
+// Re-export for automatic route discovery
+export { routeTree };
 
 export async function render(url: string): Promise<string> {
 	const memoryHistory = createMemoryHistory({ initialEntries: [url] });
@@ -38,10 +41,6 @@ export async function render(url: string): Promise<string> {
 		</StrictMode>
 	);
 }
-
-export function getStaticPaths(): string[] {
-	return ['/', '/about', '/blog', '/blog/first-post'];
-}
 ```
 
 **3. Build or deploy:**
@@ -51,7 +50,7 @@ agentuity bundle   # local build
 agentuity deploy   # or deploy directly
 ```
 
-Every path from `getStaticPaths()` gets its own pre-rendered `index.html`.
+Every non-parameterized route is discovered automatically from the route tree. Each discovered path gets its own pre-rendered `index.html`.
 
 ## Configuration
 
@@ -72,32 +71,52 @@ export default {
 
 ## Entry Server
 
-The `src/web/entry-server.tsx` file exports two functions that the build pipeline calls:
+The `src/web/entry-server.tsx` file provides exports that the build pipeline uses:
 
 ### `render(url: string): Promise<string>`
 
 Takes a URL path and returns the rendered HTML string for that route. This is called once per path during the build.
 
-### `getStaticPaths(): string[]`
+### `routeTree` (recommended)
 
-Returns every URL path that should be pre-rendered. Routes not listed here fall back to the SPA shell (the base `index.html` without pre-rendered content).
+Re-export your router's route tree. The CLI walks it to discover all non-parameterized routes automatically — no manual path listing needed. This is the easiest way to get all your static routes pre-rendered.
 
-<Callout type="tip" title="Dynamic Path Discovery">
-	You can generate paths programmatically. Use `import.meta.glob` to discover MDX files, read a CMS
-	API, or build paths from your router's route tree: anything that returns a `string[]` works.
+```tsx title="src/web/entry-server.tsx"
+import { routeTree } from './routeTree.gen';
+
+// Re-export for automatic route discovery
+export { routeTree };
+```
+
+### `getStaticPaths(): string[]` (optional)
+
+Returns additional paths to pre-render. Use this for parameterized routes that can't be auto-discovered (e.g., `/blog/$slug` → you list the concrete slugs). These paths are merged with the auto-discovered routes.
+
+Routes not covered by either method fall back to the SPA shell (the base `index.html` without pre-rendered content).
+
+<Callout type="tip" title="Auto-Discovery Covers Most Apps">
+	For most apps, just exporting `routeTree` is enough. You only need `getStaticPaths()` when you
+	have parameterized routes like `/blog/$slug` or `/users/$id` that require concrete URLs.
 </Callout>
 
 ```tsx title="src/web/entry-server.tsx"
-// Example: discover paths from MDX files
+// Only needed for parameterized routes like /blog/$slug
+export function getStaticPaths(): string[] {
+	return ['/blog/hello-world', '/blog/getting-started'];
+}
+```
+
+You can also generate these paths programmatically. Use `import.meta.glob` to discover MDX files, read a CMS API, or build paths from any data source:
+
+```tsx title="src/web/entry-server.tsx"
+// Example: discover paths from MDX files for a parameterized /blog/$slug route
 const posts = import.meta.glob('./content/blog/*.mdx', { eager: true });
 
 export function getStaticPaths(): string[] {
-	const blogPaths = Object.keys(posts).map((file) => {
+	return Object.keys(posts).map((file) => {
 		const slug = file.replace('./content/blog/', '').replace('.mdx', '');
 		return `/blog/${slug}`;
 	});
-
-	return ['/', '/about', ...blogPaths];
 }
 ```
 
@@ -107,7 +126,7 @@ The build pipeline runs in sequence:
 
 1. **Client build** runs normally: Vite compiles your frontend into `.agentuity/client/`
 2. **SSR build** compiles `entry-server.tsx` using Vite's SSR mode, resolving `import.meta.glob`, MDX imports, and other build-time features
-3. **Path discovery**: `getStaticPaths()` is called to get the list of URLs
+3. **Route discovery**: routes are extracted automatically from the exported `routeTree` (skipping parameterized routes like `$id`). If `getStaticPaths()` is also exported, those paths are merged in.
 4. **Rendering**: `render(url)` is called for each path
 5. **HTML injection**: each rendered string replaces `<!--app-html-->` in the client's `index.html` template
 6. **File output**: pre-rendered pages are written to `.agentuity/client/[route]/index.html`
@@ -185,8 +204,8 @@ if (container.innerHTML.trim()) {
 ## Tips and Gotchas
 
 - **`import.meta.glob` works**: the Vite SSR build resolves it at build time, so you can use it to discover content files
-- **No browser APIs in SSR**: `localStorage`, `window`, `document`, and other browser globals are not available during the build. Guard browser-only code with `typeof window !== 'undefined'` or `useEffect`
-- **Unlisted routes fall back to SPA**: any path not in `getStaticPaths()` serves the base `index.html` without pre-rendered content. Client-side routing still works
+- **Auto-discovery skips parameterized routes**: paths containing `$` (like `/blog/$slug`) are skipped during auto-discovery. Export `getStaticPaths()` to list the concrete URLs for these routes
+- **Undiscovered routes fall back to SPA**: any route not found via auto-discovery or `getStaticPaths()` serves the base `index.html` without pre-rendered content. Client-side routing still works
 - **Each path gets its own file**: `/blog/hello` becomes `.agentuity/client/blog/hello/index.html`
 - **Build time scales with routes**: 10 routes is fast; 10,000 routes takes longer. The rendering itself is synchronous per-route
 
@@ -208,7 +227,7 @@ export default {
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>My Site</title>
+		<title>My App</title>
 	</head>
 	<body>
 		<div id="root"><!--app-html--></div>
@@ -223,6 +242,9 @@ import { StrictMode } from 'react';
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router';
 import { routeTree } from './routeTree.gen';
 
+// Re-export for automatic route discovery
+export { routeTree };
+
 export async function render(url: string): Promise<string> {
 	const memoryHistory = createMemoryHistory({ initialEntries: [url] });
 	const router = createRouter({ routeTree, history: memoryHistory });
@@ -235,8 +257,9 @@ export async function render(url: string): Promise<string> {
 	);
 }
 
+// Optional: only needed for parameterized routes like /blog/$slug
 export function getStaticPaths(): string[] {
-	return ['/', '/about', '/contact'];
+	return ['/blog/hello-world', '/blog/getting-started'];
 }
 ```
 

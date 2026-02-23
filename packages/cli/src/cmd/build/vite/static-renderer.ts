@@ -4,7 +4,10 @@
  * When `render: 'static'` is set in agentuity.config.ts, this module:
  * 1. Runs a Vite SSR build to create a server-side entry point
  * 2. Imports the built entry-server.js
- * 3. Calls getStaticPaths() to discover all routes
+ * 3. Discovers routes to pre-render:
+ *    - If `routeTree` is exported: auto-discovers all non-parameterized routes
+ *    - If `getStaticPaths()` is exported: merges those paths in (for parameterized routes)
+ *    - If neither: throws an error
  * 4. Calls render(url) for each route
  * 5. Replaces <!--app-html--> in the client template with rendered HTML
  * 6. Writes pre-rendered HTML files to .agentuity/client/
@@ -15,6 +18,36 @@ import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import type { Logger } from '../../../types';
 import { hasFrameworkPlugin } from './config-loader';
+
+/**
+ * Walks a TanStack Router route tree and extracts all non-parameterized paths.
+ * Skips layout routes (no path) and parameterized routes (containing $).
+ */
+function extractRoutePaths(node: any): string[] {
+	const paths = new Set<string>();
+
+	function walk(route: any) {
+		const path: string | undefined = route.path ?? route.options?.path;
+		if (path && !path.includes('$')) {
+			// Normalize: strip trailing slashes, ensure leading slash
+			const normalized = path === '/' ? '/' : path.replace(/\/+$/, '');
+			if (normalized) {
+				paths.add(normalized);
+			}
+		}
+
+		// Recurse into children (TanStack Router stores them as an object)
+		const children = route.children;
+		if (children && typeof children === 'object') {
+			for (const key of Object.keys(children)) {
+				walk(children[key]);
+			}
+		}
+	}
+
+	walk(node);
+	return [...paths].sort();
+}
 
 export interface StaticRenderOptions {
 	rootDir: string;
@@ -41,7 +74,8 @@ export async function runStaticRender(options: StaticRenderOptions): Promise<Sta
 	if (!existsSync(entryServerPath)) {
 		throw new Error(
 			'Static rendering requires src/web/entry-server.tsx. ' +
-				'This file must export render(url: string) and getStaticPaths() functions.'
+				'This file must export a render(url: string) function and either ' +
+				'a routeTree for auto-discovery or getStaticPaths() for explicit paths.'
 		);
 	}
 
@@ -113,23 +147,45 @@ export async function runStaticRender(options: StaticRenderOptions): Promise<Sta
 				'entry-server.tsx must export a render(url: string) function that returns HTML string'
 			);
 		}
-		if (typeof ssrModule.getStaticPaths !== 'function') {
+
+		// Step 3: Discover routes
+		// Priority: auto-discover from routeTree + merge getStaticPaths() if present
+		const discovered = new Set<string>();
+
+		// 3a. Auto-discover from exported routeTree (skips parameterized routes)
+		if (ssrModule.routeTree) {
+			const autoRoutes = extractRoutePaths(ssrModule.routeTree);
+			for (const r of autoRoutes) {
+				discovered.add(r);
+			}
+			logger.debug(`Auto-discovered ${autoRoutes.length} routes from route tree`);
+		}
+
+		// 3b. Merge paths from getStaticPaths() if exported (for parameterized routes, etc.)
+		if (typeof ssrModule.getStaticPaths === 'function') {
+			const extraRoutes = await ssrModule.getStaticPaths();
+			if (!Array.isArray(extraRoutes)) {
+				throw new Error(
+					'getStaticPaths() must return an array of URL paths (e.g., ["/", "/about"])'
+				);
+			}
+			for (const r of extraRoutes) {
+				discovered.add(r);
+			}
+			logger.debug(`getStaticPaths() added ${extraRoutes.length} paths`);
+		}
+
+		// Must have at least one source of routes
+		if (discovered.size === 0) {
 			throw new Error(
-				'entry-server.tsx must export a getStaticPaths() function when using render: "static". ' +
-					'It should return an array of URL paths (e.g., ["/", "/about", "/docs/intro"])'
+				'No routes to pre-render. Export routeTree from entry-server.tsx for auto-discovery, ' +
+					'or export getStaticPaths() returning an array of URL paths.'
 			);
 		}
 
-		// Step 3: Discover routes
-		const rawRoutes = await ssrModule.getStaticPaths();
-		if (!Array.isArray(rawRoutes)) {
-			throw new Error(
-				'getStaticPaths() must return an array of URL paths (e.g., ["/", "/about"])'
-			);
-		}
-		const routes: string[] = rawRoutes;
+		const routes: string[] = [...discovered].sort();
 		routeCount = routes.length;
-		logger.debug(`Discovered ${routes.length} routes for pre-rendering`);
+		logger.debug(`Total: ${routes.length} routes for pre-rendering`);
 
 		// Step 4: Read template and pre-render each route
 		const template = readFileSync(templatePath, 'utf-8');
