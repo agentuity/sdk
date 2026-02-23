@@ -36,6 +36,7 @@ import { Route as DocsGetStartedProjectStructureRouteImport } from './routes/_do
 import { Route as DocsGetStartedInstallationRouteImport } from './routes/_docs/get-started/installation'
 import { Route as DocsGetStartedAppConfigurationRouteImport } from './routes/_docs/get-started/app-configuration'
 import { Route as DocsFrontendWorkbenchRouteImport } from './routes/_docs/frontend/workbench'
+import { Route as DocsFrontendStaticRenderingRouteImport } from './routes/_docs/frontend/static-rendering'
 import { Route as DocsFrontendRpcClientRouteImport } from './routes/_docs/frontend/rpc-client'
 import { Route as DocsFrontendReactHooksRouteImport } from './routes/_docs/frontend/react-hooks'
 import { Route as DocsFrontendProviderSetupRouteImport } from './routes/_docs/frontend/provider-setup'
@@ -241,6 +242,12 @@ const DocsFrontendWorkbenchRoute = DocsFrontendWorkbenchRouteImport.update({
   path: '/frontend/workbench',
   getParentRoute: () => DocsRouteRoute,
 } as any)
+const DocsFrontendStaticRenderingRoute =
+  DocsFrontendStaticRenderingRouteImport.update({
+    id: '/frontend/static-rendering',
+    path: '/frontend/static-rendering',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
 const DocsFrontendRpcClientRoute = DocsFrontendRpcClientRouteImport.update({
   id: '/frontend/rpc-client',
   path: '/frontend/rpc-client',
@@ -627,6 +634,7 @@ export interface FileRoutesByFullPath {
   '/frontend/provider-setup': typeof DocsFrontendProviderSetupRoute
   '/frontend/react-hooks': typeof DocsFrontendReactHooksRoute
   '/frontend/rpc-client': typeof DocsFrontendRpcClientRoute
+  '/frontend/static-rendering': typeof DocsFrontendStaticRenderingRoute
   '/frontend/workbench': typeof DocsFrontendWorkbenchRoute
   '/get-started/app-configuration': typeof DocsGetStartedAppConfigurationRoute
   '/get-started/installation': typeof DocsGetStartedInstallationRoute
@@ -717,6 +725,7 @@ export interface FileRoutesByTo {
   '/frontend/provider-setup': typeof DocsFrontendProviderSetupRoute
   '/frontend/react-hooks': typeof DocsFrontendReactHooksRoute
   '/frontend/rpc-client': typeof DocsFrontendRpcClientRoute
+  '/frontend/static-rendering': typeof DocsFrontendStaticRenderingRoute
   '/frontend/workbench': typeof DocsFrontendWorkbenchRoute
   '/get-started/app-configuration': typeof DocsGetStartedAppConfigurationRoute
   '/get-started/installation': typeof DocsGetStartedInstallationRoute
@@ -809,6 +818,7 @@ export interface FileRoutesById {
   '/_docs/frontend/provider-setup': typeof DocsFrontendProviderSetupRoute
   '/_docs/frontend/react-hooks': typeof DocsFrontendReactHooksRoute
   '/_docs/frontend/rpc-client': typeof DocsFrontendRpcClientRoute
+  '/_docs/frontend/static-rendering': typeof DocsFrontendStaticRenderingRoute
   '/_docs/frontend/workbench': typeof DocsFrontendWorkbenchRoute
   '/_docs/get-started/app-configuration': typeof DocsGetStartedAppConfigurationRoute
   '/_docs/get-started/installation': typeof DocsGetStartedInstallationRoute
@@ -901,6 +911,7 @@ export interface FileRouteTypes {
     | '/frontend/provider-setup'
     | '/frontend/react-hooks'
     | '/frontend/rpc-client'
+    | '/frontend/static-rendering'
     | '/frontend/workbench'
     | '/get-started/app-configuration'
     | '/get-started/installation'
@@ -991,6 +1002,7 @@ export interface FileRouteTypes {
     | '/frontend/provider-setup'
     | '/frontend/react-hooks'
     | '/frontend/rpc-client'
+    | '/frontend/static-rendering'
     | '/frontend/workbench'
     | '/get-started/app-configuration'
     | '/get-started/installation'
@@ -1082,6 +1094,7 @@ export interface FileRouteTypes {
     | '/_docs/frontend/provider-setup'
     | '/_docs/frontend/react-hooks'
     | '/_docs/frontend/rpc-client'
+    | '/_docs/frontend/static-rendering'
     | '/_docs/frontend/workbench'
     | '/_docs/get-started/app-configuration'
     | '/_docs/get-started/installation'
@@ -1345,6 +1358,13 @@ declare module '@tanstack/react-router' {
       path: '/frontend/workbench'
       fullPath: '/frontend/workbench'
       preLoaderRoute: typeof DocsFrontendWorkbenchRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/frontend/static-rendering': {
+      id: '/_docs/frontend/static-rendering'
+      path: '/frontend/static-rendering'
+      fullPath: '/frontend/static-rendering'
+      preLoaderRoute: typeof DocsFrontendStaticRenderingRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/frontend/rpc-client': {
@@ -1805,6 +1825,7 @@ interface DocsRouteRouteChildren {
   DocsFrontendProviderSetupRoute: typeof DocsFrontendProviderSetupRoute
   DocsFrontendReactHooksRoute: typeof DocsFrontendReactHooksRoute
   DocsFrontendRpcClientRoute: typeof DocsFrontendRpcClientRoute
+  DocsFrontendStaticRenderingRoute: typeof DocsFrontendStaticRenderingRoute
   DocsFrontendWorkbenchRoute: typeof DocsFrontendWorkbenchRoute
   DocsGetStartedAppConfigurationRoute: typeof DocsGetStartedAppConfigurationRoute
   DocsGetStartedInstallationRoute: typeof DocsGetStartedInstallationRoute
@@ -1894,6 +1915,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsFrontendProviderSetupRoute: DocsFrontendProviderSetupRoute,
   DocsFrontendReactHooksRoute: DocsFrontendReactHooksRoute,
   DocsFrontendRpcClientRoute: DocsFrontendRpcClientRoute,
+  DocsFrontendStaticRenderingRoute: DocsFrontendStaticRenderingRoute,
   DocsFrontendWorkbenchRoute: DocsFrontendWorkbenchRoute,
   DocsGetStartedAppConfigurationRoute: DocsGetStartedAppConfigurationRoute,
   DocsGetStartedInstallationRoute: DocsGetStartedInstallationRoute,

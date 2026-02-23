@@ -274,6 +274,12 @@ export const navData: NavSection[] = [
 					'Deploy your frontend alongside agents or separately on Vercel, Netlify, etc.',
 			},
 			{
+				title: 'Static Rendering',
+				url: '/frontend/static-rendering',
+				description:
+					'Pre-render your frontend to static HTML for faster page loads and better SEO',
+			},
+			{
 				title: 'Advanced Hooks',
 				url: '/frontend/advanced-hooks',
 				description:

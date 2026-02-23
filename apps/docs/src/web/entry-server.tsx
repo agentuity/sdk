@@ -94,6 +94,7 @@ export function getStaticPaths(): string[] {
 		'/frontend/advanced-hooks',
 		'/frontend/authentication',
 		'/frontend/deployment-scenarios',
+		'/frontend/static-rendering',
 		'/frontend/provider-setup',
 		'/frontend/react-hooks',
 		'/frontend/rpc-client',
