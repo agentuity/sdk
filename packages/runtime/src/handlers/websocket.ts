@@ -5,6 +5,12 @@ import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 
 /**
+ * Context key for WebSocket close promise.
+ * Used by middleware to defer session finalization until WebSocket closes.
+ */
+export const WS_DONE_PROMISE_KEY = '_wsDonePromise';
+
+/**
  * WebSocket connection interface for handling WebSocket events.
  */
 export interface WebSocketConnection {
@@ -96,6 +102,27 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 		const asyncLocalStorage = getAgentAsyncLocalStorage();
 		const capturedContext = asyncLocalStorage.getStore();
 
+		// Create done promise for session lifecycle deferral, but ONLY for actual
+		// WebSocket upgrade requests. The factory runs unconditionally for every
+		// request hitting this route (Hono calls createEvents before attempting
+		// server.upgrade). For non-upgrade HTTP requests, setting the promise would
+		// cause the middleware to hang forever waiting for an onClose that never fires.
+		let resolveDone: (() => void) | undefined;
+		const isUpgrade = c.req.header('upgrade')?.toLowerCase() === 'websocket';
+
+		if (isUpgrade) {
+			const donePromise = new Promise<void>((resolve) => {
+				resolveDone = resolve;
+			});
+
+			// Defensive: guard against future code adding rejection paths
+			donePromise.catch(() => {});
+
+			// Set on context so middleware defers session finalization until WS closes
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(c as any).set(WS_DONE_PROMISE_KEY, donePromise);
+		}
+
 		const wsConnection: WebSocketConnection = {
 			onOpen: (h) => {
 				openHandler = h;
@@ -186,6 +213,10 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 					}
 				} catch (err) {
 					c.var.logger?.error('WebSocket onClose error:', err);
+				} finally {
+					// Resolve the done promise to trigger session finalization
+					// This must fire even if the user's onClose handler throws
+					resolveDone?.();
 				}
 			},
 		};
