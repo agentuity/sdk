@@ -1118,7 +1118,7 @@ describe('SandboxClient', () => {
 			expect(result.stderr).toBe('Out: mixed\n');
 		});
 
-		test('should tee combined output to both user stdout and stderr streams', async () => {
+		test('should tee combined output to stdout user stream only to avoid duplication', async () => {
 			const combinedChunks = [
 				new Uint8Array([67, 111, 109, 98, 105, 110, 101, 100, 10]), // "Combined\n"
 			];
@@ -1202,11 +1202,12 @@ describe('SandboxClient', () => {
 			expect(result.stdout).toBe('Combined\n');
 			expect(result.stderr).toBe('Combined\n');
 
-			// Verify BOTH user streams received the combined output
+			// In combined mode, only stdout user stream receives the teed output
+			// to avoid duplicate lines when both streams go to the same terminal
 			const stdoutOutput = Buffer.concat(stdoutReceivedChunks).toString();
 			const stderrOutput = Buffer.concat(stderrReceivedChunks).toString();
 			expect(stdoutOutput).toBe('Combined\n');
-			expect(stderrOutput).toBe('Combined\n');
+			expect(stderrOutput).toBe('');
 		});
 
 		test('should return empty strings when no output', async () => {

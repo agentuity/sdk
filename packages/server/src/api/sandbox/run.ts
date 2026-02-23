@@ -4,10 +4,12 @@ import { PassThrough } from 'node:stream';
 import { APIClient, PaymentRequiredError } from '../api.ts';
 import { sandboxCreate } from './create.ts';
 import { sandboxDestroy } from './destroy.ts';
-import { sandboxGet } from './get.ts';
-import { ExecutionCancelledError, ExecutionTimeoutError, writeAndDrain } from './util.ts';
+import { sandboxGetStatus } from './getStatus.ts';
+import { ExecutionCancelledError, writeAndDrain } from './util.ts';
 import type { SandboxRunOptions, SandboxRunResult } from '@agentuity/core';
 import { getServiceUrls } from '../../config.ts';
+
+const timingLogsEnabled = false;
 
 /**
  * Creates a Writable stream that captures all chunks to a buffer array
@@ -28,15 +30,12 @@ function createTeeWritable(chunks: Buffer[], ...userStreams: (Writable | undefin
 	// Pipe to all provided user streams with proper backpressure handling
 	for (const userStream of userStreams) {
 		if (userStream) {
-			tee.pipe(userStream);
+			tee.pipe(userStream, { end: false });
 		}
 	}
 
 	return tee;
 }
-
-const POLL_INTERVAL_MS = 500;
-const MAX_POLL_ATTEMPTS = 7200;
 
 export interface SandboxRunParams {
 	options: SandboxRunOptions;
@@ -67,6 +66,7 @@ export async function sandboxRun(
 ): Promise<SandboxRunResult> {
 	const { options, orgId, region, apiKey, signal, stdin, stdout, stderr, logger } = params;
 	const started = Date.now();
+	if (timingLogsEnabled) console.error(`[TIMING] +0ms: sandbox run started`);
 
 	let stdinStreamId: string | undefined;
 	let stdinStreamUrl: string | undefined;
@@ -105,6 +105,8 @@ export async function sandboxRun(
 		stdoutStreamUrl ?? 'none',
 		stderrStreamUrl ?? 'none'
 	);
+	if (timingLogsEnabled)
+		console.error(`[TIMING] +${Date.now() - started}ms: sandbox created (${sandboxId})`);
 
 	const abortController = new AbortController();
 	const streamPromises: Promise<void>[] = [];
@@ -131,16 +133,16 @@ export async function sandboxRun(
 			stdoutStreamUrl && stderrStreamUrl && stdoutStreamUrl === stderrStreamUrl;
 
 		if (isCombinedOutput) {
-			// Stream combined output - capture to stdoutChunks, tee to both user's stdout AND stderr
+			// Stream combined output to stdout only to avoid duplicates
 			if (stdoutStreamUrl) {
 				logger?.debug('using combined output stream (stdout === stderr)');
-				// Tee to both stdout and stderr so both user streams receive real-time data
-				const teeStream = createTeeWritable(stdoutChunks, stdout, stderr);
+				const teeStream = createTeeWritable(stdoutChunks, stdout);
 				const combinedPromise = streamUrlToWritable(
 					stdoutStreamUrl,
 					teeStream,
 					abortController.signal,
-					logger
+					logger,
+					started
 				);
 				streamPromises.push(combinedPromise);
 			}
@@ -152,7 +154,8 @@ export async function sandboxRun(
 					stdoutStreamUrl,
 					teeStream,
 					abortController.signal,
-					logger
+					logger,
+					started
 				);
 				streamPromises.push(stdoutPromise);
 			}
@@ -164,87 +167,95 @@ export async function sandboxRun(
 					stderrStreamUrl,
 					teeStream,
 					abortController.signal,
-					logger
+					logger,
+					started
 				);
 				streamPromises.push(stderrPromise);
 			}
 		}
 
-		// Poll for sandbox completion in parallel with streaming
-		let attempts = 0;
-		let finalStatus: 'terminated' | 'failed' | null = null;
-		let finalExitCode: number | undefined;
+		// Wait for streams to complete — Pulse closes streams on sandbox termination (EOF).
+		// This is our primary completion signal; no polling needed.
+		logger?.debug('waiting for streams to complete...');
 
-		while (attempts < MAX_POLL_ATTEMPTS) {
-			if (signal?.aborted) {
-				abortController.abort();
-				throw new ExecutionCancelledError({
-					message: 'Sandbox execution cancelled',
-					sandboxId,
-				});
-			}
-
-			await sleep(POLL_INTERVAL_MS);
-			attempts++;
-
-			try {
-				const sandboxInfo = await sandboxGet(client, { sandboxId, orgId });
-
-				if (sandboxInfo.status === 'terminated') {
-					finalStatus = 'terminated';
-					finalExitCode = sandboxInfo.exitCode;
-					break;
+		if (streamPromises.length > 0) {
+			if (signal) {
+				// Race streams against abort signal, cleaning up the listener
+				// in all cases so an orphaned reject cannot fire after settlement.
+				let onAbort: (() => void) | undefined;
+				try {
+					await Promise.race([
+						Promise.allSettled(streamPromises),
+						new Promise<never>((_, reject) => {
+							onAbort = () => {
+								abortController.abort();
+								reject(
+									new ExecutionCancelledError({
+										message: 'Sandbox execution cancelled',
+										sandboxId,
+									})
+								);
+							};
+							if (signal.aborted) {
+								onAbort();
+							} else {
+								signal.addEventListener('abort', onAbort, { once: true });
+							}
+						}),
+					]);
+				} finally {
+					if (onAbort && signal) {
+						signal.removeEventListener('abort', onAbort);
+					}
 				}
-
-				if (sandboxInfo.status === 'failed') {
-					finalStatus = 'failed';
-					finalExitCode = sandboxInfo.exitCode;
-					break;
-				}
-			} catch {
-				// Ignore polling errors, continue
-				continue;
+			} else {
+				await Promise.allSettled(streamPromises);
 			}
+		} else {
+			// No streams available (shouldn't happen for oneshot, but handle defensively).
+			// Fall back to a single wait then check.
+			logger?.debug('no streams to wait on, checking sandbox status directly');
 		}
 
-		// Sandbox completed - wait for streams to complete naturally (EOF)
-		// Pulse closes streams when the sandbox terminates, so streams should EOF
-		// We must wait for streams to fully drain before returning
-		logger?.debug('waiting for streams to complete...');
-		await Promise.allSettled(streamPromises);
-		logger?.debug('streams completed');
+		if (timingLogsEnabled)
+			console.error(`[TIMING] +${Date.now() - started}ms: all streams done, fetching exit code`);
+		logger?.debug('streams completed, fetching final status');
+
+		// Stream EOF means the sandbox is done — hadron only closes streams after the
+		// container exits. Fetch status once for the exit code; if lifecycle events
+		// haven't propagated to Catalyst yet, default to exit code 0.
+		let exitCode = 0;
+		try {
+			const sandboxStatus = await sandboxGetStatus(client, { sandboxId, orgId });
+			if (sandboxStatus.exitCode != null) {
+				exitCode = sandboxStatus.exitCode;
+			} else if (sandboxStatus.status === 'failed') {
+				exitCode = 1;
+			}
+		} catch {
+			// Sandbox may already be destroyed (fire-and-forget teardown).
+			// Stream EOF already confirmed execution completed.
+			logger?.debug('sandboxGetStatus failed after stream EOF, using default exit code 0');
+		}
+
+		if (timingLogsEnabled)
+			console.error(
+				`[TIMING] +${Date.now() - started}ms: sandboxGet complete (exit: ${exitCode})`
+			);
 
 		// Build captured output strings
 		const capturedStdout = Buffer.concat(stdoutChunks).toString('utf-8');
-		// For combined output, stderr is the same as stdout; otherwise use stderrChunks
 		const capturedStderr = isCombinedOutput
 			? capturedStdout
 			: Buffer.concat(stderrChunks).toString('utf-8');
 
-		if (finalStatus === 'terminated') {
-			return {
-				sandboxId,
-				exitCode: finalExitCode ?? 0,
-				durationMs: Date.now() - started,
-				stdout: capturedStdout,
-				stderr: capturedStderr,
-			};
-		}
-
-		if (finalStatus === 'failed') {
-			return {
-				sandboxId,
-				exitCode: finalExitCode ?? 1,
-				durationMs: Date.now() - started,
-				stdout: capturedStdout,
-				stderr: capturedStderr,
-			};
-		}
-
-		throw new ExecutionTimeoutError({
-			message: 'Sandbox execution polling timed out',
+		return {
 			sandboxId,
-		});
+			exitCode,
+			durationMs: Date.now() - started,
+			stdout: capturedStdout,
+			stderr: capturedStderr,
+		};
 	} catch (error) {
 		abortController.abort();
 		try {
@@ -373,12 +384,17 @@ async function streamUrlToWritable(
 	url: string,
 	writable: Writable,
 	signal: AbortSignal,
-	logger?: Logger
+	logger?: Logger,
+	started?: number
 ): Promise<void> {
 	try {
 		logger?.debug('fetching stream: %s', url);
 		const response = await fetch(url, { signal });
 		logger?.debug('stream response status: %d', response.status);
+		if (timingLogsEnabled && started)
+			console.error(
+				`[TIMING] +${Date.now() - started}ms: stream response received (status: ${response.status})`
+			);
 
 		if (!response.ok || !response.body) {
 			logger?.debug('stream response not ok or no body');
@@ -386,20 +402,33 @@ async function streamUrlToWritable(
 		}
 
 		const reader = response.body.getReader();
+		let firstChunk = true;
 
 		// Read until EOF - Pulse will block until data is available
 		while (true) {
 			const { done, value } = await reader.read();
 			if (done) {
 				logger?.debug('stream EOF');
+				if (timingLogsEnabled && started)
+					console.error(`[TIMING] +${Date.now() - started}ms: stream EOF`);
 				break;
 			}
 
 			if (value) {
+				if (firstChunk && started) {
+					if (timingLogsEnabled)
+						console.error(
+							`[TIMING] +${Date.now() - started}ms: first chunk (${value.length} bytes)`
+						);
+					firstChunk = false;
+				}
 				logger?.debug('stream chunk: %d bytes', value.length);
 				await writeAndDrain(writable, value);
 			}
 		}
+		// Signal end-of-stream to the tee/pipe chain so downstream
+		// consumers (e.g. process.stdout pipe) know no more data is coming.
+		writable.end();
 	} catch (err) {
 		if (err instanceof Error && err.name === 'AbortError') {
 			logger?.debug('stream aborted');
@@ -407,8 +436,4 @@ async function streamUrlToWritable(
 		}
 		logger?.debug('stream error: %s', err);
 	}
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
 }
