@@ -22,7 +22,7 @@ import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
 import { internal } from './logger/internal';
 import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './handlers/sse';
-import { WS_DONE_PROMISE_KEY, IS_WEBSOCKET_RESPONSE_KEY } from './handlers/websocket';
+import { WS_DONE_PROMISE_KEY } from './handlers/websocket';
 import { loadBuildMetadata } from './_metadata';
 
 const SESSION_HEADER = 'x-session-id';
