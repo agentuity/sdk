@@ -10,7 +10,6 @@
 		"prebuild": "bun run scripts/generate-markdown-files.ts",
 		"predeploy": "cd ../.. && bunx tsc --build",
 		"build": "bun ../../packages/cli/bin/cli.ts build --dir . --dev",
-		"build:static": "bun run build && bun run scripts/prerender.ts",
 		"dev": "bun ../../packages/cli/bin/cli.ts dev --dir .",
 		"start": "bun .agentuity/app.js",
 		"deploy": "bun ../../packages/cli/bin/cli.ts deploy --dir .",
