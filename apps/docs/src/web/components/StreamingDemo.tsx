@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Separator, StatusIndicator } from './ui';
 
 interface StreamState {
 	status: 'idle' | 'connecting' | 'streaming' | 'done' | 'error';
@@ -16,13 +17,28 @@ function estimateTokens(text: string): number {
 }
 
 const MODELS = [
-	{ value: 'gpt-5-nano', label: 'GPT-5 Nano (OpenAI)' },
-	{ value: 'gpt-5-mini', label: 'GPT-5 Mini (OpenAI)' },
-	{ value: 'claude-haiku-4-5', label: 'Claude Haiku (Anthropic)' },
-	{ value: 'claude-sonnet-4-5', label: 'Claude Sonnet (Anthropic)' },
-	{ value: 'gemini-2.5-flash-lite', label: 'Gemini Flash Lite (Google)' },
-	{ value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (Groq)' },
+	{ value: 'gpt-5-nano', label: 'GPT-5 Nano', provider: 'OpenAI' },
+	{ value: 'gpt-5-mini', label: 'GPT-5 Mini', provider: 'OpenAI' },
+	{ value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', provider: 'Anthropic' },
+	{ value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', provider: 'Anthropic' },
+	{ value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', provider: 'Google' },
+	{ value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', provider: 'Groq' },
 ];
+
+function getProviderColor(provider: string): string {
+	switch (provider) {
+		case 'OpenAI':
+			return 'text-green-600 dark:text-green-400';
+		case 'Anthropic':
+			return 'text-orange-600 dark:text-orange-400';
+		case 'Google':
+			return 'text-blue-600 dark:text-blue-400';
+		case 'Groq':
+			return 'text-purple-600 dark:text-purple-400';
+		default:
+			return 'text-zinc-500 dark:text-zinc-400';
+	}
+}
 
 // Fixed prompt used by the backend
 const FIXED_PROMPT = 'What are AI agents and how do they work?';
@@ -138,21 +154,27 @@ export function StreamingDemo() {
 
 	const isStreaming = state.status === 'streaming' || state.status === 'connecting';
 
-	const statusDotClass =
-		state.status === 'streaming'
-			? 'bg-cyan-400'
-			: state.status === 'connecting'
-				? 'bg-yellow-500'
-				: state.status === 'done'
-					? 'bg-green-500'
-					: state.status === 'error'
-						? 'bg-red-500'
-						: 'bg-zinc-600';
+	// Map StreamState status to StatusIndicator status type
+	const getIndicatorStatus = (): 'idle' | 'pending' | 'running' | 'success' | 'error' => {
+		switch (state.status) {
+			case 'connecting':
+				return 'pending';
+			case 'streaming':
+				return 'running';
+			case 'done':
+				return 'success';
+			case 'error':
+				return 'error';
+			case 'idle':
+			default:
+				return 'idle';
+		}
+	};
 
 	return (
 		<div className="flex flex-col gap-4">
 			{/* Input Section */}
-			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
+			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-4">
 				<div className="flex flex-col gap-4">
 					{/* Prompt Display */}
 					<div>
@@ -167,58 +189,41 @@ export function StreamingDemo() {
 					{/* Model select and buttons */}
 					<div className="flex gap-4 items-end flex-wrap">
 						<div className="flex-1 min-w-[150px]">
-							<label
-								htmlFor="model"
-								className="text-zinc-500 dark:text-zinc-400 block text-xs mb-2 uppercase"
-							>
+							<label className="text-zinc-500 dark:text-zinc-400 block text-xs mb-2 uppercase">
 								Model
 							</label>
-							<select
-								id="model"
-								value={model}
-								onChange={(e) => setModel(e.target.value)}
-								disabled={isStreaming}
-								className="bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-900 dark:text-white text-sm px-4 py-3 outline-none w-full"
-							>
-								{MODELS.map((m) => (
-									<option key={m.value} value={m.value}>
-										{m.label}
-									</option>
-								))}
-							</select>
+							<Select value={model} onValueChange={setModel} disabled={isStreaming}>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select a model..." />
+								</SelectTrigger>
+								<SelectContent>
+									{MODELS.map((m) => (
+										<SelectItem key={m.value} value={m.value}>
+											{m.label} ({m.provider})
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
 
-						<div className="flex gap-2">
+						<div className="flex gap-2 items-center">
 							{!isStreaming ? (
-								<button
+								<Button
 									onClick={startStream}
-									type="button"
-									className="rounded-md text-sm font-medium px-6 py-3 bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300"
+									variant="outline"
+									size="default"
 								>
 									Start Stream
-								</button>
+								</Button>
 							) : (
-								<button
-									onClick={stopStream}
-									type="button"
-									className="bg-red-600 dark:bg-red-900 rounded-md text-white dark:text-red-300 text-sm font-medium px-6 py-3 cursor-pointer hover:bg-red-500 dark:hover:bg-red-800"
-								>
+								<Button onClick={stopStream} variant="destructive" size="default">
 									Stop
-								</button>
+								</Button>
 							)}
 							{state.content && (
-								<button
-									onClick={reset}
-									disabled={isStreaming}
-									type="button"
-									className={`bg-zinc-200 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-600 dark:text-zinc-400 text-sm px-4 py-3 ${
-										isStreaming
-											? 'cursor-not-allowed'
-											: 'cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600'
-									}`}
-								>
+								<Button onClick={reset} disabled={isStreaming} variant="ghost" size="default">
 									Clear
-								</button>
+								</Button>
 							)}
 						</div>
 					</div>
@@ -227,23 +232,35 @@ export function StreamingDemo() {
 
 			{/* Output Section */}
 			<div
-				className={`bg-white dark:bg-black rounded-lg min-h-[200px] overflow-hidden ${
+				className={`bg-white dark:bg-black rounded-lg h-[300px] overflow-hidden flex flex-col ${
 					state.status === 'error'
 						? 'border border-red-300 dark:border-red-900'
 						: 'border border-zinc-200 dark:border-zinc-900'
 				}`}
 			>
 				{/* Status bar */}
-				<div className="border-b border-zinc-200 dark:border-zinc-900 flex justify-between px-4 py-3">
-					<div className="flex items-center gap-2">
-						<div className={`w-2 h-2 rounded-full ${statusDotClass}`} />
-						<span className="text-zinc-500 dark:text-zinc-400 text-xs uppercase">
-							{state.status === 'idle' && 'Ready'}
-							{state.status === 'connecting' && 'Connecting...'}
-							{state.status === 'streaming' && 'Streaming'}
-							{state.status === 'done' && 'Complete'}
-							{state.status === 'error' && 'Error'}
-						</span>
+				<div className="flex justify-between items-center px-4 py-3 flex-shrink-0">
+					<div className="flex items-center gap-3">
+						{(() => {
+							const currentModel = MODELS.find((m) => m.value === model);
+							return currentModel ? (
+								<div className="flex items-center gap-1.5">
+									<span className={`text-sm font-medium ${getProviderColor(currentModel.provider)}`}>
+										{currentModel.provider}
+									</span>
+									<span className="text-zinc-500 text-sm">/</span>
+									<span className="text-zinc-900 dark:text-white text-sm">
+										{currentModel.label}
+									</span>
+								</div>
+							) : null;
+						})()}
+						<StatusIndicator
+							status={getIndicatorStatus()}
+							label={
+								state.status === 'connecting' ? 'Connecting...' : undefined
+							}
+						/>
 					</div>
 					{state.tokenCount > 0 && (
 						<span className="text-zinc-500 dark:text-zinc-600 text-xs">
@@ -251,10 +268,11 @@ export function StreamingDemo() {
 						</span>
 					)}
 				</div>
+				<Separator className="flex-shrink-0" />
 
 				{/* Content area */}
 				<div
-					className={`text-sm leading-relaxed min-h-[150px] p-4 ${
+					className={`text-sm leading-relaxed flex-1 overflow-y-auto p-4 ${
 						state.status === 'error'
 							? 'text-red-600 dark:text-red-300'
 							: 'text-zinc-700 dark:text-zinc-300'
@@ -297,7 +315,7 @@ export function StreamingDemo() {
 								),
 								em: ({ children }) => <em className="italic">{children}</em>,
 								code: ({ children }) => (
-									<code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-cyan-700 dark:text-cyan-400 text-xs">
+									<code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-cyan-600 dark:text-cyan-400 text-xs">
 										{children}
 									</code>
 								),
@@ -307,7 +325,7 @@ export function StreamingDemo() {
 						</Markdown>
 					)}
 					{state.status === 'streaming' && (
-						<span className="inline-block w-0.5 h-4 bg-cyan-500 dark:bg-cyan-400 ml-0.5 animate-pulse" />
+						<span className="inline-block w-0.5 h-4 bg-cyan-500 ml-0.5 animate-pulse" />
 					)}
 				</div>
 			</div>

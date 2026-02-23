@@ -1,0 +1,70 @@
+name: Sync Docs to Vector Store
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/docs/src/web/content/**'
+  workflow_dispatch:
+    inputs:
+      before_commit:
+        description: 'Before commit SHA (leave empty for automatic detection)'
+        required: false
+        type: string
+      after_commit:
+        description: 'After commit SHA (leave empty for HEAD)'
+        required: false
+        type: string
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set commit variables
+        id: commits
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BEFORE_COMMIT="${{ github.event.inputs.before_commit }}"
+            AFTER_COMMIT="${{ github.event.inputs.after_commit }}"
+
+            if [ -z "$BEFORE_COMMIT" ]; then
+              BEFORE_COMMIT="$(git rev-parse HEAD~1)"
+            fi
+            if [ -z "$AFTER_COMMIT" ]; then
+              AFTER_COMMIT="$(git rev-parse HEAD)"
+            fi
+
+            echo "before_commit=$BEFORE_COMMIT" >> $GITHUB_OUTPUT
+            echo "after_commit=$AFTER_COMMIT" >> $GITHUB_OUTPUT
+            echo "Manual run: $BEFORE_COMMIT -> $AFTER_COMMIT"
+          else
+            echo "before_commit=${{ github.event.before }}" >> $GITHUB_OUTPUT
+            echo "after_commit=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "Push run: ${{ github.event.before }} -> ${{ github.sha }}"
+          fi
+
+      - name: Collect changed files
+        run: |
+          set -euo pipefail
+          git fetch origin "${{ steps.commits.outputs.before_commit }}" || true
+          ./apps/docs/bin/collect-changed-files.sh \
+            "${{ steps.commits.outputs.before_commit }}" \
+            "${{ steps.commits.outputs.after_commit }}" > changed-files.txt
+
+          echo "Files to sync:"
+          cat changed-files.txt
+
+      - name: Build and send payload
+        env:
+          AGENT_BEARER_TOKEN: ${{ secrets.AGENT_BEARER_TOKEN }}
+          DOCS_WEBHOOK_URL: ${{ secrets.DOCS_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          cat changed-files.txt | \
+            ./apps/docs/bin/build-payload.sh "${{ github.repository }}" incremental | \
+            ./apps/docs/bin/send-webhook.sh "$DOCS_WEBHOOK_URL" "Bearer $AGENT_BEARER_TOKEN"

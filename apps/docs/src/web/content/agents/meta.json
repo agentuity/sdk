@@ -1,0 +1,16 @@
+{
+	"title": "Agents",
+	"pages": [
+		"creating-agents",
+		"workbench",
+		"schema-libraries",
+		"ai-gateway",
+		"ai-sdk-integration",
+		"streaming-responses",
+		"state-management",
+		"calling-other-agents",
+		"standalone-execution",
+		"evaluations",
+		"events-lifecycle"
+	]
+}

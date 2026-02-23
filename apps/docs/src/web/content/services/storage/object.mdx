@@ -1,0 +1,156 @@
+---
+title: Object Storage (S3)
+description: Durable file storage using Bun's native S3 APIs
+---
+
+Object storage provides durable file storage for documents, images, media, and binary content using [Bun's native S3 APIs](https://bun.sh/docs/runtime/s3).
+
+## When to Use Object Storage
+
+| Storage Type | Best For |
+|--------------|----------|
+| **Object (S3)** | Files, images, documents, media, backups |
+| [Key-Value](/services/storage/key-value) | Fast lookups, caching, configuration |
+| [Vector](/services/storage/vector) | Semantic search, embeddings, RAG |
+| [Database](/services/database) | Structured data, complex queries, transactions |
+| [Durable Streams](/services/storage/durable-streams) | Large exports, audit logs |
+
+<Callout type="info" title="Credentials Auto-Injected">
+Agentuity automatically injects S3 credentials (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_ENDPOINT`) during development and deployment. No manual configuration required.
+</Callout>
+
+## Quick Start
+
+```typescript
+import { s3 } from "bun";
+
+// Create a file reference
+const file = s3.file("documents/report.pdf");
+
+// Write content
+await file.write("Hello, World!");
+await file.write(jsonData, { type: "application/json" });
+
+// Read content
+const text = await file.text();
+const json = await file.json();
+const bytes = await file.bytes();
+
+// Check existence and delete
+if (await file.exists()) {
+  await file.delete();
+}
+```
+
+## Using in Agents
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s3 } from "bun";
+
+const agent = createAgent('FileProcessor', {
+  handler: async (ctx, input) => {
+    const file = s3.file(`uploads/${input.userId}/data.json`);
+
+    if (!(await file.exists())) {
+      return { error: "File not found" };
+    }
+
+    const data = await file.json();
+    ctx.logger.info("File loaded", { userId: input.userId });
+    return { data };
+  },
+});
+```
+
+## Using in Routes
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import { s3 } from "bun";
+
+const router = createRouter();
+
+// File upload
+router.post('/upload/:filename', async (c) => {
+  const filename = c.req.param('filename');
+  const file = s3.file(`uploads/${filename}`);
+
+  const buffer = await c.req.arrayBuffer();
+  await file.write(new Uint8Array(buffer), {
+    type: c.req.header('content-type') || 'application/octet-stream',
+  });
+
+  return c.json({ success: true, url: file.presign({ expiresIn: 3600 }) });
+});
+
+// File download (redirects to S3)
+router.get('/download/:filename', async (c) => {
+  const file = s3.file(`uploads/${c.req.param('filename')}`);
+  if (!(await file.exists())) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+  return new Response(file);
+});
+
+export default router;
+```
+
+<Callout type="tip" title="Efficient Downloads">
+Passing an `S3File` to `new Response()` returns a 302 redirect to a presigned URL, so clients download directly from S3.
+</Callout>
+
+## Presigned URLs
+
+Generate time-limited URLs for direct client access:
+
+```typescript
+import { s3 } from "bun";
+
+// Download URL (default: GET, 24 hours)
+const downloadUrl = s3.presign("uploads/document.pdf", {
+  expiresIn: 3600,
+});
+
+// Upload URL
+const uploadUrl = s3.presign("uploads/new-file.pdf", {
+  method: "PUT",
+  expiresIn: 900,
+  type: "application/pdf",
+});
+```
+
+## Custom S3 Clients
+
+For multiple buckets or external S3-compatible services:
+
+```typescript
+import { S3Client } from "bun";
+
+// Cloudflare R2
+const r2 = new S3Client({
+  accessKeyId: process.env.R2_ACCESS_KEY,
+  secretAccessKey: process.env.R2_SECRET_KEY,
+  bucket: "my-bucket",
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+});
+
+// AWS S3
+const aws = new S3Client({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  bucket: "my-bucket",
+  region: "us-east-1",
+});
+```
+
+## Bun S3 Documentation
+
+For complete API documentation including streaming, multipart uploads, file metadata, listing objects, and partial reads, see the [Bun S3 documentation](https://bun.sh/docs/runtime/s3).
+
+## Next Steps
+
+- [Key-Value Storage](/services/storage/key-value): Fast caching and configuration
+- [Database](/services/database): Relational data with Bun's SQL support
+- [Vector Storage](/services/storage/vector): Semantic search and embeddings
+- [Durable Streams](/services/storage/durable-streams): Streaming large data exports

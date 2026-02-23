@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Badge, Button, Input, Separator, Skeleton } from './ui';
 
 interface SearchMatch {
 	sku: string;
@@ -127,32 +128,27 @@ export function VectorSearch() {
 								</span>
 							))}
 						</div>
-						{!seeded && (
-							<button
-								onClick={seedData}
-								disabled={loading}
-								type="button"
-								className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-xs px-3 py-1.5 cursor-pointer ${
-									loading ? 'opacity-50' : 'hover:bg-cyan-400 dark:hover:bg-cyan-300'
-								}`}
-							>
-								<span data-loading={loading ? 'true' : undefined}>
-									{loading ? 'Loading' : 'Load Sample Data'}
-								</span>
-							</button>
-						)}
-						{seeded && (
-							<span className="text-green-600 dark:text-green-400 text-xs">Loaded</span>
-						)}
+						<Button
+							variant="success"
+							size="sm"
+							onClick={seedData}
+							disabled={loading || seeded}
+						>
+							<span className="relative">
+								<span className={loading && !seeded ? 'invisible' : seeded ? 'invisible' : ''}>Load Sample Data</span>
+								{loading && !seeded && (
+									<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								)}
+								{seeded && (
+									<span className="absolute inset-0 flex items-center justify-center">Loaded</span>
+								)}
+							</span>
+						</Button>
 					</div>
 					{result && (
-						<button
-							onClick={clearResults}
-							type="button"
-							className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-600 dark:text-zinc-400 text-xs px-3 py-2 cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600"
-						>
+						<Button variant="ghost" size="sm" onClick={clearResults}>
 							Clear Results
-						</button>
+						</Button>
 					)}
 				</div>
 			</div>
@@ -166,33 +162,31 @@ export function VectorSearch() {
 
 			{/* Search box */}
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
-				<div className="flex gap-2">
+				<div className="flex items-center gap-2">
 					<label htmlFor="vector-search" className="sr-only">
 						Search products
 					</label>
-					<input
+					<Input
 						id="vector-search"
 						type="text"
 						placeholder="Search for products... (e.g., 'comfortable office chair', 'budget option', 'gaming')"
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
 						onKeyDown={(e) => e.key === 'Enter' && search()}
-						className="flex-1 bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-900 dark:text-white text-sm px-4 py-3 outline-none focus:border-cyan-500 dark:focus:border-cyan-400"
+						className="flex-1"
 					/>
-					<button
+					<Button
 						onClick={search}
 						disabled={loading || !query.trim()}
-						type="button"
-						className={`rounded-md text-sm font-medium px-6 py-3 ${
-							loading || !query.trim()
-								? 'bg-zinc-200 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed'
-								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
-						}`}
+						variant="outline"
 					>
-						<span data-loading={searching ? 'true' : undefined}>
-							{searching ? 'Searching' : 'Search'}
+						<span className="relative">
+							<span className={searching ? 'invisible' : ''}>Search</span>
+							{searching && (
+								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+							)}
 						</span>
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -200,31 +194,29 @@ export function VectorSearch() {
 			{searching && (
 				<>
 					{/* AI Recommendation skeleton */}
-					<div className="bg-blue-100/50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-900 rounded-lg p-6 animate-pulse">
-						<div className="h-4 w-32 bg-blue-200/50 dark:bg-blue-900/50 rounded mb-3" />
+					<div className="bg-blue-100/50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-900 rounded-lg p-6">
+						<Skeleton className="h-4 w-32 mb-3" />
 						<div className="space-y-2">
-							<div className="h-4 w-full bg-blue-200/30 dark:bg-blue-900/30 rounded" />
-							<div className="h-4 w-3/4 bg-blue-200/30 dark:bg-blue-900/30 rounded" />
+							<Skeleton className="h-4 w-full" />
+							<Skeleton className="h-4 w-3/4" />
 						</div>
 					</div>
 
 					{/* Matches skeleton */}
 					<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg">
-						<div className="border-b border-zinc-200 dark:border-zinc-900 text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
+						<div className="text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
 							Matches
 						</div>
+						<Separator />
 						{[1, 2, 3].map((i) => (
-							<div
-								key={i}
-								className="flex justify-between p-4 border-b border-zinc-200 dark:border-zinc-900 animate-pulse"
-							>
+							<div key={i} className="flex justify-between p-4 border-b border-zinc-200 dark:border-zinc-900">
 								<div className="space-y-2">
-									<div className="h-4 w-48 bg-zinc-200 dark:bg-zinc-800 rounded" />
-									<div className="h-3 w-24 bg-zinc-100 dark:bg-zinc-900 rounded" />
+									<Skeleton className="h-4 w-48" />
+									<Skeleton className="h-3 w-24" />
 								</div>
 								<div className="text-right space-y-2">
-									<div className="h-4 w-16 bg-zinc-200 dark:bg-zinc-800 rounded ml-auto" />
-									<div className="h-3 w-24 bg-zinc-100 dark:bg-zinc-900 rounded" />
+									<Skeleton className="h-4 w-16 ml-auto" />
+									<Skeleton className="h-3 w-24" />
 								</div>
 							</div>
 						))}
@@ -238,7 +230,7 @@ export function VectorSearch() {
 					{/* AI Recommendation */}
 					{result.recommendation && (
 						<div className="bg-blue-100/50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-900 rounded-lg p-6">
-							<h3 className="text-cyan-700 dark:text-cyan-400 text-sm font-medium m-0 mb-3">
+							<h3 className="text-cyan-600 dark:text-cyan-400 text-sm font-medium m-0 mb-3">
 								AI Recommendation
 							</h3>
 							<p className="text-zinc-700 dark:text-slate-200 text-[15px] leading-relaxed m-0">
@@ -254,9 +246,10 @@ export function VectorSearch() {
 
 					{/* Matches */}
 					<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg">
-						<div className="border-b border-zinc-200 dark:border-zinc-900 text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
+						<div className="text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
 							Matches ({result.matches.length})
 						</div>
+						<Separator />
 						{result.matches.length === 0 ? (
 							<div className="text-zinc-500 dark:text-zinc-600 text-sm p-8 text-center">
 								No matches found. Try a different search term.
@@ -278,15 +271,15 @@ export function VectorSearch() {
 											<div
 												className={`text-[15px] font-medium ${
 													match.sku === result.recommendedSKU
-														? 'text-cyan-700 dark:text-cyan-400'
+														? 'text-cyan-600 dark:text-cyan-400'
 														: 'text-zinc-900 dark:text-white'
 												}`}
 											>
 												{match.name}
 												{match.sku === result.recommendedSKU && (
-													<span className="bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-400 text-[10px] uppercase ml-2 px-1.5 py-0.5 rounded">
+													<Badge variant="secondary" className="ml-2">
 														Recommended
-													</span>
+													</Badge>
 												)}
 											</div>
 											<div className="text-zinc-500 text-xs mt-1">{match.sku}</div>

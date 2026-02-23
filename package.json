@@ -68,10 +68,14 @@
 		"prettier": "3.6.2",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
+		"rehype-pretty-code": "^0.14.1",
 		"typescript": "^5.9.0",
 		"typescript-eslint": "^8.46.2"
 	},
 	"dependencies": {
-		"ai": "^6.0.0"
+		"@radix-ui/react-tabs": "^1.1.13",
+		"ai": "^6.0.0",
+		"remark-frontmatter": "^5.0.0",
+		"remark-mdx-frontmatter": "^5.2.0"
 	}
 }

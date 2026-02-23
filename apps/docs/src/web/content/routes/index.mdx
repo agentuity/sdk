@@ -1,0 +1,41 @@
+---
+title: Routes
+description: Define HTTP endpoints, triggers, and real-time connections
+---
+
+import { Globe, Layers, Clock, Plug, Radio } from 'lucide-react';
+
+Routes define how your agents get invoked: HTTP endpoints, scheduled tasks, WebSockets, and Server-Sent Events.
+
+<Cards>
+  <CardLink
+    href="/routes/http"
+    title="HTTP"
+    description="Define RESTful HTTP endpoints"
+    icon={<Globe />}
+  />
+  <CardLink
+    href="/routes/middleware"
+    title="Middleware"
+    description="Add authentication, validation, and more"
+    icon={<Layers />}
+  />
+  <CardLink
+    href="/routes/cron"
+    title="Cron"
+    description="Schedule recurring tasks"
+    icon={<Clock />}
+  />
+  <CardLink
+    href="/routes/websockets"
+    title="WebSockets"
+    description="Real-time bidirectional communication"
+    icon={<Plug />}
+  />
+  <CardLink
+    href="/routes/sse"
+    title="SSE"
+    description="Server-Sent Events for streaming"
+    icon={<Radio />}
+  />
+</Cards>

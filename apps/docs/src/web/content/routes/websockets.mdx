@@ -1,0 +1,248 @@
+---
+title: Using WebSockets
+description: Real-time bidirectional communication with the websocket middleware
+---
+
+WebSockets enable persistent, bidirectional connections between client and server. Use them for chat interfaces, live dashboards, collaborative tools, and any scenario requiring real-time two-way communication.
+
+<Callout type="info" title="Routes Location">
+All routes live in `src/api/`. Import agents you need and call them directly.
+</Callout>
+
+## Basic Example
+
+```typescript
+import { createRouter, websocket } from '@agentuity/runtime';
+import chatAgent from '@agent/chat';
+
+const router = createRouter();
+
+router.get('/chat', websocket((c, ws) => {
+  ws.onOpen(() => {
+    c.var.logger.info('Client connected');
+    ws.send('Connected!');
+  });
+
+  ws.onMessage(async (event) => {
+    const message = event.data as string;
+    const response = await chatAgent.run({ message });
+    ws.send(response);
+  });
+
+  ws.onClose(() => {
+    c.var.logger.info('Client disconnected');
+  });
+}));
+
+export default router;
+```
+
+## Handler Structure
+
+The `websocket()` middleware wraps your handler and upgrades the connection:
+
+```typescript
+import { createRouter, websocket } from '@agentuity/runtime';
+
+router.get('/path', websocket((c, ws) => {
+  // c - Hono context
+  // ws - WebSocket connection object
+
+  ws.onOpen(() => { /* connection opened */ });
+  ws.onMessage(async (event) => { /* message received */ });
+  ws.onClose(() => { /* connection closed */ });
+}));
+```
+
+## WebSocket Events
+
+| Event | Trigger | Example Use Case |
+|-------|---------|------------------|
+| `onOpen` | Connection established | Send welcome message, initialize state |
+| `onMessage` | Client sends data | Process messages, call agents |
+| `onClose` | Connection ends | Clean up resources |
+
+## With Middleware
+
+Apply authentication or logging before the WebSocket upgrade:
+
+```typescript
+import { createRouter, websocket } from '@agentuity/runtime';
+import { createMiddleware } from 'hono/factory';
+import chat from '@agent/chat';
+
+const router = createRouter();
+
+const authMiddleware = createMiddleware(async (c, next) => {
+  const token = c.req.query('token');
+  if (!token) {
+    return c.text('Unauthorized', 401);
+  }
+  c.set('userId', await validateToken(token));
+  await next();
+});
+
+router.get('/chat', authMiddleware, websocket((c, ws) => {
+  const userId = c.var.userId;
+
+  ws.onOpen(() => {
+    ws.send(`Welcome, user ${userId}!`);
+  });
+
+  ws.onMessage(async (event) => {
+    const response = await chat.run({
+      userId,
+      message: event.data as string,
+    });
+    ws.send(response);
+  });
+}));
+
+export default router;
+```
+
+## Server Push
+
+Send data to the client without waiting for a request:
+
+```typescript
+router.get('/notifications', websocket((c, ws) => {
+  let heartbeat: Timer;
+
+  ws.onOpen(() => {
+    ws.send(JSON.stringify({ type: 'connected' }));
+
+    // Push updates every 5 seconds
+    heartbeat = setInterval(() => {
+      ws.send(JSON.stringify({
+        type: 'heartbeat',
+        time: new Date().toISOString(),
+      }));
+    }, 5000);
+  });
+
+  ws.onClose(() => {
+    clearInterval(heartbeat); // Clean up!
+  });
+}));
+```
+
+## Full Example
+
+A real-time echo server with heartbeat:
+
+```typescript
+import { createRouter, websocket } from '@agentuity/runtime';
+import echoAgent from '@agent/echo';
+
+const router = createRouter();
+
+router.get('/', websocket((c, ws) => {
+  let heartbeat: Timer;
+
+  ws.onOpen(() => {
+    c.var.logger.info('WebSocket connected');
+    ws.send('Connected! Send a message to echo it back.');
+
+    heartbeat = setInterval(() => {
+      ws.send(`Ping: ${new Date().toLocaleTimeString()}`);
+    }, 5000);
+  });
+
+  ws.onMessage(async (event) => {
+    try {
+      const message = event.data as string;
+      c.var.logger.info('Message received', { message });
+
+      const response = await echoAgent.run(message);
+      ws.send(response);
+    } catch (error) {
+      c.var.logger.error('Message processing failed', { error });
+      ws.send(JSON.stringify({ error: 'Processing failed' }));
+    }
+  });
+
+  ws.onClose(() => {
+    c.var.logger.info('WebSocket disconnected');
+    clearInterval(heartbeat);
+  });
+}));
+
+export default router;
+```
+
+## Resource Cleanup
+
+Always clean up intervals, subscriptions, or other resources in `onClose`:
+
+```typescript
+ws.onClose(() => {
+  clearInterval(heartbeat);  // Prevent memory leaks
+  subscription.unsubscribe();
+});
+```
+
+Failing to clean up can cause memory leaks and unexpected behavior.
+
+## Client Connection
+
+Connect from a browser or any WebSocket client:
+
+```javascript
+const ws = new WebSocket('wss://your-project.agentuity.cloud/agent-name');
+
+ws.onopen = () => {
+  console.log('Connected');
+  ws.send('Hello!');
+};
+
+ws.onmessage = (event) => {
+  console.log('Received:', event.data);
+};
+
+ws.onclose = () => {
+  console.log('Disconnected');
+};
+```
+
+## When to Use WebSockets
+
+| Use Case | WebSocket | SSE | HTTP |
+|----------|-----------|-----|------|
+| Chat / messaging | ✓ | | |
+| Live collaboration | ✓ | | |
+| Real-time dashboards | ✓ | ✓ | |
+| Progress updates | | ✓ | |
+| Request/response API | | | ✓ |
+
+Use WebSockets when you need **bidirectional** communication. For **server-to-client only** streaming, consider [Server-Sent Events](/routes/sse).
+
+## Standalone Usage
+
+WebSocket handlers work without agents. This example broadcasts system metrics to connected clients:
+
+```typescript
+import { createRouter, websocket } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/metrics', websocket((c, ws) => {
+  const interval = setInterval(() => {
+    ws.send(JSON.stringify({
+      cpu: Math.random() * 100,
+      memory: Math.random() * 100,
+      timestamp: Date.now(),
+    }));
+  }, 5000);
+
+  ws.onClose(() => clearInterval(interval));
+}));
+
+export default router;
+```
+
+## Next Steps
+
+- [Server-Sent Events](/routes/sse): One-way streaming from server to client
+- [HTTP Routes](/routes/http): Standard request/response endpoints
+- [React Hooks](/frontend/react-hooks): Connect from React with `useWebsocket`

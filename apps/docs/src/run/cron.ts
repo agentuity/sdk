@@ -13,50 +13,48 @@
 import { createAgentContext } from '@agentuity/runtime';
 
 const ctx = createAgentContext();
-const bucket = 'v1-ks-cron';
+const bucket = 'explorer-cron';
 
 try {
 	ctx.logger.info('Hourly task running');
 
 	console.log('---OUTPUT---');
-	console.log('=== Hourly Data Sync (Simulated) ===');
+	console.log('=== Hourly Cron Job (Simulated) ===');
 	console.log(`Triggered at: ${new Date().toISOString()}`);
 	console.log('');
 
-	// Simulate fetching external data
-	console.log('Step 1: Fetching external data...');
-	const mockData = {
+	// Simulate fetching data from api.example.com/data
+	console.log('Fetching data from api.example.com/data...');
+	const data = {
 		lastUpdate: new Date().toISOString(),
 		recordCount: Math.floor(Math.random() * 1000) + 100,
 		source: 'api.example.com',
 	};
-	console.log(`  Fetched ${mockData.recordCount} records from ${mockData.source}`);
+	console.log(`  Fetched ${data.recordCount} records from ${data.source}`);
 	console.log('');
 
-	// Cache the result in KV storage
-	console.log('Step 2: Caching in KV storage...');
-	await ctx.kv.set(bucket, 'latest-sync', mockData, { ttl: 3600 });
-	console.log(`  Cached to "${bucket}/latest-sync" (TTL: 1 hour)`);
+	// Cache the result
+	console.log(`Caching to kv "${bucket}/latest" (TTL: 3600s)...`);
+	await ctx.kv.set(bucket, 'latest', data, { ttl: 3600 });
+	console.log('  Cached successfully');
 	console.log('');
 
 	// Verify the cache
-	const cached = await ctx.kv.get(bucket, 'latest-sync');
-	console.log('Step 3: Verifying cache...');
+	const cached = await ctx.kv.get(bucket, 'latest');
 	if (cached.exists) {
-		const data = cached.data as typeof mockData;
-		console.log(`  Cache verified: ${data.recordCount} records`);
+		const verified = cached.data as typeof data;
+		console.log(`Cache verified: ${verified.recordCount} records from ${verified.source}`);
 	} else {
-		console.log('  Cache verification failed!');
+		console.log('Cache verification failed!');
 	}
 	console.log('');
 
-	// Cleanup (demo only - real cron jobs would keep the cache)
-	console.log('Step 4: Cleaning up (demo only)...');
-	await ctx.kv.delete(bucket, 'latest-sync');
-	console.log(`  Deleted "${bucket}/latest-sync"`);
+	console.log(`{ success: true, timestamp: "${new Date().toISOString()}" }`);
 	console.log('');
 
-	console.log('Cron job completed successfully');
+	// Cleanup (sandbox hygiene)
+	await ctx.kv.delete(bucket, 'latest');
+	console.log(`Cleaned up kv "${bucket}/latest"`);
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);

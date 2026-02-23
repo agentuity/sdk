@@ -1,0 +1,577 @@
+---
+title: Creating HTTP Routes
+description: Define GET, POST, and other HTTP endpoints with createRouter()
+---
+
+Routes define how your application responds to HTTP requests. Built on [Hono](https://hono.dev), the router provides a familiar Express-like API with full TypeScript support.
+
+<Callout type="info" title="Routes Location">
+All routes live in `src/api/`. Import agents you need and call them directly.
+</Callout>
+
+## Basic Routes
+
+Create routes using `createRouter()`:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/', async (c) => {
+  return c.json({ status: 'healthy' });
+});
+
+router.post('/process', async (c) => {
+  const body = await c.req.json();
+  return c.json({ received: body });
+});
+
+export default router;
+```
+
+<Callout type="info" title="Automatic Response Conversion">
+Return values are automatically converted: `string` → text response, `object` → JSON, `ReadableStream` → streamed response. You can also use explicit methods (`c.json()`, `c.text()`) for more control.
+</Callout>
+
+## HTTP Methods
+
+The router supports all standard HTTP methods:
+
+```typescript
+router.get('/items', handler);        // Read
+router.post('/items', handler);       // Create
+router.put('/items/:id', handler);    // Replace
+router.patch('/items/:id', handler);  // Update
+router.delete('/items/:id', handler); // Delete
+```
+
+## Route Parameters
+
+Capture URL segments with `:paramName`:
+
+```typescript
+router.get('/users/:id', async (c) => {
+  const userId = c.req.param('id');
+  return c.json({ userId });
+});
+
+router.get('/posts/:year/:month/:slug', async (c) => {
+  const { year, month, slug } = c.req.param();
+  return c.json({ year, month, slug });
+});
+```
+
+### Wildcard Parameters
+
+For paths with variable depth, use regex patterns:
+
+```typescript
+router.get('/files/:bucket/:key{.*}', async (c) => {
+  const bucket = c.req.param('bucket');
+  const key = c.req.param('key'); // Captures "path/to/file.txt"
+  return c.json({ bucket, key });
+});
+// GET /files/uploads/images/photo.jpg → { bucket: "uploads", key: "images/photo.jpg" }
+```
+
+## Query Parameters
+
+Access query strings with `c.req.query()`:
+
+```typescript
+router.get('/search', async (c) => {
+  const query = c.req.query('q');
+  const page = c.req.query('page') || '1';
+  const limit = c.req.query('limit') || '10';
+
+  return c.json({ query, page, limit });
+});
+// GET /search?q=hello&page=2 → { query: "hello", page: "2", limit: "10" }
+```
+
+## Calling Agents
+
+Import and call agents directly. To create agents, see [Creating Agents](/agents/creating-agents).
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import assistant from '@agent/assistant';
+
+const router = createRouter();
+
+router.post('/chat', async (c) => {
+  const { message } = await c.req.json();
+  const response = await assistant.run({ message });
+  return c.json(response);
+});
+
+export default router;
+```
+
+For background processing, use `c.waitUntil()`:
+
+```typescript
+import webhookProcessor from '@agent/webhook-processor';
+
+router.post('/webhook', async (c) => {
+  const payload = await c.req.json();
+
+  // Process in background, respond immediately
+  c.waitUntil(async () => {
+    await webhookProcessor.run(payload);
+  });
+
+  return c.json({ status: 'accepted' });
+});
+```
+
+## Request Validation
+
+Two validators are available depending on your use case:
+
+| Validator | Import | Use Case |
+|-----------|--------|----------|
+| `agent.validator()` | From agent instance | Routes that call an agent |
+| `validator()` | `@agentuity/runtime` | Standalone routes (no agent) |
+
+### With Agents
+
+Use `agent.validator()` when your route calls an agent:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import userCreator from '@agent/user-creator';
+
+const router = createRouter();
+
+// Validates using agent's input schema
+router.post('/users', userCreator.validator(), async (c) => {
+  const data = c.req.valid('json'); // Fully typed from agent schema
+  const user = await userCreator.run(data);
+  return c.json(user);
+});
+
+export default router;
+```
+
+For custom validation (different from the agent's schema), pass a schema override:
+
+```typescript
+import { type } from 'arktype';
+import userCreator from '@agent/user-creator';
+
+router.post('/custom',
+  userCreator.validator({ input: type({ email: 'string.email' }) }),
+  async (c) => {
+    const data = c.req.valid('json'); // Typed as { email: string }
+    return c.json(data);
+  }
+);
+```
+
+<Callout type="info" title="Validator Overloads">
+`agent.validator()` supports three signatures:
+- `agent.validator()` — Uses agent's input/output schemas
+- `agent.validator({ output: schema })` — Output-only validation (GET-compatible)
+- `agent.validator({ input: schema, output?: schema })` — Custom schemas
+</Callout>
+
+### Standalone Validation
+
+For routes that don't use an agent, import `validator` directly from `@agentuity/runtime`:
+
+```typescript
+import { createRouter, validator } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const router = createRouter();
+
+const createUserSchema = s.object({
+  name: s.string(),
+  email: s.string(),
+  age: s.number(),
+});
+
+router.post('/',
+  validator({ input: createUserSchema }),
+  async (c) => {
+    const data = c.req.valid('json');
+    // data is fully typed: { name: string, email: string, age: number }
+    return c.json({ success: true, user: data });
+  }
+);
+
+export default router;
+```
+
+The standalone validator auto-detects the HTTP method:
+- **GET**: Validates query parameters via `c.req.valid('query')`
+- **POST/PUT/PATCH/DELETE**: Validates JSON body via `c.req.valid('json')`
+
+```typescript
+import { createRouter, validator } from '@agentuity/runtime';
+import * as v from 'valibot';
+
+const router = createRouter();
+
+// GET route: validates query parameters
+const searchSchema = v.object({
+  q: v.string(),
+  limit: v.optional(v.number()),
+});
+
+router.get('/search',
+  validator({ input: searchSchema }),
+  async (c) => {
+    const { q, limit } = c.req.valid('query'); // GET uses query params
+    return c.json({ results: [], query: q, limit });
+  }
+);
+
+export default router;
+```
+
+#### Output Validation
+
+Add output validation to ensure your responses match the expected schema:
+
+```typescript
+import { createRouter, validator } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const router = createRouter();
+
+const userInputSchema = z.object({
+  name: z.string(),
+  email: z.string().email(),
+});
+
+const userOutputSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  createdAt: z.string(),
+});
+
+router.post('/users',
+  validator({ input: userInputSchema, output: userOutputSchema }),
+  async (c) => {
+    const data = c.req.valid('json');
+    const user = {
+      id: crypto.randomUUID(),
+      ...data,
+      createdAt: new Date().toISOString(),
+    };
+    return c.json(user); // Validated against output schema
+  }
+);
+
+export default router;
+```
+
+<Callout type="info" title="Schema Libraries">
+Both validators work with any [Standard Schema](https://standardschema.dev/) library: `@agentuity/schema`, Zod, Valibot, or ArkType. Choose based on your needs: `@agentuity/schema` for zero dependencies, Zod for `.describe()` support with AI SDK, Valibot for minimal bundle size.
+</Callout>
+
+<Callout type="warning" title="Import from @agentuity/runtime">
+Import `validator` from `@agentuity/runtime`, not from `hono/validator`. If you use Hono's validator directly, TypeScript won't know your types and `c.req.valid('json')` will show as `never`.
+
+```typescript
+// Types work
+import { validator } from '@agentuity/runtime';
+
+// Types show as 'never'
+import { validator } from 'hono/validator';
+```
+</Callout>
+
+## Request Context
+
+The context object (`c`) provides access to request data and Agentuity services:
+
+**Request data:**
+```typescript
+await c.req.json();        // Parse JSON body
+await c.req.text();        // Get raw text body
+c.req.param('id');         // Route parameter
+c.req.query('page');       // Query string
+c.req.header('Authorization'); // Request header
+```
+
+**Responses:**
+```typescript
+c.json({ data });          // JSON response
+c.text('OK');              // Plain text
+c.html('<h1>Hello</h1>');  // HTML response
+c.redirect('/other');      // Redirect
+```
+
+**Agentuity services:**
+```typescript
+// Import agents at the top of your file
+import myAgent from '@agent/my-agent';
+await myAgent.run(input);     // Call an agent
+
+c.var.kv.get('bucket', 'key');       // Key-value storage
+c.var.vector.search('ns', opts);     // Vector search
+c.var.stream.create('name', opts);   // Durable streams
+c.var.logger.info('message');        // Logging
+c.var.sandbox.run({ ... });          // Code execution sandbox
+```
+
+**Thread and session (for stateful routes):**
+```typescript
+c.var.thread.id;                     // Thread ID (persists across requests)
+c.var.session.id;                    // Session ID (unique per request)
+await c.var.thread.state.get('key'); // Thread state
+c.var.session.state.get('key');      // Session state
+await c.var.thread.getMetadata();    // Thread metadata
+```
+
+<Callout type="tip" title="Exposing Storage to External Backends">
+Routes can serve as a bridge between external backends (Next.js, Express) and Agentuity storage services. Create authenticated routes that expose KV, Vector, or Stream operations. See [SDK Utilities for External Apps](/cookbook/patterns/server-utilities).
+</Callout>
+
+## Best Practices
+
+### Validate input
+
+Always validate request bodies, especially for public endpoints:
+
+```typescript
+// With an agent
+router.post('/api', agent.validator(), async (c) => {
+  const data = c.req.valid('json');
+  // data is guaranteed valid and fully typed
+});
+
+// Without an agent
+router.post('/api', validator({ input: schema }), async (c) => {
+  const data = c.req.valid('json');
+  // data is guaranteed valid and fully typed
+});
+```
+
+### Use structured logging
+
+Use `c.var.logger` instead of `console.log` for searchable, traceable logs:
+
+```typescript
+c.var.logger.info('Request processed', { userId, duration: Date.now() - start });
+c.var.logger.error('Processing failed', { error: err.message });
+```
+
+### Order routes correctly
+
+Register specific routes before generic ones:
+
+```typescript
+// Correct: specific before generic
+router.get('/users/me', getCurrentUser);
+router.get('/users/:id', getUserById);
+
+// Wrong: :id matches "me" first
+router.get('/users/:id', getUserById);
+router.get('/users/me', getCurrentUser); // Never reached
+```
+
+### Use middleware for cross-cutting concerns
+
+Apply middleware to all routes with `router.use()`:
+
+```typescript
+router.use(loggingMiddleware);
+router.use(authMiddleware);
+
+router.get('/protected', handler); // Both middlewares apply
+```
+
+For authentication patterns, rate limiting, and more, see [Middleware](/routes/middleware).
+
+### Handle errors gracefully
+
+Return appropriate status codes when things go wrong:
+
+```typescript
+import processor from '@agent/processor';
+
+router.post('/process', async (c) => {
+  try {
+    const body = await c.req.json();
+    const result = await processor.run(body);
+    return c.json(result);
+  } catch (error) {
+    c.var.logger.error('Processing failed', { error });
+    return c.json({ error: 'Processing failed' }, 500);
+  }
+});
+```
+
+## Streaming Responses
+
+Use the `stream()` middleware to return a `ReadableStream` directly to the client without buffering:
+
+```typescript
+import { createRouter, stream } from '@agentuity/runtime';
+import chatAgent from '@agent/chat';
+
+const router = createRouter();
+
+router.post('/chat', stream(async (c) => {
+  const body = await c.req.json();
+  return chatAgent.run(body); // Returns a ReadableStream
+}));
+
+export default router;
+```
+
+### Creating Custom Streams
+
+Return any `ReadableStream` for custom streaming:
+
+```typescript
+import { createRouter, stream } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/events', stream((c) => {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue('data: event 1\n\n');
+      controller.enqueue('data: event 2\n\n');
+      controller.close();
+    }
+  });
+}));
+
+export default router;
+```
+
+### With Middleware
+
+Stream routes support middleware:
+
+```typescript
+import { createRouter, stream } from '@agentuity/runtime';
+import streamAgent from '@agent/stream';
+
+const router = createRouter();
+
+router.post('/protected', authMiddleware, stream(async (c) => {
+  return streamAgent.run({ userId: c.var.userId });
+}));
+
+export default router;
+```
+
+### Stream vs SSE vs WebSocket
+
+| Type | Direction | Format | Use Case |
+|------|-----------|--------|----------|
+| `stream()` | Server → Client | Raw bytes | LLM responses, file downloads |
+| `sse()` | Server → Client | SSE events | Progress updates, notifications |
+| `websocket()` | Bidirectional | Messages | Chat, collaboration |
+
+Use `stream()` middleware for raw streaming (like AI SDK `textStream`). Use `sse()` middleware when you need named events or auto-reconnection. See [Streaming Responses](/agents/streaming-responses) for the full guide on streaming agents.
+
+## Routes Without Agents
+
+Not every route needs an agent. Use routes directly for CRUD APIs, webhook handlers, health checks, and proxy endpoints.
+
+### KV-Backed API
+
+```typescript
+import { createRouter, validator } from '@agentuity/runtime';
+import * as v from 'valibot';
+
+const router = createRouter();
+
+const itemSchema = v.object({
+  name: v.string(),
+  value: v.number(),
+});
+
+router.get('/items/:key', async (c) => {
+  const key = c.req.param('key');
+  const result = await c.var.kv.get('items', key);
+
+  if (!result.exists) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  return c.json({ data: result.data });
+});
+
+router.post('/items/:key',
+  validator({ input: itemSchema }),
+  async (c) => {
+    const key = c.req.param('key');
+    const data = c.req.valid('json');
+
+    await c.var.kv.set('items', key, data);
+    c.var.logger.info('Item created', { key });
+
+    return c.json({ success: true, key }, 201);
+  }
+);
+
+router.delete('/items/:key', async (c) => {
+  const key = c.req.param('key');
+  await c.var.kv.delete('items', key);
+
+  return c.json({ success: true });
+});
+
+export default router;
+```
+
+### Webhook Handler
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.post('/webhooks/stripe', async (c) => {
+  const signature = c.req.header('stripe-signature');
+  const payload = await c.req.text();
+
+  // Verify webhook signature
+  if (!verifyStripeSignature(payload, signature)) {
+    c.var.logger.warn('Invalid webhook signature');
+    return c.json({ error: 'Invalid signature' }, 401);
+  }
+
+  const event = JSON.parse(payload);
+
+  // Store event for processing
+  await c.var.kv.set('webhooks', event.id, {
+    type: event.type,
+    data: event.data,
+    receivedAt: new Date().toISOString(),
+  });
+
+  c.var.logger.info('Webhook received', {
+    eventId: event.id,
+    type: event.type,
+  });
+
+  return c.json({ received: true });
+});
+
+export default router;
+```
+
+<Callout type="tip" title="When to Use Agents">
+Use agents when you need LLM orchestration, complex schemas, streaming AI responses, or multi-step workflows. Use pure routes for simple CRUD, webhooks, or data proxying.
+</Callout>
+
+## Next Steps
+
+- [Middleware](/routes/middleware): Authentication, rate limiting, logging
+- [Scheduled Jobs (Cron)](/routes/cron): Run tasks on a schedule
+- [WebSockets](/routes/websockets): Real-time bidirectional communication
+- [Server-Sent Events](/routes/sse): Stream updates to clients
+- [Creating Agents](/agents/creating-agents): Build agents to call from routes
+- [Calling Other Agents](/agents/calling-other-agents): Multi-agent orchestration patterns

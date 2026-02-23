@@ -5,9 +5,12 @@
  * It is included in `src/index.html`.
  */
 
-import './app.css';
+import './index.css';
+
 import { StrictMode } from 'react';
 import { hydrateRoot, createRoot } from 'react-dom/client';
+import { AgentuityProvider } from '@agentuity/react';
+import { ThemeProvider } from './components/ThemeContext';
 import { App } from './App';
 
 const elem = document.getElementById('root');
@@ -17,7 +20,11 @@ if (!elem) {
 
 const app = (
 	<StrictMode>
-		<App />
+		<ThemeProvider>
+			<AgentuityProvider>
+				<App />
+			</AgentuityProvider>
+		</ThemeProvider>
 	</StrictMode>
 );
 

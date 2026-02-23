@@ -1,0 +1,17 @@
+{
+  "title": "CLI",
+  "pages": [
+    "getting-started",
+    "development",
+    "build-configuration",
+    "deployment",
+    "git-integration",
+    "storage",
+    "sandbox",
+    "configuration",
+    "debugging",
+    "ai-commands",
+    "claude-code-plugin",
+    "opencode-plugin"
+  ]
+}
