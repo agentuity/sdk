@@ -72,6 +72,7 @@ async function fetchDNSRecord(name: string, type: string): Promise<string | null
 	const params = new URLSearchParams();
 	params.set('name', name);
 	params.set('type', type);
+	params.set('_', Date.now().toString());
 	const res = await fetch(`https://cloudflare-dns.com/dns-query?${params.toString()}`, {
 		headers: {
 			Accept: 'application/dns-json',
