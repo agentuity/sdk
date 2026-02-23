@@ -30,7 +30,7 @@ function createTeeWritable(chunks: Buffer[], ...userStreams: (Writable | undefin
 	// Pipe to all provided user streams with proper backpressure handling
 	for (const userStream of userStreams) {
 		if (userStream) {
-			tee.pipe(userStream);
+			tee.pipe(userStream, { end: false });
 		}
 	}
 
@@ -180,26 +180,34 @@ export async function sandboxRun(
 
 		if (streamPromises.length > 0) {
 			if (signal) {
-				// Race streams against abort signal
-				await Promise.race([
-					Promise.allSettled(streamPromises),
-					new Promise<never>((_, reject) => {
-						const onAbort = () => {
-							abortController.abort();
-							reject(
-								new ExecutionCancelledError({
-									message: 'Sandbox execution cancelled',
-									sandboxId,
-								})
-							);
-						};
-						if (signal.aborted) {
-							onAbort();
-						} else {
-							signal.addEventListener('abort', onAbort, { once: true });
-						}
-					}),
-				]);
+				// Race streams against abort signal, cleaning up the listener
+				// in all cases so an orphaned reject cannot fire after settlement.
+				let onAbort: (() => void) | undefined;
+				try {
+					await Promise.race([
+						Promise.allSettled(streamPromises),
+						new Promise<never>((_, reject) => {
+							onAbort = () => {
+								abortController.abort();
+								reject(
+									new ExecutionCancelledError({
+										message: 'Sandbox execution cancelled',
+										sandboxId,
+									})
+								);
+							};
+							if (signal.aborted) {
+								onAbort();
+							} else {
+								signal.addEventListener('abort', onAbort, { once: true });
+							}
+						}),
+					]);
+				} finally {
+					if (onAbort && signal) {
+						signal.removeEventListener('abort', onAbort);
+					}
+				}
 			} else {
 				await Promise.allSettled(streamPromises);
 			}
