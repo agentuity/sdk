@@ -3,7 +3,6 @@ export {
 	type WebSocketConnection,
 	type WebSocketHandler,
 	WS_DONE_PROMISE_KEY,
-	IS_WEBSOCKET_RESPONSE_KEY,
 } from './websocket';
 export {
 	sse,

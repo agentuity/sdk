@@ -348,6 +348,7 @@ export function createOtelMiddleware() {
 					const thread = await threadProvider.restore(c);
 					const session = await sessionProvider.restore(thread, sessionId);
 					const handler = new WaitUntilHandler(tracer);
+					const isWsUpgrade = c.req.header('upgrade')?.toLowerCase() === 'websocket';
 
 					c.set('sessionId', sessionId);
 					c.set('thread', thread);
@@ -358,7 +359,7 @@ export function createOtelMiddleware() {
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('agentIds', agentIds);
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(c as any).set('trigger', c.req.header('upgrade')?.toLowerCase() === 'websocket' ? 'websocket' : 'api');
+					(c as any).set('trigger', isWsUpgrade ? 'websocket' : 'api');
 
 					// Send session start event (so evalruns can reference this session)
 					// The provider decides whether to send based on available data (orgId, projectId, etc.)
@@ -413,7 +414,7 @@ export function createOtelMiddleware() {
 								projectId: projectId || '',
 								deploymentId: deploymentId || undefined,
 								devmode: isDevMode,
-								trigger: c.req.header('upgrade')?.toLowerCase() === 'websocket' ? 'websocket' : 'api',
+								trigger: isWsUpgrade ? 'websocket' : 'api',
 								routeId,
 								environment: runtimeConfig.getEnvironment(),
 								url: c.req.path,
@@ -511,7 +512,6 @@ export function createOtelMiddleware() {
 						const wsDone = (c as any).get(WS_DONE_PROMISE_KEY) as
 							| Promise<void>
 							| undefined;
-						
 
 						// Check if Hono caught an error (c.error is set by Hono's error handler)
 						// or if the response status indicates an error

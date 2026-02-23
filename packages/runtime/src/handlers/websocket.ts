@@ -121,14 +121,12 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 				resolveDone = resolve;
 			});
 
-			// Prevent unhandled rejection warnings
+			// Defensive: guard against future code adding rejection paths
 			donePromise.catch(() => {});
 
 			// Set on context so middleware defers session finalization until WS closes
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			(c as any).set(WS_DONE_PROMISE_KEY, donePromise);
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(c as any).set(IS_WEBSOCKET_RESPONSE_KEY, true);
 		}
 
 		const wsConnection: WebSocketConnection = {
