@@ -11,12 +11,6 @@ import type { Env } from '../app';
 export const WS_DONE_PROMISE_KEY = '_wsDonePromise';
 
 /**
- * Context key to mark a response as a WebSocket upgrade.
- * Used by middleware to detect WebSocket responses.
- */
-export const IS_WEBSOCKET_RESPONSE_KEY = '_isWebSocketResponse';
-
-/**
  * WebSocket connection interface for handling WebSocket events.
  */
 export interface WebSocketConnection {
