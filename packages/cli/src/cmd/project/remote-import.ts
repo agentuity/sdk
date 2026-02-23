@@ -10,6 +10,13 @@ import { getDefaultBranch, isGitAvailable } from '../../git-helper';
 import { fetchRegionsWithCache } from '../../regions';
 import * as tui from '../../tui';
 import type { AuthData, Config } from '../../types';
+import {
+	checkGithubRepo,
+	createGithubRepo,
+	getGithubBotIdentity,
+	getGithubToken,
+	linkProjectToRepo,
+} from '../git/api';
 import { initGitRepo } from './download';
 
 export interface RemoteImportOptions {
@@ -18,6 +25,7 @@ export interface RemoteImportOptions {
 	projectId?: string;
 	repo?: string;
 	name?: string;
+	org?: string;
 	apiClient: APIClient;
 	auth: AuthData;
 	config: Config;
@@ -243,7 +251,8 @@ async function createProjectNonInteractive(
 	config: Config,
 	logger: Logger,
 	name: string,
-	region?: string
+	region?: string,
+	orgOverride?: string
 ): Promise<{ id: string; sdkKey: string; orgId: string; region: string }> {
 	// Fetch orgs — use the first one in non-interactive mode
 	const orgs = await listOrganizations(apiClient);
@@ -256,7 +265,7 @@ async function createProjectNonInteractive(
 		throw new Error('No organizations found for your account.');
 	}
 
-	const orgId = config.preferences?.orgId ?? firstOrg.id;
+	const orgId = orgOverride ?? config.preferences?.orgId ?? firstOrg.id;
 
 	// Determine region
 	let selectedRegion = region;
@@ -364,9 +373,71 @@ async function createProjectInteractive(
 }
 
 /**
+ * Parse a repo URL or "owner/name" string into owner and name components.
+ * Supports:
+ *   - https://github.com/owner/repo
+ *   - https://github.com/owner/repo.git
+ *   - owner/repo
+ */
+function parseRepoTarget(repo: string): { owner: string; name: string } {
+	// Try as a URL first
+	try {
+		const parsed = new URL(repo);
+		if (parsed.hostname === 'github.com') {
+			const parts = parsed.pathname.replace(/^\//, '').replace(/\/$/, '').split('/');
+			if (parts.length >= 2 && parts[0] && parts[1]) {
+				return { owner: parts[0], name: parts[1].replace(/\.git$/, '') };
+			}
+		}
+	} catch {
+		// Not a URL — try "owner/name" format
+	}
+
+	const parts = repo.split('/');
+	if (parts.length === 2 && parts[0] && parts[1]) {
+		return { owner: parts[0], name: parts[1].replace(/\.git$/, '') };
+	}
+
+	throw new Error(
+		`Invalid repo target: "${repo}". Expected a GitHub URL (https://github.com/owner/repo) or owner/repo format.`
+	);
+}
+
+/**
+ * Create a GitHub repo via the API. Preflight check already verified it doesn't exist.
+ * Returns the HTTPS URL of the repo.
+ */
+async function createGithubRepoForImport(
+	apiClient: APIClient,
+	repo: string,
+	_logger: Logger
+): Promise<string> {
+	const { owner, name } = parseRepoTarget(repo);
+
+	const createResult = await tui.spinner({
+		message: `Creating repository ${owner}/${name}...`,
+		clearOnSuccess: true,
+		callback: () =>
+			createGithubRepo(apiClient, {
+				name,
+				owner,
+				private: true,
+			}),
+	});
+
+	tui.success(`Created repository ${createResult.fullName}`);
+	return createResult.url;
+}
+
+/**
  * Push the working directory to a remote git repository.
  */
-async function pushToRepo(dest: string, repoUrl: string, logger: Logger): Promise<void> {
+async function pushToRepo(
+	dest: string,
+	repoUrl: string,
+	apiClient: APIClient,
+	logger: Logger
+): Promise<void> {
 	const gitAvailable = await isGitAvailable();
 	if (!gitAvailable) {
 		tui.warning('Git is not available — skipping git push.');
@@ -375,22 +446,23 @@ async function pushToRepo(dest: string, repoUrl: string, logger: Logger): Promis
 
 	const defaultBranch = (await getDefaultBranch()) || 'main';
 
-	// Determine the actual remote URL, rewriting for token auth if available
+	// Get GitHub token from Agentuity API (uses stored OAuth token)
 	let remoteUrl = repoUrl;
-	const githubToken = process.env.GITHUB_TOKEN;
-	if (githubToken) {
-		try {
-			const parsed = new URL(repoUrl);
-			if (parsed.hostname === 'github.com') {
-				remoteUrl = `https://x-access-token:${githubToken}@github.com${parsed.pathname}`;
-				if (!remoteUrl.endsWith('.git')) {
-					remoteUrl += '.git';
-				}
+	try {
+		const { token } = await getGithubToken(apiClient);
+		const parsed = new URL(repoUrl);
+		if (parsed.hostname === 'github.com') {
+			remoteUrl = `https://x-access-token:${token}@github.com${parsed.pathname}`;
+			if (!remoteUrl.endsWith('.git')) {
+				remoteUrl += '.git';
 			}
-		} catch {
-			// If URL parsing fails, use as-is
-			logger.debug('[remote-import] Could not parse repo URL for token rewrite: %s', repoUrl);
 		}
+	} catch (err) {
+		logger.debug(
+			'[remote-import] Could not get GitHub token from API, trying without auth: %o',
+			err
+		);
+		// Fall through — push will likely fail for private repos but may work for public
 	}
 
 	await tui.spinner({
@@ -467,7 +539,26 @@ async function runDeploy(dest: string, logger: Logger): Promise<void> {
  * Run the remote import flow: download from GitHub, set up project, optionally push and deploy.
  */
 export async function runRemoteImport(options: RemoteImportOptions): Promise<void> {
-	const { url, deploy, projectId, repo, name, apiClient, auth, config, logger } = options;
+	const { url, deploy, projectId, repo, name, org, apiClient, auth, config, logger } = options;
+
+	// Safety check: refuse to run inside an existing git repo
+	try {
+		const result = Bun.spawnSync(['git', 'rev-parse', '--is-inside-work-tree'], {
+			cwd: process.cwd(),
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+		if (result.exitCode === 0 && result.stdout.toString().trim() === 'true') {
+			tui.fatal(
+				'Cannot run remote import inside an existing git repository. Please run from an empty directory.'
+			);
+		}
+	} catch (err) {
+		// If it's our error, rethrow. Otherwise git isn't found or we're not in a repo — that's fine.
+		if (err instanceof Error && err.message.includes('Cannot run remote import')) {
+			throw err;
+		}
+	}
 
 	// 1. Parse GitHub URL (async — may query GitHub API for default branch)
 	const parsed = await parseGitHubUrl(url);
@@ -478,6 +569,32 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		parsed.branch,
 		parsed.directory ?? '(root)'
 	);
+
+	// ── Preflight checks (all before any mutations) ──
+
+	// Check: target directory doesn't already exist
+	const projectDirName = name ?? parsed.repo;
+	const dest = join(process.cwd(), projectDirName);
+	if (existsSync(dest)) {
+		tui.fatal(`Directory "${projectDirName}" already exists. Choose a different name with --name.`);
+	}
+
+	// Check: target GitHub repo doesn't already exist
+	if (repo) {
+		const { owner: repoOwner, name: repoName } = parseRepoTarget(repo);
+		const checkResult = await tui.spinner({
+			message: `Checking repository ${repoOwner}/${repoName}...`,
+			clearOnSuccess: true,
+			callback: () => checkGithubRepo(apiClient, { owner: repoOwner, name: repoName }),
+		});
+		if (checkResult.exists) {
+			tui.fatal(
+				`Repository ${repoOwner}/${repoName} already exists. Use a different name or delete the existing repo first.`
+			);
+		}
+	}
+
+	// ── All checks passed — start doing work ──
 
 	// 2. Download and extract template source
 	let tempDir: string | undefined;
@@ -503,21 +620,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			tui.info('Found agentuity.yaml in template.');
 		}
 
-		// 4. Copy extracted content to working directory (current directory)
-		const dest = process.cwd();
-
-		await tui.spinner({
-			message: 'Copying project files...',
-			clearOnSuccess: true,
-			callback: async () => {
-				const entries = readdirSync(sourceDir);
-				for (const entry of entries) {
-					cpSync(join(sourceDir, entry), join(dest, entry), { recursive: true });
-				}
-			},
-		});
-
-		// 5. Project setup
+		// 4. Project setup
 		let projectInfo: { id: string; sdkKey: string; orgId: string; region: string };
 
 		if (projectId) {
@@ -538,20 +641,33 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 
 			projectInfo = { id: projectId, sdkKey, orgId, region };
 			tui.info(`Using pre-created project: ${projectId}`);
+		} else if (name) {
+			// --name provided: create non-interactively (headless-friendly)
+			projectInfo = await createProjectNonInteractive(
+				apiClient,
+				config,
+				logger,
+				name,
+				undefined,
+				org
+			);
 		} else if (isTTY()) {
 			// Interactive mode: prompt for org/region/name
-			const defaultName = name ?? parsed.repo;
-			projectInfo = await createProjectInteractive(apiClient, config, logger, defaultName);
-		} else if (name) {
-			// Non-interactive with --name: create via API
-			projectInfo = await createProjectNonInteractive(apiClient, config, logger, name);
+			projectInfo = await createProjectInteractive(apiClient, config, logger, parsed.repo);
 		} else {
 			// Non-interactive without --name: use repo name
-			projectInfo = await createProjectNonInteractive(apiClient, config, logger, parsed.repo);
+			projectInfo = await createProjectNonInteractive(
+				apiClient,
+				config,
+				logger,
+				parsed.repo,
+				undefined,
+				org
+			);
 		}
 
-		// Write agentuity.json and .env
-		await createProjectConfig(dest, {
+		// Write agentuity.json and .env to sourceDir so git commit includes them
+		await createProjectConfig(sourceDir, {
 			projectId: projectInfo.id,
 			orgId: projectInfo.orgId,
 			sdkKey: projectInfo.sdkKey,
@@ -559,14 +675,86 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		});
 		tui.success('Created agentuity.json');
 
-		// 6. Git init + push (if --repo flag provided)
-		if (repo) {
-			// Initialize git repo (handles init + first commit)
-			await initGitRepo(dest);
-
-			// Push to remote
-			await pushToRepo(dest, repo, logger);
+		// Update package.json name to match the project name
+		const pkgJsonPath = join(sourceDir, 'package.json');
+		if (existsSync(pkgJsonPath)) {
+			try {
+				const pkgRaw = await Bun.file(pkgJsonPath).text();
+				const pkg = JSON.parse(pkgRaw);
+				pkg.name = projectDirName;
+				await Bun.write(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n');
+				logger.debug('[remote-import] Updated package.json name to %s', projectDirName);
+			} catch (err) {
+				logger.debug('[remote-import] Could not update package.json name: %o', err);
+			}
 		}
+
+		// Fetch GitHub App bot identity for commit authorship
+		let botAuthor: { name: string; email: string } | undefined;
+		try {
+			botAuthor = await getGithubBotIdentity(apiClient);
+		} catch {
+			logger.debug('[remote-import] Could not fetch bot identity, using fallback');
+		}
+
+		// 5. Git init + push (if --repo flag provided) — in sourceDir, not CWD
+		if (repo) {
+			// Create the repo (we already verified it doesn't exist in preflight)
+			const repoUrl = await createGithubRepoForImport(apiClient, repo, logger);
+
+			// Initialize git repo in sourceDir (handles init + first commit)
+			await initGitRepo(sourceDir, {
+				projectName: projectDirName,
+				source: `github.com/${parsed.owner}/${parsed.repo}`,
+				author: botAuthor,
+			});
+
+			// Push to remote from sourceDir
+			await pushToRepo(sourceDir, repoUrl, apiClient, logger);
+			tui.success(`GitHub repo: ${repoUrl}`);
+
+			// Link the repo to the Agentuity project (enables auto-deploy + preview deploys)
+			try {
+				await linkProjectToRepo(apiClient, {
+					projectId: projectInfo.id,
+					repoFullName: repo,
+					branch: parsed.branch ?? 'main',
+					autoDeploy: true,
+					previewDeploy: true,
+					directory: parsed.directory,
+				});
+				tui.success('Linked repo to project');
+			} catch (err) {
+				logger.debug('[remote-import] Failed to link repo to project: %o', err);
+				tui.warning('Could not link repo to project — you can link manually with `agentuity link`');
+			}
+		}
+
+		// 6. Copy extracted content into project folder (already validated in preflight)
+		await tui.spinner({
+			message: 'Copying project files...',
+			clearOnSuccess: true,
+			callback: async () => {
+				mkdirSync(dest, { recursive: true });
+				const entries = readdirSync(sourceDir);
+				for (const entry of entries) {
+					cpSync(join(sourceDir, entry), join(dest, entry), { recursive: true });
+				}
+			},
+		});
+
+		// Reset git remote to clean URL (pushToRepo may have embedded a token)
+		if (repo) {
+			const { owner, name: repoName } = parseRepoTarget(repo);
+			const cleanUrl = `https://github.com/${owner}/${repoName}.git`;
+			Bun.spawnSync(['git', 'remote', 'set-url', 'origin', cleanUrl], {
+				cwd: dest,
+				stdout: 'pipe',
+				stderr: 'pipe',
+			});
+		}
+
+		tui.success(`Project created in ./${projectDirName}`);
 
 		// 7. Deploy (if --deploy flag)
 		if (deploy) {

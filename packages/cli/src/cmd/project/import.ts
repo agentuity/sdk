@@ -39,7 +39,7 @@ export const importSubcommand = createSubcommand({
 		},
 	],
 	requires: { auth: true, apiClient: true },
-	optional: { region: true },
+	optional: { region: true, org: true },
 	schema: {
 		args: z.tuple([z.string().optional().describe('GitHub URL to import from')]),
 		options: z.object({
@@ -60,7 +60,7 @@ export const importSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, auth, apiClient, config, logger } = ctx;
+		const { args, opts, auth, apiClient, config, logger, orgId } = ctx;
 
 		if (!config) {
 			tui.fatal('Configuration not loaded. Please try again.', ErrorCode.CONFIG_INVALID);
@@ -75,6 +75,7 @@ export const importSubcommand = createSubcommand({
 				projectId: opts.projectId,
 				repo: opts.repo,
 				name: opts.name,
+				org: orgId,
 				apiClient,
 				auth,
 				config,

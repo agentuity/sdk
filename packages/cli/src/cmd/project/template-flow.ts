@@ -1,43 +1,44 @@
-import { basename, resolve } from 'node:path';
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { cwd } from 'node:process';
 import { homedir } from 'node:os';
+import { basename, resolve } from 'node:path';
+import { cwd } from 'node:process';
+import type { Logger } from '@agentuity/core';
 import {
-	projectCreate,
-	projectExists,
-	listResources,
-	projectEnvUpdate,
-	getServiceUrls,
-	APIClient as ServerAPIClient,
 	createResources,
+	getServiceUrls,
+	listResources,
+	projectCreate,
+	projectEnvUpdate,
+	projectExists,
+	APIClient as ServerAPIClient,
 	validateDatabaseName,
 } from '@agentuity/server';
-import type { Logger } from '@agentuity/core';
-import * as tui from '../../tui';
-import { createPrompt, note } from '../../tui';
-import { playSound } from '../../sound';
-import { fetchTemplates, type TemplateInfo } from './templates';
-import { downloadTemplate, setupProject, initGitRepo } from './download';
-import { type AuthData, type Config } from '../../types';
-import { ErrorCode } from '../../errors';
 import type { APIClient } from '../../api';
 import { createProjectConfig } from '../../config';
-import {
-	findExistingEnvFile,
-	readEnvFile,
-	filterAgentuitySdkKeys,
-	splitEnvAndSecrets,
-	addResourceEnvVars,
-	type EnvVars,
-} from '../../env-util';
 import { promptForDNS } from '../../domain';
 import {
+	addResourceEnvVars,
+	type EnvVars,
+	filterAgentuitySdkKeys,
+	findExistingEnvFile,
+	readEnvFile,
+	splitEnvAndSecrets,
+} from '../../env-util';
+import { ErrorCode } from '../../errors';
+import { playSound } from '../../sound';
+import * as tui from '../../tui';
+import { createPrompt, note } from '../../tui';
+import type { AuthData, Config } from '../../types';
+import { getGithubBotIdentity } from '../git/api';
+import {
 	ensureAuthDependencies,
-	runAuthMigrations,
 	generateAuthFileContent,
-	printIntegrationExamples,
 	generateAuthSchemaSql,
+	printIntegrationExamples,
+	runAuthMigrations,
 } from './auth/shared';
+import { downloadTemplate, initGitRepo, setupProject } from './download';
+import { fetchTemplates, type TemplateInfo } from './templates';
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -725,8 +726,22 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
+	// Fetch GitHub App bot identity for commit authorship (if authenticated)
+	let botAuthor: { name: string; email: string } | undefined;
+	if (apiClient) {
+		try {
+			botAuthor = await getGithubBotIdentity(apiClient);
+		} catch {
+			// Non-fatal: fall back to generic Agentuity author
+		}
+	}
+
 	// Initialize git repository after all files are generated
-	await initGitRepo(dest);
+	await initGitRepo(dest, {
+		projectName,
+		source: `template: ${selectedTemplate.name}`,
+		author: botAuthor,
+	});
 
 	// Show completion message
 	if (isInteractive) {

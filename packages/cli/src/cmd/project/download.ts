@@ -1,22 +1,22 @@
-import { join, resolve } from 'node:path';
 import {
+	cpSync,
+	createReadStream,
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
-	renameSync,
 	readdirSync,
-	cpSync,
+	renameSync,
 	rmSync,
-	createReadStream,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { finished } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
+import { type Logger, StructuredError } from '@agentuity/core';
 import { extract, type Headers } from 'tar-fs';
-import { StructuredError, type Logger } from '@agentuity/core';
-import * as tui from '../../tui';
-import { downloadWithSpinner } from '../../download';
 import { writeAgentsDocs } from '../../agents-docs';
+import { downloadWithSpinner } from '../../download';
+import * as tui from '../../tui';
 import type { TemplateInfo } from './templates';
 
 const GITHUB_BRANCH = 'main';
@@ -122,7 +122,7 @@ async function _cleanup(sourceDir: string, dest: string) {
 		});
 	}
 
-	await tui.spinner(`📦 Copying template files...`, async () => {
+	await tui.spinner('📦 Copying template files...', async () => {
 		// Copy all files from source to dest
 		const files = readdirSync(sourceDir);
 		for (const file of files) {
@@ -396,7 +396,29 @@ export async function setupProject(options: SetupOptions): Promise<{ success: bo
 	return { success: !hasError };
 }
 
-export async function initGitRepo(dest: string): Promise<void> {
+interface InitGitRepoOptions {
+	/** Project name (e.g. "My Agent") */
+	projectName?: string;
+	/** Where the template came from (e.g. "github.com/owner/repo" or "TypeScript / Hello World") */
+	source?: string;
+	/** Git commit author (e.g. { name: "app-slug[bot]", email: "id+slug[bot]@users.noreply.github.com" }) */
+	author?: { name: string; email: string };
+}
+
+export async function initGitRepo(dest: string, options?: InitGitRepoOptions): Promise<void> {
+	// Safety: refuse to init if .git already exists (prevents clobbering existing repos)
+	if (existsSync(join(dest, '.git'))) {
+		throw new Error(`Refusing to initialize git: "${dest}" already contains a .git directory.`);
+	}
+
+	// Safety: sanity check file count — templates shouldn't have hundreds of files
+	const files = readdirSync(dest, { recursive: true });
+	if (files.length > 500) {
+		throw new Error(
+			`Refusing to initialize git: "${dest}" contains ${files.length} files — this doesn't look like a template. Aborting to prevent accidentally committing a large directory.`
+		);
+	}
+
 	// Initialize git repository if git is available
 	// Check for real git (not macOS stub that triggers Xcode CLT popup)
 	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper');
@@ -414,19 +436,22 @@ export async function initGitRepo(dest: string): Promise<void> {
 			clearOnSuccess: true,
 		});
 
-		// Configure git user in CI environments (where git config may not be set)
-		if (process.env.CI) {
+		// Configure git user in CI/sandbox environments (where git config may not be set)
+		if (process.env.CI || process.env.AGENTUITY_SANDBOX_ID) {
+			const cfgEmail = options?.author?.email ?? 'bot@agentuity.com';
+			const cfgName = options?.author?.name ?? 'Agentuity';
+
 			await tui.runCommand({
 				command: 'git config user.email',
 				cwd: dest,
-				cmd: ['git', 'config', 'user.email', 'agentuity@example.com'],
+				cmd: ['git', 'config', 'user.email', cfgEmail],
 				clearOnSuccess: true,
 			});
 
 			await tui.runCommand({
 				command: 'git config user.name',
 				cwd: dest,
-				cmd: ['git', 'config', 'user.name', 'Agentuity'],
+				cmd: ['git', 'config', 'user.name', cfgName],
 				clearOnSuccess: true,
 			});
 		}
@@ -439,11 +464,42 @@ export async function initGitRepo(dest: string): Promise<void> {
 			clearOnSuccess: true,
 		});
 
-		// Create initial commit (disable GPG signing to avoid lock issues)
+		// Build commit message with project context
+		const lines = ['Initial project setup'];
+		if (options?.projectName || options?.source) {
+			lines.push(''); // blank line before body
+			if (options.projectName) {
+				lines.push(`Project: ${options.projectName}`);
+			}
+			if (options.source) {
+				lines.push(`Source: ${options.source}`);
+			}
+		}
+		lines.push('', 'Created with Agentuity CLI');
+		const commitMessage = lines.join('\n');
+
+		// Create initial commit — authored by the GitHub App bot if available,
+		// otherwise fallback to generic Agentuity identity
+		const authorName = options?.author?.name ?? 'Agentuity';
+		const authorEmail = options?.author?.email ?? 'bot@agentuity.com';
+		const authorStr = `${authorName} <${authorEmail}>`;
+
 		await tui.runCommand({
-			command: 'git commit -m "Initial Setup"',
+			command: 'git commit',
 			cwd: dest,
-			cmd: ['git', '-c', 'commit.gpgsign=false', 'commit', '-m', 'Initial Setup'],
+			cmd: [
+				'git',
+				'-c',
+				'commit.gpgsign=false',
+				'commit',
+				`--author=${authorStr}`,
+				'-m',
+				commitMessage,
+			],
+			env: {
+				GIT_COMMITTER_NAME: authorName,
+				GIT_COMMITTER_EMAIL: authorEmail,
+			},
 			clearOnSuccess: true,
 		});
 	}

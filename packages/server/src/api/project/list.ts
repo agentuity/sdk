@@ -5,7 +5,7 @@ import { ProjectResponseError } from './util';
 export const ProjectListItemSchema = z.object({
 	id: z.string().describe('the project id'),
 	name: z.string().describe('the project name'),
-	description: z.string().optional().describe('the project description'),
+	description: z.string().nullable().optional().describe('the project description'),
 	orgId: z.string().describe('the organization id that this project is registered with'),
 	orgName: z.string().describe('the organization name'),
 	cloudRegion: z.string().nullable().optional().describe('the cloud region'),
