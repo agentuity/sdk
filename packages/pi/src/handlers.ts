@@ -1,17 +1,23 @@
 import type { HubAction } from './protocol.ts';
 
-// The ctx parameter is typed as `any` since we don't want a hard dependency on pi-coding-agent types at runtime
-// The extension entry point passes the real ExtensionContext
-
 export interface ActionResult {
 	block?: { block: true; reason: string };
 	returnValue?: unknown;
 	// undefined means ACK (proceed normally)
 }
 
+/** Minimal UI surface used by action handlers — avoids a hard dep on pi-coding-agent. */
+interface ActionContext {
+	ui?: {
+		notify(message: string, level?: 'info' | 'warning' | 'error'): void;
+		confirm(title: string, message: string): Promise<boolean>;
+		setStatus(key: string, text?: string): void;
+	};
+}
+
 export async function processActions(
 	actions: HubAction[],
-	ctx: any,
+	ctx: ActionContext,
 ): Promise<ActionResult> {
 	let result: ActionResult = {};
 
@@ -61,6 +67,16 @@ export async function processActions(
 							},
 						};
 					}
+				} else {
+					// No UI available — block by default for safety
+					result = {
+						block: {
+							block: true,
+							reason:
+								action.deny_reason ??
+								'Confirmation required but no UI available',
+						},
+					};
 				}
 				break;
 			}

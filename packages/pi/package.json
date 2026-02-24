@@ -25,10 +25,10 @@
 		"@sinclair/typebox": "*"
 	},
 	"devDependencies": {
-		"@mariozechner/pi-coding-agent": "latest",
-		"@sinclair/typebox": "latest",
-		"@types/bun": "latest",
-		"bun-types": "latest",
+		"@mariozechner/pi-coding-agent": "^0.54.2",
+		"@sinclair/typebox": "^0.34.48",
+		"@types/bun": "^1.3.9",
+		"bun-types": "^1.3.9",
 		"typescript": "^5.9.0"
 	},
 	"publishConfig": {

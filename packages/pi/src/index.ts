@@ -1,8 +1,10 @@
 import type {
+	AgentToolResult,
 	ExtensionAPI,
 	ExtensionContext,
 	ExtensionCommandContext,
 } from '@mariozechner/pi-coding-agent';
+import type { TSchema } from '@sinclair/typebox';
 import { HubClient } from './client.ts';
 import { processActions } from './handlers.ts';
 import type { HubResponse, InitMessage } from './protocol.ts';
@@ -46,7 +48,7 @@ function log(msg: string): void {
 	console.error(`[agentuity-pi] ${msg}`);
 }
 
-export default function agentuityCoderHub(pi: ExtensionAPI) {
+export function agentuityCoderHub(pi: ExtensionAPI) {
 	const hubUrl = process.env[HUB_URL_ENV];
 
 	// No-op if not configured
@@ -57,11 +59,10 @@ export default function agentuityCoderHub(pi: ExtensionAPI) {
 	log(`Hub URL: ${hubUrl}`);
 
 	const client = new HubClient();
-	let connected = false;
 
 	// Connect to the Hub and register tools/commands
 	async function connectAndRegister(): Promise<void> {
-		if (connected) return;
+		if (client.connected) return;
 
 		log('Connecting to Hub...');
 		let initMsg: InitMessage;
@@ -77,7 +78,6 @@ export default function agentuityCoderHub(pi: ExtensionAPI) {
 		log(
 			`Connected. Init: ${initMsg.tools?.length ?? 0} tools, ${initMsg.commands?.length ?? 0} commands`,
 		);
-		connected = true;
 
 		// Register tools from Hub
 		if (initMsg.tools) {
@@ -87,7 +87,7 @@ export default function agentuityCoderHub(pi: ExtensionAPI) {
 					name: toolDef.name,
 					label: toolDef.label,
 					description: toolDef.description,
-					parameters: toolDef.parameters as any,
+					parameters: toolDef.parameters as unknown as TSchema,
 					async execute(
 						toolCallId: string,
 						params: unknown,
@@ -124,8 +124,8 @@ export default function agentuityCoderHub(pi: ExtensionAPI) {
 							ctx,
 						);
 
-						if (result.returnValue) {
-							return result.returnValue as any;
+						if (result.returnValue !== undefined) {
+							return result.returnValue as AgentToolResult<unknown>;
 						}
 
 						return {
@@ -226,17 +226,17 @@ export default function agentuityCoderHub(pi: ExtensionAPI) {
 	const onEvent = pi.on.bind(pi) as GenericEventHandler;
 
 	// ── session_start: connect + register BEFORE Pi builds the tool list ──
-	onEvent('session_start', async (_event: unknown, ctx: ExtensionContext) => {
+	onEvent('session_start', async (event: unknown, ctx: ExtensionContext) => {
 		await connectAndRegister();
 
-		if (connected) {
-			return sendEvent('session_start', {}, ctx);
+		if (client.connected) {
+			return sendEvent('session_start', serializeEvent(event), ctx);
 		}
 	});
 
 	for (const eventName of PROXY_EVENTS) {
 		onEvent(eventName, async (event: unknown, ctx: ExtensionContext) => {
-			if (!connected) return undefined;
+			if (!client.connected) return undefined;
 			return sendEvent(eventName, serializeEvent(event), ctx);
 		});
 	}
@@ -247,3 +247,5 @@ export default function agentuityCoderHub(pi: ExtensionAPI) {
 		client.close();
 	});
 }
+
+export default agentuityCoderHub;
