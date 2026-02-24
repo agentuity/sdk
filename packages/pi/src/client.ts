@@ -48,10 +48,6 @@ export class HubClient {
 				}
 			}, CONNECT_TIMEOUT_MS);
 
-			this.ws.onopen = () => {
-				// Wait for init message
-			};
-
 			this.ws.onmessage = (event: MessageEvent) => {
 				let data: Record<string, unknown>;
 				try {
