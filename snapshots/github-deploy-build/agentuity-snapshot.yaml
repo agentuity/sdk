@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json
+# GitHub Deploy Build Snapshot - pre-installed unzip and curl for webhook deployments
+# For documentation, see: https://agentuity.dev/Services/Sandbox
+
+version: 1
+runtime: bun:1
+name: github-deploy-build
+description: Pre-built sandbox image for GitHub webhook deployments with unzip and curl
+public: true
+
+dependencies:
+  - unzip
+  - curl
