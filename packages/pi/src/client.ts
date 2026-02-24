@@ -3,6 +3,9 @@ import type { InitMessage, HubRequest, HubResponse } from './protocol.ts';
 /** How long to wait for a response before rejecting the pending promise (ms). */
 const SEND_TIMEOUT_MS = 30_000;
 
+/** How long to wait for the init message after connecting (ms). */
+const CONNECT_TIMEOUT_MS = 30_000;
+
 export class HubClient {
 	private ws: WebSocket | null = null;
 	private pending = new Map<
@@ -38,6 +41,13 @@ export class HubClient {
 			// Guard against duplicate init messages re-invoking the resolve
 			let initResolved = false;
 
+			const connectTimer = setTimeout(() => {
+				if (!initResolved) {
+					reject(new Error(`Hub did not send init message within ${CONNECT_TIMEOUT_MS}ms`));
+					this.ws?.close();
+				}
+			}, CONNECT_TIMEOUT_MS);
+
 			this.ws.onopen = () => {
 				// Wait for init message
 			};
@@ -60,6 +70,7 @@ export class HubClient {
 				// First message should be init
 				if (data.type === 'init' && !initResolved) {
 					initResolved = true;
+					clearTimeout(connectTimer);
 					resolve(data as unknown as InitMessage);
 					return;
 				}
@@ -81,10 +92,12 @@ export class HubClient {
 					typeof (err as ErrorEvent).message === 'string'
 						? (err as ErrorEvent).message
 						: `connection to ${wsUrl} failed`;
+				clearTimeout(connectTimer);
 				reject(new Error(`WebSocket error: ${message}`));
 			};
 
 			this.ws.onclose = () => {
+				clearTimeout(connectTimer);
 				// Reject connect() promise if init was never received
 				if (!initResolved) {
 					reject(new Error('WebSocket closed before init message received'));
