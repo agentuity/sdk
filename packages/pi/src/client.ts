@@ -80,6 +80,10 @@ export class HubClient {
 			};
 
 			this.ws.onclose = () => {
+				// Reject connect() promise if init was never received
+				if (!initResolved) {
+					reject(new Error('WebSocket closed before init message received'));
+				}
 				// Reject all pending requests
 				for (const [id, entry] of this.pending) {
 					clearTimeout(entry.timer);
