@@ -13,8 +13,6 @@ export class HubClient {
 			timer: ReturnType<typeof setTimeout>;
 		}
 	>();
-	private messageId = 0;
-
 	async connect(url: string): Promise<InitMessage> {
 		return new Promise((resolve, reject) => {
 			// Ensure ws:// or wss:// protocol — upgrade http(s) URLs automatically
@@ -94,7 +92,7 @@ export class HubClient {
 	}
 
 	nextId(): string {
-		return String(++this.messageId);
+		return crypto.randomUUID();
 	}
 
 	async send(request: HubRequest): Promise<HubResponse> {
