@@ -2,6 +2,24 @@ import { VECTOR_STORE_NAME } from '../../config';
 import { processDoc } from './docs-processor';
 import type { SyncPayload, SyncStats } from './types';
 
+async function processInBatches<T, R>(
+	items: T[],
+	batchSize: number,
+	fn: (item: T) => Promise<R>,
+	onBatchDone?: (batchIndex: number, batchSize: number, elapsedMs: number) => void
+): Promise<R[]> {
+	const results: R[] = [];
+	let batchIndex = 0;
+	for (let i = 0; i < items.length; i += batchSize) {
+		const batch = items.slice(i, i + batchSize);
+		const batchStart = Date.now();
+		results.push(...(await Promise.all(batch.map(fn))));
+		onBatchDone?.(batchIndex, batch.length, Date.now() - batchStart);
+		batchIndex++;
+	}
+	return results;
+}
+
 /**
  * Helper to remove all vectors for a given logical path from the vector store.
  */
@@ -10,7 +28,7 @@ async function removeVectorsByPath(
 	logicalPath: string,
 	vectorStoreName: string
 ) {
-	ctx.logger.info('Removing vectors for path: %s', logicalPath);
+	ctx.logger.debug('Removing vectors for path: %s', logicalPath);
 
 	let totalDeleted = 0;
 
@@ -30,7 +48,7 @@ async function removeVectorsByPath(
 		const deletedCount = await ctx.vector.delete(vectorStoreName, ...keys);
 		totalDeleted += deletedCount;
 
-		ctx.logger.info(
+		ctx.logger.debug(
 			'Deleted %d vectors (total: %d) for path: %s',
 			deletedCount,
 			totalDeleted,
@@ -39,13 +57,13 @@ async function removeVectorsByPath(
 	}
 
 	if (totalDeleted > 0) {
-		ctx.logger.info(
+		ctx.logger.debug(
 			'Completed removal of %d vectors for path: %s',
 			totalDeleted,
 			logicalPath
 		);
 	} else {
-		ctx.logger.info('No vectors found for path: %s', logicalPath);
+		ctx.logger.debug('No vectors found for path: %s', logicalPath);
 	}
 }
 
@@ -62,22 +80,42 @@ export async function syncDocsFromPayload(
 	let errors = 0;
 
 	const errorFiles: string[] = [];
+	const syncStart = Date.now();
 
-	// Process removed files
-	for (const logicalPath of removed) {
+	// Process removed files (batch size 10)
+	const removeStart = Date.now();
+	const removeResults = await processInBatches(removed, 10, async (logicalPath) => {
 		try {
 			await removeVectorsByPath(ctx, logicalPath, VECTOR_STORE_NAME);
-			deleted++;
-			ctx.logger.info('Successfully removed file: %s', logicalPath);
+			ctx.logger.debug('Successfully removed file: %s', logicalPath);
+			return { success: true as const };
 		} catch (err) {
-			errors++;
-			errorFiles.push(logicalPath);
 			ctx.logger.error('Error deleting file %s: %o', logicalPath, err);
+			return { success: false as const, path: logicalPath };
+		}
+	});
+
+	for (const result of removeResults) {
+		if (result.success) {
+			deleted++;
+		} else {
+			errors++;
+			errorFiles.push(result.path);
 		}
 	}
+	const removeElapsed = Date.now() - removeStart;
+	ctx.logger.info(
+		'Removal phase: %d files in %dms (%d deleted, %d errors)',
+		removed.length,
+		removeElapsed,
+		deleted,
+		errors
+	);
 
-	// Process changed files with embedded content
-	for (const file of changed) {
+	// Process changed files with embedded content (batch size 5)
+	const changeStart = Date.now();
+	const totalBatches = Math.ceil(changed.length / 5);
+	const changeResults = await processInBatches(changed, 5, async (file) => {
 		try {
 			const { path: logicalPath, content: base64Content } = file;
 
@@ -117,28 +155,71 @@ export async function syncDocsFromPayload(
 					VECTOR_STORE_NAME,
 					...chunksWithMetadata
 				);
-				ctx.logger.info(
+				ctx.logger.debug(
 					'Upserted %d chunks for file: %s',
 					upsertResults.length,
 					logicalPath
 				);
 			}
 
-			processed++;
-			ctx.logger.info(
+			ctx.logger.debug(
 				'Successfully processed file: %s (%d chunks)',
 				logicalPath,
 				chunks.length
 			);
+			return { success: true as const };
 		} catch (err) {
-			errors++;
-			errorFiles.push(file.path);
 			ctx.logger.error('Error processing file %s: %o', file.path, err);
+			return { success: false as const, path: file.path };
+		}
+	}, (batchIndex, size, elapsedMs) => {
+		ctx.logger.info(
+			'Changed batch %d/%d (%d files) completed in %dms',
+			batchIndex + 1,
+			totalBatches,
+			size,
+			elapsedMs
+		);
+	});
+	const changeElapsed = Date.now() - changeStart;
+	ctx.logger.info(
+		'Changed phase: %d files in %dms',
+		changed.length,
+		changeElapsed
+	);
+
+	for (const result of changeResults) {
+		if (result.success) {
+			processed++;
+		} else {
+			errors++;
+			errorFiles.push(result.path);
 		}
 	}
 
+	const totalElapsed = Date.now() - syncStart;
 	const stats = { processed, deleted, errors, errorFiles };
-	ctx.logger.info('Sync completed: %o', stats);
+	ctx.logger.info('Sync completed in %dms: %o', totalElapsed, stats);
+
+	try {
+		const storeStats = await ctx.vector.getStats(VECTOR_STORE_NAME);
+		ctx.logger.info(
+			'Vector store "%s" post-sync: %d vectors, %d bytes',
+			VECTOR_STORE_NAME,
+			storeStats.count,
+			storeStats.sum
+		);
+		if (storeStats.count === 0 && processed > 0) {
+			ctx.logger.error(
+				'Vector store "%s" is empty after processing %d files. Possible capacity or eviction issue.',
+				VECTOR_STORE_NAME,
+				processed
+			);
+		}
+	} catch (statsErr) {
+		ctx.logger.error('Failed to retrieve vector store stats: %o', statsErr);
+	}
+
 	return stats;
 }
 

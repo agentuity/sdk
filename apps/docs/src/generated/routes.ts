@@ -4,7 +4,6 @@ import type textProcessorAgent from '../agent/text-processor/agent.js';
 import type chatAgent from '../agent/chat/agent.js';
 import type docQAAgent from '../agent/doc_qa/index.js';
 import type helloAgent from '../agent/hello/agent.js';
-import type docProcessingAgent from '../agent/doc_processing/index.js';
 import type { AgentPulseRequestSchema as AgentPulseRequestSchema_0 } from '../api/agent-pulse/route';
 import type { SessionSchema as SessionSchema_1 } from '../types/chat';
 import type { AddMessageSchema as AddMessageSchema_2 } from '../api/sessions/route';
@@ -114,26 +113,6 @@ export type POSTApiHelloInputSchema = typeof helloAgent extends { inputSchema?: 
  * Output schema type for route: POST /api/hello
  */
 export type POSTApiHelloOutputSchema = typeof helloAgent extends { outputSchema?: infer O } ? O : never;
-
-/**
- * Input type for route: POST /api/process-docs
- */
-export type POSTApiProcessDocsInput = InferInput<typeof docProcessingAgent['inputSchema']>;
-
-/**
- * Output type for route: POST /api/process-docs
- */
-export type POSTApiProcessDocsOutput = InferOutput<typeof docProcessingAgent['outputSchema']>;
-
-/**
- * Input schema type for route: POST /api/process-docs
- */
-export type POSTApiProcessDocsInputSchema = typeof docProcessingAgent extends { inputSchema?: infer I } ? I : never;
-
-/**
- * Output schema type for route: POST /api/process-docs
- */
-export type POSTApiProcessDocsOutputSchema = typeof docProcessingAgent extends { outputSchema?: infer O } ? O : never;
 
 /**
  * Input type for route: POST /api/sessions
@@ -452,9 +431,9 @@ declare module '@agentuity/frontend' {
 				params: never;
 			};
 	'POST /api/process-docs': {
-				inputSchema: POSTApiProcessDocsInputSchema;
-				outputSchema: POSTApiProcessDocsOutputSchema;
-				stream: typeof docProcessingAgent extends { stream?: infer S } ? S : false;
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
 				params: never;
 			};
 	'GET /api/sessions': {
@@ -820,7 +799,7 @@ declare module '@agentuity/frontend' {
 			/**
 			 * Route: POST /api/process-docs
 			 */
-			post: { input: POSTApiProcessDocsInput; output: POSTApiProcessDocsOutput; type: 'api'; params: never; paramsTuple: [] };
+			post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
 		sandbox: {
 			run: {
@@ -1140,9 +1119,9 @@ declare module '@agentuity/react' {
 				params: never;
 			};
 	'POST /api/process-docs': {
-				inputSchema: POSTApiProcessDocsInputSchema;
-				outputSchema: POSTApiProcessDocsOutputSchema;
-				stream: typeof docProcessingAgent extends { stream?: infer S } ? S : false;
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
 				params: never;
 			};
 	'GET /api/sessions': {
@@ -1489,7 +1468,7 @@ declare module '@agentuity/react' {
 			/**
 			 * Route: POST /api/process-docs
 			 */
-			post: { input: POSTApiProcessDocsInput; output: POSTApiProcessDocsOutput; type: 'api'; params: never; paramsTuple: [] };
+			post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
 		sandbox: {
 			run: {

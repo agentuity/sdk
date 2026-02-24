@@ -39,6 +39,7 @@ async function createVectorEmbedding(
 			key: chunk.id,
 			embeddings: embeddings[index],
 			metadata,
+			ttl: null, // doc vectors are managed by the sync pipeline, never auto-expire
 		};
 	});
 }

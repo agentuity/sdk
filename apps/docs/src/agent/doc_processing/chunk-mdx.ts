@@ -52,70 +52,26 @@ export function detectContentType(textChunk: string): string {
 	return 'text';
 }
 
-export function createContentAwareSplitter(contentType: string) {
-	if (contentType === 'frontmatter') {
-		return new RecursiveCharacterTextSplitter({
-			chunkSize: 2000,
-			chunkOverlap: 0,
-			separators: ['\n---\n'],
-		});
-	} if (contentType === 'code_block') {
-		return new RecursiveCharacterTextSplitter({
-			chunkSize: 800,
-			chunkOverlap: 100,
-			separators: ['\n```\n', '\n\n', '\n'],
-		});
-	} if (contentType === 'header_section') {
-		return new RecursiveCharacterTextSplitter({
-			chunkSize: 1200,
-			chunkOverlap: 150,
-			separators: ['\n## ', '\n### ', '\n#### ', '\n\n', '\n'],
-		});
-	} if (contentType === 'table') {
-		return new RecursiveCharacterTextSplitter({
-			chunkSize: 1500,
-			chunkOverlap: 0,
-			separators: ['\n\n'],
-		});
-	} if (contentType === 'list') {
-		return new RecursiveCharacterTextSplitter({
-			chunkSize: 800,
-			chunkOverlap: 100,
-			separators: ['\n\n', '\n- ', '\n* ', '\n+ '],
-		});
-	}
-	return new RecursiveCharacterTextSplitter({
-		chunkSize: 1000,
-		chunkOverlap: 200,
-		separators: ['\n\n', '\n', ' '],
-	});
-}
-
 export async function hybridChunkDocument(doc: Document) {
-	const initialSplitter = new RecursiveCharacterTextSplitter({
-		chunkSize: 2000,
-		chunkOverlap: 100,
+	const splitter = new RecursiveCharacterTextSplitter({
+		chunkSize: 3000,
+		chunkOverlap: 200,
 		separators: ['\n## ', '\n### ', '\n\n', '\n'],
 	});
-	const initialChunks = await initialSplitter.splitDocuments([doc]);
-	const finalChunks: any[] = [];
-	for (const chunk of initialChunks) {
-		const contentType = detectContentType(chunk.pageContent);
-		const contentSplitter = createContentAwareSplitter(contentType);
-		const refinedChunks = await contentSplitter.splitDocuments([chunk]);
-		for (const refinedChunk of refinedChunks) {
-			refinedChunk.metadata = refinedChunk.metadata || {};
-			refinedChunk.metadata.contentType = contentType;
-		}
-		finalChunks.push(...refinedChunks);
+	const chunks = await splitter.splitDocuments([doc]);
+
+	for (const chunk of chunks) {
+		chunk.metadata = chunk.metadata || {};
+		chunk.metadata.contentType = detectContentType(chunk.pageContent);
 	}
-	return finalChunks;
+
+	return chunks;
 }
 
 /**
  * Chunks and enriches a single MDX doc with metadata.
  * - Parses and removes frontmatter
- * - Chunks markdown (by heading, content type, etc.)
+ * - Chunks markdown with heading-aware splitting at 3000 chars
  * - Enriches each chunk with: id, chunkIndex, contentType, heading, breadcrumbs, all frontmatter fields
  * @param fileContent Raw file content (with frontmatter)
  * @returns Array of enriched chunk objects (no keywords or embeddings yet)
@@ -131,8 +87,7 @@ export async function chunkAndEnrichDoc(fileContent: string): Promise<Chunk[]> {
 			chunk.metadata.contentType === 'header' ||
 			chunk.metadata.contentType === 'header_section'
 		) {
-			currentHeading = chunk.pageContent
-				.split('\n')[0]
+			currentHeading = (chunk.pageContent?.split('\n')[0] ?? '')
 				.replace(/^#+\s*/, '')
 				.trim();
 		}

@@ -42,6 +42,7 @@ fi
 echo "Payload size: $(wc -c < "$TEMP_FILE") bytes" >&2
 
 # Build curl command using temporary file
+# --max-time 60: the endpoint returns 202 immediately, so 60s is generous
 curl_args=(
     -X POST
     -H "Content-Type: application/json"
@@ -49,6 +50,7 @@ curl_args=(
     --fail
     --show-error
     --silent
+    --max-time 60
 )
 
 # Add auth header if provided
