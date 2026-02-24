@@ -17,7 +17,7 @@ async function expandPathGroup(
 		chunkIndex?: number;
 	}>
 ): Promise<RelevantDoc | null> {
-	const contextWindow = 0; // 3000-char chunks already contain sufficient context
+	const contextWindow = 1; // Get 1 chunk before and after for context
 	const expandedChunkIndices = new Set<number>();
 
 	// Add neighbors for each chunk to the set
