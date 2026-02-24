@@ -39,6 +39,7 @@ export const checkSubcommand = createSubcommand({
 					domain: z.string(),
 					recordType: z.string(),
 					target: z.string(),
+					aRecordTarget: z.string().optional(),
 					status: z.string(),
 					success: z.boolean(),
 				})
@@ -69,11 +70,17 @@ export const checkSubcommand = createSubcommand({
 		}
 
 		const results = jsonMode
-			? await checkCustomDomainForDNS(project.projectId, domainsToCheck, config)
+			? await checkCustomDomainForDNS(project.projectId, domainsToCheck, project.region, config)
 			: await tui.spinner({
 					message: `Checking DNS for ${domainsToCheck.length} ${tui.plural(domainsToCheck.length, 'domain', 'domains')}`,
 					clearOnSuccess: true,
-					callback: () => checkCustomDomainForDNS(project.projectId, domainsToCheck, config),
+					callback: () =>
+						checkCustomDomainForDNS(
+							project.projectId,
+							domainsToCheck,
+							project.region,
+							config
+						),
 				});
 
 		const domainResults = results.map((r) => {
@@ -106,6 +113,7 @@ export const checkSubcommand = createSubcommand({
 				domain: r.domain,
 				recordType: r.recordType,
 				target: r.target,
+				aRecordTarget: r.aRecordTarget,
 				status,
 				statusRaw,
 				success,
@@ -116,8 +124,10 @@ export const checkSubcommand = createSubcommand({
 			tui.newline();
 			for (const r of domainResults) {
 				console.log(`  ${tui.colorInfo('Domain:')}  ${tui.colorPrimary(r.domain)}`);
-				console.log(`  ${tui.colorInfo('Type:')}    ${tui.colorPrimary(r.recordType)}`);
-				console.log(`  ${tui.colorInfo('Target:')}  ${tui.colorPrimary(r.target)}`);
+				console.log(`  ${tui.colorInfo('CNAME:')}   ${tui.colorPrimary(r.target)}`);
+				if (r.aRecordTarget) {
+					console.log(`  ${tui.colorInfo('A:')}       ${tui.colorPrimary(r.aRecordTarget)}`);
+				}
 				console.log(`  ${tui.colorInfo('Status:')}  ${r.status}`);
 				console.log();
 			}
@@ -128,7 +138,7 @@ export const checkSubcommand = createSubcommand({
 			} else {
 				const failCount = domainResults.filter((r) => !r.success).length;
 				tui.warning(
-					`${failCount} ${tui.plural(failCount, 'domain has', 'domains have')} DNS issues — add a CNAME record pointing to the target shown above`
+					`${failCount} ${tui.plural(failCount, 'domain has', 'domains have')} DNS issues — add a CNAME or A record pointing to one of the targets shown above`
 				);
 			}
 		}
@@ -138,6 +148,7 @@ export const checkSubcommand = createSubcommand({
 				domain: r.domain,
 				recordType: r.recordType,
 				target: r.target,
+				aRecordTarget: r.aRecordTarget,
 				status: r.statusRaw,
 				success: r.success,
 			})),

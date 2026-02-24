@@ -553,6 +553,7 @@ export const deploySubcommand = createSubcommand({
 											await domain.promptForDNS(
 												project.projectId,
 												project.deployment.domains,
+												project.region,
 												config!,
 												() => pauseStepUI(true)
 											);
