@@ -14,6 +14,11 @@ export class HubClient {
 		}
 	>();
 	async connect(url: string): Promise<InitMessage> {
+		// Guard against overlapping connections — old socket handlers would corrupt shared state
+		if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
+			throw new Error('Already connected or connecting — call close() first');
+		}
+
 		return new Promise((resolve, reject) => {
 			// Ensure ws:// or wss:// protocol — upgrade http(s) URLs automatically
 			let wsUrl = url;
