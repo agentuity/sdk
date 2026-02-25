@@ -8,6 +8,7 @@ import {
 	type VectorStorage,
 	type SandboxService,
 	type QueueService,
+	type EmailService,
 } from '@agentuity/core';
 import type { AuthInterface } from '@agentuity/auth';
 import type {
@@ -56,6 +57,7 @@ export class RequestAgentContext<
 	vector!: VectorStorage;
 	sandbox!: SandboxService;
 	queue!: QueueService;
+	email!: EmailService;
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;

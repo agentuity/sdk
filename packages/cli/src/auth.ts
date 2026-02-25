@@ -27,6 +27,11 @@ const RESOURCE_PREFIXES: Array<{ prefix: string; type: ResourceType }> = [
 	{ prefix: 'vec_', type: 'vector' },
 	{ prefix: 'kv_', type: 'kv' },
 	{ prefix: 'stream_', type: 'stream' },
+	{ prefix: 'eaddr_', type: 'email' },
+	{ prefix: 'edest_', type: 'email' },
+	{ prefix: 'ein_', type: 'email' },
+	{ prefix: 'eout_', type: 'email' },
+	{ prefix: 'edlv_', type: 'email' },
 ];
 
 function getResourceTypeFromId(id: string): ResourceType | undefined {

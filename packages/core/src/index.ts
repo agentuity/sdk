@@ -98,6 +98,16 @@ export {
 	QueueValidationError,
 } from './services/queue.ts';
 export {
+	type EmailAddress,
+	type EmailDestination,
+	type EmailInbound,
+	type EmailOutbound,
+	type EmailAttachment,
+	type EmailSendParams,
+	type EmailService,
+	EmailStorageService,
+} from './services/email.ts';
+export {
 	type EvalRunEventProvider,
 	EvalRunStartEventSchema,
 	EvalRunCompleteEventSchema,

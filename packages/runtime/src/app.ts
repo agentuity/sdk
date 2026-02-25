@@ -12,6 +12,7 @@ import type {
 	VectorStorage,
 	SandboxService,
 	QueueService,
+	EmailService,
 	SessionStartEvent,
 } from '@agentuity/core';
 
@@ -229,6 +230,7 @@ export interface Variables<TAppState = Record<string, never>> {
 	vector: VectorStorage;
 	sandbox: SandboxService;
 	queue: QueueService;
+	email: EmailService;
 	app: TAppState;
 	// Web analytics context (set by createWebSessionMiddleware, thread-only tracking)
 	_webThreadId?: string;
