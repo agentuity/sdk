@@ -58,7 +58,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List tasks with optional filtering and sorting',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, region: true },
+	requires: { auth: true },
 	optional: { project: true },
 	idempotent: true,
 	pagination: {
@@ -87,10 +87,7 @@ export const listSubcommand = createCommand({
 	],
 	schema: {
 		options: z.object({
-			status: z
-				.enum(['open', 'in_progress', 'closed'])
-				.optional()
-				.describe('filter by status'),
+			status: z.enum(['open', 'in_progress', 'closed']).optional().describe('filter by status'),
 			type: z
 				.enum(['epic', 'feature', 'enhancement', 'bug', 'task'])
 				.optional()
@@ -125,7 +122,7 @@ export const listSubcommand = createCommand({
 	async handler(ctx) {
 		const { opts, options } = ctx;
 		const started = Date.now();
-		const storage = createStorageAdapter(ctx);
+		const storage = await createStorageAdapter(ctx);
 
 		const result = await storage.list({
 			status: opts.status as TaskStatus | undefined,

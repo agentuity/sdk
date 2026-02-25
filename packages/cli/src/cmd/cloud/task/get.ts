@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
+import { createStorageAdapter, cacheTaskId } from './util';
 import { getCommand } from '../../../command-prefix';
 
 const TaskGetResponseSchema = z.object({
@@ -33,7 +33,7 @@ export const getSubcommand = createCommand({
 	description: 'Get details of a task by ID',
 	tags: ['read-only', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, region: true },
+	requires: { auth: true },
 	optional: { project: true },
 	examples: [
 		{
@@ -55,7 +55,7 @@ export const getSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, options } = ctx;
 		const started = Date.now();
-		const storage = createStorageAdapter(ctx);
+		const storage = await createStorageAdapter(ctx);
 
 		const task = await storage.get(args.id);
 		const durationMs = Date.now() - started;
@@ -63,6 +63,8 @@ export const getSubcommand = createCommand({
 		if (!task) {
 			tui.fatal(`Task not found: ${args.id}`);
 		}
+
+		await cacheTaskId(ctx, task.id);
 
 		if (!options.json) {
 			const tableData: Record<string, string> = {

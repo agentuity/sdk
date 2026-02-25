@@ -22,10 +22,7 @@ const TaskTitleRequiredError = StructuredError(
 
 const TaskNotFoundError = StructuredError('TaskNotFoundError', 'Task not found');
 
-const TaskAlreadyClosedError = StructuredError(
-	'TaskAlreadyClosedError',
-	'Task is already closed'
-);
+const TaskAlreadyClosedError = StructuredError('TaskAlreadyClosedError', 'Task is already closed');
 
 type TaskRow = {
 	id: string;

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter, parseMetadataFlag } from './util';
+import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util';
 import { getCommand } from '../../../command-prefix';
 import type { TaskPriority, TaskStatus, TaskType } from '@agentuity/core';
 
@@ -23,7 +23,7 @@ export const updateSubcommand = createCommand({
 	aliases: ['edit'],
 	description: 'Update an existing task',
 	tags: ['mutating', 'slow', 'requires-auth'],
-	requires: { auth: true, region: true },
+	requires: { auth: true },
 	optional: { project: true },
 	examples: [
 		{
@@ -56,10 +56,7 @@ export const updateSubcommand = createCommand({
 				.enum(['epic', 'feature', 'enhancement', 'bug', 'task'])
 				.optional()
 				.describe('new task type'),
-			status: z
-				.enum(['open', 'in_progress', 'closed'])
-				.optional()
-				.describe('new task status'),
+			status: z.enum(['open', 'in_progress', 'closed']).optional().describe('new task status'),
 			assignedId: z.string().optional().describe('new assigned agent or user ID'),
 			parentId: z.string().optional().describe('new parent task ID'),
 			closedId: z.string().optional().describe('ID of the closer (agent or user)'),
@@ -71,7 +68,7 @@ export const updateSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
 		const started = Date.now();
-		const storage = createStorageAdapter(ctx);
+		const storage = await createStorageAdapter(ctx);
 
 		const metadata = parseMetadataFlag(opts.metadata);
 
@@ -92,6 +89,7 @@ export const updateSubcommand = createCommand({
 
 		const task = await storage.update(args.id, params);
 		const durationMs = Date.now() - started;
+		await cacheTaskId(ctx, task.id);
 
 		if (!options.json) {
 			tui.success(`Task updated: ${tui.bold(task.id)}`);

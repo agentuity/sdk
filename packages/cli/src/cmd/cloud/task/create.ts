@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter, parseMetadataFlag } from './util';
+import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util';
 import { getCommand } from '../../../command-prefix';
 import type { TaskPriority, TaskStatus, TaskType } from '@agentuity/core';
 
@@ -23,13 +23,11 @@ export const createSubcommand = createCommand({
 	aliases: ['new', 'add'],
 	description: 'Create a new task',
 	tags: ['mutating', 'slow', 'requires-auth'],
-	requires: { auth: true, region: true },
+	requires: { auth: true },
 	optional: { project: true },
 	examples: [
 		{
-			command: getCommand(
-				'cloud task create "Fix login bug" --type bug --created-id agent_001'
-			),
+			command: getCommand('cloud task create "Fix login bug" --type bug --created-id agent_001'),
 			description: 'Create a bug task',
 		},
 		{
@@ -50,9 +48,7 @@ export const createSubcommand = createCommand({
 			title: z.string().min(1).describe('the task title'),
 		}),
 		options: z.object({
-			type: z
-				.enum(['epic', 'feature', 'enhancement', 'bug', 'task'])
-				.describe('the task type'),
+			type: z.enum(['epic', 'feature', 'enhancement', 'bug', 'task']).describe('the task type'),
 			createdId: z.string().min(1).describe('the ID of the creator (agent or user)'),
 			description: z.string().optional().describe('task description'),
 			priority: z
@@ -73,7 +69,7 @@ export const createSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
 		const started = Date.now();
-		const storage = createStorageAdapter(ctx);
+		const storage = await createStorageAdapter(ctx);
 
 		const metadata = parseMetadataFlag(opts.metadata);
 
@@ -90,6 +86,7 @@ export const createSubcommand = createCommand({
 		});
 
 		const durationMs = Date.now() - started;
+		await cacheTaskId(ctx, task.id);
 
 		if (!options.json) {
 			tui.success(`Task created: ${tui.bold(task.id)}`);
