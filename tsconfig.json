@@ -10,7 +10,8 @@
 		{ "path": "./packages/runtime" },
 		{ "path": "./packages/server" },
 		{ "path": "./packages/workbench" },
-		{ "path": "./packages/claude-code" }
+		{ "path": "./packages/claude-code" },
+		{ "path": "./packages/pi" }
 	],
 	"exclude": ["e2e", "test-results", "playwright-report", "playwright.config.ts"]
 }

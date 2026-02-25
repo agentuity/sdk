@@ -168,9 +168,6 @@ export const installSubcommand = createSubcommand({
 			tui.output(
 				`  ${tui.ICONS.bullet} ${tui.muted('/agentuity-cadence')} - Start autonomous long-running task`
 			);
-			tui.output(
-				`  ${tui.ICONS.bullet} ${tui.muted('/agentuity-memory-save')} - Save session context to memory`
-			);
 			tui.newline();
 		}
 

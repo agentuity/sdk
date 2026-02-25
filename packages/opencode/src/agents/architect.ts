@@ -256,7 +256,7 @@ export const architectAgent: AgentDefinition = {
 	displayName: 'Agentuity Coder Architect',
 	description:
 		'Senior implementer for complex autonomous tasks - Cadence mode, deep reasoning, extended execution',
-	defaultModel: 'openai/gpt-5.2-codex',
+	defaultModel: 'openai/gpt-5.3-codex',
 	systemPrompt: ARCHITECT_SYSTEM_PROMPT,
 	reasoningEffort: 'xhigh', // Maximum reasoning for complex tasks
 	temperature: 0.1, // Deterministic - precise code generation
