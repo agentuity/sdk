@@ -163,7 +163,7 @@ function cleanupOrphanedProjects(db: Database): void {
 	const allPaths = new Set<string>();
 	[...kvPaths, ...streamPaths, ...vectorPaths, ...taskPaths, ...taskChangelogPaths].forEach(
 		(row) => {
-		allPaths.add(row.project_path);
+			allPaths.add(row.project_path);
 		}
 	);
 

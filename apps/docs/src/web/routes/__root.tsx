@@ -10,10 +10,7 @@ function NotFound() {
 			<p className="text-zinc-600 dark:text-zinc-400 mb-4">
 				The page you're looking for doesn't exist.
 			</p>
-			<a
-				href="/"
-				className="text-cyan-600 dark:text-cyan-400 hover:underline transition-colors"
-			>
+			<a href="/" className="text-cyan-600 dark:text-cyan-400 hover:underline transition-colors">
 				Go to SDK Explorer
 			</a>
 		</div>

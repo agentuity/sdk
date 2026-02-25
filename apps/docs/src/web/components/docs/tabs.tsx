@@ -41,7 +41,8 @@ export function Tab({ value, children, className }: TabProps) {
  */
 export function Tabs({ items, defaultValue, children, className }: TabsProps) {
 	const tabs = Children.toArray(children).filter(
-		(child): child is ReactElement<TabProps> => isValidElement(child) && (child.type as { name?: string }).name === 'Tab'
+		(child): child is ReactElement<TabProps> =>
+			isValidElement(child) && (child.type as { name?: string }).name === 'Tab'
 	);
 
 	return (

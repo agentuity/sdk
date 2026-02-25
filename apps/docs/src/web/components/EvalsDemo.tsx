@@ -167,9 +167,18 @@ export function EvalsDemo() {
 						className="self-start"
 					>
 						<span className="relative">
-							<span className={status === 'generating' || status === 'polling' ? 'invisible' : ''}>Generate Explanation</span>
+							<span
+								className={
+									status === 'generating' || status === 'polling' ? 'invisible' : ''
+								}
+							>
+								Generate Explanation
+							</span>
 							{(status === 'generating' || status === 'polling') && (
-								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								<span
+									className="absolute inset-0 flex items-center justify-center"
+									data-loading="true"
+								/>
 							)}
 						</span>
 					</Button>

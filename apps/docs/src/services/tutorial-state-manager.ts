@@ -36,14 +36,19 @@ function getTutorialKey(userId: string): string {
 /**
  * Get the complete tutorial state for a user
  */
-export async function getUserTutorialState(userId: string, kv: KVService): Promise<UserTutorialState> {
+export async function getUserTutorialState(
+	userId: string,
+	kv: KVService
+): Promise<UserTutorialState> {
 	const key = getTutorialKey(userId);
 	const response = await kv.get<UserTutorialState>(config.kvStoreName, key);
 
-	return response.exists && response.data ? response.data : {
-		userId,
-		tutorials: {}
-	};
+	return response.exists && response.data
+		? response.data
+		: {
+				userId,
+				tutorials: {},
+			};
 }
 
 /**
@@ -67,7 +72,7 @@ export async function updateTutorialProgress(
 		totalSteps,
 		startedAt: existing?.startedAt || now,
 		lastAccessedAt: now,
-		...(currentStep >= totalSteps ? { completedAt: now } : {})
+		...(currentStep >= totalSteps ? { completedAt: now } : {}),
 	};
 
 	const key = getTutorialKey(userId);
@@ -78,14 +83,17 @@ export async function updateTutorialProgress(
  * Get the current active tutorial state for agent communication
  * Returns the most recently accessed tutorial that's not completed
  */
-export async function getCurrentTutorialState(userId: string, kv: KVService): Promise<TutorialState | null> {
+export async function getCurrentTutorialState(
+	userId: string,
+	kv: KVService
+): Promise<TutorialState | null> {
 	const state = await getUserTutorialState(userId, kv);
 
 	const tutorials = Object.values(state.tutorials);
 	if (tutorials.length === 0) return null;
 
 	// Find the most recently accessed tutorial that's not completed
-	const activeTutorials = tutorials.filter(t => !t.completedAt);
+	const activeTutorials = tutorials.filter((t) => !t.completedAt);
 	if (activeTutorials.length === 0) return null;
 
 	const mostRecent = activeTutorials.reduce((latest, current) =>
@@ -94,14 +102,18 @@ export async function getCurrentTutorialState(userId: string, kv: KVService): Pr
 
 	return {
 		tutorialId: mostRecent.tutorialId,
-		currentStep: mostRecent.currentStep
+		currentStep: mostRecent.currentStep,
 	};
 }
 
 /**
  * Get tutorial progress for a specific tutorial
  */
-export async function getTutorialProgress(userId: string, tutorialId: string, kv: KVService): Promise<TutorialProgress | null> {
+export async function getTutorialProgress(
+	userId: string,
+	tutorialId: string,
+	kv: KVService
+): Promise<TutorialProgress | null> {
 	const state = await getUserTutorialState(userId, kv);
 	return state.tutorials[tutorialId] || null;
 }
@@ -109,7 +121,11 @@ export async function getTutorialProgress(userId: string, tutorialId: string, kv
 /**
  * Mark a tutorial as completed
  */
-export async function completeTutorial(userId: string, tutorialId: string, kv: KVService): Promise<void> {
+export async function completeTutorial(
+	userId: string,
+	tutorialId: string,
+	kv: KVService
+): Promise<void> {
 	const state = await getUserTutorialState(userId, kv);
 
 	if (state.tutorials[tutorialId]) {
@@ -124,17 +140,23 @@ export async function completeTutorial(userId: string, tutorialId: string, kv: K
 /**
  * Get all completed tutorials for a user
  */
-export async function getCompletedTutorials(userId: string, kv: KVService): Promise<TutorialProgress[]> {
+export async function getCompletedTutorials(
+	userId: string,
+	kv: KVService
+): Promise<TutorialProgress[]> {
 	const state = await getUserTutorialState(userId, kv);
-	return Object.values(state.tutorials).filter(t => t.completedAt);
+	return Object.values(state.tutorials).filter((t) => t.completedAt);
 }
 
 /**
  * Get all active (in-progress) tutorials for a user
  */
-export async function getActiveTutorials(userId: string, kv: KVService): Promise<TutorialProgress[]> {
+export async function getActiveTutorials(
+	userId: string,
+	kv: KVService
+): Promise<TutorialProgress[]> {
 	const state = await getUserTutorialState(userId, kv);
-	return Object.values(state.tutorials).filter(t => !t.completedAt);
+	return Object.values(state.tutorials).filter((t) => !t.completedAt);
 }
 
 // Export as namespace for convenience

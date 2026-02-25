@@ -115,8 +115,7 @@ export class LocalTaskStorage implements TaskStorage {
 		const status: TaskStatus = params.status ?? 'open';
 		const priority: TaskPriority = params.priority ?? 'none';
 		const openDate = status === 'open' ? new Date(timestamp).toISOString() : null;
-		const inProgressDate =
-			status === 'in_progress' ? new Date(timestamp).toISOString() : null;
+		const inProgressDate = status === 'in_progress' ? new Date(timestamp).toISOString() : null;
 		const closedDate = status === 'closed' ? new Date(timestamp).toISOString() : null;
 
 		const stmt = this.#db.prepare(`
@@ -238,7 +237,8 @@ export class LocalTaskStorage implements TaskStorage {
 		}
 
 		const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
-		const sortField = params?.sort && SORT_FIELDS[params.sort] ? SORT_FIELDS[params.sort] : 'created_at';
+		const sortField =
+			params?.sort && SORT_FIELDS[params.sort] ? SORT_FIELDS[params.sort] : 'created_at';
 		const sortOrder = params?.order === 'asc' ? 'ASC' : 'DESC';
 		const limit = params?.limit ?? DEFAULT_LIMIT;
 		const offset = params?.offset ?? 0;
@@ -326,8 +326,7 @@ export class LocalTaskStorage implements TaskStorage {
 							: null
 						: existing.metadata,
 				priority: params.priority ?? existing.priority,
-				parent_id:
-					params.parent_id !== undefined ? params.parent_id : existing.parent_id,
+				parent_id: params.parent_id !== undefined ? params.parent_id : existing.parent_id,
 				type: params.type ?? existing.type,
 				status: params.status ?? existing.status,
 				assigned_id:

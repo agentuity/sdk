@@ -29,10 +29,7 @@ export class HubClient {
 				wsUrl = 'ws://' + wsUrl.slice(7);
 			} else if (wsUrl.startsWith('https://')) {
 				wsUrl = 'wss://' + wsUrl.slice(8);
-			} else if (
-				!wsUrl.startsWith('ws://') &&
-				!wsUrl.startsWith('wss://')
-			) {
+			} else if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
 				wsUrl = 'ws://' + wsUrl;
 			}
 
@@ -54,9 +51,7 @@ export class HubClient {
 					const raw =
 						typeof event.data === 'string'
 							? event.data
-							: new TextDecoder().decode(
-									event.data as ArrayBuffer,
-								);
+							: new TextDecoder().decode(event.data as ArrayBuffer);
 					data = JSON.parse(raw) as Record<string, unknown>;
 				} catch {
 					// Malformed or non-JSON frame — ignore
@@ -84,8 +79,7 @@ export class HubClient {
 			this.ws.onerror = (err: Event) => {
 				// ErrorEvent has a message property; plain Event does not
 				const message =
-					'message' in err &&
-					typeof (err as ErrorEvent).message === 'string'
+					'message' in err && typeof (err as ErrorEvent).message === 'string'
 						? (err as ErrorEvent).message
 						: `connection to ${wsUrl} failed`;
 				clearTimeout(connectTimer);
@@ -126,8 +120,8 @@ export class HubClient {
 					this.pending.delete(request.id);
 					entry.reject(
 						new Error(
-							`Hub response timeout after ${SEND_TIMEOUT_MS}ms for request ${request.id}`,
-						),
+							`Hub response timeout after ${SEND_TIMEOUT_MS}ms for request ${request.id}`
+						)
 					);
 				}
 			}, SEND_TIMEOUT_MS);

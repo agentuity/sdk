@@ -35,17 +35,12 @@ export function detectContentType(textChunk: string): string {
 		return 'header';
 	}
 	// Tables (markdown tables)
-	if (
-		/\|.*\|.*\|/.test(textChunk) &&
-		(textChunk.match(/\|/g) || []).length >= 4
-	) {
+	if (/\|.*\|.*\|/.test(textChunk) && (textChunk.match(/\|/g) || []).length >= 4) {
 		return 'table';
 	}
 	// Lists (multiple list items)
 	const lines = textChunk.split('\n');
-	const listLines = lines.filter((line) =>
-		/^[-*+]\s+|^\d+\.\s+/.test(line.trim())
-	);
+	const listLines = lines.filter((line) => /^[-*+]\s+|^\d+\.\s+/.test(line.trim()));
 	if (listLines.length >= 2) {
 		return 'list';
 	}
@@ -59,25 +54,29 @@ export function createContentAwareSplitter(contentType: string) {
 			chunkOverlap: 0,
 			separators: ['\n---\n'],
 		});
-	} if (contentType === 'code_block') {
+	}
+	if (contentType === 'code_block') {
 		return new RecursiveCharacterTextSplitter({
 			chunkSize: 800,
 			chunkOverlap: 100,
 			separators: ['\n```\n', '\n\n', '\n'],
 		});
-	} if (contentType === 'header_section') {
+	}
+	if (contentType === 'header_section') {
 		return new RecursiveCharacterTextSplitter({
 			chunkSize: 1200,
 			chunkOverlap: 150,
 			separators: ['\n## ', '\n### ', '\n#### ', '\n\n', '\n'],
 		});
-	} if (contentType === 'table') {
+	}
+	if (contentType === 'table') {
 		return new RecursiveCharacterTextSplitter({
 			chunkSize: 1500,
 			chunkOverlap: 0,
 			separators: ['\n\n'],
 		});
-	} if (contentType === 'list') {
+	}
+	if (contentType === 'list') {
 		return new RecursiveCharacterTextSplitter({
 			chunkSize: 800,
 			chunkOverlap: 100,

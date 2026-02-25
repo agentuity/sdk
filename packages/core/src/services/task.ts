@@ -179,10 +179,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
@@ -261,10 +258,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
@@ -296,10 +290,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {

@@ -509,9 +509,7 @@ export function createOtelMiddleware() {
 
 						// Check if this is a WebSocket response that needs deferred finalization
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const wsDone = (c as any).get(WS_DONE_PROMISE_KEY) as
-							| Promise<void>
-							| undefined;
+						const wsDone = (c as any).get(WS_DONE_PROMISE_KEY) as Promise<void> | undefined;
 
 						// Check if Hono caught an error (c.error is set by Hono's error handler)
 						// or if the response status indicates an error
