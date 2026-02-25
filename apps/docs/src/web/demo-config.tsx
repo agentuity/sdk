@@ -320,8 +320,8 @@ export const DEMOS: DemoConfig[] = [
 				>
 					SSE streaming
 				</a>
-				. Use <code className="bg-cyan-500/10 px-1 rounded">ctx.stream</code> to
-				create, list, and manage your streams.
+				. Use <code className="bg-cyan-500/10 px-1 rounded">ctx.stream</code> to create, list,
+				and manage your streams.
 			</>
 		),
 		docsUrl: '/services/storage/durable-streams',
@@ -344,9 +344,9 @@ export const DEMOS: DemoConfig[] = [
 				<span className="bg-cyan-500/10 px-1 rounded">
 					you can break complex workflows into focused, reusable pieces
 				</span>
-				. Use <code className="bg-cyan-500/10 px-1 rounded">agent.run()</code> to
-				invoke any agent, wait for results synchronously, or use <em>ctx.waitUntil</em> for
-				fire-and-forget background tasks.
+				. Use <code className="bg-cyan-500/10 px-1 rounded">agent.run()</code> to invoke any
+				agent, wait for results synchronously, or use <em>ctx.waitUntil</em> for fire-and-forget
+				background tasks.
 			</>
 		),
 		docsUrl: '/agents/calling-other-agents',
@@ -367,12 +367,10 @@ export const DEMOS: DemoConfig[] = [
 				Sometimes you need code to run automatically: every hour, every day, or on a custom
 				schedule. That's what <em>cron jobs</em> do. The schedule is defined using a{' '}
 				<em>cron expression</em> like{' '}
-				<code className="bg-cyan-500/10 px-1 rounded">0 * * * *</code>, which reads
-				as "minute hour day month weekday" (this one means "at minute 0 of every hour").{' '}
-				<span className="bg-cyan-500/10 px-1 rounded">
-					Use cron for recurring tasks
-				</span>{' '}
-				like fetching data, cleaning up old records, or sending reports. Combine with{' '}
+				<code className="bg-cyan-500/10 px-1 rounded">0 * * * *</code>, which reads as "minute
+				hour day month weekday" (this one means "at minute 0 of every hour").{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">Use cron for recurring tasks</span> like
+				fetching data, cleaning up old records, or sending reports. Combine with{' '}
 				<a
 					href="/demo/key-value"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
@@ -430,10 +428,8 @@ export const DEMOS: DemoConfig[] = [
 		explanation: (
 			<>
 				Compare outputs from different AI models by{' '}
-				<span className="bg-cyan-500/10 px-1 rounded">
-					using another AI as the judge
-				</span>
-				. Generate content from multiple providers in parallel via the{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">using another AI as the judge</span>.
+				Generate content from multiple providers in parallel via the{' '}
 				<a
 					href="/demo/ai-gateway"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"

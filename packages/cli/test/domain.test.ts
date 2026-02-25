@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'bun:test';
+import { getIONHost } from '../src/config';
 
 /**
  * Generates a project identifier from a project ID using xxHash64.
@@ -73,6 +74,23 @@ describe('domain DNS validation', () => {
 			const proxy = `p${identifier}.${suffix}`;
 
 			expect(proxy).toBe('p0a21231341cdb560.agentuity.io');
+		});
+	});
+
+	describe('ION host A record target', () => {
+		test('generates correct ION hostname for production regions', () => {
+			expect(getIONHost(null, 'use')).toBe('ion-use.agentuity.cloud');
+			expect(getIONHost(null, 'euw')).toBe('ion-euw.agentuity.cloud');
+		});
+
+		test('generates ION hostname for local development', () => {
+			expect(getIONHost({ name: 'local' } as Parameters<typeof getIONHost>[0], 'local')).toBe(
+				'ion.agentuity.io'
+			);
+		});
+
+		test('throws on empty region', () => {
+			expect(() => getIONHost(null, '')).toThrow();
 		});
 	});
 });

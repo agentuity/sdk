@@ -98,6 +98,33 @@ export {
 	QueueValidationError,
 } from './services/queue.ts';
 export {
+	type Schedule,
+	type ScheduleDestination,
+	type ScheduleDelivery,
+	type CreateScheduleParams,
+	type CreateScheduleDestinationParams,
+	type UpdateScheduleParams,
+	type ScheduleListResult,
+	type ScheduleGetResult,
+	type ScheduleCreateResult,
+	type ScheduleDeliveryListResult,
+	ScheduleService,
+} from './services/schedule.ts';
+export {
+	type TaskPriority,
+	type TaskType,
+	type TaskStatus,
+	type Task,
+	type TaskChangelogEntry,
+	type CreateTaskParams,
+	type UpdateTaskParams,
+	type ListTasksParams,
+	type ListTasksResult,
+	type TaskChangelogResult,
+	type TaskStorage,
+	TaskStorageService,
+} from './services/task.ts';
+export {
 	type EvalRunEventProvider,
 	EvalRunStartEventSchema,
 	EvalRunCompleteEventSchema,

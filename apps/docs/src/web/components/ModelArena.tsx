@@ -310,28 +310,16 @@ export function ModelArena() {
 					{/* Buttons */}
 					<div className="flex items-center gap-2">
 						{!isRunning ? (
-							<Button
-								onClick={startArena}
-								variant="outline"
-								size="default"
-							>
+							<Button onClick={startArena} variant="outline" size="default">
 								{state.status === 'idle' ? 'Generate Stories' : 'Run Again'}
 							</Button>
 						) : (
-							<Button
-								onClick={reset}
-								variant="destructive"
-								size="default"
-							>
+							<Button onClick={reset} variant="destructive" size="default">
 								Stop
 							</Button>
 						)}
 						{(state.status === 'complete' || state.status === 'error') && (
-							<Button
-								onClick={reset}
-								variant="ghost"
-								size="default"
-							>
+							<Button onClick={reset} variant="ghost" size="default">
 								Clear
 							</Button>
 						)}
@@ -351,9 +339,7 @@ export function ModelArena() {
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-5">
 					<div className="flex items-center gap-2 mb-3">
 						<span className="text-zinc-500 dark:text-zinc-400 text-xs">JUDGE VERDICT</span>
-						<Badge variant="success">
-							{state.judgment.winnerDisplayName} wins
-						</Badge>
+						<Badge variant="success">{state.judgment.winnerDisplayName} wins</Badge>
 					</div>
 					<p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed m-0">
 						{state.judgment.reasoning}
@@ -382,7 +368,10 @@ export function ModelArena() {
 								{/* Winner badge */}
 								{isWinner && (
 									<div className="absolute top-0 right-0">
-										<Badge variant="success" className="rounded-bl-md rounded-br-none rounded-tl-none">
+										<Badge
+											variant="success"
+											className="rounded-bl-md rounded-br-none rounded-tl-none"
+										>
 											Winner
 										</Badge>
 									</div>
@@ -392,7 +381,8 @@ export function ModelArena() {
 								<div className="p-4">
 									<div className="flex items-center gap-1.5 mb-1">
 										<span className={`text-sm font-medium ${providerStyle.text}`}>
-											{provider.provider.charAt(0).toUpperCase() + provider.provider.slice(1)}
+											{provider.provider.charAt(0).toUpperCase() +
+												provider.provider.slice(1)}
 										</span>
 										<span className="text-zinc-500 text-sm">/</span>
 										<span className="text-zinc-900 dark:text-white text-sm font-medium">
@@ -410,7 +400,11 @@ export function ModelArena() {
 								{/* Story (scrollable) */}
 								<div className="text-zinc-700 dark:text-zinc-300 flex-1 text-[13px] leading-relaxed max-h-[300px] overflow-y-auto p-4">
 									{!story && !error && (
-										<StatusIndicator status="running" label="Generating..." showLabel={true} />
+										<StatusIndicator
+											status="running"
+											label="Generating..."
+											showLabel={true}
+										/>
 									)}
 									{error && (
 										<div className="text-red-600 dark:text-red-400">Error: {error}</div>
@@ -445,37 +439,37 @@ export function ModelArena() {
 								{/* Scores */}
 								{state.judgment && story && (
 									<>
-									<Separator />
-									<div className="grid gap-2 grid-cols-2 p-4">
-										<ScoreBadge
-											label="Creativity"
-											score={getProviderScore(
-												state.judgment.scores.creativity,
-												provider.provider
-											)}
-										/>
-										<ScoreBadge
-											label="Engagement"
-											score={getProviderScore(
-												state.judgment.scores.engagement,
-												provider.provider
-											)}
-										/>
-										<BinaryBadge
-											label="Tone"
-											check={getProviderCheck(
-												state.judgment.checks.toneMatch,
-												provider.provider
-											)}
-										/>
-										<BinaryBadge
-											label="Word Count"
-											check={getProviderCheck(
-												state.judgment.checks.wordCount,
-												provider.provider
-											)}
-										/>
-									</div>
+										<Separator />
+										<div className="grid gap-2 grid-cols-2 p-4">
+											<ScoreBadge
+												label="Creativity"
+												score={getProviderScore(
+													state.judgment.scores.creativity,
+													provider.provider
+												)}
+											/>
+											<ScoreBadge
+												label="Engagement"
+												score={getProviderScore(
+													state.judgment.scores.engagement,
+													provider.provider
+												)}
+											/>
+											<BinaryBadge
+												label="Tone"
+												check={getProviderCheck(
+													state.judgment.checks.toneMatch,
+													provider.provider
+												)}
+											/>
+											<BinaryBadge
+												label="Word Count"
+												check={getProviderCheck(
+													state.judgment.checks.wordCount,
+													provider.provider
+												)}
+											/>
+										</div>
 									</>
 								)}
 							</div>

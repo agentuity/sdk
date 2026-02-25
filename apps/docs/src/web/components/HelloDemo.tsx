@@ -10,7 +10,9 @@ export function HelloDemo() {
 		<div className="flex flex-col gap-4">
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg shadow-2xl flex flex-col gap-4 overflow-hidden p-4">
 				<div className="flex gap-4 items-center">
-					<label htmlFor="hello-name" className="sr-only">Your name</label>
+					<label htmlFor="hello-name" className="sr-only">
+						Your name
+					</label>
 					<Input
 						id="hello-name"
 						disabled={isLoading}
@@ -32,7 +34,10 @@ export function HelloDemo() {
 						<span className="relative">
 							<span className={isLoading ? 'invisible' : ''}>Say Hello</span>
 							{isLoading && (
-								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								<span
+									className="absolute inset-0 flex items-center justify-center"
+									data-loading="true"
+								/>
 							)}
 						</span>
 					</Button>

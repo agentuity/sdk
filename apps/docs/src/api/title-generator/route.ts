@@ -30,9 +30,15 @@ function sanitizeTitle(input: string): string {
 		s = s.slice(1, -1).trim();
 	}
 	// Remove markdown emphasis
-	s = s.replace(/\*\*([^*]+)\*\*|\*([^*]+)\*|__([^_]+)__|_([^_]+)_/g, (_m, a, b, c, d) => a || b || c || d || '');
+	s = s.replace(
+		/\*\*([^*]+)\*\*|\*([^*]+)\*|__([^_]+)__|_([^_]+)_/g,
+		(_m, a, b, c, d) => a || b || c || d || ''
+	);
 	// Remove emojis (basic unicode emoji ranges)
-	s = s.replace(/[\u{1F300}-\u{1FAFF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+	s = s.replace(
+		/[\u{1F300}-\u{1FAFF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu,
+		''
+	);
 	// Collapse whitespace
 	s = s.replace(/\s+/g, ' ').trim();
 	// Sentence case
@@ -52,10 +58,7 @@ function sentenceCase(str: string): string {
 
 function formatHistory(messages: ConversationMessage[]): string {
 	return messages
-		.map(
-			(m) =>
-				`${m.author}: ${m.content.slice(0, 200)}${m.content.length > 200 ? '...' : ''}`
-		)
+		.map((m) => `${m.author}: ${m.content.slice(0, 200)}${m.content.length > 200 ? '...' : ''}`)
 		.join('\n');
 }
 

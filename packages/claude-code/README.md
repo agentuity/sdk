@@ -26,7 +26,6 @@ agentuity ai claude-code install
 ```
 /agentuity-coder implement dark mode for the settings page
 /agentuity-cadence build the payment integration with tests
-/agentuity-memory-save
 ```
 
 | Command                     | Description                                  |
@@ -34,7 +33,6 @@ agentuity ai claude-code install
 | `/agentuity-coder`          | Run a task with the full agent team          |
 | `/agentuity-cadence`        | Start autonomous long-running task execution |
 | `/agentuity-cadence-cancel` | Cancel an active Cadence session             |
-| `/agentuity-memory-save`    | Save session context to cloud memory         |
 | `/agentuity-memory-share`   | Share content via Agentuity Cloud Streams    |
 | `/agentuity-sandbox`        | Run code in an isolated sandbox              |
 
@@ -77,7 +75,7 @@ Persistent context across sessions via Agentuity Cloud:
 - **Entity-centric** -- tracks users, orgs, projects, repos
 - **Branch-aware** -- scopes memories to git branch context
 
-Use `/agentuity-memory-save` after completing work to persist decisions and lessons learned.
+Memory is saved automatically at session end and during Cadence iterations.
 
 ## Cadence Mode
 

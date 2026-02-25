@@ -12,6 +12,8 @@ import type {
 	VectorStorage,
 	SandboxService,
 	QueueService,
+	ScheduleService,
+	TaskStorage,
 	SessionStartEvent,
 } from '@agentuity/core';
 
@@ -183,6 +185,10 @@ export interface AppConfig<TAppState = Record<string, never>> {
 		 */
 		vector?: VectorStorage;
 		/**
+		 * the TaskStorage to override instead of the default
+		 */
+		task?: TaskStorage;
+		/**
 		 * the ThreadProvider to override instead of the default
 		 */
 		thread?: ThreadProvider;
@@ -229,6 +235,8 @@ export interface Variables<TAppState = Record<string, never>> {
 	vector: VectorStorage;
 	sandbox: SandboxService;
 	queue: QueueService;
+	schedule: ScheduleService;
+	task: TaskStorage;
 	app: TAppState;
 	// Web analytics context (set by createWebSessionMiddleware, thread-only tracking)
 	_webThreadId?: string;

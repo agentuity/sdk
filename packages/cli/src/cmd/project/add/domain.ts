@@ -95,7 +95,7 @@ export const domainSubcommand = createSubcommand({
 				message: `Checking DNS for ${domain}`,
 				clearOnSuccess: true,
 				callback: async () => {
-					return checkCustomDomainForDNS(project.projectId, [domain], config);
+					return checkCustomDomainForDNS(project.projectId, [domain], project.region, config);
 				},
 			});
 
@@ -117,11 +117,17 @@ export const domainSubcommand = createSubcommand({
 				}
 
 				tui.newline();
-				tui.warning('DNS record not yet configured. Please add the following CNAME record:');
+				tui.warning(
+					'DNS record not yet configured. Please add one of the following DNS records:'
+				);
 				tui.newline();
 				tui.output(`  ${tui.colorInfo('Domain:')}  ${tui.colorPrimary(result.domain)}`);
-				tui.output(`  ${tui.colorInfo('Type:')}    ${tui.colorPrimary(result.recordType)}`);
-				tui.output(`  ${tui.colorInfo('Target:')}  ${tui.colorPrimary(result.target)}`);
+				tui.output(`  ${tui.colorInfo('CNAME:')}   ${tui.colorPrimary(result.target)}`);
+				if (result.aRecordTarget) {
+					tui.output(
+						`  ${tui.colorInfo('A:')}       ${tui.colorPrimary(result.aRecordTarget)}`
+					);
+				}
 				tui.newline();
 
 				if (isMisconfigured(result)) {

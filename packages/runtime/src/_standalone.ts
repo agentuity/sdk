@@ -6,6 +6,8 @@ import type {
 	VectorStorage,
 	SandboxService,
 	QueueService,
+	ScheduleService,
+	TaskStorage,
 	Logger,
 } from '@agentuity/core';
 import { formatMessage } from './logger/util';
@@ -197,6 +199,8 @@ export class StandaloneAgentContext<
 	vector!: VectorStorage;
 	sandbox!: SandboxService;
 	queue!: QueueService;
+	schedule!: ScheduleService;
+	task!: TaskStorage;
 	config: TConfig;
 	app: TAppState;
 	current!: AgentMetadata;

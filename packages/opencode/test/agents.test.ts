@@ -100,7 +100,7 @@ describe('Agents', () => {
 
 		it('Architect agent has GPT Codex with xhigh reasoning', () => {
 			const architect = agents.architect;
-			expect(architect.defaultModel).toBe('openai/gpt-5.2-codex');
+			expect(architect.defaultModel).toBe('openai/gpt-5.3-codex');
 			expect(architect.reasoningEffort).toBe('xhigh');
 			expect(architect.temperature).toBe(0.1);
 			expect(architect.systemPrompt).toContain('Cadence');
