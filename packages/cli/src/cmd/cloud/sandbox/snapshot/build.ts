@@ -175,9 +175,9 @@ function substituteVariables(
 }
 
 // Default patterns that are always excluded from snapshot builds
-const DEFAULT_EXCLUSIONS = ['.git', '.git/**', 'node_modules/**', '.agentuity/**', '.env*'];
+export const DEFAULT_EXCLUSIONS = ['.git', '.git/**', 'node_modules/**', '.agentuity/**', '.env*'];
 
-async function resolveFileGlobs(
+export async function resolveFileGlobs(
 	directory: string,
 	patterns: string[]
 ): Promise<Map<string, FileEntry>> {
@@ -206,7 +206,9 @@ async function resolveFileGlobs(
 						size: stat.size,
 					});
 				}
-			} catch {}
+			} catch {
+				// Skip files that can't be stat'd (broken symlinks, permission issues, etc.)
+			}
 		}
 	}
 
