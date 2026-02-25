@@ -29,6 +29,8 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 | `sandbox snapshot` | Manage snapshots |
 | `sandbox snapshot build <dir>` | Build snapshot from declarative file |
 | `sandbox snapshot generate` | Generate template snapshot build file |
+| `sandbox pause <id>` | Pause a running sandbox |
+| `sandbox resume <id>` | Resume a paused sandbox |
 | `sandbox execution` | View execution history |
 | `sandbox runtime list` | List available runtimes |
 | `sandbox env <id>` | Manage environment variables |
@@ -161,7 +163,7 @@ agentuity cloud sandbox list [options]
 
 | Option | Description |
 |--------|-------------|
-| `--status <status>` | Filter by status (`idle`, `running`, `creating`, `terminated`, `failed`) |
+| `--status <status>` | Filter by status (`idle`, `running`, `creating`, `paused`, `stopping`, `suspended`, `terminated`, `failed`) |
 | `--name <name>` | Filter by sandbox name |
 | `--mode <mode>` | Filter by mode (`oneshot`, `interactive`) |
 | `--project-id <id>` | Filter by project |
@@ -254,6 +256,24 @@ agentuity cloud sandbox get sbx_abc123
 # Test from anywhere
 curl https://my-api-abc123.agentuity.cloud/api/health
 ```
+
+## Pause and Resume
+
+Pause a running sandbox to free compute resources while preserving its state. Resume when you need it again.
+
+```bash
+# Pause a sandbox
+agentuity cloud sandbox pause sbx_abc123
+
+# Resume a paused sandbox
+agentuity cloud sandbox resume sbx_abc123
+```
+
+Paused sandboxes retain their filesystem, environment variables, and configuration. They do not consume compute resources while paused.
+
+<Callout type="info" title="Sandbox Status">
+Use `agentuity cloud sandbox list --status paused` to find all paused sandboxes. Other statuses include `idle`, `running`, `creating`, `stopping`, `suspended`, `terminated`, and `failed`.
+</Callout>
 
 ## File Operations
 

@@ -159,6 +159,43 @@ If you don't set provider API keys, LLM requests are routed through the Agentuit
 Environment variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_` are exposed to the frontend bundle and visible in the browser. Never put secrets or API keys in these variables.
 </Callout>
 
+### Environment-Specific Files
+
+Use separate `.env` files instead of commenting/uncommenting variables when switching between local development and deployed contexts.
+
+**File loading order:**
+
+| Mode | Files loaded (later overrides earlier) |
+|------|----------------------------------------|
+| `agentuity dev` | `.env` → `.env.development` |
+
+When the same variable appears in multiple files, the last file loaded wins.
+
+**Example setup:**
+
+```bash title=".env"
+# Shared configuration (loaded in both dev and deploy)
+AGENTUITY_SDK_KEY=sdk_...
+OPENAI_API_KEY=sk-...
+```
+
+```bash title=".env.development"
+# Dev-mode overrides (only loaded during agentuity dev)
+AGENTUITY_PUBLIC_API_URL=http://localhost:3500
+TRUSTED_ORIGINS=http://localhost:3000
+DEBUG=true
+```
+
+<Callout type="tip" title="Separate Files, Not Comments">
+Instead of commenting out lines when switching contexts, put shared config in `.env` and dev overrides in `.env.development`. The CLI loads the right files automatically during `agentuity dev`.
+</Callout>
+
+**Additional files:**
+
+- **`.env.local`**: Auto-loaded by Bun at startup. Use for machine-specific values (personal API keys, local ports).
+
+**Git behavior:** The default `.gitignore` ignores `.env`. Other env files (`.env.development`, `.env.local`) are not ignored by default. Add any files containing secrets to your `.gitignore`.
+
 ## Infrastructure as Code
 
 Unlike traditional platforms, Agentuity defines infrastructure in your route files:

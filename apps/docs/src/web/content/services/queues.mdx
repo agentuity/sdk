@@ -283,6 +283,92 @@ Webhook destinations support:
 
 For workers that pull and process messages, see [Pull-Based Consumption](/cookbook/patterns/server-utilities#pull-based-consumption). This pattern is useful for long-running workers that need fine-grained control over message processing.
 
+### Real-Time Subscriptions
+
+When you need to process messages as they arrive rather than polling, use the WebSocket subscription API from `@agentuity/server`.
+
+#### Callback-Based API
+
+```typescript
+import { createQueueWebSocket } from '@agentuity/server';
+
+const connection = createQueueWebSocket({
+  queueName: 'order-processing',
+  baseUrl: 'https://catalyst.agentuity.cloud',
+  onMessage: (message) => {
+    console.log('Received:', message.id, message.payload);
+  },
+  onOpen: () => console.log('Connected'),
+  onClose: (code, reason) => console.log('Closed:', code, reason),
+  onError: (error) => console.error('Error:', error),
+});
+
+// Later: close the connection
+connection.close();
+```
+
+The connection handle exposes `state`, `clientId`, and `lastOffset` properties for monitoring and session resumption.
+
+#### Async Iterator API
+
+For `for await...of` consumption, use `subscribeToQueue`:
+
+```typescript
+import { subscribeToQueue } from '@agentuity/server';
+
+const controller = new AbortController();
+
+for await (const message of subscribeToQueue({
+  queueName: 'order-processing',
+  baseUrl: 'https://catalyst.agentuity.cloud',
+  signal: controller.signal,
+})) {
+  console.log('Received:', message.id, message.payload);
+}
+
+// To stop: controller.abort()
+```
+
+#### Session Resumption
+
+Save `clientId` and `lastOffset` from a connection and pass them back on reconnect to avoid reprocessing messages:
+
+```typescript
+import { createQueueWebSocket } from '@agentuity/server';
+
+// Save state from a previous connection
+const savedClientId = previousConnection.clientId;
+const savedOffset = previousConnection.lastOffset;
+
+// Resume from where you left off
+const connection = createQueueWebSocket({
+  queueName: 'order-processing',
+  baseUrl: 'https://catalyst.agentuity.cloud',
+  clientId: savedClientId,     // Resume this subscription
+  lastOffset: savedOffset,     // Skip already-processed messages
+  onMessage: (message) => {
+    console.log('Received:', message.id, message.payload);
+  },
+});
+```
+
+#### Connection Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `autoReconnect` | `true` | Automatically reconnect on disconnection |
+| `maxReconnectAttempts` | `Infinity` | Maximum reconnection attempts before giving up |
+| `reconnectDelayMs` | `1000` | Initial reconnection delay (uses exponential backoff with jitter) |
+| `maxReconnectDelayMs` | `30000` | Maximum reconnection delay cap |
+
+#### Connection States
+
+The connection transitions through these states:
+
+`connecting` → `authenticating` → `connected`
+
+On disconnection with `autoReconnect` enabled, it cycles through `reconnecting` → `connecting` → `authenticating` → `connected`. Authentication failures are terminal and do not trigger reconnection.
+
 ## Dead Letter Queue
 
 Messages that exceed the retry limit are moved to the dead letter queue (DLQ). Inspect and replay failed messages:

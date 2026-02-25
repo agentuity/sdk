@@ -245,7 +245,13 @@ Understanding the differences between local development and deployed production:
 | **URL** | `localhost:3500` + optional public tunnel | `*.agentuity.cloud` or custom domain |
 | **Hot Reload** | Yes | No (redeploy required) |
 | **Debugging** | Local logs, Workbench | SSH access, cloud logs |
-| **Environment** | `.env` | Cloud variables (via `cloud env`) |
+| **Environment** | `.env`, `.env.development` ([details](/get-started/app-configuration#environment-specific-files)) | Cloud variables (via `cloud env`) |
+
+### Environment Files
+
+The dev server loads environment variables from multiple `.env` files. Put shared config in `.env` and dev-specific overrides in `.env.development`. Values in `.env.development` override those in `.env`. Bun also auto-loads `.env.local` for machine-specific values.
+
+See [Environment-Specific Files](/get-started/app-configuration#environment-specific-files) for the full loading order and examples.
 
 ## Next Steps
 

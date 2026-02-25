@@ -27,7 +27,7 @@ bun run deploy
 ```
 
 The deploy command:
-1. Syncs environment variables from `.env.production` (or `.env` as fallback)
+1. Syncs environment variables from `.env`
 2. Builds and packages your project
 3. Encrypts and uploads the deployment bundle securely
 4. Provisions your deployment on Agentuity's infrastructure
@@ -401,10 +401,10 @@ The `domains` array is empty by default. Add custom domains when needed (see [Cu
 
 ## Environment Variables
 
-The deploy command syncs variables from `.env.production` (or `.env` as fallback):
+The deploy command syncs variables from your `.env` file.
 
 ```bash
-# .env.production
+# .env
 DATABASE_URL=postgres://...
 WEBHOOK_SECRET=secret123
 MY_CUSTOM_API_KEY=xxx
