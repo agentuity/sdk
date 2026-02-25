@@ -10,6 +10,7 @@ import { scpSubcommand } from './scp';
 import { deploymentCommand } from './deployment';
 import keyvalueCommand from './keyvalue';
 import queueCommand from './queue';
+import webhookCommand from './webhook';
 import { agentCommand } from './agent';
 import envCommand from './env';
 import apikeyCommand from './apikey';
@@ -37,6 +38,7 @@ export const command = createCommand({
 		apikeyCommand,
 		keyvalueCommand,
 		queueCommand,
+		webhookCommand,
 		taskCommand,
 		agentCommand,
 		streamCommand,

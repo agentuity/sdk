@@ -63,6 +63,7 @@ export type ResourceType =
 	| 'vector'
 	| 'kv'
 	| 'stream'
+	| 'webhook'
 	| 'task';
 
 /**

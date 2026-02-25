@@ -27,6 +27,7 @@ const RESOURCE_PREFIXES: Array<{ prefix: string; type: ResourceType }> = [
 	{ prefix: 'vec_', type: 'vector' },
 	{ prefix: 'kv_', type: 'kv' },
 	{ prefix: 'stream_', type: 'stream' },
+	{ prefix: 'wh_', type: 'webhook' },
 	{ prefix: 'task_', type: 'task' },
 ];
 
