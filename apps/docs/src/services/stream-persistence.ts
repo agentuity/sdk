@@ -68,7 +68,8 @@ export function withPersistence(
 	stream: ReadableStream<Uint8Array>,
 	config: PersistenceConfig
 ): ReadableStream<Uint8Array> {
-	const { kv, userId, sessionId, kvStoreName, logger, onTutorialProgress, onSessionSaved } = config;
+	const { kv, userId, sessionId, kvStoreName, logger, onTutorialProgress, onSessionSaved } =
+		config;
 	const sessionKey = `${userId}_${sessionId}`;
 
 	let accumulated = '';
@@ -102,7 +103,10 @@ export function withPersistence(
 							try {
 								await onTutorialProgress(tutorial);
 							} catch (e) {
-								logger.warn('onTutorialProgress callback failed: %s', e instanceof Error ? e.message : String(e));
+								logger.warn(
+									'onTutorialProgress callback failed: %s',
+									e instanceof Error ? e.message : String(e)
+								);
 							}
 						}
 					}
@@ -133,7 +137,9 @@ export function withPersistence(
 
 					// Emit session-saved event (with leading newline to ensure separation)
 					controller.enqueue(
-						encoder.encode(`\ndata: ${JSON.stringify({ type: 'session-saved', session })}\n\n`)
+						encoder.encode(
+							`\ndata: ${JSON.stringify({ type: 'session-saved', session })}\n\n`
+						)
 					);
 				}
 			} catch (error) {
@@ -272,6 +278,9 @@ async function updateMRU(
 
 		await kv.set(storeName, userId, filtered);
 	} catch (error) {
-		logger.error('Failed to update MRU: %s', error instanceof Error ? error.message : String(error));
+		logger.error(
+			'Failed to update MRU: %s',
+			error instanceof Error ? error.message : String(error)
+		);
 	}
 }

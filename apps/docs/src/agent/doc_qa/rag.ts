@@ -16,10 +16,7 @@ const AnswerSchemaZod = z.object({
 	documents: z.array(DocumentReferenceSchemaZod),
 });
 
-export default async function answerQuestion(
-	ctx: any,
-	prompt: string
-): Promise<Answer> {
+export default async function answerQuestion(ctx: any, prompt: string): Promise<Answer> {
 	// First, rephrase the prompt for better vector search
 	const rephrasedPrompt = await rephraseVaguePrompt(ctx, prompt);
 
@@ -118,7 +115,8 @@ ${JSON.stringify(relevantDocs, null, 2)}
 		const result = await generateObject({
 			model: openai('gpt-4o'),
 			system: systemPrompt,
-			prompt: 'The user is mostly a software engineer. Your answer should be concise, straightforward and in most cases, supplying the answer with examples code snipped is ideal.',
+			prompt:
+				'The user is mostly a software engineer. Your answer should be concise, straightforward and in most cases, supplying the answer with examples code snipped is ideal.',
 			schema: AnswerSchemaZod,
 		});
 		return result.object as Answer;

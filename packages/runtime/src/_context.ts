@@ -9,6 +9,8 @@ import {
 	type SandboxService,
 	type QueueService,
 	type EmailService,
+	type ScheduleService,
+	type TaskStorage,
 } from '@agentuity/core';
 import type { AuthInterface } from '@agentuity/auth';
 import type {
@@ -58,6 +60,8 @@ export class RequestAgentContext<
 	sandbox!: SandboxService;
 	queue!: QueueService;
 	email!: EmailService;
+	schedule!: ScheduleService;
+	task!: TaskStorage;
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;

@@ -6,3 +6,4 @@ export { LocalStreamStorage } from './stream';
 export { LocalVectorStorage } from './vector';
 export { LocalQueueStorage } from './queue';
 export { LocalEmailStorage } from './email';
+export { LocalTaskStorage } from './task';

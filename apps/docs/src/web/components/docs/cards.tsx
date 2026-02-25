@@ -43,8 +43,7 @@ export function CardLink({
 		'text-base group-hover:text-cyan-500 transition-colors',
 		align === 'locked' && 'line-clamp-2 leading-6 min-h-12'
 	);
-	const descriptionClassName =
-		'text-sm mt-1 [&_p]:m-0 [&_p]:text-inherit [&_p]:leading-6';
+	const descriptionClassName = 'text-sm mt-1 [&_p]:m-0 [&_p]:text-inherit [&_p]:leading-6';
 
 	return (
 		<Link to={href} className="block group">
@@ -61,13 +60,13 @@ export function CardLink({
 						</CardAction>
 					)}
 					{icon && (
-						<div className="mb-2 text-cyan-600 dark:text-cyan-400 [&>svg]:size-5 [&>img]:size-7 [&>picture>img]:size-7">{icon}</div>
+						<div className="mb-2 text-cyan-600 dark:text-cyan-400 [&>svg]:size-5 [&>img]:size-7 [&>picture>img]:size-7">
+							{icon}
+						</div>
 					)}
 					<CardTitle className={titleClassName}>{title}</CardTitle>
 					{description && (
-						<CardDescription className={descriptionClassName}>
-							{description}
-						</CardDescription>
+						<CardDescription className={descriptionClassName}>{description}</CardDescription>
 					)}
 				</CardHeader>
 			</Card>
@@ -91,17 +90,11 @@ export function ExternalCard({
 		'text-base group-hover:text-cyan-500 transition-colors',
 		align === 'locked' && 'line-clamp-2 leading-6 min-h-12'
 	);
-	const descriptionClassName =
-		'text-sm mt-1 [&_p]:m-0 [&_p]:text-inherit [&_p]:leading-6';
+	const descriptionClassName = 'text-sm mt-1 [&_p]:m-0 [&_p]:text-inherit [&_p]:leading-6';
 	const descriptionContent = description ?? children;
 
 	return (
-		<a
-			href={href}
-			target="_blank"
-			rel="noopener noreferrer"
-			className="block group"
-		>
+		<a href={href} target="_blank" rel="noopener noreferrer" className="block group">
 			<Card
 				className={cn(
 					'h-full transition-colors hover:border-cyan-500/50 hover:bg-zinc-50 dark:hover:bg-zinc-900/50',

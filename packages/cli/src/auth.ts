@@ -32,6 +32,8 @@ const RESOURCE_PREFIXES: Array<{ prefix: string; type: ResourceType }> = [
 	{ prefix: 'ein_', type: 'email' },
 	{ prefix: 'eout_', type: 'email' },
 	{ prefix: 'edlv_', type: 'email' },
+	{ prefix: 'wh_', type: 'webhook' },
+	{ prefix: 'task_', type: 'task' },
 ];
 
 function getResourceTypeFromId(id: string): ResourceType | undefined {

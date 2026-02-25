@@ -8,7 +8,14 @@ export { ModeToggle } from './mode-toggle';
 export { PlaceholderPage } from './placeholder-page';
 export { SearchDialog } from './search-dialog';
 export { TableOfContents } from './toc';
-export { navData, findCurrentNav, findPrevNext, getAllNavItems, type NavItem, type NavSection } from './nav-data';
+export {
+	navData,
+	findCurrentNav,
+	findPrevNext,
+	getAllNavItems,
+	type NavItem,
+	type NavSection,
+} from './nav-data';
 export { mdxComponents } from './mdx-components';
 
 // MDX documentation components

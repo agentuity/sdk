@@ -100,11 +100,7 @@ export function CodeBlock({
 								</>
 							) : (
 								<>
-									<svg
-										aria-hidden="true"
-										fill="currentColor"
-										viewBox="0 0 24 24"
-									>
+									<svg aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
 										<path d="M8 5v14l11-7z" />
 									</svg>
 									<span>Run</span>
@@ -112,20 +108,12 @@ export function CodeBlock({
 							)}
 						</Button>
 					)}
-					<Button
-						variant="outline-neutral"
-						size="sm"
-						onClick={handleCopy}
-						className="grid"
-					>
+					<Button variant="outline-neutral" size="sm" onClick={handleCopy} className="grid">
 						{/* Grid overlap: both states stack, larger determines size */}
-						<span className={`col-start-1 row-start-1 flex items-center justify-center gap-1.5 text-green-600 dark:text-green-400 ${copied ? '' : 'invisible'}`}>
-							<svg
-								aria-hidden="true"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
+						<span
+							className={`col-start-1 row-start-1 flex items-center justify-center gap-1.5 text-green-600 dark:text-green-400 ${copied ? '' : 'invisible'}`}
+						>
+							<svg aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path
 									strokeLinecap="round"
 									strokeLinejoin="round"
@@ -135,13 +123,10 @@ export function CodeBlock({
 							</svg>
 							<span>Copied!</span>
 						</span>
-						<span className={`col-start-1 row-start-1 flex items-center justify-center gap-1.5 ${copied ? 'invisible' : ''}`}>
-							<svg
-								aria-hidden="true"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
+						<span
+							className={`col-start-1 row-start-1 flex items-center justify-center gap-1.5 ${copied ? 'invisible' : ''}`}
+						>
+							<svg aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path
 									strokeLinecap="round"
 									strokeLinejoin="round"

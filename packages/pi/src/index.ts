@@ -41,7 +41,7 @@ const PROXY_EVENTS = [
 // Generic event handler type for the iteration loop
 type GenericEventHandler = (
 	event: string,
-	handler: (event: unknown, ctx: ExtensionContext) => Promise<unknown>,
+	handler: (event: unknown, ctx: ExtensionContext) => Promise<unknown>
 ) => void;
 
 function log(msg: string): void {
@@ -76,7 +76,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		}
 
 		log(
-			`Connected. Init: ${initMsg.tools?.length ?? 0} tools, ${initMsg.commands?.length ?? 0} commands`,
+			`Connected. Init: ${initMsg.tools?.length ?? 0} tools, ${initMsg.commands?.length ?? 0} commands`
 		);
 
 		// Register tools from Hub
@@ -93,7 +93,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						params: unknown,
 						_signal: AbortSignal | undefined,
 						_onUpdate: unknown,
-						ctx: ExtensionContext,
+						ctx: ExtensionContext
 					) {
 						log(`Tool execute: ${toolDef.name}`);
 						const id = client.nextId();
@@ -119,19 +119,14 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 							};
 						}
 
-						const result = await processActions(
-							response.actions,
-							ctx,
-						);
+						const result = await processActions(response.actions, ctx);
 
 						if (result.returnValue !== undefined) {
 							return result.returnValue as AgentToolResult<unknown>;
 						}
 
 						return {
-							content: [
-								{ type: 'text' as const, text: 'Done' },
-							],
+							content: [{ type: 'text' as const, text: 'Done' }],
 							details: {},
 						};
 					},
@@ -145,10 +140,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				log(`Registering command: /${cmdDef.name}`);
 				pi.registerCommand(cmdDef.name, {
 					description: cmdDef.description,
-					handler: async (
-						args: string,
-						ctx: ExtensionCommandContext,
-					) => {
+					handler: async (args: string, ctx: ExtensionCommandContext) => {
 						log(`Command execute: /${cmdDef.name}`);
 						const id = client.nextId();
 						let response: HubResponse;
@@ -178,7 +170,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	async function sendEvent(
 		eventName: string,
 		data: Record<string, unknown>,
-		ctx: ExtensionContext,
+		ctx: ExtensionContext
 	): Promise<unknown> {
 		if (!client.connected) return undefined;
 

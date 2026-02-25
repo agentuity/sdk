@@ -1,4 +1,4 @@
 {
-  "title": "Sandbox",
-  "pages": ["index", "sdk-usage", "snapshots"]
+	"title": "Sandbox",
+	"pages": ["index", "sdk-usage", "snapshots"]
 }

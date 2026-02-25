@@ -135,12 +135,21 @@ export function VectorSearch() {
 							disabled={loading || seeded}
 						>
 							<span className="relative">
-								<span className={loading && !seeded ? 'invisible' : seeded ? 'invisible' : ''}>Load Sample Data</span>
+								<span
+									className={loading && !seeded ? 'invisible' : seeded ? 'invisible' : ''}
+								>
+									Load Sample Data
+								</span>
 								{loading && !seeded && (
-									<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+									<span
+										className="absolute inset-0 flex items-center justify-center"
+										data-loading="true"
+									/>
 								)}
 								{seeded && (
-									<span className="absolute inset-0 flex items-center justify-center">Loaded</span>
+									<span className="absolute inset-0 flex items-center justify-center">
+										Loaded
+									</span>
 								)}
 							</span>
 						</Button>
@@ -175,15 +184,14 @@ export function VectorSearch() {
 						onKeyDown={(e) => e.key === 'Enter' && search()}
 						className="flex-1"
 					/>
-					<Button
-						onClick={search}
-						disabled={loading || !query.trim()}
-						variant="outline"
-					>
+					<Button onClick={search} disabled={loading || !query.trim()} variant="outline">
 						<span className="relative">
 							<span className={searching ? 'invisible' : ''}>Search</span>
 							{searching && (
-								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								<span
+									className="absolute inset-0 flex items-center justify-center"
+									data-loading="true"
+								/>
 							)}
 						</span>
 					</Button>
@@ -209,7 +217,10 @@ export function VectorSearch() {
 						</div>
 						<Separator />
 						{[1, 2, 3].map((i) => (
-							<div key={i} className="flex justify-between p-4 border-b border-zinc-200 dark:border-zinc-900">
+							<div
+								key={i}
+								className="flex justify-between p-4 border-b border-zinc-200 dark:border-zinc-900"
+							>
 								<div className="space-y-2">
 									<Skeleton className="h-4 w-48" />
 									<Skeleton className="h-3 w-24" />

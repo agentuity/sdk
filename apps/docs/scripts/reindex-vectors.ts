@@ -131,9 +131,7 @@ async function main() {
 			errorFiles.push(...stats.errorFiles);
 		}
 
-		console.log(
-			`  OK: ${stats?.processed ?? '?'} processed, ${stats?.errors ?? 0} errors`
-		);
+		console.log(`  OK: ${stats?.processed ?? '?'} processed, ${stats?.errors ?? 0} errors`);
 	}
 
 	console.log('\n── Summary ──');
