@@ -1,6 +1,6 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
-import type { EmailAttachment, EmailOutbound } from '@agentuity/core';
+import type { EmailAttachment } from '@agentuity/core';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createEmailAdapter, truncate } from './util';
