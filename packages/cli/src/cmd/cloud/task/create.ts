@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
+import { createStorageAdapter, parseMetadataFlag } from './util';
 import { getCommand } from '../../../command-prefix';
 import type { TaskPriority, TaskStatus, TaskType } from '@agentuity/core';
 
@@ -75,22 +75,15 @@ export const createSubcommand = createCommand({
 		const started = Date.now();
 		const storage = createStorageAdapter(ctx);
 
-		let metadata: Record<string, unknown> | undefined;
-		if (opts.metadata) {
-			try {
-				metadata = JSON.parse(opts.metadata) as Record<string, unknown>;
-			} catch {
-				tui.fatal('Invalid JSON for --metadata flag');
-			}
-		}
+		const metadata = parseMetadataFlag(opts.metadata);
 
 		const task = await storage.create({
 			title: args.title,
 			type: opts.type as TaskType,
 			created_id: opts.createdId,
 			description: opts.description,
-			priority: (opts.priority as TaskPriority) ?? undefined,
-			status: (opts.status as TaskStatus) ?? undefined,
+			priority: opts.priority as TaskPriority,
+			status: opts.status as TaskStatus,
 			parent_id: opts.parentId,
 			assigned_id: opts.assignedId,
 			metadata,

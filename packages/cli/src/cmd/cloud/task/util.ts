@@ -39,3 +39,12 @@ export function createStorageAdapter(
 	const baseUrl = getCatalystUrl(ctx.region);
 	return new TaskStorageService(baseUrl, adapter);
 }
+
+export function parseMetadataFlag(raw: string | undefined): Record<string, unknown> | undefined {
+	if (!raw) return undefined;
+	try {
+		return JSON.parse(raw) as Record<string, unknown>;
+	} catch {
+		tui.fatal('Invalid JSON for --metadata flag');
+	}
+}
