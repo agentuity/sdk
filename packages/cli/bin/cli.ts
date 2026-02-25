@@ -299,6 +299,14 @@ await registerCommands(program, commands, ctx as unknown as CommandContext);
 
 try {
 	await program.parseAsync(process.argv);
+	// Ensure clean exit after successful command execution.
+	// In TTY environments, process.stdin may keep the event loop alive
+	// (e.g., after confirm() calls resume()/setRawMode()), and Bun does not
+	// support process.stdin.unref(), so we must explicitly exit.
+	closeDatabase();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
+	exit(0);
 } catch (error) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;

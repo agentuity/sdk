@@ -46,19 +46,28 @@ export const listSubcommand = createCommand({
 			sandbox: z.string().optional().describe('Filter by sandbox ID'),
 			limit: z.number().optional().describe('Maximum number of results'),
 			offset: z.number().optional().describe('Offset for pagination'),
+			orgId: z.string().optional().describe('filter by organization id'),
+			sort: z
+				.enum(['name', 'created', 'size', 'files'])
+				.optional()
+				.describe('field to sort by (default: created)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: SnapshotListResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { opts, options, auth, logger, orgId, config } = ctx;
+		const { opts, options, orgId: ctxOrgId, logger, auth, config } = ctx;
 		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const effectiveOrgId = opts?.orgId || ctxOrgId;
 
 		const result = await snapshotList(client, {
 			sandboxId: opts.sandbox,
 			limit: opts.limit,
 			offset: opts.offset,
-			orgId,
+			orgId: effectiveOrgId,
+			sort: opts.sort,
+			direction: opts.direction,
 		});
 
 		if (!options.json) {

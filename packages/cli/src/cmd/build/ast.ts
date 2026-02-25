@@ -1,5 +1,5 @@
 import * as acornLoose from 'acorn-loose';
-import { dirname, relative, join, basename } from 'node:path';
+import { dirname, relative, join, basename, resolve } from 'node:path';
 import { parse as parseCronExpression } from '@datasert/cronjs-parser';
 import { generate } from 'astring';
 import type { BuildMetadata } from '../../types';
@@ -8,9 +8,10 @@ import * as ts from 'typescript';
 import { StructuredError, type WorkbenchConfig } from '@agentuity/core';
 import type { LogLevel } from '../../types';
 
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync } from 'node:fs';
 import JSON5 from 'json5';
 import { formatSchemaCode } from './format-schema';
+import { toForwardSlash } from '../../utils/normalize-path';
 import {
 	computeApiMountPath,
 	joinMountAndRoute,
@@ -488,7 +489,7 @@ export async function parseEvalMetadata(
 		ecmaVersion: 'latest',
 		sourceType: 'module',
 	});
-	const rel = relative(rootDir, filename);
+	const rel = toForwardSlash(relative(rootDir, filename));
 	const version = hash(contents);
 	const evals: Array<{
 		filename: string;
@@ -706,7 +707,7 @@ export async function parseAgentMetadata(
 		sourceType: 'module',
 	});
 	let exportName: string | undefined;
-	const rel = relative(rootDir, filename);
+	const rel = toForwardSlash(relative(rootDir, filename));
 	let name: string | undefined; // Will be set from createAgent identifier
 	const version = hash(contents);
 	const id = getAgentId(projectId, deploymentId, rel, version);
@@ -910,7 +911,7 @@ export async function parseAgentMetadata(
 		| 'error';
 	const logger = createLogger(logLevel);
 	const agentDir = dirname(filename);
-	const evalsPath = `${agentDir}/eval.ts`;
+	const evalsPath = join(agentDir, 'eval.ts');
 	logger.trace(`Checking for evals file at ${evalsPath}`);
 	const evalsFile = Bun.file(evalsPath);
 	if (await evalsFile.exists()) {
@@ -1049,7 +1050,7 @@ function validateSchemaExports(
 }
 
 /**
- * Check if an AST node contains a validator() call
+ * Information extracted from validator middleware in route handler arguments.
  */
 interface ValidatorInfo {
 	hasValidator: boolean;
@@ -1059,8 +1060,65 @@ interface ValidatorInfo {
 	stream?: boolean;
 }
 
+/**
+ * Scan route handler arguments for validator middleware and extract schema information.
+ *
+ * Accumulates schema info across ALL validator arguments in the route handler,
+ * supporting common patterns like combining param + JSON body validation:
+ *
+ * ```ts
+ * router.patch('/:id',
+ *   zValidator('param', paramSchema),  // detected, no schema extracted (non-json)
+ *   zValidator('json', bodySchema),    // detected, inputSchemaVariable = 'bodySchema'
+ *   async (c) => { ... }
+ * );
+ * ```
+ *
+ * **Schema merge strategy — first match wins:**
+ * When multiple validators provide the same schema field (e.g., two `inputSchemaVariable`
+ * providers), the first one encountered is kept. This is intentional because:
+ *
+ * 1. Primary validators (e.g., `validator({ input, output })`, `agent.validator()`) are
+ *    conventionally listed before supplementary validators (param, query, header, cookie).
+ * 2. For `zValidator`, only `'json'` targets extract schemas — other targets (param, query,
+ *    header, cookie) return no schema variables, so ordering rarely matters in practice.
+ * 3. Duplicate json validators on the same route is uncommon; when it occurs, a warning
+ *    is logged to help developers catch unintentional conflicts.
+ *
+ * Supported validator patterns:
+ * - `validator({ input, output, stream })` — Agentuity object-style
+ * - `validator('json', callback)` — Hono callback-style
+ * - `zValidator('json', schema)` — Zod validator (only 'json' target extracts schemas)
+ * - `agent.validator()` / `agent.validator({ input, output })` — Agent validators
+ *
+ * @param args - The arguments array from a route handler call expression (e.g., `router.post(path, ...args)`)
+ * @returns Accumulated validator info with merged schemas from all validators found
+ */
 function hasValidatorCall(args: unknown[]): ValidatorInfo {
 	if (!args || args.length === 0) return { hasValidator: false };
+
+	const result: ValidatorInfo = { hasValidator: false };
+
+	// Helper: merge a schema field using first-match-wins strategy, warn on conflict.
+	// When a field is already set and a different value is encountered, the first value
+	// is kept and a warning is emitted to help developers catch unintentional duplicates.
+	const mergeField = <K extends 'inputSchemaVariable' | 'outputSchemaVariable'>(
+		field: K,
+		value: string | undefined
+	) => {
+		if (!value) return;
+		if (result[field] && result[field] !== value) {
+			const label = field === 'inputSchemaVariable' ? 'inputSchema' : 'outputSchema';
+			logger.warn(
+				'Multiple validators provide %s: using "%s", ignoring "%s"',
+				label,
+				result[field],
+				value
+			);
+		} else if (!result[field]) {
+			result[field] = value;
+		}
+	};
 
 	for (const arg of args) {
 		if (!arg || typeof arg !== 'object') continue;
@@ -1070,28 +1128,38 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 		if (node.type === 'CallExpression') {
 			const callExpr = node as ASTCallExpression;
 
-			// Check for standalone validator({ input, output })
+			// Check for standalone validator({ input, output }) or Hono validator('json', callback)
 			if (callExpr.callee.type === 'Identifier') {
 				const identifier = callExpr.callee as ASTNodeIdentifier;
 				if (identifier.name === 'validator') {
 					// Try to extract schema variables from validator({ input, output, stream })
 					const schemas = extractValidatorSchemas(callExpr);
-					// Return if we found any schema variables OR a stream flag
+					// If we found schemas from object-style validator, merge them
 					if (
 						schemas.inputSchemaVariable ||
 						schemas.outputSchemaVariable ||
 						schemas.stream !== undefined
 					) {
-						return { hasValidator: true, ...schemas };
+						result.hasValidator = true;
+						mergeField('inputSchemaVariable', schemas.inputSchemaVariable);
+						mergeField('outputSchemaVariable', schemas.outputSchemaVariable);
+						if (schemas.stream !== undefined && result.stream === undefined) {
+							result.stream = schemas.stream;
+						}
+						continue;
 					}
 					// Try Hono validator('json', callback) pattern
 					const honoSchemas = extractHonoValidatorSchema(callExpr);
-					return { hasValidator: true, ...honoSchemas };
+					result.hasValidator = true;
+					mergeField('inputSchemaVariable', honoSchemas.inputSchemaVariable);
+					continue;
 				}
 				// Check for zValidator('json', schema)
 				if (identifier.name === 'zValidator') {
 					const schemas = extractZValidatorSchema(callExpr);
-					return { hasValidator: true, ...schemas };
+					result.hasValidator = true;
+					mergeField('inputSchemaVariable', schemas.inputSchemaVariable);
+					continue;
 				}
 			}
 
@@ -1106,13 +1174,22 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 							: undefined;
 					// Also check for schema overrides: agent.validator({ input, output })
 					const schemas = extractValidatorSchemas(callExpr);
-					return { hasValidator: true, agentVariable, ...schemas };
+					result.hasValidator = true;
+					if (agentVariable && !result.agentVariable) {
+						result.agentVariable = agentVariable;
+					}
+					mergeField('inputSchemaVariable', schemas.inputSchemaVariable);
+					mergeField('outputSchemaVariable', schemas.outputSchemaVariable);
+					if (schemas.stream !== undefined && result.stream === undefined) {
+						result.stream = schemas.stream;
+					}
+					continue;
 				}
 			}
 		}
 	}
 
-	return { hasValidator: false };
+	return result;
 }
 
 /**
@@ -1408,12 +1485,56 @@ function findSchemaValidateCall(node: ASTNode): string | undefined {
 	return undefined;
 }
 
+/**
+ * Resolve an import path to an actual file on disk.
+ * Tries the path as-is, then with common extensions.
+ * Returns null for non-relative (package) imports or if no file is found.
+ */
+function resolveImportPath(fromDir: string, importPath: string): string | null {
+	// If it's a package import (not relative), skip
+	if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
+		return null;
+	}
+
+	const basePath = resolve(fromDir, importPath);
+	const extensions = ['.ts', '.tsx', '/index.ts', '/index.tsx'];
+
+	// Try exact path first (might already have extension)
+	if (existsSync(basePath)) {
+		try {
+			const stat = statSync(basePath);
+			if (stat.isFile()) return basePath;
+		} catch {
+			// ignore stat errors
+		}
+	}
+
+	// Try with extensions
+	for (const ext of extensions) {
+		const candidate = basePath + ext;
+		if (existsSync(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
 export async function parseRoute(
 	rootDir: string,
 	filename: string,
 	projectId: string,
-	deploymentId: string
+	deploymentId: string,
+	visitedFiles?: Set<string>,
+	mountedSubrouters?: Set<string>
 ): Promise<BuildMetadata['routes']> {
+	// Track visited files to prevent infinite recursion
+	const visited = visitedFiles ?? new Set<string>();
+	const resolvedFilename = resolve(filename);
+	if (visited.has(resolvedFilename)) {
+		return []; // Already parsed this file, avoid infinite loop
+	}
+	visited.add(resolvedFilename);
 	const rawContents = await Bun.file(filename).text();
 	const version = hash(rawContents);
 	// Transpile TypeScript to JavaScript so acorn-loose can parse it properly
@@ -1555,7 +1676,7 @@ export async function parseRoute(
 		});
 	}
 
-	const rel = relative(rootDir, filename);
+	const rel = toForwardSlash(relative(rootDir, filename));
 
 	// Compute the API mount path using the shared helper
 	// This ensures consistency between route type generation (here) and runtime mounting (entry-generator.ts)
@@ -1608,8 +1729,104 @@ export async function parseRoute(
 
 						switch (method) {
 							case 'use':
+							case 'onError':
+							case 'notFound':
+							case 'basePath':
+							case 'mount': {
+								// Skip Hono middleware, lifecycle handlers, and configuration methods - they don't represent API routes
+								continue;
+							}
 							case 'route': {
-								// Skip Hono middleware and sub-router mounting - they don't represent API routes
+								// router.route(mountPath, subRouterVariable)
+								// Follow the import to discover sub-router routes
+								const mountPathArg = statement.expression.arguments[0];
+								const subRouterArg = statement.expression.arguments[1];
+
+								// First arg must be a string literal (the mount path)
+								if (!mountPathArg || (mountPathArg as ASTLiteral).type !== 'Literal') {
+									continue;
+								}
+								// Second arg must be an identifier (the sub-router variable)
+								if (
+									!subRouterArg ||
+									(subRouterArg as ASTNodeIdentifier).type !== 'Identifier'
+								) {
+									continue;
+								}
+
+								const mountPath = String((mountPathArg as ASTLiteral).value);
+								const subRouterName = (subRouterArg as ASTNodeIdentifier).name;
+
+								// Look up import path
+								const subRouterImportPath = importMap.get(subRouterName);
+								if (!subRouterImportPath) {
+									continue; // Can't resolve, skip
+								}
+
+								// Resolve to actual file path
+								const resolvedFile = resolveImportPath(
+									dirname(filename),
+									subRouterImportPath
+								);
+								if (!resolvedFile || visited.has(resolve(resolvedFile))) {
+									continue;
+								}
+
+								try {
+									// Parse sub-router's routes
+									const subRoutes = await parseRoute(
+										rootDir,
+										resolvedFile,
+										projectId,
+										deploymentId,
+										visited,
+										mountedSubrouters
+									);
+
+									// Track this file as a mounted sub-router
+									if (mountedSubrouters) {
+										mountedSubrouters.add(resolve(resolvedFile));
+									}
+
+									// Compute the sub-router's own basePath so we can strip it
+									const subSrcDir = join(rootDir, 'src');
+									const subRelativeApiPath = extractRelativeApiPath(
+										resolvedFile,
+										subSrcDir
+									);
+									const subBasePath = computeApiMountPath(subRelativeApiPath);
+
+									// The combined mount point for sub-routes
+									const combinedBase = joinMountAndRoute(basePath, mountPath);
+
+									for (const subRoute of subRoutes) {
+										// Strip the sub-router's own basePath from the route path
+										let routeSuffix = subRoute.path;
+										if (routeSuffix.startsWith(subBasePath)) {
+											routeSuffix = routeSuffix.slice(subBasePath.length) || '/';
+										}
+
+										const fullPath = joinMountAndRoute(combinedBase, routeSuffix);
+										const id = generateRouteId(
+											projectId,
+											deploymentId,
+											subRoute.type,
+											subRoute.method,
+											rel,
+											fullPath,
+											subRoute.version
+										);
+
+										routes.push({
+											...subRoute,
+											id,
+											path: fullPath,
+											filename: rel, // Keep parent file as the filename since routes are mounted here
+										});
+									}
+								} catch {
+									// Sub-router parse failure - skip silently (could be a non-route file)
+								}
 								continue;
 							}
 							case 'on': {
@@ -2567,7 +2784,7 @@ export async function generateLifecycleTypes(
 	// local dev (symlinked to packages/) and CI (actual node_modules)
 	if (existsSync(runtimePkgPath)) {
 		// Calculate relative path from src/generated/ to node_modules package
-		const relPath = relative(outDir, runtimePkgPath);
+		const relPath = toForwardSlash(relative(outDir, runtimePkgPath));
 		runtimeImportPath = relPath;
 		logger.debug(`Using relative path to runtime package: ${relPath}`);
 	} else {

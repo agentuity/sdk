@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api.ts';
 
 export const EvalRunSchema = z.object({
 	id: z.string().describe('Eval run ID'),
@@ -28,6 +28,7 @@ export type EvalRunListRequest = {
 	agentId?: string;
 	evalId?: string;
 	sessionId?: string;
+	orgId?: string;
 };
 
 export async function evalRunList(
@@ -35,6 +36,7 @@ export async function evalRunList(
 	request: EvalRunListRequest = {}
 ): Promise<EvalRunListItem[]> {
 	const params = new URLSearchParams();
+	if (request.orgId) params.set('orgId', request.orgId);
 	if (request.projectId) params.set('projectId', request.projectId);
 	if (request.agentId) params.set('agentId', request.agentId);
 	if (request.evalId) params.set('evalId', request.evalId);

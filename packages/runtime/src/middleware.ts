@@ -15,20 +15,14 @@ import { generateId } from './session';
 import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
 import { extractTraceContextFromRequest } from './otel/http';
-import {
-	context,
-	SpanKind,
-	SpanStatusCode,
-	trace,
-	propagation,
-	Meter,
-	Tracer,
-} from '@opentelemetry/api';
-import { TraceState } from '@opentelemetry/core';
+import { enrichContextWithTraceState } from './otel/tracestate';
+import { context, SpanKind, SpanStatusCode, trace, propagation } from '@opentelemetry/api';
+import type { Meter, Tracer } from '@opentelemetry/api';
 import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
 import { internal } from './logger/internal';
 import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './handlers/sse';
+import { WS_DONE_PROMISE_KEY } from './handlers/websocket';
 import { loadBuildMetadata } from './_metadata';
 
 const SESSION_HEADER = 'x-session-id';
@@ -306,6 +300,33 @@ export function createOtelMiddleware() {
 
 		await context.with(extractedContext, async (): Promise<void> => {
 			const tracer = trace.getTracer('http-server');
+
+			// Build enriched traceState BEFORE span creation so the
+			// recording span inherits it and it gets exported to OTLP.
+			// Previously, traceState was set on a NonRecordingSpan *after*
+			// the recording span was created, which meant it was propagated
+			// to outbound requests but never appeared in the exported span
+			// data (ClickHouse TraceState column was empty).
+			const projectId = runtimeConfig.getProjectId();
+			const orgId = runtimeConfig.getOrganizationId();
+			const deploymentId = runtimeConfig.getDeploymentId();
+			const isDevMode = runtimeConfig.isDevMode();
+
+			internal.info(
+				'[session] config: orgId=%s, projectId=%s, deploymentId=%s, isDevMode=%s',
+				orgId ?? 'NOT SET (AGENTUITY_CLOUD_ORG_ID)',
+				projectId ?? 'NOT SET (AGENTUITY_CLOUD_PROJECT_ID)',
+				deploymentId ?? 'none',
+				isDevMode
+			);
+
+			const enrichedContext = enrichContextWithTraceState(context.active(), {
+				pid: projectId,
+				oid: orgId,
+				did: deploymentId,
+				d: isDevMode ? '1' : undefined,
+			});
+
 			await tracer.startActiveSpan(
 				`${method} ${url.pathname}`,
 				{
@@ -317,44 +338,17 @@ export function createOtelMiddleware() {
 						'http.path': url.pathname,
 					},
 				},
+				enrichedContext,
 				async (span): Promise<void> => {
 					// Track request duration from the SDK's perspective
 					const requestStartTime = performance.now();
 					const sctx = span.spanContext();
 					const sessionId = sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess');
 
-					let traceState = sctx.traceState ?? new TraceState();
-					const projectId = runtimeConfig.getProjectId();
-					const orgId = runtimeConfig.getOrganizationId();
-					const deploymentId = runtimeConfig.getDeploymentId();
-					const isDevMode = runtimeConfig.isDevMode();
-
-					internal.info(
-						'[session] config: orgId=%s, projectId=%s, deploymentId=%s, isDevMode=%s',
-						orgId ?? 'NOT SET (AGENTUITY_CLOUD_ORG_ID)',
-						projectId ?? 'NOT SET (AGENTUITY_CLOUD_PROJECT_ID)',
-						deploymentId ?? 'none',
-						isDevMode
-					);
-
-					if (projectId) traceState = traceState.set('pid', projectId);
-					if (orgId) traceState = traceState.set('oid', orgId);
-					if (deploymentId) traceState = traceState.set('did', deploymentId);
-					if (isDevMode) traceState = traceState.set('d', '1');
-
-					// Update the active context with the new trace state
-					// Note: SpanContext.traceState is readonly, so we update it by setting the span with a new context
-					trace.setSpan(
-						context.active(),
-						trace.wrapSpanContext({
-							...sctx,
-							traceState,
-						})
-					);
-
 					const thread = await threadProvider.restore(c);
 					const session = await sessionProvider.restore(thread, sessionId);
 					const handler = new WaitUntilHandler(tracer);
+					const isWsUpgrade = c.req.header('upgrade')?.toLowerCase() === 'websocket';
 
 					c.set('sessionId', sessionId);
 					c.set('thread', thread);
@@ -365,7 +359,7 @@ export function createOtelMiddleware() {
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('agentIds', agentIds);
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(c as any).set('trigger', 'api');
+					(c as any).set('trigger', isWsUpgrade ? 'websocket' : 'api');
 
 					// Send session start event (so evalruns can reference this session)
 					// The provider decides whether to send based on available data (orgId, projectId, etc.)
@@ -420,7 +414,7 @@ export function createOtelMiddleware() {
 								projectId: projectId || '',
 								deploymentId: deploymentId || undefined,
 								devmode: isDevMode,
-								trigger: 'api',
+								trigger: isWsUpgrade ? 'websocket' : 'api',
 								routeId,
 								environment: runtimeConfig.getEnvironment(),
 								url: c.req.path,
@@ -513,6 +507,12 @@ export function createOtelMiddleware() {
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const isStreaming = Boolean((c as any).get(IS_STREAMING_RESPONSE_KEY));
 
+						// Check if this is a WebSocket response that needs deferred finalization
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const wsDone = (c as any).get(WS_DONE_PROMISE_KEY) as
+							| Promise<void>
+							| undefined;
+
 						// Check if Hono caught an error (c.error is set by Hono's error handler)
 						// or if the response status indicates an error
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -521,11 +521,12 @@ export function createOtelMiddleware() {
 						const isError = honoError || responseStatus >= 500;
 
 						internal.info(
-							'[request] %s %s - status: %d, streaming: %s, error: %s (session: %s)',
+							'[request] %s %s - status: %d, streaming: %s, websocket: %s, error: %s (session: %s)',
 							method,
 							url.pathname,
 							responseStatus,
 							isStreaming,
+							Boolean(wsDone),
 							isError,
 							sessionId
 						);
@@ -681,6 +682,135 @@ export function createOtelMiddleware() {
 									// Note: We don't call waitUntilAll() here because this waitUntil callback
 									// IS the final cleanup task. Calling waitUntilAll() would deadlock since
 									// it would wait for this very promise to complete.
+								}
+							});
+						} else if (wsDone) {
+							// WebSocket connection — defer finalization until onClose fires
+							internal.info(
+								'[request] %s %s - websocket response, deferring finalization until close (session: %s)',
+								method,
+								url.pathname,
+								sessionId
+							);
+
+							// For WebSocket, we end the span inside waitUntil after the connection closes
+							shouldEndSpanInFinally = false;
+
+							// Capture pending promises BEFORE adding finalization waitUntil to avoid deadlock
+							const pendingPromises = handler.getPendingSnapshot();
+							const hasPendingTasks = pendingPromises.length > 0;
+
+							if (hasPendingTasks) {
+								internal.info(
+									'[request] %s %s - %d pending waitUntil tasks to wait for after websocket close (session: %s)',
+									method,
+									url.pathname,
+									pendingPromises.length,
+									sessionId
+								);
+							}
+
+							// Capture values needed for span attributes
+							const capturedResponseStatus = responseStatus;
+							const capturedErrorMessage = errorMessage;
+
+							// Use waitUntil to handle WebSocket close and finalization
+							handler.waitUntil(async () => {
+								let wsError: unknown = undefined;
+
+								try {
+									await wsDone;
+									internal.info(
+										'[request] %s %s - websocket closed (session: %s)',
+										method,
+										url.pathname,
+										sessionId
+									);
+								} catch (ex) {
+									wsError = ex;
+									internal.info(
+										'[request] %s %s - websocket closed with error: %s (session: %s)',
+										method,
+										url.pathname,
+										ex,
+										sessionId
+									);
+								}
+
+								// Record duration now that WebSocket is closed
+								const wsDurationMs = performance.now() - requestStartTime;
+								const durationNs = Math.round(wsDurationMs * 1_000_000);
+								internal.info(
+									'[request] %s %s - recording websocket duration: %sms (session: %s)',
+									method,
+									url.pathname,
+									wsDurationMs.toFixed(2),
+									sessionId
+								);
+
+								// Determine final status
+								const finalStatus = wsError ? 500 : capturedResponseStatus;
+								const finalErrorMessage = wsError
+									? wsError instanceof Error
+										? (wsError.stack ?? wsError.message)
+										: String(wsError)
+									: capturedErrorMessage;
+
+								try {
+									// Wait for pending tasks captured BEFORE this waitUntil was added
+									if (hasPendingTasks) {
+										internal.info(
+											'[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)',
+											method,
+											url.pathname,
+											pendingPromises.length,
+											sessionId
+										);
+										const logger = c.get('logger');
+										await handler.waitForPromises(pendingPromises, logger, sessionId);
+										internal.info(
+											'[request] %s %s - all waitUntil tasks complete (session: %s)',
+											method,
+											url.pathname,
+											sessionId
+										);
+									}
+
+									// Finalize session after WebSocket closes
+									await finalizeSession(
+										finalStatus >= 500 ? finalStatus : undefined,
+										finalErrorMessage
+									);
+									internal.info(
+										'[request] %s %s - websocket session finalization complete (session: %s)',
+										method,
+										url.pathname,
+										sessionId
+									);
+								} finally {
+									// Set span attributes and end span AFTER all work is done
+									span.setAttribute('@agentuity/request.duration', durationNs);
+									span.setAttribute('http.status_code', finalStatus);
+
+									if (wsError) {
+										span.setStatus({
+											code: SpanStatusCode.ERROR,
+											message: finalErrorMessage ?? 'WebSocket ended with error',
+										});
+										if (wsError instanceof Error) {
+											span.recordException(wsError);
+										}
+									} else {
+										span.setStatus({ code: SpanStatusCode.OK });
+									}
+
+									span.end();
+									internal.info(
+										'[request] %s %s - websocket span ended (session: %s)',
+										method,
+										url.pathname,
+										sessionId
+									);
 								}
 							});
 						} else {

@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Schema } from './base';
-import { SCHEMA_KIND } from './base';
-import { string } from './primitives/string';
-import { number } from './primitives/number';
-import { boolean } from './primitives/boolean';
-import { null_ } from './primitives/null';
-import { object } from './complex/object';
-import { array } from './complex/array';
-import { literal } from './utils/literal';
-import { optional } from './utils/optional';
-import { nullable } from './utils/nullable';
-import { union } from './utils/union';
+import type { Schema } from './base.ts';
+import { SCHEMA_KIND } from './base.ts';
+import { string } from './primitives/string.ts';
+import { number } from './primitives/number.ts';
+import { boolean } from './primitives/boolean.ts';
+import { null_ } from './primitives/null.ts';
+import { object } from './complex/object.ts';
+import { array } from './complex/array.ts';
+import { literal } from './utils/literal.ts';
+import { optional } from './utils/optional.ts';
+import { nullable } from './utils/nullable.ts';
+import { union } from './utils/union.ts';
 
 /**
  * Check schema type using a minification-safe SCHEMA_KIND tag.

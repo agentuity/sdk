@@ -1,7 +1,8 @@
-import { FetchAdapter } from './adapter';
-import { buildUrl, toServiceException } from './_util';
-import { safeStringify } from '../json';
-import { StructuredError } from '../error';
+import { FetchAdapter } from './adapter.ts';
+import { buildUrl, toServiceException } from './_util.ts';
+import type { ListParams } from './pagination.ts';
+import { safeStringify } from '../json.ts';
+import { StructuredError } from '../error.ts';
 
 /**
  * Minimum TTL value in seconds (1 minute)
@@ -301,18 +302,16 @@ export interface VectorNamespaceStatsWithSamples extends VectorNamespaceStats {
 	sampledResults?: Record<string, VectorItemStats>;
 }
 
+export type VectorSortField = 'name' | 'size' | 'records' | 'created' | 'lastUsed';
+
 /**
  * Parameters for getting all namespace statistics with optional pagination
  */
-export interface VectorGetAllStatsParams {
+export interface VectorGetAllStatsParams extends ListParams<VectorSortField> {
 	/**
-	 * Maximum number of namespaces to return (default: 100, max: 1000)
+	 * Filter namespaces by name substring
 	 */
-	limit?: number;
-	/**
-	 * Number of namespaces to skip for pagination (default: 0)
-	 */
-	offset?: number;
+	name?: string;
 }
 
 /**
@@ -1033,6 +1032,15 @@ export class VectorStorageService implements VectorStorage {
 		}
 		if (params?.offset !== undefined) {
 			queryParams.set('offset', String(params.offset));
+		}
+		if (params?.sort) {
+			queryParams.set('sort', params.sort);
+		}
+		if (params?.direction) {
+			queryParams.set('direction', params.direction);
+		}
+		if (params?.name) {
+			queryParams.set('name', params.name);
 		}
 		const queryString = queryParams.toString();
 		const url = buildUrl(

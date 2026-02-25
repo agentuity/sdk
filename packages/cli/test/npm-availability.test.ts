@@ -30,7 +30,9 @@ describe('npm-availability', () => {
 
 	describe('isVersionAvailableOnNpm', () => {
 		test('returns true for existing version (200 response)', async () => {
-			const mockedFetch = mockFetch(async () => new Response(null, { status: 200 }));
+			const mockedFetch = mockFetch(
+				async () => new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 })
+			);
 
 			const result = await isVersionAvailableOnNpm('1.2.3');
 
@@ -39,7 +41,9 @@ describe('npm-availability', () => {
 		});
 
 		test('returns true for version with v prefix', async () => {
-			const mockedFetch = mockFetch(async () => new Response(null, { status: 200 }));
+			const mockedFetch = mockFetch(
+				async () => new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 })
+			);
 
 			const result = await isVersionAvailableOnNpm('v1.2.3');
 
@@ -81,26 +85,21 @@ describe('npm-availability', () => {
 			expect(result).toBe(false);
 		});
 
-		test('uses HEAD method for efficiency', async () => {
-			const mockedFetch = mockFetch(async () => new Response(null, { status: 200 }));
-
-			await isVersionAvailableOnNpm('1.2.3');
-
-			const callArgs = mockedFetch.mock.calls[0] as [string, RequestInit | undefined];
-			expect(callArgs[1]?.method).toBe('HEAD');
-		});
-
 		test('constructs correct npm registry URL', async () => {
-			const mockedFetch = mockFetch(async () => new Response(null, { status: 200 }));
+			const mockedFetch = mockFetch(
+				async () => new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 })
+			);
 
 			await isVersionAvailableOnNpm('1.2.3');
 
 			const callArgs = mockedFetch.mock.calls[0] as [string, RequestInit | undefined];
-			expect(callArgs[0]).toBe('https://registry.npmjs.org/%40agentuity%2Fcli/1.2.3');
+			expect(callArgs[0]).toBe('https://registry.npmjs.org/@agentuity/cli/1.2.3');
 		});
 
 		test('accepts custom timeout option', async () => {
-			const mockedFetch = mockFetch(async () => new Response(null, { status: 200 }));
+			const mockedFetch = mockFetch(
+				async () => new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 })
+			);
 
 			const result = await isVersionAvailableOnNpm('1.2.3', { timeoutMs: 500 });
 
@@ -111,7 +110,7 @@ describe('npm-availability', () => {
 
 	describe('isVersionAvailableOnNpmQuick', () => {
 		test('returns true for existing version', async () => {
-			mockFetch(async () => new Response(null, { status: 200 }));
+			mockFetch(async () => new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 }));
 
 			const result = await isVersionAvailableOnNpmQuick('1.2.3');
 
@@ -153,7 +152,7 @@ describe('npm-availability', () => {
 				// Return a promise that respects the abort signal
 				return new Promise<Response>((resolve, reject) => {
 					const timeoutId = setTimeout(() => {
-						resolve(new Response(null, { status: 200 }));
+						resolve(new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 }));
 					}, TIMING.SLOW_RESPONSE_MS);
 
 					// Listen for abort
@@ -181,7 +180,9 @@ describe('npm-availability', () => {
 
 	describe('waitForNpmAvailability', () => {
 		test('returns true immediately if version is available', async () => {
-			const mockedFetch = mockFetch(async () => new Response(null, { status: 200 }));
+			const mockedFetch = mockFetch(
+				async () => new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 })
+			);
 
 			const result = await waitForNpmAvailability('1.2.3');
 
@@ -197,7 +198,7 @@ describe('npm-availability', () => {
 				if (callCount === 1) {
 					return new Response(null, { status: 404 });
 				}
-				return new Response(null, { status: 200 });
+				return new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 });
 			});
 
 			const result = await waitForNpmAvailability('1.2.3', {
@@ -264,7 +265,7 @@ describe('npm-availability', () => {
 		});
 
 		test('handles version with v prefix', async () => {
-			mockFetch(async () => new Response(null, { status: 200 }));
+			mockFetch(async () => new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 }));
 
 			const result = await waitForNpmAvailability('v1.2.3');
 
@@ -279,7 +280,7 @@ describe('npm-availability', () => {
 				if (callCount < 6) {
 					return new Response(null, { status: 404 });
 				}
-				return new Response(null, { status: 200 });
+				return new Response(JSON.stringify({ version: '1.2.3' }), { status: 200 });
 			});
 
 			// This test would take too long with real delays, so we just verify the function works
@@ -316,7 +317,7 @@ describe('npm-availability', () => {
 				if (attemptCount <= propagationDelay) {
 					return new Response(null, { status: 404 });
 				}
-				return new Response(null, { status: 200 });
+				return new Response(JSON.stringify({ version: '0.1.43' }), { status: 200 });
 			});
 
 			const retryLog: string[] = [];
@@ -385,7 +386,7 @@ describe('npm-availability', () => {
 				// Return a promise that respects the abort signal
 				return new Promise<Response>((resolve, reject) => {
 					const timeoutId = setTimeout(() => {
-						resolve(new Response(null, { status: 200 }));
+						resolve(new Response(JSON.stringify({ version: '0.1.43' }), { status: 200 }));
 					}, TIMING.SLOW_RESPONSE_MS);
 
 					// Listen for abort
@@ -411,7 +412,9 @@ describe('npm-availability', () => {
 
 		test('simulates immediate availability - no delay needed', async () => {
 			// Best case: npm CDN already has the version
-			const mockedFetch = mockFetch(async () => new Response(null, { status: 200 }));
+			const mockedFetch = mockFetch(
+				async () => new Response(JSON.stringify({ version: '0.1.43' }), { status: 200 })
+			);
 
 			const startTime = Date.now();
 			const result = await waitForNpmAvailability('v0.1.43', {
@@ -437,7 +440,7 @@ describe('npm-availability', () => {
 					throw new Error('ECONNREFUSED');
 				}
 				// 3rd attempt: success
-				return new Response(null, { status: 200 });
+				return new Response(JSON.stringify({ version: '0.1.43' }), { status: 200 });
 			});
 
 			const result = await waitForNpmAvailability('v0.1.43', {
@@ -492,7 +495,7 @@ describe('npm-availability', () => {
 				if (attemptCount < 4) {
 					return new Response(null, { status: 404 });
 				}
-				return new Response(null, { status: 200 });
+				return new Response(JSON.stringify({ version: '0.1.43' }), { status: 200 });
 			});
 
 			const result = await waitForNpmAvailability('v0.1.43', {

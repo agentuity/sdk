@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIResponseSchemaNoData, APIClient } from '../api';
-import { MachineResponseError } from './util';
+import { APIResponseSchema, APIResponseSchemaNoData, APIClient } from '../api.ts';
+import { MachineResponseError } from './util.ts';
 
 // TODO: The old /cli/auth/machine/* endpoints should be aliased to redirect
 // to /cli/auth/org/* in the backend (app repo). Remove aliases in follow-up PR.
@@ -34,8 +34,12 @@ export const MachineDeleteResponseSchema = APIResponseSchemaNoData();
 
 export type Machine = z.infer<typeof MachineSchema>;
 
-export async function machineList(client: APIClient): Promise<Machine[]> {
-	const resp = await client.get('/machine', MachineListResponseSchema);
+export async function machineList(
+	client: APIClient,
+	options?: { orgId?: string }
+): Promise<Machine[]> {
+	const headers = options?.orgId ? { 'x-agentuity-orgid': options.orgId } : undefined;
+	const resp = await client.get('/machine', MachineListResponseSchema, undefined, headers);
 	if (resp.success) {
 		return resp.data;
 	}

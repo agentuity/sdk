@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from '../api';
-import { ProjectResponseError } from './util';
+import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from '../api.ts';
+import { ProjectResponseError } from './util.ts';
 
 // Simplified metadata schema for the client
 export const DeploymentMetadataSchema = z.object({
@@ -64,10 +64,13 @@ export type DeploymentInfo = z.infer<typeof DeploymentSchema>;
 export async function projectDeploymentList(
 	client: APIClient,
 	projectId: string,
-	limit = 10
+	limit = 10,
+	options?: { orgId?: string }
 ): Promise<DeploymentInfo[]> {
+	const params = new URLSearchParams({ limit: String(limit) });
+	if (options?.orgId) params.set('orgId', options.orgId);
 	const resp = await client.get(
-		`/cli/project/${projectId}/deployments?limit=${limit}`,
+		`/cli/project/${projectId}/deployments?${params.toString()}`,
 		DeploymentListResponseSchema
 	);
 	if (resp.success) {

@@ -1,7 +1,7 @@
 import type { ListRuntimesParams, ListRuntimesResponse, SandboxRuntime } from '@agentuity/core';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { API_VERSION, throwSandboxError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { API_VERSION, throwSandboxError } from './util.ts';
 
 export const RuntimeRequirementsSchema = z
 	.object({
@@ -61,6 +61,12 @@ export async function runtimeList(
 	}
 	if (params?.offset !== undefined) {
 		queryParams.set('offset', params.offset.toString());
+	}
+	if (params?.sort) {
+		queryParams.set('sort', params.sort);
+	}
+	if (params?.direction) {
+		queryParams.set('direction', params.direction);
 	}
 
 	const queryString = queryParams.toString();

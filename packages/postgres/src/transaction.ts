@@ -1,5 +1,5 @@
 import type { SQL, SQLQuery } from 'bun';
-import { TransactionError } from './errors';
+import { TransactionError } from './errors.ts';
 
 /**
  * Represents a PostgreSQL transaction with support for savepoints.
@@ -122,6 +122,8 @@ export class Transaction {
 				phase: 'commit',
 				cause: error,
 			});
+		} finally {
+			this._releaseConnection();
 		}
 	}
 
@@ -142,6 +144,19 @@ export class Transaction {
 				phase: 'rollback',
 				cause: error,
 			});
+		} finally {
+			this._releaseConnection();
+		}
+	}
+
+	/**
+	 * Releases the underlying reserved connection back to the pool.
+	 * Called automatically on commit or rollback. Safe to call multiple times.
+	 */
+	private _releaseConnection(): void {
+		const sql = this._sql as unknown as { release?: () => void };
+		if (typeof sql.release === 'function') {
+			sql.release();
 		}
 	}
 

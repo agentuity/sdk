@@ -1,67 +1,69 @@
-import { z } from 'zod';
-import { join, resolve } from 'node:path';
 import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { StructuredError } from '@agentuity/core';
-import { createSubcommand, DeployOptionsSchema } from '../../types';
-import { getUserAgent } from '../../api';
-import * as tui from '../../tui';
 import {
-	saveProjectDir,
-	getDefaultConfigDir,
-	loadProjectSDKKey,
-	updateProjectConfig,
-	getGlobalCatalystAPIClient,
-} from '../../config';
-import { getProjectGithubStatus } from '../git/api';
-import { runGitLink } from '../git/link';
-import {
-	runSteps,
-	stepSuccess,
-	stepSkipped,
-	stepError,
-	pauseStepUI,
-	type Step,
-	type StepContext,
-} from '../../steps';
-import { viteBundle } from '../build/vite-bundler';
-import { loadBuildMetadata, getStreamURL } from '../../config';
-import {
-	projectEnvUpdate,
-	projectDeploymentCreate,
-	projectDeploymentUpdate,
+	type BuildMetadata,
+	type Deployment,
+	type DeploymentComplete,
+	type DeploymentInstructions,
+	type DeploymentStatusResult,
+	getAppBaseURL,
+	type MalwareCheckResult,
 	projectDeploymentComplete,
-	projectDeploymentStatus,
+	projectDeploymentCreate,
 	projectDeploymentMalwareCheck,
-	validateResources,
+	projectDeploymentStatus,
+	projectDeploymentUpdate,
+	projectEnvUpdate,
 	projectGet,
 	projectUpdateRegion,
-	type Deployment,
-	type BuildMetadata,
-	type DeploymentInstructions,
-	type DeploymentComplete,
-	type DeploymentStatusResult,
-	type MalwareCheckResult,
-	getAppBaseURL,
+	validateResources,
 } from '@agentuity/server';
+import { z } from 'zod';
+import { getUserAgent } from '../../api';
+import { BuildReportCollector, clearGlobalCollector, setGlobalCollector } from '../../build-report';
+import { getCachedProject, setCachedProject } from '../../cache';
+import { getCommand } from '../../command-prefix';
 import {
+	getDefaultConfigDir,
+	getGlobalCatalystAPIClient,
+	getStreamURL,
+	loadBuildMetadata,
+	loadProjectSDKKey,
+	saveProjectDir,
+	updateProjectConfig,
+} from '../../config';
+import { encryptFIPSKEMDEMStream } from '../../crypto/box';
+import * as domain from '../../domain';
+import {
+	filterAgentuitySdkKeys,
 	findExistingEnvFile,
 	readEnvFile,
-	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 } from '../../env-util';
-import { zipDir } from '../../utils/zip';
-import { encryptFIPSKEMDEMStream } from '../../crypto/box';
-import { getCommand } from '../../command-prefix';
-import * as domain from '../../domain';
 import { ErrorCode, getExitCode } from '../../errors';
-import { typecheck } from '../build/typecheck';
-import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
-import { runForkedDeploy } from './deploy-fork';
+import {
+	pauseStepUI,
+	runSteps,
+	type Step,
+	type StepContext,
+	StepInterruptError,
+	stepError,
+	stepSkipped,
+	stepSuccess,
+} from '../../steps';
+import * as tui from '../../tui';
+import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { validateAptDependencies } from '../../utils/apt-validator';
 import { extractDependencies } from '../../utils/deps';
-import { getCachedProject, setCachedProject } from '../../cache';
+import { zipDir } from '../../utils/zip';
+import { typecheck } from '../build/typecheck';
+import { viteBundle } from '../build/vite-bundler';
+import { getProjectGithubStatus } from '../git/api';
+import { runGitLink } from '../git/link';
+import { runForkedDeploy } from './deploy-fork';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -428,6 +430,13 @@ export const deploySubcommand = createSubcommand({
 			}
 		}
 
+		// Create a unified abort controller for the entire deploy flow
+		const deployAbortController = new AbortController();
+		const deployAbortHandler = () => {
+			deployAbortController.abort();
+		};
+		process.on('SIGINT', deployAbortHandler);
+
 		// Start malware check async (runs in parallel with build)
 		if (deployment) {
 			malwareCheckPromise = (async () => {
@@ -444,7 +453,8 @@ export const deploySubcommand = createSubcommand({
 					const result = await projectDeploymentMalwareCheck(
 						catalystClient,
 						deployment!.id,
-						packages
+						packages,
+						deployAbortController.signal
 					);
 					logger.debug(
 						'Malware check complete: action=%s, flagged=%d',
@@ -492,7 +502,6 @@ export const deploySubcommand = createSubcommand({
 							const result = await runGitLink({
 								apiClient,
 								projectId: project.projectId,
-								orgId: project.orgId,
 								logger,
 								skipAlreadyLinkedCheck: true,
 								config,
@@ -506,7 +515,8 @@ export const deploySubcommand = createSubcommand({
 								tui.info('Push a commit to trigger your first deployment.');
 								tui.newline();
 								throw new DeploymentCancelledError();
-							} else if (result.linked) {
+							}
+							if (result.linked) {
 								// Linked but auto-deploy disabled, continue with manual deploy
 								tui.newline();
 								tui.info('GitHub repository linked. Continuing with deployment...');
@@ -599,7 +609,7 @@ export const deploySubcommand = createSubcommand({
 
 					{
 						label: 'Build, Verify and Package',
-						run: async () => {
+						run: async (stepCtx: StepContext) => {
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
@@ -614,9 +624,7 @@ export const deploySubcommand = createSubcommand({
 
 							if (typeResult.success) {
 								capturedOutput.push(
-									tui.muted(
-										`✓ Typechecked in ${Math.floor(Date.now() - started).toFixed(0)}ms`
-									)
+									tui.muted(`✓ Typechecked in ${Date.now() - started}ms`)
 								);
 							} else {
 								// Errors already added to collector by typecheck()
@@ -636,6 +644,7 @@ export const deploySubcommand = createSubcommand({
 									region: project.region,
 									logger: ctx.logger,
 									deploymentOptions: opts,
+									deploymentConfig: project.deployment,
 									collector,
 								});
 								capturedOutput = [...capturedOutput, ...bundleResult.output];
@@ -643,7 +652,8 @@ export const deploySubcommand = createSubcommand({
 								instructions = await projectDeploymentUpdate(
 									apiClient,
 									deployment.id,
-									build
+									build,
+									stepCtx.signal
 								);
 								return stepSuccess(capturedOutput.length > 0 ? capturedOutput : undefined);
 							} catch (ex) {
@@ -789,6 +799,7 @@ export const deploySubcommand = createSubcommand({
 										'Content-Type': 'application/zip',
 									},
 									body: zipfile,
+									signal: stepCtx.signal,
 								});
 								ctx.logger.trace(`Upload response: ${resp.status}`);
 								if (!resp.ok) {
@@ -876,6 +887,7 @@ export const deploySubcommand = createSubcommand({
 												duplex: 'half',
 												headers,
 												body,
+												signal: stepCtx.signal,
 											})
 										);
 									}
@@ -910,11 +922,15 @@ export const deploySubcommand = createSubcommand({
 					},
 					{
 						label: 'Provision Deployment',
-						run: async () => {
+						run: async (stepCtx: StepContext) => {
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
-							complete = await projectDeploymentComplete(apiClient, deployment.id);
+							complete = await projectDeploymentComplete(
+								apiClient,
+								deployment.id,
+								stepCtx.signal
+							);
 							return stepSuccess();
 						},
 					},
@@ -945,12 +961,7 @@ export const deploySubcommand = createSubcommand({
 			const maxAttempts = 600;
 			let attempts = 0;
 
-			// Create abort controller to allow Ctrl+C to interrupt polling
-			const pollAbortController = new AbortController();
-			const sigintHandler = () => {
-				pollAbortController.abort();
-			};
-			process.on('SIGINT', sigintHandler);
+			// Reuse the deploy abort controller for polling (already aborted on Ctrl+C)
 
 			try {
 				if (streamId) {
@@ -1014,7 +1025,7 @@ export const deploySubcommand = createSubcommand({
 								// Poll for deployment status
 								while (attempts < maxAttempts) {
 									// Check if user pressed Ctrl+C
-									if (pollAbortController.signal.aborted) {
+									if (deployAbortController.signal.aborted) {
 										logStreamController.abort();
 										throw new DeploymentCancelledError();
 									}
@@ -1023,7 +1034,8 @@ export const deploySubcommand = createSubcommand({
 									try {
 										statusResult = await projectDeploymentStatus(
 											apiClient,
-											deployment?.id ?? ''
+											deployment?.id ?? '',
+											deployAbortController.signal
 										);
 
 										logger.trace('status result: %s', statusResult);
@@ -1115,14 +1127,15 @@ export const deploySubcommand = createSubcommand({
 						callback: async () => {
 							while (attempts < maxAttempts) {
 								// Check if user pressed Ctrl+C
-								if (pollAbortController.signal.aborted) {
+								if (deployAbortController.signal.aborted) {
 									throw new DeploymentCancelledError();
 								}
 
 								attempts++;
 								statusResult = await projectDeploymentStatus(
 									apiClient,
-									deployment?.id ?? ''
+									deployment?.id ?? '',
+									deployAbortController.signal
 								);
 
 								if (statusResult.state === 'completed') {
@@ -1160,9 +1173,7 @@ export const deploySubcommand = createSubcommand({
 
 				const lines = [`${ex}`, ''];
 				lines.push(
-					`${tui.ICONS.arrow} ${
-						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
-					}`
+					`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)}`
 				);
 				tui.banner(tui.colorError(`Deployment: ${deployment.id} Failed`), lines.join('\n'), {
 					centerTitle: false,
@@ -1172,7 +1183,7 @@ export const deploySubcommand = createSubcommand({
 				tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 			} finally {
 				// Clean up signal handler
-				process.off('SIGINT', sigintHandler);
+				process.off('SIGINT', deployAbortHandler);
 			}
 
 			// Show deployment URLs
@@ -1185,22 +1196,21 @@ export const deploySubcommand = createSubcommand({
 						);
 					}
 				} else {
+					// Prefer vanity URLs, fall back to hash-based
+					const deploymentUrl =
+						complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment;
+					const latestUrl = complete.publicUrls.vanityProject ?? complete.publicUrls.latest;
 					lines.push(
 						`${tui.ICONS.arrow} ${
-							tui.bold(tui.padRight('Deployment:', 12)) +
-							tui.link(complete.publicUrls.deployment)
+							tui.bold(tui.padRight('Deployment:', 12)) + tui.link(deploymentUrl)
 						}`
 					);
 					lines.push(
-						`${tui.ICONS.arrow} ${
-							tui.bold(tui.padRight('Project:', 12)) + tui.link(complete.publicUrls.latest)
-						}`
+						`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Project:', 12)) + tui.link(latestUrl)}`
 					);
 				}
 				lines.push(
-					`${tui.ICONS.arrow} ${
-						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
-					}`
+					`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)}`
 				);
 				tui.banner(`Deployment: ${tui.colorPrimary(deployment.id)}`, lines.join('\n'), {
 					centerTitle: false,
@@ -1222,20 +1232,28 @@ export const deploySubcommand = createSubcommand({
 				logs,
 				urls: complete?.publicUrls
 					? {
-							deployment: complete.publicUrls.deployment,
-							latest: complete.publicUrls.latest,
+							deployment:
+								complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment,
+							latest: complete.publicUrls.vanityProject ?? complete.publicUrls.latest,
 							custom: complete.publicUrls.custom,
 							dashboard,
 						}
 					: undefined,
 			};
 		} catch (ex) {
+			// Handle step interruption (Ctrl+C during build steps)
+			if (ex instanceof StepInterruptError) {
+				tui.warning('Deployment cancelled');
+				process.exit(ex.exitCode);
+			}
 			collector.addGeneralError('deploy', String(ex), 'DEPLOY004');
 			if (opts.reportFile) {
 				await collector.forceWrite();
 			}
 			clearGlobalCollector();
 			tui.fatal(`unexpected error trying to deploy project. ${ex}`);
+		} finally {
+			process.off('SIGINT', deployAbortHandler);
 		}
 	},
 });

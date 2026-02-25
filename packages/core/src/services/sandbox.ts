@@ -1,4 +1,5 @@
-import { StructuredError } from '../error';
+import { StructuredError } from '../error.ts';
+import type { SortDirection } from './pagination.ts';
 
 /**
  * Resource limits for a sandbox using Kubernetes-style units
@@ -23,7 +24,26 @@ export interface SandboxResources {
 /**
  * Sandbox status
  */
-export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'failed' | 'deleted';
+export type SandboxStatus =
+	| 'creating'
+	| 'idle'
+	| 'running'
+	| 'paused'
+	| 'stopping'
+	| 'suspended'
+	| 'terminated'
+	| 'failed'
+	| 'deleted';
+
+export type SandboxSortField =
+	| 'name'
+	| 'created'
+	| 'updated'
+	| 'status'
+	| 'mode'
+	| 'execution_count';
+export type SnapshotSortField = 'name' | 'created' | 'size' | 'files';
+export type RuntimeSortField = 'name' | 'created';
 
 /**
  * Runtime information for a sandbox
@@ -450,6 +470,12 @@ export interface SandboxCreateOptions {
 	dependencies?: string[];
 
 	/**
+	 * npm/bun packages to install globally when creating the sandbox.
+	 * These are installed via `bun install -g` before executing any commands.
+	 */
+	packages?: string[];
+
+	/**
 	 * Optional user-defined metadata to associate with the sandbox.
 	 * This can be used to store arbitrary key-value data for tracking or identification.
 	 */
@@ -504,6 +530,12 @@ export interface Sandbox {
 	 * When true, reading from stdout or stderr will return the same interleaved data.
 	 */
 	interleaved: boolean;
+
+	/**
+	 * Stream ID for the audit event stream (eBPF/Tetragon security events).
+	 * Only present when audit streaming was successfully configured during sandbox creation.
+	 */
+	auditStreamId?: string;
 
 	/**
 	 * Execute a command in the sandbox
@@ -687,9 +719,24 @@ export interface SandboxInfo {
 	stderrStreamUrl?: string;
 
 	/**
+	 * ID of the audit event stream (eBPF/Tetragon security events)
+	 */
+	auditStreamId?: string;
+
+	/**
+	 * URL to the audit event stream (eBPF/Tetragon security events)
+	 */
+	auditStreamUrl?: string;
+
+	/**
 	 * Apt packages installed in the sandbox
 	 */
 	dependencies?: string[];
+
+	/**
+	 * npm/bun packages installed globally in the sandbox
+	 */
+	packages?: string[];
 
 	/**
 	 * User-defined metadata associated with the sandbox
@@ -777,6 +824,16 @@ export interface SandboxInfo {
  */
 export interface ListSandboxesParams {
 	/**
+	 * Filter by sandbox name
+	 */
+	name?: string;
+
+	/**
+	 * Filter by sandbox mode
+	 */
+	mode?: 'oneshot' | 'interactive';
+
+	/**
 	 * Filter by project ID
 	 */
 	projectId?: string;
@@ -807,6 +864,16 @@ export interface ListSandboxesParams {
 	 * Pagination offset
 	 */
 	offset?: number;
+
+	/**
+	 * Field to sort by
+	 */
+	sort?: SandboxSortField;
+
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**
@@ -837,6 +904,16 @@ export interface ListRuntimesParams {
 	 * Pagination offset
 	 */
 	offset?: number;
+
+	/**
+	 * Field to sort by
+	 */
+	sort?: RuntimeSortField;
+
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**
@@ -1139,6 +1216,16 @@ export interface SnapshotListParams {
 	 * Number of snapshots to skip for pagination
 	 */
 	offset?: number;
+
+	/**
+	 * Field to sort by
+	 */
+	sort?: SnapshotSortField;
+
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
 }
 
 /**

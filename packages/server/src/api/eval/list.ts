@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema } from '../api.ts';
 
 export const EvaluationSchema = z.object({
 	id: z.string().describe('Evaluation ID'),
@@ -20,6 +20,7 @@ export type Evaluation = z.infer<typeof EvaluationSchema>;
 export type EvaluationListRequest = {
 	projectId?: string;
 	agentId?: string;
+	orgId?: string;
 };
 
 export async function evalList(
@@ -27,6 +28,7 @@ export async function evalList(
 	request: EvaluationListRequest = {}
 ): Promise<Evaluation[]> {
 	const params = new URLSearchParams();
+	if (request.orgId) params.set('orgId', request.orgId);
 	if (request.projectId) params.set('projectId', request.projectId);
 	if (request.agentId) params.set('agentId', request.agentId);
 

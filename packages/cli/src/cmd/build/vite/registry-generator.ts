@@ -9,6 +9,7 @@ import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync } from '
 import { stat } from 'node:fs/promises';
 import { StructuredError } from '@agentuity/core';
 import { toCamelCase, toPascalCase } from '../../../utils/string';
+import { toForwardSlash } from '../../../utils/normalize-path';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteInfo } from './route-discovery';
 
@@ -27,7 +28,7 @@ function rebaseImportPath(routeFilename: string, schemaImportPath: string, srcDi
 
 	// Normalize route filename to get its directory relative to srcDir
 	let routeDir: string;
-	const cleanFilename = routeFilename.replace(/\\/g, '/');
+	const cleanFilename = toForwardSlash(routeFilename);
 	if (cleanFilename.startsWith('./')) {
 		routeDir = dirname(join(srcDir, cleanFilename.substring(2)));
 	} else if (cleanFilename.startsWith('src/')) {
@@ -41,7 +42,7 @@ function rebaseImportPath(routeFilename: string, schemaImportPath: string, srcDi
 
 	// Calculate the relative path from src/generated/ to the resolved schema path
 	const generatedDir = join(srcDir, 'generated');
-	let rebasedPath = relative(generatedDir, resolvedSchemaPath).replace(/\\/g, '/');
+	let rebasedPath = toForwardSlash(relative(generatedDir, resolvedSchemaPath));
 
 	// Ensure it starts with './' or '../'
 	if (!rebasedPath.startsWith('.') && !rebasedPath.startsWith('/')) {
@@ -67,6 +68,21 @@ const ROUTE_PARAM_CHARS = /^[:*]|[?+*]$/g;
  */
 function sanitizePathSegment(segment: string): string {
 	return toCamelCase(segment.replace(ROUTE_PARAM_CHARS, ''));
+}
+
+/**
+ * Valid unquoted TypeScript/JavaScript property name pattern.
+ * A property name can be unquoted if it starts with a letter, underscore, or dollar sign,
+ * and contains only letters, digits, underscores, or dollar signs.
+ */
+const VALID_UNQUOTED_PROPERTY = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+
+/**
+ * Quote a property name for TypeScript object type definitions if it contains
+ * characters that require quoting (e.g., dots, hyphens, spaces).
+ */
+function quotePropertyName(name: string): string {
+	return VALID_UNQUOTED_PROPERTY.test(name) ? name : JSON.stringify(name);
 }
 
 /**
@@ -136,7 +152,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 				if (evalMeta.filename === agent.filename) continue;
 
 				// Build the relative path for the eval file
-				let evalRelativePath = evalMeta.filename;
+				let evalRelativePath = toForwardSlash(evalMeta.filename);
 				if (evalRelativePath.startsWith('./agent/')) {
 					evalRelativePath = evalRelativePath
 						.replace(/^\.\/agent\//, '../agent/')
@@ -165,7 +181,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 		.map(({ name, filename }) => {
 			const camelName = toCamelCase(name);
 			// Handle both './agent/...' and 'src/agent/...' formats
-			let relativePath = filename;
+			let relativePath = toForwardSlash(filename);
 			if (relativePath.startsWith('./agent/')) {
 				// ./agent/foo.ts -> ../agent/foo.js (use .js extension for TypeScript)
 				relativePath = relativePath
@@ -478,11 +494,11 @@ function generateRPCRegistryType(
 				const pathParamsType = generatePathParamsType(routeInfo.pathParams);
 				const pathParamsTupleType = generatePathParamsTupleType(routeInfo.pathParams);
 				lines.push(
-					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType}; paramsTuple: ${pathParamsTupleType} };`
+					`${indent}${quotePropertyName(key)}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType}; paramsTuple: ${pathParamsTupleType} };`
 				);
 			} else {
 				// Nested node
-				lines.push(`${indent}${key}: {`);
+				lines.push(`${indent}${quotePropertyName(key)}: {`);
 				lines.push(treeToTypeString(value as NestedNode, indent + '\t'));
 				lines.push(`${indent}};`);
 			}
@@ -658,6 +674,13 @@ export async function generateRouteRegistry(
 	});
 
 	if (apiRoutes.length === 0 && websocketRoutes.length === 0 && sseRoutes.length === 0) {
+		// Clean up stale routes.ts from previous builds (issue #924)
+		// When all API routes are removed, the old file would reference deleted modules
+		const generatedDir = join(srcDir, 'generated');
+		const registryPath = join(generatedDir, 'routes.ts');
+		if (existsSync(registryPath)) {
+			unlinkSync(registryPath);
+		}
 		return;
 	}
 
@@ -709,7 +732,8 @@ export async function generateRouteRegistry(
 				resolvedPath = `../api/${finalPath}`;
 			} else if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
 				// Resolve relative import from route file's directory
-				const routeDir = route.filename.substring(0, route.filename.lastIndexOf('/'));
+				const normalizedFilename = toForwardSlash(route.filename);
+				const routeDir = normalizedFilename.substring(0, normalizedFilename.lastIndexOf('/'));
 				// Join and normalize the path
 				const joined = `${routeDir}/${resolvedPath}`;
 				// Normalize by resolving .. and . segments
@@ -777,7 +801,7 @@ export async function generateRouteRegistry(
 						: (route.inputSchemaImportedName ?? route.inputSchemaVariable);
 			} else {
 				// Schema is locally defined - import from the route file
-				const filename = route.filename.replace(/\\/g, '/');
+				const filename = toForwardSlash(route.filename);
 				const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
 				const withoutLeadingDot = withoutSrc.startsWith('./')
 					? withoutSrc.substring(2)
@@ -812,7 +836,7 @@ export async function generateRouteRegistry(
 						: (route.outputSchemaImportedName ?? route.outputSchemaVariable);
 			} else {
 				// Schema is locally defined - import from the route file
-				const filename = route.filename.replace(/\\/g, '/');
+				const filename = toForwardSlash(route.filename);
 				const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
 				const withoutLeadingDot = withoutSrc.startsWith('./')
 					? withoutSrc.substring(2)

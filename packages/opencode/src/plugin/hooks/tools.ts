@@ -3,6 +3,11 @@ import type { CoderConfig } from '../../types';
 import { checkAuth } from '../../services/auth';
 import { entityId, getEntityContext } from '../../agents/memory/entities';
 import { agents } from '../../agents';
+import { z } from 'zod';
+
+const sessionInputSchema = z.object({
+	sessionID: z.string().optional(),
+});
 
 export interface ToolHooks {
 	before: (input: unknown, output: unknown) => Promise<void>;
@@ -53,6 +58,11 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 			const toolName = extractToolName(input);
 			if (!toolName) return;
 
+			const sessionResult = sessionInputSchema.safeParse(input);
+			if (sessionResult.success && sessionResult.data.sessionID) {
+				process.env.AGENTUITY_OPENCODE_SESSION = sessionResult.data.sessionID;
+			}
+
 			// Check MCP cloud tools
 			if (isCloudTool(toolName)) {
 				const authResult = await checkAuth();
@@ -86,7 +96,10 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 
 					// Inject AGENTUITY_PROFILE and AGENTUITY_OPENCODE_SESSION environment variables
 					const profile = getCoderProfile();
-					const sessionId = (input as { sessionID?: string }).sessionID;
+					const bashSessionResult = sessionInputSchema.safeParse(input);
+					const sessionId = bashSessionResult.success
+						? bashSessionResult.data.sessionID
+						: undefined;
 
 					// Escape values for safe shell interpolation
 					const escapedProfile = shellEscape(profile);
@@ -152,7 +165,38 @@ export function createToolHooks(ctx: PluginInput, config: CoderConfig): ToolHook
 			}
 		},
 
-		async after(_input: unknown, _output: unknown): Promise<void> {},
+		async after(input: unknown, output: unknown): Promise<void> {
+			// Graceful handling for unavailable tools: if a tool execution produced an
+			// error indicating the tool doesn't exist or is unavailable, normalize the
+			// output to a helpful message so the session continues instead of crashing.
+			const toolName = extractToolName(input);
+			if (!toolName) return;
+
+			const out = output as {
+				output?: string;
+				title?: string;
+				metadata?: Record<string, unknown>;
+			};
+			if (typeof out.output !== 'string') return;
+
+			const lower = out.output.toLowerCase();
+			const isToolMissing =
+				(lower.includes('not found') ||
+					lower.includes('not available') ||
+					lower.includes('does not exist') ||
+					lower.includes('unknown tool') ||
+					lower.includes('no such tool')) &&
+				(lower.includes('tool') || lower.includes(toolName.toLowerCase()));
+
+			if (isToolMissing) {
+				out.output = JSON.stringify({
+					error: `Tool '${toolName}' is not available in this session. It may have been removed or is not installed. Please use an alternative approach or ask the user for guidance.`,
+					tool: toolName,
+					recoverable: true,
+				});
+				out.title = `Tool unavailable: ${toolName}`;
+			}
+		},
 	};
 }
 

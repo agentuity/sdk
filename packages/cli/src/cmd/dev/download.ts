@@ -1,31 +1,30 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, createReadStream, mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { join, dirname } from 'node:path';
 import * as tar from 'tar';
-import { downloadRelease } from '@terascope/fetch-github-release';
+import { StructuredError } from '@agentuity/core';
 import { spinner } from '../../tui';
-
-const user = 'agentuity';
-const repo = 'gravity';
-
-function filterRelease(release: { prerelease: boolean }) {
-	// Filter out prereleases.
-	return release.prerelease === false;
-}
-
-function filterAsset(asset: { name: string }): boolean {
-	// Filter out the release matching our os and architecture
-	let arch: string = process.arch;
-	if (arch === 'x64') {
-		arch = 'x86_64';
-	}
-	return asset.name.includes(arch) && asset.name.includes(platform());
-}
 
 interface GravityClient {
 	filename: string;
 	version: string;
+}
+
+const GravityVersionError = StructuredError('GravityVersionError')<{
+	status: number;
+	statusText: string;
+}>();
+const GravityDownloadError = StructuredError('GravityDownloadError')<{
+	status: number;
+	statusText: string;
+}>();
+const GravityExtractionError = StructuredError('GravityExtractionError')<{
+	path: string;
+}>();
+
+function getBaseURL(): string {
+	return process.env.AGENTUITY_SH_URL || 'https://agentuity.sh';
 }
 
 /**
@@ -33,86 +32,85 @@ interface GravityClient {
  * @returns full path to the downloaded file
  */
 export async function download(gravityDir: string): Promise<GravityClient> {
-	const outputdir = join(tmpdir(), randomUUID());
+	const baseURL = getBaseURL();
 
-	const res = (await spinner({
+	// Step 1: Get the latest version from agentuity.sh
+	const tag = (await spinner({
 		message: 'Checking Agentuity Gravity',
 		callback: async () => {
-			return downloadRelease(
-				user,
-				repo,
-				outputdir,
-				filterRelease,
-				filterAsset,
-				false,
-				true,
-				true,
-				''
-			);
+			const resp = await fetch(`${baseURL}/release/gravity/version`, {
+				signal: AbortSignal.timeout(10_000),
+			});
+			if (!resp.ok) {
+				throw new GravityVersionError({
+					status: resp.status,
+					statusText: resp.statusText,
+				});
+			}
+			const text = (await resp.text()).trim();
+			return text.startsWith('v') ? text : `v${text}`;
 		},
 		clearOnSuccess: true,
-	})) as { release: string; assetFileNames: string[] };
+	})) as string;
 
-	const versionTok = res.release.split('@');
-	const version = versionTok[1] ?? 'unknown';
+	const version = tag.startsWith('v') ? tag.slice(1) : tag;
 	const releaseFilename = join(gravityDir, version, 'gravity');
-	const mustDownload = !existsSync(releaseFilename);
 
-	if (!mustDownload) {
+	// Step 2: Check if already downloaded
+	if (await Bun.file(releaseFilename).exists()) {
 		return { filename: releaseFilename, version };
 	}
 
-	const downloadedFile = await spinner({
-		message: `Downloading Gravity ${version}`,
-		callback: async () => {
-			const res = (await downloadRelease(
-				user,
-				repo,
-				outputdir,
-				filterRelease,
-				filterAsset,
-				false,
-				true,
-				false,
-				''
-			)) as string[];
-			const file = res[0];
-			if (!file) {
-				throw new Error('No file downloaded from release');
-			}
-			return file;
-		},
-		clearOnSuccess: true,
-	});
+	// Step 3: Download the binary from agentuity.sh
+	const os = platform();
+	let arch: string = process.arch;
+	if (arch === 'x64') {
+		arch = 'x86_64';
+	}
 
-	if (downloadedFile.endsWith('.tar.gz')) {
+	const tmpFile = join(tmpdir(), `${randomUUID()}.tar.gz`);
+
+	try {
 		await spinner({
-			message: 'Extracting release',
+			message: `Downloading Gravity ${version}`,
 			callback: async () => {
-				return new Promise<void>((resolve, reject) => {
-					const input = createReadStream(downloadedFile);
-					const downloadDir = dirname(releaseFilename);
-					if (!existsSync(downloadDir)) {
-						mkdirSync(downloadDir, { recursive: true });
-					}
-					input.on('finish', resolve);
-					input.on('end', resolve);
-					input.on('error', reject);
-					input.pipe(tar.x({ C: downloadDir, chmod: true }));
+				const resp = await fetch(`${baseURL}/release/gravity/${tag}/${os}/${arch}`, {
+					signal: AbortSignal.timeout(60_000),
 				});
+				if (!resp.ok) {
+					throw new GravityDownloadError({
+						status: resp.status,
+						statusText: resp.statusText,
+					});
+				}
+				const buffer = await resp.arrayBuffer();
+				writeFileSync(tmpFile, Buffer.from(buffer));
 			},
 			clearOnSuccess: true,
 		});
-	} else {
-		// TODO:
+
+		// Step 4: Extract the tarball
+		await spinner({
+			message: 'Extracting release',
+			callback: async () => {
+				const downloadDir = dirname(releaseFilename);
+				if (!(await Bun.file(downloadDir).exists())) {
+					mkdirSync(downloadDir, { recursive: true });
+				}
+				await tar.x({ file: tmpFile, cwd: downloadDir, chmod: true });
+			},
+			clearOnSuccess: true,
+		});
+	} finally {
+		// Clean up temp file regardless of success or failure
+		if (await Bun.file(tmpFile).exists()) {
+			rmSync(tmpFile);
+		}
 	}
 
-	if (existsSync(outputdir)) {
-		rmSync(outputdir, { recursive: true });
-	}
-
-	if (!existsSync(releaseFilename)) {
-		throw new Error(`Failed to extract gravity binary to ${releaseFilename}`);
+	// Step 5: Verify the binary was extracted
+	if (!(await Bun.file(releaseFilename).exists())) {
+		throw new GravityExtractionError({ path: releaseFilename });
 	}
 
 	return { filename: releaseFilename, version };

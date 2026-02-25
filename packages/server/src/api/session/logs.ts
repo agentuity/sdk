@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { SessionResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { SessionResponseError } from './util.ts';
 
 export const _SessionLogsRequestSchema = z.object({
 	id: z.string().describe('the session id'),

@@ -1,5 +1,6 @@
-import { FetchAdapter } from './adapter';
-import { buildUrl, toServiceException, toPayload } from './_util';
+import { FetchAdapter } from './adapter.ts';
+import { buildUrl, toServiceException, toPayload } from './_util.ts';
+import type { SortDirection } from './pagination.ts';
 
 /**
  * Minimum TTL value in seconds (1 minute)
@@ -114,10 +115,16 @@ export interface KeyValueItemWithMetadata<T = unknown> {
 	updated_at: string;
 }
 
+export type KVSortField = 'name' | 'size' | 'records' | 'created' | 'lastUsed';
+
 /**
  * Parameters for getting all namespace statistics with optional pagination
  */
 export interface GetAllStatsParams {
+	/**
+	 * Filter namespaces by name substring
+	 */
+	name?: string;
 	/**
 	 * Maximum number of namespaces to return (default: 100, max: 1000)
 	 */
@@ -126,6 +133,30 @@ export interface GetAllStatsParams {
 	 * Number of namespaces to skip for pagination (default: 0)
 	 */
 	offset?: number;
+	/**
+	 * Field to sort by
+	 */
+	sort?: KVSortField;
+	/**
+	 * Sort direction (default: 'desc')
+	 */
+	direction?: SortDirection;
+	/**
+	 * Filter by project ID
+	 */
+	projectId?: string;
+	/**
+	 * Filter by agent ID
+	 */
+	agentId?: string;
+	/**
+	 * Filter by project name
+	 */
+	projectName?: string;
+	/**
+	 * Filter by agent name
+	 */
+	agentName?: string;
 }
 
 /**
@@ -400,6 +431,27 @@ export class KeyValueStorageService implements KeyValueStorage {
 		}
 		if (params?.offset !== undefined) {
 			queryParams.set('offset', String(params.offset));
+		}
+		if (params?.sort) {
+			queryParams.set('sort', params.sort);
+		}
+		if (params?.direction) {
+			queryParams.set('direction', params.direction);
+		}
+		if (params?.name) {
+			queryParams.set('name', params.name);
+		}
+		if (params?.projectId) {
+			queryParams.set('project_id', params.projectId);
+		}
+		if (params?.agentId) {
+			queryParams.set('agent_id', params.agentId);
+		}
+		if (params?.projectName) {
+			queryParams.set('project_name', params.projectName);
+		}
+		if (params?.agentName) {
+			queryParams.set('agent_name', params.agentName);
 		}
 		const queryString = queryParams.toString();
 		const url = buildUrl(

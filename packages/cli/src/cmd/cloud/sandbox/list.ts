@@ -66,15 +66,31 @@ export const listSubcommand = createCommand({
 	],
 	schema: {
 		options: z.object({
+			name: z.string().optional().describe('Filter by sandbox name'),
+			mode: z.enum(['oneshot', 'interactive']).optional().describe('Filter by sandbox mode'),
 			status: z
-				.enum(['creating', 'idle', 'running', 'terminated', 'failed'])
+				.enum([
+					'creating',
+					'idle',
+					'running',
+					'paused',
+					'stopping',
+					'suspended',
+					'terminated',
+					'failed',
+				])
 				.optional()
 				.describe('Filter by status'),
 			projectId: z.string().optional().describe('Filter by project ID'),
 			orgId: z.string().optional().describe('Filter by organization ID'),
 			all: z.boolean().optional().describe('List all sandboxes regardless of project context'),
-			limit: z.number().optional().describe('Maximum number of results (default: 50, max: 100)'),
-			offset: z.number().optional().describe('Pagination offset'),
+			limit: z.number().min(0).default(50).describe('Maximum number of results (max: 100)'),
+			offset: z.number().min(0).optional().describe('Pagination offset'),
+			sort: z
+				.enum(['name', 'created', 'updated', 'status', 'mode', 'execution_count'])
+				.default('created')
+				.describe('field to sort by'),
+			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),
 		}),
 		response: SandboxListResponseSchema,
 	},
@@ -82,14 +98,22 @@ export const listSubcommand = createCommand({
 	async handler(ctx) {
 		const { opts, options, project, apiClient } = ctx;
 
-		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
+		const projectId = opts.all || opts.orgId ? undefined : opts.projectId || project?.projectId;
 
 		const result = await cliSandboxList(apiClient, {
+			name: opts.name,
+			mode: opts.mode,
 			projectId,
 			orgId: opts.orgId,
 			status: opts.status,
 			limit: opts.limit,
 			offset: opts.offset,
+			sort: opts.sort,
+			direction: opts.direction,
 		});
 
 		// Check if results span multiple orgs

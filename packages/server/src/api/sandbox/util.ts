@@ -12,6 +12,7 @@ interface WritableWithDrain extends EventEmitter {
 export type SandboxErrorCode =
 	| 'SANDBOX_NOT_FOUND'
 	| 'SANDBOX_TERMINATED'
+	| 'SANDBOX_BUSY'
 	| 'EXECUTION_NOT_FOUND'
 	| 'EXECUTION_TIMEOUT'
 	| 'EXECUTION_CANCELLED'
@@ -67,6 +68,29 @@ export const SandboxNotFoundError = StructuredError('SandboxNotFoundError')<{
  */
 export const SandboxTerminatedError = StructuredError('SandboxTerminatedError')<{
 	sandboxId: string;
+}>();
+
+/**
+ * Error thrown when a sandbox is currently busy executing another command.
+ *
+ * This typically occurs when a second execute request is sent before the
+ * previous execution has completed. Sandbox executions are serialized -
+ * wait for the current execution to complete before sending a new one.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await sandbox.execute({ command: ['ls'] });
+ * } catch (error) {
+ *   if (error._tag === 'SandboxBusyError') {
+ *     console.error('Sandbox is busy, waiting for current execution to finish');
+ *     // Wait and retry, or use executionGet with long-polling to wait for completion
+ *   }
+ * }
+ * ```
+ */
+export const SandboxBusyError = StructuredError('SandboxBusyError')<{
+	sandboxId?: string;
 }>();
 
 /**
@@ -160,10 +184,17 @@ export interface SandboxErrorContext {
  * when the backend returns a known error code, and falling back to
  * SandboxResponseError for unknown codes.
  *
+ * Note: Pause and resume operations use standard error codes. The backend
+ * returns SANDBOX_NOT_FOUND when the sandbox doesn't exist, and HTTP 409
+ * Conflict (handled by APIClient retries) for invalid state transitions
+ * (e.g. pausing a non-running sandbox, resuming a non-suspended sandbox).
+ * No additional error codes are needed for pause/resume.
+ *
  * @param resp - The API response containing message and optional code
  * @param context - Context about the operation (sandbox ID, execution ID, etc.)
  * @throws {SandboxNotFoundError} When code is 'SANDBOX_NOT_FOUND'
  * @throws {SandboxTerminatedError} When code is 'SANDBOX_TERMINATED'
+ * @throws {SandboxBusyError} When code is 'SANDBOX_BUSY'
  * @throws {ExecutionNotFoundError} When code is 'EXECUTION_NOT_FOUND'
  * @throws {ExecutionTimeoutError} When code is 'EXECUTION_TIMEOUT'
  * @throws {ExecutionCancelledError} When code is 'EXECUTION_CANCELLED'
@@ -182,6 +213,8 @@ export function throwSandboxError(
 			throw new SandboxNotFoundError({ message: resp.message, sandboxId: sandboxId ?? '' });
 		case 'SANDBOX_TERMINATED':
 			throw new SandboxTerminatedError({ message: resp.message, sandboxId: sandboxId ?? '' });
+		case 'SANDBOX_BUSY':
+			throw new SandboxBusyError({ message: resp.message, sandboxId });
 		case 'EXECUTION_NOT_FOUND':
 			throw new ExecutionNotFoundError({
 				message: resp.message,

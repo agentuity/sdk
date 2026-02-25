@@ -1,0 +1,200 @@
+---
+title: App Configuration
+description: Configure your Agentuity project
+---
+
+Agentuity projects use minimal configuration. Most setup happens in code, not config files.
+
+## agentuity.json
+
+The project configuration file:
+
+```json
+{
+  "name": "my-project",
+  "orgId": "org_...",
+  "projectId": "proj_..."
+}
+```
+
+No agent definitions, no trigger configurations. Those live in your code.
+
+## app.ts
+
+The app entry point configures your application:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+
+const { server, logger } = await createApp();
+
+logger.debug('Running %s', server.url);
+```
+
+### With Lifecycle Hooks
+
+Use `setup` to initialize resources (databases, clients) and `shutdown` to clean up:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+
+const { server, logger } = await createApp({
+  setup: async () => {
+    // Initialize resources, return app state
+    // Available in agents via ctx.app
+    const db = await connectDatabase();
+    return { db };
+  },
+  shutdown: async (state) => {
+    // Clean up resources
+    await state.db.close();
+  },
+});
+
+logger.debug('Running %s', server.url);
+```
+
+### With Custom Services
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+
+const { server, logger } = await createApp({
+  // CORS configuration
+  cors: {
+    origin: ['https://myapp.com'],
+    credentials: true,
+  },
+
+  // Response compression (gzip/deflate)
+  compression: {
+    threshold: 1024, // Compress responses larger than 1KB (default)
+  },
+
+  // Custom storage implementations (optional)
+  services: {
+    keyvalue: myCustomKV,
+    vector: myCustomVector,
+  },
+});
+```
+
+#### Compression Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Enable/disable compression |
+| `threshold` | `number` | `1024` | Minimum response size (bytes) to compress |
+| `filter` | `(c) => boolean` | - | Custom filter function |
+
+Compression automatically bypasses WebSocket upgrades and requests without `Accept-Encoding` headers.
+
+### Event Listeners
+
+Listen for agent and session lifecycle events:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+
+const app = await createApp();
+
+app.addEventListener('agent.started', (event, agent, ctx) => {
+  app.logger.info('Agent started', { name: agent.metadata.name });
+});
+
+app.addEventListener('agent.completed', (event, agent, ctx) => {
+  app.logger.info('Agent completed', { session: ctx.sessionId });
+});
+```
+
+## Build Configuration
+
+For advanced build customization, create an `agentuity.config.ts` file in your project root:
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+
+export default {
+  // Configuration options here
+} satisfies AgentuityConfig;
+```
+
+<Callout type="info" title="When to Use This">
+Use build configuration to add Vite plugins (like Tailwind CSS), exclude packages from server bundling, or define build-time constants.
+</Callout>
+
+See the [reference page](/reference/cli/build-configuration) for all options and examples.
+
+## Environment Variables
+
+```bash
+# Required
+AGENTUITY_SDK_KEY=...        # API key for Agentuity services
+
+# Optional
+AGENTUITY_LOG_LEVEL=info     # trace, debug, info, warn, error
+AGENTUITY_PORT=3500          # Dev server port (default: 3500)
+
+# Resource Credentials (auto-added by CLI when creating resources)
+DATABASE_URL=postgresql://...   # Added by: agentuity cloud db create
+# S3 credentials                # Added by: agentuity cloud s3 create
+# REDIS_URL=redis://...         # From: agentuity cloud redis show
+
+# LLM Provider Keys (optional; if using your own API keys instead of the AI Gateway)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Frontend-accessible (exposed to browser)
+AGENTUITY_PUBLIC_API_URL=... # Any of these prefixes work:
+VITE_MY_VAR=...              # - AGENTUITY_PUBLIC_*
+PUBLIC_MY_VAR=...            # - VITE_*
+                             # - PUBLIC_*
+```
+
+<Callout type="info" title="AI Gateway">
+If you don't set provider API keys, LLM requests are routed through the Agentuity AI Gateway using your SDK key. This provides unified billing and monitoring.
+</Callout>
+
+<Callout type="warning" title="Public Environment Variables">
+Environment variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_` are exposed to the frontend bundle and visible in the browser. Never put secrets or API keys in these variables.
+</Callout>
+
+## Infrastructure as Code
+
+Unlike traditional platforms, Agentuity defines infrastructure in your route files:
+
+```typescript
+// src/api/index.ts
+import { createRouter, cron, websocket } from '@agentuity/runtime';
+import scheduler from '@agent/scheduler';
+import chatHandler from '@agent/chat';
+
+const router = createRouter();
+
+// Cron job - runs every hour
+router.post('/cleanup', cron('0 * * * *', async (c) => {
+  await scheduler.run({ task: 'cleanup' });
+  return c.text('OK');
+}));
+
+// WebSocket endpoint
+router.get('/chat', websocket((c, ws) => {
+  ws.onMessage(async (event) => {
+    const response = await chatHandler.run({ message: event.data as string });
+    ws.send(response);
+  });
+}));
+
+export default router;
+```
+
+This approach means:
+- **Deployments are self-contained**: rolling back restores exact configuration
+- **Version control**: your infrastructure changes are tracked in Git
+- **No config drift**: what's in code is what runs
+
+## Next Steps
+
+- [HTTP Routes](/routes/http): Define HTTP endpoints
+- [Cron Jobs](/routes/cron): Schedule recurring tasks
+- [AI Gateway](/agents/ai-gateway): Configure LLM providers

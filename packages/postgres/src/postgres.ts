@@ -1,5 +1,5 @@
-import type { PostgresConfig } from './types';
-import { createCallableClient, type CallablePostgresClient } from './client';
+import type { PostgresConfig } from './types.ts';
+import { createCallableClient, type CallablePostgresClient } from './client.ts';
 
 /**
  * Creates a resilient PostgreSQL client with automatic reconnection.

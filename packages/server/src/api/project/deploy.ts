@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { ProjectResponseError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { ProjectResponseError } from './util.ts';
 
 export const Resources = z.object({
 	memory: z.string().default('500Mi').describe('The memory requirements'),
@@ -200,7 +200,7 @@ export async function projectDeploymentCreate(
 ): Promise<Deployment> {
 	const resp = await client.request<CreateProjectDeploymentPayload>(
 		'POST',
-		`/cli/deploy/1/start/${projectId}`,
+		`/cli/deploy/2/start/${projectId}`,
 		CreateProjectDeploymentResponseSchema,
 		deploymentConfig ?? {}
 	);
@@ -235,14 +235,16 @@ export type DeploymentInstructions = z.infer<typeof DeploymentInstructionsSchema
 export async function projectDeploymentUpdate(
 	client: APIClient,
 	deploymentId: string,
-	deployment: BuildMetadata
+	deployment: BuildMetadata,
+	signal?: AbortSignal
 ): Promise<DeploymentInstructions> {
 	const resp = await client.request<DeploymentInstructionsResponse, BuildMetadata>(
 		'PUT',
-		`/cli/deploy/1/start/${deploymentId}`,
+		`/cli/deploy/2/start/${deploymentId}`,
 		DeploymentInstructionsResponseSchema,
 		deployment,
-		BuildMetadataSchema
+		BuildMetadataSchema,
+		signal
 	);
 	if (resp.success) {
 		return resp.data;
@@ -257,6 +259,18 @@ export const DeploymentCompleteSchema = z.object({
 			latest: z.string().url().describe('the public url for the latest deployment'),
 			deployment: z.string().url().describe('the public url for this deployment'),
 			custom: z.array(z.string().describe('the custom domain')),
+			vanityDeployment: z
+				.string()
+				.url()
+				.nullable()
+				.optional()
+				.describe('the vanity url for this deployment'),
+			vanityProject: z
+				.string()
+				.url()
+				.nullable()
+				.optional()
+				.describe('the vanity url for the latest deployment'),
 		})
 		.describe('the map of public urls'),
 });
@@ -294,12 +308,16 @@ export type DeploymentStatusResult = z.infer<typeof DeploymentStatusSchema>;
  */
 export async function projectDeploymentComplete(
 	client: APIClient,
-	deploymentId: string
+	deploymentId: string,
+	signal?: AbortSignal
 ): Promise<DeploymentComplete> {
 	const resp = await client.request<DeploymentCompleteResponse>(
 		'POST',
-		`/cli/deploy/1/complete/${deploymentId}`,
-		DeploymentCompleteResponseSchema
+		`/cli/deploy/2/complete/${deploymentId}`,
+		DeploymentCompleteResponseSchema,
+		undefined,
+		undefined,
+		signal
 	);
 	if (resp.success) {
 		return resp.data;
@@ -318,12 +336,16 @@ export async function projectDeploymentComplete(
  */
 export async function projectDeploymentStatus(
 	client: APIClient,
-	deploymentId: string
+	deploymentId: string,
+	signal?: AbortSignal
 ): Promise<DeploymentStatusResult> {
 	const resp = await client.request<DeploymentStatusResponse>(
 		'GET',
-		`/cli/deploy/1/status/${deploymentId}`,
-		DeploymentStatusResponseSchema
+		`/cli/deploy/2/status/${deploymentId}`,
+		DeploymentStatusResponseSchema,
+		undefined,
+		undefined,
+		signal
 	);
 	if (resp.success) {
 		return resp.data;
@@ -413,7 +435,7 @@ export async function projectDeploymentFail(
 ): Promise<void> {
 	const resp = await client.request<DeploymentFailResponse, DeploymentFailPayload>(
 		'POST',
-		`/cli/deploy/1/fail/${deploymentId}`,
+		`/cli/deploy/2/fail/${deploymentId}`,
 		DeploymentFailAPIResponseSchema,
 		payload,
 		DeploymentFailPayloadSchema

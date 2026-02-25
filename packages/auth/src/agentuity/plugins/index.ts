@@ -13,14 +13,14 @@ export type {
 	OrganizationMember,
 	OrganizationInvitation,
 	OrganizationApiMethods,
-} from './organization';
+} from './organization.ts';
 
 // API Key plugin
-export type { ApiKey, ApiKeyPluginOptions, ApiKeyApiMethods } from './api-key';
-export { DEFAULT_API_KEY_OPTIONS } from './api-key';
+export type { ApiKey, ApiKeyPluginOptions, ApiKeyApiMethods } from './api-key.ts';
+export { DEFAULT_API_KEY_OPTIONS } from './api-key.ts';
 
 // JWT plugin
-export type { JwtApiMethods } from './jwt';
+export type { JwtApiMethods } from './jwt.ts';
 
 /**
  * Combined API extensions from all default plugins.
@@ -28,8 +28,8 @@ export type { JwtApiMethods } from './jwt';
  * This type represents all the server-side API methods added by the
  * default Agentuity auth plugins (organization, jwt, bearer, apiKey).
  */
-import type { OrganizationApiMethods } from './organization';
-import type { ApiKeyApiMethods } from './api-key';
-import type { JwtApiMethods } from './jwt';
+import type { OrganizationApiMethods } from './organization.ts';
+import type { ApiKeyApiMethods } from './api-key.ts';
+import type { JwtApiMethods } from './jwt.ts';
 
 export type DefaultPluginApiMethods = OrganizationApiMethods & ApiKeyApiMethods & JwtApiMethods;

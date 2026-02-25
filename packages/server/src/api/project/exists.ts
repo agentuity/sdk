@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { type APIClient, APIError, APIResponseSchema } from '../api';
-import { ProjectResponseError } from './util';
+import { type APIClient, APIError, APIResponseSchema } from '../api.ts';
+import { ProjectResponseError } from './util.ts';
 
 export const ProjectExistsRequestSchema = z.object({
 	name: z.string().max(255).min(1).describe('the name of the new project'),

@@ -216,6 +216,14 @@ export interface AnalyticsConfig {
  */
 export interface AgentuityConfig {
 	/**
+	 * Rendering mode for the web frontend.
+	 * - 'spa' (default): Single-page application with client-side routing
+	 * - 'static': Pre-renders all routes to static HTML at build time (SSG).
+	 *   Requires src/web/entry-server.tsx exporting render(url) and getStaticPaths()
+	 */
+	render?: 'spa' | 'static';
+
+	/**
 	 * Workbench configuration
 	 */
 	workbench?: WorkbenchConfig;
@@ -228,8 +236,10 @@ export interface AgentuityConfig {
 	analytics?: boolean | AnalyticsConfig;
 
 	/**
-	 * Vite plugins to add to the client build
-	 * These are added AFTER Agentuity's built-in plugins
+	 * Vite plugins for the client build (src/web/).
+	 * Should include your framework plugin (e.g., @vitejs/plugin-react).
+	 * If no framework plugin is detected, React is added automatically
+	 * for backwards compatibility.
 	 */
 	plugins?: import('vite').PluginOption[];
 	/**

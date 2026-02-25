@@ -27,6 +27,7 @@ import {
   bootstrapRuntimeEnv,
   patchBunS3ForStorageDev,
   runShutdown,
+  mimeTypes,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { websocket, serveStatic } from 'hono/bun';
@@ -274,18 +275,11 @@ if (isDevelopment() && process.env.VITE_PORT) {
 				const url = new URL(c.req.url);
 				const queryString = url.search; // Includes the '?' prefix
 
-				// Get the requested WebSocket subprotocol (Vite uses 'vite-hmr')
-				const requestedProtocol = c.req.header('sec-websocket-protocol');
-
 				const success = server.upgrade(c.req.raw, {
 					data: { type: 'vite-hmr', queryString },
-					// Echo back the requested subprotocol so the browser accepts the connection
-					headers: requestedProtocol ? {
-						'Sec-WebSocket-Protocol': requestedProtocol,
-					} : undefined,
 				});
 				if (success) {
-					otel.logger.debug('[HMR Proxy] WebSocket upgrade successful (protocol: %s)', requestedProtocol || 'none');
+					otel.logger.debug('[HMR Proxy] WebSocket upgrade successful');
 					return new Response(null);
 				}
 				otel.logger.error('[HMR Proxy] WebSocket upgrade returned false');
@@ -406,10 +400,20 @@ if (isDevelopment()) {
 	}
 	
 	// SPA fallback - serve index.html for client-side routing
-	app.get('*', (c: Context) => {
+	app.get('*', async (c: Context) => {
 		const path = c.req.path;
-		// If path has a file extension, return 404 (prevents serving HTML for missing assets)
+		// If path has a file extension, try proxying to Vite first (serves public files like robots.txt, llms.txt)
+		// Fall back to 404 if Vite also returns 404
 		if (/\.[a-zA-Z0-9]+$/.test(path)) {
+			try {
+				const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${path}`;
+				const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
+				if (res.status !== 404) {
+					return new Response(res.body, { status: res.status, headers: res.headers });
+				}
+			} catch {
+				// Vite unavailable, fall through to 404
+			}
 			return c.notFound();
 		}
 		return devHtmlHandler(c);
@@ -437,10 +441,10 @@ if (isDevelopment()) {
 	app.get('/', prodHtmlHandler);
 
 	// Serve static assets from /assets/* (Vite bundled output)
-	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client' }));
+	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client', mimes: mimeTypes }));
 
 	// Serve static public assets (favicon.ico, robots.txt, etc.)
-	app.use('/*', serveStatic({ root: import.meta.dir + '/client', rewriteRequestPath: (path) => path }));
+	app.use('/*', serveStatic({ root: import.meta.dir + '/client', rewriteRequestPath: (path) => path, mimes: mimeTypes }));
 
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());

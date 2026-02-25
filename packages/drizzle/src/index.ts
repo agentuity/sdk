@@ -32,10 +32,10 @@
  */
 
 // Main factory function
-export { createPostgresDrizzle } from './postgres';
+export { createPostgresDrizzle, drizzle } from './postgres.ts';
 
 // Types
-export type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
+export type { PostgresDrizzleConfig, PostgresDrizzle, PostgresDrizzlePg } from './types.ts';
 
 // Re-export from @agentuity/postgres for convenience
 export {
@@ -73,6 +73,14 @@ export {
 	ilike,
 	relations,
 } from 'drizzle-orm';
+
+// Re-export Bun SQL driver types for compatibility (type-only to avoid circular dependency)
+export type {
+	BunSQLDatabase,
+	BunSQLPreparedQuery,
+	BunSQLSession,
+	BunSQLTransaction,
+} from 'drizzle-orm/bun-sql';
 
 // Re-export pg-core table and column definitions
 export {

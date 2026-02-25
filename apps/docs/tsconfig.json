@@ -20,7 +20,8 @@
 		"noPropertyAccessFromIndexSignature": false,
 		"paths": {
 			"@agent/*": ["./src/agent/*"],
-			"@api/*": ["./src/api/*"]
+			"@api/*": ["./src/api/*"],
+			"@middleware/*": ["./src/middleware/*"]
 		}
 	},
 	"include": ["src/**/*", "app.ts"]

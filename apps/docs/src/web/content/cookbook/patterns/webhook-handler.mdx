@@ -1,0 +1,151 @@
+---
+title: Webhook Handler
+description: Handle incoming webhooks with signature verification and background processing
+---
+
+Process webhooks from external services (Stripe, GitHub, Slack) with proper signature verification and fast response times.
+
+## The Pattern
+
+Webhooks require quick responses (usually under 3 seconds). Use `waitUntil` to acknowledge immediately and process in the background.
+
+```typescript title="src/api/webhooks/route.ts"
+import { createRouter } from '@agentuity/runtime';
+import crypto from 'crypto';
+import paymentProcessor from '@agent/payment-processor';
+import subscriptionHandler from '@agent/subscription-handler';
+
+const router = createRouter();
+
+router.post('/stripe', async (c) => {
+  // Get raw body for signature verification
+  const rawBody = await c.req.text();
+  const signature = c.req.header('stripe-signature');
+
+  // Verify signature
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret || !verifyStripeSignature(rawBody, signature, secret)) { // [!code highlight]
+    c.var.logger.warn('Invalid webhook signature');
+    return c.text('Invalid signature', 401);
+  }
+
+  const event = JSON.parse(rawBody);
+  c.var.logger.info('Webhook received', { type: event.type });
+
+  // Process in background, respond immediately
+  c.waitUntil(async () => { // [!code highlight]
+    try {
+      switch (event.type) {
+        case 'payment_intent.succeeded':
+          await paymentProcessor.run({
+            paymentId: event.data.object.id,
+            amount: event.data.object.amount,
+            customerId: event.data.object.customer,
+          });
+          break;
+
+        case 'customer.subscription.updated':
+          await subscriptionHandler.run({
+            subscriptionId: event.data.object.id,
+            status: event.data.object.status,
+          });
+          break;
+
+        default:
+          c.var.logger.debug('Unhandled event type', { type: event.type });
+      }
+    } catch (error) {
+      c.var.logger.error('Webhook processing failed', { error, eventType: event.type });
+      // Store for retry
+      await c.var.kv.set('failed-webhooks', event.id, {
+        event,
+        error: String(error),
+        timestamp: Date.now(),
+      }, { ttl: 86400 }); // 24 hours
+    }
+  });
+
+  // Return 200 immediately
+  return c.json({ received: true }); // [!code highlight]
+});
+
+function verifyStripeSignature(
+  payload: string,
+  signature: string | undefined,
+  secret: string
+): boolean {
+  if (!signature) return false;
+
+  const parts = signature.split(',').reduce((acc, part) => {
+    const [key, value] = part.split('=');
+    acc[key] = value;
+    return acc;
+  }, {} as Record<string, string>);
+
+  const timestamp = parts['t'];
+  const expectedSig = parts['v1'];
+
+  const signedPayload = `${timestamp}.${payload}`;
+  const computedSig = crypto
+    .createHmac('sha256', secret)
+    .update(signedPayload)
+    .digest('hex');
+
+  return crypto.timingSafeEqual(
+    Buffer.from(expectedSig),
+    Buffer.from(computedSig)
+  );
+}
+
+export default router;
+```
+
+## Slack Webhook Example
+
+```typescript title="src/api/webhooks/route.ts"
+import slackHandler from '@agent/slack-handler';
+
+router.post('/slack', async (c) => {
+  // Slack retries on failure - skip duplicates
+  if (c.req.header('x-slack-retry-num')) {
+    return c.text('OK');
+  }
+
+  const rawBody = await c.req.text();
+
+  // Verify Slack signature
+  const timestamp = c.req.header('x-slack-request-timestamp');
+  const signature = c.req.header('x-slack-signature');
+  const secret = process.env.SLACK_SIGNING_SECRET;
+
+  if (!verifySlackSignature(rawBody, timestamp, signature, secret)) {
+    return c.text('Invalid signature', 401);
+  }
+
+  const payload = JSON.parse(rawBody);
+
+  // Handle URL verification challenge
+  if (payload.type === 'url_verification') {
+    return c.text(payload.challenge);
+  }
+
+  // Process event in background
+  c.waitUntil(async () => { // [!code highlight]
+    await slackHandler.run(payload);
+  });
+
+  return c.text('OK');
+});
+```
+
+## Key Points
+
+- **Raw body first**: Read body as text before parsing for signature verification
+- **Fast response**: Return 200 immediately, process with `waitUntil`
+- **Error handling**: Store failed webhooks for retry/debugging
+- **Signature verification**: Always verify webhooks from external services
+
+## See Also
+
+- [HTTP Routes](/routes/http) for route patterns
+- [Background Tasks](/agents/calling-other-agents#background-execution) for `waitUntil`

@@ -1,11 +1,11 @@
 // error.ts exports
-export { RichError, StructuredError, isStructuredError } from './error';
+export { RichError, StructuredError, isStructuredError } from './error.ts';
 
 // json.ts exports
-export { safeStringify } from './json';
+export { safeStringify } from './json.ts';
 
 // logger.ts exports
-export type { Logger, LogLevel } from './logger';
+export type { Logger, LogLevel } from './logger.ts';
 
 // services exports
 export type {
@@ -16,8 +16,15 @@ export type {
 	FetchErrorResponse,
 	Body,
 	HttpMethod,
-} from './services/adapter';
-export { ServiceException } from './services/exception';
+} from './services/adapter.ts';
+export type {
+	SortDirection,
+	PaginationParams,
+	SortParams,
+	ListParams,
+	PaginatedList,
+} from './services/pagination.ts';
+export { ServiceException } from './services/exception.ts';
 export {
 	type DataResult,
 	type DataResultFound,
@@ -29,11 +36,12 @@ export {
 	type CreateNamespaceParams,
 	type GetAllStatsParams,
 	type KeyValueStatsPaginated,
+	type KVSortField,
 	KV_MIN_TTL_SECONDS,
 	KV_MAX_TTL_SECONDS,
 	KV_DEFAULT_TTL_SECONDS,
 	KeyValueStorageService,
-} from './services/keyvalue';
+} from './services/keyvalue.ts';
 export {
 	type SessionEventProvider,
 	SessionStartEventSchema,
@@ -42,7 +50,7 @@ export {
 	SessionCompleteEventDelayedSchema,
 	type SessionStartEvent,
 	type SessionCompleteEvent,
-} from './services/session';
+} from './services/session.ts';
 export {
 	type CreateStreamProps,
 	type ListStreamsParams,
@@ -50,11 +58,12 @@ export {
 	type ListStreamsResponse,
 	type Stream,
 	type StreamStorage,
+	type StreamSortField,
 	STREAM_MIN_TTL_SECONDS,
 	STREAM_MAX_TTL_SECONDS,
 	STREAM_DEFAULT_TTL_SECONDS,
 	StreamStorageService,
-} from './services/stream';
+} from './services/stream.ts';
 export {
 	type VectorUpsertBase,
 	type VectorUpsertEmbeddings,
@@ -73,11 +82,12 @@ export {
 	type VectorGetAllStatsParams,
 	type VectorStatsPaginated,
 	type VectorStorage,
+	type VectorSortField,
 	VECTOR_MIN_TTL_SECONDS,
 	VECTOR_MAX_TTL_SECONDS,
 	VECTOR_DEFAULT_TTL_SECONDS,
 	VectorStorageService,
-} from './services/vector';
+} from './services/vector.ts';
 export {
 	type QueueService,
 	type QueuePublishParams,
@@ -86,7 +96,7 @@ export {
 	QueuePublishError,
 	QueueNotFoundError,
 	QueueValidationError,
-} from './services/queue';
+} from './services/queue.ts';
 export {
 	type EvalRunEventProvider,
 	EvalRunStartEventSchema,
@@ -95,12 +105,14 @@ export {
 	EvalRunCompleteEventDelayedSchema,
 	type EvalRunStartEvent,
 	type EvalRunCompleteEvent,
-} from './services/evalrun';
+} from './services/evalrun.ts';
 export {
 	type SandboxResources,
 	type SandboxStatus,
+	type SandboxSortField,
 	type SandboxRuntimeRequirements,
 	type SandboxRuntime,
+	type RuntimeSortField,
 	type ExecutionStatus,
 	type StreamReader,
 	type SandboxStreamConfig,
@@ -116,6 +128,7 @@ export {
 	type SandboxSnapshotInfoPrivate,
 	type SandboxSnapshotUserInfo,
 	type SandboxSnapshotOrgInfo,
+	type SnapshotSortField,
 	type SandboxUserInfo,
 	type SandboxAgentInfo,
 	type SandboxProjectInfo,
@@ -140,17 +153,17 @@ export {
 	type SnapshotListResponse,
 	type SnapshotService,
 	SandboxError,
-} from './services/sandbox';
-export { buildUrl, toServiceException, toPayload, fromResponse } from './services/_util';
+} from './services/sandbox.ts';
+export { buildUrl, toServiceException, toPayload, fromResponse } from './services/_util.ts';
 
 // standard_schema.ts exports
-export type { StandardSchemaV1 } from './standard_schema';
+export type { StandardSchemaV1 } from './standard_schema.ts';
 
 // string.ts exports
-export { toCamelCase, toPascalCase } from './string';
+export { toCamelCase, toPascalCase } from './string.ts';
 
 // typehelper.ts exports
-export type { InferInput, InferOutput } from './typehelper';
+export type { InferInput, InferOutput } from './typehelper.ts';
 
 // workbench exports
 export {
@@ -160,7 +173,7 @@ export {
 	decodeWorkbenchConfig,
 	getWorkbenchConfig,
 	type WorkbenchConfig,
-} from './workbench-config';
+} from './workbench-config.ts';
 
 // webrtc.ts exports
 export type {
@@ -179,6 +192,6 @@ export type {
 	RecordingHandle,
 	RecordingState,
 	TrackSource,
-} from './webrtc';
+} from './webrtc.ts';
 
 // Client code moved to @agentuity/frontend for better bundler compatibility

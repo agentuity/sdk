@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
 import {
 	type CreateQueueRequest,
 	CreateQueueRequestSchema,
@@ -9,14 +9,14 @@ import {
 	QueueSchema,
 	type UpdateQueueRequest,
 	UpdateQueueRequestSchema,
-} from './types';
+} from './types.ts';
 import {
 	buildQueueHeaders,
 	QueueError,
-	QueueNotFoundError,
 	queueApiPath,
 	queueApiPathWithQuery,
-} from './util';
+	withQueueErrorHandling,
+} from './util.ts';
 import {
 	validateDescription,
 	validateLimit,
@@ -27,7 +27,7 @@ import {
 	validateQueueType,
 	validateTTL,
 	validateVisibilityTimeout,
-} from './validation';
+} from './validation.ts';
 
 export const QueueResponseSchema = APIResponseSchema(z.object({ queue: QueueSchema }));
 export const QueuesListResponseSchema = APIResponseSchema(
@@ -138,22 +138,13 @@ export async function getQueue(
 ): Promise<Queue> {
 	validateQueueName(name);
 	const url = queueApiPath('get', name);
-	const resp = await client.get(
-		url,
-		QueueResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() => client.get(url, QueueResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.queue;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -194,12 +185,45 @@ export async function listQueues(
 		validateOffset(params.offset);
 	}
 
+	// Validate filter params
+	if (params?.queue_type) {
+		const validTypes = ['worker', 'pubsub'];
+		if (!validTypes.includes(params.queue_type)) {
+			throw new QueueError({
+				message: `Invalid queue_type filter: '${params.queue_type}'. Must be one of: ${validTypes.join(', ')}`,
+			});
+		}
+	}
+	if (params?.status) {
+		const validStatuses = ['active', 'paused'];
+		if (!validStatuses.includes(params.status)) {
+			throw new QueueError({
+				message: `Invalid status filter: '${params.status}'. Must be one of: ${validStatuses.join(', ')}`,
+			});
+		}
+	}
+
 	const searchParams = new URLSearchParams();
 	if (params?.limit !== undefined) {
 		searchParams.set('limit', String(params.limit));
 	}
 	if (params?.offset !== undefined) {
 		searchParams.set('offset', String(params.offset));
+	}
+	if (params?.name) {
+		searchParams.set('name', params.name);
+	}
+	if (params?.queue_type) {
+		searchParams.set('queue_type', params.queue_type);
+	}
+	if (params?.status) {
+		searchParams.set('status', params.status);
+	}
+	if (params?.sort) {
+		searchParams.set('sort', params.sort);
+	}
+	if (params?.direction) {
+		searchParams.set('direction', params.direction);
 	}
 
 	const queryString = searchParams.toString();
@@ -269,24 +293,21 @@ export async function updateQueue(
 	}
 
 	const url = queueApiPath('update', name);
-	const resp = await client.patch(
-		url,
-		params,
-		QueueResponseSchema,
-		UpdateQueueRequestSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.patch(
+				url,
+				params,
+				QueueResponseSchema,
+				UpdateQueueRequestSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.queue;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -319,22 +340,19 @@ export async function deleteQueue(
 ): Promise<void> {
 	validateQueueName(name);
 	const url = queueApiPath('delete', name);
-	const resp = await client.delete(
-		url,
-		DeleteQueueResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.delete(
+				url,
+				DeleteQueueResponseSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -369,24 +387,21 @@ export async function pauseQueue(
 ): Promise<Queue> {
 	validateQueueName(name);
 	const url = queueApiPath('pause', name);
-	const resp = await client.post(
-		url,
-		{},
-		QueueResponseSchema,
-		z.object({}),
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				{},
+				QueueResponseSchema,
+				z.object({}),
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.queue;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -421,24 +436,21 @@ export async function resumeQueue(
 ): Promise<Queue> {
 	validateQueueName(name);
 	const url = queueApiPath('resume', name);
-	const resp = await client.post(
-		url,
-		{},
-		QueueResponseSchema,
-		z.object({}),
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				{},
+				QueueResponseSchema,
+				z.object({}),
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName: name }
 	);
 
 	if (resp.success) {
 		return resp.data.queue;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName: name,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({

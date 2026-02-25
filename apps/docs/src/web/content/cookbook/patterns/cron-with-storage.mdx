@@ -1,0 +1,165 @@
+---
+title: Cron with Storage
+description: Cache scheduled task results in KV for later retrieval
+---
+
+Schedule tasks to run automatically and cache results for later retrieval. The platform triggers your endpoint on schedule, and KV storage persists the data between runs.
+
+## The Pattern
+
+Fetch external data on a schedule and store it in KV. A separate GET endpoint retrieves the cached results.
+
+```typescript title="src/api/hn/route.ts"
+import { createRouter, cron } from '@agentuity/runtime'; // [!code highlight]
+
+const router = createRouter();
+
+interface Story {
+  id: number;
+  title: string;
+  score: number;
+  by: string;
+  url: string;
+}
+
+// Runs every hour - fetches top HN stories and caches them
+router.post('/digest', cron('0 * * * *', async (c) => { // [!code highlight]
+  c.var.logger.info('Fetching HN stories');
+
+  // Get top story IDs
+  const idsRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
+  const ids = (await idsRes.json()) as number[];
+
+  // Fetch details for top 5
+  const stories = await Promise.all(
+    ids.slice(0, 5).map(async (id) => {
+      const res = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+      const story = (await res.json()) as Story;
+      return {
+        id: story.id,
+        title: story.title,
+        score: story.score,
+        by: story.by,
+        url: story.url || `https://news.ycombinator.com/item?id=${story.id}`,
+      };
+    })
+  );
+
+  // Cache in KV with 24-hour TTL
+  await c.var.kv.set('cache', 'hn-stories', { // [!code highlight]
+    stories,
+    fetchedAt: new Date().toISOString(),
+  }, { ttl: 86400 }); // [!code highlight]
+
+  c.var.logger.info('Stories cached', { count: stories.length });
+  return c.json({ success: true, count: stories.length });
+}));
+
+// Retrieve cached stories
+router.get('/stories', async (c) => {
+  const result = await c.var.kv.get<{ stories: Story[]; fetchedAt: string }>('cache', 'hn-stories'); // [!code highlight]
+
+  if (!result.exists) {
+    return c.json({ stories: [], fetchedAt: null });
+  }
+
+  return c.json(result.data);
+});
+
+export default router;
+```
+
+## Frontend
+
+A simple interface to trigger the cron job and display cached stories:
+
+```tsx title="src/web/App.tsx"
+import { useState, useEffect } from 'react';
+
+interface Story {
+  id: number;
+  title: string;
+  score: number;
+  by: string;
+  url: string;
+}
+
+export function App() {
+  const [stories, setStories] = useState<Story[]>([]);
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadStories = async () => {
+    const res = await fetch('/api/hn/stories'); // [!code highlight]
+    const data = await res.json();
+    setStories(data.stories || []);
+    setFetchedAt(data.fetchedAt);
+  };
+
+  const triggerFetch = async () => {
+    setIsLoading(true);
+    await fetch('/api/hn/digest', { method: 'POST' }); // [!code highlight]
+    await loadStories();
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadStories();
+  }, []);
+
+  return (
+    <div style={{ padding: '2rem', maxWidth: '600px' }}>
+      <h1>HN Top Stories</h1>
+
+      <div style={{ marginBottom: '1rem' }}>
+        <button onClick={triggerFetch} disabled={isLoading}>
+          {isLoading ? 'Fetching...' : 'Fetch Latest'}
+        </button>
+        {fetchedAt && (
+          <span style={{ marginLeft: '1rem', color: '#666' }}>
+            Last updated: {new Date(fetchedAt).toLocaleString()}
+          </span>
+        )}
+      </div>
+
+      {stories.length === 0 ? (
+        <p>No stories cached. Click "Fetch Latest" to load.</p>
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {stories.map((story) => (
+            <li key={story.id} style={{ marginBottom: '1rem' }}>
+              <a href={story.url} target="_blank" rel="noopener noreferrer">
+                {story.title}
+              </a>
+              <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                {story.score} points by {story.by}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+```
+
+## Testing Locally
+
+Cron schedules only trigger in deployed environments. Use the "Fetch Latest" button in the UI to test locally. If you need to call the endpoints directly:
+
+```bash
+curl -X POST http://localhost:3500/api/hn/digest
+curl http://localhost:3500/api/hn/stories
+```
+
+## Key Points
+
+- **`cron()` middleware** wraps POST handlers with a schedule expression
+- **KV with TTL** automatically expires stale data (24 hours in this example)
+- **Separate GET endpoint** lets clients retrieve cached results anytime
+- **Local testing** requires manual triggers since schedules only run when deployed
+
+## See Also
+
+- [Cron Routes](/routes/cron) for schedule expressions and patterns
+- [Key-Value Storage](/services/storage/key-value) for KV operations and TTL options

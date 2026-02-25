@@ -10,7 +10,7 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
 import { createPostgresDrizzle } from '@agentuity/drizzle';
-import * as authSchema from '../schema';
+import * as authSchema from '../schema.ts';
 
 // Re-export plugin types for convenience
 export type {
@@ -23,12 +23,12 @@ export type {
 	ApiKeyApiMethods,
 	JwtApiMethods,
 	DefaultPluginApiMethods,
-} from './plugins';
+} from './plugins/index.ts';
 
-export { DEFAULT_API_KEY_OPTIONS } from './plugins';
+export { DEFAULT_API_KEY_OPTIONS } from './plugins/index.ts';
 
-import type { ApiKeyPluginOptions, DefaultPluginApiMethods } from './plugins';
-import { DEFAULT_API_KEY_OPTIONS } from './plugins';
+import type { ApiKeyPluginOptions, DefaultPluginApiMethods } from './plugins/index.ts';
+import { DEFAULT_API_KEY_OPTIONS } from './plugins/index.ts';
 
 /**
  * Type for user-provided trustedOrigins input.
@@ -289,12 +289,13 @@ export interface AuthOptions extends Omit<BetterAuthOptions, 'trustedOrigins'> {
 
 	/**
 	 * PostgreSQL connection string.
-	 * When provided, we create a Bun SQL connection and Drizzle instance internally.
-	 * This is the simplest path - just provide the connection string.
+	 * When provided, creates a resilient PostgreSQL pool and Drizzle instance
+	 * internally using `createPostgresDrizzle()` with automatic reconnection.
+	 * This is the simplest path — just provide the connection string.
 	 *
 	 * @example
 	 * ```typescript
-	 * createAuth({
+	 * const auth = createAuth({
 	 *   connectionString: process.env.DATABASE_URL,
 	 * });
 	 * ```
@@ -321,7 +322,28 @@ export interface AuthOptions extends Omit<BetterAuthOptions, 'trustedOrigins'> {
  */
 export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const plugins: any[] = [organization(), jwt(), bearer()];
+	const plugins: any[] = [
+		organization(),
+		jwt({
+			jwt: {
+				definePayload: ({ user, session }) => ({
+					sub: user.id,
+					email: user.email,
+					name: user.name,
+					emailVerified: user.emailVerified,
+					createdAt: user.createdAt,
+					updatedAt: user.updatedAt,
+					sessionId: session.id,
+					activeOrganizationId: (session as Record<string, unknown>).activeOrganizationId,
+					// Deliberately exclude user.image to keep JWT tokens small.
+					// Profile images (especially base64-encoded data URIs from OAuth)
+					// can significantly bloat the token. Consumers should fetch the
+					// image separately via the user API if needed.
+				}),
+			},
+		}),
+		bearer(),
+	];
 
 	// Add API key plugin unless explicitly disabled
 	if (apiKeyOptions !== false) {
@@ -430,7 +452,9 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	// Handle database configuration
 	let database = restOptions.database;
 
-	// ConnectionString provided - create resilient Drizzle connection internally
+	// ConnectionString provided — use createPostgresDrizzle (defaults to pg driver
+	// with resilient PostgresPool for automatic reconnection).
+	// See: https://github.com/agentuity/sdk/issues/1030
 	if (connectionString && !database) {
 		const { db } = createPostgresDrizzle({
 			connectionString,

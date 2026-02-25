@@ -30,6 +30,28 @@ jobs:
          - name: Run package smoke test
            run: bash scripts/test-package-install.sh
 
+   postgres-ssl-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 10
+      name: Postgres SSL Integration Test
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Verify Docker availability
+           run: docker --version
+
+         - name: Run Postgres SSL integration tests
+           run: bash packages/postgres/test-postgres.sh
+
    installation-type-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 5
@@ -67,7 +89,7 @@ jobs:
       timeout-minutes: 10
       name: SDK Integration Test Suite
       env:
-         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
          AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
@@ -107,8 +129,8 @@ jobs:
       timeout-minutes: 15
       name: Cloud Deployment Tests
       env:
-         AGENTUITY_API_URL: https://api-v1.agentuity.com
-         AGENTUITY_APP_URL: https://app-v1.agentuity.com
+         AGENTUITY_API_URL: https://api.agentuity.com
+         AGENTUITY_APP_URL: https://app.agentuity.com
          AGENTUITY_TRANSPORT_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_CATALYST_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_STREAM_URL: https://streams-usc.agentuity.cloud
@@ -207,7 +229,7 @@ jobs:
       timeout-minutes: 10
       name: Sandbox CLI Tests
       env:
-         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
          AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
@@ -238,7 +260,7 @@ jobs:
       timeout-minutes: 10
       name: Storage CLI Tests
       env:
-         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
          AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
@@ -269,7 +291,7 @@ jobs:
       timeout-minutes: 10
       name: Queue SDK Tests
       env:
-         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
          AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
@@ -298,7 +320,7 @@ jobs:
       timeout-minutes: 10
       name: Queue CLI Tests
       env:
-         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
          AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc

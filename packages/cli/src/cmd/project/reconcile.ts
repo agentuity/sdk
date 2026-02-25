@@ -310,25 +310,28 @@ async function textPrompt(options: {
 async function importExistingProject(
 	opts: ReconcileOptions,
 	existingConfig: Project,
-	orgs: OrganizationList
+	orgs: OrganizationList,
+	options?: { skipPrompt?: boolean }
 ): Promise<ReconcileResult> {
 	const { dir, apiClient, config, logger } = opts;
 
-	tui.warning(
-		"You don't have access to this project. It may have been deleted or transferred to another organization."
-	);
-	tui.newline();
+	if (!options?.skipPrompt) {
+		tui.warning(
+			"You don't have access to this project. It may have been deleted or transferred to another organization."
+		);
+		tui.newline();
 
-	const shouldImport = await tui.confirm(
-		'Would you like to import this project to your organization?',
-		true
-	);
+		const shouldImport = await tui.confirm(
+			'Would you like to import this project to your organization?',
+			true
+		);
 
-	if (!shouldImport) {
-		return { status: 'skipped', message: 'Project import cancelled.' };
+		if (!shouldImport) {
+			return { status: 'skipped', message: 'Project import cancelled.' };
+		}
+
+		tui.newline();
 	}
-
-	tui.newline();
 
 	// Select org
 	const orgId = await selectOrg(orgs, config, existingConfig.orgId);
@@ -605,6 +608,21 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 
 			if (hasAccess) {
 				tui.info('This project is already registered and you have access to it.');
+
+				if (interactive) {
+					tui.newline();
+					const shouldReimport = await tui.confirm(
+						'Would you like to import it to a different organization?',
+						false
+					);
+					if (shouldReimport) {
+						tui.newline();
+						return await importExistingProject(opts, projectConfig, userOrgs, {
+							skipPrompt: true,
+						});
+					}
+				}
+
 				return { status: 'valid', project: projectConfig };
 			}
 

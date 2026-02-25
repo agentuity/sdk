@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchemaNoData } from '../api';
-import { ThreadResponseError } from './util';
+import { APIClient, APIResponseSchemaNoData } from '../api.ts';
+import { ThreadResponseError } from './util.ts';
 
 export const _ThreadDeleteRequestSchema = z.object({
 	id: z.string().describe('the thread id'),

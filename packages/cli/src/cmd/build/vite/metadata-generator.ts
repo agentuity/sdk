@@ -6,10 +6,12 @@
 
 import { join } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, readdirSync } from 'node:fs';
-import type { BuildMetadata } from '@agentuity/server';
+import { type BuildMetadata, DeploymentConfig, getContentType } from '@agentuity/server';
+import type { z } from 'zod';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteMetadata } from './route-discovery';
 import type { Logger, DeployOptions } from '../../../types';
+import { toForwardSlash } from '../../../utils/normalize-path';
 import { getVersion } from '../../../version';
 import { getGitInfo, buildGitTags } from '../../../utils/git';
 
@@ -27,44 +29,6 @@ interface AssetInfo {
 	contentType: string;
 	size: number;
 	contentEncoding?: string;
-}
-
-function getContentType(filename: string): string {
-	const ext = filename.split('.').pop()?.toLowerCase();
-	switch (ext) {
-		case 'js':
-		case 'mjs':
-			return 'application/javascript';
-		case 'css':
-			return 'text/css';
-		case 'html':
-			return 'text/html';
-		case 'json':
-			return 'application/json';
-		case 'png':
-			return 'image/png';
-		case 'jpg':
-		case 'jpeg':
-			return 'image/jpeg';
-		case 'gif':
-			return 'image/gif';
-		case 'svg':
-			return 'image/svg+xml';
-		case 'webp':
-			return 'image/webp';
-		case 'ico':
-			return 'image/x-icon';
-		case 'woff':
-			return 'font/woff';
-		case 'woff2':
-			return 'font/woff2';
-		case 'ttf':
-			return 'font/ttf';
-		case 'eot':
-			return 'application/vnd.ms-fontobject';
-		default:
-			return 'application/octet-stream';
-	}
 }
 
 /**
@@ -164,6 +128,8 @@ export interface MetadataGeneratorOptions {
 	dev?: boolean;
 	logger: Logger;
 	deploymentOptions?: DeployOptions;
+	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
+	deploymentConfig?: z.infer<typeof DeploymentConfig>;
 }
 
 /**
@@ -171,7 +137,7 @@ export interface MetadataGeneratorOptions {
  */
 function normalizeImportKey(path: string): string {
 	// Strip leading './' or 'src/' or '@'
-	let p = path.replace(/^src\//, '');
+	let p = toForwardSlash(path).replace(/^src\//, '');
 	if (p.startsWith('./')) p = p.slice(2);
 	if (p.startsWith('@')) p = p.slice(1);
 
@@ -473,6 +439,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 			orgId,
 		},
 		deployment: {
+			...options.deploymentConfig, // deployment config from agentuity.json (resources, mode, dependencies, domains)
 			id: options.deploymentId || '',
 			date: new Date().toISOString(),
 			build: {

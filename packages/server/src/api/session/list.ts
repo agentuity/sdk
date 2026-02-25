@@ -1,6 +1,7 @@
+import type { SortDirection } from '@agentuity/core';
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { SessionResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { SessionResponseError } from './util.ts';
 
 const SessionSchema = z.object({
 	id: z.string().describe('the session id'),
@@ -32,10 +33,10 @@ const SessionSchema = z.object({
 	llm_prompt_token_count: z.number().nullable().describe('the LLM prompt token count'),
 	llm_completion_token_count: z.number().nullable().describe('the LLM completion token count'),
 	total_cost: z.number().nullable().describe('the total cost'),
-	method: z.string().describe('the HTTP method'),
-	url: z.string().describe('the request URL'),
-	route_id: z.string().describe('the route id'),
-	thread_id: z.string().describe('the thread id'),
+	method: z.string().nullable().describe('the HTTP method'),
+	url: z.string().nullable().describe('the request URL'),
+	route_id: z.string().nullable().describe('the route id'),
+	thread_id: z.string().nullable().describe('the thread id'),
 	timeline: z.unknown().nullable().optional().describe('the session timeline tree'),
 	user_data: z.string().nullable().optional().describe('the user data as JSON'),
 });
@@ -50,8 +51,16 @@ export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
 export type SessionList = z.infer<typeof SessionListResponse>;
 export type Session = z.infer<typeof SessionSchema>;
 
+export type SessionSortField = 'created' | 'updated' | 'duration' | 'startTime';
+
 export interface SessionListOptions {
+	/** @deprecated Use `limit` instead. Will be removed in a future version. */
 	count?: number;
+	limit?: number;
+	offset?: number;
+	sort?: SessionSortField;
+	direction?: SortDirection;
+	orgId?: string;
 	projectId?: string;
 	deploymentId?: string;
 	trigger?: string;
@@ -77,7 +86,12 @@ export async function sessionList(
 	options: SessionListOptions = {}
 ): Promise<SessionList> {
 	const {
-		count = 10,
+		count,
+		limit,
+		offset,
+		sort,
+		direction,
+		orgId,
 		projectId,
 		deploymentId,
 		trigger,
@@ -90,11 +104,16 @@ export async function sessionList(
 		startBefore,
 		metadata,
 	} = options;
-	const params = new URLSearchParams({ count: count.toString() });
+	const resolvedLimit = limit ?? count ?? 10;
+	const params = new URLSearchParams({ limit: resolvedLimit.toString() });
+	if (orgId) params.set('orgId', orgId);
 	if (projectId) params.set('projectId', projectId);
 	if (deploymentId) params.set('deploymentId', deploymentId);
 	if (trigger) params.set('trigger', trigger);
 	if (env) params.set('env', env);
+	if (offset !== undefined) params.set('offset', offset.toString());
+	if (sort) params.set('sort', sort);
+	if (direction) params.set('direction', direction);
 	if (devmode !== undefined) params.set('devmode', devmode.toString());
 	if (success !== undefined) params.set('success', success.toString());
 	if (threadId) params.set('threadId', threadId);

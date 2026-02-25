@@ -27,6 +27,8 @@ export interface ViteBundleOptions {
 	port?: number;
 	logger: Logger;
 	deploymentOptions?: DeployOptions;
+	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
+	deploymentConfig?: Record<string, unknown>;
 	/** Optional collector for structured error reporting */
 	collector?: BuildReportCollector;
 }
@@ -44,6 +46,7 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		port = 3500,
 		logger,
 		deploymentOptions,
+		deploymentConfig,
 		collector,
 	} = options;
 
@@ -100,6 +103,7 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 			deploymentId,
 			logger,
 			deploymentOptions,
+			deploymentConfig,
 			collector,
 		});
 
@@ -108,6 +112,13 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		}
 		if (result.workbench.included) {
 			output.push(tui.muted(`✓ Workbench built in ${result.workbench.duration}ms`));
+		}
+		if (result.static.included) {
+			output.push(
+				tui.muted(
+					`✓ ${result.static.routes} routes pre-rendered in ${result.static.duration}ms`
+				)
+			);
 		}
 		if (result.server.included) {
 			output.push(tui.muted(`✓ Server built in ${result.server.duration}ms`));

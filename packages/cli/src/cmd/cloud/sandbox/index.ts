@@ -16,6 +16,8 @@ import { lsSubcommand } from './ls';
 import { downloadSubcommand } from './download';
 import { uploadSubcommand } from './upload';
 import { envSubcommand } from './env';
+import { pauseSubcommand } from './pause';
+import { resumeSubcommand } from './resume';
 import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
@@ -55,6 +57,8 @@ export const command = createCommand({
 		downloadSubcommand,
 		uploadSubcommand,
 		envSubcommand,
+		pauseSubcommand,
+		resumeSubcommand,
 	],
 	requires: { auth: true, org: true },
 });

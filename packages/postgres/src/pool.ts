@@ -1,14 +1,15 @@
+import { EventEmitter } from 'node:events';
 import pg from 'pg';
-import type { PoolConfig, PoolStats } from './types';
+import type { PoolConfig, PoolStats } from './types.ts';
 import {
 	ConnectionClosedError,
 	PostgresError,
 	QueryTimeoutError,
 	ReconnectFailedError,
 	isRetryableError,
-} from './errors';
-import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect';
-import { registerClient, unregisterClient, type Registrable } from './registry';
+} from './errors.ts';
+import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect.ts';
+import { registerClient, unregisterClient, type Registrable } from './registry.ts';
 
 /**
  * A resilient PostgreSQL connection pool with automatic reconnection.
@@ -33,9 +34,10 @@ import { registerClient, unregisterClient, type Registrable } from './registry';
  * await pool.close();
  * ```
  */
-export class PostgresPool implements Registrable {
+export class PostgresPool extends EventEmitter implements Registrable {
 	private _pool: pg.Pool | null = null;
 	private _config: PoolConfig;
+	private _poolConfig: pg.PoolConfig = {};
 	private _connected = false;
 	private _reconnecting = false;
 	private _closed = false;
@@ -66,6 +68,7 @@ export class PostgresPool implements Registrable {
 	 *                 If not provided, uses `process.env.DATABASE_URL`.
 	 */
 	constructor(config?: string | PoolConfig) {
+		super();
 		if (typeof config === 'string') {
 			this._config = { connectionString: config };
 		} else {
@@ -126,6 +129,58 @@ export class PostgresPool implements Registrable {
 	}
 
 	/**
+	 * Total number of clients in the pool.
+	 */
+	get totalCount(): number {
+		return this._pool?.totalCount ?? 0;
+	}
+
+	/**
+	 * Number of idle clients in the pool.
+	 */
+	get idleCount(): number {
+		return this._pool?.idleCount ?? 0;
+	}
+
+	/**
+	 * Number of clients waiting to be acquired.
+	 */
+	get waitingCount(): number {
+		return this._pool?.waitingCount ?? 0;
+	}
+
+	/**
+	 * Number of expired clients in the pool.
+	 */
+	get expiredCount(): number {
+		const pool = this._pool as (pg.Pool & { expiredCount?: number }) | null;
+		return pool?.expiredCount ?? 0;
+	}
+
+	/**
+	 * Whether the pool is ending (compat with pg.Pool).
+	 */
+	get ending(): boolean {
+		const pool = this._pool as (pg.Pool & { ending?: boolean }) | null;
+		return pool?.ending ?? this._shuttingDown;
+	}
+
+	/**
+	 * Whether the pool has ended (compat with pg.Pool).
+	 */
+	get ended(): boolean {
+		const pool = this._pool as (pg.Pool & { ended?: boolean }) | null;
+		return pool?.ended ?? this._closed;
+	}
+
+	/**
+	 * Pool configuration options.
+	 */
+	get options(): pg.PoolConfig {
+		return this._poolConfig;
+	}
+
+	/**
 	 * Execute a query on the pool.
 	 * If reconnection is in progress, waits for it to complete before executing.
 	 * Automatically retries on retryable errors.
@@ -140,13 +195,40 @@ export class PostgresPool implements Registrable {
 	 * console.log(result.rows);
 	 * ```
 	 */
-	async query<T extends pg.QueryResultRow = pg.QueryResultRow>(
+	query<T extends pg.QueryResultRow = pg.QueryResultRow>(
 		text: string | pg.QueryConfig<unknown[]>,
 		values?: unknown[]
-	): Promise<pg.QueryResult<T>> {
+	): Promise<pg.QueryResult<T>>;
+	query<T extends pg.QueryResultRow = pg.QueryResultRow>(
+		text: string | pg.QueryConfig<unknown[]>,
+		callback: (err: Error | null, result?: pg.QueryResult<T>) => void
+	): void;
+	query<T extends pg.QueryResultRow = pg.QueryResultRow>(
+		text: string,
+		values: unknown[],
+		callback: (err: Error | null, result?: pg.QueryResult<T>) => void
+	): void;
+	query<T extends pg.QueryResultRow = pg.QueryResultRow>(
+		text: string | pg.QueryConfig<unknown[]>,
+		values?: unknown[] | ((err: Error | null, result?: pg.QueryResult<T>) => void),
+		callback?: (err: Error | null, result?: pg.QueryResult<T>) => void
+	): Promise<pg.QueryResult<T>> | void {
+		const handler = typeof values === 'function' ? values : callback;
+		const queryValues = typeof values === 'function' ? undefined : values;
+
+		if (handler) {
+			void this._executeWithRetry(async () => {
+				const pool = await this._ensureConnectedAsync();
+				return pool.query<T>(text, queryValues);
+			})
+				.then((result) => handler(null, result))
+				.catch((error) => handler(error instanceof Error ? error : new Error(String(error))));
+			return;
+		}
+
 		return this._executeWithRetry(async () => {
 			const pool = await this._ensureConnectedAsync();
-			return pool.query<T>(text, values);
+			return pool.query<T>(text, queryValues);
 		});
 	}
 
@@ -171,7 +253,27 @@ export class PostgresPool implements Registrable {
 	 * }
 	 * ```
 	 */
-	async connect(): Promise<pg.PoolClient> {
+	connect(): Promise<pg.PoolClient>;
+	connect(
+		callback: (err: Error | null, client?: pg.PoolClient, release?: (err?: Error) => void) => void
+	): void;
+	connect(
+		callback?: (
+			err: Error | null,
+			client?: pg.PoolClient,
+			release?: (err?: Error) => void
+		) => void
+	): Promise<pg.PoolClient> | void {
+		if (callback) {
+			void this._executeWithRetry(async () => {
+				const pool = await this._ensureConnectedAsync();
+				return pool.connect();
+			})
+				.then((client) => callback(null, client, client.release.bind(client)))
+				.catch((error) => callback(error instanceof Error ? error : new Error(String(error))));
+			return;
+		}
+
 		return this._executeWithRetry(async () => {
 			const pool = await this._ensureConnectedAsync();
 			return pool.connect();
@@ -332,39 +434,60 @@ export class PostgresPool implements Registrable {
 			return;
 		}
 
-		const connectionString = this._config.connectionString ?? process.env.DATABASE_URL;
+		const {
+			reconnect: _reconnect,
+			preconnect: _preconnect,
+			onclose: _onclose,
+			onreconnect: _onreconnect,
+			onreconnected: _onreconnected,
+			onreconnectfailed: _onreconnectfailed,
+			...pgConfig
+		} = this._config;
 
-		const poolConfig: pg.PoolConfig = {};
-
-		if (connectionString) {
-			poolConfig.connectionString = connectionString;
+		const poolConfig: pg.PoolConfig = { ...pgConfig };
+		if (!poolConfig.connectionString) {
+			poolConfig.connectionString = process.env.DATABASE_URL;
 		}
 
-		if (this._config.host) poolConfig.host = this._config.host;
-		if (this._config.port) poolConfig.port = this._config.port;
-		if (this._config.user) poolConfig.user = this._config.user;
-		if (this._config.password) poolConfig.password = this._config.password;
-		if (this._config.database) poolConfig.database = this._config.database;
-		if (this._config.max) poolConfig.max = this._config.max;
-		if (this._config.idleTimeoutMillis !== undefined)
-			poolConfig.idleTimeoutMillis = this._config.idleTimeoutMillis;
-		if (this._config.connectionTimeoutMillis !== undefined)
-			poolConfig.connectionTimeoutMillis = this._config.connectionTimeoutMillis;
-
-		// Handle SSL configuration
-		if (this._config.ssl !== undefined) {
-			if (typeof this._config.ssl === 'boolean') {
-				poolConfig.ssl = this._config.ssl;
-			} else {
-				poolConfig.ssl = this._config.ssl;
+		// Normalize sslmode=require to sslmode=verify-full to suppress pg v8
+		// deprecation warning. pg currently treats 'require' as 'verify-full'
+		// but warns that v9 will use weaker libpq semantics. Since we want the
+		// stronger behavior, explicitly use verify-full.
+		if (poolConfig.connectionString) {
+			try {
+				const parsed = new URL(poolConfig.connectionString);
+				const sslmode = parsed.searchParams.get('sslmode');
+				if (sslmode === 'require') {
+					parsed.searchParams.set('sslmode', 'verify-full');
+					poolConfig.connectionString = parsed.toString();
+				}
+			} catch {
+				// Not a parseable URL — leave as-is
 			}
 		}
 
+		this._poolConfig = poolConfig;
 		this._pool = new pg.Pool(poolConfig);
 
-		// Handle pool error events for reconnection
-		this._pool.on('error', (err: Error) => {
+		this._pool.on('connect', (client: pg.PoolClient) => {
+			this.emit('connect', client);
+		});
+		this._pool.on('acquire', (client: pg.PoolClient) => {
+			this.emit('acquire', client);
+		});
+		(
+			this._pool as pg.Pool & {
+				on(event: 'release', listener: (client: pg.PoolClient) => void): pg.Pool;
+			}
+		).on('release', (client: pg.PoolClient) => {
+			this.emit('release', client);
+		});
+		this._pool.on('remove', (client: pg.PoolClient) => {
+			this.emit('remove', client);
+		});
+		this._pool.on('error', (err: Error, client?: pg.PoolClient) => {
 			this._handlePoolError(err);
+			this.emit('error', err, client);
 		});
 	}
 

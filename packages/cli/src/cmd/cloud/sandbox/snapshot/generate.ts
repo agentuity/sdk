@@ -35,6 +35,12 @@ description: My sandbox snapshot
 #   - ffmpeg
 #   - imagemagick=8:6.9*
 
+# Optional: npm/bun packages to install globally
+# Installed via 'bun install -g' at sandbox startup
+# packages:
+#   - opencode-ai
+#   - typescript
+
 # Optional: Files to include from the build context directory
 # Supports glob patterns and negative patterns (prefix with !)
 # Files are placed in /home/agentuity/ in the sandbox
@@ -68,6 +74,7 @@ const TEMPLATE_JSON = {
 	name: 'my-snapshot',
 	description: 'My sandbox snapshot',
 	dependencies: ['curl'],
+	packages: ['opencode-ai'],
 	files: ['src/**', '*.js', '!**/*.test.js'],
 	env: {
 		NODE_ENV: 'production',

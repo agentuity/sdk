@@ -63,3 +63,9 @@ apps/testing/ag-auth-test-app/agentuity.json
 # FUSE temporary files (from filesystem access by tools/processes)
 .fuse_hidden*
 apps/testing/auth-package-app/agentuity.json
+
+# Postgres integration test TLS certificates
+.tmp-certs
+
+# SQLite in-memory test artifacts (bun:sqlite shared cache URIs create files)
+**/file:opencode-*

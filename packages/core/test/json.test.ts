@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { safeStringify } from '../src/json';
+import { safeStringify } from '../src/json.ts';
 
 describe('safeStringify', () => {
 	describe('basic types', () => {

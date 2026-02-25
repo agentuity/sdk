@@ -1,0 +1,169 @@
+---
+title: Connecting GitHub Repositories
+description: Link your GitHub account and repositories to enable preview deployments and CI/CD.
+---
+
+Automatic deployments require a GitHub connection. Connect your identity, install the GitHub App on your organization, then link a repository to your project.
+
+## Connecting Your GitHub Identity
+
+Authorize Agentuity to access your GitHub account. This opens a browser-based OAuth flow:
+
+```bash
+agentuity git identity connect
+```
+
+The CLI copies the authorization URL to your clipboard and waits for you to complete the flow in your browser. Press Enter to open the URL automatically.
+
+Check your current connection status:
+
+```bash
+agentuity git identity status
+```
+
+```bash
+# JSON output
+agentuity --json git identity status
+```
+
+Remove your GitHub identity (also removes all installations):
+
+```bash
+agentuity git identity disconnect
+
+# Skip confirmation prompt
+agentuity git identity disconnect --confirm
+```
+
+## Installing the GitHub App
+
+After connecting your identity, install the Agentuity GitHub App on organizations or personal accounts to grant repository access.
+
+Install the GitHub App on a new account:
+
+```bash
+agentuity git account add
+
+# Add to a specific organization
+agentuity git account add --org org_abc123
+```
+
+This opens a browser flow to select an organization or personal account for the installation. You must have your identity connected first.
+
+List current installations:
+
+```bash
+agentuity git account list
+
+# JSON output
+agentuity --json git account list
+```
+
+Remove an installation:
+
+```bash
+agentuity git account remove
+
+# Remove a specific installation without prompts
+agentuity git account remove --account int_xyz --confirm
+
+# Remove from a specific organization
+agentuity git account remove --org org_abc123 --account int_xyz --confirm
+```
+
+<Callout type="info" title="Identity vs Installations">
+Your **identity** is your GitHub user account. **Installations** are per-organization GitHub App installs that grant repository access. You need both: connect your identity first, then add at least one installation.
+</Callout>
+
+## Linking a Repository
+
+Link your Agentuity project to a GitHub repository for automatic deployments.
+
+```bash
+agentuity git link
+```
+
+The CLI detects your current git remote and branch, then walks you through configuration:
+
+1. Select a repository (auto-detected from your git remote, or pick from a list)
+2. Set the root directory (defaults to `.`, useful for monorepos)
+3. Choose the deployment branch
+4. Enable/disable auto-deploy on push
+5. Enable/disable preview deployments on PRs
+
+### Non-interactive Linking
+
+```bash
+# Link to a specific repo without prompts
+agentuity git link --repo owner/repo --branch main --confirm
+
+# Monorepo subdirectory
+agentuity git link --root packages/my-agent
+
+# Disable auto-deploy
+agentuity git link --deploy false
+
+# Enable preview deployments
+agentuity git link --preview true
+```
+
+### Link Options
+
+| Option | Description |
+|--------|-------------|
+| `--repo <owner/repo>` | Repository full name |
+| `--branch <branch>` | Branch to deploy from (default: repo default branch) |
+| `--root <path>` | Root directory containing `agentuity.json` (default: `.`) |
+| `--deploy <bool>` | Enable auto-deploy on push (default: `true`) |
+| `--preview <bool>` | Enable preview deployments on PRs (default: `true`) |
+| `--confirm` | Skip confirmation prompts |
+
+### Browsing Repositories
+
+List all repositories accessible through your installations:
+
+```bash
+agentuity git list
+
+# Filter by GitHub account
+agentuity git list --account my-org
+
+# Filter by organization
+agentuity git list --org org_abc123
+
+# JSON output
+agentuity --json git list
+```
+
+### Unlinking
+
+Remove the repository link from your project:
+
+```bash
+agentuity git unlink
+
+# Skip confirmation
+agentuity git unlink --confirm
+```
+
+## Checking Status
+
+View the full GitHub connection status for your project, including identity, installations, and repository link:
+
+```bash
+agentuity git status
+
+# JSON output for scripting
+agentuity --json git status
+```
+
+The status output includes:
+- Connected GitHub username
+- GitHub App installations (organization or personal)
+- Linked repository, branch, and directory
+- Auto-deploy and preview deployment settings
+
+## Next Steps
+
+- [Deployment](/reference/cli/deployment): Configure preview and branch deployments
+- [Configuration](/reference/cli/configuration): Set environment variables for linked repos

@@ -12,8 +12,8 @@ const SessionListResponseSchema = z.array(
 		created_at: z.string().describe('Creation timestamp'),
 		success: z.boolean().describe('Whether the session succeeded'),
 		duration: z.number().nullable().describe('Duration in nanoseconds'),
-		method: z.string().describe('HTTP method'),
-		url: z.string().describe('Request URL'),
+		method: z.string().nullable().describe('HTTP method'),
+		url: z.string().nullable().describe('Request URL'),
 		trigger: z.string().describe('Trigger type'),
 		env: z.string().describe('Environment'),
 	})
@@ -72,6 +72,7 @@ export const listSubcommand = createSubcommand({
 	},
 	schema: {
 		options: z.object({
+			orgId: z.string().optional().describe('filter by organization id'),
 			count: z.coerce
 				.number()
 				.int()
@@ -90,6 +91,11 @@ export const listSubcommand = createSubcommand({
 			success: z.coerce.boolean().optional().describe('Filter by success status (true/false)'),
 			startAfter: z.string().optional().describe('Filter by start time after (ISO 8601)'),
 			startBefore: z.string().optional().describe('Filter by start time before (ISO 8601)'),
+			sort: z
+				.enum(['created', 'updated', 'duration', 'startTime'])
+				.optional()
+				.describe('field to sort by (default: created)'),
+			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: SessionListResponseSchema,
 	},
@@ -101,11 +107,16 @@ export const listSubcommand = createSubcommand({
 		const { logger, auth, project, opts, options, config } = ctx;
 		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
-		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
+		const projectId = opts.all || opts.orgId ? undefined : opts.projectId || project?.projectId;
 
 		try {
 			const sessions = await sessionList(catalystClient, {
 				count: opts.count,
+				orgId: opts?.orgId,
 				projectId,
 				deploymentId: opts.deploymentId,
 				trigger: opts.trigger,
@@ -116,6 +127,8 @@ export const listSubcommand = createSubcommand({
 				agentIdentifier: opts.agentIdentifier,
 				startAfter: opts.startAfter,
 				startBefore: opts.startBefore,
+				sort: opts.sort,
+				direction: opts.direction,
 			});
 
 			const result = sessions.map((s) => ({
@@ -140,13 +153,13 @@ export const listSubcommand = createSubcommand({
 			}
 
 			const tableData = sessions.map((s) => {
-				const urlPath = new URL(s.url).pathname;
+				const urlPath = s.url ? new URL(s.url).pathname : '-';
 				return {
 					ID: s.id,
 					Created: new Date(s.created_at).toLocaleString(),
 					Success: s.success ? '✓' : '✗',
 					Duration: s.duration ? `${(s.duration / 1_000_000).toFixed(0)}ms` : '-',
-					Method: s.method,
+					Method: s.method ?? '-',
 					Path: urlPath.length > 50 ? urlPath.substring(0, 47) + '...' : urlPath,
 					Trigger: s.trigger,
 					Env: s.env,

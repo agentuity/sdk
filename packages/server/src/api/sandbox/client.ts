@@ -9,17 +9,17 @@ import type {
 	SandboxRunResult,
 } from '@agentuity/core';
 import type { Readable, Writable } from 'node:stream';
-import { APIClient } from '../api';
-import { sandboxCreate, type SandboxCreateResponse } from './create';
-import { sandboxDestroy } from './destroy';
-import { sandboxGet } from './get';
-import { sandboxExecute } from './execute';
-import { sandboxWriteFiles, sandboxReadFile } from './files';
-import { sandboxRun } from './run';
-import { executionGet, type ExecutionInfo } from './execution';
-import { ConsoleLogger } from '../../logger';
-import { getServiceUrls } from '../../config';
-import { writeAndDrain } from './util';
+import { APIClient } from '../api.ts';
+import { sandboxCreate, type SandboxCreateResponse } from './create.ts';
+import { sandboxDestroy } from './destroy.ts';
+import { sandboxGet } from './get.ts';
+import { sandboxExecute } from './execute.ts';
+import { sandboxWriteFiles, sandboxReadFile } from './files.ts';
+import { sandboxRun } from './run.ts';
+import { executionGet, type ExecutionInfo } from './execution.ts';
+import { ConsoleLogger } from '../../logger.ts';
+import { getServiceUrls } from '../../config.ts';
+import { writeAndDrain } from './util.ts';
 
 // Server-side long-poll wait duration (max 5 minutes supported by server)
 const EXECUTION_WAIT_DURATION = '5m';
@@ -178,6 +178,11 @@ export interface SandboxInstance {
 	stderrStreamUrl?: string;
 
 	/**
+	 * URL to stream audit events (eBPF/Tetragon security events)
+	 */
+	auditStreamUrl?: string;
+
+	/**
 	 * Execute a command in the sandbox
 	 */
 	execute(options: ExecuteOptions): Promise<Execution>;
@@ -244,7 +249,9 @@ export class SandboxClient {
 
 		const logger = options.logger ?? new ConsoleLogger('warn');
 
-		this.#client = new APIClient(url, logger, apiKey ?? '', {});
+		// Disable retries for sandbox operations - 409 Conflict means sandbox is busy,
+		// not a retryable rate limit. Retrying would waste ~360s (4 attempts × 90s timeout).
+		this.#client = new APIClient(url, logger, apiKey ?? '', { maxRetries: 0 });
 		this.#orgId = options.orgId;
 		this.#apiKey = apiKey;
 		this.#region = region;
@@ -311,6 +318,7 @@ export class SandboxClient {
 			status: response.status,
 			stdoutStreamUrl: response.stdoutStreamUrl,
 			stderrStreamUrl: response.stderrStreamUrl,
+			auditStreamUrl: response.auditStreamUrl,
 
 			async execute(executeOptions: ExecuteOptions): Promise<Execution> {
 				const { pipe, ...coreOptions } = executeOptions;

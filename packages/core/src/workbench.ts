@@ -1,1 +1,1 @@
-export * from './workbench-config';
+export * from './workbench-config.ts';

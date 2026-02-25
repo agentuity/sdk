@@ -497,4 +497,151 @@ export { adminRouter };
 			expect(extractPathParams('/api/*')).toEqual([]);
 		});
 	});
+
+	describe('.route() sub-router mounting', () => {
+		test('should discover routes from .route() sub-router mounts', async () => {
+			// Create sub-router file
+			const sharedCode = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/items', async (c) => c.json({ items: [] }));
+router.post('/items', async (c) => c.json({ created: true }));
+
+export default router;
+`;
+			writeFileSync(join(apiDir, 'shared.ts'), sharedCode);
+
+			// Create main router that mounts the sub-router
+			const mainCode = `
+import { createRouter } from '@agentuity/runtime';
+import sharedRoutes from './shared';
+
+const router = createRouter();
+
+router.get('/health', async (c) => c.json({ ok: true }));
+router.route('/shared', sharedRoutes);
+
+export default router;
+`;
+			writeFileSync(join(apiDir, 'index.ts'), mainCode);
+
+			const { routes } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+
+			// Should find /api/health from direct route
+			const healthRoute = routes.find((r) => r.path === '/api/health');
+			expect(healthRoute).toBeDefined();
+
+			// Should find /api/shared/items from sub-router mount
+			const getItems = routes.find((r) => r.path === '/api/shared/items' && r.method === 'get');
+			expect(getItems).toBeDefined();
+
+			const postItems = routes.find(
+				(r) => r.path === '/api/shared/items' && r.method === 'post'
+			);
+			expect(postItems).toBeDefined();
+		});
+
+		test('should discover routes from .route() with path parameters', async () => {
+			// Create sub-router
+			const sessionCode = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/', async (c) => c.json({ sessions: [] }));
+router.get('/:id', async (c) => c.json({ session: {} }));
+
+export default router;
+`;
+			writeFileSync(join(apiDir, 'sessions.ts'), sessionCode);
+
+			// Main router mounts with path parameter prefix
+			const mainCode = `
+import { createRouter } from '@agentuity/runtime';
+import sessionRoutes from './sessions';
+
+const router = createRouter();
+
+router.route('/workspaces/:wid/sessions', sessionRoutes);
+
+export default router;
+`;
+			writeFileSync(join(apiDir, 'index.ts'), mainCode);
+
+			const { routes } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+
+			// Should find routes with combined path parameters
+			const listSessions = routes.find((r) => r.path === '/api/workspaces/:wid/sessions');
+			expect(listSessions).toBeDefined();
+
+			const getSession = routes.find((r) => r.path === '/api/workspaces/:wid/sessions/:id');
+			expect(getSession).toBeDefined();
+		});
+
+		test('should gracefully skip .route() with unresolvable sub-router', async () => {
+			const mainCode = `
+import { createRouter } from '@agentuity/runtime';
+import unknownRoutes from './nonexistent';
+
+const router = createRouter();
+
+router.get('/health', async (c) => c.json({ ok: true }));
+router.route('/unknown', unknownRoutes);
+
+export default router;
+`;
+			writeFileSync(join(apiDir, 'index.ts'), mainCode);
+
+			const { routes } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+
+			// Should still find the health route even though sub-router resolution failed
+			const healthRoute = routes.find((r) => r.path === '/api/health');
+			expect(healthRoute).toBeDefined();
+		});
+
+		test('should discover routes from multiple .route() mounts', async () => {
+			// Create sub-router files
+			const usersCode = `
+import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+router.get('/', async (c) => c.json({ users: [] }));
+router.post('/', async (c) => c.json({ created: true }));
+export default router;
+`;
+			writeFileSync(join(apiDir, 'users-routes.ts'), usersCode);
+
+			const postsCode = `
+import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+router.get('/', async (c) => c.json({ posts: [] }));
+export default router;
+`;
+			writeFileSync(join(apiDir, 'posts-routes.ts'), postsCode);
+
+			const mainCode = `
+import { createRouter } from '@agentuity/runtime';
+import userRoutes from './users-routes';
+import postRoutes from './posts-routes';
+
+const router = createRouter();
+router.route('/users', userRoutes);
+router.route('/posts', postRoutes);
+export default router;
+`;
+			writeFileSync(join(apiDir, 'index.ts'), mainCode);
+
+			const { routes } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+
+			const getUsers = routes.find((r) => r.path === '/api/users' && r.method === 'get');
+			expect(getUsers).toBeDefined();
+
+			const postUsers = routes.find((r) => r.path === '/api/users' && r.method === 'post');
+			expect(postUsers).toBeDefined();
+
+			const getPosts = routes.find((r) => r.path === '/api/posts' && r.method === 'get');
+			expect(getPosts).toBeDefined();
+		});
+	});
 });

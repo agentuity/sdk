@@ -1,0 +1,140 @@
+---
+title: Build Configuration
+description: Customize the build process with Vite plugins and build-time constants
+---
+
+Customize how your project is built by creating an `agentuity.config.ts` file in your project root. Add Vite plugins for frontend builds or define build-time constants.
+
+## Basic Configuration
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+
+export default {
+  // Configuration options here
+} satisfies AgentuityConfig;
+```
+
+## Configuration Options
+
+### plugins
+
+Add Vite plugins for frontend builds (`src/web/`). Plugins run after built-in plugins (React, environment variables).
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+import tailwindcss from '@tailwindcss/vite';
+
+export default {
+  plugins: [tailwindcss()],
+} satisfies AgentuityConfig;
+```
+
+See the [Vite plugin documentation](https://vitejs.dev/plugins/) for available plugins.
+
+<Callout type="info" title="Frontend Only">
+Vite plugins apply to frontend builds only. Server code is bundled separately with Bun.
+</Callout>
+
+### define
+
+Replace identifiers with constant values at build time. Values must be JSON-stringified.
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+
+export default {
+  define: {
+    'API_VERSION': JSON.stringify('v2'),
+    '__DEV__': JSON.stringify(false),
+  },
+} satisfies AgentuityConfig;
+```
+
+<Callout type="warning" title="Reserved Keys">
+These keys are set by the build system and will override any user-defined values:
+- `import.meta.env.AGENTUITY_PUBLIC_*` (Agentuity internal variables)
+- `process.env.NODE_ENV`
+</Callout>
+
+### workbench
+
+Configure the development Workbench UI. See [Testing with Workbench](/agents/workbench) for usage.
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+
+export default {
+  workbench: {
+    route: '/workbench',  // Access at http://localhost:3500/workbench
+    headers: {},          // Custom headers for requests
+  },
+} satisfies AgentuityConfig;
+```
+
+Omit the `workbench` section to disable Workbench.
+
+## Environment Variables
+
+Environment variables with these prefixes are available in frontend code:
+
+| Prefix | Description |
+|--------|-------------|
+| `VITE_*` | Standard Vite convention |
+| `AGENTUITY_PUBLIC_*` | Agentuity convention |
+| `PUBLIC_*` | Short form |
+
+```typescript
+// .env.local
+AGENTUITY_PUBLIC_API_URL=https://api.example.com
+
+// src/web/App.tsx
+const apiUrl = import.meta.env.AGENTUITY_PUBLIC_API_URL;
+```
+
+<Callout type="warning" title="Security">
+Public environment variables are bundled into frontend code and visible in the browser. Never put secrets or API keys in public variables.
+</Callout>
+
+## Build Architecture
+
+Agentuity uses a hybrid build system:
+
+| Component | Tool | Output |
+|-----------|------|--------|
+| Frontend (`src/web/`) | Vite | `.agentuity/client/` |
+| Workbench | Vite | `.agentuity/workbench/` |
+| Server (agents, routes) | Bun | `.agentuity/app.js` |
+
+This separation allows Vite's optimizations for frontend (HMR, tree-shaking, CSS processing) while using Bun's fast bundling for server code.
+
+For details on how these components interact during development, see [Dev Server Architecture](/reference/cli/development#dev-server-architecture).
+
+## Full Example
+
+```typescript
+import type { AgentuityConfig } from '@agentuity/cli';
+import tailwindcss from '@tailwindcss/vite';
+
+export default {
+  // Vite plugins for frontend
+  plugins: [tailwindcss()],
+
+  // Build-time constants
+  define: {
+    'APP_VERSION': JSON.stringify('1.0.0'),
+  },
+
+  // Development workbench
+  workbench: {
+    route: '/workbench',
+    headers: {},
+  },
+} satisfies AgentuityConfig;
+```
+
+## Next Steps
+
+- [Tailwind CSS Setup](/cookbook/patterns/tailwind-setup): Add Tailwind styling to your frontend
+- [Development Server](/reference/cli/development): Run the dev server with your configuration
+- [Deployment](/reference/cli/deployment): Deploy with build configuration

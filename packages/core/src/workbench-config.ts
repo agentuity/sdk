@@ -1,4 +1,4 @@
-import { StructuredError } from './error';
+import { StructuredError } from './error.ts';
 
 export const WorkbenchConfigError = StructuredError(
 	'WorkbenchConfigError',

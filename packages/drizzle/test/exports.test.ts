@@ -12,6 +12,12 @@ describe('exports', () => {
 			expect(createPostgresDrizzle).toBeDefined();
 			expect(typeof createPostgresDrizzle).toBe('function');
 		});
+
+		test('drizzle is exported and is a function', async () => {
+			const { drizzle } = await import('../src/index');
+			expect(drizzle).toBeDefined();
+			expect(typeof drizzle).toBe('function');
+		});
 	});
 
 	describe('re-exports from @agentuity/postgres', () => {
@@ -183,6 +189,19 @@ describe('exports', () => {
 			expect(typeof index).toBe('function');
 			expect(check).toBeDefined();
 			expect(typeof check).toBe('function');
+		});
+	});
+
+	describe('re-exports from drizzle-orm/bun-sql (type-only)', () => {
+		// BunSQLDatabase, BunSQLSession, BunSQLTransaction, and BunSQLPreparedQuery
+		// are now type-only exports to avoid circular dependency issues when bundled.
+		// Type-only exports are erased at runtime, so we verify they exist in the
+		// TypeScript source via a simple module import (no runtime value check).
+		test('module imports successfully (types are available at compile time)', async () => {
+			const mod = await import('../src/index');
+			// The module should load without circular dependency errors.
+			// BunSQL types are type-only exports and won't appear as runtime values.
+			expect(mod).toBeDefined();
 		});
 	});
 

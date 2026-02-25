@@ -1,0 +1,288 @@
+---
+title: Inbound Email Agent
+description: Create an AI email auto-responder with Agentuity + Inbound webhooks.
+---
+
+Build an AI email auto-responder: incoming messages trigger an Agentuity agent that classifies intent, drafts a reply, and sends it back through [Inbound](https://inbound.new).
+
+## What You'll Build
+
+- An email agent that classifies intent and drafts a response
+- A webhook route at `/api/email/inbound` that receives email events from Inbound
+- An automatic reply flow using `inbound.emails.reply(...)`
+- A deployed endpoint you can connect to an Inbound domain or catch-all address
+
+## Prerequisites
+
+- [Bun](https://bun.sh/) v1.0+
+- [Agentuity CLI](/reference/cli/getting-started)
+- Agentuity account
+- [Inbound](https://inbound.new) account
+- A domain you control for inbound email
+
+Add environment variables:
+
+```dotenv title=".env"
+AGENTUITY_SDK_KEY=your_agentuity_sdk_key
+INBOUND_API_KEY=your_inbound_api_key
+```
+
+<Callout type="info" title="Environment Keys">
+`AGENTUITY_SDK_KEY` is generated when you run `agentuity project create` or `agentuity project import`. Never commit API keys to version control.
+</Callout>
+
+## Project Structure
+
+```text
+src/
+├── agent/
+│   └── email/
+│       └── index.ts
+├── api/
+│   └── index.ts
+app.ts
+.env
+```
+
+<Steps>
+
+<Step>
+## Create the Project
+
+```bash
+agentuity project create --name inbound-email-agent
+cd inbound-email-agent
+bun add openai inboundemail
+```
+
+The CLI scaffolds a new project and registers it with Agentuity. `bun add` installs the OpenAI and Inbound SDKs.
+</Step>
+
+<Step>
+## Create the Email Agent
+
+Create your inbound-email agent in `src/agent/email/index.ts`:
+
+```typescript title="src/agent/email/index.ts"
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+import OpenAI from 'openai';
+
+const client = new OpenAI();
+
+export const AgentInput = s.object({
+	from: s.string().describe('Sender email address'),
+	subject: s.string().describe('Email subject line'),
+	body: s.string().describe('Email body content'),
+	to: s.string().optional().describe('Recipient email address'),
+	replyTo: s.string().optional().describe('Reply-to address if different from sender'),
+});
+
+export const AgentOutput = s.object({
+	response: s.string().describe('AI-generated email response'),
+	subject: s.string().describe('Subject line for the response'),
+	summary: s.string().describe('Brief summary of the original email'),
+	sentiment: s.string().describe('Detected sentiment of the incoming email'),
+	threadId: s.string().describe('Thread ID for conversation continuity'),
+});
+
+const agent = createAgent('email', {
+	description: 'Processes inbound emails and generates helpful responses',
+	schema: {
+		input: AgentInput,
+		output: AgentOutput,
+	},
+	handler: async (ctx, { from, subject, body, to }) => {
+		const completion = await client.chat.completions.create({
+			model: 'gpt-4o-mini',
+			messages: [
+				{
+					role: 'system',
+					content:
+						'You are a helpful email assistant. Generate concise, professional replies.',
+				},
+				{
+					role: 'user',
+					content: `From: ${from}\nSubject: ${subject}\n${to ? `To: ${to}` : ''}\n\n${body}`,
+				},
+			],
+			// JSON mode ensures the response is machine-parseable for structured extraction
+			response_format: { type: 'json_object' },
+		});
+
+		let result: Record<string, string>;
+		try {
+			result = JSON.parse(completion.choices[0]?.message?.content ?? '{}');
+		} catch (err) {
+			ctx.logger.error('Failed to parse LLM response as JSON', { err });
+			result = {};
+		}
+
+		return {
+			response: result.response ?? 'Thanks for your email. We will get back to you shortly.',
+			subject: result.subject ?? `Re: ${subject}`,
+			summary: result.summary ?? 'Email received and processed.',
+			sentiment: result.sentiment ?? 'neutral',
+			threadId: ctx.thread.id,
+		};
+	},
+});
+
+export default agent;
+```
+</Step>
+
+<Step>
+## Add the Inbound Webhook Route
+
+Create the route handler in `src/api/index.ts`:
+
+```typescript title="src/api/index.ts"
+import { createRouter } from '@agentuity/runtime';
+import email from '../agent/email';
+// See https://inbound.new/docs/quickstart/getting-started for Inbound SDK setup
+import { Inbound } from 'inboundemail';
+
+const inbound = new Inbound({ apiKey: process.env.INBOUND_API_KEY });
+const api = createRouter();
+
+api.post('/email/inbound', async (c) => {
+	const payload = await c.req.json();
+	const emailData = payload.email;
+
+	if (!emailData?.id) {
+		c.var.logger.error('Missing email payload');
+		return c.json({ error: 'Missing email data' }, 400);
+	}
+
+	const agentInput = {
+		from: emailData.from?.addresses?.[0]?.address ?? '',
+		subject: emailData.subject ?? '',
+		body: emailData.cleanedContent?.text ?? emailData.parsedData?.textBody ?? '',
+		to: emailData.to?.addresses?.[0]?.address ?? '',
+	};
+
+	c.var.logger.info('Processing inbound email', { from: agentInput.from, subject: agentInput.subject });
+	const result = await email.run(agentInput);
+
+	try {
+		const reply = await inbound.emails.reply(emailData.id, {
+			from: agentInput.to,
+			subject: result.subject,
+			text: result.response,
+		});
+
+		c.var.logger.info('Reply sent', { replyId: reply.id });
+		return c.json({ ...result, replySent: true, replyId: reply.id });
+	} catch (err) {
+		c.var.logger.error('Failed to send reply', { err: String(err) });
+		return c.json({ ...result, replySent: false, error: String(err) }, 500);
+	}
+});
+
+export default api;
+```
+
+<Callout type="tip" title="Inbound API Reference">
+See [Email Received Webhook](https://inbound.new/docs/api-reference/webhooks/email-received) for the full payload structure and [Reply to an Email](https://inbound.new/docs/api-reference/emails/reply-to-an-email) for reply options.
+</Callout>
+</Step>
+
+<Step>
+## Test Locally with curl
+
+Start the app:
+
+```bash
+agentuity dev
+```
+
+Send a sample inbound payload:
+
+```bash
+curl -X POST http://localhost:3500/api/email/inbound \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event": "email.received",
+    "email": {
+      "id": "test_123",
+      "from": { "addresses": [{ "address": "test@example.com" }] },
+      "to": { "addresses": [{ "address": "hello@yourdomain.com" }] },
+      "subject": "Test email",
+      "cleanedContent": { "text": "Hello, this is a test!" }
+    }
+  }'
+```
+
+You should get a JSON response with `replySent` and agent output fields.
+</Step>
+
+<Step>
+## Deploy and Connect Inbound
+
+Deploy your app:
+
+```bash
+agentuity deploy
+```
+
+In [Inbound](https://inbound.new/docs/api-reference/endpoints/create-new-endpoint), create an endpoint with:
+
+- URL: `https://your-app.agentuity.run/api/email/inbound`
+- Event: `email.received`
+
+Then either:
+
+- Attach a specific address (example: `hello@yourdomain.com`), or
+- Configure a catch-all endpoint for your domain.
+
+To attach an address, see [Create Email Address](https://inbound.new/docs/api-reference/email-addresses/create-email-address).
+</Step>
+
+<Step>
+## Send a Real Email and Verify
+
+Send an email to the configured address and verify:
+
+- Inbound shows a successful webhook delivery.
+- Your Agentuity app logs show route execution.
+- The original sender receives the AI-generated reply.
+
+For debugging production behavior, use [Debugging Deployments](/reference/cli/debugging).
+</Step>
+
+</Steps>
+
+## Extend the Agent
+
+- Validate webhook signatures before processing.
+- Use `ctx.thread.state` to keep multi-email conversation context.
+- Route messages by `to` address to different agents.
+- Process attachment metadata and hand off to specialized workflows.
+- Tune prompt/model per mailbox intent (support, sales, billing, etc.).
+
+## Troubleshooting
+
+### Webhook returns 400
+
+- Confirm endpoint path is exactly `/api/email/inbound`.
+- Confirm request body includes `email` and nested address/content fields.
+
+### Replies are not sending
+
+- Verify `INBOUND_API_KEY` is present and valid.
+- Ensure the `from` address is valid for your Inbound domain setup.
+- Check Inbound delivery logs for provider errors.
+
+### Domain is not receiving mail
+
+- Re-check MX/TXT records.
+- Wait for DNS propagation before retesting.
+- Verify the domain is fully verified in Inbound.
+
+## Next Steps
+
+- [Deploying to the Cloud](/reference/cli/deployment): Push your agent to Agentuity's hosted runtime
+- [Debugging Deployments](/reference/cli/debugging): Inspect logs and traces for deployed agents
+- [State Management](/agents/state-management): Persist conversation history across email threads
+- [Webhook Handler Pattern](/cookbook/patterns/webhook-handler): Patterns for receiving external webhooks

@@ -1,0 +1,168 @@
+---
+title: AI Commands
+description: CLI commands for AI agents, IDE integration, and schema inspection.
+---
+
+AI coding agents and IDE extensions work best when they understand your tools programmatically. These commands expose the CLI's structure, capabilities, and project context in machine-readable formats.
+
+## CLI Capabilities
+
+Show the CLI's capabilities in a structured format for AI consumption:
+
+```bash
+agentuity ai capabilities show
+```
+
+This outputs a machine-readable description of what the CLI can do, useful for:
+- AI coding agents that need to understand available commands
+- IDE extensions building Agentuity integrations
+- Documentation generators
+
+## Schema Inspection
+
+Output the CLI's command schema for programmatic consumption:
+
+```bash
+# Show the full CLI schema
+agentuity ai schema show
+
+# Generate schema in a specific format
+agentuity ai schema generate
+```
+
+The schema includes:
+- All available commands and subcommands
+- Required and optional parameters
+- Parameter types and validation rules
+- Command descriptions and examples
+
+## Project Context Files
+
+During development (`agentuity dev` or `bun run dev`), the CLI generates AGENTS.md files to help AI coding assistants (e.g., Claude Code, Codex, Cursor) understand Agentuity patterns:
+
+```
+.agents/
+└── agentuity/
+    └── sdk/
+        ├── agent/AGENTS.md   # Agent creation patterns
+        ├── api/AGENTS.md     # Route creation patterns
+        └── web/AGENTS.md     # Frontend patterns
+```
+
+These files are auto-updated when the CLI version changes and should be added to `.gitignore`.
+
+## Prompt Generation
+
+Generate context-aware prompts for LLMs working with Agentuity projects:
+
+```bash
+# Generate prompt for building agents
+agentuity ai prompt agent
+
+# Generate prompt for building APIs
+agentuity ai prompt api
+
+# Generate general LLM prompt
+agentuity ai prompt llm
+
+# Generate prompt for web/frontend development
+agentuity ai prompt web
+```
+
+Each prompt type includes:
+- Relevant SDK patterns and best practices
+- Code examples for the target domain
+- Common pitfalls to avoid
+- Links to documentation
+
+<Callout type="info" title="Use Cases">
+These prompts are useful for:
+- Bootstrapping AI coding sessions with Agentuity context
+- Training custom AI assistants on Agentuity patterns
+- Generating project-specific documentation
+</Callout>
+
+## Integration Examples
+
+### IDE Extension
+
+Use the CLI to provide autocomplete, validation, and project configuration help:
+
+```typescript
+import { execSync } from 'child_process';
+
+// Get CLI capabilities for IDE integration
+const capabilities = JSON.parse(
+  execSync('agentuity --json ai capabilities show').toString()
+);
+```
+
+```typescript
+import { execSync } from 'child_process';
+
+// Get agentuity.json schema for configuration validation
+const schema = JSON.parse(
+  execSync('agentuity --json ai schema generate').toString()
+);
+```
+
+### AI Coding Agent
+
+```bash
+# Generate context for an AI agent working on your project
+agentuity ai prompt agent > /tmp/agentuity-context.md
+
+# Include in your AI agent's system prompt
+cat /tmp/agentuity-context.md
+```
+
+## OpenCode Plugin
+
+Install the Agentuity plugin for [OpenCode](https://opencode.ai) to enable AI-assisted development:
+
+```bash
+# Install the plugin
+agentuity ai opencode install
+
+# Remove the plugin
+agentuity ai opencode uninstall
+
+# Run a task in headless mode
+agentuity ai opencode run "Create an agent that validates email addresses"
+
+# Run in a cloud sandbox environment
+agentuity ai opencode run --sandbox "run the test suite"
+
+# Output raw JSON events (for programmatic consumption)
+agentuity ai opencode run --json "fix the bug"
+```
+
+| Flag | Description |
+|------|-------------|
+| `--sandbox` | Run in a cloud sandbox environment |
+| `--json` | Output raw JSON events for programmatic consumption |
+
+The plugin provides specialized agents, slash commands, and MCP servers for Agentuity development. See [OpenCode Plugin](/reference/cli/opencode-plugin) for full documentation.
+
+## Cadence Mode
+
+Cadence enables long-running autonomous work sessions. Access it via:
+
+- **Interactive**: Use the `/agentuity-cadence` slash command within OpenCode
+- **Headless**: Run `agentuity ai opencode run "/agentuity-cadence <task>"` from the CLI
+
+```bash
+# Start a Cadence session interactively in OpenCode
+/agentuity-cadence Build a complete auth system with tests
+
+# Or run headlessly from the CLI
+agentuity ai opencode run "/agentuity-cadence Build a complete auth system with tests"
+```
+
+See [OpenCode Plugin: Cadence Mode](/reference/cli/opencode-plugin#cadence-mode) for details on controlling Cadence sessions.
+
+## Next Steps
+
+- [Getting Started with the CLI](/reference/cli/getting-started): Install and authenticate
+- [Local Development](/reference/cli/development): Run agents locally
+- [Creating Agents](/agents/creating-agents): Build your first agent

@@ -1,7 +1,25 @@
-import { SQL as BunSQL } from 'bun';
-import { drizzle } from 'drizzle-orm/bun-sql';
-import { postgres, type CallablePostgresClient, type PostgresConfig } from '@agentuity/postgres';
-import type { PostgresDrizzleConfig, PostgresDrizzle } from './types';
+import { SQL as BunSQL, type SQL as BunSQLClient, type SQLOptions } from 'bun';
+import { drizzle as upstreamDrizzle, type BunSQLDatabase } from 'drizzle-orm/bun-sql';
+import {
+	drizzle as nodePgDrizzle,
+	type NodePgDatabase,
+	type NodePgClient,
+} from 'drizzle-orm/node-postgres';
+import type { DrizzleConfig } from 'drizzle-orm';
+import { isConfig } from 'drizzle-orm/utils';
+import { StructuredError } from '@agentuity/core';
+import {
+	postgres,
+	PostgresPool,
+	isMutationStatement,
+	createThenable,
+	type CallablePostgresClient,
+	type PostgresConfig,
+	type PoolConfig,
+} from '@agentuity/postgres';
+import type { PostgresDrizzleConfig, PostgresDrizzle, PostgresDrizzlePg } from './types.ts';
+
+const DrizzleConfigError = StructuredError('DrizzleConfigError');
 
 /**
  * Resolves the PostgreSQL client configuration from Drizzle config options.
@@ -37,99 +55,22 @@ export function resolvePostgresClientConfig<
 		clientConfig.onreconnected = config.onReconnected;
 	}
 
+	// Forward prepare option
+	if (config?.prepare !== undefined) {
+		clientConfig.prepare = config.prepare;
+	}
+
+	// Forward bigint option
+	if (config?.bigint !== undefined) {
+		clientConfig.bigint = config.bigint;
+	}
+
+	// Forward maxLifetime option
+	if (config?.maxLifetime !== undefined) {
+		clientConfig.maxLifetime = config.maxLifetime;
+	}
+
 	return clientConfig;
-}
-
-/**
- * Strips leading whitespace and SQL comments (block and line) from a query string.
- * Returns the remaining query text starting at the first non-comment token.
- */
-const LEADING_COMMENTS_RE = /^(?:\s+|\/\*[\s\S]*?\*\/|--[^\n]*\n)*/;
-
-/**
- * Determines whether a SQL query is a non-retryable INSERT statement.
- *
- * Handles two patterns:
- * 1. Direct INSERT: `INSERT INTO ...` (with optional leading comments/whitespace)
- * 2. CTE INSERT: `WITH cte AS (...) INSERT INTO ...` — scans past the WITH clause
- *    by tracking parenthesis depth to skip CTE subexpressions, then checks
- *    if the first top-level DML keyword is INSERT.
- *
- * @see https://github.com/agentuity/sdk/issues/911
- */
-function isNonRetryableInsert(query: string): boolean {
-	// Strip leading whitespace and SQL comments
-	const stripped = query.replace(LEADING_COMMENTS_RE, '');
-
-	// Fast path: direct INSERT statement
-	if (/^INSERT\s/i.test(stripped)) {
-		return true;
-	}
-
-	// Check for WITH (CTE) prefix
-	if (!/^WITH\s/i.test(stripped)) {
-		return false;
-	}
-
-	// Scan past the CTE clause to find the first top-level DML keyword.
-	// We track parenthesis depth so we skip CTE subexpressions like
-	// "WITH cte AS (SELECT ... INSERT ...)" without false-matching the
-	// INSERT inside the parens.
-	let depth = 0;
-	let i = 4; // skip past "WITH"
-	const len = stripped.length;
-
-	while (i < len) {
-		const ch = stripped[i]!;
-
-		if (ch === '(') {
-			depth++;
-			i++;
-			continue;
-		}
-		if (ch === ')') {
-			depth--;
-			i++;
-			continue;
-		}
-
-		// Only inspect keywords at top level (depth === 0)
-		if (depth === 0) {
-			// Skip whitespace at top level
-			if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') {
-				i++;
-				continue;
-			}
-
-			// Skip commas between CTEs: WITH a AS (...), b AS (...)
-			if (ch === ',') {
-				i++;
-				continue;
-			}
-
-			// Check for DML keywords at this position.
-			// We look for INSERT, UPDATE, DELETE, or SELECT — the first one
-			// we find at top level determines whether this is retryable.
-			const rest = stripped.substring(i);
-			const dmlMatch = /^(INSERT|UPDATE|DELETE|SELECT)\s/i.exec(rest);
-			if (dmlMatch) {
-				return dmlMatch[1]!.toUpperCase() === 'INSERT';
-			}
-
-			// Skip over any other word (e.g., CTE names, AS keyword, RECURSIVE)
-			// by advancing past alphanumeric/underscore characters
-			if (/\w/.test(ch)) {
-				while (i < len && /\w/.test(stripped[i]!)) {
-					i++;
-				}
-				continue;
-			}
-		}
-
-		i++;
-	}
-
-	return false;
 }
 
 /**
@@ -150,6 +91,10 @@ export function createResilientSQLProxy(
 			// Always resolve from the CURRENT raw connection (changes after reconnect)
 			const raw = client.raw;
 
+			if (prop === 'close') {
+				return () => client.close();
+			}
+
 			if (prop === 'unsafe') {
 				// Wrap unsafe() with retry logic for resilient queries.
 				// Returns a thenable that also supports .values() chaining,
@@ -157,23 +102,46 @@ export function createResilientSQLProxy(
 				//   client.unsafe(query, params)           → Promise<rows>
 				//   client.unsafe(query, params).values()   → Promise<rows>
 				return (query: string, params?: unknown[]) => {
-					// INSERT statements (including CTE-based) are NOT retried to prevent
-					// duplicate rows. If an INSERT succeeds on the server but the connection
-					// drops before the response, retrying would re-execute it — creating a
-					// duplicate row when the primary key is server-generated.
-					// See: https://github.com/agentuity/sdk/issues/911
-					const isInsert = isNonRetryableInsert(query);
+					// Mutation statements (INSERT, UPDATE, DELETE) require special
+					// handling for safe retry. They are wrapped in a transaction
+					// (BEGIN/query/COMMIT) so that if the connection drops,
+					// PostgreSQL auto-rolls back, preventing duplicate inserts,
+					// double-applied updates, or repeated delete side effects.
+					const isMutation = isMutationStatement(query);
 
-					if (isInsert) {
-						const makeDirectExecutor = (useValues: boolean) => {
-							const currentRaw = client.raw;
-							const q = currentRaw.unsafe(query, params);
-							return useValues ? q.values() : q;
-						};
-						const result = makeDirectExecutor(false);
-						return Object.assign(result, {
-							values: () => makeDirectExecutor(true),
-						});
+					if (isMutation) {
+						// Mutation statements are wrapped in a transaction and retried
+						// via executeWithRetry. This is safe because PostgreSQL
+						// guarantees that uncommitted transactions are automatically
+						// rolled back when the connection drops. If the connection
+						// fails before COMMIT completes, no changes are applied, and
+						// the retry starts a fresh transaction on the new connection.
+						//
+						// We use sql.begin(callback) instead of manual BEGIN/COMMIT
+						// because Bun's SQL driver requires it for pool-safe
+						// transactions (ERR_POSTGRES_UNSAFE_TRANSACTION when max > 1).
+						// sql.begin() reserves a specific connection, auto-COMMITs on
+						// success, and auto-ROLLBACKs on error.
+						//
+						// NOTE: If the connection drops after the server processes
+						// COMMIT but before the client receives the response, the
+						// changes ARE committed. A retry would then apply them again.
+						// This window is extremely small (< 1ms typically) and is an
+						// inherent limitation of any retry-based approach without
+						// application-level idempotency (e.g., unique constraints
+						// with ON CONFLICT for INSERTs).
+						// See: https://github.com/agentuity/sdk/issues/911
+						const makeTransactionalExecutor = (useValues: boolean) =>
+							client.executeWithRetry(async () => {
+								// Re-resolve raw inside retry to get post-reconnect instance
+								const currentRaw = client.raw;
+								return currentRaw.begin(async (tx) => {
+									const q = tx.unsafe(query, params);
+									return useValues ? await q.values() : await q;
+								});
+							});
+
+						return createThenable(makeTransactionalExecutor);
 					}
 
 					const makeExecutor = (useValues: boolean) =>
@@ -184,11 +152,7 @@ export function createResilientSQLProxy(
 							return useValues ? q.values() : q;
 						});
 
-					// Return a thenable with .values() to match Bun's SQLQuery interface
-					const result = makeExecutor(false);
-					return Object.assign(result, {
-						values: () => makeExecutor(true),
-					});
+					return createThenable(makeExecutor);
 				};
 			}
 
@@ -201,6 +165,176 @@ export function createResilientSQLProxy(
 		},
 	});
 }
+
+type DrizzleConnectionConfig = string | ({ url?: string } & SQLOptions);
+
+function isCallablePostgresClient(value: unknown): value is CallablePostgresClient {
+	return (
+		typeof value === 'function' &&
+		value !== null &&
+		'raw' in (value as CallablePostgresClient) &&
+		typeof (value as CallablePostgresClient).executeWithRetry === 'function'
+	);
+}
+
+function createProxyClientFromSql(client: BunSQLClient): CallablePostgresClient {
+	// Bun SQL instances are callable as tagged template literals.
+	// Create a function that forwards calls to the client.
+	const proxy = (async (strings: TemplateStringsArray, ...values: unknown[]) => {
+		// Forward tagged template to the Bun SQL client directly
+		return (client as unknown as CallablePostgresClient)(strings, ...values);
+	}) as unknown as CallablePostgresClient;
+
+	Object.defineProperties(proxy, {
+		raw: {
+			get: () => client as InstanceType<typeof BunSQL>,
+			enumerable: true,
+		},
+	});
+
+	proxy.executeWithRetry = async <T>(operation: () => T | Promise<T>) => operation();
+	proxy.close = async () => {
+		const close = (client as { close?: () => Promise<void> | void }).close;
+		if (typeof close === 'function') {
+			await close.call(client);
+		}
+	};
+
+	return proxy;
+}
+
+function extractPostgresConfigFromSql(client: BunSQLClient): PostgresConfig | undefined {
+	const options = (client as { options?: Record<string, unknown> }).options;
+	if (!options || typeof options !== 'object') {
+		return undefined;
+	}
+
+	const config: PostgresConfig = {};
+	const keys = [
+		'url',
+		'hostname',
+		'port',
+		'username',
+		'password',
+		'database',
+		'tls',
+		'max',
+		'idleTimeout',
+		'connectionTimeout',
+		'prepare',
+		'bigint',
+		'maxLifetime',
+		'path',
+		'connection',
+	] as const;
+
+	for (const key of keys) {
+		if (key in options) {
+			(config as Record<string, unknown>)[key] = options[key];
+		}
+	}
+
+	return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function resolvePostgresClient<TClient extends BunSQLClient>(
+	client: TClient
+): CallablePostgresClient {
+	if (isCallablePostgresClient(client)) {
+		return client;
+	}
+
+	const config = extractPostgresConfigFromSql(client);
+	if (config) {
+		return postgres(config);
+	}
+
+	return createProxyClientFromSql(client);
+}
+
+function resolvePostgresClientFromConnection(
+	connection?: DrizzleConnectionConfig
+): CallablePostgresClient {
+	if (!connection) {
+		return postgres();
+	}
+
+	if (typeof connection === 'string') {
+		return postgres(connection);
+	}
+
+	if (typeof connection === 'object' && connection.url !== undefined) {
+		const { url, ...config } = connection;
+		return postgres({ url, ...(config as PostgresConfig) });
+	}
+
+	return postgres(connection as PostgresConfig);
+}
+
+function createDrizzleDatabase<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+	TClient extends BunSQLClient = BunSQLClient,
+>(
+	client: CallablePostgresClient,
+	config?: DrizzleConfig<TSchema>
+): BunSQLDatabase<TSchema> & {
+	$client: TClient;
+} {
+	const resilientSQL = createResilientSQLProxy(client);
+	return upstreamDrizzle({
+		client: resilientSQL,
+		...(config ?? {}),
+	}) as BunSQLDatabase<TSchema> & { $client: TClient };
+}
+
+function _drizzle<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+	TClient extends BunSQLClient = BunSQLClient,
+>(
+	...params:
+		| [TClient | string]
+		| [TClient | string, DrizzleConfig<TSchema>]
+		| [DrizzleConfig<TSchema> & ({ connection: DrizzleConnectionConfig } | { client: TClient })]
+): BunSQLDatabase<TSchema> & { $client: TClient } {
+	if (typeof params[0] === 'string') {
+		const client = resolvePostgresClientFromConnection(params[0]);
+		return createDrizzleDatabase(client, params[1]);
+	}
+
+	if (isConfig(params[0])) {
+		const config = params[0] as DrizzleConfig<TSchema> & {
+			connection?: DrizzleConnectionConfig;
+			client?: TClient;
+		};
+		const { connection, client, ...drizzleConfig } = config;
+
+		if (client) {
+			const resolvedClient = resolvePostgresClient(client);
+			return createDrizzleDatabase(resolvedClient, drizzleConfig);
+		}
+
+		const resolvedClient = resolvePostgresClientFromConnection(connection);
+		return createDrizzleDatabase(resolvedClient, drizzleConfig);
+	}
+
+	const client = resolvePostgresClient(params[0] as TClient);
+	return createDrizzleDatabase(client, params[1]);
+}
+
+_drizzle.mock = <TSchema extends Record<string, unknown> = Record<string, never>>(
+	config?: DrizzleConfig<TSchema>
+): BunSQLDatabase<TSchema> & { $client: '$client is not available on drizzle.mock()' } => {
+	const db = upstreamDrizzle.mock(config);
+	(db as unknown as Record<string, unknown>).$client =
+		'$client is not available on drizzle.mock()';
+	return db as BunSQLDatabase<TSchema> & {
+		$client: '$client is not available on drizzle.mock()';
+	};
+};
+
+export const drizzle = _drizzle as typeof _drizzle & {
+	mock: typeof _drizzle.mock;
+};
 
 /**
  * Creates a Drizzle ORM instance with a resilient PostgreSQL connection.
@@ -218,11 +352,14 @@ export function createResilientSQLProxy(
  * import { createPostgresDrizzle } from '@agentuity/drizzle';
  * import * as schema from './schema';
  *
- * // Basic usage with DATABASE_URL
- * const { db, close } = createPostgresDrizzle({ schema });
+ * // Basic usage with DATABASE_URL (defaults to pg driver with resilient pool)
+ * const { db, client, close } = createPostgresDrizzle({ schema });
  *
  * // Query with type safety
  * const users = await db.select().from(schema.users);
+ *
+ * // Access connection stats from the resilient pool
+ * console.log(client.stats);
  *
  * // Clean up when done
  * await close();
@@ -230,7 +367,7 @@ export function createResilientSQLProxy(
  *
  * @example
  * ```typescript
- * // With custom connection configuration
+ * // With custom connection and reconnection configuration
  * const { db, client, close } = createPostgresDrizzle({
  *   connectionString: 'postgres://user:pass@localhost:5432/mydb',
  *   schema,
@@ -241,14 +378,129 @@ export function createResilientSQLProxy(
  *   },
  *   onReconnected: () => console.log('Database reconnected'),
  * });
- *
- * // Access connection stats
- * console.log(client.stats);
  * ```
+ *
+ * @example
+ * ```typescript
+ * // Opt-in to Bun's native SQL driver for maximum performance
+ * const { db, client, close } = createPostgresDrizzle({
+ *   url: process.env.DATABASE_URL,
+ *   schema,
+ *   driver: 'bun-sql',
+ * });
+ * ```
+ */
+/**
+ * Creates a Drizzle ORM instance using Bun's native SQL driver.
  */
 export function createPostgresDrizzle<
 	TSchema extends Record<string, unknown> = Record<string, never>,
->(config?: PostgresDrizzleConfig<TSchema>): PostgresDrizzle<TSchema> {
+>(config: PostgresDrizzleConfig<TSchema> & { driver: 'bun-sql' }): PostgresDrizzle<TSchema>;
+
+/**
+ * Creates a Drizzle ORM instance using the pg (node-postgres) driver (default).
+ */
+export function createPostgresDrizzle<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+>(config?: PostgresDrizzleConfig<TSchema>): PostgresDrizzlePg<TSchema>;
+
+// Implementation signature
+export function createPostgresDrizzle<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+>(config?: PostgresDrizzleConfig<TSchema>): PostgresDrizzle<TSchema> | PostgresDrizzlePg<TSchema> {
+	// bun-sql driver path (opt-in)
+	if (config?.driver === 'bun-sql') {
+		return createBunSqlDrizzle(config);
+	}
+
+	// Default: pg (node-postgres) driver backed by resilient PostgresPool
+	return createPgDrizzle(config);
+}
+
+/**
+ * Creates a Drizzle instance using the pg (node-postgres) driver
+ * backed by a resilient PostgresPool with automatic reconnection.
+ */
+function createPgDrizzle<TSchema extends Record<string, unknown> = Record<string, never>>(
+	config?: PostgresDrizzleConfig<TSchema>
+): PostgresDrizzlePg<TSchema> {
+	// Build PostgresPool config from drizzle config.
+	// PoolConfig extends pg.PoolConfig so it supports both connectionString
+	// and individual fields (host, port, database, user, password).
+	const poolConfig: PoolConfig = {
+		reconnect: config?.reconnect,
+		onreconnected: config?.onReconnected,
+	};
+
+	// Resolve connection: URL string takes priority, then individual fields
+	const url =
+		config?.url ??
+		config?.connectionString ??
+		config?.connection?.url ??
+		process.env.DATABASE_URL;
+
+	if (url) {
+		poolConfig.connectionString = url;
+	} else if (config?.connection) {
+		// Map PostgresConfig fields to pg.PoolConfig fields
+		const conn = config.connection;
+		if (conn.hostname) poolConfig.host = conn.hostname;
+		if (conn.port) poolConfig.port = conn.port;
+		if (conn.database) poolConfig.database = conn.database;
+		if (conn.username) poolConfig.user = conn.username;
+		if (conn.password) poolConfig.password = conn.password;
+	} else {
+		throw new DrizzleConfigError({
+			message:
+				'createPostgresDrizzle(): No connection configuration found. ' +
+				'Provide url, connectionString, connection.url, connection fields, or set DATABASE_URL.',
+		});
+	}
+
+	// Create resilient pool
+	const pool = new PostgresPool(poolConfig);
+
+	// Pass the pool to drizzle-orm/node-postgres.
+	// PostgresPool implements the same query()/connect() interface as pg.Pool
+	// but with automatic retry and reconnection. Drizzle calls pool.query()
+	// for each operation, so all queries go through our resilience layer.
+	const db = nodePgDrizzle(pool as unknown as NodePgClient, {
+		schema: config?.schema,
+		logger: config?.logger,
+	}) as NodePgDatabase<TSchema>;
+
+	// Fire onConnect callback once the pool is warm
+	if (config?.onConnect) {
+		pool
+			.waitForConnection()
+			.then(() => {
+				try {
+					config.onConnect!();
+				} catch {
+					// Swallow synchronous exceptions from onConnect callback
+				}
+			})
+			.catch(() => {
+				// Connection failed — onConnect is not invoked
+			});
+	}
+
+	return {
+		db,
+		client: pool,
+		close: async () => {
+			await pool.close();
+		},
+	};
+}
+
+/**
+ * Creates a Drizzle instance using Bun's native SQL driver
+ * with the resilient SQL proxy for automatic reconnection.
+ */
+function createBunSqlDrizzle<TSchema extends Record<string, unknown> = Record<string, never>>(
+	config?: PostgresDrizzleConfig<TSchema>
+): PostgresDrizzle<TSchema> {
 	// Resolve the postgres client configuration
 	const clientConfig = resolvePostgresClientConfig(config);
 
@@ -270,7 +522,7 @@ export function createPostgresDrizzle<
 
 	// Create Drizzle instance using the resilient proxy instead of a static
 	// reference to client.raw, which would become stale after reconnection.
-	const db = drizzle({
+	const db = upstreamDrizzle({
 		client: resilientSQL,
 		schema: config?.schema,
 		logger: config?.logger,

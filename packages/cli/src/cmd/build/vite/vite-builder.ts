@@ -61,6 +61,8 @@ export interface ViteBuildOptions {
 	analyticsEnabled?: boolean;
 	logger: Logger;
 	deploymentOptions?: DeployOptions;
+	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
+	deploymentConfig?: Record<string, unknown>;
 	/** Optional collector for structured error reporting */
 	collector?: BuildReportCollector;
 	/** Optional config profile name (e.g., 'staging', 'test') for .env.{profile} files */
@@ -180,8 +182,24 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
+		const { loadAgentuityConfig, hasFrameworkPlugin } = await import('./config-loader');
+		const userConfig = await loadAgentuityConfig(rootDir, logger);
+		const userPlugins = userConfig?.plugins || [];
+
+		// Auto-add React plugin if no framework plugin is present (backwards compatibility)
+		if (userPlugins.length === 0 || !hasFrameworkPlugin(userPlugins)) {
+			logger.debug(
+				'No framework plugin found in agentuity.config.ts plugins, adding React automatically'
+			);
+			userPlugins.unshift(react());
+		}
+
+		if (userPlugins.length > 0) {
+			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
+		}
+
 		const plugins = [
-			react(),
+			...userPlugins,
 			browserEnvPlugin(),
 			// Fix incorrect public asset paths and rewrite to CDN URLs
 			publicAssetPathPlugin({ cdnBaseUrl }),
@@ -189,13 +207,6 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			// Emit analytics beacon as hashed CDN asset (prod builds only)
 			beaconPlugin({ enabled: analyticsEnabled && !dev }),
 		];
-		const { loadAgentuityConfig } = await import('./config-loader');
-		const userConfig = await loadAgentuityConfig(rootDir, logger);
-		const userPlugins = userConfig?.plugins || [];
-		plugins.push(...userPlugins);
-		if (userPlugins.length > 0) {
-			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
-		}
 
 		// Merge custom define values from user config
 		const userDefine = userConfig?.define || {};
@@ -291,6 +302,7 @@ interface BuildResult {
 	workbench: { included: boolean; duration: number };
 	client: { included: boolean; duration: number };
 	server: { included: boolean; duration: number };
+	static: { included: boolean; duration: number; routes: number };
 }
 
 /**
@@ -307,6 +319,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		workbench: { included: false, duration: 0 },
 		client: { included: false, duration: 0 },
 		server: { included: false, duration: 0 },
+		static: { included: false, duration: 0, routes: 0 },
 	};
 
 	// Load config to check if workbench is enabled (dev mode only)
@@ -371,6 +384,22 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Skipping client build - no src/web/index.html found');
 	}
 
+	// 2b. Static rendering (if configured)
+	if (config?.render === 'static' && hasWebFrontend) {
+		logger.debug('Running static rendering (pre-rendering all routes)...');
+		const endStaticDiagnostic = collector?.startDiagnostic('static-render');
+		const { runStaticRender } = await import('./static-renderer');
+		const staticResult = await runStaticRender({
+			rootDir,
+			logger,
+			userPlugins: config?.plugins || [],
+		});
+		result.static.included = true;
+		result.static.duration = staticResult.duration;
+		result.static.routes = staticResult.routes;
+		endStaticDiagnostic?.();
+	}
+
 	// 3. Build workbench (if enabled in config)
 	if (workbenchConfig.enabled) {
 		logger.debug('Building workbench assets...');
@@ -412,6 +441,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger,
 		dev,
 		deploymentOptions: options.deploymentOptions,
+		deploymentConfig: options.deploymentConfig,
 	});
 
 	writeMetadataFile(rootDir, metadata, dev, logger);

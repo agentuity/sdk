@@ -1,3 +1,3 @@
-export * from './get';
-export * from './list';
-export * from './logs';
+export * from './get.ts';
+export * from './list.ts';
+export * from './logs.ts';

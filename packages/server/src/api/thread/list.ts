@@ -1,6 +1,7 @@
+import type { SortDirection } from '@agentuity/core';
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { ThreadResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { ThreadResponseError } from './util.ts';
 
 export const ThreadSchema = z.object({
 	id: z.string().describe('the thread id'),
@@ -27,8 +28,14 @@ export type ThreadListResponse = z.infer<typeof ThreadListResponseSchema>;
 export type ThreadList = z.infer<typeof ThreadListResponseData>;
 export type Thread = z.infer<typeof ThreadSchema>;
 
+export type ThreadSortField = 'created' | 'updated';
+
 export interface ThreadListOptions {
 	count?: number;
+	limit?: number;
+	offset?: number;
+	sort?: ThreadSortField;
+	direction?: SortDirection;
 	orgId?: string;
 	projectId?: string;
 	metadata?: Record<string, unknown>;
@@ -45,10 +52,14 @@ export async function threadList(
 	client: APIClient,
 	options: ThreadListOptions = {}
 ): Promise<ThreadList> {
-	const { count = 10, orgId, projectId, metadata } = options;
-	const params = new URLSearchParams({ count: count.toString() });
+	const { limit, count, offset, sort, direction, orgId, projectId, metadata } = options;
+	const resolvedLimit = limit ?? count ?? 10;
+	const params = new URLSearchParams({ limit: resolvedLimit.toString() });
 	if (orgId) params.set('orgId', orgId);
 	if (projectId) params.set('projectId', projectId);
+	if (offset !== undefined) params.set('offset', offset.toString());
+	if (sort) params.set('sort', sort);
+	if (direction) params.set('direction', direction);
 	if (metadata) params.set('metadata', JSON.stringify(metadata));
 
 	const resp = await client.request<ThreadListResponse>(

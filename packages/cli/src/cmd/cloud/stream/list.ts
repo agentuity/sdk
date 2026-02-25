@@ -58,15 +58,21 @@ export const listSubcommand = createCommand({
 	],
 	schema: {
 		options: z.object({
-			size: z.number().optional().describe('maximum number of streams to return (default: 100)'),
-			offset: z.number().optional().describe('number of streams to skip for pagination'),
+			size: z.number().min(1).default(100).describe('maximum number of streams to return'),
+			offset: z.number().min(0).optional().describe('number of streams to skip for pagination'),
 			namespace: z.string().optional().describe('filter by stream namespace'),
+			name: z.string().optional().describe('Filter by stream name'),
 			metadata: z
 				.string()
 				.optional()
 				.describe('filter by metadata (format: key=value or key1=value1,key2=value2)'),
 			projectId: z.string().optional().describe('filter by project ID'),
 			orgId: z.string().optional().describe('filter by organization ID'),
+			sort: z
+				.enum(['name', 'created', 'updated', 'size', 'count', 'lastUsed'])
+				.default('created')
+				.describe('field to sort by'),
+			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),
 		}),
 		response: ListStreamsResponseSchema,
 	},
@@ -74,8 +80,13 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options, apiClient, project } = ctx;
-		// Use project context if available, or explicit flag
-		const projectId = opts.projectId || project?.projectId;
+
+		if (opts?.orgId && opts?.projectId) {
+			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');
+		}
+
+		// Use explicit projectId flag; only fall back to project context when --org-id is not set
+		const projectId = opts.projectId || (opts.orgId ? undefined : project?.projectId);
 
 		// Parse metadata filter if provided
 		let metadataFilter: Record<string, string> | undefined;
@@ -119,9 +130,12 @@ export const listSubcommand = createCommand({
 				limit: opts.size,
 				offset: opts.offset,
 				namespace: opts.namespace,
+				name: opts.name,
 				metadata: metadataFilter,
 				projectId,
 				orgId: opts.orgId,
+				sort: opts.sort,
+				direction: opts.direction,
 			});
 
 			if (options.json) {

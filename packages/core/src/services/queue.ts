@@ -18,9 +18,9 @@
  * ```
  */
 
-import { FetchAdapter } from './adapter';
-import { buildUrl, toServiceException, toPayload } from './_util';
-import { StructuredError } from '../error';
+import { FetchAdapter } from './adapter.ts';
+import { buildUrl, toServiceException, toPayload } from './_util.ts';
+import { StructuredError } from '../error.ts';
 
 /**
  * Parameters for publishing a message to a queue.
@@ -369,12 +369,14 @@ export class QueueStorageService implements QueueService {
 
 		if (res.ok) {
 			const data = res.data as unknown as {
-				message: { id: string; offset: number; published_at: string };
+				id: string;
+				offset: number;
+				published_at: string;
 			};
 			return {
-				id: data.message.id,
-				offset: data.message.offset,
-				publishedAt: data.message.published_at,
+				id: data.id,
+				offset: data.offset,
+				publishedAt: data.published_at,
 			};
 		}
 

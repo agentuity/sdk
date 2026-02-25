@@ -207,6 +207,99 @@ describe('registry-generator', () => {
 			expect(routesContent).toContain('get: { input:');
 		});
 
+		test('should quote dotted path segments in RPCRouteRegistry', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/docs/foo.md',
+					filename: './api/docs/foo.md/route.ts',
+					hasValidator: false,
+					routeType: 'api',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Nested RPCRouteRegistry: dotted key must be quoted
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			expect(routesContent).toContain('"foo.md": {');
+			// Normal key (docs) should remain unquoted
+			expect(routesContent).toContain('docs: {');
+			expect(routesContent).toContain('get: { input:');
+
+			// Flat RouteRegistry: full route key is always single-quoted, dots are safe
+			expect(routesContent).toContain("'GET /api/docs/foo.md'");
+		});
+
+		test('should escape single quotes in path segments', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: "/api/it's",
+					filename: "./api/it's/route.ts",
+					hasValidator: false,
+					routeType: 'api',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			// After toCamelCase("it's") → "it's" (apostrophe preserved)
+			// JSON.stringify produces properly escaped double-quoted string
+			expect(routesContent).toContain('"it\'s"');
+			expect(routesContent).toContain('get: { input:');
+		});
+
+		test('should quote Unicode path segments', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/café',
+					filename: './api/café/route.ts',
+					hasValidator: false,
+					routeType: 'api',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			// Unicode chars not valid as unquoted identifiers in our regex
+			expect(routesContent).toContain('"café"');
+			expect(routesContent).toContain('get: { input:');
+		});
+
+		test('should quote path segments with consecutive dots', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/foo..bar',
+					filename: './api/foo..bar/route.ts',
+					hasValidator: false,
+					routeType: 'api',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			expect(routesContent).toContain('"foo..bar"');
+			expect(routesContent).toContain('get: { input:');
+		});
+
 		test('should generate route registry with multiple routes', async () => {
 			const routes: RouteInfo[] = [
 				{
@@ -876,6 +969,24 @@ describe('registry-generator', () => {
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			// Empty routes should not create a file
+			expect(existsSync(routesPath)).toBe(false);
+		});
+
+		test('should clean up stale routes.ts from previous build when all routes are removed (issue #924)', async () => {
+			// Simulate a previous build that generated routes.ts
+			mkdirSync(generatedDir, { recursive: true });
+			writeFileSync(
+				join(generatedDir, 'routes.ts'),
+				`// @generated\nimport type { StateSchema } from '../api/index';\n`
+			);
+			expect(existsSync(join(generatedDir, 'routes.ts'))).toBe(true);
+
+			// Now rebuild with no routes (user deleted their API files)
+			const routes: RouteInfo[] = [];
+			await generateRouteRegistry(srcDir, routes);
+
+			// Stale file should be cleaned up
+			const routesPath = join(generatedDir, 'routes.ts');
 			expect(existsSync(routesPath)).toBe(false);
 		});
 
