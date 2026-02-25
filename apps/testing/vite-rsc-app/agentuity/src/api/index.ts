@@ -1,3 +1,4 @@
+import { isStructuredError } from '@agentuity/core';
 import { createRouter } from '@agentuity/runtime';
 import echoAgent from '@agents/echo/agent';
 
@@ -8,9 +9,18 @@ router.get('/health', (c) => {
 });
 
 router.post('/echo', echoAgent.validator(), async (c) => {
-	const input = c.req.valid('json');
-	const result = await echoAgent.run(input);
-	return c.json(result);
+	try {
+		const input = c.req.valid('json');
+		const result = await echoAgent.run(input);
+		return c.json(result);
+	} catch (error) {
+		const message = isStructuredError(error)
+			? error.message
+			: error instanceof Error
+				? error.message
+				: String(error);
+		return c.json({ success: false, error: message }, 500);
+	}
 });
 
 export default router;

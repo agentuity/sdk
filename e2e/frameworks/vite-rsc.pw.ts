@@ -22,6 +22,8 @@ test.describe('Vite RSC + Agentuity Integration', () => {
 		const output = page.locator('.output');
 		await expect(output).toBeVisible();
 
+		// Wait for the loading state to be active, then for it to resolve
+		await expect(output).toHaveAttribute('data-loading', 'true', { timeout: 5000 });
 		await expect(output).not.toHaveAttribute('data-loading', 'true', { timeout: 10000 });
 
 		await expect(output).toContainText('Echo: Hello from Playwright!');
@@ -41,6 +43,10 @@ test.describe('Vite RSC + Agentuity Integration', () => {
 		});
 
 		await page.goto('/');
+		await page.waitForLoadState('networkidle');
+
+		// Verify the RSC stream was actually fetched for client hydration
+		expect(rscRequests.length).toBeGreaterThan(0);
 
 		// The page should be server-rendered with RSC
 		await expect(page.locator('h1')).toContainText('Agentuity + Vite RSC');

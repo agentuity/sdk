@@ -26,7 +26,7 @@ Each API folder must contain:
 
 Example structure:
 
-```
+```text
 src/api/
 ├── index.ts         (optional, mounted at /api)
 ├── status/

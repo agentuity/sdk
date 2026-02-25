@@ -91,7 +91,7 @@ const agent = createAgent('lifecycle-agent', {
 	},
 	shutdown: async (app, config) => {
 		// Cleanup resources (runs on shutdown)
-		console.log('Shutting down agent:', config.agentId);
+		ctx.logger.info('Shutting down agent:', config.agentId);
 	},
 });
 

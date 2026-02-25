@@ -99,6 +99,7 @@ function EchoDemoInner() {
 
 					<div className="input-group">
 						<input
+							aria-label="Message to echo"
 							className="input"
 							disabled={isLoading}
 							onChange={(e) => setMessage(e.target.value)}
@@ -123,7 +124,7 @@ function EchoDemoInner() {
 
 					{error && <div className="error">Error: {error.message}</div>}
 
-					<div className="output" data-loading={!data}>
+					<div className="output" data-loading={isLoading}>
 						{data ? (
 							<>
 								<div>
