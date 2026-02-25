@@ -96,6 +96,44 @@ function initializeTables(db: Database): void {
 		CREATE INDEX IF NOT EXISTS idx_vector_name 
 		ON vector_storage(project_path, name)
 	`);
+
+	// Task Storage table
+	db.run(`
+		CREATE TABLE IF NOT EXISTS task_storage (
+			project_path TEXT NOT NULL,
+			id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			metadata TEXT,
+			priority TEXT NOT NULL DEFAULT 'none',
+			parent_id TEXT,
+			type TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'open',
+			open_date TEXT,
+			in_progress_date TEXT,
+			closed_date TEXT,
+			created_id TEXT NOT NULL,
+			assigned_id TEXT,
+			closed_id TEXT,
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL,
+			PRIMARY KEY (project_path, id)
+		)
+	`);
+
+	// Task Changelog table
+	db.run(`
+		CREATE TABLE IF NOT EXISTS task_changelog_storage (
+			project_path TEXT NOT NULL,
+			id TEXT NOT NULL,
+			task_id TEXT NOT NULL,
+			field TEXT NOT NULL,
+			old_value TEXT,
+			new_value TEXT,
+			created_at INTEGER NOT NULL,
+			PRIMARY KEY (project_path, id)
+		)
+	`);
 }
 
 function cleanupOrphanedProjects(db: Database): void {
@@ -112,12 +150,22 @@ function cleanupOrphanedProjects(db: Database): void {
 	const vectorPaths = db.query('SELECT DISTINCT project_path FROM vector_storage').all() as Array<{
 		project_path: string;
 	}>;
+	const taskPaths = db.query('SELECT DISTINCT project_path FROM task_storage').all() as Array<{
+		project_path: string;
+	}>;
+	const taskChangelogPaths = db
+		.query('SELECT DISTINCT project_path FROM task_changelog_storage')
+		.all() as Array<{
+		project_path: string;
+	}>;
 
 	// Combine and deduplicate all project paths
 	const allPaths = new Set<string>();
-	[...kvPaths, ...streamPaths, ...vectorPaths].forEach((row) => {
+	[...kvPaths, ...streamPaths, ...vectorPaths, ...taskPaths, ...taskChangelogPaths].forEach(
+		(row) => {
 		allPaths.add(row.project_path);
-	});
+		}
+	);
 
 	// Check which paths no longer exist and are not the current project
 	const pathsToDelete: string[] = [];
@@ -139,10 +187,18 @@ function cleanupOrphanedProjects(db: Database): void {
 		const deleteVector = db.prepare(
 			`DELETE FROM vector_storage WHERE project_path IN (${placeholders})`
 		);
+		const deleteTasks = db.prepare(
+			`DELETE FROM task_storage WHERE project_path IN (${placeholders})`
+		);
+		const deleteTaskChangelog = db.prepare(
+			`DELETE FROM task_changelog_storage WHERE project_path IN (${placeholders})`
+		);
 
 		deleteKv.run(...pathsToDelete);
 		deleteStream.run(...pathsToDelete);
 		deleteVector.run(...pathsToDelete);
+		deleteTasks.run(...pathsToDelete);
+		deleteTaskChangelog.run(...pathsToDelete);
 
 		console.log(`[LocalDB] Cleaned up data for ${pathsToDelete.length} orphaned project(s)`);
 	}
