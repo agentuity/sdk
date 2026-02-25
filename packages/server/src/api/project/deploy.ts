@@ -16,6 +16,18 @@ export const Mode = z.object({
 	idle: z.string().optional().describe('duration in seconds if on-demand'),
 });
 
+export const ProjectBuildConfig = z.object({
+	timeout: z.string().optional().describe('Build execution timeout (e.g. "30m")'),
+	resources: z
+		.object({
+			memory: z.string().optional().describe('Build sandbox memory (e.g. "4Gi")'),
+			cpu: z.string().optional().describe('Build sandbox CPU (e.g. "2")'),
+			disk: z.string().optional().describe('Build sandbox disk (e.g. "4Gi")'),
+		})
+		.optional()
+		.describe('Build sandbox resource limits'),
+});
+
 export const DeploymentConfig = z.object({
 	resources: Resources.optional().describe('the resource requirements for your deployed project'),
 	mode: Mode.optional().describe('the provisioning mode for the project'),
@@ -70,14 +82,8 @@ export const BuildMetadataSchema = z.object({
 			method: z.enum(['get', 'post', 'put', 'delete', 'patch']).describe('the HTTP method'),
 			version: z.string().describe('the SHA256 content of the file'),
 			type: z.enum(['api', 'sms', 'email', 'cron', 'websocket', 'sse', 'stream']),
-			agentIds: z
-				.array(z.string())
-				.optional()
-				.describe('the agent ids associated with this route'),
-			config: z
-				.record(z.string(), z.unknown())
-				.optional()
-				.describe('type specific configuration'),
+			agentIds: z.array(z.string()).optional().describe('the agent ids associated with this route'),
+			config: z.record(z.string(), z.unknown()).optional().describe('type specific configuration'),
 			schema: z
 				.object({
 					input: z.string().optional().describe('JSON schema for input (stringified JSON)'),
@@ -127,11 +133,7 @@ export const BuildMetadataSchema = z.object({
 						.default('cli')
 						.optional()
 						.describe('the trigger that caused the build'),
-					url: z
-						.string()
-						.url()
-						.optional()
-						.describe('the url to the commit for the CI provider'),
+					url: z.string().url().optional().describe('the url to the commit for the CI provider'),
 					buildUrl: z
 						.string()
 						.url()
@@ -150,9 +152,7 @@ export const BuildMetadataSchema = z.object({
 							url: z.string().optional(),
 						})
 						.optional()
-						.describe(
-							'This is only present when the deployment was triggered via a pull request.'
-						),
+						.describe('This is only present when the deployment was triggered via a pull request.'),
 				})
 				.optional()
 				.describe('git commit information'),
