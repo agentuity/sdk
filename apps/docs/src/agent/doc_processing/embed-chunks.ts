@@ -14,9 +14,7 @@ export async function embedChunks(
 		throw new Error('No texts provided for embedding.');
 	}
 	if (texts.some((t) => typeof t !== 'string' || t.trim() === '')) {
-		throw new Error(
-			'All items passed to embedChunks must be non-empty strings.'
-		);
+		throw new Error('All items passed to embedChunks must be non-empty strings.');
 	}
 	let response: Awaited<ReturnType<typeof embedMany>>;
 	try {

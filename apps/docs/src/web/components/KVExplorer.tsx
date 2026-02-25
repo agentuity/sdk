@@ -92,19 +92,19 @@ export function KVExplorer() {
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-4">
 				<div className="flex items-center gap-3">
 					<span className="text-zinc-500 text-xs uppercase">Sample Data:</span>
-					<Button
-						variant="success"
-						size="sm"
-						onClick={seedData}
-						disabled={loading || seeded}
-					>
+					<Button variant="success" size="sm" onClick={seedData} disabled={loading || seeded}>
 						<span className="relative">
 							<span className={seeding || seeded ? 'invisible' : ''}>Load Sample Data</span>
 							{seeding && !seeded && (
-								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								<span
+									className="absolute inset-0 flex items-center justify-center"
+									data-loading="true"
+								/>
 							)}
 							{seeded && (
-								<span className="absolute inset-0 flex items-center justify-center">Loaded</span>
+								<span className="absolute inset-0 flex items-center justify-center">
+									Loaded
+								</span>
 							)}
 						</span>
 					</Button>
@@ -152,9 +152,7 @@ export function KVExplorer() {
 
 				{/* Right column: Value viewer */}
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg flex flex-col h-[400px]">
-					<div className="text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
-						Value
-					</div>
+					<div className="text-zinc-500 text-xs font-medium px-4 py-3 uppercase">Value</div>
 					<Separator />
 					<div className="flex-1 overflow-y-auto p-4">
 						{selectedKey ? (

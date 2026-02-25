@@ -7,6 +7,7 @@ import {
 	type VectorStorage,
 	type SandboxService,
 	type QueueService,
+	type TaskStorage,
 	type InferInput,
 	type InferOutput,
 	toCamelCase,
@@ -241,6 +242,21 @@ export interface AgentContext<
 	 * ```
 	 */
 	queue: QueueService;
+
+	/**
+	 * Task service for agent-driven issue tracking.
+	 *
+	 * @example
+	 * ```typescript
+	 * const task = await ctx.task.create({
+	 *   title: 'Investigate API error',
+	 *   type: 'bug',
+	 *   created_id: ctx.current.id,
+	 * });
+	 * await ctx.task.update(task.id, { status: 'in_progress' });
+	 * ```
+	 */
+	task: TaskStorage;
 
 	/**
 	 * In-memory state storage scoped to the current request.

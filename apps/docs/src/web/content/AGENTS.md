@@ -8,7 +8,7 @@ Writing conventions for Agentuity docs pages in this directory.
 2. **Lean**: Avoid walls of text. Progressive disclosure: basic first, advanced later
 3. **Complete**: Standalone examples include imports and are runnable. Short inline references are fine without imports
 4. **Scannable**: Headings, callouts, inline comments that explain "why" not "what"
-5. **Benefit-focused, not salesy**: Explain *why* someone would use a feature without hollow adjectives
+5. **Benefit-focused, not salesy**: Explain _why_ someone would use a feature without hollow adjectives
 6. **Source-verified**: Read SDK source and AGENTS.md files before documenting APIs or CLI flags.
 
 ## Exemplar Pages
@@ -23,13 +23,13 @@ Before writing a new page, read these as reference implementations:
 
 ## Page Types
 
-| Type | Structure | Example |
-|------|-----------|---------|
-| **Getting started** | Step-by-step, minimal options, one happy path | `get-started/quickstart.mdx` |
-| **Feature doc** | Context, basic, advanced, best practices | `agents/creating-agents.mdx` |
-| **Service doc** | When-to-use table, access patterns, operations | `services/storage/key-value.mdx` |
-| **Cookbook pattern** | Problem statement, complete solution, variations | `cookbook/patterns/*.mdx` |
-| **Reference** | Factual, tables, complete flag/option lists | `reference/cli/*.mdx` |
+| Type                 | Structure                                        | Example                          |
+| -------------------- | ------------------------------------------------ | -------------------------------- |
+| **Getting started**  | Step-by-step, minimal options, one happy path    | `get-started/quickstart.mdx`     |
+| **Feature doc**      | Context, basic, advanced, best practices         | `agents/creating-agents.mdx`     |
+| **Service doc**      | When-to-use table, access patterns, operations   | `services/storage/key-value.mdx` |
+| **Cookbook pattern** | Problem statement, complete solution, variations | `cookbook/patterns/*.mdx`        |
+| **Reference**        | Factual, tables, complete flag/option lists      | `reference/cli/*.mdx`            |
 
 ## Page Structure
 
@@ -90,7 +90,7 @@ Available components in doc pages:
 - `<Steps>` -- numbered step-by-step instructions
 - `<Cards>` + `<CardLink>` -- navigation cards for index pages
 - Code highlights: `// [!code highlight]` at end of line to emphasize key lines
-- Code titles: `` ```typescript title="src/agent/chat/agent.ts" `` for file path context
+- Code titles: ` ```typescript title="src/agent/chat/agent.ts" ` for file path context
 
 ## Writing Rules
 

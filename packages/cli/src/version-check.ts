@@ -215,10 +215,29 @@ async function performUpgrade(logger: Logger, targetVersion: string): Promise<vo
 		// Exit with the same exit code as the new process
 		process.exit(proc.exitCode ?? 0);
 	} catch (error) {
-		// Upgrade failed - log and continue with original command
-		logger.error('Upgrade failed: %s', error instanceof Error ? error.message : 'Unknown error');
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		logger.error('Upgrade failed: %s', errorMessage);
+
+		// Check for known bun package manager bug (oven-sh/bun#18354)
+		if (errorMessage.includes('BadPathName')) {
+			tui.newline();
+			tui.warning(
+				'This appears to be a known bun package manager issue with stale global packages.'
+			);
+			tui.info('To fix this, run one of the following:');
+			tui.newline();
+			tui.info(`  ${tui.bold('Option 1:')} Clear stale packages and reinstall`);
+			tui.info(`  ${tui.muted('$')} rm -rf ~/.bun/install/global`);
+			tui.info(`  ${tui.muted('$')} bun add -g @agentuity/cli@latest`);
+			tui.newline();
+			tui.info(`  ${tui.bold('Option 2:')} Use the install script`);
+			tui.info(`  ${tui.muted('$')} curl -fsSL https://agentuity.sh | sh`);
+			tui.newline();
+		}
+
 		tui.warning('Continuing with current version...');
-		tui.info('');
+		tui.info('You can upgrade later by running: agentuity upgrade');
+		tui.newline();
 	}
 }
 

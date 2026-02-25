@@ -1,8 +1,4 @@
 {
-  "title": "Reference",
-  "pages": [
-    "CLI",
-    "sdk-reference",
-    "migration-guide"
-  ]
+	"title": "Reference",
+	"pages": ["CLI", "sdk-reference", "migration-guide"]
 }

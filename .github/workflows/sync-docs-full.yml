@@ -1,28 +1,28 @@
 name: Full Docs Sync to Vector Store
 
 on:
-  workflow_dispatch:
+   workflow_dispatch:
 
 jobs:
-  full-sync:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+   full-sync:
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/checkout@v4
 
-      - name: Collect all files
-        run: |
-          set -euo pipefail
-          ./apps/docs/bin/collect-all-files.sh > all-files.txt
+         - name: Collect all files
+           run: |
+              set -euo pipefail
+              ./apps/docs/bin/collect-all-files.sh > all-files.txt
 
-          echo "Files to sync:"
-          cat all-files.txt
+              echo "Files to sync:"
+              cat all-files.txt
 
-      - name: Build and send payload
-        env:
-          AGENT_BEARER_TOKEN: ${{ secrets.AGENT_BEARER_TOKEN }}
-          DOCS_WEBHOOK_URL: ${{ secrets.DOCS_WEBHOOK_URL }}
-        run: |
-          set -euo pipefail
-          cat all-files.txt | \
-            ./apps/docs/bin/build-payload.sh "${{ github.repository }}" full | \
-            ./apps/docs/bin/send-webhook.sh "$DOCS_WEBHOOK_URL" "Bearer $AGENT_BEARER_TOKEN"
+         - name: Build and send payload
+           env:
+              AGENT_BEARER_TOKEN: ${{ secrets.AGENT_BEARER_TOKEN }}
+              DOCS_WEBHOOK_URL: ${{ secrets.DOCS_WEBHOOK_URL }}
+           run: |
+              set -euo pipefail
+              cat all-files.txt | \
+                ./apps/docs/bin/build-payload.sh "${{ github.repository }}" full | \
+                ./apps/docs/bin/send-webhook.sh "$DOCS_WEBHOOK_URL" "Bearer $AGENT_BEARER_TOKEN"

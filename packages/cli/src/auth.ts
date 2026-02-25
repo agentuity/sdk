@@ -28,6 +28,7 @@ const RESOURCE_PREFIXES: Array<{ prefix: string; type: ResourceType }> = [
 	{ prefix: 'kv_', type: 'kv' },
 	{ prefix: 'stream_', type: 'stream' },
 	{ prefix: 'wh_', type: 'webhook' },
+	{ prefix: 'task_', type: 'task' },
 ];
 
 function getResourceTypeFromId(id: string): ResourceType | undefined {

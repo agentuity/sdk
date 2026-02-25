@@ -36,11 +36,7 @@ export function AISearchMessages({ messages, loading, onSourceClick }: AISearchM
 	return (
 		<div className="flex flex-col space-y-6 py-3">
 			{messages.map((msg) => (
-				<MessageBubble
-					key={msg.id}
-					message={msg}
-					onSourceClick={onSourceClick}
-				/>
+				<MessageBubble key={msg.id} message={msg} onSourceClick={onSourceClick} />
 			))}
 
 			{loading && (
@@ -66,13 +62,19 @@ export function AISearchMessages({ messages, loading, onSourceClick }: AISearchM
 // Markdown components using shadcn typography patterns (scaled for chat context)
 const markdownComponents = {
 	h2: ({ children }: { children?: React.ReactNode }) => (
-		<h2 className="text-base font-semibold tracking-tight [&:not(:first-child)]:mt-5 mb-2">{children}</h2>
+		<h2 className="text-base font-semibold tracking-tight [&:not(:first-child)]:mt-5 mb-2">
+			{children}
+		</h2>
 	),
 	h3: ({ children }: { children?: React.ReactNode }) => (
-		<h3 className="text-sm font-semibold tracking-tight [&:not(:first-child)]:mt-4 mb-1.5">{children}</h3>
+		<h3 className="text-sm font-semibold tracking-tight [&:not(:first-child)]:mt-4 mb-1.5">
+			{children}
+		</h3>
 	),
 	h4: ({ children }: { children?: React.ReactNode }) => (
-		<h4 className="text-sm font-medium tracking-tight [&:not(:first-child)]:mt-3 mb-1">{children}</h4>
+		<h4 className="text-sm font-medium tracking-tight [&:not(:first-child)]:mt-3 mb-1">
+			{children}
+		</h4>
 	),
 	p: ({ children }: { children?: React.ReactNode }) => (
 		<p className="text-sm leading-7 [&:not(:first-child)]:mt-3">{children}</p>
@@ -96,9 +98,7 @@ const markdownComponents = {
 	ol: ({ children }: { children?: React.ReactNode }) => (
 		<ol className="my-3 ml-5 list-decimal text-sm [&>li]:mt-1">{children}</ol>
 	),
-	li: ({ children }: { children?: React.ReactNode }) => (
-		<li className="leading-7">{children}</li>
-	),
+	li: ({ children }: { children?: React.ReactNode }) => <li className="leading-7">{children}</li>,
 	blockquote: ({ children }: { children?: React.ReactNode }) => (
 		<blockquote className="[&:not(:first-child)]:mt-3 border-l-2 pl-4 italic text-muted-foreground">
 			{children}
@@ -113,17 +113,23 @@ const markdownComponents = {
 		<tr className="even:bg-muted m-0 border-t p-0">{children}</tr>
 	),
 	th: ({ children }: { children?: React.ReactNode }) => (
-		<th className="border px-3 py-1.5 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right">{children}</th>
+		<th className="border px-3 py-1.5 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right">
+			{children}
+		</th>
 	),
 	td: ({ children }: { children?: React.ReactNode }) => (
-		<td className="border px-3 py-1.5 text-left [&[align=center]]:text-center [&[align=right]]:text-right">{children}</td>
+		<td className="border px-3 py-1.5 text-left [&[align=center]]:text-center [&[align=right]]:text-right">
+			{children}
+		</td>
 	),
 	pre: ({ children }: { children: React.ReactNode }) => {
 		// Extract code element from react-markdown output
-		const codeElement = React.Children.toArray(children)[0] as React.ReactElement<{
-			className?: string;
-			children?: React.ReactNode;
-		}> | undefined;
+		const codeElement = React.Children.toArray(children)[0] as
+			| React.ReactElement<{
+					className?: string;
+					children?: React.ReactNode;
+			  }>
+			| undefined;
 
 		if (codeElement?.props) {
 			const className = codeElement.props.className || '';
@@ -193,10 +199,7 @@ function MessageBubble({
 				</div>
 				<div className="min-w-0 flex-1">
 					<div className="bg-muted/50 rounded-lg px-3 py-2.5">
-						<Markdown
-							remarkPlugins={[remarkGfm]}
-							components={markdownComponents as any}
-						>
+						<Markdown remarkPlugins={[remarkGfm]} components={markdownComponents as any}>
 							{message.content}
 						</Markdown>
 					</div>

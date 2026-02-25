@@ -202,7 +202,9 @@ export function AIGatewayDemo() {
 								</Button>
 							))}
 						</div>
-						<p className={`text-amber-600 dark:text-yellow-500 text-xs mt-2 ${selectedModels.length >= 2 ? 'invisible' : ''}`}>
+						<p
+							className={`text-amber-600 dark:text-yellow-500 text-xs mt-2 ${selectedModels.length >= 2 ? 'invisible' : ''}`}
+						>
 							Select at least 2 models to compare
 						</p>
 					</div>
@@ -228,7 +230,10 @@ export function AIGatewayDemo() {
 						<span className="relative">
 							<span className={isRunning ? 'invisible' : ''}>Compare Models</span>
 							{isRunning && (
-								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								<span
+									className="absolute inset-0 flex items-center justify-center"
+									data-loading="true"
+								/>
 							)}
 						</span>
 					</Button>
@@ -253,7 +258,9 @@ export function AIGatewayDemo() {
 								{/* Model Header */}
 								<div className="px-4 py-3 flex justify-between items-center">
 									<div className="flex items-center gap-1.5">
-										<span className={`text-sm font-medium ${getProviderColor(response.model)}`}>
+										<span
+											className={`text-sm font-medium ${getProviderColor(response.model)}`}
+										>
 											{AVAILABLE_MODELS.find((m) => m.id === response.model)?.provider}
 										</span>
 										<span className="text-zinc-500 text-sm">/</span>

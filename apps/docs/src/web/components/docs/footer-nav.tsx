@@ -47,7 +47,9 @@ export function FooterNav() {
 						</span>
 						<span className="font-medium text-zinc-900 dark:text-zinc-100">{prev.title}</span>
 						{prevDescription && (
-							<span className="text-sm text-muted-foreground line-clamp-2">{prevDescription}</span>
+							<span className="text-sm text-muted-foreground line-clamp-2">
+								{prevDescription}
+							</span>
 						)}
 					</a>
 				) : (
@@ -69,7 +71,9 @@ export function FooterNav() {
 						</span>
 						<span className="font-medium text-zinc-900 dark:text-zinc-100">{next.title}</span>
 						{nextDescription && (
-							<span className="text-sm text-muted-foreground line-clamp-2">{nextDescription}</span>
+							<span className="text-sm text-muted-foreground line-clamp-2">
+								{nextDescription}
+							</span>
 						)}
 					</a>
 				) : (
