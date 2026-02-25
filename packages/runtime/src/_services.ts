@@ -4,6 +4,7 @@ import {
 	StreamStorageService,
 	VectorStorageService,
 	QueueStorageService,
+	ScheduleService,
 	type FetchAdapter,
 	type KeyValueStorage,
 	type StreamStorage,
@@ -174,6 +175,7 @@ let stream: StreamStorage;
 let vector: VectorStorage;
 let sandbox: SandboxService;
 let queue: QueueService;
+let schedule: ScheduleService;
 let session: SessionProvider;
 let thread: ThreadProvider;
 let sessionEvent: SessionEventProvider;
@@ -242,6 +244,7 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 	vector = config?.services?.vector || new VectorStorageService(getVectorBaseUrl(), adapter);
 	queue = new QueueStorageService(getQueueBaseUrl(), adapter);
 	sandbox = new HTTPSandboxService(new APIClient(catalystUrl, logger), streamBaseUrl);
+	schedule = new ScheduleService(getCatalystBaseUrl(), adapter);
 	session = config?.services?.session || new DefaultSessionProvider();
 	thread = config?.services?.thread || new DefaultThreadProvider();
 	// FIXME: this is turned off for now for production until we have the new changes deployed
@@ -292,7 +295,7 @@ export function getEvalRunEventProvider() {
 }
 
 export function getServices() {
-	return { kv, stream, vector, sandbox, queue };
+	return { kv, stream, vector, sandbox, queue, schedule };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -319,6 +322,11 @@ export function registerServices(o: any, includeAgents = false) {
 	});
 	Object.defineProperty(o, 'queue', {
 		get: () => queue,
+		enumerable: false,
+		configurable: false,
+	});
+	Object.defineProperty(o, 'schedule', {
+		get: () => schedule,
 		enumerable: false,
 		configurable: false,
 	});
