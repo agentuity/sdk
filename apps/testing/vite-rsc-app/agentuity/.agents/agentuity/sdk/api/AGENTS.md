@@ -257,7 +257,7 @@ router.post('/', async (c) => {
 // Form data
 router.post('/upload', async (c) => {
 	const formData = await c.req.formData();
-	const file = formData.get('file');
+	const file = formData.get('file') as File | null;
 	return c.json({ fileName: file?.name });
 });
 ```
@@ -265,7 +265,10 @@ router.post('/upload', async (c) => {
 ## Error Handling
 
 ```typescript
+import { createRouter } from '@agentuity/runtime';
 import myAgent from '@agent/my-agent';
+
+const router = createRouter();
 
 router.get('/', async (c) => {
 	try {
