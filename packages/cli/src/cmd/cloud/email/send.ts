@@ -94,13 +94,23 @@ export const sendSubcommand = createCommand({
 		if (!options.json) {
 			const outbound: EmailOutbound = result.outbound;
 			tui.success('Email queued for delivery');
-			tui.info(`  ID:        ${outbound.id}`);
-			tui.info(`  From:      ${outbound.from}`);
-			tui.info(`  To:        ${outbound.to}`);
-			tui.info(`  Subject:   ${outbound.subject ?? '-'}`);
-			tui.info(`  Text:      ${truncate(outbound.text)}`);
-			tui.info(`  Status:    ${outbound.status ?? '-'}`);
-			tui.info(`  Sent:      ${outbound.sent_at ? new Date(outbound.sent_at).toLocaleString() : '-'}`);
+			tui.table(
+				[
+					{
+						ID: outbound.id,
+						From: outbound.from,
+						To: outbound.to,
+						Subject: outbound.subject ?? '-',
+						Text: truncate(outbound.text),
+						Status: outbound.status ?? '-',
+						Sent: outbound.sent_at
+							? new Date(outbound.sent_at).toLocaleString()
+							: '-',
+					},
+				],
+				['ID', 'From', 'To', 'Subject', 'Text', 'Status', 'Sent'],
+				{ layout: 'vertical', padStart: '  ' }
+			);
 		}
 
 		return result;

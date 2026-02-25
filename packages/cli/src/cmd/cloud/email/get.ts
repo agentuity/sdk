@@ -32,14 +32,22 @@ export const getSubcommand = createCommand({
 
 		if (!options.json) {
 			tui.success(`Email Address: ${tui.bold(address.email)}`);
-			tui.info(`  ID:        ${address.id}`);
-			tui.info(`  Email:     ${address.email}`);
-			tui.info(`  Project:   ${address.project_id ?? '-'}`);
-			tui.info(`  Provider:  ${address.provider ?? '-'}`);
-			tui.info(`  Config:    ${address.config ? JSON.stringify(address.config) : '-'}`);
-			tui.info(`  Created:   ${new Date(address.created_at).toLocaleString()}`);
-			tui.info(
-				`  Updated:   ${address.updated_at ? new Date(address.updated_at).toLocaleString() : '-'}`
+			tui.table(
+				[
+					{
+						ID: address.id,
+						Email: address.email,
+						Project: address.project_id ?? '-',
+						Provider: address.provider ?? '-',
+						Config: address.config ? JSON.stringify(address.config) : '-',
+						Created: new Date(address.created_at).toLocaleString(),
+						Updated: address.updated_at
+							? new Date(address.updated_at).toLocaleString()
+							: '-',
+					},
+				],
+				['ID', 'Email', 'Project', 'Provider', 'Config', 'Created', 'Updated'],
+				{ layout: 'vertical', padStart: '  ' }
 			);
 		}
 

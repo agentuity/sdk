@@ -51,14 +51,20 @@ export const urlSubcommand = createCommand({
 		await setResourceInfo('email', profileName, destination.id, region, orgId);
 
 		if (!options.json) {
-			tui.success(`Destination created: ${destination.id}`);
-			tui.info(`  ID:      ${destination.id}`);
-			tui.info(`  Type:    url`);
-			tui.info(`  URL:     ${args.url}`);
-			if (opts.method && opts.method !== 'POST') {
-				tui.info(`  Method:  ${opts.method}`);
-			}
-			tui.info(`  Created: ${new Date(destination.created_at).toLocaleString()}`);
+			tui.success(`Destination created: ${tui.bold(destination.id)}`);
+			tui.table(
+				[
+					{
+						ID: destination.id,
+						Type: 'url',
+						URL: args.url,
+						Method: opts.method ?? 'POST',
+						Created: new Date(destination.created_at).toLocaleString(),
+					},
+				],
+				['ID', 'Type', 'URL', 'Method', 'Created'],
+				{ layout: 'vertical', padStart: '  ' }
+			);
 		}
 
 		return destination;

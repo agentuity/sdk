@@ -42,15 +42,25 @@ export const getSubcommand = createCommand({
 		const outbound = await email.getOutbound(args.id);
 
 		if (!options.json) {
-			tui.success(`Outbound Email: ${outbound.id}`);
-			tui.info(`  ID:        ${outbound.id}`);
-			tui.info(`  From:      ${outbound.from}`);
-			tui.info(`  To:        ${outbound.to}`);
-			tui.info(`  Subject:   ${outbound.subject ?? '-'}`);
-			tui.info(`  Text:      ${truncate(outbound.text)}`);
-			tui.info(`  Status:    ${outbound.status ?? '-'}`);
-			tui.info(`  Error:     ${outbound.error ?? '-'}`);
-			tui.info(`  Sent:      ${outbound.sent_at ? new Date(outbound.sent_at).toLocaleString() : '-'}`);
+			tui.success(`Outbound Email: ${tui.bold(outbound.id)}`);
+			tui.table(
+				[
+					{
+						ID: outbound.id,
+						From: outbound.from,
+						To: outbound.to,
+						Subject: outbound.subject ?? '-',
+						Text: truncate(outbound.text),
+						Status: outbound.status ?? '-',
+						Error: outbound.error ?? '-',
+						Sent: outbound.sent_at
+							? new Date(outbound.sent_at).toLocaleString()
+							: '-',
+					},
+				],
+				['ID', 'From', 'To', 'Subject', 'Text', 'Status', 'Error', 'Sent'],
+				{ layout: 'vertical', padStart: '  ' }
+			);
 		}
 
 		return outbound;
