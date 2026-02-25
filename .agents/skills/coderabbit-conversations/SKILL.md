@@ -1,12 +1,12 @@
 ---
 name: coderabbit-conversations
 description: List and resolve all unresolved CodeRabbit review conversations from the current PR
-version: "1.0.0"
+version: '1.0.0'
 license: Apache-2.0
-allowed-tools: "Bash,Read,edit_file,todo_write"
+allowed-tools: 'Bash,Read,edit_file,todo_write'
 metadata:
-  command: "gh api graphql"
-  tags: "github pr review coderabbit"
+   command: 'gh api graphql'
+   tags: 'github pr review coderabbit'
 ---
 
 # CodeRabbit Conversations
@@ -44,37 +44,60 @@ REPO=$(echo "$REPO_JSON" | jq -r '.name')
 
 ### Step 3: Fetch All CodeRabbit Review Threads
 
-Fetch all review threads from the PR using GitHub's GraphQL API. This returns every conversation thread with its resolution status, outdated status, file path, line number, and comment body.
+Fetch all review threads from the PR using GitHub's GraphQL API with cursor-based pagination (PRs may have >100 threads). This collects every conversation thread with its resolution status, outdated status, file path, line number, and comment body into `$ALL_THREADS`.
 
 ```bash
-gh api graphql -f query='
-{
-  repository(owner: "'"$OWNER"'", name: "'"$REPO"'") {
-    pullRequest(number: '"$PR_NUMBER"') {
-      reviewThreads(first: 100) {
-        totalCount
-        nodes {
-          id
-          isResolved
-          isOutdated
-          comments(first: 1) {
-            nodes {
-              author { login }
-              path
-              line
-              body
+ALL_THREADS='[]'
+HAS_NEXT=true
+CURSOR=""
+
+while [ "$HAS_NEXT" = "true" ]; do
+  AFTER_CLAUSE=""
+  if [ -n "$CURSOR" ]; then
+    AFTER_CLAUSE=", after: \"$CURSOR\""
+  fi
+
+  RESPONSE=$(gh api graphql -f query='
+  {
+    repository(owner: "'"$OWNER"'", name: "'"$REPO"'") {
+      pullRequest(number: '"$PR_NUMBER"') {
+        reviewThreads(first: 100'"$AFTER_CLAUSE"') {
+          totalCount
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          nodes {
+            id
+            isResolved
+            isOutdated
+            comments(first: 1) {
+              nodes {
+                author { login }
+                path
+                line
+                body
+              }
             }
           }
         }
       }
     }
-  }
-}'
+  }')
+
+  HAS_NEXT=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')
+  CURSOR=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
+  PAGE_NODES=$(echo "$RESPONSE" | jq '.data.repository.pullRequest.reviewThreads.nodes')
+  ALL_THREADS=$(echo "$ALL_THREADS" "$PAGE_NODES" | jq -s '.[0] + .[1]')
+done
+
+TOTAL=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.totalCount')
+echo "Fetched $(echo "$ALL_THREADS" | jq 'length') of $TOTAL total threads"
 ```
 
 ### Step 4: Filter and Format
 
-From the GraphQL response, apply these filters:
+From the collected `$ALL_THREADS` array, apply these filters:
 
 1. **Unresolved only**: `isResolved == false`
 2. **CodeRabbit only**: `comments.nodes[0].author.login == "coderabbitai"`
@@ -83,8 +106,8 @@ From the GraphQL response, apply these filters:
 Then format as a flat numbered list using jq:
 
 ```bash
-gh api graphql -f query='...' | jq -r '
-  [.data.repository.pullRequest.reviewThreads.nodes[]
+echo "$ALL_THREADS" | jq -r '
+  [.[]
    | select(.isResolved == false)
    | select(.isOutdated == false)
    | select(.comments.nodes[0].author.login == "coderabbitai")
@@ -102,6 +125,7 @@ After listing all unresolved conversations, use `todo_write` to create a TODO it
 - A brief summary of the issue
 
 Then work through each TODO:
+
 1. Read the relevant file and understand the issue
 2. Make the fix
 3. Mark the TODO as completed
@@ -126,26 +150,50 @@ mutation {
 To resolve all unresolved CodeRabbit threads in one go, first collect all thread IDs, then loop:
 
 ```bash
-THREAD_IDS=$(gh api graphql -f query='
-{
-  repository(owner: "'"$OWNER"'", name: "'"$REPO"'") {
-    pullRequest(number: '"$PR_NUMBER"') {
-      reviewThreads(first: 100) {
-        nodes {
-          id
-          isResolved
-          isOutdated
-          comments(first: 1) {
-            nodes {
-              author { login }
+# Collect all unresolved CodeRabbit thread IDs with cursor-based pagination
+ALL_RESOLVE_THREADS='[]'
+HAS_NEXT=true
+CURSOR=""
+
+while [ "$HAS_NEXT" = "true" ]; do
+  AFTER_CLAUSE=""
+  if [ -n "$CURSOR" ]; then
+    AFTER_CLAUSE=", after: \"$CURSOR\""
+  fi
+
+  RESPONSE=$(gh api graphql -f query='
+  {
+    repository(owner: "'"$OWNER"'", name: "'"$REPO"'") {
+      pullRequest(number: '"$PR_NUMBER"') {
+        reviewThreads(first: 100'"$AFTER_CLAUSE"') {
+          totalCount
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          nodes {
+            id
+            isResolved
+            isOutdated
+            comments(first: 1) {
+              nodes {
+                author { login }
+              }
             }
           }
         }
       }
     }
-  }
-}' | jq -r '
-  [.data.repository.pullRequest.reviewThreads.nodes[]
+  }')
+
+  HAS_NEXT=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')
+  CURSOR=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
+  PAGE_NODES=$(echo "$RESPONSE" | jq '.data.repository.pullRequest.reviewThreads.nodes')
+  ALL_RESOLVE_THREADS=$(echo "$ALL_RESOLVE_THREADS" "$PAGE_NODES" | jq -s '.[0] + .[1]')
+done
+
+THREAD_IDS=$(echo "$ALL_RESOLVE_THREADS" | jq -r '
+  [.[]
    | select(.isResolved == false)
    | select(.isOutdated == false)
    | select(.comments.nodes[0].author.login == "coderabbitai")
@@ -166,10 +214,10 @@ done
 
 ## One-Liner: List All Unresolved Conversations
 
-Copy-paste this to quickly list all unresolved CodeRabbit conversations for the current PR:
+Copy-paste this to quickly list all unresolved CodeRabbit conversations for the current PR. This fetches the first 100 threads and warns if there are more (use the paginated Step 3 workflow above for PRs with >100 threads):
 
 ```bash
-PR_NUMBER=$(gh pr view --json number --jq '.number') && REPO_INFO=$(gh repo view --json owner,name) && OWNER=$(echo "$REPO_INFO" | jq -r '.owner.login') && REPO=$(echo "$REPO_INFO" | jq -r '.name') && gh api graphql -f query='{ repository(owner: "'"$OWNER"'", name: "'"$REPO"'") { pullRequest(number: '"$PR_NUMBER"') { reviewThreads(first: 100) { totalCount nodes { id isResolved isOutdated comments(first: 1) { nodes { author { login } path line body } } } } } } }' | jq -r '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | select(.isOutdated == false) | select(.comments.nodes[0].author.login == "coderabbitai")] | "Unresolved CodeRabbit conversations: \(length)\n", (to_entries[] | "\(.key + 1). [\(.value.id)] \(.value.comments.nodes[0].path):\(.value.comments.nodes[0].line // "N/A")\n   \(.value.comments.nodes[0].body | split("\n")[0:5] | join("\n   "))\n")'
+PR_NUMBER=$(gh pr view --json number --jq '.number') && REPO_INFO=$(gh repo view --json owner,name) && OWNER=$(echo "$REPO_INFO" | jq -r '.owner.login') && REPO=$(echo "$REPO_INFO" | jq -r '.name') && RESULT=$(gh api graphql -f query='{ repository(owner: "'"$OWNER"'", name: "'"$REPO"'") { pullRequest(number: '"$PR_NUMBER"') { reviewThreads(first: 100) { totalCount nodes { id isResolved isOutdated comments(first: 1) { nodes { author { login } path line body } } } } } } }') && TOTAL=$(echo "$RESULT" | jq -r '.data.repository.pullRequest.reviewThreads.totalCount') && FETCHED=$(echo "$RESULT" | jq '.data.repository.pullRequest.reviewThreads.nodes | length') && if [ "$TOTAL" -gt "$FETCHED" ]; then echo "⚠️  WARNING: PR has $TOTAL threads but only $FETCHED were fetched. Use the paginated workflow in Steps 3-4 to get all threads."; fi && echo "$RESULT" | jq -r '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | select(.isOutdated == false) | select(.comments.nodes[0].author.login == "coderabbitai")] | "Unresolved CodeRabbit conversations: \(length)\n", (to_entries[] | "\(.key + 1). [\(.value.id)] \(.value.comments.nodes[0].path):\(.value.comments.nodes[0].line // "N/A")\n   \(.value.comments.nodes[0].body | split("\n")[0:5] | join("\n   "))\n")'
 ```
 
 ## Guidelines
@@ -179,4 +227,4 @@ PR_NUMBER=$(gh pr view --json number --jq '.number') && REPO_INFO=$(gh repo view
 - Create one TODO per conversation thread for tracking
 - Fix all issues before resolving conversations
 - Resolve conversations only after the code changes are committed
-- If a thread has more than 100 conversations (unlikely), use cursor-based pagination with the `after` parameter
+- Steps 3 and 6 use cursor-based pagination to handle PRs with >100 threads; the one-liner warns if threads are truncated
