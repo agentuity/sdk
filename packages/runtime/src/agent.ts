@@ -7,6 +7,7 @@ import {
 	type VectorStorage,
 	type SandboxService,
 	type QueueService,
+	type ScheduleService,
 	type TaskStorage,
 	type InferInput,
 	type InferOutput,
@@ -242,6 +243,14 @@ export interface AgentContext<
 	 * ```
 	 */
 	queue: QueueService;
+
+	/**
+	 * Schedule service for managing cron-based scheduled tasks with
+	 * destinations and delivery tracking.
+	 *
+	 * @see https://agentuity.dev/services/schedule
+	 */
+	schedule: ScheduleService;
 
 	/**
 	 * Task service for agent-driven issue tracking.

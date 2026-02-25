@@ -8,6 +8,7 @@ import {
 	type VectorStorage,
 	type SandboxService,
 	type QueueService,
+	type ScheduleService,
 	type TaskStorage,
 } from '@agentuity/core';
 import type { AuthInterface } from '@agentuity/auth';
@@ -57,6 +58,7 @@ export class RequestAgentContext<
 	vector!: VectorStorage;
 	sandbox!: SandboxService;
 	queue!: QueueService;
+	schedule!: ScheduleService;
 	task!: TaskStorage;
 	state: Map<string, unknown>;
 	session: Session;
