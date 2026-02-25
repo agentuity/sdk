@@ -3,17 +3,7 @@ import enquirer from 'enquirer';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { setResourceInfo } from '../../../cache';
-import { createEmailAdapter, resolveEmailOrgId, resolveEmailRegion } from './util';
-
-const EmailAddressSchema = z.object({
-	id: z.string(),
-	email: z.string(),
-	project_id: z.string().optional(),
-	provider: z.string().optional(),
-	config: z.record(z.string(), z.unknown()).optional(),
-	created_at: z.string(),
-	updated_at: z.string().optional(),
-});
+import { createEmailAdapter, resolveEmailOrgId, resolveEmailRegion, EmailAddressSchema } from './util';
 
 export const createSubcommand = createCommand({
 	name: 'create',
@@ -33,7 +23,7 @@ export const createSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options, config } = ctx;
-		let localPart = opts.localPart;
+		let localPart = opts.localPart?.trim();
 
 		if (!localPart) {
 			const answer = await enquirer.prompt<{ local_part: string }>({

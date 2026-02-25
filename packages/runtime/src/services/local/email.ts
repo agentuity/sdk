@@ -1,14 +1,20 @@
-import type {
-	EmailService,
-	EmailAddress,
-	EmailDestination,
-	EmailInbound,
-	EmailOutbound,
-	EmailSendParams,
+import {
+	StructuredError,
+	type EmailService,
+	type EmailAddress,
+	type EmailDestination,
+	type EmailInbound,
+	type EmailOutbound,
+	type EmailSendParams,
 } from '@agentuity/core';
 
 const ERROR_MESSAGE =
 	'Email service is not available in local development mode. Deploy to Agentuity Cloud to use email.';
+
+const LocalEmailNotAvailableError = StructuredError(
+	'LocalEmailNotAvailableError',
+	ERROR_MESSAGE
+);
 
 /**
  * Local development stub for the email service.
@@ -16,19 +22,19 @@ const ERROR_MESSAGE =
  */
 export class LocalEmailStorage implements EmailService {
 	async createAddress(_localPart: string): Promise<EmailAddress> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async listAddresses(): Promise<EmailAddress[]> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async getAddress(_id: string): Promise<EmailAddress | null> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async deleteAddress(_id: string): Promise<void> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async createDestination(
@@ -36,34 +42,34 @@ export class LocalEmailStorage implements EmailService {
 		_type: string,
 		_config: Record<string, unknown>
 	): Promise<EmailDestination> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async listDestinations(_addressId: string): Promise<EmailDestination[]> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async deleteDestination(_addressId: string, _destinationId: string): Promise<void> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async send(_params: EmailSendParams): Promise<EmailOutbound> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async listInbound(_addressId?: string): Promise<EmailInbound[]> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async getInbound(_id: string): Promise<EmailInbound | null> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async listOutbound(_addressId?: string): Promise<EmailOutbound[]> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 
 	async getOutbound(_id: string): Promise<EmailOutbound | null> {
-		throw new Error(ERROR_MESSAGE);
+		throw new LocalEmailNotAvailableError();
 	}
 }

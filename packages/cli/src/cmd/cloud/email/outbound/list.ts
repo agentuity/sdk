@@ -2,20 +2,7 @@ import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
 import { createEmailAdapter } from '../util';
-
-const EmailOutboundSchema = z.object({
-	id: z.string(),
-	from: z.string(),
-	to: z.string(),
-	subject: z.string().optional(),
-	text: z.string().optional(),
-	html: z.string().optional(),
-	status: z.string().optional(),
-	error: z.string().optional(),
-	sent_at: z.string().optional(),
-	created_at: z.string().optional(),
-	updated_at: z.string().optional(),
-});
+import { EmailOutboundSchema } from './schemas';
 
 export const listSubcommand = createCommand({
 	name: 'list',

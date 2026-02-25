@@ -1,24 +1,8 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createEmailAdapter } from '../util';
-
-const EmailInboundSchema = z.object({
-	id: z.string(),
-	from: z.string(),
-	to: z.string(),
-	subject: z.string().optional(),
-	text: z.string().optional(),
-	status: z.string().optional(),
-	received_at: z.string().optional(),
-});
-
-function truncate(value: string | undefined, length = 200): string {
-	if (!value) {
-		return '-';
-	}
-	return value.length > length ? `${value.slice(0, length - 3)}...` : value;
-}
+import { createEmailAdapter, truncate } from '../util';
+import { EmailInboundSchema } from './schemas';
 
 export const getSubcommand = createCommand({
 	name: 'get',

@@ -507,7 +507,7 @@ export class EmailStorageService implements EmailService {
 	}
 
 	async send(params: EmailSendParams): Promise<EmailOutbound> {
-		const url = buildUrl(this.#baseUrl, '/email/2025-03-17/send');
+		const url = buildUrl(this.#baseUrl, '/email/2025-03-17/outbound/send');
 		const signal = AbortSignal.timeout(30_000);
 
 		// Transform attachments to API format (snake_case)

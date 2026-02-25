@@ -2,28 +2,8 @@ import { basename } from 'node:path';
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createEmailAdapter, type EmailOutbound } from './util';
-
-const EmailOutboundSchema = z.object({
-	id: z.string(),
-	from: z.string(),
-	to: z.string(),
-	subject: z.string().optional(),
-	text: z.string().optional(),
-	html: z.string().optional(),
-	status: z.string().optional(),
-	error: z.string().optional(),
-	sent_at: z.string().optional(),
-	created_at: z.string().optional(),
-	updated_at: z.string().optional(),
-});
-
-function truncate(value: string | undefined, length = 140): string {
-	if (!value) {
-		return '-';
-	}
-	return value.length > length ? `${value.slice(0, length - 3)}...` : value;
-}
+import { createEmailAdapter, truncate, type EmailOutbound } from './util';
+import { EmailOutboundSchema } from './outbound/schemas';
 
 export const sendSubcommand = createCommand({
 	name: 'send',
@@ -50,12 +30,6 @@ export const sendSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
 
-		if (!opts.from) {
-			tui.fatal('--from is required');
-		}
-		if (!opts.subject) {
-			tui.fatal('--subject is required');
-		}
 		if (!opts.text && !opts.html) {
 			tui.fatal('At least one of --text or --html is required');
 		}

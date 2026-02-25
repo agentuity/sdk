@@ -20,11 +20,26 @@ export const deleteSubcommand = createCommand({
 			address_id: z.string().min(1).describe('Email address ID (eaddr_*)'),
 			destination_id: z.string().min(1).describe('Destination ID (edest_*)'),
 		}),
+		options: z.object({
+			confirm: z.boolean().optional().default(false).describe('Skip confirmation prompt'),
+		}),
 		response: DeleteDestinationResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, opts, options } = ctx;
+
+		if (!opts.confirm && !options.json) {
+			const ok = await tui.confirm(
+				`Delete destination ${tui.bold(args.destination_id)} from address ${tui.bold(args.address_id)}?`,
+				false
+			);
+			if (!ok) {
+				tui.info('Cancelled');
+				return { success: false, address_id: args.address_id, destination_id: args.destination_id };
+			}
+		}
+
 		const email = createEmailAdapter(ctx);
 		await email.deleteDestination(args.address_id, args.destination_id);
 

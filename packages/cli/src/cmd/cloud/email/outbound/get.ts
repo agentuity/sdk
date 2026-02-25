@@ -1,28 +1,8 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createEmailAdapter } from '../util';
-
-const EmailOutboundSchema = z.object({
-	id: z.string(),
-	from: z.string(),
-	to: z.string(),
-	subject: z.string().optional(),
-	text: z.string().optional(),
-	html: z.string().optional(),
-	status: z.string().optional(),
-	error: z.string().optional(),
-	sent_at: z.string().optional(),
-	created_at: z.string().optional(),
-	updated_at: z.string().optional(),
-});
-
-function truncate(value: string | undefined, length = 200): string {
-	if (!value) {
-		return '-';
-	}
-	return value.length > length ? `${value.slice(0, length - 3)}...` : value;
-}
+import { createEmailAdapter, truncate } from '../util';
+import { EmailOutboundSchema } from './schemas';
 
 export const getSubcommand = createCommand({
 	name: 'get',
@@ -40,6 +20,10 @@ export const getSubcommand = createCommand({
 		const { args, options } = ctx;
 		const email = createEmailAdapter(ctx);
 		const outbound = await email.getOutbound(args.id);
+
+		if (!outbound) {
+			tui.fatal(`Outbound email not found: ${args.id}`);
+		}
 
 		if (!options.json) {
 			tui.success(`Outbound Email: ${tui.bold(outbound.id)}`);

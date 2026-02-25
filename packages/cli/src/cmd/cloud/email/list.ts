@@ -1,16 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createEmailAdapter } from './util';
-
-const EmailAddressSchema = z.object({
-	id: z.string(),
-	email: z.string(),
-	project_id: z.string().optional(),
-	provider: z.string().optional(),
-	created_at: z.string(),
-	updated_at: z.string().optional(),
-});
+import { createEmailAdapter, EmailAddressSchema } from './util';
 
 export const listSubcommand = createCommand({
 	name: 'list',

@@ -3,14 +3,7 @@ import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
 import { setResourceInfo } from '../../../../cache';
 import { createEmailAdapter, resolveEmailOrgId, resolveEmailRegion } from '../util';
-
-const DestinationSchema = z.object({
-	id: z.string(),
-	type: z.string(),
-	config: z.record(z.string(), z.unknown()).optional(),
-	created_at: z.string(),
-	updated_at: z.string().optional(),
-});
+import { DestinationSchema } from './schemas';
 
 export const urlSubcommand = createCommand({
 	name: 'url',
@@ -20,7 +13,13 @@ export const urlSubcommand = createCommand({
 	schema: {
 		args: z.object({
 			address_id: z.string().min(1).describe('Email address ID (eaddr_*)'),
-			url: z.string().url().describe('Destination webhook URL'),
+			url: z
+				.string()
+				.url()
+				.refine((u) => /^https?:\/\//i.test(u), {
+					message: 'URL must use http or https protocol',
+				})
+				.describe('Destination webhook URL'),
 		}),
 		options: z.object({
 			method: z
@@ -48,7 +47,9 @@ export const urlSubcommand = createCommand({
 		const profileName = config?.name ?? 'production';
 		const orgId = resolveEmailOrgId(ctx);
 		const region = resolveEmailRegion(ctx);
-		await setResourceInfo('email', profileName, destination.id, region, orgId);
+		setResourceInfo('email', profileName, destination.id, region, orgId).catch(() => {
+			// Non-blocking: destination was already created successfully
+		});
 
 		if (!options.json) {
 			tui.success(`Destination created: ${tui.bold(destination.id)}`);

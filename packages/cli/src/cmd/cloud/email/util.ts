@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { type FetchAdapter, type FetchRequest, type HttpMethod, toServiceException } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
 import type { AuthData, Config, GlobalOptions, ProjectConfig, Logger } from '../../../types';
@@ -137,9 +138,11 @@ class EmailStorageService {
 
 	async #request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
 		const url = this.#build(path);
+		const signal = AbortSignal.timeout(30_000);
 		const request: FetchRequest = {
 			method,
 			headers: { Accept: 'application/json' },
+			signal,
 		};
 
 		if (body !== undefined) {
@@ -287,6 +290,23 @@ class EmailStorageService {
 		);
 		return this.#unwrap<EmailOutbound>(payload, 'outbound');
 	}
+}
+
+export const EmailAddressSchema = z.object({
+	id: z.string(),
+	email: z.string(),
+	project_id: z.string().optional(),
+	provider: z.string().optional(),
+	config: z.record(z.string(), z.unknown()).optional(),
+	created_at: z.string(),
+	updated_at: z.string().optional(),
+});
+
+export function truncate(value: string | undefined, length = 200): string {
+	if (!value) {
+		return '-';
+	}
+	return value.length > length ? `${value.slice(0, length - 3)}...` : value;
 }
 
 export function createEmailAdapter(ctx: EmailContext, explicitOrgId?: string) {

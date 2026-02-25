@@ -216,7 +216,7 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 		stream = config?.services?.stream || new LocalStreamStorage(db, projectPath, serverUrl);
 		vector = config?.services?.vector || new LocalVectorStorage(db, projectPath);
 		queue = new LocalQueueStorage(db, projectPath);
-		email = new LocalEmailStorage();
+		email = config?.services?.email || new LocalEmailStorage();
 		session = config?.services?.session || new DefaultSessionProvider();
 		thread = config?.services?.thread || new LocalThreadProvider();
 		sessionEvent = config?.services?.sessionEvent
@@ -247,7 +247,7 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 	stream = config?.services?.stream || new StreamStorageService(streamBaseUrl, adapter);
 	vector = config?.services?.vector || new VectorStorageService(getVectorBaseUrl(), adapter);
 	queue = new QueueStorageService(getQueueBaseUrl(), adapter);
-	email = new EmailStorageService(getEmailBaseUrl(), adapter);
+	email = config?.services?.email || new EmailStorageService(getEmailBaseUrl(), adapter);
 	sandbox = new HTTPSandboxService(new APIClient(catalystUrl, logger), streamBaseUrl);
 	session = config?.services?.session || new DefaultSessionProvider();
 	thread = config?.services?.thread || new DefaultThreadProvider();
