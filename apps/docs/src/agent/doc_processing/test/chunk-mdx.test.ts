@@ -107,9 +107,7 @@ test('mixed content: heading, paragraph, code, list', async () => {
 	].join('\n');
 	const doc = makeDoc(content);
 	const chunks = await hybridChunkDocument(doc);
-	expect(chunks.some((c) => c.metadata.contentType === 'code_block')).toBe(
-		true
-	);
+	expect(chunks.some((c) => c.metadata.contentType === 'code_block')).toBe(true);
 });
 
 // 10. Nested Lists

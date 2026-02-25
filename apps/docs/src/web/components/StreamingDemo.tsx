@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Separator, StatusIndicator } from './ui';
+import {
+	Button,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+	Separator,
+	StatusIndicator,
+} from './ui';
 
 interface StreamState {
 	status: 'idle' | 'connecting' | 'streaming' | 'done' | 'error';
@@ -208,11 +217,7 @@ export function StreamingDemo() {
 
 						<div className="flex gap-2 items-center">
 							{!isStreaming ? (
-								<Button
-									onClick={startStream}
-									variant="outline"
-									size="default"
-								>
+								<Button onClick={startStream} variant="outline" size="default">
 									Start Stream
 								</Button>
 							) : (
@@ -221,7 +226,12 @@ export function StreamingDemo() {
 								</Button>
 							)}
 							{state.content && (
-								<Button onClick={reset} disabled={isStreaming} variant="ghost" size="default">
+								<Button
+									onClick={reset}
+									disabled={isStreaming}
+									variant="ghost"
+									size="default"
+								>
 									Clear
 								</Button>
 							)}
@@ -245,7 +255,9 @@ export function StreamingDemo() {
 							const currentModel = MODELS.find((m) => m.value === model);
 							return currentModel ? (
 								<div className="flex items-center gap-1.5">
-									<span className={`text-sm font-medium ${getProviderColor(currentModel.provider)}`}>
+									<span
+										className={`text-sm font-medium ${getProviderColor(currentModel.provider)}`}
+									>
 										{currentModel.provider}
 									</span>
 									<span className="text-zinc-500 text-sm">/</span>
@@ -257,9 +269,7 @@ export function StreamingDemo() {
 						})()}
 						<StatusIndicator
 							status={getIndicatorStatus()}
-							label={
-								state.status === 'connecting' ? 'Connecting...' : undefined
-							}
+							label={state.status === 'connecting' ? 'Connecting...' : undefined}
 						/>
 					</div>
 					{state.tokenCount > 0 && (

@@ -98,6 +98,20 @@ export {
 	QueueValidationError,
 } from './services/queue.ts';
 export {
+	type TaskPriority,
+	type TaskType,
+	type TaskStatus,
+	type Task,
+	type TaskChangelogEntry,
+	type CreateTaskParams,
+	type UpdateTaskParams,
+	type ListTasksParams,
+	type ListTasksResult,
+	type TaskChangelogResult,
+	type TaskStorage,
+	TaskStorageService,
+} from './services/task.ts';
+export {
 	type EvalRunEventProvider,
 	EvalRunStartEventSchema,
 	EvalRunCompleteEventSchema,

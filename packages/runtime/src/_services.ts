@@ -4,12 +4,14 @@ import {
 	StreamStorageService,
 	VectorStorageService,
 	QueueStorageService,
+	TaskStorageService,
 	type FetchAdapter,
 	type KeyValueStorage,
 	type StreamStorage,
 	type VectorStorage,
 	type SandboxService,
 	type QueueService,
+	type TaskStorage,
 	type ListStreamsResponse,
 	type VectorUpsertResult,
 	type VectorSearchResult,
@@ -49,6 +51,7 @@ import {
 	LocalStreamStorage,
 	LocalVectorStorage,
 	LocalQueueStorage,
+	LocalTaskStorage,
 	getLocalDB,
 	normalizeProjectPath,
 	createLocalStorageRouter,
@@ -66,6 +69,7 @@ const getStreamBaseUrl = () => getLazyServiceUrls().stream;
 const getVectorBaseUrl = () => getLazyServiceUrls().vector;
 const getCatalystBaseUrl = () => getLazyServiceUrls().catalyst;
 const getQueueBaseUrl = () => getCatalystBaseUrl();
+const getTaskBaseUrl = () => getCatalystBaseUrl();
 
 let adapter: FetchAdapter;
 
@@ -174,6 +178,7 @@ let stream: StreamStorage;
 let vector: VectorStorage;
 let sandbox: SandboxService;
 let queue: QueueService;
+let task: TaskStorage;
 let session: SessionProvider;
 let thread: ThreadProvider;
 let sessionEvent: SessionEventProvider;
@@ -211,6 +216,7 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 		stream = config?.services?.stream || new LocalStreamStorage(db, projectPath, serverUrl);
 		vector = config?.services?.vector || new LocalVectorStorage(db, projectPath);
 		queue = new LocalQueueStorage(db, projectPath);
+		task = config?.services?.task || new LocalTaskStorage(db, projectPath);
 		session = config?.services?.session || new DefaultSessionProvider();
 		thread = config?.services?.thread || new LocalThreadProvider();
 		sessionEvent = config?.services?.sessionEvent
@@ -241,6 +247,7 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 	stream = config?.services?.stream || new StreamStorageService(streamBaseUrl, adapter);
 	vector = config?.services?.vector || new VectorStorageService(getVectorBaseUrl(), adapter);
 	queue = new QueueStorageService(getQueueBaseUrl(), adapter);
+	task = config?.services?.task || new TaskStorageService(getTaskBaseUrl(), adapter);
 	sandbox = new HTTPSandboxService(new APIClient(catalystUrl, logger), streamBaseUrl);
 	session = config?.services?.session || new DefaultSessionProvider();
 	thread = config?.services?.thread || new DefaultThreadProvider();
@@ -292,7 +299,7 @@ export function getEvalRunEventProvider() {
 }
 
 export function getServices() {
-	return { kv, stream, vector, sandbox, queue };
+	return { kv, stream, vector, sandbox, queue, task };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -319,6 +326,11 @@ export function registerServices(o: any, includeAgents = false) {
 	});
 	Object.defineProperty(o, 'queue', {
 		get: () => queue,
+		enumerable: false,
+		configurable: false,
+	});
+	Object.defineProperty(o, 'task', {
+		get: () => task,
 		enumerable: false,
 		configurable: false,
 	});

@@ -75,7 +75,10 @@ export function createStreamingProcessor<TOOLS extends Record<string, Tool>>(
 						logger.info('Unhandled chunk type: %s', chunk.type);
 				}
 			} catch (error) {
-				logger.error('Error transforming chunk: %s', error instanceof Error ? error.message : String(error));
+				logger.error(
+					'Error transforming chunk: %s',
+					error instanceof Error ? error.message : String(error)
+				);
 				controller.enqueue(
 					formatEvent({
 						type: 'error',
@@ -113,7 +116,10 @@ export function createStreamingProcessor<TOOLS extends Record<string, Tool>>(
 				// Send finish signal
 				controller.enqueue(formatEvent({ type: 'finish' }));
 			} catch (error) {
-				logger.error('Error in stream flush: %s', error instanceof Error ? error.message : String(error));
+				logger.error(
+					'Error in stream flush: %s',
+					error instanceof Error ? error.message : String(error)
+				);
 				controller.enqueue(
 					formatEvent({
 						type: 'error',

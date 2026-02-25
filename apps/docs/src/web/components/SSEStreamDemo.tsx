@@ -222,7 +222,12 @@ export function SSEStreamDemo() {
 								</Button>
 							)}
 							{state.content && (
-								<Button onClick={reset} disabled={isStreaming} variant="ghost" size="default">
+								<Button
+									onClick={reset}
+									disabled={isStreaming}
+									variant="ghost"
+									size="default"
+								>
 									Clear
 								</Button>
 							)}
@@ -246,7 +251,9 @@ export function SSEStreamDemo() {
 							const currentModel = MODELS.find((m) => m.value === model);
 							return currentModel ? (
 								<div className="flex items-center gap-1.5">
-									<span className={`text-sm font-medium ${getProviderColor(currentModel.provider)}`}>
+									<span
+										className={`text-sm font-medium ${getProviderColor(currentModel.provider)}`}
+									>
 										{currentModel.provider}
 									</span>
 									<span className="text-zinc-500 text-sm">/</span>

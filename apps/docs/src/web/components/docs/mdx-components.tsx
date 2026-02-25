@@ -1,7 +1,15 @@
 'use client';
 
 import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from 'react';
-import { Children, createContext, isValidElement, useContext, useEffect, useRef, useState } from 'react';
+import {
+	Children,
+	createContext,
+	isValidElement,
+	useContext,
+	useEffect,
+	useRef,
+	useState,
+} from 'react';
 import { Check, Copy } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Callout } from './callout';
@@ -76,7 +84,12 @@ function Figure({ className, children, ...props }: FigureProps) {
 	const [copied, setCopied] = useState(false);
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+	useEffect(
+		() => () => {
+			if (timerRef.current) clearTimeout(timerRef.current);
+		},
+		[]
+	);
 
 	if (!isCodeFigure) {
 		return (
@@ -171,7 +184,12 @@ function Pre({ className, children, ...props }: PreProps) {
 	const [copied, setCopied] = useState(false);
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+	useEffect(
+		() => () => {
+			if (timerRef.current) clearTimeout(timerRef.current);
+		},
+		[]
+	);
 
 	const handleCopy = async () => {
 		const text = extractTextContent(children).trimEnd();
@@ -249,7 +267,8 @@ function InlineCode({ className, ...props }: CodeProps) {
 export const mdxComponents: MDXComponents = {
 	// Headings with anchor IDs
 	h1: ({ className, children, ...props }: ComponentPropsWithoutRef<'h1'>) => {
-		const id = typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
+		const id =
+			typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
 		return (
 			<h1
 				id={id}
@@ -264,7 +283,8 @@ export const mdxComponents: MDXComponents = {
 		);
 	},
 	h2: ({ className, children, ...props }: ComponentPropsWithoutRef<'h2'>) => {
-		const id = typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
+		const id =
+			typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
 		return (
 			<h2
 				id={id}
@@ -279,7 +299,8 @@ export const mdxComponents: MDXComponents = {
 		);
 	},
 	h3: ({ className, children, ...props }: ComponentPropsWithoutRef<'h3'>) => {
-		const id = typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
+		const id =
+			typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
 		return (
 			<h3
 				id={id}
@@ -294,7 +315,8 @@ export const mdxComponents: MDXComponents = {
 		);
 	},
 	h4: ({ className, children, ...props }: ComponentPropsWithoutRef<'h4'>) => {
-		const id = typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
+		const id =
+			typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
 		return (
 			<h4
 				id={id}
@@ -312,12 +334,18 @@ export const mdxComponents: MDXComponents = {
 	// Paragraphs and text
 	p: ({ className, ...props }: ComponentPropsWithoutRef<'p'>) => (
 		<p
-			className={cn('leading-7 text-zinc-600 dark:text-zinc-400 [&:not(:first-child)]:mt-4', className)}
+			className={cn(
+				'leading-7 text-zinc-600 dark:text-zinc-400 [&:not(:first-child)]:mt-4',
+				className
+			)}
 			{...props}
 		/>
 	),
 	strong: ({ className, ...props }: ComponentPropsWithoutRef<'strong'>) => (
-		<strong className={cn('font-semibold text-zinc-900 dark:text-zinc-100', className)} {...props} />
+		<strong
+			className={cn('font-semibold text-zinc-900 dark:text-zinc-100', className)}
+			{...props}
+		/>
 	),
 	em: ({ className, ...props }: ComponentPropsWithoutRef<'em'>) => (
 		<em className={cn('italic', className)} {...props} />
@@ -355,10 +383,16 @@ export const mdxComponents: MDXComponents = {
 
 	// Lists
 	ul: ({ className, ...props }: ComponentPropsWithoutRef<'ul'>) => (
-		<ul className={cn('my-4 ml-6 list-disc text-zinc-600 dark:text-zinc-400', className)} {...props} />
+		<ul
+			className={cn('my-4 ml-6 list-disc text-zinc-600 dark:text-zinc-400', className)}
+			{...props}
+		/>
 	),
 	ol: ({ className, ...props }: ComponentPropsWithoutRef<'ol'>) => (
-		<ol className={cn('my-4 ml-6 list-decimal text-zinc-600 dark:text-zinc-400', className)} {...props} />
+		<ol
+			className={cn('my-4 ml-6 list-decimal text-zinc-600 dark:text-zinc-400', className)}
+			{...props}
+		/>
 	),
 	li: ({ className, ...props }: ComponentPropsWithoutRef<'li'>) => (
 		<li className={cn('mt-2', className)} {...props} />
@@ -387,14 +421,20 @@ export const mdxComponents: MDXComponents = {
 		</div>
 	),
 	thead: ({ className, ...props }: ComponentPropsWithoutRef<'thead'>) => (
-		<thead className={cn('border-b border-zinc-200 dark:border-zinc-800', className)} {...props} />
+		<thead
+			className={cn('border-b border-zinc-200 dark:border-zinc-800', className)}
+			{...props}
+		/>
 	),
 	tbody: ({ className, ...props }: ComponentPropsWithoutRef<'tbody'>) => (
 		<tbody className={cn('[&_tr:last-child]:border-0', className)} {...props} />
 	),
 	tr: ({ className, ...props }: ComponentPropsWithoutRef<'tr'>) => (
 		<tr
-			className={cn('border-b border-zinc-200 dark:border-zinc-800 transition-colors', className)}
+			className={cn(
+				'border-b border-zinc-200 dark:border-zinc-800 transition-colors',
+				className
+			)}
 			{...props}
 		/>
 	),

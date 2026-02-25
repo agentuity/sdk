@@ -12,10 +12,7 @@ export function documentPathToUrl(docPath: string): string {
 	const segments = basePath.split('/').filter(Boolean);
 
 	// If the last segment is 'index', remove it
-	if (
-		segments.length > 0 &&
-		segments[segments.length - 1]?.toLowerCase() === 'index'
-	) {
+	if (segments.length > 0 && segments[segments.length - 1]?.toLowerCase() === 'index') {
 		segments.pop();
 	}
 

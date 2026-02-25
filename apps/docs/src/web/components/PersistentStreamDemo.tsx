@@ -109,16 +109,14 @@ export function PersistentStreamDemo() {
 					<span className="text-zinc-500 text-xs font-medium uppercase">
 						History ({readyStreams.length})
 					</span>
-					<Button
-						onClick={handleCreate}
-						disabled={isGenerating}
-						size="sm"
-						variant="outline"
-					>
+					<Button onClick={handleCreate} disabled={isGenerating} size="sm" variant="outline">
 						<span className="relative">
 							<span className={isGenerating ? 'invisible' : ''}>Generate Summary</span>
 							{isGenerating && (
-								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								<span
+									className="absolute inset-0 flex items-center justify-center"
+									data-loading="true"
+								/>
 							)}
 						</span>
 					</Button>
