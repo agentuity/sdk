@@ -325,6 +325,9 @@ export class LocalTaskStorage implements TaskStorage {
 			if (!existing) {
 				throw new TaskNotFoundError();
 			}
+			if (params.title !== undefined && !params.title?.trim()) {
+				throw new TaskTitleRequiredError();
+			}
 			const timestamp = now();
 			const nowIso = new Date(timestamp).toISOString();
 
