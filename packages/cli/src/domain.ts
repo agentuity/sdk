@@ -1,11 +1,13 @@
 import type { Config } from './types';
 import { StructuredError } from '@agentuity/core';
+import { getIONHost } from './config';
 import * as tui from './tui';
 
 interface BaseDNSResult {
 	domain: string;
 	target: string;
 	recordType: string;
+	aRecordTarget?: string;
 }
 
 interface DNSSuccess extends BaseDNSResult {
@@ -68,7 +70,7 @@ interface CFRecord {
 	}[];
 }
 
-async function fetchDNSRecord(name: string, type: string): Promise<string | null> {
+async function fetchDNSRecords(name: string, type: string): Promise<string[]> {
 	const params = new URLSearchParams();
 	params.set('name', name);
 	params.set('type', type);
@@ -82,12 +84,15 @@ async function fetchDNSRecord(name: string, type: string): Promise<string | null
 	});
 	if (res.ok) {
 		const result = (await res.json()) as CFRecord;
-		const firstAnswer = result?.Answer?.[0];
-		if (firstAnswer) {
-			return firstAnswer.data.replace(/\.$/, ''); // DNS records end with . so we remove that
-		}
+		// DNS records end with . so we remove that
+		return (result?.Answer ?? []).map((a) => a.data.replace(/\.$/, ''));
 	}
-	return null;
+	return [];
+}
+
+async function fetchDNSRecord(name: string, type: string): Promise<string | null> {
+	const records = await fetchDNSRecords(name, type);
+	return records[0] ?? null;
 }
 
 const LOCAL_DNS = 'agentuity.io';
@@ -105,11 +110,23 @@ const PRODUCTION_DNS = 'agentuity.run';
 export async function checkCustomDomainForDNS(
 	projectId: string,
 	domains: string[],
+	region: string,
 	config?: Config | null
 ): Promise<DNSResult[]> {
 	const suffix = config?.overrides?.api_url?.includes('agentuity.io') ? LOCAL_DNS : PRODUCTION_DNS;
 	const id = Bun.hash.xxHash64(projectId).toString(16).padStart(16, '0');
 	const proxy = `p${id}.${suffix}`;
+
+	// Resolve the ION host A record(s) so we can validate A records
+	// and show the user what IP to point their A record to
+	const ionHost = getIONHost(config ?? null, region);
+	let ionIPs: string[] = [];
+	try {
+		ionIPs = await fetchDNSRecords(ionHost, 'A');
+	} catch {
+		// If we can't resolve the ION host, A record validation will be skipped
+	}
+	const aRecordTarget = ionIPs[0] ?? undefined;
 
 	return Promise.all(
 		domains.map(async (domain) => {
@@ -120,6 +137,7 @@ export async function checkCustomDomainForDNS(
 					return {
 						domain,
 						target: proxy,
+						aRecordTarget,
 						recordType: 'CNAME',
 						success: false,
 						error: `Invalid domain format: "${domain}" appears to be a URL. Use just the domain name: "${url.hostname}"`,
@@ -128,6 +146,7 @@ export async function checkCustomDomainForDNS(
 					return {
 						domain,
 						target: proxy,
+						aRecordTarget,
 						recordType: 'CNAME',
 						success: false,
 						error: `Invalid domain format: "${domain}" appears to be a URL. Use just the domain name without the protocol (e.g., "example.com" not "https://example.com")`,
@@ -135,6 +154,7 @@ export async function checkCustomDomainForDNS(
 				}
 			}
 
+			// Step 1: Check CNAME record
 			try {
 				let timeoutId: Timer | undefined;
 
@@ -156,6 +176,7 @@ export async function checkCustomDomainForDNS(
 						return {
 							domain,
 							target: proxy,
+							aRecordTarget,
 							recordType: 'CNAME',
 							success: true,
 						} as DNSSuccess;
@@ -163,9 +184,10 @@ export async function checkCustomDomainForDNS(
 					return {
 						domain,
 						target: proxy,
+						aRecordTarget,
 						recordType: 'CNAME',
 						success: false,
-						misconfigured: `CNAME record is ${result}`,
+						misconfigured: `CNAME record points to ${result}`,
 					} as DNSMisconfigured;
 				}
 			} catch (ex) {
@@ -174,6 +196,7 @@ export async function checkCustomDomainForDNS(
 					return {
 						domain,
 						target: proxy,
+						aRecordTarget,
 						recordType: 'CNAME',
 						success: false,
 						error: `DNS lookup timed out after 5 seconds. Please check your DNS configuration.`,
@@ -189,16 +212,63 @@ export async function checkCustomDomainForDNS(
 					return {
 						domain,
 						target: proxy,
+						aRecordTarget,
 						recordType: 'CNAME',
 						success: false,
 						error: errMsg,
 					} as DNSError;
 				}
+				// ENOTFOUND: no CNAME record exists, fall through to A record check
 			}
+
+			// Step 2: Check A record (supports apex domains and ALIAS/ANAME/CNAME-flattening)
+			if (ionIPs.length > 0) {
+				try {
+					let aTimeoutId: Timer | undefined;
+
+					const aTimeoutPromise = new Promise<never>((_, reject) => {
+						aTimeoutId = setTimeout(() => {
+							reject(new DNSTimeoutError());
+						}, timeoutMs);
+					});
+
+					const domainARecords = await Promise.race([
+						fetchDNSRecords(domain, 'A'),
+						aTimeoutPromise,
+					]).finally(() => {
+						if (aTimeoutId) clearTimeout(aTimeoutId);
+					});
+
+					if (domainARecords.length > 0) {
+						const matching = domainARecords.some((a) => ionIPs.includes(a));
+						if (matching) {
+							return {
+								domain,
+								target: proxy,
+								aRecordTarget,
+								recordType: 'A',
+								success: true,
+							} as DNSSuccess;
+						}
+						return {
+							domain,
+							target: proxy,
+							aRecordTarget,
+							recordType: 'A',
+							success: false,
+							misconfigured: `A record points to ${domainARecords[0]}, expected ${aRecordTarget}`,
+						} as DNSMisconfigured;
+					}
+				} catch {
+					// A record check failed, fall through to missing
+				}
+			}
+
 			return {
 				domain,
 				success: false,
 				target: proxy,
+				aRecordTarget,
 				recordType: 'CNAME',
 				pending: false,
 			} as DNSMissing;
@@ -209,27 +279,28 @@ export async function checkCustomDomainForDNS(
 export async function promptForDNS(
 	projectId: string,
 	domains: string[],
+	region: string,
 	config?: Config,
 	resumeFn?: () => () => void
 ) {
 	let paused = false;
 	let resume: (() => void) | undefined;
 	for (;;) {
-		const result = await checkCustomDomainForDNS(projectId, domains, config);
+		const result = await checkCustomDomainForDNS(projectId, domains, region, config);
 		const failed = result.filter((x): x is DNSFailed => !isSuccess(x));
 		if (failed.length) {
 			const records: {
 				domain: string;
-				type: string;
-				target: string;
+				cnameTarget: string;
+				aRecordTarget?: string;
 				status: string;
 			}[] = [];
 			result.forEach((r) => {
 				if (isSuccess(r)) {
 					records.push({
 						domain: r.domain,
-						type: r.recordType,
-						target: r.target,
+						cnameTarget: r.target,
+						aRecordTarget: r.aRecordTarget,
 						status: tui.colorSuccess(`${tui.ICONS.success} Configured`),
 					});
 				}
@@ -248,22 +319,22 @@ export async function promptForDNS(
 				} else if (isMisconfigured(r)) {
 					records.push({
 						domain: r.domain,
-						type: r.recordType,
-						target: r.target,
+						cnameTarget: r.target,
+						aRecordTarget: r.aRecordTarget,
 						status: tui.colorWarning(`${tui.ICONS.error} ${r.misconfigured}`),
 					});
 				} else if (isPending(r)) {
 					records.push({
 						domain: r.domain,
-						type: r.recordType,
-						target: r.target,
+						cnameTarget: r.target,
+						aRecordTarget: r.aRecordTarget,
 						status: tui.colorWarning('⌛️ Pending'),
 					});
 				} else if (isMissing(r)) {
 					records.push({
 						domain: r.domain,
-						type: r.recordType,
-						target: r.target,
+						cnameTarget: r.target,
+						aRecordTarget: r.aRecordTarget,
 						status: tui.colorError(`${tui.ICONS.error} Missing`),
 					});
 				}
@@ -273,11 +344,15 @@ export async function promptForDNS(
 			for (const record of records) {
 				console.log();
 				console.log(`${tui.colorInfo('Domain:')}  ${tui.colorPrimary(record.domain)}`);
-				console.log(`${tui.colorInfo('Type:')}    ${tui.colorPrimary(record.type)}`);
-				console.log(`${tui.colorInfo('Target:')}  ${tui.colorPrimary(record.target)}`);
+				console.log(`${tui.colorInfo('CNAME:')}   ${tui.colorPrimary(record.cnameTarget)}`);
+				if (record.aRecordTarget) {
+					console.log(
+						`${tui.colorInfo('A:')}       ${tui.colorPrimary(record.aRecordTarget)}`
+					);
+				}
 				console.log(`${tui.colorInfo('Status:')}  ${tui.colorPrimary(record.status)}`);
 				console.log();
-				linesShown += 6;
+				linesShown += record.aRecordTarget ? 6 : 5;
 			}
 
 			// await tui.waitForAnyKey('Press any key to check again or ctrl+c to cancel...');
