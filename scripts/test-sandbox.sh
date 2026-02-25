@@ -1348,6 +1348,173 @@ else
 fi
 
 # ============================================
+section "SNAPSHOT BUILD DIR FIELD Tests"
+# ============================================
+# Tests that the 'dir' field in snapshot build files correctly shifts
+# the build context to a subdirectory for file resolution.
+
+# Setup dir test directory structure:
+#   dir-test/
+#     subdir/
+#       app.js
+#       nested/
+#         helper.js
+#     outside.txt (should NOT be included when dir: subdir)
+DIR_BUILD_DIR="$TEST_DIR/dir-test"
+mkdir -p "$DIR_BUILD_DIR/subdir/nested"
+echo "app from subdir" > "$DIR_BUILD_DIR/subdir/app.js"
+echo "helper from subdir" > "$DIR_BUILD_DIR/subdir/nested/helper.js"
+echo "should not be included" > "$DIR_BUILD_DIR/outside.txt"
+pass "Dir field test files created"
+
+# Test: Build with dir field - files resolved from subdir
+info "Test: snapshot build with dir field"
+cat > "$DIR_BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+description: Test dir field
+dir: subdir
+files:
+  - "**/*"
+EOF
+
+DIR_BUILD_OUTPUT=$($CLI cloud sandbox snapshot build "$DIR_BUILD_DIR" --json 2>&1) || true
+DIR_SNAP_ID=$(echo "$DIR_BUILD_OUTPUT" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$DIR_SNAP_ID"
+if [ -n "$DIR_SNAP_ID" ] && [[ "$DIR_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build with dir field returns valid snapshotId: $DIR_SNAP_ID"
+else
+	fail "snapshot build with dir field did not return valid snapshotId" "$DIR_BUILD_OUTPUT"
+fi
+
+# Verify fileCount is 2 (app.js + nested/helper.js, NOT outside.txt)
+DIR_FILE_COUNT=$(echo "$DIR_BUILD_OUTPUT" | grep -o '"fileCount"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+if [ "$DIR_FILE_COUNT" = "2" ]; then
+	pass "snapshot build with dir field has correct fileCount: 2"
+else
+	fail "snapshot build with dir field has wrong fileCount (expected 2)" "fileCount=$DIR_FILE_COUNT" "$DIR_BUILD_OUTPUT"
+fi
+
+# Create sandbox from snapshot and verify files are at correct paths
+info "Test: sandbox from dir field snapshot has correct files"
+if [ -n "$DIR_SNAP_ID" ] && [[ "$DIR_SNAP_ID" == snp_* ]]; then
+	DIR_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$DIR_SNAP_ID" --json 2>&1) || true
+	DIR_SANDBOX_ID=$(echo "$DIR_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$DIR_SANDBOX_ID" ] && [[ "$DIR_SANDBOX_ID" == sbx_* ]]; then
+		sleep 3
+		# Verify app.js from subdir is at root of sandbox (relative to subdir, not parent)
+		DIR_VERIFY_APP=$($CLI cloud sandbox exec "$DIR_SANDBOX_ID" -- cat /home/agentuity/app.js 2>&1) || true
+		if echo "$DIR_VERIFY_APP" | grep -q "app from subdir"; then
+			pass "dir field snapshot contains app.js at root"
+		else
+			fail "dir field snapshot missing app.js" "$DIR_VERIFY_APP"
+		fi
+
+		# Verify nested/helper.js preserves relative path within subdir
+		DIR_VERIFY_HELPER=$($CLI cloud sandbox exec "$DIR_SANDBOX_ID" -- cat /home/agentuity/nested/helper.js 2>&1) || true
+		if echo "$DIR_VERIFY_HELPER" | grep -q "helper from subdir"; then
+			pass "dir field snapshot contains nested/helper.js"
+		else
+			fail "dir field snapshot missing nested/helper.js" "$DIR_VERIFY_HELPER"
+		fi
+
+		# Verify outside.txt is NOT present (was outside the dir context)
+		DIR_VERIFY_OUTSIDE=$($CLI cloud sandbox exec "$DIR_SANDBOX_ID" -- ls /home/agentuity/outside.txt 2>&1) || true
+		if echo "$DIR_VERIFY_OUTSIDE" | grep -qi "no such file\|cannot access"; then
+			pass "dir field snapshot correctly excluded outside.txt"
+		else
+			fail "dir field snapshot should not contain outside.txt" "$DIR_VERIFY_OUTSIDE"
+		fi
+
+		$CLI cloud sandbox delete "$DIR_SANDBOX_ID" --confirm 2>/dev/null || true
+	else
+		fail "failed to create sandbox from dir field snapshot" "$DIR_SANDBOX"
+	fi
+else
+	fail "skipping dir field sandbox test - no snapshot ID" ""
+fi
+
+# Clean up dir field snapshot
+delete_and_untrack_snapshot "$DIR_SNAP_ID"
+
+# Test: Build with dir field + --file (yaml outside build context)
+info "Test: snapshot build with dir field and --file"
+DIR_FILE_TEST="$TEST_DIR/dir-file-test"
+mkdir -p "$DIR_FILE_TEST/project"
+echo "index from project" > "$DIR_FILE_TEST/project/index.js"
+
+cat > "$DIR_FILE_TEST/custom-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+description: Test dir with --file
+dir: project
+files:
+  - "**/*"
+EOF
+
+DIR_FILE_BUILD=$($CLI cloud sandbox snapshot build "$DIR_FILE_TEST" --file "$DIR_FILE_TEST/custom-snapshot.yaml" --json 2>&1) || true
+DIR_FILE_SNAP_ID=$(echo "$DIR_FILE_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$DIR_FILE_SNAP_ID"
+if [ -n "$DIR_FILE_SNAP_ID" ] && [[ "$DIR_FILE_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build with dir + --file returns valid snapshotId: $DIR_FILE_SNAP_ID"
+
+	# Verify fileCount is 1
+	DIR_FILE_COUNT2=$(echo "$DIR_FILE_BUILD" | grep -o '"fileCount"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+	if [ "$DIR_FILE_COUNT2" = "1" ]; then
+		pass "snapshot build with dir + --file has correct fileCount: 1"
+	else
+		fail "snapshot build with dir + --file has wrong fileCount (expected 1)" "fileCount=$DIR_FILE_COUNT2" "$DIR_FILE_BUILD"
+	fi
+
+	# Create sandbox and verify file
+	DIR_FILE_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$DIR_FILE_SNAP_ID" --json 2>&1) || true
+	DIR_FILE_SANDBOX_ID=$(echo "$DIR_FILE_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$DIR_FILE_SANDBOX_ID" ] && [[ "$DIR_FILE_SANDBOX_ID" == sbx_* ]]; then
+		sleep 3
+		DIR_FILE_VERIFY=$($CLI cloud sandbox exec "$DIR_FILE_SANDBOX_ID" -- cat /home/agentuity/index.js 2>&1) || true
+		if echo "$DIR_FILE_VERIFY" | grep -q "index from project"; then
+			pass "dir + --file snapshot contains index.js at root"
+		else
+			fail "dir + --file snapshot missing index.js" "$DIR_FILE_VERIFY"
+		fi
+		$CLI cloud sandbox delete "$DIR_FILE_SANDBOX_ID" --confirm 2>/dev/null || true
+	else
+		fail "failed to create sandbox from dir + --file snapshot" "$DIR_FILE_SANDBOX"
+	fi
+
+	delete_and_untrack_snapshot "$DIR_FILE_SNAP_ID"
+else
+	fail "snapshot build with dir + --file failed" "$DIR_FILE_BUILD"
+fi
+
+# Test: Build with dir pointing to nonexistent directory
+info "Test: snapshot build with dir pointing to nonexistent directory"
+DIR_BAD_TEST="$TEST_DIR/dir-bad-test"
+mkdir -p "$DIR_BAD_TEST"
+echo "placeholder" > "$DIR_BAD_TEST/placeholder.txt"
+cat > "$DIR_BAD_TEST/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+dir: nonexistent
+files:
+  - "**/*"
+EOF
+
+DIR_BAD_BUILD=$($CLI cloud sandbox snapshot build "$DIR_BAD_TEST" --json 2>&1) || true
+if echo "$DIR_BAD_BUILD" | grep -qi "not found\|does not exist\|no such"; then
+	pass "snapshot build fails when dir points to nonexistent directory"
+else
+	DIR_BAD_SNAP_ID=$(echo "$DIR_BAD_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$DIR_BAD_SNAP_ID" ]; then
+		track_snapshot "$DIR_BAD_SNAP_ID"
+		delete_and_untrack_snapshot "$DIR_BAD_SNAP_ID"
+		fail "snapshot build should have failed with nonexistent dir" "$DIR_BAD_BUILD"
+	else
+		fail "snapshot build error message not clear about nonexistent dir" "$DIR_BAD_BUILD"
+	fi
+fi
+
+# ============================================
 section "MALWARE DETECTION Tests (Public Snapshots)"
 # ============================================
 
