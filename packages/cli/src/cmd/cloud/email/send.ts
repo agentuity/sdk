@@ -1,8 +1,9 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
+import type { EmailAttachment, EmailOutbound } from '@agentuity/core';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createEmailAdapter, truncate, type EmailOutbound } from './util';
+import { createEmailAdapter, truncate } from './util';
 import { EmailOutboundSchema } from './outbound/schemas';
 
 export const sendSubcommand = createCommand({
@@ -21,10 +22,7 @@ export const sendSubcommand = createCommand({
 			html: z.string().optional().describe('HTML body'),
 			file: z.array(z.string()).optional().describe('Attachment file path (repeatable)'),
 		}),
-		response: z.object({
-			status: z.number(),
-			outbound: EmailOutboundSchema,
-		}),
+		response: EmailOutboundSchema,
 	},
 
 	async handler(ctx) {
@@ -40,7 +38,7 @@ export const sendSubcommand = createCommand({
 				? [opts.file]
 				: [];
 
-		const attachments: Array<{ filename: string; content_type?: string; content_base64: string }> = [];
+		const attachments: EmailAttachment[] = [];
 		for (const filePath of fileValues) {
 			const file = Bun.file(filePath);
 			if (!(await file.exists())) {
@@ -50,23 +48,22 @@ export const sendSubcommand = createCommand({
 			const buffer = Buffer.from(await file.arrayBuffer());
 			attachments.push({
 				filename: basename(filePath),
-				content_type: file.type || 'application/octet-stream',
-				content_base64: buffer.toString('base64'),
+				contentType: file.type || 'application/octet-stream',
+				content: buffer.toString('base64'),
 			});
 		}
 
 		const email = createEmailAdapter(ctx);
-		const result = await email.send({
-			to: args.to,
+		const outbound = await email.send({
+			to: [args.to],
 			from: opts.from,
 			subject: opts.subject,
 			text: opts.text,
 			html: opts.html,
-			attachments,
+			attachments: attachments.length > 0 ? attachments : undefined,
 		});
 
 		if (!options.json) {
-			const outbound: EmailOutbound = result.outbound;
 			tui.success('Email queued for delivery');
 			tui.table(
 				[
@@ -87,7 +84,7 @@ export const sendSubcommand = createCommand({
 			);
 		}
 
-		return result;
+		return outbound;
 	},
 });
 
