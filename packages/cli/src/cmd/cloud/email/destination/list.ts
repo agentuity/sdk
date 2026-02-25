@@ -27,7 +27,7 @@ export const listSubcommand = createCommand({
 				destinations.map((item) => ({
 					ID: item.id,
 					Type: item.type,
-					'Config URL': (item.config?.url as string | undefined) ?? '-',
+					'Config URL': typeof item.config?.url === 'string' ? item.config.url : '-',
 					Created: new Date(item.created_at).toLocaleString(),
 				})),
 				[

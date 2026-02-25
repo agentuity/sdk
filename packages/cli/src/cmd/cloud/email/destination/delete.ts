@@ -29,6 +29,13 @@ export const deleteSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
 
+		if (!args.address_id.startsWith('eaddr_')) {
+			tui.fatal('Invalid email address ID — must start with eaddr_');
+		}
+		if (!args.destination_id.startsWith('edest_')) {
+			tui.fatal('Invalid destination ID — must start with edest_');
+		}
+
 		if (!opts.confirm && !options.json) {
 			const ok = await tui.confirm(
 				`Delete destination ${tui.bold(args.destination_id)} from address ${tui.bold(args.address_id)}?`,

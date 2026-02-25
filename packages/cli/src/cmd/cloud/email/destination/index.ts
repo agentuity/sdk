@@ -3,7 +3,7 @@ import { urlSubcommand } from './url';
 import { listSubcommand } from './list';
 import { deleteSubcommand } from './delete';
 
-export default createCommand({
+export const destinationCommand = createCommand({
 	name: 'destination',
 	aliases: ['destinations', 'dest'],
 	description: 'Manage email destinations for an address',
@@ -11,3 +11,5 @@ export default createCommand({
 	requires: { auth: true },
 	subcommands: [urlSubcommand, listSubcommand, deleteSubcommand],
 });
+
+export default destinationCommand;

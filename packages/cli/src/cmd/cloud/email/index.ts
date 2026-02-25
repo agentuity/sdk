@@ -3,12 +3,12 @@ import { createSubcommand } from './create';
 import { listSubcommand } from './list';
 import { getSubcommand } from './get';
 import { deleteSubcommand } from './delete';
-import destinationCommand from './destination';
+import { destinationCommand } from './destination';
 import { sendSubcommand } from './send';
-import inboundCommand from './inbound';
-import outboundCommand from './outbound';
+import { inboundCommand } from './inbound';
+import { outboundCommand } from './outbound';
 
-export default createCommand({
+export const emailCommand = createCommand({
 	name: 'email',
 	aliases: ['mail'],
 	description: 'Manage email addresses and messages',
@@ -25,3 +25,5 @@ export default createCommand({
 	],
 	requires: { auth: true },
 });
+
+export default emailCommand;
