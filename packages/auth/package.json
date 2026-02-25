@@ -51,6 +51,20 @@
 		"hono": "^4.0.0",
 		"drizzle-orm": ">=0.44.0"
 	},
+	"peerDependenciesMeta": {
+		"@agentuity/react": {
+			"optional": true
+		},
+		"react": {
+			"optional": true
+		},
+		"hono": {
+			"optional": true
+		},
+		"drizzle-orm": {
+			"optional": true
+		}
+	},
 	"devDependencies": {
 		"@agentuity/react": "workspace:*",
 		"@agentuity/test-utils": "workspace:*",
