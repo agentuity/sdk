@@ -1,0 +1,29 @@
+import { createCommand } from '../../../types';
+import { createSubcommand } from './create';
+import { updateSubcommand } from './update';
+import { listSubcommand } from './list';
+import { getCommand } from '../../../command-prefix';
+
+export const taskCommand = createCommand({
+	name: 'task',
+	description: 'Manage tasks for your projects',
+	tags: ['requires-auth', 'slow'],
+	examples: [
+		{
+			command: getCommand('cloud task create "Fix bug" --type bug --created-id agent_001'),
+			description: 'Create a new bug task',
+		},
+		{
+			command: getCommand('cloud task list --status open'),
+			description: 'List open tasks',
+		},
+		{
+			command: getCommand('cloud task update task_abc123 --status in_progress'),
+			description: 'Update task status',
+		},
+	],
+	subcommands: [createSubcommand, updateSubcommand, listSubcommand],
+	requires: { auth: true },
+});
+
+export default taskCommand;

@@ -15,6 +15,7 @@ import envCommand from './env';
 import apikeyCommand from './apikey';
 import streamCommand from './stream';
 import vectorCommand from './vector';
+import taskCommand from './task';
 import sandboxCommand from './sandbox';
 import { regionSubcommand } from './region';
 import { machineCommand } from './machine';
@@ -35,6 +36,7 @@ export const command = createCommand({
 		apikeyCommand,
 		keyvalueCommand,
 		queueCommand,
+		taskCommand,
 		agentCommand,
 		streamCommand,
 		vectorCommand,
