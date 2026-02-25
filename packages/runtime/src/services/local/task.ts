@@ -119,7 +119,8 @@ export class LocalTaskStorage implements TaskStorage {
 	}
 
 	async create(params: CreateTaskParams): Promise<Task> {
-		if (!params?.title?.trim()) {
+		const trimmedTitle = params?.title?.trim();
+		if (!trimmedTitle) {
 			throw new TaskTitleRequiredError();
 		}
 
@@ -157,7 +158,7 @@ export class LocalTaskStorage implements TaskStorage {
 			id,
 			created_at: timestamp,
 			updated_at: timestamp,
-			title: params.title,
+			title: trimmedTitle,
 			description: params.description ?? null,
 			metadata: params.metadata ? JSON.stringify(params.metadata) : null,
 			priority,
@@ -325,7 +326,8 @@ export class LocalTaskStorage implements TaskStorage {
 			if (!existing) {
 				throw new TaskNotFoundError();
 			}
-			if (params.title !== undefined && !params.title?.trim()) {
+			const trimmedTitle = params.title !== undefined ? params.title?.trim() : undefined;
+			if (params.title !== undefined && !trimmedTitle) {
 				throw new TaskTitleRequiredError();
 			}
 			const timestamp = now();
@@ -333,7 +335,7 @@ export class LocalTaskStorage implements TaskStorage {
 
 			const updated: TaskRow = {
 				...existing,
-				title: params.title ?? existing.title,
+				title: trimmedTitle ?? existing.title,
 				description:
 					params.description !== undefined ? params.description : existing.description,
 				metadata:
@@ -530,29 +532,27 @@ export class LocalTaskStorage implements TaskStorage {
 				id
 			);
 
-			if (existing.status !== updated.status) {
-				const changelogStmt = this.#db.prepare(`
-					INSERT INTO task_changelog_storage (
-						project_path,
-						id,
-						task_id,
-						field,
-						old_value,
-						new_value,
-						created_at
-					) VALUES (?, ?, ?, ?, ?, ?, ?)
-				`);
-
-				changelogStmt.run(
-					this.#projectPath,
-					generateChangelogId(),
+			const changelogStmt = this.#db.prepare(`
+				INSERT INTO task_changelog_storage (
+					project_path,
 					id,
-					'status',
-					existing.status,
-					updated.status,
-					timestamp
-				);
-			}
+					task_id,
+					field,
+					old_value,
+					new_value,
+					created_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?)
+			`);
+
+			changelogStmt.run(
+				this.#projectPath,
+				generateChangelogId(),
+				id,
+				'status',
+				existing.status,
+				updated.status,
+				timestamp
+			);
 
 			return toTask(updated);
 		});
