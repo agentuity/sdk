@@ -98,6 +98,19 @@ export {
 	QueueValidationError,
 } from './services/queue.ts';
 export {
+	type Schedule,
+	type ScheduleDestination,
+	type ScheduleDelivery,
+	type CreateScheduleParams,
+	type CreateScheduleDestinationParams,
+	type UpdateScheduleParams,
+	type ScheduleListResult,
+	type ScheduleGetResult,
+	type ScheduleCreateResult,
+	type ScheduleDeliveryListResult,
+	ScheduleService,
+} from './services/schedule.ts';
+export {
 	type EvalRunEventProvider,
 	EvalRunStartEventSchema,
 	EvalRunCompleteEventSchema,

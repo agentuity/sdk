@@ -16,6 +16,7 @@ import apikeyCommand from './apikey';
 import streamCommand from './stream';
 import vectorCommand from './vector';
 import sandboxCommand from './sandbox';
+import scheduleCommand from './schedule';
 import { regionSubcommand } from './region';
 import { machineCommand } from './machine';
 import { evalCommand } from './eval';
@@ -39,6 +40,7 @@ export const command = createCommand({
 		streamCommand,
 		vectorCommand,
 		sandboxCommand,
+		scheduleCommand,
 		envCommand,
 		evalCommand,
 		evalRunCommand,

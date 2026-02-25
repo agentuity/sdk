@@ -4,6 +4,7 @@ export * from './exception.ts';
 export * from './keyvalue.ts';
 export * from './pagination.ts';
 export * from './sandbox.ts';
+export * from './schedule.ts';
 export * from './session.ts';
 export * from './stream.ts';
 export * from './vector.ts';
