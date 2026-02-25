@@ -6,6 +6,7 @@ import type {
 	VectorStorage,
 	SandboxService,
 	QueueService,
+	EmailService,
 	ScheduleService,
 	TaskStorage,
 	Logger,
@@ -199,6 +200,7 @@ export class StandaloneAgentContext<
 	vector!: VectorStorage;
 	sandbox!: SandboxService;
 	queue!: QueueService;
+	email!: EmailService;
 	schedule!: ScheduleService;
 	task!: TaskStorage;
 	config: TConfig;

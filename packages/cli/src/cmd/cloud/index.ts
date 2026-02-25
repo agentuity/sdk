@@ -16,6 +16,7 @@ import envCommand from './env';
 import apikeyCommand from './apikey';
 import streamCommand from './stream';
 import vectorCommand from './vector';
+import { emailCommand } from './email';
 import taskCommand from './task';
 import sandboxCommand from './sandbox';
 import scheduleCommand from './schedule';
@@ -42,6 +43,7 @@ export const command = createCommand({
 		taskCommand,
 		agentCommand,
 		streamCommand,
+		emailCommand,
 		vectorCommand,
 		sandboxCommand,
 		scheduleCommand,
