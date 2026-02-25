@@ -1500,8 +1500,11 @@ files:
   - "**/*"
 EOF
 
-DIR_BAD_BUILD=$($CLI cloud sandbox snapshot build "$DIR_BAD_TEST" --json 2>&1) || true
-if echo "$DIR_BAD_BUILD" | grep -qi "not found\|does not exist\|no such"; then
+set +e
+DIR_BAD_BUILD=$($CLI cloud sandbox snapshot build "$DIR_BAD_TEST" --json 2>&1)
+DIR_BAD_EXIT=$?
+set -e
+if [ "$DIR_BAD_EXIT" -ne 0 ] && echo "$DIR_BAD_BUILD" | grep -qi "not found\|does not exist\|no such"; then
 	pass "snapshot build fails when dir points to nonexistent directory"
 else
 	DIR_BAD_SNAP_ID=$(echo "$DIR_BAD_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')

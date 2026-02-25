@@ -2,7 +2,7 @@ import { createHash, createPublicKey, randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, statSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { extname, join, resolve } from 'node:path';
+import { extname, isAbsolute, join, resolve } from 'node:path';
 import type { SnapshotBuildGitInfo, SnapshotFileInfo } from '@agentuity/server';
 import {
 	NPM_PACKAGE_NAME_PATTERN,
@@ -472,10 +472,22 @@ export const buildSubcommand = createCommand({
 
 		// If dir is specified in the build file, use it as the effective build context
 		if (buildConfig.dir) {
+			if (isAbsolute(buildConfig.dir)) {
+				logger.fatal(`'dir' must be a relative path, got: ${buildConfig.dir}`);
+			}
 			const dirPath = resolve(directory, buildConfig.dir);
-			if (!existsSync(dirPath)) {
+			if (!dirPath.startsWith(`${directory}/`) && dirPath !== directory) {
+				logger.fatal(`'dir' resolves outside the build root: ${dirPath}`);
+			}
+			let isDir = false;
+			try {
+				isDir = statSync(dirPath).isDirectory();
+			} catch {
+				// path does not exist
+			}
+			if (!isDir) {
 				logger.fatal(
-					`Build context directory not found: ${dirPath} (specified by 'dir: ${buildConfig.dir}' in build file)`
+					`Build context directory not found or is not a directory: ${dirPath} (specified by 'dir: ${buildConfig.dir}' in build file)`
 				);
 			}
 			directory = dirPath;
