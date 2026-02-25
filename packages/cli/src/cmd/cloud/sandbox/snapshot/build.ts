@@ -206,8 +206,9 @@ export async function resolveFileGlobs(
 						size: stat.size,
 					});
 				}
-			} catch {
+			} catch (err) {
 				// Skip files that can't be stat'd (broken symlinks, permission issues, etc.)
+				console.debug(`Skipping ${file}: ${err instanceof Error ? err.message : err}`);
 			}
 		}
 	}
