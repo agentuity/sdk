@@ -48,6 +48,8 @@ export {
 	ListWebhookReceiptsRequestSchema,
 	type ListWebhooksRequest,
 	ListWebhooksRequestSchema,
+	type PaginationRequest,
+	PaginationRequestSchema,
 	type UpdateWebhookDestinationRequest,
 	UpdateWebhookDestinationRequestSchema,
 	type UpdateWebhookRequest,

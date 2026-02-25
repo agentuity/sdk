@@ -48,13 +48,17 @@ export async function createWebhook(
 	options?: WebhookApiOptions
 ): Promise<Webhook> {
 	const url = webhookApiPath('create');
-	const resp = await client.post(
-		url,
-		params,
-		WebhookResponseSchema,
-		CreateWebhookRequestSchema,
-		undefined,
-		buildWebhookHeaders(options?.orgId)
+	const resp = await withWebhookErrorHandling(
+		() =>
+			client.post(
+				url,
+				params,
+				WebhookResponseSchema,
+				CreateWebhookRequestSchema,
+				undefined,
+				buildWebhookHeaders(options?.orgId)
+			),
+		{}
 	);
 
 	if (resp.success) {
@@ -139,11 +143,15 @@ export async function listWebhooks(
 
 	const queryString = searchParams.toString();
 	const url = webhookApiPathWithQuery('list', queryString || undefined);
-	const resp = await client.get(
-		url,
-		WebhooksListResponseSchema,
-		undefined,
-		buildWebhookHeaders(options?.orgId)
+	const resp = await withWebhookErrorHandling(
+		() =>
+			client.get(
+				url,
+				WebhooksListResponseSchema,
+				undefined,
+				buildWebhookHeaders(options?.orgId)
+			),
+		{}
 	);
 
 	if (resp.success) {

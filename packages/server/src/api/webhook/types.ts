@@ -104,7 +104,7 @@ export const WebhookDestinationSchema = z.object({
 	/** ID of the webhook this destination belongs to. */
 	webhook_id: z.string(),
 	/** Type of destination (currently only 'url'). */
-	type: z.string(),
+	type: WebhookDestinationTypeSchema,
 	/** Configuration object for the destination (e.g., URL, headers). */
 	config: z.record(z.string(), z.unknown()),
 });
@@ -286,41 +286,24 @@ export const UpdateWebhookDestinationRequestSchema = z.object({
 /** Request type for updating a webhook destination. */
 export type UpdateWebhookDestinationRequest = z.infer<typeof UpdateWebhookDestinationRequestSchema>;
 
-/**
- * Request schema for listing webhooks with pagination.
- */
-export const ListWebhooksRequestSchema = z.object({
-	/** Maximum number of webhooks to return. */
+export const PaginationRequestSchema = z.object({
 	limit: z.number().optional(),
-	/** Number of webhooks to skip for pagination. */
 	offset: z.number().optional(),
 });
+
+export type PaginationRequest = z.infer<typeof PaginationRequestSchema>;
+
+export const ListWebhooksRequestSchema = PaginationRequestSchema;
 
 /** Request type for listing webhooks. */
 export type ListWebhooksRequest = z.infer<typeof ListWebhooksRequestSchema>;
 
-/**
- * Request schema for listing webhook receipts with pagination.
- */
-export const ListWebhookReceiptsRequestSchema = z.object({
-	/** Maximum number of receipts to return. */
-	limit: z.number().optional(),
-	/** Number of receipts to skip for pagination. */
-	offset: z.number().optional(),
-});
+export const ListWebhookReceiptsRequestSchema = PaginationRequestSchema;
 
 /** Request type for listing webhook receipts. */
 export type ListWebhookReceiptsRequest = z.infer<typeof ListWebhookReceiptsRequestSchema>;
 
-/**
- * Request schema for listing webhook deliveries with pagination.
- */
-export const ListWebhookDeliveriesRequestSchema = z.object({
-	/** Maximum number of deliveries to return. */
-	limit: z.number().optional(),
-	/** Number of deliveries to skip for pagination. */
-	offset: z.number().optional(),
-});
+export const ListWebhookDeliveriesRequestSchema = PaginationRequestSchema;
 
 /** Request type for listing webhook deliveries. */
 export type ListWebhookDeliveriesRequest = z.infer<typeof ListWebhookDeliveriesRequestSchema>;

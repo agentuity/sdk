@@ -3,14 +3,9 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createWebhookAPIClient, getWebhookApiOptions } from './util';
 import { getCommand } from '../../../command-prefix';
-import { createWebhook } from '@agentuity/server';
+import { createWebhook, WebhookSchema } from '@agentuity/server';
 
-const WebhookCreateResponseSchema = z.object({
-	id: z.string(),
-	name: z.string(),
-	url: z.string().optional(),
-	created_at: z.string(),
-});
+const WebhookCreateResponseSchema = WebhookSchema.pick({ id: true, name: true, url: true, created_at: true });
 
 export const createSubcommand = createCommand({
 	name: 'create',
@@ -46,7 +41,7 @@ export const createSubcommand = createCommand({
 			client,
 			{
 				name: opts.name,
-				description: opts?.description,
+				description: opts.description,
 			},
 			getWebhookApiOptions(ctx)
 		);

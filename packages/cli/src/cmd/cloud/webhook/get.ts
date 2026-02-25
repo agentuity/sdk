@@ -46,8 +46,8 @@ export const getSubcommand = createCommand({
 			}
 
 			details['Created By'] = webhook.created_by;
-			details.Created = new Date(webhook.created_at).toLocaleString();
-			details.Updated = new Date(webhook.updated_at).toLocaleString();
+			details.Created = new Date(webhook.created_at).toISOString();
+			details.Updated = new Date(webhook.updated_at).toISOString();
 
 			tui.table([details], undefined, { layout: 'vertical' });
 		}
