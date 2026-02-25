@@ -21,6 +21,10 @@ export const getSubcommand = createCommand({
 		const email = createEmailAdapter(ctx);
 		const inbound = await email.getInbound(args.id);
 
+		if (!inbound) {
+			tui.fatal(`Inbound email not found: ${args.id}`);
+		}
+
 		if (!options.json) {
 			tui.success(`Inbound Email: ${tui.bold(inbound.id)}`);
 			tui.table(

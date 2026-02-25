@@ -136,7 +136,12 @@ class EmailStorageService {
 		return payload as T;
 	}
 
-	async #request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
+	async #request<T>(
+		method: HttpMethod,
+		path: string,
+		body?: unknown,
+		options?: { allow404?: boolean }
+	): Promise<T | null> {
 		const url = this.#build(path);
 		const signal = AbortSignal.timeout(30_000);
 		const request: FetchRequest = {
@@ -152,6 +157,9 @@ class EmailStorageService {
 
 		const response = await this.#adapter.invoke<T>(url, request);
 		if (!response.ok) {
+			if (options?.allow404 && response.response.status === 404) {
+				return null;
+			}
 			throw await toServiceException(method, url, response.response);
 		}
 
@@ -171,11 +179,16 @@ class EmailStorageService {
 		return Array.isArray(items) ? (items as EmailAddress[]) : [];
 	}
 
-	async getAddress(addressId: string): Promise<EmailAddress> {
+	async getAddress(addressId: string): Promise<EmailAddress | null> {
 		const payload = await this.#request<unknown>(
 			'GET',
-			`/email/2025-03-17/addresses/${encodeURIComponent(addressId)}`
+			`/email/2025-03-17/addresses/${encodeURIComponent(addressId)}`,
+			undefined,
+			{ allow404: true }
 		);
+		if (payload === null) {
+			return null;
+		}
 		return this.#unwrap<EmailAddress>(payload, 'address');
 	}
 
@@ -258,11 +271,16 @@ class EmailStorageService {
 		return Array.isArray(items) ? (items as EmailInbound[]) : [];
 	}
 
-	async getInbound(id: string): Promise<EmailInbound> {
+	async getInbound(id: string): Promise<EmailInbound | null> {
 		const payload = await this.#request<unknown>(
 			'GET',
-			`/email/2025-03-17/inbound/${encodeURIComponent(id)}`
+			`/email/2025-03-17/inbound/${encodeURIComponent(id)}`,
+			undefined,
+			{ allow404: true }
 		);
+		if (payload === null) {
+			return null;
+		}
 		return this.#unwrap<EmailInbound>(payload, 'inbound');
 	}
 
@@ -283,11 +301,16 @@ class EmailStorageService {
 		return Array.isArray(items) ? (items as EmailOutbound[]) : [];
 	}
 
-	async getOutbound(id: string): Promise<EmailOutbound> {
+	async getOutbound(id: string): Promise<EmailOutbound | null> {
 		const payload = await this.#request<unknown>(
 			'GET',
-			`/email/2025-03-17/outbound/${encodeURIComponent(id)}`
+			`/email/2025-03-17/outbound/${encodeURIComponent(id)}`,
+			undefined,
+			{ allow404: true }
 		);
+		if (payload === null) {
+			return null;
+		}
 		return this.#unwrap<EmailOutbound>(payload, 'outbound');
 	}
 }
