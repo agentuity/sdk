@@ -61,6 +61,9 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'vector',
 	'sandbox',
 	'queue',
+	'email',
+	'schedule',
+	'task',
 	'state',
 	'thread',
 	'session',
@@ -118,6 +121,9 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 		c.set('vector', services.vector);
 		c.set('sandbox', services.sandbox);
 		c.set('queue', services.queue);
+		c.set('email', services.email);
+		c.set('schedule', services.schedule);
+		c.set('task', services.task);
 
 		installContextPropertyHelpers(c);
 
@@ -509,9 +515,7 @@ export function createOtelMiddleware() {
 
 						// Check if this is a WebSocket response that needs deferred finalization
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const wsDone = (c as any).get(WS_DONE_PROMISE_KEY) as
-							| Promise<void>
-							| undefined;
+						const wsDone = (c as any).get(WS_DONE_PROMISE_KEY) as Promise<void> | undefined;
 
 						// Check if Hono caught an error (c.error is set by Hono's error handler)
 						// or if the response status indicates an error

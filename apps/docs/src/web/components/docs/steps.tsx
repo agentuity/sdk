@@ -34,7 +34,9 @@ export function Steps({ children, className }: StepsProps) {
 						{index + 1}
 					</div>
 					{/* Content */}
-					<div className="flex-1 min-w-0 [&>h2:first-child]:mt-0 [&>h3:first-child]:mt-0">{step.props.children}</div>
+					<div className="flex-1 min-w-0 [&>h2:first-child]:mt-0 [&>h3:first-child]:mt-0">
+						{step.props.children}
+					</div>
 				</div>
 			))}
 		</div>

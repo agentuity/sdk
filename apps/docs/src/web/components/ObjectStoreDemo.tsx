@@ -164,19 +164,19 @@ export function ObjectStoreDemo() {
 					>
 						{SAMPLE_DOC.name}
 					</span>
-					<Button
-						variant="success"
-						size="sm"
-						onClick={seedData}
-						disabled={loading || seeded}
-					>
+					<Button variant="success" size="sm" onClick={seedData} disabled={loading || seeded}>
 						<span className="relative">
 							<span className={seeding || seeded ? 'invisible' : ''}>Load Sample Data</span>
 							{seeding && !seeded && (
-								<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+								<span
+									className="absolute inset-0 flex items-center justify-center"
+									data-loading="true"
+								/>
 							)}
 							{seeded && (
-								<span className="absolute inset-0 flex items-center justify-center">Loaded</span>
+								<span className="absolute inset-0 flex items-center justify-center">
+									Loaded
+								</span>
 							)}
 						</span>
 					</Button>
@@ -247,11 +247,7 @@ export function ObjectStoreDemo() {
 								({presignInfo.filename} · expires in {presignInfo.expiresIn})
 							</span>
 						</div>
-						<Button
-							variant="outline"
-							size="xs"
-							onClick={copyToClipboard}
-						>
+						<Button variant="outline" size="xs" onClick={copyToClipboard}>
 							{copied ? (
 								<>
 									<svg

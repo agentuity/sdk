@@ -23,12 +23,8 @@ async function processInBatches<T, R>(
 /**
  * Helper to remove all vectors for a given logical path from the vector store.
  */
-async function removeVectorsByPath(
-	ctx: any,
-	logicalPath: string,
-	vectorStoreName: string
-) {
-	ctx.logger.debug('Removing vectors for path: %s', logicalPath);
+async function removeVectorsByPath(ctx: any, logicalPath: string, vectorStoreName: string) {
+	ctx.logger.info('Removing vectors for path: %s', logicalPath);
 
 	let totalDeleted = 0;
 
@@ -57,11 +53,7 @@ async function removeVectorsByPath(
 	}
 
 	if (totalDeleted > 0) {
-		ctx.logger.debug(
-			'Completed removal of %d vectors for path: %s',
-			totalDeleted,
-			logicalPath
-		);
+		ctx.logger.info('Completed removal of %d vectors for path: %s', totalDeleted, logicalPath);
 	} else {
 		ctx.logger.debug('No vectors found for path: %s', logicalPath);
 	}
@@ -70,10 +62,7 @@ async function removeVectorsByPath(
 /**
  * Process documentation sync from embedded payload - completely filesystem-free
  */
-export async function syncDocsFromPayload(
-	ctx: any,
-	payload: SyncPayload
-): Promise<SyncStats> {
+export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promise<SyncStats> {
 	const { changed = [], removed = [] } = payload;
 	let processed = 0;
 	let deleted = 0;
@@ -129,9 +118,7 @@ export async function syncDocsFromPayload(
 				}
 				content = buf.toString('utf-8');
 			} catch (decodeErr) {
-				throw new Error(
-					`Invalid base64 content for ${logicalPath}: ${decodeErr}`
-				);
+				throw new Error(`Invalid base64 content for ${logicalPath}: ${decodeErr}`);
 			}
 
 			// Remove existing vectors for this path
@@ -151,23 +138,12 @@ export async function syncDocsFromPayload(
 
 			// Batch upsert all chunks at once for efficiency
 			if (chunksWithMetadata.length > 0) {
-				const upsertResults = await ctx.vector.upsert(
-					VECTOR_STORE_NAME,
-					...chunksWithMetadata
-				);
-				ctx.logger.debug(
-					'Upserted %d chunks for file: %s',
-					upsertResults.length,
-					logicalPath
-				);
+				const upsertResults = await ctx.vector.upsert(VECTOR_STORE_NAME, ...chunksWithMetadata);
+				ctx.logger.info('Upserted %d chunks for file: %s', upsertResults.length, logicalPath);
 			}
 
-			ctx.logger.debug(
-				'Successfully processed file: %s (%d chunks)',
-				logicalPath,
-				chunks.length
-			);
-			return { success: true as const };
+			processed++;
+			ctx.logger.info('Successfully processed file: %s (%d chunks)', logicalPath, chunks.length);
 		} catch (err) {
 			ctx.logger.error('Error processing file %s: %o', file.path, err);
 			return { success: false as const, path: file.path };

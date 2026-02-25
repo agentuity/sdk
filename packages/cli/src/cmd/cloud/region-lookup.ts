@@ -1,8 +1,9 @@
-import { StreamStorageService, type Logger } from '@agentuity/core';
+import { StreamStorageService, TaskStorageService, type Logger } from '@agentuity/core';
 import {
 	projectGet,
 	sandboxResolve,
 	deploymentGet,
+	getWebhook,
 	type APIClient,
 	createServerFetchAdapter,
 	getServiceUrls,
@@ -13,7 +14,7 @@ import type { AuthData, Config } from '../../types';
 import * as tui from '../../tui';
 import { ErrorCode } from '../../errors';
 
-export type IdentifierType = 'project' | 'deployment' | 'sandbox' | 'stream';
+export type IdentifierType = 'project' | 'deployment' | 'sandbox' | 'stream' | 'webhook' | 'task';
 
 /**
  * Determine the type of identifier based on its prefix
@@ -28,8 +29,14 @@ export function getIdentifierType(identifier: string): IdentifierType {
 	if (identifier.startsWith('sbx_')) {
 		return 'sandbox';
 	}
+	if (identifier.startsWith('task_')) {
+		return 'task';
+	}
 	if (identifier.startsWith('stream_')) {
 		return 'stream';
+	}
+	if (identifier.startsWith('wh_')) {
+		return 'webhook';
 	}
 	// Default to project for unknown prefixes
 	return 'project';
@@ -82,6 +89,34 @@ export async function getIdentifierRegion(
 		}
 		const deployment = await deploymentGet(apiClient, identifier);
 		region = deployment.cloudRegion ?? null;
+	} else if (identifierType === 'task') {
+		// Tasks live in per-tenant DBs accessible from any regional Catalyst.
+		// Use default region to reach Catalyst, which can resolve the task for the org.
+		const taskDefaultRegion = await getDefaultRegion(profileName, config);
+		const taskBaseUrl = getServiceUrls(taskDefaultRegion).catalyst;
+		const resolvedTaskOrgId =
+			orgId ?? process.env.AGENTUITY_CLOUD_ORG_ID ?? config?.preferences?.orgId;
+		if (!resolvedTaskOrgId) {
+			tui.fatal(
+				`Organization ID required to resolve task '${identifier}'. Use --org-id or set AGENTUITY_CLOUD_ORG_ID.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
+		const taskAdapter = createServerFetchAdapter(
+			{
+				headers: {
+					Authorization: `Bearer ${auth.apiKey}`,
+					'x-agentuity-orgid': resolvedTaskOrgId,
+				},
+			},
+			logger
+		);
+		const taskService = new TaskStorageService(taskBaseUrl, taskAdapter);
+		const taskResult = await taskService.get(identifier);
+		if (taskResult) {
+			region = taskDefaultRegion;
+			orgId = resolvedTaskOrgId;
+		}
 	} else if (identifierType === 'sandbox') {
 		// sandbox - use CLI API to resolve across all orgs the user has access to
 		if (!apiClient) {
@@ -96,6 +131,27 @@ export async function getIdentifierRegion(
 		if (sandbox.orgId) {
 			orgId = sandbox.orgId;
 		}
+	} else if (identifierType === 'webhook') {
+		// Webhook tenant DB is not regional — any global Catalyst can serve the request.
+		// We still look up the webhook to validate it exists and cache the orgId.
+		if (!apiClient) {
+			tui.fatal(
+				`API client required for webhook region lookup. This is an internal error.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
+		const resolvedOrgId =
+			orgId ?? process.env.AGENTUITY_CLOUD_ORG_ID ?? config?.preferences?.orgId;
+		const webhook = await getWebhook(
+			apiClient,
+			identifier,
+			resolvedOrgId ? { orgId: resolvedOrgId } : undefined
+		);
+		if (webhook) {
+			orgId = resolvedOrgId;
+		}
+		// Use default region since webhooks are global
+		region = await getDefaultRegion(profileName, config);
 	} else {
 		// stream - use the streams service to look up stream info
 		// Any regional streams service can look up any stream and return its info

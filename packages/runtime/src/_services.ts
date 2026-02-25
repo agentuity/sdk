@@ -4,12 +4,17 @@ import {
 	StreamStorageService,
 	VectorStorageService,
 	QueueStorageService,
+	EmailStorageService,
+	ScheduleService,
+	TaskStorageService,
 	type FetchAdapter,
 	type KeyValueStorage,
 	type StreamStorage,
 	type VectorStorage,
 	type SandboxService,
 	type QueueService,
+	type EmailService,
+	type TaskStorage,
 	type ListStreamsResponse,
 	type VectorUpsertResult,
 	type VectorSearchResult,
@@ -49,6 +54,8 @@ import {
 	LocalStreamStorage,
 	LocalVectorStorage,
 	LocalQueueStorage,
+	LocalEmailStorage,
+	LocalTaskStorage,
 	getLocalDB,
 	normalizeProjectPath,
 	createLocalStorageRouter,
@@ -66,6 +73,8 @@ const getStreamBaseUrl = () => getLazyServiceUrls().stream;
 const getVectorBaseUrl = () => getLazyServiceUrls().vector;
 const getCatalystBaseUrl = () => getLazyServiceUrls().catalyst;
 const getQueueBaseUrl = () => getCatalystBaseUrl();
+const getEmailBaseUrl = () => getLazyServiceUrls().email;
+const getTaskBaseUrl = () => getCatalystBaseUrl();
 
 let adapter: FetchAdapter;
 
@@ -174,6 +183,9 @@ let stream: StreamStorage;
 let vector: VectorStorage;
 let sandbox: SandboxService;
 let queue: QueueService;
+let email: EmailService;
+let schedule: ScheduleService;
+let task: TaskStorage;
 let session: SessionProvider;
 let thread: ThreadProvider;
 let sessionEvent: SessionEventProvider;
@@ -211,6 +223,8 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 		stream = config?.services?.stream || new LocalStreamStorage(db, projectPath, serverUrl);
 		vector = config?.services?.vector || new LocalVectorStorage(db, projectPath);
 		queue = new LocalQueueStorage(db, projectPath);
+		email = config?.services?.email || new LocalEmailStorage();
+		task = config?.services?.task || new LocalTaskStorage(db, projectPath);
 		session = config?.services?.session || new DefaultSessionProvider();
 		thread = config?.services?.thread || new LocalThreadProvider();
 		sessionEvent = config?.services?.sessionEvent
@@ -241,7 +255,10 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 	stream = config?.services?.stream || new StreamStorageService(streamBaseUrl, adapter);
 	vector = config?.services?.vector || new VectorStorageService(getVectorBaseUrl(), adapter);
 	queue = new QueueStorageService(getQueueBaseUrl(), adapter);
+	email = config?.services?.email || new EmailStorageService(getEmailBaseUrl(), adapter);
+	task = config?.services?.task || new TaskStorageService(getTaskBaseUrl(), adapter);
 	sandbox = new HTTPSandboxService(new APIClient(catalystUrl, logger), streamBaseUrl);
+	schedule = new ScheduleService(getCatalystBaseUrl(), adapter);
 	session = config?.services?.session || new DefaultSessionProvider();
 	thread = config?.services?.thread || new DefaultThreadProvider();
 	// FIXME: this is turned off for now for production until we have the new changes deployed
@@ -292,7 +309,7 @@ export function getEvalRunEventProvider() {
 }
 
 export function getServices() {
-	return { kv, stream, vector, sandbox, queue };
+	return { kv, stream, vector, sandbox, queue, email, schedule, task };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -319,6 +336,21 @@ export function registerServices(o: any, includeAgents = false) {
 	});
 	Object.defineProperty(o, 'queue', {
 		get: () => queue,
+		enumerable: false,
+		configurable: false,
+	});
+	Object.defineProperty(o, 'email', {
+		get: () => email,
+		enumerable: false,
+		configurable: false,
+	});
+	Object.defineProperty(o, 'schedule', {
+		get: () => schedule,
+		enumerable: false,
+		configurable: false,
+	});
+	Object.defineProperty(o, 'task', {
+		get: () => task,
 		enumerable: false,
 		configurable: false,
 	});

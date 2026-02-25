@@ -1,4 +1,3 @@
-
 import { VECTOR_STORE_NAME, vectorSearchNumber } from '../../config';
 import type { RelevantDoc } from './types';
 
@@ -33,9 +32,7 @@ async function expandPathGroup(
 	}
 
 	// Remove negative indices
-	const validIndices = Array.from(expandedChunkIndices).filter(
-		(index) => index >= 0
-	);
+	const validIndices = Array.from(expandedChunkIndices).filter((index) => index >= 0);
 
 	if (validIndices.length === 0) {
 		ctx.logger.warn('No valid chunk indices found for path: %s', path);
@@ -63,10 +60,7 @@ async function expandPathGroup(
 		for (const result of results) {
 			if (result.length > 0 && result[0] && result[0].metadata) {
 				const metadata = result[0].metadata;
-				if (
-					typeof metadata.chunkIndex === 'number' &&
-					typeof metadata.text === 'string'
-				) {
+				if (typeof metadata.chunkIndex === 'number' && typeof metadata.text === 'string') {
 					foundChunks.push({
 						index: metadata.chunkIndex,
 						text: metadata.text,
@@ -82,20 +76,15 @@ async function expandPathGroup(
 
 		// Sort by index and combine content
 		const sortedChunks = foundChunks.sort((a, b) => a.index - b.index);
-		const expandedContent = sortedChunks
-			.map((chunk) => chunk.text)
-			.join('\n\n');
+		const expandedContent = sortedChunks.map((chunk) => chunk.text).join('\n\n');
 
 		// Find the best relevance score from the original chunks
-		const bestScore = Math.max(
-			...pathChunks.map((chunk) => chunk.relevanceScore || 0)
-		);
+		const bestScore = Math.max(...pathChunks.map((chunk) => chunk.relevanceScore || 0));
 
 		// Create chunk range
 		const minIndex = Math.min(...sortedChunks.map((c) => c.index));
 		const maxIndex = Math.max(...sortedChunks.map((c) => c.index));
-		const chunkRange =
-			minIndex === maxIndex ? `${minIndex}` : `${minIndex}-${maxIndex}`;
+		const chunkRange = minIndex === maxIndex ? `${minIndex}` : `${minIndex}-${maxIndex}`;
 
 		ctx.logger.debug(
 			'Expanded path %s with %d chunks (range: %s) score %d',
@@ -122,10 +111,7 @@ async function expandPathGroup(
 	}
 }
 
-export async function retrieveRelevantDocs(
-	ctx: any,
-	prompt: string
-): Promise<RelevantDoc[]> {
+export async function retrieveRelevantDocs(ctx: any, prompt: string): Promise<RelevantDoc[]> {
 	const dbQuery = {
 		query: prompt,
 		limit: vectorSearchNumber,
@@ -154,20 +140,14 @@ export async function retrieveRelevantDocs(
 				continue;
 			}
 
-			const path =
-				typeof vector.metadata.path === 'string'
-					? vector.metadata.path
-					: undefined;
+			const path = typeof vector.metadata.path === 'string' ? vector.metadata.path : undefined;
 			const title =
 				typeof vector.metadata.title === 'string'
 					? vector.metadata.title
 					: path || 'Documentation';
-			const text =
-				typeof vector.metadata.text === 'string' ? vector.metadata.text : '';
+			const text = typeof vector.metadata.text === 'string' ? vector.metadata.text : '';
 			const chunkIndex =
-				typeof vector.metadata.chunkIndex === 'number'
-					? vector.metadata.chunkIndex
-					: undefined;
+				typeof vector.metadata.chunkIndex === 'number' ? vector.metadata.chunkIndex : undefined;
 
 			if (!path) {
 				ctx.logger.warn('Vector metadata path is not a string, skipping');

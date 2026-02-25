@@ -18,14 +18,21 @@ import { z } from 'zod';
 export const AgentPulseRequestSchema = z.object({
 	message: z.string().min(1, 'Message is required'),
 	sessionId: z.string().optional(),
-	conversationHistory: z.array(z.object({
-		author: z.enum(['USER', 'ASSISTANT']),
-		content: z.string(),
-	})).optional().default([]),
-	tutorialData: z.object({
-		tutorialId: z.string(),
-		currentStep: z.number(),
-	}).optional(),
+	conversationHistory: z
+		.array(
+			z.object({
+				author: z.enum(['USER', 'ASSISTANT']),
+				content: z.string(),
+			})
+		)
+		.optional()
+		.default([]),
+	tutorialData: z
+		.object({
+			tutorialId: z.string(),
+			currentStep: z.number(),
+		})
+		.optional(),
 });
 
 /**
@@ -55,7 +62,9 @@ async function generateAndPersistTitle(
 		const { openai } = await import('@ai-sdk/openai');
 
 		const historyText = history
-			.map((m) => `${m.author}: ${m.content.slice(0, 200)}${m.content.length > 200 ? '...' : ''}`)
+			.map(
+				(m) => `${m.author}: ${m.content.slice(0, 200)}${m.content.length > 200 ? '...' : ''}`
+			)
 			.join('\n');
 
 		const prompt = `Generate a very short session title summarizing the conversation topic.
@@ -89,7 +98,9 @@ ${historyText}`;
 		title = title.charAt(0).toUpperCase() + title.slice(1);
 
 		// Re-fetch and set title only if still empty
-		const latest = await (kv.get as (store: string, key: string) => Promise<{ exists: boolean; data?: Session }>)(config.kvStoreName, sessionKey);
+		const latest = await (
+			kv.get as (store: string, key: string) => Promise<{ exists: boolean; data?: Session }>
+		)(config.kvStoreName, sessionKey);
 		if (!latest.exists || !latest.data) return;
 		const current = latest.data;
 		if (current.title) return;
@@ -110,69 +121,82 @@ const SSE_HEADERS = {
 };
 
 // POST /api/agent-pulse
-router.post('/', bearerTokenAuth, cookieAuth, validator({ input: AgentPulseRequestSchema }), async (c) => {
-	try {
-		const userId = (c.get as (key: string) => string)('userId');
-		const kv = c.var.kv;
-		const logger = c.var.logger;
+router.post(
+	'/',
+	bearerTokenAuth,
+	cookieAuth,
+	validator({ input: AgentPulseRequestSchema }),
+	async (c) => {
+		try {
+			const userId = (c.get as (key: string) => string)('userId');
+			const kv = c.var.kv;
+			const logger = c.var.logger;
 
-		const validatedRequest = c.req.valid('json');
-		const conversationHistory: ConversationMessage[] = validatedRequest.conversationHistory || [];
+			const validatedRequest = c.req.valid('json');
+			const conversationHistory: ConversationMessage[] =
+				validatedRequest.conversationHistory || [];
 
-		// Get current tutorial state if not provided
-		let tutorialData = validatedRequest.tutorialData;
-		if (!tutorialData && userId) {
-			tutorialData = (await getCurrentTutorialState(userId, kv)) || undefined;
+			// Get current tutorial state if not provided
+			let tutorialData = validatedRequest.tutorialData;
+			if (!tutorialData && userId) {
+				tutorialData = (await getCurrentTutorialState(userId, kv)) || undefined;
+			}
+
+			// Run agent and get stream
+			const agentStream = await agentPulse.run({
+				message: validatedRequest.message,
+				conversationHistory,
+				tutorialData,
+			});
+
+			// If no sessionId provided, return raw stream (no persistence)
+			if (!validatedRequest.sessionId) {
+				return new Response(agentStream, { headers: SSE_HEADERS });
+			}
+
+			// Wrap stream with persistence
+			const persistedStream = withPersistence(agentStream, {
+				kv,
+				userId,
+				sessionId: validatedRequest.sessionId,
+				kvStoreName: config.kvStoreName,
+				logger,
+				onTutorialProgress: async (td: TutorialData) => {
+					if (userId && td.tutorialId) {
+						await updateTutorialProgress(
+							userId,
+							td.tutorialId,
+							td.currentStep,
+							td.totalSteps ?? 0,
+							kv
+						);
+					}
+				},
+				onSessionSaved: (session: Session) => {
+					// Fire and forget title generation
+					const sessionKey = `${userId}_${validatedRequest.sessionId}`;
+					void generateAndPersistTitle(sessionKey, session, kv, logger);
+				},
+			});
+
+			return new Response(persistedStream, { headers: SSE_HEADERS });
+		} catch (error) {
+			c.var.logger.error(
+				'Agent request failed: %s',
+				error instanceof Error ? error.message : String(error)
+			);
+
+			const statusCode = error instanceof Error && error.message.includes('Invalid') ? 400 : 500;
+
+			return c.json(
+				{
+					error: 'Sorry, I encountered an error while processing your request. Please try again.',
+					details: error instanceof Error ? error.message : String(error),
+				},
+				{ status: statusCode }
+			);
 		}
-
-		// Run agent and get stream
-		const agentStream = await agentPulse.run({
-			message: validatedRequest.message,
-			conversationHistory,
-			tutorialData,
-		});
-
-		// If no sessionId provided, return raw stream (no persistence)
-		if (!validatedRequest.sessionId) {
-			return new Response(agentStream, { headers: SSE_HEADERS });
-		}
-
-		// Wrap stream with persistence
-		const persistedStream = withPersistence(agentStream, {
-			kv,
-			userId,
-			sessionId: validatedRequest.sessionId,
-			kvStoreName: config.kvStoreName,
-			logger,
-			onTutorialProgress: async (td: TutorialData) => {
-				if (userId && td.tutorialId) {
-					await updateTutorialProgress(userId, td.tutorialId, td.currentStep, td.totalSteps ?? 0, kv);
-				}
-			},
-			onSessionSaved: (session: Session) => {
-				// Fire and forget title generation
-				const sessionKey = `${userId}_${validatedRequest.sessionId}`;
-				void generateAndPersistTitle(sessionKey, session, kv, logger);
-			},
-		});
-
-		return new Response(persistedStream, { headers: SSE_HEADERS });
-	} catch (error) {
-		c.var.logger.error(
-			'Agent request failed: %s',
-			error instanceof Error ? error.message : String(error)
-		);
-
-		const statusCode = error instanceof Error && error.message.includes('Invalid') ? 400 : 500;
-
-		return c.json(
-			{
-				error: 'Sorry, I encountered an error while processing your request. Please try again.',
-				details: error instanceof Error ? error.message : String(error),
-			},
-			{ status: statusCode }
-		);
 	}
-});
+);
 
 export default router;

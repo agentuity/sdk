@@ -1,7 +1,4 @@
 {
-  "title": "Tutorials",
-  "pages": [
-    "understanding-agents",
-    "rag-agent"
-  ]
+	"title": "Tutorials",
+	"pages": ["understanding-agents", "rag-agent"]
 }

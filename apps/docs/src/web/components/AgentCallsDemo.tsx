@@ -196,9 +196,10 @@ export function AgentCallsDemo() {
 								size="sm"
 								disabled={isLoading}
 								onClick={() => setPattern(p.id)}
-								className={pattern === p.id
-									? 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 text-cyan-600 dark:text-cyan-400'
-									: 'bg-zinc-100 dark:bg-zinc-900'
+								className={
+									pattern === p.id
+										? 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 text-cyan-600 dark:text-cyan-400'
+										: 'bg-zinc-100 dark:bg-zinc-900'
 								}
 							>
 								{p.label}
@@ -219,9 +220,10 @@ export function AgentCallsDemo() {
 									size="xs"
 									disabled={isLoading}
 									onClick={() => setOperation(op)}
-									className={operation === op
-										? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500 dark:border-blue-700 text-blue-700 dark:text-blue-400'
-										: 'bg-zinc-100 dark:bg-zinc-900'
+									className={
+										operation === op
+											? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500 dark:border-blue-700 text-blue-700 dark:text-blue-400'
+											: 'bg-zinc-100 dark:bg-zinc-900'
 									}
 								>
 									{op}
@@ -238,16 +240,14 @@ export function AgentCallsDemo() {
 						<div className="flex-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-700 dark:text-zinc-300 text-sm px-4 h-10 flex items-center font-mono truncate">
 							{SAMPLE_TEXT}
 						</div>
-						<Button
-							variant="outline"
-							size="default"
-							disabled={isLoading}
-							onClick={handleRun}
-						>
+						<Button variant="outline" size="default" disabled={isLoading} onClick={handleRun}>
 							<span className="relative">
 								<span className={isLoading ? 'invisible' : ''}>Run</span>
 								{isLoading && (
-									<span className="absolute inset-0 flex items-center justify-center" data-loading="true" />
+									<span
+										className="absolute inset-0 flex items-center justify-center"
+										data-loading="true"
+									/>
 								)}
 							</span>
 						</Button>

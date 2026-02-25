@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json
+# Agentuity Demo Project Snapshot - a scaffolded demo project for testing
+
+version: 1
+runtime: agentuity:latest
+name: agentuity-demo-project
+description: A snapshot with the Agentuity demo project which can be used for testing
+public: true
+dir: tmp/demo-project
+
+files:
+   - '**/*'
+
+metadata:
+   version: ${VERSION}

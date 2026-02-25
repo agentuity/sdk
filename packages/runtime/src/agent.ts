@@ -7,6 +7,9 @@ import {
 	type VectorStorage,
 	type SandboxService,
 	type QueueService,
+	type EmailService,
+	type ScheduleService,
+	type TaskStorage,
 	type InferInput,
 	type InferOutput,
 	toCamelCase,
@@ -241,6 +244,51 @@ export interface AgentContext<
 	 * ```
 	 */
 	queue: QueueService;
+
+	/**
+	 * Email service for managing email addresses, destinations, and sending/receiving emails.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Create an email address
+	 * const address = await ctx.email.createAddress('support');
+	 *
+	 * // Send an email
+	 * const result = await ctx.email.send({
+	 *   from: address.email,
+	 *   to: ['user@example.com'],
+	 *   subject: 'Hello!',
+	 *   text: 'Welcome to our platform.',
+	 * });
+	 *
+	 * // List inbound emails
+	 * const inbound = await ctx.email.listInbound(address.id);
+	 * ```
+	 */
+	email: EmailService;
+
+	/**
+	 * Schedule service for managing cron-based scheduled tasks with
+	 * destinations and delivery tracking.
+	 *
+	 * @see https://agentuity.dev/services/schedule
+	 */
+	schedule: ScheduleService;
+
+	/**
+	 * Task service for agent-driven issue tracking.
+	 *
+	 * @example
+	 * ```typescript
+	 * const task = await ctx.task.create({
+	 *   title: 'Investigate API error',
+	 *   type: 'bug',
+	 *   created_id: ctx.current.id,
+	 * });
+	 * await ctx.task.update(task.id, { status: 'in_progress' });
+	 * ```
+	 */
+	task: TaskStorage;
 
 	/**
 	 * In-memory state storage scoped to the current request.

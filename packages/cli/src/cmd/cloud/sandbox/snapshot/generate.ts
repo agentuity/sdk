@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types';
 import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types';
 
 const TEMPLATE_YAML = `# yaml-language-server: $schema=https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json
 #
@@ -26,6 +26,10 @@ runtime: bun:1
 # Optional: Human-readable description
 # Can be overridden with --description flag
 description: My sandbox snapshot
+
+# Optional: Subdirectory to use as the build context
+# Files are resolved relative to this directory instead of the CLI directory argument
+# dir: src
 
 # Optional: Apt packages to install
 # Packages are validated against Debian stable repositories
