@@ -24,18 +24,21 @@ export const createSubcommand = createCommand({
 	optional: { project: true },
 	examples: [
 		{
-			command: getCommand('cloud schedule destination create sched_abc123 --type url --url https://example.com'),
+			command: getCommand('cloud schedule destination create url sched_abc123 https://example.com'),
 			description: 'Create URL destination',
+		},
+		{
+			command: getCommand('cloud schedule destination create url sched_abc123 https://example.com --method POST'),
+			description: 'Create URL destination with POST method',
 		},
 	],
 	schema: {
 		args: z.object({
+			type: z.enum(['url', 'sandbox']).describe('Destination type (url or sandbox)'),
 			schedule_id: z.string().min(1).describe('Schedule ID'),
+			target: z.string().min(1).describe('Destination URL or sandbox ID'),
 		}),
 		options: z.object({
-			type: z.enum(['url', 'sandbox']).describe('Destination type'),
-			url: z.string().url().optional().describe('Destination URL (required for type=url)'),
-			sandboxId: z.string().optional().describe('Sandbox ID (for type=sandbox)'),
 			method: z.string().optional().describe('HTTP method for URL destination'),
 			timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
 			config: z.string().optional().describe('Additional config as JSON object'),
@@ -47,10 +50,6 @@ export const createSubcommand = createCommand({
 		const { args, opts, options } = ctx;
 		const schedule = createScheduleAdapter(ctx);
 
-		if (opts.type === 'url' && !opts.url) {
-			tui.fatal('--url is required when --type=url');
-		}
-
 		const parsedConfig = opts.config
 			? (JSON.parse(opts.config) as Record<string, unknown>)
 			: {};
@@ -59,11 +58,11 @@ export const createSubcommand = createCommand({
 			...parsedConfig,
 		};
 
-		if (opts.type === 'url' && opts.url) {
-			config.url = opts.url;
+		if (args.type === 'url') {
+			config.url = args.target;
 		}
-		if (opts.type === 'sandbox' && opts.sandboxId) {
-			config.sandbox_id = opts.sandboxId;
+		if (args.type === 'sandbox') {
+			config.sandbox_id = args.target;
 		}
 		if (opts.method) {
 			config.method = opts.method;
@@ -73,7 +72,7 @@ export const createSubcommand = createCommand({
 		}
 
 		const result = await schedule.createDestination(args.schedule_id, {
-			type: opts.type,
+			type: args.type,
 			config,
 		});
 
