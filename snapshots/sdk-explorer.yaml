@@ -1,12 +1,12 @@
 # yaml-language-server: $schema=https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json
 # SDK Explorer Snapshot - pre-bundled standalone run scripts (no node_modules needed)
-# For documentation, see: https://agentuity.dev/Services/Sandbox
 
 version: 1
 runtime: agentuity:latest
 name: sdk-explorer
 description: SDK Explorer with pre-bundled standalone run scripts
 public: true
+dir: apps/docs
 
 files:
    - dist/run/**
