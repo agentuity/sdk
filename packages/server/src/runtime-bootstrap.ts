@@ -87,4 +87,7 @@ export function bootstrapRuntimeEnv(options: RuntimeBootstrapOptions = {}): void
 	if (!process.env.AGENTUITY_OTLP_URL) {
 		process.env.AGENTUITY_OTLP_URL = serviceUrls.otel;
 	}
+	if (!process.env.AGENTUITY_EMAIL_URL) {
+		process.env.AGENTUITY_EMAIL_URL = serviceUrls.email;
+	}
 }
