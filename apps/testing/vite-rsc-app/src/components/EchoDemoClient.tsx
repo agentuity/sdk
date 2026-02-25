@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAPI, AgentuityProvider } from '@agentuity/react';
+import { isStructuredError } from '@agentuity/core';
 import '@agentuity/routes';
 
 function AgentuityLogo() {
@@ -123,7 +124,7 @@ function EchoDemoInner() {
 						</div>
 					</div>
 
-					{error && <div className="error">Error: {error.message}</div>}
+					{error && <div className="error">Error: {isStructuredError(error) ? error.message : 'Request failed'}</div>}
 
 					<div className="output" data-loading={isLoading}>
 						{data ? (

@@ -83,6 +83,9 @@ router.post(
 	'/',
 	validator('json', (value, c) => {
 		const result = createUserSchema['~standard'].validate(value);
+		if (result instanceof Promise) {
+			throw new TypeError('Schema validation must be synchronous');
+		}
 		if (result.issues) {
 			return c.json({ error: 'Validation failed', issues: result.issues }, 400);
 		}
@@ -335,9 +338,10 @@ router.post(
 // Server-Sent Events (use with GET)
 router.get(
 	'/notifications',
-	sse((c, stream) => {
-		stream.writeSSE({ data: 'Hello', event: 'message' });
-		stream.writeSSE({ data: 'World', event: 'message' });
+	sse(async (c, stream) => {
+		await stream.writeSSE({ data: 'Hello', event: 'message' });
+		await stream.writeSSE({ data: 'World', event: 'message' });
+		stream.close();
 	})
 );
 
