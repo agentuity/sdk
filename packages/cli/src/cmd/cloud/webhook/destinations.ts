@@ -78,15 +78,15 @@ const listDestinationsSubcommand = createSubcommand({
 	},
 });
 
-const createDestinationSubcommand = createSubcommand({
-	name: 'create',
-	description: 'Create a destination for a webhook',
+const createUrlDestinationSubcommand = createSubcommand({
+	name: 'url',
+	description: 'Create a URL destination for a webhook',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
 	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand(
-				'cloud webhook destinations create wh_abc123 --type url --config \'{"url":"https://example.com/webhook"}\''
+				'cloud webhook destinations create url wh_abc123 https://example.com/webhook'
 			),
 			description: 'Create a URL destination',
 		},
@@ -94,43 +94,48 @@ const createDestinationSubcommand = createSubcommand({
 	schema: {
 		args: z.object({
 			webhook_id: z.string().min(1).describe('Webhook ID'),
-		}),
-		options: z.object({
-			type: z.enum(['url']).default('url').describe('Destination type'),
-			config: z.string().describe('Destination configuration as JSON'),
+			url: z.string().min(1).describe('Destination URL'),
 		}),
 		response: WebhookDestinationSchema,
 	},
 
 	async handler(ctx) {
-		const { args, opts, options } = ctx;
+		const { args, options } = ctx;
 		const client = await createWebhookAPIClient(ctx);
-
-		let config: Record<string, unknown>;
-		try {
-			config = JSON.parse(opts.config);
-		} catch {
-			tui.fatal('Invalid JSON for --config option', ErrorCode.INVALID_ARGUMENT);
-		}
 
 		const destination = await createWebhookDestination(
 			client,
 			args.webhook_id,
 			{
-				type: opts.type,
-				config,
+				type: 'url',
+				config: { url: args.url },
 			},
 			getWebhookApiOptions(ctx)
 		);
 
 		if (!options.json) {
 			tui.success(`Created destination: ${destination.id}`);
-			console.log(`  Type:   ${destination.type}`);
-			console.log(`  Config: ${JSON.stringify(destination.config)}`);
+			console.log(`  URL: ${args.url}`);
 		}
 
 		return destination;
 	},
+});
+
+const createDestinationSubcommand = createCommand({
+	name: 'create',
+	description: 'Create a destination for a webhook',
+	tags: ['mutating', 'creates-resource', 'requires-auth'],
+	requires: { auth: true },
+	examples: [
+		{
+			command: getCommand(
+				'cloud webhook destinations create url wh_abc123 --url https://example.com/webhook'
+			),
+			description: 'Create a URL destination',
+		},
+	],
+	subcommands: [createUrlDestinationSubcommand],
 });
 
 const updateDestinationSubcommand = createSubcommand({
@@ -141,9 +146,9 @@ const updateDestinationSubcommand = createSubcommand({
 	examples: [
 		{
 			command: getCommand(
-				'cloud webhook destinations update wh_abc123 whds_def456 --config \'{"url":"https://example.com/v2"}\''
+				'cloud webhook destinations update wh_abc123 whds_def456 --url https://example.com/v2'
 			),
-			description: 'Update a destination config',
+			description: 'Update a destination URL',
 		},
 	],
 	schema: {
@@ -152,7 +157,7 @@ const updateDestinationSubcommand = createSubcommand({
 			destination_id: z.string().min(1).describe('Destination ID'),
 		}),
 		options: z.object({
-			config: z.string().optional().describe('Updated destination configuration as JSON'),
+			url: z.string().optional().describe('Updated destination URL'),
 		}),
 		response: WebhookDestinationSchema,
 	},
@@ -163,12 +168,8 @@ const updateDestinationSubcommand = createSubcommand({
 
 		const updateParams: { config?: Record<string, unknown> } = {};
 
-		if (opts.config) {
-			try {
-				updateParams.config = JSON.parse(opts.config);
-			} catch {
-				tui.fatal('Invalid JSON for --config option', ErrorCode.INVALID_ARGUMENT);
-			}
+		if (opts.url) {
+			updateParams.config = { url: opts.url };
 		}
 
 		const destination = await updateWebhookDestination(
@@ -181,7 +182,7 @@ const updateDestinationSubcommand = createSubcommand({
 
 		if (!options.json) {
 			tui.success(`Updated destination: ${destination.id}`);
-			console.log(`  Config: ${JSON.stringify(destination.config)}`);
+			console.log(`  URL: ${JSON.stringify(destination.config)}`);
 		}
 
 		return destination;
@@ -257,9 +258,9 @@ export const destinationsSubcommand = createCommand({
 		},
 		{
 			command: getCommand(
-				'cloud webhook destinations create wh_abc123 --config \'{"url":"https://example.com/webhook"}\''
+				'cloud webhook destinations create url wh_abc123 --url https://example.com/webhook'
 			),
-			description: 'Create a destination',
+			description: 'Create a URL destination',
 		},
 	],
 	subcommands: [

@@ -53,7 +53,7 @@ export async function listWebhookReceipts(
 	}
 
 	const queryString = searchParams.toString();
-	const url = webhookApiPathWithQuery(queryString || undefined, webhookId, 'receipt');
+	const url = webhookApiPathWithQuery('receipt-list', queryString || undefined, webhookId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.get(
@@ -101,7 +101,7 @@ export async function getWebhookReceipt(
 	receiptId: string,
 	options?: WebhookApiOptions
 ): Promise<WebhookReceipt> {
-	const url = webhookApiPath(webhookId, 'receipt', receiptId);
+	const url = webhookApiPath('receipt-get', webhookId, receiptId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.get(

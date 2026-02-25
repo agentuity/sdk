@@ -51,7 +51,7 @@ export async function createWebhookDestination(
 	params: CreateWebhookDestinationRequest,
 	options?: WebhookApiOptions
 ): Promise<WebhookDestination> {
-	const url = webhookApiPath(webhookId, 'destination');
+	const url = webhookApiPath('destination-create', webhookId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.post(
@@ -100,7 +100,7 @@ export async function listWebhookDestinations(
 	webhookId: string,
 	options?: WebhookApiOptions
 ): Promise<WebhookDestination[]> {
-	const url = webhookApiPath(webhookId, 'destination');
+	const url = webhookApiPath('destination-list', webhookId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.get(
@@ -151,7 +151,7 @@ export async function updateWebhookDestination(
 	params: UpdateWebhookDestinationRequest,
 	options?: WebhookApiOptions
 ): Promise<WebhookDestination> {
-	const url = webhookApiPath(webhookId, 'destination', destinationId);
+	const url = webhookApiPath('destination-update', webhookId, destinationId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.put(
@@ -201,7 +201,7 @@ export async function deleteWebhookDestination(
 	destinationId: string,
 	options?: WebhookApiOptions
 ): Promise<void> {
-	const url = webhookApiPath(webhookId, 'destination', destinationId);
+	const url = webhookApiPath('destination-delete', webhookId, destinationId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.delete(

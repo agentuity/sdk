@@ -41,6 +41,10 @@ export const getSubcommand = createCommand({
 				details.Description = webhook.description;
 			}
 
+			if (webhook.url) {
+				details.URL = webhook.url;
+			}
+
 			details['Created By'] = webhook.created_by;
 			details.Created = new Date(webhook.created_at).toLocaleString();
 			details.Updated = new Date(webhook.updated_at).toLocaleString();

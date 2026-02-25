@@ -70,6 +70,8 @@ export const WebhookSchema = z.object({
 	name: z.string(),
 	/** Optional description of the webhook's purpose. */
 	description: z.string().nullable().optional(),
+	/** Fully-qualified ingest URL for sending events to this webhook. Only present on create. */
+	url: z.string().optional(),
 });
 
 /**

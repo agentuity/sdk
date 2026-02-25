@@ -108,36 +108,55 @@ const WEBHOOK_API_VERSION = '2026-02-24';
 /**
  * Constructs a full API path for webhook operations.
  *
- * Webhook uses: `/webhook/${VERSION}/${segments.join('/')}`
+ * Pattern: `/webhook/${VERSION}/${verb}/${segments.join('/')}`
+ * Each verb is unique to avoid route conflicts with the Go mux.
  *
- * @param segments - Path segments (e.g., webhook ID, sub-resource, sub-resource ID)
- * @returns The full API path with version prefix
+ * @param verb - The action verb (e.g., 'create', 'list', 'get', 'destination-list')
+ * @param segments - Additional path segments (e.g., webhook ID, sub-resource ID)
+ * @returns The full API path with version and verb prefix
  *
  * @internal
  */
-export function webhookApiPath(...segments: string[]): string {
+export function webhookApiPath(verb: string, ...segments: string[]): string {
 	const encoded = segments.map((s) => encodeURIComponent(s)).join('/');
 	if (encoded) {
-		return `/webhook/${WEBHOOK_API_VERSION}/${encoded}`;
+		return `/webhook/${WEBHOOK_API_VERSION}/${verb}/${encoded}`;
 	}
-	return `/webhook/${WEBHOOK_API_VERSION}`;
+	return `/webhook/${WEBHOOK_API_VERSION}/${verb}`;
 }
 
 /**
  * Constructs a full API path for webhook operations with query string.
  *
+ * @param verb - The action verb
  * @param queryString - Query string to append (without leading ?)
- * @param segments - Path segments
- * @returns The full API path with version prefix and query string
+ * @param segments - Additional path segments
+ * @returns The full API path with version, verb, and query string
  *
  * @internal
  */
 export function webhookApiPathWithQuery(
+	verb: string,
 	queryString: string | undefined,
 	...segments: string[]
 ): string {
-	const basePath = webhookApiPath(...segments);
+	const basePath = webhookApiPath(verb, ...segments);
 	return queryString ? `${basePath}?${queryString}` : basePath;
+}
+
+/**
+ * Constructs the public ingest URL for a webhook.
+ *
+ * Pattern: `/webhook/{orgId}-{webhookId}` (non-versioned, public)
+ *
+ * @param orgId - The organization ID
+ * @param webhookId - The webhook ID (prefixed with wh_)
+ * @returns The public ingest URL
+ *
+ * @internal
+ */
+export function webhookIngestPath(orgId: string, webhookId: string): string {
+	return `/webhook/${encodeURIComponent(orgId)}-${encodeURIComponent(webhookId)}`;
 }
 
 // ============================================================================

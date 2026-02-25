@@ -55,7 +55,7 @@ export async function listWebhookDeliveries(
 	}
 
 	const queryString = searchParams.toString();
-	const url = webhookApiPathWithQuery(queryString || undefined, webhookId, 'delivery');
+	const url = webhookApiPathWithQuery('delivery-list', queryString || undefined, webhookId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.get(
@@ -104,7 +104,7 @@ export async function retryWebhookDelivery(
 	deliveryId: string,
 	options?: WebhookApiOptions
 ): Promise<WebhookDelivery> {
-	const url = webhookApiPath(webhookId, 'delivery', deliveryId, 'retry');
+	const url = webhookApiPath('delivery-retry', webhookId, deliveryId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.post(

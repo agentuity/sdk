@@ -47,7 +47,7 @@ export async function createWebhook(
 	params: CreateWebhookRequest,
 	options?: WebhookApiOptions
 ): Promise<Webhook> {
-	const url = webhookApiPath();
+	const url = webhookApiPath('create');
 	const resp = await client.post(
 		url,
 		params,
@@ -89,7 +89,7 @@ export async function getWebhook(
 	webhookId: string,
 	options?: WebhookApiOptions
 ): Promise<Webhook> {
-	const url = webhookApiPath(webhookId);
+	const url = webhookApiPath('get', webhookId);
 	const resp = await withWebhookErrorHandling(
 		() => client.get(url, WebhookResponseSchema, undefined, buildWebhookHeaders(options?.orgId)),
 		{ webhookId }
@@ -138,7 +138,7 @@ export async function listWebhooks(
 	}
 
 	const queryString = searchParams.toString();
-	const url = webhookApiPathWithQuery(queryString || undefined);
+	const url = webhookApiPathWithQuery('list', queryString || undefined);
 	const resp = await client.get(
 		url,
 		WebhooksListResponseSchema,
@@ -182,7 +182,7 @@ export async function updateWebhook(
 	params: UpdateWebhookRequest,
 	options?: WebhookApiOptions
 ): Promise<Webhook> {
-	const url = webhookApiPath(webhookId);
+	const url = webhookApiPath('update', webhookId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.put(
@@ -229,7 +229,7 @@ export async function deleteWebhook(
 	webhookId: string,
 	options?: WebhookApiOptions
 ): Promise<void> {
-	const url = webhookApiPath(webhookId);
+	const url = webhookApiPath('delete', webhookId);
 	const resp = await withWebhookErrorHandling(
 		() =>
 			client.delete(

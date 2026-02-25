@@ -8,6 +8,7 @@ import { createWebhook } from '@agentuity/server';
 const WebhookCreateResponseSchema = z.object({
 	id: z.string(),
 	name: z.string(),
+	url: z.string().optional(),
 	created_at: z.string(),
 });
 
@@ -52,12 +53,16 @@ export const createSubcommand = createCommand({
 
 		if (!options.json) {
 			tui.success(`Created webhook: ${webhook.name}`);
-			console.log(`  ID: ${webhook.id}`);
+			console.log(`  ID:  ${webhook.id}`);
+			if (webhook.url) {
+				console.log(`  URL: ${webhook.url}`);
+			}
 		}
 
 		return {
 			id: webhook.id,
 			name: webhook.name,
+			url: webhook.url,
 			created_at: webhook.created_at,
 		};
 	},
