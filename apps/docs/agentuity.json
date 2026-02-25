@@ -5,5 +5,13 @@
 	"deployment": {
 		"domains": ["agentuity.dev"]
 	},
+	"build": {
+		"timeout": "30m",
+		"resources": {
+			"memory": "4Gi",
+			"cpu": "2",
+			"disk": "4Gi"
+		}
+	},
 	"region": "use"
 }
