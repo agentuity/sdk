@@ -48,10 +48,12 @@ export const createSubcommand = createCommand({
 	schema: {
 		args: z.object({
 			title: z.string().min(1).describe('the task title'),
+		}),
+		options: z.object({
 			type: z
 				.enum(['epic', 'feature', 'enhancement', 'bug', 'task'])
 				.describe('the task type'),
-			'created-id': z.string().min(1).describe('the ID of the creator (agent or user)'),
+			createdId: z.string().min(1).describe('the ID of the creator (agent or user)'),
 			description: z.string().optional().describe('task description'),
 			priority: z
 				.enum(['high', 'medium', 'low', 'none'])
@@ -61,22 +63,22 @@ export const createSubcommand = createCommand({
 				.enum(['open', 'in_progress', 'closed'])
 				.optional()
 				.describe('initial task status (default: open)'),
-			'parent-id': z.string().optional().describe('parent task ID for subtasks'),
-			'assigned-id': z.string().optional().describe('ID of the assigned agent or user'),
+			parentId: z.string().optional().describe('parent task ID for subtasks'),
+			assignedId: z.string().optional().describe('ID of the assigned agent or user'),
 			metadata: z.string().optional().describe('JSON metadata object'),
 		}),
 		response: TaskCreateResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, opts, options } = ctx;
 		const started = Date.now();
 		const storage = createStorageAdapter(ctx);
 
 		let metadata: Record<string, unknown> | undefined;
-		if (args.metadata) {
+		if (opts.metadata) {
 			try {
-				metadata = JSON.parse(args.metadata) as Record<string, unknown>;
+				metadata = JSON.parse(opts.metadata) as Record<string, unknown>;
 			} catch {
 				tui.fatal('Invalid JSON for --metadata flag');
 			}
@@ -84,13 +86,13 @@ export const createSubcommand = createCommand({
 
 		const task = await storage.create({
 			title: args.title,
-			type: args.type as TaskType,
-			created_id: args['created-id'],
-			description: args.description,
-			priority: (args.priority as TaskPriority) ?? undefined,
-			status: (args.status as TaskStatus) ?? undefined,
-			parent_id: args['parent-id'],
-			assigned_id: args['assigned-id'],
+			type: opts.type as TaskType,
+			created_id: opts.createdId,
+			description: opts.description,
+			priority: (opts.priority as TaskPriority) ?? undefined,
+			status: (opts.status as TaskStatus) ?? undefined,
+			parent_id: opts.parentId,
+			assigned_id: opts.assignedId,
 			metadata,
 		});
 
@@ -98,15 +100,20 @@ export const createSubcommand = createCommand({
 
 		if (!options.json) {
 			tui.success(`Task created: ${tui.bold(task.id)}`);
-			tui.info(`  Title:    ${task.title}`);
-			tui.info(`  Type:     ${task.type}`);
-			tui.info(`  Status:   ${task.status}`);
-			tui.info(`  Priority: ${task.priority}`);
-			tui.info(`  Created:  ${task.created_at}`);
+
+			const tableData: Record<string, string> = {
+				Title: task.title,
+				Type: task.type,
+				Status: task.status,
+				Priority: task.priority,
+				Created: new Date(task.created_at).toLocaleString(),
+			};
+
 			if (task.description) {
-				tui.info(`  Desc:     ${task.description}`);
+				tableData['Description'] = task.description;
 			}
-			tui.info(`  (${durationMs.toFixed(1)}ms)`);
+
+			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 		}
 
 		return {

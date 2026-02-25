@@ -86,7 +86,7 @@ export const listSubcommand = createCommand({
 		},
 	],
 	schema: {
-		args: z.object({
+		options: z.object({
 			status: z
 				.enum(['open', 'in_progress', 'closed'])
 				.optional()
@@ -99,8 +99,8 @@ export const listSubcommand = createCommand({
 				.enum(['high', 'medium', 'low', 'none'])
 				.optional()
 				.describe('filter by priority'),
-			'assigned-id': z.string().optional().describe('filter by assigned agent or user ID'),
-			'parent-id': z.string().optional().describe('filter by parent task ID'),
+			assignedId: z.string().optional().describe('filter by assigned agent or user ID'),
+			parentId: z.string().optional().describe('filter by parent task ID'),
 			sort: z
 				.enum([
 					'created_at',
@@ -123,20 +123,20 @@ export const listSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { opts, options } = ctx;
 		const started = Date.now();
 		const storage = createStorageAdapter(ctx);
 
 		const result = await storage.list({
-			status: args.status as TaskStatus | undefined,
-			type: args.type as TaskType | undefined,
-			priority: args.priority as TaskPriority | undefined,
-			assigned_id: args['assigned-id'],
-			parent_id: args['parent-id'],
-			sort: args.sort,
-			order: args.order,
-			limit: args.limit,
-			offset: args.offset,
+			status: opts.status as TaskStatus | undefined,
+			type: opts.type as TaskType | undefined,
+			priority: opts.priority as TaskPriority | undefined,
+			assigned_id: opts.assignedId,
+			parent_id: opts.parentId,
+			sort: opts.sort,
+			order: opts.order,
+			limit: opts.limit,
+			offset: opts.offset,
 		});
 
 		const durationMs = Date.now() - started;

@@ -44,6 +44,8 @@ export const updateSubcommand = createCommand({
 	schema: {
 		args: z.object({
 			id: z.string().min(1).describe('the task ID to update'),
+		}),
+		options: z.object({
 			title: z.string().optional().describe('new task title'),
 			description: z.string().optional().describe('new task description'),
 			priority: z
@@ -58,37 +60,37 @@ export const updateSubcommand = createCommand({
 				.enum(['open', 'in_progress', 'closed'])
 				.optional()
 				.describe('new task status'),
-			'assigned-id': z.string().optional().describe('new assigned agent or user ID'),
-			'parent-id': z.string().optional().describe('new parent task ID'),
-			'closed-id': z.string().optional().describe('ID of the closer (agent or user)'),
+			assignedId: z.string().optional().describe('new assigned agent or user ID'),
+			parentId: z.string().optional().describe('new parent task ID'),
+			closedId: z.string().optional().describe('ID of the closer (agent or user)'),
 			metadata: z.string().optional().describe('JSON metadata object'),
 		}),
 		response: TaskUpdateResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, opts, options } = ctx;
 		const started = Date.now();
 		const storage = createStorageAdapter(ctx);
 
 		let metadata: Record<string, unknown> | undefined;
-		if (args.metadata) {
+		if (opts.metadata) {
 			try {
-				metadata = JSON.parse(args.metadata) as Record<string, unknown>;
+				metadata = JSON.parse(opts.metadata) as Record<string, unknown>;
 			} catch {
 				tui.fatal('Invalid JSON for --metadata flag');
 			}
 		}
 
 		const params: Record<string, unknown> = {};
-		if (args.title !== undefined) params.title = args.title;
-		if (args.description !== undefined) params.description = args.description;
-		if (args.priority !== undefined) params.priority = args.priority as TaskPriority;
-		if (args.type !== undefined) params.type = args.type as TaskType;
-		if (args.status !== undefined) params.status = args.status as TaskStatus;
-		if (args['assigned-id'] !== undefined) params.assigned_id = args['assigned-id'];
-		if (args['parent-id'] !== undefined) params.parent_id = args['parent-id'];
-		if (args['closed-id'] !== undefined) params.closed_id = args['closed-id'];
+		if (opts.title !== undefined) params.title = opts.title;
+		if (opts.description !== undefined) params.description = opts.description;
+		if (opts.priority !== undefined) params.priority = opts.priority as TaskPriority;
+		if (opts.type !== undefined) params.type = opts.type as TaskType;
+		if (opts.status !== undefined) params.status = opts.status as TaskStatus;
+		if (opts.assignedId !== undefined) params.assigned_id = opts.assignedId;
+		if (opts.parentId !== undefined) params.parent_id = opts.parentId;
+		if (opts.closedId !== undefined) params.closed_id = opts.closedId;
 		if (metadata !== undefined) params.metadata = metadata;
 
 		if (Object.keys(params).length === 0) {
@@ -100,12 +102,16 @@ export const updateSubcommand = createCommand({
 
 		if (!options.json) {
 			tui.success(`Task updated: ${tui.bold(task.id)}`);
-			tui.info(`  Title:    ${task.title}`);
-			tui.info(`  Type:     ${task.type}`);
-			tui.info(`  Status:   ${task.status}`);
-			tui.info(`  Priority: ${task.priority}`);
-			tui.info(`  Updated:  ${task.updated_at}`);
-			tui.info(`  (${durationMs.toFixed(1)}ms)`);
+
+			const tableData: Record<string, string> = {
+				Title: task.title,
+				Type: task.type,
+				Status: task.status,
+				Priority: task.priority,
+				Updated: new Date(task.updated_at).toLocaleString(),
+			};
+
+			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 		}
 
 		return {

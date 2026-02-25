@@ -1,4 +1,5 @@
 import { createCommand } from '../../../types';
+import { getSubcommand } from './get';
 import { createSubcommand } from './create';
 import { updateSubcommand } from './update';
 import { listSubcommand } from './list';
@@ -9,6 +10,10 @@ export const taskCommand = createCommand({
 	description: 'Manage tasks for your projects',
 	tags: ['requires-auth', 'slow'],
 	examples: [
+		{
+			command: getCommand('cloud task get task_abc123'),
+			description: 'Get task details',
+		},
 		{
 			command: getCommand('cloud task create "Fix bug" --type bug --created-id agent_001'),
 			description: 'Create a new bug task',
@@ -22,7 +27,7 @@ export const taskCommand = createCommand({
 			description: 'Update task status',
 		},
 	],
-	subcommands: [createSubcommand, updateSubcommand, listSubcommand],
+	subcommands: [getSubcommand, createSubcommand, updateSubcommand, listSubcommand],
 	requires: { auth: true },
 });
 
