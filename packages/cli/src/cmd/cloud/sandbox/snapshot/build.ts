@@ -1,27 +1,27 @@
-import { z } from 'zod';
-import { resolve, join, extname } from 'node:path';
-import { existsSync, statSync, createReadStream, createWriteStream } from 'node:fs';
+import { createHash, createPublicKey, randomUUID } from 'node:crypto';
+import { createReadStream, createWriteStream, existsSync, statSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { extname, join, resolve } from 'node:path';
+import type { SnapshotBuildGitInfo, SnapshotFileInfo } from '@agentuity/server';
+import {
+	NPM_PACKAGE_NAME_PATTERN,
+	SnapshotBuildFileSchema,
+	snapshotBuildFinalize,
+	snapshotBuildInit,
+	snapshotUpload,
+} from '@agentuity/server';
 import { YAML } from 'bun';
 import * as tar from 'tar';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { ErrorCode } from '../../../../errors';
+import { z } from 'zod';
 import { getCommand } from '../../../../command-prefix';
-import {
-	snapshotBuildInit,
-	snapshotBuildFinalize,
-	snapshotUpload,
-	SnapshotBuildFileSchema,
-	NPM_PACKAGE_NAME_PATTERN,
-} from '@agentuity/server';
-import type { SnapshotFileInfo, SnapshotBuildGitInfo } from '@agentuity/server';
 import { getCatalystAPIClient } from '../../../../config';
+import { encryptFIPSKEMDEMStream } from '../../../../crypto/box';
+import { ErrorCode } from '../../../../errors';
+import * as tui from '../../../../tui';
+import { createCommand } from '../../../../types';
 import { validateAptDependencies } from '../../../../utils/apt-validator';
 import { getGitInfo, mergeGitInfo } from '../../../../utils/git';
-import { encryptFIPSKEMDEMStream } from '../../../../crypto/box';
-import { tmpdir } from 'node:os';
-import { randomUUID, createHash, createPublicKey } from 'node:crypto';
-import { rm } from 'node:fs/promises';
 
 export const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 export const MAX_SNAPSHOT_TAG_LENGTH = 128;
@@ -206,10 +206,7 @@ async function resolveFileGlobs(
 						size: stat.size,
 					});
 				}
-			} catch {
-				// Skip files that can't be stat'd (broken symlinks, permission issues, etc.)
-				continue;
-			}
+			} catch {}
 		}
 	}
 
@@ -358,9 +355,7 @@ export const buildSubcommand = createCommand({
 			description: 'Build using a custom build file',
 		},
 		{
-			command: getCommand(
-				'cloud sandbox snapshot build . --env API_KEY=secret --tag production'
-			),
+			command: getCommand('cloud sandbox snapshot build . --env API_KEY=secret --tag production'),
 			description: 'Build with environment variable substitution and custom tag',
 		},
 		{
@@ -381,10 +376,7 @@ export const buildSubcommand = createCommand({
 				.string()
 				.optional()
 				.describe('Path to build file (defaults to agentuity-snapshot.[json|yaml|yml])'),
-			env: z
-				.array(z.string())
-				.optional()
-				.describe('Environment variable substitution (KEY=VALUE)'),
+			env: z.array(z.string()).optional().describe('Environment variable substitution (KEY=VALUE)'),
 			name: z.string().optional().describe('Snapshot name (overrides build file)'),
 			tag: z.string().optional().describe('Snapshot tag (defaults to "latest")'),
 			description: z.string().optional().describe('Snapshot description (overrides build file)'),
@@ -416,7 +408,7 @@ export const buildSubcommand = createCommand({
 
 		const dryRun = options.dryRun === true;
 
-		const directory = resolve(args.directory);
+		let directory = resolve(args.directory);
 		if (!existsSync(directory)) {
 			logger.fatal(`Directory not found: ${directory}`);
 		}
@@ -475,6 +467,17 @@ export const buildSubcommand = createCommand({
 
 		const buildConfig = validationResult.data;
 
+		// If dir is specified in the build file, use it as the effective build context
+		if (buildConfig.dir) {
+			const dirPath = resolve(directory, buildConfig.dir);
+			if (!existsSync(dirPath)) {
+				logger.fatal(
+					`Build context directory not found: ${dirPath} (specified by 'dir: ${buildConfig.dir}' in build file)`
+				);
+			}
+			directory = dirPath;
+		}
+
 		// Determine if snapshot is public: CLI flag takes precedence, otherwise use build file
 		const isPublic =
 			opts.public === true || (opts.public === undefined && buildConfig.public === true);
@@ -483,21 +486,21 @@ export const buildSubcommand = createCommand({
 			if (!opts.confirm) {
 				if (!tui.isTTYLike()) {
 					logger.fatal(
-						`Publishing a public snapshot requires confirmation.\n\n` +
-							`Public snapshots make all environment variables and files publicly accessible.\n\n` +
-							`To proceed, add the --confirm flag:\n` +
+						'Publishing a public snapshot requires confirmation.\n\n' +
+							'Public snapshots make all environment variables and files publicly accessible.\n\n' +
+							'To proceed, add the --confirm flag:\n' +
 							`  ${getCommand('cloud sandbox snapshot build . --public --confirm')}\n\n` +
-							`To preview what will be published, use --dry-run first:\n` +
+							'To preview what will be published, use --dry-run first:\n' +
 							`  ${getCommand('cloud sandbox snapshot build . --public --dry-run')}`
 					);
 				}
 
 				tui.warningBox(
 					'Public Snapshot',
-					`You are publishing a public snapshot.\n\n` +
-						`This will make all environment variables and\n` +
-						`files in the snapshot publicly accessible.\n\n` +
-						`Run with --dry-run to preview the contents.`
+					'You are publishing a public snapshot.\n\n' +
+						'This will make all environment variables and\n' +
+						'files in the snapshot publicly accessible.\n\n' +
+						'Run with --dry-run to preview the contents.'
 				);
 				console.log('');
 
@@ -511,9 +514,7 @@ export const buildSubcommand = createCommand({
 
 		if (opts.tag) {
 			if (opts.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
-				logger.fatal(
-					`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`
-				);
+				logger.fatal(`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`);
 			}
 			if (!SNAPSHOT_TAG_REGEX.test(opts.tag)) {
 				logger.fatal(
@@ -560,12 +561,7 @@ export const buildSubcommand = createCommand({
 				message: 'Validating apt dependencies...',
 				type: 'simple',
 				callback: async () => {
-					return await validateAptDependencies(
-						buildConfig.dependencies!,
-						region,
-						config,
-						logger
-					);
+					return await validateAptDependencies(buildConfig.dependencies!, region, config, logger);
 				},
 			});
 
@@ -879,11 +875,7 @@ export const buildSubcommand = createCommand({
 						clearOnError: true,
 						callback: async (updateProgress) => {
 							const uploadFile = Bun.file(uploadPath);
-							const progressStream = createProgressStream(
-								uploadFile,
-								uploadSize,
-								updateProgress
-							);
+							const progressStream = createProgressStream(uploadFile, uploadSize, updateProgress);
 							await snapshotUpload(client, {
 								snapshotId: initResult.snapshotId!,
 								body: progressStream,
@@ -926,10 +918,7 @@ export const buildSubcommand = createCommand({
 							'Malware Detected',
 							`Your snapshot was rejected because it contains malware.\n\nVirus: ${virusName}\n\nPlease remove the infected files and try again.`
 						);
-						tui.fatal(
-							'Snapshot build failed due to malware detection',
-							ErrorCode.MALWARE_DETECTED
-						);
+						tui.fatal('Snapshot build failed due to malware detection', ErrorCode.MALWARE_DETECTED);
 					}
 
 					throw err;
