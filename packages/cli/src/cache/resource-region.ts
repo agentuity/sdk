@@ -62,7 +62,8 @@ export type ResourceType =
 	| 'queue'
 	| 'vector'
 	| 'kv'
-	| 'stream';
+	| 'stream'
+	| 'webhook';
 
 /**
  * Resource info returned from cache lookup
