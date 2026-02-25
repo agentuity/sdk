@@ -257,6 +257,12 @@ export class TaskStorageService implements TaskStorage {
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
 			throw new TaskIdRequiredError();
 		}
+		if (
+			params.title !== undefined &&
+			(typeof params.title !== 'string' || params.title.trim().length === 0)
+		) {
+			throw new TaskTitleRequiredError();
+		}
 
 		const url = buildUrl(this.#baseUrl, `/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);

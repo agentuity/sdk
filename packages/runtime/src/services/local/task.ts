@@ -12,7 +12,20 @@ import type {
 	ListTasksResult,
 	TaskChangelogResult,
 } from '@agentuity/core';
+import { StructuredError } from '@agentuity/core';
 import { now } from './_util';
+
+const TaskTitleRequiredError = StructuredError(
+	'TaskTitleRequiredError',
+	'Task title is required and must be a non-empty string'
+);
+
+const TaskNotFoundError = StructuredError('TaskNotFoundError', 'Task not found');
+
+const TaskAlreadyClosedError = StructuredError(
+	'TaskAlreadyClosedError',
+	'Task is already closed'
+);
 
 type TaskRow = {
 	id: string;
@@ -107,7 +120,7 @@ export class LocalTaskStorage implements TaskStorage {
 
 	async create(params: CreateTaskParams): Promise<Task> {
 		if (!params?.title?.trim()) {
-			throw new Error('Task title is required');
+			throw new TaskTitleRequiredError();
 		}
 
 		const id = generateTaskId();
@@ -140,44 +153,46 @@ export class LocalTaskStorage implements TaskStorage {
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`);
 
-		stmt.run(
-			this.#projectPath,
+		const row: TaskRow = {
 			id,
-			params.title,
-			params.description ?? null,
-			params.metadata ? JSON.stringify(params.metadata) : null,
-			priority,
-			params.parent_id ?? null,
-			params.type,
-			status,
-			openDate,
-			inProgressDate,
-			closedDate,
-			params.created_id,
-			params.assigned_id ?? null,
-			null,
-			timestamp,
-			timestamp
-		);
-
-		return {
-			id,
-			created_at: new Date(timestamp).toISOString(),
-			updated_at: new Date(timestamp).toISOString(),
+			created_at: timestamp,
+			updated_at: timestamp,
 			title: params.title,
-			description: params.description,
-			metadata: params.metadata,
+			description: params.description ?? null,
+			metadata: params.metadata ? JSON.stringify(params.metadata) : null,
 			priority,
-			parent_id: params.parent_id,
+			parent_id: params.parent_id ?? null,
 			type: params.type,
 			status,
-			open_date: openDate ?? undefined,
-			in_progress_date: inProgressDate ?? undefined,
-			closed_date: closedDate ?? undefined,
+			open_date: openDate,
+			in_progress_date: inProgressDate,
+			closed_date: closedDate,
 			created_id: params.created_id,
-			assigned_id: params.assigned_id,
-			closed_id: undefined,
+			assigned_id: params.assigned_id ?? null,
+			closed_id: null,
 		};
+
+		stmt.run(
+			this.#projectPath,
+			row.id,
+			row.title,
+			row.description,
+			row.metadata,
+			row.priority,
+			row.parent_id,
+			row.type,
+			row.status,
+			row.open_date,
+			row.in_progress_date,
+			row.closed_date,
+			row.created_id,
+			row.assigned_id,
+			row.closed_id,
+			row.created_at,
+			row.updated_at
+		);
+
+		return toTask(row);
 	}
 
 	async get(id: string): Promise<Task | null> {
@@ -283,34 +298,33 @@ export class LocalTaskStorage implements TaskStorage {
 	}
 
 	async update(id: string, params: UpdateTaskParams): Promise<Task> {
-		const existingQuery = this.#db.query(`
-			SELECT
-				id,
-				created_at,
-				updated_at,
-				title,
-				description,
-				metadata,
-				priority,
-				parent_id,
-				type,
-				status,
-				open_date,
-				in_progress_date,
-				closed_date,
-				created_id,
-				assigned_id,
-				closed_id
-			FROM task_storage
-			WHERE project_path = ? AND id = ?
-		`);
-
-		const existing = existingQuery.get(this.#projectPath, id) as TaskRow | null;
-		if (!existing) {
-			throw new Error('Task not found');
-		}
-
 		const updateInTransaction = this.#db.transaction(() => {
+			const existingQuery = this.#db.query(`
+				SELECT
+					id,
+					created_at,
+					updated_at,
+					title,
+					description,
+					metadata,
+					priority,
+					parent_id,
+					type,
+					status,
+					open_date,
+					in_progress_date,
+					closed_date,
+					created_id,
+					assigned_id,
+					closed_id
+				FROM task_storage
+				WHERE project_path = ? AND id = ?
+			`);
+
+			const existing = existingQuery.get(this.#projectPath, id) as TaskRow | null;
+			if (!existing) {
+				throw new TaskNotFoundError();
+			}
 			const timestamp = now();
 			const nowIso = new Date(timestamp).toISOString();
 
@@ -459,34 +473,37 @@ export class LocalTaskStorage implements TaskStorage {
 	}
 
 	async close(id: string): Promise<Task> {
-		const existingQuery = this.#db.query(`
-			SELECT
-				id,
-				created_at,
-				updated_at,
-				title,
-				description,
-				metadata,
-				priority,
-				parent_id,
-				type,
-				status,
-				open_date,
-				in_progress_date,
-				closed_date,
-				created_id,
-				assigned_id,
-				closed_id
-			FROM task_storage
-			WHERE project_path = ? AND id = ?
-		`);
-
-		const existing = existingQuery.get(this.#projectPath, id) as TaskRow | null;
-		if (!existing) {
-			throw new Error('Task not found');
-		}
-
 		const closeInTransaction = this.#db.transaction(() => {
+			const existingQuery = this.#db.query(`
+				SELECT
+					id,
+					created_at,
+					updated_at,
+					title,
+					description,
+					metadata,
+					priority,
+					parent_id,
+					type,
+					status,
+					open_date,
+					in_progress_date,
+					closed_date,
+					created_id,
+					assigned_id,
+					closed_id
+				FROM task_storage
+				WHERE project_path = ? AND id = ?
+			`);
+
+			const existing = existingQuery.get(this.#projectPath, id) as TaskRow | null;
+			if (!existing) {
+				throw new TaskNotFoundError();
+			}
+
+			if (existing.status === 'closed') {
+				throw new TaskAlreadyClosedError();
+			}
 			const timestamp = now();
 			const nowIso = new Date(timestamp).toISOString();
 			const updated: TaskRow = {

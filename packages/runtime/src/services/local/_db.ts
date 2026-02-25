@@ -134,6 +134,11 @@ function initializeTables(db: Database): void {
 			PRIMARY KEY (project_path, id)
 		)
 	`);
+
+	db.run(`
+		CREATE INDEX IF NOT EXISTS idx_task_changelog_lookup
+		ON task_changelog_storage(project_path, task_id)
+	`);
 }
 
 function cleanupOrphanedProjects(db: Database): void {
