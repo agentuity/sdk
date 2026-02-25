@@ -7,5 +7,6 @@ export * from './sandbox.ts';
 export * from './schedule.ts';
 export * from './session.ts';
 export * from './stream.ts';
+export * from './task.ts';
 export * from './vector.ts';
 export { buildUrl, toServiceException, toPayload, fromResponse } from './_util.ts';

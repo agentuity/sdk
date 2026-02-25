@@ -11,10 +11,7 @@ const PromptClassificationSchemaZod = z.object({
 	reasoning: z.string(),
 });
 
-export async function rephraseVaguePrompt(
-	ctx: any,
-	input: string
-): Promise<string> {
+export async function rephraseVaguePrompt(ctx: any, input: string): Promise<string> {
 	const systemPrompt = `You are a technical documentation search assistant for developer tools and AI agents. Your job is to CAREFULLY improve unclear queries ONLY when absolutely necessary.
 
 BE EXTREMELY CONSERVATIVE. Most queries should be returned UNCHANGED.
@@ -62,11 +59,7 @@ Return ONLY the query text, nothing else.`;
 		const rephrasedQuery = result.text?.trim() || input;
 		// Log if we actually rephrased it
 		if (rephrasedQuery !== input) {
-			ctx.logger.info(
-				'Rephrased query from "%s" to "%s"',
-				input,
-				rephrasedQuery
-			);
+			ctx.logger.info('Rephrased query from "%s" to "%s"', input, rephrasedQuery);
 		}
 
 		return rephrasedQuery;
@@ -83,10 +76,7 @@ Return ONLY the query text, nothing else.`;
  * @param input - The input string to analyze
  * @returns {Promise<PromptType>} - The determined PromptType
  */
-export async function getPromptType(
-	ctx: any,
-	input: string
-): Promise<PromptType> {
+export async function getPromptType(ctx: any, input: string): Promise<PromptType> {
 	const systemPrompt = `
 You are a query classifier that determines whether a user question requires simple retrieval (Normal) or complex reasoning (Thinking).
 
@@ -132,10 +122,7 @@ Be conservative - when in doubt, default to "Normal" for better performance.`;
 
 		return classification.type as PromptType;
 	} catch (error) {
-		ctx.logger.error(
-			'Error classifying prompt, defaulting to Normal: %o',
-			error
-		);
+		ctx.logger.error('Error classifying prompt, defaulting to Normal: %o', error);
 		return 'Normal' as PromptType;
 	}
 }

@@ -37,14 +37,13 @@ A team of specialized AI agents for code assistance with persistent memory via A
 | session-start.sh            | SessionStart      | Gather Agentuity context (project, org, user)                  |
 | session-end.sh              | SessionEnd        | Dual-path memory save: immediate KV + async agentic processing |
 
-### Commands (6)
+### Commands (5)
 
 | Command                   | Description                                                    |
 | ------------------------- | -------------------------------------------------------------- |
 | /agentuity-coder          | Activate full team orchestration via Lead                      |
 | /agentuity-cadence        | Start a long-running Cadence loop (autonomous task completion) |
 | /agentuity-cadence-cancel | Cancel an active Cadence loop                                  |
-| /agentuity-memory-save    | Save session to Agentuity Cloud memory                         |
 | /agentuity-memory-share   | Share content publicly via Agentuity Cloud Streams             |
 | /agentuity-sandbox        | Agentuity sandboxes (isolated execution environments)          |
 

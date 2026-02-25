@@ -11,21 +11,10 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { LucideIcon } from 'lucide-react';
-import {
-	BookText,
-	Container,
-	Database,
-	DatabaseZap,
-	ListTodo,
-	Radio,
-} from 'lucide-react';
+import { BookText, Container, Database, DatabaseZap, ListTodo, Radio } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../ThemeContext';
-import {
-	Dialog,
-	DialogContent,
-	DialogTitle,
-} from '../ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 const iconMap: Record<string, LucideIcon> = {
 	database: Database,
@@ -308,13 +297,7 @@ const createEdges = (isDark: boolean): Edge[] => {
 	];
 };
 
-function DiagramFlow({
-	isDark,
-	onPaneClick,
-}: {
-	isDark: boolean;
-	onPaneClick?: () => void;
-}) {
+function DiagramFlow({ isDark, onPaneClick }: { isDark: boolean; onPaneClick?: () => void }) {
 	const nodes = createNodes(isDark);
 	const edges = createEdges(isDark);
 
@@ -351,16 +334,12 @@ export function GravityNetworkDiagram() {
 	const { theme, resolvedTheme } = useTheme();
 	const [isFullscreen, setIsFullscreen] = useState(false);
 
-	const isDark =
-		theme === 'dark' || (theme === 'system' && resolvedTheme === 'dark');
+	const isDark = theme === 'dark' || (theme === 'system' && resolvedTheme === 'dark');
 
 	return (
 		<>
 			<div className="w-full h-[380px] rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden my-6 cursor-pointer [&_.react-flow__handle]:opacity-0">
-				<DiagramFlow
-					isDark={isDark}
-					onPaneClick={() => setIsFullscreen(true)}
-				/>
+				<DiagramFlow isDark={isDark} onPaneClick={() => setIsFullscreen(true)} />
 				<p className="text-xs text-zinc-500 dark:text-zinc-500 text-center py-2">
 					* Coming soon
 				</p>
@@ -368,13 +347,8 @@ export function GravityNetworkDiagram() {
 
 			<Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
 				<DialogContent className="max-w-[95vw] sm:max-w-[95vw] h-[90vh] p-0 gap-0 [&_.react-flow__handle]:opacity-0">
-					<DialogTitle className="sr-only">
-						Gravity Network Diagram
-					</DialogTitle>
-					<DiagramFlow
-						isDark={isDark}
-						onPaneClick={() => setIsFullscreen(false)}
-					/>
+					<DialogTitle className="sr-only">Gravity Network Diagram</DialogTitle>
+					<DiagramFlow isDark={isDark} onPaneClick={() => setIsFullscreen(false)} />
 				</DialogContent>
 			</Dialog>
 		</>

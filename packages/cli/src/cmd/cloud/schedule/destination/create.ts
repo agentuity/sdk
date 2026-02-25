@@ -50,9 +50,21 @@ export const createSubcommand = createCommand({
 		const { args, opts, options } = ctx;
 		const schedule = createScheduleAdapter(ctx);
 
-		const parsedConfig = opts.config
-			? (JSON.parse(opts.config) as Record<string, unknown>)
-			: {};
+		if (args.type === 'sandbox' && !args.target.startsWith('sbx_')) {
+			tui.fatal('Sandbox target must start with "sbx_"');
+		}
+		if (args.type === 'url' && !args.target.startsWith('http://') && !args.target.startsWith('https://')) {
+			tui.fatal('URL target must start with http:// or https://');
+		}
+
+		let parsedConfig: Record<string, unknown> = {};
+		if (opts.config) {
+			try {
+				parsedConfig = JSON.parse(opts.config) as Record<string, unknown>;
+			} catch (e) {
+				tui.fatal(`Invalid JSON in --config: ${e instanceof Error ? e.message : String(e)}`);
+			}
+		}
 
 		const config: Record<string, unknown> = {
 			...parsedConfig,
@@ -64,10 +76,10 @@ export const createSubcommand = createCommand({
 		if (args.type === 'sandbox') {
 			config.sandbox_id = args.target;
 		}
-		if (opts.method) {
+		if (opts.method && args.type === 'url') {
 			config.method = opts.method;
 		}
-		if (opts.timeout !== undefined) {
+		if (opts.timeout !== undefined && args.type === 'url') {
 			config.timeout = opts.timeout;
 		}
 

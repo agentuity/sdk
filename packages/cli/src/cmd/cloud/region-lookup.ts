@@ -1,4 +1,4 @@
-import { StreamStorageService, type Logger } from '@agentuity/core';
+import { StreamStorageService, TaskStorageService, type Logger } from '@agentuity/core';
 import {
 	projectGet,
 	sandboxResolve,
@@ -13,7 +13,7 @@ import type { AuthData, Config } from '../../types';
 import * as tui from '../../tui';
 import { ErrorCode } from '../../errors';
 
-export type IdentifierType = 'project' | 'deployment' | 'sandbox' | 'stream';
+export type IdentifierType = 'project' | 'deployment' | 'sandbox' | 'stream' | 'task';
 
 /**
  * Determine the type of identifier based on its prefix
@@ -27,6 +27,9 @@ export function getIdentifierType(identifier: string): IdentifierType {
 	}
 	if (identifier.startsWith('sbx_')) {
 		return 'sandbox';
+	}
+	if (identifier.startsWith('task_')) {
+		return 'task';
 	}
 	if (identifier.startsWith('stream_')) {
 		return 'stream';
@@ -82,6 +85,34 @@ export async function getIdentifierRegion(
 		}
 		const deployment = await deploymentGet(apiClient, identifier);
 		region = deployment.cloudRegion ?? null;
+	} else if (identifierType === 'task') {
+		// Tasks live in per-tenant DBs accessible from any regional Catalyst.
+		// Use default region to reach Catalyst, which can resolve the task for the org.
+		const taskDefaultRegion = await getDefaultRegion(profileName, config);
+		const taskBaseUrl = getServiceUrls(taskDefaultRegion).catalyst;
+		const resolvedTaskOrgId =
+			orgId ?? process.env.AGENTUITY_CLOUD_ORG_ID ?? config?.preferences?.orgId;
+		if (!resolvedTaskOrgId) {
+			tui.fatal(
+				`Organization ID required to resolve task '${identifier}'. Use --org-id or set AGENTUITY_CLOUD_ORG_ID.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
+		const taskAdapter = createServerFetchAdapter(
+			{
+				headers: {
+					Authorization: `Bearer ${auth.apiKey}`,
+					'x-agentuity-orgid': resolvedTaskOrgId,
+				},
+			},
+			logger
+		);
+		const taskService = new TaskStorageService(taskBaseUrl, taskAdapter);
+		const taskResult = await taskService.get(identifier);
+		if (taskResult) {
+			region = taskDefaultRegion;
+			orgId = resolvedTaskOrgId;
+		}
 	} else if (identifierType === 'sandbox') {
 		// sandbox - use CLI API to resolve across all orgs the user has access to
 		if (!apiClient) {

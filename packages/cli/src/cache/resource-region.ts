@@ -62,7 +62,8 @@ export type ResourceType =
 	| 'queue'
 	| 'vector'
 	| 'kv'
-	| 'stream';
+	| 'stream'
+	| 'task';
 
 /**
  * Resource info returned from cache lookup

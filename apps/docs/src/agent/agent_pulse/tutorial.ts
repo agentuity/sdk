@@ -17,7 +17,9 @@ export async function getTutorialList(ctx: any): Promise<ApiResponse<Tutorial[]>
 		const response = await fetch(`${TUTORIAL_API_BASE_URL}/api/tutorials`);
 
 		if (!response.ok) {
-			const errorData = (await response.json().catch(() => ({ error: response.statusText }))) as {
+			const errorData = (await response
+				.json()
+				.catch(() => ({ error: response.statusText }))) as {
 				error?: string;
 				details?: any;
 			};
@@ -46,7 +48,10 @@ export async function getTutorialList(ctx: any): Promise<ApiResponse<Tutorial[]>
 	}
 }
 
-export async function getTutorialMeta(tutorialId: string, ctx: any): Promise<ApiResponse<Tutorial>> {
+export async function getTutorialMeta(
+	tutorialId: string,
+	ctx: any
+): Promise<ApiResponse<Tutorial>> {
 	try {
 		if (!TUTORIAL_API_BASE_URL) {
 			ctx.logger.warn('TUTORIAL_API_URL not configured');
@@ -59,7 +64,9 @@ export async function getTutorialMeta(tutorialId: string, ctx: any): Promise<Api
 		const response = await fetch(`${TUTORIAL_API_BASE_URL}/api/tutorials/${tutorialId}`);
 
 		if (!response.ok) {
-			const errorData = (await response.json().catch(() => ({ error: response.statusText }))) as {
+			const errorData = (await response
+				.json()
+				.catch(() => ({ error: response.statusText }))) as {
 				error?: string;
 				details?: any;
 			};
@@ -148,10 +155,14 @@ export async function getTutorialStep(
 			};
 		}
 
-		const response = await fetch(`${TUTORIAL_API_BASE_URL}/api/tutorials/${tutorialId}/steps/${stepNumber}`);
+		const response = await fetch(
+			`${TUTORIAL_API_BASE_URL}/api/tutorials/${tutorialId}/steps/${stepNumber}`
+		);
 
 		if (!response.ok) {
-			const errorData = (await response.json().catch(() => ({ error: response.statusText }))) as {
+			const errorData = (await response
+				.json()
+				.catch(() => ({ error: response.statusText }))) as {
 				error?: string;
 				details?: any;
 			};
@@ -181,7 +192,12 @@ export async function getTutorialStep(
 		ctx.logger.info('Fetched step %d for tutorial %s', stepNumber, tutorialId);
 		return responseData;
 	} catch (error) {
-		ctx.logger.error('Error fetching tutorial step %d for tutorial %s: %s', stepNumber, tutorialId, error);
+		ctx.logger.error(
+			'Error fetching tutorial step %d for tutorial %s: %s',
+			stepNumber,
+			tutorialId,
+			error
+		);
 		return {
 			success: false,
 			error: `Network error: ${error instanceof Error ? error.message : String(error)}`,

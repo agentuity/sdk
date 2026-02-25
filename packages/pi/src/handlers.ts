@@ -17,7 +17,7 @@ interface ActionContext {
 
 export async function processActions(
 	actions: HubAction[],
-	ctx: ActionContext,
+	ctx: ActionContext
 ): Promise<ActionResult> {
 	let result: ActionResult = {};
 
@@ -55,10 +55,7 @@ export async function processActions(
 			case 'CONFIRM': {
 				// Gate: if user denies, stop and block
 				if (ctx?.ui) {
-					const confirmed = await ctx.ui.confirm(
-						action.title,
-						action.message,
-					);
+					const confirmed = await ctx.ui.confirm(action.title, action.message);
 					if (!confirmed) {
 						return {
 							block: {
@@ -72,9 +69,7 @@ export async function processActions(
 					result = {
 						block: {
 							block: true,
-							reason:
-								action.deny_reason ??
-								'Confirmation required but no UI available',
+							reason: action.deny_reason ?? 'Confirmation required but no UI available',
 						},
 					};
 				}

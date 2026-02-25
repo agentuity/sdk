@@ -8,24 +8,29 @@ import { createStreamingProcessor } from './streaming-processor';
 import type { ConversationMessage, Action } from './types';
 
 const agent = createAgent('AgentPulse', {
-	description: 'Multi-turn tutorial and documentation assistant using LLM with tools for tutorial navigation and documentation search',
+	description:
+		'Multi-turn tutorial and documentation assistant using LLM with tools for tutorial navigation and documentation search',
 	schema: {
 		input: s.object({
 			message: s.string().describe('The user message or query'),
-			conversationHistory: s.optional(
-				s.array(
+			conversationHistory: s
+				.optional(
+					s.array(
+						s.object({
+							author: s.union(s.literal('USER'), s.literal('ASSISTANT')),
+							content: s.string(),
+						})
+					)
+				)
+				.describe('Previous conversation messages for context'),
+			tutorialData: s
+				.optional(
 					s.object({
-						author: s.union(s.literal('USER'), s.literal('ASSISTANT')),
-						content: s.string(),
+						tutorialId: s.string(),
+						currentStep: s.number(),
 					})
 				)
-			).describe('Previous conversation messages for context'),
-			tutorialData: s.optional(
-				s.object({
-					tutorialId: s.string(),
-					currentStep: s.number(),
-				})
-			).describe('Current tutorial state if user is in a tutorial'),
+				.describe('Current tutorial state if user is in a tutorial'),
 		}),
 		output: s.any(),
 	},
