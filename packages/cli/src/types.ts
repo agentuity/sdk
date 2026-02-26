@@ -724,6 +724,10 @@ const TemplateResourceSchema = zod.object({
 		.string()
 		.optional()
 		.describe('suggested default name when provisioning this resource'),
+	queueType: zod
+		.enum(['worker', 'pubsub'])
+		.optional()
+		.describe('queue type — required when type is "queue"'),
 });
 
 const TemplateEnvSchema = zod.object({

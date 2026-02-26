@@ -2,13 +2,27 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Logger, parseEnvExample, StructuredError } from '@agentuity/core';
-import { listOrganizations, projectCreate } from '@agentuity/server';
+import {
+	createQueue,
+	createResources,
+	listOrganizations,
+	listQueues,
+	listResources,
+	projectCreate,
+	validateDatabaseName,
+} from '@agentuity/server';
 import type { APIClient } from '../../api';
 import { isTTY } from '../../auth';
-import { createProjectConfig } from '../../config';
+import {
+	createProjectConfig,
+	getCatalystAPIClient,
+	getGlobalCatalystAPIClient,
+} from '../../config';
+import { addResourceEnvVars } from '../../env-util';
 import { getDefaultBranch, isGitAvailable } from '../../git-helper';
 import { fetchRegionsWithCache } from '../../regions';
 import * as tui from '../../tui';
+import { createPrompt } from '../../tui';
 import type { AuthData, Config } from '../../types';
 import {
 	checkGithubRepo,
@@ -45,6 +59,7 @@ export interface RemoteImportOptions {
 	projectId?: string;
 	repo?: string;
 	name?: string;
+	env?: string[];
 	org?: string;
 	apiClient: APIClient;
 	auth: AuthData;
@@ -595,7 +610,7 @@ async function runDeploy(dest: string, logger: Logger): Promise<void> {
  * Run the remote import flow: download from GitHub, set up project, optionally push and deploy.
  */
 export async function runRemoteImport(options: RemoteImportOptions): Promise<void> {
-	const { url, deploy, projectId, repo, name, org, apiClient, auth, config, logger } = options;
+	const { url, deploy, projectId, repo, name, env, org, apiClient, auth, config, logger } = options;
 
 	// Safety check: refuse to run inside an existing git repo
 	try {
@@ -748,6 +763,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 					envVar: string;
 					description?: string;
 					defaultName?: string;
+					queueType?: 'worker' | 'pubsub';
 				}>;
 				env?: Array<{ key: string; required: boolean; description?: string }>;
 			};
@@ -844,6 +860,279 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		// If no .env.example but we know the source, still track it
 		if (!template && parsed.owner && parsed.repo) {
 			template = { source: `github.com/${parsed.owner}/${parsed.repo}` };
+		}
+
+		// ─── Resource Provisioning ───
+
+		// Parse --env flags into a map
+		const envOverrides = new Map<string, string>();
+		for (const e of env ?? []) {
+			const colonIdx = e.indexOf(':');
+			if (colonIdx > 0) {
+				envOverrides.set(e.slice(0, colonIdx), e.slice(colonIdx + 1));
+			}
+		}
+
+		const resourceEnvVars: Record<string, string> = {};
+		const interactive = isTTY();
+		const templateResources = template?.requirements?.resources ?? [];
+		const templateEnvVars = template?.requirements?.env ?? [];
+
+		// Check if we can provision (need auth + org + region)
+		const orgId = projectInfo.orgId;
+		const region = projectInfo.region;
+		const canProvision = !!orgId && !!region;
+
+		if (canProvision && (templateResources.length > 0 || templateEnvVars.length > 0)) {
+			const catalystClient = getCatalystAPIClient(logger, auth, region);
+
+			// ── Database Resources ──
+			for (const r of templateResources.filter((resource) => resource.type === 'database')) {
+				const overrideName = envOverrides.get(r.envVar);
+
+				if (overrideName) {
+					// Non-interactive path: create DB with the given name
+					try {
+						const validation = validateDatabaseName(overrideName);
+						if (!validation.valid) {
+							throw new RemoteImportConfigError({
+								message: `Invalid database name "${overrideName}": ${validation.error}`,
+							});
+						}
+						const created = await tui.spinner({
+							message: `Creating database "${overrideName}"`,
+							clearOnSuccess: true,
+							callback: () =>
+								createResources(catalystClient, orgId, region, [
+									{ type: 'db', name: overrideName, description: r.description },
+								]),
+						});
+						if (created[0]?.env) {
+							// Map using the template-defined envVar name
+							const connStr = created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
+							if (connStr) resourceEnvVars[r.envVar] = connStr;
+						}
+						tui.success(`Created database: ${overrideName}`);
+					} catch (err: any) {
+						if (!interactive) {
+							throw new RemoteImportConfigError({
+								message: `Failed to create database "${overrideName}": ${err?.message ?? err}`,
+							});
+						}
+						tui.error(`Failed to create database "${overrideName}": ${err?.message ?? err}`);
+						// Fall through to interactive prompt below
+					}
+				}
+
+				// Interactive fallback (no --env or --env failed)
+				if (!resourceEnvVars[r.envVar] && interactive) {
+					const prompt = createPrompt();
+					let existingDbs: Awaited<ReturnType<typeof listResources>> | undefined;
+					try {
+						existingDbs = await tui.spinner({
+							message: 'Fetching existing databases',
+							clearOnSuccess: true,
+							callback: () => listResources(catalystClient, orgId, region),
+						});
+					} catch {
+						// Ignore — just won't show existing options
+					}
+
+					let dbCreated = false;
+					while (!dbCreated) {
+						const action = await prompt.select({
+							message: `${r.description || r.envVar} requires a database`,
+							options: [
+								{ value: 'skip', label: 'Skip — set up later' },
+								{ value: 'create', label: 'Create a new database' },
+								...(existingDbs?.db ?? []).map((db) => ({
+									value: `existing:${db.name}`,
+									label: `Use existing: ${tui.tuiColors.primary(db.name)}`,
+								})),
+							],
+						});
+
+						if (action === 'skip') break;
+
+						if (action === 'create') {
+							const dbName = await prompt.text({
+								message: 'Database name',
+								hint: 'Lowercase letters, digits, underscores only',
+								initial: r.defaultName,
+								validate: (value: string) => {
+									const trimmed = value.trim();
+									if (trimmed === '') return 'Name is required';
+									const result = validateDatabaseName(trimmed);
+									return result.valid ? true : result.error!;
+								},
+							});
+							try {
+								const created = await tui.spinner({
+									message: `Creating database "${dbName}"`,
+									clearOnSuccess: true,
+									callback: () =>
+										createResources(catalystClient, orgId, region, [
+											{ type: 'db', name: dbName.trim(), description: r.description },
+										]),
+								});
+								if (created[0]?.env) {
+									const connStr = created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
+									if (connStr) resourceEnvVars[r.envVar] = connStr;
+								}
+								tui.success(`Created database: ${dbName}`);
+								dbCreated = true;
+							} catch (err: any) {
+								tui.error(`Failed to create database: ${err?.message ?? err}`);
+								// Loop back to prompt
+							}
+						} else if (action.startsWith('existing:')) {
+							const selectedName = action.slice('existing:'.length);
+							const selectedDb = existingDbs?.db.find((d) => d.name === selectedName);
+							if (selectedDb?.env) {
+								const connStr = selectedDb.env.DATABASE_URL ?? Object.values(selectedDb.env)[0];
+								if (connStr) resourceEnvVars[r.envVar] = connStr;
+							}
+							dbCreated = true;
+						}
+					}
+				}
+
+				if (!resourceEnvVars[r.envVar] && !interactive) {
+					tui.info(`Skipping ${r.envVar} — pass --env ${r.envVar}:<db-name> to provision`);
+				}
+			}
+
+			// ── Queue Resources ──
+			const queueClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+			const queueOrgOpts = orgId ? { orgId } : undefined;
+
+			for (const r of templateResources.filter((resource) => resource.type === 'queue')) {
+				if (!r.queueType) {
+					logger.debug('[remote-import] Queue resource %s missing queueType, skipping', r.envVar);
+					continue;
+				}
+
+				const overrideName = envOverrides.get(r.envVar);
+
+				if (overrideName) {
+					// Non-interactive path: create queue with given name
+					try {
+						const queue = await tui.spinner({
+							message: `Creating ${r.queueType} queue "${overrideName}"`,
+							clearOnSuccess: true,
+							callback: () =>
+								createQueue(
+									queueClient,
+									{
+										name: overrideName,
+										queue_type: r.queueType!,
+										description: r.description,
+									},
+									queueOrgOpts
+								),
+						});
+						resourceEnvVars[r.envVar] = queue.name;
+						tui.success(`Created queue: ${queue.name}`);
+					} catch (err: any) {
+						if (!interactive) {
+							throw new RemoteImportConfigError({
+								message: `Failed to create queue "${overrideName}": ${err?.message ?? err}`,
+							});
+						}
+						tui.error(`Failed to create queue "${overrideName}": ${err?.message ?? err}`);
+					}
+				}
+
+				// Interactive fallback
+				if (!resourceEnvVars[r.envVar] && interactive) {
+					const prompt = createPrompt();
+					let existingQueues: Awaited<ReturnType<typeof listQueues>> | undefined;
+					try {
+						existingQueues = await tui.spinner({
+							message: 'Fetching existing queues',
+							clearOnSuccess: true,
+							callback: () => listQueues(queueClient, {}, queueOrgOpts),
+						});
+					} catch {
+						// Ignore
+					}
+
+					let queueCreated = false;
+					while (!queueCreated) {
+						const action = await prompt.select({
+							message: `${r.description || r.envVar} requires a ${r.queueType} queue`,
+							options: [
+								{ value: 'skip', label: 'Skip — set up later' },
+								{ value: 'create', label: `Create a new ${r.queueType} queue` },
+								...(existingQueues?.queues ?? []).map((q) => ({
+									value: `existing:${q.name}`,
+									label: `Use existing: ${tui.tuiColors.primary(q.name)}`,
+								})),
+							],
+						});
+
+						if (action === 'skip') break;
+
+						if (action === 'create') {
+							const queueName = await prompt.text({
+								message: 'Queue name',
+								hint: 'Optional — auto-generated if empty',
+								initial: r.defaultName,
+							});
+							try {
+								const queue = await tui.spinner({
+									message: `Creating ${r.queueType} queue "${queueName || '(auto)'}"`,
+									clearOnSuccess: true,
+									callback: () =>
+										createQueue(
+											queueClient,
+											{
+												name: queueName.trim() || undefined,
+												queue_type: r.queueType!,
+												description: r.description,
+											},
+											queueOrgOpts
+										),
+								});
+								resourceEnvVars[r.envVar] = queue.name;
+								tui.success(`Created queue: ${queue.name}`);
+								queueCreated = true;
+							} catch (err: any) {
+								tui.error(`Failed to create queue: ${err?.message ?? err}`);
+							}
+						} else if (action.startsWith('existing:')) {
+							const selectedName = action.slice('existing:'.length);
+							resourceEnvVars[r.envVar] = selectedName;
+							queueCreated = true;
+						}
+					}
+				}
+
+				if (!resourceEnvVars[r.envVar] && !interactive) {
+					tui.info(`Skipping ${r.envVar} — pass --env ${r.envVar}:<queue-name> to provision`);
+				}
+			}
+
+			// ── Plain Env Vars ──
+			for (const e of templateEnvVars) {
+				if (envOverrides.has(e.key)) {
+					resourceEnvVars[e.key] = envOverrides.get(e.key)!;
+				} else if (interactive && e.required) {
+					const prompt = createPrompt();
+					const val = await prompt.text({
+						message: `Enter value for ${e.key}${e.description ? ` (${e.description})` : ''}`,
+					});
+					if (val.trim()) {
+						resourceEnvVars[e.key] = val.trim();
+					}
+				}
+			}
+
+			// Write all collected env vars to .env
+			if (Object.keys(resourceEnvVars).length > 0) {
+				await addResourceEnvVars(sourceDir, resourceEnvVars);
+				tui.success(`Configured ${Object.keys(resourceEnvVars).length} environment variable(s)`);
+			}
 		}
 
 		// Write agentuity.json and .env to sourceDir so git commit includes them
