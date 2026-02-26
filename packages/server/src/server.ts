@@ -269,6 +269,10 @@ class ServerFetchAdapter implements FetchAdapter {
 		) {
 			headers['Content-Type'] = 'application/octet-stream';
 		}
+		// Ensure we request JSON responses for proper error handling
+		if (!headers['Accept'] && !headers['accept']) {
+			headers['Accept'] = 'application/json';
+		}
 		const method: HttpMethod = options.method ?? 'POST';
 		this.#logger.trace('sending %s to %s with headers: %s', method, url, redactHeaders(headers));
 		const res = await fetch(url, {
