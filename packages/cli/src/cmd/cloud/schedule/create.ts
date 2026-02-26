@@ -32,8 +32,7 @@ export const createSubcommand = createCommand({
 	name: 'create',
 	description: 'Create a schedule',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand("cloud schedule create --name nightly --expression '0 0 * * *'"),
@@ -51,7 +50,7 @@ export const createSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 		const result = await schedule.create({
 			name: opts.name,
 			expression: opts.expression,

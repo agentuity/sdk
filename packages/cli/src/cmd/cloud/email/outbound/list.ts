@@ -30,7 +30,7 @@ export const listSubcommand = createCommand({
 					To: item.to,
 					Subject: item.subject ?? '-',
 					Status: item.status ?? '-',
-					Sent: item.sent_at ? new Date(item.sent_at).toLocaleString() : '-',
+					Created: item.created_at ? new Date(item.created_at).toLocaleString() : '-',
 				})),
 				[
 					{ name: 'ID', alignment: 'left' },
@@ -38,7 +38,7 @@ export const listSubcommand = createCommand({
 					{ name: 'To', alignment: 'left' },
 					{ name: 'Subject', alignment: 'left' },
 					{ name: 'Status', alignment: 'left' },
-					{ name: 'Sent', alignment: 'left' },
+					{ name: 'Created', alignment: 'left' },
 				]
 			);
 		}

@@ -124,12 +124,25 @@ const getReceiptSubcommand = createSubcommand({
 			tui.table([details], undefined, { layout: 'vertical' });
 
 			tui.newline();
-			tui.info('Headers');
+			tui.header('Headers');
 			tui.json(receipt.headers);
 
 			tui.newline();
-			tui.info('Payload');
-			tui.json(receipt.payload);
+			tui.header('Payload');
+			if (typeof receipt.payload === 'string') {
+				try {
+					const decoded = Buffer.from(receipt.payload, 'base64').toString('utf-8');
+					try {
+						tui.json(JSON.parse(decoded));
+					} catch {
+						console.log(decoded);
+					}
+				} catch {
+					tui.json(receipt.payload);
+				}
+			} else {
+				tui.json(receipt.payload);
+			}
 		}
 
 		return receipt;

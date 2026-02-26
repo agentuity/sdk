@@ -74,12 +74,12 @@ export const sendSubcommand = createCommand({
 						Subject: outbound.subject ?? '-',
 						Text: truncate(outbound.text),
 						Status: outbound.status ?? '-',
-						Sent: outbound.sent_at
-							? new Date(outbound.sent_at).toLocaleString()
+						Created: outbound.created_at
+							? new Date(outbound.created_at).toLocaleString()
 							: '-',
 					},
 				],
-				['ID', 'From', 'To', 'Subject', 'Text', 'Status', 'Sent'],
+				['ID', 'From', 'To', 'Subject', 'Text', 'Status', 'Created'],
 				{ layout: 'vertical', padStart: '  ' }
 			);
 		}

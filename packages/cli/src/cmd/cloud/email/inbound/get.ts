@@ -35,13 +35,12 @@ export const getSubcommand = createCommand({
 						To: inbound.to,
 						Subject: inbound.subject ?? '-',
 						Text: truncate(inbound.text),
-						Status: inbound.status ?? '-',
 						Received: inbound.received_at
 							? new Date(inbound.received_at).toLocaleString()
 							: '-',
 					},
 				],
-				['ID', 'From', 'To', 'Subject', 'Text', 'Status', 'Received'],
+				['ID', 'From', 'To', 'Subject', 'Text', 'Received'],
 				{ layout: 'vertical', padStart: '  ' }
 			);
 		}

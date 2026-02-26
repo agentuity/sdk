@@ -59,7 +59,6 @@ export const listSubcommand = createCommand({
 	description: 'List tasks with optional filtering and sorting',
 	tags: ['read-only', 'slow', 'requires-auth'],
 	requires: { auth: true },
-	optional: { project: true },
 	idempotent: true,
 	pagination: {
 		supported: true,
@@ -163,7 +162,7 @@ export const listSubcommand = createCommand({
 				]);
 
 				tui.info(
-					`\nShowing ${result.tasks.length} of ${result.total} ${tui.plural(result.total, 'task', 'tasks')} (${durationMs.toFixed(1)}ms)`
+					`Showing ${result.tasks.length} of ${result.total} ${tui.plural(result.total, 'task', 'tasks')} (${durationMs.toFixed(1)}ms)`
 				);
 			}
 		}

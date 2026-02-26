@@ -58,31 +58,36 @@ export const getSubcommand = createCommand({
 				);
 
 				const data = result.data;
-				tui.info(`  ID: ${data.id}`);
-				tui.info(`  Key: ${data.key}`);
+				const details: Record<string, unknown> = {
+					ID: data.id,
+					Key: data.key,
+				};
 
 				if (data.similarity !== undefined) {
-					tui.info(`  Similarity: ${(data.similarity * 100).toFixed(1)}%`);
+					details.Similarity = `${(data.similarity * 100).toFixed(1)}%`;
 				}
 
 				if (data.document) {
-					const docPreview =
+					details.Document =
 						data.document.length > 200
 							? data.document.substring(0, 197) + '...'
 							: data.document;
-					tui.info(`  Document: ${docPreview}`);
-				}
-
-				if (data.metadata && Object.keys(data.metadata).length > 0) {
-					tui.info(`  Metadata: ${JSON.stringify(data.metadata, null, 2)}`);
 				}
 
 				if (data.embeddings) {
-					tui.info(`  Embeddings: [${data.embeddings.length} dimensions]`);
+					details.Embeddings = `[${data.embeddings.length} dimensions]`;
 				}
 
 				if (data.expiresAt) {
-					tui.info(`  Expires: ${new Date(data.expiresAt).toLocaleString()}`);
+					details.Expires = new Date(data.expiresAt).toLocaleString();
+				}
+
+				tui.table([details], undefined, { layout: 'vertical' });
+
+				if (data.metadata && Object.keys(data.metadata).length > 0) {
+					tui.newline();
+					tui.header('Metadata');
+					tui.json(data.metadata);
 				}
 			} else {
 				tui.warning(`Vector "${tui.bold(args.key)}" not found in ${tui.bold(args.namespace)}`);

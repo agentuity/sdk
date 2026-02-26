@@ -57,13 +57,22 @@ const listDestinationsSubcommand = createSubcommand({
 			if (destinations.length === 0) {
 				tui.info('No destinations configured');
 			} else {
-				const tableData = destinations.map((d: WebhookDestination) => ({
-					ID: d.id,
-					Type: d.type,
-					Config: JSON.stringify(d.config),
-					Created: new Date(d.created_at).toLocaleString(),
-				}));
-				tui.table(tableData, ['ID', 'Type', 'Config', 'Created']);
+				const tableData = destinations.map((d: WebhookDestination) => {
+					const config =
+						d.type === 'url' &&
+						d.config &&
+						typeof d.config === 'object' &&
+						'url' in d.config
+							? String((d.config as Record<string, unknown>).url)
+							: JSON.stringify(d.config);
+					return {
+						ID: d.id,
+						Type: d.type,
+						URL: config,
+						Created: new Date(d.created_at).toLocaleString(),
+					};
+				});
+				tui.table(tableData, ['ID', 'Type', 'URL', 'Created']);
 			}
 		}
 
@@ -130,7 +139,7 @@ const createDestinationSubcommand = createCommand({
 	examples: [
 		{
 			command: getCommand(
-				'cloud webhook destinations create url wh_abc123 --url https://example.com/webhook'
+				'cloud webhook destinations create url wh_abc123 https://example.com/webhook'
 			),
 			description: 'Create a URL destination',
 		},
@@ -182,7 +191,11 @@ const updateDestinationSubcommand = createSubcommand({
 
 		if (!options.json) {
 			tui.success(`Updated destination: ${destination.id}`);
-			console.log(`  URL: ${JSON.stringify(destination.config)}`);
+			const url =
+				destination.config && typeof destination.config === 'object' && 'url' in destination.config
+					? (destination.config as Record<string, unknown>).url
+					: JSON.stringify(destination.config);
+			console.log(`  URL: ${url}`);
 		}
 
 		return destination;

@@ -34,7 +34,6 @@ export const getSubcommand = createCommand({
 	tags: ['read-only', 'slow', 'requires-auth'],
 	idempotent: true,
 	requires: { auth: true },
-	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('cloud task get task_abc123'),
@@ -103,11 +102,13 @@ export const getSubcommand = createCommand({
 			if (task.closed_date) {
 				tableData['Closed'] = new Date(task.closed_date).toLocaleString();
 			}
-			if (task.metadata && Object.keys(task.metadata).length > 0) {
-				tableData['Metadata'] = JSON.stringify(task.metadata);
-			}
-
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
+
+			if (task.metadata && Object.keys(task.metadata).length > 0) {
+				tui.newline();
+				tui.header('Metadata');
+				tui.json(task.metadata);
+			}
 		}
 
 		return {

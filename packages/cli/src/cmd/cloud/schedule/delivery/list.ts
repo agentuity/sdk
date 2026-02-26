@@ -24,8 +24,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List deliveries for a schedule',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{
@@ -46,7 +45,7 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 		const result = await schedule.listDeliveries(args.schedule_id, {
 			limit: opts.limit,
 			offset: opts.offset,
