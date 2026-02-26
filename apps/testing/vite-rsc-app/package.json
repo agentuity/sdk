@@ -1,0 +1,32 @@
+{
+	"name": "vite-rsc-app",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "concurrently -n web,agent -c blue,cyan \"bun run dev:web\" \"bun run dev:agent\"",
+		"dev:web": "vite --port 3002",
+		"dev:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts dev --dir . --port 3502",
+		"build": "concurrently \"bun run build:web\" \"bun run build:agent\"",
+		"build:web": "vite build",
+		"build:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts build --dir . --dev",
+		"preview": "vite preview",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/frontend": "workspace:*",
+		"@agentuity/react": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.2",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"@vitejs/plugin-rsc": "^0.5.0",
+		"concurrently": "^9.2.1",
+		"typescript": "^5.7.2",
+		"vite": "^7.1.7"
+	}
+}
