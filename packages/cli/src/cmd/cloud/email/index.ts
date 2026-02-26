@@ -7,6 +7,7 @@ import { destinationCommand } from './destination';
 import { sendSubcommand } from './send';
 import { inboundCommand } from './inbound';
 import { outboundCommand } from './outbound';
+import { statsSubcommand } from './stats';
 
 export const emailCommand = createCommand({
 	name: 'email',
@@ -22,6 +23,7 @@ export const emailCommand = createCommand({
 		sendSubcommand,
 		inboundCommand,
 		outboundCommand,
+		statsSubcommand,
 	],
 	requires: { auth: true },
 });

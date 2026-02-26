@@ -3,6 +3,7 @@ import { getSubcommand } from './get';
 import { createSubcommand } from './create';
 import { updateSubcommand } from './update';
 import { listSubcommand } from './list';
+import { statsSubcommand } from './stats';
 import { getCommand } from '../../../command-prefix';
 
 export const taskCommand = createCommand({
@@ -27,7 +28,7 @@ export const taskCommand = createCommand({
 			description: 'Update task status',
 		},
 	],
-	subcommands: [getSubcommand, createSubcommand, updateSubcommand, listSubcommand],
+	subcommands: [getSubcommand, createSubcommand, updateSubcommand, listSubcommand, statsSubcommand],
 	requires: { auth: true },
 });
 
