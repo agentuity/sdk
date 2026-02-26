@@ -165,9 +165,7 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 	);
 
 	for (const result of changeResults) {
-		if (result.success) {
-			processed++;
-		} else {
+		if (result && !result.success) {
 			errors++;
 			errorFiles.push(result.path);
 		}

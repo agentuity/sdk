@@ -562,6 +562,11 @@ export const navData: NavSection[] = [
 				],
 			},
 			{
+				title: 'GitHub App',
+				url: '/reference/github-app',
+				description: 'Automate deployments from GitHub repositories with push and PR preview environments',
+			},
+			{
 				title: 'SDK Reference',
 				url: '/reference/sdk-reference',
 				description: 'Comprehensive reference for the Agentuity TypeScript/JavaScript SDK',

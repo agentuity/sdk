@@ -456,6 +456,99 @@ ctx.logger.info("Claude response", { text: claudeResult.text });
 // - Handles authentication automatically
 // - Tracks usage and costs in your dashboard`,
 
+	websocket: `// WebSocket route for real-time bidirectional communication.
+// The websocket() middleware handles upgrade and lifecycle automatically.
+import { createRouter, websocket } from "@agentuity/runtime";
+import echoAgent from "@agent/websocket";
+
+const router = createRouter();
+
+// websocket() middleware with flattened (c, ws) signature
+router.get("/connect", websocket((c, ws) => {
+  let heartbeat: Timer;
+
+  ws.onOpen(() => {
+    c.var.logger?.info("Client connected");
+
+    ws.send(JSON.stringify({
+      type: "system",
+      message: "Connected! Send messages and I will echo them back.",
+      timestamp: new Date().toISOString(),
+    }));
+
+    // Keep-alive heartbeat every 15 seconds
+    heartbeat = setInterval(() => {
+      ws.send(JSON.stringify({ type: "heartbeat", message: "ping" }));
+    }, 15000);
+  });
+
+  ws.onMessage(async (event) => {
+    const message = event.data as string;
+
+    // Call agent for processing (any async work is fine here)
+    const response = await echoAgent.run(message);
+
+    ws.send(JSON.stringify({
+      type: "echo",
+      message: response,
+      original: message,
+      timestamp: new Date().toISOString(),
+    }));
+  });
+
+  ws.onClose(() => {
+    c.var.logger?.info("Client disconnected");
+    clearInterval(heartbeat);
+  });
+}));`,
+
+	webrtc: `// WebRTC signaling endpoint — one line for the server.
+// All the complexity lives in the client SDK.
+import { createRouter, webrtc } from "@agentuity/runtime";
+
+const router = createRouter();
+
+// Server: just mount the signaling middleware
+router.get("/signal", webrtc({ maxPeers: 2 }));
+
+// --- Client: useWebRTCCall hook from @agentuity/react ---
+
+// Data-only mode (text chat, file transfer — no camera needed)
+import { useWebRTCCall } from "@agentuity/react";
+
+function DataChat({ roomId }: { roomId: string }) {
+  const { state, peerId, sendString, connect, hangup } = useWebRTCCall({
+    roomId,
+    signalUrl: "/api/webrtc/signal",
+    media: false, // No camera/mic
+    dataChannels: [{ label: "chat", ordered: true }],
+    autoConnect: false,
+    callbacks: {
+      onDataChannelMessage: (from, label, data) => {
+        console.log(\`[\${from}] \${data}\`);
+      },
+    },
+  });
+
+  // connect() to join, sendString("chat", text) to send,
+  // hangup() to leave. State: idle → connecting → connected.
+}
+
+// Video call mode (camera + mic)
+function VideoCall({ roomId }: { roomId: string }) {
+  const {
+    localVideoRef, remoteStreams, remotePeerIds,
+    state, muteAudio, isAudioMuted, hangup,
+  } = useWebRTCCall({
+    roomId,
+    signalUrl: "/api/webrtc/signal",
+    // media defaults to { video: true, audio: true }
+  });
+
+  // <video ref={localVideoRef} autoPlay muted playsInline />
+  // remoteStreams.get(peerId) for each remote video
+}`,
+
 	evals: `// Evals run automatically after your agent responds.
 // Define evaluations in a separate file alongside your agent.
 import { answerCompleteness } from "@agentuity/evals";

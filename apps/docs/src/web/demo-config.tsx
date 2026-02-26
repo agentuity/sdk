@@ -13,6 +13,8 @@ import { PersistentStreamDemo } from './components/PersistentStreamDemo';
 import { SSEStreamDemo } from './components/SSEStreamDemo';
 import { StreamingDemo } from './components/StreamingDemo';
 import { VectorSearch } from './components/VectorSearch';
+import { WebRTCDemo } from './components/WebRTCDemo';
+import { WebSocketDemo } from './components/WebSocketDemo';
 import type { LineHighlight } from './components/CodeBlock';
 
 export type DemoId =
@@ -25,6 +27,8 @@ export type DemoId =
 	| 'ai-gateway'
 	| 'sse-stream'
 	| 'streaming'
+	| 'websocket'
+	| 'webrtc'
 	| 'durable-stream'
 	| 'cron'
 	| 'agent-calls'
@@ -298,6 +302,76 @@ export const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: 'sse-stream',
 		sandboxInput: { prompt: 'Explain what Server-Sent Events are in 2-3 sentences.' },
+		isRoute: true,
+	},
+	{
+		id: 'websocket',
+		title: 'WebSocket',
+		subtitle: 'Bidirectional Communication',
+		description: 'Real-time bidirectional messaging over a persistent connection.',
+		explanation: (
+			<>
+				WebSockets give you a <em>persistent, bidirectional</em> connection between client and
+				server. Unlike SSE (server-to-client only), both sides can send messages at any time.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					The websocket() middleware handles the protocol upgrade and lifecycle for you
+				</span>
+				. Define <em>onOpen</em>, <em>onMessage</em>, and <em>onClose</em> callbacks, and call
+				agents or other async code from inside them. For simpler one-way streaming, see{' '}
+				<a
+					href="/demo/sse-stream"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					SSE streaming
+				</a>
+				. For peer-to-peer communication (audio, video, data), see{' '}
+				<a
+					href="/demo/webrtc"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					WebRTC
+				</a>
+				.
+			</>
+		),
+		docsUrl: '/routes/websockets',
+		category: 'io-patterns',
+		component: WebSocketDemo,
+		codeExample: CODE_EXAMPLES.websocket,
+		sandboxEnabled: true,
+		sandboxScript: 'websocket',
+		isRoute: true,
+	},
+	{
+		id: 'webrtc',
+		title: 'WebRTC',
+		subtitle: 'Peer-to-Peer Communication',
+		description: 'Audio, video, and data channels directly between browsers.',
+		explanation: (
+			<>
+				WebRTC enables <em>peer-to-peer</em> connections between browsers for audio, video, and
+				arbitrary data. The server only handles <em>signaling</em> (helping peers find each
+				other); once connected, data flows directly between browsers.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					One line on the server (webrtc() middleware), one hook on the client (useWebRTCCall)
+				</span>
+				. Try the Data Channel tab for text chat, or the Video Call tab for live audio/video
+				and screen sharing. For server-mediated messaging, see{' '}
+				<a
+					href="/demo/websocket"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					WebSocket
+				</a>
+				.
+			</>
+		),
+		docsUrl: '/routes/webrtc',
+		category: 'io-patterns',
+		component: WebRTCDemo,
+		codeExample: CODE_EXAMPLES.webrtc,
+		sandboxEnabled: true,
+		sandboxScript: 'webrtc',
 		isRoute: true,
 	},
 	{

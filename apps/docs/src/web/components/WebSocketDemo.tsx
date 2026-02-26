@@ -1,7 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useWebsocket } from '@agentuity/react';
 import { Button, Input } from './ui';
 
-interface Message {
+/**
+ * Shape of messages the server sends over the WebSocket.
+ * The hook auto-parses JSON, so we receive these as objects.
+ */
+interface ServerMessage {
+	type: 'system' | 'echo' | 'heartbeat' | 'error';
+	message: string;
+	timestamp: string;
+	original?: string;
+}
+
+/**
+ * Unified display message type that includes both server messages
+ * and locally-tracked sent/reconnect messages.
+ */
+interface DisplayMessage {
 	id: number;
 	type: 'system' | 'echo' | 'heartbeat' | 'error' | 'sent' | 'reconnect';
 	message: string;
@@ -10,184 +26,114 @@ interface Message {
 }
 
 export function WebSocketDemo() {
-	const [messages, setMessages] = useState<Message[]>([]);
+	// The hook auto-connects on mount and handles reconnection with exponential backoff.
+	// Route has no typed schemas, so we cast where needed.
+	const {
+		isConnected,
+		messages: rawServerMessages,
+		send: rawSend,
+		close,
+		clearMessages,
+		error,
+		readyState,
+	} = useWebsocket('/api/websocket/connect', { maxMessages: 100 });
+
+	// Type-safe wrappers for the untyped route
+	const serverMessages = rawServerMessages as unknown as ServerMessage[];
+	const send = rawSend as unknown as (data: string) => void;
+
 	const [inputValue, setInputValue] = useState('');
-	const [isConnected, setIsConnected] = useState(false);
-	const [isConnecting, setIsConnecting] = useState(false);
-	const [isReconnecting, setIsReconnecting] = useState(false);
-	const wsRef = useRef<WebSocket | null>(null);
+	const [localMessages, setLocalMessages] = useState<DisplayMessage[]>([]);
 	const messageIdRef = useRef(0);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
-	const wasConnectedRef = useRef(false);
-	const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const manualDisconnectRef = useRef(false);
+	const prevConnectedRef = useRef(false);
+	const hasConnectedOnceRef = useRef(false);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when messages change
+	// Derive reconnecting state: disconnected with an error means the hook
+	// is attempting exponential backoff reconnection.
+	const isReconnecting = !isConnected && !!error;
+
+	// Merge server messages (mapped to DisplayMessage) with locally tracked
+	// sent/reconnect messages, sorted by timestamp.
+	const displayMessages = useMemo(() => {
+		const mapped: DisplayMessage[] = serverMessages.map((msg, i) => ({
+			// Negative IDs for server messages to avoid collision with local IDs
+			id: -(i + 1),
+			type: msg.type,
+			message: msg.message,
+			timestamp: msg.timestamp,
+			original: msg.original,
+		}));
+		return [...mapped, ...localMessages].sort(
+			(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+		);
+	}, [serverMessages, localMessages]);
+
+	// Track reconnection events: if we were disconnected and are now connected
+	// again (after having connected at least once), add a reconnect message.
 	useEffect(() => {
-		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-	}, [messages.length]);
-
-	const connect = useCallback((isReconnect = false) => {
-		// Prevent multiple connection attempts if already connected or connecting
-		if (
-			wsRef.current?.readyState === WebSocket.OPEN ||
-			wsRef.current?.readyState === WebSocket.CONNECTING
-		) {
-			return;
-		}
-
-		if (isReconnect) {
-			setIsReconnecting(true);
-		} else {
-			setIsConnecting(true);
-			manualDisconnectRef.current = false;
-		}
-
-		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-		const ws = new WebSocket(`${protocol}//${window.location.host}/api/websocket/connect`);
-
-		ws.onopen = () => {
-			const wasReconnect = isReconnect;
-			setIsConnected(true);
-			setIsConnecting(false);
-			setIsReconnecting(false);
-			wasConnectedRef.current = true;
-
-			// Show reconnected message if this was a reconnection
-			if (wasReconnect) {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: messageIdRef.current++,
-						type: 'reconnect',
-						message: 'Reconnected successfully',
-						timestamp: new Date().toISOString(),
-					},
-				]);
-			}
-		};
-
-		ws.onmessage = (event) => {
-			try {
-				const data = JSON.parse(event.data);
-				setMessages((prev) => [
-					...prev,
-					{
-						id: messageIdRef.current++,
-						type: data.type,
-						message: data.message,
-						timestamp: data.timestamp,
-						original: data.original,
-					},
-				]);
-			} catch {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: messageIdRef.current++,
-						type: 'system',
-						message: event.data,
-						timestamp: new Date().toISOString(),
-					},
-				]);
-			}
-		};
-
-		ws.onclose = () => {
-			setIsConnected(false);
-			setIsConnecting(false);
-			wsRef.current = null;
-
-			// Auto-reconnect if we were previously connected and didn't manually disconnect
-			if (wasConnectedRef.current && !manualDisconnectRef.current) {
-				setIsReconnecting(true);
-				setMessages((prev) => [
-					...prev,
-					{
-						id: messageIdRef.current++,
-						type: 'reconnect',
-						message: 'Connection lost. Reconnecting...',
-						timestamp: new Date().toISOString(),
-					},
-				]);
-
-				// Reconnect after a short delay
-				reconnectTimeoutRef.current = setTimeout(() => {
-					connect(true);
-				}, 2000);
-			}
-		};
-
-		ws.onerror = () => {
-			setIsConnected(false);
-			setIsConnecting(false);
-			setIsReconnecting(false);
-		};
-
-		wsRef.current = ws;
-	}, []);
-
-	const disconnect = useCallback(() => {
-		manualDisconnectRef.current = true;
-		wasConnectedRef.current = false;
-		if (reconnectTimeoutRef.current) {
-			clearTimeout(reconnectTimeoutRef.current);
-			reconnectTimeoutRef.current = null;
-		}
-		wsRef.current?.close();
-		wsRef.current = null;
-		setIsConnected(false);
-		setIsReconnecting(false);
-	}, []);
-
-	const sendMessage = useCallback(() => {
-		if (!inputValue.trim() || !wsRef.current) return;
-
-		const message = inputValue.trim();
-		try {
-			wsRef.current.send(message);
-		} catch {
-			setMessages((prev) => [
+		if (isConnected && !prevConnectedRef.current && hasConnectedOnceRef.current) {
+			setLocalMessages((prev) => [
 				...prev,
 				{
 					id: messageIdRef.current++,
-					type: 'error',
-					message: 'Failed to send message. Connection may have been lost.',
+					type: 'reconnect',
+					message: 'Reconnected successfully',
 					timestamp: new Date().toISOString(),
 				},
 			]);
-			return;
 		}
+		if (isConnected) {
+			hasConnectedOnceRef.current = true;
+		}
+		prevConnectedRef.current = isConnected;
+	}, [isConnected]);
 
-		setMessages((prev) => [
+	// Add a "connection lost" local message when we transition to reconnecting
+	const prevReconnectingRef = useRef(false);
+	useEffect(() => {
+		if (isReconnecting && !prevReconnectingRef.current && hasConnectedOnceRef.current) {
+			setLocalMessages((prev) => [
+				...prev,
+				{
+					id: messageIdRef.current++,
+					type: 'reconnect',
+					message: 'Connection lost. Reconnecting...',
+					timestamp: new Date().toISOString(),
+				},
+			]);
+		}
+		prevReconnectingRef.current = isReconnecting;
+	}, [isReconnecting]);
+
+	// Scroll to bottom when new messages arrive
+	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when messages change
+	useEffect(() => {
+		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+	}, [displayMessages.length]);
+
+	const sendMessage = useCallback(() => {
+		if (!inputValue.trim() || !isConnected) return;
+		const message = inputValue.trim();
+		send(message);
+		setLocalMessages((prev) => [
 			...prev,
 			{
 				id: messageIdRef.current++,
 				type: 'sent',
-				message: message,
+				message,
 				timestamp: new Date().toISOString(),
 			},
 		]);
-
 		setInputValue('');
-	}, [inputValue]);
+	}, [inputValue, isConnected, send]);
 
-	const clearMessages = useCallback(() => {
-		setMessages([]);
-	}, []);
+	const handleClear = useCallback(() => {
+		clearMessages();
+		setLocalMessages([]);
+	}, [clearMessages]);
 
-	useEffect(() => {
-		return () => {
-			// Prevent reconnection attempts after unmount
-			manualDisconnectRef.current = true;
-			if (reconnectTimeoutRef.current) {
-				clearTimeout(reconnectTimeoutRef.current);
-			}
-			wsRef.current?.close();
-		};
-	}, []);
-
-	const getMessageStyle = (type: Message['type']) => {
+	const getMessageStyle = (type: DisplayMessage['type']) => {
 		switch (type) {
 			case 'sent':
 				return 'bg-cyan-900/30 border-cyan-500/50 ml-8';
@@ -206,7 +152,7 @@ export function WebSocketDemo() {
 		}
 	};
 
-	const getMessageLabel = (type: Message['type']) => {
+	const getMessageLabel = (type: DisplayMessage['type']) => {
 		switch (type) {
 			case 'sent':
 				return 'You';
@@ -230,18 +176,18 @@ export function WebSocketDemo() {
 			{/* Interactive Demo */}
 			<div className="bg-black border border-zinc-900 rounded-lg p-4">
 				<p className="text-zinc-600 text-xs m-0 mb-4">
-					Note: Connections don't persist across page refresh
+					Auto-connects on mount. The SDK hook handles reconnection with exponential backoff.
 				</p>
 
 				{/* Connection Controls */}
 				<div className="flex items-center gap-4 mb-4">
 					<Button
-						variant={isConnected ? 'destructive' : 'outline'}
+						variant="destructive"
 						size="sm"
-						onClick={isConnected ? disconnect : () => connect()}
-						disabled={isConnecting}
+						onClick={close}
+						disabled={!isConnected}
 					>
-						{isConnecting ? 'Connecting...' : isConnected ? 'Disconnect' : 'Connect'}
+						Disconnect
 					</Button>
 
 					<div className="flex items-center gap-2">
@@ -259,15 +205,17 @@ export function WebSocketDemo() {
 								? 'Connected'
 								: isReconnecting
 									? 'Reconnecting...'
-									: 'Disconnected'}
+									: readyState === 0
+										? 'Connecting...'
+										: 'Disconnected'}
 						</span>
 					</div>
 
-					{messages.length > 0 && (
+					{displayMessages.length > 0 && (
 						<Button
 							variant="ghost"
 							size="xs"
-							onClick={clearMessages}
+							onClick={handleClear}
 							className="text-zinc-500 hover:text-zinc-300"
 						>
 							Clear messages
@@ -282,7 +230,7 @@ export function WebSocketDemo() {
 						value={inputValue}
 						onChange={(e) => setInputValue(e.target.value)}
 						onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-						placeholder={isConnected ? 'Type a message...' : 'Connect first...'}
+						placeholder={isConnected ? 'Type a message...' : 'Waiting for connection...'}
 						disabled={!isConnected}
 						className="flex-1"
 					/>
@@ -298,12 +246,14 @@ export function WebSocketDemo() {
 
 				{/* Messages */}
 				<div className="bg-black border border-zinc-800 rounded-lg h-64 overflow-y-auto p-3 space-y-2">
-					{messages.length === 0 ? (
+					{displayMessages.length === 0 ? (
 						<div className="text-zinc-600 text-sm text-center py-8">
-							{isConnected ? 'Send a message to start...' : 'Click Connect to start'}
+							{isConnected
+								? 'Send a message to start...'
+								: 'Connecting to WebSocket server...'}
 						</div>
 					) : (
-						messages.map((msg) => (
+						displayMessages.map((msg) => (
 							<div
 								key={msg.id}
 								className={`border rounded px-3 py-2 ${getMessageStyle(msg.type)}`}
@@ -333,33 +283,6 @@ export function WebSocketDemo() {
 						))
 					)}
 					<div ref={messagesEndRef} />
-				</div>
-			</div>
-
-			{/* Features */}
-			<div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-				<h2 className="text-lg font-normal text-white mb-4">WebSocket vs SSE</h2>
-
-				<div className="grid grid-cols-2 gap-4">
-					<div className="space-y-2">
-						<h3 className="text-cyan-600 dark:text-cyan-400 font-medium">WebSocket</h3>
-						<ul className="text-sm text-zinc-400 space-y-1">
-							<li>Bidirectional (client + server)</li>
-							<li>Single persistent connection</li>
-							<li>Binary and text data</li>
-							<li>Auto-reconnect (custom, as shown here)</li>
-							<li>Real-time chat, games, collaboration</li>
-						</ul>
-					</div>
-					<div className="space-y-2">
-						<h3 className="text-zinc-400 font-medium">SSE (Server-Sent Events)</h3>
-						<ul className="text-sm text-zinc-500 space-y-1">
-							<li>Server to client only</li>
-							<li>Auto-reconnect (browser built-in)</li>
-							<li>Text data only</li>
-							<li>LLM streaming, notifications</li>
-						</ul>
-					</div>
 				</div>
 			</div>
 		</div>

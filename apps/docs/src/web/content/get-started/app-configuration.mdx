@@ -125,6 +125,54 @@ Use build configuration to add Vite plugins (like Tailwind CSS), exclude package
 
 See the [reference page](/reference/cli/build-configuration) for all options and examples.
 
+## Configuring Deployment and Build Resources
+
+Configure how your project runs and builds in the cloud using the `deployment` and `build` sections of `agentuity.json`.
+
+### deployment
+
+The `deployment` section controls resources allocated when your project is handling requests, and any custom domains:
+
+- `deployment.resources`: CPU, memory, and disk allocated to the running service
+- `deployment.domains`: custom domains attached to the project
+
+### build
+
+The `build` section controls the sandbox where your project compiles during cloud deployment:
+
+- `build.timeout`: maximum time allowed for the build (e.g., `"30m"`)
+- `build.resources`: memory, CPU, and disk for the build sandbox
+
+```json
+{
+  "projectId": "proj_...",
+  "orgId": "org_...",
+  "region": "use",
+  "deployment": {
+    "resources": {
+      "cpu": "500m",
+      "memory": "500Mi",
+      "disk": "500Mi"
+    },
+    "domains": []
+  },
+  "build": {
+    "timeout": "30m",
+    "resources": {
+      "memory": "4Gi",
+      "cpu": "2",
+      "disk": "4Gi"
+    }
+  }
+}
+```
+
+`deployment.resources` controls what your service gets when handling requests. `build.resources` controls the isolated sandbox where your project compiles. Increase build resources if you have large dependencies or complex compilation steps.
+
+For detailed options, see [Deploying to the Cloud](/reference/cli/deployment#resource-configuration).
+
+Run custom steps before or after deployment using `predeploy` and `postdeploy` scripts in `package.json`. See [Running Deploy Lifecycle Scripts](/reference/cli/deployment#running-deploy-lifecycle-scripts).
+
 ## Environment Variables
 
 ```bash

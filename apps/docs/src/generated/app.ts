@@ -372,8 +372,10 @@ const { default: router_17 } = await import('../api/title-generator/route.js');
 app.route('/api/title-generator', router_17);
 const { default: router_18 } = await import('../api/vector-storage/route.js');
 app.route('/api/vector-storage', router_18);
-const { default: router_19 } = await import('../api/websocket/route.js');
-app.route('/api/websocket', router_19);
+const { default: router_19 } = await import('../api/webrtc/route.js');
+app.route('/api/webrtc', router_19);
+const { default: router_20 } = await import('../api/websocket/route.js');
+app.route('/api/websocket', router_20);
 
 // Mount workbench API routes (/_agentuity/workbench/*)
 // Always available for cloud workbench communication
