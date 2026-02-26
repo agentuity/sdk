@@ -20,8 +20,7 @@ export const createSubcommand = createCommand({
 	name: 'create',
 	description: 'Create destination for a schedule',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud schedule destination create url sched_abc123 https://example.com'),
@@ -48,7 +47,7 @@ export const createSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 
 		if (args.type === 'sandbox' && !args.target.startsWith('sbx_')) {
 			tui.fatal('Sandbox target must start with "sbx_"');
@@ -95,12 +94,17 @@ export const createSubcommand = createCommand({
 					{
 						ID: result.destination.id,
 						Type: result.destination.type,
-						Config: JSON.stringify(result.destination.config),
 					},
 				],
 				undefined,
 				{ layout: 'vertical' }
 			);
+
+			if (result.destination.config && Object.keys(result.destination.config).length > 0) {
+				tui.newline();
+				tui.header('Config');
+				tui.json(result.destination.config);
+			}
 		}
 
 		return result;

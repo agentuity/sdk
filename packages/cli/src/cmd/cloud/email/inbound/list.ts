@@ -19,7 +19,7 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options } = ctx;
-		const email = createEmailAdapter(ctx);
+		const email = await createEmailAdapter(ctx);
 		const inbound = await email.listInbound(opts.addressId);
 
 		if (!options.json) {
@@ -29,7 +29,6 @@ export const listSubcommand = createCommand({
 					From: item.from,
 					To: item.to,
 					Subject: item.subject ?? '-',
-					Status: item.status ?? '-',
 					Received: item.received_at ? new Date(item.received_at).toLocaleString() : '-',
 				})),
 				[
@@ -37,7 +36,6 @@ export const listSubcommand = createCommand({
 					{ name: 'From', alignment: 'left' },
 					{ name: 'To', alignment: 'left' },
 					{ name: 'Subject', alignment: 'left' },
-					{ name: 'Status', alignment: 'left' },
 					{ name: 'Received', alignment: 'left' },
 				]
 			);

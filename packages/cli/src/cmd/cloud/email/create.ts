@@ -3,7 +3,8 @@ import enquirer from 'enquirer';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { setResourceInfo } from '../../../cache';
-import { createEmailAdapter, resolveEmailOrgId, resolveEmailRegion, EmailAddressSchema } from './util';
+import { createEmailAdapter, resolveEmailOrgId, EmailAddressSchema } from './util';
+import { defaultProfileName, getDefaultRegion } from '../../../config';
 
 export const createSubcommand = createCommand({
 	name: 'create',
@@ -47,12 +48,12 @@ export const createSubcommand = createCommand({
 			tui.fatal('Email address or username is required');
 		}
 
-		const email = createEmailAdapter(ctx);
+		const profileName = config?.name ?? defaultProfileName;
+		const region = await getDefaultRegion(profileName, ctx.config);
+		const email = await createEmailAdapter(ctx, region);
 		const address = await email.createAddress(localPart);
 
-		const profileName = config?.name ?? 'production';
 		const orgId = resolveEmailOrgId(ctx);
-		const region = resolveEmailRegion(ctx);
 		await setResourceInfo('email', profileName, address.id, region, orgId);
 
 		if (!options.json) {

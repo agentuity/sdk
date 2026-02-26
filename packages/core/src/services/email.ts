@@ -36,8 +36,10 @@ export interface EmailInbound {
 	to: string;
 	subject?: string;
 	text?: string;
-	status?: string;
+	html?: string;
 	received_at?: string;
+	headers?: Record<string, unknown>;
+	attachments?: unknown[];
 }
 
 /**
@@ -52,9 +54,9 @@ export interface EmailOutbound {
 	html?: string;
 	status?: string;
 	error?: string;
-	sent_at?: string;
 	created_at?: string;
-	updated_at?: string;
+	headers?: Record<string, unknown>;
+	attachments?: unknown[];
 }
 
 /**
@@ -525,7 +527,7 @@ export class EmailStorageService implements EmailService {
 		if (params.attachments && params.attachments.length > 0) {
 			body.attachments = params.attachments.map((a) => ({
 				filename: a.filename,
-				content_base64: a.content,
+				content: a.content,
 				...(a.contentType && { content_type: a.contentType }),
 			}));
 		}

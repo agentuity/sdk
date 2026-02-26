@@ -676,7 +676,7 @@ export const buildSubcommand = createCommand({
 
 				if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
 					console.log('');
-					tui.info('Dependencies:');
+					tui.header('Dependencies');
 					for (const dep of buildConfig.dependencies) {
 						console.log(`  ${tui.muted('•')} ${dep}`);
 					}
@@ -684,7 +684,7 @@ export const buildSubcommand = createCommand({
 
 				if (buildConfig.packages && buildConfig.packages.length > 0) {
 					console.log('');
-					tui.info('Packages (npm/bun):');
+					tui.header('Packages (npm/bun)');
 					for (const pkg of buildConfig.packages) {
 						console.log(`  ${tui.muted('•')} ${pkg}`);
 					}
@@ -692,7 +692,7 @@ export const buildSubcommand = createCommand({
 
 				if (finalEnv && Object.keys(finalEnv).length > 0) {
 					console.log('');
-					tui.info('Environment:');
+					tui.header('Environment');
 					for (const [envKey, envValue] of Object.entries(finalEnv)) {
 						console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
 					}
@@ -700,7 +700,7 @@ export const buildSubcommand = createCommand({
 
 				if (fileList.length > 0) {
 					console.log('');
-					tui.info('Files:');
+					tui.header('Files');
 					printFileTree(fileList);
 				}
 			}
@@ -980,7 +980,7 @@ export const buildSubcommand = createCommand({
 
 				if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
 					console.log('');
-					tui.info('Dependencies:');
+					tui.header('Dependencies');
 					for (const dep of buildConfig.dependencies) {
 						console.log(`  ${tui.muted('•')} ${dep}`);
 					}
@@ -988,7 +988,7 @@ export const buildSubcommand = createCommand({
 
 				if (buildConfig.packages && buildConfig.packages.length > 0) {
 					console.log('');
-					tui.info('Packages (npm/bun):');
+					tui.header('Packages (npm/bun)');
 					for (const pkg of buildConfig.packages) {
 						console.log(`  ${tui.muted('•')} ${pkg}`);
 					}
@@ -996,7 +996,7 @@ export const buildSubcommand = createCommand({
 
 				if (finalEnv && Object.keys(finalEnv).length > 0) {
 					console.log('');
-					tui.info('Environment:');
+					tui.header('Environment');
 					for (const [envKey, envValue] of Object.entries(finalEnv)) {
 						console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
 					}
@@ -1004,7 +1004,7 @@ export const buildSubcommand = createCommand({
 
 				if (finalMetadata && Object.keys(finalMetadata).length > 0) {
 					console.log('');
-					tui.info('Metadata:');
+					tui.header('Metadata');
 					for (const key of Object.keys(finalMetadata)) {
 						console.log(`  ${tui.muted('•')} ${key}=${finalMetadata[key]}`);
 					}
@@ -1012,7 +1012,7 @@ export const buildSubcommand = createCommand({
 
 				if (snapshot.files && snapshot.files.length > 0) {
 					console.log('');
-					tui.info('Files:');
+					tui.header('Files');
 					printFileTree(snapshot.files);
 				}
 			}

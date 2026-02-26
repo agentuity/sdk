@@ -475,6 +475,15 @@ export function newline(): void {
 }
 
 /**
+ * Print a section header without any prefix icon
+ */
+export function header(message: string): void {
+	const color = getColor('bold');
+	const reset = getColor('reset');
+	process.stderr.write(`${color}${message}${reset}\n`);
+}
+
+/**
  * Print plain text output without any prefix or icon
  * Use for primary command output that shouldn't have semantic formatting
  */

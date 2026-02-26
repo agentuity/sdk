@@ -24,7 +24,6 @@ export const createSubcommand = createCommand({
 	description: 'Create a new task',
 	tags: ['mutating', 'slow', 'requires-auth'],
 	requires: { auth: true },
-	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('cloud task create "Fix login bug" --type bug --created-id agent_001'),
