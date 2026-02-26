@@ -40,7 +40,11 @@ export const createSubcommand = createCommand({
 
 		// If user entered a full email, extract just the local part
 		if (localPart.includes('@')) {
-			localPart = localPart.split('@')[0] ?? localPart;
+			localPart = localPart.split('@')[0]?.trim() ?? '';
+		}
+
+		if (!localPart) {
+			tui.fatal('Email address or username is required');
 		}
 
 		const email = createEmailAdapter(ctx);
