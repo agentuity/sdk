@@ -61,6 +61,8 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'vector',
 	'sandbox',
 	'queue',
+	'email',
+	'schedule',
 	'task',
 	'state',
 	'thread',
@@ -119,6 +121,8 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 		c.set('vector', services.vector);
 		c.set('sandbox', services.sandbox);
 		c.set('queue', services.queue);
+		c.set('email', services.email);
+		c.set('schedule', services.schedule);
 		c.set('task', services.task);
 
 		installContextPropertyHelpers(c);

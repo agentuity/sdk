@@ -12,6 +12,7 @@ import type {
 	VectorStorage,
 	SandboxService,
 	QueueService,
+	EmailService,
 	ScheduleService,
 	TaskStorage,
 	SessionStartEvent,
@@ -204,6 +205,10 @@ export interface AppConfig<TAppState = Record<string, never>> {
 		 * the EvalRunEventProvider to override instead of the default
 		 */
 		evalRunEvent?: EvalRunEventProvider;
+		/**
+		 * the EmailService to override instead of the default
+		 */
+		email?: EmailService;
 	};
 	/**
 	 * Optional setup function called before server starts
@@ -235,6 +240,7 @@ export interface Variables<TAppState = Record<string, never>> {
 	vector: VectorStorage;
 	sandbox: SandboxService;
 	queue: QueueService;
+	email: EmailService;
 	schedule: ScheduleService;
 	task: TaskStorage;
 	app: TAppState;
