@@ -1,23 +1,58 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { type Logger, parseEnvExample } from '@agentuity/core';
-import { listOrganizations, projectCreate } from '@agentuity/server';
-import type { APIClient } from '../../api';
-import { isTTY } from '../../auth';
-import { createProjectConfig } from '../../config';
-import { getDefaultBranch, isGitAvailable } from '../../git-helper';
-import { fetchRegionsWithCache } from '../../regions';
-import * as tui from '../../tui';
-import type { AuthData, Config } from '../../types';
+import {
+	cpSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { type Logger, parseEnvExample, StructuredError } from "@agentuity/core";
+import { listOrganizations, projectCreate } from "@agentuity/server";
+import type { APIClient } from "../../api";
+import { isTTY } from "../../auth";
+import { createProjectConfig } from "../../config";
+import { getDefaultBranch, isGitAvailable } from "../../git-helper";
+import { fetchRegionsWithCache } from "../../regions";
+import * as tui from "../../tui";
+import type { AuthData, Config } from "../../types";
 import {
 	checkGithubRepo,
 	createGithubRepo,
 	getGithubBotIdentity,
 	getGithubToken,
 	linkProjectToRepo,
-} from '../git/api';
-import { initGitRepo } from './download';
+} from "../git/api";
+import { initGitRepo } from "./download";
+
+// ─── Structured Errors ───
+
+const RemoteImportInvalidURLError = StructuredError(
+	"RemoteImportInvalidURLError",
+);
+const RemoteImportUnsupportedHostError = StructuredError(
+	"RemoteImportUnsupportedHostError",
+);
+const RemoteImportDownloadError = StructuredError("RemoteImportDownloadError");
+const RemoteImportExtractError = StructuredError("RemoteImportExtractError");
+const RemoteImportNoOrganizationError = StructuredError(
+	"RemoteImportNoOrganizationError",
+	"No organizations found for your account",
+);
+const RemoteImportNoRegionError = StructuredError(
+	"RemoteImportNoRegionError",
+	"No cloud regions available",
+);
+const RemoteImportInvalidRepoError = StructuredError(
+	"RemoteImportInvalidRepoError",
+);
+const RemoteImportGitError = StructuredError("RemoteImportGitError");
+const RemoteImportDeployError = StructuredError("RemoteImportDeployError");
+const RemoteImportDirectoryNotFoundError = StructuredError(
+	"RemoteImportDirectoryNotFoundError",
+);
+const RemoteImportConfigError = StructuredError("RemoteImportConfigError");
 
 export interface RemoteImportOptions {
 	url: string;
@@ -44,20 +79,29 @@ interface ParsedGitHubUrl {
  * Prevents token leakage in error messages and logs.
  */
 function sanitizeTokens(msg: string): string {
-	return msg.replace(/x-access-token:[^@]+@/g, 'x-access-token:***@');
+	return msg.replace(/x-access-token:[^@]+@/g, "x-access-token:***@");
 }
 
 /**
- * Build GitHub API request headers, optionally including GITHUB_TOKEN auth.
+ * Build GitHub API request headers, using the Agentuity-managed GitHub token
+ * when available, falling back to the GITHUB_TOKEN env var.
  */
-function githubHeaders(): Record<string, string> {
+async function githubHeaders(
+	apiClient: APIClient,
+): Promise<Record<string, string>> {
 	const headers: Record<string, string> = {
-		Accept: 'application/vnd.github+json',
-		'User-Agent': 'Agentuity-CLI',
+		Accept: "application/vnd.github+json",
+		"User-Agent": "Agentuity-CLI",
 	};
-	const githubToken = process.env.GITHUB_TOKEN;
-	if (githubToken) {
-		headers.Authorization = `Bearer ${githubToken}`;
+	try {
+		const { token } = await getGithubToken(apiClient);
+		headers.Authorization = `Bearer ${token}`;
+	} catch {
+		// Fallback to GITHUB_TOKEN env var
+		const githubToken = process.env.GITHUB_TOKEN;
+		if (githubToken) {
+			headers.Authorization = `Bearer ${githubToken}`;
+		}
 	}
 	return headers;
 }
@@ -66,16 +110,21 @@ function githubHeaders(): Record<string, string> {
  * Fetch the default branch of a GitHub repository via the API.
  * Falls back to 'main' on any error.
  */
-async function fetchDefaultBranch(owner: string, repo: string): Promise<string> {
+async function fetchDefaultBranch(
+	owner: string,
+	repo: string,
+	apiClient: APIClient,
+): Promise<string> {
 	try {
+		const headers = await githubHeaders(apiClient);
 		const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-			headers: githubHeaders(),
+			headers,
 		});
-		if (!resp.ok) return 'main';
+		if (!resp.ok) return "main";
 		const data = (await resp.json()) as { default_branch?: string };
-		return data.default_branch ?? 'main';
+		return data.default_branch ?? "main";
 	} catch {
-		return 'main';
+		return "main";
 	}
 }
 
@@ -90,43 +139,51 @@ async function fetchDefaultBranch(owner: string, repo: string): Promise<string> 
  * When the URL does not include a branch (no `/tree/…` segment), the GitHub
  * API is queried to discover the repository's default branch.
  */
-export async function parseGitHubUrl(url: string): Promise<ParsedGitHubUrl> {
+export async function parseGitHubUrl(
+	url: string,
+	apiClient: APIClient,
+): Promise<ParsedGitHubUrl> {
 	let parsed: URL;
 	try {
 		parsed = new URL(url);
 	} catch {
-		throw new Error(`Invalid URL: ${url}`);
+		throw new RemoteImportInvalidURLError({ message: `Invalid URL: ${url}` });
 	}
 
-	if (parsed.hostname !== 'github.com') {
-		throw new Error(`Only GitHub URLs are supported. Got: ${parsed.hostname}`);
+	if (parsed.hostname !== "github.com") {
+		throw new RemoteImportUnsupportedHostError({
+			message: `Only GitHub URLs are supported. Got: ${parsed.hostname}`,
+		});
 	}
 
 	// pathname is like /owner/repo or /owner/repo/tree/branch/path
-	const parts = parsed.pathname.replace(/^\//, '').replace(/\/$/, '').split('/');
+	const parts = parsed.pathname
+		.replace(/^\//, "")
+		.replace(/\/$/, "")
+		.split("/");
 
 	if (parts.length < 2) {
-		throw new Error(
-			`Invalid GitHub URL: expected at least owner/repo in path. Got: ${parsed.pathname}`
-		);
+		throw new RemoteImportInvalidURLError({
+			message: `Invalid GitHub URL: expected at least owner/repo in path. Got: ${parsed.pathname}`,
+		});
 	}
 
 	const owner = parts[0]!;
 	// Strip .git suffix from repo name if present
-	const repo = parts[1]!.replace(/\.git$/, '');
+	const repo = parts[1]!.replace(/\.git$/, "");
 
 	let branch: string;
 	let directory: string | undefined;
 
 	// /owner/repo/tree/branch[/path/to/dir]
-	if (parts.length >= 4 && parts[2] === 'tree') {
+	if (parts.length >= 4 && parts[2] === "tree") {
 		branch = parts[3]!;
 		if (parts.length > 4) {
-			directory = parts.slice(4).join('/');
+			directory = parts.slice(4).join("/");
 		}
 	} else {
 		// No branch in URL — ask GitHub for the repo's default branch
-		branch = await fetchDefaultBranch(owner, repo);
+		branch = await fetchDefaultBranch(owner, repo, apiClient);
 	}
 
 	return { owner, repo, branch, directory };
@@ -138,81 +195,94 @@ export async function parseGitHubUrl(url: string): Promise<ParsedGitHubUrl> {
  */
 async function downloadAndExtract(
 	parsed: ParsedGitHubUrl,
-	logger: Logger
+	apiClient: APIClient,
+	logger: Logger,
 ): Promise<{ extractDir: string; tempDir: string }> {
 	const { owner, repo, branch } = parsed;
 	const zipUrl = `https://api.github.com/repos/${owner}/${repo}/zipball/${branch}`;
 
-	logger.debug('[remote-import] Downloading zipball from: %s', zipUrl);
+	logger.debug("[remote-import] Downloading zipball from: %s", zipUrl);
 
-	const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-remote-'));
-	const zipPath = join(tempDir, 'download.zip');
+	const tempDir = mkdtempSync(join(tmpdir(), "agentuity-remote-"));
 
-	// Download the zipball
-	const response = await tui.spinner({
-		message: `Downloading ${owner}/${repo}...`,
-		clearOnSuccess: true,
-		callback: async () => {
-			const headers: Record<string, string> = {
-				Accept: 'application/vnd.github+json',
-				'User-Agent': 'Agentuity-CLI',
-			};
+	try {
+		const zipPath = join(tempDir, "download.zip");
 
-			// Use GITHUB_TOKEN if available for rate limiting / private repos
-			const githubToken = process.env.GITHUB_TOKEN;
-			if (githubToken) {
-				headers.Authorization = `Bearer ${githubToken}`;
-			}
+		// Download the zipball
+		const headers = await githubHeaders(apiClient);
+		await tui.spinner({
+			message: `Downloading ${owner}/${repo}...`,
+			clearOnSuccess: true,
+			callback: async () => {
+				const resp = await fetch(zipUrl, {
+					headers,
+					redirect: "follow",
+				});
 
-			const resp = await fetch(zipUrl, {
-				headers,
-				redirect: 'follow',
-			});
+				if (!resp.ok) {
+					throw new RemoteImportDownloadError({
+						message: `Failed to download from GitHub: ${resp.status} ${resp.statusText}`,
+					});
+				}
 
-			if (!resp.ok) {
-				throw new Error(`Failed to download from GitHub: ${resp.status} ${resp.statusText}`);
-			}
+				const buffer = Buffer.from(await resp.arrayBuffer());
+				await Bun.write(zipPath, buffer);
+				logger.debug(
+					"[remote-import] Downloaded %d bytes to %s",
+					buffer.length,
+					zipPath,
+				);
 
-			const buffer = Buffer.from(await resp.arrayBuffer());
-			await Bun.write(zipPath, buffer);
-			logger.debug('[remote-import] Downloaded %d bytes to %s', buffer.length, zipPath);
+				return resp;
+			},
+		});
 
-			return resp;
-		},
-	});
+		// Extract the zip
+		const extractDir = join(tempDir, "extracted");
+		mkdirSync(extractDir, { recursive: true });
 
-	// Extract the zip
-	const extractDir = join(tempDir, 'extracted');
-	mkdirSync(extractDir, { recursive: true });
+		await tui.spinner({
+			message: "Extracting template...",
+			clearOnSuccess: true,
+			callback: async () => {
+				// Use Bun's built-in unzip via subprocess
+				const proc = Bun.spawnSync(
+					["unzip", "-q", "-o", zipPath, "-d", extractDir],
+					{
+						stdout: "pipe",
+						stderr: "pipe",
+					},
+				);
 
-	await tui.spinner({
-		message: 'Extracting template...',
-		clearOnSuccess: true,
-		callback: async () => {
-			// Use Bun's built-in unzip via subprocess
-			const proc = Bun.spawnSync(['unzip', '-q', '-o', zipPath, '-d', extractDir], {
-				stdout: 'pipe',
-				stderr: 'pipe',
-			});
+				if (proc.exitCode !== 0) {
+					const stderr = proc.stderr.toString();
+					throw new RemoteImportExtractError({
+						message: `Failed to extract zip: ${stderr}`,
+					});
+				}
 
-			if (proc.exitCode !== 0) {
-				const stderr = proc.stderr.toString();
-				throw new Error(`Failed to extract zip: ${stderr}`);
-			}
+				logger.debug("[remote-import] Extracted to %s", extractDir);
+			},
+		});
 
-			logger.debug('[remote-import] Extracted to %s', extractDir);
-		},
-	});
+		// GitHub zipball creates a top-level directory like "owner-repo-sha/"
+		// We need to find it and return its path
+		const entries = readdirSync(extractDir);
+		if (entries.length === 1 && entries[0]) {
+			const innerDir = join(extractDir, entries[0]);
+			return { extractDir: innerDir, tempDir };
+		}
 
-	// GitHub zipball creates a top-level directory like "owner-repo-sha/"
-	// We need to find it and return its path
-	const entries = readdirSync(extractDir);
-	if (entries.length === 1 && entries[0]) {
-		const innerDir = join(extractDir, entries[0]);
-		return { extractDir: innerDir, tempDir };
+		return { extractDir, tempDir };
+	} catch (err) {
+		// Clean up temp directory on failure to prevent leaks
+		try {
+			rmSync(tempDir, { recursive: true, force: true });
+		} catch {
+			// Ignore cleanup errors
+		}
+		throw err;
 	}
-
-	return { extractDir, tempDir };
 }
 
 /**
@@ -221,24 +291,24 @@ async function downloadAndExtract(
  */
 async function findAgentuityYaml(
 	dir: string,
-	logger: Logger
+	logger: Logger,
 ): Promise<Record<string, unknown> | null> {
-	const yamlPath = join(dir, 'agentuity.yaml');
+	const yamlPath = join(dir, "agentuity.yaml");
 	const file = Bun.file(yamlPath);
 
 	if (!(await file.exists())) {
-		logger.debug('[remote-import] No agentuity.yaml found at %s', yamlPath);
+		logger.debug("[remote-import] No agentuity.yaml found at %s", yamlPath);
 		return null;
 	}
 
 	try {
-		const { YAML } = await import('bun');
+		const { YAML } = await import("bun");
 		const content = await file.text();
 		const parsed = YAML.parse(content) as Record<string, unknown>;
-		logger.debug('[remote-import] Parsed agentuity.yaml: %o', parsed);
+		logger.debug("[remote-import] Parsed agentuity.yaml: %o", parsed);
 		return parsed;
 	} catch (err) {
-		logger.debug('[remote-import] Failed to parse agentuity.yaml: %o', err);
+		logger.debug("[remote-import] Failed to parse agentuity.yaml: %o", err);
 		return null;
 	}
 }
@@ -252,17 +322,17 @@ async function createProjectNonInteractive(
 	logger: Logger,
 	name: string,
 	region?: string,
-	orgOverride?: string
+	orgOverride?: string,
 ): Promise<{ id: string; sdkKey: string; orgId: string; region: string }> {
 	// Fetch orgs — use the first one in non-interactive mode
 	const orgs = await listOrganizations(apiClient);
 	if (orgs.length === 0) {
-		throw new Error('No organizations found for your account.');
+		throw new RemoteImportNoOrganizationError();
 	}
 
 	const firstOrg = orgs[0];
 	if (!firstOrg) {
-		throw new Error('No organizations found for your account.');
+		throw new RemoteImportNoOrganizationError();
 	}
 
 	const orgId = orgOverride ?? config.preferences?.orgId ?? firstOrg.id;
@@ -276,13 +346,13 @@ async function createProjectNonInteractive(
 		const regions = await fetchRegionsWithCache(config.name, apiClient, logger);
 		const firstRegion = regions[0];
 		if (!firstRegion) {
-			throw new Error('No cloud regions available.');
+			throw new RemoteImportNoRegionError();
 		}
 		selectedRegion = firstRegion.region;
 	}
 
 	const newProject = await tui.spinner({
-		message: 'Creating project...',
+		message: "Creating project...",
 		clearOnSuccess: true,
 		callback: async () => {
 			return projectCreate(apiClient, {
@@ -293,7 +363,12 @@ async function createProjectNonInteractive(
 		},
 	});
 
-	return { id: newProject.id, sdkKey: newProject.sdkKey, orgId, region: selectedRegion };
+	return {
+		id: newProject.id,
+		sdkKey: newProject.sdkKey,
+		orgId,
+		region: selectedRegion,
+	};
 }
 
 /**
@@ -303,17 +378,17 @@ async function createProjectInteractive(
 	apiClient: APIClient,
 	config: Config,
 	logger: Logger,
-	defaultName?: string
+	defaultName?: string,
 ): Promise<{ id: string; sdkKey: string; orgId: string; region: string }> {
 	// Fetch orgs
 	const orgs = await tui.spinner({
-		message: 'Fetching organizations...',
+		message: "Fetching organizations...",
 		clearOnSuccess: true,
 		callback: () => listOrganizations(apiClient),
 	});
 
 	if (orgs.length === 0) {
-		throw new Error('No organizations found for your account.');
+		throw new RemoteImportNoOrganizationError();
 	}
 
 	// Select org
@@ -321,7 +396,7 @@ async function createProjectInteractive(
 
 	// Fetch and select region
 	const regions = await tui.spinner({
-		message: 'Fetching regions...',
+		message: "Fetching regions...",
 		clearOnSuccess: true,
 		callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
 	});
@@ -337,20 +412,20 @@ async function createProjectInteractive(
 		}));
 		const firstOption = options[0];
 		selectedRegion = await prompt.select({
-			message: 'Select a region:',
+			message: "Select a region:",
 			options,
-			initial: firstOption?.value ?? '',
+			initial: firstOption?.value ?? "",
 		});
 	}
 
 	// Get project name
 	const prompt = tui.createPrompt();
 	const projectName = await prompt.text({
-		message: 'Project name:',
+		message: "Project name:",
 		initial: defaultName,
 		validate: (value: string) => {
 			if (!value || value.trim().length === 0) {
-				return 'Project name is required';
+				return "Project name is required";
 			}
 			return true;
 		},
@@ -358,7 +433,7 @@ async function createProjectInteractive(
 
 	// Create the project
 	const newProject = await tui.spinner({
-		message: 'Registering project...',
+		message: "Registering project...",
 		clearOnSuccess: true,
 		callback: async () => {
 			return projectCreate(apiClient, {
@@ -369,7 +444,12 @@ async function createProjectInteractive(
 		},
 	});
 
-	return { id: newProject.id, sdkKey: newProject.sdkKey, orgId, region: selectedRegion };
+	return {
+		id: newProject.id,
+		sdkKey: newProject.sdkKey,
+		orgId,
+		region: selectedRegion,
+	};
 }
 
 /**
@@ -383,24 +463,27 @@ function parseRepoTarget(repo: string): { owner: string; name: string } {
 	// Try as a URL first
 	try {
 		const parsed = new URL(repo);
-		if (parsed.hostname === 'github.com') {
-			const parts = parsed.pathname.replace(/^\//, '').replace(/\/$/, '').split('/');
+		if (parsed.hostname === "github.com") {
+			const parts = parsed.pathname
+				.replace(/^\//, "")
+				.replace(/\/$/, "")
+				.split("/");
 			if (parts.length >= 2 && parts[0] && parts[1]) {
-				return { owner: parts[0], name: parts[1].replace(/\.git$/, '') };
+				return { owner: parts[0], name: parts[1].replace(/\.git$/, "") };
 			}
 		}
 	} catch {
 		// Not a URL — try "owner/name" format
 	}
 
-	const parts = repo.split('/');
+	const parts = repo.split("/");
 	if (parts.length === 2 && parts[0] && parts[1]) {
-		return { owner: parts[0], name: parts[1].replace(/\.git$/, '') };
+		return { owner: parts[0], name: parts[1].replace(/\.git$/, "") };
 	}
 
-	throw new Error(
-		`Invalid repo target: "${repo}". Expected a GitHub URL (https://github.com/owner/repo) or owner/repo format.`
-	);
+	throw new RemoteImportInvalidRepoError({
+		message: `Invalid repo target: "${repo}". Expected a GitHub URL (https://github.com/owner/repo) or owner/repo format.`,
+	});
 }
 
 /**
@@ -410,7 +493,7 @@ function parseRepoTarget(repo: string): { owner: string; name: string } {
 async function createGithubRepoForImport(
 	apiClient: APIClient,
 	repo: string,
-	_logger: Logger
+	_logger: Logger,
 ): Promise<string> {
 	const { owner, name } = parseRepoTarget(repo);
 
@@ -436,70 +519,87 @@ async function pushToRepo(
 	dest: string,
 	repoUrl: string,
 	apiClient: APIClient,
-	logger: Logger
+	logger: Logger,
 ): Promise<void> {
 	const gitAvailable = await isGitAvailable();
 	if (!gitAvailable) {
-		tui.warning('Git is not available — skipping git push.');
+		tui.warning("Git is not available — skipping git push.");
 		return;
 	}
 
-	const defaultBranch = (await getDefaultBranch()) || 'main';
+	const defaultBranch = (await getDefaultBranch()) || "main";
 
 	// Get GitHub token from Agentuity API (uses stored OAuth token)
 	let remoteUrl = repoUrl;
 	try {
 		const { token } = await getGithubToken(apiClient);
 		const parsed = new URL(repoUrl);
-		if (parsed.hostname === 'github.com') {
+		if (parsed.hostname === "github.com") {
 			remoteUrl = `https://x-access-token:${token}@github.com${parsed.pathname}`;
-			if (!remoteUrl.endsWith('.git')) {
-				remoteUrl += '.git';
+			if (!remoteUrl.endsWith(".git")) {
+				remoteUrl += ".git";
 			}
 		}
 	} catch (err) {
 		logger.debug(
-			'[remote-import] Could not get GitHub token from API, trying without auth: %o',
-			err
+			"[remote-import] Could not get GitHub token from API, trying without auth: %o",
+			err,
 		);
 		// Fall through — push will likely fail for private repos but may work for public
 	}
 
 	await tui.spinner({
-		message: 'Pushing to remote repository...',
+		message: "Pushing to remote repository...",
 		clearOnSuccess: true,
 		callback: async () => {
 			// Add remote origin
-			const addRemote = Bun.spawnSync(['git', 'remote', 'add', 'origin', remoteUrl], {
-				cwd: dest,
-				stdout: 'pipe',
-				stderr: 'pipe',
-			});
+			const addRemote = Bun.spawnSync(
+				["git", "remote", "add", "origin", remoteUrl],
+				{
+					cwd: dest,
+					stdout: "pipe",
+					stderr: "pipe",
+				},
+			);
 
 			if (addRemote.exitCode !== 0) {
 				// Remote might already exist, try set-url instead
-				const setUrl = Bun.spawnSync(['git', 'remote', 'set-url', 'origin', remoteUrl], {
-					cwd: dest,
-					stdout: 'pipe',
-					stderr: 'pipe',
-				});
+				const setUrl = Bun.spawnSync(
+					["git", "remote", "set-url", "origin", remoteUrl],
+					{
+						cwd: dest,
+						stdout: "pipe",
+						stderr: "pipe",
+					},
+				);
 				if (setUrl.exitCode !== 0) {
-					throw new Error(`Failed to set git remote: ${sanitizeTokens(setUrl.stderr.toString())}`);
+					throw new RemoteImportGitError({
+						message: `Failed to set git remote: ${sanitizeTokens(setUrl.stderr.toString())}`,
+					});
 				}
 			}
 
 			// Push to remote
-			const push = Bun.spawnSync(['git', 'push', '-u', 'origin', defaultBranch], {
-				cwd: dest,
-				stdout: 'pipe',
-				stderr: 'pipe',
-			});
+			const push = Bun.spawnSync(
+				["git", "push", "-u", "origin", defaultBranch],
+				{
+					cwd: dest,
+					stdout: "pipe",
+					stderr: "pipe",
+				},
+			);
 
 			if (push.exitCode !== 0) {
-				throw new Error(`Failed to push to remote: ${sanitizeTokens(push.stderr.toString())}`);
+				throw new RemoteImportGitError({
+					message: `Failed to push to remote: ${sanitizeTokens(push.stderr.toString())}`,
+				});
 			}
 
-			logger.debug('[remote-import] Pushed to %s on branch %s', repoUrl, defaultBranch);
+			logger.debug(
+				"[remote-import] Pushed to %s on branch %s",
+				repoUrl,
+				defaultBranch,
+			);
 		},
 	});
 
@@ -514,16 +614,24 @@ async function pushToRepo(
  * `agentuity` being independently available on PATH.
  */
 async function runDeploy(dest: string, logger: Logger): Promise<void> {
-	tui.info('Deploying project...');
+	tui.info("Deploying project...");
 
-	const args = ['bunx', 'agentuity', 'deploy', '--trigger', 'cli', '--event', 'manual'];
+	const args = [
+		"bunx",
+		"agentuity",
+		"deploy",
+		"--trigger",
+		"cli",
+		"--event",
+		"manual",
+	];
 
-	logger.debug('[remote-import] Running deploy: %s', args.join(' '));
+	logger.debug("[remote-import] Running deploy: %s", args.join(" "));
 
 	const proc = Bun.spawn(args, {
 		cwd: dest,
-		stdout: 'inherit',
-		stderr: 'inherit',
+		stdout: "inherit",
+		stderr: "inherit",
 		env: {
 			...process.env,
 		},
@@ -531,43 +639,64 @@ async function runDeploy(dest: string, logger: Logger): Promise<void> {
 
 	const exitCode = await proc.exited;
 	if (exitCode !== 0) {
-		throw new Error(`Deploy failed with exit code ${exitCode}`);
+		throw new RemoteImportDeployError({
+			message: `Deploy failed with exit code ${exitCode}`,
+		});
 	}
 }
 
 /**
  * Run the remote import flow: download from GitHub, set up project, optionally push and deploy.
  */
-export async function runRemoteImport(options: RemoteImportOptions): Promise<void> {
-	const { url, deploy, projectId, repo, name, org, apiClient, auth, config, logger } = options;
+export async function runRemoteImport(
+	options: RemoteImportOptions,
+): Promise<void> {
+	const {
+		url,
+		deploy,
+		projectId,
+		repo,
+		name,
+		org,
+		apiClient,
+		auth,
+		config,
+		logger,
+	} = options;
 
 	// Safety check: refuse to run inside an existing git repo
 	try {
-		const result = Bun.spawnSync(['git', 'rev-parse', '--is-inside-work-tree'], {
-			cwd: process.cwd(),
-			stdout: 'pipe',
-			stderr: 'pipe',
-		});
-		if (result.exitCode === 0 && result.stdout.toString().trim() === 'true') {
+		const result = Bun.spawnSync(
+			["git", "rev-parse", "--is-inside-work-tree"],
+			{
+				cwd: process.cwd(),
+				stdout: "pipe",
+				stderr: "pipe",
+			},
+		);
+		if (result.exitCode === 0 && result.stdout.toString().trim() === "true") {
 			tui.fatal(
-				'Cannot run remote import inside an existing git repository. Please run from an empty directory.'
+				"Cannot run remote import inside an existing git repository. Please run from an empty directory.",
 			);
 		}
 	} catch (err) {
 		// If it's our error, rethrow. Otherwise git isn't found or we're not in a repo — that's fine.
-		if (err instanceof Error && err.message.includes('Cannot run remote import')) {
+		if (
+			err instanceof Error &&
+			err.message.includes("Cannot run remote import")
+		) {
 			throw err;
 		}
 	}
 
 	// 1. Parse GitHub URL (async — may query GitHub API for default branch)
-	const parsed = await parseGitHubUrl(url);
+	const parsed = await parseGitHubUrl(url, apiClient);
 	logger.debug(
-		'[remote-import] Parsed URL: owner=%s repo=%s branch=%s dir=%s',
+		"[remote-import] Parsed URL: owner=%s repo=%s branch=%s dir=%s",
 		parsed.owner,
 		parsed.repo,
 		parsed.branch,
-		parsed.directory ?? '(root)'
+		parsed.directory ?? "(root)",
 	);
 
 	// ── Preflight checks (all before any mutations) ──
@@ -576,7 +705,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 	const projectDirName = name ?? parsed.repo;
 	const dest = join(process.cwd(), projectDirName);
 	if (existsSync(dest)) {
-		tui.fatal(`Directory "${projectDirName}" already exists. Choose a different name with --name.`);
+		tui.fatal(
+			`Directory "${projectDirName}" already exists. Choose a different name with --name.`,
+		);
 	}
 
 	// Check: target GitHub repo doesn't already exist
@@ -585,11 +716,12 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		const checkResult = await tui.spinner({
 			message: `Checking repository ${repoOwner}/${repoName}...`,
 			clearOnSuccess: true,
-			callback: () => checkGithubRepo(apiClient, { owner: repoOwner, name: repoName }),
+			callback: () =>
+				checkGithubRepo(apiClient, { owner: repoOwner, name: repoName }),
 		});
 		if (checkResult.exists) {
 			tui.fatal(
-				`Repository ${repoOwner}/${repoName} already exists. Use a different name or delete the existing repo first.`
+				`Repository ${repoOwner}/${repoName} already exists. Use a different name or delete the existing repo first.`,
 			);
 		}
 	}
@@ -601,7 +733,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 	let sourceDir: string;
 
 	try {
-		const result = await downloadAndExtract(parsed, logger);
+		const result = await downloadAndExtract(parsed, apiClient, logger);
 		tempDir = result.tempDir;
 		sourceDir = result.extractDir;
 
@@ -609,7 +741,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		if (parsed.directory) {
 			const subDir = join(sourceDir, parsed.directory);
 			if (!existsSync(subDir)) {
-				throw new Error(`Directory "${parsed.directory}" not found in the repository.`);
+				throw new RemoteImportDirectoryNotFoundError({
+					message: `Directory "${parsed.directory}" not found in the repository.`,
+				});
 			}
 			sourceDir = subDir;
 		}
@@ -617,27 +751,35 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		// 3. Find and parse agentuity.yaml (informational, for future use)
 		const yamlConfig = await findAgentuityYaml(sourceDir, logger);
 		if (yamlConfig) {
-			tui.info('Found agentuity.yaml in template.');
+			tui.info("Found agentuity.yaml in template.");
 		}
 
 		// 4. Project setup
-		let projectInfo: { id: string; sdkKey: string; orgId: string; region: string };
+		let projectInfo: {
+			id: string;
+			sdkKey: string;
+			orgId: string;
+			region: string;
+		};
 
 		if (projectId) {
 			// --project-id was provided: skip creation, just write config
 			const sdkKey = process.env.AGENTUITY_SDK_KEY;
 			if (!sdkKey) {
-				throw new Error(
-					'AGENTUITY_SDK_KEY environment variable is required when using --project-id'
-				);
+				throw new RemoteImportConfigError({
+					message:
+						"AGENTUITY_SDK_KEY environment variable is required when using --project-id",
+				});
 			}
 			const orgId = config.preferences?.orgId;
 			if (!orgId) {
-				throw new Error(
-					'Organization ID not found. Set orgId in config preferences or use interactive mode.'
-				);
+				throw new RemoteImportConfigError({
+					message:
+						"Organization ID not found. Set orgId in config preferences or use interactive mode.",
+				});
 			}
-			const region = process.env.AGENTUITY_REGION ?? config.preferences?.region ?? 'usc';
+			const region =
+				process.env.AGENTUITY_REGION ?? config.preferences?.region ?? "usc";
 
 			projectInfo = { id: projectId, sdkKey, orgId, region };
 			tui.info(`Using pre-created project: ${projectId}`);
@@ -649,11 +791,16 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				logger,
 				name,
 				undefined,
-				org
+				org,
 			);
 		} else if (isTTY()) {
 			// Interactive mode: prompt for org/region/name
-			projectInfo = await createProjectInteractive(apiClient, config, logger, parsed.repo);
+			projectInfo = await createProjectInteractive(
+				apiClient,
+				config,
+				logger,
+				parsed.repo,
+			);
 		} else {
 			// Non-interactive without --name: use repo name
 			projectInfo = await createProjectNonInteractive(
@@ -662,35 +809,39 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				logger,
 				parsed.repo,
 				undefined,
-				org
+				org,
 			);
 		}
 
 		// Parse .env.example to detect required env vars and resources
 		// Platform-managed vars that should not appear in requirements
 		const platformManagedVars = new Set([
-			'AGENTUITY_SDK_KEY',
-			'AGENTUITY_URL',
-			'AGENTUITY_TRANSPORT_URL',
-			'AGENTUITY_BEARER_TOKEN',
-			'NODE_ENV',
+			"AGENTUITY_SDK_KEY",
+			"AGENTUITY_URL",
+			"AGENTUITY_TRANSPORT_URL",
+			"AGENTUITY_BEARER_TOKEN",
+			"NODE_ENV",
 		]);
 
 		type TemplateConfig = {
 			source?: string;
 			requirements?: {
-				resources?: Array<{ type: 'database' | 'queue'; envVar: string; description?: string }>;
+				resources?: Array<{
+					type: "database" | "queue";
+					envVar: string;
+					description?: string;
+				}>;
 				env?: Array<{ key: string; required: boolean; description?: string }>;
 			};
 		};
 
 		let template: TemplateConfig | undefined;
-		const envExamplePath = join(sourceDir, '.env.example');
-		if (existsSync(envExamplePath)) {
+		const envExamplePath = join(sourceDir, ".env.example");
+		if (await Bun.file(envExamplePath).exists()) {
 			try {
 				const envContent = await Bun.file(envExamplePath).text();
 				const envFields = parseEnvExample(envContent).filter(
-					(f) => !platformManagedVars.has(f.key)
+					(f) => !platformManagedVars.has(f.key),
 				);
 
 				const resources = envFields
@@ -720,16 +871,18 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 
 					for (const r of resources) {
 						tui.info(
-							`Requires ${r.type}: ${r.envVar}${r.description ? ` (${r.description})` : ''}`
+							`Requires ${r.type}: ${r.envVar}${r.description ? ` (${r.description})` : ""}`,
 						);
 					}
 					const requiredEnv = envVars.filter((f) => f.required);
 					for (const f of requiredEnv) {
-						tui.info(`Required env var: ${f.key}${f.description ? ` (${f.description})` : ''}`);
+						tui.info(
+							`Required env var: ${f.key}${f.description ? ` (${f.description})` : ""}`,
+						);
 					}
 				}
 			} catch (err) {
-				logger.debug('[remote-import] Could not parse .env.example: %o', err);
+				logger.debug("[remote-import] Could not parse .env.example: %o", err);
 			}
 		}
 
@@ -746,19 +899,38 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			region: projectInfo.region,
 			template,
 		});
-		tui.success('Created agentuity.json');
+		tui.success("Created agentuity.json");
+
+		// Ensure .env is gitignored before any git operations (prevents secret leak)
+		const gitignorePath = join(sourceDir, ".gitignore");
+		const gitignoreFile = Bun.file(gitignorePath);
+		if (await gitignoreFile.exists()) {
+			const gitignoreContent = await gitignoreFile.text();
+			const lines = gitignoreContent.split("\n").map((l) => l.trim());
+			if (!lines.includes(".env")) {
+				await Bun.write(gitignorePath, `${gitignoreContent.trimEnd()}\n.env\n`);
+			}
+		} else {
+			await Bun.write(gitignorePath, ".env\n.env.*\n");
+		}
 
 		// Update package.json name to match the project name
-		const pkgJsonPath = join(sourceDir, 'package.json');
-		if (existsSync(pkgJsonPath)) {
+		const pkgJsonPath = join(sourceDir, "package.json");
+		if (await Bun.file(pkgJsonPath).exists()) {
 			try {
 				const pkgRaw = await Bun.file(pkgJsonPath).text();
 				const pkg = JSON.parse(pkgRaw);
 				pkg.name = projectDirName;
-				await Bun.write(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n');
-				logger.debug('[remote-import] Updated package.json name to %s', projectDirName);
+				await Bun.write(pkgJsonPath, JSON.stringify(pkg, null, 2) + "\n");
+				logger.debug(
+					"[remote-import] Updated package.json name to %s",
+					projectDirName,
+				);
 			} catch (err) {
-				logger.debug('[remote-import] Could not update package.json name: %o', err);
+				logger.debug(
+					"[remote-import] Could not update package.json name: %o",
+					err,
+				);
 			}
 		}
 
@@ -767,7 +939,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		try {
 			botAuthor = await getGithubBotIdentity(apiClient);
 		} catch {
-			logger.debug('[remote-import] Could not fetch bot identity, using fallback');
+			logger.debug(
+				"[remote-import] Could not fetch bot identity, using fallback",
+			);
 		}
 
 		// 5. Git init + push (if --repo flag provided) — in sourceDir, not CWD
@@ -788,30 +962,36 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 
 			// Link the repo to the Agentuity project (enables auto-deploy + preview deploys)
 			try {
+				const { owner: linkOwner, name: linkName } = parseRepoTarget(repo);
+				const pushedBranch = (await getDefaultBranch()) || "main";
 				await linkProjectToRepo(apiClient, {
 					projectId: projectInfo.id,
-					repoFullName: repo,
-					branch: parsed.branch ?? 'main',
+					repoFullName: `${linkOwner}/${linkName}`,
+					branch: pushedBranch,
 					autoDeploy: true,
 					previewDeploy: true,
 					directory: parsed.directory,
 				});
-				tui.success('Linked repo to project');
+				tui.success("Linked repo to project");
 			} catch (err) {
-				logger.debug('[remote-import] Failed to link repo to project: %o', err);
-				tui.warning('Could not link repo to project — you can link manually with `agentuity link`');
+				logger.debug("[remote-import] Failed to link repo to project: %o", err);
+				tui.warning(
+					"Could not link repo to project — you can link manually with `agentuity link`",
+				);
 			}
 		}
 
 		// 6. Copy extracted content into project folder (already validated in preflight)
 		await tui.spinner({
-			message: 'Copying project files...',
+			message: "Copying project files...",
 			clearOnSuccess: true,
 			callback: async () => {
 				mkdirSync(dest, { recursive: true });
 				const entries = readdirSync(sourceDir);
 				for (const entry of entries) {
-					cpSync(join(sourceDir, entry), join(dest, entry), { recursive: true });
+					cpSync(join(sourceDir, entry), join(dest, entry), {
+						recursive: true,
+					});
 				}
 			},
 		});
@@ -820,10 +1000,10 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		if (repo) {
 			const { owner, name: repoName } = parseRepoTarget(repo);
 			const cleanUrl = `https://github.com/${owner}/${repoName}.git`;
-			Bun.spawnSync(['git', 'remote', 'set-url', 'origin', cleanUrl], {
+			Bun.spawnSync(["git", "remote", "set-url", "origin", cleanUrl], {
 				cwd: dest,
-				stdout: 'pipe',
-				stderr: 'pipe',
+				stdout: "pipe",
+				stderr: "pipe",
 			});
 		}
 
@@ -834,13 +1014,13 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			await runDeploy(dest, logger);
 		}
 
-		tui.success('Remote import completed successfully!');
+		tui.success("Remote import completed successfully!");
 	} finally {
 		// Clean up temp directory
 		if (tempDir) {
 			try {
 				rmSync(tempDir, { recursive: true, force: true });
-				logger.debug('[remote-import] Cleaned up temp dir: %s', tempDir);
+				logger.debug("[remote-import] Cleaned up temp dir: %s", tempDir);
 			} catch {
 				// Ignore cleanup errors
 			}

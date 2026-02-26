@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, test } from 'bun:test';
 import { detectResourceFromKey, parseEnvExample } from '../src/env-example';
 
 describe('detectResourceFromKey', () => {
-	it('should detect database from common key names', () => {
+	test('should detect database from common key names', () => {
 		expect(detectResourceFromKey('DATABASE_URL')).toBe('database');
 		expect(detectResourceFromKey('POSTGRES_URL')).toBe('database');
 		expect(detectResourceFromKey('DB_URL')).toBe('database');
@@ -10,30 +10,30 @@ describe('detectResourceFromKey', () => {
 		expect(detectResourceFromKey('PGURL')).toBe('database');
 	});
 
-	it('should detect database from compound patterns', () => {
+	test('should detect database from compound patterns', () => {
 		expect(detectResourceFromKey('DATABASE_CONNECTION')).toBe('database');
 		expect(detectResourceFromKey('POSTGRES_URI')).toBe('database');
 		expect(detectResourceFromKey('PG_DSN')).toBe('database');
 		expect(detectResourceFromKey('DATABASE_DSN')).toBe('database');
 	});
 
-	it('should be case insensitive', () => {
+	test('should be case insensitive', () => {
 		expect(detectResourceFromKey('database_url')).toBe('database');
 		expect(detectResourceFromKey('Database_Url')).toBe('database');
 		expect(detectResourceFromKey('queue_name')).toBe('queue');
 	});
 
-	it('should detect queue from common key names', () => {
+	test('should detect queue from common key names', () => {
 		expect(detectResourceFromKey('QUEUE_URL')).toBe('queue');
 		expect(detectResourceFromKey('QUEUE_NAME')).toBe('queue');
 	});
 
-	it('should detect queue from keys containing QUEUE', () => {
+	test('should detect queue from keys containing QUEUE', () => {
 		expect(detectResourceFromKey('MY_QUEUE')).toBe('queue');
 		expect(detectResourceFromKey('TASK_QUEUE_URL')).toBe('queue');
 	});
 
-	it('should return undefined for non-resource keys', () => {
+	test('should return undefined for non-resource keys', () => {
 		expect(detectResourceFromKey('API_KEY')).toBeUndefined();
 		expect(detectResourceFromKey('SECRET_TOKEN')).toBeUndefined();
 		expect(detectResourceFromKey('PORT')).toBeUndefined();
@@ -44,7 +44,7 @@ describe('detectResourceFromKey', () => {
 
 describe('parseEnvExample', () => {
 	describe('basic parsing', () => {
-		it('should parse simple key=value pairs', () => {
+		test('should parse simple key=value pairs', () => {
 			const result = parseEnvExample('API_KEY=my-key\nSECRET=my-secret');
 			expect(result).toEqual([
 				{
@@ -64,40 +64,40 @@ describe('parseEnvExample', () => {
 			]);
 		});
 
-		it('should parse keys with empty values', () => {
+		test('should parse keys with empty values', () => {
 			const result = parseEnvExample('API_KEY=\nSECRET=');
 			expect(result).toHaveLength(2);
 			expect(result[0].defaultValue).toBe('');
 			expect(result[1].defaultValue).toBe('');
 		});
 
-		it('should handle values containing equals signs', () => {
+		test('should handle values containing equals signs', () => {
 			const input = 'CONNECTION=postgres://user:pass@host/db?sslmode=require';
 			const result = parseEnvExample(input);
 			expect(result[0].defaultValue).toBe('postgres://user:pass@host/db?sslmode=require');
 		});
 
-		it('should handle whitespace around keys and values', () => {
+		test('should handle whitespace around keys and values', () => {
 			const input = '  API_KEY = my-key  ';
 			const result = parseEnvExample(input);
 			expect(result[0].key).toBe('API_KEY');
 			expect(result[0].defaultValue).toBe('my-key');
 		});
 
-		it('should ignore blank lines', () => {
+		test('should ignore blank lines', () => {
 			const input = ['API_KEY=one', '', '   ', 'SECRET=two'].join('\n');
 			const result = parseEnvExample(input);
 			expect(result).toHaveLength(2);
 		});
 
-		it('should deduplicate keys, keeping the last occurrence', () => {
+		test('should deduplicate keys, keeping the last occurrence', () => {
 			const input = 'API_KEY=first\nAPI_KEY=second';
 			const result = parseEnvExample(input);
 			expect(result).toHaveLength(1);
 			expect(result[0].defaultValue).toBe('second');
 		});
 
-		it('should strip inline comments from values', () => {
+		test('should strip inline comments from values', () => {
 			const input = 'API_KEY=my-key  # put your key here';
 			const result = parseEnvExample(input);
 			expect(result[0].defaultValue).toBe('my-key');
@@ -105,13 +105,13 @@ describe('parseEnvExample', () => {
 	});
 
 	describe('comments', () => {
-		it('should ignore comment-only lines', () => {
+		test('should ignore comment-only lines', () => {
 			const input = ['# This is a comment', '# Another comment', 'API_KEY=my-key'].join('\n');
 			const result = parseEnvExample(input);
 			expect(result).toHaveLength(1);
 		});
 
-		it('should attach preceding comment to the next variable', () => {
+		test('should attach preceding comment to the next variable', () => {
 			const input = ['# Your API key', 'API_KEY=my-key'].join('\n');
 			const result = parseEnvExample(input);
 			expect(result[0]).toMatchObject({
@@ -121,13 +121,13 @@ describe('parseEnvExample', () => {
 			});
 		});
 
-		it('should reset comment after a blank line', () => {
+		test('should reset comment after a blank line', () => {
 			const input = ['# This comment is orphaned', '', 'API_KEY=my-key'].join('\n');
 			const result = parseEnvExample(input);
 			expect(result[0].comment).toBeUndefined();
 		});
 
-		it('should only attach the immediately preceding comment', () => {
+		test('should only attach the immediately preceding comment', () => {
 			const input = ['# First comment', '# Second comment', 'API_KEY=my-key'].join('\n');
 			const result = parseEnvExample(input);
 			expect(result[0].comment).toBe('Second comment');
@@ -135,7 +135,7 @@ describe('parseEnvExample', () => {
 	});
 
 	describe('required annotation', () => {
-		it('should mark fields with #agentuity:required as required', () => {
+		test('should mark fields with #agentuity:required as required', () => {
 			const input = 'AUTH_SECRET=#agentuity:required';
 			const result = parseEnvExample(input);
 			expect(result[0]).toMatchObject({
@@ -146,14 +146,14 @@ describe('parseEnvExample', () => {
 			});
 		});
 
-		it('should strip required annotation from value', () => {
+		test('should strip required annotation from value', () => {
 			const input = 'AUTH_SECRET=default-val  #agentuity:required';
 			const result = parseEnvExample(input);
 			expect(result[0].defaultValue).toBe('default-val');
 			expect(result[0].required).toBe(true);
 		});
 
-		it('should not mark plain env vars as required', () => {
+		test('should not mark plain env vars as required', () => {
 			const input = 'API_KEY=my-key\nPORT=3000';
 			const result = parseEnvExample(input);
 			expect(result[0].required).toBe(false);
@@ -162,14 +162,14 @@ describe('parseEnvExample', () => {
 	});
 
 	describe('optional fields', () => {
-		it('should mark fields without annotations as optional (required=false)', () => {
+		test('should mark fields without annotations as optional (required=false)', () => {
 			const input = 'GOOGLE_CLIENT_ID=\nGOOGLE_CLIENT_SECRET=';
 			const result = parseEnvExample(input);
 			expect(result[0]).toMatchObject({ key: 'GOOGLE_CLIENT_ID', required: false });
 			expect(result[1]).toMatchObject({ key: 'GOOGLE_CLIENT_SECRET', required: false });
 		});
 
-		it('should mark fields with default values as optional', () => {
+		test('should mark fields with default values as optional', () => {
 			const input = 'PORT=3000\nNODE_ENV=production';
 			const result = parseEnvExample(input);
 			expect(result[0]).toMatchObject({ key: 'PORT', required: false, defaultValue: '3000' });
@@ -182,7 +182,7 @@ describe('parseEnvExample', () => {
 	});
 
 	describe('resource detection', () => {
-		it('should detect resources via #agentuity:database annotation', () => {
+		test('should detect resources via #agentuity:database annotation', () => {
 			const input = 'DATABASE_URL=  #agentuity:database';
 			const result = parseEnvExample(input);
 			expect(result[0]).toMatchObject({
@@ -193,7 +193,7 @@ describe('parseEnvExample', () => {
 			});
 		});
 
-		it('should detect resources via #agentuity:queue annotation', () => {
+		test('should detect resources via #agentuity:queue annotation', () => {
 			const input = 'QUEUE_NAME=  #agentuity:queue';
 			const result = parseEnvExample(input);
 			expect(result[0]).toMatchObject({
@@ -204,14 +204,14 @@ describe('parseEnvExample', () => {
 			});
 		});
 
-		it('should strip the annotation from the default value', () => {
+		test('should strip the annotation from the default value', () => {
 			const input = 'DATABASE_URL=postgres://localhost  #agentuity:database';
 			const result = parseEnvExample(input);
 			expect(result[0].defaultValue).toBe('postgres://localhost');
 			expect(result[0].resource).toBe('database');
 		});
 
-		it('should fall back to key pattern matching for resources', () => {
+		test('should fall back to key pattern matching for resources', () => {
 			const input = 'DATABASE_URL=\nQUEUE_NAME=\nAPI_KEY=abc';
 			const result = parseEnvExample(input);
 			expect(result[0]).toMatchObject({ resource: 'database', required: true });
@@ -219,20 +219,20 @@ describe('parseEnvExample', () => {
 			expect(result[2]).toMatchObject({ resource: undefined, required: false });
 		});
 
-		it('should prefer annotation over key pattern matching', () => {
+		test('should prefer annotation over key pattern matching', () => {
 			const input = 'MY_QUEUE=  #agentuity:database';
 			const result = parseEnvExample(input);
 			expect(result[0].resource).toBe('database');
 		});
 
-		it('should mark resource fields as implicitly required', () => {
+		test('should mark resource fields as implicitly required', () => {
 			const input = 'DATABASE_URL=#agentuity:database';
 			const result = parseEnvExample(input);
 			expect(result[0].required).toBe(true);
 			expect(result[0].resource).toBe('database');
 		});
 
-		it('should mark pattern-detected resources as implicitly required', () => {
+		test('should mark pattern-detected resources as implicitly required', () => {
 			const input = 'DATABASE_URL=\nQUEUE_NAME=';
 			const result = parseEnvExample(input);
 			expect(result[0]).toMatchObject({
@@ -243,7 +243,7 @@ describe('parseEnvExample', () => {
 			expect(result[1]).toMatchObject({ key: 'QUEUE_NAME', required: true, resource: 'queue' });
 		});
 
-		it('should handle multiple annotations on the same line', () => {
+		test('should handle multiple annotations on the same line', () => {
 			const input = 'DATABASE_URL=  #agentuity:database #agentuity:required';
 			const result = parseEnvExample(input);
 			expect(result[0]).toMatchObject({ resource: 'database', required: true });
@@ -251,7 +251,7 @@ describe('parseEnvExample', () => {
 	});
 
 	describe('unknown annotations', () => {
-		it('should ignore unknown annotations', () => {
+		test('should ignore unknown annotations', () => {
 			const input = 'MY_VAR=value  #agentuity:unknown';
 			const result = parseEnvExample(input);
 			expect(result[0].resource).toBeUndefined();
@@ -261,7 +261,7 @@ describe('parseEnvExample', () => {
 	});
 
 	describe('full realistic .env.example', () => {
-		it('should handle a typical template with mixed required, optional, and resources', () => {
+		test('should handle a typical template with mixed required, optional, and resources', () => {
 			const input = [
 				'# Database configuration',
 				'DATABASE_URL=  #agentuity:database',
@@ -304,7 +304,7 @@ describe('parseEnvExample', () => {
 			expect(result.find((f) => f.key === 'PORT')?.comment).toBe('App config');
 		});
 
-		it('should handle a real-world .env.example with sections', () => {
+		test('should handle a real-world .env.example with sections', () => {
 			const input = [
 				'# ============================================',
 				'# Required',

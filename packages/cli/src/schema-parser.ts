@@ -405,12 +405,15 @@ export function buildValidationInput(
 		const unwrapped = unwrapSchema(schemas.args) as ZodTypeInternal;
 		const typeId = unwrapped?._def?.typeName || unwrapped?._def?.type;
 		if (typeId === 'ZodTuple' || typeId === 'tuple') {
-			// Tuple schemas expect array input — take only the declared item count
+			// Tuple schemas — map each item to a named key from the schema
 			// (rawArgs may include trailing Commander.js options object)
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const items = (unwrapped as any)._def?.items;
-			const itemCount = Array.isArray(items) ? items.length : rawArgs.length;
-			result.args = rawArgs.slice(0, itemCount) as unknown as Record<string, unknown>;
+			const parsed = parseArgsSchema(schemas.args);
+			for (let i = 0; i < parsed.names.length; i++) {
+				const name = parsed.names[i];
+				if (name !== undefined) {
+					result.args[name] = rawArgs[i];
+				}
+			}
 		} else {
 			const parsed = parseArgsSchema(schemas.args);
 			for (let i = 0; i < parsed.names.length; i++) {
