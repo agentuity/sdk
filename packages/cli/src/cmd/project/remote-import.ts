@@ -949,13 +949,14 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 							if (connStr) resourceEnvVars[r.envVar] = connStr;
 						}
 						tui.success(`Created database: ${overrideName}`);
-					} catch (err: any) {
+					} catch (err: unknown) {
+						const msg = err instanceof Error ? err.message : String(err);
 						if (!interactive) {
 							throw new RemoteImportConfigError({
-								message: `Failed to create database "${overrideName}": ${err?.message ?? err}`,
+								message: `Failed to create database "${overrideName}": ${msg}`,
 							});
 						}
-						tui.error(`Failed to create database "${overrideName}": ${err?.message ?? err}`);
+						tui.error(`Failed to create database "${overrideName}": ${msg}`);
 						// Fall through to interactive prompt below
 					}
 				}
@@ -1017,8 +1018,10 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 								}
 								tui.success(`Created database: ${dbName}`);
 								dbCreated = true;
-							} catch (err: any) {
-								tui.error(`Failed to create database: ${err?.message ?? err}`);
+							} catch (err: unknown) {
+								tui.error(
+									`Failed to create database: ${err instanceof Error ? err.message : String(err)}`
+								);
 								// Loop back to prompt
 							}
 						} else if (action.startsWith('existing:')) {
@@ -1071,13 +1074,14 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 						});
 						resourceEnvVars[r.envVar] = queue.name;
 						tui.success(`Created queue: ${queue.name}`);
-					} catch (err: any) {
+					} catch (err: unknown) {
+						const msg = err instanceof Error ? err.message : String(err);
 						if (!interactive) {
 							throw new RemoteImportConfigError({
-								message: `Failed to create queue "${overrideName}": ${err?.message ?? err}`,
+								message: `Failed to create queue "${overrideName}": ${msg}`,
 							});
 						}
-						tui.error(`Failed to create queue "${overrideName}": ${err?.message ?? err}`);
+						tui.error(`Failed to create queue "${overrideName}": ${msg}`);
 					}
 				}
 
@@ -1135,8 +1139,10 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 								resourceEnvVars[r.envVar] = queue.name;
 								tui.success(`Created queue: ${queue.name}`);
 								queueCreated = true;
-							} catch (err: any) {
-								tui.error(`Failed to create queue: ${err?.message ?? err}`);
+							} catch (err: unknown) {
+								tui.error(
+									`Failed to create queue: ${err instanceof Error ? err.message : String(err)}`
+								);
 							}
 						} else if (action.startsWith('existing:')) {
 							const selectedName = action.slice('existing:'.length);

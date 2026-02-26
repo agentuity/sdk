@@ -122,13 +122,11 @@ function getShape(schema: ZodType): Record<string, unknown> {
 				const item = items[i] as ZodTypeInternal;
 				// Try to extract a name from the description — check the item directly (Zod 4),
 				// the _def (Zod 3), and the unwrapped inner schema
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const desc =
-					(item as any)?.description ||
+					(item as unknown as { description?: string })?.description ||
 					item?._def?.description ||
 					(unwrapSchema(item) as ZodTypeInternal)?._def?.description ||
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(unwrapSchema(item) as any)?.description;
+					(unwrapSchema(item) as unknown as { description?: string })?.description;
 				let name = `arg${i}`;
 				if (desc) {
 					// Slugify: lowercase, replace non-alphanumeric with dashes, trim
