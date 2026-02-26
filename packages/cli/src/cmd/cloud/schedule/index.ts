@@ -6,6 +6,7 @@ import { deleteSubcommand } from './delete';
 import { updateSubcommand } from './update';
 import destinationSubcommand from './destination';
 import deliverySubcommand from './delivery';
+import { statsSubcommand } from './stats';
 import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
@@ -22,6 +23,7 @@ export const command = createCommand({
 		updateSubcommand,
 		destinationSubcommand,
 		deliverySubcommand,
+		statsSubcommand,
 	],
 	examples: [
 		{ command: getCommand('cloud schedule list'), description: 'List schedules' },
