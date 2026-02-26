@@ -50,7 +50,9 @@ export const importSubcommand = createSubcommand({
 	requires: { auth: true, apiClient: true },
 	optional: { region: true, org: true },
 	schema: {
-		args: z.array(z.string().describe('GitHub URL to import from')).max(1),
+		args: z.object({
+			url: z.string().optional().describe('GitHub URL to import from'),
+		}),
 		options: z.object({
 			dir: z
 				.string()
@@ -80,7 +82,7 @@ export const importSubcommand = createSubcommand({
 		}
 
 		// If a URL positional arg is provided, run remote import flow
-		const url = args[0];
+		const url = args.url;
 		if (url) {
 			await runRemoteImport({
 				url,
