@@ -228,6 +228,93 @@ const bg = './public/background.jpg';
 			expect(result).not.toBeNull();
 			expect(result!.code).toBe(`const images = ['/public/a.png', '/public/b.png'];`);
 		});
+
+		test('does not transform unquoted CSS url(/public/...) without CDN', () => {
+			const code = `{ maskImage: "url(/public/logos/typefully.svg)" }`;
+			const id = '/project/src/web/components/Icon.tsx';
+
+			const result = callTransform(code, id);
+
+			// Without CDN, url(/public/...) is already correct — no transformation
+			expect(result).toBeNull();
+		});
+
+		test('transforms unquoted CSS url(./public/...) to url(/public/...)', () => {
+			const code = `{ backgroundImage: "url(./public/images/bg.png)" }`;
+			const id = '/project/src/web/components/Background.tsx';
+
+			const result = callTransform(code, id);
+
+			expect(result).not.toBeNull();
+			expect(result!.code).toBe(`{ backgroundImage: "url(/public/images/bg.png)" }`);
+		});
+
+		test('transforms unquoted CSS url(/public/...) with CDN base URL', () => {
+			plugin = publicAssetPathPlugin({ cdnBaseUrl: 'https://cdn.example.com/deploy/client/' });
+			const configResolved = plugin.configResolved;
+			if (configResolved && typeof configResolved === 'function') {
+				configResolved.call(plugin as never, { command: 'build' } as never);
+			}
+
+			const code = `{ maskImage: "url(/public/logos/icon.svg)" }`;
+			const id = '/project/src/web/components/Icon.tsx';
+
+			const result = callTransform(code, id);
+
+			expect(result).not.toBeNull();
+			expect(result!.code).toBe(
+				`{ maskImage: "url(https://cdn.example.com/deploy/client/logos/icon.svg)" }`
+			);
+		});
+
+		test('transforms unquoted CSS url(./public/...) with CDN base URL', () => {
+			plugin = publicAssetPathPlugin({ cdnBaseUrl: 'https://cdn.example.com/deploy/client/' });
+			const configResolved = plugin.configResolved;
+			if (configResolved && typeof configResolved === 'function') {
+				configResolved.call(plugin as never, { command: 'build' } as never);
+			}
+
+			const code = `{ backgroundImage: "url(./public/images/bg.png)" }`;
+			const id = '/project/src/web/components/Background.tsx';
+
+			const result = callTransform(code, id);
+
+			expect(result).not.toBeNull();
+			expect(result!.code).toBe(
+				`{ backgroundImage: "url(https://cdn.example.com/deploy/client/images/bg.png)" }`
+			);
+		});
+
+		test('transforms multiple url(/public/...) with CDN in same file', () => {
+			plugin = publicAssetPathPlugin({ cdnBaseUrl: 'https://cdn.example.com/deploy/client/' });
+			const configResolved = plugin.configResolved;
+			if (configResolved && typeof configResolved === 'function') {
+				configResolved.call(plugin as never, { command: 'build' } as never);
+			}
+
+			const code = `
+const styles = {
+  maskImage: "url(/public/logos/a.svg)",
+  backgroundImage: "url(/public/images/bg.png)",
+};`;
+			const id = '/project/src/web/components/Styled.tsx';
+
+			const result = callTransform(code, id);
+
+			expect(result).not.toBeNull();
+			expect(result!.code).toContain('url(https://cdn.example.com/deploy/client/logos/a.svg)');
+			expect(result!.code).toContain('url(https://cdn.example.com/deploy/client/images/bg.png)');
+		});
+
+		test('does not transform quoted CSS url("/public/...") without CDN', () => {
+			const code = `{ maskImage: 'url("/public/logos/icon.svg")' }`;
+			const id = '/project/src/web/components/Icon.tsx';
+
+			const result = callTransform(code, id);
+
+			// Without CDN, url("/public/...") is already correct — no transformation
+			expect(result).toBeNull();
+		});
 	});
 
 	describe('dev mode behavior', () => {
@@ -282,7 +369,7 @@ const bg = './public/background.jpg';
 			expect(warnings.length).toBe(1);
 		});
 
-		test('warns for different pattern types in same file', () => {
+		test('warns only about incorrect source paths, not valid ./public/ paths', () => {
 			initDevMode(true);
 
 			const code = `
@@ -294,10 +381,10 @@ const b = './public/b.svg';
 			const warnings: string[] = [];
 			callTransform(code, id, (msg) => warnings.push(msg));
 
-			// Should warn about both patterns
+			// Should only warn about incorrect source paths (src/web/public/)
+			// ./public/ is a valid pattern and should not be warned about
 			expect(warnings.length).toBe(1);
 			expect(warnings[0]).toContain('src/web/public/');
-			expect(warnings[0]).toContain('./public/');
 		});
 	});
 

@@ -113,6 +113,13 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		if (result.workbench.included) {
 			output.push(tui.muted(`✓ Workbench built in ${result.workbench.duration}ms`));
 		}
+		if (result.static.included) {
+			output.push(
+				tui.muted(
+					`✓ ${result.static.routes} routes pre-rendered in ${result.static.duration}ms`
+				)
+			);
+		}
 		if (result.server.included) {
 			output.push(tui.muted(`✓ Server built in ${result.server.duration}ms`));
 		}

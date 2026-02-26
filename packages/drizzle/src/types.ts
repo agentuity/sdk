@@ -1,6 +1,12 @@
 import type { Logger as DrizzleLogger } from 'drizzle-orm';
 import type { BunSQLDatabase } from 'drizzle-orm/bun-sql';
-import type { PostgresConfig, ReconnectConfig, CallablePostgresClient } from '@agentuity/postgres';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type {
+	PostgresConfig,
+	ReconnectConfig,
+	CallablePostgresClient,
+	PostgresPool,
+} from '@agentuity/postgres';
 
 /**
  * Configuration options for creating a PostgreSQL Drizzle instance.
@@ -47,6 +53,40 @@ export interface PostgresDrizzleConfig<
 	reconnect?: ReconnectConfig;
 
 	/**
+	 * Whether to use named prepared statements for the underlying connection.
+	 *
+	 * When `false` (default), queries use unnamed prepared statements that
+	 * are safe for connection poolers (PGBouncer, Supavisor) and
+	 * environments where backend connections may rotate.
+	 *
+	 * When `true`, enables named prepared statement caching for better
+	 * performance with repeated queries, but requires a stable backend
+	 * connection.
+	 *
+	 * @default false
+	 */
+	prepare?: boolean;
+
+	/**
+	 * Whether to return large integers as BigInt instead of strings.
+	 *
+	 * When `true`, integers outside the i32 range are returned as `BigInt`.
+	 * When `false` (default), they are returned as strings.
+	 *
+	 * @default false
+	 */
+	bigint?: boolean;
+
+	/**
+	 * Maximum lifetime of a connection in seconds.
+	 * After this time, the connection is closed and a new one is created.
+	 * Set to `0` for no maximum lifetime.
+	 *
+	 * @default 0 (no maximum lifetime)
+	 */
+	maxLifetime?: number;
+
+	/**
 	 * Callback invoked when the initial connection is established.
 	 */
 	onConnect?: () => void;
@@ -55,6 +95,22 @@ export interface PostgresDrizzleConfig<
 	 * Callback invoked when the connection is re-established after a disconnect.
 	 */
 	onReconnected?: () => void;
+
+	/**
+	 * The database driver to use.
+	 *
+	 * - `'pg'` (default): Uses the `pg` (node-postgres) driver via `drizzle-orm/node-postgres`
+	 *   backed by a resilient {@link PostgresPool} with automatic reconnection.
+	 *   This is the recommended driver for all use cases.
+	 *
+	 * - `'bun-sql'`: Uses Bun's native SQL driver via `drizzle-orm/bun-sql`.
+	 *   May offer slightly better performance but has known parameter binding
+	 *   issues with some libraries (e.g. Better Auth).
+	 *   See: https://github.com/agentuity/sdk/issues/1030
+	 *
+	 * @default 'pg'
+	 */
+	driver?: 'pg' | 'bun-sql';
 }
 
 /**
@@ -77,5 +133,26 @@ export interface PostgresDrizzle<TSchema extends Record<string, unknown> = Recor
 	/**
 	 * Closes the database connection and releases resources.
 	 */
+	close: () => Promise<void>;
+}
+
+/**
+ * The result of creating a PostgreSQL Drizzle instance with the 'pg' driver.
+ *
+ * @template TSchema - The Drizzle schema type
+ */
+export interface PostgresDrizzlePg<
+	TSchema extends Record<string, unknown> = Record<string, never>,
+> {
+	/** The Drizzle database instance (node-postgres backed). */
+	db: NodePgDatabase<TSchema>;
+
+	/**
+	 * The underlying resilient PostgreSQL pool with reconnection support.
+	 * Can be used for raw queries or accessing connection state.
+	 */
+	client: PostgresPool;
+
+	/** Closes the underlying pool and releases resources. */
 	close: () => Promise<void>;
 }

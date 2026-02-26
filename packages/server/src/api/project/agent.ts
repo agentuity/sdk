@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import type { APIClient } from '../api';
-import { APIResponseSchema } from '../api';
-import { AgentNotFoundError, ProjectResponseError } from './util';
+import type { APIClient } from '../api.ts';
+import { APIResponseSchema } from '../api.ts';
+import { AgentNotFoundError, ProjectResponseError } from './util.ts';
 
 export const AgentSchema = z.object({
 	id: z.string().describe('Agent ID (same as identifier)'),

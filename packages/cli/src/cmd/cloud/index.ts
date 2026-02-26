@@ -10,12 +10,16 @@ import { scpSubcommand } from './scp';
 import { deploymentCommand } from './deployment';
 import keyvalueCommand from './keyvalue';
 import queueCommand from './queue';
+import webhookCommand from './webhook';
 import { agentCommand } from './agent';
 import envCommand from './env';
 import apikeyCommand from './apikey';
 import streamCommand from './stream';
 import vectorCommand from './vector';
+import { emailCommand } from './email';
+import taskCommand from './task';
 import sandboxCommand from './sandbox';
+import scheduleCommand from './schedule';
 import { regionSubcommand } from './region';
 import { machineCommand } from './machine';
 import { evalCommand } from './eval';
@@ -35,10 +39,14 @@ export const command = createCommand({
 		apikeyCommand,
 		keyvalueCommand,
 		queueCommand,
+		webhookCommand,
+		taskCommand,
 		agentCommand,
 		streamCommand,
+		emailCommand,
 		vectorCommand,
 		sandboxCommand,
+		scheduleCommand,
 		envCommand,
 		evalCommand,
 		evalRunCommand,

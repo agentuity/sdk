@@ -1,8 +1,8 @@
 import { describe, test, expect } from 'bun:test';
-import { APIClient } from '../src/api/api';
-import { orgEnvGet } from '../src/api/org/env-get';
-import { orgEnvUpdate } from '../src/api/org/env-update';
-import { orgEnvDelete } from '../src/api/org/env-delete';
+import { APIClient } from '../src/api/api.ts';
+import { orgEnvGet } from '../src/api/org/env-get.ts';
+import { orgEnvUpdate } from '../src/api/org/env-update.ts';
+import { orgEnvDelete } from '../src/api/org/env-delete.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('org env API', () => {

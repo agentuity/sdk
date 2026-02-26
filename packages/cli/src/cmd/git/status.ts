@@ -149,7 +149,11 @@ export const statusSubcommand = createSubcommand({
 			return result;
 		} catch (error) {
 			logger.trace(error);
-			return logger.fatal('Failed to get GitHub status: %s', error, ErrorCode.INTEGRATION_FAILED);
+			return logger.fatal(
+				'Failed to get GitHub status: %s',
+				error,
+				ErrorCode.INTEGRATION_FAILED
+			);
 		}
 	},
 });

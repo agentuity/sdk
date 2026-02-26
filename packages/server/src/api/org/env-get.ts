@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { OrgResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { OrgResponseError } from './util.ts';
 
 export const OrgEnvDataSchema = z.object({
 	id: z.string().describe('the organization id'),

@@ -6,8 +6,8 @@ import type {
 	SandboxStatus,
 } from '@agentuity/core';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { API_VERSION, throwSandboxError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { API_VERSION, throwSandboxError } from './util.ts';
 
 export const SandboxOrgInfoSchema = z
 	.object({
@@ -76,7 +76,17 @@ export const SandboxInfoSchema = z
 		name: z.string().optional().describe('Sandbox name'),
 		description: z.string().optional().describe('Sandbox description'),
 		status: z
-			.enum(['creating', 'idle', 'running', 'terminated', 'failed', 'deleted'])
+			.enum([
+				'creating',
+				'idle',
+				'running',
+				'paused',
+				'stopping',
+				'suspended',
+				'terminated',
+				'failed',
+				'deleted',
+			])
 			.describe('Current status of the sandbox'),
 		mode: z.string().optional().describe('Sandbox mode (interactive or oneshot)'),
 		createdAt: z.string().describe('ISO timestamp when the sandbox was created'),
@@ -86,6 +96,8 @@ export const SandboxInfoSchema = z
 		executions: z.number().describe('Total number of executions in this sandbox'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		auditStreamId: z.string().optional().describe('ID of the audit event stream'),
+		auditStreamUrl: z.string().optional().describe('URL for streaming audit events'),
 		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
 		networkPort: z.number().optional().describe('Network port exposed from the sandbox'),
 		url: z
@@ -197,6 +209,8 @@ export async function sandboxList(
 				executions: s.executions,
 				stdoutStreamUrl: s.stdoutStreamUrl,
 				stderrStreamUrl: s.stderrStreamUrl,
+				auditStreamId: s.auditStreamId,
+				auditStreamUrl: s.auditStreamUrl,
 				networkEnabled: s.networkEnabled,
 				networkPort: s.networkPort,
 				url: s.url,

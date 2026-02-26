@@ -1,4 +1,5 @@
 import { StructuredError } from '@agentuity/core';
+import { APIError } from '../api.ts';
 
 /**
  * General queue operation error.
@@ -201,4 +202,77 @@ export function buildQueueHeaders(orgId?: string): Record<string, string> | unde
 		return { 'x-agentuity-orgid': orgId };
 	}
 	return undefined;
+}
+
+/**
+ * Wraps an API call and translates APIError with HTTP status codes to domain-specific queue errors.
+ *
+ * - 404 → QueueNotFoundError / MessageNotFoundError / DestinationNotFoundError / SourceNotFoundError
+ * - 409 with "already exists" → DestinationAlreadyExistsError / SourceAlreadyExistsError
+ *
+ * @internal
+ */
+export async function withQueueErrorHandling<T>(
+	apiCall: () => Promise<T>,
+	context: {
+		queueName?: string;
+		messageId?: string;
+		destinationId?: string;
+		sourceId?: string;
+		sourceName?: string;
+		destinationUrl?: string;
+	}
+): Promise<T> {
+	try {
+		return await apiCall();
+	} catch (error) {
+		if (error instanceof APIError) {
+			if (error.status === 404) {
+				if (context.messageId && context.queueName) {
+					throw new MessageNotFoundError({
+						queueName: context.queueName,
+						messageId: context.messageId,
+						message: error.message,
+					});
+				}
+				if (context.destinationId && context.queueName) {
+					throw new DestinationNotFoundError({
+						queueName: context.queueName,
+						destinationId: context.destinationId,
+						message: error.message,
+					});
+				}
+				if (context.sourceId && context.queueName) {
+					throw new SourceNotFoundError({
+						queueName: context.queueName,
+						sourceId: context.sourceId,
+						message: error.message,
+					});
+				}
+				if (context.queueName) {
+					throw new QueueNotFoundError({
+						queueName: context.queueName,
+						message: error.message,
+					});
+				}
+			}
+			if (error.status === 409) {
+				if (context.destinationUrl && context.queueName) {
+					throw new DestinationAlreadyExistsError({
+						queueName: context.queueName,
+						url: context.destinationUrl,
+						message: error.message,
+					});
+				}
+				if (context.sourceName && context.queueName) {
+					throw new SourceAlreadyExistsError({
+						queueName: context.queueName,
+						name: context.sourceName,
+						message: error.message,
+					});
+				}
+			}
+		}
+		throw error;
+	}
 }

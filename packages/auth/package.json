@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/auth",
-	"version": "1.0.14",
+	"version": "1.0.23",
 	"type": "module",
 	"description": "Authentication for Agentuity projects using Agentuity Auth",
 	"repository": {
@@ -50,6 +50,20 @@
 		"@opentelemetry/api": "^1.9.0",
 		"hono": "^4.0.0",
 		"drizzle-orm": ">=0.44.0"
+	},
+	"peerDependenciesMeta": {
+		"@agentuity/react": {
+			"optional": true
+		},
+		"react": {
+			"optional": true
+		},
+		"hono": {
+			"optional": true
+		},
+		"drizzle-orm": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@agentuity/react": "workspace:*",

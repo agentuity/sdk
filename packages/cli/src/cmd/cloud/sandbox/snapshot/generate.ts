@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types';
 import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types';
 
 const TEMPLATE_YAML = `# yaml-language-server: $schema=https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json
 #
@@ -27,6 +27,10 @@ runtime: bun:1
 # Can be overridden with --description flag
 description: My sandbox snapshot
 
+# Optional: Subdirectory to use as the build context
+# Files are resolved relative to this directory instead of the CLI directory argument
+# dir: src
+
 # Optional: Apt packages to install
 # Packages are validated against Debian stable repositories
 # Supports version pinning: package=version or package=version* (prefix match)
@@ -34,6 +38,12 @@ description: My sandbox snapshot
 #   - curl
 #   - ffmpeg
 #   - imagemagick=8:6.9*
+
+# Optional: npm/bun packages to install globally
+# Installed via 'bun install -g' at sandbox startup
+# packages:
+#   - opencode-ai
+#   - typescript
 
 # Optional: Files to include from the build context directory
 # Supports glob patterns and negative patterns (prefix with !)
@@ -68,6 +78,7 @@ const TEMPLATE_JSON = {
 	name: 'my-snapshot',
 	description: 'My sandbox snapshot',
 	dependencies: ['curl'],
+	packages: ['opencode-ai'],
 	files: ['src/**', '*.js', '!**/*.test.js'],
 	env: {
 		NODE_ENV: 'production',

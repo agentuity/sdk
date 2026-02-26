@@ -1,0 +1,128 @@
+---
+title: Project Structure
+description: Understand how Agentuity projects are organized
+---
+
+Agentuity projects follow a convention-based structure that enables automatic discovery and deployment.
+
+<Callout type="success" title="Just Add a Folder">
+Creating a new agent is as simple as adding a folder to `src/agent/` with an `agent.ts` file. No CLI commands, no manual registration: agents are auto-discovered both locally and when deployed.
+</Callout>
+
+## Directory Layout
+
+```
+my-project/
+├── agentuity.json        # Project configuration
+├── .env                  # Environment variables
+├── package.json          # Dependencies
+├── app.ts                # App entry point
+└── src/
+    ├── agent/            # Agent code (required)
+    │   └── chat/
+    │       └── agent.ts  # Agent logic
+    ├── api/              # HTTP routes (optional)
+    │   └── index.ts      # All routes, imports agents
+    └── web/              # Frontend code (scaffolded by default)
+        └── App.tsx
+```
+
+Agent names come from their directory. Each agent has one file: `agent.ts` with your logic and schema.
+
+<Callout type="info" title="Utility Files">
+You can add helper files (like `types.ts`, `helpers.ts`, `utils.ts`) alongside your agents and routes. The build system only processes files that export agents or routers.
+</Callout>
+
+## Agents and Routes
+
+Agents and routes are separate concerns in Agentuity:
+
+| Concept | Location | Purpose |
+|---------|----------|---------|
+| **Agents** | `src/agent/` | Core logic, schemas, validation |
+| **Routes** | `src/api/` | HTTP endpoints, triggers (cron, WebSocket, SSE) |
+
+Agents contain your core logic with schema validation and lifecycle hooks. Routes define how agents get invoked (HTTP, cron, webhooks, etc.). This separation keeps concerns clear: agents don't know how they're called, and routes handle all transport.
+
+### agent.ts
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const agent = createAgent('Chat', {
+  schema: {
+    input: s.object({ message: s.string() }),
+    output: s.object({ response: s.string() }),
+  },
+  handler: async (ctx, input) => {
+    return { response: `Echo: ${input.message}` };
+  },
+});
+
+export default agent;
+```
+
+### src/api/index.ts
+
+Routes import agents directly and call them:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import chat from '@agent/chat';
+
+const router = createRouter();
+
+router.post('/chat', chat.validator(), async (c) => {
+  const data = c.req.valid('json');
+  const result = await chat.run(data);
+  return c.json(result);
+});
+
+export default router;
+```
+
+The `chat.validator()` middleware validates the request body against the agent's input schema and provides type-safe access via `c.req.valid('json')`.
+
+## When to Use Agents vs Direct Routes
+
+| | Agents | Direct Routes (no agent) |
+|---|---|---|
+| **Location** | `src/agent/` | `src/api/` |
+| **Schema validation** | Built-in with `agent.validator()` | Manual |
+| **Events & Evals** | Yes | No |
+| **Storage access** | Full | Full |
+| **Best for** | Validated workflows, LLM processing | Health checks, webhooks, simple endpoints |
+
+Use simple routes (without calling an agent) for lightweight endpoints like health checks. For structured processing with validation, create an agent and call it from your route.
+
+## Frontend (`src/web/`)
+
+Place frontend code in `src/web/` to deploy alongside your agents. The CLI bundles and serves it automatically.
+
+React is currently supported via `@agentuity/react`, with a framework-agnostic approach that enables support for Next.js, Svelte, and others.
+
+```tsx
+// src/web/App.tsx
+import { useAPI } from '@agentuity/react';
+
+function App() {
+  const { data, invoke, isLoading } = useAPI('POST /api/hello');
+
+  return (
+    <button onClick={() => invoke({ name: 'World' })}>
+      {isLoading ? 'Loading...' : 'Say Hello'}
+    </button>
+  );
+}
+```
+
+<Callout type="info" title="Deployment Scenarios">
+You can also deploy your frontend elsewhere (e.g., Vercel, Netlify) and call your Agentuity agents via the React hooks with a configured `baseUrl`.
+</Callout>
+
+## Next Steps
+
+- [App Configuration](/get-started/app-configuration): Configure `app.ts` and `agentuity.json`
+- [Creating Agents](/agents/creating-agents): Deep dive into agent creation
+- [Routes](/routes): Learn about HTTP, cron, and other triggers

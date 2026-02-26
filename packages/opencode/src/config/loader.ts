@@ -2,7 +2,6 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { YAML } from 'bun';
 import type { CoderConfig, SkillsConfig } from '../types';
-import type { BackgroundTaskConfig } from '../background/types';
 import { CoderConfigSchema } from '../types';
 import type { TmuxConfig } from '../tmux/types';
 import { MIN_PANE_WIDTH } from '../tmux/types';
@@ -16,13 +15,6 @@ interface CLICoderConfig {
 		maxPanes?: number;
 		mainPaneMinWidth?: number;
 		agentPaneMinWidth?: number;
-	};
-	background?: {
-		enabled?: boolean;
-		defaultConcurrency?: number;
-		staleTimeoutMs?: number;
-		providerConcurrency?: Record<string, number>;
-		modelConcurrency?: Record<string, number>;
 	};
 }
 
@@ -104,7 +96,7 @@ export async function loadCoderConfig(): Promise<CoderConfig> {
 		const cliConfig = YAML.parse(content) as CLIConfig;
 
 		// Extract orgId from CLI config preferences
-		// Extract coder settings (tmux, background) from CLI config coder section
+		// Extract coder settings (tmux) from CLI config coder section
 		// Agent model overrides should be done via opencode.json
 		const coderConfig: CoderConfig = {
 			org: cliConfig.preferences?.orgId,
@@ -112,12 +104,6 @@ export async function loadCoderConfig(): Promise<CoderConfig> {
 				? {
 						...DEFAULT_TMUX_CONFIG,
 						...cliConfig.coder.tmux,
-					}
-				: undefined,
-			background: cliConfig.coder?.background
-				? {
-						...DEFAULT_BACKGROUND_CONFIG,
-						...cliConfig.coder.background,
 					}
 				: undefined,
 		};
@@ -144,14 +130,6 @@ const DEFAULT_BLOCKED_COMMANDS = [
 	'auth token', // Don't leak auth tokens
 ];
 
-const DEFAULT_BACKGROUND_CONFIG: BackgroundTaskConfig = {
-	enabled: true,
-	defaultConcurrency: 1,
-	staleTimeoutMs: 30 * 60 * 1000,
-	providerConcurrency: {},
-	modelConcurrency: {},
-};
-
 const DEFAULT_SKILLS_CONFIG: SkillsConfig = {
 	enabled: true,
 	paths: [],
@@ -175,7 +153,6 @@ export function getDefaultConfig(): CoderConfig {
 	return {
 		disabledMcps: [],
 		blockedCommands: DEFAULT_BLOCKED_COMMANDS,
-		background: DEFAULT_BACKGROUND_CONFIG,
 		skills: DEFAULT_SKILLS_CONFIG,
 		tmux: DEFAULT_TMUX_CONFIG,
 	};
@@ -186,29 +163,8 @@ export function mergeConfig(base: CoderConfig, override: CoderConfig): CoderConf
 		org: override.org ?? base.org,
 		disabledMcps: override.disabledMcps ?? base.disabledMcps,
 		blockedCommands: override.blockedCommands ?? base.blockedCommands,
-		background: mergeBackgroundConfig(base.background, override.background),
 		skills: mergeSkillsConfig(base.skills, override.skills),
 		tmux: mergeTmuxConfig(base.tmux, override.tmux),
-	};
-}
-
-function mergeBackgroundConfig(
-	base?: BackgroundTaskConfig,
-	override?: BackgroundTaskConfig
-): BackgroundTaskConfig | undefined {
-	if (!base && !override) return undefined;
-	return {
-		enabled: override?.enabled ?? base?.enabled ?? true,
-		defaultConcurrency: override?.defaultConcurrency ?? base?.defaultConcurrency ?? 1,
-		staleTimeoutMs: override?.staleTimeoutMs ?? base?.staleTimeoutMs ?? 30 * 60 * 1000,
-		providerConcurrency: {
-			...(base?.providerConcurrency ?? {}),
-			...(override?.providerConcurrency ?? {}),
-		},
-		modelConcurrency: {
-			...(base?.modelConcurrency ?? {}),
-			...(override?.modelConcurrency ?? {}),
-		},
 	};
 }
 

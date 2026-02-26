@@ -11,6 +11,7 @@ SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLI="bun $SDK_ROOT/packages/cli/bin/cli.ts"
 TEST_DIR=$(mktemp -d)
 SANDBOX_ID=""
+PYTHON_SANDBOX_ID=""
 
 # Get commit SHA for sandbox descriptions
 COMMIT_SHA=$(git -C "$SDK_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -35,6 +36,9 @@ cleanup() {
 	echo -e "\n${YELLOW}Cleaning up...${NC}"
 	if [ -n "$SANDBOX_ID" ]; then
 		$CLI cloud sandbox delete "$SANDBOX_ID" --confirm 2>/dev/null || true
+	fi
+	if [ -n "$PYTHON_SANDBOX_ID" ]; then
+		$CLI cloud sandbox delete "$PYTHON_SANDBOX_ID" --confirm 2>/dev/null || true
 	fi
 	# Clean up all tracked snapshots
 	for snap_id in "${CREATED_SNAPSHOTS[@]}"; do
@@ -98,15 +102,40 @@ delete_and_untrack_snapshot() {
 fail() {
 	echo -e "${RED}✗ $1${NC}"
 	echo -e "${RED}  Output: $2${NC}"
+	# Show raw CLI output if provided as 3rd arg (when $2 is a comparison string)
+	if [ -n "$3" ]; then
+		echo -e "${RED}  CLI Response:${NC}"
+		echo "$3" | while IFS= read -r line; do
+			echo -e "${RED}    ${line}${NC}"
+		done
+	fi
 	# Log sandbox ID for OTel trace correlation
 	if [ -n "$SANDBOX_ID" ]; then
 		echo -e "${RED}  SandboxId: $SANDBOX_ID${NC}"
+	fi
+	# Log CLI session ID for log correlation
+	local cli_session
+	cli_session=$(find_latest_cli_session)
+	if [ -n "$cli_session" ]; then
+		echo -e "${RED}  CliSession: $cli_session${NC}"
 	fi
 	TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 info() {
 	echo -e "${YELLOW}→ $1${NC}"
+}
+
+# Find the latest CLI session ID from internal logs for debugging correlation
+find_latest_cli_session() {
+	local logs_dir="$HOME/.config/agentuity/logs"
+	if [ -d "$logs_dir" ]; then
+		local latest
+		latest=$(ls -1t "$logs_dir" 2>/dev/null | head -1)
+		if [ -n "$latest" ]; then
+			echo "$latest"
+		fi
+	fi
 }
 
 section() {
@@ -183,11 +212,17 @@ section "ORG ENV/SECRET INTERPOLATION Tests"
 # Syntax: ${env:KEY} for org env vars, ${secret:KEY} for org secrets
 
 # First, get the org ID (needed for non-TTY mode)
+# Prefer AGENTUITY_CLOUD_ORG_ID env var (used by sandbox commands) over auth org current
+# to ensure env/secrets are set on the SAME org that sandbox commands operate on.
 info "Getting organization ID for interpolation tests..."
-# auth org current --json returns the raw org ID as a quoted string, e.g. "org_xxx"
-ORG_RAW=$($CLI auth org current --json 2>&1) || true
-# Strip quotes and whitespace to extract org ID
-ORG_ID=$(echo "$ORG_RAW" | tr -d '"\n\r ' | grep -o 'org_[a-zA-Z0-9]*' || true)
+if [ -n "$AGENTUITY_CLOUD_ORG_ID" ]; then
+	ORG_ID="$AGENTUITY_CLOUD_ORG_ID"
+else
+	# auth org current --json returns the raw org ID as a quoted string, e.g. "org_xxx"
+	ORG_RAW=$($CLI auth org current --json 2>&1) || true
+	# Strip quotes and whitespace to extract org ID
+	ORG_ID=$(echo "$ORG_RAW" | tr -d '"\n\r ' | grep -o 'org_[a-zA-Z0-9]*' || true)
+fi
 
 if [ -z "$ORG_ID" ] || [[ "$ORG_ID" != org_* ]]; then
 	info "Skipping org interpolation tests - could not determine org ID"
@@ -367,7 +402,7 @@ while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
 	WAIT_COUNT=$((WAIT_COUNT + 1))
 done
 if [ $WAIT_COUNT -eq $MAX_WAIT ]; then
-	fail "sandbox did not become ready within ${MAX_WAIT}s" "status: $CURRENT_STATUS"
+	fail "sandbox did not become ready within ${MAX_WAIT}s" "status: $CURRENT_STATUS" "$STATUS_OUTPUT"
 fi
 
 # ============================================
@@ -669,12 +704,39 @@ $CLI cloud sandbox rmdir "$SANDBOX_ID" /home/agentuity/testrmdir >/dev/null 2>&1
 
 # Test: JSON output
 info "Test: sandbox rm --json"
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "json test" > /home/agentuity/jsontest.txt' >/dev/null 2>&1 || true
-RM_JSON=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/jsontest.txt --json 2>&1) || true
-if echo "$RM_JSON" | grep -q '"success"' && echo "$RM_JSON" | grep -q '"path"'; then
-	pass "sandbox rm --json returns structured data"
+RM_JSON_READY=0
+set +e
+RM_JSON_CREATE=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "json test" > /home/agentuity/jsontest.txt' 2>&1)
+RM_JSON_CREATE_EXIT=$?
+set -e
+if [ "$RM_JSON_CREATE_EXIT" -ne 0 ]; then
+	fail "sandbox rm --json setup failed to create file (exit code $RM_JSON_CREATE_EXIT)" "$RM_JSON_CREATE"
 else
-	fail "sandbox rm --json missing expected fields" "$RM_JSON"
+	set +e
+	RM_JSON_EXISTS=$($CLI cloud sandbox exec "$SANDBOX_ID" -- test -f /home/agentuity/jsontest.txt 2>&1)
+	RM_JSON_EXISTS_EXIT=$?
+	set -e
+	if [ "$RM_JSON_EXISTS_EXIT" -ne 0 ]; then
+		fail "sandbox rm --json setup could not verify file exists" "$RM_JSON_EXISTS"
+	else
+		RM_JSON_READY=1
+	fi
+fi
+if [ "$RM_JSON_READY" -eq 1 ]; then
+	set +e
+	RM_JSON=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/jsontest.txt --json 2>&1)
+	RM_JSON_EXIT=$?
+	set -e
+	if [ "$RM_JSON_EXIT" -ne 0 ]; then
+		fail "sandbox rm --json failed to remove file (exit code $RM_JSON_EXIT)" "$RM_JSON"
+	else
+		pass "sandbox rm --json exits successfully"
+	fi
+	if echo "$RM_JSON" | grep -q '"success"' && echo "$RM_JSON" | grep -q '"path"'; then
+		pass "sandbox rm --json returns structured data"
+	else
+		fail "sandbox rm --json missing expected fields" "$RM_JSON"
+	fi
 fi
 
 # ============================================
@@ -912,7 +974,7 @@ CREATED_TAG=$(echo "$NAMED_SNAP_CREATE" | grep -o '"tag"[[:space:]]*:[[:space:]]
 if [ "$CREATED_NAME" = "$SNAP_NAME" ] && [ "$CREATED_TAG" = "$SNAP_TAG" ]; then
 	pass "snapshot create with --name and --tag: name=$CREATED_NAME, tag=$CREATED_TAG"
 else
-	fail "snapshot create did not set name/tag correctly" "expected name=$SNAP_NAME tag=$SNAP_TAG, got name=$CREATED_NAME tag=$CREATED_TAG"
+	fail "snapshot create did not set name/tag correctly" "expected name=$SNAP_NAME tag=$SNAP_TAG, got name=$CREATED_NAME tag=$CREATED_TAG" "$NAMED_SNAP_CREATE"
 fi
 
 # Test: Create sandbox using name:tag format
@@ -941,7 +1003,7 @@ LATEST_TAG=$(echo "$LATEST_SNAP_CREATE" | grep -o '"tag"[[:space:]]*:[[:space:]]
 if [ "$LATEST_TAG" = "latest" ]; then
 	pass "snapshot create without --tag defaults to 'latest'"
 else
-	fail "snapshot create did not default to 'latest' tag" "got tag=$LATEST_TAG"
+	fail "snapshot create did not default to 'latest' tag" "got tag=$LATEST_TAG" "$LATEST_SNAP_CREATE"
 fi
 
 # Test: Create sandbox using name:latest format
@@ -1052,7 +1114,7 @@ BUILD_TAG=$(echo "$BUILD_OUTPUT" | grep -o '"tag"[[:space:]]*:[[:space:]]*"[^"]*
 if [ "$BUILD_TAG" = "v1" ]; then
 	pass "snapshot build respects --tag option"
 else
-	fail "snapshot build did not use correct tag (expected v1)" "$BUILD_TAG"
+	fail "snapshot build did not use correct tag (expected v1)" "$BUILD_TAG" "$BUILD_OUTPUT"
 fi
 
 # Test: Create sandbox from built snapshot
@@ -1286,6 +1348,176 @@ else
 fi
 
 # ============================================
+section "SNAPSHOT BUILD DIR FIELD Tests"
+# ============================================
+# Tests that the 'dir' field in snapshot build files correctly shifts
+# the build context to a subdirectory for file resolution.
+
+# Setup dir test directory structure:
+#   dir-test/
+#     subdir/
+#       app.js
+#       nested/
+#         helper.js
+#     outside.txt (should NOT be included when dir: subdir)
+DIR_BUILD_DIR="$TEST_DIR/dir-test"
+mkdir -p "$DIR_BUILD_DIR/subdir/nested"
+echo "app from subdir" > "$DIR_BUILD_DIR/subdir/app.js"
+echo "helper from subdir" > "$DIR_BUILD_DIR/subdir/nested/helper.js"
+echo "should not be included" > "$DIR_BUILD_DIR/outside.txt"
+pass "Dir field test files created"
+
+# Test: Build with dir field - files resolved from subdir
+info "Test: snapshot build with dir field"
+cat > "$DIR_BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+description: Test dir field
+dir: subdir
+files:
+  - "**/*"
+EOF
+
+DIR_BUILD_OUTPUT=$($CLI cloud sandbox snapshot build "$DIR_BUILD_DIR" --json 2>&1) || true
+DIR_SNAP_ID=$(echo "$DIR_BUILD_OUTPUT" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$DIR_SNAP_ID"
+if [ -n "$DIR_SNAP_ID" ] && [[ "$DIR_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build with dir field returns valid snapshotId: $DIR_SNAP_ID"
+else
+	fail "snapshot build with dir field did not return valid snapshotId" "$DIR_BUILD_OUTPUT"
+fi
+
+# Verify fileCount is 2 (app.js + nested/helper.js, NOT outside.txt)
+DIR_FILE_COUNT=$(echo "$DIR_BUILD_OUTPUT" | grep -o '"fileCount"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+if [ "$DIR_FILE_COUNT" = "2" ]; then
+	pass "snapshot build with dir field has correct fileCount: 2"
+else
+	fail "snapshot build with dir field has wrong fileCount (expected 2)" "fileCount=$DIR_FILE_COUNT" "$DIR_BUILD_OUTPUT"
+fi
+
+# Create sandbox from snapshot and verify files are at correct paths
+info "Test: sandbox from dir field snapshot has correct files"
+if [ -n "$DIR_SNAP_ID" ] && [[ "$DIR_SNAP_ID" == snp_* ]]; then
+	DIR_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$DIR_SNAP_ID" --json 2>&1) || true
+	DIR_SANDBOX_ID=$(echo "$DIR_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$DIR_SANDBOX_ID" ] && [[ "$DIR_SANDBOX_ID" == sbx_* ]]; then
+		sleep 3
+		# Verify app.js from subdir is at root of sandbox (relative to subdir, not parent)
+		DIR_VERIFY_APP=$($CLI cloud sandbox exec "$DIR_SANDBOX_ID" -- cat /home/agentuity/app.js 2>&1) || true
+		if echo "$DIR_VERIFY_APP" | grep -q "app from subdir"; then
+			pass "dir field snapshot contains app.js at root"
+		else
+			fail "dir field snapshot missing app.js" "$DIR_VERIFY_APP"
+		fi
+
+		# Verify nested/helper.js preserves relative path within subdir
+		DIR_VERIFY_HELPER=$($CLI cloud sandbox exec "$DIR_SANDBOX_ID" -- cat /home/agentuity/nested/helper.js 2>&1) || true
+		if echo "$DIR_VERIFY_HELPER" | grep -q "helper from subdir"; then
+			pass "dir field snapshot contains nested/helper.js"
+		else
+			fail "dir field snapshot missing nested/helper.js" "$DIR_VERIFY_HELPER"
+		fi
+
+		# Verify outside.txt is NOT present (was outside the dir context)
+		DIR_VERIFY_OUTSIDE=$($CLI cloud sandbox exec "$DIR_SANDBOX_ID" -- ls /home/agentuity/outside.txt 2>&1) || true
+		if echo "$DIR_VERIFY_OUTSIDE" | grep -qi "no such file\|cannot access"; then
+			pass "dir field snapshot correctly excluded outside.txt"
+		else
+			fail "dir field snapshot should not contain outside.txt" "$DIR_VERIFY_OUTSIDE"
+		fi
+
+		$CLI cloud sandbox delete "$DIR_SANDBOX_ID" --confirm 2>/dev/null || true
+	else
+		fail "failed to create sandbox from dir field snapshot" "$DIR_SANDBOX"
+	fi
+else
+	fail "skipping dir field sandbox test - no snapshot ID" ""
+fi
+
+# Clean up dir field snapshot
+delete_and_untrack_snapshot "$DIR_SNAP_ID"
+
+# Test: Build with dir field + --file (yaml outside build context)
+info "Test: snapshot build with dir field and --file"
+DIR_FILE_TEST="$TEST_DIR/dir-file-test"
+mkdir -p "$DIR_FILE_TEST/project"
+echo "index from project" > "$DIR_FILE_TEST/project/index.js"
+
+cat > "$DIR_FILE_TEST/custom-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+description: Test dir with --file
+dir: project
+files:
+  - "**/*"
+EOF
+
+DIR_FILE_BUILD=$($CLI cloud sandbox snapshot build "$DIR_FILE_TEST" --file "$DIR_FILE_TEST/custom-snapshot.yaml" --json 2>&1) || true
+DIR_FILE_SNAP_ID=$(echo "$DIR_FILE_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$DIR_FILE_SNAP_ID"
+if [ -n "$DIR_FILE_SNAP_ID" ] && [[ "$DIR_FILE_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build with dir + --file returns valid snapshotId: $DIR_FILE_SNAP_ID"
+
+	# Verify fileCount is 1
+	DIR_FILE_COUNT2=$(echo "$DIR_FILE_BUILD" | grep -o '"fileCount"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+	if [ "$DIR_FILE_COUNT2" = "1" ]; then
+		pass "snapshot build with dir + --file has correct fileCount: 1"
+	else
+		fail "snapshot build with dir + --file has wrong fileCount (expected 1)" "fileCount=$DIR_FILE_COUNT2" "$DIR_FILE_BUILD"
+	fi
+
+	# Create sandbox and verify file
+	DIR_FILE_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$DIR_FILE_SNAP_ID" --json 2>&1) || true
+	DIR_FILE_SANDBOX_ID=$(echo "$DIR_FILE_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$DIR_FILE_SANDBOX_ID" ] && [[ "$DIR_FILE_SANDBOX_ID" == sbx_* ]]; then
+		sleep 3
+		DIR_FILE_VERIFY=$($CLI cloud sandbox exec "$DIR_FILE_SANDBOX_ID" -- cat /home/agentuity/index.js 2>&1) || true
+		if echo "$DIR_FILE_VERIFY" | grep -q "index from project"; then
+			pass "dir + --file snapshot contains index.js at root"
+		else
+			fail "dir + --file snapshot missing index.js" "$DIR_FILE_VERIFY"
+		fi
+		$CLI cloud sandbox delete "$DIR_FILE_SANDBOX_ID" --confirm 2>/dev/null || true
+	else
+		fail "failed to create sandbox from dir + --file snapshot" "$DIR_FILE_SANDBOX"
+	fi
+
+	delete_and_untrack_snapshot "$DIR_FILE_SNAP_ID"
+else
+	fail "snapshot build with dir + --file failed" "$DIR_FILE_BUILD"
+fi
+
+# Test: Build with dir pointing to nonexistent directory
+info "Test: snapshot build with dir pointing to nonexistent directory"
+DIR_BAD_TEST="$TEST_DIR/dir-bad-test"
+mkdir -p "$DIR_BAD_TEST"
+echo "placeholder" > "$DIR_BAD_TEST/placeholder.txt"
+cat > "$DIR_BAD_TEST/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+dir: nonexistent
+files:
+  - "**/*"
+EOF
+
+set +e
+DIR_BAD_BUILD=$($CLI cloud sandbox snapshot build "$DIR_BAD_TEST" --json 2>&1)
+DIR_BAD_EXIT=$?
+set -e
+if [ "$DIR_BAD_EXIT" -ne 0 ] && echo "$DIR_BAD_BUILD" | grep -qi "not found\|does not exist\|no such"; then
+	pass "snapshot build fails when dir points to nonexistent directory"
+else
+	DIR_BAD_SNAP_ID=$(echo "$DIR_BAD_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$DIR_BAD_SNAP_ID" ]; then
+		track_snapshot "$DIR_BAD_SNAP_ID"
+		delete_and_untrack_snapshot "$DIR_BAD_SNAP_ID"
+		fail "snapshot build should have failed with nonexistent dir" "$DIR_BAD_BUILD"
+	else
+		fail "snapshot build error message not clear about nonexistent dir" "$DIR_BAD_BUILD"
+	fi
+fi
+
+# ============================================
 section "MALWARE DETECTION Tests (Public Snapshots)"
 # ============================================
 
@@ -1397,6 +1629,701 @@ fi
 
 # Clean up build test directory
 rm -rf "$BUILD_DIR" "$EMPTY_BUILD_DIR"
+
+# ============================================
+section "RUNTIME VALIDATION Tests"
+# ============================================
+
+# Test: List available runtimes
+info "Test: runtime list --json"
+RUNTIME_LIST=$($CLI cloud sandbox runtime list --json 2>&1) || true
+
+# Verify python runtimes exist
+if echo "$RUNTIME_LIST" | grep -qi "python"; then
+	pass "runtime list includes python entries"
+else
+	fail "runtime list missing python entries" "$RUNTIME_LIST"
+fi
+
+# Verify bun runtimes exist
+if echo "$RUNTIME_LIST" | grep -qi "bun"; then
+	pass "runtime list includes bun entries"
+else
+	fail "runtime list missing bun entries" "$RUNTIME_LIST"
+fi
+
+# Extract python runtime names for validation
+# Look for python:3.14 specifically (customer-reported runtime) and any other python
+PYTHON_RUNTIME_314=$(echo "$RUNTIME_LIST" | grep -o '"name"[[:space:]]*:[[:space:]]*"python:3\.14"' | head -1 | sed 's/.*"\(python:[^"]*\)"$/\1/')
+if [ -n "$PYTHON_RUNTIME_314" ]; then
+	pass "found python:3.14 runtime (customer-reported runtime)"
+else
+	fail "python:3.14 runtime NOT found in runtime list (customer uses this)" "$RUNTIME_LIST"
+fi
+
+# Use python:3.14 specifically since that's the customer's reported runtime
+PYTHON_RUNTIME="python:3.14"
+info "Using python runtime for snapshot tests: $PYTHON_RUNTIME"
+
+# ============================================
+section "SNAPSHOT WITH PYTHON RUNTIME Tests"
+# ============================================
+# This section reproduces customer-reported bug: snapshot creation
+# returns 500 error on non-default (python) runtimes.
+
+# Test: Create sandbox with python runtime
+info "Test: sandbox create with python runtime ($PYTHON_RUNTIME)"
+PYTHON_CREATE=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --runtime "$PYTHON_RUNTIME" --idle-timeout 10m --json 2>&1) || true
+PYTHON_SANDBOX_ID=$(echo "$PYTHON_CREATE" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$PYTHON_SANDBOX_ID" ] && [[ "$PYTHON_SANDBOX_ID" == sbx_* ]]; then
+	pass "python sandbox create returns valid sandboxId: $PYTHON_SANDBOX_ID"
+else
+	fail "python sandbox create did not return valid sandboxId" "$PYTHON_CREATE"
+fi
+
+# Wait for python sandbox to become ready (status: idle)
+if [ -n "$PYTHON_SANDBOX_ID" ]; then
+	info "Waiting for python sandbox to become ready..."
+	MAX_WAIT=30
+	WAIT_COUNT=0
+	while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+		PY_STATUS_OUTPUT=$($CLI cloud sandbox get "$PYTHON_SANDBOX_ID" --json 2>&1) || true
+		PY_CURRENT_STATUS=$(echo "$PY_STATUS_OUTPUT" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+		if [ "$PY_CURRENT_STATUS" = "idle" ]; then
+			pass "python sandbox is ready (status: idle)"
+			break
+		fi
+		sleep 1
+		WAIT_COUNT=$((WAIT_COUNT + 1))
+	done
+	if [ $WAIT_COUNT -eq $MAX_WAIT ]; then
+		fail "python sandbox did not become ready within ${MAX_WAIT}s" "status: $PY_CURRENT_STATUS" "$PY_STATUS_OUTPUT"
+	fi
+fi
+
+# Test: Create and upload a .py file to python sandbox
+if [ -n "$PYTHON_SANDBOX_ID" ]; then
+	echo 'print("Hello from Python")' > "$TEST_DIR/test.py"
+	info "Test: upload .py file to python sandbox"
+	PY_UPLOAD=$($CLI cloud sandbox cp "$TEST_DIR/test.py" "$PYTHON_SANDBOX_ID:test.py" 2>&1) || true
+	if echo "$PY_UPLOAD" | grep -qi "Copied"; then
+		pass "uploaded test.py to python sandbox"
+	else
+		fail "failed to upload test.py to python sandbox" "$PY_UPLOAD"
+	fi
+
+	# Test: Verify .py file accessible in sandbox
+	info "Test: verify .py file accessible in python sandbox"
+	PY_CAT=$($CLI cloud sandbox exec "$PYTHON_SANDBOX_ID" -- cat /home/agentuity/test.py 2>&1) || true
+	if echo "$PY_CAT" | grep -q 'print("Hello from Python")'; then
+		pass "test.py content verified in python sandbox"
+	else
+		fail "test.py content mismatch in python sandbox" "$PY_CAT"
+	fi
+
+	# Test: Execute python file in sandbox (verify runtime works)
+	info "Test: execute python file in python sandbox"
+	PY_EXEC=$($CLI cloud sandbox exec "$PYTHON_SANDBOX_ID" -- python3 /home/agentuity/test.py 2>&1) || true
+	if echo "$PY_EXEC" | grep -q "Hello from Python"; then
+		pass "python3 execution succeeded in python sandbox"
+	else
+		fail "python3 execution failed in python sandbox" "$PY_EXEC"
+	fi
+
+	# Test: Verify uploaded file appears in file listing
+	info "Test: verify .py file appears in sandbox file listing"
+	PY_FILES=$($CLI cloud sandbox files "$PYTHON_SANDBOX_ID" /home/agentuity --json 2>&1) || true
+	if echo "$PY_FILES" | grep -q "test.py"; then
+		pass "test.py visible in python sandbox file listing"
+	else
+		fail "test.py NOT visible in python sandbox file listing (customer bug)" "$PY_FILES"
+	fi
+
+	# Test: Create snapshot from python sandbox (THIS IS THE CUSTOMER BUG)
+	# Customer reports 500 error when creating snapshots from python runtime sandboxes
+	info "Test: snapshot create from python sandbox (customer-reported 500 bug)"
+	set +e
+	PYTHON_SNAP_OUTPUT=$($CLI cloud sandbox snapshot create "$PYTHON_SANDBOX_ID" --name "python-test-${RUN_ID}" --json 2>&1)
+	PYTHON_SNAP_EXIT=$?
+	set -e
+	PYTHON_SNAP_ID=$(echo "$PYTHON_SNAP_OUTPUT" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	track_snapshot "$PYTHON_SNAP_ID"
+
+	if [ -n "$PYTHON_SNAP_ID" ] && [[ "$PYTHON_SNAP_ID" == snp_* ]]; then
+		pass "snapshot create from python sandbox succeeded: $PYTHON_SNAP_ID"
+	else
+		fail "snapshot create from python sandbox FAILED (exit=$PYTHON_SNAP_EXIT)" "This reproduces customer-reported 500 error on python runtime snapshots" "$PYTHON_SNAP_OUTPUT"
+		info "Full error output for debugging:"
+		echo "$PYTHON_SNAP_OUTPUT"
+	fi
+
+	# Test: Verify snapshot get returns correct info
+	if [ -n "$PYTHON_SNAP_ID" ] && [[ "$PYTHON_SNAP_ID" == snp_* ]]; then
+		info "Test: snapshot get for python snapshot"
+		PY_SNAP_GET=$($CLI cloud sandbox snapshot get "$PYTHON_SNAP_ID" --json 2>&1) || true
+		PY_SNAP_GET_ID=$(echo "$PY_SNAP_GET" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+		if [ "$PY_SNAP_GET_ID" = "$PYTHON_SNAP_ID" ]; then
+			pass "snapshot get returns correct snapshotId for python snapshot"
+		else
+			fail "snapshot get returned wrong snapshotId for python snapshot" "$PY_SNAP_GET"
+		fi
+
+		# Verify fileCount > 0 (uploaded files should be included)
+		PY_SNAP_FILE_COUNT=$(echo "$PY_SNAP_GET" | grep -o '"fileCount"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+		if [ -n "$PY_SNAP_FILE_COUNT" ] && [ "$PY_SNAP_FILE_COUNT" -gt 0 ] 2>/dev/null; then
+			pass "python snapshot fileCount > 0: $PY_SNAP_FILE_COUNT"
+		else
+			fail "python snapshot fileCount should be > 0 (uploaded files not included in snapshot)" "fileCount=$PY_SNAP_FILE_COUNT" "$PY_SNAP_GET"
+		fi
+
+		# Verify sizeBytes > 0
+		PY_SNAP_SIZE=$(echo "$PY_SNAP_GET" | grep -o '"sizeBytes"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+		if [ -n "$PY_SNAP_SIZE" ] && [ "$PY_SNAP_SIZE" -gt 0 ] 2>/dev/null; then
+			pass "python snapshot sizeBytes > 0: $PY_SNAP_SIZE"
+		else
+			fail "python snapshot sizeBytes should be > 0" "sizeBytes=$PY_SNAP_SIZE" "$PY_SNAP_GET"
+		fi
+
+		# Test: Create new sandbox from python snapshot and verify files preserved
+		info "Test: create sandbox from python snapshot and verify files"
+		PY_RESTORE=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$PYTHON_SNAP_ID" --json 2>&1) || true
+		PY_RESTORE_ID=$(echo "$PY_RESTORE" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+		if [ -n "$PY_RESTORE_ID" ] && [[ "$PY_RESTORE_ID" == sbx_* ]]; then
+			sleep 3
+			PY_RESTORE_CAT=$($CLI cloud sandbox exec "$PY_RESTORE_ID" -- cat /home/agentuity/test.py 2>&1) || true
+			if echo "$PY_RESTORE_CAT" | grep -q 'print("Hello from Python")'; then
+				pass "sandbox from python snapshot contains test.py with correct content"
+			else
+				fail "sandbox from python snapshot missing test.py content" "$PY_RESTORE_CAT"
+			fi
+			# Clean up restored sandbox
+			$CLI cloud sandbox delete "$PY_RESTORE_ID" --confirm 2>/dev/null || true
+		else
+			fail "failed to create sandbox from python snapshot" "$PY_RESTORE"
+		fi
+
+		# Clean up python snapshot
+		delete_and_untrack_snapshot "$PYTHON_SNAP_ID"
+	fi
+
+	# Clean up python sandbox
+	$CLI cloud sandbox delete "$PYTHON_SANDBOX_ID" --confirm 2>/dev/null || true
+	PYTHON_SANDBOX_ID=""
+fi
+
+# ============================================
+section "SNAPSHOT WITH FILES IN SUBDIRECTORIES Tests"
+# ============================================
+# Uses the existing SANDBOX_ID (main test sandbox, bun runtime)
+# Tests that nested directory structures are properly included in snapshots
+
+# Test: Create nested directory structure with various file types
+info "Test: create nested directory structure in sandbox"
+$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'mkdir -p /home/agentuity/project/src' >/dev/null 2>&1 || true
+$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'mkdir -p /home/agentuity/project/config' >/dev/null 2>&1 || true
+
+$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "def main(): print(\"hello\")" > /home/agentuity/project/src/main.py' >/dev/null 2>&1 || true
+$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "def helper(): return 42" > /home/agentuity/project/src/utils.py' >/dev/null 2>&1 || true
+$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "{\"debug\": true}" > /home/agentuity/project/config/settings.json' >/dev/null 2>&1 || true
+
+# Verify files were created
+NESTED_VERIFY=$($CLI cloud sandbox exec "$SANDBOX_ID" -- find /home/agentuity/project -type f 2>&1) || true
+if echo "$NESTED_VERIFY" | grep -q "main.py" && echo "$NESTED_VERIFY" | grep -q "utils.py" && echo "$NESTED_VERIFY" | grep -q "settings.json"; then
+	pass "nested directory structure created with all files"
+else
+	fail "nested directory structure missing files" "$NESTED_VERIFY"
+fi
+
+# Test: Snapshot sandbox with nested files
+info "Test: snapshot create with nested file structure"
+NESTED_SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "nested-test-${RUN_ID}" --json 2>&1) || true
+NESTED_SNAP_ID=$(echo "$NESTED_SNAP_CREATE" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$NESTED_SNAP_ID"
+if [ -n "$NESTED_SNAP_ID" ] && [[ "$NESTED_SNAP_ID" == snp_* ]]; then
+	pass "snapshot create with nested files succeeded: $NESTED_SNAP_ID"
+else
+	fail "snapshot create with nested files failed" "$NESTED_SNAP_CREATE"
+fi
+
+# Verify fileCount includes nested files
+if [ -n "$NESTED_SNAP_ID" ] && [[ "$NESTED_SNAP_ID" == snp_* ]]; then
+	NESTED_SNAP_GET=$($CLI cloud sandbox snapshot get "$NESTED_SNAP_ID" --json 2>&1) || true
+	NESTED_FILE_COUNT=$(echo "$NESTED_SNAP_GET" | grep -o '"fileCount"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+	if [ -n "$NESTED_FILE_COUNT" ] && [ "$NESTED_FILE_COUNT" -ge 3 ] 2>/dev/null; then
+		pass "nested snapshot fileCount includes subdirectory files: $NESTED_FILE_COUNT"
+	else
+		fail "nested snapshot fileCount too low (expected >= 3 for nested files)" "fileCount=$NESTED_FILE_COUNT" "$NESTED_SNAP_GET"
+	fi
+
+	# Test: Restore and verify nested structure preserved
+	info "Test: restore sandbox from nested snapshot and verify structure"
+	NESTED_RESTORE=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$NESTED_SNAP_ID" --json 2>&1) || true
+	NESTED_RESTORE_ID=$(echo "$NESTED_RESTORE" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$NESTED_RESTORE_ID" ] && [[ "$NESTED_RESTORE_ID" == sbx_* ]]; then
+		sleep 3
+		# Verify each file exists with correct content
+		RESTORE_MAIN=$($CLI cloud sandbox exec "$NESTED_RESTORE_ID" -- cat /home/agentuity/project/src/main.py 2>&1) || true
+		if echo "$RESTORE_MAIN" | grep -q "def main"; then
+			pass "restored sandbox contains project/src/main.py"
+		else
+			fail "restored sandbox missing project/src/main.py" "$RESTORE_MAIN"
+		fi
+
+		RESTORE_UTILS=$($CLI cloud sandbox exec "$NESTED_RESTORE_ID" -- cat /home/agentuity/project/src/utils.py 2>&1) || true
+		if echo "$RESTORE_UTILS" | grep -q "def helper"; then
+			pass "restored sandbox contains project/src/utils.py"
+		else
+			fail "restored sandbox missing project/src/utils.py" "$RESTORE_UTILS"
+		fi
+
+		RESTORE_CONFIG=$($CLI cloud sandbox exec "$NESTED_RESTORE_ID" -- cat /home/agentuity/project/config/settings.json 2>&1) || true
+		if echo "$RESTORE_CONFIG" | grep -q '"debug"'; then
+			pass "restored sandbox contains project/config/settings.json"
+		else
+			fail "restored sandbox missing project/config/settings.json" "$RESTORE_CONFIG"
+		fi
+
+		# Clean up restored sandbox
+		$CLI cloud sandbox delete "$NESTED_RESTORE_ID" --confirm 2>/dev/null || true
+	else
+		fail "failed to create sandbox from nested snapshot" "$NESTED_RESTORE"
+	fi
+
+	# Clean up nested snapshot
+	delete_and_untrack_snapshot "$NESTED_SNAP_ID"
+fi
+
+# Clean up nested directories from main sandbox
+$CLI cloud sandbox exec "$SANDBOX_ID" -- rm -rf /home/agentuity/project >/dev/null 2>&1 || true
+
+# ============================================
+section "SNAPSHOT FROM EMPTY SANDBOX Tests"
+# ============================================
+# Tests that snapshots work correctly on a sandbox with no user-uploaded files
+
+# Test: Create a fresh sandbox (no files uploaded)
+info "Test: create fresh sandbox for empty snapshot test"
+EMPTY_SNAP_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --idle-timeout 10m --json 2>&1) || true
+EMPTY_SNAP_SANDBOX_ID=$(echo "$EMPTY_SNAP_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$EMPTY_SNAP_SANDBOX_ID" ] && [[ "$EMPTY_SNAP_SANDBOX_ID" == sbx_* ]]; then
+	pass "fresh sandbox created for empty snapshot test: $EMPTY_SNAP_SANDBOX_ID"
+else
+	fail "failed to create fresh sandbox for empty snapshot test" "$EMPTY_SNAP_SANDBOX"
+fi
+
+if [ -n "$EMPTY_SNAP_SANDBOX_ID" ]; then
+	# Wait for sandbox to be ready
+	info "Waiting for empty sandbox to become ready..."
+	MAX_WAIT=30
+	WAIT_COUNT=0
+	while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+		EMPTY_STATUS=$($CLI cloud sandbox get "$EMPTY_SNAP_SANDBOX_ID" --json 2>&1) || true
+		EMPTY_CUR_STATUS=$(echo "$EMPTY_STATUS" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+		if [ "$EMPTY_CUR_STATUS" = "idle" ]; then
+			pass "empty sandbox is ready (status: idle)"
+			break
+		fi
+		sleep 1
+		WAIT_COUNT=$((WAIT_COUNT + 1))
+	done
+	if [ $WAIT_COUNT -eq $MAX_WAIT ]; then
+		fail "empty sandbox did not become ready within ${MAX_WAIT}s" "status: $EMPTY_CUR_STATUS" "$EMPTY_STATUS"
+	fi
+
+	# Test: Create snapshot of empty sandbox
+	info "Test: snapshot create from empty sandbox"
+	EMPTY_SNAP_CREATE=$($CLI cloud sandbox snapshot create "$EMPTY_SNAP_SANDBOX_ID" --name "empty-test-${RUN_ID}" --json 2>&1) || true
+	EMPTY_SNAP_ID=$(echo "$EMPTY_SNAP_CREATE" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	track_snapshot "$EMPTY_SNAP_ID"
+	if [ -n "$EMPTY_SNAP_ID" ] && [[ "$EMPTY_SNAP_ID" == snp_* ]]; then
+		pass "snapshot create from empty sandbox succeeded: $EMPTY_SNAP_ID"
+	else
+		fail "snapshot create from empty sandbox failed" "$EMPTY_SNAP_CREATE"
+	fi
+
+	# Verify sizeBytes is returned (even if 0)
+	if echo "$EMPTY_SNAP_CREATE" | grep -q '"sizeBytes"'; then
+		pass "empty snapshot returns sizeBytes field"
+	else
+		fail "empty snapshot missing sizeBytes field" "$EMPTY_SNAP_CREATE"
+	fi
+
+	# Test: Restore from empty snapshot
+	if [ -n "$EMPTY_SNAP_ID" ] && [[ "$EMPTY_SNAP_ID" == snp_* ]]; then
+		info "Test: restore sandbox from empty snapshot"
+		EMPTY_RESTORE=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$EMPTY_SNAP_ID" --json 2>&1) || true
+		EMPTY_RESTORE_ID=$(echo "$EMPTY_RESTORE" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+		if [ -n "$EMPTY_RESTORE_ID" ] && [[ "$EMPTY_RESTORE_ID" == sbx_* ]]; then
+			sleep 3
+			# Verify restored sandbox is usable (can exec commands)
+			EMPTY_RESTORE_EXEC=$($CLI cloud sandbox exec "$EMPTY_RESTORE_ID" -- echo "restored-ok" 2>&1) || true
+			if echo "$EMPTY_RESTORE_EXEC" | grep -q "restored-ok"; then
+				pass "sandbox restored from empty snapshot is usable"
+			else
+				fail "sandbox restored from empty snapshot not usable" "$EMPTY_RESTORE_EXEC"
+			fi
+			# Clean up restored sandbox
+			$CLI cloud sandbox delete "$EMPTY_RESTORE_ID" --confirm 2>/dev/null || true
+		else
+			fail "failed to create sandbox from empty snapshot" "$EMPTY_RESTORE"
+		fi
+
+		# Clean up empty snapshot
+		delete_and_untrack_snapshot "$EMPTY_SNAP_ID"
+	fi
+
+	# Clean up empty sandbox
+	$CLI cloud sandbox delete "$EMPTY_SNAP_SANDBOX_ID" --confirm 2>/dev/null || true
+fi
+
+# ============================================
+section "SNAPSHOT RE-SNAPSHOT LIFECYCLE Tests"
+# ============================================
+# Uses the existing SANDBOX_ID (main test sandbox)
+# Tests that incremental snapshots properly capture new files
+
+# Test: Create initial snapshot
+info "Test: create initial snapshot for re-snapshot lifecycle"
+LIFECYCLE_SNAP1=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "lifecycle-v1-${RUN_ID}" --json 2>&1) || true
+LIFECYCLE_SNAP1_ID=$(echo "$LIFECYCLE_SNAP1" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$LIFECYCLE_SNAP1_ID"
+if [ -n "$LIFECYCLE_SNAP1_ID" ] && [[ "$LIFECYCLE_SNAP1_ID" == snp_* ]]; then
+	pass "initial lifecycle snapshot created: $LIFECYCLE_SNAP1_ID"
+else
+	fail "initial lifecycle snapshot creation failed" "$LIFECYCLE_SNAP1"
+fi
+
+# Get fileCount of first snapshot
+LIFECYCLE_SNAP1_GET=$($CLI cloud sandbox snapshot get "$LIFECYCLE_SNAP1_ID" --json 2>&1) || true
+LIFECYCLE_COUNT1=$(echo "$LIFECYCLE_SNAP1_GET" | grep -o '"fileCount"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+info "Initial snapshot fileCount: ${LIFECYCLE_COUNT1:-unknown}"
+
+# Add a new file after first snapshot
+info "Test: add new file after initial snapshot"
+$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "new-file-content" > /home/agentuity/lifecycle-new-file.txt' >/dev/null 2>&1 || true
+LIFECYCLE_VERIFY=$($CLI cloud sandbox exec "$SANDBOX_ID" -- cat /home/agentuity/lifecycle-new-file.txt 2>&1) || true
+if echo "$LIFECYCLE_VERIFY" | grep -q "new-file-content"; then
+	pass "new file added after initial snapshot"
+else
+	fail "failed to add new file after initial snapshot" "$LIFECYCLE_VERIFY"
+fi
+
+# Create second snapshot (should include the new file)
+info "Test: create second snapshot after adding new file"
+LIFECYCLE_SNAP2=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "lifecycle-v2-${RUN_ID}" --json 2>&1) || true
+LIFECYCLE_SNAP2_ID=$(echo "$LIFECYCLE_SNAP2" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$LIFECYCLE_SNAP2_ID"
+if [ -n "$LIFECYCLE_SNAP2_ID" ] && [[ "$LIFECYCLE_SNAP2_ID" == snp_* ]]; then
+	pass "second lifecycle snapshot created: $LIFECYCLE_SNAP2_ID"
+else
+	fail "second lifecycle snapshot creation failed" "$LIFECYCLE_SNAP2"
+fi
+
+# Verify second snapshot has higher fileCount than first
+LIFECYCLE_SNAP2_GET=$($CLI cloud sandbox snapshot get "$LIFECYCLE_SNAP2_ID" --json 2>&1) || true
+LIFECYCLE_COUNT2=$(echo "$LIFECYCLE_SNAP2_GET" | grep -o '"fileCount"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+info "Second snapshot fileCount: ${LIFECYCLE_COUNT2:-unknown}"
+if [ -n "$LIFECYCLE_COUNT1" ] && [ -n "$LIFECYCLE_COUNT2" ] && [ "$LIFECYCLE_COUNT2" -gt "$LIFECYCLE_COUNT1" ] 2>/dev/null; then
+	pass "second snapshot has more files than first ($LIFECYCLE_COUNT2 > $LIFECYCLE_COUNT1)"
+else
+	fail "second snapshot should have more files than first" "first=$LIFECYCLE_COUNT1, second=$LIFECYCLE_COUNT2"
+fi
+
+# Test: Restore from first snapshot — new file should NOT be present
+info "Test: restore from first snapshot (new file should be absent)"
+if [ -n "$LIFECYCLE_SNAP1_ID" ] && [[ "$LIFECYCLE_SNAP1_ID" == snp_* ]]; then
+	LIFECYCLE_RESTORE1=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$LIFECYCLE_SNAP1_ID" --json 2>&1) || true
+	LIFECYCLE_RESTORE1_ID=$(echo "$LIFECYCLE_RESTORE1" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$LIFECYCLE_RESTORE1_ID" ] && [[ "$LIFECYCLE_RESTORE1_ID" == sbx_* ]]; then
+		sleep 3
+		RESTORE1_CHECK=$($CLI cloud sandbox exec "$LIFECYCLE_RESTORE1_ID" -- sh -c 'if [ -f /home/agentuity/lifecycle-new-file.txt ]; then echo "FILE_EXISTS"; else echo "FILE_ABSENT"; fi' 2>&1) || true
+		if echo "$RESTORE1_CHECK" | grep -q "FILE_ABSENT"; then
+			pass "first snapshot restore does NOT contain new file (correct)"
+		else
+			fail "first snapshot restore should NOT contain the new file" "$RESTORE1_CHECK"
+		fi
+		$CLI cloud sandbox delete "$LIFECYCLE_RESTORE1_ID" --confirm 2>/dev/null || true
+	else
+		fail "failed to create sandbox from first lifecycle snapshot" "$LIFECYCLE_RESTORE1"
+	fi
+fi
+
+# Test: Restore from second snapshot — new file should BE present
+info "Test: restore from second snapshot (new file should be present)"
+if [ -n "$LIFECYCLE_SNAP2_ID" ] && [[ "$LIFECYCLE_SNAP2_ID" == snp_* ]]; then
+	LIFECYCLE_RESTORE2=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$LIFECYCLE_SNAP2_ID" --json 2>&1) || true
+	LIFECYCLE_RESTORE2_ID=$(echo "$LIFECYCLE_RESTORE2" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$LIFECYCLE_RESTORE2_ID" ] && [[ "$LIFECYCLE_RESTORE2_ID" == sbx_* ]]; then
+		sleep 3
+		RESTORE2_CHECK=$($CLI cloud sandbox exec "$LIFECYCLE_RESTORE2_ID" -- cat /home/agentuity/lifecycle-new-file.txt 2>&1) || true
+		if echo "$RESTORE2_CHECK" | grep -q "new-file-content"; then
+			pass "second snapshot restore contains new file (correct)"
+		else
+			fail "second snapshot restore should contain the new file" "$RESTORE2_CHECK"
+		fi
+		$CLI cloud sandbox delete "$LIFECYCLE_RESTORE2_ID" --confirm 2>/dev/null || true
+	else
+		fail "failed to create sandbox from second lifecycle snapshot" "$LIFECYCLE_RESTORE2"
+	fi
+fi
+
+# Clean up lifecycle snapshots
+delete_and_untrack_snapshot "$LIFECYCLE_SNAP1_ID"
+delete_and_untrack_snapshot "$LIFECYCLE_SNAP2_ID"
+
+# Clean up lifecycle file from main sandbox
+$CLI cloud sandbox exec "$SANDBOX_ID" -- rm -f /home/agentuity/lifecycle-new-file.txt >/dev/null 2>&1 || true
+
+# ============================================
+section "SNAPSHOT ERROR HANDLING Tests"
+# ============================================
+
+# Test: Snapshot from non-existent sandbox ID
+info "Test: snapshot create from non-existent sandbox"
+set +e
+NONEXIST_SNAP=$($CLI cloud sandbox snapshot create "sbx_nonexistent_${RUN_ID}" --json 2>&1)
+NONEXIST_SNAP_EXIT=$?
+set -e
+if [ "$NONEXIST_SNAP_EXIT" -ne 0 ]; then
+	pass "snapshot create from non-existent sandbox returns non-zero exit code ($NONEXIST_SNAP_EXIT)"
+else
+	fail "snapshot create from non-existent sandbox exited with code 0 (expected non-zero)" "$NONEXIST_SNAP"
+fi
+if echo "$NONEXIST_SNAP" | grep -qi "not found\|404\|error\|invalid"; then
+	pass "snapshot create from non-existent sandbox returns error"
+else
+	# If it somehow returned a snapshot, track and clean it
+	NONEXIST_SNAP_ID=$(echo "$NONEXIST_SNAP" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$NONEXIST_SNAP_ID" ]; then
+		track_snapshot "$NONEXIST_SNAP_ID"
+		delete_and_untrack_snapshot "$NONEXIST_SNAP_ID"
+	fi
+	fail "snapshot create from non-existent sandbox should return error" "$NONEXIST_SNAP"
+fi
+
+# Verify error is not a 500 (should be 404 or similar)
+if echo "$NONEXIST_SNAP" | grep -q "500\|Internal Server Error"; then
+	fail "snapshot create from non-existent sandbox returned 500 (should be 404)" "$NONEXIST_SNAP"
+else
+	pass "snapshot create from non-existent sandbox does not return 500"
+fi
+
+# Test: Snapshot from a deleted sandbox
+info "Test: snapshot create from deleted sandbox"
+TEMP_SBX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --idle-timeout 10m --json 2>&1) || true
+TEMP_SBX_ID=$(echo "$TEMP_SBX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$TEMP_SBX_ID" ] && [[ "$TEMP_SBX_ID" == sbx_* ]]; then
+	# Wait for it to be ready, then delete it
+	MAX_WAIT=30
+	WAIT_COUNT=0
+	while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+		TEMP_STATUS=$($CLI cloud sandbox get "$TEMP_SBX_ID" --json 2>&1) || true
+		TEMP_CUR_STATUS=$(echo "$TEMP_STATUS" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+		if [ "$TEMP_CUR_STATUS" = "idle" ]; then
+			break
+		fi
+		sleep 1
+		WAIT_COUNT=$((WAIT_COUNT + 1))
+	done
+	$CLI cloud sandbox delete "$TEMP_SBX_ID" --confirm 2>/dev/null || true
+
+	# Now try to snapshot the deleted sandbox
+	set +e
+	DELETED_SNAP=$($CLI cloud sandbox snapshot create "$TEMP_SBX_ID" --json 2>&1)
+	DELETED_SNAP_EXIT=$?
+	set -e
+	if [ "$DELETED_SNAP_EXIT" -ne 0 ]; then
+		pass "snapshot create from deleted sandbox returns non-zero exit code ($DELETED_SNAP_EXIT)"
+	else
+		fail "snapshot create from deleted sandbox exited with code 0 (expected non-zero)" "$DELETED_SNAP"
+	fi
+	if echo "$DELETED_SNAP" | grep -qi "not found\|deleted\|404\|error"; then
+		pass "snapshot create from deleted sandbox returns error"
+	else
+		DELETED_SNAP_ID=$(echo "$DELETED_SNAP" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+		if [ -n "$DELETED_SNAP_ID" ]; then
+			track_snapshot "$DELETED_SNAP_ID"
+			delete_and_untrack_snapshot "$DELETED_SNAP_ID"
+		fi
+		fail "snapshot create from deleted sandbox should return error" "$DELETED_SNAP"
+	fi
+else
+	fail "failed to create temp sandbox for deleted-sandbox snapshot test" "$TEMP_SBX"
+fi
+
+# Test: Snapshot get for non-existent snapshot
+info "Test: snapshot get for non-existent snapshot"
+set +e
+NONEXIST_SNAP_GET=$($CLI cloud sandbox snapshot get "snp_nonexistent_${RUN_ID}" --json 2>&1)
+NONEXIST_SNAP_GET_EXIT=$?
+set -e
+if [ "$NONEXIST_SNAP_GET_EXIT" -ne 0 ]; then
+	pass "snapshot get for non-existent snapshot returns non-zero exit code ($NONEXIST_SNAP_GET_EXIT)"
+else
+	fail "snapshot get for non-existent snapshot exited with code 0 (expected non-zero)" "$NONEXIST_SNAP_GET"
+fi
+if echo "$NONEXIST_SNAP_GET" | grep -qi "not found\|404\|error"; then
+	pass "snapshot get for non-existent snapshot returns error"
+else
+	fail "snapshot get for non-existent snapshot should return error" "$NONEXIST_SNAP_GET"
+fi
+
+# Test: Snapshot create with very long name (boundary test)
+info "Test: snapshot create with very long name"
+LONG_NAME=$(printf 'a%.0s' $(seq 1 300))
+set +e
+LONG_NAME_SNAP=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "$LONG_NAME" --json 2>&1)
+LONG_NAME_SNAP_EXIT=$?
+set -e
+if echo "$LONG_NAME_SNAP" | grep -qi "error\|invalid\|too long\|validation\|exceeds"; then
+	if [ "$LONG_NAME_SNAP_EXIT" -ne 0 ]; then
+		pass "snapshot create with 300-char name returns validation error (exit code $LONG_NAME_SNAP_EXIT)"
+	else
+		fail "snapshot create with 300-char name returned error text but exit code 0" "$LONG_NAME_SNAP"
+	fi
+else
+	# If it somehow succeeded, clean it up
+	LONG_NAME_SNAP_ID=$(echo "$LONG_NAME_SNAP" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$LONG_NAME_SNAP_ID" ] && [[ "$LONG_NAME_SNAP_ID" == snp_* ]]; then
+		track_snapshot "$LONG_NAME_SNAP_ID"
+		delete_and_untrack_snapshot "$LONG_NAME_SNAP_ID"
+		if [ "$LONG_NAME_SNAP_EXIT" -eq 0 ]; then
+			pass "snapshot create with 300-char name was accepted (exit code 0)"
+		else
+			fail "snapshot create with 300-char name returned snapshot but non-zero exit code ($LONG_NAME_SNAP_EXIT)" "$LONG_NAME_SNAP"
+		fi
+	else
+		fail "snapshot create with 300-char name gave unexpected response" "$LONG_NAME_SNAP"
+	fi
+fi
+
+# Test: Snapshot create with special characters in name
+info "Test: snapshot create with special characters in name"
+set +e
+SPECIAL_NAME_SNAP=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name 'test snapshot!@#' --json 2>&1)
+SPECIAL_NAME_SNAP_EXIT=$?
+set -e
+if echo "$SPECIAL_NAME_SNAP" | grep -qi "error\|invalid\|validation"; then
+	if [ "$SPECIAL_NAME_SNAP_EXIT" -ne 0 ]; then
+		pass "snapshot create with special characters returns validation error (exit code $SPECIAL_NAME_SNAP_EXIT)"
+	else
+		fail "snapshot create with special characters returned error text but exit code 0" "$SPECIAL_NAME_SNAP"
+	fi
+else
+	# If it somehow succeeded, clean it up
+	SPECIAL_NAME_SNAP_ID=$(echo "$SPECIAL_NAME_SNAP" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$SPECIAL_NAME_SNAP_ID" ] && [[ "$SPECIAL_NAME_SNAP_ID" == snp_* ]]; then
+		track_snapshot "$SPECIAL_NAME_SNAP_ID"
+		delete_and_untrack_snapshot "$SPECIAL_NAME_SNAP_ID"
+		if [ "$SPECIAL_NAME_SNAP_EXIT" -eq 0 ]; then
+			pass "snapshot create with special characters was accepted (exit code 0)"
+		else
+			fail "snapshot create with special characters returned snapshot but non-zero exit code ($SPECIAL_NAME_SNAP_EXIT)" "$SPECIAL_NAME_SNAP"
+		fi
+	else
+		fail "snapshot create with special characters gave unexpected response" "$SPECIAL_NAME_SNAP"
+	fi
+fi
+
+# ============================================
+section "SNAPSHOT GET FIELD VALIDATION Tests"
+# ============================================
+# Create a fresh snapshot for field validation
+
+info "Test: creating snapshot for field validation"
+FIELD_SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "field-test-${RUN_ID}" --json 2>&1) || true
+FIELD_SNAP_ID=$(echo "$FIELD_SNAP_CREATE" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+track_snapshot "$FIELD_SNAP_ID"
+if [ -n "$FIELD_SNAP_ID" ] && [[ "$FIELD_SNAP_ID" == snp_* ]]; then
+	pass "snapshot created for field validation: $FIELD_SNAP_ID"
+else
+	fail "failed to create snapshot for field validation" "$FIELD_SNAP_CREATE"
+fi
+
+if [ -n "$FIELD_SNAP_ID" ] && [[ "$FIELD_SNAP_ID" == snp_* ]]; then
+	# Test: snapshot get --json returns all expected fields
+	info "Test: snapshot get --json field validation"
+	FIELD_SNAP_GET=$($CLI cloud sandbox snapshot get "$FIELD_SNAP_ID" --json 2>&1) || true
+
+	# Verify snapshotId present and starts with snp_
+	FIELD_GET_ID=$(echo "$FIELD_SNAP_GET" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$FIELD_GET_ID" ] && [[ "$FIELD_GET_ID" == snp_* ]]; then
+		pass "snapshot get returns snapshotId starting with snp_"
+	else
+		fail "snapshot get snapshotId missing or invalid prefix" "$FIELD_GET_ID"
+	fi
+
+	# Verify name present
+	if echo "$FIELD_SNAP_GET" | grep -q '"name"'; then
+		pass "snapshot get returns name field"
+	else
+		fail "snapshot get missing name field" "$FIELD_SNAP_GET"
+	fi
+
+	# Verify sizeBytes is a number > 0
+	FIELD_SIZE=$(echo "$FIELD_SNAP_GET" | grep -o '"sizeBytes"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+	if [ -n "$FIELD_SIZE" ] && [ "$FIELD_SIZE" -gt 0 ] 2>/dev/null; then
+		pass "snapshot get sizeBytes is a number > 0: $FIELD_SIZE"
+	else
+		fail "snapshot get sizeBytes should be > 0" "sizeBytes=$FIELD_SIZE" "$FIELD_SNAP_GET"
+	fi
+
+	# Verify fileCount is a number >= 0
+	FIELD_FILE_COUNT=$(echo "$FIELD_SNAP_GET" | grep -o '"fileCount"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*$')
+	if [ -n "$FIELD_FILE_COUNT" ] 2>/dev/null; then
+		pass "snapshot get fileCount is a number: $FIELD_FILE_COUNT"
+	else
+		fail "snapshot get fileCount missing or not a number" "fileCount=$FIELD_FILE_COUNT" "$FIELD_SNAP_GET"
+	fi
+
+	# Verify createdAt is present and looks like a timestamp
+	FIELD_CREATED=$(echo "$FIELD_SNAP_GET" | grep -o '"createdAt"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$FIELD_CREATED" ] && echo "$FIELD_CREATED" | grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
+		pass "snapshot get createdAt is a valid timestamp: $FIELD_CREATED"
+	else
+		fail "snapshot get createdAt missing or invalid format" "createdAt=$FIELD_CREATED" "$FIELD_SNAP_GET"
+	fi
+
+	# Test: snapshot get --json includes files array
+	info "Test: snapshot get includes files array"
+	if echo "$FIELD_SNAP_GET" | grep -q '"files"'; then
+		pass "snapshot get returns files array"
+
+		# If files has entries, verify structure of entries
+		# Check for path field in files
+		if echo "$FIELD_SNAP_GET" | grep -q '"path"'; then
+			pass "snapshot files entries contain path field"
+		else
+			info "snapshot files array may be empty (no path fields found)"
+		fi
+
+		# Check for size field in files
+		if echo "$FIELD_SNAP_GET" | grep -q '"size"[[:space:]]*:'; then
+			pass "snapshot files entries contain size field"
+		else
+			info "snapshot files entries may not contain size field (or array empty)"
+		fi
+
+		# Check for sha256 field in files
+		if echo "$FIELD_SNAP_GET" | grep -q '"sha256"'; then
+			pass "snapshot files entries contain sha256 field"
+		else
+			info "snapshot files entries may not contain sha256 field (or array empty)"
+		fi
+
+		# Check for contentType field in files
+		if echo "$FIELD_SNAP_GET" | grep -q '"contentType"'; then
+			pass "snapshot files entries contain contentType field"
+		else
+			info "snapshot files entries may not contain contentType field (or array empty)"
+		fi
+	else
+		fail "snapshot get missing files array" "$FIELD_SNAP_GET"
+	fi
+
+	# Clean up field validation snapshot
+	delete_and_untrack_snapshot "$FIELD_SNAP_ID"
+fi
 
 # ============================================
 section "DELETE Command Tests"

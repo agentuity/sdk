@@ -4,24 +4,19 @@
  * Route pattern demo - no corresponding agent exists.
  * See src/run/README.md for architecture details.
  *
- * Demonstrates: Creating a durable stream with a shareable URL
- * Writes content to the stream and shows the public URL.
+ * Demonstrates: Creating a durable stream with LLM-generated content
+ * Streams AI-generated text into a durable stream and shows the public URL.
  *
- * Usage: bun run src/run/durable-stream.ts '{"content":"Hello world"}'
+ * Usage: bun run src/run/durable-stream.ts
  */
 import { createAgentContext } from '@agentuity/runtime';
-
-interface Input {
-	content?: string;
-}
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
 
 const ctx = createAgentContext();
 
 try {
-	const input: Input = JSON.parse(process.argv[2] ?? '{}');
-	const content =
-		input.content ?? 'This is a durable stream demo.\nContent persists with a shareable URL.';
-	ctx.logger.info('Creating durable stream');
+	ctx.logger.info('Creating durable stream with LLM content');
 
 	// Create a durable stream
 	const streamName = `demo-${Date.now()}`;
@@ -35,14 +30,28 @@ try {
 	console.log(`Stream ID: ${stream.id}`);
 	console.log('');
 
-	// Write content
-	await stream.write(content);
-	console.log('Content written:');
-	console.log(`  "${content.split('\n')[0]}..."`);
-	console.log('');
+	// Generate content with LLM and write to stream
+	const { textStream } = streamText({
+		model: openai('gpt-5-nano'),
+		prompt: 'Write a 3-paragraph summary of what Agentuity is.',
+	});
+
+	let fullText = '';
+	let tokenCount = 0;
+	for await (const chunk of textStream) {
+		await stream.write(chunk);
+		fullText += chunk;
+		tokenCount++;
+	}
 
 	// Close the stream
 	await stream.close();
+
+	console.log('Content written:');
+	console.log(fullText);
+	console.log('');
+	console.log(`[Streamed ${tokenCount} tokens]`);
+	console.log('');
 	console.log('Stream closed');
 	console.log('');
 

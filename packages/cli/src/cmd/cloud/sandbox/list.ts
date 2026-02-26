@@ -69,7 +69,16 @@ export const listSubcommand = createCommand({
 			name: z.string().optional().describe('Filter by sandbox name'),
 			mode: z.enum(['oneshot', 'interactive']).optional().describe('Filter by sandbox mode'),
 			status: z
-				.enum(['creating', 'idle', 'running', 'terminated', 'failed'])
+				.enum([
+					'creating',
+					'idle',
+					'running',
+					'paused',
+					'stopping',
+					'suspended',
+					'terminated',
+					'failed',
+				])
 				.optional()
 				.describe('Filter by status'),
 			projectId: z.string().optional().describe('Filter by project ID'),

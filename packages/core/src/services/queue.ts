@@ -18,9 +18,9 @@
  * ```
  */
 
-import { FetchAdapter } from './adapter';
-import { buildUrl, toServiceException, toPayload } from './_util';
-import { StructuredError } from '../error';
+import { FetchAdapter } from './adapter.ts';
+import { buildUrl, toServiceException, toPayload } from './_util.ts';
+import { StructuredError } from '../error.ts';
 
 /**
  * Parameters for publishing a message to a queue.

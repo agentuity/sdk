@@ -55,8 +55,9 @@ playwright-report/
 /TODO*.md
 /PR*.md
 
-# Generated CLI skills
-**/.agents/skills/
+# Generated CLI skills (keep coderabbit-conversations as an exception)
+**/.agents/skills/*
+!**/.agents/skills/coderabbit-conversations
 apps/testing/ag-auth-test-app/cookies.txt
 apps/testing/ag-auth-test-app/agentuity.json
 

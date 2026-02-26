@@ -296,6 +296,109 @@ export default router;
 
 		cleanup();
 	});
+
+	test('should skip Hono lifecycle and config methods (onError, notFound, basePath, mount)', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+// Hono lifecycle and config methods should be silently skipped
+router.onError((err, c) => c.json({ error: 'Internal error' }, 500));
+router.notFound((c) => c.json({ error: 'Not found' }, 404));
+router.basePath('/v1');
+router.mount('/external', (req) => new Response('external'));
+
+// Regular route should still be parsed
+router.get('/health', (c) => c.json({ status: 'ok' }));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		// Only the GET /health route should be parsed, lifecycle/config methods should be skipped
+		expect(routes).toHaveLength(1);
+		expect(routes[0].method).toBe('get');
+		expect(routes[0].path).toBe('/api/health');
+
+		cleanup();
+	});
+
+	test('should skip basePath() when setting router base path', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+// basePath() is a config method, not a route
+router.basePath('/api/v1');
+
+router.get('/users', (c) => c.json({ users: [] }));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(1);
+		expect(routes[0].path).toBe('/api/users');
+
+		cleanup();
+	});
+
+	test('should skip mount() when mounting external applications', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+// mount() is for mounting external apps, not defining routes
+router.mount('/external', (req) => new Response('from external app'));
+
+router.post('/internal', (c) => c.json({ source: 'internal' }));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(1);
+		expect(routes[0].method).toBe('post');
+		expect(routes[0].path).toBe('/api/internal');
+
+		cleanup();
+	});
+
+	test('should skip notFound() 404 handler', async () => {
+		setup();
+		const routeFile = join(API_DIR, 'route.ts');
+		const code = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+// notFound() is a lifecycle method for 404 handling
+router.notFound((c) => c.text('Custom 404', 404));
+
+router.get('/exists', (c) => c.text('Found'));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(1);
+		expect(routes[0].path).toBe('/api/exists');
+
+		cleanup();
+	});
 });
 
 describe('analyzeWorkbench - Detection Scenarios', () => {

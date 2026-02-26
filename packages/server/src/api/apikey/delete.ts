@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { APIKeyResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { APIKeyResponseError } from './util.ts';
 
 export const APIKeyDeleteResponseSchema = APIResponseSchema(
 	z.number().describe('number of rows affected')

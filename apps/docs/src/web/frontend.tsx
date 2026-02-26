@@ -5,8 +5,12 @@
  * It is included in `src/index.html`.
  */
 
+import './index.css';
+
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { hydrateRoot, createRoot } from 'react-dom/client';
+import { AgentuityProvider } from '@agentuity/react';
+import { ThemeProvider } from './components/ThemeContext';
 import { App } from './App';
 
 const elem = document.getElementById('root');
@@ -16,7 +20,11 @@ if (!elem) {
 
 const app = (
 	<StrictMode>
-		<App />
+		<ThemeProvider>
+			<AgentuityProvider>
+				<App />
+			</AgentuityProvider>
+		</ThemeProvider>
 	</StrictMode>
 );
 
@@ -27,6 +35,6 @@ if (import.meta.hot) {
 	}
 	import.meta.hot.data.root.render(app);
 } else {
-	// The hot module reloading API is not available in production.
-	createRoot(elem).render(app);
+	// Production: hydrate pre-rendered HTML
+	hydrateRoot(elem, app);
 }

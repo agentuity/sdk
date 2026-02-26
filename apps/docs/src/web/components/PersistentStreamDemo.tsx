@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Separator } from './ui';
 
 interface StreamInfo {
 	id: string;
@@ -104,26 +105,23 @@ export function PersistentStreamDemo() {
 
 			{/* Streams list */}
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg">
-				<div className="border-b border-zinc-200 dark:border-zinc-900 px-4 py-3 flex items-center justify-between">
+				<div className="px-4 py-3 flex items-center justify-between">
 					<span className="text-zinc-500 text-xs font-medium uppercase">
 						History ({readyStreams.length})
 					</span>
-					<button
-						onClick={handleCreate}
-						disabled={isGenerating}
-						type="button"
-						className={`rounded-md text-sm px-4 py-2 flex items-center gap-2 ${
-							isGenerating
-								? 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-400 cursor-not-allowed'
-								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
-						}`}
-					>
-						{isGenerating && (
-							<span className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse" />
-						)}
-						{isGenerating ? 'Generating...' : 'Generate Summary'}
-					</button>
+					<Button onClick={handleCreate} disabled={isGenerating} size="sm" variant="outline">
+						<span className="relative">
+							<span className={isGenerating ? 'invisible' : ''}>Generate Summary</span>
+							{isGenerating && (
+								<span
+									className="absolute inset-0 flex items-center justify-center"
+									data-loading="true"
+								/>
+							)}
+						</span>
+					</Button>
 				</div>
+				<Separator />
 				{readyStreams.length > 0 ? (
 					<div className="divide-y divide-zinc-200 dark:divide-zinc-900">
 						{readyStreams.map((stream) => (

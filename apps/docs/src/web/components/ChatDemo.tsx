@@ -1,6 +1,7 @@
 import { useAPI } from '@agentuity/react';
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
+import { Button, Input, Separator } from './ui';
 import { ChatCodeBlock } from './ChatCodeBlock';
 
 interface Message {
@@ -20,6 +21,7 @@ export function ChatDemo() {
 	const [error, setError] = useState<Error | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const messagesContainerRef = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
 
 	const { invoke, isLoading: running } = useAPI('POST /api/chat');
 
@@ -77,7 +79,11 @@ export function ChatDemo() {
 	}, [messages]);
 
 	const sendMessage = async () => {
-		if (!input.trim() || running) return;
+		if (!input.trim()) {
+			inputRef.current?.focus();
+			return;
+		}
+		if (running) return;
 
 		const userMessage = input.trim();
 		setInput('');
@@ -177,7 +183,7 @@ export function ChatDemo() {
 
 													// Inline code
 													return (
-														<code className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-cyan-700 dark:text-cyan-400 text-xs">
+														<code className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-cyan-600 dark:text-cyan-400 text-xs">
 															{children}
 														</code>
 													);
@@ -203,7 +209,7 @@ export function ChatDemo() {
 					{running && (
 						<div className="flex justify-start">
 							<div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-500 text-sm px-4 py-3">
-								Thinking...
+								<span data-loading="true">Thinking</span>
 							</div>
 						</div>
 					)}
@@ -211,11 +217,13 @@ export function ChatDemo() {
 				</div>
 
 				{/* Input */}
-				<div className="border-t border-zinc-200 dark:border-zinc-900 flex gap-2 p-4">
+				<Separator />
+				<div className="flex items-center gap-2 p-4">
 					<label htmlFor="chat-input" className="sr-only">
 						Message
 					</label>
-					<input
+					<Input
+						ref={inputRef}
 						id="chat-input"
 						type="text"
 						value={input}
@@ -223,32 +231,27 @@ export function ChatDemo() {
 						onKeyDown={handleKeyDown}
 						placeholder="Ask about Agentuity..."
 						disabled={running}
-						className="flex-1 bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-900 dark:text-white text-sm px-4 py-3 outline-none focus:border-cyan-500 dark:focus:border-cyan-400"
+						className="flex-1"
 					/>
-					<button
+					<Button
+						variant="outline"
+						size="default"
 						onClick={sendMessage}
-						disabled={running || !input.trim()}
+						disabled={running}
+						aria-disabled={!input.trim() || undefined}
 						type="button"
-						className={`rounded-md text-sm font-medium px-6 py-3 ${
-							running || !input.trim()
-								? 'bg-zinc-200 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed'
-								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
-						}`}
 					>
 						Send
-					</button>
-					<button
+					</Button>
+					<Button
+						variant="outline-neutral"
 						onClick={resetConversation}
 						disabled={running}
 						type="button"
-						className={`bg-zinc-200 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-600 dark:text-zinc-400 text-xs px-3 py-2 ${
-							running
-								? 'opacity-50 cursor-not-allowed'
-								: 'cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600'
-						}`}
+						size="default"
 					>
 						Reset
-					</button>
+					</Button>
 				</div>
 			</div>
 			{threadInfo && (

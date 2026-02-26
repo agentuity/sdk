@@ -55,15 +55,23 @@ export const receiveSubcommand = createCommand({
 				tui.info('No messages available');
 			} else {
 				tui.success(`Received message: ${message.id}`);
-				tui.info(`  Offset: ${message.offset}`);
-				tui.info(`  State: ${message.state}`);
-				tui.info(`  Delivery Attempts: ${message.delivery_attempts}`);
-				tui.info('');
-				tui.info('Payload:');
+				tui.table(
+					[
+						{
+							Offset: message.offset,
+							State: message.state,
+							'Delivery Attempts': message.delivery_attempts,
+						},
+					],
+					undefined,
+					{ layout: 'vertical' }
+				);
+				tui.newline();
+				tui.header('Payload');
 				tui.json(message.payload);
 				if (message.metadata) {
-					tui.info('');
-					tui.info('Metadata:');
+					tui.newline();
+					tui.header('Metadata');
 					tui.json(message.metadata);
 				}
 			}

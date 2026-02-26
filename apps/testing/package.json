@@ -1,6 +1,6 @@
 {
 	"name": "testing",
-	"version": "1.0.14",
+	"version": "1.0.23",
 	"license": "Apache-2.0",
 	"private": true,
 	"scripts": {
@@ -8,14 +8,17 @@
 		"typecheck:tanstack": "cd tanstack-start && bun run typecheck",
 		"typecheck:nextjs": "cd nextjs-app && bun run typecheck",
 		"typecheck:svelte": "cd svelte-web && bun run typecheck",
-		"typecheck:all": "bun run typecheck && bun run typecheck:tanstack && bun run typecheck:nextjs && bun run typecheck:svelte",
+		"typecheck:vite-rsc": "cd vite-rsc-app && bun run typecheck",
+		"typecheck:all": "bun run typecheck && bun run typecheck:tanstack && bun run typecheck:nextjs && bun run typecheck:svelte && bun run typecheck:vite-rsc",
 		"build": "cd integration-suite && bun run build",
 		"build:tanstack": "cd tanstack-start && bun run build:agent",
 		"build:nextjs": "cd nextjs-app && bun run build:agent",
 		"build:svelte": "cd svelte-web && bun run build",
+		"build:vite-rsc": "cd vite-rsc-app && bun run build:agent",
 		"test": "cd integration-suite && bun run test",
 		"test:frameworks": "bash ../../scripts/test-framework-demos.sh",
 		"test:frameworks:tanstack": "bash ../../scripts/test-framework-demos.sh --tanstack-only",
-		"test:frameworks:nextjs": "bash ../../scripts/test-framework-demos.sh --nextjs-only"
+		"test:frameworks:nextjs": "bash ../../scripts/test-framework-demos.sh --nextjs-only",
+		"test:frameworks:vite-rsc": "bash ../../scripts/test-framework-demos.sh --vite-rsc-only"
 	}
 }

@@ -1,0 +1,165 @@
+---
+title: Background Tasks
+description: Use waitUntil to run work after responding to the client
+---
+
+Run tasks after sending a response using `waitUntil`. This keeps response times fast while handling analytics, notifications, or other fire-and-forget work.
+
+## The Pattern
+
+`waitUntil` accepts an async function that runs after the response is sent. Multiple calls run concurrently.
+
+This example uses [ArkType](https://arktype.io) for schema validation:
+
+```typescript title="src/agent/order-processor/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { type } from 'arktype';
+
+const agent = createAgent('OrderProcessor', {
+  schema: {
+    input: type({
+      orderId: 'string',
+      userId: 'string',
+    }),
+    output: type({
+      status: 'string',
+      orderId: 'string',
+    }),
+  },
+  handler: async (ctx, input) => {
+    const { orderId, userId } = input;
+
+    // Process the order synchronously
+    const order = await processOrder(orderId);
+
+    // Background: send confirmation email
+    ctx.waitUntil(async () => { // [!code highlight]
+      await sendConfirmationEmail(userId, order);
+      ctx.logger.info('Confirmation email sent', { orderId });
+    });
+
+    // Background: update analytics
+    ctx.waitUntil(async () => { // [!code highlight]
+      await trackPurchase(userId, order);
+    });
+
+    // Background: notify warehouse
+    ctx.waitUntil(async () => { // [!code highlight]
+      await notifyWarehouse(order);
+    });
+
+    // Response sent immediately, background tasks continue
+    return {
+      status: 'confirmed',
+      orderId,
+    };
+  },
+});
+
+export default agent;
+```
+
+## With Durable Streams
+
+Create a stream for the client to poll, then populate it in the background:
+
+```typescript title="src/agent/async-generator/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { type } from 'arktype';
+
+const agent = createAgent('AsyncGenerator', {
+  schema: {
+    input: type({ prompt: 'string' }),
+    output: type({
+      streamId: 'string',
+      streamUrl: 'string',
+    }),
+  },
+  handler: async (ctx, input) => {
+    // Create a durable stream the client can read from
+    const stream = await ctx.stream.create('generation', { // [!code highlight]
+      contentType: 'text/plain',
+      metadata: { sessionId: ctx.sessionId },
+    });
+
+    // Generate content in the background
+    ctx.waitUntil(async () => { // [!code highlight]
+      try {
+        const { textStream } = streamText({
+          model: openai('gpt-5-mini'),
+          prompt: input.prompt,
+        });
+
+        for await (const chunk of textStream) {
+          await stream.write(chunk);
+        }
+      } finally {
+        await stream.close(); // [!code highlight]
+      }
+    });
+
+    // Return stream URL immediately
+    return {
+      streamId: stream.id,
+      streamUrl: stream.url,
+    };
+  },
+});
+
+export default agent;
+```
+
+## Progress Reporting
+
+Write progress updates to a stream as background work proceeds:
+
+```typescript title="src/agent/batch-processor/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { type } from 'arktype';
+
+const agent = createAgent('BatchProcessor', {
+  schema: {
+    input: type({ items: 'string[]' }),
+    output: type({ progressUrl: 'string' }),
+  },
+  handler: async (ctx, input) => {
+    const progress = await ctx.stream.create('progress', {
+      contentType: 'application/x-ndjson',
+    });
+
+    ctx.waitUntil(async () => {
+      try {
+        for (let i = 0; i < input.items.length; i++) {
+          await processItem(input.items[i]);
+
+          await progress.write(JSON.stringify({
+            completed: i + 1,
+            total: input.items.length,
+            percent: Math.round(((i + 1) / input.items.length) * 100),
+          }) + '\n');
+        }
+
+        await progress.write(JSON.stringify({ done: true }) + '\n');
+      } finally {
+        await progress.close();
+      }
+    });
+
+    return { progressUrl: progress.url };
+  },
+});
+```
+
+## Key Points
+
+- **Non-blocking**: Response returns immediately, tasks run after
+- **Concurrent**: Multiple `waitUntil` calls run in parallel
+- **Error isolation**: Background task failures don't affect the response
+- **Always close streams**: Use `finally` blocks to ensure cleanup
+
+## See Also
+
+- [Durable Streams](/services/storage/durable-streams) for stream creation and management
+- [Webhook Handler](/cookbook/patterns/webhook-handler) for another `waitUntil` example

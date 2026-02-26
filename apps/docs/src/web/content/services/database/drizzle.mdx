@@ -1,0 +1,156 @@
+---
+title: Drizzle ORM
+description: Type-safe database access with Drizzle ORM
+---
+
+The `@agentuity/drizzle` package provides type-safe database access with [Drizzle ORM](https://orm.drizzle.team/), built on the resilient `@agentuity/postgres` client.
+
+## Installation
+
+```bash
+bun add @agentuity/drizzle drizzle-orm
+```
+
+## Basic Usage
+
+```typescript
+import { createPostgresDrizzle, eq } from '@agentuity/drizzle';
+import * as schema from './schema';
+
+const { db, close } = createPostgresDrizzle({ schema });
+
+// Type-safe queries
+const activeUsers = await db
+  .select()
+  .from(schema.users)
+  .where(eq(schema.users.active, true));
+
+// Insert with returning
+const [newUser] = await db
+  .insert(schema.users)
+  .values({ name: 'Alice', email: 'alice@example.com' })
+  .returning();
+```
+
+## Defining Your Schema
+
+```typescript
+// schema.ts
+import { pgTable, serial, text, boolean, timestamp } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  active: boolean('active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+```
+
+## Transactions
+
+Use Drizzle's transaction API for atomic operations:
+
+```typescript
+await db.transaction(async (tx) => {
+  await tx.update(schema.accounts)
+    .set({ balance: sql`balance - ${100}` })
+    .where(eq(schema.accounts.name, 'Alice'));
+
+  await tx.update(schema.accounts)
+    .set({ balance: sql`balance + ${100}` })
+    .where(eq(schema.accounts.name, 'Bob'));
+});
+```
+
+## Configuration
+
+```typescript
+const { db, client, close } = createPostgresDrizzle({
+  schema,
+  url: 'postgres://user:pass@localhost:5432/mydb',
+  logger: true,
+  reconnect: { maxAttempts: 5 },
+  onReconnected: () => console.log('Reconnected'),
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `schema` | `object` | - | Your Drizzle schema definition |
+| `url` | `string` | `DATABASE_URL` | PostgreSQL connection string |
+| `logger` | `boolean` | `false` | Enable query logging |
+| `reconnect` | `object` | - | Reconnection settings (see [postgres client](/services/database/postgres)) |
+| `onReconnected` | `() => void` | - | Callback when reconnection succeeds |
+
+## Re-exported Utilities
+
+Common Drizzle utilities are re-exported for convenience:
+
+```typescript
+import {
+  // Query operators
+  eq, ne, gt, gte, lt, lte,
+  and, or, not,
+  isNull, isNotNull,
+  inArray, notInArray,
+  between, like, ilike,
+
+  // Ordering
+  asc, desc,
+
+  // SQL helpers
+  sql,
+} from '@agentuity/drizzle';
+```
+
+## Migrations
+
+Use `drizzle-kit` to manage schema migrations:
+
+```bash
+bun add -D drizzle-kit
+```
+
+```typescript
+// drizzle.config.ts
+import { defineConfig } from 'drizzle-kit';
+
+export default defineConfig({
+  schema: './schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql',
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+});
+```
+
+```bash
+# Generate migrations from schema changes
+bunx drizzle-kit generate
+
+# Apply migrations to database
+bunx drizzle-kit migrate
+```
+
+See the [Drizzle documentation](https://orm.drizzle.team/docs/migrations) for more migration options.
+
+## Auth Integration
+
+Use with `@agentuity/auth` for user management:
+
+```typescript
+import { createPostgresDrizzle, drizzleAdapter } from '@agentuity/drizzle';
+import * as schema from './schema';
+
+const { db } = createPostgresDrizzle({ schema });
+const authAdapter = drizzleAdapter(db);
+```
+
+See [Authentication](/frontend/authentication) for full setup.
+
+## Next Steps
+
+- [Database Overview](/services/database): Bun SQL basics and provisioning
+- [Resilient Postgres Client](/services/database/postgres): Lower-level client without ORM

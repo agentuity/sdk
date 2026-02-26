@@ -1,7 +1,7 @@
 import type { SortDirection } from '@agentuity/core';
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { ThreadResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { ThreadResponseError } from './util.ts';
 
 export const ThreadSchema = z.object({
 	id: z.string().describe('the thread id'),

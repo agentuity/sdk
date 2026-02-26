@@ -1,0 +1,388 @@
+---
+title: Debugging Deployments
+description: SSH into containers, inspect sessions, and troubleshoot issues in your deployed agents.
+---
+
+Debug live deployments by SSHing into containers, transferring files, inspecting sessions and threads, and viewing deployment logs.
+
+## SSH Access
+
+Connect to your deployed containers for debugging:
+
+```bash
+# SSH into current project
+agentuity cloud ssh
+
+# SSH into specific project
+agentuity cloud ssh proj_abc123xyz
+
+# SSH into specific deployment
+agentuity cloud ssh dep_abc123xyz
+
+# SSH into a sandbox
+agentuity cloud ssh sbx_abc123xyz
+
+# Run a command and exit
+agentuity cloud ssh 'ps aux'
+
+# Run command on specific project
+agentuity cloud ssh proj_abc123xyz 'tail -f /var/log/app.log'
+
+# Show SSH command without executing
+agentuity cloud ssh --show
+```
+
+<Callout type="warning" title="SSH Key Required">
+Add your SSH public key before connecting:
+
+```bash
+agentuity auth ssh add --file ~/.ssh/id_rsa.pub
+```
+
+See [Getting Started](/reference/cli/getting-started) for authentication setup.
+</Callout>
+
+**Interactive session:**
+```bash
+agentuity cloud ssh
+
+# Now you're in the container
+cd /app
+ls -la
+cat .env
+exit
+```
+
+## File Transfer
+
+Use SCP to upload and download files from deployments:
+
+```bash
+# Upload file to home directory
+agentuity cloud scp upload ./config.json
+
+# Upload to specific path
+agentuity cloud scp upload ./config.json /app/config.json
+
+# Upload to specific project
+agentuity cloud scp upload ./config.json --identifier=proj_abc123xyz
+
+# Upload multiple files
+agentuity cloud scp upload ./logs/*.log ~/logs/
+
+# Download file to current directory
+agentuity cloud scp download /var/log/app.log
+
+# Download to specific path
+agentuity cloud scp download /var/log/app.log ./logs/
+
+# Download from specific project
+agentuity cloud scp download /app/config.json --identifier=proj_abc123xyz
+
+# Download multiple files
+agentuity cloud scp download ~/logs/*.log ./logs/
+```
+
+**Common use cases:**
+- Upload configuration files for testing
+- Download logs for local analysis
+- Transfer debug scripts
+- Backup application state
+
+## Agent Inspection
+
+List and inspect agents deployed in your project:
+
+```bash
+# List all agents in the project
+agentuity cloud agent list
+
+# List agents for a specific project
+agentuity cloud agent list --project-id=proj_abc123xyz
+
+# Get details for a specific agent
+agentuity cloud agent get agent_abc123xyz
+```
+
+**Agent details include:**
+- Agent ID and name
+- Description and metadata
+- Associated routes
+
+Use agent inspection to:
+- Verify deployed agent configuration
+- Explore available agents in a project
+
+## Session Logs
+
+Inspect individual agent sessions, including request details, timeline, and logs:
+
+```bash
+# List recent sessions
+agentuity cloud session list
+
+# List 25 most recent sessions
+agentuity cloud session list --count=25
+
+# Filter by project
+agentuity cloud session list --project-id=proj_abc123xyz
+
+# Filter by organization
+agentuity cloud session list --org-id=org_abc123xyz
+
+# Filter by deployment
+agentuity cloud session list --deployment-id=dep_abc123xyz
+
+# Only successful sessions
+agentuity cloud session list --success=true
+
+# Only failed sessions
+agentuity cloud session list --success=false
+
+# Filter by specific trigger type
+agentuity cloud session list --trigger=api
+
+# Filter by specific environment
+agentuity cloud session list --env=production
+
+# Sort by duration, newest first
+agentuity cloud session list --sort=duration --direction=desc
+```
+
+**Get session details:**
+```bash
+# Full session information with timeline
+agentuity cloud session get sess_abc123xyz
+```
+
+This shows:
+- Request method, URL, and headers
+- Success/failure status and error messages
+- Duration and timing information
+- Agent execution timeline
+- Eval runs (if configured)
+
+**View session logs:**
+```bash
+# View logs for specific session
+agentuity cloud session logs sess_abc123xyz
+
+# Hide timestamps
+agentuity cloud session logs sess_abc123xyz --no-timestamps
+```
+
+<Callout type="info" title="Session vs. Deployment Logs">
+Session logs show output for a single request. Deployment logs show all output from a deployment, including startup, errors, and background tasks.
+</Callout>
+
+### Session List Options
+
+| Option | Description |
+|--------|-------------|
+| `--count <n>` | Number of sessions to return (1-100, default: `10`) |
+| `--project-id <id>` | Filter by project |
+| `--org-id <id>` | Filter by organization |
+| `--deployment-id <id>` | Filter by deployment |
+| `--trigger <type>` | Filter by trigger type (`api`, `cron`, `webhook`) |
+| `--env <env>` | Filter by environment |
+| `--success <bool>` | Filter by success status |
+| `--sort <field>` | Sort by `created`, `updated`, `duration`, or `startTime` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
+| `--all` | List all sessions regardless of project context |
+
+<Callout type="warning" title="Mutual Exclusivity">
+`--org-id` and `--project-id` cannot be used together. Use one or the other.
+</Callout>
+
+## Thread Inspection
+
+List and manage conversation threads. For details on how threads work in agents, see [State Management](/agents/state-management).
+
+```bash
+# List recent threads
+agentuity cloud thread list
+
+# List 25 most recent threads
+agentuity cloud thread list --count=25
+
+# Filter by project
+agentuity cloud thread list --project-id=proj_abc123xyz
+
+# Filter by organization
+agentuity cloud thread list --org-id=org_abc123xyz
+
+# Sort by last updated
+agentuity cloud thread list --sort=updated --direction=desc
+
+# Get thread details
+agentuity cloud thread get thrd_abc123xyz
+
+# Delete a thread
+agentuity cloud thread delete thrd_abc123xyz
+```
+
+**Thread details include:**
+- Thread ID and timestamps
+- Associated project
+- User data (metadata)
+- Deletion status
+
+Use thread inspection to:
+- Debug conversation state issues
+- Clean up old threads
+- Verify thread metadata
+- Track thread lifecycle
+
+### Thread List Options
+
+| Option | Description |
+|--------|-------------|
+| `--count <n>` | Number of threads to return (1-100, default: `10`) |
+| `--project-id <id>` | Filter by project |
+| `--org-id <id>` | Filter by organization |
+| `--sort <field>` | Sort by `created` or `updated` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
+| `--all` | List all threads regardless of project context |
+
+## Evaluation Commands
+
+Monitor and inspect evaluation runs to understand agent performance against test cases.
+
+List and inspect evaluations and evaluation runs:
+
+```bash
+# List all evaluations
+agentuity cloud eval list
+
+# Get details for a specific evaluation
+agentuity cloud eval get eval_abc123xyz
+
+# List evaluation runs
+agentuity cloud eval-run list
+
+# Get details for a specific run
+agentuity cloud eval-run get run_abc123xyz
+```
+
+Use evaluation commands to:
+- Monitor eval progress and results
+- Debug failing evaluations
+- Track evaluation history across deployments
+
+For more on configuring evaluations, see [Evaluations](/agents/evaluations).
+
+## Deployment Logs
+
+Stream logs from a specific deployment:
+
+```bash
+# View deployment logs
+agentuity cloud deployment logs dep_abc123xyz
+
+# Limit to 50 log entries
+agentuity cloud deployment logs dep_abc123xyz --limit=50
+
+# Hide timestamps
+agentuity cloud deployment logs dep_abc123xyz --no-timestamps
+
+# Specify project explicitly
+agentuity cloud deployment logs dep_abc123xyz --project-id=proj_abc123xyz
+```
+
+**Log output includes:**
+- Severity levels (INFO, WARN, ERROR)
+- Timestamps
+- Log messages
+- Stack traces for errors
+
+**Use deployment logs to:**
+- Monitor startup issues
+- Debug background tasks
+- Track errors across requests
+- Analyze performance issues
+
+## JSON Output for Scripting
+
+All commands support `--json` for machine-readable output. Combined with [jq](/reference/cli/getting-started#json-output), you can filter and transform results:
+
+```bash
+# Get session list as JSON
+agentuity --json cloud session list --count=100 > sessions.json
+
+# Get thread details as JSON
+agentuity --json cloud thread get thrd_abc123xyz
+
+# Process with jq
+agentuity --json cloud session list | jq '.[] | select(.success == false)'
+
+# Find failed sessions in last hour
+agentuity --json cloud session list --count=100 | \
+  jq '.[] | select(.success == false) | {id, url, error}'
+
+# Count sessions by trigger type
+agentuity --json cloud session list --count=100 | \
+  jq 'group_by(.trigger) | map({trigger: .[0].trigger, count: length})'
+```
+
+**Scripting examples:**
+
+Here are some practical scripts for monitoring and automation:
+
+```bash
+#!/bin/bash
+# Monitor for failures and send alerts
+
+FAILED=$(agentuity --json cloud session list --success=false --count=10)
+COUNT=$(echo "$FAILED" | jq 'length')
+
+if [ "$COUNT" -gt 5 ]; then
+  echo "Alert: $COUNT failed sessions detected"
+  echo "$FAILED" | jq '.[] | {id, url, error}'
+fi
+```
+
+```bash
+#!/bin/bash
+# Export thread user data
+
+agentuity --json cloud thread list --count=100 | \
+  jq -r '.[] | [.id, .user_data] | @csv' > threads.csv
+```
+
+## Support Commands
+
+Generate diagnostic information for troubleshooting or support requests:
+
+```bash
+# Create a support ticket (opens GitHub issue with logs attached)
+agentuity support report
+agentuity support report --description "Deployment fails after upgrade"
+
+# View recent CLI logs
+agentuity support logs show
+
+# Get the path to the log session file
+agentuity support logs path
+
+# Show system information
+agentuity support system
+```
+
+**What's included:**
+
+| Command | Output |
+|---------|--------|
+| `support report` | Creates GitHub issue with CLI/runtime versions, project config (sanitized), recent errors |
+| `support logs show` | Recent CLI command logs for local analysis |
+| `support logs path` | Path to log session file for manual inspection |
+| `support system` | OS, Bun versions, CLI version, memory/disk info |
+
+<Callout type="info" title="Privacy">
+Support reports automatically redact sensitive information like API keys, tokens, and environment variable values. Review the output before sharing.
+</Callout>
+
+## Next Steps
+
+- [Managing Cloud Storage](/reference/cli/storage): Inspect storage, env vars, and secrets
+- [Deploying to the Cloud](/reference/cli/deployment): Deploy and manage projects
+- [Logging](/services/observability/logging): Configure logging in your agents

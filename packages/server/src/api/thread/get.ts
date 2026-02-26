@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
-import { ThreadSchema, type Thread } from './list';
-import { ThreadResponseError } from './util';
+import { APIClient, APIResponseSchema } from '../api.ts';
+import { ThreadSchema, type Thread } from './list.ts';
+import { ThreadResponseError } from './util.ts';
 
 export const _ThreadGetRequestSchema = z.object({
 	id: z.string().describe('the thread id'),

@@ -305,7 +305,7 @@ const router = createRouter();
 
 router.post("/generate", async (c) => {
   // Create stream - returns a public URL
-  const stream = await c.var.stream.create("report", {
+  const stream = await c.var.stream.create("summary", {
     contentType: "text/plain",
     metadata: { created: new Date().toISOString() },
   });
@@ -314,7 +314,7 @@ router.post("/generate", async (c) => {
   c.var.waitUntil(async () => {
     const { textStream } = streamText({
       model: openai("gpt-5-nano"),
-      prompt: "Generate a weekly report...",
+      prompt: "Write a summary of what Agentuity is.",
     });
 
     for await (const chunk of textStream) {
@@ -330,9 +330,9 @@ router.post("/generate", async (c) => {
   });
 });
 
-// List all generated reports
+// List all generated summaries
 router.get("/list", async (c) => {
-  const { streams } = await c.var.stream.list({ name: "report" });
+  const { streams } = await c.var.stream.list({ name: "summary" });
   return c.json(streams);
 });`,
 

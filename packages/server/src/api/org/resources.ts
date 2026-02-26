@@ -1,7 +1,7 @@
 import type { SortDirection } from '@agentuity/core';
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '../api';
-import { OrgResourceResponseError } from './util';
+import { APIResponseSchema, APIClient } from '../api.ts';
+import { OrgResourceResponseError } from './util.ts';
 
 export const OrgS3Resource = z.object({
 	bucket_name: z.string().describe('the S3 bucket name'),

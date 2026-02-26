@@ -31,7 +31,13 @@ try {
 }
 
 const ctx = createAgentContext();
-const result = await ctx.invoke(() => agent.run(input));
 
-console.log('---OUTPUT---');
-console.log(JSON.stringify(result, null, 2));
+try {
+	const result = await ctx.invoke(() => agent.run(input));
+
+	console.log('---OUTPUT---');
+	console.log(JSON.stringify(result, null, 2));
+} catch (error) {
+	console.log('---OUTPUT---');
+	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+}

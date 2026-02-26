@@ -59,7 +59,7 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 					namespace: info.namespace,
 					url: info.url,
 					sizeBytes: info.sizeBytes,
-					metadata: info.metadata,
+					metadata: info.metadata ?? undefined,
 					success: true,
 				};
 			}
@@ -75,7 +75,7 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 					namespace: info.namespace,
 					url: info.url,
 					sizeBytes: info.sizeBytes,
-					metadata: info.metadata,
+					metadata: info.metadata ?? undefined,
 					success: true,
 				};
 			}
@@ -90,7 +90,10 @@ const streamMetadataAgent = createAgent('storage-stream-metadata', {
 
 				return {
 					operation,
-					streams: result.streams,
+					streams: result.streams.map((stream) => ({
+						...stream,
+						metadata: stream.metadata ?? {},
+					})),
 					total: result.total,
 					success: true,
 				};

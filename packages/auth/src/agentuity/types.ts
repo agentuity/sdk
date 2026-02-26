@@ -5,7 +5,7 @@
  */
 
 import type { Session as BetterAuthSession, User as BetterAuthUser } from 'better-auth';
-import type { AgentuityAuth } from '../types';
+import type { AgentuityAuth } from '../types.ts';
 
 // =============================================================================
 // Canonical User/Session Types

@@ -1,6 +1,9 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { Writable } from 'node:stream';
-import { SandboxClient } from '../src/api/sandbox/client';
+import { SandboxClient } from '../src/api/sandbox/client.ts';
+import { APIClient } from '../src/api/api.ts';
+import { sandboxPause } from '../src/api/sandbox/pause.ts';
+import { sandboxResume } from '../src/api/sandbox/resume.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('SandboxClient', () => {
@@ -1115,7 +1118,7 @@ describe('SandboxClient', () => {
 			expect(result.stderr).toBe('Out: mixed\n');
 		});
 
-		test('should tee combined output to both user stdout and stderr streams', async () => {
+		test('should tee combined output to stdout user stream only to avoid duplication', async () => {
 			const combinedChunks = [
 				new Uint8Array([67, 111, 109, 98, 105, 110, 101, 100, 10]), // "Combined\n"
 			];
@@ -1199,11 +1202,12 @@ describe('SandboxClient', () => {
 			expect(result.stdout).toBe('Combined\n');
 			expect(result.stderr).toBe('Combined\n');
 
-			// Verify BOTH user streams received the combined output
+			// In combined mode, only stdout user stream receives the teed output
+			// to avoid duplicate lines when both streams go to the same terminal
 			const stdoutOutput = Buffer.concat(stdoutReceivedChunks).toString();
 			const stderrOutput = Buffer.concat(stderrReceivedChunks).toString();
 			expect(stdoutOutput).toBe('Combined\n');
-			expect(stderrOutput).toBe('Combined\n');
+			expect(stderrOutput).toBe('');
 		});
 
 		test('should return empty strings when no output', async () => {
@@ -1393,6 +1397,118 @@ describe('SandboxClient', () => {
 			await client.destroy('sandbox-xyz');
 
 			expect(destroyCalled).toBe(true);
+		});
+	});
+
+	describe('sandboxPause', () => {
+		test('should pause a sandbox successfully', async () => {
+			let pauseCalled = false;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/pause')) {
+					pauseCalled = true;
+					return new Response(JSON.stringify({ success: true }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					});
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new APIClient(
+				'https://sandbox.example.com',
+				createMockLogger(),
+				'test-sdk-key'
+			);
+
+			await sandboxPause(client, { sandboxId: 'sandbox-123' });
+			expect(pauseCalled).toBe(true);
+		});
+
+		test('should throw SandboxNotFoundError when sandbox not found', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/pause')) {
+					return new Response(
+						JSON.stringify({
+							success: false,
+							message: 'Sandbox not found',
+							code: 'SANDBOX_NOT_FOUND',
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new APIClient(
+				'https://sandbox.example.com',
+				createMockLogger(),
+				'test-sdk-key'
+			);
+
+			try {
+				await sandboxPause(client, { sandboxId: 'nonexistent' });
+				expect(true).toBe(false); // should not reach here
+			} catch (error) {
+				expect((error as { _tag: string })._tag).toBe('SandboxNotFoundError');
+				expect((error as { sandboxId: string }).sandboxId).toBe('nonexistent');
+			}
+		});
+	});
+
+	describe('sandboxResume', () => {
+		test('should resume a sandbox successfully', async () => {
+			let resumeCalled = false;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/resume')) {
+					resumeCalled = true;
+					return new Response(JSON.stringify({ success: true }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					});
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new APIClient(
+				'https://sandbox.example.com',
+				createMockLogger(),
+				'test-sdk-key'
+			);
+
+			await sandboxResume(client, { sandboxId: 'sandbox-123' });
+			expect(resumeCalled).toBe(true);
+		});
+
+		test('should throw SandboxNotFoundError when sandbox not found', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/resume')) {
+					return new Response(
+						JSON.stringify({
+							success: false,
+							message: 'Sandbox not found',
+							code: 'SANDBOX_NOT_FOUND',
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new APIClient(
+				'https://sandbox.example.com',
+				createMockLogger(),
+				'test-sdk-key'
+			);
+
+			try {
+				await sandboxResume(client, { sandboxId: 'nonexistent' });
+				expect(true).toBe(false); // should not reach here
+			} catch (error) {
+				expect((error as { _tag: string })._tag).toBe('SandboxNotFoundError');
+				expect((error as { sandboxId: string }).sandboxId).toBe('nonexistent');
+			}
 		});
 	});
 });

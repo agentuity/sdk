@@ -1,4 +1,9 @@
-export { websocket, type WebSocketConnection, type WebSocketHandler } from './websocket';
+export {
+	websocket,
+	type WebSocketConnection,
+	type WebSocketHandler,
+	WS_DONE_PROMISE_KEY,
+} from './websocket';
 export {
 	sse,
 	type SSEMessage,

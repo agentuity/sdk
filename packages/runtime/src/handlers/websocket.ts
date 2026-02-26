@@ -5,6 +5,12 @@ import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 
 /**
+ * Context key for WebSocket close promise.
+ * Used by middleware to defer session finalization until WebSocket closes.
+ */
+export const WS_DONE_PROMISE_KEY = '_wsDonePromise';
+
+/**
  * WebSocket connection interface for handling WebSocket events.
  */
 export interface WebSocketConnection {
@@ -17,19 +23,35 @@ export interface WebSocketConnection {
 /**
  * Handler function for WebSocket connections.
  * Receives the Hono context and WebSocket connection with a flattened signature.
+ *
+ * **This handler must be synchronous** (returns `void`, not `Promise<void>`).
+ * The handler is called inside Hono's `upgradeWebSocket` factory, which must
+ * return event handlers synchronously for the HTTP upgrade to complete. If the
+ * handler were async, any `ws.onOpen`/`ws.onMessage`/`ws.onClose` registrations
+ * after an `await` would be silently lost because the factory returns before
+ * they are registered.
+ *
+ * To perform async work, place it inside the `onOpen`, `onMessage`, or `onClose`
+ * callbacks, which are properly awaited by the runtime.
  */
 export type WebSocketHandler<E extends Env = Env> = (
 	c: Context<E>,
 	ws: WebSocketConnection
-) => void | Promise<void>;
+) => void;
 
 /**
  * Creates a WebSocket middleware for handling WebSocket connections.
+ *
+ * The handler must be **synchronous** — it runs inside Hono's `upgradeWebSocket`
+ * factory which must return event handlers synchronously for the HTTP upgrade to
+ * complete. Async work should go inside `onOpen`, `onMessage`, or `onClose`
+ * callbacks, which are properly awaited by the runtime.
  *
  * Use with router.get() to create a WebSocket endpoint:
  *
  * @example
  * ```typescript
+ * // Basic synchronous usage
  * import { createRouter, websocket } from '@agentuity/runtime';
  *
  * const router = createRouter();
@@ -51,7 +73,23 @@ export type WebSocketHandler<E extends Env = Env> = (
  * }));
  * ```
  *
- * @param handler - Handler function receiving context and WebSocket connection
+ * @example
+ * ```typescript
+ * // Async work inside callbacks (correct pattern)
+ * router.get('/ws', websocket((c, ws) => {
+ *   ws.onOpen(async () => {
+ *     const user = await fetchUser(c.var.auth);
+ *     ws.send(JSON.stringify({ welcome: user.name }));
+ *   });
+ *
+ *   ws.onMessage(async (event) => {
+ *     const result = await processMessage(event.data);
+ *     ws.send(JSON.stringify(result));
+ *   });
+ * }));
+ * ```
+ *
+ * @param handler - Synchronous handler function receiving context and WebSocket connection
  * @returns Hono middleware handler for WebSocket upgrade
  */
 export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): MiddlewareHandler<E> {
@@ -63,6 +101,27 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 
 		const asyncLocalStorage = getAgentAsyncLocalStorage();
 		const capturedContext = asyncLocalStorage.getStore();
+
+		// Create done promise for session lifecycle deferral, but ONLY for actual
+		// WebSocket upgrade requests. The factory runs unconditionally for every
+		// request hitting this route (Hono calls createEvents before attempting
+		// server.upgrade). For non-upgrade HTTP requests, setting the promise would
+		// cause the middleware to hang forever waiting for an onClose that never fires.
+		let resolveDone: (() => void) | undefined;
+		const isUpgrade = c.req.header('upgrade')?.toLowerCase() === 'websocket';
+
+		if (isUpgrade) {
+			const donePromise = new Promise<void>((resolve) => {
+				resolveDone = resolve;
+			});
+
+			// Defensive: guard against future code adding rejection paths
+			donePromise.catch(() => {});
+
+			// Set on context so middleware defers session finalization until WS closes
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(c as any).set(WS_DONE_PROMISE_KEY, donePromise);
+		}
 
 		const wsConnection: WebSocketConnection = {
 			onOpen: (h) => {
@@ -154,6 +213,10 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 					}
 				} catch (err) {
 					c.var.logger?.error('WebSocket onClose error:', err);
+				} finally {
+					// Resolve the done promise to trigger session finalization
+					// This must fire even if the user's onClose handler throws
+					resolveDone?.();
 				}
 			},
 		};

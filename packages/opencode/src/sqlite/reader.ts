@@ -5,10 +5,12 @@ import { join } from 'node:path';
 import { QUERIES } from './queries';
 import type {
 	DBMessage,
+	DBNonTextPart,
 	DBSession,
 	DBTextPart,
 	DBTodo,
 	DBToolCall,
+	DBToolCallSummary,
 	MessageTokens,
 	OpenCodeDBConfig,
 	SessionCostSummary,
@@ -223,6 +225,39 @@ function mapTextPart(row: PartRow): DBTextPart | null {
 		sessionId: row.session_id,
 		text: payload.text,
 		timeCreated: row.time_created,
+	};
+}
+
+function mapNonTextPart(row: PartRow): DBNonTextPart | null {
+	const payload = safeParseJSON<PartData>(row.data);
+	if (!payload || !payload.type || payload.type === 'text') return null;
+
+	return {
+		id: row.id,
+		messageId: row.message_id,
+		type: payload.type,
+		toolName: payload.tool,
+		timestamp: new Date(row.time_created).toISOString(),
+	};
+}
+
+function mapToolCallSummary(row: PartRow): DBToolCallSummary | null {
+	const payload = safeParseJSON<PartData>(row.data);
+	if (!payload || (payload.type !== 'tool' && payload.type !== 'tool-invocation')) return null;
+
+	const state = payload.state ?? {};
+	const inputStr =
+		state.input !== undefined ? String(JSON.stringify(state.input)).slice(0, 200) : undefined;
+	const outputStr =
+		state.output !== undefined ? String(JSON.stringify(state.output)).slice(0, 200) : undefined;
+
+	return {
+		id: row.id,
+		messageId: row.message_id,
+		toolName: payload.tool ?? 'unknown',
+		input: inputStr,
+		output: outputStr,
+		timestamp: new Date(row.time_created).toISOString(),
 	};
 }
 
@@ -471,6 +506,40 @@ export class OpenCodeDBReader {
 			return rows ? rows.map(mapTextPart).filter(isNotNull) : [];
 		} catch (error) {
 			console.warn('[OpenCodeDBReader] Failed to get text parts', error);
+			return [];
+		}
+	}
+
+	/**
+	 * Get non-text parts (images, files, tool calls) for a session.
+	 * Useful for describing attachments during compaction.
+	 */
+	getNonTextParts(sessionId: string): DBNonTextPart[] {
+		if (!this.ensureOpen()) return [];
+
+		try {
+			const statement = this.getStatement('GET_NON_TEXT_PARTS');
+			const rows = statement?.all(sessionId, DEFAULT_LIMIT) as PartRow[] | null;
+			return rows ? rows.map(mapNonTextPart).filter(isNotNull) : [];
+		} catch (error) {
+			console.warn('[OpenCodeDBReader] Failed to get non-text parts', error);
+			return [];
+		}
+	}
+
+	/**
+	 * Get recent tool calls for a session (newest first).
+	 * Returns concise summaries for compaction context.
+	 */
+	getRecentToolCalls(sessionId: string, limit: number = 5): DBToolCallSummary[] {
+		if (!this.ensureOpen()) return [];
+
+		try {
+			const statement = this.getStatement('GET_TOOL_HISTORY');
+			const rows = statement?.all(sessionId, limit) as PartRow[] | null;
+			return rows ? rows.map(mapToolCallSummary).filter(isNotNull) : [];
+		} catch (error) {
+			console.warn('[OpenCodeDBReader] Failed to get recent tool calls', error);
 			return [];
 		}
 	}

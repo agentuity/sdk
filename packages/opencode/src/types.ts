@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { BackgroundTaskConfig } from './background/types';
 import type { SkillsConfig } from './skills/types';
 import type { TmuxConfig } from './tmux/types';
 
@@ -11,7 +10,6 @@ export type {
 	ToolDefinition,
 } from '@opencode-ai/plugin';
 
-export type { BackgroundTaskConfig } from './background/types';
 export type { SkillsConfig, LoadedSkill, SkillMetadata, SkillScope } from './skills';
 export type { TmuxConfig } from './tmux/types';
 
@@ -28,7 +26,6 @@ export const AgentRoleSchema = z.enum([
 	'expert-ops',
 	'runner',
 	'product',
-	'monitor',
 ]);
 export type AgentRole = z.infer<typeof AgentRoleSchema>;
 
@@ -89,6 +86,16 @@ export interface AgentConfig {
 	reasoningEffort?: ReasoningEffort;
 	/** Extended thinking configuration for Anthropic models */
 	thinking?: ThinkingConfig;
+	/**
+	 * Ordered list of fallback model IDs to try when the primary model fails
+	 * with a retryable error (429 rate limit, 500/502/503 server error).
+	 * Models are tried in order until one succeeds.
+	 *
+	 * Example: ['anthropic/claude-sonnet-4-20250514', 'openai/gpt-4.1']
+	 */
+	fallbackModels?: string[];
+	/** Hidden from @ autocomplete */
+	hidden?: boolean;
 }
 
 export interface AgentContext {
@@ -151,23 +158,33 @@ export const AgentModelConfigSchema = z.object({
 	maxSteps: z.number().optional(),
 });
 
+/** Configuration for compaction behavior */
+export interface CompactionConfig {
+	/** Use custom compaction prompt tailored to our agent system (default: true) */
+	customPrompt?: boolean;
+	/** Inline planning state from KV into compaction context (default: true) */
+	inlinePlanning?: boolean;
+	/** Detect and describe images/attachments (default: true) */
+	imageAwareness?: boolean;
+	/** Number of recent tool calls to summarize (default: 5, 0 to disable) */
+	toolCallSummaryLimit?: number;
+	/** Store pre-compaction snapshot to KV for recovery (default: true) */
+	snapshotToKV?: boolean;
+	/** Max tokens budget for ALL injected compaction context combined (default: 4000) */
+	maxContextTokens?: number;
+	/** Reserved token buffer for compaction prompts (default: 40000). Must not exceed OpenCode's max context window. */
+	reserved?: number;
+}
+
 export interface CoderConfig {
 	org?: string;
 	disabledMcps?: string[];
 	/** CLI command patterns to block for security (e.g., 'cloud secrets', 'auth token') */
 	blockedCommands?: string[];
-	background?: BackgroundTaskConfig;
 	skills?: SkillsConfig;
 	tmux?: TmuxConfig;
+	compaction?: CompactionConfig;
 }
-
-export const BackgroundTaskConfigSchema = z.object({
-	enabled: z.boolean(),
-	defaultConcurrency: z.number(),
-	staleTimeoutMs: z.number(),
-	providerConcurrency: z.record(z.string(), z.number()).optional(),
-	modelConcurrency: z.record(z.string(), z.number()).optional(),
-});
 
 export const SkillsConfigSchema = z.object({
 	enabled: z.boolean(),
@@ -182,13 +199,23 @@ export const TmuxConfigSchema = z.object({
 	agentPaneMinWidth: z.number(),
 });
 
+export const CompactionConfigSchema = z.object({
+	customPrompt: z.boolean().optional(),
+	inlinePlanning: z.boolean().optional(),
+	imageAwareness: z.boolean().optional(),
+	toolCallSummaryLimit: z.number().optional(),
+	snapshotToKV: z.boolean().optional(),
+	maxContextTokens: z.number().optional(),
+	reserved: z.number().optional(),
+});
+
 export const CoderConfigSchema = z.object({
 	org: z.string().optional(),
 	disabledMcps: z.array(z.string()).optional(),
 	blockedCommands: z.array(z.string()).optional(),
-	background: BackgroundTaskConfigSchema.optional(),
 	skills: SkillsConfigSchema.optional(),
 	tmux: TmuxConfigSchema.optional(),
+	compaction: CompactionConfigSchema.optional(),
 });
 
 export interface McpConfig {

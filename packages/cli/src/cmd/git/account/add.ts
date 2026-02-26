@@ -159,7 +159,8 @@ export const addSubcommand = createSubcommand({
 		} catch (error) {
 			const isCancel =
 				error === '' ||
-				(error instanceof Error && (error.message === '' || error.message === 'User cancelled'));
+				(error instanceof Error &&
+					(error.message === '' || error.message === 'User cancelled'));
 
 			if (isCancel) {
 				tui.newline();
@@ -168,7 +169,11 @@ export const addSubcommand = createSubcommand({
 			}
 
 			logger.trace(error);
-			return logger.fatal('Failed to add GitHub account: %s', error, ErrorCode.INTEGRATION_FAILED);
+			return logger.fatal(
+				'Failed to add GitHub account: %s',
+				error,
+				ErrorCode.INTEGRATION_FAILED
+			);
 		}
 	},
 });

@@ -1,0 +1,301 @@
+---
+title: Understanding How Agents Work
+description: Learn how AI agents use tools, run in loops with stopping conditions, and leverage LLMs to complete tasks autonomously
+---
+
+This tutorial explains the core concepts that make AI agents "agentic": the ability to use tools, reason about results, and loop until a task is complete.
+
+## What Makes an Agent "Agentic"?
+
+A simple LLM call takes input and returns output. An **agent** goes further: it can decide to take actions, observe results, and continue working until the task is done.
+
+The agent loop follows this pattern:
+
+1. **Plan**: The LLM receives a prompt and decides what to do
+2. **Act**: If the LLM needs data, it requests a tool call
+3. **Observe**: The tool executes and returns results
+4. **Repeat**: The LLM sees the results and decides: respond to the user, or call another tool?
+
+This loop continues until the LLM has enough information to answer, or a stopping condition is reached.
+
+## What You'll Build
+
+A research agent that:
+- Accepts a topic from the user
+- Searches Wikipedia for relevant information
+- Summarizes findings and returns a response
+- Demonstrates the agent loop in action
+
+## Prerequisites
+
+- An Agentuity project ([Quickstart](/get-started/quickstart) if you need one)
+- Basic familiarity with [AI SDK Integration](/agents/ai-sdk-integration)
+
+## Project Structure
+
+```
+src/agent/researcher/
+└── agent.ts    # Research agent with tools
+src/api/
+└── index.ts    # HTTP endpoint
+```
+
+<Steps>
+
+<Step>
+## Define a Tool
+
+Tools are functions the LLM can call. Each tool has three parts:
+
+1. **Description**: Tells the LLM when to use this tool
+2. **Input Schema**: Defines what parameters the tool accepts
+3. **Execute Function**: The actual code that runs
+
+```typescript
+import { tool } from 'ai';
+import { z } from 'zod';
+
+const searchWikipedia = tool({
+  description: 'Search Wikipedia for information on a topic', // [!code highlight]
+  inputSchema: z.object({ // [!code highlight]
+    query: z.string().describe('The search query'), // [!code highlight]
+  }), // [!code highlight]
+  execute: async ({ query }) => { // [!code highlight]
+    const url = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=3`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    return data.query.search.map((result: any) => ({
+      title: result.title,
+      snippet: result.snippet.replace(/<[^>]*>/g, ''), // Strip HTML tags
+      pageId: result.pageid,
+    }));
+  },
+});
+```
+
+The schema is converted to JSON and sent to the LLM, which uses the description and parameter definitions to understand when and how to call the tool.
+</Step>
+
+<Step>
+## Create the Agent with Tools
+
+The AI SDK's `generateText` function orchestrates the agent loop automatically. When you provide tools, it handles the back-and-forth between the LLM and tool execution.
+
+```typescript title="src/agent/researcher/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { generateText, tool, stepCountIs } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
+
+// Define the search tool
+const searchWikipedia = tool({
+  description: 'Search Wikipedia for information on a topic',
+  inputSchema: z.object({
+    query: z.string().describe('The search query'),
+  }),
+  execute: async ({ query }) => {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=3`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    return data.query.search.map((result: any) => ({
+      title: result.title,
+      snippet: result.snippet.replace(/<[^>]*>/g, ''), // Strip HTML tags
+      pageId: result.pageid,
+    }));
+  },
+});
+
+const agent = createAgent('Research Agent', {
+  description: 'Researches topics using Wikipedia',
+  schema: {
+    input: z.object({ topic: z.string() }),
+    output: z.object({ summary: z.string(), sourcesUsed: z.number() }),
+  },
+  handler: async (ctx, input) => {
+    ctx.logger.info('Starting research', { topic: input.topic });
+
+    const result = await generateText({
+      model: openai('gpt-5-mini'),
+      system: `You are a research assistant. Use the search tool to find information,
+then synthesize what you learn into a helpful summary. Always search before answering.`,
+      prompt: `Research this topic and provide a summary: ${input.topic}`,
+      tools: { searchWikipedia }, // [!code highlight]
+      stopWhen: stepCountIs(5), // [!code highlight]
+    });
+
+    ctx.logger.info('Research complete', {
+      steps: result.steps.length,
+      toolCalls: result.toolCalls.length,
+    });
+
+    return {
+      summary: result.text,
+      sourcesUsed: result.toolCalls.length,
+    };
+  },
+});
+
+export default agent;
+```
+</Step>
+
+<Step>
+## Understanding the Loop
+
+When you call `generateText` with tools, here's what happens:
+
+1. **Initial Request**: The LLM receives the prompt, system message, and tool definitions
+2. **Decision**: The LLM analyzes the request and decides to call `searchWikipedia`
+3. **Tool Execution**: The AI SDK validates parameters and runs the `execute` function
+4. **Result Injection**: Tool results are added to the conversation
+5. **Continue or Finish**: The LLM sees results and either calls another tool or returns a final response
+
+The `stopWhen` option controls when the loop ends. Use `stepCountIs(n)` to limit iterations and prevent runaway agents:
+
+```typescript
+import { generateText, stepCountIs } from 'ai';
+
+const result = await generateText({
+  model: openai('gpt-5-mini'),
+  prompt: 'Research quantum computing',
+  tools: { searchWikipedia },
+  stopWhen: stepCountIs(5), // [!code highlight]
+});
+
+// Inspect what happened
+ctx.logger.info(`Completed in ${result.steps.length} steps`);
+ctx.logger.info(`Made ${result.toolCalls.length} tool calls`);
+```
+
+You can combine multiple stopping conditions. The loop stops when any condition is met:
+
+```typescript
+import { generateText, stepCountIs, hasToolCall } from 'ai';
+
+const result = await generateText({
+  model: openai('gpt-5-mini'),
+  prompt: 'Research quantum computing',
+  tools: { searchWikipedia },
+  stopWhen: [stepCountIs(10), hasToolCall('searchWikipedia')], // [!code highlight]
+});
+```
+</Step>
+
+<Step>
+## Add the Route
+
+Create an HTTP endpoint to call your agent:
+
+```typescript title="src/api/index.ts"
+import { createRouter } from '@agentuity/runtime';
+import researchAgent from '@agent/researcher';
+
+const router = createRouter();
+
+router.post('/research', researchAgent.validator(), async (c) => { // [!code highlight]
+  const { topic } = c.req.valid('json'); // [!code highlight]
+  const result = await researchAgent.run({ topic }); // [!code highlight]
+  return c.json(result);
+});
+
+export default router;
+```
+</Step>
+
+<Step>
+## Test It
+
+Start the dev server:
+
+```bash
+agentuity dev
+```
+
+### Using curl
+
+```bash
+curl -X POST http://localhost:3500/research \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "how do AI agents work"}'
+```
+
+### Frontend
+
+Create a simple frontend to interact with your agent:
+
+```tsx title="src/web/App.tsx"
+import { useAPI } from '@agentuity/react';
+import { useState } from 'react';
+
+export function App() {
+  const [topic, setTopic] = useState('');
+  const { data, invoke, isLoading } = useAPI('POST /research'); // [!code highlight]
+
+  return (
+    <div style={{ padding: '2rem', maxWidth: '600px' }}>
+      <h1>Research Agent</h1>
+
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+        <input
+          type="text"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          placeholder="Enter a topic to research"
+          disabled={isLoading}
+          style={{ flex: 1, padding: '0.5rem' }}
+        />
+        <button onClick={() => invoke({ topic })} disabled={isLoading || !topic}>
+          {isLoading ? 'Researching...' : 'Research'}
+        </button>
+      </div>
+
+      {data && (
+        <div style={{ padding: '1rem', background: '#f5f5f5', borderRadius: '4px' }}>
+          <p>{data.summary}</p>
+          <small>Sources used: {data.sourcesUsed}</small>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+Wrap your app with `AgentuityProvider` in the entry point:
+
+```tsx title="src/web/frontend.tsx"
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { AgentuityProvider } from '@agentuity/react';
+import { App } from './App';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <AgentuityProvider>
+      <App />
+    </AgentuityProvider>
+  </StrictMode>
+);
+```
+
+Check the logs to see the agent loop in action: the search tool being called, results being processed, and the final summary being generated.
+</Step>
+
+</Steps>
+
+## Summary
+
+| Concept | Description |
+|---------|-------------|
+| **Tool** | A function the LLM can call, defined with `inputSchema` and `execute` |
+| **Agent Loop** | Plan → Act → Observe → Repeat until done |
+| **stopWhen** | Controls when the loop ends (e.g., `stepCountIs(5)`) |
+| **stepCountIs** | Built-in condition to limit loop iterations |
+| **generateText** | AI SDK function that orchestrates the loop automatically |
+
+## Next Steps
+
+- [AI SDK Integration](/agents/ai-sdk-integration): More patterns for tool use and streaming
+- [Calling Other Agents](/agents/calling-other-agents): Build multi-agent systems
+- [Evaluations](/agents/evaluations): Test agent output quality

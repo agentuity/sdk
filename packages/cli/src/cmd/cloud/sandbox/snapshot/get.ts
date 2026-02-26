@@ -138,7 +138,7 @@ export const getSubcommand = createCommand({
 				Object.keys(snapshot.userMetadata).length > 0
 			) {
 				console.log('');
-				tui.info('Metadata:');
+				tui.header('Metadata');
 				for (const [key, value] of Object.entries(snapshot.userMetadata)) {
 					console.log(`  ${tui.muted('•')} ${key}=${value}`);
 				}
@@ -146,13 +146,13 @@ export const getSubcommand = createCommand({
 
 			if (snapshot.files && snapshot.files.length > 0) {
 				console.log('');
-				tui.info('Files:');
+				tui.header('Files');
 				printFileTree(snapshot.files);
 			}
 
 			if (activeSandboxes.length > 0) {
 				console.log('');
-				tui.info(`Attached Sandboxes (${activeSandboxes.length}):`);
+				tui.header(`Attached Sandboxes (${activeSandboxes.length}):`);
 				printSandboxTree(activeSandboxes);
 			}
 		}

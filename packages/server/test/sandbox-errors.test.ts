@@ -8,7 +8,7 @@ import {
 	ExecutionCancelledError,
 	SnapshotNotFoundError,
 	throwSandboxError,
-} from '../src/api/sandbox/util';
+} from '../src/api/sandbox/util.ts';
 
 describe('Sandbox Error Types', () => {
 	describe('SandboxResponseError', () => {

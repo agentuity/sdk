@@ -1,7 +1,8 @@
 import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { API_VERSION, throwSandboxError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build.ts';
+import { API_VERSION, throwSandboxError } from './util.ts';
 
 export const SandboxCreateRequestSchema = z
 	.object({
@@ -86,6 +87,17 @@ export const SandboxCreateRequestSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Apt packages to install when creating the sandbox'),
+		packages: z
+			.array(
+				z
+					.string()
+					.regex(
+						NPM_PACKAGE_NAME_PATTERN,
+						'Invalid npm/bun package specifier: must not contain whitespace, semicolons, backticks, pipes, or dollar signs'
+					)
+			)
+			.optional()
+			.describe('npm/bun packages to install globally when creating the sandbox'),
 		metadata: z
 			.record(z.string(), z.unknown())
 			.optional()
@@ -110,12 +122,23 @@ export const SandboxCreateDataSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the created sandbox'),
 		status: z
-			.enum(['creating', 'idle', 'running', 'terminated', 'failed'])
+			.enum([
+				'creating',
+				'idle',
+				'running',
+				'paused',
+				'stopping',
+				'suspended',
+				'terminated',
+				'failed',
+			])
 			.describe('Current status of the sandbox'),
 		stdoutStreamId: z.string().optional().describe('Stream ID for reading stdout'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamId: z.string().optional().describe('Stream ID for reading stderr'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		auditStreamId: z.string().optional().describe('Stream ID for reading audit events'),
+		auditStreamUrl: z.string().optional().describe('URL for streaming audit events'),
 	})
 	.describe('Response data from sandbox creation');
 
@@ -128,6 +151,8 @@ export interface SandboxCreateResponse {
 	stdoutStreamUrl?: string;
 	stderrStreamId?: string;
 	stderrStreamUrl?: string;
+	auditStreamId?: string;
+	auditStreamUrl?: string;
 }
 
 export interface SandboxCreateParams {
@@ -201,6 +226,9 @@ export async function sandboxCreate(
 	}
 	if (options.dependencies && options.dependencies.length > 0) {
 		body.dependencies = options.dependencies;
+	}
+	if (options.packages && options.packages.length > 0) {
+		body.packages = options.packages;
 	}
 	if (options.metadata) {
 		body.metadata = options.metadata;

@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * Playwright configuration for testing framework integration demos.
- * Tests TanStack Start and Next.js apps with Agentuity integration.
+ * Tests TanStack Start, Next.js, and Vite RSC apps with Agentuity integration.
  */
 export default defineConfig({
 	testDir: './e2e/frameworks',
@@ -31,6 +31,14 @@ export default defineConfig({
 			use: {
 				...devices['Desktop Chrome'],
 				baseURL: 'http://localhost:3001',
+			},
+		},
+		{
+			name: 'vite-rsc',
+			testMatch: 'vite-rsc.pw.ts',
+			use: {
+				...devices['Desktop Chrome'],
+				baseURL: 'http://localhost:3002',
 			},
 		},
 	],

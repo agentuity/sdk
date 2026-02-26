@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import type { StandardSchemaV1 } from '../src/standard_schema';
+import type { StandardSchemaV1 } from '../src/standard_schema.ts';
 
 describe('StandardSchemaV1', () => {
 	test('should define StandardSchemaV1 interface', () => {

@@ -4,7 +4,7 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { threadList, sessionList, APIClient } from '../src/api';
+import { threadList, sessionList, APIClient } from '../src/api/index.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('Session Metadata Filtering', () => {

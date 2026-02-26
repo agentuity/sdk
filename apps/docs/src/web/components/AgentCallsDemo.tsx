@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button } from './ui';
 
 // Fixed sample text for Agent Calls demo
 const SAMPLE_TEXT = 'Hello!!!   from the ***SDK Explorer***...  #demo @test';
@@ -170,9 +171,9 @@ export function AgentCallsDemo() {
 	};
 
 	return (
-		<div className="flex flex-col gap-8">
+		<div className="flex flex-col gap-4">
 			{/* Main interaction panel */}
-			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg shadow-2xl flex flex-col gap-6 overflow-hidden p-8">
+			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg shadow-2xl flex flex-col gap-4 overflow-hidden p-4">
 				{/* Hint text */}
 				<p className="text-zinc-500 text-sm m-0">
 					Select a pattern and operation, then click Run to see agent invocation in action.
@@ -189,19 +190,20 @@ export function AgentCallsDemo() {
 								{ id: 'chain', label: 'Chain' },
 							] as const
 						).map((p) => (
-							<button
+							<Button
 								key={p.id}
-								type="button"
+								variant="outline"
+								size="sm"
 								disabled={isLoading}
 								onClick={() => setPattern(p.id)}
-								className={`px-4 py-2 rounded-md text-sm border transition-colors ${
+								className={
 									pattern === p.id
-										? 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 dark:border-cyan-700 text-cyan-700 dark:text-cyan-400'
-										: 'bg-zinc-100 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600'
-								} ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+										? 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 text-cyan-600 dark:text-cyan-400'
+										: 'bg-zinc-100 dark:bg-zinc-900'
+								}
 							>
 								{p.label}
-							</button>
+							</Button>
 						))}
 					</div>
 				</div>
@@ -212,19 +214,20 @@ export function AgentCallsDemo() {
 						<span className="text-zinc-500 text-sm">Operation</span>
 						<div className="flex gap-2">
 							{(['clean', 'analyze'] as const).map((op) => (
-								<button
+								<Button
 									key={op}
-									type="button"
+									variant="outline"
+									size="xs"
 									disabled={isLoading}
 									onClick={() => setOperation(op)}
-									className={`px-3 py-1.5 rounded text-xs border transition-colors ${
+									className={
 										operation === op
 											? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500 dark:border-blue-700 text-blue-700 dark:text-blue-400'
-											: 'bg-zinc-100 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600'
-									} ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+											: 'bg-zinc-100 dark:bg-zinc-900'
+									}
 								>
 									{op}
-								</button>
+								</Button>
 							))}
 						</div>
 					</div>
@@ -233,24 +236,21 @@ export function AgentCallsDemo() {
 				{/* Sample Text + Run */}
 				<div className="flex flex-col gap-2">
 					<span className="text-zinc-500 text-sm">Sample Text</span>
-					<div className="flex gap-4">
-						<div className="flex-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-700 dark:text-zinc-300 text-sm px-4 py-3 font-mono truncate">
+					<div className="flex gap-4 items-center">
+						<div className="flex-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-700 dark:text-zinc-300 text-sm px-4 h-10 flex items-center font-mono truncate">
 							{SAMPLE_TEXT}
 						</div>
-						<button
-							disabled={isLoading}
-							onClick={handleRun}
-							type="button"
-							className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-sm px-6 py-3 whitespace-nowrap ${
-								isLoading
-									? 'opacity-50 cursor-not-allowed'
-									: 'cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
-							}`}
-						>
-							<span data-loading={isLoading ? 'true' : undefined}>
-								{isLoading ? 'Running' : 'Run'}
+						<Button variant="outline" size="default" disabled={isLoading} onClick={handleRun}>
+							<span className="relative">
+								<span className={isLoading ? 'invisible' : ''}>Run</span>
+								{isLoading && (
+									<span
+										className="absolute inset-0 flex items-center justify-center"
+										data-loading="true"
+									/>
+								)}
 							</span>
-						</button>
+						</Button>
 					</div>
 				</div>
 
@@ -260,7 +260,7 @@ export function AgentCallsDemo() {
 						<div className="bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md p-4">
 							{/* Direct (sync) result */}
 							{'result' in result && 'original' in result.result && (
-								<div className="text-cyan-700 dark:text-cyan-400 font-mono">
+								<div className="text-cyan-600 dark:text-cyan-400 font-mono">
 									{result.result.result}
 								</div>
 							)}
@@ -273,7 +273,7 @@ export function AgentCallsDemo() {
 									</div>
 									<div className="text-zinc-500 text-sm">
 										Task ID:{' '}
-										<code className="text-cyan-700 dark:text-cyan-400">
+										<code className="text-cyan-600 dark:text-cyan-400">
 											{result.taskId}
 										</code>
 									</div>
@@ -288,7 +288,7 @@ export function AgentCallsDemo() {
 											<span className="text-zinc-500 w-28 shrink-0">
 												Agent {step.step} ({step.operation}):
 											</span>
-											<span className="text-cyan-700 dark:text-cyan-400 font-mono">
+											<span className="text-cyan-600 dark:text-cyan-400 font-mono">
 												{step.result}
 											</span>
 										</div>

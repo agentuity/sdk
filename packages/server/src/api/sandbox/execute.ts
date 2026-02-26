@@ -1,7 +1,7 @@
 import type { ExecuteOptions, Execution, ExecutionStatus } from '@agentuity/core';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
-import { API_VERSION, SandboxBusyError, throwSandboxError } from './util';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { API_VERSION, SandboxBusyError, throwSandboxError } from './util.ts';
 
 export const ExecuteRequestSchema = z
 	.object({

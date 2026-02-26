@@ -783,7 +783,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		const ok = await tui.confirm('Would you like to configure DNS now?', true);
 		if (ok) {
 			tui.newline();
-			await promptForDNS(projectId, _domains, config);
+			const cloudRegion = region ?? process.env.AGENTUITY_REGION ?? 'usc';
+			await promptForDNS(projectId, _domains, cloudRegion, config);
 		}
 	}
 

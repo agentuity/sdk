@@ -1,0 +1,148 @@
+---
+title: Scheduling Cron Jobs
+description: Run tasks on a schedule with the cron() middleware
+---
+
+Schedule recurring tasks using cron expressions. Schedules are defined in code, deployed with your agents, and automatically provisioned.
+
+<Callout type="info" title="Routes Location">
+All routes live in `src/api/`. Import agents you need and call them directly.
+</Callout>
+
+## Basic Example
+
+Use the `cron()` middleware to wrap a POST route handler with a schedule:
+
+```typescript
+import { createRouter, cron } from '@agentuity/runtime';
+import reportGenerator from '@agent/report-generator';
+
+const router = createRouter();
+
+// Runs daily at 9am
+router.post('/daily-report', cron('0 9 * * *', async (c) => {
+  c.var.logger.info('Daily report starting');
+
+  const report = await reportGenerator.run({
+    type: 'daily',
+    date: new Date().toISOString(),
+  });
+
+  await c.var.kv.set('reports', `daily-${Date.now()}`, report);
+
+  return c.text('OK');
+}));
+
+export default router;
+```
+
+## Cron Syntax
+
+Standard five-field cron format:
+
+```
+┌───────────── minute (0-59)
+│ ┌───────────── hour (0-23)
+│ │ ┌───────────── day of month (1-31)
+│ │ │ ┌───────────── month (1-12)
+│ │ │ │ ┌───────────── day of week (0-6, Sunday=0)
+│ │ │ │ │
+* * * * *
+```
+
+## Common Schedules
+
+| Schedule | Expression | Useful for |
+|----------|------------|-------------|
+| Every 5 minutes | `*/5 * * * *` | Health checks, quick sync |
+| Hourly | `0 * * * *` | Aggregations, cleanup, etc. |
+| Daily at 9am | `0 9 * * *` | Reports, notifications, etc. |
+| Weekly (Sunday midnight) | `0 0 * * 0` | Weekly summaries, etc. |
+| Monthly (1st at midnight) | `0 0 1 * *` | Monthly reports, etc. |
+
+## Full Example
+
+A health check that monitors external services and stores results:
+
+```typescript
+import { createRouter, cron } from '@agentuity/runtime';
+import healthChecker from '@agent/health-checker';
+
+const router = createRouter();
+
+// Runs every 5 minutes
+router.post('/health-check', cron('*/5 * * * *', async (c) => {
+  const startTime = Date.now();
+  c.var.logger.info('Health check starting');
+
+  try {
+    const status = await healthChecker.run({
+      services: ['api', 'database', 'cache'],
+    });
+
+    await c.var.kv.set('monitoring', 'latest-health', {
+      ...status,
+      checkedAt: new Date().toISOString(),
+      durationMs: Date.now() - startTime,
+    });
+
+    c.var.logger.info('Health check completed', { status });
+    return c.text('OK');
+  } catch (error) {
+    c.var.logger.error('Health check failed', { error });
+    return c.text('ERROR', 500);
+  }
+}));
+
+export default router;
+```
+
+## Testing Locally
+
+Cron jobs only trigger in deployed environments. Since cron routes use `router.post()` with an explicit path, you can test them locally by sending a POST request to that path:
+
+```bash
+# Test your cron route locally
+curl -X POST http://localhost:3000/daily-report
+```
+
+The `cron()` middleware only affects scheduling in deployed environments. Locally, the route behaves like a standard POST endpoint.
+
+## Best Practices
+
+- **Log job start and completion** for debugging scheduled tasks
+- **Use `c.var.kv` or object storage** to persist results for later inspection
+- **Handle errors gracefully** so one failure doesn't break the schedule
+- **Keep jobs idempotent** when possible, in case of retries
+
+## Standalone Usage
+
+Cron jobs work without agents. This example clears expired cache entries hourly:
+
+```typescript
+import { createRouter, cron } from '@agentuity/runtime';
+
+const router = createRouter();
+
+// Runs every hour
+router.post('/cache-cleanup', cron('0 * * * *', async (c) => {
+  const allKeys = await c.var.kv.getKeys('cache');
+  const expiredKeys = allKeys.filter(key => key.startsWith('temp-'));
+
+  for (const key of expiredKeys) {
+    await c.var.kv.delete('cache', key);
+  }
+
+  c.var.logger.info('Cache cleanup completed', { deleted: expiredKeys.length });
+  return c.text('OK');
+}));
+
+export default router;
+```
+
+## Next Steps
+
+- [HTTP Routes](/routes/http): Standard request/response endpoints
+- [Middleware](/routes/middleware): Add authentication and validation to routes
+- [Key-Value Storage](/services/storage/key-value): Store job results
+- [Calling Other Agents](/agents/calling-other-agents): Orchestrate multiple agents from cron jobs

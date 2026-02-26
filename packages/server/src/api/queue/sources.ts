@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIError, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
 import {
 	type CreateSourceRequest,
 	CreateSourceRequestSchema,
@@ -8,16 +8,9 @@ import {
 	SourceSchema,
 	type UpdateSourceRequest,
 	UpdateSourceRequestSchema,
-} from './types';
-import {
-	buildQueueHeaders,
-	QueueError,
-	QueueNotFoundError,
-	queueApiPath,
-	SourceAlreadyExistsError,
-	SourceNotFoundError,
-} from './util';
-import { validateQueueName, validateSourceId, validateSourceName } from './validation';
+} from './types.ts';
+import { buildQueueHeaders, QueueError, queueApiPath, withQueueErrorHandling } from './util.ts';
+import { validateQueueName, validateSourceId, validateSourceName } from './validation.ts';
 
 export const SourceResponseSchema = APIResponseSchema(z.object({ source: SourceSchema }));
 export const SourcesListResponseSchema = APIResponseSchema(
@@ -64,63 +57,27 @@ export async function createSource(
 	validateSourceName(params.name);
 
 	const url = queueApiPath('sources/create', queueName);
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.post(
+				url,
+				params,
+				SourceResponseSchema,
+				CreateSourceRequestSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, sourceName: params.name }
+	);
 
-	try {
-		const resp = await client.post(
-			url,
-			params,
-			SourceResponseSchema,
-			CreateSourceRequestSchema,
-			undefined,
-			buildQueueHeaders(options?.orgId)
-		);
-
-		if (resp.success) {
-			return resp.data.source;
-		}
-
-		if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-			throw new QueueNotFoundError({
-				queueName,
-				message: resp.message,
-			});
-		}
-
-		if (resp.message?.includes('already exists')) {
-			throw new SourceAlreadyExistsError({
-				queueName,
-				name: params.name,
-				message: `A source with name "${params.name}" already exists for queue "${queueName}"`,
-			});
-		}
-
-		throw new QueueError({
-			queueName,
-			message: resp.message || 'Failed to create source',
-		});
-	} catch (error) {
-		if (error instanceof APIError) {
-			const message = error.message || '';
-			if (message.includes('already exists')) {
-				throw new SourceAlreadyExistsError({
-					queueName,
-					name: params.name,
-					message: `A source with name "${params.name}" already exists for queue "${queueName}"`,
-				});
-			}
-			if (message.includes('queue') && message.includes('not found')) {
-				throw new QueueNotFoundError({
-					queueName,
-					message,
-				});
-			}
-			throw new QueueError({
-				queueName,
-				message: message || 'Failed to create source',
-			});
-		}
-		throw error;
+	if (resp.success) {
+		return resp.data.source;
 	}
+
+	throw new QueueError({
+		queueName,
+		message: resp.message || 'Failed to create source',
+	});
 }
 
 /**
@@ -153,22 +110,14 @@ export async function listSources(
 ): Promise<Source[]> {
 	validateQueueName(queueName);
 	const url = queueApiPath('sources/list', queueName);
-	const resp = await client.get(
-		url,
-		SourcesListResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.get(url, SourcesListResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName }
 	);
 
 	if (resp.success) {
 		return resp.data.sources;
-	}
-
-	if (resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -210,30 +159,13 @@ export async function getSource(
 	validateSourceId(sourceId);
 
 	const url = queueApiPath('sources/get', queueName, sourceId);
-	const resp = await client.get(
-		url,
-		SourceResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() => client.get(url, SourceResponseSchema, undefined, buildQueueHeaders(options?.orgId)),
+		{ queueName, sourceId }
 	);
 
 	if (resp.success) {
 		return resp.data.source;
-	}
-
-	if (resp.message?.includes('source') && resp.message?.includes('not found')) {
-		throw new SourceNotFoundError({
-			queueName,
-			sourceId,
-			message: resp.message,
-		});
-	}
-
-	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -286,32 +218,21 @@ export async function updateSource(
 	}
 
 	const url = queueApiPath('sources/update', queueName, sourceId);
-	const resp = await client.patch(
-		url,
-		params,
-		SourceResponseSchema,
-		UpdateSourceRequestSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.patch(
+				url,
+				params,
+				SourceResponseSchema,
+				UpdateSourceRequestSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, sourceId }
 	);
 
 	if (resp.success) {
 		return resp.data.source;
-	}
-
-	if (resp.message?.includes('source') && resp.message?.includes('not found')) {
-		throw new SourceNotFoundError({
-			queueName,
-			sourceId,
-			message: resp.message,
-		});
-	}
-
-	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({
@@ -351,30 +272,19 @@ export async function deleteSource(
 	validateSourceId(sourceId);
 
 	const url = queueApiPath('sources/delete', queueName, sourceId);
-	const resp = await client.delete(
-		url,
-		DeleteSourceResponseSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
+	const resp = await withQueueErrorHandling(
+		() =>
+			client.delete(
+				url,
+				DeleteSourceResponseSchema,
+				undefined,
+				buildQueueHeaders(options?.orgId)
+			),
+		{ queueName, sourceId }
 	);
 
 	if (resp.success) {
 		return;
-	}
-
-	if (resp.message?.includes('source') && resp.message?.includes('not found')) {
-		throw new SourceNotFoundError({
-			queueName,
-			sourceId,
-			message: resp.message,
-		});
-	}
-
-	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
-			queueName,
-			message: resp.message,
-		});
 	}
 
 	throw new QueueError({

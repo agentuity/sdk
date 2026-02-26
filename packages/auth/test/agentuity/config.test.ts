@@ -659,4 +659,61 @@ describe('Agentuity Auth Config', () => {
 			expect(auth.options.plugins!.length).toBe(3);
 		});
 	});
+
+	describe('connectionString (pg pool — issue #1030)', () => {
+		it('creates auth instance with connectionString using pg-based pool', () => {
+			// connectionString path uses drizzle-orm/node-postgres (pg.Pool)
+			// instead of drizzle-orm/bun-sql (Bun native) to avoid parameter
+			// binding issues. pg.Pool is lazy — no real DB connection needed.
+			const auth = createAuth({
+				connectionString: 'postgres://localhost:5432/test_db',
+				baseURL: 'https://test.example.com',
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			expect(auth).toBeDefined();
+			expect(auth.handler).toBeDefined();
+			expect(typeof auth.handler).toBe('function');
+			expect(auth.api).toBeDefined();
+			expect(auth.api.getSession).toBeDefined();
+		});
+
+		it('connectionString is ignored when database is also provided', () => {
+			const db = new Database(':memory:');
+			const auth = createAuth({
+				connectionString: 'postgres://localhost:5432/test_db',
+				database: db,
+				baseURL: 'https://test.example.com',
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			expect(auth).toBeDefined();
+			expect(auth.handler).toBeDefined();
+		});
+
+		it('includes default plugins when using connectionString', () => {
+			const auth = createAuth({
+				connectionString: 'postgres://localhost:5432/test_db',
+				baseURL: 'https://test.example.com',
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			expect(auth.options.plugins).toBeDefined();
+			expect(auth.options.plugins!.length).toBeGreaterThanOrEqual(4);
+		});
+
+		it('applies all default options with connectionString', () => {
+			const auth = createAuth({
+				connectionString: 'postgres://localhost:5432/test_db',
+				baseURL: 'https://test.example.com',
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			expect(auth.options.basePath).toBe('/api/auth');
+			expect(auth.options.emailAndPassword?.enabled).toBe(true);
+			expect((auth.options as { experimental?: { joins?: boolean } }).experimental?.joins).toBe(
+				true
+			);
+		});
+	});
 });

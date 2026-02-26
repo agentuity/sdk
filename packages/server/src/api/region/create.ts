@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '../api';
-import { RegionResponseError } from './util';
+import { APIResponseSchema, APIClient } from '../api.ts';
+import { RegionResponseError } from './util.ts';
 
 /**
  * Database name validation regex - must match catalyst server validation:
@@ -49,6 +49,12 @@ export function validateDatabaseName(name: string): { valid: boolean; error?: st
 		return {
 			valid: false,
 			error: 'database name must start with a letter or underscore and contain only lowercase letters, digits, and underscores',
+		};
+	}
+	if (name.startsWith('pg_')) {
+		return {
+			valid: false,
+			error: "database name cannot start with 'pg_' (reserved by PostgreSQL)",
 		};
 	}
 	return { valid: true };
@@ -102,6 +108,13 @@ export function validateBucketName(name: string): { valid: boolean; error?: stri
 	}
 	if (isIPv4Address(name)) {
 		return { valid: false, error: 'bucket name cannot be an IP address' };
+	}
+	// Reserved prefixes (system-generated names)
+	if (name.startsWith('ag-') || name.startsWith('ago-')) {
+		return {
+			valid: false,
+			error: 'bucket names starting with "ag-" or "ago-" are reserved for system use',
+		};
 	}
 	return { valid: true };
 }

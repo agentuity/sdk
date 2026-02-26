@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
+import { Badge, Button, Separator, StatusIndicator } from './ui';
 
 interface ProviderInfo {
 	provider: string;
@@ -241,20 +242,20 @@ export function ModelArena() {
 							Competitors
 						</span>
 						<div className="flex flex-wrap gap-2">
-							<span className="px-3 py-2 rounded-md text-xs bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800">
+							<Badge variant="outline">
 								<span className="text-green-600 dark:text-green-400">OpenAI</span>
 								<span className="text-zinc-500 mx-1">/</span>
 								<span className="font-mono text-zinc-700 dark:text-zinc-300">
 									gpt-5-nano
 								</span>
-							</span>
-							<span className="px-3 py-2 rounded-md text-xs bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800">
+							</Badge>
+							<Badge variant="outline">
 								<span className="text-orange-600 dark:text-orange-400">Anthropic</span>
 								<span className="text-zinc-500 mx-1">/</span>
 								<span className="font-mono text-zinc-700 dark:text-zinc-300">
 									claude-haiku-4-5
 								</span>
-							</span>
+							</Badge>
 						</div>
 					</div>
 					<div>
@@ -262,13 +263,13 @@ export function ModelArena() {
 							Judge
 						</span>
 						<div className="flex flex-wrap gap-2">
-							<span className="px-3 py-2 rounded-md text-xs bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800">
+							<Badge variant="outline">
 								<span className="text-purple-600 dark:text-purple-400">Groq</span>
 								<span className="text-zinc-500 mx-1">/</span>
 								<span className="font-mono text-zinc-700 dark:text-zinc-300">
 									gpt-oss-120b
 								</span>
-							</span>
+							</Badge>
 						</div>
 					</div>
 				</div>
@@ -307,32 +308,20 @@ export function ModelArena() {
 					)}
 
 					{/* Buttons */}
-					<div className="flex gap-2">
+					<div className="flex items-center gap-2">
 						{!isRunning ? (
-							<button
-								onClick={startArena}
-								type="button"
-								className="rounded-md text-sm font-medium px-8 py-3 bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300"
-							>
+							<Button onClick={startArena} variant="outline" size="default">
 								{state.status === 'idle' ? 'Generate Stories' : 'Run Again'}
-							</button>
+							</Button>
 						) : (
-							<button
-								onClick={reset}
-								type="button"
-								className="rounded-md text-sm font-medium px-6 py-3 bg-red-600 dark:bg-red-900 text-white dark:text-red-300 cursor-pointer hover:bg-red-500 dark:hover:bg-red-800"
-							>
+							<Button onClick={reset} variant="destructive" size="default">
 								Stop
-							</button>
+							</Button>
 						)}
 						{(state.status === 'complete' || state.status === 'error') && (
-							<button
-								onClick={reset}
-								type="button"
-								className="bg-zinc-200 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-600 dark:text-zinc-400 text-sm px-4 py-3 cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600"
-							>
+							<Button onClick={reset} variant="ghost" size="default">
 								Clear
-							</button>
+							</Button>
 						)}
 					</div>
 				</div>
@@ -350,16 +339,7 @@ export function ModelArena() {
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-5">
 					<div className="flex items-center gap-2 mb-3">
 						<span className="text-zinc-500 dark:text-zinc-400 text-xs">JUDGE VERDICT</span>
-						<span
-							className={`rounded text-white text-[10px] font-semibold px-2 py-0.5 uppercase ${
-								(
-									PROVIDER_STYLES[state.judgment.winner.toLowerCase()] ??
-									DEFAULT_PROVIDER_STYLE
-								).bg
-							}`}
-						>
-							{state.judgment.winnerDisplayName} wins
-						</span>
+						<Badge variant="success">{state.judgment.winnerDisplayName} wins</Badge>
 					</div>
 					<p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed m-0">
 						{state.judgment.reasoning}
@@ -387,17 +367,24 @@ export function ModelArena() {
 							>
 								{/* Winner badge */}
 								{isWinner && (
-									<div
-										className={`absolute top-0 right-0 text-white text-[10px] font-semibold px-2 py-1 uppercase rounded-bl-md ${providerStyle.bg}`}
-									>
-										Winner
+									<div className="absolute top-0 right-0">
+										<Badge
+											variant="success"
+											className="rounded-bl-md rounded-br-none rounded-tl-none"
+										>
+											Winner
+										</Badge>
 									</div>
 								)}
 
 								{/* Header */}
-								<div className="border-b border-zinc-200 dark:border-zinc-900 p-4">
-									<div className="flex items-center gap-2 mb-1">
-										<div className={`w-2 h-2 rounded-full ${providerStyle.bg}`} />
+								<div className="p-4">
+									<div className="flex items-center gap-1.5 mb-1">
+										<span className={`text-sm font-medium ${providerStyle.text}`}>
+											{provider.provider.charAt(0).toUpperCase() +
+												provider.provider.slice(1)}
+										</span>
+										<span className="text-zinc-500 text-sm">/</span>
 										<span className="text-zinc-900 dark:text-white text-sm font-medium">
 											{provider.displayName}
 										</span>
@@ -408,14 +395,16 @@ export function ModelArena() {
 											` \u00B7 ${formatTime(story.generationMs)}${story.tokens ? ` \u00B7 ${story.tokens} tokens` : ''}`}
 									</div>
 								</div>
+								<Separator />
 
 								{/* Story (scrollable) */}
 								<div className="text-zinc-700 dark:text-zinc-300 flex-1 text-[13px] leading-relaxed max-h-[300px] overflow-y-auto p-4">
 									{!story && !error && (
-										<div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-600">
-											<div className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse" />
-											Generating...
-										</div>
+										<StatusIndicator
+											status="running"
+											label="Generating..."
+											showLabel={true}
+										/>
 									)}
 									{error && (
 										<div className="text-red-600 dark:text-red-400">Error: {error}</div>
@@ -449,36 +438,39 @@ export function ModelArena() {
 
 								{/* Scores */}
 								{state.judgment && story && (
-									<div className="border-t border-zinc-200 dark:border-zinc-900 grid gap-2 grid-cols-2 p-4">
-										<ScoreBadge
-											label="Creativity"
-											score={getProviderScore(
-												state.judgment.scores.creativity,
-												provider.provider
-											)}
-										/>
-										<ScoreBadge
-											label="Engagement"
-											score={getProviderScore(
-												state.judgment.scores.engagement,
-												provider.provider
-											)}
-										/>
-										<BinaryBadge
-											label="Tone"
-											check={getProviderCheck(
-												state.judgment.checks.toneMatch,
-												provider.provider
-											)}
-										/>
-										<BinaryBadge
-											label="Word Count"
-											check={getProviderCheck(
-												state.judgment.checks.wordCount,
-												provider.provider
-											)}
-										/>
-									</div>
+									<>
+										<Separator />
+										<div className="grid gap-2 grid-cols-2 p-4">
+											<ScoreBadge
+												label="Creativity"
+												score={getProviderScore(
+													state.judgment.scores.creativity,
+													provider.provider
+												)}
+											/>
+											<ScoreBadge
+												label="Engagement"
+												score={getProviderScore(
+													state.judgment.scores.engagement,
+													provider.provider
+												)}
+											/>
+											<BinaryBadge
+												label="Tone"
+												check={getProviderCheck(
+													state.judgment.checks.toneMatch,
+													provider.provider
+												)}
+											/>
+											<BinaryBadge
+												label="Word Count"
+												check={getProviderCheck(
+													state.judgment.checks.wordCount,
+													provider.provider
+												)}
+											/>
+										</div>
+									</>
 								)}
 							</div>
 						);
@@ -590,14 +582,14 @@ function ProgressStepper({
 							<div className="relative">
 								{/* Pulsing ring for active state */}
 								{stepStatus === 'active' && (
-									<div className="absolute inset-0 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-ping opacity-75" />
+									<div className="absolute inset-0 rounded-full bg-cyan-500 animate-ping opacity-75" />
 								)}
 								<div
 									className={`relative w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium transition-colors ${
 										stepStatus === 'complete'
 											? 'bg-green-500 text-white'
 											: stepStatus === 'active'
-												? 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black'
+												? 'bg-cyan-500 text-white dark:text-black'
 												: stepStatus === 'error'
 													? 'bg-red-500 text-white'
 													: 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-500'
@@ -628,7 +620,7 @@ function ProgressStepper({
 							<span
 								className={`text-xs whitespace-nowrap ${
 									stepStatus === 'active'
-										? 'text-cyan-700 dark:text-cyan-400 font-medium'
+										? 'text-cyan-600 dark:text-cyan-400 font-medium'
 										: stepStatus === 'complete'
 											? 'text-zinc-600 dark:text-zinc-400'
 											: 'text-zinc-400 dark:text-zinc-600'

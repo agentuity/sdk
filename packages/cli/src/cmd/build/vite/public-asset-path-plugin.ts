@@ -9,8 +9,10 @@
  * 2. During dev: Warns only about incorrect source paths (src/web/public/)
  *
  * Supported patterns (work in dev, rewritten to CDN in production):
- * - '/public/foo.svg'   → CDN URL (recommended)
- * - './public/foo.svg'  → CDN URL
+ * - '/public/foo.svg'          → CDN URL (recommended)
+ * - './public/foo.svg'         → CDN URL
+ * - 'url(/public/foo.svg)'    → CDN URL (CSS unquoted)
+ * - 'url(./public/foo.svg)'   → CDN URL (CSS unquoted)
  *
  * Incorrect patterns (warned in dev, rewritten in production):
  * - '/src/web/public/foo.svg'  → CDN URL
@@ -65,6 +67,18 @@ function createPublicPatterns(): PathPattern[] {
 			regex: /(['"`])\/public\//g,
 			description: '/public/',
 			replacement: '$1{base}',
+		},
+		// CSS url(/public/...) — unquoted path inside url()
+		{
+			regex: /url\(\/public\//g,
+			description: 'url(/public/)',
+			replacement: 'url({base}',
+		},
+		// CSS url(./public/...) — unquoted relative path inside url()
+		{
+			regex: /url\(\.\/public\//g,
+			description: 'url(./public/)',
+			replacement: 'url({base}',
 		},
 	];
 }
@@ -150,12 +164,12 @@ export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}
 			// Build mode: transform paths to CDN URLs
 			let transformed = code;
 
-			// Determine target URL: CDN base if provided, otherwise root
+			// Determine target URL: CDN base if provided, otherwise /public/
 			const targetBase = cdnBaseUrl
 				? cdnBaseUrl.endsWith('/')
 					? cdnBaseUrl
 					: `${cdnBaseUrl}/`
-				: '/';
+				: '/public/';
 
 			// Transform incorrect source paths (src/web/public/) → CDN
 			if (hasIncorrectSourcePaths) {

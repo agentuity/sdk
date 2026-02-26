@@ -1,2 +1,2 @@
-export * from './machine';
-export * from './util';
+export * from './machine.ts';
+export * from './util.ts';

@@ -1,0 +1,10 @@
+{
+	"title": "Get Started",
+	"pages": [
+		"what-is-agentuity",
+		"installation",
+		"quickstart",
+		"project-structure",
+		"app-configuration"
+	]
+}

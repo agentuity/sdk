@@ -1,0 +1,65 @@
+---
+title: What is Agentuity?
+description: The full-stack platform for building, deploying, and operating AI agents
+---
+
+Write TypeScript, define routes, and deploy with a single command. We handle the infrastructure, from automatic scaling to built-in observability and more.
+
+Here's a basic example:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { s } from '@agentuity/schema';
+
+const agent = createAgent('Chat', {
+  schema: {
+    input: s.object({ message: s.string() }),
+    output: s.object({ response: s.string() }),
+  },
+  handler: async (ctx, input) => {
+    const { text } = await generateText({
+      model: openai('gpt-5-mini'),
+      prompt: input.message,
+    });
+    return { response: text };
+  },
+});
+
+export default agent;
+```
+
+This agent uses the AI SDK to call OpenAI and respond to messages. Deploy with `agentuity deploy` and it scales automatically. Call it from web apps, other agents, or any HTTP client.
+
+## What You Get
+
+- **Routes & Triggers**: HTTP, WebSocket, SSE, cron
+- **Storage**: Key-value, vector, object storage, durable streams
+- **[Sandbox](/services/sandbox)**: Execute code in isolated containers with controlled resources and network access
+- **[Evaluations](/agents/evaluations)**: Automated quality checks that run after each agent execution
+- **[AI Gateway](/agents/ai-gateway)**: Route LLM calls through OpenAI, Anthropic, Google, and more
+- **Type Safety**: Built-in schema validation with `@agentuity/schema`, Zod, or Valibot
+- **Observability**: Logging, tracing, real-time analytics
+- **[App](https://app-v1.agentuity.com)**: Visual dashboard for deployments, logs, and more
+- **Frontend**: Deploy React apps alongside your agents
+
+## How It Works
+
+Each agent lives in its own file under `src/agent/`. Routes are defined separately in `src/api/index.ts`:
+
+| File           | Purpose                              |
+| -------------- | ------------------------------------ |
+| `agent.ts`     | Agent logic with schema validation   |
+| `api/index.ts` | HTTP endpoints that call your agents |
+
+Infrastructure like cron schedules is defined in route code, not config. Rolling back a deployment restores the exact configuration from that version.
+
+---
+
+<p className="text-base text-cyan-500 mb-6">We're building for a future where agents are the primary way to build and operate software, and where infrastructure is purpose-built for this new paradigm.</p>
+
+## Next Steps
+
+- [Installation](/get-started/installation): Set up your environment
+- [Quickstart](/get-started/quickstart): Build your first agent in 5 minutes
