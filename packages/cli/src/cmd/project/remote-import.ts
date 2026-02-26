@@ -61,6 +61,7 @@ export interface RemoteImportOptions {
 	name?: string;
 	env?: string[];
 	org?: string;
+	region?: string;
 	apiClient: APIClient;
 	auth: AuthData;
 	config: Config;
@@ -610,7 +611,20 @@ async function runDeploy(dest: string, logger: Logger): Promise<void> {
  * Run the remote import flow: download from GitHub, set up project, optionally push and deploy.
  */
 export async function runRemoteImport(options: RemoteImportOptions): Promise<void> {
-	const { url, deploy, projectId, repo, name, env, org, apiClient, auth, config, logger } = options;
+	const {
+		url,
+		deploy,
+		projectId,
+		repo,
+		name,
+		env,
+		org,
+		region: optRegion,
+		apiClient,
+		auth,
+		config,
+		logger,
+	} = options;
 
 	// Safety check: refuse to run inside an existing git repo
 	try {
@@ -624,11 +638,8 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				'Cannot run remote import inside an existing git repository. Please run from an empty directory.'
 			);
 		}
-	} catch (err) {
-		// If it's our error, rethrow. Otherwise git isn't found or we're not in a repo — that's fine.
-		if (err instanceof Error && err.message.includes('Cannot run remote import')) {
-			throw err;
-		}
+	} catch {
+		// git not found or command failed — not inside a repo, which is fine
 	}
 
 	// 1. Parse GitHub URL (async — may query GitHub API for default branch)
@@ -727,7 +738,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				config,
 				logger,
 				name,
-				undefined,
+				optRegion,
 				org
 			);
 		} else if (isTTY()) {
@@ -740,7 +751,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				config,
 				logger,
 				parsed.repo,
-				undefined,
+				optRegion,
 				org
 			);
 		}

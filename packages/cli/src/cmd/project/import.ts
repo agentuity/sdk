@@ -76,7 +76,7 @@ export const importSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { opts, auth, apiClient, config, logger, orgId } = ctx;
+		const { opts, auth, apiClient, config, logger, orgId, region } = ctx;
 
 		if (!config) {
 			tui.fatal('Configuration not loaded. Please try again.', ErrorCode.CONFIG_INVALID);
@@ -95,6 +95,7 @@ export const importSubcommand = createSubcommand({
 				name: opts.name,
 				env: opts.env,
 				org: orgId,
+				region,
 				apiClient,
 				auth,
 				config,
