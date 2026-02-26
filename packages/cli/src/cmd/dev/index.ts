@@ -1068,6 +1068,12 @@ export const command = createCommand({
 						process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID = deploymentId;
 					}
 
+					if (devmode?.hostname) {
+						process.env.AGENTUITY_DEVMODE_URL = `https://${devmode.hostname}`;
+					} else {
+						process.env.AGENTUITY_DEVMODE_URL = `http://localhost:${opts.port}`;
+					}
+
 					// Set Vite port for asset proxying in bundled app
 					process.env.VITE_PORT = String(vitePort);
 
