@@ -2,6 +2,30 @@ import { safeStringify } from '../json.ts';
 import type { Body, HttpMethod } from './adapter.ts';
 import { ServiceException } from './exception.ts';
 
+/**
+ * Extract a human-readable error message from an HTML error page or plain text body.
+ * Looks for content inside `<p>` tags first (Agentuity error pages put the message there),
+ * then falls back to the raw body.
+ */
+function extractMessageFromBody(body: string): string {
+	if (body.includes('<html') || body.includes('<!DOCTYPE')) {
+		// Try to extract message from <p> tags (Agentuity error pages use <p> for the message)
+		const pMatch = /<p[^>]*>([^<]+)<\/p>/i.exec(body);
+		if (pMatch?.[1]) {
+			// Strip ref suffix like "(ref: sess_xxx)" to get clean message
+			const msg = pMatch[1].trim();
+			const refMatch = /^(.+?)\s*\(ref:\s*\S+\)$/.exec(msg);
+			return refMatch?.[1]?.trim() ?? msg;
+		}
+		// Try <h1> as fallback
+		const h1Match = /<h1[^>]*>([^<]+)<\/h1>/i.exec(body);
+		if (h1Match?.[1]) {
+			return h1Match[1].trim();
+		}
+	}
+	return body;
+}
+
 export const buildUrl = (
 	base: string,
 	path: string,
@@ -90,8 +114,10 @@ export async function toServiceException(
 	}
 	try {
 		const body = await response.text();
+		// If the response is HTML (e.g. server error page), extract the human-readable message
+		const message = extractMessageFromBody(body);
 		return new ServiceException({
-			message: body,
+			message,
 			method,
 			url,
 			statusCode: response.status,

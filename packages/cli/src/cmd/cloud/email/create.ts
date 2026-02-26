@@ -29,13 +29,18 @@ export const createSubcommand = createCommand({
 			const answer = await enquirer.prompt<{ local_part: string }>({
 				type: 'input',
 				name: 'local_part',
-				message: 'Local part (username):',
+				message: 'Email address or username (e.g. "support" or "support@agentuity.email"):',
 			});
 			localPart = answer.local_part?.trim();
 		}
 
 		if (!localPart) {
-			tui.fatal('Local part is required');
+			tui.fatal('Email address or username is required');
+		}
+
+		// If user entered a full email, extract just the local part
+		if (localPart.includes('@')) {
+			localPart = localPart.split('@')[0] ?? localPart;
 		}
 
 		const email = createEmailAdapter(ctx);
