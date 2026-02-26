@@ -11,9 +11,9 @@ The project configuration file:
 
 ```json
 {
-  "name": "my-project",
-  "orgId": "org_...",
-  "projectId": "proj_..."
+	"name": "my-project",
+	"orgId": "org_...",
+	"projectId": "proj_..."
 }
 ```
 
@@ -39,16 +39,16 @@ Use `setup` to initialize resources (databases, clients) and `shutdown` to clean
 import { createApp } from '@agentuity/runtime';
 
 const { server, logger } = await createApp({
-  setup: async () => {
-    // Initialize resources, return app state
-    // Available in agents via ctx.app
-    const db = await connectDatabase();
-    return { db };
-  },
-  shutdown: async (state) => {
-    // Clean up resources
-    await state.db.close();
-  },
+	setup: async () => {
+		// Initialize resources, return app state
+		// Available in agents via ctx.app
+		const db = await connectDatabase();
+		return { db };
+	},
+	shutdown: async (state) => {
+		// Clean up resources
+		await state.db.close();
+	},
 });
 
 logger.debug('Running %s', server.url);
@@ -60,32 +60,32 @@ logger.debug('Running %s', server.url);
 import { createApp } from '@agentuity/runtime';
 
 const { server, logger } = await createApp({
-  // CORS configuration
-  cors: {
-    origin: ['https://myapp.com'],
-    credentials: true,
-  },
+	// CORS configuration
+	cors: {
+		origin: ['https://myapp.com'],
+		credentials: true,
+	},
 
-  // Response compression (gzip/deflate)
-  compression: {
-    threshold: 1024, // Compress responses larger than 1KB (default)
-  },
+	// Response compression (gzip/deflate)
+	compression: {
+		threshold: 1024, // Compress responses larger than 1KB (default)
+	},
 
-  // Custom storage implementations (optional)
-  services: {
-    keyvalue: myCustomKV,
-    vector: myCustomVector,
-  },
+	// Custom storage implementations (optional)
+	services: {
+		keyvalue: myCustomKV,
+		vector: myCustomVector,
+	},
 });
 ```
 
 #### Compression Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enabled` | `boolean` | `true` | Enable/disable compression |
-| `threshold` | `number` | `1024` | Minimum response size (bytes) to compress |
-| `filter` | `(c) => boolean` | - | Custom filter function |
+| Option      | Type             | Default | Description                               |
+| ----------- | ---------------- | ------- | ----------------------------------------- |
+| `enabled`   | `boolean`        | `true`  | Enable/disable compression                |
+| `threshold` | `number`         | `1024`  | Minimum response size (bytes) to compress |
+| `filter`    | `(c) => boolean` | -       | Custom filter function                    |
 
 Compression automatically bypasses WebSocket upgrades and requests without `Accept-Encoding` headers.
 
@@ -99,11 +99,11 @@ import { createApp } from '@agentuity/runtime';
 const app = await createApp();
 
 app.addEventListener('agent.started', (event, agent, ctx) => {
-  app.logger.info('Agent started', { name: agent.metadata.name });
+	app.logger.info('Agent started', { name: agent.metadata.name });
 });
 
 app.addEventListener('agent.completed', (event, agent, ctx) => {
-  app.logger.info('Agent completed', { session: ctx.sessionId });
+	app.logger.info('Agent completed', { session: ctx.sessionId });
 });
 ```
 
@@ -115,15 +115,52 @@ For advanced build customization, create an `agentuity.config.ts` file in your p
 import type { AgentuityConfig } from '@agentuity/cli';
 
 export default {
-  // Configuration options here
+	// Configuration options here
 } satisfies AgentuityConfig;
 ```
 
 <Callout type="info" title="When to Use This">
-Use build configuration to add Vite plugins (like Tailwind CSS), exclude packages from server bundling, or define build-time constants.
+	Use build configuration to add Vite plugins (like Tailwind CSS), exclude packages from server
+	bundling, or define build-time constants.
 </Callout>
 
 See the [reference page](/reference/cli/build-configuration) for all options and examples.
+
+## CI/CD Build Settings
+
+When deploying via the [GitHub App](/reference/cli/git-integration), builds run inside a sandbox with default resource limits. For projects with large dependency trees or long build times, configure the sandbox resources in `agentuity.json`:
+
+```json title="agentuity.json"
+{
+	"name": "my-project",
+	"projectId": "proj_...",
+	"orgId": "org_...",
+	"build": {
+		"timeout": "30m",
+		"resources": {
+			"memory": "4Gi",
+			"cpu": "2",
+			"disk": "4Gi"
+		}
+	}
+}
+```
+
+All fields are optional. Defaults: `5m` timeout, `1` CPU, `2Gi` memory, `2Gi` disk.
+
+| Field                    | Default | Description                           |
+| ------------------------ | ------- | ------------------------------------- |
+| `build.timeout`          | `5m`    | Maximum build time (e.g. `5m`, `30m`) |
+| `build.resources.memory` | `2Gi`   | Memory limit (e.g. `512Mi`, `4Gi`)    |
+| `build.resources.cpu`    | `1`     | CPU cores (e.g. `1`, `2`)             |
+| `build.resources.disk`   | `2Gi`   | Disk space (e.g. `2Gi`, `4Gi`)        |
+
+<Callout type="info" title="GitHub Deploys Only">
+	The `build` field configures the sandbox used for GitHub App-triggered deployments. It does not
+	affect local `agentuity deploy` commands, which build on your machine.
+</Callout>
+
+You can also hook into the build pipeline with `predeploy` and `postdeploy` scripts. See [Deploy Lifecycle Scripts](/reference/cli/git-integration#deploy-lifecycle-scripts) for details.
 
 ## Environment Variables
 
@@ -152,11 +189,13 @@ PUBLIC_MY_VAR=...            # - VITE_*
 ```
 
 <Callout type="info" title="AI Gateway">
-If you don't set provider API keys, LLM requests are routed through the Agentuity AI Gateway using your SDK key. This provides unified billing and monitoring.
+	If you don't set provider API keys, LLM requests are routed through the Agentuity AI Gateway
+	using your SDK key. This provides unified billing and monitoring.
 </Callout>
 
 <Callout type="warning" title="Public Environment Variables">
-Environment variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_` are exposed to the frontend bundle and visible in the browser. Never put secrets or API keys in these variables.
+	Environment variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_` are exposed to the
+	frontend bundle and visible in the browser. Never put secrets or API keys in these variables.
 </Callout>
 
 ## Infrastructure as Code
@@ -172,23 +211,30 @@ import chatHandler from '@agent/chat';
 const router = createRouter();
 
 // Cron job - runs every hour
-router.post('/cleanup', cron('0 * * * *', async (c) => {
-  await scheduler.run({ task: 'cleanup' });
-  return c.text('OK');
-}));
+router.post(
+	'/cleanup',
+	cron('0 * * * *', async (c) => {
+		await scheduler.run({ task: 'cleanup' });
+		return c.text('OK');
+	})
+);
 
 // WebSocket endpoint
-router.get('/chat', websocket((c, ws) => {
-  ws.onMessage(async (event) => {
-    const response = await chatHandler.run({ message: event.data as string });
-    ws.send(response);
-  });
-}));
+router.get(
+	'/chat',
+	websocket((c, ws) => {
+		ws.onMessage(async (event) => {
+			const response = await chatHandler.run({ message: event.data as string });
+			ws.send(response);
+		});
+	})
+);
 
 export default router;
 ```
 
 This approach means:
+
 - **Deployments are self-contained**: rolling back restores exact configuration
 - **Version control**: your infrastructure changes are tracked in Git
 - **No config drift**: what's in code is what runs

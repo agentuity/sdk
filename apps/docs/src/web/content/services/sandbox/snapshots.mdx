@@ -8,7 +8,8 @@ Skip slow dependency installation on every run by saving sandbox filesystem stat
 Manage snapshots via the [Web App](https://app-v1.agentuity.com) under **Services > Sandbox > Snapshots**, the [SDK](/services/sandbox/sdk-usage), or [CLI](/reference/cli/sandbox).
 
 <Callout type="warning" title="Snapshots Are Not Executable">
-A snapshot captures the filesystem state of a sandbox at a point in time. You create new sandboxes *from* snapshots, not run them directly.
+	A snapshot captures the filesystem state of a sandbox at a point in time. You create new
+	sandboxes *from* snapshots, not run them directly.
 </Callout>
 
 ## How Snapshots Work
@@ -52,22 +53,49 @@ agentuity cloud sandbox snapshot build .
 
 ```yaml
 version: 1
-runtime: bun:1  # Base runtime - snapshot layers on top of this
+runtime: bun:1 # Base runtime - snapshot layers on top of this
 description: Node.js environment with common dependencies
 
-dependencies:  # Apt packages to install
-  - curl
-  - jq
+dependencies: # Apt packages to install
+   - curl
+   - jq
 
-files:  # Files to include from your project
-  - src/**
-  - package.json
-  - "!**/*.test.ts"    # Exclude test files
-  - "!node_modules/**" # Exclude node_modules
+files: # Files to include from your project
+   - src/**
+   - package.json
+   - '!**/*.test.ts' # Exclude test files
+   - '!node_modules/**' # Exclude node_modules
 
 env:
-  NODE_ENV: production
+   NODE_ENV: production
 ```
+
+### Monorepo Support with `dir`
+
+For monorepos, use the `dir` field to set the build context to a subdirectory. File patterns are resolved relative to `dir`, and files outside it are excluded:
+
+```yaml
+version: 1
+runtime: bun:1
+description: SDK Explorer app snapshot
+dir: apps/docs # Build context relative to the CLI directory argument
+
+files:
+   - src/**
+   - package.json
+
+env:
+   NODE_ENV: production
+```
+
+When building, pass the repository root as the directory argument. The `dir` field tells the CLI where to find the project files within it:
+
+```bash
+# Build from repo root, snapshot resolves files from apps/docs/
+agentuity cloud sandbox snapshot build .
+```
+
+This replaces the need for nested snapshot directories. All snapshot YAML files can live in a single `snapshots/` folder at the repo root, each with its own `dir` pointing to the right subdirectory.
 
 ### Build Options
 
@@ -84,10 +112,10 @@ agentuity cloud sandbox snapshot build . --force
 
 ### When to Use Declarative vs Manual
 
-| Approach | Best For |
-|----------|----------|
+| Approach        | Best For                                                                        |
+| --------------- | ------------------------------------------------------------------------------- |
 | **Declarative** | CI/CD pipelines, reproducible environments, team collaboration, version control |
-| **Manual** | Quick experimentation, one-off debugging, exploring new configurations |
+| **Manual**      | Quick experimentation, one-off debugging, exploring new configurations          |
 
 ## Creating a Snapshot Manually
 
@@ -117,32 +145,30 @@ Create sandboxes from snapshots using the `snapshot` option:
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('TypeScriptRunner', {
-  handler: async (ctx, input) => {
-    // Create sandbox from snapshot - dependencies already installed
-    const sandbox = await ctx.sandbox.create({
-      snapshot: 'node-typescript',  // Use tag or snapshot ID
-      resources: { memory: '512Mi' },
-    });
+	handler: async (ctx, input) => {
+		// Create sandbox from snapshot - dependencies already installed
+		const sandbox = await ctx.sandbox.create({
+			snapshot: 'node-typescript', // Use tag or snapshot ID
+			resources: { memory: '512Mi' },
+		});
 
-    try {
-      // Write the user's code
-      await sandbox.writeFiles([
-        { path: 'index.ts', content: Buffer.from(input.code) },
-      ]);
+		try {
+			// Write the user's code
+			await sandbox.writeFiles([{ path: 'index.ts', content: Buffer.from(input.code) }]);
 
-      // Run immediately - no npm install needed
-      const result = await sandbox.execute({
-        command: ['npx', 'tsx', 'index.ts'],
-      });
+			// Run immediately - no npm install needed
+			const result = await sandbox.execute({
+				command: ['npx', 'tsx', 'index.ts'],
+			});
 
-      return { success: true, exitCode: result.exitCode };
-    } catch (error) {
-      ctx.logger.error('Sandbox execution failed', { error });
-      return { success: false, exitCode: -1, error: String(error) };
-    } finally {
-      await sandbox.destroy();
-    }
-  },
+			return { success: true, exitCode: result.exitCode };
+		} catch (error) {
+			ctx.logger.error('Sandbox execution failed', { error });
+			return { success: false, exitCode: -1, error: String(error) };
+		} finally {
+			await sandbox.destroy();
+		}
+	},
 });
 ```
 
@@ -231,13 +257,13 @@ Then use in your agent:
 
 ```typescript
 const languageSnapshots: Record<string, string> = {
-  python: 'python-data',
-  typescript: 'node-typescript',
-  javascript: 'node-typescript',
+	python: 'python-data',
+	typescript: 'node-typescript',
+	javascript: 'node-typescript',
 };
 
 const sandbox = await ctx.sandbox.create({
-  snapshot: languageSnapshots[input.language],
+	snapshot: languageSnapshots[input.language],
 });
 ```
 
@@ -263,7 +289,7 @@ Without snapshots, every sandbox creation requires dependency installation:
 ```typescript
 // Slow: Install dependencies every time
 const sandbox = await ctx.sandbox.create({ network: { enabled: true } });
-await sandbox.execute({ command: ['npm', 'install'] });  // 30+ seconds
+await sandbox.execute({ command: ['npm', 'install'] }); // 30+ seconds
 await sandbox.execute({ command: ['npm', 'run', 'build'] });
 ```
 
@@ -272,7 +298,7 @@ With snapshots:
 ```typescript
 // Fast: Dependencies already installed
 const sandbox = await ctx.sandbox.create({ snapshot: 'project-deps' });
-await sandbox.execute({ command: ['npm', 'run', 'build'] });  // Immediate
+await sandbox.execute({ command: ['npm', 'run', 'build'] }); // Immediate
 ```
 
 ## Snapshot Data

@@ -7,7 +7,7 @@ Deploy your Agentuity project to the cloud with a single command. The platform h
 
 ## Why Deploy to Agentuity?
 
-Deploying agents *should be* as easy as deploying a web app. But agents need long-running processes, persistent storage, sandbox environments, and observability built in. Setting this up yourself means stitching together containers, databases, secret management, and monitoring.
+Deploying agents _should be_ as easy as deploying a web app. But agents need long-running processes, persistent storage, sandbox environments, and observability built in. Setting this up yourself means stitching together containers, databases, secret management, and monitoring.
 
 Agentuity handles all of this automatically. You push code, and the platform provisions everything your agents need: compute, storage, networking, and observability. No infrastructure configuration, no Docker files, no Kubernetes.
 
@@ -27,6 +27,7 @@ bun run deploy
 ```
 
 The deploy command:
+
 1. Syncs environment variables from `.env.production` (or `.env` as fallback)
 2. Builds and packages your project
 3. Encrypts and uploads the deployment bundle securely
@@ -59,11 +60,13 @@ The Dashboard URL links directly to the deployment details in the Agentuity App.
 Each deployment gets two URLs:
 
 **Deployment URL** (`dep_xxx.agentuity.cloud`):
+
 - Unique URL for this specific deployment
 - Persists even after new deployments
 - Use for testing a specific version
 
 **Project URL** (`proj_xxx.agentuity.cloud`):
+
 - Always points to the active deployment
 - Updates automatically when you deploy
 - Use for stable endpoints and webhooks
@@ -95,11 +98,11 @@ agentuity cloud deployment list --project-id=proj_abc123xyz
 
 **Example output:**
 
-| ID | State | Active | Created | Message | Tags |
-|----|-------|--------|---------|---------|------|
-| dep_abc123 | completed | Yes | 12/1/25, 3:45 PM | | staging |
-| dep_def456 | completed | | 12/1/25, 2:30 PM | | v1.2.0 |
-| dep_ghi789 | completed | | 11/30/25, 5:00 PM | | |
+| ID         | State     | Active | Created           | Message | Tags    |
+| ---------- | --------- | ------ | ----------------- | ------- | ------- |
+| dep_abc123 | completed | Yes    | 12/1/25, 3:45 PM  |         | staging |
+| dep_def456 | completed |        | 12/1/25, 2:30 PM  |         | v1.2.0  |
+| dep_ghi789 | completed |        | 11/30/25, 5:00 PM |         |         |
 
 ## Deployment Details
 
@@ -114,6 +117,7 @@ agentuity cloud deployment show dep_abc123xyz --project-id=proj_abc123
 ```
 
 **Output includes:**
+
 - Deployment ID, state, and creation time
 - Active status
 - Tags and custom domains
@@ -146,7 +150,8 @@ Build Information
 ```
 
 <Callout type="tip" title="DNS Records">
-When custom domains are configured, the `show` command displays the required DNS records for each domain. Use this to verify your CNAME configuration.
+	When custom domains are configured, the `show` command displays the required DNS records for each
+	domain. Use this to verify your CNAME configuration.
 </Callout>
 
 ## Viewing Logs
@@ -170,7 +175,7 @@ agentuity cloud deployment logs dep_abc123xyz --project-id=proj_abc123
 Logs show severity (INFO, WARN, ERROR) and message body with color-coded output.
 
 <Callout type="info" title="Real-Time Logs">
-For live streaming logs, use SSH access. See [Debugging](/reference/cli/debugging) for SSH setup.
+	For live streaming logs, use SSH access. See [Debugging](/reference/cli/debugging) for SSH setup.
 </Callout>
 
 ## Rolling Back
@@ -182,6 +187,7 @@ agentuity cloud deployment rollback
 ```
 
 The command:
+
 1. Finds the previous completed deployment
 2. Prompts for confirmation
 3. Activates the previous deployment
@@ -199,7 +205,8 @@ agentuity cloud deployment rollback --project-id=proj_abc123xyz
 ```
 
 <Callout type="warning" title="Rollback Behavior">
-Rollback activates the most recent completed deployment before the current one. The current deployment remains available at its deployment URL but is no longer active.
+	Rollback activates the most recent completed deployment before the current one. The current
+	deployment remains available at its deployment URL but is no longer active.
 </Callout>
 
 ## Undeploying
@@ -218,13 +225,15 @@ agentuity cloud deployment undeploy --project-id=proj_abc123xyz
 ```
 
 After undeploying:
+
 - The project URL becomes unavailable
 - All deployment-specific URLs remain accessible
 - Previous deployments are not deleted
 - You can redeploy or rollback at any time
 
 <Callout type="warning" title="Undeploy Impact">
-Undeploying stops the active deployment immediately. Your project URL will return 404 until you deploy or rollback.
+	Undeploying stops the active deployment immediately. Your project URL will return 404 until you
+	deploy or rollback.
 </Callout>
 
 ## Removing Deployments
@@ -240,7 +249,7 @@ agentuity cloud deployment remove dep_abc123xyz --project-id=proj_abc123xyz
 ```
 
 <Callout type="warning" title="Permanent Deletion">
-Removing a deployment permanently deletes it. You cannot rollback to a removed deployment.
+	Removing a deployment permanently deletes it. You cannot rollback to a removed deployment.
 </Callout>
 
 ## Preview Environments
@@ -252,6 +261,7 @@ Deploy pull requests to isolated preview environments for testing before merging
 3. Enable "Deploy PRs to preview environments for this repository"
 
 Once enabled, every pull request to your connected repository automatically deploys to a unique preview URL. This allows you to:
+
 - Test changes in an isolated environment before merging
 - Share preview links with reviewers
 - Run integration tests against the preview deployment
@@ -259,7 +269,8 @@ Once enabled, every pull request to your connected repository automatically depl
 Preview environments are automatically cleaned up when the pull request is closed or merged.
 
 <Callout type="info" title="GitHub Connection Required">
-Preview environments require a connected GitHub repository. Connect your repo in **Project > Settings > GitHub**.
+	Preview environments require a connected GitHub repository. Connect your repo in **Project >
+	Settings > GitHub**.
 </Callout>
 
 ## Regions
@@ -295,9 +306,9 @@ The region is stored in `agentuity.json` after your first deployment:
 
 ```json
 {
-  "projectId": "proj_abc123xyz",
-  "orgId": "org_def456",
-  "region": "use"
+	"projectId": "proj_abc123xyz",
+	"orgId": "org_def456",
+	"region": "use"
 }
 ```
 
@@ -315,12 +326,12 @@ Configure custom domains in `agentuity.json`:
 
 ```json
 {
-  "projectId": "proj_abc123xyz",
-  "orgId": "org_def456",
-  "region": "use",
-  "deployment": {
-    "domains": ["api.example.com", "app.example.com"]
-  }
+	"projectId": "proj_abc123xyz",
+	"orgId": "org_def456",
+	"region": "use",
+	"deployment": {
+		"domains": ["api.example.com", "app.example.com"]
+	}
 }
 ```
 
@@ -350,11 +361,13 @@ agentuity deploy
 ```
 
 <Callout type="warning" title="DNS Validation">
-Deployment fails if DNS records are missing or incorrect. The CLI shows the required CNAME value in the error message.
+	Deployment fails if DNS records are missing or incorrect. The CLI shows the required CNAME value
+	in the error message.
 </Callout>
 
 <Callout type="info" title="Activate Custom Domains">
-After adding a custom domain to your configuration, you must deploy to activate it. The domain becomes active only after a successful deployment.
+	After adding a custom domain to your configuration, you must deploy to activate it. The domain
+	becomes active only after a successful deployment.
 </Callout>
 
 ### Multiple Domains
@@ -363,9 +376,9 @@ Custom domains replace the default URLs:
 
 ```json
 {
-  "deployment": {
-    "domains": ["api.example.com"]
-  }
+	"deployment": {
+		"domains": ["api.example.com"]
+	}
 }
 ```
 
@@ -384,14 +397,14 @@ Configure CPU, memory, and disk limits in `agentuity.json`:
 
 ```json
 {
-  "deployment": {
-    "resources": {
-      "cpu": "500m",
-      "memory": "512Mi",
-      "disk": "1Gi"
-    },
-    "domains": []
-  }
+	"deployment": {
+		"resources": {
+			"cpu": "500m",
+			"memory": "512Mi",
+			"disk": "1Gi"
+		},
+		"domains": []
+	}
 }
 ```
 
@@ -411,17 +424,22 @@ MY_CUSTOM_API_KEY=xxx
 ```
 
 <Callout type="info" title="AI Provider Keys">
-If you're using the [AI Gateway](/agents/ai-gateway), you don't need to include provider API keys (like `OPENAI_API_KEY`). The gateway handles authentication automatically. Only include provider keys if you're bypassing the gateway.
+	If you're using the [AI Gateway](/agents/ai-gateway), you don't need to include provider API keys
+	(like `OPENAI_API_KEY`). The gateway handles authentication automatically. Only include provider
+	keys if you're bypassing the gateway.
 </Callout>
 
 Variables are automatically:
+
 - Filtered (removes `AGENTUITY_` prefixed keys)
 - Categorized (regular env vs secrets based on naming)
 - Encrypted (secrets only)
 - Synced to cloud before the build step
 
 <Callout type="info" title="Secrets Detection">
-Variables with suffixes like `_SECRET`, `_KEY`, `_TOKEN`, `_PASSWORD`, or `_PRIVATE` are automatically encrypted as secrets. All other variables are stored as regular environment variables.
+	Variables with suffixes like `_SECRET`, `_KEY`, `_TOKEN`, `_PASSWORD`, or `_PRIVATE` are
+	automatically encrypted as secrets. All other variables are stored as regular environment
+	variables.
 </Callout>
 
 ## Machine Management
@@ -445,23 +463,25 @@ agentuity cloud machine deployments mach_abc123xyz
 ```
 
 Machine details include status, region, resource allocation, and uptime. Use machine management to:
+
 - Monitor infrastructure health
 - Debug performance issues
 - Clean up unused machines
 
 <Callout type="warning" title="Deleting Machines">
-Deleting a machine immediately terminates any deployments running on it. Only delete machines that are unused or when intentionally removing capacity.
+	Deleting a machine immediately terminates any deployments running on it. Only delete machines
+	that are unused or when intentionally removing capacity.
 </Callout>
 
 ## Deploy Options
 
-| Option | Description |
-|--------|-------------|
-| `-y, --confirm` | Skip all confirmation prompts (useful for CI/CD) |
-| `--dry-run` | Simulate deployment without executing (place before `deploy`) |
-| `--log-level debug` | Show verbose output |
-| `--project-id <id>` | Deploy specific project |
-| `--message <msg>` | Message to associate with this build |
+| Option              | Description                                                   |
+| ------------------- | ------------------------------------------------------------- |
+| `-y, --confirm`     | Skip all confirmation prompts (useful for CI/CD)              |
+| `--dry-run`         | Simulate deployment without executing (place before `deploy`) |
+| `--log-level debug` | Show verbose output                                           |
+| `--project-id <id>` | Deploy specific project                                       |
+| `--message <msg>`   | Message to associate with this build                          |
 
 ```bash
 # Verbose deployment
@@ -482,6 +502,8 @@ agentuity deploy --confirm
 
 ## CI/CD Pipelines
 
+For GitHub-triggered deployments, you can customize the build with [lifecycle scripts](/reference/cli/git-integration#deploy-lifecycle-scripts) (`predeploy`/`postdeploy` in `package.json`) and [build resource configuration](/get-started/app-configuration#cicd-build-settings) (timeout, memory, CPU, disk in `agentuity.json`).
+
 For automated deployments in CI/CD systems (GitHub Actions, GitLab CI, etc.), you can use a pre-created deployment.
 
 ### Using Pre-Created Deployments
@@ -495,19 +517,21 @@ agentuity deploy
 
 The JSON object requires:
 
-| Field | Description |
-|-------|-------------|
-| `id` | The deployment ID |
-| `orgId` | Your organization ID |
+| Field       | Description                 |
+| ----------- | --------------------------- |
+| `id`        | The deployment ID           |
+| `orgId`     | Your organization ID        |
 | `publicKey` | The deployment's public key |
 
 When this variable is set, the CLI:
+
 - Skips deployment creation and uses the existing deployment
 - Uses plain output mode (no TUI) for cleaner CI logs
 - Validates the JSON schema before proceeding
 
 <Callout type="info" title="Getting Deployment Details">
-Pre-created deployments are typically provisioned by external systems like GitHub Actions workflows or custom CI pipelines that integrate with the Agentuity API.
+	Pre-created deployments are typically provisioned by external systems like GitHub Actions
+	workflows or custom CI pipelines that integrate with the Agentuity API.
 </Callout>
 
 ## Next Steps

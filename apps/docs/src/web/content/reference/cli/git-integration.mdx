@@ -72,7 +72,9 @@ agentuity git account remove --org org_abc123 --account int_xyz --confirm
 ```
 
 <Callout type="info" title="Identity vs Installations">
-Your **identity** is your GitHub user account. **Installations** are per-organization GitHub App installs that grant repository access. You need both: connect your identity first, then add at least one installation.
+	Your **identity** is your GitHub user account. **Installations** are per-organization GitHub App
+	installs that grant repository access. You need both: connect your identity first, then add at
+	least one installation.
 </Callout>
 
 ## Linking a Repository
@@ -109,14 +111,14 @@ agentuity git link --preview true
 
 ### Link Options
 
-| Option | Description |
-|--------|-------------|
-| `--repo <owner/repo>` | Repository full name |
-| `--branch <branch>` | Branch to deploy from (default: repo default branch) |
-| `--root <path>` | Root directory containing `agentuity.json` (default: `.`) |
-| `--deploy <bool>` | Enable auto-deploy on push (default: `true`) |
-| `--preview <bool>` | Enable preview deployments on PRs (default: `true`) |
-| `--confirm` | Skip confirmation prompts |
+| Option                | Description                                               |
+| --------------------- | --------------------------------------------------------- |
+| `--repo <owner/repo>` | Repository full name                                      |
+| `--branch <branch>`   | Branch to deploy from (default: repo default branch)      |
+| `--root <path>`       | Root directory containing `agentuity.json` (default: `.`) |
+| `--deploy <bool>`     | Enable auto-deploy on push (default: `true`)              |
+| `--preview <bool>`    | Enable preview deployments on PRs (default: `true`)       |
+| `--confirm`           | Skip confirmation prompts                                 |
 
 ### Browsing Repositories
 
@@ -158,10 +160,92 @@ agentuity --json git status
 ```
 
 The status output includes:
+
 - Connected GitHub username
 - GitHub App installations (organization or personal)
 - Linked repository, branch, and directory
 - Auto-deploy and preview deployment settings
+
+## Deploy Lifecycle Scripts
+
+When the GitHub App triggers a deployment, you can hook into the build pipeline with `predeploy` and `postdeploy` scripts in your `package.json`.
+
+### predeploy
+
+Runs **before** `agentuity deploy`. If defined, it replaces the default `bun install` step, giving you full control over dependency installation. This is useful for monorepos where you need to install from the repository root instead of the project directory:
+
+```json title="package.json"
+{
+	"scripts": {
+		"predeploy": "cd ../.. && bun install"
+	}
+}
+```
+
+If no `predeploy` script is defined, the default `bun install` runs automatically.
+
+### postdeploy
+
+Runs **after** `agentuity deploy` completes. Use this for notifications, cache warming, or any cleanup:
+
+```json title="package.json"
+{
+	"scripts": {
+		"postdeploy": "curl -X POST https://hooks.slack.com/... -d '{\"text\": \"Deployed!\"}'"
+	}
+}
+```
+
+### Full Example
+
+```json title="package.json"
+{
+	"scripts": {
+		"predeploy": "cd ../.. && bun install",
+		"deploy": "agentuity deploy",
+		"postdeploy": "echo 'Deployment complete'"
+	}
+}
+```
+
+<Callout type="info" title="CLI Deploys Are Unaffected">
+	These scripts only run during GitHub App-triggered deployments (push and PR events). Running
+	`agentuity deploy` locally from the CLI does not execute `predeploy` or `postdeploy`.
+</Callout>
+
+## Build Configuration
+
+Control the sandbox resources allocated for GitHub-triggered builds by adding a `build` field to your `agentuity.json`. This is useful for projects with large dependency trees or long build times:
+
+```json title="agentuity.json"
+{
+	"name": "my-project",
+	"projectId": "proj_...",
+	"orgId": "org_...",
+	"build": {
+		"timeout": "30m",
+		"resources": {
+			"memory": "4Gi",
+			"cpu": "2",
+			"disk": "4Gi"
+		}
+	}
+}
+```
+
+| Field                    | Default | Description                                                     |
+| ------------------------ | ------- | --------------------------------------------------------------- |
+| `build.timeout`          | `5m`    | Maximum execution time for the build sandbox (e.g. `5m`, `30m`) |
+| `build.resources.memory` | `2Gi`   | Memory limit (e.g. `512Mi`, `2Gi`, `4Gi`)                       |
+| `build.resources.cpu`    | `1`     | CPU cores (e.g. `1`, `2`)                                       |
+| `build.resources.disk`   | `2Gi`   | Disk space (e.g. `2Gi`, `4Gi`)                                  |
+
+<Callout type="tip" title="When to Increase Resources">
+	If your GitHub deployments fail with timeout or out-of-memory errors, add the `build` field with
+	higher limits. Most projects work fine with the defaults.
+</Callout>
+
+See [App Configuration](/get-started/app-configuration#cicd-build-settings) for more detail on the `build` field.
 
 ## Next Steps
 
