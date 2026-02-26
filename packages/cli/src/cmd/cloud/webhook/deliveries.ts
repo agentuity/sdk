@@ -18,6 +18,7 @@ const DeliveriesListResponseSchema = z.object({
 			status: z.string(),
 			retries: z.number(),
 			webhook_destination_id: z.string(),
+			error: z.string().nullable().optional(),
 		})
 	),
 });
@@ -73,8 +74,15 @@ const listDeliveriesSubcommand = createSubcommand({
 					Status: d.status,
 					Retries: d.retries,
 					'Destination ID': d.webhook_destination_id,
+					...(d.error ? { Error: d.error } : {}),
 				}));
-				tui.table(tableData, ['ID', 'Date', 'Status', 'Retries', 'Destination ID']);
+				const hasErrors = result.deliveries.some((d: WebhookDelivery) => d.error);
+				tui.table(
+					tableData,
+					hasErrors
+						? ['ID', 'Date', 'Status', 'Retries', 'Destination ID', 'Error']
+						: ['ID', 'Date', 'Status', 'Retries', 'Destination ID']
+				);
 			}
 		}
 
@@ -85,6 +93,7 @@ const listDeliveriesSubcommand = createSubcommand({
 				status: d.status,
 				retries: d.retries,
 				webhook_destination_id: d.webhook_destination_id,
+				...(d.error ? { error: d.error } : {}),
 			})),
 		};
 	},
@@ -120,8 +129,12 @@ const retryDeliverySubcommand = createSubcommand({
 		);
 
 		if (!options.json) {
-			tui.success(`Retried delivery: ${delivery.id}`);
-			console.log(`  Status: ${delivery.status}`);
+			tui.success(`Retried delivery: ${tui.bold(delivery.id)}`);
+			tui.table(
+				[{ ID: delivery.id, Status: delivery.status }],
+				['ID', 'Status'],
+				{ layout: 'vertical', padStart: '  ' }
+			);
 		}
 
 		return delivery;

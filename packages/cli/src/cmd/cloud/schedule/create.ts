@@ -65,7 +65,7 @@ export const createSubcommand = createCommand({
 						Name: result.schedule.name,
 						ID: result.schedule.id,
 						Expression: result.schedule.expression,
-						Description: result.schedule.description ?? '-',
+						Description: result.schedule.description || '-',
 						'Next Due': result.schedule.due_date,
 						Created: new Date(result.schedule.created_at).toLocaleString(),
 					},

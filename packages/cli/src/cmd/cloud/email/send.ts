@@ -69,17 +69,15 @@ export const sendSubcommand = createCommand({
 				[
 					{
 						ID: outbound.id,
-						From: outbound.from,
-						To: outbound.to,
-						Subject: outbound.subject ?? '-',
-						Text: truncate(outbound.text),
-						Status: outbound.status ?? '-',
-						Created: outbound.created_at
-							? new Date(outbound.created_at).toLocaleString()
-							: '-',
+						From: outbound.from || opts.from,
+						To: outbound.to || args.to,
+						Subject: outbound.subject ?? opts.subject,
+						Text: truncate(outbound.text ?? opts.text),
+						Status: outbound.status ?? 'pending',
+						Attachments: attachments.length > 0 ? attachments.length.toString() : '-',
 					},
 				],
-				['ID', 'From', 'To', 'Subject', 'Text', 'Status', 'Created'],
+				['ID', 'From', 'To', 'Subject', 'Text', 'Status', 'Attachments'],
 				{ layout: 'vertical', padStart: '  ' }
 			);
 		}

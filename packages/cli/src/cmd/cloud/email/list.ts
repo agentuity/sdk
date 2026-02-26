@@ -37,7 +37,14 @@ export const listSubcommand = createCommand({
 			);
 		}
 
-		return addresses;
+		return addresses.map((item) => ({
+			id: item.id,
+			email: item.email,
+			project_id: item.project_id,
+			provider: item.provider,
+			created_at: item.created_at,
+			updated_at: item.updated_at,
+		}));
 	},
 });
 

@@ -36,6 +36,7 @@ export const updateSubcommand = createCommand({
 			name: z.string().optional().describe('Schedule name'),
 			expression: z.string().optional().describe('Cron expression'),
 			description: z.string().optional().describe('Schedule description'),
+			clearDescription: z.boolean().optional().describe('Clear the schedule description'),
 		}),
 		response: ScheduleUpdateResponseSchema,
 	},
@@ -46,7 +47,7 @@ export const updateSubcommand = createCommand({
 		const result = await schedule.update(args.schedule_id, {
 			name: opts.name,
 			expression: opts.expression,
-			description: opts.description,
+			description: opts.clearDescription ? '' : opts.description,
 		});
 
 		if (!options.json) {
@@ -57,7 +58,7 @@ export const updateSubcommand = createCommand({
 						Name: result.schedule.name,
 						ID: result.schedule.id,
 						Expression: result.schedule.expression,
-						Description: result.schedule.description ?? '-',
+						Description: result.schedule.description || '-',
 						Updated: new Date(result.schedule.updated_at).toLocaleString(),
 					},
 				],
