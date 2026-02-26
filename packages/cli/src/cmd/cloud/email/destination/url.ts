@@ -42,8 +42,8 @@ export const urlSubcommand = createCommand({
 			destinationConfig.method = opts.method;
 		}
 
-		const profileName = config?.name ?? 'production';
-		const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
+		const profileName = config?.name ?? defaultProfileName;
+		const region = await getDefaultRegion(profileName, ctx.config);
 		const email = await createEmailAdapter(ctx, region);
 		const destination = await email.createDestination(args.address_id, 'url', destinationConfig);
 
