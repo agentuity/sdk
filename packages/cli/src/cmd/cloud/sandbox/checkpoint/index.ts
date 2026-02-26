@@ -31,5 +31,3 @@ export const checkpointCommand = createCommand({
 	],
 	subcommands: [createSubcommand, listSubcommand, restoreSubcommand, deleteSubcommand],
 });
-
-export default checkpointCommand;

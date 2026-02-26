@@ -69,7 +69,7 @@ export async function diskCheckpointCreate(
 		queryParams.set('orgId', orgId);
 	}
 	const queryString = queryParams.toString();
-	const url = `/sandbox/${API_VERSION}/${sandboxId}/checkpoint${queryString ? `?${queryString}` : ''}`;
+	const url = `/sandbox/${API_VERSION}/${encodeURIComponent(sandboxId)}/checkpoint${queryString ? `?${queryString}` : ''}`;
 
 	const resp = await client.post<zType.infer<typeof CreateDiskCheckpointResponseSchema>>(
 		url,
@@ -101,7 +101,7 @@ export async function diskCheckpointList(
 		queryParams.set('orgId', orgId);
 	}
 	const queryString = queryParams.toString();
-	const url = `/sandbox/${API_VERSION}/checkpoints/${sandboxId}${queryString ? `?${queryString}` : ''}`;
+	const url = `/sandbox/${API_VERSION}/checkpoints/${encodeURIComponent(sandboxId)}${queryString ? `?${queryString}` : ''}`;
 
 	const resp = await client.get<zType.infer<typeof ListDiskCheckpointsResponseSchema>>(
 		url,
@@ -132,7 +132,7 @@ export async function diskCheckpointRestore(
 		queryParams.set('orgId', orgId);
 	}
 	const queryString = queryParams.toString();
-	const url = `/sandbox/${API_VERSION}/${sandboxId}/checkpoint/${checkpointId}/restore${queryString ? `?${queryString}` : ''}`;
+	const url = `/sandbox/${API_VERSION}/${encodeURIComponent(sandboxId)}/checkpoint/${encodeURIComponent(checkpointId)}/restore${queryString ? `?${queryString}` : ''}`;
 
 	const resp = await client.post<zType.infer<typeof RestoreDiskCheckpointResponseSchema>>(
 		url,
@@ -164,7 +164,7 @@ export async function diskCheckpointDelete(
 		queryParams.set('orgId', orgId);
 	}
 	const queryString = queryParams.toString();
-	const url = `/sandbox/${API_VERSION}/${sandboxId}/checkpoint/${checkpointId}${queryString ? `?${queryString}` : ''}`;
+	const url = `/sandbox/${API_VERSION}/${encodeURIComponent(sandboxId)}/checkpoint/${encodeURIComponent(checkpointId)}${queryString ? `?${queryString}` : ''}`;
 
 	const resp = await client.delete<zType.infer<typeof DeleteDiskCheckpointResponseSchema>>(
 		url,

@@ -55,7 +55,6 @@ export const createSubcommand = createCommand({
 
 		if (!options.json) {
 			tui.success(`created disk checkpoint ${tui.bold(checkpoint.id)} in ${durationMs}ms`);
-			console.log('');
 
 			tui.table(
 				[
