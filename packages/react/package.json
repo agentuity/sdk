@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/react",
-	"version": "1.0.23",
+	"version": "1.0.24",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
