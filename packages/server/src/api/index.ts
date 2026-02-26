@@ -9,6 +9,7 @@ export * from './queue/index.ts';
 export * from './region/index.ts';
 export * from './webhook/index.ts';
 export * from './sandbox/index.ts';
+export * from './services/index.ts';
 export * from './session/index.ts';
 export * from './stream/index.ts';
 export * from './thread/index.ts';
