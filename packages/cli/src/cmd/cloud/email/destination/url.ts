@@ -42,12 +42,12 @@ export const urlSubcommand = createCommand({
 			destinationConfig.method = opts.method;
 		}
 
-		const email = await createEmailAdapter(ctx);
+		const profileName = config?.name ?? 'production';
+		const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
+		const email = await createEmailAdapter(ctx, region);
 		const destination = await email.createDestination(args.address_id, 'url', destinationConfig);
 
-		const profileName = config?.name ?? 'production';
 		const orgId = resolveEmailOrgId(ctx);
-		const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
 		setResourceInfo('email', profileName, destination.id, region, orgId).catch(() => {
 			// Non-blocking: destination was already created successfully
 		});

@@ -51,7 +51,7 @@ export function truncate(value: string | undefined, length = 200): string {
 	return value.length > length ? `${value.slice(0, length - 3)}...` : value;
 }
 
-export async function createEmailAdapter(ctx: EmailContext) {
+export async function createEmailAdapter(ctx: EmailContext, region?: string) {
 	const orgId = resolveEmailOrgId(ctx);
 	const adapter = createServerFetchAdapter(
 		{
@@ -63,7 +63,8 @@ export async function createEmailAdapter(ctx: EmailContext) {
 		ctx.logger
 	);
 
-	const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
-	const baseUrl = getCatalystUrl(region);
+	const resolvedRegion =
+		region ?? (await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config));
+	const baseUrl = getCatalystUrl(resolvedRegion);
 	return new EmailStorageService(baseUrl, adapter);
 }

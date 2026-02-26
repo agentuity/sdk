@@ -48,12 +48,12 @@ export const createSubcommand = createCommand({
 			tui.fatal('Email address or username is required');
 		}
 
-		const email = await createEmailAdapter(ctx);
+		const profileName = config?.name ?? 'production';
+		const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
+		const email = await createEmailAdapter(ctx, region);
 		const address = await email.createAddress(localPart);
 
-		const profileName = config?.name ?? 'production';
 		const orgId = resolveEmailOrgId(ctx);
-		const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
 		await setResourceInfo('email', profileName, address.id, region, orgId);
 
 		if (!options.json) {
