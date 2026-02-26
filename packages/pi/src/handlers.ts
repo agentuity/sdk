@@ -3,6 +3,8 @@ import type { HubAction } from './protocol.ts';
 export interface ActionResult {
 	block?: { block: true; reason: string };
 	returnValue?: unknown;
+	systemPrompt?: string;
+	systemPromptMode?: 'replace' | 'prefix' | 'suffix';
 	// undefined means ACK (proceed normally)
 }
 
@@ -75,6 +77,21 @@ export async function processActions(
 				}
 				break;
 			}
+
+			case 'SYSTEM_PROMPT':
+				// System prompt injection — store for before_agent_start handler
+				result = {
+					...result,
+					systemPrompt: action.systemPrompt,
+					systemPromptMode: action.mode,
+				};
+				break;
+
+		case 'INJECT_MESSAGE':
+			// TODO: Implement message injection for TUI mode.
+			// Pi's ExtensionContext may support session.addMessage() or similar —
+			// investigate @mariozechner/pi-coding-agent API for message injection.
+			break;
 		}
 	}
 

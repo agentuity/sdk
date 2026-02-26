@@ -66,6 +66,15 @@ function log(msg: string): void {
 // the server actually provides. No hardcoded schemas.
 // ══════════════════════════════════════════════
 
+/**
+ * Synchronously fetch the InitMessage from Hub's REST endpoint.
+ *
+ * Uses `curl` via `execFileSync` because Pi's extension registration is synchronous —
+ * we need tools/agents BEFORE the extension returns. Node's `fetch()` is async-only,
+ * and `Bun.spawnSync` isn't available in Pi's Node.js runtime.
+ *
+ * Requires `curl` binary (available on macOS, Linux, Windows 10+).
+ */
 function fetchInitMessageSync(hubUrl: string, agentRole?: string): InitMessage | null {
 	// Convert ws:// to http:// and point to /api/hub/init REST endpoint
 	let httpUrl = hubUrl
@@ -592,6 +601,8 @@ async function runSubAgent(
 	const subModel = getModel(provider, id);
 
 	// Hub tools for this sub-agent (shared WebSocket connection)
+	// Sub-agents get Hub tools (memory, context7, etc.) via extensionFactories
+	// so they work in both driver and TUI mode.
 	const hubTools = agentConfig.hubTools ?? [];
 
 	// Resource loader — no extensions (prevents recursive task tool registration),
@@ -624,7 +635,7 @@ async function runSubAgent(
 		thinkingLevel: (agentConfig.thinkingLevel || 'off') as 'off' | 'low' | 'medium' | 'high',
 		tools,
 		resourceLoader: subLoader,
-		sessionManager: SessionManager.inMemory(cwd),
+		sessionManager: SessionManager.inMemory('/tmp'),
 	});
 	await session.bindExtensions({});
 

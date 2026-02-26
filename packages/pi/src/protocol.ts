@@ -7,15 +7,37 @@ export interface HubToolDefinition {
 	parameters: Record<string, unknown>; // JSON Schema object
 }
 
+/** TODO: Command support not yet implemented in the extension.
+ *  Hub can send command definitions via InitMessage but the extension
+ *  does not register them with Pi. Implement when Pi command API is available. */
 export interface HubCommandDefinition {
 	name: string;
 	description: string;
+}
+
+export interface AgentDefinition {
+	name: string;
+	description: string;
+	systemPrompt: string;
+	model?: string;
+	tools?: string[];
+	temperature?: number;
+	thinkingLevel?: string;
+	readOnly?: boolean;
+	hubTools?: HubToolDefinition[];
+}
+
+export interface HubConfig {
+	systemPromptPrefix?: string;
+	systemPromptSuffix?: string;
 }
 
 export interface InitMessage {
 	type: 'init';
 	tools?: HubToolDefinition[];
 	commands?: HubCommandDefinition[];
+	agents?: AgentDefinition[];
+	config?: HubConfig;
 }
 
 // ---- Request Messages (Client → Server) ----
@@ -35,6 +57,7 @@ export interface ToolRequest {
 	params: Record<string, unknown>;
 }
 
+/** TODO: Command request support not yet implemented — see HubCommandDefinition. */
 export interface CommandRequest {
 	id: string;
 	type: 'command';
@@ -79,13 +102,29 @@ export interface StatusAction {
 	text?: string; // undefined = clear status
 }
 
+export interface SystemPromptAction {
+	action: 'SYSTEM_PROMPT';
+	systemPrompt: string;
+	mode?: 'replace' | 'prefix' | 'suffix';
+}
+
+export interface InjectMessageAction {
+	action: 'INJECT_MESSAGE';
+	message: {
+		role: 'user' | 'assistant';
+		content: string;
+	};
+}
+
 export type HubAction =
 	| AckAction
 	| BlockAction
 	| ConfirmAction
 	| NotifyAction
 	| ReturnAction
-	| StatusAction;
+	| StatusAction
+	| SystemPromptAction
+	| InjectMessageAction;
 
 // ---- Response Message (Server → Client) ----
 
