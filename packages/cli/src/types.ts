@@ -720,6 +720,10 @@ const TemplateResourceSchema = zod.object({
 	type: zod.enum(['database', 'queue']).describe('the type of resource required'),
 	envVar: zod.string().describe('the environment variable that holds the resource connection info'),
 	description: zod.string().optional().describe('human-readable description of the resource'),
+	defaultName: zod
+		.string()
+		.optional()
+		.describe('suggested default name when provisioning this resource'),
 });
 
 const TemplateEnvSchema = zod.object({
