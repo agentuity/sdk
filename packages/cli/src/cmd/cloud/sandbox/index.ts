@@ -18,6 +18,7 @@ import { uploadSubcommand } from './upload';
 import { envSubcommand } from './env';
 import { pauseSubcommand } from './pause';
 import { resumeSubcommand } from './resume';
+import { checkpointCommand } from './checkpoint';
 import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
@@ -59,6 +60,7 @@ export const command = createCommand({
 		envSubcommand,
 		pauseSubcommand,
 		resumeSubcommand,
+		checkpointCommand,
 	],
 	requires: { auth: true, org: true },
 });
