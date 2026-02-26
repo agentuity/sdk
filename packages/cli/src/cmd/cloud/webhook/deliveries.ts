@@ -74,9 +74,9 @@ const listDeliveriesSubcommand = createSubcommand({
 					Status: d.status,
 					Retries: d.retries,
 					'Destination ID': d.webhook_destination_id,
-					...(d.error ? { Error: d.error } : {}),
+					...(d.error != null ? { Error: d.error } : {}),
 				}));
-				const hasErrors = result.deliveries.some((d: WebhookDelivery) => d.error);
+				const hasErrors = result.deliveries.some((d: WebhookDelivery) => d.error != null);
 				tui.table(
 					tableData,
 					hasErrors
@@ -93,7 +93,7 @@ const listDeliveriesSubcommand = createSubcommand({
 				status: d.status,
 				retries: d.retries,
 				webhook_destination_id: d.webhook_destination_id,
-				...(d.error ? { error: d.error } : {}),
+				...(d.error != null ? { error: d.error } : {}),
 			})),
 		};
 	},
