@@ -716,6 +716,38 @@ export type SubcommandDefinition =
 			optional?: Optional & { auth?: never };
 	  });
 
+const TemplateResourceSchema = zod.object({
+	type: zod.enum(['database', 'queue']).describe('the type of resource required'),
+	envVar: zod.string().describe('the environment variable that holds the resource connection info'),
+	description: zod.string().optional().describe('human-readable description of the resource'),
+});
+
+const TemplateEnvSchema = zod.object({
+	key: zod.string().describe('the environment variable name'),
+	required: zod.boolean().describe('whether this env var is required'),
+	description: zod.string().optional().describe('human-readable description'),
+});
+
+const TemplateSchema = zod.object({
+	source: zod
+		.string()
+		.optional()
+		.describe('where the template came from (e.g. github.com/owner/repo)'),
+	requirements: zod
+		.object({
+			resources: zod
+				.array(TemplateResourceSchema)
+				.optional()
+				.describe('platform resources the project needs'),
+			env: zod
+				.array(TemplateEnvSchema)
+				.optional()
+				.describe('environment variables the project needs'),
+		})
+		.optional()
+		.describe('what the template requires to run'),
+});
+
 export const ProjectSchema = zod.object({
 	projectId: zod.string().describe('the project id'),
 	orgId: zod.string().describe('the organization id'),
@@ -726,6 +758,7 @@ export const ProjectSchema = zod.object({
 		.boolean()
 		.optional()
 		.describe('whether to skip the git integration setup prompt during deploy'),
+	template: TemplateSchema.optional().describe('template metadata and requirements'),
 });
 
 export const BuildMetadataSchema = ServerBuildMetadataSchema;

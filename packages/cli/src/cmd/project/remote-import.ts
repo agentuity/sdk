@@ -1,7 +1,7 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Logger } from '@agentuity/core';
+import { type Logger, parseEnvExample } from '@agentuity/core';
 import { listOrganizations, projectCreate } from '@agentuity/server';
 import type { APIClient } from '../../api';
 import { isTTY } from '../../auth';
@@ -666,12 +666,85 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			);
 		}
 
+		// Parse .env.example to detect required env vars and resources
+		// Platform-managed vars that should not appear in requirements
+		const platformManagedVars = new Set([
+			'AGENTUITY_SDK_KEY',
+			'AGENTUITY_URL',
+			'AGENTUITY_TRANSPORT_URL',
+			'AGENTUITY_BEARER_TOKEN',
+			'NODE_ENV',
+		]);
+
+		type TemplateConfig = {
+			source?: string;
+			requirements?: {
+				resources?: Array<{ type: 'database' | 'queue'; envVar: string; description?: string }>;
+				env?: Array<{ key: string; required: boolean; description?: string }>;
+			};
+		};
+
+		let template: TemplateConfig | undefined;
+		const envExamplePath = join(sourceDir, '.env.example');
+		if (existsSync(envExamplePath)) {
+			try {
+				const envContent = await Bun.file(envExamplePath).text();
+				const envFields = parseEnvExample(envContent).filter(
+					(f) => !platformManagedVars.has(f.key)
+				);
+
+				const resources = envFields
+					.filter((f) => f.resource)
+					.map((f) => ({
+						type: f.resource!,
+						envVar: f.key,
+						description: f.comment,
+					}));
+
+				const envVars = envFields
+					.filter((f) => !f.resource)
+					.map((f) => ({
+						key: f.key,
+						required: f.required ?? false,
+						description: f.comment,
+					}));
+
+				if (resources.length > 0 || envVars.length > 0) {
+					template = {
+						source: `github.com/${parsed.owner}/${parsed.repo}`,
+						requirements: {
+							resources: resources.length > 0 ? resources : undefined,
+							env: envVars.length > 0 ? envVars : undefined,
+						},
+					};
+
+					for (const r of resources) {
+						tui.info(
+							`Requires ${r.type}: ${r.envVar}${r.description ? ` (${r.description})` : ''}`
+						);
+					}
+					const requiredEnv = envVars.filter((f) => f.required);
+					for (const f of requiredEnv) {
+						tui.info(`Required env var: ${f.key}${f.description ? ` (${f.description})` : ''}`);
+					}
+				}
+			} catch (err) {
+				logger.debug('[remote-import] Could not parse .env.example: %o', err);
+			}
+		}
+
+		// If no .env.example but we know the source, still track it
+		if (!template && parsed.owner && parsed.repo) {
+			template = { source: `github.com/${parsed.owner}/${parsed.repo}` };
+		}
+
 		// Write agentuity.json and .env to sourceDir so git commit includes them
 		await createProjectConfig(sourceDir, {
 			projectId: projectInfo.id,
 			orgId: projectInfo.orgId,
 			sdkKey: projectInfo.sdkKey,
 			region: projectInfo.region,
+			template,
 		});
 		tui.success('Created agentuity.json');
 
