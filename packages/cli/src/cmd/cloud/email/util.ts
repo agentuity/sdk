@@ -3,6 +3,7 @@ import { EmailStorageService, type Logger } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
 import type { AuthData, Config, GlobalOptions } from '../../../types';
 import { getCatalystUrl } from '../../../catalyst';
+import { defaultProfileName, getDefaultRegion } from '../../../config';
 import * as tui from '../../../tui';
 
 export type {
@@ -33,19 +34,6 @@ export function resolveEmailOrgId(ctx: EmailContext): string {
 	return orgId;
 }
 
-export function resolveEmailRegion(ctx: EmailContext): string {
-	if (process.env.AGENTUITY_REGION) {
-		return process.env.AGENTUITY_REGION;
-	}
-	if (ctx.config?.name === 'local') {
-		return 'local';
-	}
-	if (ctx.config?.preferences?.region) {
-		return ctx.config.preferences.region;
-	}
-	return 'usc';
-}
-
 export const EmailAddressSchema = z.object({
 	id: z.string(),
 	email: z.string(),
@@ -63,7 +51,7 @@ export function truncate(value: string | undefined, length = 200): string {
 	return value.length > length ? `${value.slice(0, length - 3)}...` : value;
 }
 
-export function createEmailAdapter(ctx: EmailContext) {
+export async function createEmailAdapter(ctx: EmailContext) {
 	const orgId = resolveEmailOrgId(ctx);
 	const adapter = createServerFetchAdapter(
 		{
@@ -75,6 +63,7 @@ export function createEmailAdapter(ctx: EmailContext) {
 		ctx.logger
 	);
 
-	const baseUrl = getCatalystUrl(resolveEmailRegion(ctx));
+	const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
+	const baseUrl = getCatalystUrl(region);
 	return new EmailStorageService(baseUrl, adapter);
 }

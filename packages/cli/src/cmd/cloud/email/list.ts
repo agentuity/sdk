@@ -15,7 +15,7 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { options } = ctx;
-		const email = createEmailAdapter(ctx);
+		const email = await createEmailAdapter(ctx);
 		const addresses = await email.listAddresses();
 
 		if (!options.json) {

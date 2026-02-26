@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
 import { setResourceInfo } from '../../../../cache';
-import { createEmailAdapter, resolveEmailOrgId, resolveEmailRegion } from '../util';
+import { createEmailAdapter, resolveEmailOrgId } from '../util';
+import { defaultProfileName, getDefaultRegion } from '../../../../config';
 import { DestinationSchema } from './schemas';
 
 export const urlSubcommand = createCommand({
@@ -41,12 +42,12 @@ export const urlSubcommand = createCommand({
 			destinationConfig.method = opts.method;
 		}
 
-		const email = createEmailAdapter(ctx);
+		const email = await createEmailAdapter(ctx);
 		const destination = await email.createDestination(args.address_id, 'url', destinationConfig);
 
 		const profileName = config?.name ?? 'production';
 		const orgId = resolveEmailOrgId(ctx);
-		const region = resolveEmailRegion(ctx);
+		const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
 		setResourceInfo('email', profileName, destination.id, region, orgId).catch(() => {
 			// Non-blocking: destination was already created successfully
 		});

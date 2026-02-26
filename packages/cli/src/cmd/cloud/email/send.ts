@@ -53,7 +53,7 @@ export const sendSubcommand = createCommand({
 			});
 		}
 
-		const email = createEmailAdapter(ctx);
+		const email = await createEmailAdapter(ctx);
 		const outbound = await email.send({
 			to: [args.to],
 			from: opts.from,

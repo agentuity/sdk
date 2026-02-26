@@ -17,7 +17,7 @@ export const getSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, options } = ctx;
-		const email = createEmailAdapter(ctx);
+		const email = await createEmailAdapter(ctx);
 		const address = await email.getAddress(args.id);
 
 		if (!address) {
