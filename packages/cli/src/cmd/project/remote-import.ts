@@ -810,6 +810,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 								if (curated?.defaultName) {
 									resource.defaultName = curated.defaultName;
 								}
+								if (curated?.queueType) {
+									resource.queueType = curated.queueType;
+								}
 							}
 							// Preserve curated resources NOT detected by parser
 							for (const curated of existingResources) {
@@ -884,6 +887,39 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		const canProvision = !!orgId && !!region;
 
 		if (canProvision && (templateResources.length > 0 || templateEnvVars.length > 0)) {
+			// ── Preflight validation: check all required items before creating anything ──
+			if (!interactive) {
+				const missing: string[] = [];
+
+				for (const r of templateResources) {
+					if (!envOverrides.has(r.envVar)) {
+						missing.push(`--env ${r.envVar}:<${r.type}-name>`);
+					}
+				}
+
+				for (const e of templateEnvVars) {
+					if (e.required && !envOverrides.has(e.key)) {
+						missing.push(`--env ${e.key}:<value>`);
+					}
+				}
+
+				if (missing.length > 0) {
+					for (const m of missing) {
+						tui.error(`Missing: ${m}`);
+					}
+					tui.fatal('Provide all required --env flags for non-interactive mode.');
+				}
+
+				// Validate database names upfront
+				for (const r of templateResources.filter((res) => res.type === 'database')) {
+					const name = envOverrides.get(r.envVar)!;
+					const validation = validateDatabaseName(name);
+					if (!validation.valid) {
+						tui.fatal(`Invalid database name "${name}" for ${r.envVar}: ${validation.error}`);
+					}
+				}
+			}
+
 			const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 			// ── Database Resources ──
@@ -998,7 +1034,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				}
 
 				if (!resourceEnvVars[r.envVar] && !interactive) {
-					tui.info(`Skipping ${r.envVar} — pass --env ${r.envVar}:<db-name> to provision`);
+					throw new RemoteImportConfigError({
+						message: `Missing required database for ${r.envVar}. Pass --env ${r.envVar}:<db-name> to provision.`,
+					});
 				}
 			}
 
@@ -1109,7 +1147,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				}
 
 				if (!resourceEnvVars[r.envVar] && !interactive) {
-					tui.info(`Skipping ${r.envVar} — pass --env ${r.envVar}:<queue-name> to provision`);
+					throw new RemoteImportConfigError({
+						message: `Missing required queue for ${r.envVar}. Pass --env ${r.envVar}:<queue-name> to provision.`,
+					});
 				}
 			}
 
@@ -1117,13 +1157,19 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			for (const e of templateEnvVars) {
 				if (envOverrides.has(e.key)) {
 					resourceEnvVars[e.key] = envOverrides.get(e.key)!;
-				} else if (interactive && e.required) {
-					const prompt = createPrompt();
-					const val = await prompt.text({
-						message: `Enter value for ${e.key}${e.description ? ` (${e.description})` : ''}`,
-					});
-					if (val.trim()) {
-						resourceEnvVars[e.key] = val.trim();
+				} else if (e.required) {
+					if (interactive) {
+						const prompt = createPrompt();
+						const val = await prompt.text({
+							message: `Enter value for ${e.key}${e.description ? ` (${e.description})` : ''}`,
+						});
+						if (val.trim()) {
+							resourceEnvVars[e.key] = val.trim();
+						}
+					} else {
+						throw new RemoteImportConfigError({
+							message: `Missing required env var ${e.key}. Pass --env ${e.key}:<value> to set it.`,
+						});
 					}
 				}
 			}

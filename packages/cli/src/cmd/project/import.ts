@@ -33,27 +33,25 @@ export const importSubcommand = createSubcommand({
 			description: 'Import project from specified directory',
 		},
 		{
-			command: getCommand('project import https://github.com/owner/repo'),
+			command: getCommand('project import --source owner/repo'),
 			description: 'Import a remote project from GitHub',
 		},
 		{
-			command: getCommand('project import https://github.com/owner/repo --deploy --name my-agent'),
+			command: getCommand('project import --source owner/repo --deploy --name my-agent'),
 			description: 'Import remote project, name it, and deploy',
 		},
 		{
 			command: getCommand(
-				'project import https://github.com/owner/repo --env DATABASE_URL:my-db --env TASK_QUEUE:my-queue'
+				'project import --source owner/repo --remote owner/new-repo --env DATABASE_URL:my_db --env TASK_QUEUE:my_queue'
 			),
-			description: 'Import with resource provisioning',
+			description: 'Import with resource provisioning and push to new repo',
 		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { region: true, org: true },
 	schema: {
-		args: z.object({
-			url: z.string().optional().describe('GitHub URL to import from'),
-		}),
 		options: z.object({
+			source: z.string().optional().describe('GitHub URL or owner/repo to import from'),
 			dir: z
 				.string()
 				.optional()
@@ -64,7 +62,10 @@ export const importSubcommand = createSubcommand({
 				.describe('Only validate the project structure without prompting'),
 			deploy: z.boolean().optional().default(false).describe('Deploy the project after importing'),
 			projectId: z.string().optional().describe('Use a pre-created project ID (skip creation)'),
-			repo: z.string().optional().describe('Target GitHub repo URL to push imported code to'),
+			remote: z
+				.string()
+				.optional()
+				.describe('Target GitHub repo (owner/repo) to push imported code to'),
 			name: z.string().optional().describe('Project name (for non-interactive mode)'),
 			env: z
 				.array(z.string())
@@ -75,20 +76,22 @@ export const importSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, auth, apiClient, config, logger, orgId } = ctx;
+		const { opts, auth, apiClient, config, logger, orgId } = ctx;
 
 		if (!config) {
 			tui.fatal('Configuration not loaded. Please try again.', ErrorCode.CONFIG_INVALID);
 		}
 
-		// If a URL positional arg is provided, run remote import flow
-		const url = args.url;
-		if (url) {
+		// If --source is provided, run remote import flow
+		const source = opts.source;
+		if (source) {
+			// Normalize owner/repo shorthand to full GitHub URL
+			const url = source.includes('://') ? source : `https://github.com/${source}`;
 			await runRemoteImport({
 				url,
 				deploy: opts.deploy ?? false,
 				projectId: opts.projectId,
-				repo: opts.repo,
+				repo: opts.remote,
 				name: opts.name,
 				env: opts.env,
 				org: orgId,
