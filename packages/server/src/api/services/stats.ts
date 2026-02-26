@@ -8,37 +8,100 @@ export const ServiceStatsError = StructuredError('ServiceStatsError')<{
 	message: string;
 }>();
 
-// --- Zod Schemas ---
+// --- Per-Service Stat Schemas ---
 
-export const TopAgentSchema = z.object({
-	agentId: z.string().describe('the agent id'),
-	agentName: z.string().describe('the agent name'),
-	projectName: z.string().describe('the project name'),
-	requestCount: z.number().describe('number of requests by this agent'),
-	percentage: z.number().describe('percentage of total requests (0-100)'),
+export const KeyValueStatSchema = z.object({
+	namespaceCount: z.number(),
+	keyCount: z.number(),
+	totalSizeBytes: z.number(),
 });
 
-export const ServiceStatSchema = z.object({
-	totalRequests: z.number().describe('total number of requests'),
-	successfulRequests: z.number().describe('number of successful requests'),
-	failedRequests: z.number().describe('number of failed requests'),
-	errorRate: z.number().describe('error rate as percentage (0-100)'),
-	avgLatencyMs: z.number().describe('average latency in milliseconds'),
-	p50LatencyMs: z.number().describe('50th percentile latency in milliseconds'),
-	p99LatencyMs: z.number().describe('99th percentile latency in milliseconds'),
-	topAgent: TopAgentSchema.nullable().describe('the top agent by request count, or null if no data'),
+export const VectorStatSchema = z.object({
+	namespaceCount: z.number(),
+	documentCount: z.number(),
+	totalSizeBytes: z.number(),
 });
+
+export const QueueStatSchema = z.object({
+	queueCount: z.number(),
+	totalMessages: z.number(),
+	totalDlq: z.number(),
+});
+
+export const StreamStatSchema = z.object({
+	streamCount: z.number(),
+	totalSizeBytes: z.number(),
+});
+
+export const SandboxStatSchema = z.object({
+	totalActive: z.number(),
+	running: z.number(),
+	idle: z.number(),
+	creating: z.number(),
+	totalExecutions: z.number(),
+	totalCpuTimeMs: z.number(),
+	totalMemoryByteSec: z.number(),
+	totalNetworkEgressBytes: z.number(),
+});
+
+export const EmailStatSchema = z.object({
+	addressCount: z.number(),
+	inboundCount: z.number(),
+	outboundCount: z.number(),
+	outboundSuccess: z.number(),
+	outboundFailed: z.number(),
+});
+
+export const TaskStatSchema = z.object({
+	total: z.number(),
+	open: z.number(),
+	inProgress: z.number(),
+	closed: z.number(),
+});
+
+export const ScheduleStatSchema = z.object({
+	scheduleCount: z.number(),
+	totalDeliveries: z.number(),
+	successDeliveries: z.number(),
+	failedDeliveries: z.number(),
+});
+
+export const DatabaseStatSchema = z.object({
+	databaseCount: z.number(),
+	totalTableCount: z.number(),
+	totalRecordCount: z.number(),
+	totalSizeBytes: z.number(),
+});
+
+// --- Aggregate Schema ---
 
 export const ServiceStatsDataSchema = z.object({
-	services: z.record(z.string(), ServiceStatSchema).describe('stats per service name'),
+	services: z.object({
+		database: DatabaseStatSchema.optional(),
+		keyvalue: KeyValueStatSchema.optional(),
+		vector: VectorStatSchema.optional(),
+		queue: QueueStatSchema.optional(),
+		stream: StreamStatSchema.optional(),
+		sandbox: SandboxStatSchema.optional(),
+		email: EmailStatSchema.optional(),
+		task: TaskStatSchema.optional(),
+		schedule: ScheduleStatSchema.optional(),
+	}),
 });
 
 export const ServiceStatsResponseSchema = APIResponseSchema(ServiceStatsDataSchema);
 
 // --- Types ---
 
-export type TopAgent = z.infer<typeof TopAgentSchema>;
-export type ServiceStat = z.infer<typeof ServiceStatSchema>;
+export type KeyValueStat = z.infer<typeof KeyValueStatSchema>;
+export type VectorStat = z.infer<typeof VectorStatSchema>;
+export type QueueStat = z.infer<typeof QueueStatSchema>;
+export type StreamStat = z.infer<typeof StreamStatSchema>;
+export type SandboxStat = z.infer<typeof SandboxStatSchema>;
+export type EmailStat = z.infer<typeof EmailStatSchema>;
+export type TaskStat = z.infer<typeof TaskStatSchema>;
+export type ScheduleStat = z.infer<typeof ScheduleStatSchema>;
+export type DatabaseStat = z.infer<typeof DatabaseStatSchema>;
 export type ServiceStatsData = z.infer<typeof ServiceStatsDataSchema>;
 export type ServiceStatsResponse = z.infer<typeof ServiceStatsResponseSchema>;
 
@@ -48,6 +111,7 @@ export type ServiceStatsResponse = z.infer<typeof ServiceStatsResponseSchema>;
  * Valid service names that can be used to filter stats.
  */
 export const VALID_SERVICES = [
+	'database',
 	'keyvalue',
 	'email',
 	'vector',
@@ -87,8 +151,9 @@ export interface ServiceStatsOptions {
 /**
  * Get aggregated stats for services used by an organization.
  *
- * Returns per-service stats including total requests, latency percentiles,
- * error rates, and the top agent by usage.
+ * Returns per-service stats with service-specific fields (counts, sizes, etc.).
+ * Services that error on the backend are omitted from the response.
+ * Services with no provisioned tenant DB return zero values.
  *
  * @param client - The API client instance
  * @param orgId - The organization ID
@@ -100,16 +165,14 @@ export interface ServiceStatsOptions {
  * ```typescript
  * // Get stats for all services
  * const stats = await getServiceStats(client, 'org_123');
- * console.log(`KV requests: ${stats.services.keyvalue?.totalRequests}`);
+ * console.log(`KV keys: ${stats.services.keyvalue?.keyCount}`);
  * ```
  *
  * @example
  * ```typescript
- * // Get stats for a specific service with time range
+ * // Get stats for a specific service
  * const stats = await getServiceStats(client, 'org_123', {
  *   service: 'keyvalue',
- *   start: '2026-01-01T00:00:00Z',
- *   end: '2026-02-01T00:00:00Z',
  * });
  * ```
  */

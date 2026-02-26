@@ -3,6 +3,7 @@ import createSubcommand from './create';
 import listSubcommand from './list';
 import getSubcommand from './get';
 import deleteSubcommand from './delete';
+import statsSubcommand from './stats';
 import { getCommand } from '../../../command-prefix';
 
 export const streamCommand = createCommand({
@@ -22,7 +23,7 @@ export const streamCommand = createCommand({
 		{ command: getCommand('cloud stream list'), description: 'List all streams' },
 		{ command: getCommand('cloud stream get <id>'), description: 'Get stream details' },
 	],
-	subcommands: [createSubcommand, listSubcommand, getSubcommand, deleteSubcommand],
+	subcommands: [createSubcommand, listSubcommand, getSubcommand, deleteSubcommand, statsSubcommand],
 });
 
 export default streamCommand;

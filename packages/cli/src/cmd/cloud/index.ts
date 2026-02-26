@@ -20,6 +20,7 @@ import { emailCommand } from './email';
 import taskCommand from './task';
 import sandboxCommand from './sandbox';
 import scheduleCommand from './schedule';
+import servicesCommand from './services';
 import { regionSubcommand } from './region';
 import { machineCommand } from './machine';
 import { evalCommand } from './eval';
@@ -54,6 +55,7 @@ export const command = createCommand({
 		dbCommand,
 		redisCommand,
 		storageCommand,
+		servicesCommand,
 		sessionCommand,
 		threadCommand,
 		sshSubcommand,
