@@ -464,19 +464,7 @@ export async function initGitRepo(dest: string, options?: InitGitRepoOptions): P
 			clearOnSuccess: true,
 		});
 
-		// Build commit message with project context
-		const lines = ['Initial project setup'];
-		if (options?.projectName || options?.source) {
-			lines.push(''); // blank line before body
-			if (options.projectName) {
-				lines.push(`Project: ${options.projectName}`);
-			}
-			if (options.source) {
-				lines.push(`Source: ${options.source}`);
-			}
-		}
-		lines.push('', 'Created with Agentuity CLI');
-		const commitMessage = lines.join('\n');
+		const commitMessage = 'Initial Setup';
 
 		// Create initial commit — authored by the GitHub App bot if available,
 		// otherwise fallback to generic Agentuity identity
