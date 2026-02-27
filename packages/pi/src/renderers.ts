@@ -358,6 +358,21 @@ function taskRenderers(): ToolRenderers {
 			const raw = resultText(result);
 			const lineCount = raw.split('\n').length;
 
+			// Detect agent failure — result starts with "Agent X failed:"
+			const isError = raw.startsWith('Agent ') && raw.includes('failed:');
+			if (isError) {
+				let text = theme.fg('error', 'failed');
+				if (expanded) {
+					text += '\n' + theme.fg('error', raw.split('\n').slice(0, 10).map(safeLine).join('\n'));
+				} else {
+					// Show first line of error in collapsed view
+					const firstLine = raw.split('\n')[0] || '';
+					text += theme.fg('dim', '  ' + firstLine.slice(0, 80));
+					text += theme.fg('muted', '  ctrl+o / ctrl+t');
+				}
+				return new SimpleText(text);
+			}
+
 			// Try to extract token stats from the appended footer
 			// Pattern: _agent: Xms | Y in Z out tokens | $cost_
 			const statsMatch = raw.match(/_(\w+): (\d+)ms \| (\d+) in (\d+) out tokens \| \$([0-9.]+)_/);
@@ -425,8 +440,9 @@ function parallelTasksRenderers(): ToolRenderers {
 				.join('  ');
 
 			const lineCount = raw.split('\n').length;
+			const hasFailures = agentEntries.some(e => e.failed);
 			let text = chain;
-			text += '\n' + theme.fg('success', 'done');
+			text += '\n' + theme.fg(hasFailures ? 'error' : 'success', hasFailures ? 'done (with failures)' : 'done');
 			text += theme.fg('dim', ` (${lineCount} lines)`);
 
 			if (!expanded) {
@@ -439,9 +455,11 @@ function parallelTasksRenderers(): ToolRenderers {
 				for (const section of sections) {
 					const trimmed = section.trim();
 					if (!trimmed) continue;
+					const isFailed = trimmed.includes('(FAILED)');
+					const color = isFailed ? 'error' : 'dim';
 					const lines = trimmed.split('\n');
 					const preview = lines.slice(0, 15).map(safeLine).join('\n');
-					text += '\n' + theme.fg('dim', preview);
+					text += '\n' + theme.fg(color as 'error' | 'dim', preview);
 					if (lines.length > 15) {
 						text += '\n' + theme.fg('muted', `  ...${lines.length - 15} more lines`);
 					}

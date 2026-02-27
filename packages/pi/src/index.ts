@@ -328,11 +328,35 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			};
 			let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
+			// ── Single-agent status widget ──
+			let lastWidgetTool: string | undefined;
+			let lastWidgetToolArgs: string | undefined;
+
+			function updateWidget(status: string, tool?: string, toolArgs?: string): void {
+				if (!ctx.hasUI) return;
+				let line = '  ';
+				if (status === 'running') {
+					line += '\u25CF ' + subagent_type; // ● name
+					if (tool) {
+						const toolInfo = toolArgs ? `${tool} ${toolArgs}` : tool;
+						line += '  ' + toolInfo.slice(0, 40);
+					}
+					line += '  ' + formatElapsed();
+				} else if (status === 'completed') {
+					line += '\u2713 ' + subagent_type + '  ' + formatElapsed(); // ✓ name  Xs
+				} else if (status === 'failed') {
+					line += '\u2717 ' + subagent_type + '  failed'; // ✗ name  failed
+				}
+				ctx.ui.setWidget('coder-agent-status', [line]);
+			}
+
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', subagent_type);
 				ctx.ui.setWorkingMessage(subagent_type);
+				updateWidget('running');
 				elapsedTimer = setInterval(() => {
 					ctx.ui.setWorkingMessage(`${subagent_type}  ${formatElapsed()}`);
+					updateWidget('running', lastWidgetTool, lastWidgetToolArgs);
 				}, 1000);
 			}
 
@@ -346,6 +370,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 								: progress.currentTool;
 							const display = toolInfo.length > 50 ? toolInfo.slice(0, 47) + '...' : toolInfo;
 							ctx.ui.setWorkingMessage(`${subagent_type}  ${display}  ${formatElapsed()}`);
+							lastWidgetTool = progress.currentTool;
+							lastWidgetToolArgs = progress.currentToolArgs;
+							updateWidget('running', progress.currentTool, progress.currentToolArgs);
 						}
 					} catch { /* ignore */ }
 
@@ -367,6 +394,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						} catch { /* ignore */ }
 					}
 				} : undefined);
+
+				// Flash completed state briefly before clearing
+				updateWidget('completed');
+
 				let output = result.output;
 				if (result.tokens && (result.tokens.input > 0 || result.tokens.output > 0)) {
 					output += `\n\n---\n_${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out tokens | $${result.tokens.cost.toFixed(4)}_`;
@@ -377,6 +408,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				};
 			} catch (err) {
 				const errorMsg = err instanceof Error ? err.message : String(err);
+				updateWidget('failed');
 				return {
 					content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
 					details: undefined as unknown,
@@ -386,6 +418,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
 					ctx.ui.setWorkingMessage(undefined);
+					ctx.ui.setWidget('coder-agent-status', undefined);
 				}
 			}
 			},
