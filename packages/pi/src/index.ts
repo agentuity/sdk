@@ -13,6 +13,8 @@ import { getToolRenderers } from './renderers.ts';
 import { setupCoderFooter } from './footer.ts';
 import { setupTitlebar } from './titlebar.ts';
 import { registerAgentCommands } from './commands.ts';
+import { AgentManagerOverlay } from './overlay.ts';
+import { ChainEditorOverlay, type ChainResult } from './chain-preview.ts';
 import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition, AgentProgressUpdate } from './protocol.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
@@ -145,6 +147,56 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	const serverTools = initMsg.tools || [];
 	const serverAgents = initMsg.agents || [];
 	let hubConfig: HubConfig | undefined = initMsg.config;
+	const openChainEditor = async (
+		ctx: ExtensionContext | ExtensionCommandContext,
+		initialAgents: string[] = [],
+	): Promise<void> => {
+		if (!ctx.hasUI) return;
+
+		const result = await ctx.ui.custom<ChainResult | undefined>(
+			(_tui, theme, _keybindings, done) => new ChainEditorOverlay(theme, serverAgents, done, initialAgents),
+			{ overlay: true, overlayOptions: { width: '80%', maxHeight: '80%', anchor: 'center' } },
+		);
+
+		if (!result || result.steps.length === 0) return;
+
+		const instructions = result.steps
+			.map((step, index) => `${index + 1}) @${step.agent}: ${step.task || '(no task provided)'}`)
+			.join(', ');
+
+		const message = result.mode === 'parallel'
+			? `@lead Execute these tasks in parallel: ${instructions}`
+			: `@lead Execute this plan in order: ${instructions}`;
+
+		pi.sendUserMessage(message);
+	};
+
+	type AgentManagerOverlayResult =
+		| { action: 'run'; agent: string }
+		| { action: 'chain'; agents: string[] };
+
+	const openAgentManager = async (ctx: ExtensionContext | ExtensionCommandContext): Promise<void> => {
+		if (!ctx.hasUI) return;
+
+		const result = await ctx.ui.custom<AgentManagerOverlayResult | undefined>(
+			(_tui, theme, _keybindings, done) => new AgentManagerOverlay(theme, serverAgents, done),
+			{ overlay: true, overlayOptions: { width: '80%', maxHeight: '80%', anchor: 'center' } },
+		);
+
+		// TODO: chain action from Agent Manager overlay (multi-select + Ctrl+R) not yet implemented
+		if (result?.action === 'chain' && Array.isArray(result.agents)) {
+			await openChainEditor(ctx, result.agents);
+			return;
+		}
+
+		if (result?.action === 'run' && result.agent) {
+			const task = await ctx.ui.input(`Task for ${result.agent}`, 'What should this agent do?');
+			const trimmed = task?.trim();
+			if (trimmed) {
+				pi.sendUserMessage(`@${result.agent} ${trimmed}`);
+			}
+		}
+	};
 
 	log(`Hub connected. Tools: ${serverTools.length}, Agents: ${serverAgents.length}`);
 
@@ -277,6 +329,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// ══════════════════════════════════════════════
 
 	if (!isSubAgent && serverAgents.length > 0) {
+		pi.registerShortcut('ctrl+shift+a', {
+			description: 'Open Agent Manager',
+			handler: async (ctx) => {
+				await openAgentManager(ctx);
+			},
+		});
+
 		const agentRegistry = new Map(serverAgents.map((a) => [a.name, a]));
 		const agentNames = serverAgents.map((a) => a.name);
 
@@ -352,10 +411,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', subagent_type);
-				ctx.ui.setWorkingMessage(subagent_type);
 				updateWidget('running');
 				elapsedTimer = setInterval(() => {
-					ctx.ui.setWorkingMessage(`${subagent_type}  ${formatElapsed()}`);
 					updateWidget('running', lastWidgetTool, lastWidgetToolArgs);
 				}, 1000);
 			}
@@ -365,11 +422,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					// Update TUI working message with live tool activity
 					try {
 						if (progress.status === 'tool_start' && progress.currentTool) {
-							const toolInfo = progress.currentToolArgs
-								? `${progress.currentTool} ${progress.currentToolArgs}`
-								: progress.currentTool;
-							const display = toolInfo.length > 50 ? toolInfo.slice(0, 47) + '...' : toolInfo;
-							ctx.ui.setWorkingMessage(`${subagent_type}  ${display}  ${formatElapsed()}`);
 							lastWidgetTool = progress.currentTool;
 							lastWidgetToolArgs = progress.currentToolArgs;
 							updateWidget('running', progress.currentTool, progress.currentToolArgs);
@@ -417,7 +469,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (elapsedTimer) clearInterval(elapsedTimer);
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
-					ctx.ui.setWorkingMessage(undefined);
 					ctx.ui.setWidget('coder-agent-status', undefined);
 				}
 			}
@@ -523,10 +574,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', 'agents');
-				ctx.ui.setWorkingMessage('agents');
 				updateWidget();
 				elapsedTimer = setInterval(() => {
-					ctx.ui.setWorkingMessage(`agents  ${formatElapsed()}`);
 					updateWidget(); // Refresh elapsed times in widget
 				}, 1000);
 			}
@@ -549,16 +598,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 							agentStatuses[index]!.currentTool = progress.currentTool;
 							agentStatuses[index]!.currentToolArgs = progress.currentToolArgs;
 							updateWidget();
-
-							// Update TUI working message with most recently active agent
-							try {
-								if (progress.status === 'tool_start' && progress.currentTool) {
-									const display = progress.currentTool.length > 30
-										? progress.currentTool.slice(0, 27) + '...'
-										: progress.currentTool;
-									ctx.ui.setWorkingMessage(`${progress.agentName}  ${display}  ${formatElapsed()}`);
-								}
-							} catch { /* ignore */ }
 
 							// Forward progress to Hub (fire-and-forget)
 							if (client.connected) {
@@ -616,7 +655,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (elapsedTimer) clearInterval(elapsedTimer);
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
-					ctx.ui.setWorkingMessage(undefined);
 					ctx.ui.setWidget('coder-agent-status', undefined);
 				}
 			}
@@ -635,7 +673,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// ══════════════════════════════════════════════
 
 	if (!isSubAgent && serverAgents.length > 0) {
-		registerAgentCommands(pi, serverAgents, () => client.connected);
+		registerAgentCommands(
+			pi,
+			serverAgents,
+			() => client.connected,
+			openAgentManager,
+			openChainEditor,
+		);
 	}
 
 	// ══════════════════════════════════════════════

@@ -7,6 +7,7 @@
  */
 
 import type { Theme, ToolRenderResultOptions, AgentToolResult } from '@mariozechner/pi-coding-agent';
+import { Box, Text, Container, type Component } from '@mariozechner/pi-tui';
 
 // ──────────────────────────────────────────────
 // Line-safety helper — must be declared before SimpleText so
@@ -24,7 +25,7 @@ function safeLine(line: string): string {
  * a given visible width. Handles escape sequences properly so colours are
  * never broken — a RESET is appended when truncation occurs.
  */
-function truncateToWidth(line: string, maxWidth: number): string {
+export function truncateToWidth(line: string, maxWidth: number): string {
 	if (maxWidth <= 0) return '';
 	// Fast path: no ANSI codes and short enough
 	if (line.length <= maxWidth && !line.includes('\x1b')) return line;
@@ -56,9 +57,8 @@ function truncateToWidth(line: string, maxWidth: number): string {
 }
 
 // ──────────────────────────────────────────────
-// Minimal text component compatible with Pi's Component interface.
-// We avoid importing @mariozechner/pi-tui directly since it's a transitive
-// dependency — this class matches the Text component's behaviour.
+// Lightweight text component used by simpler renderers.
+// Complex renderers (task, parallel_tasks) use Box/Text/Container from pi-tui.
 // ──────────────────────────────────────────────
 
 export class SimpleText {
@@ -81,12 +81,12 @@ export class SimpleText {
 // Types matching Pi's ToolDefinition.renderCall / renderResult
 // ──────────────────────────────────────────────
 
-type RenderCallFn = (args: Record<string, unknown>, theme: Theme) => SimpleText;
+type RenderCallFn = (args: Record<string, unknown>, theme: Theme) => Component;
 type RenderResultFn = (
 	result: AgentToolResult<unknown>,
 	options: ToolRenderResultOptions,
 	theme: Theme,
-) => SimpleText;
+) => Component;
 
 export interface ToolRenderers {
 	renderCall?: RenderCallFn;
@@ -351,26 +351,29 @@ function taskRenderers(): ToolRenderers {
 			const desc = String(args['description'] ?? '');
 			let text = theme.fg('accent', safeLine(agent));
 			if (desc) text += theme.fg('dim', ` — ${truncate(desc, 60)}`);
-			return new SimpleText(text);
+			return new Text(text, 0, 0);
 		},
 		renderResult(result, { expanded, isPartial }, theme) {
-			if (isPartial) return new SimpleText(theme.fg('warning', 'running...'));
+			if (isPartial) return new Text(theme.fg('warning', 'running...'), 0, 0);
 			const raw = resultText(result);
 			const lineCount = raw.split('\n').length;
 
 			// Detect agent failure — result starts with "Agent X failed:"
 			const isError = raw.startsWith('Agent ') && raw.includes('failed:');
 			if (isError) {
-				let text = theme.fg('error', 'failed');
+				const bgFn = (t: string) => theme.bg('toolErrorBg', t);
+				const box = new Box(1, 0, bgFn);
+				let errorContent = theme.fg('error', 'failed');
 				if (expanded) {
-					text += '\n' + theme.fg('error', raw.split('\n').slice(0, 10).map(safeLine).join('\n'));
+					errorContent += '\n' + theme.fg('error', raw.split('\n').slice(0, 10).map(safeLine).join('\n'));
 				} else {
 					// Show first line of error in collapsed view
 					const firstLine = raw.split('\n')[0] || '';
-					text += theme.fg('dim', '  ' + firstLine.slice(0, 80));
-					text += theme.fg('muted', '  ctrl+o / ctrl+t');
+					errorContent += theme.fg('dim', '  ' + firstLine.slice(0, 80));
+					errorContent += theme.fg('muted', '  ctrl+o / ctrl+t');
 				}
-				return new SimpleText(text);
+				box.addChild(new Text(errorContent, 0, 0));
+				return box;
 			}
 
 			// Try to extract token stats from the appended footer
@@ -397,7 +400,7 @@ function taskRenderers(): ToolRenderers {
 				text += '\n' + theme.fg('dim', preview);
 				if (lineCount > 20) text += theme.fg('muted', '\n...more');
 			}
-			return new SimpleText(text);
+			return new Text(text, 0, 0);
 		},
 	};
 }
@@ -406,16 +409,12 @@ function parallelTasksRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
 			const tasks = (args['tasks'] as Array<Record<string, unknown>>) ?? [];
-
-			// Build chain visualization: ○ scout  ○ builder  ○ reviewer
-			const chain = tasks
-				.map(t => `${theme.fg('dim', '\u25CB')} ${theme.fg('accent', String(t['subagent_type'] ?? '?'))}`)
-				.join('  ');
-
-			return new SimpleText(safeLine(chain));
+			const agents = tasks.map(t => String(t['subagent_type'] ?? '?'));
+			const text = theme.fg('accent', agents.join(' + '));
+			return new Text(safeLine(text), 0, 0);
 		},
 		renderResult(result, { expanded, isPartial }, theme) {
-			if (isPartial) return new SimpleText(theme.fg('warning', 'running...'));
+			if (isPartial) return new Text(theme.fg('warning', 'running...'), 0, 0);
 			const raw = resultText(result);
 
 			// Parse agent names and statuses from ### headers in the raw output
@@ -441,33 +440,45 @@ function parallelTasksRenderers(): ToolRenderers {
 
 			const lineCount = raw.split('\n').length;
 			const hasFailures = agentEntries.some(e => e.failed);
-			let text = chain;
-			text += '\n' + theme.fg(hasFailures ? 'error' : 'success', hasFailures ? 'done (with failures)' : 'done');
-			text += theme.fg('dim', ` (${lineCount} lines)`);
+
+			// Build summary header
+			let summaryText = chain;
+			summaryText += '\n' + theme.fg(hasFailures ? 'error' : 'success', hasFailures ? 'done (with failures)' : 'done');
+			summaryText += theme.fg('dim', ` (${lineCount} lines)`);
 
 			if (!expanded) {
-				text += theme.fg('muted', '  ctrl+o / ctrl+t');
+				summaryText += theme.fg('muted', '  ctrl+o / ctrl+t');
+				return new Text(summaryText, 0, 0);
 			}
 
-			if (expanded) {
-				// Split by ### headers to show each agent section separately
-				const sections = raw.split(/(?=^### )/m);
-				for (const section of sections) {
-					const trimmed = section.trim();
-					if (!trimmed) continue;
-					const isFailed = trimmed.includes('(FAILED)');
-					const color = isFailed ? 'error' : 'dim';
-					const lines = trimmed.split('\n');
-					const preview = lines.slice(0, 15).map(safeLine).join('\n');
-					text += '\n' + theme.fg(color as 'error' | 'dim', preview);
-					if (lines.length > 15) {
-						text += '\n' + theme.fg('muted', `  ...${lines.length - 15} more lines`);
-					}
-					text += '\n';
+			// Expanded view: use Container to group summary + agent sections
+			const container = new Container();
+			container.addChild(new Text(summaryText, 0, 0));
+
+			// Split by ### headers to show each agent section separately
+			const sections = raw.split(/(?=^### )/m);
+			for (const section of sections) {
+				const trimmed = section.trim();
+				if (!trimmed) continue;
+				const isFailed = trimmed.includes('(FAILED)');
+				const lines = trimmed.split('\n');
+				const preview = lines.slice(0, 15).map(safeLine).join('\n');
+				let sectionContent = preview;
+				if (lines.length > 15) {
+					sectionContent += '\n' + theme.fg('muted', `  ...${lines.length - 15} more lines`);
+				}
+
+				if (isFailed) {
+					// Failed sections get error background via Box
+					const box = new Box(1, 0, (t: string) => theme.bg('toolErrorBg', t));
+					box.addChild(new Text(theme.fg('error', sectionContent), 0, 0));
+					container.addChild(box);
+				} else {
+					container.addChild(new Text(theme.fg('dim', sectionContent), 0, 0));
 				}
 			}
 
-			return new SimpleText(text);
+			return container;
 		},
 	};
 }

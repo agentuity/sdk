@@ -9,8 +9,9 @@
  * handler sends a user message with a routing prefix that the lead agent
  * recognizes and delegates accordingly.
  */
-import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
+import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
 import type { AgentDefinition } from './protocol.ts';
+import { handleReview } from './review.ts';
 
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
@@ -27,6 +28,8 @@ export function registerAgentCommands(
 	pi: ExtensionAPI,
 	agents: AgentDefinition[],
 	isHubConnected: () => boolean,
+	openAgentManager?: (ctx: ExtensionCommandContext) => Promise<void>,
+	openChainEditor?: (ctx: ExtensionCommandContext, initialAgents: string[]) => Promise<void>,
 ): void {
 	for (const agent of agents) {
 		const name = agent.name;
@@ -54,6 +57,11 @@ export function registerAgentCommands(
 	pi.registerCommand('agents', {
 		description: 'List all available Coder Hub agents',
 		handler: async (_args, ctx) => {
+			if (ctx.hasUI && openAgentManager) {
+				await openAgentManager(ctx);
+				return;
+			}
+
 			const lines = agents.map(a => {
 				const model = a.model ? ` [${a.model}]` : '';
 				const caps = a.capabilities?.length ? ` (${a.capabilities.join(', ')})` : '';
@@ -64,6 +72,25 @@ export function registerAgentCommands(
 			if (ctx.hasUI) {
 				ctx.ui.notify(message, 'info');
 			}
+		},
+	});
+
+	pi.registerCommand('chain', {
+		description: 'Open chain editor to compose multi-agent execution',
+		handler: async (args, ctx) => {
+			if (!ctx.hasUI || !openChainEditor) {
+				if (ctx.hasUI) {
+					ctx.ui.notify('Chain editor requires an interactive UI session.', 'warning');
+				}
+				return;
+			}
+
+			const initialAgents = args
+				.split(/\s+/)
+				.map((part) => part.trim())
+				.filter((part) => part.length > 0);
+
+			await openChainEditor(ctx, initialAgents);
 		},
 	});
 
@@ -86,5 +113,13 @@ export function registerAgentCommands(
 		},
 	});
 
-	log(`Registered ${agents.length} agent commands + /agents + /status`);
+	// Register /review command for interactive code reviews
+	pi.registerCommand('review', {
+		description: 'Launch interactive code review',
+		handler: async (args, ctx) => {
+			await handleReview(args, ctx, pi);
+		},
+	});
+
+	log(`Registered ${agents.length} agent commands + /agents + /chain + /status + /review`);
 }
