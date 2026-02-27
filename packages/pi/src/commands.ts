@@ -46,5 +46,21 @@ export function registerAgentCommands(pi: ExtensionAPI, agents: AgentDefinition[
 		});
 	}
 
-	log(`Registered ${agents.length} agent commands`);
+	// Register the /agents command that lists all available agents
+	pi.registerCommand('agents', {
+		description: 'List all available Coder Hub agents',
+		handler: async (_args, ctx) => {
+			const lines = agents.map(a => {
+				const model = a.model || 'default';
+				const readOnly = a.readOnly ? ' (read-only)' : '';
+				return `  ${a.name} — ${a.description} [${model}]${readOnly}`;
+			});
+			const message = `Available agents:\n${lines.join('\n')}`;
+			if (ctx.hasUI) {
+				ctx.ui.notify(message, 'info');
+			}
+		},
+	});
+
+	log(`Registered ${agents.length} agent commands + /agents`);
 }

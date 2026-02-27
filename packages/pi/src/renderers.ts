@@ -357,10 +357,25 @@ function taskRenderers(): ToolRenderers {
 			if (isPartial) return new SimpleText(theme.fg('warning', 'running...'));
 			const raw = resultText(result);
 			const lineCount = raw.split('\n').length;
+
+			// Try to extract token stats from the appended footer
+			// Pattern: _agent: Xms | Y in Z out tokens | $cost_
+			const statsMatch = raw.match(/_(\w+): (\d+)ms \| (\d+) in (\d+) out tokens \| \$([0-9.]+)_/);
+
 			let text = theme.fg('success', 'done');
-			text += theme.fg('dim', ` (${lineCount} lines)`);
+			if (statsMatch) {
+				const [, , durationMs, tokIn, tokOut, cost] = statsMatch;
+				const duration =
+					Number(durationMs) >= 1000
+						? `${(Number(durationMs) / 1000).toFixed(1)}s`
+						: `${durationMs}ms`;
+				text += theme.fg('dim', `  ${duration}  \u2191${tokIn} \u2193${tokOut} $${cost}`);
+			} else {
+				text += theme.fg('dim', ` (${lineCount} lines)`);
+			}
+
 			if (!expanded) {
-				text += theme.fg('muted', '  ctrl+o tools / ctrl+t thinking');
+				text += theme.fg('muted', '  ctrl+o / ctrl+t');
 			}
 			if (expanded) {
 				const preview = raw.split('\n').slice(0, 20).map(safeLine).join('\n');
@@ -415,7 +430,7 @@ function parallelTasksRenderers(): ToolRenderers {
 			text += theme.fg('dim', ` (${lineCount} lines)`);
 
 			if (!expanded) {
-				text += theme.fg('muted', '  ctrl+o tools / ctrl+t thinking');
+				text += theme.fg('muted', '  ctrl+o / ctrl+t');
 			}
 
 			if (expanded) {
