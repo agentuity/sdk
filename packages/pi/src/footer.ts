@@ -115,8 +115,9 @@ class FooterComponent {
 	}
 
 	render(width: number): string[] {
-		const text = this.getText(width);
-		return [text.length > width ? text.slice(0, width) : text];
+		// Let buildPowerline handle width-aware padding; the TUI clips to terminal width.
+		// Do NOT compare text.length to width — text.length includes invisible ANSI escapes.
+		return [this.getText(width)];
 	}
 
 	invalidate(): void {
@@ -126,6 +127,22 @@ class FooterComponent {
 	dispose(): void {
 		this._unsubscribeBranch?.();
 	}
+}
+
+// ──────────────────────────────────────────────
+// Token stat formatters
+// ──────────────────────────────────────────────
+
+function formatTokens(n: number): string {
+	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+	if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+	return String(n);
+}
+
+function formatCost(n: number): string {
+	if (n === 0) return '$0.00';
+	if (n < 0.01) return `$${n.toFixed(4)}`;
+	return `$${n.toFixed(2)}`;
 }
 
 // ──────────────────────────────────────────────
@@ -173,8 +190,27 @@ export function setupCoderFooter(
 			const hubFg = isHubConnected() ? FG_HUB_OK : FG_HUB_ERR;
 			segments.push({ bg: BG_STATUS, fg: hubFg, text: ' \u25A0 ' });
 
-			// Right side: shortcuts + version (dim, no background)
-			const rightText = fg(FG_DIM, `ctrl+e expand  ctrl+c cancel  v${VERSION}`) + RESET;
+			// Token stats from session messages
+			let inputTokens = 0;
+			let outputTokens = 0;
+			let totalCost = 0;
+			for (const entry of ctx.sessionManager.getBranch()) {
+				if (entry.type === 'message') {
+					const msg = entry.message as {
+						role?: string;
+						usage?: { input: number; output: number; cost: { total: number } };
+					};
+					if (msg.role === 'assistant' && msg.usage) {
+						inputTokens += msg.usage.input;
+						outputTokens += msg.usage.output;
+						totalCost += msg.usage.cost.total;
+					}
+				}
+			}
+
+			// Right side: token stats + shortcuts + version (dim, no background)
+			const tokenStr = `\u2191${formatTokens(inputTokens)} \u2193${formatTokens(outputTokens)} ${formatCost(totalCost)}`;
+			const rightText = fg(FG_DIM, `${tokenStr}  ctrl+e  ctrl+c  v${VERSION}`) + RESET;
 
 			return buildPowerline(segments, width, rightText);
 		};
