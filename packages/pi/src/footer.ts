@@ -5,7 +5,7 @@
  * Includes a braille spinner animation when an agent is actively working.
  *
  * Layout:
- *   [brand] > [branch] > [model/agent]                    [hub] token-stats
+ *   [brand] [branch] > [model/agent]                    [hub] token-stats
  */
 
 import type {
@@ -57,10 +57,43 @@ function visibleLength(str: string): number {
 	return str.replace(/\x1b\[[0-9;]*m/g, '').length;
 }
 
+/** Truncate an ANSI-colored string to a maximum visible width. */
+function truncateAnsi(str: string, maxWidth: number): string {
+	let visible = 0;
+	let i = 0;
+	while (i < str.length && visible < maxWidth) {
+		if (str[i] === '\x1b') {
+			// Skip entire ANSI escape sequence
+			const end = str.indexOf('m', i);
+			if (end !== -1) {
+				i = end + 1;
+			} else {
+				i++;
+			}
+		} else {
+			visible++;
+			i++;
+		}
+	}
+	return str.slice(0, i) + RESET;
+}
+
 function buildFooter(left: string, rightText: string, width: number): string {
 	const leftLen = visibleLength(left);
 	const rightLen = visibleLength(rightText);
-	const gap = Math.max(1, width - leftLen - rightLen);
+	const total = leftLen + 1 + rightLen;
+
+	if (total > width) {
+		// Content too wide — truncate left side to fit
+		const maxLeft = width - rightLen - 1;
+		if (maxLeft > 0) {
+			return truncateAnsi(left, maxLeft) + ' ' + rightText;
+		}
+		// Even right alone too wide — hard truncate everything
+		return truncateAnsi(left + ' ' + rightText, width);
+	}
+
+	const gap = width - leftLen - rightLen;
 	return left + ' '.repeat(gap) + rightText;
 }
 
@@ -188,7 +221,7 @@ export function setupCoderFooter(
 			// Branch
 			const branch = footerData.getGitBranch();
 			if (branch) {
-				leftParts.push(fg(FG_DIM, ` ${SEP} `));
+				leftParts.push(' ');
 				leftParts.push(fg(FG_BRANCH, branch));
 			}
 
