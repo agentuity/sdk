@@ -1,26 +1,103 @@
 /**
  * Powerline-style Coder footer for the Pi TUI.
  *
- * Design: `\u2A3A  > model-or-agent > branch > \u25A0     ctrl+e expand  ctrl+c cancel  v1.0.22`
+ * Uses raw ANSI true-color escape sequences for colored background segments
+ * with powerline-style separators (U+276F).
  *
- * Segments (left to right):
- * 1. Brand mark (\u2A3A) in accent
- * 2. Active agent name (accent) when agent is running, OR model ID (text) when idle
- * 3. Git branch in muted
- * 4. Hub status indicator (\u25A0) — green if connected, red if not
- * 5. Right-aligned: keyboard shortcuts + version
+ * Layout:
+ *   [bg1: brand][sep][bg2: model/agent][sep][bg3: branch][sep][bg4: hub][sep]  ...shortcuts  v1.0.22
  */
 
 import type {
 	ExtensionContext,
 	ReadonlyFooterDataProvider,
-	Theme,
 } from '@mariozechner/pi-coding-agent';
 
 const VERSION = '1.0.22';
+const RESET = '\x1b[0m';
+const SEP = '\u276F'; // ❯
 
 // ──────────────────────────────────────────────
-// Minimal component — avoids importing @mariozechner/pi-tui directly.
+// ANSI true-color helpers
+// ──────────────────────────────────────────────
+
+type RGB = [number, number, number];
+
+function fgBg(fg: RGB, bg: RGB, text: string): string {
+	return `\x1b[38;2;${fg[0]};${fg[1]};${fg[2]}m\x1b[48;2;${bg[0]};${bg[1]};${bg[2]}m${text}`;
+}
+
+function fg(color: RGB, text: string): string {
+	return `\x1b[38;2;${color[0]};${color[1]};${color[2]}m${text}`;
+}
+
+// ──────────────────────────────────────────────
+// Color palette (subtle dark backgrounds)
+// ──────────────────────────────────────────────
+
+// Segment backgrounds
+const BG_BRAND: RGB = [40, 44, 52];
+const BG_MODEL: RGB = [30, 34, 42];
+const BG_BRANCH: RGB = [35, 40, 35];
+const BG_STATUS: RGB = [25, 28, 35];
+
+// Foreground colors
+const FG_BRAND: RGB = [100, 200, 255];
+const FG_MODEL: RGB = [215, 135, 175];
+const FG_AGENT: RGB = [130, 200, 130];
+const FG_BRANCH: RGB = [150, 180, 150];
+const FG_HUB_OK: RGB = [80, 200, 120];
+const FG_HUB_ERR: RGB = [220, 80, 80];
+const FG_DIM: RGB = [100, 110, 120];
+
+// ──────────────────────────────────────────────
+// Powerline builder
+// ──────────────────────────────────────────────
+
+interface Segment {
+	bg: RGB;
+	fg: RGB;
+	text: string;
+}
+
+/** Strip ANSI escape sequences to get visible character count. */
+function visibleLength(str: string): number {
+	// eslint-disable-next-line no-control-regex
+	return str.replace(/\x1b\[[0-9;]*m/g, '').length;
+}
+
+function buildPowerline(segments: Segment[], width: number, rightText: string): string {
+	let result = '';
+
+	for (let i = 0; i < segments.length; i++) {
+		const seg = segments[i]!;
+
+		// Segment content: fg on bg
+		result += fgBg(seg.fg, seg.bg, seg.text);
+
+		if (i < segments.length - 1) {
+			// Separator: previous bg as fg, next bg as bg
+			const next = segments[i + 1]!;
+			result += fgBg(seg.bg, next.bg, SEP);
+		} else {
+			// Last segment: separator transitions to no background
+			result += RESET;
+			result += fg(seg.bg, SEP);
+			result += RESET;
+		}
+	}
+
+	// Right-align shortcuts/version
+	const leftLen = visibleLength(result);
+	const rightLen = visibleLength(rightText);
+	const gap = Math.max(1, width - leftLen - rightLen);
+	const padding = ' '.repeat(gap);
+
+	return result + padding + rightText;
+}
+
+// ──────────────────────────────────────────────
+// Minimal component
 // ──────────────────────────────────────────────
 
 class FooterComponent {
@@ -32,7 +109,6 @@ class FooterComponent {
 		footerData: ReadonlyFooterDataProvider,
 	) {
 		this.getText = getText;
-		// Re-render on branch changes
 		this._unsubscribeBranch = footerData.onBranchChange(() => {
 			// Triggers TUI refresh
 		});
@@ -53,16 +129,6 @@ class FooterComponent {
 }
 
 // ──────────────────────────────────────────────
-// Helpers
-// ──────────────────────────────────────────────
-
-/** Strip ANSI escape sequences to get visible character count. */
-function visibleLength(str: string): number {
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\x1b\[[0-9;]*m/g, '').length;
-}
-
-// ──────────────────────────────────────────────
 // Public API
 // ──────────────────────────────────────────────
 
@@ -79,54 +145,38 @@ export function setupCoderFooter(
 ): void {
 	if (!ctx.hasUI) return;
 
-	ctx.ui.setFooter((_tui, theme, footerData) => {
+	ctx.ui.setFooter((_tui, _theme, footerData) => {
 		const getText = (width: number): string => {
-			// ── Left side: powerline segments ──
-			const parts: string[] = [];
+			const segments: Segment[] = [];
 
 			// 1. Brand mark
-			parts.push(theme.fg('accent', '\u2A3A '));
+			segments.push({ bg: BG_BRAND, fg: FG_BRAND, text: ' \u2A3A  ' });
 
-			// 2. Separator + Active agent or Model
-			parts.push(theme.fg('dim', ' > '));
+			// 2. Model or active agent
 			const activeAgent = footerData.getExtensionStatuses().get('active_agent');
 			if (activeAgent) {
-				parts.push(theme.fg('accent', activeAgent));
+				segments.push({ bg: BG_MODEL, fg: FG_AGENT, text: ` ${activeAgent} ` });
 			} else {
 				const modelId = ctx.model
 					? String((ctx.model as { id?: string }).id ?? '?')
 					: '?';
-				parts.push(theme.fg('text', modelId));
+				segments.push({ bg: BG_MODEL, fg: FG_MODEL, text: ` ${modelId} ` });
 			}
 
-			// 3. Separator + Git branch (if available)
+			// 3. Git branch (if available)
 			const branch = footerData.getGitBranch();
 			if (branch) {
-				parts.push(theme.fg('dim', ' > '));
-				parts.push(theme.fg('muted', branch));
+				segments.push({ bg: BG_BRANCH, fg: FG_BRANCH, text: ` ${branch} ` });
 			}
 
-			// 4. Separator + Hub status
-			parts.push(theme.fg('dim', ' > '));
-			const hubIndicator = isHubConnected()
-				? theme.fg('success', '\u25A0')
-				: theme.fg('error', '\u25A0');
-			parts.push(hubIndicator);
+			// 4. Hub status
+			const hubFg = isHubConnected() ? FG_HUB_OK : FG_HUB_ERR;
+			segments.push({ bg: BG_STATUS, fg: hubFg, text: ' \u25A0 ' });
 
-			const left = parts.join('');
+			// Right side: shortcuts + version (dim, no background)
+			const rightText = fg(FG_DIM, `ctrl+e expand  ctrl+c cancel  v${VERSION}`) + RESET;
 
-			// ── Right side: shortcuts + version ──
-			const shortcuts = theme.fg('dim', 'ctrl+e expand  ctrl+c cancel');
-			const version = theme.fg('dim', `v${VERSION}`);
-			const right = shortcuts + '  ' + version;
-
-			// ── Fill middle with spaces ──
-			const leftLen = visibleLength(left);
-			const rightLen = visibleLength(right);
-			const gap = Math.max(1, width - leftLen - rightLen);
-			const padding = ' '.repeat(gap);
-
-			return left + padding + right;
+			return buildPowerline(segments, width, rightText);
 		};
 
 		return new FooterComponent(getText, footerData);

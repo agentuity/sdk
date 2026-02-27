@@ -59,8 +59,10 @@ type GenericEventHandler = (
 	handler: (event: unknown, ctx: ExtensionContext) => Promise<unknown>
 ) => void;
 
+const DEBUG = !!process.env['AGENTUITY_DEBUG'];
+
 function log(msg: string): void {
-	console.error(`[agentuity-pi] ${msg}`);
+	if (DEBUG) console.error(`[agentuity-pi] ${msg}`);
 }
 
 // ══════════════════════════════════════════════
@@ -313,7 +315,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Task: ${description} → ${subagent_type}`);
 
-				if (ctx.hasUI) ctx.ui.setStatus('active_agent', subagent_type);
+				if (ctx.hasUI) {
+					ctx.ui.setStatus('active_agent', subagent_type);
+					ctx.ui.setWorkingMessage(`${subagent_type} working...`);
+				}
 
 				try {
 					const result = await runSubAgent(agent, prompt, client);
@@ -328,7 +333,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						details: undefined as unknown,
 					};
 				} finally {
-					if (ctx.hasUI) ctx.ui.setStatus('active_agent', undefined);
+					if (ctx.hasUI) {
+						ctx.ui.setStatus('active_agent', undefined);
+						ctx.ui.setWorkingMessage(undefined);
+					}
 				}
 			},
 			...(taskRenderers?.renderCall && { renderCall: taskRenderers.renderCall as ToolDefinition['renderCall'] }),
@@ -370,7 +378,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				log(`Parallel tasks: ${tasks.map((t) => `${t.subagent_type}:${t.description}`).join(', ')}`);
 
 				const agentLabels = tasks.map(t => t.subagent_type);
-				if (ctx.hasUI) ctx.ui.setStatus('active_agent', agentLabels.join('+'));
+				if (ctx.hasUI) {
+					ctx.ui.setStatus('active_agent', agentLabels.join('+'));
+					ctx.ui.setWorkingMessage(`${agentLabels.join(' + ')} working...`);
+				}
 
 				const promises = tasks.map(async (task) => {
 					const agent = agentRegistry.get(task.subagent_type);
@@ -399,7 +410,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						details: undefined as unknown,
 					};
 				} finally {
-					if (ctx.hasUI) ctx.ui.setStatus('active_agent', undefined);
+					if (ctx.hasUI) {
+						ctx.ui.setStatus('active_agent', undefined);
+						ctx.ui.setWorkingMessage(undefined);
+					}
 				}
 			},
 			...(parallelRenderers?.renderCall && { renderCall: parallelRenderers.renderCall as ToolDefinition['renderCall'] }),
