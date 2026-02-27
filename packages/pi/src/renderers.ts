@@ -13,10 +13,46 @@ import type { Theme, ToolRenderResultOptions, AgentToolResult } from '@mariozech
 // render() can reference it without temporal-dead-zone issues.
 // ──────────────────────────────────────────────
 
-/** Truncate a single line to safe terminal width. Most terminals are 80-200 cols; 200 is conservative. */
-const SAFE_LINE_WIDTH = 200;
+/** Pre-render safety net — truncate lines before they reach render(). Reduced from 200 to 160. */
+const SAFE_LINE_WIDTH = 160;
 function safeLine(line: string): string {
 	return line.length > SAFE_LINE_WIDTH ? line.slice(0, SAFE_LINE_WIDTH - 3) + '...' : line;
+}
+
+/**
+ * Truncate a string (possibly containing ANSI escape codes) to fit within
+ * a given visible width. Handles escape sequences properly so colours are
+ * never broken — a RESET is appended when truncation occurs.
+ */
+function truncateToWidth(line: string, maxWidth: number): string {
+	if (maxWidth <= 0) return '';
+	// Fast path: no ANSI codes and short enough
+	if (line.length <= maxWidth && !line.includes('\x1b')) return line;
+
+	// Strip ANSI to measure visible length
+	// eslint-disable-next-line no-control-regex
+	const visible = line.replace(/\x1b\[[0-9;]*m/g, '');
+	if (visible.length <= maxWidth) return line;
+
+	// Need to truncate — walk through respecting ANSI escape sequences
+	let vis = 0;
+	let i = 0;
+	const target = Math.max(0, maxWidth - 3); // room for "..."
+	while (i < line.length && vis < target) {
+		if (line[i] === '\x1b') {
+			// Skip entire ANSI escape sequence
+			const end = line.indexOf('m', i);
+			if (end !== -1) {
+				i = end + 1;
+			} else {
+				i++;
+			}
+		} else {
+			vis++;
+			i++;
+		}
+	}
+	return line.slice(0, i) + '\x1b[0m...';
 }
 
 // ──────────────────────────────────────────────
@@ -32,8 +68,8 @@ export class SimpleText {
 		this.text = text;
 	}
 
-	render(_width: number): string[] {
-		return this.text.split('\n').map(safeLine);
+	render(width: number): string[] {
+		return this.text.split('\n').map(line => truncateToWidth(line, width));
 	}
 
 	invalidate(): void {
