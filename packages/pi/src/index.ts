@@ -429,31 +429,30 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			};
 			let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
-			// ── Single-agent status widget ──
+			// ── Single-agent status via working message ──
 			let lastWidgetTool: string | undefined;
 			let lastWidgetToolArgs: string | undefined;
 
 			function updateWidget(status: string, tool?: string, toolArgs?: string): void {
 				if (!ctx.hasUI) return;
-				let line = '  ';
+				let msg = '';
 				if (status === 'running') {
-					line += '\u25CF ' + subagent_type; // ● name
+					msg = '\u25CF ' + subagent_type; // ● name
 					if (tool) {
 						const toolInfo = toolArgs ? `${tool} ${toolArgs}` : tool;
-						line += '  ' + toolInfo.slice(0, 40);
+						msg += '  ' + toolInfo.slice(0, 40);
 					}
-					line += '  ' + formatElapsed();
+					msg += '  ' + formatElapsed();
 				} else if (status === 'completed') {
-					line += '\u2713 ' + subagent_type + '  ' + formatElapsed(); // ✓ name  Xs
+					msg = '\u2713 ' + subagent_type + '  ' + formatElapsed(); // ✓ name  Xs
 				} else if (status === 'failed') {
-					line += '\u2717 ' + subagent_type + '  failed'; // ✗ name  failed
+					msg = '\u2717 ' + subagent_type + '  failed'; // ✗ name  failed
 				}
-				ctx.ui.setWidget('coder-agent-status', [line]);
+				ctx.ui.setWorkingMessage(msg);
 			}
 
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', subagent_type);
-				ctx.ui.setWorkingMessage(' '); // Suppress Pi's "Working..." — our widget is more informative
 				updateWidget('running');
 				elapsedTimer = setInterval(() => {
 					updateWidget('running', lastWidgetTool, lastWidgetToolArgs);
@@ -530,7 +529,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (elapsedTimer) clearInterval(elapsedTimer);
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
-					ctx.ui.setWidget('coder-agent-status', undefined);
 					ctx.ui.setWorkingMessage(); // Restore Pi's default working message
 				}
 			}
@@ -605,45 +603,27 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 			function updateWidget(): void {
 				if (!ctx.hasUI) return;
-				const lines = agentStatuses.map(a => {
-					let icon: string;
-					let line: string;
-					switch (a.status) {
-						case 'completed':
-							icon = '\u2713'; // ✓
-							line = `  ${icon} ${a.name}`;
-							if (a.duration) line += `  ${(a.duration / 1000).toFixed(1)}s`;
-							break;
-						case 'failed':
-							icon = '\u2717'; // ✗
-							line = `  ${icon} ${a.name}  failed`;
-							break;
-						case 'running':
-							icon = '\u25CF'; // ●
-							line = `  ${icon} ${a.name}`;
-							if (a.currentTool) {
-								const toolInfo = a.currentToolArgs
-									? `${a.currentTool} ${a.currentToolArgs}`
-									: a.currentTool;
-								line += `  ${toolInfo.slice(0, 40)}`;
-							}
-							if (a.startTime) {
-								const elapsed = Math.floor((Date.now() - a.startTime) / 1000);
-								line += `  ${elapsed}s`;
-							}
-							break;
-						default: // pending
-							icon = '\u25CB'; // ○
-							line = `  ${icon} ${a.name}`;
-					}
-					return line;
-				});
-				ctx.ui.setWidget('coder-agent-status', lines);
+				const parts = agentStatuses
+					.filter(s => s.status !== 'pending')
+					.map(s => {
+						const elapsed = s.startTime ? Math.floor((Date.now() - s.startTime) / 1000) : 0;
+						const timeStr = elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m${elapsed % 60}s`;
+						if (s.status === 'running') {
+							let info = `\u25CF ${s.name}`;
+							if (s.currentTool) info += ` ${s.currentTool.slice(0, 15)}`;
+							return info + ` ${timeStr}`;
+						} else if (s.status === 'completed') {
+							return `\u2713 ${s.name} ${timeStr}`;
+						} else if (s.status === 'failed') {
+							return `\u2717 ${s.name}`;
+						}
+						return `\u25CB ${s.name}`;
+					});
+				ctx.ui.setWorkingMessage(parts.join('  '));
 			}
 
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', 'agents');
-				ctx.ui.setWorkingMessage(' '); // Suppress Pi's "Working..." — our widget is more informative
 				updateWidget();
 				elapsedTimer = setInterval(() => {
 					updateWidget(); // Refresh elapsed times in widget
@@ -755,7 +735,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (elapsedTimer) clearInterval(elapsedTimer);
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
-					ctx.ui.setWidget('coder-agent-status', undefined);
 					ctx.ui.setWorkingMessage(); // Restore Pi's default working message
 				}
 			}
@@ -1080,7 +1059,7 @@ async function runSubAgent(
 	const { session } = await createAgentSession({
 		// subModel is already untyped (from dynamic import) — createAgentSession is also dynamically imported
 		model: subModel,
-		thinkingLevel: (agentConfig.thinkingLevel || 'off') as 'off' | 'low' | 'medium' | 'high',
+		thinkingLevel: (agentConfig.thinkingLevel || 'xhigh') as 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh',
 		tools,
 		resourceLoader: subLoader,
 		sessionManager: SessionManager.inMemory('/tmp'),

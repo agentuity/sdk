@@ -1,5 +1,5 @@
-import type { Theme } from '@mariozechner/pi-coding-agent';
-import { matchesKey } from '@mariozechner/pi-tui';
+import { type Theme, getMarkdownTheme } from '@mariozechner/pi-coding-agent';
+import { matchesKey, Markdown as MdComponent } from '@mariozechner/pi-tui';
 import { truncateToWidth } from './renderers.ts';
 
 export interface StoredResult {
@@ -84,6 +84,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 	private showThinking = false;
 	private following = true;
 	private pollTimer: ReturnType<typeof setInterval> | null = null;
+	private mdRenderer: MdComponent | null = null;
 
 	constructor(
 		tui: TUIRef,
@@ -97,6 +98,17 @@ export class OutputViewerOverlay implements Component, Focusable {
 		this.results = results;
 		this.done = done;
 		this.currentIndex = startIndex ?? 0;
+
+		// Initialize markdown renderer
+		try {
+			const mdTheme = getMarkdownTheme?.();
+			if (mdTheme) {
+				this.mdRenderer = new MdComponent('', 0, 0, mdTheme);
+			}
+		} catch {
+			// Fallback: no markdown rendering
+			this.mdRenderer = null;
+		}
 
 		// Poll for streaming updates — when viewing a streaming result, trigger re-renders
 		this.pollTimer = setInterval(() => {
@@ -161,6 +173,38 @@ export class OutputViewerOverlay implements Component, Focusable {
 		const contentBudget = this.getContentBudget();
 		const maxScroll = Math.max(0, contentLines.length - contentBudget);
 		const halfPage = Math.max(1, Math.floor(contentBudget / 2));
+
+		// Vim: g = top, G = bottom
+		if (data === 'g') {
+			this.following = false;
+			this.scrollOffset = 0;
+			this.invalidate();
+			return;
+		}
+
+		if (data === 'G') {
+			this.following = false;
+			this.scrollOffset = maxScroll;
+			this.invalidate();
+			return;
+		}
+
+		// Vim: { = jump back 25%, } = jump forward 25%
+		if (data === '{') {
+			this.following = false;
+			const jump = Math.max(1, Math.floor(contentLines.length * 0.25));
+			this.scrollOffset = Math.max(0, this.scrollOffset - jump);
+			this.invalidate();
+			return;
+		}
+
+		if (data === '}') {
+			this.following = false;
+			const jump = Math.max(1, Math.floor(contentLines.length * 0.25));
+			this.scrollOffset = Math.min(maxScroll, this.scrollOffset + jump);
+			this.invalidate();
+			return;
+		}
 
 		// Navigate between results
 		if (matchesKey(data, 'left')) {
@@ -271,12 +315,13 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 		// Sub-header: token info or prompt-mode indicator
 		if (this.viewMode === 'prompt') {
-			header.push(this.contentLine(this.theme.fg('dim', '  Prompt sent to agent:'), inner));
+			header.push(this.contentLine(this.theme.fg('dim', '   Prompt sent to agent:'), inner));
 		} else if (result.tokenInfo) {
-			header.push(this.contentLine(this.theme.fg('dim', `  ${result.tokenInfo}`), inner));
+			header.push(this.contentLine(this.theme.fg('dim', `   ${result.tokenInfo}`), inner));
 		} else {
 			header.push(this.contentLine('', inner));
 		}
+		header.push(this.contentLine('', inner)); // padding line after header
 
 		// Footer with position indicator and new hints
 		const thinkingHint = result.thinking ? `[t] ${this.showThinking ? 'Hide' : 'Show'} thinking  ` : '';
@@ -308,8 +353,9 @@ export class OutputViewerOverlay implements Component, Focusable {
 		const pct = totalLines > 0 ? Math.round((currentLine / totalLines) * 100) : 0;
 		const posInfo = totalLines > 0 ? `L${currentLine}/${totalLines} ${pct}%  ` : '';
 
+		const vimHint = totalLines > contentBudget ? '[g/G] Top/Bot  [{/}] Jump  ' : '';
 		const footer: string[] = [
-			this.contentLine(this.theme.fg('dim', `  ${posInfo}[Up/Dn] Scroll  [PgUp/Dn] Page  ${thinkingHint}${followHint}${promptHint}${navHint}[Esc] Close`), inner),
+			this.contentLine(this.theme.fg('dim', `   ${posInfo}${vimHint}[Up/Dn] Scroll  ${thinkingHint}${followHint}${promptHint}${navHint}[Esc] Close`), inner),
 			buildBottomBorder(safeWidth),
 		];
 
@@ -318,7 +364,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 		// Scroll indicator: above
 		const aboveCount = this.scrollOffset;
 		if (aboveCount > 0) {
-			content.push(this.contentLine(this.theme.fg('dim', `  ^ ${aboveCount} more above`), inner));
+			content.push(this.contentLine(this.theme.fg('dim', `   ^ ${aboveCount} more above`), inner));
 		}
 
 		// Visible lines
@@ -331,13 +377,13 @@ export class OutputViewerOverlay implements Component, Focusable {
 		const sliceEnd = Math.min(this.scrollOffset + actualVisible, totalLines);
 		for (let i = this.scrollOffset; i < sliceEnd; i++) {
 			const line = contentLines[i] ?? '';
-			content.push(this.contentLine('  ' + truncateToWidth(line, Math.max(0, inner - 2)), inner));
+			content.push(this.contentLine('   ' + truncateToWidth(line, Math.max(0, inner - 3)), inner));
 		}
 
 		// Scroll indicator: below
 		const remainingBelow = totalLines - sliceEnd;
 		if (remainingBelow > 0) {
-			content.push(this.contentLine(this.theme.fg('dim', `  v ${remainingBelow} more below`), inner));
+			content.push(this.contentLine(this.theme.fg('dim', `   v ${remainingBelow} more below`), inner));
 		}
 
 		const lines = [...header, ...content, ...footer];
@@ -362,7 +408,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 		const lines: string[] = [];
 
-		// Thinking section (dimmed)
+		// Thinking section (dimmed) — keep as plain text, it's raw thinking
 		if (this.showThinking && result.thinking) {
 			const thinkingLines = result.thinking.split('\n');
 			for (const line of thinkingLines) {
@@ -372,10 +418,24 @@ export class OutputViewerOverlay implements Component, Focusable {
 			lines.push(''); // empty line separator
 		}
 
-		// Main content (output or prompt based on viewMode)
+		// Main content — render as markdown for syntax highlighting
 		const mainText = this.viewMode === 'prompt' && result.prompt ? result.prompt : result.text;
 		if (mainText) {
-			lines.push(...mainText.split('\n'));
+			if (this.mdRenderer) {
+				try {
+					this.mdRenderer.setText(mainText);
+					// Render with inner width minus padding (3 spaces left + border chars)
+					const termWidth = Math.max(20, (process.stdout.columns || 80) - 10);
+					const rendered = this.mdRenderer.render(termWidth);
+					lines.push(...rendered);
+				} catch {
+					// Fallback: plain text if markdown rendering fails
+					lines.push(...mainText.split('\n'));
+				}
+			} else {
+				// Fallback: plain text
+				lines.push(...mainText.split('\n'));
+			}
 		}
 
 		return lines;
