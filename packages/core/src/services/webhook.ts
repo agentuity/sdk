@@ -92,7 +92,7 @@ export class WebhookService {
 	 * The adapter's fromResponse returns the full JSON body, so we need
 	 * to unwrap the `data` field to get the actual payload.
 	 */
-	// biome-ignore lint/suspicious/noExplicitAny: unwrapping dynamic Ion response envelope
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	#unwrap<T>(raw: any): T {
 		if (raw && typeof raw === 'object' && 'data' in raw) {
 			return raw.data as T;
