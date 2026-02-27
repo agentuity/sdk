@@ -221,7 +221,7 @@ export function setupCoderFooter(
 			// Branch
 			const branch = footerData.getGitBranch();
 			if (branch) {
-				leftParts.push(' ');
+				leftParts.push('  ');
 				leftParts.push(fg(FG_BRANCH, branch));
 			}
 

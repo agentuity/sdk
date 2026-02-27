@@ -330,7 +330,16 @@ function parallelTasksRenderers(): ToolRenderers {
 		renderCall(args, theme) {
 			const tasks = (args['tasks'] as Array<Record<string, unknown>>) ?? [];
 			const agents = tasks.map(t => String(t['subagent_type'] ?? '?'));
-			let text = theme.fg('accent', agents.join(' + '));
+			// Deduplicate: "builder x4" instead of "builder + builder + builder + builder"
+			const counts = new Map<string, number>();
+			for (const name of agents) {
+				counts.set(name, (counts.get(name) ?? 0) + 1);
+			}
+			const deduped: string[] = [];
+			for (const [name, count] of counts) {
+				deduped.push(count > 1 ? `${name} x${count}` : name);
+			}
+			let text = theme.fg('accent', deduped.join(' + '));
 			text += theme.fg('dim', ` (${tasks.length} tasks)`);
 			return new SimpleText(text);
 		},

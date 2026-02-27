@@ -321,7 +321,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', subagent_type);
-				ctx.ui.setWorkingMessage(`${subagent_type}: ${description}`);
+				ctx.ui.setWorkingMessage(subagent_type);
 			}
 
 			try {
