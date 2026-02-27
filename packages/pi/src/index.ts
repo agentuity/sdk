@@ -635,7 +635,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// ══════════════════════════════════════════════
 
 	if (!isSubAgent && serverAgents.length > 0) {
-		registerAgentCommands(pi, serverAgents);
+		registerAgentCommands(pi, serverAgents, () => client.connected);
 	}
 
 	// ══════════════════════════════════════════════

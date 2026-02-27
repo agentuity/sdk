@@ -350,7 +350,7 @@ function taskRenderers(): ToolRenderers {
 			const agent = String(args['subagent_type'] ?? '?');
 			const desc = String(args['description'] ?? '');
 			let text = theme.fg('accent', safeLine(agent));
-			if (desc) text += theme.fg('dim', ` ${truncate(desc, 120)}`);
+			if (desc) text += theme.fg('dim', ` — ${truncate(desc, 60)}`);
 			return new SimpleText(text);
 		},
 		renderResult(result, { expanded, isPartial }, theme) {

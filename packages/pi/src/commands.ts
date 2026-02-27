@@ -23,7 +23,11 @@ function log(msg: string): void {
  * When invoked, the command sends a user message prefixed with a routing directive
  * so the lead agent knows to delegate to the specified agent.
  */
-export function registerAgentCommands(pi: ExtensionAPI, agents: AgentDefinition[]): void {
+export function registerAgentCommands(
+	pi: ExtensionAPI,
+	agents: AgentDefinition[],
+	isHubConnected: () => boolean,
+): void {
 	for (const agent of agents) {
 		const name = agent.name;
 		log(`Registering command: /${name}`);
@@ -62,5 +66,24 @@ export function registerAgentCommands(pi: ExtensionAPI, agents: AgentDefinition[
 		},
 	});
 
-	log(`Registered ${agents.length} agent commands + /agents`);
+	// Register the /status command that shows current session status
+	pi.registerCommand('status', {
+		description: 'Show current session status',
+		handler: async (_args, ctx) => {
+			const lines: string[] = [];
+			lines.push('Coder Hub Status');
+			lines.push(`  Hub: ${isHubConnected() ? 'connected' : 'disconnected'}`);
+			lines.push(`  Agents: ${agents.length} available`);
+			lines.push(`  ${agents.map(a => {
+				const model = a.model || 'default';
+				return `${a.name} [${model}]`;
+			}).join(', ')}`);
+			const message = lines.join('\n');
+			if (ctx.hasUI) {
+				ctx.ui.notify(message, 'info');
+			}
+		},
+	});
+
+	log(`Registered ${agents.length} agent commands + /agents + /status`);
 }
