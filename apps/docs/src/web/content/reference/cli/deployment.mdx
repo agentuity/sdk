@@ -544,8 +544,10 @@ agentuity deploy --confirm
 - `predeploy`: Install workspace dependencies, compile shared packages, run custom validation
 - `postdeploy`: Send a notification, update a changelog, trigger downstream systems
 
-<Callout type="warning" title="Only Applies via bun run deploy">
-`predeploy` and `postdeploy` are standard npm lifecycle hooks, not Agentuity-specific. They run when you invoke `bun run deploy` (or `npm run deploy`). They do **not** run when calling `agentuity deploy` directly.
+<Callout type="warning" title="Local vs GitHub App Behavior">
+When you run `bun run deploy` locally, `predeploy` and `postdeploy` are standard npm lifecycle hooks. They do **not** run when calling `agentuity deploy` directly.
+
+When deploying via the [Agentuity GitHub App](/reference/github-app#build-process), `predeploy` has additional meaning: if defined, it runs **instead of** the platform's automatic `bun install`. If you don't define `predeploy`, the platform installs dependencies for you. See [Build Process](/reference/github-app#build-process) for details.
 </Callout>
 
 ## CI/CD Pipelines

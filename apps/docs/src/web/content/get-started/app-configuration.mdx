@@ -171,7 +171,21 @@ The `build` section controls the sandbox where your project compiles during clou
 
 For detailed options, see [Deploying to the Cloud](/reference/cli/deployment#resource-configuration).
 
-Run custom steps before or after deployment using `predeploy` and `postdeploy` scripts in `package.json`. See [Running Deploy Lifecycle Scripts](/reference/cli/deployment#running-deploy-lifecycle-scripts).
+### Running Deploy Lifecycle Scripts
+
+Run custom steps before or after deployment using `predeploy` and `postdeploy` scripts in `package.json`:
+
+```json title="package.json"
+{
+  "scripts": {
+    "predeploy": "cd ../.. && bun install && bun run build:packages",
+    "deploy": "agentuity deploy",
+    "postdeploy": "echo 'Deploy complete'"
+  }
+}
+```
+
+When deploying via the [Agentuity GitHub App](/reference/github-app#build-process), defining `predeploy` gives you full control over the install step. Without it, the platform runs `bun install` automatically. See [Running Deploy Lifecycle Scripts](/reference/cli/deployment#running-deploy-lifecycle-scripts) for the full reference.
 
 ## Environment Variables
 
