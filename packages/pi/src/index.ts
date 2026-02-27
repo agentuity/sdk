@@ -11,7 +11,6 @@ import { HubClient } from './client.ts';
 import { processActions } from './handlers.ts';
 import { getToolRenderers } from './renderers.ts';
 import { setupCoderFooter } from './footer.ts';
-import { setupCoderHeader } from './header.ts';
 import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition } from './protocol.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
@@ -276,6 +275,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 		log(`Registering task tools. Agents: ${agentNames.join(', ')}`);
 
+		const taskRenderers = getToolRenderers('task');
 		pi.registerTool({
 			name: 'task',
 			label: 'Delegate Task to Agent',
@@ -293,6 +293,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			async execute(
 				toolCallId: string,
 				params: unknown,
+				_signal: AbortSignal | undefined,
+				_onUpdate: unknown,
+				ctx: ExtensionContext,
 			): Promise<AgentToolResult<unknown>> {
 				const { description, prompt, subagent_type } = params as {
 					description: string;
@@ -310,6 +313,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Task: ${description} → ${subagent_type}`);
 
+				if (ctx.hasUI) ctx.ui.setStatus('active_agent', subagent_type);
+
 				try {
 					const result = await runSubAgent(agent, prompt, client);
 					return {
@@ -322,10 +327,15 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
 						details: undefined as unknown,
 					};
+				} finally {
+					if (ctx.hasUI) ctx.ui.setStatus('active_agent', undefined);
 				}
 			},
+			...(taskRenderers?.renderCall && { renderCall: taskRenderers.renderCall as ToolDefinition['renderCall'] }),
+			...(taskRenderers?.renderResult && { renderResult: taskRenderers.renderResult as ToolDefinition['renderResult'] }),
 		});
 
+		const parallelRenderers = getToolRenderers('parallel_tasks');
 		pi.registerTool({
 			name: 'parallel_tasks',
 			label: 'Delegate Parallel Tasks',
@@ -342,6 +352,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			async execute(
 				toolCallId: string,
 				params: unknown,
+				_signal: AbortSignal | undefined,
+				_onUpdate: unknown,
+				ctx: ExtensionContext,
 			): Promise<AgentToolResult<unknown>> {
 				const { tasks } = params as {
 					tasks: Array<{ description: string; prompt: string; subagent_type: string }>;
@@ -356,6 +369,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Parallel tasks: ${tasks.map((t) => `${t.subagent_type}:${t.description}`).join(', ')}`);
 
+				const agentLabels = tasks.map(t => t.subagent_type);
+				if (ctx.hasUI) ctx.ui.setStatus('active_agent', agentLabels.join('+'));
+
 				const promises = tasks.map(async (task) => {
 					const agent = agentRegistry.get(task.subagent_type);
 					if (!agent) {
@@ -369,19 +385,25 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					}
 				});
 
-				const results = await Promise.all(promises);
-				const output = results
-					.map((r) => {
-						if ('error' in r && r.error) return `### ${r.agent} (FAILED)\n${r.error}`;
-						return `### ${r.agent} (${'duration' in r ? r.duration : 0}ms)\n${'output' in r ? r.output : ''}`;
-					})
-					.join('\n\n---\n\n');
+				try {
+					const results = await Promise.all(promises);
+					const output = results
+						.map((r) => {
+							if ('error' in r && r.error) return `### ${r.agent} (FAILED)\n${r.error}`;
+							return `### ${r.agent} (${'duration' in r ? r.duration : 0}ms)\n${'output' in r ? r.output : ''}`;
+						})
+						.join('\n\n---\n\n');
 
-				return {
-					content: [{ type: 'text' as const, text: output }],
-					details: undefined as unknown,
-				};
+					return {
+						content: [{ type: 'text' as const, text: output }],
+						details: undefined as unknown,
+					};
+				} finally {
+					if (ctx.hasUI) ctx.ui.setStatus('active_agent', undefined);
+				}
 			},
+			...(parallelRenderers?.renderCall && { renderCall: parallelRenderers.renderCall as ToolDefinition['renderCall'] }),
+			...(parallelRenderers?.renderResult && { renderResult: parallelRenderers.renderResult as ToolDefinition['renderResult'] }),
 		});
 	}
 
@@ -427,14 +449,11 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	const onEvent = pi.on.bind(pi) as GenericEventHandler;
 
-	// session_start: establish WebSocket connection to Hub + set up header/footer
+	// session_start: establish WebSocket connection to Hub + set up footer
 	onEvent('session_start', async (event: unknown, ctx: ExtensionContext) => {
 		await ensureConnected();
 
-		// Set up Coder header (brand + session title + token stats)
-		setupCoderHeader(ctx);
-
-		// Set up Coder footer (powerline: model | agent > branch > status)
+		// Set up Coder footer (powerline: model or active agent > branch > status)
 		setupCoderFooter(ctx, () => client.connected);
 
 		if (client.connected) {

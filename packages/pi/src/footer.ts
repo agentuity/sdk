@@ -1,15 +1,14 @@
 /**
  * Powerline-style Coder footer for the Pi TUI.
  *
- * Design: `\u2A3A  > model | agent > branch > \u25A0     ctrl+e expand  ctrl+c cancel  v1.0.22`
+ * Design: `\u2A3A  > model-or-agent > branch > \u25A0     ctrl+e expand  ctrl+c cancel  v1.0.22`
  *
  * Segments (left to right):
  * 1. Brand mark (\u2A3A) in accent
- * 2. Model ID in text color
- * 3. Agent role (from AGENTUITY_CODER_AGENT env) in dim
- * 4. Git branch in muted
- * 5. Hub status indicator (\u25A0) — green if connected, red if not
- * 6. Right-aligned: keyboard shortcuts + version
+ * 2. Active agent name (accent) when agent is running, OR model ID (text) when idle
+ * 3. Git branch in muted
+ * 4. Hub status indicator (\u25A0) — green if connected, red if not
+ * 5. Right-aligned: keyboard shortcuts + version
  */
 
 import type {
@@ -80,8 +79,6 @@ export function setupCoderFooter(
 ): void {
 	if (!ctx.hasUI) return;
 
-	const agentRole = process.env['AGENTUITY_CODER_AGENT'] || 'lead';
-
 	ctx.ui.setFooter((_tui, theme, footerData) => {
 		const getText = (width: number): string => {
 			// ── Left side: powerline segments ──
@@ -90,25 +87,26 @@ export function setupCoderFooter(
 			// 1. Brand mark
 			parts.push(theme.fg('accent', '\u2A3A '));
 
-			// 2. Separator + Model
+			// 2. Separator + Active agent or Model
 			parts.push(theme.fg('dim', ' > '));
-			const modelId = ctx.model
-				? String((ctx.model as { id?: string }).id ?? '?')
-				: '?';
-			parts.push(theme.fg('text', modelId));
+			const activeAgent = footerData.getExtensionStatuses().get('active_agent');
+			if (activeAgent) {
+				parts.push(theme.fg('accent', activeAgent));
+			} else {
+				const modelId = ctx.model
+					? String((ctx.model as { id?: string }).id ?? '?')
+					: '?';
+				parts.push(theme.fg('text', modelId));
+			}
 
-			// 3. Pipe + Agent role
-			parts.push(theme.fg('dim', ' | '));
-			parts.push(theme.fg('dim', agentRole));
-
-			// 4. Separator + Git branch (if available)
+			// 3. Separator + Git branch (if available)
 			const branch = footerData.getGitBranch();
 			if (branch) {
 				parts.push(theme.fg('dim', ' > '));
 				parts.push(theme.fg('muted', branch));
 			}
 
-			// 5. Separator + Hub status
+			// 4. Separator + Hub status
 			parts.push(theme.fg('dim', ' > '));
 			const hubIndicator = isHubConnected()
 				? theme.fg('success', '\u25A0')

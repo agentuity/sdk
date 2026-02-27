@@ -14,7 +14,7 @@ import type { Theme, ToolRenderResultOptions, AgentToolResult } from '@mariozech
 // dependency — this class matches the Text component's behaviour.
 // ──────────────────────────────────────────────
 
-class SimpleText {
+export class SimpleText {
 	private text: string;
 
 	constructor(text: string) {
@@ -297,6 +297,56 @@ function sessionDashboardRenderers(): ToolRenderers {
 
 // ──────────────────────────────────────────────
 // Registry
+function taskRenderers(): ToolRenderers {
+	return {
+		renderCall(args, theme) {
+			const agent = String(args['subagent_type'] ?? '?');
+			const desc = String(args['description'] ?? '');
+			let text = theme.fg('accent', agent);
+			if (desc) text += theme.fg('dim', ` ${desc}`);
+			return new SimpleText(text);
+		},
+		renderResult(result, { expanded, isPartial }, theme) {
+			if (isPartial) return new SimpleText(theme.fg('warning', 'running...'));
+			const raw = resultText(result);
+			const lineCount = raw.split('\n').length;
+			let text = theme.fg('success', 'done');
+			text += theme.fg('dim', ` (${lineCount} lines)`);
+			if (expanded) {
+				const preview = raw.split('\n').slice(0, 20).join('\n');
+				text += '\n' + theme.fg('dim', preview);
+				if (lineCount > 20) text += theme.fg('muted', '\n...more');
+			}
+			return new SimpleText(text);
+		},
+	};
+}
+
+function parallelTasksRenderers(): ToolRenderers {
+	return {
+		renderCall(args, theme) {
+			const tasks = (args['tasks'] as Array<Record<string, unknown>>) ?? [];
+			const agents = tasks.map(t => String(t['subagent_type'] ?? '?'));
+			let text = theme.fg('accent', agents.join(' + '));
+			text += theme.fg('dim', ` (${tasks.length} tasks)`);
+			return new SimpleText(text);
+		},
+		renderResult(result, { expanded, isPartial }, theme) {
+			if (isPartial) return new SimpleText(theme.fg('warning', 'running...'));
+			const raw = resultText(result);
+			const lineCount = raw.split('\n').length;
+			let text = theme.fg('success', 'done');
+			text += theme.fg('dim', ` (${lineCount} lines)`);
+			if (expanded) {
+				const preview = raw.split('\n').slice(0, 20).join('\n');
+				text += '\n' + theme.fg('dim', preview);
+				if (lineCount > 20) text += theme.fg('muted', '\n...more');
+			}
+			return new SimpleText(text);
+		},
+	};
+}
+
 // ──────────────────────────────────────────────
 
 const RENDERERS: Record<string, () => ToolRenderers> = {
@@ -309,6 +359,8 @@ const RENDERERS: Record<string, () => ToolRenderers> = {
 	context7_search: context7SearchRenderers,
 	grep_app_search: grepAppSearchRenderers,
 	session_dashboard: sessionDashboardRenderers,
+	task: taskRenderers,
+	parallel_tasks: parallelTasksRenderers,
 };
 
 /**
