@@ -435,21 +435,88 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			};
 			let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
+			// ── Per-agent status tracking for live widget ──
+			interface ParallelAgentStatus {
+				name: string;
+				status: 'pending' | 'running' | 'completed' | 'failed';
+				currentTool?: string;
+				currentToolArgs?: string;
+				startTime?: number;
+				duration?: number;
+			}
+
+			const agentStatuses: ParallelAgentStatus[] = tasks.map(t => ({
+				name: t.subagent_type,
+				status: 'pending' as const,
+			}));
+
+			function updateWidget(): void {
+				if (!ctx.hasUI) return;
+				const lines = agentStatuses.map(a => {
+					let icon: string;
+					let line: string;
+					switch (a.status) {
+						case 'completed':
+							icon = '\u2713'; // ✓
+							line = `  ${icon} ${a.name}`;
+							if (a.duration) line += `  ${(a.duration / 1000).toFixed(1)}s`;
+							break;
+						case 'failed':
+							icon = '\u2717'; // ✗
+							line = `  ${icon} ${a.name}  failed`;
+							break;
+						case 'running':
+							icon = '\u25CF'; // ●
+							line = `  ${icon} ${a.name}`;
+							if (a.currentTool) {
+								const toolInfo = a.currentToolArgs
+									? `${a.currentTool} ${a.currentToolArgs}`
+									: a.currentTool;
+								line += `  ${toolInfo.slice(0, 40)}`;
+							}
+							if (a.startTime) {
+								const elapsed = Math.floor((Date.now() - a.startTime) / 1000);
+								line += `  ${elapsed}s`;
+							}
+							break;
+						default: // pending
+							icon = '\u25CB'; // ○
+							line = `  ${icon} ${a.name}`;
+					}
+					return line;
+				});
+				ctx.ui.setWidget('coder-agent-status', lines);
+			}
+
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', 'agents');
 				ctx.ui.setWorkingMessage('agents');
+				updateWidget();
 				elapsedTimer = setInterval(() => {
 					ctx.ui.setWorkingMessage(`agents  ${formatElapsed()}`);
+					updateWidget(); // Refresh elapsed times in widget
 				}, 1000);
 			}
 
-				const promises = tasks.map(async (task) => {
+				const promises = tasks.map(async (task, index) => {
 					const agent = agentRegistry.get(task.subagent_type);
 					if (!agent) {
+						agentStatuses[index]!.status = 'failed';
+						updateWidget();
 						return { agent: task.subagent_type, error: `Unknown agent: ${task.subagent_type}` };
 					}
+
+					agentStatuses[index]!.status = 'running';
+					agentStatuses[index]!.startTime = Date.now();
+					updateWidget();
+
 					try {
 						const result = await runSubAgent(agent, task.prompt, client, ctx.hasUI ? (progress) => {
+							// Update per-agent widget with tool activity
+							agentStatuses[index]!.currentTool = progress.currentTool;
+							agentStatuses[index]!.currentToolArgs = progress.currentToolArgs;
+							updateWidget();
+
 							// Update TUI working message with most recently active agent
 							try {
 								if (progress.status === 'tool_start' && progress.currentTool) {
@@ -478,8 +545,19 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 								} catch { /* ignore */ }
 							}
 						} : undefined);
+
+						agentStatuses[index]!.status = 'completed';
+						agentStatuses[index]!.duration = result.duration;
+						agentStatuses[index]!.currentTool = undefined;
+						agentStatuses[index]!.currentToolArgs = undefined;
+						updateWidget();
+
 						return { agent: task.subagent_type, output: result.output, duration: result.duration, tokens: result.tokens };
 					} catch (err) {
+						agentStatuses[index]!.status = 'failed';
+						agentStatuses[index]!.currentTool = undefined;
+						agentStatuses[index]!.currentToolArgs = undefined;
+						updateWidget();
 						return { agent: task.subagent_type, error: err instanceof Error ? err.message : String(err) };
 					}
 				});
@@ -506,6 +584,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
 					ctx.ui.setWorkingMessage(undefined);
+					ctx.ui.setWidget('coder-agent-status', undefined);
 				}
 			}
 		},
