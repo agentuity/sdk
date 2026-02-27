@@ -210,7 +210,7 @@ function Pre({ className, children, ...props }: PreProps) {
 			className={cn(
 				'relative group/pre',
 				isStandaloneFence &&
-					'my-4 max-h-[min(55vh,28rem)] overflow-y-auto overscroll-contain rounded-lg border border-zinc-200 bg-zinc-50 md:max-h-[min(65vh,42rem)] dark:border-zinc-800 dark:bg-zinc-900'
+					'my-4 max-h-[min(55vh,28rem)] overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50 md:max-h-[min(65vh,42rem)] dark:border-zinc-800 dark:bg-zinc-900'
 			)}
 		>
 			{showOverlayCopy && (
@@ -229,7 +229,7 @@ function Pre({ className, children, ...props }: PreProps) {
 			)}
 			<pre
 				className={cn(
-					'overflow-x-auto bg-transparent p-4 text-sm',
+					'overflow-x-auto overscroll-x-contain bg-transparent p-4 text-sm',
 					showOverlayCopy && 'pr-14',
 					'[&>code]:bg-transparent [&>code]:p-0 [&>code]:text-inherit',
 					className
