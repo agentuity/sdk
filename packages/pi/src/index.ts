@@ -319,15 +319,30 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Task: ${description} → ${subagent_type}`);
 
+			const startTime = Date.now();
+			const formatElapsed = (): string => {
+				const s = Math.floor((Date.now() - startTime) / 1000);
+				if (s < 60) return `${s}s`;
+				return `${Math.floor(s / 60)}m ${s % 60}s`;
+			};
+			let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', subagent_type);
 				ctx.ui.setWorkingMessage(subagent_type);
+				elapsedTimer = setInterval(() => {
+					ctx.ui.setWorkingMessage(`${subagent_type}  ${formatElapsed()}`);
+				}, 1000);
 			}
 
 			try {
 				const result = await runSubAgent(agent, prompt, client);
+				let output = result.output;
+				if (result.tokens && (result.tokens.input > 0 || result.tokens.output > 0)) {
+					output += `\n\n---\n_${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out tokens | $${result.tokens.cost.toFixed(4)}_`;
+				}
 				return {
-					content: [{ type: 'text' as const, text: result.output }],
+					content: [{ type: 'text' as const, text: output }],
 					details: undefined as unknown,
 				};
 			} catch (err) {
@@ -337,6 +352,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					details: undefined as unknown,
 				};
 			} finally {
+				if (elapsedTimer) clearInterval(elapsedTimer);
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
 					ctx.ui.setWorkingMessage(undefined);
@@ -381,9 +397,20 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Parallel tasks: ${tasks.map((t) => `${t.subagent_type}:${t.description}`).join(', ')}`);
 
+			const startTime = Date.now();
+			const formatElapsed = (): string => {
+				const s = Math.floor((Date.now() - startTime) / 1000);
+				if (s < 60) return `${s}s`;
+				return `${Math.floor(s / 60)}m ${s % 60}s`;
+			};
+			let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', 'agents');
-				ctx.ui.setWorkingMessage('multiple agents working...');
+				ctx.ui.setWorkingMessage('agents');
+				elapsedTimer = setInterval(() => {
+					ctx.ui.setWorkingMessage(`agents  ${formatElapsed()}`);
+				}, 1000);
 			}
 
 				const promises = tasks.map(async (task) => {
@@ -393,7 +420,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					}
 					try {
 						const result = await runSubAgent(agent, task.prompt, client);
-						return { agent: task.subagent_type, output: result.output, duration: result.duration };
+						return { agent: task.subagent_type, output: result.output, duration: result.duration, tokens: result.tokens };
 					} catch (err) {
 						return { agent: task.subagent_type, error: err instanceof Error ? err.message : String(err) };
 					}
@@ -404,7 +431,11 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					const output = results
 						.map((r) => {
 							if ('error' in r && r.error) return `### ${r.agent} (FAILED)\n${r.error}`;
-							return `### ${r.agent} (${'duration' in r ? r.duration : 0}ms)\n${'output' in r ? r.output : ''}`;
+							let text = `### ${r.agent} (${'duration' in r ? r.duration : 0}ms)\n${'output' in r ? r.output : ''}`;
+							if ('tokens' in r && r.tokens && (r.tokens.input > 0 || r.tokens.output > 0)) {
+								text += `\n\n---\n_${r.agent}: ${'duration' in r ? r.duration : 0}ms | ${r.tokens.input} in ${r.tokens.output} out tokens | $${r.tokens.cost.toFixed(4)}_`;
+							}
+							return text;
 						})
 						.join('\n\n---\n\n');
 
@@ -413,6 +444,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						details: undefined as unknown,
 					};
 			} finally {
+				if (elapsedTimer) clearInterval(elapsedTimer);
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
 					ctx.ui.setWorkingMessage(undefined);
@@ -546,6 +578,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 // Pattern based on oh-my-pi's in-process executor.
 // ══════════════════════════════════════════════
 
+/** Token usage extracted from sub-agent sessions (best-effort) */
+interface SubAgentTokens {
+	input: number;
+	output: number;
+	cost: number;
+}
+
 function truncateOutput(text: string): string {
 	let result = text;
 	const lines = result.split('\n');
@@ -653,7 +692,7 @@ async function runSubAgent(
 	agentConfig: AgentDefinition,
 	task: string,
 	hubClient: HubClient,
-): Promise<{ output: string; duration: number }> {
+): Promise<{ output: string; duration: number; tokens: SubAgentTokens }> {
 	const startTime = Date.now();
 
 	const { piSdk, piAi } = await loadPiSdk();
@@ -727,7 +766,27 @@ async function runSubAgent(
 		const output = session.getLastAssistantText?.() || '(no output)';
 		const duration = Date.now() - startTime;
 		log(`Sub-agent ${agentConfig.name} completed in ${duration}ms`);
-		return { output: truncateOutput(output.trim()), duration };
+
+		// Best-effort token extraction from sub-agent session messages
+		let subTokens: SubAgentTokens = { input: 0, output: 0, cost: 0 };
+		try {
+			const branch = session.sessionManager?.getBranch?.() || [];
+			for (const entry of branch) {
+				if (entry.type === 'message') {
+					const msg = entry.message as {
+						role?: string;
+						usage?: { input: number; output: number; cost: { total: number } };
+					};
+					if (msg.role === 'assistant' && msg.usage) {
+						subTokens.input += msg.usage.input;
+						subTokens.output += msg.usage.output;
+						subTokens.cost += msg.usage.cost.total;
+					}
+				}
+			}
+		} catch { /* ignore — token extraction is best-effort */ }
+
+		return { output: truncateOutput(output.trim()), duration, tokens: subTokens };
 	} catch (err) {
 		clearTimeout(timer);
 		try { session.abort?.(); } catch { /* ignore */ }
