@@ -11,6 +11,7 @@ import { HubClient } from './client.ts';
 import { processActions } from './handlers.ts';
 import { getToolRenderers } from './renderers.ts';
 import { setupCoderFooter } from './footer.ts';
+import { setupTitlebar } from './titlebar.ts';
 import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition } from './protocol.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
@@ -145,6 +146,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	let hubConfig: HubConfig | undefined = initMsg.config;
 
 	log(`Hub connected. Tools: ${serverTools.length}, Agents: ${serverAgents.length}`);
+
+	// Titlebar: branding + spinner (registers its own event handlers)
+	setupTitlebar(pi);
 
 	// ══════════════════════════════════════════════
 	// WebSocket client for runtime communication (tool execution + events)
@@ -315,29 +319,34 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Task: ${description} → ${subagent_type}`);
 
-				if (ctx.hasUI) {
-					ctx.ui.setStatus('active_agent', subagent_type);
-					ctx.ui.setWorkingMessage(`${subagent_type} working...`);
-				}
+			if (ctx.hasUI) {
+				ctx.ui.setStatus('active_agent', subagent_type);
+				ctx.ui.setWorkingMessage(`${subagent_type} working...`);
+				ctx.ui.setWidget('coder-agent-status',
+					[`  ${subagent_type} working on: ${description}`],
+					{ placement: 'belowEditor' }
+				);
+			}
 
-				try {
-					const result = await runSubAgent(agent, prompt, client);
-					return {
-						content: [{ type: 'text' as const, text: result.output }],
-						details: undefined as unknown,
-					};
-				} catch (err) {
-					const errorMsg = err instanceof Error ? err.message : String(err);
-					return {
-						content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
-						details: undefined as unknown,
-					};
-				} finally {
-					if (ctx.hasUI) {
-						ctx.ui.setStatus('active_agent', undefined);
-						ctx.ui.setWorkingMessage(undefined);
-					}
+			try {
+				const result = await runSubAgent(agent, prompt, client);
+				return {
+					content: [{ type: 'text' as const, text: result.output }],
+					details: undefined as unknown,
+				};
+			} catch (err) {
+				const errorMsg = err instanceof Error ? err.message : String(err);
+				return {
+					content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
+					details: undefined as unknown,
+				};
+			} finally {
+				if (ctx.hasUI) {
+					ctx.ui.setStatus('active_agent', undefined);
+					ctx.ui.setWorkingMessage(undefined);
+					ctx.ui.setWidget('coder-agent-status', undefined);
 				}
+			}
 			},
 			...(taskRenderers?.renderCall && { renderCall: taskRenderers.renderCall as ToolDefinition['renderCall'] }),
 			...(taskRenderers?.renderResult && { renderResult: taskRenderers.renderResult as ToolDefinition['renderResult'] }),
@@ -377,11 +386,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Parallel tasks: ${tasks.map((t) => `${t.subagent_type}:${t.description}`).join(', ')}`);
 
-				const agentLabels = tasks.map(t => t.subagent_type);
-				if (ctx.hasUI) {
-					ctx.ui.setStatus('active_agent', agentLabels.join('+'));
-					ctx.ui.setWorkingMessage(`${agentLabels.join(' + ')} working...`);
-				}
+			const agentLabels = tasks.map(t => t.subagent_type);
+			if (ctx.hasUI) {
+				const lines = tasks.map(t => `  ${t.subagent_type}: ${t.description}`);
+				ctx.ui.setStatus('active_agent', agentLabels.join('+'));
+				ctx.ui.setWorkingMessage(`${agentLabels.join(' + ')} working...`);
+				ctx.ui.setWidget('coder-agent-status', lines, { placement: 'belowEditor' });
+			}
 
 				const promises = tasks.map(async (task) => {
 					const agent = agentRegistry.get(task.subagent_type);
@@ -409,14 +420,15 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						content: [{ type: 'text' as const, text: output }],
 						details: undefined as unknown,
 					};
-				} finally {
-					if (ctx.hasUI) {
-						ctx.ui.setStatus('active_agent', undefined);
-						ctx.ui.setWorkingMessage(undefined);
-					}
+			} finally {
+				if (ctx.hasUI) {
+					ctx.ui.setStatus('active_agent', undefined);
+					ctx.ui.setWorkingMessage(undefined);
+					ctx.ui.setWidget('coder-agent-status', undefined);
 				}
-			},
-			...(parallelRenderers?.renderCall && { renderCall: parallelRenderers.renderCall as ToolDefinition['renderCall'] }),
+			}
+		},
+		...(parallelRenderers?.renderCall && { renderCall: parallelRenderers.renderCall as ToolDefinition['renderCall'] }),
 			...(parallelRenderers?.renderResult && { renderResult: parallelRenderers.renderResult as ToolDefinition['renderResult'] }),
 		});
 	}
