@@ -6,7 +6,7 @@ import { safeStringify } from '../json.ts';
 // Task type enums
 export type TaskPriority = 'high' | 'medium' | 'low' | 'none';
 export type TaskType = 'epic' | 'feature' | 'enhancement' | 'bug' | 'task';
-export type TaskStatus = 'open' | 'in_progress' | 'closed';
+export type TaskStatus = 'open' | 'in_progress' | 'closed' | 'cancelled';
 
 // Task object (returned from API)
 export interface Task {
@@ -26,6 +26,28 @@ export interface Task {
 	created_id: string;
 	assigned_id?: string;
 	closed_id?: string;
+	cancelled_date?: string;
+	deleted: boolean;
+	tags?: Tag[];
+	comments?: Comment[];
+}
+
+// Comment object (returned from API)
+export interface Comment {
+	id: string;
+	created_at: string;
+	updated_at: string;
+	task_id: string;
+	user_id: string;
+	body: string;
+}
+
+// Tag object (returned from API)
+export interface Tag {
+	id: string;
+	created_at: string;
+	name: string;
+	color?: string;
 }
 
 // Changelog entry
@@ -49,6 +71,7 @@ export interface CreateTaskParams {
 	status?: TaskStatus;
 	created_id: string;
 	assigned_id?: string;
+	tag_ids?: string[];
 }
 
 export interface UpdateTaskParams {
@@ -69,6 +92,8 @@ export interface ListTasksParams {
 	priority?: TaskPriority;
 	assigned_id?: string;
 	parent_id?: string;
+	tag_id?: string;
+	deleted?: boolean;
 	sort?: string;
 	order?: 'asc' | 'desc';
 	limit?: number;
@@ -89,16 +114,44 @@ export interface TaskChangelogResult {
 	offset: number;
 }
 
+export interface ListCommentsResult {
+	comments: Comment[];
+	total: number;
+	limit: number;
+	offset: number;
+}
+
+export interface ListTagsResult {
+	tags: Tag[];
+}
+
 export interface TaskStorage {
 	create(params: CreateTaskParams): Promise<Task>;
 	get(id: string): Promise<Task | null>;
 	list(params?: ListTasksParams): Promise<ListTasksResult>;
 	update(id: string, params: UpdateTaskParams): Promise<Task>;
 	close(id: string): Promise<Task>;
+	softDelete(id: string): Promise<Task>;
 	changelog(
 		id: string,
 		params?: { limit?: number; offset?: number }
 	): Promise<TaskChangelogResult>;
+	createComment(taskId: string, body: string, userId: string): Promise<Comment>;
+	getComment(commentId: string): Promise<Comment>;
+	updateComment(commentId: string, body: string): Promise<Comment>;
+	deleteComment(commentId: string): Promise<void>;
+	listComments(
+		taskId: string,
+		params?: { limit?: number; offset?: number }
+	): Promise<ListCommentsResult>;
+	createTag(name: string, color?: string): Promise<Tag>;
+	getTag(tagId: string): Promise<Tag>;
+	updateTag(tagId: string, name: string, color?: string): Promise<Tag>;
+	deleteTag(tagId: string): Promise<void>;
+	listTags(): Promise<ListTagsResult>;
+	addTagToTask(taskId: string, tagId: string): Promise<void>;
+	removeTagFromTask(taskId: string, tagId: string): Promise<void>;
+	listTagsForTask(taskId: string): Promise<Tag[]>;
 }
 
 const TASK_API_VERSION = '2026-02-24';
@@ -111,6 +164,26 @@ const TaskIdRequiredError = StructuredError(
 const TaskTitleRequiredError = StructuredError(
 	'TaskTitleRequiredError',
 	'Task title is required and must be a non-empty string'
+);
+
+const CommentIdRequiredError = StructuredError(
+	'CommentIdRequiredError',
+	'Comment ID is required and must be a non-empty string'
+);
+
+const CommentBodyRequiredError = StructuredError(
+	'CommentBodyRequiredError',
+	'Comment body is required and must be a non-empty string'
+);
+
+const TagIdRequiredError = StructuredError(
+	'TagIdRequiredError',
+	'Tag ID is required and must be a non-empty string'
+);
+
+const TagNameRequiredError = StructuredError(
+	'TagNameRequiredError',
+	'Tag name is required and must be a non-empty string'
 );
 
 const TaskStorageResponseError = StructuredError('TaskStorageResponseError')<{
@@ -215,6 +288,8 @@ export class TaskStorageService implements TaskStorage {
 		if (params?.priority) queryParams.set('priority', params.priority);
 		if (params?.assigned_id) queryParams.set('assigned_id', params.assigned_id);
 		if (params?.parent_id) queryParams.set('parent_id', params.parent_id);
+		if (params?.tag_id) queryParams.set('tag_id', params.tag_id);
+		if (params?.deleted !== undefined) queryParams.set('deleted', String(params.deleted));
 		if (params?.sort) queryParams.set('sort', params.sort);
 		if (params?.order) queryParams.set('order', params.order);
 		if (params?.limit !== undefined) queryParams.set('limit', String(params.limit));
@@ -336,7 +411,7 @@ export class TaskStorageService implements TaskStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/task-changelog/${TASK_API_VERSION}/${encodeURIComponent(id)}${
+			`/task/changelog/${TASK_API_VERSION}/${encodeURIComponent(id)}${
 				queryString ? `?${queryString}` : ''
 			}`
 		);
@@ -348,6 +423,470 @@ export class TaskStorageService implements TaskStorage {
 			telemetry: {
 				name: 'agentuity.task.changelog',
 				attributes: { id },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async softDelete(id: string): Promise<Task> {
+		if (!id || typeof id !== 'string' || id.trim().length === 0) {
+			throw new TaskIdRequiredError();
+		}
+
+		const url = buildUrl(this.#baseUrl, `/task/delete/${TASK_API_VERSION}/${encodeURIComponent(id)}`);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
+			method: 'POST',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.softDelete',
+				attributes: { id },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	async createComment(taskId: string, body: string, userId: string): Promise<Comment> {
+		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
+			throw new TaskIdRequiredError();
+		}
+		if (!body || typeof body !== 'string' || body.trim().length === 0) {
+			throw new CommentBodyRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/comments/create/${TASK_API_VERSION}/${encodeURIComponent(taskId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<Comment>>(url, {
+			method: 'POST',
+			body: safeStringify({ body, user_id: userId }),
+			contentType: 'application/json',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.createComment',
+				attributes: { taskId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	async getComment(commentId: string): Promise<Comment> {
+		if (!commentId || typeof commentId !== 'string' || commentId.trim().length === 0) {
+			throw new CommentIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/comments/get/${TASK_API_VERSION}/${encodeURIComponent(commentId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<Comment>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.getComment',
+				attributes: { commentId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async updateComment(commentId: string, body: string): Promise<Comment> {
+		if (!commentId || typeof commentId !== 'string' || commentId.trim().length === 0) {
+			throw new CommentIdRequiredError();
+		}
+		if (!body || typeof body !== 'string' || body.trim().length === 0) {
+			throw new CommentBodyRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/comments/update/${TASK_API_VERSION}/${encodeURIComponent(commentId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<Comment>>(url, {
+			method: 'PATCH',
+			body: safeStringify({ body }),
+			contentType: 'application/json',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.updateComment',
+				attributes: { commentId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('PATCH', url, res.response);
+	}
+
+	async deleteComment(commentId: string): Promise<void> {
+		if (!commentId || typeof commentId !== 'string' || commentId.trim().length === 0) {
+			throw new CommentIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/comments/delete/${TASK_API_VERSION}/${encodeURIComponent(commentId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
+			method: 'DELETE',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.deleteComment',
+				attributes: { commentId },
+			},
+		});
+
+		if (res.ok) {
+			return;
+		}
+
+		throw await toServiceException('DELETE', url, res.response);
+	}
+
+	async listComments(
+		taskId: string,
+		params?: { limit?: number; offset?: number }
+	): Promise<ListCommentsResult> {
+		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
+			throw new TaskIdRequiredError();
+		}
+
+		const queryParams = new URLSearchParams();
+		if (params?.limit !== undefined) queryParams.set('limit', String(params.limit));
+		if (params?.offset !== undefined) queryParams.set('offset', String(params.offset));
+		const queryString = queryParams.toString();
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/comments/list/${TASK_API_VERSION}/${encodeURIComponent(taskId)}${
+				queryString ? `?${queryString}` : ''
+			}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<ListCommentsResult>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.listComments',
+				attributes: { taskId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async createTag(name: string, color?: string): Promise<Tag> {
+		if (!name || typeof name !== 'string' || name.trim().length === 0) {
+			throw new TagNameRequiredError();
+		}
+
+		const url = buildUrl(this.#baseUrl, `/task/tags/create/${TASK_API_VERSION}`);
+		const signal = AbortSignal.timeout(30_000);
+
+		const body: Record<string, string> = { name };
+		if (color !== undefined) body.color = color;
+
+		const res = await this.#adapter.invoke<TaskResponse<Tag>>(url, {
+			method: 'POST',
+			body: safeStringify(body),
+			contentType: 'application/json',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.createTag',
+				attributes: { tagName: name },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	async getTag(tagId: string): Promise<Tag> {
+		if (!tagId || typeof tagId !== 'string' || tagId.trim().length === 0) {
+			throw new TagIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/tags/get/${TASK_API_VERSION}/${encodeURIComponent(tagId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<Tag>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.getTag',
+				attributes: { tagId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async updateTag(tagId: string, name: string, color?: string): Promise<Tag> {
+		if (!tagId || typeof tagId !== 'string' || tagId.trim().length === 0) {
+			throw new TagIdRequiredError();
+		}
+		if (!name || typeof name !== 'string' || name.trim().length === 0) {
+			throw new TagNameRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/tags/update/${TASK_API_VERSION}/${encodeURIComponent(tagId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const body: Record<string, string> = { name };
+		if (color !== undefined) body.color = color;
+
+		const res = await this.#adapter.invoke<TaskResponse<Tag>>(url, {
+			method: 'PATCH',
+			body: safeStringify(body),
+			contentType: 'application/json',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.updateTag',
+				attributes: { tagId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('PATCH', url, res.response);
+	}
+
+	async deleteTag(tagId: string): Promise<void> {
+		if (!tagId || typeof tagId !== 'string' || tagId.trim().length === 0) {
+			throw new TagIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/tags/delete/${TASK_API_VERSION}/${encodeURIComponent(tagId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
+			method: 'DELETE',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.deleteTag',
+				attributes: { tagId },
+			},
+		});
+
+		if (res.ok) {
+			return;
+		}
+
+		throw await toServiceException('DELETE', url, res.response);
+	}
+
+	async listTags(): Promise<ListTagsResult> {
+		const url = buildUrl(this.#baseUrl, `/task/tags/list/${TASK_API_VERSION}`);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<ListTagsResult>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.listTags',
+				attributes: {},
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async addTagToTask(taskId: string, tagId: string): Promise<void> {
+		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
+			throw new TaskIdRequiredError();
+		}
+		if (!tagId || typeof tagId !== 'string' || tagId.trim().length === 0) {
+			throw new TagIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/tags/add/${TASK_API_VERSION}/${encodeURIComponent(taskId)}/${encodeURIComponent(tagId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
+			method: 'POST',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.addTagToTask',
+				attributes: { taskId, tagId },
+			},
+		});
+
+		if (res.ok) {
+			return;
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	async removeTagFromTask(taskId: string, tagId: string): Promise<void> {
+		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
+			throw new TaskIdRequiredError();
+		}
+		if (!tagId || typeof tagId !== 'string' || tagId.trim().length === 0) {
+			throw new TagIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/tags/remove/${TASK_API_VERSION}/${encodeURIComponent(taskId)}/${encodeURIComponent(tagId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
+			method: 'DELETE',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.removeTagFromTask',
+				attributes: { taskId, tagId },
+			},
+		});
+
+		if (res.ok) {
+			return;
+		}
+
+		throw await toServiceException('DELETE', url, res.response);
+	}
+
+	async listTagsForTask(taskId: string): Promise<Tag[]> {
+		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
+			throw new TaskIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/tags/task/${TASK_API_VERSION}/${encodeURIComponent(taskId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<Tag[]>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.listTagsForTask',
+				attributes: { taskId },
 			},
 		});
 

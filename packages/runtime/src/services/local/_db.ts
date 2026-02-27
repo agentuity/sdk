@@ -139,6 +139,57 @@ function initializeTables(db: Database): void {
 		CREATE INDEX IF NOT EXISTS idx_task_changelog_lookup
 		ON task_changelog_storage(project_path, task_id)
 	`);
+
+	// Task Comment table
+	db.run(`
+		CREATE TABLE IF NOT EXISTS task_comment_storage (
+			project_path TEXT NOT NULL,
+			id TEXT NOT NULL,
+			task_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			body TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL,
+			PRIMARY KEY (project_path, id)
+		)
+	`);
+
+	db.run(`
+		CREATE INDEX IF NOT EXISTS idx_task_comment_lookup
+		ON task_comment_storage(project_path, task_id)
+	`);
+
+	// Task Tag table
+	db.run(`
+		CREATE TABLE IF NOT EXISTS task_tag_storage (
+			project_path TEXT NOT NULL,
+			id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT,
+			created_at INTEGER NOT NULL,
+			PRIMARY KEY (project_path, id)
+		)
+	`);
+
+	// Task-Tag association table
+	db.run(`
+		CREATE TABLE IF NOT EXISTS task_tag_association_storage (
+			project_path TEXT NOT NULL,
+			task_id TEXT NOT NULL,
+			tag_id TEXT NOT NULL,
+			PRIMARY KEY (project_path, task_id, tag_id)
+		)
+	`);
+
+	db.run(`
+		CREATE INDEX IF NOT EXISTS idx_task_tag_assoc_task
+		ON task_tag_association_storage(project_path, task_id)
+	`);
+
+	db.run(`
+		CREATE INDEX IF NOT EXISTS idx_task_tag_assoc_tag
+		ON task_tag_association_storage(project_path, tag_id)
+	`);
 }
 
 function cleanupOrphanedProjects(db: Database): void {
@@ -163,10 +214,25 @@ function cleanupOrphanedProjects(db: Database): void {
 		.all() as Array<{
 		project_path: string;
 	}>;
+	const taskCommentPaths = db
+		.query('SELECT DISTINCT project_path FROM task_comment_storage')
+		.all() as Array<{
+		project_path: string;
+	}>;
+	const taskTagPaths = db
+		.query('SELECT DISTINCT project_path FROM task_tag_storage')
+		.all() as Array<{
+		project_path: string;
+	}>;
+	const taskTagAssocPaths = db
+		.query('SELECT DISTINCT project_path FROM task_tag_association_storage')
+		.all() as Array<{
+		project_path: string;
+	}>;
 
 	// Combine and deduplicate all project paths
 	const allPaths = new Set<string>();
-	[...kvPaths, ...streamPaths, ...vectorPaths, ...taskPaths, ...taskChangelogPaths].forEach(
+	[...kvPaths, ...streamPaths, ...vectorPaths, ...taskPaths, ...taskChangelogPaths, ...taskCommentPaths, ...taskTagPaths, ...taskTagAssocPaths].forEach(
 		(row) => {
 			allPaths.add(row.project_path);
 		}
@@ -198,12 +264,24 @@ function cleanupOrphanedProjects(db: Database): void {
 		const deleteTaskChangelog = db.prepare(
 			`DELETE FROM task_changelog_storage WHERE project_path IN (${placeholders})`
 		);
+		const deleteTaskComments = db.prepare(
+			`DELETE FROM task_comment_storage WHERE project_path IN (${placeholders})`
+		);
+		const deleteTaskTags = db.prepare(
+			`DELETE FROM task_tag_storage WHERE project_path IN (${placeholders})`
+		);
+		const deleteTaskTagAssoc = db.prepare(
+			`DELETE FROM task_tag_association_storage WHERE project_path IN (${placeholders})`
+		);
 
 		deleteKv.run(...pathsToDelete);
 		deleteStream.run(...pathsToDelete);
 		deleteVector.run(...pathsToDelete);
 		deleteTasks.run(...pathsToDelete);
 		deleteTaskChangelog.run(...pathsToDelete);
+		deleteTaskComments.run(...pathsToDelete);
+		deleteTaskTags.run(...pathsToDelete);
+		deleteTaskTagAssoc.run(...pathsToDelete);
 
 		console.log(`[LocalDB] Cleaned up data for ${pathsToDelete.length} orphaned project(s)`);
 	}

@@ -65,11 +65,19 @@ export class LocalEmailStorage implements EmailService {
 		throw new LocalEmailNotAvailableError();
 	}
 
+	async deleteInbound(_id: string): Promise<void> {
+		throw new LocalEmailNotAvailableError();
+	}
+
 	async listOutbound(_addressId?: string): Promise<EmailOutbound[]> {
 		throw new LocalEmailNotAvailableError();
 	}
 
 	async getOutbound(_id: string): Promise<EmailOutbound | null> {
+		throw new LocalEmailNotAvailableError();
+	}
+
+	async deleteOutbound(_id: string): Promise<void> {
 		throw new LocalEmailNotAvailableError();
 	}
 }

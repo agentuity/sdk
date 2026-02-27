@@ -11,6 +11,10 @@ import type {
 	ListTasksParams,
 	ListTasksResult,
 	TaskChangelogResult,
+	Comment,
+	Tag,
+	ListCommentsResult,
+	ListTagsResult,
 } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
 import { now } from './_util';
@@ -23,6 +27,36 @@ const TaskTitleRequiredError = StructuredError(
 const TaskNotFoundError = StructuredError('TaskNotFoundError', 'Task not found');
 
 const TaskAlreadyClosedError = StructuredError('TaskAlreadyClosedError', 'Task is already closed');
+
+const CommentNotFoundError = StructuredError('CommentNotFoundError', 'Comment not found');
+
+const TagNotFoundError = StructuredError('TagNotFoundError', 'Tag not found');
+
+const CommentBodyRequiredError = StructuredError(
+	'CommentBodyRequiredError',
+	'Comment body is required and must be a non-empty string'
+);
+
+const TagNameRequiredError = StructuredError(
+	'TagNameRequiredError',
+	'Tag name is required and must be a non-empty string'
+);
+
+type CommentRow = {
+	id: string;
+	created_at: number;
+	updated_at: number;
+	task_id: string;
+	user_id: string;
+	body: string;
+};
+
+type TagRow = {
+	id: string;
+	created_at: number;
+	name: string;
+	color: string | null;
+};
 
 type TaskRow = {
 	id: string;
@@ -92,7 +126,36 @@ function toTask(row: TaskRow): Task {
 		created_id: row.created_id,
 		assigned_id: row.assigned_id ?? undefined,
 		closed_id: row.closed_id ?? undefined,
+		deleted: false,
 	};
+}
+
+function toComment(row: CommentRow): Comment {
+	return {
+		id: row.id,
+		created_at: new Date(row.created_at).toISOString(),
+		updated_at: new Date(row.updated_at).toISOString(),
+		task_id: row.task_id,
+		user_id: row.user_id,
+		body: row.body,
+	};
+}
+
+function toTag(row: TagRow): Tag {
+	return {
+		id: row.id,
+		created_at: new Date(row.created_at).toISOString(),
+		name: row.name,
+		color: row.color ?? undefined,
+	};
+}
+
+function generateCommentId(): string {
+	return `comment_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
+}
+
+function generateTagId(): string {
+	return `tag_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
 }
 
 function toChangelogEntry(row: TaskChangelogRow): TaskChangelogEntry {
@@ -591,5 +654,286 @@ export class LocalTaskStorage implements TaskStorage {
 			limit,
 			offset,
 		};
+	}
+
+	async softDelete(id: string): Promise<Task> {
+		const task = await this.get(id);
+		if (!task) {
+			throw new TaskNotFoundError();
+		}
+
+		const timestamp = now();
+
+		const updateStmt = this.#db.prepare(`
+			UPDATE task_storage
+			SET status = 'closed', closed_date = COALESCE(closed_date, ?), updated_at = ?
+			WHERE project_path = ? AND id = ?
+		`);
+
+		updateStmt.run(
+			new Date(timestamp).toISOString(),
+			timestamp,
+			this.#projectPath,
+			id
+		);
+
+		const changelogStmt = this.#db.prepare(`
+			INSERT INTO task_changelog_storage (
+				project_path, id, task_id, field, old_value, new_value, created_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
+		`);
+
+		changelogStmt.run(
+			this.#projectPath,
+			generateChangelogId(),
+			id,
+			'deleted',
+			'false',
+			'true',
+			timestamp
+		);
+
+		const updated = await this.get(id);
+		return { ...updated!, deleted: true };
+	}
+
+	async createComment(taskId: string, body: string, userId: string): Promise<Comment> {
+		const trimmedBody = body?.trim();
+		if (!trimmedBody) {
+			throw new CommentBodyRequiredError();
+		}
+
+		const task = await this.get(taskId);
+		if (!task) {
+			throw new TaskNotFoundError();
+		}
+
+		const id = generateCommentId();
+		const timestamp = now();
+
+		const stmt = this.#db.prepare(`
+			INSERT INTO task_comment_storage (
+				project_path, id, task_id, user_id, body, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
+		`);
+
+		stmt.run(this.#projectPath, id, taskId, userId, trimmedBody, timestamp, timestamp);
+
+		return toComment({
+			id,
+			created_at: timestamp,
+			updated_at: timestamp,
+			task_id: taskId,
+			user_id: userId,
+			body: trimmedBody,
+		});
+	}
+
+	async getComment(commentId: string): Promise<Comment> {
+		const query = this.#db.query(`
+			SELECT id, created_at, updated_at, task_id, user_id, body
+			FROM task_comment_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		const row = query.get(this.#projectPath, commentId) as CommentRow | null;
+		if (!row) {
+			throw new CommentNotFoundError();
+		}
+
+		return toComment(row);
+	}
+
+	async updateComment(commentId: string, body: string): Promise<Comment> {
+		const trimmedBody = body?.trim();
+		if (!trimmedBody) {
+			throw new CommentBodyRequiredError();
+		}
+
+		const existing = await this.getComment(commentId);
+		const timestamp = now();
+
+		const stmt = this.#db.prepare(`
+			UPDATE task_comment_storage
+			SET body = ?, updated_at = ?
+			WHERE project_path = ? AND id = ?
+		`);
+
+		stmt.run(trimmedBody, timestamp, this.#projectPath, commentId);
+
+		return {
+			...existing,
+			body: trimmedBody,
+			updated_at: new Date(timestamp).toISOString(),
+		};
+	}
+
+	async deleteComment(commentId: string): Promise<void> {
+		const stmt = this.#db.prepare(`
+			DELETE FROM task_comment_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		stmt.run(this.#projectPath, commentId);
+	}
+
+	async listComments(
+		taskId: string,
+		params?: { limit?: number; offset?: number }
+	): Promise<ListCommentsResult> {
+		const limit = params?.limit ?? DEFAULT_LIMIT;
+		const offset = params?.offset ?? 0;
+
+		const totalQuery = this.#db.query(
+			`SELECT COUNT(*) as count FROM task_comment_storage WHERE project_path = ? AND task_id = ?`
+		);
+		const totalRow = totalQuery.get(this.#projectPath, taskId) as { count: number };
+
+		const query = this.#db.query(`
+			SELECT id, created_at, updated_at, task_id, user_id, body
+			FROM task_comment_storage
+			WHERE project_path = ? AND task_id = ?
+			ORDER BY created_at DESC
+			LIMIT ? OFFSET ?
+		`);
+
+		const rows = query.all(this.#projectPath, taskId, limit, offset) as CommentRow[];
+
+		return {
+			comments: rows.map(toComment),
+			total: totalRow.count,
+			limit,
+			offset,
+		};
+	}
+
+	async createTag(name: string, color?: string): Promise<Tag> {
+		const trimmedName = name?.trim();
+		if (!trimmedName) {
+			throw new TagNameRequiredError();
+		}
+
+		const id = generateTagId();
+		const timestamp = now();
+
+		const stmt = this.#db.prepare(`
+			INSERT INTO task_tag_storage (
+				project_path, id, name, color, created_at
+			) VALUES (?, ?, ?, ?, ?)
+		`);
+
+		stmt.run(this.#projectPath, id, trimmedName, color ?? null, timestamp);
+
+		return toTag({
+			id,
+			created_at: timestamp,
+			name: trimmedName,
+			color: color ?? null,
+		});
+	}
+
+	async getTag(tagId: string): Promise<Tag> {
+		const query = this.#db.query(`
+			SELECT id, created_at, name, color
+			FROM task_tag_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		const row = query.get(this.#projectPath, tagId) as TagRow | null;
+		if (!row) {
+			throw new TagNotFoundError();
+		}
+
+		return toTag(row);
+	}
+
+	async updateTag(tagId: string, name: string, color?: string): Promise<Tag> {
+		const trimmedName = name?.trim();
+		if (!trimmedName) {
+			throw new TagNameRequiredError();
+		}
+
+		// Verify exists
+		await this.getTag(tagId);
+
+		const stmt = this.#db.prepare(`
+			UPDATE task_tag_storage
+			SET name = ?, color = ?
+			WHERE project_path = ? AND id = ?
+		`);
+
+		stmt.run(trimmedName, color ?? null, this.#projectPath, tagId);
+
+		return this.getTag(tagId);
+	}
+
+	async deleteTag(tagId: string): Promise<void> {
+		// Also remove tag associations
+		const deleteAssocStmt = this.#db.prepare(`
+			DELETE FROM task_tag_association_storage
+			WHERE project_path = ? AND tag_id = ?
+		`);
+		deleteAssocStmt.run(this.#projectPath, tagId);
+
+		const stmt = this.#db.prepare(`
+			DELETE FROM task_tag_storage
+			WHERE project_path = ? AND id = ?
+		`);
+		stmt.run(this.#projectPath, tagId);
+	}
+
+	async listTags(): Promise<ListTagsResult> {
+		const query = this.#db.query(`
+			SELECT id, created_at, name, color
+			FROM task_tag_storage
+			WHERE project_path = ?
+			ORDER BY name ASC
+		`);
+
+		const rows = query.all(this.#projectPath) as TagRow[];
+
+		return {
+			tags: rows.map(toTag),
+		};
+	}
+
+	async addTagToTask(taskId: string, tagId: string): Promise<void> {
+		// Verify task and tag exist
+		const task = await this.get(taskId);
+		if (!task) {
+			throw new TaskNotFoundError();
+		}
+		await this.getTag(tagId);
+
+		const stmt = this.#db.prepare(`
+			INSERT OR IGNORE INTO task_tag_association_storage (
+				project_path, task_id, tag_id
+			) VALUES (?, ?, ?)
+		`);
+
+		stmt.run(this.#projectPath, taskId, tagId);
+	}
+
+	async removeTagFromTask(taskId: string, tagId: string): Promise<void> {
+		const stmt = this.#db.prepare(`
+			DELETE FROM task_tag_association_storage
+			WHERE project_path = ? AND task_id = ? AND tag_id = ?
+		`);
+
+		stmt.run(this.#projectPath, taskId, tagId);
+	}
+
+	async listTagsForTask(taskId: string): Promise<Tag[]> {
+		const query = this.#db.query(`
+			SELECT t.id, t.created_at, t.name, t.color
+			FROM task_tag_storage t
+			INNER JOIN task_tag_association_storage a ON t.id = a.tag_id AND t.project_path = a.project_path
+			WHERE a.project_path = ? AND a.task_id = ?
+			ORDER BY t.name ASC
+		`);
+
+		const rows = query.all(this.#projectPath, taskId) as TagRow[];
+
+		return rows.map(toTag);
 	}
 }
