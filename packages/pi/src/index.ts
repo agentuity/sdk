@@ -28,8 +28,8 @@ const AGENT_ENV = 'AGENTUITY_CODER_AGENT';
 const recentResults: StoredResult[] = [];
 const MAX_STORED_RESULTS = 20;
 
-function storeResult(agentName: string, text: string, tokenInfo?: string): void {
-	recentResults.unshift({ agentName, text, timestamp: Date.now(), tokenInfo });
+function storeResult(agentName: string, text: string, tokenInfo?: string, description?: string, prompt?: string): void {
+	recentResults.unshift({ agentName, text, timestamp: Date.now(), tokenInfo, description, prompt });
 	if (recentResults.length > MAX_STORED_RESULTS) recentResults.pop();
 }
 
@@ -446,6 +446,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', subagent_type);
+				ctx.ui.setWorkingMessage(' '); // Suppress Pi's "Working..." — our widget is more informative
 				updateWidget('running');
 				elapsedTimer = setInterval(() => {
 					updateWidget('running', lastWidgetTool, lastWidgetToolArgs);
@@ -491,7 +492,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					tokenInfoStr = `${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out | $${result.tokens.cost.toFixed(4)}`;
 					output += `\n\n---\n_${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out tokens | $${result.tokens.cost.toFixed(4)}_`;
 				}
-				storeResult(subagent_type, result.output, tokenInfoStr);
+				storeResult(subagent_type, result.output, tokenInfoStr, description, prompt);
 				return {
 					content: [{ type: 'text' as const, text: output }],
 					details: undefined as unknown,
@@ -508,6 +509,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
 					ctx.ui.setWidget('coder-agent-status', undefined);
+					ctx.ui.setWorkingMessage(); // Restore Pi's default working message
 				}
 			}
 			},
@@ -619,6 +621,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', 'agents');
+				ctx.ui.setWorkingMessage(' '); // Suppress Pi's "Working..." — our widget is more informative
 				updateWidget();
 				elapsedTimer = setInterval(() => {
 					updateWidget(); // Refresh elapsed times in widget
@@ -683,15 +686,15 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					const results = await Promise.all(promises);
 
 					// Store each successful result for the Output Viewer
-					for (const r of results) {
+					results.forEach((r, idx) => {
 						if ('output' in r && r.output && !('error' in r && r.error)) {
 							let tokenInfoStr: string | undefined;
 							if ('tokens' in r && r.tokens && (r.tokens.input > 0 || r.tokens.output > 0)) {
 								tokenInfoStr = `${r.agent}: ${'duration' in r ? r.duration : 0}ms | ${r.tokens.input} in ${r.tokens.output} out | $${r.tokens.cost.toFixed(4)}`;
 							}
-							storeResult(r.agent, r.output, tokenInfoStr);
+							storeResult(r.agent, r.output, tokenInfoStr, tasks[idx]?.description, tasks[idx]?.prompt);
 						}
-					}
+					});
 
 					const output = results
 						.map((r) => {
@@ -713,6 +716,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
 					ctx.ui.setWidget('coder-agent-status', undefined);
+					ctx.ui.setWorkingMessage(); // Restore Pi's default working message
 				}
 			}
 		},

@@ -7,6 +7,8 @@ export interface StoredResult {
 	text: string;
 	timestamp: number;
 	tokenInfo?: string; // e.g. "scout: 1200ms | 500 in 800 out | $0.0123"
+	description?: string; // Short 3-5 word task description
+	prompt?: string; // Full detailed prompt sent to the agent
 }
 
 interface Component {
@@ -71,6 +73,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 	private currentIndex: number;
 	private scrollOffset = 0;
 	private disposed = false;
+	private viewMode: 'output' | 'prompt' = 'output';
 
 	constructor(
 		theme: Theme,
@@ -99,7 +102,20 @@ export class OutputViewerOverlay implements Component, Focusable {
 			return;
 		}
 
-		const contentLines = result.text.split('\n');
+		// Toggle between output and prompt views
+		if (matchesKey(data, 'p') || data.toLowerCase() === 'p') {
+			if (this.viewMode === 'output' && result?.prompt) {
+				this.viewMode = 'prompt';
+			} else {
+				this.viewMode = 'output';
+			}
+			this.scrollOffset = 0;
+			this.invalidate();
+			return;
+		}
+
+		const activeText = this.viewMode === 'prompt' && result.prompt ? result.prompt : result.text;
+		const contentLines = activeText.split('\n');
 		const termHeight = process.stdout.rows || 40;
 		const maxLines = Math.max(10, Math.floor(termHeight * 0.8) - 2);
 		// header=2 lines, footer=2 lines
@@ -112,6 +128,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 			if (this.results.length > 1) {
 				this.currentIndex = (this.currentIndex + 1) % this.results.length;
 				this.scrollOffset = 0;
+				this.viewMode = 'output';
 				this.invalidate();
 			}
 			return;
@@ -121,6 +138,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 			if (this.results.length > 1) {
 				this.currentIndex = (this.currentIndex - 1 + this.results.length) % this.results.length;
 				this.scrollOffset = 0;
+				this.viewMode = 'output';
 				this.invalidate();
 			}
 			return;
@@ -190,17 +208,23 @@ export class OutputViewerOverlay implements Component, Focusable {
 			return lines.map((line) => truncateToWidth(line, safeWidth));
 		}
 
-		// Build header title: "agentName (N of M)"
-		const posLabel = this.results.length > 1
-			? `${result.agentName} (${this.currentIndex + 1} of ${this.results.length})`
+		// Build header title: "agentName - description (N of M)" or "agentName (N of M)"
+		const nameLabel = result.description
+			? `${result.agentName} - ${result.description}`
 			: result.agentName;
+		const posLabel = this.results.length > 1
+			? `${nameLabel} (${this.currentIndex + 1} of ${this.results.length})`
+			: nameLabel;
+		const titleLabel = this.viewMode === 'prompt' ? `${posLabel} [PROMPT]` : posLabel;
 
 		const header: string[] = [
-			buildTopBorder(safeWidth, posLabel),
+			buildTopBorder(safeWidth, titleLabel),
 		];
 
-		// Token info sub-header if available
-		if (result.tokenInfo) {
+		// Sub-header: token info or prompt-mode indicator
+		if (this.viewMode === 'prompt') {
+			header.push(this.contentLine(this.theme.fg('dim', '  Prompt sent to agent:'), inner));
+		} else if (result.tokenInfo) {
 			header.push(this.contentLine(this.theme.fg('dim', `  ${result.tokenInfo}`), inner));
 		} else {
 			header.push(this.contentLine('', inner));
@@ -208,14 +232,18 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 		// Footer
 		const navHint = this.results.length > 1 ? '[<- ->] Switch agent  ' : '';
+		const promptHint = result.prompt ? '[p] Prompt  ' : '';
 		const footer: string[] = [
-			this.contentLine(this.theme.fg('dim', `  [Up/Down] Scroll  [PgUp/PgDn] Page  ${navHint}[Esc] Close`), inner),
+			this.contentLine(this.theme.fg('dim', `  [Up/Down] Scroll  [PgUp/PgDn] Page  ${promptHint}${navHint}[Esc] Close`), inner),
 			buildBottomBorder(safeWidth),
 		];
 
-		// Content area
+		// Content area — switch between output and prompt based on viewMode
 		const contentBudget = Math.max(1, maxLines - header.length - footer.length);
-		const contentLines = result.text.split('\n');
+		const activeText = this.viewMode === 'prompt' && result.prompt
+			? result.prompt
+			: result.text;
+		const contentLines = activeText.split('\n');
 		const totalLines = contentLines.length;
 		const maxScroll = Math.max(0, totalLines - contentBudget);
 
