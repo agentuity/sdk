@@ -29,8 +29,15 @@ const recentResults: StoredResult[] = [];
 const MAX_STORED_RESULTS = 20;
 
 function storeResult(agentName: string, text: string, tokenInfo?: string, description?: string, prompt?: string): void {
-	recentResults.unshift({ agentName, text, timestamp: Date.now(), tokenInfo, description, prompt });
+	recentResults.unshift({ agentName, text, thinking: '', timestamp: Date.now(), tokenInfo, description, prompt, isStreaming: false });
 	if (recentResults.length > MAX_STORED_RESULTS) recentResults.pop();
+}
+
+function startStreamingResult(agentName: string, description?: string, prompt?: string): StoredResult {
+	const result: StoredResult = { agentName, text: '', thinking: '', timestamp: Date.now(), isStreaming: true, description, prompt };
+	recentResults.unshift(result);
+	if (recentResults.length > MAX_STORED_RESULTS) recentResults.pop();
+	return result;
 }
 
 // ══════════════════════════════════════════════
@@ -351,7 +358,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			handler: async (ctx) => {
 				if (!ctx.hasUI || recentResults.length === 0) return;
 				await ctx.ui.custom<undefined>(
-					(_tui, theme, _keybindings, done) => new OutputViewerOverlay(theme, recentResults, done),
+					(tui, theme, _keybindings, done) => new OutputViewerOverlay(tui, theme, recentResults, done),
 					{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
 				);
 			},
@@ -453,11 +460,20 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				}, 1000);
 			}
 
+			// Create live streaming result before starting sub-agent
+			const liveResult = startStreamingResult(subagent_type, description, prompt);
+
 			try {
 				const result = await runSubAgent(agent, prompt, client, ctx.hasUI ? (progress) => {
 					// Update TUI working message with live tool activity
 					try {
-						if (progress.status === 'tool_start' && progress.currentTool) {
+						if (progress.status === 'thinking_delta' && progress.delta) {
+							liveResult.thinking += progress.delta;
+							updateWidget('running', 'thinking...');
+						} else if (progress.status === 'text_delta' && progress.delta) {
+							liveResult.text += progress.delta;
+							updateWidget('running', 'writing...');
+						} else if (progress.status === 'tool_start' && progress.currentTool) {
 							lastWidgetTool = progress.currentTool;
 							lastWidgetToolArgs = progress.currentToolArgs;
 							updateWidget('running', progress.currentTool, progress.currentToolArgs);
@@ -486,19 +502,25 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				// Flash completed state briefly before clearing
 				updateWidget('completed');
 
+				// Finalize the live result instead of creating a new one
+				liveResult.isStreaming = false;
+				liveResult.text = result.output || liveResult.text || '(no output)';
+
 				let output = result.output;
 				let tokenInfoStr: string | undefined;
 				if (result.tokens && (result.tokens.input > 0 || result.tokens.output > 0)) {
 					tokenInfoStr = `${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out | $${result.tokens.cost.toFixed(4)}`;
 					output += `\n\n---\n_${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out tokens | $${result.tokens.cost.toFixed(4)}_`;
 				}
-				storeResult(subagent_type, result.output, tokenInfoStr, description, prompt);
+				if (tokenInfoStr) liveResult.tokenInfo = tokenInfoStr;
 				return {
 					content: [{ type: 'text' as const, text: output }],
 					details: undefined as unknown,
 				};
 			} catch (err) {
 				const errorMsg = err instanceof Error ? err.message : String(err);
+				liveResult.isStreaming = false;
+				liveResult.text = liveResult.text || `Agent ${subagent_type} failed: ${errorMsg}`;
 				updateWidget('failed');
 				return {
 					content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
@@ -628,10 +650,17 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				}, 1000);
 			}
 
+				// Create live streaming results for each parallel task
+				const liveResults = tasks.map((task: { subagent_type: string; description: string; prompt: string }) =>
+					startStreamingResult(task.subagent_type, task.description, task.prompt),
+				);
+
 				const promises = tasks.map(async (task, index) => {
 					const agent = agentRegistry.get(task.subagent_type);
 					if (!agent) {
 						agentStatuses[index]!.status = 'failed';
+						liveResults[index]!.isStreaming = false;
+						liveResults[index]!.text = `Unknown agent: ${task.subagent_type}`;
 						updateWidget();
 						return { agent: task.subagent_type, error: `Unknown agent: ${task.subagent_type}` };
 					}
@@ -642,6 +671,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 					try {
 						const result = await runSubAgent(agent, task.prompt, client, ctx.hasUI ? (progress) => {
+							// Handle streaming deltas
+							if (progress.status === 'thinking_delta' && progress.delta) {
+								liveResults[index]!.thinking += progress.delta;
+							} else if (progress.status === 'text_delta' && progress.delta) {
+								liveResults[index]!.text += progress.delta;
+							}
+
 							// Update per-agent widget with tool activity
 							agentStatuses[index]!.currentTool = progress.currentTool;
 							agentStatuses[index]!.currentToolArgs = progress.currentToolArgs;
@@ -670,6 +706,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						agentStatuses[index]!.duration = result.duration;
 						agentStatuses[index]!.currentTool = undefined;
 						agentStatuses[index]!.currentToolArgs = undefined;
+
+						// Finalize the live result
+						liveResults[index]!.isStreaming = false;
+						liveResults[index]!.text = result.output || liveResults[index]!.text || '(no output)';
 						updateWidget();
 
 						return { agent: task.subagent_type, output: result.output, duration: result.duration, tokens: result.tokens };
@@ -677,6 +717,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						agentStatuses[index]!.status = 'failed';
 						agentStatuses[index]!.currentTool = undefined;
 						agentStatuses[index]!.currentToolArgs = undefined;
+						liveResults[index]!.isStreaming = false;
+						liveResults[index]!.text = liveResults[index]!.text || `Failed: ${err instanceof Error ? err.message : String(err)}`;
 						updateWidget();
 						return { agent: task.subagent_type, error: err instanceof Error ? err.message : String(err) };
 					}
@@ -685,14 +727,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				try {
 					const results = await Promise.all(promises);
 
-					// Store each successful result for the Output Viewer
+					// Finalize live results with token info
 					results.forEach((r, idx) => {
 						if ('output' in r && r.output && !('error' in r && r.error)) {
-							let tokenInfoStr: string | undefined;
 							if ('tokens' in r && r.tokens && (r.tokens.input > 0 || r.tokens.output > 0)) {
-								tokenInfoStr = `${r.agent}: ${'duration' in r ? r.duration : 0}ms | ${r.tokens.input} in ${r.tokens.output} out | $${r.tokens.cost.toFixed(4)}`;
+								liveResults[idx]!.tokenInfo = `${r.agent}: ${'duration' in r ? r.duration : 0}ms | ${r.tokens.input} in ${r.tokens.output} out | $${r.tokens.cost.toFixed(4)}`;
 							}
-							storeResult(r.agent, r.output, tokenInfoStr, tasks[idx]?.description, tasks[idx]?.prompt);
 						}
 					});
 
@@ -1052,8 +1092,30 @@ async function runSubAgent(
 		try {
 			session.subscribe?.((event: unknown) => {
 				try {
-					const evt = event as { type?: string; toolName?: string; name?: string; args?: unknown; tool?: string };
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const evt = event as any;
 					const elapsed = Date.now() - startTime;
+
+					// Handle streaming message updates (thinking + text tokens)
+					if (evt.type === 'message_update' && evt.assistantMessageEvent) {
+						const ame = evt.assistantMessageEvent as { type?: string; delta?: string };
+						if (ame.type === 'thinking_delta' && ame.delta) {
+							onProgress({
+								agentName: agentConfig.name,
+								status: 'thinking_delta',
+								delta: ame.delta,
+								elapsed,
+							});
+						} else if (ame.type === 'text_delta' && ame.delta) {
+							onProgress({
+								agentName: agentConfig.name,
+								status: 'text_delta',
+								delta: ame.delta,
+								elapsed,
+							});
+						}
+						return;
+					}
 
 					if (evt.type === 'tool_execution_start' || evt.type === 'tool_call') {
 						const toolName = evt.toolName || evt.name || evt.tool || 'unknown';

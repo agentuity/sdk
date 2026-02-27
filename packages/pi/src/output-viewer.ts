@@ -5,10 +5,12 @@ import { truncateToWidth } from './renderers.ts';
 export interface StoredResult {
 	agentName: string;
 	text: string;
+	thinking: string; // Accumulated thinking tokens from streaming
 	timestamp: number;
 	tokenInfo?: string; // e.g. "scout: 1200ms | 500 in 800 out | $0.0123"
 	description?: string; // Short 3-5 word task description
 	prompt?: string; // Full detailed prompt sent to the agent
+	isStreaming: boolean; // true while agent is still running
 }
 
 interface Component {
@@ -22,6 +24,10 @@ interface Focusable {
 }
 
 type DoneFn = (result: undefined) => void;
+
+interface TUIRef {
+	requestRender(): void;
+}
 
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
@@ -66,6 +72,7 @@ function buildBottomBorder(width: number): string {
 export class OutputViewerOverlay implements Component, Focusable {
 	public focused = true;
 
+	private readonly tui: TUIRef;
 	private readonly theme: Theme;
 	private readonly results: StoredResult[];
 	private readonly done: DoneFn;
@@ -74,17 +81,31 @@ export class OutputViewerOverlay implements Component, Focusable {
 	private scrollOffset = 0;
 	private disposed = false;
 	private viewMode: 'output' | 'prompt' = 'output';
+	private showThinking = false;
+	private following = true;
+	private pollTimer: ReturnType<typeof setInterval> | null = null;
 
 	constructor(
+		tui: TUIRef,
 		theme: Theme,
 		results: StoredResult[],
 		done: DoneFn,
 		startIndex?: number,
 	) {
+		this.tui = tui;
 		this.theme = theme;
 		this.results = results;
 		this.done = done;
 		this.currentIndex = startIndex ?? 0;
+
+		// Poll for streaming updates — when viewing a streaming result, trigger re-renders
+		this.pollTimer = setInterval(() => {
+			if (this.disposed) return;
+			const current = this.results[this.currentIndex];
+			if (current?.isStreaming) {
+				this.tui.requestRender();
+			}
+		}, 100);
 	}
 
 	handleInput(data: string): void {
@@ -102,6 +123,28 @@ export class OutputViewerOverlay implements Component, Focusable {
 			return;
 		}
 
+		// Toggle thinking visibility
+		if (matchesKey(data, 't') || data.toLowerCase() === 't') {
+			if (result?.thinking) {
+				this.showThinking = !this.showThinking;
+				this.scrollOffset = 0;
+				this.invalidate();
+			}
+			return;
+		}
+
+		// Toggle follow mode (auto-scroll)
+		if (matchesKey(data, 'f') || data.toLowerCase() === 'f') {
+			this.following = !this.following;
+			if (this.following) {
+				const lines = this.getContentLines();
+				const budget = this.getContentBudget();
+				this.scrollOffset = Math.max(0, lines.length - budget);
+			}
+			this.invalidate();
+			return;
+		}
+
 		// Toggle between output and prompt views
 		if (matchesKey(data, 'p') || data.toLowerCase() === 'p') {
 			if (this.viewMode === 'output' && result?.prompt) {
@@ -114,12 +157,8 @@ export class OutputViewerOverlay implements Component, Focusable {
 			return;
 		}
 
-		const activeText = this.viewMode === 'prompt' && result.prompt ? result.prompt : result.text;
-		const contentLines = activeText.split('\n');
-		const termHeight = process.stdout.rows || 40;
-		const maxLines = Math.max(10, Math.floor(termHeight * 0.95) - 2);
-		// header=2 lines, footer=2 lines
-		const contentBudget = Math.max(1, maxLines - 4);
+		const contentLines = this.getContentLines();
+		const contentBudget = this.getContentBudget();
 		const maxScroll = Math.max(0, contentLines.length - contentBudget);
 		const halfPage = Math.max(1, Math.floor(contentBudget / 2));
 
@@ -129,6 +168,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 				this.currentIndex = (this.currentIndex + 1) % this.results.length;
 				this.scrollOffset = 0;
 				this.viewMode = 'output';
+				this.showThinking = false;
 				this.invalidate();
 			}
 			return;
@@ -139,14 +179,16 @@ export class OutputViewerOverlay implements Component, Focusable {
 				this.currentIndex = (this.currentIndex - 1 + this.results.length) % this.results.length;
 				this.scrollOffset = 0;
 				this.viewMode = 'output';
+				this.showThinking = false;
 				this.invalidate();
 			}
 			return;
 		}
 
-		// Scroll content
+		// Scroll content — manual scroll disables following
 		if (matchesKey(data, 'up')) {
 			if (this.scrollOffset > 0) {
+				this.following = false;
 				this.scrollOffset -= 1;
 				this.invalidate();
 			}
@@ -155,6 +197,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 		if (matchesKey(data, 'down')) {
 			if (this.scrollOffset < maxScroll) {
+				this.following = false;
 				this.scrollOffset += 1;
 				this.invalidate();
 			}
@@ -163,6 +206,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 		// Page up (Shift+Up or PageUp)
 		if (matchesKey(data, 'shift+up') || matchesKey(data, 'pageUp')) {
+			this.following = false;
 			this.scrollOffset = Math.max(0, this.scrollOffset - halfPage);
 			this.invalidate();
 			return;
@@ -170,6 +214,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 		// Page down (Shift+Down or PageDown)
 		if (matchesKey(data, 'shift+down') || matchesKey(data, 'pageDown')) {
+			this.following = false;
 			this.scrollOffset = Math.min(maxScroll, this.scrollOffset + halfPage);
 			this.invalidate();
 			return;
@@ -177,6 +222,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 		// Home — jump to top
 		if (matchesKey(data, 'home')) {
+			this.following = false;
 			this.scrollOffset = 0;
 			this.invalidate();
 			return;
@@ -184,6 +230,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 		// End — jump to bottom
 		if (matchesKey(data, 'end')) {
+			this.following = false;
 			this.scrollOffset = maxScroll;
 			this.invalidate();
 			return;
@@ -208,13 +255,14 @@ export class OutputViewerOverlay implements Component, Focusable {
 			return lines.map((line) => truncateToWidth(line, safeWidth));
 		}
 
-		// Build header title: "agentName - description (N of M)" or "agentName (N of M)"
+		// Build header title with streaming indicator
+		const streamLabel = result.isStreaming ? ' LIVE' : '';
 		const nameLabel = result.description
 			? `${result.agentName} - ${result.description}`
 			: result.agentName;
 		const posLabel = this.results.length > 1
-			? `${nameLabel} (${this.currentIndex + 1} of ${this.results.length})`
-			: nameLabel;
+			? `${nameLabel}${streamLabel} (${this.currentIndex + 1} of ${this.results.length})`
+			: `${nameLabel}${streamLabel}`;
 		const titleLabel = this.viewMode === 'prompt' ? `${posLabel} [PROMPT]` : posLabel;
 
 		const header: string[] = [
@@ -230,27 +278,40 @@ export class OutputViewerOverlay implements Component, Focusable {
 			header.push(this.contentLine('', inner));
 		}
 
-		// Footer
-		const navHint = this.results.length > 1 ? '[<- ->] Switch agent  ' : '';
+		// Footer with position indicator and new hints
+		const thinkingHint = result.thinking ? `[t] ${this.showThinking ? 'Hide' : 'Show'} thinking  ` : '';
+		const followHint = result.isStreaming ? `[f] ${this.following ? 'Unfollow' : 'Follow'}  ` : '';
 		const promptHint = result.prompt ? '[p] Prompt  ' : '';
-		const footer: string[] = [
-			this.contentLine(this.theme.fg('dim', `  [Up/Down] Scroll  [PgUp/PgDn] Page  ${promptHint}${navHint}[Esc] Close`), inner),
-			buildBottomBorder(safeWidth),
-		];
+		const navHint = this.results.length > 1 ? '[<- ->] Switch  ' : '';
 
-		// Content area — switch between output and prompt based on viewMode
-		const contentBudget = Math.max(1, maxLines - header.length - footer.length);
-		const activeText = this.viewMode === 'prompt' && result.prompt
-			? result.prompt
-			: result.text;
-		const contentLines = activeText.split('\n');
+		// Content assembly via helper
+		const contentLines = this.getContentLines();
 		const totalLines = contentLines.length;
+
+		// Content area
+		const contentBudget = Math.max(1, maxLines - header.length - 2); // 2 = footer lines
+
+		// Auto-follow when streaming
+		if (this.following && result.isStreaming) {
+			this.scrollOffset = Math.max(0, totalLines - contentBudget);
+		}
+
 		const maxScroll = Math.max(0, totalLines - contentBudget);
 
 		// Clamp scroll offset
 		if (this.scrollOffset > maxScroll) {
 			this.scrollOffset = maxScroll;
 		}
+
+		// Position indicator
+		const currentLine = Math.min(this.scrollOffset + 1, totalLines);
+		const pct = totalLines > 0 ? Math.round((currentLine / totalLines) * 100) : 0;
+		const posInfo = totalLines > 0 ? `L${currentLine}/${totalLines} ${pct}%  ` : '';
+
+		const footer: string[] = [
+			this.contentLine(this.theme.fg('dim', `  ${posInfo}[Up/Dn] Scroll  [PgUp/Dn] Page  ${thinkingHint}${followHint}${promptHint}${navHint}[Esc] Close`), inner),
+			buildBottomBorder(safeWidth),
+		];
 
 		const content: string[] = [];
 
@@ -289,6 +350,41 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 	dispose(): void {
 		this.disposed = true;
+		if (this.pollTimer) {
+			clearInterval(this.pollTimer);
+			this.pollTimer = null;
+		}
+	}
+
+	private getContentLines(): string[] {
+		const result = this.results[this.currentIndex];
+		if (!result) return [];
+
+		const lines: string[] = [];
+
+		// Thinking section (dimmed)
+		if (this.showThinking && result.thinking) {
+			const thinkingLines = result.thinking.split('\n');
+			for (const line of thinkingLines) {
+				lines.push(this.theme.fg('dim', line));
+			}
+			lines.push(this.theme.fg('muted', '--- end thinking ---'));
+			lines.push(''); // empty line separator
+		}
+
+		// Main content (output or prompt based on viewMode)
+		const mainText = this.viewMode === 'prompt' && result.prompt ? result.prompt : result.text;
+		if (mainText) {
+			lines.push(...mainText.split('\n'));
+		}
+
+		return lines;
+	}
+
+	private getContentBudget(): number {
+		const termHeight = process.stdout.rows || 40;
+		const maxLines = Math.max(10, Math.floor(termHeight * 0.95) - 2);
+		return Math.max(1, maxLines - 4); // 4 = header + footer lines
 	}
 
 	private contentLine(content: string, innerWidth: number): string {
@@ -298,6 +394,10 @@ export class OutputViewerOverlay implements Component, Focusable {
 	private close(): void {
 		if (this.disposed) return;
 		this.disposed = true;
+		if (this.pollTimer) {
+			clearInterval(this.pollTimer);
+			this.pollTimer = null;
+		}
 		this.done(undefined);
 	}
 }

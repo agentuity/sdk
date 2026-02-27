@@ -131,11 +131,12 @@ export type HubAction =
 /** Progress update from a running sub-agent */
 export interface AgentProgressUpdate {
 	agentName: string;
-	status: 'running' | 'tool_start' | 'tool_end' | 'completed' | 'failed';
+	status: 'running' | 'tool_start' | 'tool_end' | 'completed' | 'failed' | 'thinking_delta' | 'text_delta';
 	currentTool?: string;
 	currentToolArgs?: string;
 	elapsed: number;
 	tokens?: { input: number; output: number; cost: number };
+	delta?: string; // Streaming token delta for thinking_delta / text_delta
 }
 
 // ---- Response Message (Server → Client) ----
