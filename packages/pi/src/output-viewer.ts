@@ -117,7 +117,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 		const activeText = this.viewMode === 'prompt' && result.prompt ? result.prompt : result.text;
 		const contentLines = activeText.split('\n');
 		const termHeight = process.stdout.rows || 40;
-		const maxLines = Math.max(10, Math.floor(termHeight * 0.8) - 2);
+		const maxLines = Math.max(10, Math.floor(termHeight * 0.95) - 2);
 		// header=2 lines, footer=2 lines
 		const contentBudget = Math.max(1, maxLines - 4);
 		const maxScroll = Math.max(0, contentLines.length - contentBudget);
@@ -194,8 +194,8 @@ export class OutputViewerOverlay implements Component, Focusable {
 		const safeWidth = Math.max(4, width);
 		const inner = Math.max(0, safeWidth - 2);
 		const termHeight = process.stdout.rows || 40;
-		// Match overlay maxHeight of 80%, leave margin for overlay chrome
-		const maxLines = Math.max(10, Math.floor(termHeight * 0.8) - 2);
+		// Match overlay maxHeight of 95%, leave margin for overlay chrome
+		const maxLines = Math.max(10, Math.floor(termHeight * 0.95) - 2);
 
 		const result = this.results[this.currentIndex];
 		if (!result) {

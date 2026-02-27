@@ -165,7 +165,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 		const result = await ctx.ui.custom<ChainResult | undefined>(
 			(_tui, theme, _keybindings, done) => new ChainEditorOverlay(theme, serverAgents, done, initialAgents),
-			{ overlay: true, overlayOptions: { width: '70%', maxHeight: '60%', anchor: 'center' } },
+			{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
 		);
 
 		if (!result || result.steps.length === 0) return;
@@ -190,7 +190,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 		const result = await ctx.ui.custom<AgentManagerOverlayResult | undefined>(
 			(_tui, theme, _keybindings, done) => new AgentManagerOverlay(theme, serverAgents, done),
-			{ overlay: true, overlayOptions: { width: '70%', maxHeight: '60%', anchor: 'center' } },
+			{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
 		);
 
 		// TODO: chain action from Agent Manager overlay (multi-select + Ctrl+R) not yet implemented
@@ -352,7 +352,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (!ctx.hasUI || recentResults.length === 0) return;
 				await ctx.ui.custom<undefined>(
 					(_tui, theme, _keybindings, done) => new OutputViewerOverlay(theme, recentResults, done),
-					{ overlay: true, overlayOptions: { width: '80%', maxHeight: '80%', anchor: 'center' } },
+					{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
 				);
 			},
 		});
@@ -998,6 +998,13 @@ async function runSubAgent(
 		? modelId.split('/', 2) as [string, string]
 		: ['anthropic', modelId];
 	const subModel = getModel(provider, id);
+	if (!subModel) {
+		throw new Error(
+			`Model "${modelId}" not available. ` +
+			`Check that the ${provider} API key is configured ` +
+			`(e.g. ${provider.toUpperCase().replace(/[^A-Z]/g, '_')}_API_KEY).`,
+		);
+	}
 
 	// Hub tools for this sub-agent (shared WebSocket connection)
 	// Sub-agents get Hub tools (memory, context7, etc.) via extensionFactories

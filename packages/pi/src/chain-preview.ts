@@ -133,8 +133,8 @@ export class ChainEditorOverlay implements Component, Focusable {
 	render(width: number): string[] {
 		const safeWidth = Math.max(4, width);
 		const termHeight = process.stdout.rows || 40;
-		// Match overlay maxHeight of 60%, leave margin for overlay chrome
-		const maxLines = Math.max(10, Math.floor(termHeight * 0.6) - 2);
+		// Match overlay maxHeight of 95%, leave margin for overlay chrome
+		const maxLines = Math.max(10, Math.floor(termHeight * 0.95) - 2);
 
 		const lines = this.screen === 'picker'
 			? this.renderPickerScreen(safeWidth, maxLines)
