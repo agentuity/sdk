@@ -3,12 +3,15 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 	ExtensionCommandContext,
+	ToolDefinition,
 } from '@mariozechner/pi-coding-agent';
 import { Type, type TSchema } from '@sinclair/typebox';
 import { createRequire } from 'node:module';
 import { HubClient } from './client.ts';
 import { processActions } from './handlers.ts';
-import type { HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition } from './protocol.ts';
+import { getToolRenderers } from './renderers.ts';
+import { setupCoderFooter } from './footer.ts';
+import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition } from './protocol.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
 const _require = createRequire(import.meta.url);
@@ -162,6 +165,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				log('WebSocket connected');
 				if (wsInitMsg.config) hubConfig = wsInitMsg.config;
 				cachedInitMessage = wsInitMsg;
+				connectPromise = null; // Clear so future disconnects can reconnect
 				return wsInitMsg;
 			} catch (err) {
 				log(`WebSocket failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -180,6 +184,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	for (const toolDef of serverTools) {
 		log(`Registering tool: ${toolDef.name}`);
+		const renderers = getToolRenderers(toolDef.name);
 		pi.registerTool({
 			name: toolDef.name,
 			label: toolDef.label || toolDef.name,
@@ -221,23 +226,41 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					};
 				}
 
-				// Process RETURN action
-				const returnAction = response.actions.find((a) => a.action === 'RETURN');
-				if (returnAction && 'result' in returnAction) {
-					const text = typeof returnAction.result === 'string'
-						? returnAction.result
-						: JSON.stringify(returnAction.result, null, 2);
-					return {
-						content: [{ type: 'text' as const, text }],
-						details: undefined as unknown,
-					};
-				}
+			// Process ALL Hub actions (NOTIFY, STATUS, RETURN, etc.)
+			const result = await processActions(response.actions, ctx);
 
+			// If there's a return value from processActions, use it
+			if (result.returnValue !== undefined) {
+				const text = typeof result.returnValue === 'string'
+					? result.returnValue
+					: JSON.stringify(result.returnValue, null, 2);
 				return {
-					content: [{ type: 'text' as const, text: 'Done' }],
+					content: [{ type: 'text' as const, text }],
 					details: undefined as unknown,
 				};
+			}
+
+			// Fallback — check for RETURN action directly (backward compat)
+			const returnAction = response.actions.find((a: HubAction) => a.action === 'RETURN');
+			if (returnAction && 'result' in returnAction) {
+				const text = typeof returnAction.result === 'string'
+					? returnAction.result
+					: JSON.stringify(returnAction.result, null, 2);
+				return {
+					content: [{ type: 'text' as const, text }],
+					details: undefined as unknown,
+				};
+			}
+
+			return {
+				content: [{ type: 'text' as const, text: 'Done' }],
+				details: undefined as unknown,
+			};
 			},
+			// TUI renderers — optional, only for known Hub tools.
+			// Cast needed: SimpleText satisfies Component, but TS can't verify cross-package structural match.
+			...(renderers?.renderCall && { renderCall: renderers.renderCall as ToolDefinition['renderCall'] }),
+			...(renderers?.renderResult && { renderResult: renderers.renderResult as ToolDefinition['renderResult'] }),
 		});
 	}
 
@@ -403,9 +426,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	const onEvent = pi.on.bind(pi) as GenericEventHandler;
 
-	// session_start: establish WebSocket connection to Hub
+	// session_start: establish WebSocket connection to Hub + set up footer
 	onEvent('session_start', async (event: unknown, ctx: ExtensionContext) => {
 		await ensureConnected();
+
+		// Set up the Coder footer (token stats + Hub status)
+		setupCoderFooter(ctx, () => client.connected);
+
 		if (client.connected) {
 			return sendEvent('session_start', serializeEvent(event), ctx);
 		}
@@ -494,14 +521,14 @@ function truncateOutput(text: string): string {
 }
 
 /** Cache resolved Pi SDK modules to avoid repeated dynamic import resolution */
-let _piSdkCache: { piSdk: any; piAi: any } | null = null;
+let _piSdkCache: { piSdk: unknown; piAi: unknown } | null = null;
 
 /**
  * Load Pi SDK packages at runtime.
  * The extension runs inside Pi's process, but @mariozechner/pi-ai isn't in
  * our node_modules — resolve it from Pi's install directory via process.argv[1].
  */
-async function loadPiSdk(): Promise<{ piSdk: any; piAi: any }> {
+async function loadPiSdk(): Promise<{ piSdk: unknown; piAi: unknown }> {
 	if (_piSdkCache) return _piSdkCache;
 
 	// Try direct import first (works if packages are in module resolution path)
@@ -559,7 +586,7 @@ function createHubToolProxy(toolDef: HubToolDefinition, hubClient: HubClient): R
 					params: (params ?? {}) as Record<string, unknown>,
 				});
 				// Extract RETURN action result
-				const returnAction = response.actions.find((a: any) => a.action === 'RETURN');
+				const returnAction = response.actions.find((a: HubAction) => a.action === 'RETURN');
 				if (returnAction && 'result' in returnAction) {
 					const text = typeof returnAction.result === 'string'
 						? returnAction.result
@@ -590,8 +617,11 @@ async function runSubAgent(
 	const startTime = Date.now();
 
 	const { piSdk, piAi } = await loadPiSdk();
-	const { createAgentSession, DefaultResourceLoader, SessionManager, createCodingTools, createReadOnlyTools } = piSdk;
-	const { getModel } = piAi;
+	// Runtime-resolved dynamic imports — exact types unavailable statically
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const { createAgentSession, DefaultResourceLoader, SessionManager, createCodingTools, createReadOnlyTools } = piSdk as any;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const { getModel } = piAi as any;
 
 	// Model — use agent's configured model (sub-agents typically use haiku for speed)
 	const modelId = agentConfig.model || 'claude-haiku-4-5';
@@ -614,9 +644,10 @@ async function runSubAgent(
 		noExtensions: true,
 		noSkills: true,
 		extensionFactories: hubTools.length > 0
-			? [(pi: any) => {
+			? [(pi: ExtensionAPI) => {
 				for (const toolDef of hubTools) {
-					pi.registerTool(createHubToolProxy(toolDef, hubClient));
+					// Proxy object has the correct shape; cast needed because return type is Record<string, unknown>
+					pi.registerTool(createHubToolProxy(toolDef, hubClient) as unknown as ToolDefinition);
 				}
 			}]
 			: [],
@@ -631,7 +662,8 @@ async function runSubAgent(
 		: createCodingTools(cwd);
 
 	const { session } = await createAgentSession({
-		model: subModel as any,
+		// subModel is already untyped (from dynamic import) — createAgentSession is also dynamically imported
+		model: subModel,
 		thinkingLevel: (agentConfig.thinkingLevel || 'off') as 'off' | 'low' | 'medium' | 'high',
 		tools,
 		resourceLoader: subLoader,
