@@ -55,9 +55,10 @@ export function registerAgentCommands(
 		description: 'List all available Coder Hub agents',
 		handler: async (_args, ctx) => {
 			const lines = agents.map(a => {
-				const model = a.model || 'default';
-				const readOnly = a.readOnly ? ' (read-only)' : '';
-				return `  ${a.name} — ${a.description} [${model}]${readOnly}`;
+				const model = a.model ? ` [${a.model}]` : '';
+				const caps = a.capabilities?.length ? ` (${a.capabilities.join(', ')})` : '';
+				const readOnly = a.readOnly ? ' [read-only]' : '';
+				return `  ${a.name}${model}${readOnly}\n    ${a.description}${caps}`;
 			});
 			const message = `Available agents:\n${lines.join('\n')}`;
 			if (ctx.hasUI) {

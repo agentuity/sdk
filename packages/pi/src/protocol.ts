@@ -23,6 +23,8 @@ export interface AgentDefinition {
 	thinkingLevel?: string;
 	readOnly?: boolean;
 	hubTools?: HubToolDefinition[];
+	capabilities?: string[];
+	status?: 'available' | 'busy' | 'offline';
 }
 
 export interface HubConfig {
