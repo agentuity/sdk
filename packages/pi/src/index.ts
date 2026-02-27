@@ -11,6 +11,7 @@ import { HubClient } from './client.ts';
 import { processActions } from './handlers.ts';
 import { getToolRenderers } from './renderers.ts';
 import { setupCoderFooter } from './footer.ts';
+import { setupCoderHeader } from './header.ts';
 import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition } from './protocol.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
@@ -426,11 +427,14 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	const onEvent = pi.on.bind(pi) as GenericEventHandler;
 
-	// session_start: establish WebSocket connection to Hub + set up footer
+	// session_start: establish WebSocket connection to Hub + set up header/footer
 	onEvent('session_start', async (event: unknown, ctx: ExtensionContext) => {
 		await ensureConnected();
 
-		// Set up the Coder footer (token stats + Hub status)
+		// Set up Coder header (brand + session title + token stats)
+		setupCoderHeader(ctx);
+
+		// Set up Coder footer (powerline: model | agent > branch > status)
 		setupCoderFooter(ctx, () => client.connected);
 
 		if (client.connected) {

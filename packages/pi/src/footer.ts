@@ -1,8 +1,15 @@
 /**
- * Coder Hub footer for the Pi TUI.
+ * Powerline-style Coder footer for the Pi TUI.
  *
- * Shows token stats (input/output/cost) on the left and
- * model + Hub connection status on the right.
+ * Design: `\u2A3A  > model | agent > branch > \u25A0     ctrl+e expand  ctrl+c cancel  v1.0.22`
+ *
+ * Segments (left to right):
+ * 1. Brand mark (\u2A3A) in accent
+ * 2. Model ID in text color
+ * 3. Agent role (from AGENTUITY_CODER_AGENT env) in dim
+ * 4. Git branch in muted
+ * 5. Hub status indicator (\u25A0) — green if connected, red if not
+ * 6. Right-aligned: keyboard shortcuts + version
  */
 
 import type {
@@ -11,29 +18,29 @@ import type {
 	Theme,
 } from '@mariozechner/pi-coding-agent';
 
+const VERSION = '1.0.22';
+
 // ──────────────────────────────────────────────
 // Minimal component — avoids importing @mariozechner/pi-tui directly.
 // ──────────────────────────────────────────────
 
-class FooterText {
-	private getText: () => string;
-	private theme: Theme;
-	private footerData: ReadonlyFooterDataProvider;
+class FooterComponent {
+	private getText: (width: number) => string;
 	private _unsubscribeBranch?: () => void;
 
 	constructor(
-		getText: () => string,
-		theme: Theme,
+		getText: (width: number) => string,
 		footerData: ReadonlyFooterDataProvider,
 	) {
 		this.getText = getText;
-		this.theme = theme;
-		this.footerData = footerData;
+		// Re-render on branch changes
+		this._unsubscribeBranch = footerData.onBranchChange(() => {
+			// Triggers TUI refresh
+		});
 	}
 
 	render(width: number): string[] {
-		const text = this.getText();
-		// Single-line footer, truncated to viewport
+		const text = this.getText(width);
 		return [text.length > width ? text.slice(0, width) : text];
 	}
 
@@ -47,19 +54,13 @@ class FooterText {
 }
 
 // ──────────────────────────────────────────────
-// Formatting helpers
+// Helpers
 // ──────────────────────────────────────────────
 
-function formatTokens(n: number): string {
-	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-	if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-	return String(n);
-}
-
-function formatCost(n: number): string {
-	if (n === 0) return '$0.00';
-	if (n < 0.01) return `$${n.toFixed(4)}`;
-	return `$${n.toFixed(2)}`;
+/** Strip ANSI escape sequences to get visible character count. */
+function visibleLength(str: string): number {
+	// eslint-disable-next-line no-control-regex
+	return str.replace(/\x1b\[[0-9;]*m/g, '').length;
 }
 
 // ──────────────────────────────────────────────
@@ -67,8 +68,8 @@ function formatCost(n: number): string {
 // ──────────────────────────────────────────────
 
 /**
- * Set up the Coder footer. Call this once with the extension context
- * (from a session_start handler or similar) to replace Pi's default footer.
+ * Set up the Coder footer (powerline-style). Call this once with the
+ * extension context to replace Pi's default footer.
  *
  * @param ctx  Extension context with UI access
  * @param isHubConnected  Callback that returns current Hub connection state
@@ -79,56 +80,57 @@ export function setupCoderFooter(
 ): void {
 	if (!ctx.hasUI) return;
 
+	const agentRole = process.env['AGENTUITY_CODER_AGENT'] || 'lead';
+
 	ctx.ui.setFooter((_tui, theme, footerData) => {
-		const getText = (): string => {
-			// ── Left side: token stats ──
-			let input = 0;
-			let output = 0;
-			let cost = 0;
+		const getText = (width: number): string => {
+			// ── Left side: powerline segments ──
+			const parts: string[] = [];
 
-			for (const e of ctx.sessionManager.getBranch()) {
-				if (e.type === 'message' && e.message && 'role' in e.message) {
-					const msg = e.message as {
-						role: string;
-						usage?: { input: number; output: number; cost: { total: number } };
-					};
-					if (msg.role === 'assistant' && msg.usage) {
-						input += msg.usage.input;
-						output += msg.usage.output;
-						cost += msg.usage.cost.total;
-					}
-				}
-			}
+			// 1. Brand mark
+			parts.push(theme.fg('accent', '\u2A3A '));
 
-			const tokensStr = `\u{2191}${formatTokens(input)} \u{2193}${formatTokens(output)} ${formatCost(cost)}`;
-			const left = theme.fg('muted', tokensStr);
-
-			// ── Right side: model + Hub status ──
+			// 2. Separator + Model
+			parts.push(theme.fg('dim', ' > '));
 			const modelId = ctx.model
-				? `${(ctx.model as { provider?: string }).provider ?? ''}/${(ctx.model as { id?: string }).id ?? ''}`
+				? String((ctx.model as { id?: string }).id ?? '?')
 				: '?';
+			parts.push(theme.fg('text', modelId));
 
-			const hubStatus = isHubConnected()
-				? theme.fg('success', '\u{1F7E2} Hub')
-				: theme.fg('error', '\u{1F534} Hub');
+			// 3. Pipe + Agent role
+			parts.push(theme.fg('dim', ' | '));
+			parts.push(theme.fg('dim', agentRole));
 
-			// Extension statuses from other extensions
-			const statuses = footerData.getExtensionStatuses();
-			const statusParts: string[] = [];
-			for (const [, text] of statuses) {
-				if (text) statusParts.push(theme.fg('muted', text));
+			// 4. Separator + Git branch (if available)
+			const branch = footerData.getGitBranch();
+			if (branch) {
+				parts.push(theme.fg('dim', ' > '));
+				parts.push(theme.fg('muted', branch));
 			}
 
-			const rightParts = [
-				...statusParts,
-				theme.fg('dim', modelId),
-				hubStatus,
-			].filter(Boolean);
-			const right = rightParts.join(theme.fg('muted', ' \u2502 '));
+			// 5. Separator + Hub status
+			parts.push(theme.fg('dim', ' > '));
+			const hubIndicator = isHubConnected()
+				? theme.fg('success', '\u25A0')
+				: theme.fg('error', '\u25A0');
+			parts.push(hubIndicator);
 
-			return `${left}  ${right}`;
+			const left = parts.join('');
+
+			// ── Right side: shortcuts + version ──
+			const shortcuts = theme.fg('dim', 'ctrl+e expand  ctrl+c cancel');
+			const version = theme.fg('dim', `v${VERSION}`);
+			const right = shortcuts + '  ' + version;
+
+			// ── Fill middle with spaces ──
+			const leftLen = visibleLength(left);
+			const rightLen = visibleLength(right);
+			const gap = Math.max(1, width - leftLen - rightLen);
+			const padding = ' '.repeat(gap);
+
+			return left + padding + right;
 		};
 
-		return new FooterText(getText, theme, footerData);
+		return new FooterComponent(getText, footerData);
 	});
 }

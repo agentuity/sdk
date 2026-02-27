@@ -82,7 +82,7 @@ function memorySearchRenderers(): ToolRenderers {
 		renderCall(args, theme) {
 			const query = String(args['query'] ?? '');
 			const limit = args['limit'] as number | undefined;
-			let text = theme.fg('toolTitle', theme.bold('\u{1F50D} memory search: '));
+			let text = theme.fg('toolTitle', theme.bold('memory search '));
 			text += theme.fg('accent', truncate(query, 60));
 			if (limit) text += theme.fg('muted', ` (limit ${limit})`);
 			return new SimpleText(text);
@@ -111,7 +111,7 @@ function memoryStoreRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
 			const key = String(args['key'] ?? '');
-			let text = theme.fg('toolTitle', theme.bold('\u{1F4BE} memory store: '));
+			let text = theme.fg('toolTitle', theme.bold('memory store '));
 			text += theme.fg('accent', truncate(key, 60));
 			return new SimpleText(text);
 		},
@@ -126,25 +126,23 @@ function memoryGetRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
 			const key = String(args['key'] ?? '');
-			let text = theme.fg('toolTitle', theme.bold('\u{1F4D6} memory get: '));
+			let text = theme.fg('toolTitle', theme.bold('memory get '));
 			text += theme.fg('accent', truncate(key, 60));
 			return new SimpleText(text);
 		},
 		renderResult(result, { expanded, isPartial }, theme) {
 			if (isPartial) return new SimpleText(theme.fg('warning', 'Loading\u2026'));
 			const raw = resultText(result);
-			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
-			const found = parsed ? parsed['exists'] !== false : raw.length > 0;
-			let text = found
-				? theme.fg('success', 'Found')
-				: theme.fg('muted', 'Not found');
-			if (expanded && found) {
-				const preview = typeof parsed?.['data'] === 'string'
-					? parsed['data'] as string
-					: typeof parsed?.['value'] === 'string'
-						? parsed['value'] as string
-						: raw;
-				text += '\n  ' + theme.fg('toolOutput', truncate(preview.replace(/\n/g, ' '), 120));
+			const parsed = tryParseJson(raw);
+			if (!parsed) {
+				return new SimpleText(theme.fg('muted', raw ? 'Retrieved' : 'Not found'));
+			}
+			let text = theme.fg('success', 'Retrieved');
+			if (expanded) {
+				const preview = typeof parsed === 'object'
+					? JSON.stringify(parsed, null, 2).split('\n').slice(0, 10).join('\n')
+					: String(parsed);
+				text += '\n' + theme.fg('toolOutput', truncate(preview, 500));
 			}
 			return new SimpleText(text);
 		},
@@ -155,7 +153,7 @@ function memoryUpdateRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
 			const key = String(args['key'] ?? '');
-			let text = theme.fg('toolTitle', theme.bold('\u{270F}\u{FE0F} memory update: '));
+			let text = theme.fg('toolTitle', theme.bold('memory update '));
 			text += theme.fg('accent', truncate(key, 60));
 			return new SimpleText(text);
 		},
@@ -170,7 +168,7 @@ function memoryDeleteRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
 			const key = String(args['key'] ?? '');
-			let text = theme.fg('toolTitle', theme.bold('\u{1F5D1}\u{FE0F} memory delete: '));
+			let text = theme.fg('toolTitle', theme.bold('memory delete '));
 			text += theme.fg('accent', truncate(key, 60));
 			return new SimpleText(text);
 		},
@@ -184,8 +182,10 @@ function memoryDeleteRenderers(): ToolRenderers {
 function memoryListRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
+			const namespace = String(args['namespace'] ?? '');
 			const prefix = args['prefix'] as string | undefined;
-			let text = theme.fg('toolTitle', theme.bold('\u{1F4CB} memory list'));
+			let text = theme.fg('toolTitle', theme.bold('memory list'));
+			if (namespace) text += theme.fg('accent', ` ${truncate(namespace, 30)}`);
 			if (prefix) text += theme.fg('accent', ` ${truncate(prefix, 40)}`);
 			return new SimpleText(text);
 		},
@@ -193,11 +193,14 @@ function memoryListRenderers(): ToolRenderers {
 			if (isPartial) return new SimpleText(theme.fg('warning', 'Listing\u2026'));
 			const raw = resultText(result);
 			const parsed = tryParseJson(raw);
-			const keys = Array.isArray(parsed) ? parsed : [];
+			const keys = Array.isArray(parsed) ? parsed :
+				(parsed && typeof parsed === 'object' && Array.isArray((parsed as Record<string, unknown>)['keys']))
+					? (parsed as Record<string, unknown>)['keys'] as unknown[]
+					: [];
 			let text = theme.fg('success', `${keys.length} key${keys.length !== 1 ? 's' : ''}`);
 			if (expanded && keys.length > 0) {
 				const lines = keys.slice(0, 15).map((k: unknown) =>
-					`  ${theme.fg('accent', String(k))}`
+					`  ${theme.fg('accent', String(k))}`,
 				);
 				text += '\n' + lines.join('\n');
 				if (keys.length > 15) text += theme.fg('muted', `\n  \u2026and ${keys.length - 15} more`);
@@ -212,7 +215,7 @@ function context7SearchRenderers(): ToolRenderers {
 		renderCall(args, theme) {
 			const library = String(args['libraryId'] ?? args['library'] ?? '');
 			const query = String(args['query'] ?? '');
-			let text = theme.fg('toolTitle', theme.bold('\u{1F4DA} context7: '));
+			let text = theme.fg('toolTitle', theme.bold('context7 '));
 			if (library) text += theme.fg('accent', truncate(library, 30) + ' \u2014 ');
 			text += theme.fg('text', truncate(query, 50));
 			return new SimpleText(text);
@@ -246,7 +249,7 @@ function grepAppSearchRenderers(): ToolRenderers {
 		renderCall(args, theme) {
 			const query = String(args['query'] ?? '');
 			const lang = args['language'] as string[] | string | undefined;
-			let text = theme.fg('toolTitle', theme.bold('\u{1F50D} grep.app: '));
+			let text = theme.fg('toolTitle', theme.bold('grep.app '));
 			text += theme.fg('accent', truncate(query, 50));
 			if (lang) {
 				const langStr = Array.isArray(lang) ? lang.join(', ') : String(lang);
@@ -281,7 +284,7 @@ function grepAppSearchRenderers(): ToolRenderers {
 function sessionDashboardRenderers(): ToolRenderers {
 	return {
 		renderCall(_args, theme) {
-			return new SimpleText(theme.fg('toolTitle', theme.bold('\u{1F4CA} session dashboard')));
+			return new SimpleText(theme.fg('toolTitle', theme.bold('session dashboard')));
 		},
 		renderResult(result, { isPartial }, theme) {
 			if (isPartial) return new SimpleText(theme.fg('warning', 'Loading dashboard\u2026'));
@@ -310,7 +313,7 @@ const RENDERERS: Record<string, () => ToolRenderers> = {
 
 /**
  * Look up renderCall / renderResult functions for a Hub tool.
- * Returns undefined for unknown tools — callers should skip renderer assignment.
+ * Returns undefined for tools without custom rendering.
  */
 export function getToolRenderers(toolName: string): ToolRenderers | undefined {
 	const factory = RENDERERS[toolName];
