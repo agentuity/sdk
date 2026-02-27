@@ -734,6 +734,8 @@ const TemplateEnvSchema = zod.object({
 	key: zod.string().describe('the environment variable name'),
 	required: zod.boolean().describe('whether this env var is required'),
 	description: zod.string().optional().describe('human-readable description'),
+	secret: zod.boolean().optional().describe('whether this env var is a secret'),
+	defaultValue: zod.string().optional().describe('default or example value'),
 });
 
 const TemplateSchema = zod.object({
