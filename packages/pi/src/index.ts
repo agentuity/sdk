@@ -12,6 +12,7 @@ import { processActions } from './handlers.ts';
 import { getToolRenderers } from './renderers.ts';
 import { setupCoderFooter } from './footer.ts';
 import { setupTitlebar } from './titlebar.ts';
+import { registerAgentCommands } from './commands.ts';
 import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition } from './protocol.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
@@ -457,6 +458,16 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	}
 
 	log('Tool registration complete');
+
+	// ══════════════════════════════════════════════
+	// Register slash commands for agent routing (LEAD only)
+	// When user types /memory, /scout, etc., the message is routed
+	// to that specific agent via a routing prefix.
+	// ══════════════════════════════════════════════
+
+	if (!isSubAgent && serverAgents.length > 0) {
+		registerAgentCommands(pi, serverAgents);
+	}
 
 	// ══════════════════════════════════════════════
 	// Event Handlers

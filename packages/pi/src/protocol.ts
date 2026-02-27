@@ -7,9 +7,7 @@ export interface HubToolDefinition {
 	parameters: Record<string, unknown>; // JSON Schema object
 }
 
-/** TODO: Command support not yet implemented in the extension.
- *  Hub can send command definitions via InitMessage but the extension
- *  does not register them with Pi. Implement when Pi command API is available. */
+/** Command definition sent by Hub for agent routing slash commands. */
 export interface HubCommandDefinition {
 	name: string;
 	description: string;
@@ -57,7 +55,7 @@ export interface ToolRequest {
 	params: Record<string, unknown>;
 }
 
-/** TODO: Command request support not yet implemented — see HubCommandDefinition. */
+/** Command request (Client -> Server) for slash command execution. */
 export interface CommandRequest {
 	id: string;
 	type: 'command';

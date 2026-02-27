@@ -340,29 +340,48 @@ function parallelTasksRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
 			const tasks = (args['tasks'] as Array<Record<string, unknown>>) ?? [];
-			const agents = tasks.map(t => String(t['subagent_type'] ?? '?'));
-			// Deduplicate: "builder x4" instead of "builder + builder + builder + builder"
-			const counts = new Map<string, number>();
-			for (const name of agents) {
-				counts.set(name, (counts.get(name) ?? 0) + 1);
-			}
-			const deduped: string[] = [];
-			for (const [name, count] of counts) {
-				deduped.push(count > 1 ? `${name} x${count}` : name);
-			}
-			let text = theme.fg('accent', safeLine(deduped.join(' + ')));
-			text += theme.fg('dim', ` (${tasks.length} tasks)`);
-			return new SimpleText(text);
+
+			// Build chain visualization: ○ scout  ○ builder  ○ reviewer
+			const chain = tasks
+				.map(t => `${theme.fg('dim', '\u25CB')} ${theme.fg('accent', String(t['subagent_type'] ?? '?'))}`)
+				.join('  ');
+
+			return new SimpleText(safeLine(chain));
 		},
 		renderResult(result, { expanded, isPartial }, theme) {
 			if (isPartial) return new SimpleText(theme.fg('warning', 'running...'));
 			const raw = resultText(result);
+
+			// Parse agent names and statuses from ### headers in the raw output
+			// Format: "### agent_name (Xms)" for success, "### agent_name (FAILED)" for failure
+			const agentEntries: Array<{ name: string; failed: boolean }> = [];
+			const headerPattern = /^### (\S+) \((?:FAILED|(\d+)ms)\)/gm;
+			let match: RegExpExecArray | null;
+			while ((match = headerPattern.exec(raw)) !== null) {
+				agentEntries.push({ name: match[1] ?? '?', failed: match[2] === undefined });
+			}
+
+			// Build chain visualization with status icons
+			// ✓ = success (green), ✗ = failed (red)
+			const chain = agentEntries
+				.map(({ name, failed }) => {
+					const icon = failed
+						? theme.fg('error', '\u2717') // ✗
+						: theme.fg('success', '\u2713'); // ✓
+					const nameColor = failed ? 'error' : 'dim';
+					return `${icon} ${theme.fg(nameColor as 'dim' | 'error', name)}`;
+				})
+				.join('  ');
+
 			const lineCount = raw.split('\n').length;
-			let text = theme.fg('success', 'done');
+			let text = chain;
+			text += '\n' + theme.fg('success', 'done');
 			text += theme.fg('dim', ` (${lineCount} lines)`);
+
 			if (!expanded) {
 				text += theme.fg('muted', '  ctrl+o tools / ctrl+t thinking');
 			}
+
 			if (expanded) {
 				// Split by ### headers to show each agent section separately
 				const sections = raw.split(/(?=^### )/m);
@@ -378,6 +397,7 @@ function parallelTasksRenderers(): ToolRenderers {
 					text += '\n';
 				}
 			}
+
 			return new SimpleText(text);
 		},
 	};
