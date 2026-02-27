@@ -13,7 +13,7 @@ import { getToolRenderers } from './renderers.ts';
 import { setupCoderFooter } from './footer.ts';
 import { setupTitlebar } from './titlebar.ts';
 import { registerAgentCommands } from './commands.ts';
-import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition } from './protocol.ts';
+import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition, AgentProgressUpdate } from './protocol.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
 const _require = createRequire(import.meta.url);
@@ -337,7 +337,36 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			}
 
 			try {
-				const result = await runSubAgent(agent, prompt, client);
+				const result = await runSubAgent(agent, prompt, client, ctx.hasUI ? (progress) => {
+					// Update TUI working message with live tool activity
+					try {
+						if (progress.status === 'tool_start' && progress.currentTool) {
+							const toolInfo = progress.currentToolArgs
+								? `${progress.currentTool} ${progress.currentToolArgs}`
+								: progress.currentTool;
+							const display = toolInfo.length > 50 ? toolInfo.slice(0, 47) + '...' : toolInfo;
+							ctx.ui.setWorkingMessage(`${subagent_type}  ${display}  ${formatElapsed()}`);
+						}
+					} catch { /* ignore */ }
+
+					// Forward progress to Hub (fire-and-forget)
+					if (client.connected) {
+						try {
+							client.send({
+								id: client.nextId(),
+								type: 'event',
+								event: 'agent_progress',
+								data: {
+									agentName: progress.agentName,
+									status: progress.status,
+									currentTool: progress.currentTool,
+									currentToolArgs: progress.currentToolArgs,
+									elapsed: progress.elapsed,
+								},
+							}).catch(() => {}); // Fire and forget
+						} catch { /* ignore */ }
+					}
+				} : undefined);
 				let output = result.output;
 				if (result.tokens && (result.tokens.input > 0 || result.tokens.output > 0)) {
 					output += `\n\n---\n_${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out tokens | $${result.tokens.cost.toFixed(4)}_`;
@@ -420,7 +449,35 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						return { agent: task.subagent_type, error: `Unknown agent: ${task.subagent_type}` };
 					}
 					try {
-						const result = await runSubAgent(agent, task.prompt, client);
+						const result = await runSubAgent(agent, task.prompt, client, ctx.hasUI ? (progress) => {
+							// Update TUI working message with most recently active agent
+							try {
+								if (progress.status === 'tool_start' && progress.currentTool) {
+									const display = progress.currentTool.length > 30
+										? progress.currentTool.slice(0, 27) + '...'
+										: progress.currentTool;
+									ctx.ui.setWorkingMessage(`${progress.agentName}  ${display}  ${formatElapsed()}`);
+								}
+							} catch { /* ignore */ }
+
+							// Forward progress to Hub (fire-and-forget)
+							if (client.connected) {
+								try {
+									client.send({
+										id: client.nextId(),
+										type: 'event',
+										event: 'agent_progress',
+										data: {
+											agentName: progress.agentName,
+											status: progress.status,
+											currentTool: progress.currentTool,
+											currentToolArgs: progress.currentToolArgs,
+											elapsed: progress.elapsed,
+										},
+									}).catch(() => {}); // Fire and forget
+								} catch { /* ignore */ }
+							}
+						} : undefined);
 						return { agent: task.subagent_type, output: result.output, duration: result.duration, tokens: result.tokens };
 					} catch (err) {
 						return { agent: task.subagent_type, error: err instanceof Error ? err.message : String(err) };
@@ -596,6 +653,9 @@ interface SubAgentTokens {
 	cost: number;
 }
 
+/** Callback fired during sub-agent execution with live progress updates */
+type ProgressCallback = (progress: AgentProgressUpdate) => void;
+
 function truncateOutput(text: string): string {
 	let result = text;
 	const lines = result.split('\n');
@@ -703,6 +763,7 @@ async function runSubAgent(
 	agentConfig: AgentDefinition,
 	task: string,
 	hubClient: HubClient,
+	onProgress?: ProgressCallback,
 ): Promise<{ output: string; duration: number; tokens: SubAgentTokens }> {
 	const startTime = Date.now();
 
@@ -760,6 +821,47 @@ async function runSubAgent(
 		sessionManager: SessionManager.inMemory('/tmp'),
 	});
 	await session.bindExtensions({});
+
+	// Subscribe to sub-agent events for live progress tracking
+	if (onProgress) {
+		try {
+			session.subscribe?.((event: unknown) => {
+				try {
+					const evt = event as { type?: string; toolName?: string; name?: string; args?: unknown; tool?: string };
+					const elapsed = Date.now() - startTime;
+
+					if (evt.type === 'tool_execution_start' || evt.type === 'tool_call') {
+						const toolName = evt.toolName || evt.name || evt.tool || 'unknown';
+						let toolArgs = '';
+						if (evt.args && typeof evt.args === 'object') {
+							const args = evt.args as Record<string, unknown>;
+							if (args.command) toolArgs = String(args.command).slice(0, 60);
+							else if (args.filePath || args.path) toolArgs = String(args.filePath || args.path);
+							else if (args.pattern) toolArgs = String(args.pattern).slice(0, 40);
+							else {
+								const first = Object.values(args)[0];
+								if (first) toolArgs = String(first).slice(0, 40);
+							}
+						}
+
+						onProgress({
+							agentName: agentConfig.name,
+							status: 'tool_start',
+							currentTool: toolName,
+							currentToolArgs: toolArgs,
+							elapsed,
+						});
+					} else if (evt.type === 'tool_execution_end' || evt.type === 'tool_result') {
+						onProgress({
+							agentName: agentConfig.name,
+							status: 'tool_end',
+							elapsed,
+						});
+					}
+				} catch { /* ignore — progress tracking is best-effort */ }
+			});
+		} catch { /* ignore — subscribe may not be available */ }
+	}
 
 	log(`Sub-agent started: ${agentConfig.name} (model: ${modelId})`);
 

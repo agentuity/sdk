@@ -124,6 +124,18 @@ export type HubAction =
 	| SystemPromptAction
 	| InjectMessageAction;
 
+// ---- Progress Tracking (Sub-Agent → Parent) ----
+
+/** Progress update from a running sub-agent */
+export interface AgentProgressUpdate {
+	agentName: string;
+	status: 'running' | 'tool_start' | 'tool_end' | 'completed' | 'failed';
+	currentTool?: string;
+	currentToolArgs?: string;
+	elapsed: number;
+	tokens?: { input: number; output: number; cost: number };
+}
+
 // ---- Response Message (Server → Client) ----
 
 export interface HubResponse {
