@@ -353,9 +353,19 @@ function parallelTasksRenderers(): ToolRenderers {
 				text += theme.fg('muted', '  ctrl+o tools / ctrl+t thinking');
 			}
 			if (expanded) {
-				const preview = raw.split('\n').slice(0, 20).join('\n');
-				text += '\n' + theme.fg('dim', preview);
-				if (lineCount > 20) text += theme.fg('muted', '\n...more');
+				// Split by ### headers to show each agent section separately
+				const sections = raw.split(/(?=^### )/m);
+				for (const section of sections) {
+					const trimmed = section.trim();
+					if (!trimmed) continue;
+					const lines = trimmed.split('\n');
+					const preview = lines.slice(0, 15).join('\n');
+					text += '\n' + theme.fg('dim', preview);
+					if (lines.length > 15) {
+						text += '\n' + theme.fg('muted', `  ...${lines.length - 15} more lines`);
+					}
+					text += '\n';
+				}
 			}
 			return new SimpleText(text);
 		},

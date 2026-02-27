@@ -79,21 +79,21 @@ function truncateAnsi(str: string, maxWidth: number): string {
 }
 
 function buildFooter(left: string, rightText: string, width: number): string {
+	// Safety margin for Unicode characters that may be double-width
+	const safeWidth = width - 4;
 	const leftLen = visibleLength(left);
 	const rightLen = visibleLength(rightText);
 	const total = leftLen + 1 + rightLen;
 
-	if (total > width) {
-		// Content too wide — truncate left side to fit
-		const maxLeft = width - rightLen - 1;
+	if (total > safeWidth) {
+		const maxLeft = safeWidth - rightLen - 1;
 		if (maxLeft > 0) {
 			return truncateAnsi(left, maxLeft) + ' ' + rightText;
 		}
-		// Even right alone too wide — hard truncate everything
-		return truncateAnsi(left + ' ' + rightText, width);
+		return truncateAnsi(left + ' ' + rightText, safeWidth);
 	}
 
-	const gap = width - leftLen - rightLen;
+	const gap = safeWidth - leftLen - rightLen;
 	return left + ' '.repeat(gap) + rightText;
 }
 
@@ -121,7 +121,12 @@ class FooterComponent {
 	private _cleanupSpinner: () => void;
 
 	render(width: number): string[] {
-		return [this.getText(width)];
+		const text = this.getText(width);
+		// Final safety: ensure line never exceeds terminal width
+		if (visibleLength(text) > width) {
+			return [truncateAnsi(text, width)];
+		}
+		return [text];
 	}
 
 	invalidate(): void {
