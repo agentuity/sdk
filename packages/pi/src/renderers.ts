@@ -9,6 +9,17 @@
 import type { Theme, ToolRenderResultOptions, AgentToolResult } from '@mariozechner/pi-coding-agent';
 
 // ──────────────────────────────────────────────
+// Line-safety helper — must be declared before SimpleText so
+// render() can reference it without temporal-dead-zone issues.
+// ──────────────────────────────────────────────
+
+/** Truncate a single line to safe terminal width. Most terminals are 80-200 cols; 200 is conservative. */
+const SAFE_LINE_WIDTH = 200;
+function safeLine(line: string): string {
+	return line.length > SAFE_LINE_WIDTH ? line.slice(0, SAFE_LINE_WIDTH - 3) + '...' : line;
+}
+
+// ──────────────────────────────────────────────
 // Minimal text component compatible with Pi's Component interface.
 // We avoid importing @mariozechner/pi-tui directly since it's a transitive
 // dependency — this class matches the Text component's behaviour.
@@ -22,7 +33,7 @@ export class SimpleText {
 	}
 
 	render(_width: number): string[] {
-		return this.text.split('\n');
+		return this.text.split('\n').map(safeLine);
 	}
 
 	invalidate(): void {
@@ -95,7 +106,7 @@ function memorySearchRenderers(): ToolRenderers {
 			let text = theme.fg('success', `${items.length} result${items.length !== 1 ? 's' : ''}`);
 			if (expanded && items.length > 0) {
 				const lines = items.slice(0, 10).map((item: Record<string, unknown>) => {
-					const key = String(item['key'] ?? item['id'] ?? '?');
+					const key = truncate(String(item['key'] ?? item['id'] ?? '?'), 120);
 					const score = typeof item['score'] === 'number' ? ` (${(item['score'] as number).toFixed(2)})` : '';
 					return `  ${theme.fg('accent', key)}${theme.fg('muted', score)}`;
 				});
@@ -140,7 +151,7 @@ function memoryGetRenderers(): ToolRenderers {
 			let text = theme.fg('success', 'Retrieved');
 			if (expanded) {
 				const preview = typeof parsed === 'object'
-					? JSON.stringify(parsed, null, 2).split('\n').slice(0, 10).join('\n')
+					? JSON.stringify(parsed, null, 2).split('\n').slice(0, 10).map(safeLine).join('\n')
 					: String(parsed);
 				text += '\n' + theme.fg('toolOutput', truncate(preview, 500));
 			}
@@ -200,7 +211,7 @@ function memoryListRenderers(): ToolRenderers {
 			let text = theme.fg('success', `${keys.length} key${keys.length !== 1 ? 's' : ''}`);
 			if (expanded && keys.length > 0) {
 				const lines = keys.slice(0, 15).map((k: unknown) =>
-					`  ${theme.fg('accent', String(k))}`,
+					`  ${theme.fg('accent', truncate(String(k), 120))}`,
 				);
 				text += '\n' + lines.join('\n');
 				if (keys.length > 15) text += theme.fg('muted', `\n  \u2026and ${keys.length - 15} more`);
@@ -302,8 +313,8 @@ function taskRenderers(): ToolRenderers {
 		renderCall(args, theme) {
 			const agent = String(args['subagent_type'] ?? '?');
 			const desc = String(args['description'] ?? '');
-			let text = theme.fg('accent', agent);
-			if (desc) text += theme.fg('dim', ` ${desc}`);
+			let text = theme.fg('accent', safeLine(agent));
+			if (desc) text += theme.fg('dim', ` ${truncate(desc, 120)}`);
 			return new SimpleText(text);
 		},
 		renderResult(result, { expanded, isPartial }, theme) {
@@ -316,7 +327,7 @@ function taskRenderers(): ToolRenderers {
 				text += theme.fg('muted', '  ctrl+o tools / ctrl+t thinking');
 			}
 			if (expanded) {
-				const preview = raw.split('\n').slice(0, 20).join('\n');
+				const preview = raw.split('\n').slice(0, 20).map(safeLine).join('\n');
 				text += '\n' + theme.fg('dim', preview);
 				if (lineCount > 20) text += theme.fg('muted', '\n...more');
 			}
@@ -339,7 +350,7 @@ function parallelTasksRenderers(): ToolRenderers {
 			for (const [name, count] of counts) {
 				deduped.push(count > 1 ? `${name} x${count}` : name);
 			}
-			let text = theme.fg('accent', deduped.join(' + '));
+			let text = theme.fg('accent', safeLine(deduped.join(' + ')));
 			text += theme.fg('dim', ` (${tasks.length} tasks)`);
 			return new SimpleText(text);
 		},
@@ -359,7 +370,7 @@ function parallelTasksRenderers(): ToolRenderers {
 					const trimmed = section.trim();
 					if (!trimmed) continue;
 					const lines = trimmed.split('\n');
-					const preview = lines.slice(0, 15).join('\n');
+					const preview = lines.slice(0, 15).map(safeLine).join('\n');
 					text += '\n' + theme.fg('dim', preview);
 					if (lines.length > 15) {
 						text += '\n' + theme.fg('muted', `  ...${lines.length - 15} more lines`);
