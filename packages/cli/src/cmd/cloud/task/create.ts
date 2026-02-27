@@ -1,3 +1,4 @@
+import { basename } from 'path';
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
@@ -15,6 +16,13 @@ const TaskCreateResponseSchema = z.object({
 		priority: z.string().describe('Task priority'),
 		created_at: z.string().describe('Creation timestamp'),
 	}),
+	attachment: z
+		.object({
+			id: z.string().describe('Attachment ID'),
+			filename: z.string().describe('Attached filename'),
+		})
+		.optional()
+		.describe('Attached file info (when --file is used)'),
 	durationMs: z.number().describe('Operation duration in milliseconds'),
 });
 
@@ -61,6 +69,7 @@ export const createSubcommand = createCommand({
 			parentId: z.string().optional().describe('parent task ID for subtasks'),
 			assignedId: z.string().optional().describe('ID of the assigned agent or user'),
 			metadata: z.string().optional().describe('JSON metadata object'),
+			file: z.string().optional().describe('file path to attach to the task'),
 		}),
 		response: TaskCreateResponseSchema,
 	},
@@ -87,6 +96,40 @@ export const createSubcommand = createCommand({
 		const durationMs = Date.now() - started;
 		await cacheTaskId(ctx, task.id);
 
+		// Handle --file attachment
+		let attachmentInfo: { id: string; filename: string } | undefined;
+		if (opts.file) {
+			const file = Bun.file(opts.file);
+			if (!(await file.exists())) {
+				tui.fatal(`File not found: ${opts.file}`);
+			}
+
+			const filename = basename(opts.file);
+			const contentType = file.type || 'application/octet-stream';
+			const size = file.size;
+
+			const presign = await storage.uploadAttachment(task.id, {
+				filename,
+				content_type: contentType,
+				size,
+			});
+
+			const uploadResponse = await fetch(presign.presigned_url, {
+				method: 'PUT',
+				body: file.stream(),
+				headers: {
+					'Content-Type': contentType,
+				},
+				duplex: 'half',
+			});
+			if (!uploadResponse.ok) {
+				tui.fatal(`Attachment upload failed: ${uploadResponse.statusText}`);
+			}
+
+			const attachment = await storage.confirmAttachment(presign.attachment.id);
+			attachmentInfo = { id: attachment.id, filename: attachment.filename };
+		}
+
 		if (!options.json) {
 			tui.success(`Task created: ${tui.bold(task.id)}`);
 
@@ -102,6 +145,10 @@ export const createSubcommand = createCommand({
 				tableData['Description'] = task.description;
 			}
 
+			if (attachmentInfo) {
+				tableData['Attachment'] = `${attachmentInfo.filename} (${attachmentInfo.id})`;
+			}
+
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 		}
 
@@ -115,6 +162,7 @@ export const createSubcommand = createCommand({
 				priority: task.priority,
 				created_at: task.created_at,
 			},
+			...(attachmentInfo ? { attachment: attachmentInfo } : {}),
 			durationMs,
 		};
 	},

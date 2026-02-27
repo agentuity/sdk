@@ -125,6 +125,39 @@ export interface ListTagsResult {
 	tags: Tag[];
 }
 
+// Attachment types
+export interface Attachment {
+	id: string;
+	created_at: string;
+	task_id: string;
+	user_id: string;
+	filename: string;
+	content_type?: string;
+	size?: number;
+}
+
+export interface CreateAttachmentParams {
+	filename: string;
+	content_type?: string;
+	size?: number;
+}
+
+export interface PresignUploadResponse {
+	attachment: Attachment;
+	presigned_url: string;
+	expiry_seconds: number;
+}
+
+export interface PresignDownloadResponse {
+	presigned_url: string;
+	expiry_seconds: number;
+}
+
+export interface ListAttachmentsResult {
+	attachments: Attachment[];
+	total: number;
+}
+
 export interface TaskStorage {
 	create(params: CreateTaskParams): Promise<Task>;
 	get(id: string): Promise<Task | null>;
@@ -152,6 +185,11 @@ export interface TaskStorage {
 	addTagToTask(taskId: string, tagId: string): Promise<void>;
 	removeTagFromTask(taskId: string, tagId: string): Promise<void>;
 	listTagsForTask(taskId: string): Promise<Tag[]>;
+	uploadAttachment(taskId: string, params: CreateAttachmentParams): Promise<PresignUploadResponse>;
+	confirmAttachment(attachmentId: string): Promise<Attachment>;
+	downloadAttachment(attachmentId: string): Promise<PresignDownloadResponse>;
+	listAttachments(taskId: string): Promise<ListAttachmentsResult>;
+	deleteAttachment(attachmentId: string): Promise<void>;
 }
 
 const TASK_API_VERSION = '2026-02-24';
@@ -184,6 +222,11 @@ const TagIdRequiredError = StructuredError(
 const TagNameRequiredError = StructuredError(
 	'TagNameRequiredError',
 	'Tag name is required and must be a non-empty string'
+);
+
+const AttachmentIdRequiredError = StructuredError(
+	'AttachmentIdRequiredError',
+	'Attachment ID is required and must be a non-empty string'
 );
 
 const TaskStorageResponseError = StructuredError('TaskStorageResponseError')<{
@@ -901,5 +944,171 @@ export class TaskStorageService implements TaskStorage {
 		}
 
 		throw await toServiceException('GET', url, res.response);
+	}
+
+	// Attachment methods
+
+	async uploadAttachment(
+		taskId: string,
+		params: CreateAttachmentParams
+	): Promise<PresignUploadResponse> {
+		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
+			throw new TaskIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/attachments/presign-upload/${TASK_API_VERSION}/${encodeURIComponent(taskId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<PresignUploadResponse>>(url, {
+			method: 'POST',
+			body: safeStringify(params),
+			contentType: 'application/json',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.uploadAttachment',
+				attributes: { taskId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	async confirmAttachment(attachmentId: string): Promise<Attachment> {
+		if (!attachmentId || typeof attachmentId !== 'string' || attachmentId.trim().length === 0) {
+			throw new AttachmentIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/attachments/confirm/${TASK_API_VERSION}/${encodeURIComponent(attachmentId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<Attachment>>(url, {
+			method: 'POST',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.confirmAttachment',
+				attributes: { attachmentId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	async downloadAttachment(attachmentId: string): Promise<PresignDownloadResponse> {
+		if (!attachmentId || typeof attachmentId !== 'string' || attachmentId.trim().length === 0) {
+			throw new AttachmentIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/attachments/presign-download/${TASK_API_VERSION}/${encodeURIComponent(attachmentId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<PresignDownloadResponse>>(url, {
+			method: 'POST',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.downloadAttachment',
+				attributes: { attachmentId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	async listAttachments(taskId: string): Promise<ListAttachmentsResult> {
+		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
+			throw new TaskIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/attachments/list/${TASK_API_VERSION}/${encodeURIComponent(taskId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<ListAttachmentsResult>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.listAttachments',
+				attributes: { taskId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async deleteAttachment(attachmentId: string): Promise<void> {
+		if (!attachmentId || typeof attachmentId !== 'string' || attachmentId.trim().length === 0) {
+			throw new AttachmentIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/attachments/delete/${TASK_API_VERSION}/${encodeURIComponent(attachmentId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
+			method: 'DELETE',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.deleteAttachment',
+				attributes: { attachmentId },
+			},
+		});
+
+		if (res.ok) {
+			return;
+		}
+
+		throw await toServiceException('DELETE', url, res.response);
 	}
 }

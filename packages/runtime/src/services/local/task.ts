@@ -15,6 +15,11 @@ import type {
 	Tag,
 	ListCommentsResult,
 	ListTagsResult,
+	Attachment,
+	CreateAttachmentParams,
+	PresignUploadResponse,
+	PresignDownloadResponse,
+	ListAttachmentsResult,
 } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
 import { now } from './_util';
@@ -935,5 +940,30 @@ export class LocalTaskStorage implements TaskStorage {
 		const rows = query.all(this.#projectPath, taskId) as TagRow[];
 
 		return rows.map(toTag);
+	}
+
+	// Attachment methods — not supported in local storage
+
+	async uploadAttachment(
+		_taskId: string,
+		_params: CreateAttachmentParams
+	): Promise<PresignUploadResponse> {
+		throw new Error('Attachments are not supported in local task storage');
+	}
+
+	async confirmAttachment(_attachmentId: string): Promise<Attachment> {
+		throw new Error('Attachments are not supported in local task storage');
+	}
+
+	async downloadAttachment(_attachmentId: string): Promise<PresignDownloadResponse> {
+		throw new Error('Attachments are not supported in local task storage');
+	}
+
+	async listAttachments(_taskId: string): Promise<ListAttachmentsResult> {
+		throw new Error('Attachments are not supported in local task storage');
+	}
+
+	async deleteAttachment(_attachmentId: string): Promise<void> {
+		throw new Error('Attachments are not supported in local task storage');
 	}
 }

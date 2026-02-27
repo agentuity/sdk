@@ -151,6 +151,11 @@ export {
 	type ListCommentsResult,
 	type ListTagsResult,
 	type TaskStorage,
+	type Attachment,
+	type CreateAttachmentParams,
+	type PresignUploadResponse,
+	type PresignDownloadResponse,
+	type ListAttachmentsResult,
 	TaskStorageService,
 } from './services/task.ts';
 export {
