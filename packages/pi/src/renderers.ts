@@ -312,6 +312,9 @@ function taskRenderers(): ToolRenderers {
 			const lineCount = raw.split('\n').length;
 			let text = theme.fg('success', 'done');
 			text += theme.fg('dim', ` (${lineCount} lines)`);
+			if (!expanded) {
+				text += theme.fg('muted', '  ctrl+o tools / ctrl+t thinking');
+			}
 			if (expanded) {
 				const preview = raw.split('\n').slice(0, 20).join('\n');
 				text += '\n' + theme.fg('dim', preview);
@@ -337,6 +340,9 @@ function parallelTasksRenderers(): ToolRenderers {
 			const lineCount = raw.split('\n').length;
 			let text = theme.fg('success', 'done');
 			text += theme.fg('dim', ` (${lineCount} lines)`);
+			if (!expanded) {
+				text += theme.fg('muted', '  ctrl+o tools / ctrl+t thinking');
+			}
 			if (expanded) {
 				const preview = raw.split('\n').slice(0, 20).join('\n');
 				text += '\n' + theme.fg('dim', preview);

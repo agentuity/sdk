@@ -323,8 +323,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				ctx.ui.setStatus('active_agent', subagent_type);
 				ctx.ui.setWorkingMessage(`${subagent_type} working...`);
 				ctx.ui.setWidget('coder-agent-status',
-					[`  ${subagent_type} working on: ${description}`],
-					{ placement: 'belowEditor' }
+					[`  ${subagent_type} working on: ${description}`]
 				);
 			}
 
@@ -386,12 +385,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Parallel tasks: ${tasks.map((t) => `${t.subagent_type}:${t.description}`).join(', ')}`);
 
-			const agentLabels = tasks.map(t => t.subagent_type);
 			if (ctx.hasUI) {
-				const lines = tasks.map(t => `  ${t.subagent_type}: ${t.description}`);
-				ctx.ui.setStatus('active_agent', agentLabels.join('+'));
-				ctx.ui.setWorkingMessage(`${agentLabels.join(' + ')} working...`);
-				ctx.ui.setWidget('coder-agent-status', lines, { placement: 'belowEditor' });
+				ctx.ui.setStatus('active_agent', 'agents');
+				ctx.ui.setWorkingMessage('multiple agents working...');
+				ctx.ui.setWidget('coder-agent-status', [`  multiple agents running`]);
 			}
 
 				const promises = tasks.map(async (task) => {

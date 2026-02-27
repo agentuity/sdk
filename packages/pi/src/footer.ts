@@ -5,7 +5,7 @@
  * Includes a braille spinner animation when an agent is actively working.
  *
  * Layout:
- *   [brand] > [model/agent] > [branch] > [hub]     token-stats  shortcuts  version
+ *   [brand] > [branch] > [hub] token-stats                    model/agent
  */
 
 import type {
@@ -13,9 +13,8 @@ import type {
 	ReadonlyFooterDataProvider,
 } from '@mariozechner/pi-coding-agent';
 
-const VERSION = '1.0.22';
 const RESET = '\x1b[0m';
-const SEP_CHAR = '\u276F'; // >
+const SEP = '>';
 
 // ──────────────────────────────────────────────
 // ANSI true-color helper (foreground only)
@@ -52,39 +51,17 @@ const SPINNER_FRAMES = [
 // Footer builder (transparent bg, foreground only)
 // ──────────────────────────────────────────────
 
-interface Segment {
-	fg: RGB;
-	text: string;
-}
-
 /** Strip ANSI escape sequences to get visible character count. */
 function visibleLength(str: string): number {
 	// eslint-disable-next-line no-control-regex
 	return str.replace(/\x1b\[[0-9;]*m/g, '').length;
 }
 
-function buildFooter(
-	segments: Segment[],
-	sep: string,
-	width: number,
-	rightText: string,
-): string {
-	let result = '';
-
-	for (let i = 0; i < segments.length; i++) {
-		result += fg(segments[i]!.fg, segments[i]!.text);
-		result += RESET;
-		if (i < segments.length - 1) {
-			result += sep;
-		}
-	}
-
-	// Right-align
-	const leftLen = visibleLength(result);
+function buildFooter(left: string, rightText: string, width: number): string {
+	const leftLen = visibleLength(left);
 	const rightLen = visibleLength(rightText);
 	const gap = Math.max(1, width - leftLen - rightLen);
-
-	return result + ' '.repeat(gap) + rightText;
+	return left + ' '.repeat(gap) + rightText;
 }
 
 // ──────────────────────────────────────────────
@@ -160,15 +137,11 @@ export function setupCoderFooter(
 	if (!ctx.hasUI) return;
 
 	ctx.ui.setFooter((tui, _theme, footerData) => {
-		const sep = fg(FG_DIM, SEP_CHAR) + RESET;
-
 		// Spinner state
 		let spinnerTimer: ReturnType<typeof setInterval> | null = null;
 		let spinnerFrame = 0;
 
 		const getText = (width: number): string => {
-			const segments: Segment[] = [];
-
 			// Detect active agent
 			const activeAgent = footerData.getExtensionStatuses().get('active_agent');
 
@@ -183,32 +156,6 @@ export function setupCoderFooter(
 				spinnerTimer = null;
 				spinnerFrame = 0;
 			}
-
-			// 1. Brand mark (or spinner when agent active)
-			const brandChar = spinnerTimer
-				? SPINNER_FRAMES[spinnerFrame]!
-				: '\u2A3A';
-			segments.push({ fg: FG_BRAND, text: ` ${brandChar} ` });
-
-			// 2. Model or active agent
-			if (activeAgent) {
-				segments.push({ fg: FG_AGENT, text: ` ${activeAgent} ` });
-			} else {
-				const modelId = ctx.model
-					? String((ctx.model as { id?: string }).id ?? '?')
-					: '?';
-				segments.push({ fg: FG_MODEL, text: ` ${modelId} ` });
-			}
-
-			// 3. Git branch (if available)
-			const branch = footerData.getGitBranch();
-			if (branch) {
-				segments.push({ fg: FG_BRANCH, text: ` ${branch} ` });
-			}
-
-			// 4. Hub status
-			const hubFg = isHubConnected() ? FG_HUB_OK : FG_HUB_ERR;
-			segments.push({ fg: hubFg, text: ' \u25A0 ' });
 
 			// Token stats from session messages
 			let inputTokens = 0;
@@ -227,12 +174,46 @@ export function setupCoderFooter(
 					}
 				}
 			}
-
-			// Right side: token stats + shortcuts + version (dim, no background)
 			const tokenStr = `\u2191${formatTokens(inputTokens)} \u2193${formatTokens(outputTokens)} ${formatCost(totalCost)}`;
-			const rightText = fg(FG_DIM, `${tokenStr}  ctrl+e  ctrl+c  v${VERSION}`) + RESET;
 
-			return buildFooter(segments, sep, width, rightText);
+			// LEFT side: brand > branch > hub status + token stats
+			const parts: string[] = [];
+
+			// Brand (with spinner)
+			const brandChar = spinnerTimer
+				? SPINNER_FRAMES[spinnerFrame]!
+				: '\u2A3A';
+			parts.push(fg(FG_BRAND, ` ${brandChar}`));
+
+			// Branch
+			const branch = footerData.getGitBranch();
+			if (branch) {
+				parts.push(fg(FG_DIM, ` ${SEP} `));
+				parts.push(fg(FG_BRANCH, branch));
+			}
+
+			// Hub status
+			parts.push(fg(FG_DIM, ` ${SEP} `));
+			parts.push(isHubConnected() ? fg(FG_HUB_OK, '\u25A0') : fg(FG_HUB_ERR, '\u25A0'));
+
+			// Token stats
+			parts.push('  ');
+			parts.push(fg(FG_DIM, tokenStr) + RESET);
+
+			const left = parts.join('');
+
+			// RIGHT: model or agent name
+			let rightText: string;
+			if (activeAgent) {
+				rightText = fg(FG_AGENT, activeAgent) + RESET;
+			} else {
+				const modelId = ctx.model
+					? String((ctx.model as { id?: string }).id ?? '?')
+					: '?';
+				rightText = fg(FG_MODEL, modelId) + RESET;
+			}
+
+			return buildFooter(left, rightText, width);
 		};
 
 		const cleanupSpinner = (): void => {
