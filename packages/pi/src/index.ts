@@ -321,10 +321,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', subagent_type);
-				ctx.ui.setWorkingMessage(`${subagent_type} working...`);
-				ctx.ui.setWidget('coder-agent-status',
-					[`  ${subagent_type} working on: ${description}`]
-				);
+				ctx.ui.setWorkingMessage(`${subagent_type}: ${description}`);
 			}
 
 			try {
@@ -343,7 +340,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
 					ctx.ui.setWorkingMessage(undefined);
-					ctx.ui.setWidget('coder-agent-status', undefined);
 				}
 			}
 			},
@@ -388,7 +384,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			if (ctx.hasUI) {
 				ctx.ui.setStatus('active_agent', 'agents');
 				ctx.ui.setWorkingMessage('multiple agents working...');
-				ctx.ui.setWidget('coder-agent-status', [`  multiple agents running`]);
 			}
 
 				const promises = tasks.map(async (task) => {
@@ -421,7 +416,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				if (ctx.hasUI) {
 					ctx.ui.setStatus('active_agent', undefined);
 					ctx.ui.setWorkingMessage(undefined);
-					ctx.ui.setWidget('coder-agent-status', undefined);
 				}
 			}
 		},

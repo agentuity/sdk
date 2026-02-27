@@ -5,7 +5,7 @@
  * Includes a braille spinner animation when an agent is actively working.
  *
  * Layout:
- *   [brand] > [branch] > [hub] token-stats                    model/agent
+ *   [brand] > [branch] > [model/agent]                    [hub] token-stats
  */
 
 import type {
@@ -176,42 +176,40 @@ export function setupCoderFooter(
 			}
 			const tokenStr = `\u2191${formatTokens(inputTokens)} \u2193${formatTokens(outputTokens)} ${formatCost(totalCost)}`;
 
-			// LEFT side: brand > branch > hub status + token stats
-			const parts: string[] = [];
+			// LEFT side: brand > branch > model/agent
+			const leftParts: string[] = [];
 
 			// Brand (with spinner)
 			const brandChar = spinnerTimer
 				? SPINNER_FRAMES[spinnerFrame]!
 				: '\u2A3A';
-			parts.push(fg(FG_BRAND, ` ${brandChar}`));
+			leftParts.push(fg(FG_BRAND, ` ${brandChar}`));
 
 			// Branch
 			const branch = footerData.getGitBranch();
 			if (branch) {
-				parts.push(fg(FG_DIM, ` ${SEP} `));
-				parts.push(fg(FG_BRANCH, branch));
+				leftParts.push(fg(FG_DIM, ` ${SEP} `));
+				leftParts.push(fg(FG_BRANCH, branch));
 			}
 
-			// Hub status
-			parts.push(fg(FG_DIM, ` ${SEP} `));
-			parts.push(isHubConnected() ? fg(FG_HUB_OK, '\u25A0') : fg(FG_HUB_ERR, '\u25A0'));
-
-			// Token stats
-			parts.push('  ');
-			parts.push(fg(FG_DIM, tokenStr) + RESET);
-
-			const left = parts.join('');
-
-			// RIGHT: model or agent name
-			let rightText: string;
+			// Model or active agent
+			leftParts.push(fg(FG_DIM, ` ${SEP} `));
 			if (activeAgent) {
-				rightText = fg(FG_AGENT, activeAgent) + RESET;
+				leftParts.push(fg(FG_AGENT, activeAgent));
 			} else {
 				const modelId = ctx.model
 					? String((ctx.model as { id?: string }).id ?? '?')
 					: '?';
-				rightText = fg(FG_MODEL, modelId) + RESET;
+				leftParts.push(fg(FG_MODEL, modelId));
 			}
+
+			const left = leftParts.join('');
+
+			// RIGHT side: hub status + token stats
+			const rightParts: string[] = [];
+			rightParts.push(isHubConnected() ? fg(FG_HUB_OK, '\u25A0') : fg(FG_HUB_ERR, '\u25A0'));
+			rightParts.push(fg(FG_DIM, `  ${tokenStr}`) + RESET);
+			const rightText = rightParts.join('');
 
 			return buildFooter(left, rightText, width);
 		};
