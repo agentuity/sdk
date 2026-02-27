@@ -48,7 +48,7 @@ export function registerAgentCommands(
 				// Send a user message with routing prefix.
 				// The lead agent's system prompt recognizes [ROUTE TO: <agent>]
 				// and delegates to that agent.
-				pi.sendUserMessage(`@${name} ${trimmed}`);
+				pi.sendUserMessage(`@${name} ${trimmed}`, { deliverAs: 'followUp' });
 			},
 		});
 	}

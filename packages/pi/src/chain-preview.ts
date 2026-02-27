@@ -90,6 +90,7 @@ export class ChainEditorOverlay implements Component, Focusable {
 	private steps: ChainStep[];
 	private selectedStepIndex = 0;
 	private statusMessage = '';
+	private readonly maxVisibleItems = 6;
 
 	private pickerIndex = 0;
 	private pickerFilter = '';
@@ -395,7 +396,14 @@ export class ChainEditorOverlay implements Component, Focusable {
 			lines.push(this.contentLine(this.theme.fg('muted', '  No steps yet. Press [a] to add an agent step.'), inner));
 			lines.push(this.contentLine('', inner));
 		} else {
-			for (let i = 0; i < this.steps.length; i++) {
+			const [startIdx, endIdx] = this.getStepVisibleRange();
+
+			if (startIdx > 0) {
+				lines.push(this.contentLine(this.theme.fg('dim', `  ↑ ${startIdx} more above`), inner));
+				lines.push(this.contentLine('', inner));
+			}
+
+			for (let i = startIdx; i < endIdx; i++) {
 				const step = this.steps[i]!;
 				const selected = i === this.selectedStepIndex;
 				const marker = selected ? this.theme.fg('accent', '►') : ' ';
@@ -413,6 +421,11 @@ export class ChainEditorOverlay implements Component, Focusable {
 					lines.push(this.contentLine(this.theme.fg('text', `  task: ${task}`), inner));
 				}
 
+				lines.push(this.contentLine('', inner));
+			}
+
+			if (endIdx < this.steps.length) {
+				lines.push(this.contentLine(this.theme.fg('dim', `  ↓ ${this.steps.length - endIdx} more below`), inner));
 				lines.push(this.contentLine('', inner));
 			}
 		}
@@ -449,13 +462,25 @@ export class ChainEditorOverlay implements Component, Focusable {
 			lines.push(this.contentLine(this.theme.fg('muted', '  No agents match filter.'), inner));
 			lines.push(this.contentLine('', inner));
 		} else {
-			for (let i = 0; i < filtered.length; i++) {
+			const [startIdx, endIdx] = this.getPickerVisibleRange(filtered.length);
+
+			if (startIdx > 0) {
+				lines.push(this.contentLine(this.theme.fg('dim', `  ↑ ${startIdx} more above`), inner));
+				lines.push(this.contentLine('', inner));
+			}
+
+			for (let i = startIdx; i < endIdx; i++) {
 				const agent = filtered[i]!;
 				const selected = i === this.pickerIndex;
 				const marker = selected ? this.theme.fg('accent', '► ') : '  ';
 				const model = agent.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
 				lines.push(this.contentLine(`${marker}${this.theme.bold(agent.name)}${model}`, inner));
 				lines.push(this.contentLine(this.theme.fg('muted', `   ${agent.description || ''}`), inner));
+				lines.push(this.contentLine('', inner));
+			}
+
+			if (endIdx < filtered.length) {
+				lines.push(this.contentLine(this.theme.fg('dim', `  ↓ ${filtered.length - endIdx} more below`), inner));
 				lines.push(this.contentLine('', inner));
 			}
 		}
@@ -467,6 +492,37 @@ export class ChainEditorOverlay implements Component, Focusable {
 
 	private contentLine(content: string, innerWidth: number): string {
 		return `│${padRight(content, innerWidth)}│`;
+	}
+
+	private getStepVisibleRange(): [number, number] {
+		const count = this.steps.length;
+		if (count <= this.maxVisibleItems) return [0, count];
+
+		const half = Math.floor(this.maxVisibleItems / 2);
+		let start = Math.max(0, this.selectedStepIndex - half);
+		let end = start + this.maxVisibleItems;
+
+		if (end > count) {
+			end = count;
+			start = Math.max(0, end - this.maxVisibleItems);
+		}
+
+		return [start, end];
+	}
+
+	private getPickerVisibleRange(count: number): [number, number] {
+		if (count <= this.maxVisibleItems) return [0, count];
+
+		const half = Math.floor(this.maxVisibleItems / 2);
+		let start = Math.max(0, this.pickerIndex - half);
+		let end = start + this.maxVisibleItems;
+
+		if (end > count) {
+			end = count;
+			start = Math.max(0, end - this.maxVisibleItems);
+		}
+
+		return [start, end];
 	}
 
 	private close(result: ChainResult | undefined): void {

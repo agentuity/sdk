@@ -155,7 +155,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 		const result = await ctx.ui.custom<ChainResult | undefined>(
 			(_tui, theme, _keybindings, done) => new ChainEditorOverlay(theme, serverAgents, done, initialAgents),
-			{ overlay: true, overlayOptions: { width: '80%', maxHeight: '80%', anchor: 'center' } },
+			{ overlay: true, overlayOptions: { width: '70%', maxHeight: '60%', anchor: 'center' } },
 		);
 
 		if (!result || result.steps.length === 0) return;
@@ -168,7 +168,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			? `@lead Execute these tasks in parallel: ${instructions}`
 			: `@lead Execute this plan in order: ${instructions}`;
 
-		pi.sendUserMessage(message);
+		pi.sendUserMessage(message, { deliverAs: 'followUp' });
 	};
 
 	type AgentManagerOverlayResult =
@@ -180,7 +180,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 		const result = await ctx.ui.custom<AgentManagerOverlayResult | undefined>(
 			(_tui, theme, _keybindings, done) => new AgentManagerOverlay(theme, serverAgents, done),
-			{ overlay: true, overlayOptions: { width: '80%', maxHeight: '80%', anchor: 'center' } },
+			{ overlay: true, overlayOptions: { width: '70%', maxHeight: '60%', anchor: 'center' } },
 		);
 
 		// TODO: chain action from Agent Manager overlay (multi-select + Ctrl+R) not yet implemented
@@ -193,7 +193,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			const task = await ctx.ui.input(`Task for ${result.agent}`, 'What should this agent do?');
 			const trimmed = task?.trim();
 			if (trimmed) {
-				pi.sendUserMessage(`@${result.agent} ${trimmed}`);
+				pi.sendUserMessage(`@${result.agent} ${trimmed}`, { deliverAs: 'followUp' });
 			}
 		}
 	};
@@ -359,7 +359,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			async execute(
 				toolCallId: string,
 				params: unknown,
-				_signal: AbortSignal | undefined,
+				signal: AbortSignal | undefined,
 				_onUpdate: unknown,
 				ctx: ExtensionContext,
 			): Promise<AgentToolResult<unknown>> {
@@ -368,6 +368,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					prompt: string;
 					subagent_type: string;
 				};
+
+				if (signal?.aborted) {
+					return {
+						content: [{ type: 'text' as const, text: 'Cancelled' }],
+						details: undefined as unknown,
+					};
+				}
 
 				const agent = agentRegistry.get(subagent_type);
 				if (!agent) {
@@ -445,7 +452,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 							}).catch(() => {}); // Fire and forget
 						} catch { /* ignore */ }
 					}
-				} : undefined);
+				} : undefined, signal);
 
 				// Flash completed state briefly before clearing
 				updateWidget('completed');
@@ -494,13 +501,20 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			async execute(
 				toolCallId: string,
 				params: unknown,
-				_signal: AbortSignal | undefined,
+				signal: AbortSignal | undefined,
 				_onUpdate: unknown,
 				ctx: ExtensionContext,
 			): Promise<AgentToolResult<unknown>> {
 				const { tasks } = params as {
 					tasks: Array<{ description: string; prompt: string; subagent_type: string }>;
 				};
+
+				if (signal?.aborted) {
+					return {
+						content: [{ type: 'text' as const, text: 'Cancelled' }],
+						details: undefined as unknown,
+					};
+				}
 
 				if (tasks.length > 4) {
 					return {
@@ -616,7 +630,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 									}).catch(() => {}); // Fire and forget
 								} catch { /* ignore */ }
 							}
-						} : undefined);
+						} : undefined, signal);
 
 						agentStatuses[index]!.status = 'completed';
 						agentStatuses[index]!.duration = result.duration;
@@ -920,6 +934,7 @@ async function runSubAgent(
 	task: string,
 	hubClient: HubClient,
 	onProgress?: ProgressCallback,
+	signal?: AbortSignal,
 ): Promise<{ output: string; duration: number; tokens: SubAgentTokens }> {
 	const startTime = Date.now();
 
@@ -1017,6 +1032,18 @@ async function runSubAgent(
 				} catch { /* ignore — progress tracking is best-effort */ }
 			});
 		} catch { /* ignore — subscribe may not be available */ }
+	}
+
+	// Abort signal support — cancel sub-agent when user presses Esc
+	if (signal) {
+		if (signal.aborted) {
+			throw new Error('Aborted');
+		}
+		const onAbort = () => {
+			log(`Sub-agent ${agentConfig.name} aborted by signal`);
+			try { session.abort?.(); } catch { /* ignore */ }
+		};
+		signal.addEventListener('abort', onAbort, { once: true });
 	}
 
 	log(`Sub-agent started: ${agentConfig.name} (model: ${modelId})`);

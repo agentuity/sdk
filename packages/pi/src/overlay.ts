@@ -164,6 +164,12 @@ export class AgentManagerOverlay implements Component, Focusable {
 			lines.push(this.contentLine('', inner));
 		} else {
 			const [start, end] = this.getVisibleRange();
+
+			if (start > 0) {
+				lines.push(this.contentLine(this.theme.fg('dim', `  ↑ ${start} more above`), inner));
+				lines.push(this.contentLine('', inner));
+			}
+
 			for (let i = start; i < end; i++) {
 				const agent = this.agents[i]!;
 				const selected = i === this.selectedIndex;
@@ -189,7 +195,7 @@ export class AgentManagerOverlay implements Component, Focusable {
 			}
 
 			if (end < this.agents.length) {
-				lines.push(this.contentLine(this.theme.fg('dim', '  ...'), inner));
+				lines.push(this.contentLine(this.theme.fg('dim', `  ↓ ${this.agents.length - end} more below`), inner));
 				lines.push(this.contentLine('', inner));
 			}
 		}

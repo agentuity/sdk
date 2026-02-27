@@ -130,7 +130,7 @@ export async function handleReview(
 ): Promise<void> {
 	// Non-interactive fallback
 	if (!ctx.hasUI) {
-		pi.sendUserMessage('@reviewer Review recent code changes');
+		pi.sendUserMessage('@reviewer Review recent code changes', { deliverAs: 'followUp' });
 		return;
 	}
 
@@ -178,7 +178,7 @@ export async function handleReview(
 		// Custom instructions — no diff
 		const instructions = await ctx.ui.input('Review instructions', '');
 		if (!instructions) return;
-		pi.sendUserMessage(`@reviewer ${instructions}`);
+		pi.sendUserMessage(`@reviewer ${instructions}`, { deliverAs: 'followUp' });
 		return;
 	}
 
@@ -190,5 +190,5 @@ export async function handleReview(
 
 	// Compose and send review message
 	const reviewPrompt = buildReviewPrompt(context, diff, stats);
-	pi.sendUserMessage(`@reviewer ${reviewPrompt}`);
+	pi.sendUserMessage(`@reviewer ${reviewPrompt}`, { deliverAs: 'followUp' });
 }
