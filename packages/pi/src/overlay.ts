@@ -102,9 +102,13 @@ export class AgentManagerOverlay implements Component, Focusable {
 
 	render(width: number): string[] {
 		const safeWidth = Math.max(4, width);
+		const termHeight = process.stdout.rows || 40;
+		// Match overlay maxHeight of 60%, leave margin for overlay chrome
+		const maxLines = Math.max(10, Math.floor(termHeight * 0.6) - 2);
+
 		const lines = this.screen === 'detail'
 			? this.renderDetailScreen(safeWidth)
-			: this.renderListScreen(safeWidth);
+			: this.renderListScreen(safeWidth, maxLines);
 		return lines.map((line) => truncateToWidth(line, safeWidth));
 	}
 
@@ -152,57 +156,77 @@ export class AgentManagerOverlay implements Component, Focusable {
 		this.done(result);
 	}
 
-	private renderListScreen(width: number): string[] {
+	private renderListScreen(width: number, maxLines: number): string[] {
 		const inner = Math.max(0, width - 2);
-		const lines: string[] = [];
 
-		lines.push(buildTopBorder(width, 'Agent Manager'));
-		lines.push(this.contentLine('', inner));
+		// Fixed header (always rendered)
+		const header: string[] = [
+			buildTopBorder(width, 'Agent Manager'),
+			this.contentLine('', inner),
+		];
+
+		// Fixed footer (always rendered)
+		const footer: string[] = [
+			this.contentLine(this.theme.fg('dim', '  [↑↓] Navigate  [Enter] Details  [Esc] Close'), inner),
+			buildBottomBorder(width),
+		];
+
+		// Available lines for scrollable content area
+		const contentBudget = Math.max(4, maxLines - header.length - footer.length);
 
 		if (this.agents.length === 0) {
-			lines.push(this.contentLine(this.theme.fg('muted', '  No agents available'), inner));
-			lines.push(this.contentLine('', inner));
-		} else {
-			const [start, end] = this.getVisibleRange();
-
-			if (start > 0) {
-				lines.push(this.contentLine(this.theme.fg('dim', `  ↑ ${start} more above`), inner));
-				lines.push(this.contentLine('', inner));
-			}
-
-			for (let i = start; i < end; i++) {
-				const agent = this.agents[i]!;
-				const selected = i === this.selectedIndex;
-				const prefix = selected
-					? this.theme.fg('accent', '› ')
-					: '  ';
-
-				const model = agent.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
-				const readOnly = agent.readOnly ? this.theme.fg('warning', ' read-only') : '';
-				const title = `${prefix}${this.theme.bold(agent.name)}${model}${readOnly}`;
-				lines.push(this.contentLine(title, inner));
-
-				const description = this.theme.fg('text', `  ${agent.description || 'No description'}`);
-				lines.push(this.contentLine(description, inner));
-
-				const capsText = agent.capabilities?.length
-					? agent.capabilities.join(', ')
-					: 'none';
-				const caps = this.theme.fg('muted', `  capabilities: ${capsText}`);
-				lines.push(this.contentLine(caps, inner));
-
-				lines.push(this.contentLine('', inner));
-			}
-
-			if (end < this.agents.length) {
-				lines.push(this.contentLine(this.theme.fg('dim', `  ↓ ${this.agents.length - end} more below`), inner));
-				lines.push(this.contentLine('', inner));
-			}
+			const content = [
+				this.contentLine(this.theme.fg('muted', '  No agents available'), inner),
+				this.contentLine('', inner),
+			];
+			return [...header, ...content, ...footer];
 		}
 
-		lines.push(this.contentLine(this.theme.fg('dim', '  [↑↓] Navigate  [Enter] Details  [Esc] Close'), inner));
-		lines.push(buildBottomBorder(width));
-		return lines;
+		// Each agent takes 4 lines: name, description, capabilities, empty line
+		const LINES_PER_AGENT = 4;
+		// Reserve 2 lines for possible scroll indicators
+		const scrollReserve = 2;
+		const maxAgents = Math.max(1, Math.floor((contentBudget - scrollReserve) / LINES_PER_AGENT));
+
+		// Dynamic window size based on available space
+		const windowSize = Math.min(maxAgents, this.agents.length);
+		const [start, end] = this.getVisibleRange(windowSize);
+
+		const content: string[] = [];
+
+		if (start > 0) {
+			content.push(this.contentLine(this.theme.fg('dim', `  ↑ ${start} more above`), inner));
+		}
+
+		for (let i = start; i < end; i++) {
+			const agent = this.agents[i]!;
+			const selected = i === this.selectedIndex;
+			const prefix = selected
+				? this.theme.fg('accent', '› ')
+				: '  ';
+
+			const model = agent.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
+			const readOnly = agent.readOnly ? this.theme.fg('warning', ' read-only') : '';
+			const title = `${prefix}${this.theme.bold(agent.name)}${model}${readOnly}`;
+			content.push(this.contentLine(title, inner));
+
+			const description = this.theme.fg('text', `  ${agent.description || 'No description'}`);
+			content.push(this.contentLine(description, inner));
+
+			const capsText = agent.capabilities?.length
+				? agent.capabilities.join(', ')
+				: 'none';
+			const caps = this.theme.fg('muted', `  capabilities: ${capsText}`);
+			content.push(this.contentLine(caps, inner));
+
+			content.push(this.contentLine('', inner));
+		}
+
+		if (end < this.agents.length) {
+			content.push(this.contentLine(this.theme.fg('dim', `  ↓ ${this.agents.length - end} more below`), inner));
+		}
+
+		return [...header, ...content, ...footer];
 	}
 
 	private renderDetailScreen(width: number): string[] {
@@ -246,17 +270,18 @@ export class AgentManagerOverlay implements Component, Focusable {
 		return `│${padRight(content, innerWidth)}│`;
 	}
 
-	private getVisibleRange(): [number, number] {
+	private getVisibleRange(windowSize?: number): [number, number] {
 		const count = this.agents.length;
-		if (count <= this.listWindowSize) return [0, count];
+		const ws = windowSize ?? this.listWindowSize;
+		if (count <= ws) return [0, count];
 
-		const half = Math.floor(this.listWindowSize / 2);
+		const half = Math.floor(ws / 2);
 		let start = Math.max(0, this.selectedIndex - half);
-		let end = start + this.listWindowSize;
+		let end = start + ws;
 
 		if (end > count) {
 			end = count;
-			start = Math.max(0, end - this.listWindowSize);
+			start = Math.max(0, end - ws);
 		}
 
 		return [start, end];

@@ -132,9 +132,13 @@ export class ChainEditorOverlay implements Component, Focusable {
 
 	render(width: number): string[] {
 		const safeWidth = Math.max(4, width);
+		const termHeight = process.stdout.rows || 40;
+		// Match overlay maxHeight of 60%, leave margin for overlay chrome
+		const maxLines = Math.max(10, Math.floor(termHeight * 0.6) - 2);
+
 		const lines = this.screen === 'picker'
-			? this.renderPickerScreen(safeWidth)
-			: this.renderComposeScreen(safeWidth);
+			? this.renderPickerScreen(safeWidth, maxLines)
+			: this.renderComposeScreen(safeWidth, maxLines);
 		return lines.map((line) => truncateToWidth(line, safeWidth));
 	}
 
@@ -378,148 +382,186 @@ export class ChainEditorOverlay implements Component, Focusable {
 		});
 	}
 
-	private renderComposeScreen(width: number): string[] {
+	private renderComposeScreen(width: number, maxLines: number): string[] {
 		const inner = Math.max(0, width - 2);
-		const lines: string[] = [];
 
-		lines.push(buildTopBorder(width, 'Chain Editor'));
-		lines.push(this.contentLine('', inner));
-
+		// Fixed header (always rendered)
 		const chainSummary = this.steps.length > 0
 			? this.steps.map((step) => step.agent).join(' → ')
 			: '(empty)';
-		lines.push(this.contentLine(this.theme.fg('text', `  Chain: ${chainSummary}`), inner));
-		lines.push(this.contentLine(this.theme.fg('muted', `  Mode: ${this.mode}`), inner));
-		lines.push(this.contentLine('', inner));
+		const header: string[] = [
+			buildTopBorder(width, 'Chain Editor'),
+			this.contentLine('', inner),
+			this.contentLine(this.theme.fg('text', `  Chain: ${chainSummary}`), inner),
+			this.contentLine(this.theme.fg('muted', `  Mode: ${this.mode}`), inner),
+			this.contentLine('', inner),
+		];
 
-		if (this.steps.length === 0) {
-			lines.push(this.contentLine(this.theme.fg('muted', '  No steps yet. Press [a] to add an agent step.'), inner));
-			lines.push(this.contentLine('', inner));
-		} else {
-			const [startIdx, endIdx] = this.getStepVisibleRange();
-
-			if (startIdx > 0) {
-				lines.push(this.contentLine(this.theme.fg('dim', `  ↑ ${startIdx} more above`), inner));
-				lines.push(this.contentLine('', inner));
-			}
-
-			for (let i = startIdx; i < endIdx; i++) {
-				const step = this.steps[i]!;
-				const selected = i === this.selectedStepIndex;
-				const marker = selected ? this.theme.fg('accent', '►') : ' ';
-				const agent = this.agentByName.get(step.agent);
-				const model = agent?.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
-
-				lines.push(this.contentLine(`${marker} ${this.theme.bold(`Step ${i + 1}: ${step.agent}`)}${model}`, inner));
-
-				if (this.screen === 'edit' && selected) {
-					const displayTask = this.editBuffer.slice(0, this.editCursor) + this.theme.fg('accent', '│') + this.editBuffer.slice(this.editCursor);
-					lines.push(this.contentLine(this.theme.fg('text', `  task: ${displayTask}`), inner));
-					lines.push(this.contentLine(this.theme.fg('dim', '  editing: [Enter] Save  [Esc] Cancel  [←→] Move cursor'), inner));
-				} else {
-					const task = step.task || this.theme.fg('muted', '(empty)');
-					lines.push(this.contentLine(this.theme.fg('text', `  task: ${task}`), inner));
-				}
-
-				lines.push(this.contentLine('', inner));
-			}
-
-			if (endIdx < this.steps.length) {
-				lines.push(this.contentLine(this.theme.fg('dim', `  ↓ ${this.steps.length - endIdx} more below`), inner));
-				lines.push(this.contentLine('', inner));
-			}
-		}
-
-		if (this.statusMessage) {
-			lines.push(this.contentLine(this.theme.fg('warning', `  ${this.statusMessage}`), inner));
-			lines.push(this.contentLine('', inner));
-		}
-
+		// Fixed footer (always rendered)
 		const hintRun = this.steps.length >= 2
 			? '[Enter] Run'
 			: '[Enter] Run (needs 2+ steps)';
-		lines.push(this.contentLine(this.theme.fg('dim', `  [↑↓] Navigate  [e] Edit task  [d] Remove`), inner));
-		lines.push(this.contentLine(this.theme.fg('dim', `  [a] Add step  [p] Toggle mode  ${hintRun}  [Esc] Cancel`), inner));
-		lines.push(buildBottomBorder(width));
-		return lines;
+		const footer: string[] = [
+			this.contentLine(this.theme.fg('dim', `  [↑↓] Navigate  [e] Edit task  [d] Remove`), inner),
+			this.contentLine(this.theme.fg('dim', `  [a] Add step  [p] Toggle mode  ${hintRun}  [Esc] Cancel`), inner),
+			buildBottomBorder(width),
+		];
+
+		// Available lines for scrollable content area
+		const contentBudget = Math.max(4, maxLines - header.length - footer.length);
+
+		if (this.steps.length === 0) {
+			const content = [
+				this.contentLine(this.theme.fg('muted', '  No steps yet. Press [a] to add an agent step.'), inner),
+				this.contentLine('', inner),
+			];
+			return [...header, ...content, ...footer];
+		}
+
+		// Each step takes 3 lines (name+model, task, empty) or 4 lines (with edit hint)
+		const LINES_PER_STEP = 3;
+		// Reserve 2 lines for possible scroll indicators + status message
+		const scrollReserve = this.statusMessage ? 3 : 2;
+		const maxSteps = Math.max(1, Math.floor((contentBudget - scrollReserve) / LINES_PER_STEP));
+
+		const windowSize = Math.min(maxSteps, this.steps.length);
+		const [startIdx, endIdx] = this.getStepVisibleRange(windowSize);
+
+		const content: string[] = [];
+
+		if (startIdx > 0) {
+			content.push(this.contentLine(this.theme.fg('dim', `  ↑ ${startIdx} more above`), inner));
+		}
+
+		for (let i = startIdx; i < endIdx; i++) {
+			const step = this.steps[i]!;
+			const selected = i === this.selectedStepIndex;
+			const marker = selected ? this.theme.fg('accent', '►') : ' ';
+			const agent = this.agentByName.get(step.agent);
+			const model = agent?.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
+
+			content.push(this.contentLine(`${marker} ${this.theme.bold(`Step ${i + 1}: ${step.agent}`)}${model}`, inner));
+
+			if (this.screen === 'edit' && selected) {
+				const displayTask = this.editBuffer.slice(0, this.editCursor) + this.theme.fg('accent', '│') + this.editBuffer.slice(this.editCursor);
+				content.push(this.contentLine(this.theme.fg('text', `  task: ${displayTask}`), inner));
+				content.push(this.contentLine(this.theme.fg('dim', '  editing: [Enter] Save  [Esc] Cancel  [←→] Move cursor'), inner));
+			} else {
+				const task = step.task || this.theme.fg('muted', '(empty)');
+				content.push(this.contentLine(this.theme.fg('text', `  task: ${task}`), inner));
+			}
+
+			content.push(this.contentLine('', inner));
+		}
+
+		if (endIdx < this.steps.length) {
+			content.push(this.contentLine(this.theme.fg('dim', `  ↓ ${this.steps.length - endIdx} more below`), inner));
+		}
+
+		if (this.statusMessage) {
+			content.push(this.contentLine(this.theme.fg('warning', `  ${this.statusMessage}`), inner));
+		}
+
+		return [...header, ...content, ...footer];
 	}
 
-	private renderPickerScreen(width: number): string[] {
+	private renderPickerScreen(width: number, maxLines: number): string[] {
 		const inner = Math.max(0, width - 2);
-		const lines: string[] = [];
 		const filtered = this.getFilteredAgents();
 
 		if (this.pickerIndex >= filtered.length) {
 			this.pickerIndex = Math.max(0, filtered.length - 1);
 		}
 
-		lines.push(buildTopBorder(width, 'Add Agent Step'));
-		lines.push(this.contentLine('', inner));
-		lines.push(this.contentLine(this.theme.fg('text', `  Filter: ${this.pickerFilter || '(type to filter)'}`), inner));
-		lines.push(this.contentLine('', inner));
+		// Fixed header (always rendered)
+		const header: string[] = [
+			buildTopBorder(width, 'Add Agent Step'),
+			this.contentLine('', inner),
+			this.contentLine(this.theme.fg('text', `  Filter: ${this.pickerFilter || '(type to filter)'}`), inner),
+			this.contentLine('', inner),
+		];
+
+		// Fixed footer (always rendered)
+		const footer: string[] = [
+			this.contentLine(this.theme.fg('dim', '  [↑↓] Navigate  [Enter] Select  [Esc] Back  [Backspace] Filter'), inner),
+			buildBottomBorder(width),
+		];
+
+		// Available lines for scrollable content area
+		const contentBudget = Math.max(4, maxLines - header.length - footer.length);
 
 		if (filtered.length === 0) {
-			lines.push(this.contentLine(this.theme.fg('muted', '  No agents match filter.'), inner));
-			lines.push(this.contentLine('', inner));
-		} else {
-			const [startIdx, endIdx] = this.getPickerVisibleRange(filtered.length);
-
-			if (startIdx > 0) {
-				lines.push(this.contentLine(this.theme.fg('dim', `  ↑ ${startIdx} more above`), inner));
-				lines.push(this.contentLine('', inner));
-			}
-
-			for (let i = startIdx; i < endIdx; i++) {
-				const agent = filtered[i]!;
-				const selected = i === this.pickerIndex;
-				const marker = selected ? this.theme.fg('accent', '► ') : '  ';
-				const model = agent.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
-				lines.push(this.contentLine(`${marker}${this.theme.bold(agent.name)}${model}`, inner));
-				lines.push(this.contentLine(this.theme.fg('muted', `   ${agent.description || ''}`), inner));
-				lines.push(this.contentLine('', inner));
-			}
-
-			if (endIdx < filtered.length) {
-				lines.push(this.contentLine(this.theme.fg('dim', `  ↓ ${filtered.length - endIdx} more below`), inner));
-				lines.push(this.contentLine('', inner));
-			}
+			const content = [
+				this.contentLine(this.theme.fg('muted', '  No agents match filter.'), inner),
+				this.contentLine('', inner),
+			];
+			return [...header, ...content, ...footer];
 		}
 
-		lines.push(this.contentLine(this.theme.fg('dim', '  [↑↓] Navigate  [Enter] Select  [Esc] Back  [Backspace] Filter'), inner));
-		lines.push(buildBottomBorder(width));
-		return lines;
+		// Each agent takes 3 lines: name, description, empty line
+		const LINES_PER_AGENT = 3;
+		// Reserve 2 lines for possible scroll indicators
+		const scrollReserve = 2;
+		const maxAgents = Math.max(1, Math.floor((contentBudget - scrollReserve) / LINES_PER_AGENT));
+
+		const windowSize = Math.min(maxAgents, filtered.length);
+		const [startIdx, endIdx] = this.getPickerVisibleRange(filtered.length, windowSize);
+
+		const content: string[] = [];
+
+		if (startIdx > 0) {
+			content.push(this.contentLine(this.theme.fg('dim', `  ↑ ${startIdx} more above`), inner));
+		}
+
+		for (let i = startIdx; i < endIdx; i++) {
+			const agent = filtered[i]!;
+			const selected = i === this.pickerIndex;
+			const marker = selected ? this.theme.fg('accent', '► ') : '  ';
+			const model = agent.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
+			content.push(this.contentLine(`${marker}${this.theme.bold(agent.name)}${model}`, inner));
+			content.push(this.contentLine(this.theme.fg('muted', `   ${agent.description || ''}`), inner));
+			content.push(this.contentLine('', inner));
+		}
+
+		if (endIdx < filtered.length) {
+			content.push(this.contentLine(this.theme.fg('dim', `  ↓ ${filtered.length - endIdx} more below`), inner));
+		}
+
+		return [...header, ...content, ...footer];
 	}
 
 	private contentLine(content: string, innerWidth: number): string {
 		return `│${padRight(content, innerWidth)}│`;
 	}
 
-	private getStepVisibleRange(): [number, number] {
+	private getStepVisibleRange(windowSize?: number): [number, number] {
 		const count = this.steps.length;
-		if (count <= this.maxVisibleItems) return [0, count];
+		const ws = windowSize ?? this.maxVisibleItems;
+		if (count <= ws) return [0, count];
 
-		const half = Math.floor(this.maxVisibleItems / 2);
+		const half = Math.floor(ws / 2);
 		let start = Math.max(0, this.selectedStepIndex - half);
-		let end = start + this.maxVisibleItems;
+		let end = start + ws;
 
 		if (end > count) {
 			end = count;
-			start = Math.max(0, end - this.maxVisibleItems);
+			start = Math.max(0, end - ws);
 		}
 
 		return [start, end];
 	}
 
-	private getPickerVisibleRange(count: number): [number, number] {
-		if (count <= this.maxVisibleItems) return [0, count];
+	private getPickerVisibleRange(count: number, windowSize?: number): [number, number] {
+		const ws = windowSize ?? this.maxVisibleItems;
+		if (count <= ws) return [0, count];
 
-		const half = Math.floor(this.maxVisibleItems / 2);
+		const half = Math.floor(ws / 2);
 		let start = Math.max(0, this.pickerIndex - half);
-		let end = start + this.maxVisibleItems;
+		let end = start + ws;
 
 		if (end > count) {
 			end = count;
-			start = Math.max(0, end - this.maxVisibleItems);
+			start = Math.max(0, end - ws);
 		}
 
 		return [start, end];
