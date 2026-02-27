@@ -15,6 +15,7 @@ import { setupTitlebar } from './titlebar.ts';
 import { registerAgentCommands } from './commands.ts';
 import { AgentManagerOverlay } from './overlay.ts';
 import { ChainEditorOverlay, type ChainResult } from './chain-preview.ts';
+import { OutputViewerOverlay, type StoredResult } from './output-viewer.ts';
 import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition, AgentProgressUpdate } from './protocol.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
@@ -22,6 +23,15 @@ const _require = createRequire(import.meta.url);
 
 const HUB_URL_ENV = 'AGENTUITY_CODER_HUB_URL';
 const AGENT_ENV = 'AGENTUITY_CODER_AGENT';
+
+// Recent agent results for full-screen viewer (Ctrl+Shift+V)
+const recentResults: StoredResult[] = [];
+const MAX_STORED_RESULTS = 20;
+
+function storeResult(agentName: string, text: string, tokenInfo?: string): void {
+	recentResults.unshift({ agentName, text, timestamp: Date.now(), tokenInfo });
+	if (recentResults.length > MAX_STORED_RESULTS) recentResults.pop();
+}
 
 // ══════════════════════════════════════════════
 // Sub-Agent Output Limits (prevents context bloat in parent)
@@ -336,6 +346,24 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			},
 		});
 
+		pi.registerShortcut('ctrl+shift+v', {
+			description: 'View full agent output',
+			handler: async (ctx) => {
+				if (!ctx.hasUI || recentResults.length === 0) return;
+				await ctx.ui.custom<undefined>(
+					(_tui, theme, _keybindings, done) => new OutputViewerOverlay(theme, recentResults, done),
+					{ overlay: true, overlayOptions: { width: '80%', maxHeight: '80%', anchor: 'center' } },
+				);
+			},
+		});
+
+		pi.registerShortcut('ctrl+shift+c', {
+			description: 'Open Chain Editor',
+			handler: async (ctx) => {
+				await openChainEditor(ctx);
+			},
+		});
+
 		const agentRegistry = new Map(serverAgents.map((a) => [a.name, a]));
 		const agentNames = serverAgents.map((a) => a.name);
 
@@ -458,9 +486,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				updateWidget('completed');
 
 				let output = result.output;
+				let tokenInfoStr: string | undefined;
 				if (result.tokens && (result.tokens.input > 0 || result.tokens.output > 0)) {
+					tokenInfoStr = `${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out | $${result.tokens.cost.toFixed(4)}`;
 					output += `\n\n---\n_${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out tokens | $${result.tokens.cost.toFixed(4)}_`;
 				}
+				storeResult(subagent_type, result.output, tokenInfoStr);
 				return {
 					content: [{ type: 'text' as const, text: output }],
 					details: undefined as unknown,
@@ -650,6 +681,18 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				try {
 					const results = await Promise.all(promises);
+
+					// Store each successful result for the Output Viewer
+					for (const r of results) {
+						if ('output' in r && r.output && !('error' in r && r.error)) {
+							let tokenInfoStr: string | undefined;
+							if ('tokens' in r && r.tokens && (r.tokens.input > 0 || r.tokens.output > 0)) {
+								tokenInfoStr = `${r.agent}: ${'duration' in r ? r.duration : 0}ms | ${r.tokens.input} in ${r.tokens.output} out | $${r.tokens.cost.toFixed(4)}`;
+							}
+							storeResult(r.agent, r.output, tokenInfoStr);
+						}
+					}
+
 					const output = results
 						.map((r) => {
 							if ('error' in r && r.error) return `### ${r.agent} (FAILED)\n${r.error}`;

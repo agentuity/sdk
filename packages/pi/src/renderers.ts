@@ -370,7 +370,7 @@ function taskRenderers(): ToolRenderers {
 					// Show first line of error in collapsed view
 					const firstLine = raw.split('\n')[0] || '';
 					errorContent += theme.fg('dim', '  ' + firstLine.slice(0, 80));
-					errorContent += theme.fg('muted', '  ctrl+o / ctrl+t');
+					errorContent += theme.fg('muted', '  ctrl+o  ctrl+shift+v');
 				}
 				box.addChild(new Text(errorContent, 0, 0));
 				return box;
@@ -393,12 +393,12 @@ function taskRenderers(): ToolRenderers {
 			}
 
 			if (!expanded) {
-				text += theme.fg('muted', '  ctrl+o / ctrl+t');
+				text += theme.fg('muted', '  ctrl+o  ctrl+shift+v');
 			}
 			if (expanded) {
 				const preview = raw.split('\n').slice(0, 20).map(safeLine).join('\n');
 				text += '\n' + theme.fg('dim', preview);
-				if (lineCount > 20) text += theme.fg('muted', '\n...more');
+				if (lineCount > 20) text += theme.fg('muted', '\n...more  ctrl+shift+v');
 			}
 			return new Text(text, 0, 0);
 		},
@@ -447,7 +447,7 @@ function parallelTasksRenderers(): ToolRenderers {
 			summaryText += theme.fg('dim', ` (${lineCount} lines)`);
 
 			if (!expanded) {
-				summaryText += theme.fg('muted', '  ctrl+o / ctrl+t');
+				summaryText += theme.fg('muted', '  ctrl+o  ctrl+shift+v');
 				return new Text(summaryText, 0, 0);
 			}
 
@@ -465,7 +465,7 @@ function parallelTasksRenderers(): ToolRenderers {
 				const preview = lines.slice(0, 15).map(safeLine).join('\n');
 				let sectionContent = preview;
 				if (lines.length > 15) {
-					sectionContent += '\n' + theme.fg('muted', `  ...${lines.length - 15} more lines`);
+					sectionContent += '\n' + theme.fg('muted', `  ...${lines.length - 15} more lines  ctrl+shift+v`);
 				}
 
 				if (isFailed) {
