@@ -334,7 +334,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 		const totalLines = contentLines.length;
 
 		// Content area
-		const contentBudget = Math.max(1, maxLines - header.length - 2); // 2 = footer lines
+		const contentBudget = Math.max(1, maxLines - header.length - 3); // 3 = footer lines (padding + help + border)
 
 		// Auto-follow when streaming
 		if (this.following && result.isStreaming) {
@@ -355,6 +355,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 
 		const vimHint = totalLines > contentBudget ? '[g/G] Top/Bot  [{/}] Jump  ' : '';
 		const footer: string[] = [
+			this.contentLine('', inner), // padding line before footer
 			this.contentLine(this.theme.fg('dim', `   ${posInfo}${vimHint}[Up/Dn] Scroll  ${thinkingHint}${followHint}${promptHint}${navHint}[Esc] Close`), inner),
 			buildBottomBorder(safeWidth),
 		];
