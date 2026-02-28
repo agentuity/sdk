@@ -34,9 +34,7 @@ function displayServiceStats(data: ServiceStatsData): void {
 		console.log(
 			`  ${tui.muted('Namespaces:')}      ${formatNumber(services.keyvalue.namespaceCount)}`
 		);
-		console.log(
-			`  ${tui.muted('Keys:')}            ${formatNumber(services.keyvalue.keyCount)}`
-		);
+		console.log(`  ${tui.muted('Keys:')}            ${formatNumber(services.keyvalue.keyCount)}`);
 		console.log(
 			`  ${tui.muted('Total Size:')}      ${tui.formatBytes(services.keyvalue.totalSizeBytes)}`
 		);
@@ -61,15 +59,11 @@ function displayServiceStats(data: ServiceStatsData): void {
 		hasData = true;
 		tui.newline();
 		console.log(tui.colorPrimary('Queue:'));
-		console.log(
-			`  ${tui.muted('Queues:')}          ${formatNumber(services.queue.queueCount)}`
-		);
+		console.log(`  ${tui.muted('Queues:')}          ${formatNumber(services.queue.queueCount)}`);
 		console.log(
 			`  ${tui.muted('Total Messages:')}  ${formatNumber(services.queue.totalMessages)}`
 		);
-		console.log(
-			`  ${tui.muted('DLQ Messages:')}    ${formatNumber(services.queue.totalDlq)}`
-		);
+		console.log(`  ${tui.muted('DLQ Messages:')}    ${formatNumber(services.queue.totalDlq)}`);
 	}
 
 	if (services.stream) {
@@ -92,13 +86,9 @@ function displayServiceStats(data: ServiceStatsData): void {
 		console.log(
 			`  ${tui.muted('Active:')}          ${formatNumber(sb.totalActive)} (${sb.running} running, ${sb.idle} idle, ${sb.creating} creating)`
 		);
-		console.log(
-			`  ${tui.muted('Executions:')}      ${formatNumber(sb.totalExecutions)}`
-		);
+		console.log(`  ${tui.muted('Executions:')}      ${formatNumber(sb.totalExecutions)}`);
 		console.log(`  ${tui.muted('CPU Time:')}        ${formatLatency(sb.totalCpuTimeMs)}`);
-		console.log(
-			`  ${tui.muted('Memory:')}          ${tui.formatBytes(sb.totalMemoryByteSec)}`
-		);
+		console.log(`  ${tui.muted('Memory:')}          ${tui.formatBytes(sb.totalMemoryByteSec)}`);
 		console.log(
 			`  ${tui.muted('Network Out:')}     ${tui.formatBytes(sb.totalNetworkEgressBytes)}`
 		);
@@ -109,12 +99,8 @@ function displayServiceStats(data: ServiceStatsData): void {
 		const em = services.email;
 		tui.newline();
 		console.log(tui.colorPrimary('Email:'));
-		console.log(
-			`  ${tui.muted('Addresses:')}       ${formatNumber(em.addressCount)}`
-		);
-		console.log(
-			`  ${tui.muted('Inbound:')}         ${formatNumber(em.inboundCount)}`
-		);
+		console.log(`  ${tui.muted('Addresses:')}       ${formatNumber(em.addressCount)}`);
+		console.log(`  ${tui.muted('Inbound:')}         ${formatNumber(em.inboundCount)}`);
 		console.log(
 			`  ${tui.muted('Outbound:')}        ${formatNumber(em.outboundCount)} (${em.outboundSuccess} ok, ${em.outboundFailed} failed)`
 		);
@@ -127,9 +113,7 @@ function displayServiceStats(data: ServiceStatsData): void {
 		console.log(tui.colorPrimary('Task:'));
 		console.log(`  ${tui.muted('Total:')}           ${formatNumber(tk.total)}`);
 		console.log(`  ${tui.muted('Open:')}            ${formatNumber(tk.open)}`);
-		console.log(
-			`  ${tui.muted('In Progress:')}     ${formatNumber(tk.inProgress)}`
-		);
+		console.log(`  ${tui.muted('In Progress:')}     ${formatNumber(tk.inProgress)}`);
 		console.log(`  ${tui.muted('Closed:')}          ${formatNumber(tk.closed)}`);
 	}
 
@@ -138,9 +122,7 @@ function displayServiceStats(data: ServiceStatsData): void {
 		const sc = services.schedule;
 		tui.newline();
 		console.log(tui.colorPrimary('Schedule:'));
-		console.log(
-			`  ${tui.muted('Schedules:')}       ${formatNumber(sc.scheduleCount)}`
-		);
+		console.log(`  ${tui.muted('Schedules:')}       ${formatNumber(sc.scheduleCount)}`);
 		console.log(
 			`  ${tui.muted('Deliveries:')}      ${formatNumber(sc.totalDeliveries)} (${sc.successDeliveries} ok, ${sc.failedDeliveries} failed)`
 		);
@@ -151,18 +133,10 @@ function displayServiceStats(data: ServiceStatsData): void {
 		const db = services.database;
 		tui.newline();
 		console.log(tui.colorPrimary('Database:'));
-		console.log(
-			`  ${tui.muted('Databases:')}       ${formatNumber(db.databaseCount)}`
-		);
-		console.log(
-			`  ${tui.muted('Tables:')}          ${formatNumber(db.totalTableCount)}`
-		);
-		console.log(
-			`  ${tui.muted('Records:')}         ${formatNumber(db.totalRecordCount)}`
-		);
-		console.log(
-			`  ${tui.muted('Total Size:')}      ${tui.formatBytes(db.totalSizeBytes)}`
-		);
+		console.log(`  ${tui.muted('Databases:')}       ${formatNumber(db.databaseCount)}`);
+		console.log(`  ${tui.muted('Tables:')}          ${formatNumber(db.totalTableCount)}`);
+		console.log(`  ${tui.muted('Records:')}         ${formatNumber(db.totalRecordCount)}`);
+		console.log(`  ${tui.muted('Total Size:')}      ${tui.formatBytes(db.totalSizeBytes)}`);
 	}
 
 	if (!hasData) {

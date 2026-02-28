@@ -34,9 +34,12 @@ export const getSubcommand = createCommand({
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true },
 	idempotent: true,
-		examples: [
-			{ command: getCommand('cloud schedule get sched_abc123'), description: 'Get schedule details' },
-		],
+	examples: [
+		{
+			command: getCommand('cloud schedule get sched_abc123'),
+			description: 'Get schedule details',
+		},
+	],
 	schema: {
 		args: z.object({
 			schedule_id: z.string().min(1).describe('Schedule ID'),
@@ -68,23 +71,25 @@ export const getSubcommand = createCommand({
 				tui.info('No destinations configured');
 			} else {
 				tui.table(
-					result.destinations.map((destination: {
-						id: string;
-						type: 'url' | 'sandbox';
-						config: Record<string, unknown>;
-						created_at: string;
-					}) => {
-						const configDisplay =
-							destination.type === 'url' && destination.config?.url
-								? String(destination.config.url)
-								: JSON.stringify(destination.config);
-						return {
-							ID: destination.id,
-							Type: destination.type,
-							URL: configDisplay,
-							Created: new Date(destination.created_at).toLocaleString(),
-						};
-					}),
+					result.destinations.map(
+						(destination: {
+							id: string;
+							type: 'url' | 'sandbox';
+							config: Record<string, unknown>;
+							created_at: string;
+						}) => {
+							const configDisplay =
+								destination.type === 'url' && destination.config?.url
+									? String(destination.config.url)
+									: JSON.stringify(destination.config);
+							return {
+								ID: destination.id,
+								Type: destination.type,
+								URL: configDisplay,
+								Created: new Date(destination.created_at).toLocaleString(),
+							};
+						}
+					),
 					['ID', 'Type', 'URL', 'Created']
 				);
 			}

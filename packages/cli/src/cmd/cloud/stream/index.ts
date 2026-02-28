@@ -23,7 +23,13 @@ export const streamCommand = createCommand({
 		{ command: getCommand('cloud stream list'), description: 'List all streams' },
 		{ command: getCommand('cloud stream get <id>'), description: 'Get stream details' },
 	],
-	subcommands: [createSubcommand, listSubcommand, getSubcommand, deleteSubcommand, statsSubcommand],
+	subcommands: [
+		createSubcommand,
+		listSubcommand,
+		getSubcommand,
+		deleteSubcommand,
+		statsSubcommand,
+	],
 });
 
 export default streamCommand;

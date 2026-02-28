@@ -1,5 +1,6 @@
 import { createSubcommand } from '../../types';
-import { clearAuth } from '../../config';
+import { clearAuth, defaultProfileName } from '../../config';
+import { clearCachedUserInfo } from '../../cache';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 
@@ -17,6 +18,7 @@ export const logoutCommand = createSubcommand({
 	async handler(ctx) {
 		const { options } = ctx;
 		await clearAuth();
+		clearCachedUserInfo(ctx.config?.name ?? defaultProfileName);
 		if (!options.json) {
 			tui.success('You have been logged out');
 		}

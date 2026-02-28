@@ -19,9 +19,7 @@ function displayStats(data: ServiceStatsData): void {
 	}
 	tui.header('Schedule Statistics');
 	tui.newline();
-	console.log(
-		`  ${tui.muted('Schedules:')}       ${formatNumber(svc.scheduleCount)}`
-	);
+	console.log(`  ${tui.muted('Schedules:')}       ${formatNumber(svc.scheduleCount)}`);
 	console.log(
 		`  ${tui.muted('Deliveries:')}      ${formatNumber(svc.totalDeliveries)} (${svc.successDeliveries} ok, ${svc.failedDeliveries} failed)`
 	);

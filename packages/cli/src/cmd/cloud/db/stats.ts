@@ -19,18 +19,10 @@ function displayStats(data: ServiceStatsData): void {
 	}
 	tui.header('Database Statistics');
 	tui.newline();
-	console.log(
-		`  ${tui.muted('Databases:')}       ${formatNumber(svc.databaseCount)}`
-	);
-	console.log(
-		`  ${tui.muted('Tables:')}          ${formatNumber(svc.totalTableCount)}`
-	);
-	console.log(
-		`  ${tui.muted('Records:')}         ${formatNumber(svc.totalRecordCount)}`
-	);
-	console.log(
-		`  ${tui.muted('Total Size:')}      ${tui.formatBytes(svc.totalSizeBytes)}`
-	);
+	console.log(`  ${tui.muted('Databases:')}       ${formatNumber(svc.databaseCount)}`);
+	console.log(`  ${tui.muted('Tables:')}          ${formatNumber(svc.totalTableCount)}`);
+	console.log(`  ${tui.muted('Records:')}         ${formatNumber(svc.totalRecordCount)}`);
+	console.log(`  ${tui.muted('Total Size:')}      ${tui.formatBytes(svc.totalSizeBytes)}`);
 }
 
 export const statsSubcommand = createCommand({

@@ -13,3 +13,5 @@ export {
 export { getCachedProject, setCachedProject, clearProjectCache } from './project-cache';
 
 export { hasAgentSeenIntro, markAgentIntroSeen } from './agent-intro';
+
+export { getCachedUserInfo, setCachedUserInfo, clearCachedUserInfo } from './user-cache';

@@ -32,11 +32,7 @@ export const sendSubcommand = createCommand({
 			tui.fatal('At least one of --text or --html is required');
 		}
 
-		const fileValues = Array.isArray(opts.file)
-			? opts.file
-			: opts.file
-				? [opts.file]
-				: [];
+		const fileValues = Array.isArray(opts.file) ? opts.file : opts.file ? [opts.file] : [];
 
 		const attachments: EmailAttachment[] = [];
 		for (const filePath of fileValues) {

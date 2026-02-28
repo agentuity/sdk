@@ -19,12 +19,8 @@ function displayStats(data: ServiceStatsData): void {
 	}
 	tui.header('Stream Statistics');
 	tui.newline();
-	console.log(
-		`  ${tui.muted('Streams:')}         ${formatNumber(svc.streamCount)}`
-	);
-	console.log(
-		`  ${tui.muted('Total Size:')}      ${tui.formatBytes(svc.totalSizeBytes)}`
-	);
+	console.log(`  ${tui.muted('Streams:')}         ${formatNumber(svc.streamCount)}`);
+	console.log(`  ${tui.muted('Total Size:')}      ${tui.formatBytes(svc.totalSizeBytes)}`);
 }
 
 export const statsSubcommand = createCommand({

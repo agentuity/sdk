@@ -48,23 +48,25 @@ export const listSubcommand = createCommand({
 				tui.info('No destinations configured');
 			} else {
 				tui.table(
-					result.destinations.map((destination: {
-						id: string;
-						type: 'url' | 'sandbox';
-						config: Record<string, unknown>;
-						created_at: string;
-					}) => {
-						const configDisplay =
-							destination.type === 'url' && destination.config?.url
-								? String(destination.config.url)
-								: JSON.stringify(destination.config);
-						return {
-							ID: destination.id,
-							Type: destination.type,
-							URL: configDisplay,
-							Created: new Date(destination.created_at).toLocaleString(),
-						};
-					}),
+					result.destinations.map(
+						(destination: {
+							id: string;
+							type: 'url' | 'sandbox';
+							config: Record<string, unknown>;
+							created_at: string;
+						}) => {
+							const configDisplay =
+								destination.type === 'url' && destination.config?.url
+									? String(destination.config.url)
+									: JSON.stringify(destination.config);
+							return {
+								ID: destination.id,
+								Type: destination.type,
+								URL: configDisplay,
+								Created: new Date(destination.created_at).toLocaleString(),
+							};
+						}
+					),
 					['ID', 'Type', 'URL', 'Created']
 				);
 			}
