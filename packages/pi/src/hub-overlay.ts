@@ -79,6 +79,7 @@ interface HubListResponse {
 
 interface FeedEntry {
 	at: number;
+	sessionId?: string;
 	text: string;
 }
 
@@ -97,7 +98,7 @@ interface HubOverlayOptions {
 	done: (result: undefined) => void;
 }
 
-type ScreenMode = 'list' | 'detail';
+type ScreenMode = 'list' | 'detail' | 'feed' | 'task';
 
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 const POLL_MS = 4_000;
@@ -176,6 +177,36 @@ function getVisibleRange(total: number, selected: number, windowSize: number): [
 	return [start, end];
 }
 
+function wrapText(text: string, width: number): string[] {
+	if (width <= 0) return [''];
+	if (!text) return [''];
+
+	const lines: string[] = [];
+	const paragraphs = text.split(/\r?\n/);
+	for (const paragraph of paragraphs) {
+		const words = paragraph.split(/\s+/).filter(Boolean);
+		if (words.length === 0) {
+			lines.push('');
+			continue;
+		}
+
+		let current = words[0]!;
+		for (let i = 1; i < words.length; i++) {
+			const word = words[i]!;
+			const candidate = `${current} ${word}`;
+			if (candidate.length <= width) {
+				current = candidate;
+			} else {
+				lines.push(current);
+				current = word.length > width ? word.slice(0, width) : word;
+			}
+		}
+		lines.push(current);
+	}
+
+	return lines;
+}
+
 export class HubOverlay implements Component, Focusable {
 	public focused = true;
 
@@ -190,7 +221,14 @@ export class HubOverlay implements Component, Focusable {
 	private detailSessionId: string | null;
 	private detailScrollOffset = 0;
 	private detailMaxScroll = 0;
+	private feedScrollOffset = 0;
+	private feedMaxScroll = 0;
+	private feedScope: 'global' | 'session' = 'global';
+	private taskScrollOffset = 0;
+	private taskMaxScroll = 0;
+	private selectedTaskIndex = 0;
 	private feedExpanded = false;
+	private focusMode = false;
 
 	private sessions: HubSessionSummary[] = [];
 	private detail: HubSessionDetail | null = null;
@@ -235,7 +273,45 @@ export class HubOverlay implements Component, Focusable {
 	handleInput(data: string): void {
 		if (this.disposed) return;
 
+		if (data === '1') {
+			this.screen = 'list';
+			this.requestRender();
+			return;
+		}
+
+		if (data === '2') {
+			if (this.detailSessionId) {
+				this.screen = 'detail';
+				this.requestRender();
+			}
+			return;
+		}
+
+		if (data === '3') {
+			this.feedScope = this.screen === 'detail' || this.screen === 'task' ? 'session' : 'global';
+			this.feedScrollOffset = 0;
+			this.screen = 'feed';
+			this.requestRender();
+			return;
+		}
+
+		if (matchesKey(data, 'z') || data.toLowerCase() === 'z') {
+			this.focusMode = !this.focusMode;
+			this.requestRender();
+			return;
+		}
+
 		if (matchesKey(data, 'escape')) {
+			if (this.screen === 'task') {
+				this.screen = 'detail';
+				this.requestRender();
+				return;
+			}
+			if (this.screen === 'feed') {
+				this.screen = this.detailSessionId ? 'detail' : 'list';
+				this.requestRender();
+				return;
+			}
 			if (this.screen === 'detail') {
 				this.screen = 'list';
 				this.requestRender();
@@ -247,7 +323,7 @@ export class HubOverlay implements Component, Focusable {
 
 		if (matchesKey(data, 'r') || data.toLowerCase() === 'r') {
 			void this.refreshList();
-			if (this.screen === 'detail' && this.detailSessionId) {
+			if ((this.screen === 'detail' || this.screen === 'task' || this.screen === 'feed') && this.detailSessionId) {
 				void this.refreshDetail(this.detailSessionId);
 			}
 			return;
@@ -264,17 +340,34 @@ export class HubOverlay implements Component, Focusable {
 			return;
 		}
 
+		if (this.screen === 'feed') {
+			this.handleFeedInput(data);
+			return;
+		}
+
+		if (this.screen === 'task') {
+			this.handleTaskInput(data);
+			return;
+		}
+
 		this.handleDetailInput(data);
 	}
 
 	render(width: number): string[] {
 		const safeWidth = Math.max(6, width);
 		const termHeight = process.stdout.rows || 40;
-		const maxLines = Math.max(12, Math.floor(termHeight * 0.95) - 2);
+		const maxLines = this.focusMode
+			? Math.max(14, Math.floor(termHeight * 0.98) - 1)
+			: Math.max(12, Math.floor(termHeight * 0.95) - 2);
 
-		const lines = this.screen === 'detail'
-			? this.renderDetailScreen(safeWidth, maxLines)
-			: this.renderListScreen(safeWidth, maxLines);
+		const lines =
+			this.screen === 'detail'
+				? this.renderDetailScreen(safeWidth, maxLines)
+				: this.screen === 'feed'
+					? this.renderFeedScreen(safeWidth, maxLines)
+					: this.screen === 'task'
+						? this.renderTaskScreen(safeWidth, maxLines)
+						: this.renderListScreen(safeWidth, maxLines);
 		return lines.map((line) => truncateToWidth(line, safeWidth));
 	}
 
@@ -332,6 +425,7 @@ export class HubOverlay implements Component, Focusable {
 			if (!selected) return;
 			this.detailSessionId = selected.sessionId;
 			this.detailScrollOffset = 0;
+			this.selectedTaskIndex = 0;
 			this.screen = 'detail';
 			void this.refreshDetail(selected.sessionId, true);
 			this.requestRender();
@@ -339,6 +433,34 @@ export class HubOverlay implements Component, Focusable {
 	}
 
 	private handleDetailInput(data: string): void {
+		const tasks = this.getDetailTasks();
+
+		if (data === '[') {
+			if (tasks.length > 0) {
+				this.selectedTaskIndex = (this.selectedTaskIndex - 1 + tasks.length) % tasks.length;
+				this.requestRender();
+			}
+			return;
+		}
+
+		if (data === ']') {
+			if (tasks.length > 0) {
+				this.selectedTaskIndex = (this.selectedTaskIndex + 1) % tasks.length;
+				this.requestRender();
+			}
+			return;
+		}
+
+		if (matchesKey(data, 'enter')) {
+			if (tasks.length > 0) {
+				this.selectedTaskIndex = Math.min(this.selectedTaskIndex, tasks.length - 1);
+				this.taskScrollOffset = 0;
+				this.screen = 'task';
+				this.requestRender();
+			}
+			return;
+		}
+
 		if (matchesKey(data, 'up') || data.toLowerCase() === 'k') {
 			if (this.detailScrollOffset > 0) {
 				this.detailScrollOffset -= 1;
@@ -367,6 +489,72 @@ export class HubOverlay implements Component, Focusable {
 			this.detailScrollOffset = Math.min(this.detailMaxScroll, this.detailScrollOffset + jump);
 			this.requestRender();
 		}
+	}
+
+	private handleFeedInput(data: string): void {
+		if (matchesKey(data, 'up') || data.toLowerCase() === 'k') {
+			if (this.feedScrollOffset > 0) {
+				this.feedScrollOffset -= 1;
+				this.requestRender();
+			}
+			return;
+		}
+
+		if (matchesKey(data, 'down') || data.toLowerCase() === 'j') {
+			if (this.feedScrollOffset < this.feedMaxScroll) {
+				this.feedScrollOffset += 1;
+				this.requestRender();
+			}
+			return;
+		}
+
+		if (matchesKey(data, 'pageUp') || matchesKey(data, 'shift+up')) {
+			const jump = Math.max(1, Math.floor((process.stdout.rows || 40) / 3));
+			this.feedScrollOffset = Math.max(0, this.feedScrollOffset - jump);
+			this.requestRender();
+			return;
+		}
+
+		if (matchesKey(data, 'pageDown') || matchesKey(data, 'shift+down')) {
+			const jump = Math.max(1, Math.floor((process.stdout.rows || 40) / 3));
+			this.feedScrollOffset = Math.min(this.feedMaxScroll, this.feedScrollOffset + jump);
+			this.requestRender();
+		}
+	}
+
+	private handleTaskInput(data: string): void {
+		if (matchesKey(data, 'up') || data.toLowerCase() === 'k') {
+			if (this.taskScrollOffset > 0) {
+				this.taskScrollOffset -= 1;
+				this.requestRender();
+			}
+			return;
+		}
+
+		if (matchesKey(data, 'down') || data.toLowerCase() === 'j') {
+			if (this.taskScrollOffset < this.taskMaxScroll) {
+				this.taskScrollOffset += 1;
+				this.requestRender();
+			}
+			return;
+		}
+
+		if (matchesKey(data, 'pageUp') || matchesKey(data, 'shift+up')) {
+			const jump = Math.max(1, Math.floor((process.stdout.rows || 40) / 3));
+			this.taskScrollOffset = Math.max(0, this.taskScrollOffset - jump);
+			this.requestRender();
+			return;
+		}
+
+		if (matchesKey(data, 'pageDown') || matchesKey(data, 'shift+down')) {
+			const jump = Math.max(1, Math.floor((process.stdout.rows || 40) / 3));
+			this.taskScrollOffset = Math.min(this.taskMaxScroll, this.taskScrollOffset + jump);
+			this.requestRender();
+		}
+	}
+
+	private getDetailTasks(): HubTask[] {
+		return this.detail?.tasks ?? [];
 	}
 
 	private async fetchJson<T>(path: string): Promise<T> {
@@ -435,6 +623,12 @@ export class HubOverlay implements Component, Focusable {
 			);
 			this.detail = detail;
 			this.detailSessionId = sessionId;
+			const taskCount = detail.tasks?.length ?? 0;
+			if (taskCount === 0) {
+				this.selectedTaskIndex = 0;
+			} else if (this.selectedTaskIndex >= taskCount) {
+				this.selectedTaskIndex = taskCount - 1;
+			}
 			this.loadingDetail = false;
 			this.detailError = '';
 			this.lastUpdatedAt = Date.now();
@@ -470,20 +664,20 @@ export class HubOverlay implements Component, Focusable {
 			const label = session.label || shortId(session.sessionId);
 
 			if (!prev) {
-				this.pushFeed(`${label}: session discovered (${session.mode})`);
+				this.pushFeed(`${label}: session discovered (${session.mode})`, session.sessionId);
 			} else {
 				if (prev.status !== session.status) {
-					this.pushFeed(`${label}: ${prev.status} -> ${session.status}`);
+					this.pushFeed(`${label}: ${prev.status} -> ${session.status}`, session.sessionId);
 				}
 				if (session.taskCount > prev.taskCount) {
 					const delta = session.taskCount - prev.taskCount;
-					this.pushFeed(`${label}: +${delta} task${delta === 1 ? '' : 's'}`);
+					this.pushFeed(`${label}: +${delta} task${delta === 1 ? '' : 's'}`, session.sessionId);
 				}
 				if (session.observerCount !== prev.observerCount) {
-					this.pushFeed(`${label}: observers ${prev.observerCount} -> ${session.observerCount}`);
+					this.pushFeed(`${label}: observers ${prev.observerCount} -> ${session.observerCount}`, session.sessionId);
 				}
 				if (session.subAgentCount !== prev.subAgentCount) {
-					this.pushFeed(`${label}: agents ${prev.subAgentCount} -> ${session.subAgentCount}`);
+					this.pushFeed(`${label}: agents ${prev.subAgentCount} -> ${session.subAgentCount}`, session.sessionId);
 				}
 			}
 
@@ -497,7 +691,7 @@ export class HubOverlay implements Component, Focusable {
 
 		for (const oldSessionId of this.previousDigests.keys()) {
 			if (!nextDigests.has(oldSessionId)) {
-				this.pushFeed(`${shortId(oldSessionId)}: session removed`);
+				this.pushFeed(`${shortId(oldSessionId)}: session removed`, oldSessionId);
 			}
 		}
 
@@ -559,7 +753,7 @@ export class HubOverlay implements Component, Focusable {
 			if (controller.signal.aborted || this.disposed) return;
 			const label = this.getSessionLabel(sessionId);
 			const msg = err instanceof Error ? err.message : String(err);
-			this.pushFeed(`${label}: stream error (${msg})`);
+			this.pushFeed(`${label}: stream error (${msg})`, sessionId);
 			this.requestRender();
 		} finally {
 			if (this.sseControllers.get(sessionId) === controller) {
@@ -622,7 +816,7 @@ export class HubOverlay implements Component, Focusable {
 
 		const text = this.formatEventFeedLine(sessionId, eventName, eventData);
 		if (text) {
-			this.pushFeed(text);
+			this.pushFeed(text, sessionId);
 			this.requestRender();
 		}
 
@@ -694,8 +888,15 @@ export class HubOverlay implements Component, Focusable {
 		return session?.label || shortId(sessionId);
 	}
 
-	private pushFeed(text: string): void {
-		this.feed.unshift({ at: Date.now(), text });
+	private getFeedEntries(scope: 'global' | 'session'): FeedEntry[] {
+		if (scope === 'session' && this.detailSessionId) {
+			return this.feed.filter((entry) => entry.sessionId === this.detailSessionId);
+		}
+		return this.feed;
+	}
+
+	private pushFeed(text: string, sessionId?: string): void {
+		this.feed.unshift({ at: Date.now(), sessionId, text });
 		if (this.feed.length > MAX_FEED_ITEMS) {
 			this.feed.length = MAX_FEED_ITEMS;
 		}
@@ -755,7 +956,7 @@ export class HubOverlay implements Component, Focusable {
 		lines.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
 		lines.push(this.contentLine(this.theme.fg('muted', '  Activity Feed'), inner));
 
-		const feedToShow = this.feed.slice(0, feedBudget);
+		const feedToShow = this.getFeedEntries('global').slice(0, feedBudget);
 		if (feedToShow.length === 0) {
 			lines.push(this.contentLine(this.theme.fg('dim', '  (no activity yet)'), inner));
 			for (let i = 1; i < feedBudget; i++) lines.push(this.contentLine('', inner));
@@ -769,7 +970,7 @@ export class HubOverlay implements Component, Focusable {
 			}
 		}
 
-		lines.push(this.contentLine(this.theme.fg('dim', '  [↑↓] Select  [Enter] Detail  [r] Refresh  [f] Feed  [Esc] Close'), inner));
+		lines.push(this.contentLine(this.theme.fg('dim', '  [↑↓] Select  [Enter] Detail  [1/2/3] Tabs  [z] Focus  [Esc] Close'), inner));
 		lines.push(buildBottomBorder(width));
 		return lines.slice(0, maxLines);
 	}
@@ -828,7 +1029,12 @@ export class HubOverlay implements Component, Focusable {
 			if (tasks.length === 0) {
 				body.push(this.contentLine(this.theme.fg('dim', '  (none)'), inner));
 			} else {
-				for (const task of tasks.slice(0, 15)) {
+				if (this.selectedTaskIndex >= tasks.length) {
+					this.selectedTaskIndex = tasks.length - 1;
+				}
+				for (let i = 0; i < Math.min(tasks.length, 50); i++) {
+					const task = tasks[i]!;
+					const selected = i === this.selectedTaskIndex;
 					const statusColor =
 						task.status === 'completed' ? 'success'
 							: task.status === 'failed' ? 'error'
@@ -836,9 +1042,10 @@ export class HubOverlay implements Component, Focusable {
 					const status = this.theme.fg(statusColor as 'success' | 'error' | 'warning', task.status);
 					const prompt = task.prompt ? truncateToWidth(task.prompt, Math.max(16, inner - 34)) : '';
 					const duration = typeof task.duration === 'number' ? ` ${task.duration}ms` : '';
+					const marker = selected ? this.theme.fg('accent', '›') : ' ';
 					body.push(
 						this.contentLine(
-							`  ${shortId(task.taskId).padEnd(12)} ${task.agent.padEnd(9)} ${status}${duration} ${prompt}`,
+							`${marker} ${shortId(task.taskId).padEnd(12)} ${task.agent.padEnd(9)} ${status}${duration} ${prompt}`,
 							inner,
 						),
 					);
@@ -865,8 +1072,12 @@ export class HubOverlay implements Component, Focusable {
 
 			if (this.feedExpanded) {
 				body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
-				body.push(this.contentLine(this.theme.bold('  Recent Feed'), inner));
-				for (const entry of this.feed.slice(0, 8)) {
+				body.push(this.contentLine(this.theme.bold('  Session Feed'), inner));
+				const sessionFeed = this.getFeedEntries('session').slice(0, 10);
+				if (sessionFeed.length === 0) {
+					body.push(this.contentLine(this.theme.fg('dim', '  (no session events yet)'), inner));
+				}
+				for (const entry of sessionFeed) {
 					body.push(this.contentLine(`  ${this.theme.fg('dim', formatClock(entry.at))} ${entry.text}`, inner));
 				}
 			}
@@ -887,7 +1098,127 @@ export class HubOverlay implements Component, Focusable {
 			: this.theme.fg('dim', '  scroll 0/0');
 		lines.push(
 			this.contentLine(
-				`${scrollInfo}  ${this.theme.fg('dim', '[↑↓] Scroll  [r] Refresh  [f] Feed  [Esc] Back')}`,
+				`${scrollInfo}  ${this.theme.fg('dim', '[↑↓] Scroll  [[ and ]] Task  [Enter] Open Task  [3] Feed  [z] Focus  [Esc] Back')}`,
+				inner,
+			),
+		);
+		lines.push(buildBottomBorder(width));
+		return lines.slice(0, maxLines);
+	}
+
+	private renderFeedScreen(width: number, maxLines: number): string[] {
+		const inner = Math.max(0, width - 2);
+		const lines: string[] = [];
+		const headerRows = 2;
+		const footerRows = 2;
+		const contentBudget = Math.max(5, maxLines - headerRows - footerRows);
+		const scoped = this.feedScope === 'session' && !!this.detailSessionId;
+		const title = scoped
+			? `Session Feed ${shortId(this.getSessionLabel(this.detailSessionId!))}`
+			: 'Global Feed';
+
+		lines.push(buildTopBorder(width, title));
+		lines.push(this.contentLine('', inner));
+
+		const entries = this.getFeedEntries(scoped ? 'session' : 'global');
+		this.feedMaxScroll = Math.max(0, entries.length - contentBudget);
+		if (this.feedScrollOffset > this.feedMaxScroll) {
+			this.feedScrollOffset = this.feedMaxScroll;
+		}
+
+		if (entries.length === 0) {
+			lines.push(this.contentLine(this.theme.fg('dim', '  (no feed items yet)'), inner));
+			while (lines.length < maxLines - footerRows) {
+				lines.push(this.contentLine('', inner));
+			}
+		} else {
+			const windowed = entries.slice(this.feedScrollOffset, this.feedScrollOffset + contentBudget);
+			for (const entry of windowed) {
+				lines.push(this.contentLine(`  ${this.theme.fg('dim', formatClock(entry.at))} ${entry.text}`, inner));
+			}
+			while (lines.length < maxLines - footerRows) {
+				lines.push(this.contentLine('', inner));
+			}
+		}
+
+		const scrollInfo = this.feedMaxScroll > 0
+			? this.theme.fg('dim', `  scroll ${this.feedScrollOffset}/${this.feedMaxScroll}`)
+			: this.theme.fg('dim', '  scroll 0/0');
+		lines.push(
+			this.contentLine(
+				`${scrollInfo}  ${this.theme.fg('dim', '[↑↓] Scroll  [1/2/3] Tabs  [z] Focus  [Esc] Back')}`,
+				inner,
+			),
+		);
+		lines.push(buildBottomBorder(width));
+		return lines.slice(0, maxLines);
+	}
+
+	private renderTaskScreen(width: number, maxLines: number): string[] {
+		const inner = Math.max(0, width - 2);
+		const lines: string[] = [];
+		const headerRows = 2;
+		const footerRows = 2;
+		const contentBudget = Math.max(5, maxLines - headerRows - footerRows);
+		const tasks = this.getDetailTasks();
+		const selected = tasks[this.selectedTaskIndex];
+		const title = selected
+			? `Task ${shortId(selected.taskId)} ${selected.agent}`
+			: 'Task Detail';
+
+		lines.push(buildTopBorder(width, title));
+		lines.push(this.contentLine('', inner));
+
+		const body: string[] = [];
+		if (!selected) {
+			body.push(this.contentLine(this.theme.fg('dim', '  No task selected'), inner));
+		} else {
+			body.push(this.contentLine(this.theme.fg('muted', `  Task ID: ${selected.taskId}`), inner));
+			body.push(this.contentLine(this.theme.fg('muted', `  Agent: ${selected.agent}`), inner));
+			body.push(this.contentLine(this.theme.fg('muted', `  Status: ${selected.status}`), inner));
+			if (typeof selected.duration === 'number') {
+				body.push(this.contentLine(this.theme.fg('muted', `  Duration: ${selected.duration}ms`), inner));
+			}
+			if (selected.startedAt) {
+				body.push(this.contentLine(this.theme.fg('muted', `  Started: ${selected.startedAt}`), inner));
+			}
+			if (selected.completedAt) {
+				body.push(this.contentLine(this.theme.fg('muted', `  Completed: ${selected.completedAt}`), inner));
+			}
+			body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+			body.push(this.contentLine(this.theme.bold('  Prompt'), inner));
+
+			const wrappedPrompt = wrapText(selected.prompt || '(no prompt recorded)', Math.max(10, inner - 4));
+			for (const wrapped of wrappedPrompt) {
+				body.push(this.contentLine(`  ${wrapped}`, inner));
+			}
+
+			if (this.feedExpanded) {
+				body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+				body.push(this.contentLine(this.theme.bold('  Session Feed (latest)'), inner));
+				for (const entry of this.getFeedEntries('session').slice(0, 8)) {
+					body.push(this.contentLine(`  ${this.theme.fg('dim', formatClock(entry.at))} ${entry.text}`, inner));
+				}
+			}
+		}
+
+		this.taskMaxScroll = Math.max(0, body.length - contentBudget);
+		if (this.taskScrollOffset > this.taskMaxScroll) {
+			this.taskScrollOffset = this.taskMaxScroll;
+		}
+
+		const windowedBody = body.slice(this.taskScrollOffset, this.taskScrollOffset + contentBudget);
+		lines.push(...windowedBody);
+		while (lines.length < maxLines - footerRows) {
+			lines.push(this.contentLine('', inner));
+		}
+
+		const scrollInfo = this.taskMaxScroll > 0
+			? this.theme.fg('dim', `  scroll ${this.taskScrollOffset}/${this.taskMaxScroll}`)
+			: this.theme.fg('dim', '  scroll 0/0');
+		lines.push(
+			this.contentLine(
+				`${scrollInfo}  ${this.theme.fg('dim', '[↑↓] Scroll  [f] Feed  [Esc] Back')}`,
 				inner,
 			),
 		);
