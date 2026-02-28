@@ -185,6 +185,24 @@ export interface ListProjectsResult {
 	projects: EntityRef[];
 }
 
+export interface TaskActivityParams {
+	days?: number; // min 7, max 365, default 90
+}
+
+export interface TaskActivityDataPoint {
+	date: string; // "2026-02-28"
+	open: number;
+	inProgress: number;
+	done: number;
+	closed: number;
+	cancelled: number;
+}
+
+export interface TaskActivityResult {
+	activity: TaskActivityDataPoint[];
+	days: number;
+}
+
 export interface TaskStorage {
 	create(params: CreateTaskParams): Promise<Task>;
 	get(id: string): Promise<Task | null>;
@@ -219,9 +237,11 @@ export interface TaskStorage {
 	deleteAttachment(attachmentId: string): Promise<void>;
 	listUsers(): Promise<ListUsersResult>;
 	listProjects(): Promise<ListProjectsResult>;
+	getActivity(params?: TaskActivityParams): Promise<TaskActivityResult>;
 }
 
 const TASK_API_VERSION = '2026-02-24';
+const TASK_ACTIVITY_API_VERSION = '2026-02-28';
 
 const TaskIdRequiredError = StructuredError(
 	'TaskIdRequiredError',
@@ -1181,6 +1201,41 @@ export class TaskStorageService implements TaskStorage {
 			telemetry: {
 				name: 'agentuity.task.listProjects',
 				attributes: {},
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async getActivity(params?: TaskActivityParams): Promise<TaskActivityResult> {
+		const queryParams = new URLSearchParams();
+		if (params?.days !== undefined) queryParams.set('days', String(params.days));
+
+		const queryString = queryParams.toString();
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/activity/${TASK_ACTIVITY_API_VERSION}${queryString ? `?${queryString}` : ''}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<TaskActivityResult>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.activity',
+				attributes: {
+					...(params?.days !== undefined ? { days: String(params.days) } : {}),
+				},
 			},
 		});
 
