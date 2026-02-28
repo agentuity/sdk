@@ -27,22 +27,23 @@ function safeLine(line: string): string {
  */
 export function truncateToWidth(line: string, maxWidth: number): string {
 	if (maxWidth <= 0) return '';
+	const normalized = line.replace(/\t/g, '    ');
 	// Fast path: no ANSI codes and short enough
-	if (line.length <= maxWidth && !line.includes('\x1b')) return line;
+	if (normalized.length <= maxWidth && !normalized.includes('\x1b')) return normalized;
 
 	// Strip ANSI to measure visible length
 	// eslint-disable-next-line no-control-regex
-	const visible = line.replace(/\x1b\[[0-9;]*m/g, '');
-	if (visible.length <= maxWidth) return line;
+	const visible = normalized.replace(/\x1b\[[0-9;]*m/g, '');
+	if (visible.length <= maxWidth) return normalized;
 
 	// Need to truncate — walk through respecting ANSI escape sequences
 	let vis = 0;
 	let i = 0;
 	const target = Math.max(0, maxWidth - 3); // room for "..."
-	while (i < line.length && vis < target) {
-		if (line[i] === '\x1b') {
+	while (i < normalized.length && vis < target) {
+		if (normalized[i] === '\x1b') {
 			// Skip entire ANSI escape sequence
-			const end = line.indexOf('m', i);
+			const end = normalized.indexOf('m', i);
 			if (end !== -1) {
 				i = end + 1;
 			} else {
@@ -53,7 +54,7 @@ export function truncateToWidth(line: string, maxWidth: number): string {
 			i++;
 		}
 	}
-	return line.slice(0, i) + '\x1b[0m...';
+	return normalized.slice(0, i) + '\x1b[0m...';
 }
 
 // ──────────────────────────────────────────────

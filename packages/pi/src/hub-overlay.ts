@@ -122,12 +122,13 @@ const MAX_FEED_ITEMS = 80;
 const STREAM_SESSION_LIMIT = 8;
 
 function visibleWidth(text: string): number {
-	return text.replace(ANSI_RE, '').length;
+	return text.replace(ANSI_RE, '').replace(/\t/g, '    ').length;
 }
 
 function padRight(text: string, width: number): string {
 	if (width <= 0) return '';
-	const truncated = truncateToWidth(text, width);
+	const normalized = text.replace(/\t/g, '    ');
+	const truncated = truncateToWidth(normalized, width);
 	const remaining = width - visibleWidth(truncated);
 	return remaining > 0 ? truncated + ' '.repeat(remaining) : truncated;
 }
@@ -228,6 +229,72 @@ function toSingleLine(text: string): string {
 		.replace(/[\x00-\x1f\x7f]/g, '')
 		.replace(/\s+/g, ' ')
 		.trim();
+}
+
+interface MessageSegments {
+	output: string;
+	thinking: string;
+}
+
+function stringifyArgs(value: unknown): string {
+	if (value === undefined) return '';
+	try {
+		const raw = typeof value === 'string' ? value : JSON.stringify(value);
+		return truncateToWidth(toSingleLine(raw), 100);
+	} catch {
+		return '';
+	}
+}
+
+function extractMessageSegments(data: Record<string, unknown> | undefined): MessageSegments {
+	const fallback = typeof data?.text === 'string' ? data.text : '';
+	const messageRaw = data?.message;
+	if (!messageRaw || typeof messageRaw !== 'object') {
+		return { output: fallback, thinking: '' };
+	}
+
+	const message = messageRaw as Record<string, unknown>;
+	const role = typeof message.role === 'string' ? message.role : '';
+	if (role && role !== 'assistant') {
+		return { output: '', thinking: '' };
+	}
+
+	const content = message.content;
+	const outputParts: string[] = [];
+	const thinkingParts: string[] = [];
+
+	if (typeof content === 'string') {
+		outputParts.push(content);
+	} else if (Array.isArray(content)) {
+		for (const blockRaw of content) {
+			if (!blockRaw || typeof blockRaw !== 'object') continue;
+			const block = blockRaw as Record<string, unknown>;
+			const type = typeof block.type === 'string' ? block.type : '';
+
+			if (type === 'text' && typeof block.text === 'string') {
+				outputParts.push(block.text);
+				continue;
+			}
+			if (type === 'thinking' && typeof block.thinking === 'string') {
+				thinkingParts.push(block.thinking);
+				continue;
+			}
+			if (type === 'toolCall') {
+				const name = typeof block.name === 'string' ? block.name : 'tool';
+				const args = stringifyArgs(block.arguments);
+				outputParts.push(args ? `tool_call ${name} ${args}` : `tool_call ${name}`);
+			}
+		}
+	}
+
+	if (outputParts.length === 0 && fallback) {
+		outputParts.push(fallback);
+	}
+
+	return {
+		output: outputParts.join('\n\n').trim(),
+		thinking: thinkingParts.join('\n\n').trim(),
+	};
 }
 
 export class HubOverlay implements Component, Focusable {
@@ -512,7 +579,7 @@ export class HubOverlay implements Component, Focusable {
 				this.selectedTaskIndex = Math.min(this.selectedTaskIndex, tasks.length - 1);
 				this.taskScrollOffset = 0;
 				this.showTaskThinking = true;
-				this.taskFollowing = true;
+				this.taskFollowing = false;
 				this.screen = 'task';
 				this.requestRender();
 			}
@@ -556,8 +623,6 @@ export class HubOverlay implements Component, Focusable {
 		if (matchesKey(data, 't') || data.toLowerCase() === 't') {
 			if (this.feedScope === 'session' && this.feedViewMode === 'stream') {
 				this.showFeedThinking = !this.showFeedThinking;
-				this.feedScrollOffset = 0;
-				this.feedFollowing = true;
 				this.requestRender();
 			}
 			return;
@@ -573,7 +638,7 @@ export class HubOverlay implements Component, Focusable {
 				this.selectedTaskIndex = Math.min(this.selectedTaskIndex, tasks.length - 1);
 				this.taskScrollOffset = 0;
 				this.showTaskThinking = true;
-				this.taskFollowing = true;
+				this.taskFollowing = false;
 				this.screen = 'task';
 				this.requestRender();
 			}
@@ -629,8 +694,6 @@ export class HubOverlay implements Component, Focusable {
 
 		if (matchesKey(data, 't') || data.toLowerCase() === 't') {
 			this.showTaskThinking = !this.showTaskThinking;
-			this.taskScrollOffset = 0;
-			this.taskFollowing = true;
 			this.requestRender();
 			return;
 		}
@@ -648,7 +711,7 @@ export class HubOverlay implements Component, Focusable {
 			if (tasks.length > 0) {
 				this.selectedTaskIndex = (this.selectedTaskIndex - 1 + tasks.length) % tasks.length;
 				this.taskScrollOffset = 0;
-				this.taskFollowing = true;
+				this.taskFollowing = false;
 				this.requestRender();
 			}
 			return;
@@ -658,7 +721,7 @@ export class HubOverlay implements Component, Focusable {
 			if (tasks.length > 0) {
 				this.selectedTaskIndex = (this.selectedTaskIndex + 1) % tasks.length;
 				this.taskScrollOffset = 0;
-				this.taskFollowing = true;
+				this.taskFollowing = false;
 				this.requestRender();
 			}
 			return;
@@ -1186,8 +1249,13 @@ export class HubOverlay implements Component, Focusable {
 		}
 
 		if (eventName === 'message_end') {
-			const text = typeof data?.text === 'string' ? data.text : '';
-			if (text) this.appendBufferText(sessionId, 'output', text + '\n\n', taskId);
+			const segments = extractMessageSegments(data);
+			if (segments.thinking) {
+				this.appendBufferText(sessionId, 'thinking', segments.thinking + '\n\n', taskId);
+			}
+			if (segments.output) {
+				this.appendBufferText(sessionId, 'output', segments.output + '\n\n', taskId);
+			}
 			return;
 		}
 
@@ -1313,8 +1381,10 @@ export class HubOverlay implements Component, Focusable {
 			return null;
 		}
 
-		if (eventName === 'message_end' && typeof data?.text === 'string') {
-			const cleaned = truncateToWidth(normalize(data.text), 120);
+		if (eventName === 'message_end') {
+			const segments = extractMessageSegments(data);
+			const output = segments.output || segments.thinking;
+			const cleaned = output ? truncateToWidth(normalize(output), 120) : '';
 			return cleaned ? `message ${cleaned}` : 'message_end';
 		}
 
