@@ -13,6 +13,8 @@ import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-cod
 import type { AgentDefinition } from './protocol.ts';
 import { handleReview } from './review.ts';
 
+type HubStatus = 'connected' | 'reconnecting' | 'offline';
+
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
 function log(msg: string): void {
@@ -27,7 +29,7 @@ function log(msg: string): void {
 export function registerAgentCommands(
 	pi: ExtensionAPI,
 	agents: AgentDefinition[],
-	isHubConnected: () => boolean,
+	getHubStatus: () => HubStatus,
 	openAgentManager?: (ctx: ExtensionCommandContext) => Promise<void>,
 	openChainEditor?: (ctx: ExtensionCommandContext, initialAgents: string[]) => Promise<void>,
 ): void {
@@ -98,9 +100,10 @@ export function registerAgentCommands(
 	pi.registerCommand('status', {
 		description: 'Show current session status',
 		handler: async (_args, ctx) => {
+			const hubStatus = getHubStatus();
 			const lines: string[] = [];
 			lines.push('Coder Hub Status');
-			lines.push(`  Hub: ${isHubConnected() ? 'connected' : 'disconnected'}`);
+			lines.push(`  Hub: ${hubStatus}`);
 			lines.push(`  Agents: ${agents.length} available`);
 			lines.push(`  ${agents.map(a => {
 				const model = a.model || 'default';

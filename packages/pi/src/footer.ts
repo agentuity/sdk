@@ -35,8 +35,11 @@ const FG_MODEL: RGB = [215, 135, 175];
 const FG_AGENT: RGB = [130, 200, 130];
 const FG_BRANCH: RGB = [150, 180, 150];
 const FG_HUB_OK: RGB = [80, 200, 120];
+const FG_HUB_WARN: RGB = [245, 179, 66];
 const FG_HUB_ERR: RGB = [220, 80, 80];
 const FG_DIM: RGB = [100, 110, 120];
+
+type HubStatus = 'connected' | 'reconnecting' | 'offline';
 
 // ──────────────────────────────────────────────
 // Braille spinner
@@ -166,11 +169,11 @@ function formatCost(n: number): string {
  * Includes a braille spinner animation when an agent is actively working.
  *
  * @param ctx  Extension context with UI access
- * @param isHubConnected  Callback that returns current Hub connection state
+ * @param getHubStatus  Callback that returns current Hub connection status
  */
 export function setupCoderFooter(
 	ctx: ExtensionContext,
-	isHubConnected: () => boolean,
+	getHubStatus: () => HubStatus,
 ): void {
 	if (!ctx.hasUI) return;
 
@@ -245,7 +248,14 @@ export function setupCoderFooter(
 
 			// RIGHT side: hub status + token stats
 			const rightParts: string[] = [];
-			rightParts.push(isHubConnected() ? fg(FG_HUB_OK, '\u25A0') : fg(FG_HUB_ERR, '\u25A0'));
+			const hubStatus = getHubStatus();
+			if (hubStatus === 'connected') {
+				rightParts.push(fg(FG_HUB_OK, 'Hub Connected'));
+			} else if (hubStatus === 'reconnecting') {
+				rightParts.push(fg(FG_HUB_WARN, 'Hub Reconnecting...'));
+			} else {
+				rightParts.push(fg(FG_HUB_ERR, 'Hub Offline'));
+			}
 			rightParts.push(fg(FG_DIM, `  ${tokenStr}`) + RESET);
 			const rightText = rightParts.join('');
 

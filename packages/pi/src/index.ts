@@ -8,6 +8,7 @@ import type {
 import { Type, type TSchema } from '@sinclair/typebox';
 import { createRequire } from 'node:module';
 import { HubClient } from './client.ts';
+import type { ConnectionState } from './client.ts';
 import { processActions } from './handlers.ts';
 import { getToolRenderers } from './renderers.ts';
 import { setupCoderFooter } from './footer.ts';
@@ -23,6 +24,9 @@ const _require = createRequire(import.meta.url);
 
 const HUB_URL_ENV = 'AGENTUITY_CODER_HUB_URL';
 const AGENT_ENV = 'AGENTUITY_CODER_AGENT';
+const RECONNECT_WAIT_TIMEOUT_MS = 120_000;
+
+type HubUiStatus = 'connected' | 'reconnecting' | 'offline';
 
 // Recent agent results for full-screen viewer (Ctrl+Shift+V)
 const recentResults: StoredResult[] = [];
@@ -92,6 +96,24 @@ function log(msg: string): void {
 // the server actually provides. No hardcoded schemas.
 // ══════════════════════════════════════════════
 
+function buildInitUrl(hubUrl: string, agentRole?: string): string {
+	let httpUrl = hubUrl
+		.replace(/^ws:\/\//, 'http://')
+		.replace(/^wss:\/\//, 'https://');
+
+	if (httpUrl.includes('/api/ws')) {
+		httpUrl = httpUrl.replace('/api/ws', '/api/hub/tui/init');
+	} else {
+		httpUrl = httpUrl.replace(/\/?$/, '/api/hub/tui/init');
+	}
+
+	if (agentRole && agentRole !== 'lead') {
+		httpUrl += `?agent=${encodeURIComponent(agentRole)}`;
+	}
+
+	return httpUrl;
+}
+
 /**
  * Synchronously fetch the InitMessage from Hub's REST endpoint.
  *
@@ -102,23 +124,7 @@ function log(msg: string): void {
  * Requires `curl` binary (available on macOS, Linux, Windows 10+).
  */
 function fetchInitMessageSync(hubUrl: string, agentRole?: string): InitMessage | null {
-	// Convert ws:// to http:// and point to /api/hub/init REST endpoint
-	let httpUrl = hubUrl
-		.replace(/^ws:\/\//, 'http://')
-		.replace(/^wss:\/\//, 'https://');
-
-	// Replace the WebSocket path with the REST init path
-	if (httpUrl.includes('/api/ws')) {
-		httpUrl = httpUrl.replace('/api/ws', '/api/hub/init');
-	} else {
-		// If no /api/ws path, append /api/hub/init
-		httpUrl = httpUrl.replace(/\/?$/, '/api/hub/init');
-	}
-
-	// Add agent role query param for sub-agents
-	if (agentRole && agentRole !== 'lead') {
-		httpUrl += `?agent=${encodeURIComponent(agentRole)}`;
-	}
+	const httpUrl = buildInitUrl(hubUrl, agentRole);
 
 	try {
 		const { execFileSync } = _require('node:child_process') as typeof import('node:child_process');
@@ -136,6 +142,33 @@ function fetchInitMessageSync(hubUrl: string, agentRole?: string): InitMessage |
 		return null;
 	} catch {
 		return null;
+	}
+}
+
+async function fetchInitMessage(hubUrl: string, agentRole?: string): Promise<InitMessage | null> {
+	const httpUrl = buildInitUrl(hubUrl, agentRole);
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 5_000);
+
+	try {
+		const response = await fetch(httpUrl, {
+			signal: controller.signal,
+			headers: {
+				accept: 'application/json',
+			},
+		});
+
+		if (!response.ok) return null;
+
+		const parsed = (await response.json()) as Record<string, unknown>;
+		if (parsed.type === 'init') {
+			return parsed as unknown as InitMessage;
+		}
+		return null;
+	} catch {
+		return null;
+	} finally {
+		clearTimeout(timeout);
 	}
 }
 
@@ -228,10 +261,57 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	let cachedInitMessage: InitMessage | null = initMsg;
 	let systemPromptApplied = false;
 	let connectPromise: Promise<InitMessage | null> | null = null;
+	let hubUiStatus: HubUiStatus = 'offline';
+	let footerCtx: ExtensionContext | null = null;
+
+	function getHubUiStatus(): HubUiStatus {
+		return hubUiStatus;
+	}
+
+	function mapConnectionStateToUiStatus(state: ConnectionState): HubUiStatus {
+		if (state === 'connected') return 'connected';
+		if (state === 'reconnecting') return 'reconnecting';
+		return 'offline';
+	}
+
+	function updateHubUiStatus(state: ConnectionState): void {
+		hubUiStatus = mapConnectionStateToUiStatus(state);
+		if (footerCtx?.hasUI) {
+			footerCtx.ui.setStatus('hub_connection', hubUiStatus);
+		}
+	}
+
+	function applyInitMessage(nextInit: InitMessage): void {
+		cachedInitMessage = nextInit;
+		if (nextInit.config) hubConfig = nextInit.config;
+	}
+
+	client.onInitMessage = (nextInit) => {
+		applyInitMessage(nextInit);
+	};
+
+	client.onConnectionStateChange = (state) => {
+		updateHubUiStatus(state);
+		log(`Hub connection state: ${state}`);
+	};
+
+	client.onBeforeReconnect = async () => {
+		const refreshedInit = await fetchInitMessage(hubUrl!, agentRole);
+		if (refreshedInit) {
+			applyInitMessage(refreshedInit);
+			log('Refreshed Hub init payload before reconnect');
+		}
+	};
 
 	// Lazy WebSocket connect — returns cached InitMessage
 	function ensureConnected(): Promise<InitMessage | null> {
 		if (client.connected && cachedInitMessage) return Promise.resolve(cachedInitMessage);
+		if (client.connectionState === 'reconnecting' || client.connectionState === 'disconnected') {
+			return client
+				.waitUntilConnected(RECONNECT_WAIT_TIMEOUT_MS)
+				.then(() => cachedInitMessage)
+				.catch(() => null);
+		}
 		if (connectPromise) return connectPromise;
 
 		connectPromise = (async () => {
@@ -239,8 +319,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			try {
 				const wsInitMsg = await client.connect(hubUrl!);
 				log('WebSocket connected');
-				if (wsInitMsg.config) hubConfig = wsInitMsg.config;
-				cachedInitMessage = wsInitMsg;
+				applyInitMessage(wsInitMsg);
 				connectPromise = null; // Clear so future disconnects can reconnect
 				return wsInitMsg;
 			} catch (err) {
@@ -479,23 +558,14 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						}
 					} catch { /* ignore */ }
 
-					// Forward progress to Hub (fire-and-forget)
-					if (client.connected) {
-						try {
-							client.send({
-								id: client.nextId(),
-								type: 'event',
-								event: 'agent_progress',
-								data: {
-									agentName: progress.agentName,
-									status: progress.status,
-									currentTool: progress.currentTool,
-									currentToolArgs: progress.currentToolArgs,
-									elapsed: progress.elapsed,
-								},
-							}).catch(() => {}); // Fire and forget
-						} catch { /* ignore */ }
-					}
+					// Forward progress to Hub (fire-and-forget, queued while disconnected)
+					sendEventNoWait('agent_progress', {
+						agentName: progress.agentName,
+						status: progress.status,
+						currentTool: progress.currentTool,
+						currentToolArgs: progress.currentToolArgs,
+						elapsed: progress.elapsed,
+					});
 				} : undefined, signal);
 
 				// Flash completed state briefly before clearing
@@ -663,23 +733,14 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 							agentStatuses[index]!.currentToolArgs = progress.currentToolArgs;
 							updateWidget();
 
-							// Forward progress to Hub (fire-and-forget)
-							if (client.connected) {
-								try {
-									client.send({
-										id: client.nextId(),
-										type: 'event',
-										event: 'agent_progress',
-										data: {
-											agentName: progress.agentName,
-											status: progress.status,
-											currentTool: progress.currentTool,
-											currentToolArgs: progress.currentToolArgs,
-											elapsed: progress.elapsed,
-										},
-									}).catch(() => {}); // Fire and forget
-								} catch { /* ignore */ }
-							}
+							// Forward progress to Hub (fire-and-forget, queued while disconnected)
+							sendEventNoWait('agent_progress', {
+								agentName: progress.agentName,
+								status: progress.status,
+								currentTool: progress.currentTool,
+								currentToolArgs: progress.currentToolArgs,
+								elapsed: progress.elapsed,
+							});
 						} : undefined, signal);
 
 						agentStatuses[index]!.status = 'completed';
@@ -756,7 +817,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		registerAgentCommands(
 			pi,
 			serverAgents,
-			() => client.connected,
+			getHubUiStatus,
 			openAgentManager,
 			openChainEditor,
 		);
@@ -783,8 +844,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		data: Record<string, unknown>,
 		ctx: ExtensionContext,
 	): Promise<unknown> {
-		if (!client.connected) return undefined;
-
 		const id = client.nextId();
 		try {
 			const response = await client.send({
@@ -800,24 +859,33 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		return undefined;
 	}
 
+	function sendEventNoWait(eventName: string, data: Record<string, unknown>): void {
+		client.sendNoWait({
+			id: client.nextId(),
+			type: 'event',
+			event: eventName,
+			data: { ...data, agentRole },
+		});
+	}
+
 	const onEvent = pi.on.bind(pi) as GenericEventHandler;
 
 	// session_start: establish WebSocket connection to Hub + set up footer
 	onEvent('session_start', async (event: unknown, ctx: ExtensionContext) => {
 		await ensureConnected();
+		footerCtx = ctx;
+		if (ctx.hasUI) {
+			ctx.ui.setStatus('hub_connection', getHubUiStatus());
+		}
 
 		// Set up Coder footer (powerline: model or active agent > branch > status)
-		setupCoderFooter(ctx, () => client.connected);
+		setupCoderFooter(ctx, getHubUiStatus);
 
-		if (client.connected) {
-			return sendEvent('session_start', serializeEvent(event), ctx);
-		}
+		return sendEvent('session_start', serializeEvent(event), ctx);
 	});
 
 	// before_agent_start: inject system prompt from Hub
 	onEvent('before_agent_start', async (event: unknown, ctx: ExtensionContext) => {
-		if (!client.connected) return undefined;
-
 		const eventData = event as { systemPrompt?: string };
 		let systemPrompt = eventData.systemPrompt || '';
 
@@ -863,7 +931,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	for (const eventName of PROXY_EVENTS) {
 		if (eventName === 'before_agent_start') continue;
 		onEvent(eventName, async (event: unknown, ctx: ExtensionContext) => {
-			if (!client.connected) return undefined;
 			return sendEvent(eventName, serializeEvent(event), ctx);
 		});
 	}
