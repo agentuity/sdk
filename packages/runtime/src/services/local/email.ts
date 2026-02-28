@@ -7,6 +7,8 @@ import {
 	type EmailInbound,
 	type EmailOutbound,
 	type EmailSendParams,
+	type EmailActivityParams,
+	type EmailActivityResult,
 } from '@agentuity/core';
 
 const ERROR_MESSAGE =
@@ -80,6 +82,10 @@ export class LocalEmailStorage implements EmailService {
 	}
 
 	async deleteOutbound(_id: string): Promise<void> {
+		throw new LocalEmailNotAvailableError();
+	}
+
+	async getActivity(_params?: EmailActivityParams): Promise<EmailActivityResult> {
 		throw new LocalEmailNotAvailableError();
 	}
 }

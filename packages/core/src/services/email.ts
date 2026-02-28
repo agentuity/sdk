@@ -12,6 +12,8 @@ export interface EmailAddress {
 	created_by?: string;
 	created_at: string;
 	updated_at?: string;
+	inbound_count?: number;
+	outbound_count?: number;
 }
 
 /**
@@ -148,6 +150,30 @@ export interface EmailSendParams {
 	 * Custom email headers (e.g., In-Reply-To, References for threading)
 	 */
 	headers?: Record<string, string>;
+}
+
+/**
+ * Parameters for email activity time-series
+ */
+export interface EmailActivityParams {
+	days?: number; // min 7, max 365, default 7
+}
+
+/**
+ * A single data point in the email activity time-series
+ */
+export interface EmailActivityDataPoint {
+	date: string; // "2026-02-28"
+	inbound: number;
+	outbound: number;
+}
+
+/**
+ * Result of email activity query
+ */
+export interface EmailActivityResult {
+	activity: EmailActivityDataPoint[];
+	days: number;
 }
 
 /**
@@ -377,6 +403,22 @@ export interface EmailService {
 	 * ```
 	 */
 	deleteOutbound(id: string): Promise<void>;
+
+	/**
+	 * Get email activity time-series data
+	 *
+	 * @param params - optional parameters (days defaults to 7)
+	 * @returns activity data points and the number of days queried
+	 *
+	 * @example
+	 * ```typescript
+	 * const activity = await email.getActivity({ days: 30 });
+	 * for (const point of activity.activity) {
+	 *   console.log(`${point.date}: ${point.inbound} in, ${point.outbound} out`);
+	 * }
+	 * ```
+	 */
+	getActivity(params?: EmailActivityParams): Promise<EmailActivityResult>;
 }
 
 /**
@@ -399,6 +441,8 @@ function unwrap<T>(payload: unknown, key: string): T {
 	}
 	return payload as T;
 }
+
+const EMAIL_ACTIVITY_API_VERSION = '2026-02-28';
 
 export class EmailStorageService implements EmailService {
 	#adapter: FetchAdapter;
@@ -783,5 +827,34 @@ export class EmailStorageService implements EmailService {
 			return;
 		}
 		throw await toServiceException('DELETE', url, res.response);
+	}
+
+	async getActivity(params?: EmailActivityParams): Promise<EmailActivityResult> {
+		const queryParams = new URLSearchParams();
+		if (params?.days !== undefined) queryParams.set('days', String(params.days));
+
+		const queryString = queryParams.toString();
+		const url = buildUrl(
+			this.#baseUrl,
+			`/email/activity/${EMAIL_ACTIVITY_API_VERSION}${queryString ? `?${queryString}` : ''}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<EmailActivityResult>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.email.activity',
+				attributes: {
+					...(params?.days !== undefined ? { days: String(params.days) } : {}),
+				},
+			},
+		});
+
+		if (res.ok) {
+			// Email endpoints return data directly (no success wrapper)
+			return res.data as EmailActivityResult;
+		}
+		throw await toServiceException('GET', url, res.response);
 	}
 }
