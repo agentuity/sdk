@@ -100,6 +100,8 @@ export {
 export {
 	type EmailAddress,
 	type EmailDestination,
+	type EmailProtocolConfig,
+	type EmailConnectionConfig,
 	type EmailInbound,
 	type EmailOutbound,
 	type EmailAttachment,

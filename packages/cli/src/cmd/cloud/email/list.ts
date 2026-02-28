@@ -23,15 +23,11 @@ export const listSubcommand = createCommand({
 				addresses.map((item) => ({
 					ID: item.id,
 					Email: item.email,
-					Project: item.project_id ?? '-',
-					Provider: item.provider ?? '-',
 					Created: new Date(item.created_at).toLocaleString(),
 				})),
 				[
 					{ name: 'ID', alignment: 'left' },
 					{ name: 'Email', alignment: 'left' },
-					{ name: 'Project', alignment: 'left' },
-					{ name: 'Provider', alignment: 'left' },
 					{ name: 'Created', alignment: 'left' },
 				]
 			);
@@ -40,8 +36,6 @@ export const listSubcommand = createCommand({
 		return addresses.map((item) => ({
 			id: item.id,
 			email: item.email,
-			project_id: item.project_id,
-			provider: item.provider,
 			created_at: item.created_at,
 			updated_at: item.updated_at,
 		}));

@@ -36,7 +36,6 @@ export function resolveEmailOrgId(ctx: EmailContext): string {
 export const EmailAddressSchema = z.object({
 	id: z.string(),
 	email: z.string(),
-	project_id: z.string().optional(),
 	provider: z.string().optional(),
 	config: z.record(z.string(), z.unknown()).optional(),
 	created_at: z.string(),
