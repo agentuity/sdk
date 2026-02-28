@@ -322,18 +322,24 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		detailSessionId?: string | null,
 	): Promise<void> => {
 		if (!ctx.hasUI) return;
+		if (hubOverlayOpen) return;
+		hubOverlayOpen = true;
 
-		await ctx.ui.custom<undefined>(
-			(tui, theme, _keybindings, done) =>
-				new HubOverlay(tui, theme, {
-					baseUrl: getHubHttpBaseUrl(hubUrl!),
-					currentSessionId: activeSessionId ?? undefined,
-					initialSessionId: detailSessionId ?? undefined,
-					startInDetail: !!detailSessionId,
-					done,
-				}),
-			{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
-		);
+		try {
+			await ctx.ui.custom<undefined>(
+				(tui, theme, _keybindings, done) =>
+					new HubOverlay(tui, theme, {
+						baseUrl: getHubHttpBaseUrl(hubUrl!),
+						currentSessionId: activeSessionId ?? undefined,
+						initialSessionId: detailSessionId ?? undefined,
+						startInDetail: !!detailSessionId,
+						done,
+					}),
+				{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
+			);
+		} finally {
+			hubOverlayOpen = false;
+		}
 	};
 
 	log(`Hub connected. Tools: ${serverTools.length}, Agents: ${serverAgents.length}`);
@@ -352,6 +358,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	let connectPromise: Promise<InitMessage | null> | null = null;
 	let hubUiStatus: HubUiStatus = 'offline';
 	let footerCtx: ExtensionContext | null = null;
+	let hubOverlayOpen = false;
 
 	// Observer awareness state — tracks who's watching this session.
 	// Updated via broadcast events from the Hub (session_join, session_leave).
@@ -590,10 +597,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		});
 
 		pi.registerShortcut('ctrl+h', {
-			description: 'Open Hub overlay for current session detail',
+			description: 'Open Hub overlay',
 			handler: async (ctx) => {
 				if (!ctx.hasUI) return;
-				await openHubOverlay(ctx, currentSessionId, currentSessionId);
+				await openHubOverlay(ctx, currentSessionId);
 			},
 		});
 
@@ -647,43 +654,43 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Task: ${description} → ${subagent_type}`);
 
-			const startTime = Date.now();
-			const formatElapsed = (): string => {
-				const s = Math.floor((Date.now() - startTime) / 1000);
-				if (s < 60) return `${s}s`;
-				return `${Math.floor(s / 60)}m ${s % 60}s`;
-			};
-			let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+				const startTime = Date.now();
+				const formatElapsed = (): string => {
+					const s = Math.floor((Date.now() - startTime) / 1000);
+					if (s < 60) return `${s}s`;
+					return `${Math.floor(s / 60)}m ${s % 60}s`;
+				};
+				let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
-			// ── Single-agent status via working message ──
-			let lastWidgetTool: string | undefined;
-			let lastWidgetToolArgs: string | undefined;
+				// ── Single-agent status via working message ──
+				let lastWidgetTool: string | undefined;
+				let lastWidgetToolArgs: string | undefined;
 
-			function updateWidget(status: string, tool?: string, toolArgs?: string): void {
-				if (!ctx.hasUI) return;
-				let msg = '';
-				if (status === 'running') {
-					msg = '\u25CF ' + subagent_type; // ● name
-					if (tool) {
-						const toolInfo = toolArgs ? `${tool} ${toolArgs}` : tool;
-						msg += '  ' + toolInfo.slice(0, 40);
+				function updateWidget(status: string, tool?: string, toolArgs?: string): void {
+					if (!ctx.hasUI) return;
+					let msg = '';
+					if (status === 'running') {
+						msg = '\u25CF ' + subagent_type; // ● name
+						if (tool) {
+							const toolInfo = toolArgs ? `${tool} ${toolArgs}` : tool;
+							msg += '  ' + toolInfo.slice(0, 40);
+						}
+						msg += '  ' + formatElapsed();
+					} else if (status === 'completed') {
+						msg = '\u2713 ' + subagent_type + '  ' + formatElapsed(); // ✓ name Xs
+					} else if (status === 'failed') {
+						msg = '\u2717 ' + subagent_type + '  failed'; // ✗ name failed
 					}
-					msg += '  ' + formatElapsed();
-				} else if (status === 'completed') {
-					msg = '\u2713 ' + subagent_type + '  ' + formatElapsed(); // ✓ name  Xs
-				} else if (status === 'failed') {
-					msg = '\u2717 ' + subagent_type + '  failed'; // ✗ name  failed
+					ctx.ui.setWorkingMessage(msg);
 				}
-				ctx.ui.setWorkingMessage(msg);
-			}
 
-			if (ctx.hasUI) {
-				ctx.ui.setStatus('active_agent', subagent_type);
-				updateWidget('running');
-				elapsedTimer = setInterval(() => {
-					updateWidget('running', lastWidgetTool, lastWidgetToolArgs);
-				}, 1000);
-			}
+				if (ctx.hasUI) {
+					ctx.ui.setStatus('active_agent', subagent_type);
+					updateWidget('running');
+					elapsedTimer = setInterval(() => {
+						updateWidget('running', lastWidgetTool, lastWidgetToolArgs);
+					}, 1000);
+				}
 
 				// Create live streaming result before starting sub-agent
 				const liveResult = startStreamingResult(subagent_type, description, prompt);
@@ -695,34 +702,46 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				});
 
 				try {
-					const result = await runSubAgent(agent, prompt, client, ctx.hasUI ? (progress) => {
-					// Update TUI working message with live tool activity
-					try {
-						if (progress.status === 'thinking_delta' && progress.delta) {
-							liveResult.thinking += progress.delta;
-							updateWidget('running', 'thinking...');
-						} else if (progress.status === 'text_delta' && progress.delta) {
-							liveResult.text += progress.delta;
-							updateWidget('running', 'writing...');
-						} else if (progress.status === 'tool_start' && progress.currentTool) {
-							lastWidgetTool = progress.currentTool;
-							lastWidgetToolArgs = progress.currentToolArgs;
-							updateWidget('running', progress.currentTool, progress.currentToolArgs);
-						}
-					} catch { /* ignore */ }
+					const result = await runSubAgent(
+						agent,
+						prompt,
+						client,
+						ctx.hasUI
+							? (progress) => {
+								// Update TUI working message with live tool activity
+								try {
+									if (progress.status === 'thinking_delta' && progress.delta) {
+										liveResult.thinking += progress.delta;
+										updateWidget('running', 'thinking...');
+									} else if (progress.status === 'text_delta' && progress.delta) {
+										liveResult.text += progress.delta;
+										updateWidget('running', 'writing...');
+									} else if (progress.status === 'tool_start' && progress.currentTool) {
+										lastWidgetTool = progress.currentTool;
+										lastWidgetToolArgs = progress.currentToolArgs;
+										updateWidget('running', progress.currentTool, progress.currentToolArgs);
+									}
+								} catch {
+									// Best-effort live widget updates.
+								}
 
-					// Forward progress to Hub (fire-and-forget, queued while disconnected)
-					sendEventNoWait('agent_progress', {
-						agentName: progress.agentName,
-						status: progress.status,
-						currentTool: progress.currentTool,
-						currentToolArgs: progress.currentToolArgs,
-						elapsed: progress.elapsed,
-					});
-				} : undefined, signal);
+								// Forward progress to Hub (fire-and-forget, queued while disconnected)
+								sendEventNoWait('agent_progress', {
+									agentName: progress.agentName,
+									status: progress.status,
+									taskId: toolCallId,
+									delta: progress.delta,
+									currentTool: progress.currentTool,
+									currentToolArgs: progress.currentToolArgs,
+									elapsed: progress.elapsed,
+								});
+							}
+							: undefined,
+						signal,
+					);
 
-				// Flash completed state briefly before clearing
-				updateWidget('completed');
+					// Flash completed state briefly before clearing
+					updateWidget('completed');
 
 					// Finalize the live result instead of creating a new one
 					liveResult.isStreaming = false;
@@ -735,16 +754,16 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					});
 
 					let output = result.output;
-				let tokenInfoStr: string | undefined;
-				if (result.tokens && (result.tokens.input > 0 || result.tokens.output > 0)) {
-					tokenInfoStr = `${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out | $${result.tokens.cost.toFixed(4)}`;
-					output += `\n\n---\n_${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out tokens | $${result.tokens.cost.toFixed(4)}_`;
-				}
-				if (tokenInfoStr) liveResult.tokenInfo = tokenInfoStr;
-				return {
-					content: [{ type: 'text' as const, text: output }],
-					details: undefined as unknown,
-				};
+					let tokenInfoStr: string | undefined;
+					if (result.tokens && (result.tokens.input > 0 || result.tokens.output > 0)) {
+						tokenInfoStr = `${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out | $${result.tokens.cost.toFixed(4)}`;
+						output += `\n\n---\n_${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out tokens | $${result.tokens.cost.toFixed(4)}_`;
+					}
+					if (tokenInfoStr) liveResult.tokenInfo = tokenInfoStr;
+					return {
+						content: [{ type: 'text' as const, text: output }],
+						details: undefined as unknown,
+					};
 				} catch (err) {
 					const errorMsg = err instanceof Error ? err.message : String(err);
 					liveResult.isStreaming = false;
@@ -756,16 +775,16 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					});
 					updateWidget('failed');
 					return {
-					content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
-					details: undefined as unknown,
-				};
-			} finally {
-				if (elapsedTimer) clearInterval(elapsedTimer);
-				if (ctx.hasUI) {
-					ctx.ui.setStatus('active_agent', undefined);
-					ctx.ui.setWorkingMessage(); // Restore Pi's default working message
+						content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
+						details: undefined as unknown,
+					};
+				} finally {
+					if (elapsedTimer) clearInterval(elapsedTimer);
+					if (ctx.hasUI) {
+						ctx.ui.setStatus('active_agent', undefined);
+						ctx.ui.setWorkingMessage(); // Restore Pi's default working message
+					}
 				}
-			}
 			},
 			...(taskRenderers?.renderCall && { renderCall: taskRenderers.renderCall as ToolDefinition['renderCall'] }),
 			...(taskRenderers?.renderResult && { renderResult: taskRenderers.renderResult as ToolDefinition['renderResult'] }),
@@ -812,60 +831,56 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				log(`Parallel tasks: ${tasks.map((t) => `${t.subagent_type}:${t.description}`).join(', ')}`);
 
-			const startTime = Date.now();
-			const formatElapsed = (): string => {
-				const s = Math.floor((Date.now() - startTime) / 1000);
-				if (s < 60) return `${s}s`;
-				return `${Math.floor(s / 60)}m ${s % 60}s`;
-			};
-			let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+				let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
-			// ── Per-agent status tracking for live widget ──
-			interface ParallelAgentStatus {
-				name: string;
-				status: 'pending' | 'running' | 'completed' | 'failed';
-				currentTool?: string;
-				currentToolArgs?: string;
-				startTime?: number;
-				duration?: number;
-			}
+				// ── Per-agent status tracking for live widget ──
+				interface ParallelAgentStatus {
+					name: string;
+					status: 'pending' | 'running' | 'completed' | 'failed';
+					currentTool?: string;
+					currentToolArgs?: string;
+					startTime?: number;
+					duration?: number;
+				}
 
-			const agentStatuses: ParallelAgentStatus[] = tasks.map(t => ({
-				name: t.subagent_type,
-				status: 'pending' as const,
-			}));
+				const agentStatuses: ParallelAgentStatus[] = tasks.map((t) => ({
+					name: t.subagent_type,
+					status: 'pending',
+				}));
 
-			function updateWidget(): void {
-				if (!ctx.hasUI) return;
-				const parts = agentStatuses
-					.filter(s => s.status !== 'pending')
-					.map(s => {
-						const elapsed = s.startTime ? Math.floor((Date.now() - s.startTime) / 1000) : 0;
-						const timeStr = elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m${elapsed % 60}s`;
-						if (s.status === 'running') {
-							let info = `\u25CF ${s.name}`;
-							if (s.currentTool) info += ` ${s.currentTool.slice(0, 15)}`;
-							return info + ` ${timeStr}`;
-						} else if (s.status === 'completed') {
-							return `\u2713 ${s.name} ${timeStr}`;
-						} else if (s.status === 'failed') {
-							return `\u2717 ${s.name}`;
-						}
-						return `\u25CB ${s.name}`;
-					});
-				ctx.ui.setWorkingMessage(parts.join('  '));
-			}
+				function updateWidget(): void {
+					if (!ctx.hasUI) return;
+					const parts = agentStatuses
+						.filter((s) => s.status !== 'pending')
+						.map((s) => {
+							const elapsed = s.startTime ? Math.floor((Date.now() - s.startTime) / 1000) : 0;
+							const timeStr = elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m${elapsed % 60}s`;
+							if (s.status === 'running') {
+								let info = `\u25CF ${s.name}`;
+								if (s.currentTool) info += ` ${s.currentTool.slice(0, 15)}`;
+								return info + ` ${timeStr}`;
+							}
+							if (s.status === 'completed') {
+								return `\u2713 ${s.name} ${timeStr}`;
+							}
+							if (s.status === 'failed') {
+								return `\u2717 ${s.name}`;
+							}
+							return `\u25CB ${s.name}`;
+						});
+					ctx.ui.setWorkingMessage(parts.join('  '));
+				}
 
-			if (ctx.hasUI) {
-				ctx.ui.setStatus('active_agent', 'agents');
-				updateWidget();
-				elapsedTimer = setInterval(() => {
-					updateWidget(); // Refresh elapsed times in widget
-				}, 1000);
-			}
+				if (ctx.hasUI) {
+					ctx.ui.setStatus('active_agent', 'agents');
+					updateWidget();
+					elapsedTimer = setInterval(() => {
+						updateWidget(); // Refresh elapsed times in widget
+					}, 1000);
+				}
 
 				// Create live streaming results for each parallel task
-				const liveResults = tasks.map((task: { subagent_type: string; description: string; prompt: string }) =>
+				const liveResults = tasks.map((task) =>
 					startStreamingResult(task.subagent_type, task.description, task.prompt),
 				);
 
@@ -896,62 +911,72 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					updateWidget();
 
 					try {
-						const result = await runSubAgent(agent, task.prompt, client, ctx.hasUI ? (progress) => {
-							// Handle streaming deltas
-							if (progress.status === 'thinking_delta' && progress.delta) {
-								liveResults[index]!.thinking += progress.delta;
-							} else if (progress.status === 'text_delta' && progress.delta) {
-								liveResults[index]!.text += progress.delta;
-							}
+						const result = await runSubAgent(
+							agent,
+							task.prompt,
+							client,
+							ctx.hasUI
+								? (progress) => {
+									// Handle streaming deltas
+									if (progress.status === 'thinking_delta' && progress.delta) {
+										liveResults[index]!.thinking += progress.delta;
+									} else if (progress.status === 'text_delta' && progress.delta) {
+										liveResults[index]!.text += progress.delta;
+									}
 
-							// Update per-agent widget with tool activity
-							agentStatuses[index]!.currentTool = progress.currentTool;
-							agentStatuses[index]!.currentToolArgs = progress.currentToolArgs;
-							updateWidget();
+									// Update per-agent widget with tool activity
+									agentStatuses[index]!.currentTool = progress.currentTool;
+									agentStatuses[index]!.currentToolArgs = progress.currentToolArgs;
+									updateWidget();
 
-							// Forward progress to Hub (fire-and-forget, queued while disconnected)
-							sendEventNoWait('agent_progress', {
-								agentName: progress.agentName,
-								status: progress.status,
-								currentTool: progress.currentTool,
-								currentToolArgs: progress.currentToolArgs,
-								elapsed: progress.elapsed,
-							});
-						} : undefined, signal);
+									// Forward progress to Hub (fire-and-forget, queued while disconnected)
+									sendEventNoWait('agent_progress', {
+										agentName: progress.agentName,
+										status: progress.status,
+										taskId,
+										delta: progress.delta,
+										currentTool: progress.currentTool,
+										currentToolArgs: progress.currentToolArgs,
+										elapsed: progress.elapsed,
+									});
+								}
+								: undefined,
+							signal,
+						);
 
 						agentStatuses[index]!.status = 'completed';
 						agentStatuses[index]!.duration = result.duration;
 						agentStatuses[index]!.currentTool = undefined;
 						agentStatuses[index]!.currentToolArgs = undefined;
 
-							// Finalize the live result
-							liveResults[index]!.isStreaming = false;
-							liveResults[index]!.text = result.output || liveResults[index]!.text || '(no output)';
-							sendEventNoWait('task_complete', {
-								taskId,
-								agent: task.subagent_type,
-								duration: result.duration,
-								result: result.output.slice(0, 10000),
-							});
-							updateWidget();
+						// Finalize the live result
+						liveResults[index]!.isStreaming = false;
+						liveResults[index]!.text = result.output || liveResults[index]!.text || '(no output)';
+						sendEventNoWait('task_complete', {
+							taskId,
+							agent: task.subagent_type,
+							duration: result.duration,
+							result: result.output.slice(0, 10000),
+						});
+						updateWidget();
 
 						return { agent: task.subagent_type, output: result.output, duration: result.duration, tokens: result.tokens };
-						} catch (err) {
-							const errorMsg = err instanceof Error ? err.message : String(err);
-							agentStatuses[index]!.status = 'failed';
-							agentStatuses[index]!.currentTool = undefined;
-							agentStatuses[index]!.currentToolArgs = undefined;
-							liveResults[index]!.isStreaming = false;
-							liveResults[index]!.text = liveResults[index]!.text || `Failed: ${errorMsg}`;
-							sendEventNoWait('task_error', {
-								taskId,
-								agent: task.subagent_type,
-								error: errorMsg,
-							});
-							updateWidget();
-							return { agent: task.subagent_type, error: errorMsg };
-						}
-					});
+					} catch (err) {
+						const errorMsg = err instanceof Error ? err.message : String(err);
+						agentStatuses[index]!.status = 'failed';
+						agentStatuses[index]!.currentTool = undefined;
+						agentStatuses[index]!.currentToolArgs = undefined;
+						liveResults[index]!.isStreaming = false;
+						liveResults[index]!.text = liveResults[index]!.text || `Failed: ${errorMsg}`;
+						sendEventNoWait('task_error', {
+							taskId,
+							agent: task.subagent_type,
+							error: errorMsg,
+						});
+						updateWidget();
+						return { agent: task.subagent_type, error: errorMsg };
+					}
+				});
 
 				try {
 					const results = await Promise.all(promises);
@@ -980,15 +1005,15 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						content: [{ type: 'text' as const, text: output }],
 						details: undefined as unknown,
 					};
-			} finally {
-				if (elapsedTimer) clearInterval(elapsedTimer);
-				if (ctx.hasUI) {
-					ctx.ui.setStatus('active_agent', undefined);
-					ctx.ui.setWorkingMessage(); // Restore Pi's default working message
+				} finally {
+					if (elapsedTimer) clearInterval(elapsedTimer);
+					if (ctx.hasUI) {
+						ctx.ui.setStatus('active_agent', undefined);
+						ctx.ui.setWorkingMessage(); // Restore Pi's default working message
+					}
 				}
-			}
-		},
-		...(parallelRenderers?.renderCall && { renderCall: parallelRenderers.renderCall as ToolDefinition['renderCall'] }),
+			},
+			...(parallelRenderers?.renderCall && { renderCall: parallelRenderers.renderCall as ToolDefinition['renderCall'] }),
 			...(parallelRenderers?.renderResult && { renderResult: parallelRenderers.renderResult as ToolDefinition['renderResult'] }),
 		});
 	}
