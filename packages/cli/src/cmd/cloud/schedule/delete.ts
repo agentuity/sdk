@@ -17,7 +17,10 @@ export const deleteSubcommand = createCommand({
 	requires: { auth: true },
 	idempotent: true,
 	examples: [
-		{ command: getCommand('cloud schedule delete sched_abc123'), description: 'Delete a schedule' },
+		{
+			command: getCommand('cloud schedule delete sched_abc123'),
+			description: 'Delete a schedule',
+		},
 	],
 	schema: {
 		args: z.object({

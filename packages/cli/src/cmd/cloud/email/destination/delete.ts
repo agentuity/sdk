@@ -43,7 +43,11 @@ export const deleteSubcommand = createCommand({
 			);
 			if (!ok) {
 				tui.info('Cancelled');
-				return { success: false, address_id: args.address_id, destination_id: args.destination_id };
+				return {
+					success: false,
+					address_id: args.address_id,
+					destination_id: args.destination_id,
+				};
 			}
 		}
 

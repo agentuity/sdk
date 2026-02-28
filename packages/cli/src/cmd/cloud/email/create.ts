@@ -14,10 +14,7 @@ export const createSubcommand = createCommand({
 	requires: { auth: true },
 	schema: {
 		options: z.object({
-			localPart: z
-				.string()
-				.optional()
-				.describe('Local part for the email address (before @)'),
+			localPart: z.string().optional().describe('Local part for the email address (before @)'),
 		}),
 		response: EmailAddressSchema,
 	},

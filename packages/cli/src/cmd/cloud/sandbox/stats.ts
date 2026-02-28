@@ -27,13 +27,9 @@ function displayStats(data: ServiceStatsData): void {
 	console.log(
 		`  ${tui.muted('Active:')}          ${formatNumber(svc.totalActive)} (${svc.running} running, ${svc.idle} idle, ${svc.creating} creating)`
 	);
-	console.log(
-		`  ${tui.muted('Executions:')}      ${formatNumber(svc.totalExecutions)}`
-	);
+	console.log(`  ${tui.muted('Executions:')}      ${formatNumber(svc.totalExecutions)}`);
 	console.log(`  ${tui.muted('CPU Time:')}        ${formatLatency(svc.totalCpuTimeMs)}`);
-	console.log(
-		`  ${tui.muted('Memory:')}          ${tui.formatBytes(svc.totalMemoryByteSec)}`
-	);
+	console.log(`  ${tui.muted('Memory:')}          ${tui.formatBytes(svc.totalMemoryByteSec)}`);
 	console.log(
 		`  ${tui.muted('Network Out:')}     ${tui.formatBytes(svc.totalNetworkEgressBytes)}`
 	);

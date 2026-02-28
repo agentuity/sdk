@@ -9,5 +9,23 @@ export * from './session.ts';
 export * from './stream.ts';
 export * from './task.ts';
 export * from './vector.ts';
+export { WebhookService } from './webhook.ts';
+export type {
+	Webhook,
+	WebhookDestination,
+	WebhookReceipt,
+	WebhookDelivery,
+	CreateWebhookParams,
+	UpdateWebhookParams,
+	CreateWebhookDestinationParams,
+	WebhookListResult,
+	WebhookGetResult,
+	WebhookCreateResult,
+	UpdateWebhookResult,
+	CreateDestinationResult,
+	ListDestinationsResult,
+	WebhookReceiptListResult,
+	WebhookDeliveryListResult,
+} from './webhook.ts';
 export * from './email.ts';
 export { buildUrl, toServiceException, toPayload, fromResponse } from './_util.ts';

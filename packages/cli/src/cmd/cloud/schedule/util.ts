@@ -14,8 +14,7 @@ export interface ScheduleContext {
 
 export async function createScheduleAdapter(ctx: ScheduleContext) {
 	const orgId =
-		ctx.options.orgId ??
-		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
 	if (!orgId) {
 		tui.fatal('Organization ID is required. Use --org-id flag or set AGENTUITY_CLOUD_ORG_ID.');
 	}

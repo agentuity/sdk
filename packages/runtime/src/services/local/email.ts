@@ -11,10 +11,7 @@ import {
 const ERROR_MESSAGE =
 	'Email service is not available in local development mode. Deploy to Agentuity Cloud to use email.';
 
-const LocalEmailNotAvailableError = StructuredError(
-	'LocalEmailNotAvailableError',
-	ERROR_MESSAGE
-);
+const LocalEmailNotAvailableError = StructuredError('LocalEmailNotAvailableError', ERROR_MESSAGE);
 
 /**
  * Local development stub for the email service.
@@ -65,11 +62,19 @@ export class LocalEmailStorage implements EmailService {
 		throw new LocalEmailNotAvailableError();
 	}
 
+	async deleteInbound(_id: string): Promise<void> {
+		throw new LocalEmailNotAvailableError();
+	}
+
 	async listOutbound(_addressId?: string): Promise<EmailOutbound[]> {
 		throw new LocalEmailNotAvailableError();
 	}
 
 	async getOutbound(_id: string): Promise<EmailOutbound | null> {
+		throw new LocalEmailNotAvailableError();
+	}
+
+	async deleteOutbound(_id: string): Promise<void> {
 		throw new LocalEmailNotAvailableError();
 	}
 }
