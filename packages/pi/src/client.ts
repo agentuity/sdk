@@ -64,6 +64,8 @@ export class HubClient {
 	public onConnectionStateChange?: (state: ConnectionState) => void;
 	public onBeforeReconnect?: () => Promise<void>;
 	public onInitMessage?: (initMessage: InitMessage) => void;
+	/** Called when an unsolicited server message arrives (broadcast, presence, hydration). */
+	public onServerMessage?: (message: Record<string, unknown>) => void;
 
 	private setConnectionState(state: ConnectionState): void {
 		if (this.connectionState === state) return;
@@ -272,15 +274,34 @@ export class HubClient {
 					return;
 				}
 
-				// First message should be init
-				if (data.type === 'init' && !initResolved) {
-					initResolved = true;
-					clearTimeout(connectTimer);
-					const initMessage = data as unknown as InitMessage;
-					this.onInitMessage?.(initMessage);
-					this.setConnectionState('connected');
-					void this.flushQueue();
-					resolve(initMessage);
+					// First message should be init
+					if (data.type === 'init' && !initResolved) {
+						initResolved = true;
+						clearTimeout(connectTimer);
+						const initMessage = data as unknown as InitMessage;
+						this.onInitMessage?.(initMessage);
+						this.setConnectionState('connected');
+						void this.flushQueue();
+						resolve(initMessage);
+						return;
+					}
+
+					// Explicit server-side rejection before init (expired session, duplicate lead, etc.)
+					if (!initResolved && data.type === 'connection_rejected') {
+						clearTimeout(connectTimer);
+						this.intentionallyClosed = true;
+						const code = typeof data.code === 'string' ? data.code : 'unknown';
+						const message = typeof data.message === 'string' ? data.message : 'Connection rejected';
+						reject(new Error(`Hub rejected connection (${code}): ${message}`));
+						try { this.ws?.close(); } catch { /* ignore */ }
+						return;
+					}
+
+				// Unsolicited server messages (broadcast, presence, hydration)
+				// These have a `type` field but no `id` matching a pending request.
+				const msgType = data.type as string | undefined;
+				if (msgType === 'broadcast' || msgType === 'presence' || msgType === 'session_hydration') {
+					this.onServerMessage?.(data);
 					return;
 				}
 
@@ -305,14 +326,15 @@ export class HubClient {
 				reject(new Error(`WebSocket error: ${message}`));
 			};
 
-			ws.onclose = () => {
-				clearTimeout(connectTimer);
-				if (!initResolved) {
-					reject(new Error('WebSocket closed before init message received'));
-				}
-				if (isReconnect) {
-					this.setConnectionState('disconnected');
-				}
+				ws.onclose = (event: CloseEvent) => {
+					clearTimeout(connectTimer);
+					if (!initResolved) {
+						const reason = event.reason ? ` (${event.reason})` : '';
+						reject(new Error(`WebSocket closed before init message received (code ${event.code})${reason}`));
+					}
+					if (isReconnect) {
+						this.setConnectionState('disconnected');
+					}
 				this.handleUnexpectedClose();
 			};
 		});

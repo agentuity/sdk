@@ -5,7 +5,10 @@
  * Includes a braille spinner animation when an agent is actively working.
  *
  * Layout:
- *   [brand] [branch] > [model/agent]                    [hub] token-stats
+ *   [brand] [branch] > [model/agent]        [hub] | [N] label  token-stats
+ *
+ * Observer awareness (ASCII only):
+ *   [3] SwiftRaven — 3 observers watching, session label "SwiftRaven"
  */
 
 import type {
@@ -40,6 +43,16 @@ const FG_HUB_ERR: RGB = [220, 80, 80];
 const FG_DIM: RGB = [100, 110, 120];
 
 type HubStatus = 'connected' | 'reconnecting' | 'offline';
+
+/** Observer state provided by the extension's presence tracking. */
+export interface ObserverState {
+	/** Number of observers watching this session (excludes lead + sub-agents). */
+	count: number;
+	/** Human-readable session label (e.g. "SwiftRaven"). */
+	label: string;
+}
+
+const FG_OBSERVER: RGB = [140, 180, 220];
 
 // ──────────────────────────────────────────────
 // Braille spinner
@@ -170,10 +183,12 @@ function formatCost(n: number): string {
  *
  * @param ctx  Extension context with UI access
  * @param getHubStatus  Callback that returns current Hub connection status
+ * @param getObserverState  Optional callback that returns observer count + session label
  */
 export function setupCoderFooter(
 	ctx: ExtensionContext,
 	getHubStatus: () => HubStatus,
+	getObserverState?: () => ObserverState,
 ): void {
 	if (!ctx.hasUI) return;
 
@@ -246,16 +261,32 @@ export function setupCoderFooter(
 
 			const left = leftParts.join('');
 
-			// RIGHT side: hub status + token stats
+			// RIGHT side: hub status + observer info + token stats
 			const rightParts: string[] = [];
 			const hubStatus = getHubStatus();
 			if (hubStatus === 'connected') {
-				rightParts.push(fg(FG_HUB_OK, 'Hub Connected'));
+				rightParts.push(fg(FG_HUB_OK, 'Hub'));
 			} else if (hubStatus === 'reconnecting') {
-				rightParts.push(fg(FG_HUB_WARN, 'Hub Reconnecting...'));
+				rightParts.push(fg(FG_HUB_WARN, 'Hub...'));
 			} else {
-				rightParts.push(fg(FG_HUB_ERR, 'Hub Offline'));
+				rightParts.push(fg(FG_HUB_ERR, 'Hub Off'));
 			}
+
+			// Observer awareness (ASCII only, no emojis)
+			if (getObserverState && hubStatus === 'connected') {
+				const obs = getObserverState();
+				if (obs.count > 0 || obs.label) {
+					rightParts.push(fg(FG_DIM, ' | '));
+					if (obs.count > 0) {
+						rightParts.push(fg(FG_OBSERVER, `[${obs.count}]`));
+						if (obs.label) rightParts.push(' ');
+					}
+					if (obs.label) {
+						rightParts.push(fg(FG_OBSERVER, obs.label));
+					}
+				}
+			}
+
 			rightParts.push(fg(FG_DIM, `  ${tokenStr}`) + RESET);
 			const rightText = rightParts.join('');
 

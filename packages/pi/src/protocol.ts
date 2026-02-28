@@ -34,6 +34,7 @@ export interface HubConfig {
 
 export interface InitMessage {
 	type: 'init';
+	sessionId?: string;
 	tools?: HubToolDefinition[];
 	commands?: HubCommandDefinition[];
 	agents?: AgentDefinition[];

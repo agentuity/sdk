@@ -11,7 +11,7 @@ import { HubClient } from './client.ts';
 import type { ConnectionState } from './client.ts';
 import { processActions } from './handlers.ts';
 import { getToolRenderers } from './renderers.ts';
-import { setupCoderFooter } from './footer.ts';
+import { setupCoderFooter, type ObserverState } from './footer.ts';
 import { setupTitlebar } from './titlebar.ts';
 import { registerAgentCommands } from './commands.ts';
 import { AgentManagerOverlay } from './overlay.ts';
@@ -90,6 +90,19 @@ function log(msg: string): void {
 	if (DEBUG) console.error(`[agentuity-pi] ${msg}`);
 }
 
+function formatRelativeTime(isoDate: string): string {
+	const timestamp = Date.parse(isoDate);
+	if (Number.isNaN(timestamp)) return '-';
+	const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+	if (seconds < 60) return `${seconds}s ago`;
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	return `${days}d ago`;
+}
+
 // ══════════════════════════════════════════════
 // Synchronous Bootstrap — fetch InitMessage from Hub REST endpoint
 // This runs BEFORE tool registration so we know what tools/agents
@@ -112,6 +125,14 @@ function buildInitUrl(hubUrl: string, agentRole?: string): string {
 	}
 
 	return httpUrl;
+}
+
+function getHubHttpBaseUrl(hubUrl: string): string {
+	let httpUrl = hubUrl
+		.replace(/^ws:\/\//, 'http://')
+		.replace(/^wss:\/\//, 'https://');
+	httpUrl = httpUrl.replace(/\/api\/ws\b.*$/, '');
+	return httpUrl.replace(/\/+$/, '');
 }
 
 /**
@@ -142,6 +163,65 @@ function fetchInitMessageSync(hubUrl: string, agentRole?: string): InitMessage |
 		return null;
 	} catch {
 		return null;
+	}
+}
+
+/**
+ * Fetch session snapshot from Hub REST endpoint.
+ * Extracts observer count and session label for the footer display.
+ * Best-effort, non-blocking — failures are silently ignored.
+ */
+async function fetchSessionSnapshot(
+	hubUrl: string,
+	sessionId?: string | null,
+	observerState?: ObserverState,
+): Promise<void> {
+	const baseUrl = getHubHttpBaseUrl(hubUrl);
+	const httpUrl = sessionId
+		? `${baseUrl}/api/hub/session/${encodeURIComponent(sessionId)}`
+		: `${baseUrl}/api/hub/sessions`;
+
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 5_000);
+
+	try {
+		const response = await fetch(httpUrl, {
+			signal: controller.signal,
+			headers: { accept: 'application/json' },
+		});
+		if (!response.ok) return;
+
+		if (sessionId) {
+			const snapshot = (await response.json()) as {
+				label?: string;
+				participants?: Array<{ role?: string }>;
+			};
+			if (observerState) {
+				if (snapshot.label) observerState.label = snapshot.label;
+				if (Array.isArray(snapshot.participants)) {
+					observerState.count = snapshot.participants.filter((p) => p.role === 'observer').length;
+				}
+			}
+			return;
+		}
+
+		const data = (await response.json()) as {
+			sessions?: {
+				websocket?: Array<{
+					label?: string;
+					observerCount?: number;
+				}>;
+			};
+		};
+		const first = data.sessions?.websocket?.[0];
+		if (first && observerState) {
+			if (first.label) observerState.label = first.label;
+			if (typeof first.observerCount === 'number') observerState.count = first.observerCount;
+		}
+	} catch {
+		// Ignore — best effort
+	} finally {
+		clearTimeout(timeout);
 	}
 }
 
@@ -259,13 +339,23 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	const client = new HubClient();
 	let cachedInitMessage: InitMessage | null = initMsg;
+	let currentSessionId: string | null = initMsg.sessionId ?? null;
 	let systemPromptApplied = false;
 	let connectPromise: Promise<InitMessage | null> | null = null;
 	let hubUiStatus: HubUiStatus = 'offline';
 	let footerCtx: ExtensionContext | null = null;
 
+	// Observer awareness state — tracks who's watching this session.
+	// Updated via broadcast events from the Hub (session_join, session_leave).
+	const observerState: ObserverState = { count: 0, label: '' };
+	const observerParticipantIds = new Set<string>();
+
 	function getHubUiStatus(): HubUiStatus {
 		return hubUiStatus;
+	}
+
+	function getObserverState(): ObserverState {
+		return observerState;
 	}
 
 	function mapConnectionStateToUiStatus(state: ConnectionState): HubUiStatus {
@@ -283,6 +373,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	function applyInitMessage(nextInit: InitMessage): void {
 		cachedInitMessage = nextInit;
+		if (nextInit.sessionId) currentSessionId = nextInit.sessionId;
 		if (nextInit.config) hubConfig = nextInit.config;
 	}
 
@@ -300,6 +391,46 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		if (refreshedInit) {
 			applyInitMessage(refreshedInit);
 			log('Refreshed Hub init payload before reconnect');
+		}
+	};
+
+	// Handle unsolicited server messages (broadcast, presence)
+	// Updates observer state for footer display
+	client.onServerMessage = (message) => {
+		const msgType = message.type as string;
+		if (msgType === 'broadcast') {
+			const event = message.event as string;
+			if (event === 'session_join') {
+				const participant = (message.data as Record<string, unknown>)?.participant as Record<string, unknown> | undefined;
+				if (participant?.role === 'observer' && typeof participant.id === 'string') {
+					observerParticipantIds.add(participant.id);
+					observerState.count = observerParticipantIds.size;
+					log(`Observer joined: ${observerState.count} observers`);
+				}
+			} else if (event === 'session_leave') {
+				const participant = (message.data as Record<string, unknown>)?.participant as Record<string, unknown> | undefined;
+				if (participant?.role === 'observer' && typeof participant.id === 'string') {
+					observerParticipantIds.delete(participant.id);
+					observerState.count = observerParticipantIds.size;
+					log(`Observer left: ${observerState.count} observers`);
+				}
+			}
+		} else if (msgType === 'presence') {
+			// Full presence update — may include participant list
+			const participants = message.participants as Array<Record<string, unknown>> | undefined;
+			if (participants) {
+				observerParticipantIds.clear();
+				for (const participant of participants) {
+					if (participant.role === 'observer' && typeof participant.id === 'string') {
+						observerParticipantIds.add(participant.id);
+					}
+				}
+				observerState.count = observerParticipantIds.size;
+				log(`Presence update: ${observerState.count} observers`);
+			}
+		} else if (msgType === 'session_hydration') {
+			const sessionId = message.sessionId as string | undefined;
+			if (sessionId) currentSessionId = sessionId;
 		}
 	};
 
@@ -450,6 +581,67 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			},
 		});
 
+		pi.registerShortcut('ctrl+o', {
+			description: 'Show observer details for current Hub session',
+			handler: async (ctx) => {
+				if (!ctx.hasUI) return;
+				if (!currentSessionId) {
+					ctx.ui.notify('Current Hub session is unknown. Try again after session_start.', 'warning');
+					return;
+				}
+
+				const baseUrl = getHubHttpBaseUrl(hubUrl!);
+				const detailUrl = `${baseUrl}/api/hub/session/${encodeURIComponent(currentSessionId)}`;
+
+				try {
+					const response = await fetch(detailUrl, {
+						headers: { accept: 'application/json' },
+						signal: AbortSignal.timeout(5_000),
+					});
+
+					if (!response.ok) {
+						if (response.status === 404 || response.status === 410) {
+							ctx.ui.notify(`Session unavailable: ${currentSessionId}`, 'warning');
+							return;
+						}
+						ctx.ui.notify(`Hub returned ${response.status} for observer detail`, 'error');
+						return;
+					}
+
+					const data = (await response.json()) as {
+						sessionId: string;
+						label?: string;
+						participants?: Array<{
+							id: string;
+							role: string;
+							transport: string;
+							connectedAt?: string;
+							idle?: boolean;
+						}>;
+					};
+
+					const participants = data.participants ?? [];
+					const observers = participants.filter((p) => p.role === 'observer');
+					const headerLabel = data.label || data.sessionId;
+					const lines = participants.length > 0
+						? participants.map((p) => {
+							const when = p.connectedAt ? formatRelativeTime(p.connectedAt) : '-';
+							const idle = p.idle ? '  idle' : '';
+							return `  ${p.id.padEnd(12)} ${p.role.padEnd(10)} ${p.transport.padEnd(3)} connected ${when}${idle}`;
+						})
+						: ['  (no participants)'];
+
+					ctx.ui.notify(
+						`Observers (${observers.length}) — ${headerLabel}\n${lines.join('\n')}`,
+						'info',
+					);
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					ctx.ui.notify(`Could not fetch observer detail: ${msg}`, 'error');
+				}
+			},
+		});
+
 		const agentRegistry = new Map(serverAgents.map((a) => [a.name, a]));
 		const agentNames = serverAgents.map((a) => a.name);
 
@@ -538,11 +730,17 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				}, 1000);
 			}
 
-			// Create live streaming result before starting sub-agent
-			const liveResult = startStreamingResult(subagent_type, description, prompt);
+				// Create live streaming result before starting sub-agent
+				const liveResult = startStreamingResult(subagent_type, description, prompt);
+				sendEventNoWait('task_start', {
+					taskId: toolCallId,
+					agent: subagent_type,
+					prompt,
+					description,
+				});
 
-			try {
-				const result = await runSubAgent(agent, prompt, client, ctx.hasUI ? (progress) => {
+				try {
+					const result = await runSubAgent(agent, prompt, client, ctx.hasUI ? (progress) => {
 					// Update TUI working message with live tool activity
 					try {
 						if (progress.status === 'thinking_delta' && progress.delta) {
@@ -571,11 +769,17 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				// Flash completed state briefly before clearing
 				updateWidget('completed');
 
-				// Finalize the live result instead of creating a new one
-				liveResult.isStreaming = false;
-				liveResult.text = result.output || liveResult.text || '(no output)';
+					// Finalize the live result instead of creating a new one
+					liveResult.isStreaming = false;
+					liveResult.text = result.output || liveResult.text || '(no output)';
+					sendEventNoWait('task_complete', {
+						taskId: toolCallId,
+						agent: subagent_type,
+						duration: result.duration,
+						result: result.output.slice(0, 10000),
+					});
 
-				let output = result.output;
+					let output = result.output;
 				let tokenInfoStr: string | undefined;
 				if (result.tokens && (result.tokens.input > 0 || result.tokens.output > 0)) {
 					tokenInfoStr = `${subagent_type}: ${result.duration}ms | ${result.tokens.input} in ${result.tokens.output} out | $${result.tokens.cost.toFixed(4)}`;
@@ -586,12 +790,17 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					content: [{ type: 'text' as const, text: output }],
 					details: undefined as unknown,
 				};
-			} catch (err) {
-				const errorMsg = err instanceof Error ? err.message : String(err);
-				liveResult.isStreaming = false;
-				liveResult.text = liveResult.text || `Agent ${subagent_type} failed: ${errorMsg}`;
-				updateWidget('failed');
-				return {
+				} catch (err) {
+					const errorMsg = err instanceof Error ? err.message : String(err);
+					liveResult.isStreaming = false;
+					liveResult.text = liveResult.text || `Agent ${subagent_type} failed: ${errorMsg}`;
+					sendEventNoWait('task_error', {
+						taskId: toolCallId,
+						agent: subagent_type,
+						error: errorMsg,
+					});
+					updateWidget('failed');
+					return {
 					content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
 					details: undefined as unknown,
 				};
@@ -706,17 +915,29 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				);
 
 				const promises = tasks.map(async (task, index) => {
+					const taskId = `${toolCallId}-${index}-${task.subagent_type}`;
 					const agent = agentRegistry.get(task.subagent_type);
 					if (!agent) {
 						agentStatuses[index]!.status = 'failed';
 						liveResults[index]!.isStreaming = false;
 						liveResults[index]!.text = `Unknown agent: ${task.subagent_type}`;
+						sendEventNoWait('task_error', {
+							taskId,
+							agent: task.subagent_type,
+							error: `Unknown agent: ${task.subagent_type}`,
+						});
 						updateWidget();
 						return { agent: task.subagent_type, error: `Unknown agent: ${task.subagent_type}` };
 					}
 
 					agentStatuses[index]!.status = 'running';
 					agentStatuses[index]!.startTime = Date.now();
+					sendEventNoWait('task_start', {
+						taskId,
+						agent: task.subagent_type,
+						prompt: task.prompt,
+						description: task.description,
+					});
 					updateWidget();
 
 					try {
@@ -748,22 +969,34 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						agentStatuses[index]!.currentTool = undefined;
 						agentStatuses[index]!.currentToolArgs = undefined;
 
-						// Finalize the live result
-						liveResults[index]!.isStreaming = false;
-						liveResults[index]!.text = result.output || liveResults[index]!.text || '(no output)';
-						updateWidget();
+							// Finalize the live result
+							liveResults[index]!.isStreaming = false;
+							liveResults[index]!.text = result.output || liveResults[index]!.text || '(no output)';
+							sendEventNoWait('task_complete', {
+								taskId,
+								agent: task.subagent_type,
+								duration: result.duration,
+								result: result.output.slice(0, 10000),
+							});
+							updateWidget();
 
 						return { agent: task.subagent_type, output: result.output, duration: result.duration, tokens: result.tokens };
-					} catch (err) {
-						agentStatuses[index]!.status = 'failed';
-						agentStatuses[index]!.currentTool = undefined;
-						agentStatuses[index]!.currentToolArgs = undefined;
-						liveResults[index]!.isStreaming = false;
-						liveResults[index]!.text = liveResults[index]!.text || `Failed: ${err instanceof Error ? err.message : String(err)}`;
-						updateWidget();
-						return { agent: task.subagent_type, error: err instanceof Error ? err.message : String(err) };
-					}
-				});
+						} catch (err) {
+							const errorMsg = err instanceof Error ? err.message : String(err);
+							agentStatuses[index]!.status = 'failed';
+							agentStatuses[index]!.currentTool = undefined;
+							agentStatuses[index]!.currentToolArgs = undefined;
+							liveResults[index]!.isStreaming = false;
+							liveResults[index]!.text = liveResults[index]!.text || `Failed: ${errorMsg}`;
+							sendEventNoWait('task_error', {
+								taskId,
+								agent: task.subagent_type,
+								error: errorMsg,
+							});
+							updateWidget();
+							return { agent: task.subagent_type, error: errorMsg };
+						}
+					});
 
 				try {
 					const results = await Promise.all(promises);
@@ -824,6 +1057,71 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	}
 
 	// ══════════════════════════════════════════════
+	// /hub command — Hub session overview (LEAD only)
+	// ══════════════════════════════════════════════
+
+	if (!isSubAgent) {
+		pi.registerCommand('hub', {
+			description: 'Show Coder Hub session overview and observer status',
+				handler: async (_args, ctx) => {
+					if (!ctx.hasUI) return;
+
+					// Fetch sessions from Hub REST endpoint
+					const httpUrl = `${getHubHttpBaseUrl(hubUrl!)}/api/hub/sessions`;
+
+				try {
+					const resp = await fetch(httpUrl, {
+						headers: { accept: 'application/json' },
+						signal: AbortSignal.timeout(5_000),
+					});
+					if (!resp.ok) {
+						ctx.ui.notify(`Hub returned ${resp.status}`, 'error');
+						return;
+					}
+
+					const data = (await resp.json()) as {
+						sessions: {
+							websocket: Array<{
+								sessionId: string;
+								label?: string;
+								status: string;
+								mode: string;
+								observerCount: number;
+								subAgentCount: number;
+								taskCount: number;
+								participantCount: number;
+								createdAt: string;
+							}>;
+						};
+						total: number;
+					};
+
+					const sessions = data.sessions.websocket;
+					if (sessions.length === 0) {
+						ctx.ui.notify('No active Hub sessions.', 'info');
+						return;
+					}
+
+					const lines = sessions.map((s) => {
+						const label = s.label || s.sessionId.slice(0, 12);
+						const thisSession = currentSessionId && s.sessionId === currentSessionId ? ' (this)' : '';
+						const observers = s.observerCount > 0 ? ` [${s.observerCount} watching]` : '';
+						const agents = s.subAgentCount > 0 ? ` ${s.subAgentCount} agents` : '';
+						const tasks = s.taskCount > 0 ? ` ${s.taskCount} tasks` : '';
+						return `  ${label}${thisSession}  ${s.status}  ${s.mode}${observers}${agents}${tasks}`;
+					});
+
+					const msg = `Hub Sessions (${sessions.length}):\n${lines.join('\n')}\n\nUse Ctrl+O for observer detail.`;
+					ctx.ui.notify(msg, 'info');
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					ctx.ui.notify(`Could not reach Hub: ${msg}`, 'error');
+				}
+			},
+		});
+	}
+
+	// ══════════════════════════════════════════════
 	// Event Handlers
 	// ══════════════════════════════════════════════
 
@@ -878,8 +1176,14 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			ctx.ui.setStatus('hub_connection', getHubUiStatus());
 		}
 
-		// Set up Coder footer (powerline: model or active agent > branch > status)
-		setupCoderFooter(ctx, getHubUiStatus);
+		// Set up Coder footer (powerline: model or active agent > branch > status + observer count)
+		setupCoderFooter(ctx, getHubUiStatus, getObserverState);
+
+		// Fire-and-forget: fetch session snapshot for label + initial observer count.
+		// Uses the Hub REST endpoint — non-blocking, best-effort.
+		if (!isSubAgent) {
+			fetchSessionSnapshot(hubUrl!, currentSessionId, observerState).catch(() => {});
+		}
 
 		return sendEvent('session_start', serializeEvent(event), ctx);
 	});
