@@ -589,7 +589,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			},
 		});
 
-		pi.registerShortcut('ctrl+o', {
+		pi.registerShortcut('ctrl+h', {
 			description: 'Open Hub overlay for current session detail',
 			handler: async (ctx) => {
 				if (!ctx.hasUI) return;

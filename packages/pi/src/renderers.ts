@@ -370,7 +370,7 @@ function taskRenderers(): ToolRenderers {
 					// Show first line of error in collapsed view
 					const firstLine = raw.split('\n')[0] || '';
 					errorContent += theme.fg('dim', '  ' + firstLine.slice(0, 80));
-					errorContent += theme.fg('muted', '  ctrl+o  ctrl+shift+v');
+					errorContent += theme.fg('muted', '  ctrl+h  ctrl+shift+v');
 				}
 				box.addChild(new Text(errorContent, 0, 0));
 				return box;
@@ -393,7 +393,7 @@ function taskRenderers(): ToolRenderers {
 			}
 
 			if (!expanded) {
-				text += theme.fg('muted', '  ctrl+o  ctrl+shift+v');
+				text += theme.fg('muted', '  ctrl+h  ctrl+shift+v');
 			}
 			if (expanded) {
 				const preview = raw.split('\n').slice(0, 20).map(safeLine).join('\n');
@@ -447,7 +447,7 @@ function parallelTasksRenderers(): ToolRenderers {
 			summaryText += theme.fg('dim', ` (${lineCount} lines)`);
 
 			if (!expanded) {
-				summaryText += theme.fg('muted', '  ctrl+o  ctrl+shift+v');
+				summaryText += theme.fg('muted', '  ctrl+h  ctrl+shift+v');
 				return new Text(summaryText, 0, 0);
 			}
 
