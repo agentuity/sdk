@@ -1,5 +1,16 @@
 import { FetchAdapter } from './adapter.ts';
 import { buildUrl, toServiceException } from './_util.ts';
+import { StructuredError } from '../error.ts';
+
+function createTimeoutSignal(ms = 30_000): AbortSignal {
+	if (typeof AbortSignal.timeout === 'function') {
+		return AbortSignal.timeout(ms);
+	}
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), ms);
+	controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+	return controller.signal;
+}
 
 export interface Webhook {
 	id: string;
@@ -70,6 +81,18 @@ export interface WebhookCreateResult {
 	webhook: Webhook;
 }
 
+export interface UpdateWebhookResult {
+	webhook: Webhook;
+}
+
+export interface CreateDestinationResult {
+	destination: WebhookDestination;
+}
+
+export interface ListDestinationsResult {
+	destinations: WebhookDestination[];
+}
+
 export interface WebhookReceiptListResult {
 	receipts: WebhookReceipt[];
 }
@@ -90,15 +113,9 @@ interface WebhookErrorResponse {
 
 type WebhookResponse<T> = WebhookSuccessResponse<T> | WebhookErrorResponse;
 
-class WebhookResponseError extends Error {
+const WebhookResponseError = StructuredError('WebhookResponseError')<{
 	status: number;
-
-	constructor({ status, message }: { status: number; message: string }) {
-		super(message);
-		this.name = 'WebhookResponseError';
-		this.status = status;
-	}
-}
+}>();
 
 export class WebhookService {
 	#adapter: FetchAdapter;
@@ -109,9 +126,16 @@ export class WebhookService {
 		this.#baseUrl = baseUrl;
 	}
 
+	#unwrap<T>(raw: unknown): T {
+		if (raw !== null && typeof raw === 'object' && 'data' in raw) {
+			return (raw as Record<string, unknown>).data as T;
+		}
+		return raw as T;
+	}
+
 	async create(params: CreateWebhookParams): Promise<WebhookCreateResult> {
 		const url = buildUrl(this.#baseUrl, '/webhook/2026-02-24/create');
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook>>(url, {
 			method: 'POST',
 			signal,
@@ -148,7 +172,7 @@ export class WebhookService {
 			? `/webhook/2026-02-24/list?${qs.toString()}`
 			: '/webhook/2026-02-24/list';
 		const url = buildUrl(this.#baseUrl, path);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook[]>>(url, {
 			method: 'GET',
 			signal,
@@ -163,8 +187,14 @@ export class WebhookService {
 
 		if (res.ok) {
 			if (res.data.success) {
-				const arr = Array.isArray(res.data.data) ? res.data.data : [];
-				return { webhooks: arr, total: arr.length };
+				const unwrapped = this.#unwrap<Webhook[] | { data: Webhook[]; total: number }>(
+					res.data.data
+				);
+				if (Array.isArray(unwrapped)) {
+					return { webhooks: unwrapped, total: unwrapped.length };
+				}
+				const arr = Array.isArray(unwrapped.data) ? unwrapped.data : [];
+				return { webhooks: arr, total: unwrapped.total ?? arr.length };
 			}
 			throw new WebhookResponseError({ status: res.response.status, message: res.data.message });
 		}
@@ -177,7 +207,7 @@ export class WebhookService {
 			this.#baseUrl,
 			`/webhook/2026-02-24/get/${encodeURIComponent(webhookId)}`
 		);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook>>(url, {
 			method: 'GET',
 			signal,
@@ -200,12 +230,12 @@ export class WebhookService {
 		throw await toServiceException('GET', url, res.response);
 	}
 
-	async update(webhookId: string, params: UpdateWebhookParams): Promise<{ webhook: Webhook }> {
+	async update(webhookId: string, params: UpdateWebhookParams): Promise<UpdateWebhookResult> {
 		const url = buildUrl(
 			this.#baseUrl,
 			`/webhook/2026-02-24/update/${encodeURIComponent(webhookId)}`
 		);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook>>(url, {
 			method: 'PUT',
 			signal,
@@ -234,7 +264,7 @@ export class WebhookService {
 			this.#baseUrl,
 			`/webhook/2026-02-24/delete/${encodeURIComponent(webhookId)}`
 		);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<null>>(url, {
 			method: 'DELETE',
 			signal,
@@ -247,7 +277,13 @@ export class WebhookService {
 		});
 
 		if (res.ok) {
-			return;
+			if (res.data?.success !== false) {
+				return;
+			}
+			throw new WebhookResponseError({
+				status: res.response.status,
+				message: res.data?.message ?? 'Delete failed',
+			});
 		}
 
 		throw await toServiceException('DELETE', url, res.response);
@@ -256,12 +292,12 @@ export class WebhookService {
 	async createDestination(
 		webhookId: string,
 		params: CreateWebhookDestinationParams
-	): Promise<{ destination: WebhookDestination }> {
+	): Promise<CreateDestinationResult> {
 		const url = buildUrl(
 			this.#baseUrl,
 			`/webhook/2026-02-24/destination-create/${encodeURIComponent(webhookId)}`
 		);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<WebhookDestination>>(url, {
 			method: 'POST',
 			signal,
@@ -286,12 +322,12 @@ export class WebhookService {
 		throw await toServiceException('POST', url, res.response);
 	}
 
-	async listDestinations(webhookId: string): Promise<{ destinations: WebhookDestination[] }> {
+	async listDestinations(webhookId: string): Promise<ListDestinationsResult> {
 		const url = buildUrl(
 			this.#baseUrl,
 			`/webhook/2026-02-24/destination-list/${encodeURIComponent(webhookId)}`
 		);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<WebhookDestination[]>>(url, {
 			method: 'GET',
 			signal,
@@ -318,7 +354,7 @@ export class WebhookService {
 			this.#baseUrl,
 			`/webhook/2026-02-24/destination-delete/${encodeURIComponent(webhookId)}/${encodeURIComponent(destinationId)}`
 		);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<null>>(url, {
 			method: 'DELETE',
 			signal,
@@ -332,7 +368,13 @@ export class WebhookService {
 		});
 
 		if (res.ok) {
-			return;
+			if (res.data?.success !== false) {
+				return;
+			}
+			throw new WebhookResponseError({
+				status: res.response.status,
+				message: res.data?.message ?? 'Delete destination failed',
+			});
 		}
 
 		throw await toServiceException('DELETE', url, res.response);
@@ -353,7 +395,7 @@ export class WebhookService {
 		const basePath = `/webhook/2026-02-24/receipt-list/${encodeURIComponent(webhookId)}`;
 		const path = qs.toString() ? `${basePath}?${qs.toString()}` : basePath;
 		const url = buildUrl(this.#baseUrl, path);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<WebhookReceipt[]>>(url, {
 			method: 'GET',
 			signal,
@@ -382,7 +424,7 @@ export class WebhookService {
 			this.#baseUrl,
 			`/webhook/2026-02-24/receipt-get/${encodeURIComponent(webhookId)}/${encodeURIComponent(receiptId)}`
 		);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<WebhookReceipt>>(url, {
 			method: 'GET',
 			signal,
@@ -420,7 +462,7 @@ export class WebhookService {
 		const basePath = `/webhook/2026-02-24/delivery-list/${encodeURIComponent(webhookId)}`;
 		const path = qs.toString() ? `${basePath}?${qs.toString()}` : basePath;
 		const url = buildUrl(this.#baseUrl, path);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<WebhookDelivery[]>>(url, {
 			method: 'GET',
 			signal,
@@ -449,7 +491,7 @@ export class WebhookService {
 			this.#baseUrl,
 			`/webhook/2026-02-24/delivery-retry/${encodeURIComponent(webhookId)}/${encodeURIComponent(deliveryId)}`
 		);
-		const signal = AbortSignal.timeout(30_000);
+		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<null>>(url, {
 			method: 'POST',
 			signal,
@@ -463,7 +505,13 @@ export class WebhookService {
 		});
 
 		if (res.ok) {
-			return;
+			if (res.data?.success !== false) {
+				return;
+			}
+			throw new WebhookResponseError({
+				status: res.response.status,
+				message: res.data?.message ?? 'Retry delivery failed',
+			});
 		}
 
 		throw await toServiceException('POST', url, res.response);

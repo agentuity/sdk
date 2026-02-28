@@ -56,19 +56,21 @@ export const listSubcommand = createCommand({
 				tui.info('No deliveries found');
 			} else {
 				tui.table(
-					result.deliveries.map((delivery: {
-						id: string;
-						date: string;
-						status: 'pending' | 'success' | 'failed';
-						retries: number;
-						schedule_destination_id: string;
-					}) => ({
-						ID: delivery.id,
-						Date: new Date(delivery.date).toLocaleString(),
-						Status: delivery.status,
-						Retries: delivery.retries,
-						'Destination ID': delivery.schedule_destination_id,
-					})),
+					result.deliveries.map(
+						(delivery: {
+							id: string;
+							date: string;
+							status: 'pending' | 'success' | 'failed';
+							retries: number;
+							schedule_destination_id: string;
+						}) => ({
+							ID: delivery.id,
+							Date: new Date(delivery.date).toLocaleString(),
+							Status: delivery.status,
+							Retries: delivery.retries,
+							'Destination ID': delivery.schedule_destination_id,
+						})
+					),
 					['ID', 'Date', 'Status', 'Retries', 'Destination ID']
 				);
 			}

@@ -49,22 +49,24 @@ export const listSubcommand = createCommand({
 				tui.info('No schedules found');
 			} else {
 				tui.table(
-					result.schedules.map((item: {
-						id: string;
-						created_at: string;
-						updated_at: string;
-						created_by: string;
-						name: string;
-						description: string | null;
-						expression: string;
-						due_date: string;
-					}) => ({
-						Name: item.name,
-						ID: item.id,
-						Expression: item.expression,
-						'Next Due': item.due_date,
-						Created: new Date(item.created_at).toLocaleString(),
-					})),
+					result.schedules.map(
+						(item: {
+							id: string;
+							created_at: string;
+							updated_at: string;
+							created_by: string;
+							name: string;
+							description: string | null;
+							expression: string;
+							due_date: string;
+						}) => ({
+							Name: item.name,
+							ID: item.id,
+							Expression: item.expression,
+							'Next Due': item.due_date,
+							Created: new Date(item.created_at).toLocaleString(),
+						})
+					),
 					['Name', 'ID', 'Expression', 'Next Due', 'Created']
 				);
 			}

@@ -33,7 +33,14 @@ export const taskCommand = createCommand({
 			description: 'Upload a file attachment to a task',
 		},
 	],
-	subcommands: [getSubcommand, createSubcommand, updateSubcommand, listSubcommand, statsSubcommand, attachmentSubcommand],
+	subcommands: [
+		getSubcommand,
+		createSubcommand,
+		updateSubcommand,
+		listSubcommand,
+		statsSubcommand,
+		attachmentSubcommand,
+	],
 	requires: { auth: true },
 });
 

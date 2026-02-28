@@ -5,7 +5,12 @@ import { createWebhookAPIClient, getWebhookApiOptions } from './util';
 import { getCommand } from '../../../command-prefix';
 import { createWebhook, WebhookSchema } from '@agentuity/server';
 
-const WebhookCreateResponseSchema = WebhookSchema.pick({ id: true, name: true, url: true, created_at: true });
+const WebhookCreateResponseSchema = WebhookSchema.pick({
+	id: true,
+	name: true,
+	url: true,
+	created_at: true,
+});
 
 export const createSubcommand = createCommand({
 	name: 'create',

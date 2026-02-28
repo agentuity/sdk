@@ -1,4 +1,5 @@
 import { basename, join } from 'path';
+import { stat as fsStat } from 'node:fs/promises';
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
@@ -299,17 +300,26 @@ const downloadSubcommand = createCommand({
 			}
 		}
 
+		// Sanitize filename against path traversal
+		filename = filename.replace(/\0/g, ''); // strip null bytes
+		filename = filename.replace(/[/\\]/g, '_'); // replace path separators
+		filename = filename.replace(/^\.+/, ''); // strip leading dots
+		if (!filename || filename === '.' || filename === '..') {
+			filename = 'attachment';
+		}
+
 		let outputPath: string;
 		if (opts.output) {
-			// If output ends with / or is an existing directory, append filename
-			const outputFile = Bun.file(opts.output);
-			const stat = await outputFile.exists();
-			if (opts.output.endsWith('/') || (stat && (await Bun.file(join(opts.output, filename)).exists().catch(() => false)))) {
-				outputPath = join(opts.output, filename);
-			} else if (stat) {
-				// Could be a directory — try joining
-				outputPath = join(opts.output, filename);
-			} else {
+			try {
+				const stats = await fsStat(opts.output);
+				if (stats.isDirectory()) {
+					outputPath = join(opts.output, filename);
+				} else {
+					// It's an existing file — use it directly
+					outputPath = opts.output;
+				}
+			} catch {
+				// Path doesn't exist — treat as target file path
 				outputPath = opts.output;
 			}
 		} else {
@@ -413,5 +423,10 @@ export const attachmentSubcommand = createCommand({
 			description: 'Delete an attachment',
 		},
 	],
-	subcommands: [uploadSubcommand, listAttachmentsSubcommand, downloadSubcommand, deleteAttachmentSubcommand],
+	subcommands: [
+		uploadSubcommand,
+		listAttachmentsSubcommand,
+		downloadSubcommand,
+		deleteAttachmentSubcommand,
+	],
 });

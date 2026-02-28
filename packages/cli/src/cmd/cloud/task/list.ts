@@ -14,7 +14,24 @@ const TaskListResponseSchema = z.object({
 			type: z.string(),
 			status: z.string(),
 			priority: z.string(),
-			assigned_id: z.string().optional(),
+			creator: z
+				.object({
+					id: z.string(),
+					name: z.string(),
+				})
+				.optional(),
+			assignee: z
+				.object({
+					id: z.string(),
+					name: z.string(),
+				})
+				.optional(),
+			project: z
+				.object({
+					id: z.string(),
+					name: z.string(),
+				})
+				.optional(),
 			created_at: z.string(),
 			updated_at: z.string(),
 		})
@@ -88,7 +105,10 @@ export const listSubcommand = createCommand({
 	],
 	schema: {
 		options: z.object({
-			status: z.enum(['open', 'in_progress', 'done', 'closed', 'cancelled']).optional().describe('filter by status'),
+			status: z
+				.enum(['open', 'in_progress', 'done', 'closed', 'cancelled'])
+				.optional()
+				.describe('filter by status'),
 			type: z
 				.enum(['epic', 'feature', 'enhancement', 'bug', 'task'])
 				.optional()

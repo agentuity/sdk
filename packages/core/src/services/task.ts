@@ -214,7 +214,12 @@ export interface TaskStorage {
 		id: string,
 		params?: { limit?: number; offset?: number }
 	): Promise<TaskChangelogResult>;
-	createComment(taskId: string, body: string, userId: string, author?: EntityRef): Promise<Comment>;
+	createComment(
+		taskId: string,
+		body: string,
+		userId: string,
+		author?: EntityRef
+	): Promise<Comment>;
 	getComment(commentId: string): Promise<Comment>;
 	updateComment(commentId: string, body: string): Promise<Comment>;
 	deleteComment(commentId: string): Promise<void>;
@@ -276,6 +281,11 @@ const TagNameRequiredError = StructuredError(
 const AttachmentIdRequiredError = StructuredError(
 	'AttachmentIdRequiredError',
 	'Attachment ID is required and must be a non-empty string'
+);
+
+const UserIdRequiredError = StructuredError(
+	'UserIdRequiredError',
+	'User ID is required and must be a non-empty string'
 );
 
 const TaskStorageResponseError = StructuredError('TaskStorageResponseError')<{
@@ -537,7 +547,10 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskIdRequiredError();
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/delete/${TASK_API_VERSION}/${encodeURIComponent(id)}`);
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/delete/${TASK_API_VERSION}/${encodeURIComponent(id)}`
+		);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
@@ -562,12 +575,20 @@ export class TaskStorageService implements TaskStorage {
 		throw await toServiceException('POST', url, res.response);
 	}
 
-	async createComment(taskId: string, body: string, userId: string, author?: EntityRef): Promise<Comment> {
+	async createComment(
+		taskId: string,
+		body: string,
+		userId: string,
+		author?: EntityRef
+	): Promise<Comment> {
 		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
 			throw new TaskIdRequiredError();
 		}
 		if (!body || typeof body !== 'string' || body.trim().length === 0) {
 			throw new CommentBodyRequiredError();
+		}
+		if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+			throw new UserIdRequiredError();
 		}
 
 		const url = buildUrl(
@@ -695,6 +716,12 @@ export class TaskStorageService implements TaskStorage {
 		});
 
 		if (res.ok) {
+			if (res.data?.success === false) {
+				throw new TaskStorageResponseError({
+					status: res.response.status,
+					message: res.data.message ?? 'Operation failed',
+				});
+			}
 			return;
 		}
 
@@ -874,6 +901,12 @@ export class TaskStorageService implements TaskStorage {
 		});
 
 		if (res.ok) {
+			if (res.data?.success === false) {
+				throw new TaskStorageResponseError({
+					status: res.response.status,
+					message: res.data.message ?? 'Operation failed',
+				});
+			}
 			return;
 		}
 
@@ -930,6 +963,12 @@ export class TaskStorageService implements TaskStorage {
 		});
 
 		if (res.ok) {
+			if (res.data?.success === false) {
+				throw new TaskStorageResponseError({
+					status: res.response.status,
+					message: res.data.message ?? 'Operation failed',
+				});
+			}
 			return;
 		}
 
@@ -960,6 +999,12 @@ export class TaskStorageService implements TaskStorage {
 		});
 
 		if (res.ok) {
+			if (res.data?.success === false) {
+				throw new TaskStorageResponseError({
+					status: res.response.status,
+					message: res.data.message ?? 'Operation failed',
+				});
+			}
 			return;
 		}
 
@@ -1159,6 +1204,12 @@ export class TaskStorageService implements TaskStorage {
 		});
 
 		if (res.ok) {
+			if (res.data?.success === false) {
+				throw new TaskStorageResponseError({
+					status: res.response.status,
+					message: res.data.message ?? 'Operation failed',
+				});
+			}
 			return;
 		}
 

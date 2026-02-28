@@ -4,10 +4,12 @@ import * as tui from '../../../tui';
 import { createStorageAdapter, cacheTaskId } from './util';
 import { getCommand } from '../../../command-prefix';
 
-const EntityRefSchema = z.object({
-	id: z.string(),
-	name: z.string(),
-}).optional();
+const EntityRefSchema = z
+	.object({
+		id: z.string(),
+		name: z.string(),
+	})
+	.optional();
 
 const TaskGetResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

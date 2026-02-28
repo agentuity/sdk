@@ -53,12 +53,12 @@ export const EmailStatSchema = z.object({
 });
 
 export const TaskStatSchema = z.object({
-	total: z.number(),
-	open: z.number(),
-	inProgress: z.number(),
-	done: z.number(),
-	closed: z.number(),
-	cancelled: z.number(),
+	total: z.number().default(0),
+	open: z.number().default(0),
+	inProgress: z.number().default(0),
+	done: z.number().default(0),
+	closed: z.number().default(0),
+	cancelled: z.number().default(0),
 });
 
 export const ScheduleStatSchema = z.object({
@@ -181,7 +181,7 @@ export interface ServiceStatsOptions {
 export async function getServiceStats(
 	client: APIClient,
 	orgId: string,
-	options?: ServiceStatsOptions,
+	options?: ServiceStatsOptions
 ): Promise<ServiceStatsData> {
 	const params = new URLSearchParams();
 	if (options?.service) params.set('service', options.service);
@@ -200,7 +200,7 @@ export async function getServiceStats(
 		url,
 		ServiceStatsResponseSchema,
 		undefined,
-		Object.keys(headers).length > 0 ? headers : undefined,
+		Object.keys(headers).length > 0 ? headers : undefined
 	);
 
 	if (resp.success) {

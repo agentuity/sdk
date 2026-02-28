@@ -35,9 +35,7 @@ export const getSubcommand = createCommand({
 						Provider: address.provider ?? '-',
 						Config: address.config ? JSON.stringify(address.config) : '-',
 						Created: new Date(address.created_at).toLocaleString(),
-						Updated: address.updated_at
-							? new Date(address.updated_at).toLocaleString()
-							: '-',
+						Updated: address.updated_at ? new Date(address.updated_at).toLocaleString() : '-',
 					},
 				],
 				['ID', 'Email', 'Project', 'Provider', 'Config', 'Created', 'Updated'],

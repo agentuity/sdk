@@ -115,11 +115,19 @@ function initializeTables(db: Database): void {
 			created_id TEXT NOT NULL,
 			assigned_id TEXT,
 			closed_id TEXT,
+			deleted INTEGER NOT NULL DEFAULT 0,
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL,
 			PRIMARY KEY (project_path, id)
 		)
 	`);
+
+	// Migration: add deleted column for existing databases
+	try {
+		db.run('ALTER TABLE task_storage ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0');
+	} catch {
+		// Column already exists
+	}
 
 	// Task Changelog table
 	db.run(`
@@ -232,11 +240,18 @@ function cleanupOrphanedProjects(db: Database): void {
 
 	// Combine and deduplicate all project paths
 	const allPaths = new Set<string>();
-	[...kvPaths, ...streamPaths, ...vectorPaths, ...taskPaths, ...taskChangelogPaths, ...taskCommentPaths, ...taskTagPaths, ...taskTagAssocPaths].forEach(
-		(row) => {
-			allPaths.add(row.project_path);
-		}
-	);
+	[
+		...kvPaths,
+		...streamPaths,
+		...vectorPaths,
+		...taskPaths,
+		...taskChangelogPaths,
+		...taskCommentPaths,
+		...taskTagPaths,
+		...taskTagAssocPaths,
+	].forEach((row) => {
+		allPaths.add(row.project_path);
+	});
 
 	// Check which paths no longer exist and are not the current project
 	const pathsToDelete: string[] = [];

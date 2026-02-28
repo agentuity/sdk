@@ -22,6 +22,8 @@ import type {
 	PresignUploadResponse,
 	PresignDownloadResponse,
 	ListAttachmentsResult,
+	TaskActivityParams,
+	TaskActivityResult,
 } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
 import { now } from './_util';
@@ -44,9 +46,19 @@ const CommentBodyRequiredError = StructuredError(
 	'Comment body is required and must be a non-empty string'
 );
 
+const CommentUserRequiredError = StructuredError(
+	'CommentUserRequiredError',
+	'Comment user ID is required and must be a non-empty string'
+);
+
 const TagNameRequiredError = StructuredError(
 	'TagNameRequiredError',
 	'Tag name is required and must be a non-empty string'
+);
+
+const AttachmentNotSupportedError = StructuredError(
+	'AttachmentNotSupportedError',
+	'Attachments are not supported in local task storage'
 );
 
 type CommentRow = {
@@ -82,6 +94,7 @@ type TaskRow = {
 	created_id: string;
 	assigned_id: string | null;
 	closed_id: string | null;
+	deleted: number;
 };
 
 type TaskChangelogRow = {
@@ -133,7 +146,7 @@ function toTask(row: TaskRow): Task {
 		created_id: row.created_id,
 		assigned_id: row.assigned_id ?? undefined,
 		closed_id: row.closed_id ?? undefined,
-		deleted: false,
+		deleted: Boolean(row.deleted),
 	};
 }
 
@@ -238,6 +251,7 @@ export class LocalTaskStorage implements TaskStorage {
 			created_id: params.created_id,
 			assigned_id: params.assigned_id ?? null,
 			closed_id: null,
+			deleted: 0,
 		};
 
 		stmt.run(
@@ -281,7 +295,8 @@ export class LocalTaskStorage implements TaskStorage {
 				closed_date,
 				created_id,
 				assigned_id,
-				closed_id
+				closed_id,
+				deleted
 			FROM task_storage
 			WHERE project_path = ? AND id = ?
 		`);
@@ -348,7 +363,8 @@ export class LocalTaskStorage implements TaskStorage {
 				closed_date,
 				created_id,
 				assigned_id,
-				closed_id
+				closed_id,
+				deleted
 			FROM task_storage
 			${whereClause}
 			ORDER BY ${sortField} ${sortOrder}
@@ -384,7 +400,8 @@ export class LocalTaskStorage implements TaskStorage {
 					closed_date,
 					created_id,
 					assigned_id,
-					closed_id
+					closed_id,
+					deleted
 				FROM task_storage
 				WHERE project_path = ? AND id = ?
 			`);
@@ -563,7 +580,8 @@ export class LocalTaskStorage implements TaskStorage {
 					closed_date,
 					created_id,
 					assigned_id,
-					closed_id
+					closed_id,
+					deleted
 				FROM task_storage
 				WHERE project_path = ? AND id = ?
 			`);
@@ -673,16 +691,11 @@ export class LocalTaskStorage implements TaskStorage {
 
 		const updateStmt = this.#db.prepare(`
 			UPDATE task_storage
-			SET status = 'closed', closed_date = COALESCE(closed_date, ?), updated_at = ?
+			SET status = 'closed', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
 			WHERE project_path = ? AND id = ?
 		`);
 
-		updateStmt.run(
-			new Date(timestamp).toISOString(),
-			timestamp,
-			this.#projectPath,
-			id
-		);
+		updateStmt.run(new Date(timestamp).toISOString(), timestamp, this.#projectPath, id);
 
 		const changelogStmt = this.#db.prepare(`
 			INSERT INTO task_changelog_storage (
@@ -710,6 +723,11 @@ export class LocalTaskStorage implements TaskStorage {
 			throw new CommentBodyRequiredError();
 		}
 
+		const trimmedUserId = userId?.trim();
+		if (!trimmedUserId) {
+			throw new CommentUserRequiredError();
+		}
+
 		const task = await this.get(taskId);
 		if (!task) {
 			throw new TaskNotFoundError();
@@ -724,14 +742,14 @@ export class LocalTaskStorage implements TaskStorage {
 			) VALUES (?, ?, ?, ?, ?, ?, ?)
 		`);
 
-		stmt.run(this.#projectPath, id, taskId, userId, trimmedBody, timestamp, timestamp);
+		stmt.run(this.#projectPath, id, taskId, trimmedUserId, trimmedBody, timestamp, timestamp);
 
 		return toComment({
 			id,
 			created_at: timestamp,
 			updated_at: timestamp,
 			task_id: taskId,
-			user_id: userId,
+			user_id: trimmedUserId,
 			body: trimmedBody,
 		});
 	}
@@ -950,23 +968,23 @@ export class LocalTaskStorage implements TaskStorage {
 		_taskId: string,
 		_params: CreateAttachmentParams
 	): Promise<PresignUploadResponse> {
-		throw new Error('Attachments are not supported in local task storage');
+		throw new AttachmentNotSupportedError();
 	}
 
 	async confirmAttachment(_attachmentId: string): Promise<Attachment> {
-		throw new Error('Attachments are not supported in local task storage');
+		throw new AttachmentNotSupportedError();
 	}
 
 	async downloadAttachment(_attachmentId: string): Promise<PresignDownloadResponse> {
-		throw new Error('Attachments are not supported in local task storage');
+		throw new AttachmentNotSupportedError();
 	}
 
 	async listAttachments(_taskId: string): Promise<ListAttachmentsResult> {
-		throw new Error('Attachments are not supported in local task storage');
+		throw new AttachmentNotSupportedError();
 	}
 
 	async deleteAttachment(_attachmentId: string): Promise<void> {
-		throw new Error('Attachments are not supported in local task storage');
+		throw new AttachmentNotSupportedError();
 	}
 
 	async listUsers(): Promise<ListUsersResult> {
@@ -975,5 +993,47 @@ export class LocalTaskStorage implements TaskStorage {
 
 	async listProjects(): Promise<ListProjectsResult> {
 		return { projects: [] };
+	}
+
+	async getActivity(params?: TaskActivityParams): Promise<TaskActivityResult> {
+		const days = Math.min(365, Math.max(7, params?.days ?? 90));
+		const activity = [];
+		const now = new Date();
+
+		for (let i = days - 1; i >= 0; i--) {
+			const date = new Date(now);
+			date.setDate(date.getDate() - i);
+			const dateStr = date.toISOString().slice(0, 10);
+
+			const row = this.#db
+				.prepare(
+					`SELECT
+						COALESCE(SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END), 0) as open,
+						COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress,
+						COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0) as done,
+						COALESCE(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0) as closed,
+						COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled
+					FROM task_storage
+					WHERE project_path = ? AND date(created_at) = ?`
+				)
+				.get(this.#projectPath, dateStr) as {
+				open: number;
+				in_progress: number;
+				done: number;
+				closed: number;
+				cancelled: number;
+			};
+
+			activity.push({
+				date: dateStr,
+				open: row.open,
+				inProgress: row.in_progress,
+				done: row.done,
+				closed: row.closed,
+				cancelled: row.cancelled,
+			});
+		}
+
+		return { activity, days };
 	}
 }

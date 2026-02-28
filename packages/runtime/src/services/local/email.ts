@@ -11,10 +11,7 @@ import {
 const ERROR_MESSAGE =
 	'Email service is not available in local development mode. Deploy to Agentuity Cloud to use email.';
 
-const LocalEmailNotAvailableError = StructuredError(
-	'LocalEmailNotAvailableError',
-	ERROR_MESSAGE
-);
+const LocalEmailNotAvailableError = StructuredError('LocalEmailNotAvailableError', ERROR_MESSAGE);
 
 /**
  * Local development stub for the email service.

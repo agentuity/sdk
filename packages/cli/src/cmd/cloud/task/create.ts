@@ -60,10 +60,21 @@ export const createSubcommand = createCommand({
 		}),
 		options: z.object({
 			type: z.enum(['epic', 'feature', 'enhancement', 'bug', 'task']).describe('the task type'),
-			createdId: z.string().min(1).optional().describe('the ID of the creator (agent or user, defaults to authenticated user)'),
-			createdName: z.string().min(1).optional().describe('the display name of the creator (used with --created-id)'),
+			createdId: z
+				.string()
+				.min(1)
+				.optional()
+				.describe('the ID of the creator (agent or user, defaults to authenticated user)'),
+			createdName: z
+				.string()
+				.min(1)
+				.optional()
+				.describe('the display name of the creator (used with --created-id)'),
 			projectId: z.string().optional().describe('project ID to associate with the task'),
-			projectName: z.string().optional().describe('project display name (used with --project-id)'),
+			projectName: z
+				.string()
+				.optional()
+				.describe('project display name (used with --project-id)'),
 			description: z.string().optional().describe('task description'),
 			priority: z
 				.enum(['high', 'medium', 'low', 'none'])
@@ -155,7 +166,6 @@ export const createSubcommand = createCommand({
 			metadata,
 		});
 
-		const durationMs = Date.now() - started;
 		await cacheTaskId(ctx, task.id);
 
 		// Handle --file attachment
@@ -191,6 +201,8 @@ export const createSubcommand = createCommand({
 			const attachment = await storage.confirmAttachment(presign.attachment.id);
 			attachmentInfo = { id: attachment.id, filename: attachment.filename };
 		}
+
+		const durationMs = Date.now() - started;
 
 		if (!options.json) {
 			tui.success(`Task created: ${tui.bold(task.id)}`);
