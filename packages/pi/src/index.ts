@@ -16,6 +16,7 @@ import { setupTitlebar } from './titlebar.ts';
 import { registerAgentCommands } from './commands.ts';
 import { AgentManagerOverlay } from './overlay.ts';
 import { ChainEditorOverlay, type ChainResult } from './chain-preview.ts';
+import { HubOverlay } from './hub-overlay.ts';
 import { OutputViewerOverlay, type StoredResult } from './output-viewer.ts';
 import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition, AgentProgressUpdate } from './protocol.ts';
 
@@ -88,19 +89,6 @@ const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
 function log(msg: string): void {
 	if (DEBUG) console.error(`[agentuity-pi] ${msg}`);
-}
-
-function formatRelativeTime(isoDate: string): string {
-	const timestamp = Date.parse(isoDate);
-	if (Number.isNaN(timestamp)) return '-';
-	const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-	if (seconds < 60) return `${seconds}s ago`;
-	const minutes = Math.floor(seconds / 60);
-	if (minutes < 60) return `${minutes}m ago`;
-	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return `${hours}h ago`;
-	const days = Math.floor(hours / 24);
-	return `${days}d ago`;
 }
 
 // ══════════════════════════════════════════════
@@ -326,6 +314,26 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				pi.sendUserMessage(`@${result.agent} ${trimmed}`, { deliverAs: 'followUp' });
 			}
 		}
+	};
+
+	const openHubOverlay = async (
+		ctx: ExtensionContext | ExtensionCommandContext,
+		activeSessionId: string | null,
+		detailSessionId?: string | null,
+	): Promise<void> => {
+		if (!ctx.hasUI) return;
+
+		await ctx.ui.custom<undefined>(
+			(tui, theme, _keybindings, done) =>
+				new HubOverlay(tui, theme, {
+					baseUrl: getHubHttpBaseUrl(hubUrl!),
+					currentSessionId: activeSessionId ?? undefined,
+					initialSessionId: detailSessionId ?? undefined,
+					startInDetail: !!detailSessionId,
+					done,
+				}),
+			{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
+		);
 	};
 
 	log(`Hub connected. Tools: ${serverTools.length}, Agents: ${serverAgents.length}`);
@@ -582,63 +590,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		});
 
 		pi.registerShortcut('ctrl+o', {
-			description: 'Show observer details for current Hub session',
+			description: 'Open Hub overlay for current session detail',
 			handler: async (ctx) => {
 				if (!ctx.hasUI) return;
-				if (!currentSessionId) {
-					ctx.ui.notify('Current Hub session is unknown. Try again after session_start.', 'warning');
-					return;
-				}
-
-				const baseUrl = getHubHttpBaseUrl(hubUrl!);
-				const detailUrl = `${baseUrl}/api/hub/session/${encodeURIComponent(currentSessionId)}`;
-
-				try {
-					const response = await fetch(detailUrl, {
-						headers: { accept: 'application/json' },
-						signal: AbortSignal.timeout(5_000),
-					});
-
-					if (!response.ok) {
-						if (response.status === 404 || response.status === 410) {
-							ctx.ui.notify(`Session unavailable: ${currentSessionId}`, 'warning');
-							return;
-						}
-						ctx.ui.notify(`Hub returned ${response.status} for observer detail`, 'error');
-						return;
-					}
-
-					const data = (await response.json()) as {
-						sessionId: string;
-						label?: string;
-						participants?: Array<{
-							id: string;
-							role: string;
-							transport: string;
-							connectedAt?: string;
-							idle?: boolean;
-						}>;
-					};
-
-					const participants = data.participants ?? [];
-					const observers = participants.filter((p) => p.role === 'observer');
-					const headerLabel = data.label || data.sessionId;
-					const lines = participants.length > 0
-						? participants.map((p) => {
-							const when = p.connectedAt ? formatRelativeTime(p.connectedAt) : '-';
-							const idle = p.idle ? '  idle' : '';
-							return `  ${p.id.padEnd(12)} ${p.role.padEnd(10)} ${p.transport.padEnd(3)} connected ${when}${idle}`;
-						})
-						: ['  (no participants)'];
-
-					ctx.ui.notify(
-						`Observers (${observers.length}) — ${headerLabel}\n${lines.join('\n')}`,
-						'info',
-					);
-				} catch (err) {
-					const msg = err instanceof Error ? err.message : String(err);
-					ctx.ui.notify(`Could not fetch observer detail: ${msg}`, 'error');
-				}
+				await openHubOverlay(ctx, currentSessionId, currentSessionId);
 			},
 		});
 
@@ -1062,61 +1017,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	if (!isSubAgent) {
 		pi.registerCommand('hub', {
-			description: 'Show Coder Hub session overview and observer status',
-				handler: async (_args, ctx) => {
-					if (!ctx.hasUI) return;
-
-					// Fetch sessions from Hub REST endpoint
-					const httpUrl = `${getHubHttpBaseUrl(hubUrl!)}/api/hub/sessions`;
-
-				try {
-					const resp = await fetch(httpUrl, {
-						headers: { accept: 'application/json' },
-						signal: AbortSignal.timeout(5_000),
-					});
-					if (!resp.ok) {
-						ctx.ui.notify(`Hub returned ${resp.status}`, 'error');
-						return;
-					}
-
-					const data = (await resp.json()) as {
-						sessions: {
-							websocket: Array<{
-								sessionId: string;
-								label?: string;
-								status: string;
-								mode: string;
-								observerCount: number;
-								subAgentCount: number;
-								taskCount: number;
-								participantCount: number;
-								createdAt: string;
-							}>;
-						};
-						total: number;
-					};
-
-					const sessions = data.sessions.websocket;
-					if (sessions.length === 0) {
-						ctx.ui.notify('No active Hub sessions.', 'info');
-						return;
-					}
-
-					const lines = sessions.map((s) => {
-						const label = s.label || s.sessionId.slice(0, 12);
-						const thisSession = currentSessionId && s.sessionId === currentSessionId ? ' (this)' : '';
-						const observers = s.observerCount > 0 ? ` [${s.observerCount} watching]` : '';
-						const agents = s.subAgentCount > 0 ? ` ${s.subAgentCount} agents` : '';
-						const tasks = s.taskCount > 0 ? ` ${s.taskCount} tasks` : '';
-						return `  ${label}${thisSession}  ${s.status}  ${s.mode}${observers}${agents}${tasks}`;
-					});
-
-					const msg = `Hub Sessions (${sessions.length}):\n${lines.join('\n')}\n\nUse Ctrl+O for observer detail.`;
-					ctx.ui.notify(msg, 'info');
-				} catch (err) {
-					const msg = err instanceof Error ? err.message : String(err);
-					ctx.ui.notify(`Could not reach Hub: ${msg}`, 'error');
-				}
+			description: 'Open Coder Hub overlay (sessions, detail, feed)',
+			handler: async (_args, ctx) => {
+				if (!ctx.hasUI) return;
+				await openHubOverlay(ctx, currentSessionId);
 			},
 		});
 	}
