@@ -24,7 +24,9 @@ function displayStats(data: ServiceStatsData): void {
 	console.log(
 		`  ${tui.muted('In Progress:')}     ${formatNumber(svc.inProgress)}`
 	);
+	console.log(`  ${tui.muted('Done:')}            ${formatNumber(svc.done)}`);
 	console.log(`  ${tui.muted('Closed:')}          ${formatNumber(svc.closed)}`);
+	console.log(`  ${tui.muted('Cancelled:')}       ${formatNumber(svc.cancelled)}`);
 }
 
 export const statsSubcommand = createCommand({

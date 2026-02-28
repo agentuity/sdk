@@ -35,7 +35,9 @@ const PRIORITY_COLORS: Record<string, (s: string) => string> = {
 const STATUS_COLORS: Record<string, (s: string) => string> = {
 	open: tui.colorSuccess,
 	in_progress: tui.colorWarning,
+	done: tui.colorInfo,
 	closed: tui.muted,
+	cancelled: tui.muted,
 };
 
 function formatPriority(p: string): string {
@@ -86,7 +88,7 @@ export const listSubcommand = createCommand({
 	],
 	schema: {
 		options: z.object({
-			status: z.enum(['open', 'in_progress', 'closed']).optional().describe('filter by status'),
+			status: z.enum(['open', 'in_progress', 'done', 'closed', 'cancelled']).optional().describe('filter by status'),
 			type: z
 				.enum(['epic', 'feature', 'enhancement', 'bug', 'task'])
 				.optional()
@@ -98,17 +100,7 @@ export const listSubcommand = createCommand({
 			assignedId: z.string().optional().describe('filter by assigned agent or user ID'),
 			parentId: z.string().optional().describe('filter by parent task ID'),
 			sort: z
-				.enum([
-					'created_at',
-					'updated_at',
-					'priority',
-					'status',
-					'title',
-					'type',
-					'open_date',
-					'in_progress_date',
-					'closed_date',
-				])
+				.enum(['created_at', 'updated_at', 'priority'])
 				.optional()
 				.describe('field to sort by (default: created_at)'),
 			order: z.enum(['asc', 'desc']).optional().describe('sort order (default: desc)'),
@@ -147,7 +139,8 @@ export const listSubcommand = createCommand({
 					Type: task.type,
 					Status: formatStatus(task.status),
 					Priority: formatPriority(task.priority),
-					Assigned: task.assigned_id ?? tui.muted('—'),
+					Creator: task.creator?.name ? truncate(task.creator.name, 20) : tui.muted('—'),
+					Assigned: task.assignee?.name ? truncate(task.assignee.name, 20) : tui.muted('—'),
 					Updated: new Date(task.updated_at).toLocaleDateString(),
 				}));
 
@@ -157,6 +150,7 @@ export const listSubcommand = createCommand({
 					{ name: 'Type', alignment: 'left' },
 					{ name: 'Status', alignment: 'left' },
 					{ name: 'Priority', alignment: 'left' },
+					{ name: 'Creator', alignment: 'left' },
 					{ name: 'Assigned', alignment: 'left' },
 					{ name: 'Updated', alignment: 'left' },
 				]);
@@ -175,7 +169,9 @@ export const listSubcommand = createCommand({
 				type: task.type,
 				status: task.status,
 				priority: task.priority,
-				assigned_id: task.assigned_id,
+				creator: task.creator,
+				assignee: task.assignee,
+				project: task.project,
 				created_at: task.created_at,
 				updated_at: task.updated_at,
 			})),

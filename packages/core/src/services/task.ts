@@ -6,7 +6,7 @@ import { safeStringify } from '../json.ts';
 // Task type enums
 export type TaskPriority = 'high' | 'medium' | 'low' | 'none';
 export type TaskType = 'epic' | 'feature' | 'enhancement' | 'bug' | 'task';
-export type TaskStatus = 'open' | 'in_progress' | 'closed' | 'cancelled';
+export type TaskStatus = 'open' | 'in_progress' | 'closed' | 'done' | 'cancelled';
 
 // Entity reference (user/project with id + name)
 export interface EntityRef {

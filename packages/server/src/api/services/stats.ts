@@ -56,7 +56,9 @@ export const TaskStatSchema = z.object({
 	total: z.number(),
 	open: z.number(),
 	inProgress: z.number(),
+	done: z.number(),
 	closed: z.number(),
+	cancelled: z.number(),
 });
 
 export const ScheduleStatSchema = z.object({
