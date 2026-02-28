@@ -39,7 +39,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -49,7 +49,7 @@
     },
     "apps/docs": {
       "name": "docs",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/evals": "workspace:*",
@@ -115,7 +115,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "1.0.25",
+      "version": "1.0.26",
     },
     "apps/testing/auth-package-app": {
       "name": "auth-package-app",
@@ -416,7 +416,7 @@
     },
     "packages/auth": {
       "name": "@agentuity/auth",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/drizzle": "workspace:*",
         "better-auth": "^1.4.9",
@@ -448,7 +448,7 @@
     },
     "packages/claude-code": {
       "name": "@agentuity/claude-code",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "devDependencies": {
         "@types/bun": "latest",
         "bun-types": "latest",
@@ -457,7 +457,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -496,7 +496,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "zod": "^4.3.5",
       },
@@ -510,7 +510,7 @@
     },
     "packages/drizzle": {
       "name": "@agentuity/drizzle",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/postgres": "workspace:*",
@@ -526,7 +526,7 @@
     },
     "packages/evals": {
       "name": "@agentuity/evals",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/runtime": "workspace:*",
@@ -543,7 +543,7 @@
     },
     "packages/frontend": {
       "name": "@agentuity/frontend",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -556,7 +556,7 @@
     },
     "packages/opencode": {
       "name": "@agentuity/opencode",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@opencode-ai/plugin": "^1.1.36",
@@ -572,7 +572,7 @@
     },
     "packages/pi": {
       "name": "@agentuity/pi",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "devDependencies": {
         "@mariozechner/pi-coding-agent": "^0.54.2",
         "@sinclair/typebox": "^0.34.48",
@@ -587,7 +587,7 @@
     },
     "packages/postgres": {
       "name": "@agentuity/postgres",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "pg": "^8.13.1",
@@ -610,7 +610,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/frontend": "workspace:*",
@@ -629,7 +629,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/auth": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -670,7 +670,7 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -683,7 +683,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
@@ -699,7 +699,7 @@
     },
     "packages/test-utils": {
       "name": "@agentuity/test-utils",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -709,7 +709,7 @@
     },
     "packages/vscode": {
       "name": "agentuity-vscode",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
         "tar": "^7.4.3",
@@ -723,7 +723,7 @@
     },
     "packages/workbench": {
       "name": "@agentuity/workbench",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
@@ -4425,7 +4425,9 @@
 
     "cloud-deployment-tests/@vitejs/plugin-react": ["@vitejs/plugin-react@4.7.0", "", { "dependencies": { "@babel/core": "^7.28.0", "@babel/plugin-transform-react-jsx-self": "^7.27.1", "@babel/plugin-transform-react-jsx-source": "^7.27.1", "@rolldown/pluginutils": "1.0.0-beta.27", "@types/babel__core": "^7.20.5", "react-refresh": "^0.17.0" }, "peerDependencies": { "vite": "^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, "sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA=="],
 
-    "create-agentuity/@agentuity/cli": ["@agentuity/cli@1.0.24", "", { "dependencies": { "@agentuity/auth": "1.0.24", "@agentuity/core": "1.0.24", "@agentuity/frontend": "1.0.24", "@agentuity/server": "1.0.24", "@datasert/cronjs-parser": "^1.4.0", "@vitejs/plugin-react": "^5.1.2", "acorn-loose": "^8.5.2", "adm-zip": "^0.5.16", "astring": "^1.9.0", "cli-table3": "^0.6.5", "commander": "^14.0.2", "enquirer": "^2.4.1", "git-url-parse": "^16.1.0", "json-colorizer": "^3.0.1", "json5": "^2.2.3", "tar": "^7.5.2", "tar-fs": "^3.1.1", "typescript": "^5.9.0", "vite": "^7.2.7", "zod": "^4.3.5" }, "bin": { "agentuity": "bin/cli.ts" } }, "sha512-WP1rWuDmgMY+Ahth/flACcV+UxoKFl+aWQh7DucnYGc4hyoH0kElmeZFFJTRph8ZeEDNE1zzxurnm61DHI4gTA=="],
+    "cmdk/@radix-ui/react-primitive": ["@radix-ui/react-primitive@2.1.4", "", { "dependencies": { "@radix-ui/react-slot": "1.2.4" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha512-9hQc4+GNVtJAIEPEqlYqW5RiYdrr8ea5XQ0ZOnD6fgru+83kqT15mq2OCcbe8KnjRZl5vF3ks69AKz3kh1jrhg=="],
+
+    "create-agentuity/@agentuity/cli": ["@agentuity/cli@1.0.26", "", { "dependencies": { "@agentuity/auth": "1.0.26", "@agentuity/core": "1.0.26", "@agentuity/frontend": "1.0.26", "@agentuity/server": "1.0.26", "@datasert/cronjs-parser": "^1.4.0", "@vitejs/plugin-react": "^5.1.2", "acorn-loose": "^8.5.2", "adm-zip": "^0.5.16", "astring": "^1.9.0", "cli-table3": "^0.6.5", "commander": "^14.0.2", "enquirer": "^2.4.1", "git-url-parse": "^16.1.0", "json-colorizer": "^3.0.1", "json5": "^2.2.3", "tar": "^7.5.2", "tar-fs": "^3.1.1", "typescript": "^5.9.0", "vite": "^7.2.7", "zod": "^4.3.5" }, "bin": { "agentuity": "bin/cli.ts" } }, "sha512-lkgtJzOBnF+OFNC8RImq0tTuarznVhTkj8pDIhkLumZnie6GvPRHY8/CXiA/DNDiKh5UU2tkBvfh9leYbmSCKg=="],
 
     "cytoscape-fcose/cose-base": ["cose-base@2.2.0", "", { "dependencies": { "layout-base": "^2.0.0" } }, "sha512-AzlgcsCbUMymkADOJtQm3wO9S3ltPfYOFD5033keQn9NJzIbtnZj+UdBJe7DYml/8TdbtHJW3j58SOnKhWY/5g=="],
 
@@ -4693,14 +4695,6 @@
 
     "cloud-deployment-tests/@vitejs/plugin-react/react-refresh": ["react-refresh@0.17.0", "", {}, "sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ=="],
 
-    "create-agentuity/@agentuity/cli/@agentuity/auth": ["@agentuity/auth@1.0.24", "", { "dependencies": { "@agentuity/drizzle": "1.0.24", "better-auth": "^1.4.9" }, "peerDependencies": { "@agentuity/react": "1.0.24", "@opentelemetry/api": "^1.9.0", "drizzle-orm": ">=0.44.0", "hono": "^4.0.0", "react": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["@agentuity/react", "drizzle-orm", "hono", "react"] }, "sha512-A/o46gv4V9+BhE8cBgTEnjva18A3WkqdqmNLHc4xGu37Iga0JwzVUmOX3n9z4YlhELN0paEDYpBzNIT2QSFF5Q=="],
-
-    "create-agentuity/@agentuity/cli/@agentuity/core": ["@agentuity/core@1.0.24", "", { "dependencies": { "zod": "^4.3.5" } }, "sha512-oezPO07f69z/cA7wGr6BqwVkgvxzJwmeqTmMzIZQDFwrbPCXF0AlFB9QoP0+ee0y24uejLN6o3MiUO6rA1RNJQ=="],
-
-    "create-agentuity/@agentuity/cli/@agentuity/frontend": ["@agentuity/frontend@1.0.24", "", { "dependencies": { "@agentuity/core": "1.0.24" } }, "sha512-FhQoNt7TCGylBKU+iGzdfxmqZJK4ePBgBjxgnVSBCGaWp9C2HuDw0TzfqdgGqodFH8bEwV2YMSK8DhltBy/v7A=="],
-
-    "create-agentuity/@agentuity/cli/@agentuity/server": ["@agentuity/server@1.0.24", "", { "dependencies": { "@agentuity/core": "1.0.24", "@agentuity/schema": "1.0.24", "zod": "^4.3.5" } }, "sha512-60JxeJypvCIrvWMTyeATTIwrUcyvzaOo47bYgDJE+Hyc9ugXkR1000IjNTex3CUGOlN+vDJsAzINt4Hs6+ClOw=="],
-
     "cytoscape-fcose/cose-base/layout-base": ["layout-base@2.0.1", "", {}, "sha512-dp3s92+uNI1hWIpPGH3jK2kxE2lMjdXdr+DH8ynZHpd6PUlH6x6cbuXnoMmiNumznqaNO31xu9e79F0uuZ0JFg=="],
 
     "d3-sankey/d3-array/internmap": ["internmap@1.0.1", "", {}, "sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw=="],
@@ -4911,10 +4905,6 @@
 
     "@vscode/vsce/hosted-git-info/lru-cache/yallist": ["yallist@4.0.0", "", {}, "sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A=="],
 
-    "create-agentuity/@agentuity/cli/@agentuity/auth/@agentuity/drizzle": ["@agentuity/drizzle@1.0.24", "", { "dependencies": { "@agentuity/core": "1.0.24", "@agentuity/postgres": "1.0.24", "better-auth": "^1.4.9", "drizzle-orm": "^0.45.0" } }, "sha512-cABeCCX48zeyrHA5wn24YNxE8O898ZuMCyhewLoDlvBp4Jpy1il3UdKAtxspSNufU0XGgqeWkDzaBYTM+BcZvA=="],
-
-    "create-agentuity/@agentuity/cli/@agentuity/server/@agentuity/schema": ["@agentuity/schema@1.0.24", "", { "dependencies": { "@agentuity/core": "1.0.24" } }, "sha512-JyG+Kx/0gAaYJu9/WEC18arz6m5nODkQ2X1DrJaKca2oe5C8ux5hk24FSpV8635StWlk/yJddHbrF7/RviNKNw=="],
-
     "glob/minimatch/brace-expansion/balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
 
     "google-auth-library/gaxios/node-fetch/data-uri-to-buffer": ["data-uri-to-buffer@4.0.1", "", {}, "sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A=="],
@@ -4926,10 +4916,6 @@
     "rimraf/glob/path-scurry/lru-cache": ["lru-cache@10.4.3", "", {}, "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=="],
 
     "@vscode/vsce/glob/minimatch/brace-expansion/balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
-
-    "create-agentuity/@agentuity/cli/@agentuity/auth/@agentuity/drizzle/@agentuity/postgres": ["@agentuity/postgres@1.0.24", "", { "dependencies": { "@agentuity/core": "1.0.24", "pg": "^8.13.1" }, "peerDependencies": { "@agentuity/runtime": "1.0.24" }, "optionalPeers": ["@agentuity/runtime"] }, "sha512-pyotSg+otEu9pPeJfjbCE3CqL9HUPoM6PfQECBtr60uUj2Tsl6yTY6r0ZCZWeIcv5I8WBOsBXCLjScSl20emdw=="],
-
-    "create-agentuity/@agentuity/cli/@agentuity/auth/@agentuity/drizzle/drizzle-orm": ["drizzle-orm@0.45.1", "", { "peerDependencies": { "@aws-sdk/client-rds-data": ">=3", "@cloudflare/workers-types": ">=4", "@electric-sql/pglite": ">=0.2.0", "@libsql/client": ">=0.10.0", "@libsql/client-wasm": ">=0.10.0", "@neondatabase/serverless": ">=0.10.0", "@op-engineering/op-sqlite": ">=2", "@opentelemetry/api": "^1.4.1", "@planetscale/database": ">=1.13", "@prisma/client": "*", "@tidbcloud/serverless": "*", "@types/better-sqlite3": "*", "@types/pg": "*", "@types/sql.js": "*", "@upstash/redis": ">=1.34.7", "@vercel/postgres": ">=0.8.0", "@xata.io/client": "*", "better-sqlite3": ">=7", "bun-types": "*", "expo-sqlite": ">=14.0.0", "gel": ">=2", "knex": "*", "kysely": "*", "mysql2": ">=2", "pg": ">=8", "postgres": ">=3", "sql.js": ">=1", "sqlite3": ">=5" }, "optionalPeers": ["@aws-sdk/client-rds-data", "@cloudflare/workers-types", "@electric-sql/pglite", "@libsql/client", "@libsql/client-wasm", "@neondatabase/serverless", "@op-engineering/op-sqlite", "@opentelemetry/api", "@planetscale/database", "@prisma/client", "@tidbcloud/serverless", "@types/better-sqlite3", "@types/pg", "@types/sql.js", "@upstash/redis", "@vercel/postgres", "@xata.io/client", "better-sqlite3", "bun-types", "expo-sqlite", "gel", "knex", "kysely", "mysql2", "pg", "postgres", "sql.js", "sqlite3"] }, "sha512-Te0FOdKIistGNPMq2jscdqngBRfBpC8uMFVwqjf6gtTVJHIQ/dosgV/CLBU2N4ZJBsXL5savCba9b0YJskKdcA=="],
 
     "rimraf/glob/jackspeak/@isaacs/cliui/string-width": ["string-width@5.1.2", "", { "dependencies": { "eastasianwidth": "^0.2.0", "emoji-regex": "^9.2.2", "strip-ansi": "^7.0.1" } }, "sha512-HnLOCR3vjcY8beoNLtcjZ5/nxn2afmME6lhrDrebokqMap+XbeW8n9TXpPDOqdGK5qcI3oT0GKTW6wC7EMiVqA=="],
 
