@@ -8,6 +8,12 @@ export type TaskPriority = 'high' | 'medium' | 'low' | 'none';
 export type TaskType = 'epic' | 'feature' | 'enhancement' | 'bug' | 'task';
 export type TaskStatus = 'open' | 'in_progress' | 'closed' | 'cancelled';
 
+// Entity reference (user/project with id + name)
+export interface EntityRef {
+	id: string;
+	name: string;
+}
+
 // Task object (returned from API)
 export interface Task {
 	id: string;
@@ -26,6 +32,10 @@ export interface Task {
 	created_id: string;
 	assigned_id?: string;
 	closed_id?: string;
+	creator?: EntityRef;
+	assignee?: EntityRef;
+	closer?: EntityRef;
+	project?: EntityRef;
 	cancelled_date?: string;
 	deleted: boolean;
 	tags?: Tag[];
@@ -39,6 +49,7 @@ export interface Comment {
 	updated_at: string;
 	task_id: string;
 	user_id: string;
+	author?: EntityRef;
 	body: string;
 }
 
@@ -71,6 +82,9 @@ export interface CreateTaskParams {
 	status?: TaskStatus;
 	created_id: string;
 	assigned_id?: string;
+	creator?: EntityRef;
+	assignee?: EntityRef;
+	project?: EntityRef;
 	tag_ids?: string[];
 }
 
@@ -84,6 +98,9 @@ export interface UpdateTaskParams {
 	status?: TaskStatus;
 	assigned_id?: string;
 	closed_id?: string;
+	assignee?: EntityRef;
+	closer?: EntityRef;
+	project?: EntityRef;
 }
 
 export interface ListTasksParams {
@@ -92,6 +109,7 @@ export interface ListTasksParams {
 	priority?: TaskPriority;
 	assigned_id?: string;
 	parent_id?: string;
+	project_id?: string;
 	tag_id?: string;
 	deleted?: boolean;
 	sort?: string;
@@ -131,6 +149,7 @@ export interface Attachment {
 	created_at: string;
 	task_id: string;
 	user_id: string;
+	author?: EntityRef;
 	filename: string;
 	content_type?: string;
 	size?: number;
@@ -158,6 +177,14 @@ export interface ListAttachmentsResult {
 	total: number;
 }
 
+export interface ListUsersResult {
+	users: EntityRef[];
+}
+
+export interface ListProjectsResult {
+	projects: EntityRef[];
+}
+
 export interface TaskStorage {
 	create(params: CreateTaskParams): Promise<Task>;
 	get(id: string): Promise<Task | null>;
@@ -169,7 +196,7 @@ export interface TaskStorage {
 		id: string,
 		params?: { limit?: number; offset?: number }
 	): Promise<TaskChangelogResult>;
-	createComment(taskId: string, body: string, userId: string): Promise<Comment>;
+	createComment(taskId: string, body: string, userId: string, author?: EntityRef): Promise<Comment>;
 	getComment(commentId: string): Promise<Comment>;
 	updateComment(commentId: string, body: string): Promise<Comment>;
 	deleteComment(commentId: string): Promise<void>;
@@ -190,6 +217,8 @@ export interface TaskStorage {
 	downloadAttachment(attachmentId: string): Promise<PresignDownloadResponse>;
 	listAttachments(taskId: string): Promise<ListAttachmentsResult>;
 	deleteAttachment(attachmentId: string): Promise<void>;
+	listUsers(): Promise<ListUsersResult>;
+	listProjects(): Promise<ListProjectsResult>;
 }
 
 const TASK_API_VERSION = '2026-02-24';
@@ -331,6 +360,7 @@ export class TaskStorageService implements TaskStorage {
 		if (params?.priority) queryParams.set('priority', params.priority);
 		if (params?.assigned_id) queryParams.set('assigned_id', params.assigned_id);
 		if (params?.parent_id) queryParams.set('parent_id', params.parent_id);
+		if (params?.project_id) queryParams.set('project_id', params.project_id);
 		if (params?.tag_id) queryParams.set('tag_id', params.tag_id);
 		if (params?.deleted !== undefined) queryParams.set('deleted', String(params.deleted));
 		if (params?.sort) queryParams.set('sort', params.sort);
@@ -512,7 +542,7 @@ export class TaskStorageService implements TaskStorage {
 		throw await toServiceException('POST', url, res.response);
 	}
 
-	async createComment(taskId: string, body: string, userId: string): Promise<Comment> {
+	async createComment(taskId: string, body: string, userId: string, author?: EntityRef): Promise<Comment> {
 		if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
 			throw new TaskIdRequiredError();
 		}
@@ -526,9 +556,12 @@ export class TaskStorageService implements TaskStorage {
 		);
 		const signal = AbortSignal.timeout(30_000);
 
+		const commentBody: Record<string, unknown> = { body, user_id: userId };
+		if (author) commentBody.author = author;
+
 		const res = await this.#adapter.invoke<TaskResponse<Comment>>(url, {
 			method: 'POST',
-			body: safeStringify({ body, user_id: userId }),
+			body: safeStringify(commentBody),
 			contentType: 'application/json',
 			signal,
 			telemetry: {
@@ -1110,5 +1143,57 @@ export class TaskStorageService implements TaskStorage {
 		}
 
 		throw await toServiceException('DELETE', url, res.response);
+	}
+
+	async listUsers(): Promise<ListUsersResult> {
+		const url = buildUrl(this.#baseUrl, `/task/users/${TASK_API_VERSION}`);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<ListUsersResult>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.listUsers',
+				attributes: {},
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async listProjects(): Promise<ListProjectsResult> {
+		const url = buildUrl(this.#baseUrl, `/task/projects/${TASK_API_VERSION}`);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<ListProjectsResult>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.listProjects',
+				attributes: {},
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
 	}
 }

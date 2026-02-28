@@ -15,6 +15,8 @@ import type {
 	Tag,
 	ListCommentsResult,
 	ListTagsResult,
+	ListUsersResult,
+	ListProjectsResult,
 	Attachment,
 	CreateAttachmentParams,
 	PresignUploadResponse,
@@ -965,5 +967,13 @@ export class LocalTaskStorage implements TaskStorage {
 
 	async deleteAttachment(_attachmentId: string): Promise<void> {
 		throw new Error('Attachments are not supported in local task storage');
+	}
+
+	async listUsers(): Promise<ListUsersResult> {
+		return { users: [] };
+	}
+
+	async listProjects(): Promise<ListProjectsResult> {
+		return { projects: [] };
 	}
 }

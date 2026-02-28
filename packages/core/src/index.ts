@@ -150,6 +150,8 @@ export {
 	type TaskChangelogResult,
 	type ListCommentsResult,
 	type ListTagsResult,
+	type ListUsersResult,
+	type ListProjectsResult,
 	type TaskStorage,
 	type Attachment,
 	type CreateAttachmentParams,
