@@ -3,6 +3,7 @@ import {
 	type EmailService,
 	type EmailAddress,
 	type EmailDestination,
+	type EmailConnectionConfig,
 	type EmailInbound,
 	type EmailOutbound,
 	type EmailSendParams,
@@ -27,6 +28,10 @@ export class LocalEmailStorage implements EmailService {
 	}
 
 	async getAddress(_id: string): Promise<EmailAddress | null> {
+		throw new LocalEmailNotAvailableError();
+	}
+
+	async getConnectionConfig(_id: string): Promise<EmailConnectionConfig | null> {
 		throw new LocalEmailNotAvailableError();
 	}
 

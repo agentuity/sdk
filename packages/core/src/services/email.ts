@@ -8,8 +8,6 @@ import { safeStringify } from '../json.ts';
 export interface EmailAddress {
 	id: string;
 	email: string;
-	project_id?: string;
-	provider?: string;
 	config?: Record<string, unknown>;
 	created_by?: string;
 	created_at: string;
@@ -25,6 +23,20 @@ export interface EmailDestination {
 	config?: Record<string, unknown>;
 	created_at: string;
 	updated_at?: string;
+}
+
+export interface EmailProtocolConfig {
+	host: string;
+	port: number;
+	tls: string;
+	username: string;
+	password: string;
+}
+
+export interface EmailConnectionConfig {
+	email: string;
+	imap: EmailProtocolConfig;
+	pop3: EmailProtocolConfig;
 }
 
 /**
@@ -186,6 +198,14 @@ export interface EmailService {
 	 * ```
 	 */
 	getAddress(id: string): Promise<EmailAddress | null>;
+
+	/**
+	 * Get email connection settings (IMAP/POP3) for an address
+	 *
+	 * @param id - the email address ID
+	 * @returns the connection configuration or null if not found
+	 */
+	getConnectionConfig(id: string): Promise<EmailConnectionConfig | null>;
 
 	/**
 	 * Delete an email address
@@ -449,6 +469,31 @@ export class EmailStorageService implements EmailService {
 		}
 		if (res.ok) {
 			return unwrap<EmailAddress>(res.data, 'address');
+		}
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async getConnectionConfig(id: string): Promise<EmailConnectionConfig | null> {
+		const url = buildUrl(
+			this.#baseUrl,
+			`/email/2025-03-17/addresses/${encodeURIComponent(id)}/connection`
+		);
+		const signal = AbortSignal.timeout(30_000);
+		const res = await this.#adapter.invoke<unknown>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.email.getConnectionConfig',
+				attributes: {
+					id,
+				},
+			},
+		});
+		if (res.response.status === 404) {
+			return null;
+		}
+		if (res.ok) {
+			return unwrap<EmailConnectionConfig>(res.data, 'connection');
 		}
 		throw await toServiceException('GET', url, res.response);
 	}
