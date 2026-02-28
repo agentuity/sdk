@@ -831,7 +831,13 @@ export class EmailStorageService implements EmailService {
 
 	async getActivity(params?: EmailActivityParams): Promise<EmailActivityResult> {
 		const queryParams = new URLSearchParams();
-		if (params?.days !== undefined) queryParams.set('days', String(params.days));
+		if (params?.days !== undefined) {
+			const raw = Number(params.days);
+			if (Number.isFinite(raw)) {
+				const clamped = Math.max(7, Math.min(365, Math.trunc(raw)));
+				queryParams.set('days', String(clamped));
+			}
+		}
 
 		const queryString = queryParams.toString();
 		const url = buildUrl(
@@ -840,13 +846,14 @@ export class EmailStorageService implements EmailService {
 		);
 		const signal = AbortSignal.timeout(30_000);
 
+		const days = queryParams.get('days');
 		const res = await this.#adapter.invoke<EmailActivityResult>(url, {
 			method: 'GET',
 			signal,
 			telemetry: {
 				name: 'agentuity.email.activity',
 				attributes: {
-					...(params?.days !== undefined ? { days: String(params.days) } : {}),
+					...(days ? { days } : {}),
 				},
 			},
 		});
