@@ -105,7 +105,11 @@ export {
 	type EmailInbound,
 	type EmailOutbound,
 	type EmailAttachment,
+	type EmailStoredAttachment,
 	type EmailSendParams,
+	type EmailActivityParams,
+	type EmailActivityDataPoint,
+	type EmailActivityResult,
 	type EmailService,
 	EmailStorageService,
 } from './services/email.ts';
