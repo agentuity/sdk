@@ -32,9 +32,6 @@ function displayConfig(config: BucketConfig) {
 	console.log(
 		tui.bold('Cache Control:   ') + (config.cache_control ?? tui.muted('default'))
 	);
-	console.log(
-		tui.bold('Bucket Location: ') + (config.bucket_location ?? tui.muted('default'))
-	);
 
 	if (config.cors) {
 		console.log(tui.bold('CORS:'));
@@ -103,7 +100,6 @@ export const configSubcommand = createSubcommand({
 			ttl: z.coerce.number().optional().describe('Object TTL in seconds (0 to clear)'),
 			public: z.boolean().optional().describe('Make bucket publicly accessible'),
 			cacheControl: z.string().optional().describe('Cache-Control header value'),
-			bucketLocation: z.string().optional().describe('Bucket location'),
 			cors: z.string().optional().describe('CORS configuration as JSON string'),
 			additionalHeaders: z
 				.string()
@@ -118,7 +114,6 @@ export const configSubcommand = createSubcommand({
 			cache_control: z.string().nullable().optional(),
 			cors: z.any().nullable().optional(),
 			additional_headers: z.record(z.string(), z.string()).nullable().optional(),
-			bucket_location: z.string().nullable().optional(),
 		}),
 	},
 
@@ -183,7 +178,6 @@ export const configSubcommand = createSubcommand({
 			opts.ttl !== undefined ||
 			opts.public !== undefined ||
 			opts.cacheControl !== undefined ||
-			opts.bucketLocation !== undefined ||
 			opts.cors !== undefined ||
 			opts.additionalHeaders !== undefined;
 
@@ -195,8 +189,6 @@ export const configSubcommand = createSubcommand({
 			if (opts.ttl !== undefined) update.ttl = opts.ttl === 0 ? null : opts.ttl;
 			if (opts.public !== undefined) update.public = opts.public;
 			if (opts.cacheControl !== undefined) update.cache_control = opts.cacheControl;
-			if (opts.bucketLocation !== undefined)
-				update.bucket_location = opts.bucketLocation;
 
 			// Parse JSON flags
 			if (opts.cors !== undefined) {
