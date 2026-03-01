@@ -376,7 +376,8 @@ function matchAgentCmdline(cmdline: string): string | undefined {
 	// We only want to check the command and args that look like executables
 	const parts = cmdline.split(/\s+/);
 
-	for (const part of parts) {
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i]!;
 		// Skip environment variables (contain =)
 		if (part.includes('=')) {
 			continue;
@@ -389,8 +390,13 @@ function matchAgentCmdline(cmdline: string): string | undefined {
 		const isSimpleCommand = !part.includes('/') && !part.includes('=') && part.length < 50;
 
 		if (isPath || isSimpleCommand) {
+			// Short tokens (≤2 chars) only match in executable positions:
+			// argv[0] or path-like tokens (e.g. /usr/local/bin/pi).
+			// This prevents false positives from ordinary arguments.
+			const isExecPosition = i === 0 || isPath;
 			const basename = part.split(/[/\\]/).pop()?.toLowerCase() ?? '';
 			for (const [processName, agentName] of KNOWN_AGENTS) {
+				if (processName.length <= 2 && !isExecPosition) continue;
 				if (matchesProcessName(basename, processName)) {
 					return agentName;
 				}
