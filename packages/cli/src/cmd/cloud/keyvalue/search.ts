@@ -58,7 +58,7 @@ export const searchSubcommand = createCommand({
 					const item = results[key];
 					if (!item) continue;
 					const sizeMB = (item.size / (1024 * 1024)).toFixed(2);
-					const date = new Date(item.updated_at).toLocaleString();
+					const date = item.lastUsed ? new Date(item.lastUsed).toLocaleString() : 'unknown';
 					tui.info(`  ${tui.bold(key)}: ${sizeMB} MB, ${item.contentType}, updated ${date}`);
 				}
 			}
@@ -73,7 +73,7 @@ export const searchSubcommand = createCommand({
 					key,
 					size: item.size,
 					contentType: item.contentType,
-					updatedAt: item.updated_at,
+					updatedAt: item.lastUsed ? new Date(item.lastUsed).toISOString() : '',
 				};
 			}),
 		};
