@@ -8,7 +8,8 @@
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
+import { organization, jwt, bearer } from 'better-auth/plugins';
+import { apiKey } from '@better-auth/api-key';
 import { createPostgresDrizzle } from '@agentuity/drizzle';
 import * as authSchema from '../schema.ts';
 
@@ -418,7 +419,9 @@ export function createAuth<T extends AuthOptions>(options: T) {
 		...restOptions
 	} = options;
 
-	const resolvedBaseURL = resolveBaseURL(restOptions.baseURL);
+	const resolvedBaseURL = resolveBaseURL(
+		typeof restOptions.baseURL === 'string' ? restOptions.baseURL : undefined
+	);
 	const resolvedSecret = resolveSecret(restOptions.secret);
 
 	// Apply Agentuity defaults

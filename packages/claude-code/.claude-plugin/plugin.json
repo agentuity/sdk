@@ -9,11 +9,5 @@
 	"homepage": "https://agentuity.dev",
 	"repository": "https://github.com/agentuity/sdk",
 	"license": "Apache-2.0",
-	"keywords": [
-		"coding",
-		"agents",
-		"memory",
-		"cloud",
-		"agentuity"
-	]
+	"keywords": ["coding", "agents", "memory", "cloud", "agentuity"]
 }
