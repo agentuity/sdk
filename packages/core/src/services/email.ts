@@ -14,6 +14,7 @@ export interface EmailAddress {
 	updated_at?: string;
 	inbound_count?: number;
 	outbound_count?: number;
+	last_activity?: string;
 }
 
 /**
