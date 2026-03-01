@@ -340,13 +340,25 @@ function getFFI(): FFIFunctions {
 let cachedResult: string | undefined | null = null;
 
 /**
+ * Check if a basename matches a known agent process name.
+ * Short tokens (≤2 chars) require an exact match to avoid false positives
+ * (e.g., 'pi' matching 'pip', 'spin'). Longer tokens use substring matching.
+ */
+function matchesProcessName(basename: string, processName: string): boolean {
+	if (processName.length <= 2) {
+		return basename === processName;
+	}
+	return basename.includes(processName);
+}
+
+/**
  * Check if a path's basename matches any known agent
  */
 function matchAgentPath(path: string): string | undefined {
 	// Extract basename from path
 	const basename = path.split(/[/\\]/).pop()?.toLowerCase() ?? '';
 	for (const [processName, agentName] of KNOWN_AGENTS) {
-		if (basename.includes(processName)) {
+		if (matchesProcessName(basename, processName)) {
 			return agentName;
 		}
 	}
@@ -379,7 +391,7 @@ function matchAgentCmdline(cmdline: string): string | undefined {
 		if (isPath || isSimpleCommand) {
 			const basename = part.split(/[/\\]/).pop()?.toLowerCase() ?? '';
 			for (const [processName, agentName] of KNOWN_AGENTS) {
-				if (basename.includes(processName)) {
+				if (matchesProcessName(basename, processName)) {
 					return agentName;
 				}
 			}
