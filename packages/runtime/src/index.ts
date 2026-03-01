@@ -263,3 +263,6 @@ export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions, mimeTypes } from '@a
 
 // bun-s3-patch.ts exports
 export { patchBunS3ForStorageDev, isAgentuityStorageEndpoint } from './bun-s3-patch';
+
+// dev-patches exports (runtime monkey-patches for --experimental-no-bundle dev mode)
+export { applyDevPatches } from './dev-patches';

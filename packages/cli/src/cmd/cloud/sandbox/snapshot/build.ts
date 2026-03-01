@@ -1,27 +1,27 @@
-import { z } from 'zod';
-import { resolve, join, extname } from 'node:path';
-import { existsSync, statSync, createReadStream, createWriteStream } from 'node:fs';
+import { createHash, createPublicKey, randomUUID } from 'node:crypto';
+import { createReadStream, createWriteStream, existsSync, statSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { extname, isAbsolute, join, resolve } from 'node:path';
+import type { SnapshotBuildGitInfo, SnapshotFileInfo } from '@agentuity/server';
+import {
+	NPM_PACKAGE_NAME_PATTERN,
+	SnapshotBuildFileSchema,
+	snapshotBuildFinalize,
+	snapshotBuildInit,
+	snapshotUpload,
+} from '@agentuity/server';
 import { YAML } from 'bun';
 import * as tar from 'tar';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { ErrorCode } from '../../../../errors';
+import { z } from 'zod';
 import { getCommand } from '../../../../command-prefix';
-import {
-	snapshotBuildInit,
-	snapshotBuildFinalize,
-	snapshotUpload,
-	SnapshotBuildFileSchema,
-	NPM_PACKAGE_NAME_PATTERN,
-} from '@agentuity/server';
-import type { SnapshotFileInfo, SnapshotBuildGitInfo } from '@agentuity/server';
 import { getCatalystAPIClient } from '../../../../config';
+import { encryptFIPSKEMDEMStream } from '../../../../crypto/box';
+import { ErrorCode } from '../../../../errors';
+import * as tui from '../../../../tui';
+import { createCommand } from '../../../../types';
 import { validateAptDependencies } from '../../../../utils/apt-validator';
 import { getGitInfo, mergeGitInfo } from '../../../../utils/git';
-import { encryptFIPSKEMDEMStream } from '../../../../crypto/box';
-import { tmpdir } from 'node:os';
-import { randomUUID, createHash, createPublicKey } from 'node:crypto';
-import { rm } from 'node:fs/promises';
 
 export const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 export const MAX_SNAPSHOT_TAG_LENGTH = 128;
@@ -175,9 +175,9 @@ function substituteVariables(
 }
 
 // Default patterns that are always excluded from snapshot builds
-const DEFAULT_EXCLUSIONS = ['.git', '.git/**', 'node_modules/**', '.agentuity/**', '.env*'];
+export const DEFAULT_EXCLUSIONS = ['.git', '.git/**', 'node_modules/**', '.agentuity/**', '.env*'];
 
-async function resolveFileGlobs(
+export async function resolveFileGlobs(
 	directory: string,
 	patterns: string[]
 ): Promise<Map<string, FileEntry>> {
@@ -206,9 +206,9 @@ async function resolveFileGlobs(
 						size: stat.size,
 					});
 				}
-			} catch {
+			} catch (err) {
 				// Skip files that can't be stat'd (broken symlinks, permission issues, etc.)
-				continue;
+				console.debug(`Skipping ${file}: ${err instanceof Error ? err.message : err}`);
 			}
 		}
 	}
@@ -416,7 +416,7 @@ export const buildSubcommand = createCommand({
 
 		const dryRun = options.dryRun === true;
 
-		const directory = resolve(args.directory);
+		let directory = resolve(args.directory);
 		if (!existsSync(directory)) {
 			logger.fatal(`Directory not found: ${directory}`);
 		}
@@ -475,6 +475,29 @@ export const buildSubcommand = createCommand({
 
 		const buildConfig = validationResult.data;
 
+		// If dir is specified in the build file, use it as the effective build context
+		if (buildConfig.dir) {
+			if (isAbsolute(buildConfig.dir)) {
+				logger.fatal(`'dir' must be a relative path, got: ${buildConfig.dir}`);
+			}
+			const dirPath = resolve(directory, buildConfig.dir);
+			if (!dirPath.startsWith(`${directory}/`) && dirPath !== directory) {
+				logger.fatal(`'dir' resolves outside the build root: ${dirPath}`);
+			}
+			let isDir = false;
+			try {
+				isDir = statSync(dirPath).isDirectory();
+			} catch {
+				// path does not exist
+			}
+			if (!isDir) {
+				logger.fatal(
+					`Build context directory not found or is not a directory: ${dirPath} (specified by 'dir: ${buildConfig.dir}' in build file)`
+				);
+			}
+			directory = dirPath;
+		}
+
 		// Determine if snapshot is public: CLI flag takes precedence, otherwise use build file
 		const isPublic =
 			opts.public === true || (opts.public === undefined && buildConfig.public === true);
@@ -483,21 +506,21 @@ export const buildSubcommand = createCommand({
 			if (!opts.confirm) {
 				if (!tui.isTTYLike()) {
 					logger.fatal(
-						`Publishing a public snapshot requires confirmation.\n\n` +
-							`Public snapshots make all environment variables and files publicly accessible.\n\n` +
-							`To proceed, add the --confirm flag:\n` +
+						'Publishing a public snapshot requires confirmation.\n\n' +
+							'Public snapshots make all environment variables and files publicly accessible.\n\n' +
+							'To proceed, add the --confirm flag:\n' +
 							`  ${getCommand('cloud sandbox snapshot build . --public --confirm')}\n\n` +
-							`To preview what will be published, use --dry-run first:\n` +
+							'To preview what will be published, use --dry-run first:\n' +
 							`  ${getCommand('cloud sandbox snapshot build . --public --dry-run')}`
 					);
 				}
 
 				tui.warningBox(
 					'Public Snapshot',
-					`You are publishing a public snapshot.\n\n` +
-						`This will make all environment variables and\n` +
-						`files in the snapshot publicly accessible.\n\n` +
-						`Run with --dry-run to preview the contents.`
+					'You are publishing a public snapshot.\n\n' +
+						'This will make all environment variables and\n' +
+						'files in the snapshot publicly accessible.\n\n' +
+						'Run with --dry-run to preview the contents.'
 				);
 				console.log('');
 
@@ -665,7 +688,7 @@ export const buildSubcommand = createCommand({
 
 				if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
 					console.log('');
-					tui.info('Dependencies:');
+					tui.header('Dependencies');
 					for (const dep of buildConfig.dependencies) {
 						console.log(`  ${tui.muted('•')} ${dep}`);
 					}
@@ -673,7 +696,7 @@ export const buildSubcommand = createCommand({
 
 				if (buildConfig.packages && buildConfig.packages.length > 0) {
 					console.log('');
-					tui.info('Packages (npm/bun):');
+					tui.header('Packages (npm/bun)');
 					for (const pkg of buildConfig.packages) {
 						console.log(`  ${tui.muted('•')} ${pkg}`);
 					}
@@ -681,7 +704,7 @@ export const buildSubcommand = createCommand({
 
 				if (finalEnv && Object.keys(finalEnv).length > 0) {
 					console.log('');
-					tui.info('Environment:');
+					tui.header('Environment');
 					for (const [envKey, envValue] of Object.entries(finalEnv)) {
 						console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
 					}
@@ -689,7 +712,7 @@ export const buildSubcommand = createCommand({
 
 				if (fileList.length > 0) {
 					console.log('');
-					tui.info('Files:');
+					tui.header('Files');
 					printFileTree(fileList);
 				}
 			}
@@ -976,7 +999,7 @@ export const buildSubcommand = createCommand({
 
 				if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
 					console.log('');
-					tui.info('Dependencies:');
+					tui.header('Dependencies');
 					for (const dep of buildConfig.dependencies) {
 						console.log(`  ${tui.muted('•')} ${dep}`);
 					}
@@ -984,7 +1007,7 @@ export const buildSubcommand = createCommand({
 
 				if (buildConfig.packages && buildConfig.packages.length > 0) {
 					console.log('');
-					tui.info('Packages (npm/bun):');
+					tui.header('Packages (npm/bun)');
 					for (const pkg of buildConfig.packages) {
 						console.log(`  ${tui.muted('•')} ${pkg}`);
 					}
@@ -992,7 +1015,7 @@ export const buildSubcommand = createCommand({
 
 				if (finalEnv && Object.keys(finalEnv).length > 0) {
 					console.log('');
-					tui.info('Environment:');
+					tui.header('Environment');
 					for (const [envKey, envValue] of Object.entries(finalEnv)) {
 						console.log(`  ${tui.muted('•')} ${envKey}=${tui.maskSecret(envValue)}`);
 					}
@@ -1000,7 +1023,7 @@ export const buildSubcommand = createCommand({
 
 				if (finalMetadata && Object.keys(finalMetadata).length > 0) {
 					console.log('');
-					tui.info('Metadata:');
+					tui.header('Metadata');
 					for (const key of Object.keys(finalMetadata)) {
 						console.log(`  ${tui.muted('•')} ${key}=${finalMetadata[key]}`);
 					}
@@ -1008,7 +1031,7 @@ export const buildSubcommand = createCommand({
 
 				if (snapshot.files && snapshot.files.length > 0) {
 					console.log('');
-					tui.info('Files:');
+					tui.header('Files');
 					printFileTree(snapshot.files);
 				}
 			}

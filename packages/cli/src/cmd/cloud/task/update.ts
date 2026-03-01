@@ -24,7 +24,6 @@ export const updateSubcommand = createCommand({
 	description: 'Update an existing task',
 	tags: ['mutating', 'slow', 'requires-auth'],
 	requires: { auth: true },
-	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('cloud task update task_abc123 --status in_progress'),

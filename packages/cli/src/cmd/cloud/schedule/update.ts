@@ -21,8 +21,7 @@ export const updateSubcommand = createCommand({
 	name: 'update',
 	description: 'Update a schedule',
 	tags: ['mutating', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand("cloud schedule update sched_abc123 --expression '*/5 * * * *'"),
@@ -37,17 +36,18 @@ export const updateSubcommand = createCommand({
 			name: z.string().optional().describe('Schedule name'),
 			expression: z.string().optional().describe('Cron expression'),
 			description: z.string().optional().describe('Schedule description'),
+			clearDescription: z.boolean().optional().describe('Clear the schedule description'),
 		}),
 		response: ScheduleUpdateResponseSchema,
 	},
 
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 		const result = await schedule.update(args.schedule_id, {
 			name: opts.name,
 			expression: opts.expression,
-			description: opts.description,
+			description: opts.clearDescription ? '' : opts.description,
 		});
 
 		if (!options.json) {
@@ -58,7 +58,7 @@ export const updateSubcommand = createCommand({
 						Name: result.schedule.name,
 						ID: result.schedule.id,
 						Expression: result.schedule.expression,
-						Description: result.schedule.description ?? '-',
+						Description: result.schedule.description || '-',
 						Updated: new Date(result.schedule.updated_at).toLocaleString(),
 					},
 				],

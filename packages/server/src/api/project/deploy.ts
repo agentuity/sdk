@@ -16,6 +16,18 @@ export const Mode = z.object({
 	idle: z.string().optional().describe('duration in seconds if on-demand'),
 });
 
+export const ProjectBuildConfig = z.object({
+	timeout: z.string().optional().describe('Build execution timeout (e.g. "30m")'),
+	resources: z
+		.object({
+			memory: z.string().optional().describe('Build sandbox memory (e.g. "4Gi")'),
+			cpu: z.string().optional().describe('Build sandbox CPU (e.g. "2")'),
+			disk: z.string().optional().describe('Build sandbox disk (e.g. "4Gi")'),
+		})
+		.optional()
+		.describe('Build sandbox resource limits'),
+});
+
 export const DeploymentConfig = z.object({
 	resources: Resources.optional().describe('the resource requirements for your deployed project'),
 	mode: Mode.optional().describe('the provisioning mode for the project'),

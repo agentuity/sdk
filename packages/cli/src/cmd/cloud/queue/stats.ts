@@ -45,7 +45,7 @@ function formatDuration(start: string, end: string): string {
 function displayOrgAnalytics(analytics: OrgAnalytics): void {
 	const { summary, queues, period } = analytics;
 
-	tui.info(`Organization Analytics (${formatDuration(period.start, period.end)})`);
+	tui.header(`Organization Analytics (${formatDuration(period.start, period.end)})`);
 	tui.newline();
 	console.log(tui.colorPrimary('Summary:'));
 	console.log(`  ${tui.muted('Total Queues:')}     ${summary.total_queues}`);
@@ -84,7 +84,7 @@ function displayQueueAnalytics(analytics: QueueAnalytics): void {
 	const { queue_name, queue_type, period, current, period_stats, latency, consumer_latency } =
 		analytics;
 
-	tui.info(`Queue: ${queue_name} (${queue_type})`);
+	tui.header(`Queue: ${queue_name} (${queue_type})`);
 	console.log(tui.colorWarning(`Period: ${formatDuration(period.start, period.end)}`));
 	tui.newline();
 
@@ -146,7 +146,7 @@ function displayQueueAnalytics(analytics: QueueAnalytics): void {
 
 	if (analytics.destinations && analytics.destinations.length > 0) {
 		tui.newline();
-		tui.info('Destinations:');
+		tui.header('Destinations');
 		const destData = analytics.destinations.map((d) => {
 			const total = d.success_count + d.failure_count;
 			const errorRate = total > 0 ? (d.failure_count / total) * 100 : 0;

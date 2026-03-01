@@ -25,8 +25,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List schedules',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud schedule list'), description: 'List schedules' },
@@ -42,7 +41,7 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 		const result = await schedule.list({ limit: opts.limit, offset: opts.offset });
 
 		if (!options.json) {
@@ -50,22 +49,24 @@ export const listSubcommand = createCommand({
 				tui.info('No schedules found');
 			} else {
 				tui.table(
-					result.schedules.map((item: {
-						id: string;
-						created_at: string;
-						updated_at: string;
-						created_by: string;
-						name: string;
-						description: string | null;
-						expression: string;
-						due_date: string;
-					}) => ({
-						Name: item.name,
-						ID: item.id,
-						Expression: item.expression,
-						'Next Due': item.due_date,
-						Created: new Date(item.created_at).toLocaleString(),
-					})),
+					result.schedules.map(
+						(item: {
+							id: string;
+							created_at: string;
+							updated_at: string;
+							created_by: string;
+							name: string;
+							description: string | null;
+							expression: string;
+							due_date: string;
+						}) => ({
+							Name: item.name,
+							ID: item.id,
+							Expression: item.expression,
+							'Next Due': item.due_date,
+							Created: new Date(item.created_at).toLocaleString(),
+						})
+					),
 					['Name', 'ID', 'Expression', 'Next Due', 'Created']
 				);
 			}

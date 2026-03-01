@@ -16,6 +16,24 @@ export {
 } from './create.ts';
 export type { SandboxDestroyParams } from './destroy.ts';
 export { DestroyResponseSchema, sandboxDestroy } from './destroy.ts';
+export type {
+	DiskCheckpointInfo,
+	DiskCheckpointCreateParams,
+	DiskCheckpointListParams,
+	DiskCheckpointRestoreParams,
+	DiskCheckpointDeleteParams,
+} from './disk-checkpoint.ts';
+export {
+	DiskCheckpointInfoSchema,
+	CreateDiskCheckpointResponseSchema,
+	ListDiskCheckpointsResponseSchema,
+	RestoreDiskCheckpointResponseSchema,
+	DeleteDiskCheckpointResponseSchema,
+	diskCheckpointCreate,
+	diskCheckpointList,
+	diskCheckpointRestore,
+	diskCheckpointDelete,
+} from './disk-checkpoint.ts';
 export type { SandboxPauseParams } from './pause.ts';
 export { PauseResponseSchema, sandboxPause } from './pause.ts';
 export type { SandboxResumeParams } from './resume.ts';

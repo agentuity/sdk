@@ -28,6 +28,12 @@ export const SnapshotBuildFileBaseSchema = z
 			.optional()
 			.describe('Snapshot name (alphanumeric, underscores, dashes only)'),
 		description: z.string().optional().describe('Human-readable description of the snapshot'),
+		dir: z
+			.string()
+			.optional()
+			.describe(
+				'Subdirectory to use as the build context for file resolution (relative to the CLI directory argument)'
+			),
 		dependencies: z
 			.array(z.string())
 			.optional()

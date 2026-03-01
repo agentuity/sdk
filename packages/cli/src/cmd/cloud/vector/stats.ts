@@ -85,24 +85,26 @@ export const statsSubcommand = createCommand({
 				if (stats.count === 0 && stats.sum === 0) {
 					tui.info(`Namespace ${tui.bold(args.name)} is empty or does not exist`);
 				} else {
-					tui.info(`Statistics for ${tui.bold(args.name)}:`);
-					tui.info(`  Vectors: ${stats.count}`);
+					tui.header(`Statistics for ${tui.bold(args.name)}`);
 					const sizeDisplay =
 						stats.sum < 1024 * 1024
 							? `${stats.sum.toLocaleString()} bytes`
 							: `${(stats.sum / (1024 * 1024)).toFixed(2)} MB`;
-					tui.info(`  Total size: ${sizeDisplay}`);
-
+					const statsDetails: Record<string, unknown> = {
+						Vectors: stats.count,
+						'Total size': sizeDisplay,
+					};
 					if (stats.createdAt) {
-						tui.info(`  Created: ${new Date(stats.createdAt).toLocaleString()}`);
+						statsDetails.Created = new Date(stats.createdAt).toLocaleString();
 					}
 					if (stats.lastUsed) {
-						tui.info(`  Last used: ${new Date(stats.lastUsed).toLocaleString()}`);
+						statsDetails['Last used'] = new Date(stats.lastUsed).toLocaleString();
 					}
+					tui.table([statsDetails], undefined, { layout: 'vertical' });
 
 					if (stats.sampledResults && Object.keys(stats.sampledResults).length > 0) {
-						tui.info('');
-						tui.info(`  Sample vectors (${Object.keys(stats.sampledResults).length}):`);
+						tui.newline();
+						tui.header(`Sample vectors (${Object.keys(stats.sampledResults).length})`);
 
 						const tableData = Object.entries(stats.sampledResults).map(([key, item]) => {
 							const docPreview = item.document

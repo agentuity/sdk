@@ -18,7 +18,9 @@ export const command = createCommand({
 			description: 'List destinations',
 		},
 		{
-			command: getCommand('cloud schedule destination create url sched_abc123 https://example.com'),
+			command: getCommand(
+				'cloud schedule destination create url sched_abc123 https://example.com'
+			),
 			description: 'Create URL destination',
 		},
 	],

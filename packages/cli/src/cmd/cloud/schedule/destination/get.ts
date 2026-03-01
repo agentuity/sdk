@@ -20,8 +20,7 @@ export const getSubcommand = createCommand({
 	name: 'get',
 	description: 'Get destination details',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{
@@ -39,24 +38,25 @@ export const getSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 		const destination = await schedule.getDestination(args.schedule_id, args.destination_id);
 
 		if (!options.json) {
-			tui.table(
-				[
-					{
-						ID: destination.id,
-						'Schedule ID': destination.schedule_id,
-						Type: destination.type,
-						Config: JSON.stringify(destination.config),
-						Created: new Date(destination.created_at).toLocaleString(),
-						Updated: new Date(destination.updated_at).toLocaleString(),
-					},
-				],
-				undefined,
-				{ layout: 'vertical' }
-			);
+			const details: Record<string, unknown> = {
+				ID: destination.id,
+				'Schedule ID': destination.schedule_id,
+				Type: destination.type,
+				Created: new Date(destination.created_at).toLocaleString(),
+				Updated: new Date(destination.updated_at).toLocaleString(),
+			};
+
+			tui.table([details], undefined, { layout: 'vertical' });
+
+			if (destination.config && Object.keys(destination.config).length > 0) {
+				tui.newline();
+				tui.header('Config');
+				tui.json(destination.config);
+			}
 		}
 
 		return { destination };

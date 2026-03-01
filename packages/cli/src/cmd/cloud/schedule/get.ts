@@ -32,12 +32,14 @@ export const getSubcommand = createCommand({
 	name: 'get',
 	description: 'Get schedule details',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	idempotent: true,
-		examples: [
-			{ command: getCommand('cloud schedule get sched_abc123'), description: 'Get schedule details' },
-		],
+	examples: [
+		{
+			command: getCommand('cloud schedule get sched_abc123'),
+			description: 'Get schedule details',
+		},
+	],
 	schema: {
 		args: z.object({
 			schedule_id: z.string().min(1).describe('Schedule ID'),
@@ -47,7 +49,7 @@ export const getSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 		const result = await schedule.get(args.schedule_id);
 
 		if (!options.json) {
@@ -55,7 +57,7 @@ export const getSubcommand = createCommand({
 				Name: result.schedule.name,
 				ID: result.schedule.id,
 				Expression: result.schedule.expression,
-				Description: result.schedule.description ?? '-',
+				Description: result.schedule.description || '-',
 				'Next Due': result.schedule.due_date,
 				Created: new Date(result.schedule.created_at).toLocaleString(),
 				Updated: new Date(result.schedule.updated_at).toLocaleString(),
@@ -64,23 +66,31 @@ export const getSubcommand = createCommand({
 			tui.table([details], undefined, { layout: 'vertical', padStart: '  ' });
 
 			tui.newline();
-			tui.info('Destinations');
+			tui.header('Destinations');
 			if (result.destinations.length === 0) {
 				tui.info('No destinations configured');
 			} else {
 				tui.table(
-					result.destinations.map((destination: {
-						id: string;
-						type: 'url' | 'sandbox';
-						config: Record<string, unknown>;
-						created_at: string;
-					}) => ({
-						ID: destination.id,
-						Type: destination.type,
-						Config: JSON.stringify(destination.config),
-						Created: new Date(destination.created_at).toLocaleString(),
-					})),
-					['ID', 'Type', 'Config', 'Created']
+					result.destinations.map(
+						(destination: {
+							id: string;
+							type: 'url' | 'sandbox';
+							config: Record<string, unknown>;
+							created_at: string;
+						}) => {
+							const configDisplay =
+								destination.type === 'url' && destination.config?.url
+									? String(destination.config.url)
+									: JSON.stringify(destination.config);
+							return {
+								ID: destination.id,
+								Type: destination.type,
+								URL: configDisplay,
+								Created: new Date(destination.created_at).toLocaleString(),
+							};
+						}
+					),
+					['ID', 'Type', 'URL', 'Created']
 				);
 			}
 		}
