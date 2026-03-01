@@ -5,10 +5,12 @@ import {
 	StorageDeleteResponseSchema,
 	StoragePresignResponseSchema,
 	StorageStatsResponseSchema,
+	StorageAnalyticsResponseSchema,
 	type StorageListResponse,
 	type StorageDeleteResponse,
 	type StoragePresignResponse,
 	type StorageStatsResponse,
+	type StorageAnalyticsResponse,
 } from './types.ts';
 import { STORAGE_OBJECTS_API_VERSION, StorageObjectsResponseError } from './util.ts';
 
@@ -16,6 +18,7 @@ export const StorageListAPIResponseSchema = APIResponseSchema(StorageListRespons
 export const StorageDeleteAPIResponseSchema = APIResponseSchema(StorageDeleteResponseSchema);
 export const StoragePresignAPIResponseSchema = APIResponseSchema(StoragePresignResponseSchema);
 export const StorageStatsAPIResponseSchema = APIResponseSchema(StorageStatsResponseSchema);
+export const StorageAnalyticsAPIResponseSchema = APIResponseSchema(StorageAnalyticsResponseSchema);
 
 export interface ListStorageObjectsOptions {
 	prefix?: string;
@@ -166,6 +169,44 @@ export async function getStorageStats(
 	const resp = await client.get<z.infer<typeof StorageStatsAPIResponseSchema>>(
 		url,
 		StorageStatsAPIResponseSchema,
+		undefined,
+		extraHeaders,
+	);
+
+	if (resp.success) {
+		return resp.data;
+	}
+
+	throw new StorageObjectsResponseError({ message: resp.message });
+}
+
+export interface GetStorageAnalyticsOptions {
+	days?: number;
+}
+
+/**
+ * Get storage analytics for the org: summary totals, per-bucket breakdown, and daily snapshots.
+ *
+ * @param client - The API client to use for the request
+ * @param options - Optional options (days for sparkline history, default 180)
+ * @param extraHeaders - Optional extra headers (e.g. x-agentuity-orgid for CLI auth)
+ * @returns Analytics data with summary, buckets, and daily snapshots
+ * @throws {StorageObjectsResponseError} If the request fails
+ */
+export async function getStorageAnalytics(
+	client: APIClient,
+	options?: GetStorageAnalyticsOptions,
+	extraHeaders?: Record<string, string>,
+): Promise<StorageAnalyticsResponse> {
+	const params = new URLSearchParams();
+	if (options?.days !== undefined) params.set('days', String(options.days));
+
+	const query = params.toString();
+	const url = `/storage/analytics/${STORAGE_OBJECTS_API_VERSION}${query ? `?${query}` : ''}`;
+
+	const resp = await client.get<z.infer<typeof StorageAnalyticsAPIResponseSchema>>(
+		url,
+		StorageAnalyticsAPIResponseSchema,
 		undefined,
 		extraHeaders,
 	);

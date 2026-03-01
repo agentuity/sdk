@@ -88,8 +88,47 @@ export const StorageStatsResponseSchema = z.object({
 	last_event_at: z.string().optional().describe('Last event timestamp (ISO8601)'),
 });
 
+// --- Storage Analytics types ---
+
+/** Summary totals across all buckets */
+export const StorageAnalyticsSummarySchema = z.object({
+	total_object_count: z.number().int().describe('Total objects across all buckets'),
+	total_size: z.number().int().describe('Total size in bytes across all buckets'),
+	estimated_monthly_cost: z.number().describe('Estimated monthly cost in USD'),
+	cost_per_gb_month: z.number().describe('Cost rate per GB per month in USD'),
+});
+
+/** Per-bucket breakdown */
+export const StorageAnalyticsBucketSchema = z.object({
+	bucket_name: z.string().describe('The bucket name'),
+	object_count: z.number().int().describe('Number of objects in this bucket'),
+	total_size: z.number().int().describe('Total size in bytes for this bucket'),
+	last_event_at: z.string().optional().describe('Last event timestamp (ISO8601)'),
+	estimated_monthly_cost: z.number().describe('Estimated monthly cost for this bucket in USD'),
+});
+
+/** Daily snapshot for sparklines */
+export const StorageAnalyticsDailySnapshotSchema = z.object({
+	date: z.string().describe('Snapshot date (YYYY-MM-DD)'),
+	total_object_count: z.number().int().describe('Total objects on this date'),
+	total_size: z.number().int().describe('Total size in bytes on this date'),
+	estimated_cost: z.number().describe('Estimated monthly cost at this snapshot in USD'),
+});
+
+/** Full analytics response */
+export const StorageAnalyticsResponseSchema = z.object({
+	summary: StorageAnalyticsSummarySchema.describe('Org-wide totals'),
+	buckets: z.array(StorageAnalyticsBucketSchema).describe('Per-bucket breakdown'),
+	daily: z.array(StorageAnalyticsDailySnapshotSchema).describe('Daily snapshots for sparklines'),
+	days: z.number().int().describe('Number of days requested'),
+});
+
 export type StorageObject = z.infer<typeof StorageObjectSchema>;
 export type StorageListResponse = z.infer<typeof StorageListResponseSchema>;
 export type StorageDeleteResponse = z.infer<typeof StorageDeleteResponseSchema>;
 export type StoragePresignResponse = z.infer<typeof StoragePresignResponseSchema>;
 export type StorageStatsResponse = z.infer<typeof StorageStatsResponseSchema>;
+export type StorageAnalyticsSummary = z.infer<typeof StorageAnalyticsSummarySchema>;
+export type StorageAnalyticsBucket = z.infer<typeof StorageAnalyticsBucketSchema>;
+export type StorageAnalyticsDailySnapshot = z.infer<typeof StorageAnalyticsDailySnapshotSchema>;
+export type StorageAnalyticsResponse = z.infer<typeof StorageAnalyticsResponseSchema>;
