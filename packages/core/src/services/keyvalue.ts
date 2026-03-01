@@ -110,9 +110,12 @@ export interface KeyValueStats {
 export interface KeyValueItemWithMetadata<T = unknown> {
 	value: T;
 	contentType: string;
+	contentEncoding?: string | null;
 	size: number;
-	created_at: string;
-	updated_at: string;
+	expiresAt?: string | null;
+	firstUsed?: number | null;
+	lastUsed?: number | null;
+	count?: number | null;
 }
 
 export type KVSortField = 'name' | 'size' | 'records' | 'created' | 'lastUsed';
@@ -282,6 +285,51 @@ export interface KeyValueStorage {
 	 * @param params - optional parameters including default TTL
 	 */
 	createNamespace(name: string, params?: CreateNamespaceParams): Promise<void>;
+}
+
+/**
+ * Decodes a base64 string to a Uint8Array.
+ */
+function base64ToBytes(base64: string): Uint8Array {
+	const binaryString = atob(base64);
+	const bytes = new Uint8Array(binaryString.length);
+	for (let i = 0; i < binaryString.length; i++) {
+		bytes[i] = binaryString.charCodeAt(i);
+	}
+	return bytes;
+}
+
+/**
+ * Deserializes search result values from the server's wire format.
+ *
+ * The Go server stores values as []byte, which Go's json.Marshal
+ * base64-encodes when embedding in a JSON response. This function
+ * decodes each item's value from base64 and parses it according
+ * to its contentType, aligning search() behavior with get().
+ */
+function deserializeSearchResults<T>(
+	data: Record<string, KeyValueItemWithMetadata<T>>
+): Record<string, KeyValueItemWithMetadata<T>> {
+	for (const item of Object.values(data)) {
+		if (typeof item.value === 'string') {
+			try {
+				const bytes = base64ToBytes(item.value);
+				const ct = (item.contentType ?? '').toLowerCase();
+
+				if (ct.includes('json')) {
+					const text = new TextDecoder().decode(bytes);
+					item.value = JSON.parse(text) as T;
+				} else if (ct.startsWith('text/')) {
+					item.value = new TextDecoder().decode(bytes) as T;
+				} else {
+					item.value = bytes.buffer as T;
+				}
+			} catch {
+				// If base64 decoding or parsing fails, leave value as-is
+			}
+		}
+	}
+	return data;
 }
 
 export class KeyValueStorageService implements KeyValueStorage {
@@ -510,7 +558,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 			},
 		});
 		if (res.ok) {
-			return res.data;
+			return deserializeSearchResults<T>(res.data);
 		}
 		throw await toServiceException('GET', url, res.response);
 	}
