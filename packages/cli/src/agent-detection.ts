@@ -32,6 +32,7 @@ export const KNOWN_AGENTS: [string, string][] = [
 	['zed', 'zed'],
 	['amp', 'amp'],
 	['warp', 'warp'],
+	['pi', 'pi'],
 	// TODO: VSCode Agent Mode detection - need to find a reliable way to detect
 	// when VSCode's built-in agent (Copilot Chat) is running commands vs just
 	// running in VSCode's integrated terminal. May need env var detection.
@@ -55,6 +56,7 @@ export const AGENT_DISPLAY_NAMES: Record<string, string> = {
 	zed: 'Zed',
 	amp: 'Amp',
 	warp: 'Warp',
+	pi: 'Pi',
 };
 
 /**
