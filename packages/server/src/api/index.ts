@@ -1,5 +1,6 @@
 export * from './api.ts';
 export * from './apikey/index.ts';
+export * from './bucket/index.ts';
 export * from './db/index.ts';
 export * from './eval/index.ts';
 export * from './machine/index.ts';
