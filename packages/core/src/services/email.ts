@@ -3,79 +3,281 @@ import { buildUrl, toServiceException } from './_util.ts';
 import { safeStringify } from '../json.ts';
 
 /**
- * An email address registered with the Agentuity email service
+ * An email address registered with the Agentuity email service.
+ *
+ * Email addresses are created under the `@agentuity.email` domain and can receive
+ * inbound emails (forwarded to configured destinations) and send outbound emails.
  */
 export interface EmailAddress {
+	/**
+	 * Unique identifier for the email address.
+	 *
+	 * @remarks Prefixed with `eaddr_`.
+	 */
 	id: string;
+
+	/**
+	 * The full email address (e.g., `support@agentuity.email`).
+	 */
 	email: string;
+
+	/**
+	 * Provider-specific configuration (e.g., inbound routing config).
+	 *
+	 * @remarks Opaque to callers — the structure is managed by the platform.
+	 */
 	config?: Record<string, unknown>;
+
+	/**
+	 * ID of the user who registered this address.
+	 */
 	created_by?: string;
+
+	/**
+	 * ISO 8601 timestamp when the address was created.
+	 */
 	created_at: string;
+
+	/**
+	 * ISO 8601 timestamp when the address was last updated.
+	 */
 	updated_at?: string;
+
+	/**
+	 * Total number of inbound emails received at this address.
+	 */
 	inbound_count?: number;
+
+	/**
+	 * Total number of outbound emails sent from this address.
+	 */
 	outbound_count?: number;
+
+	/**
+	 * ISO 8601 timestamp of the most recent inbound or outbound email activity.
+	 */
 	last_activity?: string;
 }
 
 /**
- * A destination configuration for an email address
+ * A destination configuration for an email address.
+ *
+ * When an inbound email is received at the parent address, the platform forwards
+ * it to each configured destination via an HTTP request.
  */
 export interface EmailDestination {
+	/**
+	 * Unique identifier for the destination.
+	 *
+	 * @remarks Prefixed with `edst_`.
+	 */
 	id: string;
+
+	/**
+	 * The destination type. Currently only `'url'` is supported.
+	 */
 	type: string;
+
+	/**
+	 * Destination-specific configuration.
+	 *
+	 * @remarks
+	 * For `'url'` type the shape is:
+	 * ```typescript
+	 * {
+	 *   url: string;             // Must use http or https; must not point to private/loopback addresses
+	 *   headers?: Record<string, string>;
+	 *   method?: 'POST' | 'PUT' | 'PATCH';
+	 * }
+	 * ```
+	 */
 	config?: Record<string, unknown>;
+
+	/**
+	 * ISO 8601 timestamp when the destination was created.
+	 */
 	created_at: string;
+
+	/**
+	 * ISO 8601 timestamp when the destination was last updated.
+	 */
 	updated_at?: string;
 }
 
+/**
+ * Connection settings for an email protocol (IMAP or POP3).
+ *
+ * Used to configure a mail client for accessing an Agentuity email address
+ * via standard mail protocols.
+ */
 export interface EmailProtocolConfig {
+	/**
+	 * The mail server hostname.
+	 */
 	host: string;
+
+	/**
+	 * The mail server port number.
+	 */
 	port: number;
+
+	/**
+	 * TLS mode (e.g., `'starttls'`, `'ssl'`, `'none'`).
+	 */
 	tls: string;
+
+	/**
+	 * The authentication username (typically the address ID).
+	 */
 	username: string;
+
+	/**
+	 * The authentication password.
+	 */
 	password: string;
 }
 
+/**
+ * Full connection configuration for accessing an email address via IMAP and POP3 protocols.
+ *
+ * Returned by {@link EmailService.getConnectionConfig} to allow external mail clients
+ * to connect to an Agentuity email address.
+ */
 export interface EmailConnectionConfig {
+	/**
+	 * The full email address these settings are for.
+	 */
 	email: string;
+
+	/**
+	 * IMAP protocol connection settings.
+	 */
 	imap: EmailProtocolConfig;
+
+	/**
+	 * POP3 protocol connection settings.
+	 */
 	pop3: EmailProtocolConfig;
 }
 
 /**
- * An inbound email message
+ * An inbound email message received at an Agentuity email address.
  */
 export interface EmailInbound {
+	/**
+	 * Unique identifier for the inbound email.
+	 *
+	 * @remarks Prefixed with `einb_`.
+	 */
 	id: string;
+
+	/**
+	 * The sender's email address.
+	 */
 	from: string;
+
+	/**
+	 * The recipient email address (comma-separated if multiple).
+	 */
 	to: string;
+
+	/**
+	 * The email subject line.
+	 */
 	subject?: string;
+
+	/**
+	 * Plain text body of the email.
+	 */
 	text?: string;
+
+	/**
+	 * HTML body of the email.
+	 */
 	html?: string;
+
+	/**
+	 * ISO 8601 timestamp when the email was received.
+	 */
 	received_at?: string;
+
+	/**
+	 * Raw email headers as key-value pairs.
+	 */
 	headers?: Record<string, unknown>;
+
+	/**
+	 * Array of stored attachment metadata with S3 locations.
+	 */
 	attachments?: EmailStoredAttachment[];
 }
 
 /**
- * An outbound email message
+ * An outbound email message sent from an Agentuity email address.
  */
 export interface EmailOutbound {
+	/**
+	 * Unique identifier for the outbound email.
+	 *
+	 * @remarks Prefixed with `eout_`.
+	 */
 	id: string;
+
+	/**
+	 * The sender's email address (must be owned by the organization).
+	 */
 	from: string;
+
+	/**
+	 * The recipient email addresses (comma-separated).
+	 */
 	to: string;
+
+	/**
+	 * The email subject line.
+	 */
 	subject?: string;
+
+	/**
+	 * Plain text body of the email.
+	 */
 	text?: string;
+
+	/**
+	 * HTML body of the email.
+	 */
 	html?: string;
+
+	/**
+	 * Delivery status: `'pending'`, `'success'`, or `'failed'`.
+	 *
+	 * @remarks Emails are sent asynchronously, so the initial status is always `'pending'`.
+	 */
 	status?: string;
+
+	/**
+	 * Error message if the delivery failed.
+	 */
 	error?: string;
+
+	/**
+	 * ISO 8601 timestamp when the send was initiated.
+	 */
 	created_at?: string;
+
+	/**
+	 * Custom email headers that were included.
+	 */
 	headers?: Record<string, unknown>;
+
+	/**
+	 * Array of stored attachment metadata with S3 locations.
+	 */
 	attachments?: EmailStoredAttachment[];
 }
 
 /**
- * An email attachment
+ * An email attachment to include when sending an outbound email.
  */
 export interface EmailAttachment {
 	/**
@@ -154,26 +356,51 @@ export interface EmailSendParams {
 }
 
 /**
- * Parameters for email activity time-series
+ * Parameters for querying email activity time-series data.
  */
 export interface EmailActivityParams {
+	/**
+	 * Number of days of activity to retrieve.
+	 *
+	 * @remarks Values below 7 are clamped to 7; values above 365 are clamped to 365.
+	 *
+	 * @default 7
+	 */
 	days?: number; // min 7, max 365, default 7
 }
 
 /**
- * A single data point in the email activity time-series
+ * A single data point in the email activity time-series.
  */
 export interface EmailActivityDataPoint {
+	/**
+	 * The date in `YYYY-MM-DD` format.
+	 */
 	date: string; // "2026-02-28"
+
+	/**
+	 * Number of inbound emails received on this date.
+	 */
 	inbound: number;
+
+	/**
+	 * Number of outbound emails sent on this date.
+	 */
 	outbound: number;
 }
 
 /**
- * Result of email activity query
+ * Result of an email activity query containing daily time-series data.
  */
 export interface EmailActivityResult {
+	/**
+	 * Array of daily activity data points, ordered chronologically.
+	 */
 	activity: EmailActivityDataPoint[];
+
+	/**
+	 * The number of days of data returned.
+	 */
 	days: number;
 }
 
@@ -424,7 +651,20 @@ export interface EmailService {
 
 /**
  * Unwrap a Catalyst API response payload.
- * Handles both `{ key: data }` and `{ data: { key: data } }` response formats.
+ *
+ * The Catalyst API may return data in one of two envelope formats:
+ * - `{ key: data }` — the key maps directly to the data
+ * - `{ data: { key: data } }` — the data is nested inside a `data` wrapper
+ *
+ * This helper normalises both shapes so callers always receive the inner value.
+ *
+ * @param payload - The raw JSON-parsed response body from the API
+ * @param key - The property name to extract from the payload (e.g., `'address'`, `'destinations'`)
+ * @returns The extracted value cast to type `T`
+ *
+ * @remarks
+ * If neither envelope format matches, the raw payload is returned as-is.
+ * This function does not throw — it always returns a value.
  */
 function unwrap<T>(payload: unknown, key: string): T {
 	if (typeof payload === 'object' && payload !== null) {
@@ -445,15 +685,63 @@ function unwrap<T>(payload: unknown, key: string): T {
 
 const EMAIL_ACTIVITY_API_VERSION = '2026-02-28';
 
+/**
+ * Client for the Agentuity Email service.
+ *
+ * Provides methods for managing email addresses, configuring inbound email
+ * destinations, sending outbound emails, and querying email history.
+ *
+ * Email addresses are created under the `@agentuity.email` domain. Inbound emails
+ * can be forwarded to URL destinations. Outbound emails are sent asynchronously
+ * and support attachments up to 25 MB total.
+ *
+ * All methods are instrumented with OpenTelemetry spans for observability.
+ *
+ * @example
+ * ```typescript
+ * const email = new EmailStorageService(baseUrl, adapter);
+ *
+ * // Create an address
+ * const addr = await email.createAddress('notifications');
+ *
+ * // Send an email
+ * await email.send({
+ *   from: addr.email,
+ *   to: ['user@example.com'],
+ *   subject: 'Hello',
+ *   text: 'Hello from Agentuity!',
+ * });
+ * ```
+ */
 export class EmailStorageService implements EmailService {
 	#adapter: FetchAdapter;
 	#baseUrl: string;
 
+	/**
+	 * Create a new EmailStorageService instance.
+	 *
+	 * @param baseUrl - The base URL for the Agentuity Email API (e.g., `https://api.agentuity.com`)
+	 * @param adapter - The HTTP fetch adapter used for making API requests
+	 */
 	constructor(baseUrl: string, adapter: FetchAdapter) {
 		this.#adapter = adapter;
 		this.#baseUrl = baseUrl;
 	}
 
+	/**
+	 * Create a new email address under the `@agentuity.email` domain.
+	 *
+	 * @param localPart - The local part of the email address (the part before the `@`).
+	 *   For example, passing `'support'` creates `support@agentuity.email`.
+	 * @returns The newly created email address record
+	 * @throws ServiceException on API errors (e.g., duplicate address, invalid local part)
+	 *
+	 * @example
+	 * ```typescript
+	 * const addr = await email.createAddress('support');
+	 * console.log('Created:', addr.email); // support@agentuity.email
+	 * ```
+	 */
 	async createAddress(localPart: string): Promise<EmailAddress> {
 		const url = buildUrl(this.#baseUrl, '/email/2025-03-17/addresses');
 		const signal = AbortSignal.timeout(30_000);
@@ -475,6 +763,20 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('POST', url, res.response);
 	}
 
+	/**
+	 * List all email addresses owned by the current organization.
+	 *
+	 * @returns An array of email address records. Returns an empty array if none exist.
+	 * @throws ServiceException on API errors
+	 *
+	 * @example
+	 * ```typescript
+	 * const addresses = await email.listAddresses();
+	 * for (const addr of addresses) {
+	 *   console.log(`${addr.email} — ${addr.inbound_count ?? 0} received`);
+	 * }
+	 * ```
+	 */
 	async listAddresses(): Promise<EmailAddress[]> {
 		const url = buildUrl(this.#baseUrl, '/email/2025-03-17/addresses');
 		const signal = AbortSignal.timeout(30_000);
@@ -496,6 +798,21 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('GET', url, res.response);
 	}
 
+	/**
+	 * Get an email address by its ID.
+	 *
+	 * @param id - The email address ID (prefixed with `eaddr_`)
+	 * @returns The email address record, or `null` if no address with the given ID exists
+	 * @throws ServiceException on API errors (other than 404)
+	 *
+	 * @example
+	 * ```typescript
+	 * const addr = await email.getAddress('eaddr_abc123');
+	 * if (addr) {
+	 *   console.log('Found:', addr.email);
+	 * }
+	 * ```
+	 */
 	async getAddress(id: string): Promise<EmailAddress | null> {
 		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/addresses/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
@@ -518,6 +835,25 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('GET', url, res.response);
 	}
 
+	/**
+	 * Get IMAP and POP3 connection settings for an email address.
+	 *
+	 * These settings can be used to configure an external mail client (e.g., Thunderbird, Outlook)
+	 * to access the mailbox associated with the given address.
+	 *
+	 * @param id - The email address ID (prefixed with `eaddr_`)
+	 * @returns The connection configuration with IMAP and POP3 settings, or `null` if the address is not found
+	 * @throws ServiceException on API errors (other than 404)
+	 *
+	 * @example
+	 * ```typescript
+	 * const config = await email.getConnectionConfig('eaddr_abc123');
+	 * if (config) {
+	 *   console.log('IMAP host:', config.imap.host);
+	 *   console.log('POP3 host:', config.pop3.host);
+	 * }
+	 * ```
+	 */
 	async getConnectionConfig(id: string): Promise<EmailConnectionConfig | null> {
 		const url = buildUrl(
 			this.#baseUrl,
@@ -543,6 +879,19 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('GET', url, res.response);
 	}
 
+	/**
+	 * Delete an email address and all associated destinations.
+	 *
+	 * @remarks This operation is idempotent — deleting a non-existent address does not throw.
+	 *
+	 * @param id - The email address ID (prefixed with `eaddr_`)
+	 * @throws ServiceException on API errors (other than 404)
+	 *
+	 * @example
+	 * ```typescript
+	 * await email.deleteAddress('eaddr_abc123');
+	 * ```
+	 */
 	async deleteAddress(id: string): Promise<void> {
 		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/addresses/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
@@ -562,6 +911,28 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('DELETE', url, res.response);
 	}
 
+	/**
+	 * Create a new destination for an email address.
+	 *
+	 * Destinations determine where inbound emails are forwarded when they arrive
+	 * at the parent address.
+	 *
+	 * @param addressId - The email address ID (prefixed with `eaddr_`)
+	 * @param type - The destination type (currently only `'url'` is supported)
+	 * @param config - Type-specific destination configuration. For `'url'`:
+	 *   `{ url: string, headers?: Record<string, string>, method?: 'POST' | 'PUT' | 'PATCH' }`
+	 * @returns The newly created destination record
+	 * @throws ServiceException on API errors (e.g., invalid URL, address not found)
+	 *
+	 * @example
+	 * ```typescript
+	 * const dest = await email.createDestination('eaddr_abc123', 'url', {
+	 *   url: 'https://example.com/webhook',
+	 *   headers: { 'X-Secret': 'my-token' },
+	 * });
+	 * console.log('Destination created:', dest.id);
+	 * ```
+	 */
 	async createDestination(
 		addressId: string,
 		type: string,
@@ -591,6 +962,21 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('POST', url, res.response);
 	}
 
+	/**
+	 * List all destinations configured for an email address.
+	 *
+	 * @param addressId - The email address ID (prefixed with `eaddr_`)
+	 * @returns An array of destination records. Returns an empty array if none exist.
+	 * @throws ServiceException on API errors
+	 *
+	 * @example
+	 * ```typescript
+	 * const destinations = await email.listDestinations('eaddr_abc123');
+	 * for (const dest of destinations) {
+	 *   console.log(`${dest.type}: ${dest.id}`);
+	 * }
+	 * ```
+	 */
 	async listDestinations(addressId: string): Promise<EmailDestination[]> {
 		const url = buildUrl(
 			this.#baseUrl,
@@ -617,6 +1003,20 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('GET', url, res.response);
 	}
 
+	/**
+	 * Delete a destination from an email address.
+	 *
+	 * @remarks This operation is idempotent — deleting a non-existent destination does not throw.
+	 *
+	 * @param addressId - The email address ID (prefixed with `eaddr_`)
+	 * @param destinationId - The destination ID (prefixed with `edst_`)
+	 * @throws ServiceException on API errors (other than 404)
+	 *
+	 * @example
+	 * ```typescript
+	 * await email.deleteDestination('eaddr_abc123', 'edst_xyz789');
+	 * ```
+	 */
 	async deleteDestination(addressId: string, destinationId: string): Promise<void> {
 		const url = buildUrl(
 			this.#baseUrl,
@@ -640,6 +1040,38 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('DELETE', url, res.response);
 	}
 
+	/**
+	 * Send an outbound email from an Agentuity email address.
+	 *
+	 * Emails are sent asynchronously — this method returns immediately with an outbound
+	 * record whose status is `'pending'`. Use {@link getOutbound} to poll for delivery status.
+	 *
+	 * @remarks
+	 * - The `from` address must be owned by the current organization.
+	 * - Maximum 50 recipients per send.
+	 * - Maximum 25 MB for the full RFC 822 body (including attachments).
+	 *
+	 * @param params - The email send parameters including from, to, subject, and body
+	 * @returns The outbound email record with initial status `'pending'`
+	 * @throws ServiceException on API errors (e.g., invalid sender, too many recipients)
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await email.send({
+	 *   from: 'notifications@agentuity.email',
+	 *   to: ['user@example.com'],
+	 *   subject: 'Welcome!',
+	 *   text: 'Welcome to our platform.',
+	 *   html: '<h1>Welcome!</h1>',
+	 *   attachments: [{
+	 *     filename: 'guide.pdf',
+	 *     content: base64EncodedPdf,
+	 *     contentType: 'application/pdf',
+	 *   }],
+	 * });
+	 * console.log('Email queued:', result.id);
+	 * ```
+	 */
 	async send(params: EmailSendParams): Promise<EmailOutbound> {
 		const url = buildUrl(this.#baseUrl, '/email/2025-03-17/outbound/send');
 		const signal = AbortSignal.timeout(30_000);
@@ -686,6 +1118,26 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('POST', url, res.response);
 	}
 
+	/**
+	 * List inbound emails, optionally filtered by email address.
+	 *
+	 * @param addressId - Optional email address ID (prefixed with `eaddr_`) to filter results.
+	 *   When omitted, returns inbound emails across all addresses in the organization.
+	 * @returns An array of inbound email records. Returns an empty array if none exist.
+	 * @throws ServiceException on API errors
+	 *
+	 * @example
+	 * ```typescript
+	 * // List all inbound emails
+	 * const all = await email.listInbound();
+	 *
+	 * // List inbound for a specific address
+	 * const filtered = await email.listInbound('eaddr_abc123');
+	 * for (const msg of filtered) {
+	 *   console.log(`From: ${msg.from}, Subject: ${msg.subject}`);
+	 * }
+	 * ```
+	 */
 	async listInbound(addressId?: string): Promise<EmailInbound[]> {
 		const queryParams = new URLSearchParams();
 		if (addressId) {
@@ -717,6 +1169,22 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('GET', url, res.response);
 	}
 
+	/**
+	 * Get an inbound email by its ID.
+	 *
+	 * @param id - The inbound email ID (prefixed with `einb_`)
+	 * @returns The inbound email record, or `null` if not found
+	 * @throws ServiceException on API errors (other than 404)
+	 *
+	 * @example
+	 * ```typescript
+	 * const msg = await email.getInbound('einb_abc123');
+	 * if (msg) {
+	 *   console.log('Subject:', msg.subject);
+	 *   console.log('Attachments:', msg.attachments?.length ?? 0);
+	 * }
+	 * ```
+	 */
 	async getInbound(id: string): Promise<EmailInbound | null> {
 		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/inbound/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
@@ -739,6 +1207,19 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('GET', url, res.response);
 	}
 
+	/**
+	 * Delete an inbound email by its ID.
+	 *
+	 * @remarks This operation is idempotent — deleting a non-existent email does not throw.
+	 *
+	 * @param id - The inbound email ID (prefixed with `einb_`)
+	 * @throws ServiceException on API errors (other than 404)
+	 *
+	 * @example
+	 * ```typescript
+	 * await email.deleteInbound('einb_abc123');
+	 * ```
+	 */
 	async deleteInbound(id: string): Promise<void> {
 		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/inbound/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
@@ -758,6 +1239,26 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('DELETE', url, res.response);
 	}
 
+	/**
+	 * List outbound emails, optionally filtered by email address.
+	 *
+	 * @param addressId - Optional email address ID (prefixed with `eaddr_`) to filter results.
+	 *   When omitted, returns outbound emails across all addresses in the organization.
+	 * @returns An array of outbound email records. Returns an empty array if none exist.
+	 * @throws ServiceException on API errors
+	 *
+	 * @example
+	 * ```typescript
+	 * // List all outbound emails
+	 * const all = await email.listOutbound();
+	 *
+	 * // List outbound for a specific address
+	 * const filtered = await email.listOutbound('eaddr_abc123');
+	 * for (const msg of filtered) {
+	 *   console.log(`To: ${msg.to}, Status: ${msg.status}`);
+	 * }
+	 * ```
+	 */
 	async listOutbound(addressId?: string): Promise<EmailOutbound[]> {
 		const queryParams = new URLSearchParams();
 		if (addressId) {
@@ -789,6 +1290,24 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('GET', url, res.response);
 	}
 
+	/**
+	 * Get an outbound email by its ID.
+	 *
+	 * @param id - The outbound email ID (prefixed with `eout_`)
+	 * @returns The outbound email record, or `null` if not found
+	 * @throws ServiceException on API errors (other than 404)
+	 *
+	 * @example
+	 * ```typescript
+	 * const msg = await email.getOutbound('eout_abc123');
+	 * if (msg) {
+	 *   console.log('Status:', msg.status);
+	 *   if (msg.error) {
+	 *     console.error('Delivery failed:', msg.error);
+	 *   }
+	 * }
+	 * ```
+	 */
 	async getOutbound(id: string): Promise<EmailOutbound | null> {
 		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/outbound/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
@@ -811,6 +1330,19 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('GET', url, res.response);
 	}
 
+	/**
+	 * Delete an outbound email by its ID.
+	 *
+	 * @remarks This operation is idempotent — deleting a non-existent email does not throw.
+	 *
+	 * @param id - The outbound email ID (prefixed with `eout_`)
+	 * @throws ServiceException on API errors (other than 404)
+	 *
+	 * @example
+	 * ```typescript
+	 * await email.deleteOutbound('eout_abc123');
+	 * ```
+	 */
 	async deleteOutbound(id: string): Promise<void> {
 		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/outbound/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
@@ -830,6 +1362,25 @@ export class EmailStorageService implements EmailService {
 		throw await toServiceException('DELETE', url, res.response);
 	}
 
+	/**
+	 * Get email activity time-series data showing inbound and outbound counts per day.
+	 *
+	 * @param params - Optional query parameters. `days` controls the lookback window
+	 *   (minimum 7, maximum 365, server default 7).
+	 * @returns An {@link EmailActivityResult} with daily data points ordered chronologically
+	 *   and the total number of days returned
+	 * @throws ServiceException on API errors
+	 *
+	 * @example
+	 * ```typescript
+	 * // Get last 30 days of activity
+	 * const result = await email.getActivity({ days: 30 });
+	 * console.log(`Activity over ${result.days} days:`);
+	 * for (const point of result.activity) {
+	 *   console.log(`  ${point.date}: ${point.inbound} in, ${point.outbound} out`);
+	 * }
+	 * ```
+	 */
 	async getActivity(params?: EmailActivityParams): Promise<EmailActivityResult> {
 		const queryParams = new URLSearchParams();
 		if (params?.days !== undefined) {
