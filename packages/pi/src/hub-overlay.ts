@@ -621,7 +621,7 @@ export class HubOverlay implements Component, Focusable {
 				this.selectedTaskIndex = Math.min(this.selectedTaskIndex, tasks.length - 1);
 				this.taskScrollOffset = 0;
 				this.showTaskThinking = true;
-				this.taskFollowing = false;
+				this.taskFollowing = true;
 				this.screen = 'task';
 				this.requestRender();
 			}
@@ -680,7 +680,7 @@ export class HubOverlay implements Component, Focusable {
 				this.selectedTaskIndex = Math.min(this.selectedTaskIndex, tasks.length - 1);
 				this.taskScrollOffset = 0;
 				this.showTaskThinking = true;
-				this.taskFollowing = false;
+				this.taskFollowing = true;
 				this.screen = 'task';
 				this.requestRender();
 			}
@@ -783,7 +783,7 @@ export class HubOverlay implements Component, Focusable {
 			if (tasks.length > 0) {
 				this.selectedTaskIndex = (this.selectedTaskIndex - 1 + tasks.length) % tasks.length;
 				this.taskScrollOffset = 0;
-				this.taskFollowing = false;
+				this.taskFollowing = true;
 				this.requestRender();
 			}
 			return;
@@ -793,7 +793,7 @@ export class HubOverlay implements Component, Focusable {
 			if (tasks.length > 0) {
 				this.selectedTaskIndex = (this.selectedTaskIndex + 1) % tasks.length;
 				this.taskScrollOffset = 0;
-				this.taskFollowing = false;
+				this.taskFollowing = true;
 				this.requestRender();
 			}
 			return;
