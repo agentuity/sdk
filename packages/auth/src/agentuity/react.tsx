@@ -9,7 +9,8 @@
 
 import React, { useEffect, createContext, useContext, useState, useMemo } from 'react';
 import { createAuthClient as createBetterAuthClient } from 'better-auth/react';
-import { organizationClient, apiKeyClient } from 'better-auth/client/plugins';
+import { organizationClient } from 'better-auth/client/plugins';
+import { apiKeyClient } from '@better-auth/api-key/client';
 import { useAuth as useAgentuityReactAuth, useAnalytics } from '@agentuity/react';
 import type { BetterAuthClientPlugin } from 'better-auth/client';
 
