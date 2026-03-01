@@ -236,14 +236,42 @@ interface MessageSegments {
 	thinking: string;
 }
 
-function stringifyArgs(value: unknown): string {
-	if (value === undefined) return '';
+function summarizeArgs(value: unknown, maxWidth = 100): string {
+	if (!value || typeof value !== 'object') return '';
+	const args = value as Record<string, unknown>;
+	if (typeof args.command === 'string') return truncateToWidth(toSingleLine(args.command), maxWidth);
+	if (typeof args.path === 'string') return truncateToWidth(toSingleLine(args.path), maxWidth);
+	if (typeof args.filePath === 'string') return truncateToWidth(toSingleLine(args.filePath), maxWidth);
+	if (typeof args.pattern === 'string') return truncateToWidth(toSingleLine(args.pattern), maxWidth);
 	try {
-		const raw = typeof value === 'string' ? value : JSON.stringify(value);
+		const raw = JSON.stringify(value);
 		return truncateToWidth(toSingleLine(raw), 100);
 	} catch {
 		return '';
 	}
+}
+
+function summarizeToolCall(name: string, argsRaw: unknown): string | null {
+	const args = argsRaw && typeof argsRaw === 'object' ? argsRaw as Record<string, unknown> : undefined;
+
+	if (name === 'task') {
+		const agent = typeof args?.subagent_type === 'string' ? args.subagent_type : '?';
+		const description = typeof args?.description === 'string'
+			? truncateToWidth(toSingleLine(args.description), 80)
+			: '';
+		return description ? `${agent} - ${description}` : `${agent} - delegated task`;
+	}
+
+	if (name === 'parallel_tasks') {
+		const tasks = Array.isArray(args?.tasks) ? args.tasks : [];
+		const agents = tasks
+			.map((task) => task && typeof task === 'object' ? (task as Record<string, unknown>).subagent_type : undefined)
+			.filter((agent): agent is string => typeof agent === 'string');
+		if (agents.length > 0) return agents.join(' + ');
+		return 'parallel delegated tasks';
+	}
+
+	return null;
 }
 
 function extractMessageSegments(data: Record<string, unknown> | undefined): MessageSegments {
@@ -278,11 +306,6 @@ function extractMessageSegments(data: Record<string, unknown> | undefined): Mess
 			if (type === 'thinking' && typeof block.thinking === 'string') {
 				thinkingParts.push(block.thinking);
 				continue;
-			}
-			if (type === 'toolCall') {
-				const name = typeof block.name === 'string' ? block.name : 'tool';
-				const args = stringifyArgs(block.arguments);
-				outputParts.push(args ? `tool_call ${name} ${args}` : `tool_call ${name}`);
 			}
 		}
 	}
@@ -685,6 +708,36 @@ export class HubOverlay implements Component, Focusable {
 			this.requestRender();
 			return;
 		}
+
+		if (data === 'g') {
+			this.feedFollowing = false;
+			this.feedScrollOffset = 0;
+			this.requestRender();
+			return;
+		}
+
+		if (data === 'G') {
+			this.feedFollowing = false;
+			this.feedScrollOffset = this.feedMaxScroll;
+			this.requestRender();
+			return;
+		}
+
+		if (data === '{') {
+			this.feedFollowing = false;
+			const segment = Math.max(1, Math.floor((this.feedMaxScroll || 1) * 0.25));
+			this.feedScrollOffset = Math.max(0, this.feedScrollOffset - segment);
+			this.requestRender();
+			return;
+		}
+
+		if (data === '}') {
+			this.feedFollowing = false;
+			const segment = Math.max(1, Math.floor((this.feedMaxScroll || 1) * 0.25));
+			this.feedScrollOffset = Math.min(this.feedMaxScroll, this.feedScrollOffset + segment);
+			this.requestRender();
+			return;
+		}
 	}
 
 	private handleTaskInput(data: string): void {
@@ -755,6 +808,36 @@ export class HubOverlay implements Component, Focusable {
 		if (matchesKey(data, 'pageDown') || matchesKey(data, 'shift+down')) {
 			this.taskFollowing = false;
 			this.taskScrollOffset = Math.min(this.taskMaxScroll, this.taskScrollOffset + jump);
+			this.requestRender();
+			return;
+		}
+
+		if (data === 'g') {
+			this.taskFollowing = false;
+			this.taskScrollOffset = 0;
+			this.requestRender();
+			return;
+		}
+
+		if (data === 'G') {
+			this.taskFollowing = false;
+			this.taskScrollOffset = this.taskMaxScroll;
+			this.requestRender();
+			return;
+		}
+
+		if (data === '{') {
+			this.taskFollowing = false;
+			const segment = Math.max(1, Math.floor((this.taskMaxScroll || 1) * 0.25));
+			this.taskScrollOffset = Math.max(0, this.taskScrollOffset - segment);
+			this.requestRender();
+			return;
+		}
+
+		if (data === '}') {
+			this.taskFollowing = false;
+			const segment = Math.max(1, Math.floor((this.taskMaxScroll || 1) * 0.25));
+			this.taskScrollOffset = Math.min(this.taskMaxScroll, this.taskScrollOffset + segment);
 			this.requestRender();
 			return;
 		}
@@ -1276,6 +1359,12 @@ export class HubOverlay implements Component, Focusable {
 			return;
 		}
 
+		if (eventName === 'tool_call' || eventName === 'tool_result') {
+			const line = this.formatStreamLine(eventName, eventData);
+			if (line) this.appendBufferText(sessionId, 'output', `${line}\n\n`, taskId);
+			return;
+		}
+
 		if (eventName === 'task_complete') {
 			const result = typeof data?.result === 'string' ? data.result : '';
 			if (result) this.appendBufferText(sessionId, 'output', result + '\n\n', taskId);
@@ -1397,14 +1486,9 @@ export class HubOverlay implements Component, Focusable {
 			const name = typeof data?.name === 'string' ? data.name
 				: typeof data?.toolName === 'string' ? data.toolName
 					: 'tool';
-			let argsPreview = '';
-			if (data?.args && typeof data.args === 'object') {
-				try {
-					argsPreview = truncateToWidth(normalize(JSON.stringify(data.args)), 90);
-				} catch {
-					argsPreview = '';
-				}
-			}
+			const summarized = summarizeToolCall(name, data?.args);
+			if (summarized) return summarized;
+			const argsPreview = summarizeArgs(data?.args, 90);
 			return argsPreview ? `tool_call ${name} ${argsPreview}` : `tool_call ${name}`;
 		}
 
