@@ -274,6 +274,25 @@ function summarizeToolCall(name: string, argsRaw: unknown): string | null {
 	return null;
 }
 
+function extractToolResultText(contentRaw: unknown): string {
+	if (typeof contentRaw === 'string') return contentRaw;
+	if (!Array.isArray(contentRaw)) return '';
+	const parts: string[] = [];
+	for (const item of contentRaw) {
+		if (!item || typeof item !== 'object') continue;
+		const block = item as Record<string, unknown>;
+		if (typeof block.text === 'string') {
+			parts.push(block.text);
+		}
+	}
+	return parts.join('\n');
+}
+
+function formatDuration(ms: number): string {
+	if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
+	return `${ms}ms`;
+}
+
 function extractMessageSegments(data: Record<string, unknown> | undefined): MessageSegments {
 	const fallback = typeof data?.text === 'string' ? data.text : '';
 	const messageRaw = data?.message;
@@ -1486,9 +1505,10 @@ export class HubOverlay implements Component, Focusable {
 			const name = typeof data?.name === 'string' ? data.name
 				: typeof data?.toolName === 'string' ? data.toolName
 					: 'tool';
-			const summarized = summarizeToolCall(name, data?.args);
+			const input = data?.args ?? data?.input;
+			const summarized = summarizeToolCall(name, input);
 			if (summarized) return summarized;
-			const argsPreview = summarizeArgs(data?.args, 90);
+			const argsPreview = summarizeArgs(input, 90);
 			return argsPreview ? `tool_call ${name} ${argsPreview}` : `tool_call ${name}`;
 		}
 
@@ -1496,6 +1516,33 @@ export class HubOverlay implements Component, Focusable {
 			const name = typeof data?.name === 'string' ? data.name
 				: typeof data?.toolName === 'string' ? data.toolName
 					: 'tool';
+			const input = (data?.args ?? data?.input) as Record<string, unknown> | undefined;
+			if (name === 'task') {
+				const agent = typeof input?.subagent_type === 'string' ? input.subagent_type : 'agent';
+				const description = typeof input?.description === 'string'
+					? truncateToWidth(toSingleLine(input.description), 80)
+					: '';
+				const header = description ? `${agent} - ${description}` : `${agent} - delegated task`;
+
+				const rawResult = extractToolResultText(data?.content);
+				const stats = rawResult.match(/_(\w+): (\d+)ms \| (\d+) in (\d+) out tokens \| \$([0-9.]+)_/);
+				if (stats) {
+					const durationMs = Number(stats[2] ?? 0);
+					const tokIn = stats[3] ?? '0';
+					const tokOut = stats[4] ?? '0';
+					const cost = stats[5] ?? '0';
+					return `${header}\ndone ${formatDuration(durationMs)} ↑${tokIn} ↓${tokOut} $${cost}`;
+				}
+
+				const details = data?.details && typeof data.details === 'object'
+					? data.details as Record<string, unknown>
+					: undefined;
+				const duration = typeof details?.duration === 'number'
+					? ` ${formatDuration(details.duration)}`
+					: '';
+				const failed = data?.isError === true || details?.error === true;
+				return `${header}\n${failed ? 'failed' : `done${duration}`}`;
+			}
 			return `tool_result ${name}`;
 		}
 
