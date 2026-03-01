@@ -146,7 +146,6 @@ function toTask(row: TaskRow): Task {
 		created_id: row.created_id,
 		assigned_id: row.assigned_id ?? undefined,
 		closed_id: row.closed_id ?? undefined,
-		deleted: Boolean(row.deleted),
 	};
 }
 
@@ -714,7 +713,7 @@ export class LocalTaskStorage implements TaskStorage {
 		);
 
 		const updated = await this.get(id);
-		return { ...updated!, deleted: true };
+		return updated!;
 	}
 
 	async createComment(taskId: string, body: string, userId: string): Promise<Comment> {
