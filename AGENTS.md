@@ -35,7 +35,7 @@ Bun workspaces monorepo with packages in `packages/`:
 
 ## Code Style
 
-- **Formatter**: Prettier - tabs (width 3), single quotes, semicolons
+- **Formatter**: Biome - tabs (width 3), single quotes, semicolons, lineWidth 100, trailingCommas es5
 - **TypeScript**: Strict mode, ESNext, bundler moduleResolution
 - **Exports**: Named exports from package `index.ts`
 - **Errors**: Use `StructuredError` from `@agentuity/core`
