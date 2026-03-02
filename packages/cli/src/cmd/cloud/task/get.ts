@@ -11,6 +11,14 @@ const EntityRefSchema = z
 	})
 	.optional();
 
+const UserEntityRefSchema = z
+	.object({
+		id: z.string(),
+		name: z.string(),
+		type: z.enum(['human', 'agent']).optional(),
+	})
+	.optional();
+
 const TaskGetResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	task: z.object({
@@ -21,9 +29,9 @@ const TaskGetResponseSchema = z.object({
 		status: z.string().describe('Task status'),
 		priority: z.string().describe('Task priority'),
 		parent_id: z.string().optional().describe('Parent task ID'),
-		creator: EntityRefSchema.describe('Creator'),
-		assignee: EntityRefSchema.describe('Assignee'),
-		closer: EntityRefSchema.describe('Closer'),
+		creator: UserEntityRefSchema.describe('Creator'),
+		assignee: UserEntityRefSchema.describe('Assignee'),
+		closer: UserEntityRefSchema.describe('Closer'),
 		project: EntityRefSchema.describe('Project'),
 		metadata: z.record(z.string(), z.unknown()).optional().describe('Task metadata'),
 		created_at: z.string().describe('Creation timestamp'),
