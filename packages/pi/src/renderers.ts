@@ -362,10 +362,12 @@ function sessionTodoCreateRenderers(): ToolRenderers {
 			const id = String(task['id'] ?? '');
 			const status = String(task['status'] ?? 'open');
 			const priority = String(task['priority'] ?? 'none');
-			let text = theme.fg('success', `${status} ${id}`);
-			text += theme.fg('dim', ` prio:${priority}`);
-			if (expanded) {
-				text += '\n' + theme.fg('accent', truncate(String(task['title'] ?? ''), 120));
+			const title = String(task['title'] ?? '').trim();
+			const display = title.length > 0 ? truncate(title, 72) : truncate(id, 28);
+			let text = theme.fg('success', `${status} ${display}`);
+			text += theme.fg('dim', ` (${truncate(id, 20)} prio:${priority})`);
+			if (expanded && title.length > 0) {
+				text += '\n' + theme.fg('accent', truncate(title, 120));
 			}
 			return new SimpleText(text);
 		},
@@ -376,9 +378,11 @@ function sessionTodoUpdateRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
 			const id = String(args['id'] ?? '');
+			const nextStatus = typeof args['status'] === 'string' ? ` -> ${String(args['status'])}` : '';
 			return new SimpleText(
 				theme.fg('toolTitle', theme.bold('session todo update '))
-					+ theme.fg('accent', truncate(id, 32)),
+					+ theme.fg('accent', truncate(id, 24))
+					+ theme.fg('dim', nextStatus),
 			);
 		},
 		renderResult(result, { isPartial }, theme) {
@@ -391,7 +395,11 @@ function sessionTodoUpdateRenderers(): ToolRenderers {
 			if (!task) return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
 			const id = String(task['id'] ?? '');
 			const status = String(task['status'] ?? 'open');
-			return new SimpleText(theme.fg('success', `${status} ${id}`));
+			const title = String(task['title'] ?? '').trim();
+			const display = title.length > 0 ? truncate(title, 72) : truncate(id, 28);
+			return new SimpleText(
+				theme.fg('success', `${status} ${display}`) + theme.fg('dim', ` (${truncate(id, 20)})`),
+			);
 		},
 	};
 }
@@ -464,7 +472,8 @@ function sessionTodoCommentRenderers(): ToolRenderers {
 			const raw = resultText(result);
 			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
 			if (parsed && parsed['commented'] === true) {
-				return new SimpleText(theme.fg('success', 'Comment saved'));
+				const taskId = typeof parsed['taskId'] === 'string' ? truncate(parsed['taskId'], 20) : '';
+				return new SimpleText(theme.fg('success', `Comment saved${taskId ? ` (${taskId})` : ''}`));
 			}
 			return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
 		},
@@ -489,8 +498,16 @@ function sessionTodoAttachRenderers(): ToolRenderers {
 				return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
 			}
 			const count = typeof parsed['attachmentCount'] === 'number' ? parsed['attachmentCount'] : undefined;
+			const task = parsed['task'] && typeof parsed['task'] === 'object'
+				? parsed['task'] as Record<string, unknown>
+				: undefined;
+			const title = typeof task?.['title'] === 'string' ? truncate(task['title'], 56) : '';
+			const id = typeof task?.['id'] === 'string' ? truncate(task['id'], 20) : '';
 			const text = count !== undefined ? `Attachment saved (${count} total)` : 'Attachment saved';
-			return new SimpleText(theme.fg('success', text));
+			const suffix = title
+				? ` ${title}${id ? ` (${id})` : ''}`
+				: (id ? ` (${id})` : '');
+			return new SimpleText(theme.fg('success', `${text}${suffix}`));
 		},
 	};
 }

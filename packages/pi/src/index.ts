@@ -342,6 +342,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		}
 	};
 
+	const buildActionContext = (ctx: ExtensionContext | ExtensionCommandContext) => ({
+		ui: ctx.hasUI ? ctx.ui : undefined,
+		sendUserMessage: (message: string, options?: { deliverAs?: 'followUp' }) => {
+			pi.sendUserMessage(message, { deliverAs: options?.deliverAs ?? 'followUp' });
+		},
+	});
+
 	log(`Hub connected. Tools: ${serverTools.length}, Agents: ${serverAgents.length}`);
 
 	// Titlebar: branding + spinner (registers its own event handlers)
@@ -527,37 +534,37 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					};
 				}
 
-			// Process ALL Hub actions (NOTIFY, STATUS, RETURN, etc.)
-			const result = await processActions(response.actions, ctx);
+				// Process ALL Hub actions (NOTIFY, STATUS, RETURN, etc.)
+				const result = await processActions(response.actions, buildActionContext(ctx));
 
-			// If there's a return value from processActions, use it
-			if (result.returnValue !== undefined) {
-				const text = typeof result.returnValue === 'string'
-					? result.returnValue
-					: JSON.stringify(result.returnValue, null, 2);
+				// If there's a return value from processActions, use it
+				if (result.returnValue !== undefined) {
+					const text = typeof result.returnValue === 'string'
+						? result.returnValue
+						: JSON.stringify(result.returnValue, null, 2);
+					return {
+						content: [{ type: 'text' as const, text }],
+						details: undefined as unknown,
+					};
+				}
+
+				// Fallback — check for RETURN action directly (backward compat)
+				const returnAction = response.actions.find((a: HubAction) => a.action === 'RETURN');
+				if (returnAction && 'result' in returnAction) {
+					const text = typeof returnAction.result === 'string'
+						? returnAction.result
+						: JSON.stringify(returnAction.result, null, 2);
+					return {
+						content: [{ type: 'text' as const, text }],
+						details: undefined as unknown,
+					};
+				}
+
 				return {
-					content: [{ type: 'text' as const, text }],
+					content: [{ type: 'text' as const, text: 'Done' }],
 					details: undefined as unknown,
 				};
-			}
-
-			// Fallback — check for RETURN action directly (backward compat)
-			const returnAction = response.actions.find((a: HubAction) => a.action === 'RETURN');
-			if (returnAction && 'result' in returnAction) {
-				const text = typeof returnAction.result === 'string'
-					? returnAction.result
-					: JSON.stringify(returnAction.result, null, 2);
-				return {
-					content: [{ type: 'text' as const, text }],
-					details: undefined as unknown,
-				};
-			}
-
-			return {
-				content: [{ type: 'text' as const, text: 'Done' }],
-				details: undefined as unknown,
-			};
-			},
+				},
 			// TUI renderers — optional, only for known Hub tools.
 			// Cast needed: SimpleText satisfies Component, but TS can't verify cross-package structural match.
 			...(renderers?.renderCall && { renderCall: renderers.renderCall as ToolDefinition['renderCall'] }),
@@ -754,12 +761,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					// Finalize the live result instead of creating a new one
 					liveResult.isStreaming = false;
 					liveResult.text = result.output || liveResult.text || '(no output)';
-					sendEventNoWait('task_complete', {
+					await sendEvent('task_complete', {
 						taskId: toolCallId,
 						agent: subagent_type,
 						duration: result.duration,
 						result: result.output.slice(0, 10000),
-					});
+					}, ctx);
 
 					let output = result.output;
 					let tokenInfoStr: string | undefined;
@@ -776,11 +783,11 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					const errorMsg = err instanceof Error ? err.message : String(err);
 					liveResult.isStreaming = false;
 					liveResult.text = liveResult.text || `Agent ${subagent_type} failed: ${errorMsg}`;
-					sendEventNoWait('task_error', {
+					await sendEvent('task_error', {
 						taskId: toolCallId,
 						agent: subagent_type,
 						error: errorMsg,
-					});
+					}, ctx);
 					updateWidget('failed');
 					return {
 						content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
@@ -899,11 +906,11 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						agentStatuses[index]!.status = 'failed';
 						liveResults[index]!.isStreaming = false;
 						liveResults[index]!.text = `Unknown agent: ${task.subagent_type}`;
-						sendEventNoWait('task_error', {
+						await sendEvent('task_error', {
 							taskId,
 							agent: task.subagent_type,
 							error: `Unknown agent: ${task.subagent_type}`,
-						});
+						}, ctx);
 						updateWidget();
 						return { agent: task.subagent_type, error: `Unknown agent: ${task.subagent_type}` };
 					}
@@ -960,12 +967,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						// Finalize the live result
 						liveResults[index]!.isStreaming = false;
 						liveResults[index]!.text = result.output || liveResults[index]!.text || '(no output)';
-						sendEventNoWait('task_complete', {
+						await sendEvent('task_complete', {
 							taskId,
 							agent: task.subagent_type,
 							duration: result.duration,
 							result: result.output.slice(0, 10000),
-						});
+						}, ctx);
 						updateWidget();
 
 						return { agent: task.subagent_type, output: result.output, duration: result.duration, tokens: result.tokens };
@@ -976,11 +983,11 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						agentStatuses[index]!.currentToolArgs = undefined;
 						liveResults[index]!.isStreaming = false;
 						liveResults[index]!.text = liveResults[index]!.text || `Failed: ${errorMsg}`;
-						sendEventNoWait('task_error', {
+						await sendEvent('task_error', {
 							taskId,
 							agent: task.subagent_type,
 							error: errorMsg,
-						});
+						}, ctx);
 						updateWidget();
 						return { agent: task.subagent_type, error: errorMsg };
 					}
@@ -1100,7 +1107,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				event: eventName,
 				data: { ...data, agentRole },
 			});
-			const result = await processActions(response.actions, ctx);
+			const result = await processActions(response.actions, buildActionContext(ctx));
 			if (result.block) return result.block;
 			if (result.returnValue !== undefined) return result.returnValue;
 		} catch { /* ignore */ }
@@ -1152,7 +1159,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				data: { ...serializeEvent(event), agentRole },
 			});
 
-			const result = await processActions(response.actions, ctx);
+			const result = await processActions(response.actions, buildActionContext(ctx));
 			if (result.block) return result.block;
 
 			if (result.systemPrompt) {

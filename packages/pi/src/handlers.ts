@@ -15,6 +15,7 @@ interface ActionContext {
 		confirm(title: string, message: string): Promise<boolean>;
 		setStatus(key: string, text?: string): void;
 	};
+	sendUserMessage?: (message: string, options?: { deliverAs?: 'followUp' }) => void;
 }
 
 export async function processActions(
@@ -87,11 +88,24 @@ export async function processActions(
 				};
 				break;
 
-		case 'INJECT_MESSAGE':
-			// TODO: Implement message injection for TUI mode.
-			// Pi's ExtensionContext may support session.addMessage() or similar —
-			// investigate @mariozechner/pi-coding-agent API for message injection.
+		case 'INJECT_MESSAGE': {
+			const content = action.message?.content?.trim();
+			if (!content) break;
+
+			if (action.message.role === 'user') {
+				if (ctx.sendUserMessage) {
+					ctx.sendUserMessage(content, { deliverAs: 'followUp' });
+				} else if (ctx.ui) {
+					ctx.ui.notify(content, 'info');
+				}
+				break;
+			}
+
+			if (ctx.ui) {
+				ctx.ui.notify(content, 'info');
+			}
 			break;
+		}
 		}
 	}
 

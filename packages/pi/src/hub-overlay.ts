@@ -1526,7 +1526,8 @@ export class HubOverlay implements Component, Focusable {
 				const ame = assistantMessageEvent as Record<string, unknown>;
 				const type = typeof ame.type === 'string' ? ame.type : '';
 				const delta = typeof ame.delta === 'string' ? ame.delta : '';
-				if ((type === 'text_delta' || type === 'thinking_delta') && delta) {
+				// Keep event view high-signal: show text streaming, suppress thinking token spam.
+				if (type === 'text_delta' && delta) {
 					const cleaned = truncateToWidth(normalize(delta), 120);
 					if (cleaned) {
 						return `${type || 'delta'} ${cleaned}`;
@@ -1795,15 +1796,15 @@ export class HubOverlay implements Component, Focusable {
 				for (let i = 0; i < Math.min(tasks.length, 50); i++) {
 					const task = tasks[i]!;
 					const selected = i === this.selectedTaskIndex;
-						const statusColor =
-							task.status === 'completed' ? 'success'
-								: task.status === 'failed' ? 'error'
-									: 'warning';
-						const status = this.theme.fg(statusColor as 'success' | 'error' | 'warning', task.status);
-						const prompt = task.prompt ? truncateToWidth(toSingleLine(task.prompt), Math.max(16, inner - 34)) : '';
-						const duration = typeof task.duration === 'number' ? ` ${task.duration}ms` : '';
-						const marker = selected ? this.theme.fg('accent', '›') : ' ';
-						body.push(
+					const statusColor =
+						task.status === 'completed' ? 'success'
+							: task.status === 'failed' ? 'error'
+								: 'warning';
+					const status = this.theme.fg(statusColor as 'success' | 'error' | 'warning', task.status);
+					const prompt = task.prompt ? truncateToWidth(toSingleLine(task.prompt), Math.max(16, inner - 34)) : '';
+					const duration = typeof task.duration === 'number' ? ` ${task.duration}ms` : '';
+					const marker = selected ? this.theme.fg('accent', '›') : ' ';
+					body.push(
 						this.contentLine(
 							`${marker} ${shortId(task.taskId).padEnd(12)} ${task.agent.padEnd(9)} ${status}${duration} ${prompt}`,
 							inner,
@@ -1829,7 +1830,12 @@ export class HubOverlay implements Component, Focusable {
 					),
 				);
 				if (todos.length === 0) {
-					body.push(this.contentLine(this.theme.fg('dim', '  (no session todos)'), inner));
+					body.push(
+						this.contentLine(
+							this.theme.fg('dim', `  (no todos linked to session ${shortId(session.sessionId)})`),
+							inner,
+						),
+					);
 				} else {
 					for (const todo of todos.slice(0, 20)) {
 						const statusColor =
