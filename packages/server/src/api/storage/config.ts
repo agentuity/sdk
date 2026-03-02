@@ -22,7 +22,7 @@ export async function getBucketConfig(
 	bucketName: string,
 	extraHeaders?: Record<string, string>,
 ): Promise<BucketConfig> {
-	const url = `/bucket/config/${API_VERSION}/${bucketName}`;
+	const url = `/bucket/config/${API_VERSION}/${encodeURIComponent(bucketName)}`;
 
 	const resp = await client.get<z.infer<typeof BucketConfigGetResponseSchema>>(
 		url,
@@ -57,7 +57,7 @@ export async function updateBucketConfig(
 	config: BucketConfigUpdate,
 	extraHeaders?: Record<string, string>,
 ): Promise<BucketConfig> {
-	const url = `/bucket/config/${API_VERSION}/${bucketName}`;
+	const url = `/bucket/config/${API_VERSION}/${encodeURIComponent(bucketName)}`;
 
 	const resp = await client.put<z.infer<typeof BucketConfigUpdateResponseSchema>, BucketConfigUpdate>(
 		url,
@@ -88,7 +88,7 @@ export async function deleteBucketConfig(
 	bucketName: string,
 	extraHeaders?: Record<string, string>,
 ): Promise<void> {
-	const url = `/bucket/config/${API_VERSION}/${bucketName}`;
+	const url = `/bucket/config/${API_VERSION}/${encodeURIComponent(bucketName)}`;
 
 	const resp = await client.delete<z.infer<typeof BucketConfigDeleteResponseSchema>>(
 		url,

@@ -15,7 +15,7 @@ export const CORSConfigSchema = z.object({
 	allowed_methods: z.array(z.string().describe('An allowed HTTP method')).optional().describe('List of allowed HTTP methods for CORS requests'),
 	allowed_headers: z.array(z.string().describe('An allowed request header')).optional().describe('List of allowed request headers for CORS requests'),
 	expose_headers: z.array(z.string().describe('A response header to expose')).optional().describe('List of response headers to expose to the browser'),
-	max_age_seconds: z.number().int().nullable().optional().describe('Maximum time in seconds that preflight results can be cached'),
+	max_age_seconds: z.number().int().min(0).nullable().optional().describe('Maximum time in seconds that preflight results can be cached'),
 });
 
 /** Full bucket config (response from GET/PUT) */

@@ -48,7 +48,7 @@ export async function listStorageObjects(
 	if (options?.offset !== undefined) params.set('offset', String(options.offset));
 
 	const query = params.toString();
-	const url = `/storage/objects/${STORAGE_OBJECTS_API_VERSION}/${bucketName}${query ? `?${query}` : ''}`;
+	const url = `/storage/objects/${STORAGE_OBJECTS_API_VERSION}/${encodeURIComponent(bucketName)}${query ? `?${query}` : ''}`;
 
 	const resp = await client.get<z.infer<typeof StorageListAPIResponseSchema>>(
 		url,
@@ -71,11 +71,11 @@ export interface DeleteStorageObjectsOptions {
 
 /**
  * Delete objects from a storage bucket.
- * Provide either `key` (single object) or `prefix` (all matching objects).
+ * Provide either `key` (single object) or `prefix` (all matching objects), but not both.
  *
  * @param client - The API client to use for the request
  * @param bucketName - Name of the bucket to delete from
- * @param options - Must include either key or prefix
+ * @param options - Must include either key or prefix (mutually exclusive)
  * @param extraHeaders - Optional extra headers (e.g. x-agentuity-orgid for CLI auth)
  * @returns The count of deleted objects
  * @throws {StorageObjectsResponseError} If the request fails
@@ -89,12 +89,15 @@ export async function deleteStorageObjects(
 	if (!options.key && !options.prefix) {
 		throw new StorageObjectsResponseError({ message: "Either 'key' or 'prefix' is required" });
 	}
+	if (options.key && options.prefix) {
+		throw new StorageObjectsResponseError({ message: "Provide either 'key' or 'prefix', not both" });
+	}
 
 	const params = new URLSearchParams();
 	if (options.key) params.set('key', options.key);
 	if (options.prefix) params.set('prefix', options.prefix);
 
-	const url = `/storage/objects/${STORAGE_OBJECTS_API_VERSION}/${bucketName}?${params.toString()}`;
+	const url = `/storage/objects/${STORAGE_OBJECTS_API_VERSION}/${encodeURIComponent(bucketName)}?${params.toString()}`;
 
 	const resp = await client.delete<z.infer<typeof StorageDeleteAPIResponseSchema>>(
 		url,
@@ -134,7 +137,7 @@ export async function presignStorageObject(
 		params.set('operation', operation);
 	}
 
-	const url = `/storage/presign/${STORAGE_OBJECTS_API_VERSION}/${bucketName}?${params.toString()}`;
+	const url = `/storage/presign/${STORAGE_OBJECTS_API_VERSION}/${encodeURIComponent(bucketName)}?${params.toString()}`;
 
 	const resp = await client.get<z.infer<typeof StoragePresignAPIResponseSchema>>(
 		url,
@@ -164,7 +167,7 @@ export async function getStorageStats(
 	bucketName: string,
 	extraHeaders?: Record<string, string>,
 ): Promise<StorageStatsResponse> {
-	const url = `/storage/stats/${STORAGE_OBJECTS_API_VERSION}/${bucketName}`;
+	const url = `/storage/stats/${STORAGE_OBJECTS_API_VERSION}/${encodeURIComponent(bucketName)}`;
 
 	const resp = await client.get<z.infer<typeof StorageStatsAPIResponseSchema>>(
 		url,
