@@ -109,6 +109,59 @@ export interface QueuePublishResult {
 }
 
 /**
+ * Parameters for creating a queue.
+ *
+ * @example
+ * ```typescript
+ * const result = await ctx.queue.createQueue('my-queue', {
+ *   queueType: 'pubsub',
+ *   settings: { defaultTtlSeconds: 86400 },
+ * });
+ * ```
+ */
+export interface QueueCreateParams {
+	/**
+	 * Type of queue to create.
+	 * - `worker`: Messages are consumed by exactly one consumer with acknowledgment.
+	 * - `pubsub`: Messages are broadcast to all subscribers.
+	 * @default 'worker'
+	 */
+	queueType?: 'worker' | 'pubsub';
+
+	/**
+	 * Optional description of the queue's purpose.
+	 */
+	description?: string;
+
+	/**
+	 * Optional settings to customize queue behavior.
+	 * Only provided fields are applied; others use server defaults.
+	 */
+	settings?: {
+		/** Default time-to-live for messages in seconds. Null means no expiration. */
+		defaultTtlSeconds?: number | null;
+		/** Time in seconds a message is invisible after being received. */
+		defaultVisibilityTimeoutSeconds?: number;
+		/** Maximum number of delivery attempts before moving to DLQ. */
+		defaultMaxRetries?: number;
+		/** Maximum number of messages a single client can process concurrently. */
+		maxInFlightPerClient?: number;
+		/** Retention period for acknowledged messages in seconds. */
+		retentionSeconds?: number;
+	};
+}
+
+/**
+ * Result of creating a queue.
+ */
+export interface QueueCreateResult {
+	/** The queue name. */
+	name: string;
+	/** The queue type ('worker' or 'pubsub'). */
+	queueType: string;
+}
+
+/**
  * Queue service interface for publishing messages.
  *
  * This is the interface available to agents via `ctx.queue`. It provides
@@ -167,6 +220,49 @@ export interface QueueService {
 		payload: string | object,
 		params?: QueuePublishParams
 	): Promise<QueuePublishResult>;
+
+	/**
+	 * Create a queue with idempotent semantics.
+	 *
+	 * If the queue already exists, this returns successfully without error.
+	 * Safe to call multiple times — uses an internal cache to avoid redundant API calls.
+	 *
+	 * @param queueName - The name of the queue to create
+	 * @param params - Optional creation parameters (queue type, settings, etc.)
+	 * @returns The create result with queue name and type
+	 * @throws {QueueValidationError} If the queue name is invalid
+	 *
+	 * @example Creating a worker queue
+	 * ```typescript
+	 * const result = await ctx.queue.createQueue('task-queue');
+	 * ```
+	 *
+	 * @example Creating a pubsub queue with settings
+	 * ```typescript
+	 * const result = await ctx.queue.createQueue('events', {
+	 *   queueType: 'pubsub',
+	 *   settings: { defaultTtlSeconds: 86400 },
+	 * });
+	 * ```
+	 */
+	createQueue(queueName: string, params?: QueueCreateParams): Promise<QueueCreateResult>;
+
+	/**
+	 * Delete a queue.
+	 *
+	 * Permanently deletes a queue and all its messages. This action cannot be undone.
+	 * If the queue has already been deleted or does not exist, a {@link QueueNotFoundError} is thrown.
+	 *
+	 * @param queueName - The name of the queue to delete
+	 * @throws {QueueNotFoundError} If the queue does not exist
+	 * @throws {QueueValidationError} If the queue name is invalid
+	 *
+	 * @example Deleting a queue
+	 * ```typescript
+	 * await ctx.queue.deleteQueue('old-queue');
+	 * ```
+	 */
+	deleteQueue(queueName: string): Promise<void>;
 }
 
 // ============================================================================
@@ -277,6 +373,7 @@ function validatePayloadInternal(payload: string): void {
 export class QueueStorageService implements QueueService {
 	#adapter: FetchAdapter;
 	#baseUrl: string;
+	#knownQueues = new Set<string>();
 
 	/**
 	 * Creates a new QueueStorageService.
@@ -387,5 +484,123 @@ export class QueueStorageService implements QueueService {
 		}
 
 		throw await toServiceException('POST', url, res.response);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	async createQueue(queueName: string, params?: QueueCreateParams): Promise<QueueCreateResult> {
+		validateQueueNameInternal(queueName);
+
+		if (this.#knownQueues.has(queueName)) {
+			return {
+				name: queueName,
+				queueType: params?.queueType ?? 'worker',
+			};
+		}
+
+		const url = buildUrl(this.#baseUrl, '/queue/create/2026-01-15');
+
+		const requestBody: Record<string, unknown> = {
+			name: queueName,
+			queue_type: params?.queueType ?? 'worker',
+		};
+
+		if (params?.description !== undefined) {
+			requestBody.description = params.description;
+		}
+
+		if (params?.settings) {
+			const settings: Record<string, unknown> = {};
+			if (params.settings.defaultTtlSeconds !== undefined) {
+				settings.default_ttl_seconds = params.settings.defaultTtlSeconds;
+			}
+			if (params.settings.defaultVisibilityTimeoutSeconds !== undefined) {
+				settings.default_visibility_timeout_seconds =
+					params.settings.defaultVisibilityTimeoutSeconds;
+			}
+			if (params.settings.defaultMaxRetries !== undefined) {
+				settings.default_max_retries = params.settings.defaultMaxRetries;
+			}
+			if (params.settings.maxInFlightPerClient !== undefined) {
+				settings.max_in_flight_per_client = params.settings.maxInFlightPerClient;
+			}
+			if (params.settings.retentionSeconds !== undefined) {
+				settings.retention_seconds = params.settings.retentionSeconds;
+			}
+			if (Object.keys(settings).length > 0) {
+				requestBody.settings = settings;
+			}
+		}
+
+		const signal = AbortSignal.timeout(30_000);
+		const res = await this.#adapter.invoke<QueueCreateResult>(url, {
+			method: 'POST',
+			signal,
+			body: JSON.stringify(requestBody),
+			contentType: 'application/json',
+			telemetry: {
+				name: 'agentuity.queue.create',
+				attributes: {
+					queueName,
+				},
+			},
+		});
+
+		if (res.ok) {
+			const data = res.data as unknown as Record<string, unknown>;
+			this.#knownQueues.add(queueName);
+			return {
+				name: (data.name as string) ?? queueName,
+				queueType: (data.queue_type as string) ?? params?.queueType ?? 'worker',
+			};
+		}
+
+		if (res.response.status === 409) {
+			this.#knownQueues.add(queueName);
+			return {
+				name: queueName,
+				queueType: params?.queueType ?? 'worker',
+			};
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	async deleteQueue(queueName: string): Promise<void> {
+		validateQueueNameInternal(queueName);
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/queue/delete/2026-01-15/${encodeURIComponent(queueName)}`
+		);
+
+		const signal = AbortSignal.timeout(30_000);
+		const res = await this.#adapter.invoke<void>(url, {
+			method: 'DELETE',
+			signal,
+			telemetry: {
+				name: 'agentuity.queue.delete',
+				attributes: {
+					queueName,
+				},
+			},
+		});
+
+		if (res.ok) {
+			this.#knownQueues.delete(queueName);
+			return;
+		}
+
+		if (res.response.status === 404) {
+			throw new QueueNotFoundError({
+				message: `Queue not found: ${queueName}`,
+			});
+		}
+
+		throw await toServiceException('DELETE', url, res.response);
 	}
 }

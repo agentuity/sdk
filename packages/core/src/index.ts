@@ -92,6 +92,8 @@ export {
 	type QueueService,
 	type QueuePublishParams,
 	type QueuePublishResult,
+	type QueueCreateParams,
+	type QueueCreateResult,
 	QueueStorageService,
 	QueuePublishError,
 	QueueNotFoundError,
