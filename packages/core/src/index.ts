@@ -1,11 +1,12 @@
-// error.ts exports
-
-export type { EnvField, ResourceType } from './env-example.ts';
 // env-example.ts exports
+export type { EnvField, ResourceType } from './env-example.ts';
 export { detectResourceFromKey, parseEnvExample } from './env-example.ts';
+// error.ts exports
 export { isStructuredError, RichError, StructuredError } from './error.ts';
+
 // json.ts exports
 export { safeStringify } from './json.ts';
+
 // logger.ts exports
 export type { Logger, LogLevel } from './logger.ts';
 export { buildUrl, fromResponse, toPayload, toServiceException } from './services/_util.ts';
@@ -163,6 +164,9 @@ export {
 } from './services/stream.ts';
 export {
 	type Attachment,
+	type BatchDeletedTask,
+	type BatchDeleteTasksParams,
+	type BatchDeleteTasksResult,
 	type Comment,
 	type CreateAttachmentParams,
 	type CreateTaskParams,
@@ -228,10 +232,13 @@ export {
 	type WebhookReceiptListResult,
 	WebhookService,
 } from './services/webhook.ts';
+
 // standard_schema.ts exports
 export type { StandardSchemaV1 } from './standard_schema.ts';
+
 // string.ts exports
 export { toCamelCase, toPascalCase } from './string.ts';
+
 // typehelper.ts exports
 export type { InferInput, InferOutput } from './typehelper.ts';
 // webrtc.ts exports
