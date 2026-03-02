@@ -9,6 +9,8 @@ import { TransactionError } from './errors.ts';
  */
 export class Transaction {
 	private _sql: SQL;
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: held to prevent GC of the reserved connection
+	private _connection: SQLQuery;
 	private _committed = false;
 	private _rolledBack = false;
 	private _savepointCounter = 0;
