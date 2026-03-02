@@ -66,12 +66,12 @@ function getMessageStyle(type: ChatMessage['type']): string {
 	}
 }
 
-function getMessageLabel(type: ChatMessage['type'], peerId?: string): string {
+function getMessageLabel(type: ChatMessage['type']): string {
 	switch (type) {
 		case 'sent':
 			return 'You';
 		case 'received':
-			return peerId ? `Peer ${peerId.slice(0, 6)}` : 'Peer';
+			return 'Remote';
 		case 'system':
 			return 'System';
 		case 'error':
@@ -93,9 +93,77 @@ function CopyLinkButton({ roomId }: { roomId: string }) {
 	}, [roomId]);
 
 	return (
-		<Button variant="outline" size="sm" onClick={copyLink}>
-			{copied ? 'Copied!' : 'Copy Link'}
+		<Button variant="outline" size="sm" onClick={copyLink} className="grid place-items-center">
+			<span className="col-start-1 row-start-1 invisible">Copy Link</span>
+			<span className="col-start-1 row-start-1">{copied ? 'Copied!' : 'Copy Link'}</span>
 		</Button>
+	);
+}
+
+function AudioLevelIndicator({ stream }: { stream: MediaStream | null }) {
+	const [level, setLevel] = useState(0);
+
+	useEffect(() => {
+		if (!stream) return;
+		const audioTracks = stream.getAudioTracks();
+		if (audioTracks.length === 0) return;
+
+		let audioCtx: AudioContext | undefined;
+		let source: MediaStreamAudioSourceNode | undefined;
+		let animId: number;
+		let active = true;
+
+		try {
+			audioCtx = new AudioContext();
+			const analyser = audioCtx.createAnalyser();
+			analyser.fftSize = 256;
+			analyser.smoothingTimeConstant = 0.3;
+			source = audioCtx.createMediaStreamSource(stream);
+			source.connect(analyser);
+
+			const dataArray = new Uint8Array(analyser.fftSize);
+
+			const tick = () => {
+				if (!active) return;
+				analyser.getByteTimeDomainData(dataArray);
+				let peak = 0;
+				for (const val of dataArray) {
+					const amplitude = Math.abs(val - 128) / 128;
+					if (amplitude > peak) peak = amplitude;
+				}
+				setLevel(peak);
+				animId = requestAnimationFrame(tick);
+			};
+			animId = requestAnimationFrame(tick);
+		} catch {
+			try { audioCtx?.close(); } catch {}
+			return;
+		}
+
+		return () => {
+			active = false;
+			cancelAnimationFrame(animId);
+			try { source?.disconnect(); } catch {}
+			try { audioCtx?.close(); } catch {}
+		};
+	}, [stream]);
+
+	const bars = [0.06, 0.15, 0.3, 0.5];
+
+	return (
+		<div className="flex items-end gap-[2px] h-3">
+			{bars.map((threshold, i) => (
+				<div
+					key={i}
+					className="w-[3px] rounded-sm motion-safe:transition-colors motion-safe:duration-75"
+					style={{
+						height: `${40 + i * 20}%`,
+						backgroundColor:
+							level >= threshold ? '#00FFFF' : 'rgba(63, 63, 70, 0.5)',
+					}}
+				/>
+			))}
+		</div>
 	);
 }
 
@@ -154,8 +222,6 @@ function DataChannelTab({ roomId }: { roomId: string }) {
 
 	const {
 		state,
-		error,
-		peerId,
 		remotePeerIds,
 		connect,
 		hangup,
@@ -213,7 +279,7 @@ function DataChannelTab({ roomId }: { roomId: string }) {
 						{
 							id: messageIdRef.current++,
 							type: 'system' as const,
-							message: `Peer ${id.slice(0, 6)} joined the room`,
+							message: 'A peer joined the room',
 							timestamp: new Date().toISOString(),
 						},
 					];
@@ -227,7 +293,7 @@ function DataChannelTab({ roomId }: { roomId: string }) {
 						{
 							id: messageIdRef.current++,
 							type: 'system' as const,
-							message: `Peer ${id.slice(0, 6)} left the room`,
+							message: 'A peer left the room',
 							timestamp: new Date().toISOString(),
 						},
 					];
@@ -306,7 +372,7 @@ function DataChannelTab({ roomId }: { roomId: string }) {
 	const isActive = state !== 'idle';
 
 	return (
-		<div className="mt-4 space-y-4">
+		<div className="mt-4 flex flex-col gap-4">
 			{/* Connection controls */}
 			<div className="flex items-center gap-4">
 				<Button
@@ -327,12 +393,6 @@ function DataChannelTab({ roomId }: { roomId: string }) {
 					<span className="text-sm text-zinc-400">{getStatusLabel(state)}</span>
 				</div>
 
-				{peerId && (
-					<span className="text-xs text-zinc-600">
-						Your ID: {peerId.slice(0, 8)}
-					</span>
-				)}
-
 				{remotePeerIds.length > 0 && (
 					<span className="text-xs text-zinc-600">
 						{remotePeerIds.length} peer{remotePeerIds.length > 1 ? 's' : ''}
@@ -351,17 +411,48 @@ function DataChannelTab({ roomId }: { roomId: string }) {
 				)}
 			</div>
 
-			{error && (
-				<div className="text-xs text-red-400 bg-red-900/20 border border-red-800/50 rounded px-3 py-2">
-					{error.message}
-				</div>
-			)}
-
 			{isActive && !isConnected && remotePeerIds.length === 0 && (
 				<div className="text-xs text-zinc-500 bg-zinc-900/50 border border-zinc-800 rounded px-3 py-2">
 					Waiting for another peer to join this room. Open this page in a second tab or share the link.
 				</div>
 			)}
+
+			{/* Messages */}
+			<div className="bg-black border border-zinc-800 rounded-lg min-h-0 flex-1 overflow-y-auto p-3 space-y-2">
+				{messages.length === 0 ? (
+					<div className="text-zinc-600 text-sm text-center py-8">
+						{isConnected
+							? 'Waiting for data channel...'
+							: 'Click Join Room to start'}
+					</div>
+				) : (
+					messages.map((msg) => (
+						<div
+							key={msg.id}
+							className={`border rounded px-3 py-2 ${getMessageStyle(msg.type)}`}
+						>
+							<div className="flex items-center justify-between mb-1">
+								<span
+									className={`text-xs font-medium ${
+										msg.type === 'sent'
+											? 'text-cyan-600 dark:text-cyan-400'
+											: msg.type === 'error'
+												? 'text-red-400'
+												: 'text-zinc-400'
+									}`}
+								>
+									{getMessageLabel(msg.type)}
+								</span>
+								<span className="text-xs text-zinc-600">
+									{new Date(msg.timestamp).toLocaleTimeString()}
+								</span>
+							</div>
+							<div className="text-white">{msg.message}</div>
+						</div>
+					))
+				)}
+				<div ref={messagesEndRef} />
+			</div>
 
 			{/* Message input */}
 			<div className="flex items-center gap-2">
@@ -389,43 +480,6 @@ function DataChannelTab({ roomId }: { roomId: string }) {
 					Send
 				</Button>
 			</div>
-
-			{/* Messages */}
-			<div className="bg-black border border-zinc-800 rounded-lg h-64 overflow-y-auto p-3 space-y-2">
-				{messages.length === 0 ? (
-					<div className="text-zinc-600 text-sm text-center py-8">
-						{isConnected
-							? 'Waiting for data channel...'
-							: 'Click Join Room to start'}
-					</div>
-				) : (
-					messages.map((msg) => (
-						<div
-							key={msg.id}
-							className={`border rounded px-3 py-2 ${getMessageStyle(msg.type)}`}
-						>
-							<div className="flex items-center justify-between mb-1">
-								<span
-									className={`text-xs font-medium ${
-										msg.type === 'sent'
-											? 'text-cyan-600 dark:text-cyan-400'
-											: msg.type === 'error'
-												? 'text-red-400'
-												: 'text-zinc-400'
-									}`}
-								>
-									{getMessageLabel(msg.type, msg.peerId)}
-								</span>
-								<span className="text-xs text-zinc-600">
-									{new Date(msg.timestamp).toLocaleTimeString()}
-								</span>
-							</div>
-							<div className="text-white">{msg.message}</div>
-						</div>
-					))
-				)}
-				<div ref={messagesEndRef} />
-			</div>
 		</div>
 	);
 }
@@ -434,7 +488,7 @@ function DataChannelTab({ roomId }: { roomId: string }) {
 // Video Call Tab
 // ---------------------------------------------------------------------------
 
-function RemoteVideo({ peerId, stream }: { peerId: string; stream: MediaStream | undefined }) {
+function RemoteVideo({ peerId, stream, videoOff }: { peerId: string; stream: MediaStream | undefined; videoOff?: boolean }) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 
 	useEffect(() => {
@@ -449,6 +503,9 @@ function RemoteVideo({ peerId, stream }: { peerId: string; stream: MediaStream |
 		};
 	}, [stream]);
 
+	const hasVideo = stream ? stream.getVideoTracks().length > 0 : false;
+	const showOverlay = videoOff || !hasVideo;
+
 	return (
 		<div className="relative">
 			<video
@@ -457,8 +514,16 @@ function RemoteVideo({ peerId, stream }: { peerId: string; stream: MediaStream |
 				playsInline
 				className="w-full rounded-lg bg-zinc-900 border border-zinc-800"
 			/>
+			{showOverlay && (
+				<div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/90 rounded-lg">
+					<div className="w-16 h-16 rounded-full bg-zinc-800/80 border-2 border-zinc-600/50 flex items-center justify-center mb-2">
+						<span className="text-zinc-400 text-xl">R</span>
+					</div>
+					<span className="text-sm text-zinc-500">Camera off</span>
+				</div>
+			)}
 			<span className="absolute bottom-2 left-2 text-xs bg-black/70 text-zinc-300 px-2 py-0.5 rounded">
-				Peer {peerId.slice(0, 6)}
+				Remote
 			</span>
 		</div>
 	);
@@ -466,12 +531,13 @@ function RemoteVideo({ peerId, stream }: { peerId: string; stream: MediaStream |
 
 function VideoCallTab({ roomId }: { roomId: string }) {
 	const [mediaError, setMediaError] = useState<string | null>(null);
+	const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+	const [remoteVideoOff, setRemoteVideoOff] = useState(false);
 
 	const {
 		localVideoRef,
 		state,
 		error,
-		peerId,
 		remotePeerIds,
 		remoteStreams,
 		isAudioMuted,
@@ -483,12 +549,25 @@ function VideoCallTab({ roomId }: { roomId: string }) {
 		muteVideo,
 		startScreenShare,
 		stopScreenShare,
+		sendString,
 		getAllQualitySummaries,
 	} = useWebRTCCall({
 		roomId,
 		signalUrl: '/api/webrtc/signal',
 		autoConnect: false,
+		dataChannels: [{ label: 'media-state', ordered: true }],
 		callbacks: {
+			onDataChannelMessage: (_remotePeerId, label, data) => {
+				if (label === 'media-state') {
+					try {
+						const msg = JSON.parse(typeof data === 'string' ? data : '');
+						if (msg.videoOff !== undefined) setRemoteVideoOff(msg.videoOff);
+					} catch {}
+				}
+			},
+			onPeerLeft: () => {
+				setRemoteVideoOff(false);
+			},
 			onError: (err) => {
 				if (err.name === 'NotAllowedError') {
 					setMediaError(
@@ -511,7 +590,19 @@ function VideoCallTab({ roomId }: { roomId: string }) {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on roomId change
 	useEffect(() => {
 		setMediaError(null);
+		setRemoteVideoOff(false);
 	}, [roomId]);
+
+	// Track local stream reactively (ref.srcObject is set by the hook's internal effect)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: re-check when state changes
+	useEffect(() => {
+		const video = localVideoRef.current;
+		if (video?.srcObject instanceof MediaStream) {
+			setLocalStream(video.srcObject);
+		} else {
+			setLocalStream(null);
+		}
+	}, [state]);
 
 	const handleConnect = useCallback(() => {
 		setMediaError(null);
@@ -543,12 +634,6 @@ function VideoCallTab({ roomId }: { roomId: string }) {
 					<span className="text-sm text-zinc-400">{getStatusLabel(state)}</span>
 				</div>
 
-				{peerId && (
-					<span className="text-xs text-zinc-600">
-						Your ID: {peerId.slice(0, 8)}
-					</span>
-				)}
-
 				{/* Mute toggles */}
 				{isActive && (
 					<div className="flex items-center gap-2">
@@ -562,7 +647,11 @@ function VideoCallTab({ roomId }: { roomId: string }) {
 						<Button
 							variant={isVideoMuted ? 'destructive' : 'outline'}
 							size="xs"
-							onClick={() => muteVideo(!isVideoMuted)}
+							onClick={() => {
+								const newMuted = !isVideoMuted;
+								muteVideo(newMuted);
+								sendString('media-state', JSON.stringify({ videoOff: newMuted }));
+							}}
 						>
 							{isVideoMuted ? 'Show Video' : 'Hide Video'}
 						</Button>
@@ -606,14 +695,25 @@ function VideoCallTab({ roomId }: { roomId: string }) {
 						playsInline
 						className="w-full rounded-lg bg-zinc-900 border border-zinc-800"
 					/>
-					<span className="absolute bottom-2 left-2 text-xs bg-black/70 text-zinc-300 px-2 py-0.5 rounded">
-						You{isVideoMuted ? ' (video off)' : ''}
+					{isVideoMuted && (
+						<div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/90 rounded-lg">
+							<div className="w-16 h-16 rounded-full bg-cyan-900/50 border-2 border-cyan-500/50 flex items-center justify-center mb-2">
+								<span className="text-cyan-400 text-xl">Y</span>
+							</div>
+							<span className="text-sm text-zinc-400">Camera off</span>
+						</div>
+					)}
+					<span className="absolute bottom-2 left-2 text-xs bg-black/70 text-zinc-300 px-2 py-0.5 rounded flex items-center gap-1.5">
+						You
+						{!isAudioMuted && (
+							<AudioLevelIndicator stream={localStream} />
+						)}
 					</span>
 				</div>
 
 				{/* Remote videos */}
 				{remotePeerIds.map((id) => (
-					<RemoteVideo key={id} peerId={id} stream={remoteStreams.get(id)} />
+					<RemoteVideo key={id} peerId={id} stream={remoteStreams.get(id)} videoOff={remoteVideoOff} />
 				))}
 
 				{/* Empty state for remote slot */}
@@ -708,7 +808,7 @@ function ConnectionStats({
 						if (!s) {
 							return (
 								<div key={peerId} className="text-xs text-zinc-600">
-									Peer {peerId.slice(0, 6)}: gathering stats...
+									Remote: gathering stats...
 								</div>
 							);
 						}
@@ -720,7 +820,7 @@ function ConnectionStats({
 							>
 								<div className="flex items-center justify-between">
 									<span className="text-xs font-medium text-zinc-300">
-										Peer {peerId.slice(0, 6)}
+										Remote
 									</span>
 									<span className={`text-xs font-medium ${qualityColor}`}>
 										{s.rtt !== undefined && s.rtt < 100
