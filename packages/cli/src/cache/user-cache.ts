@@ -37,10 +37,9 @@ export function getCachedUserInfo(
 ): { userId: string; firstName: string; lastName: string } | null {
 	try {
 		const row = getDatabase()
-			.query<
-				{ user_id: string; first_name: string; last_name: string },
-				[string]
-			>('SELECT user_id, first_name, last_name FROM user_info_cache WHERE profile = ?')
+			.query<{ user_id: string; first_name: string; last_name: string }, [string]>(
+				'SELECT user_id, first_name, last_name FROM user_info_cache WHERE profile = ?'
+			)
 			.get(profile);
 		if (!row) return null;
 		return {

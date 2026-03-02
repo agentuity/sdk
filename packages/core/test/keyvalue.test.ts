@@ -433,9 +433,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			await service.search('my store', 'my/keyword');
 
-			expect(calls[0].url).toBe(
-				`${baseUrl}/kv/2025-03-17/search/my%20store/my%2Fkeyword`
-			);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/search/my%20store/my%2Fkeyword`);
 		});
 
 		test('should throw ServiceException on error response', async () => {

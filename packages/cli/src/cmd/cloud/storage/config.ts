@@ -18,20 +18,15 @@ import { getResourceInfo, setResourceInfo } from '../../../cache';
 function displayConfig(config: BucketConfig) {
 	tui.newline();
 	console.log(tui.bold('Bucket:          ') + config.bucket_name);
+	console.log(tui.bold('Storage Tier:    ') + (config.storage_tier ?? tui.muted('default')));
 	console.log(
-		tui.bold('Storage Tier:    ') + (config.storage_tier ?? tui.muted('default'))
-	);
-	console.log(
-		tui.bold('TTL:             ') +
-			(config.ttl != null ? `${config.ttl}s` : tui.muted('default'))
+		tui.bold('TTL:             ') + (config.ttl != null ? `${config.ttl}s` : tui.muted('default'))
 	);
 	console.log(
 		tui.bold('Public:          ') +
 			(config.public != null ? String(config.public) : tui.muted('default'))
 	);
-	console.log(
-		tui.bold('Cache Control:   ') + (config.cache_control ?? tui.muted('default'))
-	);
+	console.log(tui.bold('Cache Control:   ') + (config.cache_control ?? tui.muted('default')));
 
 	if (config.cors) {
 		console.log(tui.bold('CORS:'));
