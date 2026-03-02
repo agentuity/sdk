@@ -18,12 +18,14 @@ const TaskListResponseSchema = z.object({
 				.object({
 					id: z.string(),
 					name: z.string(),
+					type: z.enum(['human', 'agent']).optional(),
 				})
 				.optional(),
 			assignee: z
 				.object({
 					id: z.string(),
 					name: z.string(),
+					type: z.enum(['human', 'agent']).optional(),
 				})
 				.optional(),
 			project: z
