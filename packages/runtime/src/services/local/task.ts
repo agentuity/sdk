@@ -10,6 +10,8 @@ import type {
 	UpdateTaskParams,
 	ListTasksParams,
 	ListTasksResult,
+	BatchDeleteTasksParams,
+	BatchDeleteTasksResult,
 	TaskChangelogResult,
 	Comment,
 	Tag,
@@ -119,6 +121,32 @@ const SORT_FIELDS: Record<string, string> = {
 	in_progress_date: 'in_progress_date',
 	closed_date: 'closed_date',
 };
+
+const DURATION_UNITS: Record<string, number> = {
+	m: 60 * 1000,
+	h: 60 * 60 * 1000,
+	d: 24 * 60 * 60 * 1000,
+	w: 7 * 24 * 60 * 60 * 1000,
+};
+
+const InvalidDurationError = StructuredError(
+	'InvalidDurationError',
+	'Invalid duration format: use a number followed by m (minutes), h (hours), d (days), or w (weeks)'
+);
+
+function parseDurationMs(duration: string): number {
+	const match = duration.match(/^(\d+)([mhdw])$/);
+	if (!match) {
+		throw new InvalidDurationError();
+	}
+	const value = parseInt(match[1]!, 10);
+	const unit = match[2]!;
+	const ms = DURATION_UNITS[unit];
+	if (!ms) {
+		throw new InvalidDurationError();
+	}
+	return value * ms;
+}
 
 function generateTaskId(): string {
 	return `task_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
@@ -714,6 +742,96 @@ export class LocalTaskStorage implements TaskStorage {
 
 		const updated = await this.get(id);
 		return updated!;
+	}
+
+	async batchDelete(params: BatchDeleteTasksParams): Promise<BatchDeleteTasksResult> {
+		const conditions: string[] = ['project_path = ?', 'deleted = 0'];
+		const args: (string | number)[] = [this.#projectPath];
+
+		if (params.status) {
+			conditions.push('status = ?');
+			args.push(params.status);
+		}
+		if (params.type) {
+			conditions.push('type = ?');
+			args.push(params.type);
+		}
+		if (params.priority) {
+			conditions.push('priority = ?');
+			args.push(params.priority);
+		}
+		if (params.parent_id) {
+			conditions.push('parent_id = ?');
+			args.push(params.parent_id);
+		}
+		if (params.created_id) {
+			conditions.push('created_id = ?');
+			args.push(params.created_id);
+		}
+		if (params.older_than) {
+			const ms = parseDurationMs(params.older_than);
+			const cutoff = new Date(Date.now() - ms).toISOString();
+			conditions.push('created_at < ?');
+			args.push(cutoff);
+		}
+
+		// Require at least one filter beyond project_path + deleted
+		if (conditions.length < 3) {
+			const BatchDeleteFilterRequiredError = StructuredError(
+				'BatchDeleteFilterRequiredError',
+				'At least one filter is required for batch delete'
+			);
+			throw new BatchDeleteFilterRequiredError();
+		}
+
+		const limit = Math.min(params.limit ?? 50, 200);
+
+		const whereClause = conditions.join(' AND ');
+		const selectQuery = `SELECT id, title FROM task_storage WHERE ${whereClause} ORDER BY created_at ASC LIMIT ?`;
+		const selectStmt = this.#db.prepare(selectQuery);
+		const rows = selectStmt.all(...args, limit) as Array<{ id: string; title: string }>;
+
+		if (rows.length === 0) {
+			return { deleted: [], count: 0 };
+		}
+
+		const timestamp = now();
+		const ids = rows.map((r) => r.id);
+		const placeholders = ids.map(() => '?').join(', ');
+
+		const updateStmt = this.#db.prepare(`
+			UPDATE task_storage
+			SET status = 'closed', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
+			WHERE project_path = ? AND id IN (${placeholders})
+		`);
+		updateStmt.run(
+			new Date(timestamp).toISOString(),
+			timestamp,
+			this.#projectPath,
+			...ids
+		);
+
+		const changelogStmt = this.#db.prepare(`
+			INSERT INTO task_changelog_storage (
+				project_path, id, task_id, field, old_value, new_value, created_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
+		`);
+		for (const row of rows) {
+			changelogStmt.run(
+				this.#projectPath,
+				generateChangelogId(),
+				row.id,
+				'deleted',
+				'false',
+				'true',
+				timestamp
+			);
+		}
+
+		return {
+			deleted: rows.map((r) => ({ id: r.id, title: r.title })),
+			count: rows.length,
+		};
 	}
 
 	async createComment(taskId: string, body: string, userId: string): Promise<Comment> {

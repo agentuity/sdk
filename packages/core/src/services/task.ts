@@ -426,6 +426,62 @@ export interface ListTasksResult {
 }
 
 /**
+ * Parameters for batch-deleting tasks by filter.
+ * At least one filter must be provided.
+ */
+export interface BatchDeleteTasksParams {
+	/** Filter by task status. */
+	status?: TaskStatus;
+
+	/** Filter by task type. */
+	type?: TaskType;
+
+	/** Filter by priority level. */
+	priority?: TaskPriority;
+
+	/** Filter by parent task ID (delete subtasks). */
+	parent_id?: string;
+
+	/** Filter by creator ID. */
+	created_id?: string;
+
+	/**
+	 * Delete tasks older than this duration.
+	 * Accepts Go-style duration strings: `'30m'`, `'24h'`, `'7d'`, `'2w'`.
+	 */
+	older_than?: string;
+
+	/**
+	 * Maximum number of tasks to delete.
+	 * @default 50
+	 * @maximum 200
+	 */
+	limit?: number;
+}
+
+/**
+ * A single task that was deleted in a batch operation.
+ */
+export interface BatchDeletedTask {
+	/** The ID of the deleted task. */
+	id: string;
+
+	/** The title of the deleted task. */
+	title: string;
+}
+
+/**
+ * Result of a batch delete operation.
+ */
+export interface BatchDeleteTasksResult {
+	/** Array of tasks that were deleted. */
+	deleted: BatchDeletedTask[];
+
+	/** Total number of tasks deleted. */
+	count: number;
+}
+
+/**
  * Paginated list of changelog entries for a task.
  */
 export interface TaskChangelogResult {
@@ -671,6 +727,15 @@ export interface TaskStorage {
 	 * @returns The soft-deleted task
 	 */
 	softDelete(id: string): Promise<Task>;
+
+	/**
+	 * Batch soft-delete tasks matching the given filters.
+	 * At least one filter must be provided.
+	 *
+	 * @param params - Filters to select which tasks to delete
+	 * @returns The list of deleted tasks and count
+	 */
+	batchDelete(params: BatchDeleteTasksParams): Promise<BatchDeleteTasksResult>;
 
 	/**
 	 * Get the changelog (audit trail) for a task.
@@ -1367,6 +1432,61 @@ export class TaskStorageService implements TaskStorage {
 			telemetry: {
 				name: 'agentuity.task.softDelete',
 				attributes: { id },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	/**
+	 * Batch soft-delete tasks matching the given filters.
+	 * At least one filter must be provided. The server caps the limit at 200.
+	 *
+	 * @param params - Filters to select which tasks to delete
+	 * @returns The list of deleted tasks and count
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await tasks.batchDelete({ status: 'closed', older_than: '7d', limit: 50 });
+	 * console.log(`Deleted ${result.count} tasks`);
+	 * ```
+	 */
+	async batchDelete(params: BatchDeleteTasksParams): Promise<BatchDeleteTasksResult> {
+		const url = buildUrl(this.#baseUrl, `/task/delete/batch/${TASK_API_VERSION}`);
+		const signal = AbortSignal.timeout(60_000);
+
+		const body: Record<string, unknown> = {};
+		if (params.status) body.status = params.status;
+		if (params.type) body.type = params.type;
+		if (params.priority) body.priority = params.priority;
+		if (params.parent_id) body.parent_id = params.parent_id;
+		if (params.created_id) body.created_id = params.created_id;
+		if (params.older_than) body.older_than = params.older_than;
+		if (params.limit !== undefined) body.limit = params.limit;
+
+		const res = await this.#adapter.invoke<TaskResponse<BatchDeleteTasksResult>>(url, {
+			method: 'POST',
+			body: safeStringify(body),
+			headers: { 'Content-Type': 'application/json' },
+			signal,
+			telemetry: {
+				name: 'agentuity.task.batchDelete',
+				attributes: {
+					...(params.status ? { status: params.status } : {}),
+					...(params.type ? { type: params.type } : {}),
+					...(params.older_than ? { older_than: params.older_than } : {}),
+				},
 			},
 		});
 
