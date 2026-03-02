@@ -4,6 +4,21 @@ import * as tui from '../../../tui';
 import { createStorageAdapter, cacheTaskId } from './util';
 import { getCommand } from '../../../command-prefix';
 
+const EntityRefSchema = z
+	.object({
+		id: z.string(),
+		name: z.string(),
+	})
+	.optional();
+
+const UserEntityRefSchema = z
+	.object({
+		id: z.string(),
+		name: z.string(),
+		type: z.enum(['human', 'agent']).optional(),
+	})
+	.optional();
+
 const TaskGetResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	task: z.object({
@@ -14,15 +29,17 @@ const TaskGetResponseSchema = z.object({
 		status: z.string().describe('Task status'),
 		priority: z.string().describe('Task priority'),
 		parent_id: z.string().optional().describe('Parent task ID'),
-		assigned_id: z.string().optional().describe('Assigned agent or user ID'),
-		created_id: z.string().describe('Creator ID'),
-		closed_id: z.string().optional().describe('Closer ID'),
+		creator: UserEntityRefSchema.describe('Creator'),
+		assignee: UserEntityRefSchema.describe('Assignee'),
+		closer: UserEntityRefSchema.describe('Closer'),
+		project: EntityRefSchema.describe('Project'),
 		metadata: z.record(z.string(), z.unknown()).optional().describe('Task metadata'),
 		created_at: z.string().describe('Creation timestamp'),
 		updated_at: z.string().describe('Last update timestamp'),
 		open_date: z.string().optional().describe('Date task was opened'),
 		in_progress_date: z.string().optional().describe('Date task moved to in-progress'),
 		closed_date: z.string().optional().describe('Date task was closed'),
+		cancelled_date: z.string().optional().describe('Date task was cancelled'),
 	}),
 	durationMs: z.number().describe('Operation duration in milliseconds'),
 });
@@ -34,7 +51,6 @@ export const getSubcommand = createCommand({
 	tags: ['read-only', 'slow', 'requires-auth'],
 	idempotent: true,
 	requires: { auth: true },
-	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('cloud task get task_abc123'),
@@ -79,16 +95,20 @@ export const getSubcommand = createCommand({
 				tableData['Description'] = task.description;
 			}
 
-			tableData['Creator'] = task.created_id;
-
-			if (task.assigned_id) {
-				tableData['Assigned'] = task.assigned_id;
+			if (task.creator) {
+				tableData['Creator'] = `${task.creator.name} (${task.creator.id})`;
+			}
+			if (task.assignee) {
+				tableData['Assigned'] = `${task.assignee.name} (${task.assignee.id})`;
+			}
+			if (task.project) {
+				tableData['Project'] = `${task.project.name} (${task.project.id})`;
 			}
 			if (task.parent_id) {
 				tableData['Parent'] = task.parent_id;
 			}
-			if (task.closed_id) {
-				tableData['Closed By'] = task.closed_id;
+			if (task.closer) {
+				tableData['Closed By'] = `${task.closer.name} (${task.closer.id})`;
 			}
 
 			tableData['Created'] = new Date(task.created_at).toLocaleString();
@@ -103,11 +123,16 @@ export const getSubcommand = createCommand({
 			if (task.closed_date) {
 				tableData['Closed'] = new Date(task.closed_date).toLocaleString();
 			}
-			if (task.metadata && Object.keys(task.metadata).length > 0) {
-				tableData['Metadata'] = JSON.stringify(task.metadata);
+			if (task.cancelled_date) {
+				tableData['Cancelled'] = new Date(task.cancelled_date).toLocaleString();
 			}
-
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
+
+			if (task.metadata && Object.keys(task.metadata).length > 0) {
+				tui.newline();
+				tui.header('Metadata');
+				tui.json(task.metadata);
+			}
 		}
 
 		return {
@@ -120,15 +145,17 @@ export const getSubcommand = createCommand({
 				status: task.status,
 				priority: task.priority,
 				parent_id: task.parent_id,
-				assigned_id: task.assigned_id,
-				created_id: task.created_id,
-				closed_id: task.closed_id,
+				creator: task.creator,
+				assignee: task.assignee,
+				closer: task.closer,
+				project: task.project,
 				metadata: task.metadata,
 				created_at: task.created_at,
 				updated_at: task.updated_at,
 				open_date: task.open_date,
 				in_progress_date: task.in_progress_date,
 				closed_date: task.closed_date,
+				cancelled_date: task.cancelled_date,
 			},
 			durationMs,
 		};

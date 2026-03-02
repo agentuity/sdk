@@ -278,6 +278,209 @@ describe('KeyValueStorageService', () => {
 		});
 	});
 
+	describe('search', () => {
+		test('should deserialize JSON values from base64', async () => {
+			const jsonObj = { name: 'Alice', age: 30 };
+			const base64Value = btoa(JSON.stringify(jsonObj));
+			const { adapter } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						'user:123': {
+							value: base64Value,
+							contentType: 'application/json',
+							size: JSON.stringify(jsonObj).length,
+							firstUsed: 1709312345000,
+							lastUsed: 1709312345000,
+							count: 1,
+						},
+					},
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const results = await service.search<typeof jsonObj>('users', 'user:');
+
+			expect(results['user:123']).toBeDefined();
+			expect(results['user:123']!.value).toEqual(jsonObj);
+			expect(typeof results['user:123']!.value).toBe('object');
+		});
+
+		test('should deserialize text values from base64', async () => {
+			const textValue = 'hello world';
+			const base64Value = btoa(textValue);
+			const { adapter } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						'msg:1': {
+							value: base64Value,
+							contentType: 'text/plain',
+							size: textValue.length,
+							firstUsed: null,
+							lastUsed: null,
+							count: null,
+						},
+					},
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const results = await service.search<string>('messages', 'msg:');
+
+			expect(results['msg:1']!.value).toBe(textValue);
+		});
+
+		test('should deserialize binary values from base64 as ArrayBuffer', async () => {
+			const binaryData = new Uint8Array([0x00, 0x01, 0x02, 0xff]);
+			const base64Value = btoa(String.fromCharCode(...binaryData));
+			const { adapter } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						'bin:1': {
+							value: base64Value,
+							contentType: 'application/octet-stream',
+							size: binaryData.length,
+							firstUsed: null,
+							lastUsed: null,
+							count: null,
+						},
+					},
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const results = await service.search<ArrayBuffer>('blobs', 'bin:');
+
+			const resultValue = results['bin:1']!.value;
+			expect(resultValue).toBeInstanceOf(ArrayBuffer);
+			const resultBytes = new Uint8Array(resultValue);
+			expect(resultBytes).toEqual(binaryData);
+		});
+
+		test('should return empty object when no results', async () => {
+			const { adapter } = createMockAdapter([{ ok: true, data: {} }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const results = await service.search('empty', 'nope');
+
+			expect(Object.keys(results)).toHaveLength(0);
+		});
+
+		test('should pass through already-parsed values unchanged', async () => {
+			const jsonObj = { name: 'Bob' };
+			const { adapter } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						'key:1': {
+							value: jsonObj,
+							contentType: 'application/json',
+							size: 14,
+							firstUsed: null,
+							lastUsed: null,
+							count: null,
+						},
+					},
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const results = await service.search<typeof jsonObj>('ns', 'key:');
+
+			expect(results['key:1']!.value).toEqual(jsonObj);
+		});
+
+		test('should handle multiple results', async () => {
+			const obj1 = { id: 1 };
+			const obj2 = { id: 2 };
+			const { adapter } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						'item:1': {
+							value: btoa(JSON.stringify(obj1)),
+							contentType: 'application/json',
+							size: 8,
+							firstUsed: 1000,
+							lastUsed: 2000,
+							count: 5,
+						},
+						'item:2': {
+							value: btoa(JSON.stringify(obj2)),
+							contentType: 'application/json',
+							size: 8,
+							firstUsed: 1000,
+							lastUsed: 3000,
+							count: 3,
+						},
+					},
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const results = await service.search<{ id: number }>('items', 'item:');
+
+			expect(Object.keys(results)).toHaveLength(2);
+			expect(results['item:1']!.value).toEqual(obj1);
+			expect(results['item:2']!.value).toEqual(obj2);
+		});
+
+		test('should encode special characters in name and keyword', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: {} }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			await service.search('my store', 'my/keyword');
+
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/search/my%20store/my%2Fkeyword`);
+		});
+
+		test('should throw ServiceException on error response', async () => {
+			const { adapter } = createMockAdapter([
+				{ ok: false, status: 500, body: { error: 'Internal Server Error' } },
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+
+			await expect(service.search('mystore', 'key')).rejects.toThrow(ServiceException);
+		});
+
+		test('should set timeout signal', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: {} }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			await service.search('mystore', 'key');
+
+			expect(calls[0].options?.signal).toBeDefined();
+		});
+
+		test('should leave value as-is when base64 decoding fails', async () => {
+			const invalidBase64 = '!!!not-valid-base64!!!';
+			const { adapter } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						'key:1': {
+							value: invalidBase64,
+							contentType: 'application/json',
+							size: 10,
+							firstUsed: null,
+							lastUsed: null,
+							count: null,
+						},
+					},
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const results = await service.search<string>('ns', 'key:');
+
+			// Value should be left as the original string when decoding fails
+			expect(results['key:1']!.value).toBe(invalidBase64);
+		});
+	});
+
 	describe('onBefore hook', () => {
 		test('should call onBefore for get operation', async () => {
 			const onBeforeCalls: { url: string; method: string }[] = [];

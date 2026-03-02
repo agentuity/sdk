@@ -225,7 +225,7 @@ export type Client<R> = {
 					output: infer O;
 					type: infer T;
 					params: infer P;
-			  }
+				}
 			? RouteEndpoint<I, O, T extends string ? T : 'api', P>
 			: R[K] extends { input: infer I; output: infer O; type: infer T }
 				? RouteEndpoint<I, O, T extends string ? T : 'api'>

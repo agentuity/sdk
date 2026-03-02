@@ -23,6 +23,9 @@ const StorageListResponseSchema = z.object({
 				bucket_type: z.string().optional().describe('Bucket type (user or snapshots)'),
 				internal: z.boolean().optional().describe('Whether this is a system-managed bucket'),
 				description: z.string().optional().describe('Optional description of the bucket'),
+				object_count: z.number().int().optional().describe('Number of objects in this bucket'),
+				total_size: z.number().int().optional().describe('Total size of objects in bytes'),
+				last_event_at: z.string().optional().describe('Last activity timestamp'),
 			})
 		)
 		.optional()
@@ -256,6 +259,23 @@ export const listSubcommand = createSubcommand({
 					}
 					if (s3.region) console.log(` Region:     ${tui.muted(s3.region)}`);
 					if (s3.endpoint) console.log(` Endpoint:   ${tui.muted(s3.endpoint)}`);
+					if (s3.object_count != null) {
+						const sizeStr =
+							s3.total_size != null ? tui.formatBytes(s3.total_size) : 'unknown';
+						console.log(
+							` Objects:    ${tui.muted(`${s3.object_count.toLocaleString()} (${sizeStr})`)}`
+						);
+					}
+					if (s3.last_event_at) {
+						const date = new Date(s3.last_event_at);
+						if (Number.isNaN(date.getTime())) {
+							console.log(` Activity:   ${tui.muted('unknown')}`);
+						} else {
+							console.log(
+								` Activity:   ${tui.muted(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}`
+							);
+						}
+					}
 					tui.newline();
 				}
 			}
@@ -274,6 +294,9 @@ export const listSubcommand = createSubcommand({
 				bucket_type: s3.bucket_type,
 				internal: s3.internal,
 				description: s3.description ?? undefined,
+				object_count: s3.object_count ?? undefined,
+				total_size: s3.total_size ?? undefined,
+				last_event_at: s3.last_event_at ?? undefined,
 			})),
 		};
 	},

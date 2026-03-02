@@ -32,6 +32,7 @@ export const KNOWN_AGENTS: [string, string][] = [
 	['zed', 'zed'],
 	['amp', 'amp'],
 	['warp', 'warp'],
+	['pi', 'pi'],
 	// TODO: VSCode Agent Mode detection - need to find a reliable way to detect
 	// when VSCode's built-in agent (Copilot Chat) is running commands vs just
 	// running in VSCode's integrated terminal. May need env var detection.
@@ -55,6 +56,7 @@ export const AGENT_DISPLAY_NAMES: Record<string, string> = {
 	zed: 'Zed',
 	amp: 'Amp',
 	warp: 'Warp',
+	pi: 'Pi',
 };
 
 /**
@@ -338,13 +340,25 @@ function getFFI(): FFIFunctions {
 let cachedResult: string | undefined | null = null;
 
 /**
+ * Check if a basename matches a known agent process name.
+ * Short tokens (≤2 chars) require an exact match to avoid false positives
+ * (e.g., 'pi' matching 'pip', 'spin'). Longer tokens use substring matching.
+ */
+function matchesProcessName(basename: string, processName: string): boolean {
+	if (processName.length <= 2) {
+		return basename === processName;
+	}
+	return basename.includes(processName);
+}
+
+/**
  * Check if a path's basename matches any known agent
  */
 function matchAgentPath(path: string): string | undefined {
 	// Extract basename from path
 	const basename = path.split(/[/\\]/).pop()?.toLowerCase() ?? '';
 	for (const [processName, agentName] of KNOWN_AGENTS) {
-		if (basename.includes(processName)) {
+		if (matchesProcessName(basename, processName)) {
 			return agentName;
 		}
 	}
@@ -362,7 +376,8 @@ function matchAgentCmdline(cmdline: string): string | undefined {
 	// We only want to check the command and args that look like executables
 	const parts = cmdline.split(/\s+/);
 
-	for (const part of parts) {
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i]!;
 		// Skip environment variables (contain =)
 		if (part.includes('=')) {
 			continue;
@@ -375,9 +390,14 @@ function matchAgentCmdline(cmdline: string): string | undefined {
 		const isSimpleCommand = !part.includes('/') && !part.includes('=') && part.length < 50;
 
 		if (isPath || isSimpleCommand) {
+			// Short tokens (≤2 chars) only match in executable positions:
+			// argv[0] or path-like tokens (e.g. /usr/local/bin/pi).
+			// This prevents false positives from ordinary arguments.
+			const isExecPosition = i === 0 || isPath;
 			const basename = part.split(/[/\\]/).pop()?.toLowerCase() ?? '';
 			for (const [processName, agentName] of KNOWN_AGENTS) {
-				if (basename.includes(processName)) {
+				if (processName.length <= 2 && !isExecPosition) continue;
+				if (matchesProcessName(basename, processName)) {
 					return agentName;
 				}
 			}

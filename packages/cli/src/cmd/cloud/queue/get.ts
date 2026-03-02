@@ -42,12 +42,12 @@ function displayMessage(message: Message): void {
 	tui.table([details], undefined, { layout: 'vertical' });
 
 	tui.newline();
-	tui.info('Payload');
+	tui.header('Payload');
 	tui.json(message.payload);
 
 	if (message.metadata && Object.keys(message.metadata).length > 0) {
 		tui.newline();
-		tui.info('Metadata');
+		tui.header('Metadata');
 		tui.json(message.metadata);
 	}
 }
@@ -119,7 +119,7 @@ export const getSubcommand = createCommand({
 				queue.next_offset !== undefined
 			) {
 				tui.newline();
-				tui.info('Stats');
+				tui.header('Stats');
 				tui.table(
 					[
 						{
@@ -135,7 +135,7 @@ export const getSubcommand = createCommand({
 
 			if (queue.default_visibility_timeout_seconds !== undefined) {
 				tui.newline();
-				tui.info('Settings');
+				tui.header('Settings');
 				const settings: Record<string, unknown> = {};
 				if (queue.default_ttl_seconds != null) {
 					settings['Default TTL'] = `${queue.default_ttl_seconds}s`;

@@ -10,7 +10,22 @@ import type {
 	UpdateTaskParams,
 	ListTasksParams,
 	ListTasksResult,
+	BatchDeleteTasksParams,
+	BatchDeleteTasksResult,
 	TaskChangelogResult,
+	Comment,
+	Tag,
+	ListCommentsResult,
+	ListTagsResult,
+	ListUsersResult,
+	ListProjectsResult,
+	Attachment,
+	CreateAttachmentParams,
+	PresignUploadResponse,
+	PresignDownloadResponse,
+	ListAttachmentsResult,
+	TaskActivityParams,
+	TaskActivityResult,
 } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
 import { now } from './_util';
@@ -23,6 +38,46 @@ const TaskTitleRequiredError = StructuredError(
 const TaskNotFoundError = StructuredError('TaskNotFoundError', 'Task not found');
 
 const TaskAlreadyClosedError = StructuredError('TaskAlreadyClosedError', 'Task is already closed');
+
+const CommentNotFoundError = StructuredError('CommentNotFoundError', 'Comment not found');
+
+const TagNotFoundError = StructuredError('TagNotFoundError', 'Tag not found');
+
+const CommentBodyRequiredError = StructuredError(
+	'CommentBodyRequiredError',
+	'Comment body is required and must be a non-empty string'
+);
+
+const CommentUserRequiredError = StructuredError(
+	'CommentUserRequiredError',
+	'Comment user ID is required and must be a non-empty string'
+);
+
+const TagNameRequiredError = StructuredError(
+	'TagNameRequiredError',
+	'Tag name is required and must be a non-empty string'
+);
+
+const AttachmentNotSupportedError = StructuredError(
+	'AttachmentNotSupportedError',
+	'Attachments are not supported in local task storage'
+);
+
+type CommentRow = {
+	id: string;
+	created_at: number;
+	updated_at: number;
+	task_id: string;
+	user_id: string;
+	body: string;
+};
+
+type TagRow = {
+	id: string;
+	created_at: number;
+	name: string;
+	color: string | null;
+};
 
 type TaskRow = {
 	id: string;
@@ -41,6 +96,7 @@ type TaskRow = {
 	created_id: string;
 	assigned_id: string | null;
 	closed_id: string | null;
+	deleted: number;
 };
 
 type TaskChangelogRow = {
@@ -65,6 +121,32 @@ const SORT_FIELDS: Record<string, string> = {
 	in_progress_date: 'in_progress_date',
 	closed_date: 'closed_date',
 };
+
+const DURATION_UNITS: Record<string, number> = {
+	m: 60 * 1000,
+	h: 60 * 60 * 1000,
+	d: 24 * 60 * 60 * 1000,
+	w: 7 * 24 * 60 * 60 * 1000,
+};
+
+const InvalidDurationError = StructuredError(
+	'InvalidDurationError',
+	'Invalid duration format: use a number followed by m (minutes), h (hours), d (days), or w (weeks)'
+);
+
+function parseDurationMs(duration: string): number {
+	const match = duration.match(/^(\d+)([mhdw])$/);
+	if (!match) {
+		throw new InvalidDurationError();
+	}
+	const value = parseInt(match[1]!, 10);
+	const unit = match[2]!;
+	const ms = DURATION_UNITS[unit];
+	if (!ms) {
+		throw new InvalidDurationError();
+	}
+	return value * ms;
+}
 
 function generateTaskId(): string {
 	return `task_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
@@ -93,6 +175,34 @@ function toTask(row: TaskRow): Task {
 		assigned_id: row.assigned_id ?? undefined,
 		closed_id: row.closed_id ?? undefined,
 	};
+}
+
+function toComment(row: CommentRow): Comment {
+	return {
+		id: row.id,
+		created_at: new Date(row.created_at).toISOString(),
+		updated_at: new Date(row.updated_at).toISOString(),
+		task_id: row.task_id,
+		user_id: row.user_id,
+		body: row.body,
+	};
+}
+
+function toTag(row: TagRow): Tag {
+	return {
+		id: row.id,
+		created_at: new Date(row.created_at).toISOString(),
+		name: row.name,
+		color: row.color ?? undefined,
+	};
+}
+
+function generateCommentId(): string {
+	return `comment_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
+}
+
+function generateTagId(): string {
+	return `tag_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
 }
 
 function toChangelogEntry(row: TaskChangelogRow): TaskChangelogEntry {
@@ -168,6 +278,7 @@ export class LocalTaskStorage implements TaskStorage {
 			created_id: params.created_id,
 			assigned_id: params.assigned_id ?? null,
 			closed_id: null,
+			deleted: 0,
 		};
 
 		stmt.run(
@@ -211,7 +322,8 @@ export class LocalTaskStorage implements TaskStorage {
 				closed_date,
 				created_id,
 				assigned_id,
-				closed_id
+				closed_id,
+				deleted
 			FROM task_storage
 			WHERE project_path = ? AND id = ?
 		`);
@@ -278,7 +390,8 @@ export class LocalTaskStorage implements TaskStorage {
 				closed_date,
 				created_id,
 				assigned_id,
-				closed_id
+				closed_id,
+				deleted
 			FROM task_storage
 			${whereClause}
 			ORDER BY ${sortField} ${sortOrder}
@@ -314,7 +427,8 @@ export class LocalTaskStorage implements TaskStorage {
 					closed_date,
 					created_id,
 					assigned_id,
-					closed_id
+					closed_id,
+					deleted
 				FROM task_storage
 				WHERE project_path = ? AND id = ?
 			`);
@@ -493,7 +607,8 @@ export class LocalTaskStorage implements TaskStorage {
 					closed_date,
 					created_id,
 					assigned_id,
-					closed_id
+					closed_id,
+					deleted
 				FROM task_storage
 				WHERE project_path = ? AND id = ?
 			`);
@@ -591,5 +706,456 @@ export class LocalTaskStorage implements TaskStorage {
 			limit,
 			offset,
 		};
+	}
+
+	async softDelete(id: string): Promise<Task> {
+		const task = await this.get(id);
+		if (!task) {
+			throw new TaskNotFoundError();
+		}
+
+		const timestamp = now();
+
+		const updateStmt = this.#db.prepare(`
+			UPDATE task_storage
+			SET status = 'closed', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
+			WHERE project_path = ? AND id = ?
+		`);
+
+		updateStmt.run(new Date(timestamp).toISOString(), timestamp, this.#projectPath, id);
+
+		const changelogStmt = this.#db.prepare(`
+			INSERT INTO task_changelog_storage (
+				project_path, id, task_id, field, old_value, new_value, created_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
+		`);
+
+		changelogStmt.run(
+			this.#projectPath,
+			generateChangelogId(),
+			id,
+			'deleted',
+			'false',
+			'true',
+			timestamp
+		);
+
+		const updated = await this.get(id);
+		return updated!;
+	}
+
+	async batchDelete(params: BatchDeleteTasksParams): Promise<BatchDeleteTasksResult> {
+		const conditions: string[] = ['project_path = ?', 'deleted = 0'];
+		const args: (string | number)[] = [this.#projectPath];
+
+		if (params.status) {
+			conditions.push('status = ?');
+			args.push(params.status);
+		}
+		if (params.type) {
+			conditions.push('type = ?');
+			args.push(params.type);
+		}
+		if (params.priority) {
+			conditions.push('priority = ?');
+			args.push(params.priority);
+		}
+		if (params.parent_id) {
+			conditions.push('parent_id = ?');
+			args.push(params.parent_id);
+		}
+		if (params.created_id) {
+			conditions.push('created_id = ?');
+			args.push(params.created_id);
+		}
+		if (params.older_than) {
+			const ms = parseDurationMs(params.older_than);
+			const cutoff = Date.now() - ms;
+			conditions.push('created_at < ?');
+			args.push(cutoff);
+		}
+
+		// Require at least one filter beyond project_path + deleted
+		if (conditions.length < 3) {
+			const BatchDeleteFilterRequiredError = StructuredError(
+				'BatchDeleteFilterRequiredError',
+				'At least one filter is required for batch delete'
+			);
+			throw new BatchDeleteFilterRequiredError();
+		}
+
+		if (params.limit !== undefined && (!Number.isInteger(params.limit) || params.limit <= 0)) {
+			const InvalidBatchDeleteLimitError = StructuredError(
+				'InvalidBatchDeleteLimitError',
+				'Batch delete limit must be a positive integer'
+			);
+			throw new InvalidBatchDeleteLimitError();
+		}
+		const limit = Math.min(params.limit ?? 50, 200);
+
+		const whereClause = conditions.join(' AND ');
+		const selectQuery = `SELECT id, title FROM task_storage WHERE ${whereClause} ORDER BY created_at ASC LIMIT ?`;
+		const selectStmt = this.#db.prepare(selectQuery);
+		const rows = selectStmt.all(...args, limit) as Array<{ id: string; title: string }>;
+
+		if (rows.length === 0) {
+			return { deleted: [], count: 0 };
+		}
+
+		const timestamp = now();
+		const ids = rows.map((r) => r.id);
+		const placeholders = ids.map(() => '?').join(', ');
+
+		const txn = this.#db.transaction(() => {
+			const updateStmt = this.#db.prepare(`
+				UPDATE task_storage
+				SET status = 'closed', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
+				WHERE project_path = ? AND id IN (${placeholders})
+			`);
+			updateStmt.run(new Date(timestamp).toISOString(), timestamp, this.#projectPath, ...ids);
+
+			const changelogStmt = this.#db.prepare(`
+				INSERT INTO task_changelog_storage (
+					project_path, id, task_id, field, old_value, new_value, created_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?)
+			`);
+			for (const row of rows) {
+				changelogStmt.run(
+					this.#projectPath,
+					generateChangelogId(),
+					row.id,
+					'deleted',
+					'false',
+					'true',
+					timestamp
+				);
+			}
+		});
+		txn();
+
+		return {
+			deleted: rows.map((r) => ({ id: r.id, title: r.title })),
+			count: rows.length,
+		};
+	}
+
+	async createComment(taskId: string, body: string, userId: string): Promise<Comment> {
+		const trimmedBody = body?.trim();
+		if (!trimmedBody) {
+			throw new CommentBodyRequiredError();
+		}
+
+		const trimmedUserId = userId?.trim();
+		if (!trimmedUserId) {
+			throw new CommentUserRequiredError();
+		}
+
+		const task = await this.get(taskId);
+		if (!task) {
+			throw new TaskNotFoundError();
+		}
+
+		const id = generateCommentId();
+		const timestamp = now();
+
+		const stmt = this.#db.prepare(`
+			INSERT INTO task_comment_storage (
+				project_path, id, task_id, user_id, body, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
+		`);
+
+		stmt.run(this.#projectPath, id, taskId, trimmedUserId, trimmedBody, timestamp, timestamp);
+
+		return toComment({
+			id,
+			created_at: timestamp,
+			updated_at: timestamp,
+			task_id: taskId,
+			user_id: trimmedUserId,
+			body: trimmedBody,
+		});
+	}
+
+	async getComment(commentId: string): Promise<Comment> {
+		const query = this.#db.query(`
+			SELECT id, created_at, updated_at, task_id, user_id, body
+			FROM task_comment_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		const row = query.get(this.#projectPath, commentId) as CommentRow | null;
+		if (!row) {
+			throw new CommentNotFoundError();
+		}
+
+		return toComment(row);
+	}
+
+	async updateComment(commentId: string, body: string): Promise<Comment> {
+		const trimmedBody = body?.trim();
+		if (!trimmedBody) {
+			throw new CommentBodyRequiredError();
+		}
+
+		const existing = await this.getComment(commentId);
+		const timestamp = now();
+
+		const stmt = this.#db.prepare(`
+			UPDATE task_comment_storage
+			SET body = ?, updated_at = ?
+			WHERE project_path = ? AND id = ?
+		`);
+
+		stmt.run(trimmedBody, timestamp, this.#projectPath, commentId);
+
+		return {
+			...existing,
+			body: trimmedBody,
+			updated_at: new Date(timestamp).toISOString(),
+		};
+	}
+
+	async deleteComment(commentId: string): Promise<void> {
+		const stmt = this.#db.prepare(`
+			DELETE FROM task_comment_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		stmt.run(this.#projectPath, commentId);
+	}
+
+	async listComments(
+		taskId: string,
+		params?: { limit?: number; offset?: number }
+	): Promise<ListCommentsResult> {
+		const limit = params?.limit ?? DEFAULT_LIMIT;
+		const offset = params?.offset ?? 0;
+
+		const totalQuery = this.#db.query(
+			`SELECT COUNT(*) as count FROM task_comment_storage WHERE project_path = ? AND task_id = ?`
+		);
+		const totalRow = totalQuery.get(this.#projectPath, taskId) as { count: number };
+
+		const query = this.#db.query(`
+			SELECT id, created_at, updated_at, task_id, user_id, body
+			FROM task_comment_storage
+			WHERE project_path = ? AND task_id = ?
+			ORDER BY created_at DESC
+			LIMIT ? OFFSET ?
+		`);
+
+		const rows = query.all(this.#projectPath, taskId, limit, offset) as CommentRow[];
+
+		return {
+			comments: rows.map(toComment),
+			total: totalRow.count,
+			limit,
+			offset,
+		};
+	}
+
+	async createTag(name: string, color?: string): Promise<Tag> {
+		const trimmedName = name?.trim();
+		if (!trimmedName) {
+			throw new TagNameRequiredError();
+		}
+
+		const id = generateTagId();
+		const timestamp = now();
+
+		const stmt = this.#db.prepare(`
+			INSERT INTO task_tag_storage (
+				project_path, id, name, color, created_at
+			) VALUES (?, ?, ?, ?, ?)
+		`);
+
+		stmt.run(this.#projectPath, id, trimmedName, color ?? null, timestamp);
+
+		return toTag({
+			id,
+			created_at: timestamp,
+			name: trimmedName,
+			color: color ?? null,
+		});
+	}
+
+	async getTag(tagId: string): Promise<Tag> {
+		const query = this.#db.query(`
+			SELECT id, created_at, name, color
+			FROM task_tag_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		const row = query.get(this.#projectPath, tagId) as TagRow | null;
+		if (!row) {
+			throw new TagNotFoundError();
+		}
+
+		return toTag(row);
+	}
+
+	async updateTag(tagId: string, name: string, color?: string): Promise<Tag> {
+		const trimmedName = name?.trim();
+		if (!trimmedName) {
+			throw new TagNameRequiredError();
+		}
+
+		// Verify exists
+		await this.getTag(tagId);
+
+		const stmt = this.#db.prepare(`
+			UPDATE task_tag_storage
+			SET name = ?, color = ?
+			WHERE project_path = ? AND id = ?
+		`);
+
+		stmt.run(trimmedName, color ?? null, this.#projectPath, tagId);
+
+		return this.getTag(tagId);
+	}
+
+	async deleteTag(tagId: string): Promise<void> {
+		// Also remove tag associations
+		const deleteAssocStmt = this.#db.prepare(`
+			DELETE FROM task_tag_association_storage
+			WHERE project_path = ? AND tag_id = ?
+		`);
+		deleteAssocStmt.run(this.#projectPath, tagId);
+
+		const stmt = this.#db.prepare(`
+			DELETE FROM task_tag_storage
+			WHERE project_path = ? AND id = ?
+		`);
+		stmt.run(this.#projectPath, tagId);
+	}
+
+	async listTags(): Promise<ListTagsResult> {
+		const query = this.#db.query(`
+			SELECT id, created_at, name, color
+			FROM task_tag_storage
+			WHERE project_path = ?
+			ORDER BY name ASC
+		`);
+
+		const rows = query.all(this.#projectPath) as TagRow[];
+
+		return {
+			tags: rows.map(toTag),
+		};
+	}
+
+	async addTagToTask(taskId: string, tagId: string): Promise<void> {
+		// Verify task and tag exist
+		const task = await this.get(taskId);
+		if (!task) {
+			throw new TaskNotFoundError();
+		}
+		await this.getTag(tagId);
+
+		const stmt = this.#db.prepare(`
+			INSERT OR IGNORE INTO task_tag_association_storage (
+				project_path, task_id, tag_id
+			) VALUES (?, ?, ?)
+		`);
+
+		stmt.run(this.#projectPath, taskId, tagId);
+	}
+
+	async removeTagFromTask(taskId: string, tagId: string): Promise<void> {
+		const stmt = this.#db.prepare(`
+			DELETE FROM task_tag_association_storage
+			WHERE project_path = ? AND task_id = ? AND tag_id = ?
+		`);
+
+		stmt.run(this.#projectPath, taskId, tagId);
+	}
+
+	async listTagsForTask(taskId: string): Promise<Tag[]> {
+		const query = this.#db.query(`
+			SELECT t.id, t.created_at, t.name, t.color
+			FROM task_tag_storage t
+			INNER JOIN task_tag_association_storage a ON t.id = a.tag_id AND t.project_path = a.project_path
+			WHERE a.project_path = ? AND a.task_id = ?
+			ORDER BY t.name ASC
+		`);
+
+		const rows = query.all(this.#projectPath, taskId) as TagRow[];
+
+		return rows.map(toTag);
+	}
+
+	// Attachment methods — not supported in local storage
+
+	async uploadAttachment(
+		_taskId: string,
+		_params: CreateAttachmentParams
+	): Promise<PresignUploadResponse> {
+		throw new AttachmentNotSupportedError();
+	}
+
+	async confirmAttachment(_attachmentId: string): Promise<Attachment> {
+		throw new AttachmentNotSupportedError();
+	}
+
+	async downloadAttachment(_attachmentId: string): Promise<PresignDownloadResponse> {
+		throw new AttachmentNotSupportedError();
+	}
+
+	async listAttachments(_taskId: string): Promise<ListAttachmentsResult> {
+		throw new AttachmentNotSupportedError();
+	}
+
+	async deleteAttachment(_attachmentId: string): Promise<void> {
+		throw new AttachmentNotSupportedError();
+	}
+
+	async listUsers(): Promise<ListUsersResult> {
+		return { users: [] };
+	}
+
+	async listProjects(): Promise<ListProjectsResult> {
+		return { projects: [] };
+	}
+
+	async getActivity(params?: TaskActivityParams): Promise<TaskActivityResult> {
+		const days = Math.min(365, Math.max(7, params?.days ?? 90));
+		const activity = [];
+		const now = new Date();
+
+		for (let i = days - 1; i >= 0; i--) {
+			const date = new Date(now);
+			date.setDate(date.getDate() - i);
+			const dateStr = date.toISOString().slice(0, 10);
+
+			const row = this.#db
+				.prepare(
+					`SELECT
+						COALESCE(SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END), 0) as open,
+						COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress,
+						COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0) as done,
+						COALESCE(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0) as closed,
+						COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled
+					FROM task_storage
+					WHERE project_path = ? AND date(created_at) = ?`
+				)
+				.get(this.#projectPath, dateStr) as {
+				open: number;
+				in_progress: number;
+				done: number;
+				closed: number;
+				cancelled: number;
+			};
+
+			activity.push({
+				date: dateStr,
+				open: row.open,
+				inProgress: row.in_progress,
+				done: row.done,
+				closed: row.closed,
+				cancelled: row.cancelled,
+			});
+		}
+
+		return { activity, days };
 	}
 }

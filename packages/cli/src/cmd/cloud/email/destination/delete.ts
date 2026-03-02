@@ -43,11 +43,15 @@ export const deleteSubcommand = createCommand({
 			);
 			if (!ok) {
 				tui.info('Cancelled');
-				return { success: false, address_id: args.address_id, destination_id: args.destination_id };
+				return {
+					success: false,
+					address_id: args.address_id,
+					destination_id: args.destination_id,
+				};
 			}
 		}
 
-		const email = createEmailAdapter(ctx);
+		const email = await createEmailAdapter(ctx);
 		await email.deleteDestination(args.address_id, args.destination_id);
 
 		if (!options.json) {

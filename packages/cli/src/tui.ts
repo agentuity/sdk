@@ -475,6 +475,15 @@ export function newline(): void {
 }
 
 /**
+ * Print a section header without any prefix icon
+ */
+export function header(message: string): void {
+	const color = getColor('bold');
+	const reset = getColor('reset');
+	process.stderr.write(`${color}${message}${reset}\n`);
+}
+
+/**
  * Print plain text output without any prefix or icon
  * Use for primary command output that shouldn't have semantic formatting
  */
@@ -2226,7 +2235,8 @@ export function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
 	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-	return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+	if (bytes < 1024 * 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+	return `${(bytes / (1024 * 1024 * 1024 * 1024)).toFixed(2)} TB`;
 }
 
 export function clearLastLines(n: number, s?: (v: string) => void) {

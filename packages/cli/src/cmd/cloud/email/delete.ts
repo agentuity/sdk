@@ -36,7 +36,7 @@ export const deleteSubcommand = createCommand({
 			}
 		}
 
-		const email = createEmailAdapter(ctx);
+		const email = await createEmailAdapter(ctx);
 		await email.deleteAddress(args.id);
 
 		if (!options.json) {

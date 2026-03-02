@@ -20,15 +20,18 @@ export const createSubcommand = createCommand({
 	name: 'create',
 	description: 'Create destination for a schedule',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	examples: [
 		{
-			command: getCommand('cloud schedule destination create url sched_abc123 https://example.com'),
+			command: getCommand(
+				'cloud schedule destination create url sched_abc123 https://example.com'
+			),
 			description: 'Create URL destination',
 		},
 		{
-			command: getCommand('cloud schedule destination create url sched_abc123 https://example.com --method POST'),
+			command: getCommand(
+				'cloud schedule destination create url sched_abc123 https://example.com --method POST'
+			),
 			description: 'Create URL destination with POST method',
 		},
 	],
@@ -48,12 +51,16 @@ export const createSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 
 		if (args.type === 'sandbox' && !args.target.startsWith('sbx_')) {
 			tui.fatal('Sandbox target must start with "sbx_"');
 		}
-		if (args.type === 'url' && !args.target.startsWith('http://') && !args.target.startsWith('https://')) {
+		if (
+			args.type === 'url' &&
+			!args.target.startsWith('http://') &&
+			!args.target.startsWith('https://')
+		) {
 			tui.fatal('URL target must start with http:// or https://');
 		}
 
@@ -95,12 +102,17 @@ export const createSubcommand = createCommand({
 					{
 						ID: result.destination.id,
 						Type: result.destination.type,
-						Config: JSON.stringify(result.destination.config),
 					},
 				],
 				undefined,
 				{ layout: 'vertical' }
 			);
+
+			if (result.destination.config && Object.keys(result.destination.config).length > 0) {
+				tui.newline();
+				tui.header('Config');
+				tui.json(result.destination.config);
+			}
 		}
 
 		return result;

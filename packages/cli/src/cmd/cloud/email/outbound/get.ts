@@ -18,7 +18,7 @@ export const getSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, options } = ctx;
-		const email = createEmailAdapter(ctx);
+		const email = await createEmailAdapter(ctx);
 		const outbound = await email.getOutbound(args.id);
 
 		if (!outbound) {
@@ -37,12 +37,12 @@ export const getSubcommand = createCommand({
 						Text: truncate(outbound.text),
 						Status: outbound.status ?? '-',
 						Error: outbound.error ?? '-',
-						Sent: outbound.sent_at
-							? new Date(outbound.sent_at).toLocaleString()
+						Created: outbound.created_at
+							? new Date(outbound.created_at).toLocaleString()
 							: '-',
 					},
 				],
-				['ID', 'From', 'To', 'Subject', 'Text', 'Status', 'Error', 'Sent'],
+				['ID', 'From', 'To', 'Subject', 'Text', 'Status', 'Error', 'Created'],
 				{ layout: 'vertical', padStart: '  ' }
 			);
 		}

@@ -222,6 +222,16 @@ export const command = createCommand({
 				.boolean()
 				.optional()
 				.describe('Enable bun debugger with breakpoint at first line'),
+			experimentalNoBundle: z
+				.boolean()
+				.optional()
+				.describe(
+					'[Experimental] Skip Bun.build in dev mode — run generated entry file directly'
+				),
+			noTypecheck: z
+				.boolean()
+				.optional()
+				.describe('Skip TypeScript type checking on startup and restarts'),
 		}),
 	},
 	optional: { project: true },
@@ -856,15 +866,19 @@ export const command = createCommand({
 
 					// Generate entry file and bundle for dev server (with LLM patches)
 					await tui.spinner({
-						message: 'Building dev bundle',
+						message: opts.experimentalNoBundle
+							? 'Preparing dev server'
+							: 'Building dev bundle',
 						callback: async () => {
-							// Step 0: typecheck
+							// Step 0: typecheck (skip with --no-typecheck)
 							typeCheckErrors = undefined;
 
-							const typeResult = await typecheck(rootDir);
-							if (!typeResult.success) {
-								typeCheckErrors = typeResult.output;
-								return;
+							if (!opts.noTypecheck) {
+								const typeResult = await typecheck(rootDir);
+								if (!typeResult.success) {
+									typeCheckErrors = typeResult.output;
+									return;
+								}
 							}
 
 							// Step 1: Generate workbench files if enabled (must be done before entry generation)
@@ -881,7 +895,7 @@ export const command = createCommand({
 								);
 							}
 
-							// Step 2: Discover agents and routes for registry generation
+							// Step 2: Discover agents and routes in parallel
 							const srcDir = join(rootDir, 'src');
 							const { discoverAgents } = await import('../build/vite/agent-discovery');
 							const { discoverRoutes } = await import('../build/vite/route-discovery');
@@ -889,48 +903,70 @@ export const command = createCommand({
 								'../build/vite/registry-generator'
 							);
 
-							const agentMetadata = await discoverAgents(
-								srcDir,
-								project?.projectId ?? '',
-								deploymentId,
-								logger
-							);
-							const { routes, routeInfoList } = await discoverRoutes(
-								srcDir,
-								project?.projectId ?? '',
-								deploymentId,
-								logger
-							);
+							const [agentMetadata, { routes, routeInfoList }] = await Promise.all([
+								discoverAgents(srcDir, project?.projectId ?? '', deploymentId, logger),
+								discoverRoutes(srcDir, project?.projectId ?? '', deploymentId, logger),
+							]);
 
-							// Generate agent and route registries for type augmentation
-							// (TypeScript needs these files to exist for proper type inference)
-							generateAgentRegistry(srcDir, agentMetadata);
-							generateRouteRegistry(srcDir, routeInfoList);
-							logger.debug('Agent and route registries generated for dev mode');
+							// Step 2.5: Compute a hash of discovery results to skip codegen when unchanged
+							// This avoids rewriting identical files on every restart
+							const discoveryFingerprint = Bun.hash(
+								JSON.stringify({
+									agents: agentMetadata.map((a) => a.id + a.filename),
+									routes: routeInfoList.map((r) => r.method + r.path + r.filename),
+								})
+							).toString(36);
 
-							// Step 3: Generate entry file with workbench and analytics config
-							// Note: vitePort is NOT passed here - the app reads process.env.VITE_PORT at runtime
-							const { generateEntryFile } = await import('../build/entry-generator');
-							await generateEntryFile({
-								rootDir,
-								projectId: project?.projectId ?? '',
-								deploymentId,
-								logger,
-								mode: 'dev',
-								workbench: workbenchConfigData.enabled ? workbenchConfigData : undefined,
-								analytics: agentuityConfig?.analytics,
-							});
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							const prevFingerprint = (globalThis as any)
+								.__AGENTUITY_DISCOVERY_FINGERPRINT__ as string | undefined;
+							const discoveryChanged = discoveryFingerprint !== prevFingerprint;
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							(globalThis as any).__AGENTUITY_DISCOVERY_FINGERPRINT__ = discoveryFingerprint;
 
-							// Step 4: Bundle the app with LLM patches (dev mode = no minification)
-							// This produces .agentuity/app.js with AI Gateway routing patches applied
-							const { installExternalsAndBuild } = await import(
-								'../build/vite/server-bundler'
-							);
-							await installExternalsAndBuild({
-								rootDir,
-								dev: true, // DevMode: no minification, inline sourcemaps
-								logger,
-							});
+							if (discoveryChanged) {
+								// Generate agent and route registries for type augmentation
+								// (TypeScript needs these files to exist for proper type inference)
+								generateAgentRegistry(srcDir, agentMetadata);
+								generateRouteRegistry(srcDir, routeInfoList);
+								logger.debug('Agent and route registries generated for dev mode');
+
+								// Step 3: Generate entry file with workbench and analytics config
+								// Pass pre-discovered routes to avoid redundant route discovery
+								const { generateEntryFile } = await import('../build/entry-generator');
+								await generateEntryFile({
+									rootDir,
+									projectId: project?.projectId ?? '',
+									deploymentId,
+									logger,
+									mode: 'dev',
+									workbench: workbenchConfigData.enabled ? workbenchConfigData : undefined,
+									analytics: agentuityConfig?.analytics,
+									noBundle: opts.experimentalNoBundle,
+									preDiscoveredRoutes: routeInfoList,
+								});
+							} else {
+								logger.debug(
+									'Discovery unchanged (fingerprint: %s), skipping codegen',
+									discoveryFingerprint
+								);
+							}
+
+							// Step 4: Bundle the app with LLM patches (skip in --experimental-no-bundle mode)
+							if (!opts.experimentalNoBundle) {
+								// This produces .agentuity/app.js with AI Gateway routing patches applied
+								// Must re-bundle even if discovery unchanged (user code may have changed)
+								const { installExternalsAndBuild } = await import(
+									'../build/vite/server-bundler'
+								);
+								await installExternalsAndBuild({
+									rootDir,
+									dev: true,
+									logger,
+								});
+							} else {
+								logger.debug('Skipping Bun.build (--experimental-no-bundle mode)');
+							}
 
 							// Generate metadata file (needed for eval ID lookup at runtime)
 							// Reuse agentMetadata and routes from Step 2
@@ -1068,6 +1104,12 @@ export const command = createCommand({
 						process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID = deploymentId;
 					}
 
+					if (devmode?.hostname) {
+						process.env.AGENTUITY_DEVMODE_URL = `https://${devmode.hostname}`;
+					} else {
+						process.env.AGENTUITY_DEVMODE_URL = `http://localhost:${opts.port}`;
+					}
+
 					// Set Vite port for asset proxying in bundled app
 					process.env.VITE_PORT = String(vitePort);
 
@@ -1085,6 +1127,7 @@ export const command = createCommand({
 						inspect: opts.inspect,
 						inspectWait: opts.inspectWait,
 						inspectBrk: opts.inspectBrk,
+						noBundle: opts.experimentalNoBundle,
 					});
 
 					// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)

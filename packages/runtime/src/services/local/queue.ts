@@ -1,5 +1,11 @@
 import type { Database } from 'bun:sqlite';
-import type { QueueService, QueuePublishParams, QueuePublishResult } from '@agentuity/core';
+import type {
+	QueueService,
+	QueuePublishParams,
+	QueuePublishResult,
+	QueueCreateParams,
+	QueueCreateResult,
+} from '@agentuity/core';
 
 export class LocalQueueStorage implements QueueService {
 	#db: Database;
@@ -123,5 +129,17 @@ export class LocalQueueStorage implements QueueService {
 		});
 
 		return publishInTransaction.immediate();
+	}
+
+	async createQueue(queueName: string, params?: QueueCreateParams): Promise<QueueCreateResult> {
+		console.debug(`[local] createQueue: ${queueName}`);
+		return {
+			name: queueName,
+			queueType: params?.queueType ?? 'worker',
+		};
+	}
+
+	async deleteQueue(_queueName: string): Promise<void> {
+		// No-op in local mode — queues don't need provisioning locally
 	}
 }

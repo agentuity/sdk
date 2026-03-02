@@ -15,7 +15,7 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { options } = ctx;
-		const email = createEmailAdapter(ctx);
+		const email = await createEmailAdapter(ctx);
 		const addresses = await email.listAddresses();
 
 		if (!options.json) {
@@ -23,21 +23,22 @@ export const listSubcommand = createCommand({
 				addresses.map((item) => ({
 					ID: item.id,
 					Email: item.email,
-					Project: item.project_id ?? '-',
-					Provider: item.provider ?? '-',
 					Created: new Date(item.created_at).toLocaleString(),
 				})),
 				[
 					{ name: 'ID', alignment: 'left' },
 					{ name: 'Email', alignment: 'left' },
-					{ name: 'Project', alignment: 'left' },
-					{ name: 'Provider', alignment: 'left' },
 					{ name: 'Created', alignment: 'left' },
 				]
 			);
 		}
 
-		return addresses;
+		return addresses.map((item) => ({
+			id: item.id,
+			email: item.email,
+			created_at: item.created_at,
+			updated_at: item.updated_at,
+		}));
 	},
 });
 

@@ -95,6 +95,30 @@ async function fetchDNSRecord(name: string, type: string): Promise<string | null
 	return records[0] ?? null;
 }
 
+/**
+ * Check if a domain has a valid TLS certificate by making a HEAD request.
+ * This also triggers Let's Encrypt certificate provisioning on first access.
+ * Returns true if the TLS certificate is valid (any HTTP status code received).
+ * Returns false if the certificate is not yet provisioned (timeout or TLS error).
+ */
+async function checkTLSCertificate(domain: string): Promise<boolean> {
+	try {
+		await fetch(`https://${domain}`, {
+			method: 'HEAD',
+			signal: AbortSignal.timeout(timeoutMs),
+			redirect: 'manual',
+			// @ts-expect-error - cache is supported by Bun's fetch at runtime but missing from type definitions
+			cache: 'no-store',
+		});
+		// Any HTTP response means TLS handshake succeeded and certificate is valid
+		return true;
+	} catch {
+		// Timeout, TLS certificate error, connection refused, etc.
+		// All indicate the certificate is not yet provisioned
+		return false;
+	}
+}
+
 const LOCAL_DNS = 'agentuity.io';
 const PRODUCTION_DNS = 'agentuity.run';
 
@@ -173,13 +197,25 @@ export async function checkCustomDomainForDNS(
 
 				if (result) {
 					if (result === proxy) {
+						// DNS is correct — verify TLS certificate (also triggers Let's Encrypt provisioning)
+						const tlsValid = await checkTLSCertificate(domain);
+						if (tlsValid) {
+							return {
+								domain,
+								target: proxy,
+								aRecordTarget,
+								recordType: 'CNAME',
+								success: true,
+							} as DNSSuccess;
+						}
 						return {
 							domain,
 							target: proxy,
 							aRecordTarget,
 							recordType: 'CNAME',
 							success: true,
-						} as DNSSuccess;
+							pending: true,
+						} as DNSPending;
 					}
 					return {
 						domain,
@@ -242,13 +278,25 @@ export async function checkCustomDomainForDNS(
 					if (domainARecords.length > 0) {
 						const matching = domainARecords.some((a) => ionIPs.includes(a));
 						if (matching) {
+							// DNS is correct — verify TLS certificate (also triggers Let's Encrypt provisioning)
+							const tlsValid = await checkTLSCertificate(domain);
+							if (tlsValid) {
+								return {
+									domain,
+									target: proxy,
+									aRecordTarget,
+									recordType: 'A',
+									success: true,
+								} as DNSSuccess;
+							}
 							return {
 								domain,
 								target: proxy,
 								aRecordTarget,
 								recordType: 'A',
 								success: true,
-							} as DNSSuccess;
+								pending: true,
+							} as DNSPending;
 						}
 						return {
 							domain,

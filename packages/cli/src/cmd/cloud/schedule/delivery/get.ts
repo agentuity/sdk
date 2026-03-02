@@ -21,8 +21,7 @@ export const getSubcommand = createCommand({
 	name: 'get',
 	description: 'Get delivery details',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{
@@ -52,7 +51,7 @@ export const getSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 		const delivery = await schedule.getDelivery(args.schedule_id, args.delivery_id, {
 			limit: opts.limit,
 			offset: opts.offset,
@@ -73,7 +72,7 @@ export const getSubcommand = createCommand({
 
 			if (delivery.response) {
 				tui.newline();
-				tui.info('Response');
+				tui.header('Response');
 				tui.json(delivery.response);
 			}
 		}

@@ -3,7 +3,8 @@ import enquirer from 'enquirer';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { setResourceInfo } from '../../../cache';
-import { createEmailAdapter, resolveEmailOrgId, resolveEmailRegion, EmailAddressSchema } from './util';
+import { createEmailAdapter, resolveEmailOrgId, EmailAddressSchema } from './util';
+import { defaultProfileName, getDefaultRegion } from '../../../config';
 
 export const createSubcommand = createCommand({
 	name: 'create',
@@ -13,10 +14,7 @@ export const createSubcommand = createCommand({
 	requires: { auth: true },
 	schema: {
 		options: z.object({
-			localPart: z
-				.string()
-				.optional()
-				.describe('Local part for the email address (before @)'),
+			localPart: z.string().optional().describe('Local part for the email address (before @)'),
 		}),
 		response: EmailAddressSchema,
 	},
@@ -29,21 +27,30 @@ export const createSubcommand = createCommand({
 			const answer = await enquirer.prompt<{ local_part: string }>({
 				type: 'input',
 				name: 'local_part',
-				message: 'Local part (username):',
+				message: 'Email address or username (e.g. "support" or "support@agentuity.email"):',
 			});
 			localPart = answer.local_part?.trim();
 		}
 
 		if (!localPart) {
-			tui.fatal('Local part is required');
+			tui.fatal('Email address or username is required');
 		}
 
-		const email = createEmailAdapter(ctx);
+		// If user entered a full email, extract just the local part
+		if (localPart.includes('@')) {
+			localPart = localPart.split('@')[0]?.trim() ?? '';
+		}
+
+		if (!localPart) {
+			tui.fatal('Email address or username is required');
+		}
+
+		const profileName = config?.name ?? defaultProfileName;
+		const region = await getDefaultRegion(profileName, ctx.config);
+		const email = await createEmailAdapter(ctx, region);
 		const address = await email.createAddress(localPart);
 
-		const profileName = config?.name ?? 'production';
 		const orgId = resolveEmailOrgId(ctx);
-		const region = resolveEmailRegion(ctx);
 		await setResourceInfo('email', profileName, address.id, region, orgId);
 
 		if (!options.json) {
@@ -53,12 +60,10 @@ export const createSubcommand = createCommand({
 					{
 						ID: address.id,
 						Email: address.email,
-						Project: address.project_id ?? '-',
-						Provider: address.provider ?? '-',
 						Created: new Date(address.created_at).toLocaleString(),
 					},
 				],
-				['ID', 'Email', 'Project', 'Provider', 'Created'],
+				['ID', 'Email', 'Created'],
 				{ layout: 'vertical', padStart: '  ' }
 			);
 		}

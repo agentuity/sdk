@@ -24,8 +24,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List deliveries for a schedule',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{
@@ -46,7 +45,7 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 		const result = await schedule.listDeliveries(args.schedule_id, {
 			limit: opts.limit,
 			offset: opts.offset,
@@ -57,19 +56,21 @@ export const listSubcommand = createCommand({
 				tui.info('No deliveries found');
 			} else {
 				tui.table(
-					result.deliveries.map((delivery: {
-						id: string;
-						date: string;
-						status: 'pending' | 'success' | 'failed';
-						retries: number;
-						schedule_destination_id: string;
-					}) => ({
-						ID: delivery.id,
-						Date: new Date(delivery.date).toLocaleString(),
-						Status: delivery.status,
-						Retries: delivery.retries,
-						'Destination ID': delivery.schedule_destination_id,
-					})),
+					result.deliveries.map(
+						(delivery: {
+							id: string;
+							date: string;
+							status: 'pending' | 'success' | 'failed';
+							retries: number;
+							schedule_destination_id: string;
+						}) => ({
+							ID: delivery.id,
+							Date: new Date(delivery.date).toLocaleString(),
+							Status: delivery.status,
+							Retries: delivery.retries,
+							'Destination ID': delivery.schedule_destination_id,
+						})
+					),
 					['ID', 'Date', 'Status', 'Retries', 'Destination ID']
 				);
 			}

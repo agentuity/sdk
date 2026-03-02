@@ -14,8 +14,7 @@ export const deleteSubcommand = createCommand({
 	aliases: ['rm'],
 	description: 'Delete a destination',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
-	requires: { auth: true, region: true },
-	optional: { project: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{
@@ -32,7 +31,7 @@ export const deleteSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, options } = ctx;
-		const schedule = createScheduleAdapter(ctx);
+		const schedule = await createScheduleAdapter(ctx);
 		await schedule.deleteDestination(args.destination_id);
 
 		if (!options.json) {

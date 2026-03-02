@@ -147,14 +147,17 @@ export const getSubcommand = createCommand({
 			if (resourceParts.length > 0) {
 				tableData['Resources'] = resourceParts.join(', ');
 			}
-			if (result.metadata && Object.keys(result.metadata).length > 0) {
-				tableData['Metadata'] = JSON.stringify(result.metadata);
-			}
 			if (result.url) {
 				tableData['URL'] = tui.link(result.url);
 			}
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
+
+			if (result.metadata && Object.keys(result.metadata).length > 0) {
+				tui.newline();
+				tui.header('Metadata');
+				tui.json(result.metadata);
+			}
 		}
 
 		return {

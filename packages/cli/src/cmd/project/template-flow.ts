@@ -11,6 +11,7 @@ import {
 	APIClient as ServerAPIClient,
 	createResources,
 	validateDatabaseName,
+	validateBucketName,
 } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui';
@@ -440,11 +441,40 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		// Process storage action
 		switch (s3_action) {
 			case 'Create New': {
+				let bucketName: string | undefined;
+				let bucketDescription: string | undefined;
+
+				// Only prompt for name/description in interactive mode
+				if (isInteractive) {
+					const bucketNameInput = await prompt.text({
+						message: 'Bucket name',
+						hint: 'Optional - lowercase letters, digits, hyphens only',
+						validate: (value: string) => {
+							const trimmed = value.trim();
+							if (trimmed === '') return true;
+							const result = validateBucketName(trimmed);
+							return result.valid ? true : result.error!;
+						},
+					});
+					bucketName = bucketNameInput.trim() || undefined;
+					bucketDescription =
+						(await prompt.text({
+							message: 'Bucket description',
+							hint: 'Optional - press Enter to skip',
+						})) || undefined;
+				}
+
 				const created = await tui.spinner({
 					message: 'Provisioning New Bucket',
 					clearOnSuccess: true,
 					callback: async () => {
-						return createResources(catalystClient!, orgId!, region!, [{ type: 's3' }]);
+						return createResources(catalystClient!, orgId!, region!, [
+							{
+								type: 's3',
+								name: bucketName,
+								description: bucketDescription,
+							},
+						]);
 					},
 				});
 				// Collect env vars from newly created resource

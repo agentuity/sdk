@@ -5,6 +5,7 @@ import { deleteSubcommand } from './delete';
 import { getSubcommand } from './get';
 import { logsSubcommand } from './logs';
 import { sqlSubcommand } from './sql';
+import { statsSubcommand } from './stats';
 import { getCommand } from '../../../command-prefix';
 
 export const dbCommand = createCommand({
@@ -23,5 +24,6 @@ export const dbCommand = createCommand({
 		deleteSubcommand,
 		logsSubcommand,
 		sqlSubcommand,
+		statsSubcommand,
 	],
 });
