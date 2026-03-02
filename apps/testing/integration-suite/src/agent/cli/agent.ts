@@ -26,7 +26,7 @@ const cliDeploymentAgent = createAgent('cli', {
 			json: s.any().optional(), // Parsed JSON if available
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const { command, args = [], expectJSON = false } = input;
 
 		// Build full CLI arguments

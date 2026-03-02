@@ -43,7 +43,7 @@ ${inject}
 
 export function generateGatewayEnvGuard(
 	apikey: string,
-	apikeyval: string,
+	_apikeyval: string,
 	apibase: string,
 	provider: string
 ): string {
@@ -63,7 +63,7 @@ export function generateGatewayEnvGuard(
 
 export function searchBackwards(contents: string, offset: number, val: string): number {
 	for (let i = offset; i >= 0; i--) {
-		if (contents.charAt(i) == val) {
+		if (contents.charAt(i) === val) {
 			return i;
 		}
 	}

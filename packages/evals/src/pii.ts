@@ -56,7 +56,7 @@ export const pii = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEva
 	options: {
 		model: DEFAULT_EVAL_MODEL,
 	},
-	handler: async (ctx, input, output, options) => {
+	handler: async (_ctx, input, output, options) => {
 		const prompt = interpolatePrompt(piiPrompt, {
 			USER_REQUEST: input.request,
 			MODEL_RESPONSE: output.response,

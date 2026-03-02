@@ -28,9 +28,7 @@ export interface TestResult {
 	diagnostics?: TestDiagnostics;
 }
 
-export interface TestFunction {
-	(): Promise<void> | void;
-}
+export type TestFunction = () => Promise<void> | void;
 
 export interface TestDefinition {
 	name: string;

@@ -132,7 +132,7 @@ export function createMockStreamStorage(): StreamStorage {
 	>();
 
 	return {
-		async create(name: string, props?: CreateStreamProps): Promise<Stream> {
+		async create(_name: string, props?: CreateStreamProps): Promise<Stream> {
 			const id = `stream-${Date.now()}`;
 			const url = `https://mock-stream.local/${id}`;
 

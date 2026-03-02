@@ -9,7 +9,7 @@ const noInputAgent = createAgent('no-input', {
 			random: s.number(),
 		}),
 	},
-	handler: async (ctx) => {
+	handler: async (_ctx) => {
 		return {
 			timestamp: Date.now(),
 			random: Math.random(),

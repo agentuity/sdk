@@ -17,7 +17,7 @@ const agent = createAgent('simple', {
 			timestamp: s.string(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		return {
 			message: `Hello ${input.name}, you are ${input.age} years old!`,
 			timestamp: new Date().toISOString(),

@@ -13,7 +13,7 @@ const asyncAgent = createAgent('async', {
 			elapsed: s.number(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const start = Date.now();
 
 		// Simulate async work

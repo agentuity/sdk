@@ -19,7 +19,7 @@ export function parseExpiresAt(input: string): string {
 	if (input.includes('T') || input.includes('-')) {
 		// Validate it's a valid date
 		const date = new Date(input);
-		if (isNaN(date.getTime())) {
+		if (Number.isNaN(date.getTime())) {
 			throw new InvalidDateFormatError({ input, message: `Invalid date format: ${input}` });
 		}
 		return date.toISOString();

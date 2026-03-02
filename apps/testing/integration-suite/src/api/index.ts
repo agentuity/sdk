@@ -158,7 +158,7 @@ router.post('/agent/state-writer', stateWriterAgent.validator(), async (c) => {
 // WebSocket routes for testing
 router.get(
 	'/ws/echo',
-	websocket((c, ws) => {
+	websocket((_c, ws) => {
 		// Echo back any message received
 		ws.onMessage((event) => {
 			ws.send((event as MessageEvent).data);
@@ -173,14 +173,14 @@ const broadcastClients: WebSocketConnection[] = [];
 
 router.get(
 	'/ws/broadcast',
-	websocket((c, ws) => {
+	websocket((_c, ws) => {
 		broadcastClients.push(ws);
 
 		ws.onMessage((event) => {
 			for (const client of broadcastClients) {
 				try {
 					client.send((event as MessageEvent).data);
-				} catch (error) {
+				} catch (_error) {
 					// Ignore errors sending to closed connections
 				}
 			}
@@ -229,7 +229,7 @@ router.get(
 // SSE (Server-Sent Events) routes for testing
 router.get(
 	'/sse/simple',
-	sse(async (c, stream) => {
+	sse(async (_c, stream) => {
 		// Send a few simple messages
 		stream.writeSSE({ data: 'Message 1' });
 		await new Promise((resolve) => setTimeout(resolve, 10));
@@ -241,7 +241,7 @@ router.get(
 
 router.get(
 	'/sse/events',
-	sse(async (c, stream) => {
+	sse(async (_c, stream) => {
 		// Send events with event types
 		stream.writeSSE({ event: 'start', data: JSON.stringify({ timestamp: Date.now() }) });
 		await new Promise((resolve) => setTimeout(resolve, 10));
@@ -306,7 +306,7 @@ router.get(
 
 router.get(
 	'/sse/abort-test',
-	sse(async (c, stream) => {
+	sse(async (_c, stream) => {
 		let aborted = false;
 
 		stream.onAbort(() => {
@@ -329,7 +329,7 @@ router.get(
 // a Response with a ReadableStream body. This test simulates that pattern.
 router.get(
 	'/sse/async-fetch',
-	sse(async (c, stream) => {
+	sse(async (_c, stream) => {
 		// Simulate what AI SDK's generateText does:
 		// 1. Make a fetch request (simulated with ReadableStream)
 		// 2. Consume the stream to get the result
@@ -399,7 +399,7 @@ router.get(
 // when called inside SSE handlers due to a Bun bug with OTEL-instrumented fetch.
 router.get(
 	'/sse/generate-text',
-	sse(async (c, stream) => {
+	sse(async (_c, stream) => {
 		stream.writeSSE({ event: 'start', data: 'starting AI SDK test' });
 
 		// Check if we have an API key - if not, skip the actual AI call

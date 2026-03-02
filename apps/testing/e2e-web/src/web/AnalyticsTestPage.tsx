@@ -138,7 +138,7 @@ export function AnalyticsTestPage() {
 				originalDebugRef.current = null;
 			}
 		};
-	}, []);
+	}, [runTests]);
 
 	const passCount = results.filter((r) => r.status === 'pass').length;
 	const failCount = results.filter((r) => r.status === 'fail').length;

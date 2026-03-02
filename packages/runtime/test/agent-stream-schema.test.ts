@@ -11,7 +11,7 @@ test('Streaming agent with output schema - should return ReadableStream<Type>', 
 			output: z.object({ id: z.number(), text: z.string() }),
 			stream: true,
 		},
-		handler: async (ctx, input) => {
+		handler: async (_ctx, input) => {
 			expectTypeOf(input).toEqualTypeOf<{ message: string }>();
 
 			const stream = new ReadableStream<{ id: number; text: string }>({
@@ -55,7 +55,7 @@ test('Streaming agent without output schema - should return ReadableStream<unkno
 			input: z.object({ count: z.number() }),
 			stream: true,
 		},
-		handler: async (ctx, input) => {
+		handler: async (_ctx, input) => {
 			expectTypeOf(input).toEqualTypeOf<{ count: number }>();
 
 			const stream = new ReadableStream<unknown>({
@@ -100,7 +100,7 @@ test('Streaming agent with primitive output schema - should return ReadableStrea
 			output: z.number(),
 			stream: true,
 		},
-		handler: async (ctx, input) => {
+		handler: async (_ctx, input) => {
 			expectTypeOf(input).toEqualTypeOf<string>();
 
 			const stream = new ReadableStream<number>({
@@ -144,7 +144,7 @@ test('Non-streaming agent with output schema - should return Type directly', asy
 			input: z.object({ name: z.string() }),
 			output: z.object({ greeting: z.string() }),
 		},
-		handler: async (ctx, input) => {
+		handler: async (_ctx, input) => {
 			expectTypeOf(input).toEqualTypeOf<{ name: string }>();
 			return { greeting: `Hello ${input.name}` };
 		},

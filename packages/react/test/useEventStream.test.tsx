@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { renderHook, act } from '@testing-library/react';
-import React, { type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { AgentuityProvider } from '../src/context';
 import { useEventStream } from '../src/eventstream';
 
