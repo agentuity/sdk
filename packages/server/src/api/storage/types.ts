@@ -22,7 +22,7 @@ export const CORSConfigSchema = z.object({
 export const BucketConfigSchema = z.object({
 	bucket_name: z.string().describe('The name of the storage bucket'),
 	storage_tier: StorageTierSchema.nullable().optional().describe('Storage tier for the bucket'),
-	ttl: z.number().int().nullable().optional().describe('Object TTL in seconds'),
+	ttl: z.number().int().min(0).nullable().optional().describe('Object TTL in seconds'),
 	public: z.boolean().nullable().optional().describe('Whether the bucket is publicly accessible'),
 	cache_control: z.string().nullable().optional().describe('Default Cache-Control header for objects'),
 	cors: CORSConfigSchema.nullable().optional().describe('Custom CORS configuration'),
@@ -54,7 +54,7 @@ export type BucketConfigUpdate = z.infer<typeof BucketConfigUpdateSchema>;
 export const StorageObjectSchema = z.object({
 	bucket_name: z.string().describe('The bucket this object belongs to'),
 	key: z.string().describe('Object key (path)'),
-	size: z.number().int().describe('Object size in bytes'),
+	size: z.number().int().nonnegative().describe('Object size in bytes'),
 	etag: z.string().optional().describe('Object ETag'),
 	content_type: z.string().optional().describe('Object content type'),
 	last_modified: z.string().optional().describe('Last modified timestamp (ISO8601)'),
@@ -63,28 +63,28 @@ export const StorageObjectSchema = z.object({
 /** Paginated list of storage objects */
 export const StorageListResponseSchema = z.object({
 	objects: z.array(StorageObjectSchema).describe('List of objects'),
-	total: z.number().int().describe('Total count matching the query'),
+	total: z.number().int().nonnegative().describe('Total count matching the query'),
 	prefix: z.string().describe('Prefix filter applied'),
-	limit: z.number().int().describe('Page size'),
-	offset: z.number().int().describe('Page offset'),
+	limit: z.number().int().nonnegative().describe('Page size'),
+	offset: z.number().int().nonnegative().describe('Page offset'),
 });
 
 /** Delete response */
 export const StorageDeleteResponseSchema = z.object({
-	deleted_count: z.number().int().describe('Number of objects deleted'),
+	deleted_count: z.number().int().nonnegative().describe('Number of objects deleted'),
 });
 
 /** Presigned URL response */
 export const StoragePresignResponseSchema = z.object({
 	presigned_url: z.string().describe('The presigned URL'),
-	expiry_seconds: z.number().int().describe('URL expiry time in seconds'),
+	expiry_seconds: z.number().int().nonnegative().describe('URL expiry time in seconds'),
 });
 
 /** Bucket stats response */
 export const StorageStatsResponseSchema = z.object({
 	bucket_name: z.string().describe('The bucket name'),
-	object_count: z.number().int().describe('Number of objects'),
-	total_size: z.number().int().describe('Total size in bytes'),
+	object_count: z.number().int().nonnegative().describe('Number of objects'),
+	total_size: z.number().int().nonnegative().describe('Total size in bytes'),
 	last_event_at: z.string().optional().describe('Last event timestamp (ISO8601)'),
 });
 
@@ -92,8 +92,8 @@ export const StorageStatsResponseSchema = z.object({
 
 /** Summary totals across all buckets */
 export const StorageAnalyticsSummarySchema = z.object({
-	total_object_count: z.number().int().describe('Total objects across all buckets'),
-	total_size: z.number().int().describe('Total size in bytes across all buckets'),
+	total_object_count: z.number().int().nonnegative().describe('Total objects across all buckets'),
+	total_size: z.number().int().nonnegative().describe('Total size in bytes across all buckets'),
 	estimated_monthly_cost: z.number().describe('Estimated monthly cost in USD'),
 	cost_per_gb_month: z.number().describe('Cost rate per GB per month in USD'),
 });
@@ -101,8 +101,8 @@ export const StorageAnalyticsSummarySchema = z.object({
 /** Per-bucket breakdown */
 export const StorageAnalyticsBucketSchema = z.object({
 	bucket_name: z.string().describe('The bucket name'),
-	object_count: z.number().int().describe('Number of objects in this bucket'),
-	total_size: z.number().int().describe('Total size in bytes for this bucket'),
+	object_count: z.number().int().nonnegative().describe('Number of objects in this bucket'),
+	total_size: z.number().int().nonnegative().describe('Total size in bytes for this bucket'),
 	last_event_at: z.string().optional().describe('Last event timestamp (ISO8601)'),
 	estimated_monthly_cost: z.number().describe('Estimated monthly cost for this bucket in USD'),
 });
@@ -110,8 +110,8 @@ export const StorageAnalyticsBucketSchema = z.object({
 /** Daily snapshot for sparklines */
 export const StorageAnalyticsDailySnapshotSchema = z.object({
 	date: z.string().describe('Snapshot date (YYYY-MM-DD)'),
-	total_object_count: z.number().int().describe('Total objects on this date'),
-	total_size: z.number().int().describe('Total size in bytes on this date'),
+	total_object_count: z.number().int().nonnegative().describe('Total objects on this date'),
+	total_size: z.number().int().nonnegative().describe('Total size in bytes on this date'),
 	estimated_cost: z.number().describe('Estimated monthly cost at this snapshot in USD'),
 });
 
@@ -120,7 +120,7 @@ export const StorageAnalyticsResponseSchema = z.object({
 	summary: StorageAnalyticsSummarySchema.describe('Org-wide totals'),
 	buckets: z.array(StorageAnalyticsBucketSchema).describe('Per-bucket breakdown'),
 	daily: z.array(StorageAnalyticsDailySnapshotSchema).describe('Daily snapshots for sparklines'),
-	days: z.number().int().describe('Number of days requested'),
+	days: z.number().int().nonnegative().describe('Number of days requested'),
 });
 
 export type StorageObject = z.infer<typeof StorageObjectSchema>;

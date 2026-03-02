@@ -44,8 +44,18 @@ export async function listStorageObjects(
 ): Promise<StorageListResponse> {
 	const params = new URLSearchParams();
 	if (options?.prefix) params.set('prefix', options.prefix);
-	if (options?.limit !== undefined) params.set('limit', String(options.limit));
-	if (options?.offset !== undefined) params.set('offset', String(options.offset));
+	if (options?.limit !== undefined) {
+		if (!Number.isFinite(options.limit) || !Number.isInteger(options.limit) || options.limit < 0) {
+			throw new TypeError('limit must be a non-negative integer');
+		}
+		params.set('limit', String(options.limit));
+	}
+	if (options?.offset !== undefined) {
+		if (!Number.isFinite(options.offset) || !Number.isInteger(options.offset) || options.offset < 0) {
+			throw new TypeError('offset must be a non-negative integer');
+		}
+		params.set('offset', String(options.offset));
+	}
 
 	const query = params.toString();
 	const url = `/storage/objects/${STORAGE_OBJECTS_API_VERSION}/${encodeURIComponent(bucketName)}${query ? `?${query}` : ''}`;
@@ -131,6 +141,9 @@ export async function presignStorageObject(
 	operation: 'download' | 'upload' = 'download',
 	extraHeaders?: Record<string, string>,
 ): Promise<StoragePresignResponse> {
+	if (!key) {
+		throw new StorageObjectsResponseError({ message: "'key' must be a non-empty string" });
+	}
 	const params = new URLSearchParams();
 	params.set('key', key);
 	if (operation !== 'download') {
@@ -202,7 +215,12 @@ export async function getStorageAnalytics(
 	extraHeaders?: Record<string, string>,
 ): Promise<StorageAnalyticsResponse> {
 	const params = new URLSearchParams();
-	if (options?.days !== undefined) params.set('days', String(options.days));
+	if (options?.days !== undefined) {
+		if (!Number.isFinite(options.days) || !Number.isInteger(options.days) || options.days < 0) {
+			throw new TypeError('days must be a non-negative integer');
+		}
+		params.set('days', String(options.days));
+	}
 
 	const query = params.toString();
 	const url = `/storage/analytics/${STORAGE_OBJECTS_API_VERSION}${query ? `?${query}` : ''}`;
