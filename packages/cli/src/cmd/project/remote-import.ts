@@ -931,7 +931,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				}
 			}
 
-			const catalystClient = getCatalystAPIClient(logger, auth, region);
+			const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, config);
 
 			// ── Database Resources ──
 			for (const r of templateResources.filter((resource) => resource.type === 'database')) {
@@ -1055,7 +1055,13 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			}
 
 			// ── Queue Resources ──
-			const queueClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+			const queueClient = await getGlobalCatalystAPIClient(
+				logger,
+				auth,
+				config?.name,
+				undefined,
+				config
+			);
 			const queueOrgOpts = orgId ? { orgId } : undefined;
 
 			for (const r of templateResources.filter((resource) => resource.type === 'queue')) {

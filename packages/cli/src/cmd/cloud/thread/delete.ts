@@ -1,10 +1,10 @@
+import { APIError, threadDelete } from '@agentuity/server';
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { threadDelete, APIError } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
 import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
@@ -25,7 +25,13 @@ export const deleteSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const { logger, auth, args, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		try {
 			await threadDelete(catalystClient, { id: args.thread_id });

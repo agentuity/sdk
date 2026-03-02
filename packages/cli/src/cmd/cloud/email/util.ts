@@ -1,17 +1,17 @@
-import { z } from 'zod';
 import { EmailStorageService, type Logger } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
-import type { AuthData, Config, GlobalOptions } from '../../../types';
+import { z } from 'zod';
 import { getCatalystUrl } from '../../../catalyst';
 import { defaultProfileName, getDefaultRegion } from '../../../config';
 import * as tui from '../../../tui';
+import type { AuthData, Config, GlobalOptions } from '../../../types';
 
 export type {
 	EmailAddress,
+	EmailAttachment,
 	EmailDestination,
 	EmailInbound,
 	EmailOutbound,
-	EmailAttachment,
 	EmailSendParams,
 } from '@agentuity/core';
 
@@ -63,6 +63,6 @@ export async function createEmailAdapter(ctx: EmailContext, region?: string) {
 
 	const resolvedRegion =
 		region ?? (await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config));
-	const baseUrl = getCatalystUrl(resolvedRegion);
+	const baseUrl = getCatalystUrl(resolvedRegion, ctx.config?.overrides);
 	return new EmailStorageService(baseUrl, adapter);
 }

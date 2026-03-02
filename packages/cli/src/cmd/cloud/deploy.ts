@@ -132,9 +132,7 @@ export const deploySubcommand = createSubcommand({
 				reportFile: z
 					.string()
 					.optional()
-					.describe(
-						'file path to save build report JSON with errors, warnings, and diagnostics'
-					),
+					.describe('file path to save build report JSON with errors, warnings, and diagnostics'),
 				childMode: z
 					.boolean()
 					.optional()
@@ -374,8 +372,7 @@ export const deploySubcommand = createSubcommand({
 			if (opts.provider) childArgs.push(`--provider=${opts.provider}`);
 			if (opts.repo) childArgs.push(`--repo=${opts.repo}`);
 			if (opts.event) childArgs.push(`--event=${opts.event}`);
-			if (opts.pullRequestNumber)
-				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
+			if (opts.pullRequestNumber) childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 
 			const result = await runForkedDeploy({
@@ -449,7 +446,13 @@ export const deploySubcommand = createSubcommand({
 					}
 					logger.debug('Checking %d packages for malware', packages.length);
 					// Use Catalyst client directly for malware check (security routes are on Catalyst)
-					const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+					const catalystClient = await getGlobalCatalystAPIClient(
+						logger,
+						auth,
+						config?.name,
+						undefined,
+						config
+					);
 					const result = await projectDeploymentMalwareCheck(
 						catalystClient,
 						deployment!.id,
@@ -624,9 +627,7 @@ export const deploySubcommand = createSubcommand({
 							endTypecheckDiagnostic();
 
 							if (typeResult.success) {
-								capturedOutput.push(
-									tui.muted(`✓ Typechecked in ${Date.now() - started}ms`)
-								);
+								capturedOutput.push(tui.muted(`✓ Typechecked in ${Date.now() - started}ms`));
 							} else {
 								// Errors already added to collector by typecheck()
 								// Write report before returning error
@@ -836,8 +837,7 @@ export const deploySubcommand = createSubcommand({
 								const endCdnUploadDiagnostic = collector.startDiagnostic('cdn-upload');
 								ctx.logger.trace(`Uploading ${build.assets.length} assets`);
 								if (!instructions.assets) {
-									const errorMsg =
-										'server did not provide asset upload URLs; upload aborted';
+									const errorMsg = 'server did not provide asset upload URLs; upload aborted';
 									collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
 									if (opts.reportFile) {
 										await collector.forceWrite();
@@ -927,11 +927,7 @@ export const deploySubcommand = createSubcommand({
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
-							complete = await projectDeploymentComplete(
-								apiClient,
-								deployment.id,
-								stepCtx.signal
-							);
+							complete = await projectDeploymentComplete(apiClient, deployment.id, stepCtx.signal);
 							return stepSuccess();
 						},
 					},
@@ -950,10 +946,7 @@ export const deploySubcommand = createSubcommand({
 			// TODO: send the deployment failure to the backend otherwise we staying in a deploying state
 
 			const streamId = complete?.streamId;
-			const appUrl = getAppBaseURL(
-				process.env.AGENTUITY_REGION ?? config?.name,
-				config?.overrides
-			);
+			const appUrl = getAppBaseURL(process.env.AGENTUITY_REGION ?? config?.name, config?.overrides);
 			const dashboard = `${appUrl}/r/${deployment.id}`;
 
 			// Poll for deployment status with optional log streaming
@@ -989,9 +982,7 @@ export const deploySubcommand = createSubcommand({
 											},
 										});
 										if (!resp.ok || !resp.body) {
-											ctx.logger.trace(
-												`Failed to connect to warmup log stream: ${resp.status}`
-											);
+											ctx.logger.trace(`Failed to connect to warmup log stream: ${resp.status}`);
 											return;
 										}
 										const reader = resp.body.getReader();
@@ -1081,9 +1072,7 @@ export const deploySubcommand = createSubcommand({
 							}
 							const exwithmessage = ex as { message: string };
 							const msg =
-								exwithmessage.message === 'Deployment failed'
-									? ''
-									: exwithmessage.toString();
+								exwithmessage.message === 'Deployment failed' ? '' : exwithmessage.toString();
 
 							// Add error to collector
 							const isTimeout = exwithmessage.message === 'Deployment timed out';
@@ -1233,8 +1222,7 @@ export const deploySubcommand = createSubcommand({
 				logs,
 				urls: complete?.publicUrls
 					? {
-							deployment:
-								complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment,
+							deployment: complete.publicUrls.vanityDeployment ?? complete.publicUrls.deployment,
 							latest: complete.publicUrls.vanityProject ?? complete.publicUrls.latest,
 							custom: complete.publicUrls.custom,
 							dashboard,

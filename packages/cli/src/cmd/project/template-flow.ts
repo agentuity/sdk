@@ -11,8 +11,8 @@ import {
 	projectEnvUpdate,
 	projectExists,
 	APIClient as ServerAPIClient,
-	validateDatabaseName,
 	validateBucketName,
+	validateDatabaseName,
 } from '@agentuity/server';
 import type { APIClient } from '../../api';
 import { createProjectConfig } from '../../config';
@@ -656,6 +656,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 				region,
 				databaseName: authDatabaseName,
 				sql,
+				config,
 			});
 		}
 	}

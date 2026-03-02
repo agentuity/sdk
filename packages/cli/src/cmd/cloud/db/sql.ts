@@ -1,9 +1,9 @@
-import { z } from 'zod';
 import { dbQuery } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
+import { getCatalystAPIClient } from '../../../config';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const DBSQLResponseSchema = z.object({
 	rows: z.array(z.record(z.string(), z.unknown())).describe('Query results'),
@@ -44,7 +44,7 @@ export const sqlSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { logger, args, options, orgId, region, auth } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, ctx.config);
 
 		const result = await tui.spinner({
 			message: `Executing query on ${args.name}`,

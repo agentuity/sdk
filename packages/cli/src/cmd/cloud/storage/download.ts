@@ -1,12 +1,12 @@
-import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import { createS3Client } from './utils';
+import { z } from 'zod';
 import { getResourceInfo, setResourceInfo } from '../../../cache';
+import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
+import { createS3Client } from './utils';
 
 export const downloadSubcommand = createSubcommand({
 	name: 'download',
@@ -56,7 +56,13 @@ export const downloadSubcommand = createSubcommand({
 		const { logger, args, opts, options, auth, config } = ctx;
 
 		const profileName = config?.name ?? 'production';
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
 
 		// Check cache first for orgId
 		const cachedInfo = await getResourceInfo('bucket', profileName, args.name);
@@ -82,13 +88,7 @@ export const downloadSubcommand = createSubcommand({
 
 		// Cache the bucket info for future lookups
 		if (bucket?.cloud_region) {
-			await setResourceInfo(
-				'bucket',
-				profileName,
-				bucket.bucket_name,
-				bucket.cloud_region,
-				orgId
-			);
+			await setResourceInfo('bucket', profileName, bucket.bucket_name, bucket.cloud_region, orgId);
 		}
 
 		if (!bucket) {
@@ -96,10 +96,7 @@ export const downloadSubcommand = createSubcommand({
 		}
 
 		if (!bucket.access_key || !bucket.secret_key || !bucket.endpoint) {
-			tui.fatal(
-				`Storage bucket '${args.name}' is missing credentials`,
-				ErrorCode.CONFIG_INVALID
-			);
+			tui.fatal(`Storage bucket '${args.name}' is missing credentials`, ErrorCode.CONFIG_INVALID);
 		}
 
 		// Initialize S3 client

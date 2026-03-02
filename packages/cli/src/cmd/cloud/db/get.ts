@@ -1,11 +1,11 @@
+import { dbTables, generateCreateTableSQL, listOrgResources } from '@agentuity/server';
 import { z } from 'zod';
-import { listOrgResources, dbTables, generateCreateTableSQL } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
 import { setResourceInfo } from '../../../cache';
+import { getCommand } from '../../../command-prefix';
+import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const DBGetResponseSchema = z
 	.object({
@@ -75,9 +75,7 @@ export const getSubcommand = createSubcommand({
 			showCredentials: z
 				.boolean()
 				.optional()
-				.describe(
-					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
-				),
+				.describe('Show credentials in plain text (default: masked in terminal, unmasked in JSON)'),
 			showTables: z.boolean().optional().describe('Fetch table schemas from the database'),
 			sql: z.boolean().optional().describe('Output table schemas as SQL CREATE statements'),
 		}),
@@ -89,7 +87,13 @@ export const getSubcommand = createSubcommand({
 		const { logger, args, opts, options, auth, config } = ctx;
 
 		const profileName = config?.name ?? 'production';
-		const globalClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		const globalClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
 
 		// Search across all orgs the user has access to
 		const resources = await tui.spinner({
@@ -115,7 +119,7 @@ export const getSubcommand = createSubcommand({
 		// Need regional Catalyst for database operations
 		if (opts.showTables) {
 			const region = db.cloud_region;
-			const regionalClient = getCatalystAPIClient(logger, auth, region);
+			const regionalClient = getCatalystAPIClient(logger, auth, region, undefined, config);
 
 			// Validate org_id is present - dbTables requires orgId for authorization
 			// Some internal databases may not have org_id set, which would fail the API call

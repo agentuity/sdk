@@ -1,13 +1,13 @@
-import { z } from 'zod';
-import { basename } from 'path';
 import { listOrgResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import { createS3Client } from './utils';
+import { basename } from 'path';
+import { z } from 'zod';
 import { getResourceInfo, setResourceInfo } from '../../../cache';
+import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
+import { createS3Client } from './utils';
 
 export const uploadSubcommand = createSubcommand({
 	name: 'upload',
@@ -49,10 +49,7 @@ export const uploadSubcommand = createSubcommand({
 				.string()
 				.optional()
 				.describe('Remote object key (defaults to basename or "stdin" for piped uploads)'),
-			contentType: z
-				.string()
-				.optional()
-				.describe('Content type (auto-detected if not provided)'),
+			contentType: z.string().optional().describe('Content type (auto-detected if not provided)'),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether upload succeeded'),
@@ -66,7 +63,13 @@ export const uploadSubcommand = createSubcommand({
 		const { logger, args, opts, options, auth, config } = ctx;
 
 		const profileName = config?.name ?? 'production';
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
 
 		// Check cache first for orgId
 		const cachedInfo = await getResourceInfo('bucket', profileName, args.name);
@@ -92,13 +95,7 @@ export const uploadSubcommand = createSubcommand({
 
 		// Cache the bucket info for future lookups
 		if (bucket?.cloud_region) {
-			await setResourceInfo(
-				'bucket',
-				profileName,
-				bucket.bucket_name,
-				bucket.cloud_region,
-				orgId
-			);
+			await setResourceInfo('bucket', profileName, bucket.bucket_name, bucket.cloud_region, orgId);
 		}
 
 		if (!bucket) {
@@ -106,10 +103,7 @@ export const uploadSubcommand = createSubcommand({
 		}
 
 		if (!bucket.access_key || !bucket.secret_key || !bucket.endpoint) {
-			tui.fatal(
-				`Storage bucket '${args.name}' is missing credentials`,
-				ErrorCode.CONFIG_INVALID
-			);
+			tui.fatal(`Storage bucket '${args.name}' is missing credentials`, ErrorCode.CONFIG_INVALID);
 		}
 
 		// Prepare streaming upload - we don't buffer the entire file in memory

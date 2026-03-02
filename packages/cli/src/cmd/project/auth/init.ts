@@ -1,21 +1,21 @@
-import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import {
-	selectOrCreateDatabase,
-	ensureAuthDependencies,
-	runAuthMigrations,
-	generateAuthFileContent,
-	printIntegrationExamples,
-	detectOrmSetup,
-	generateAuthSchemaSql,
-	getGeneratedSqlDir,
-} from './shared';
-import { readEnvFile, writeEnvFile } from '../../../env-util';
 import enquirer from 'enquirer';
 import * as fs from 'fs';
 import * as path from 'path';
+import { z } from 'zod';
+import { getCommand } from '../../../command-prefix';
+import { readEnvFile, writeEnvFile } from '../../../env-util';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
+import {
+	detectOrmSetup,
+	ensureAuthDependencies,
+	generateAuthFileContent,
+	generateAuthSchemaSql,
+	getGeneratedSqlDir,
+	printIntegrationExamples,
+	runAuthMigrations,
+	selectOrCreateDatabase,
+} from './shared';
 
 export const initSubcommand = createSubcommand({
 	name: 'init',
@@ -34,9 +34,7 @@ export const initSubcommand = createSubcommand({
 			skipMigrations: z
 				.boolean()
 				.optional()
-				.describe(
-					'Skip running database migrations (run `agentuity project auth generate` later)'
-				),
+				.describe('Skip running database migrations (run `agentuity project auth generate` later)'),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether setup succeeded'),
@@ -180,9 +178,7 @@ export const initSubcommand = createSubcommand({
 			if (ormSetup === 'drizzle') {
 				tui.info(tui.bold('Drizzle detected in your project.'));
 				tui.newline();
-				console.log(
-					'  Since you manage your own Drizzle schema, add authSchema to your schema:'
-				);
+				console.log('  Since you manage your own Drizzle schema, add authSchema to your schema:');
 				tui.newline();
 				console.log(tui.muted("    import * as authSchema from '@agentuity/auth/schema';"));
 				console.log(tui.muted('    export const schema = { ...authSchema, ...yourSchema };'));
@@ -232,6 +228,7 @@ export const initSubcommand = createSubcommand({
 						region,
 						databaseName,
 						sql,
+						config,
 					});
 					migrationsRun = true;
 				}
