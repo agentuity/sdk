@@ -35,6 +35,10 @@ describe('task delete command', () => {
 	});
 
 	describe('parseDuration', () => {
+		test('parses seconds', () => {
+			expect(parseDuration('30s')).toBe(30 * 1000);
+		});
+
 		test('parses minutes', () => {
 			expect(parseDuration('30m')).toBe(30 * 60 * 1000);
 		});
@@ -52,6 +56,7 @@ describe('task delete command', () => {
 		});
 
 		test('parses single unit values', () => {
+			expect(parseDuration('1s')).toBe(1000);
 			expect(parseDuration('1m')).toBe(60 * 1000);
 			expect(parseDuration('1h')).toBe(60 * 60 * 1000);
 			expect(parseDuration('1d')).toBe(24 * 60 * 60 * 1000);

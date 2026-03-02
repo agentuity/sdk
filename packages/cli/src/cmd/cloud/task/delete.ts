@@ -7,6 +7,7 @@ import { isDryRunMode, outputDryRun } from '../../../explain';
 import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core';
 
 const DURATION_UNITS: Record<string, number> = {
+	s: 1000,
 	m: 60 * 1000,
 	h: 60 * 60 * 1000,
 	d: 24 * 60 * 60 * 1000,
@@ -14,14 +15,14 @@ const DURATION_UNITS: Record<string, number> = {
 };
 
 /**
- * Parse a human-friendly duration string (e.g. "7d", "24h", "30m", "2w")
+ * Parse a human-friendly duration string (e.g. "30s", "7d", "24h", "30m", "2w")
  * into milliseconds. Exported for testing.
  */
 export function parseDuration(duration: string): number {
-	const match = duration.match(/^(\d+)([mhdw])$/);
+	const match = duration.match(/^(\d+)([smhdw])$/);
 	if (!match) {
 		tui.fatal(
-			`Invalid duration format: "${duration}". Use a number followed by m (minutes), h (hours), d (days), or w (weeks). Examples: 30m, 24h, 7d, 2w`
+			`Invalid duration format: "${duration}". Use a number followed by s (seconds), m (minutes), h (hours), d (days), or w (weeks). Examples: 30s, 30m, 24h, 7d, 2w`
 		);
 		// tui.fatal exits, but TypeScript doesn't know that
 		throw new Error('unreachable');
@@ -101,7 +102,7 @@ export const deleteSubcommand = createCommand({
 			olderThan: z
 				.string()
 				.optional()
-				.describe('filter batch delete by age (e.g. 7d, 24h, 2w)'),
+				.describe('filter batch delete by age (e.g. 30s, 7d, 24h, 2w)'),
 			parentId: z.string().optional().describe('filter batch delete by parent task ID'),
 			createdId: z.string().optional().describe('filter batch delete by creator ID'),
 			limit: z.coerce
