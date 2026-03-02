@@ -107,10 +107,14 @@ export const createSubcommand = createCommand({
 		const createdId = opts.createdId ?? ctx.auth.userId;
 		const createdType = (opts.createdType as UserType) ?? 'human';
 		let creator: { id: string; name: string; type?: UserType } | undefined;
-		if (opts.createdId && opts.createdName) {
-			// Explicit creator with name
-			creator = { id: opts.createdId, name: opts.createdName, type: createdType };
-		} else if (!opts.createdId) {
+		if (opts.createdId) {
+			// Explicit creator — use createdId as name fallback (like project pattern)
+			creator = {
+				id: opts.createdId,
+				name: opts.createdName ?? opts.createdId,
+				type: createdType,
+			};
+		} else {
 			// Using auth userId — check cache first, then fall back to whoami API call
 			const profileName = ctx.config?.name ?? defaultProfileName;
 			const cached = getCachedUserInfo(profileName);
