@@ -720,11 +720,11 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 					message: 'AGENTUITY_SDK_KEY environment variable is required when using --project-id',
 				});
 			}
-			const orgId = config.preferences?.orgId;
+			const orgId = org ?? config.preferences?.orgId;
 			if (!orgId) {
 				throw new RemoteImportConfigError({
 					message:
-						'Organization ID not found. Set orgId in config preferences or use interactive mode.',
+						'Organization ID not found. Use --org flag, set orgId in config preferences, or use interactive mode.',
 				});
 			}
 			const region = process.env.AGENTUITY_REGION ?? config.preferences?.region ?? 'usc';
