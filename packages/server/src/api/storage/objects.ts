@@ -40,18 +40,26 @@ export async function listStorageObjects(
 	client: APIClient,
 	bucketName: string,
 	options?: ListStorageObjectsOptions,
-	extraHeaders?: Record<string, string>,
+	extraHeaders?: Record<string, string>
 ): Promise<StorageListResponse> {
 	const params = new URLSearchParams();
 	if (options?.prefix) params.set('prefix', options.prefix);
 	if (options?.limit !== undefined) {
-		if (!Number.isFinite(options.limit) || !Number.isInteger(options.limit) || options.limit < 0) {
+		if (
+			!Number.isFinite(options.limit) ||
+			!Number.isInteger(options.limit) ||
+			options.limit < 0
+		) {
 			throw new TypeError('limit must be a non-negative integer');
 		}
 		params.set('limit', String(options.limit));
 	}
 	if (options?.offset !== undefined) {
-		if (!Number.isFinite(options.offset) || !Number.isInteger(options.offset) || options.offset < 0) {
+		if (
+			!Number.isFinite(options.offset) ||
+			!Number.isInteger(options.offset) ||
+			options.offset < 0
+		) {
 			throw new TypeError('offset must be a non-negative integer');
 		}
 		params.set('offset', String(options.offset));
@@ -64,7 +72,7 @@ export async function listStorageObjects(
 		url,
 		StorageListAPIResponseSchema,
 		undefined,
-		extraHeaders,
+		extraHeaders
 	);
 
 	if (resp.success) {
@@ -94,13 +102,15 @@ export async function deleteStorageObjects(
 	client: APIClient,
 	bucketName: string,
 	options: DeleteStorageObjectsOptions,
-	extraHeaders?: Record<string, string>,
+	extraHeaders?: Record<string, string>
 ): Promise<StorageDeleteResponse> {
 	if (!options.key && !options.prefix) {
 		throw new StorageObjectsResponseError({ message: "Either 'key' or 'prefix' is required" });
 	}
 	if (options.key && options.prefix) {
-		throw new StorageObjectsResponseError({ message: "Provide either 'key' or 'prefix', not both" });
+		throw new StorageObjectsResponseError({
+			message: "Provide either 'key' or 'prefix', not both",
+		});
 	}
 
 	const params = new URLSearchParams();
@@ -113,7 +123,7 @@ export async function deleteStorageObjects(
 		url,
 		StorageDeleteAPIResponseSchema,
 		undefined,
-		extraHeaders,
+		extraHeaders
 	);
 
 	if (resp.success) {
@@ -139,7 +149,7 @@ export async function presignStorageObject(
 	bucketName: string,
 	key: string,
 	operation: 'download' | 'upload' = 'download',
-	extraHeaders?: Record<string, string>,
+	extraHeaders?: Record<string, string>
 ): Promise<StoragePresignResponse> {
 	if (!key) {
 		throw new StorageObjectsResponseError({ message: "'key' must be a non-empty string" });
@@ -156,7 +166,7 @@ export async function presignStorageObject(
 		url,
 		StoragePresignAPIResponseSchema,
 		undefined,
-		extraHeaders,
+		extraHeaders
 	);
 
 	if (resp.success) {
@@ -178,7 +188,7 @@ export async function presignStorageObject(
 export async function getStorageStats(
 	client: APIClient,
 	bucketName: string,
-	extraHeaders?: Record<string, string>,
+	extraHeaders?: Record<string, string>
 ): Promise<StorageStatsResponse> {
 	const url = `/storage/stats/${STORAGE_OBJECTS_API_VERSION}/${encodeURIComponent(bucketName)}`;
 
@@ -186,7 +196,7 @@ export async function getStorageStats(
 		url,
 		StorageStatsAPIResponseSchema,
 		undefined,
-		extraHeaders,
+		extraHeaders
 	);
 
 	if (resp.success) {
@@ -212,7 +222,7 @@ export interface GetStorageAnalyticsOptions {
 export async function getStorageAnalytics(
 	client: APIClient,
 	options?: GetStorageAnalyticsOptions,
-	extraHeaders?: Record<string, string>,
+	extraHeaders?: Record<string, string>
 ): Promise<StorageAnalyticsResponse> {
 	const params = new URLSearchParams();
 	if (options?.days !== undefined) {
@@ -229,7 +239,7 @@ export async function getStorageAnalytics(
 		url,
 		StorageAnalyticsAPIResponseSchema,
 		undefined,
-		extraHeaders,
+		extraHeaders
 	);
 
 	if (resp.success) {

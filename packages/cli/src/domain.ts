@@ -195,8 +195,8 @@ export async function checkCustomDomainForDNS(
 					if (timeoutId) clearTimeout(timeoutId);
 				});
 
-			if (result) {
-				if (result === proxy) {
+				if (result) {
+					if (result === proxy) {
 						// DNS is correct — verify TLS certificate (also triggers Let's Encrypt provisioning)
 						const tlsValid = await checkTLSCertificate(domain);
 						if (tlsValid) {

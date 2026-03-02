@@ -430,9 +430,10 @@ describe('createResilientSQLProxy', () => {
 		it('handles CTE with escaped single quotes and parens', async () => {
 			const { client, unsafeCalls } = createMockClient();
 			const proxy = createResilientSQLProxy(client);
-			await proxy.unsafe("WITH cte AS (SELECT 'it''s ()' AS x) INSERT INTO items VALUES ($1)", [
-				1,
-			]);
+			await proxy.unsafe(
+				"WITH cte AS (SELECT 'it''s ()' AS x) INSERT INTO items VALUES ($1)",
+				[1]
+			);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
 				"WITH cte AS (SELECT 'it''s ()' AS x) INSERT INTO items VALUES ($1)",
@@ -442,9 +443,10 @@ describe('createResilientSQLProxy', () => {
 		it('handles CTE with parens in double-quoted identifier', async () => {
 			const { client, unsafeCalls } = createMockClient();
 			const proxy = createResilientSQLProxy(client);
-			await proxy.unsafe('WITH cte AS (SELECT "col(1)" FROM t) INSERT INTO items VALUES ($1)', [
-				1,
-			]);
+			await proxy.unsafe(
+				'WITH cte AS (SELECT "col(1)" FROM t) INSERT INTO items VALUES ($1)',
+				[1]
+			);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
 				'WITH cte AS (SELECT "col(1)" FROM t) INSERT INTO items VALUES ($1)',
@@ -464,9 +466,10 @@ describe('createResilientSQLProxy', () => {
 		it('handles CTE with parens in line comment', async () => {
 			const { client, unsafeCalls } = createMockClient();
 			const proxy = createResilientSQLProxy(client);
-			await proxy.unsafe('WITH cte AS (SELECT 1 -- )\nFROM t) INSERT INTO items VALUES ($1)', [
-				1,
-			]);
+			await proxy.unsafe(
+				'WITH cte AS (SELECT 1 -- )\nFROM t) INSERT INTO items VALUES ($1)',
+				[1]
+			);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
 				'WITH cte AS (SELECT 1 -- )\nFROM t) INSERT INTO items VALUES ($1)',
@@ -486,9 +489,10 @@ describe('createResilientSQLProxy', () => {
 		it('handles CTE with parens in tagged dollar-quoted string', async () => {
 			const { client, unsafeCalls } = createMockClient();
 			const proxy = createResilientSQLProxy(client);
-			await proxy.unsafe('WITH cte AS (SELECT $fn$)($fn$ AS x) INSERT INTO items VALUES ($1)', [
-				1,
-			]);
+			await proxy.unsafe(
+				'WITH cte AS (SELECT $fn$)($fn$ AS x) INSERT INTO items VALUES ($1)',
+				[1]
+			);
 			expect(client.executeWithRetry).toHaveBeenCalledTimes(1);
 			expect(unsafeCalls).toEqual([
 				'WITH cte AS (SELECT $fn$)($fn$ AS x) INSERT INTO items VALUES ($1)',

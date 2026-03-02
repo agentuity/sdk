@@ -33,10 +33,9 @@ function getDatabase(): Database {
 export function hasAgentSeenIntro(agentId: string): boolean {
 	try {
 		const row = getDatabase()
-			.query<
-				{ agent_id: string },
-				[string]
-			>('SELECT agent_id FROM agent_intro_seen WHERE agent_id = ?')
+			.query<{ agent_id: string }, [string]>(
+				'SELECT agent_id FROM agent_intro_seen WHERE agent_id = ?'
+			)
 			.get(agentId);
 		return row !== null;
 	} catch {
