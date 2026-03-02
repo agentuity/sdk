@@ -92,7 +92,9 @@ export async function getResourceInfo(
 		.query<
 			{ region: string; org_id: string | null; project_id: string | null; last_updated: number },
 			[string, string, string]
-		>('SELECT region, org_id, project_id, last_updated FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?')
+		>(
+			'SELECT region, org_id, project_id, last_updated FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?'
+		)
 		.get(type, profile, id);
 
 	if (!row) {

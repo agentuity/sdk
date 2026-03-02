@@ -260,15 +260,20 @@ export const listSubcommand = createSubcommand({
 					if (s3.region) console.log(` Region:     ${tui.muted(s3.region)}`);
 					if (s3.endpoint) console.log(` Endpoint:   ${tui.muted(s3.endpoint)}`);
 					if (s3.object_count != null) {
-						const sizeStr = s3.total_size != null ? tui.formatBytes(s3.total_size) : 'unknown';
-						console.log(` Objects:    ${tui.muted(`${s3.object_count.toLocaleString()} (${sizeStr})`)}`);
+						const sizeStr =
+							s3.total_size != null ? tui.formatBytes(s3.total_size) : 'unknown';
+						console.log(
+							` Objects:    ${tui.muted(`${s3.object_count.toLocaleString()} (${sizeStr})`)}`
+						);
 					}
 					if (s3.last_event_at) {
 						const date = new Date(s3.last_event_at);
 						if (Number.isNaN(date.getTime())) {
 							console.log(` Activity:   ${tui.muted('unknown')}`);
 						} else {
-							console.log(` Activity:   ${tui.muted(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}`);
+							console.log(
+								` Activity:   ${tui.muted(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}`
+							);
 						}
 					}
 					tui.newline();
