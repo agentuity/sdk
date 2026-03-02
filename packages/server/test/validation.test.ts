@@ -120,4 +120,10 @@ describe('validateBucketName', () => {
 		expect(result.valid).toBe(false);
 		expect(result.error).toContain('IP address');
 	});
+
+	test('should reject agentuity prefix', () => {
+		const result = validateBucketName('agentuity-mybucket');
+		expect(result.valid).toBe(false);
+		expect(result.error).toContain('reserved');
+	});
 });

@@ -1,4 +1,5 @@
 import { createCommand } from '../../../types';
+import { configSubcommand } from './config';
 import { createSubcommand } from './create';
 import { listSubcommand } from './list';
 import { deleteSubcommand } from './delete';
@@ -20,6 +21,7 @@ export const storageCommand = createCommand({
 		},
 	],
 	subcommands: [
+		configSubcommand,
 		createSubcommand,
 		listSubcommand,
 		getSubcommand,
