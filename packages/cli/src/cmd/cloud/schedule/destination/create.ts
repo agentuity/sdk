@@ -23,11 +23,15 @@ export const createSubcommand = createCommand({
 	requires: { auth: true },
 	examples: [
 		{
-			command: getCommand('cloud schedule destination create url sched_abc123 https://example.com'),
+			command: getCommand(
+				'cloud schedule destination create url sched_abc123 https://example.com'
+			),
 			description: 'Create URL destination',
 		},
 		{
-			command: getCommand('cloud schedule destination create url sched_abc123 https://example.com --method POST'),
+			command: getCommand(
+				'cloud schedule destination create url sched_abc123 https://example.com --method POST'
+			),
 			description: 'Create URL destination with POST method',
 		},
 	],
@@ -52,7 +56,11 @@ export const createSubcommand = createCommand({
 		if (args.type === 'sandbox' && !args.target.startsWith('sbx_')) {
 			tui.fatal('Sandbox target must start with "sbx_"');
 		}
-		if (args.type === 'url' && !args.target.startsWith('http://') && !args.target.startsWith('https://')) {
+		if (
+			args.type === 'url' &&
+			!args.target.startsWith('http://') &&
+			!args.target.startsWith('https://')
+		) {
 			tui.fatal('URL target must start with http:// or https://');
 		}
 

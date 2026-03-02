@@ -20,16 +20,6 @@ export type {
 	HttpMethod,
 } from './services/adapter.ts';
 export {
-	type EmailAddress,
-	type EmailAttachment,
-	type EmailDestination,
-	type EmailInbound,
-	type EmailOutbound,
-	type EmailSendParams,
-	type EmailService,
-	EmailStorageService,
-} from './services/email.ts';
-export {
 	type EvalRunCompleteEvent,
 	EvalRunCompleteEventDelayedSchema,
 	EvalRunCompleteEventSchema,
@@ -156,10 +146,24 @@ export {
 	StreamStorageService,
 } from './services/stream.ts';
 export {
+	type Attachment,
+	type Comment,
+	type CreateAttachmentParams,
 	type CreateTaskParams,
+	type ListAttachmentsResult,
+	type ListCommentsResult,
+	type ListProjectsResult,
+	type ListTagsResult,
 	type ListTasksParams,
 	type ListTasksResult,
+	type ListUsersResult,
+	type PresignDownloadResponse,
+	type PresignUploadResponse,
+	type Tag,
 	type Task,
+	type TaskActivityDataPoint,
+	type TaskActivityParams,
+	type TaskActivityResult,
 	type TaskChangelogEntry,
 	type TaskChangelogResult,
 	type TaskPriority,
@@ -193,6 +197,21 @@ export {
 	type VectorUpsertResult,
 	type VectorUpsertText,
 } from './services/vector.ts';
+export {
+	type CreateWebhookDestinationParams,
+	type CreateWebhookParams,
+	type UpdateWebhookParams,
+	type Webhook,
+	type WebhookCreateResult,
+	type WebhookDelivery,
+	type WebhookDeliveryListResult,
+	type WebhookDestination,
+	type WebhookGetResult,
+	type WebhookListResult,
+	type WebhookReceipt,
+	type WebhookReceiptListResult,
+	WebhookService,
+} from './services/webhook.ts';
 // standard_schema.ts exports
 export type { StandardSchemaV1 } from './standard_schema.ts';
 // string.ts exports

@@ -59,10 +59,7 @@ const listDestinationsSubcommand = createSubcommand({
 			} else {
 				const tableData = destinations.map((d: WebhookDestination) => {
 					const config =
-						d.type === 'url' &&
-						d.config &&
-						typeof d.config === 'object' &&
-						'url' in d.config
+						d.type === 'url' && d.config && typeof d.config === 'object' && 'url' in d.config
 							? String((d.config as Record<string, unknown>).url)
 							: JSON.stringify(d.config);
 					return {
@@ -192,7 +189,9 @@ const updateDestinationSubcommand = createSubcommand({
 		if (!options.json) {
 			tui.success(`Updated destination: ${destination.id}`);
 			const url =
-				destination.config && typeof destination.config === 'object' && 'url' in destination.config
+				destination.config &&
+				typeof destination.config === 'object' &&
+				'url' in destination.config
 					? (destination.config as Record<string, unknown>).url
 					: JSON.stringify(destination.config);
 			console.log(`  URL: ${url}`);

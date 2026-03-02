@@ -24,8 +24,7 @@ export interface EmailContext {
 
 export function resolveEmailOrgId(ctx: EmailContext): string {
 	const orgId =
-		ctx.options.orgId ??
-		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
 
 	if (!orgId) {
 		tui.fatal('Organization ID is required. Use --org-id flag or set AGENTUITY_CLOUD_ORG_ID.');
@@ -37,7 +36,6 @@ export function resolveEmailOrgId(ctx: EmailContext): string {
 export const EmailAddressSchema = z.object({
 	id: z.string(),
 	email: z.string(),
-	project_id: z.string().optional(),
 	provider: z.string().optional(),
 	config: z.record(z.string(), z.unknown()).optional(),
 	created_at: z.string(),

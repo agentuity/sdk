@@ -19,6 +19,7 @@ export interface BunDevServerOptions {
 	inspect?: boolean; // Enable bun debugger
 	inspectWait?: boolean; // Enable bun debugger and wait for connection
 	inspectBrk?: boolean; // Enable bun debugger with breakpoint at first line
+	noBundle?: boolean; // Run src/generated/app.ts directly without bundling
 }
 
 export interface BunDevServerResult {
@@ -39,17 +40,28 @@ export interface BunDevServerResult {
  * as a subprocess to enable passing the debugger CLI flags.
  */
 export async function startBunDevServer(options: BunDevServerOptions): Promise<BunDevServerResult> {
-	const { rootDir, port = 3500, logger, vitePort, inspect, inspectWait, inspectBrk } = options;
+	const {
+		rootDir,
+		port = 3500,
+		logger,
+		vitePort,
+		inspect,
+		inspectWait,
+		inspectBrk,
+		noBundle,
+	} = options;
 
 	logger.debug('Starting Bun dev server (Vite already running on port %d)...', vitePort);
 
-	const appPath = `${rootDir}/.agentuity/app.js`;
+	const appPath = noBundle ? `${rootDir}/src/generated/app.ts` : `${rootDir}/.agentuity/app.js`;
 
-	// Verify bundle exists before attempting to load
+	// Verify entry file exists before attempting to load
 	const appFile = Bun.file(appPath);
 	if (!(await appFile.exists())) {
 		throw new Error(
-			`Dev bundle not found at ${appPath}. The bundle must be generated before starting the dev server.`
+			noBundle
+				? `Generated entry not found at ${appPath}. Run the dev command to generate it.`
+				: `Dev bundle not found at ${appPath}. The bundle must be generated before starting the dev server.`
 		);
 	}
 
@@ -126,11 +138,11 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 		logger.debug(`Bun dev server started on http://127.0.0.1:${port} with debugger enabled`);
 		logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
 	} else {
-		// Load the bundled app - this will start Bun.serve() internally
-		// IMPORTANT: We must import the bundled .agentuity/app.js (NOT src/generated/app.ts)
-		// because the bundled version has LLM provider patches applied that enable AI Gateway routing.
-		// Importing the source file directly would bypass these patches.
-		logger.debug('📦 Loading bundled app (Bun server will start)...');
+		// Load the app entry - this will start Bun.serve() internally
+		// In bundle mode: imports .agentuity/app.js (with build-time LLM patches)
+		// In no-bundle mode: imports src/generated/app.ts directly (with runtime patches)
+		logger.debug('Loading app from: %s (noBundle: %s)', appPath, !!noBundle);
+		logger.debug('📦 Loading app entry (Bun server will start)...');
 
 		// Import the generated app with cache-busting query parameter.
 		// Bun's module cache is keyed by the full specifier including query string,

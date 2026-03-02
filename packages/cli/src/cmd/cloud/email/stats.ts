@@ -19,12 +19,8 @@ function displayStats(data: ServiceStatsData): void {
 	}
 	tui.header('Email Statistics');
 	tui.newline();
-	console.log(
-		`  ${tui.muted('Addresses:')}       ${formatNumber(svc.addressCount)}`
-	);
-	console.log(
-		`  ${tui.muted('Inbound:')}         ${formatNumber(svc.inboundCount)}`
-	);
+	console.log(`  ${tui.muted('Addresses:')}       ${formatNumber(svc.addressCount)}`);
+	console.log(`  ${tui.muted('Inbound:')}         ${formatNumber(svc.inboundCount)}`);
 	console.log(
 		`  ${tui.muted('Outbound:')}        ${formatNumber(svc.outboundCount)} (${svc.outboundSuccess} ok, ${svc.outboundFailed} failed)`
 	);

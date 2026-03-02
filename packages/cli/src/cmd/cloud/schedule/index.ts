@@ -31,7 +31,10 @@ export const command = createCommand({
 			command: getCommand("cloud schedule create --name nightly --expression '0 0 * * *'"),
 			description: 'Create a schedule',
 		},
-		{ command: getCommand('cloud schedule get sched_abc123'), description: 'Get schedule details' },
+		{
+			command: getCommand('cloud schedule get sched_abc123'),
+			description: 'Get schedule details',
+		},
 	],
 });
 

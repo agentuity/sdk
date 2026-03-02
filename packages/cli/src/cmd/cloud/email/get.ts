@@ -19,6 +19,7 @@ export const getSubcommand = createCommand({
 		const { args, options } = ctx;
 		const email = await createEmailAdapter(ctx);
 		const address = await email.getAddress(args.id);
+		const connection = await email.getConnectionConfig(args.id);
 
 		if (!address) {
 			tui.fatal(`Email address not found: ${args.id}`);
@@ -26,23 +27,57 @@ export const getSubcommand = createCommand({
 
 		if (!options.json) {
 			tui.success(`Email Address: ${tui.bold(address.email)}`);
+			console.log('');
 			tui.table(
 				[
 					{
 						ID: address.id,
 						Email: address.email,
-						Project: address.project_id ?? '-',
-						Provider: address.provider ?? '-',
-						Config: address.config ? JSON.stringify(address.config) : '-',
 						Created: new Date(address.created_at).toLocaleString(),
-						Updated: address.updated_at
-							? new Date(address.updated_at).toLocaleString()
-							: '-',
 					},
 				],
-				['ID', 'Email', 'Project', 'Provider', 'Config', 'Created', 'Updated'],
+				['ID', 'Email', 'Created'],
 				{ layout: 'vertical', padStart: '  ' }
 			);
+
+			if (connection) {
+				const formatTLS = (tls: string) =>
+					tls.length > 0 ? `${tls.charAt(0).toUpperCase()}${tls.slice(1)}` : '-';
+
+				console.log('');
+				console.log(`  ${tui.bold('IMAP Connection')}`);
+				console.log(`  ${tui.muted('─────────────────')}`);
+				tui.table(
+					[
+						{
+							Host: connection.imap.host,
+							Port: connection.imap.port,
+							TLS: formatTLS(connection.imap.tls),
+							Username: connection.imap.username,
+							Password: connection.imap.password,
+						},
+					],
+					['Host', 'Port', 'TLS', 'Username', 'Password'],
+					{ layout: 'vertical', padStart: '  ' }
+				);
+
+				console.log('');
+				console.log(`  ${tui.bold('POP3 Connection')}`);
+				console.log(`  ${tui.muted('─────────────────')}`);
+				tui.table(
+					[
+						{
+							Host: connection.pop3.host,
+							Port: connection.pop3.port,
+							TLS: formatTLS(connection.pop3.tls),
+							Username: connection.pop3.username,
+							Password: connection.pop3.password,
+						},
+					],
+					['Host', 'Port', 'TLS', 'Username', 'Password'],
+					{ layout: 'vertical', padStart: '  ' }
+				);
+			}
 		}
 
 		return address;

@@ -4,6 +4,7 @@ import { createSubcommand } from './create';
 import { updateSubcommand } from './update';
 import { listSubcommand } from './list';
 import { statsSubcommand } from './stats';
+import { attachmentSubcommand } from './attachment';
 import { getCommand } from '../../../command-prefix';
 
 export const taskCommand = createCommand({
@@ -27,8 +28,19 @@ export const taskCommand = createCommand({
 			command: getCommand('cloud task update task_abc123 --status in_progress'),
 			description: 'Update task status',
 		},
+		{
+			command: getCommand('cloud task attachment upload task_abc123 ./report.pdf'),
+			description: 'Upload a file attachment to a task',
+		},
 	],
-	subcommands: [getSubcommand, createSubcommand, updateSubcommand, listSubcommand, statsSubcommand],
+	subcommands: [
+		getSubcommand,
+		createSubcommand,
+		updateSubcommand,
+		listSubcommand,
+		statsSubcommand,
+		attachmentSubcommand,
+	],
 	requires: { auth: true },
 });
 

@@ -130,11 +130,10 @@ const retryDeliverySubcommand = createSubcommand({
 
 		if (!options.json) {
 			tui.success(`Retried delivery: ${tui.bold(delivery.id)}`);
-			tui.table(
-				[{ ID: delivery.id, Status: delivery.status }],
-				['ID', 'Status'],
-				{ layout: 'vertical', padStart: '  ' }
-			);
+			tui.table([{ ID: delivery.id, Status: delivery.status }], ['ID', 'Status'], {
+				layout: 'vertical',
+				padStart: '  ',
+			});
 		}
 
 		return delivery;

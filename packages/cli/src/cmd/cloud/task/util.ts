@@ -15,8 +15,7 @@ export interface TaskContext {
 
 export async function createStorageAdapter(ctx: TaskContext) {
 	const orgId =
-		ctx.options.orgId ??
-		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
 	if (!orgId) {
 		tui.fatal('Organization ID is required. Use --org-id flag or set AGENTUITY_CLOUD_ORG_ID.');
 	}
@@ -47,8 +46,7 @@ export async function cacheTaskId(
 	const profileName = ctx.config?.name ?? defaultProfileName;
 	const region = await getDefaultRegion(profileName, ctx.config);
 	const orgId =
-		ctx.options.orgId ??
-		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
 	await setResourceInfo('task', profileName, taskId, region, orgId);
 }
 

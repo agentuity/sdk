@@ -14,10 +14,7 @@ export const createSubcommand = createCommand({
 	requires: { auth: true },
 	schema: {
 		options: z.object({
-			localPart: z
-				.string()
-				.optional()
-				.describe('Local part for the email address (before @)'),
+			localPart: z.string().optional().describe('Local part for the email address (before @)'),
 		}),
 		response: EmailAddressSchema,
 	},
@@ -63,12 +60,10 @@ export const createSubcommand = createCommand({
 					{
 						ID: address.id,
 						Email: address.email,
-						Project: address.project_id ?? '-',
-						Provider: address.provider ?? '-',
 						Created: new Date(address.created_at).toLocaleString(),
 					},
 				],
-				['ID', 'Email', 'Project', 'Provider', 'Created'],
+				['ID', 'Email', 'Created'],
 				{ layout: 'vertical', padStart: '  ' }
 			);
 		}

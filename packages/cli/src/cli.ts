@@ -110,6 +110,7 @@ function resolveWebUrl(ctx: CommandContext, spec?: WebUrlSpec): string | undefin
 function maybeRenderWebLink(ctx: CommandContext, spec?: WebUrlSpec): void {
 	if (ctx.options.json) return;
 	if (isValidateMode(ctx.options)) return;
+	if (getExecutingAgent()) return;
 
 	const url = resolveWebUrl(ctx, spec);
 	if (!url) return;

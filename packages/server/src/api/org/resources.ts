@@ -15,6 +15,9 @@ export const OrgS3Resource = z.object({
 	bucket_type: z.string().describe('the bucket type (user or snapshots)'),
 	internal: z.boolean().describe('whether this is a system-managed bucket'),
 	description: z.string().nullable().optional().describe('optional description of the bucket'),
+	object_count: z.number().int().nonnegative().optional().describe('number of objects in this bucket'),
+	total_size: z.number().int().nonnegative().optional().describe('total size of objects in bytes'),
+	last_event_at: z.string().optional().describe('last activity timestamp (ISO8601)'),
 });
 
 export const OrgDBResource = z.object({
