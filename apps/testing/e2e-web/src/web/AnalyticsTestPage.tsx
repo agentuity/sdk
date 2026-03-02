@@ -138,7 +138,8 @@ export function AnalyticsTestPage() {
 				originalDebugRef.current = null;
 			}
 		};
-	}, [runTests]);
+		// biome-ignore lint/correctness/useExhaustiveDependencies: runs once on mount intentionally; runTests is defined in component scope
+	}, []);
 
 	const passCount = results.filter((r) => r.status === 'pass').length;
 	const failCount = results.filter((r) => r.status === 'fail').length;
