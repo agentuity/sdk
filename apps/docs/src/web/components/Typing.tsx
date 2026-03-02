@@ -37,7 +37,7 @@ export function Typing({
 	useEffect(() => {
 		hasCompletedRef.current = false;
 		setDisplayedText('');
-	}, []);
+	}, [children]);
 
 	// Keep onComplete ref up to date
 	useEffect(() => {

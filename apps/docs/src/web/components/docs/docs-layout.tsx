@@ -86,7 +86,7 @@ export function DocsLayout() {
 	// Scroll to top on route change
 	React.useLayoutEffect(() => {
 		mainRef.current?.scrollTo(0, 0);
-	}, []);
+	}, [location.pathname]);
 
 	const handleNavigate = React.useCallback(
 		(path: string) => {
