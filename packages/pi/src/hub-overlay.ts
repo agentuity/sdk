@@ -46,6 +46,26 @@ interface HubTask {
 	completedAt?: string;
 }
 
+interface HubTodoSummary {
+	open?: number;
+	in_progress?: number;
+	done?: number;
+	closed?: number;
+	cancelled?: number;
+}
+
+interface HubTodo {
+	id: string;
+	title: string;
+	status: string;
+	type?: string;
+	priority?: string;
+	parentTaskId?: string | null;
+	assignee?: string | null;
+	origin?: string | null;
+	attachmentCount?: number;
+}
+
 type AgentActivity = Record<
 	string,
 	{
@@ -68,12 +88,24 @@ interface HubSessionDetail {
 	};
 	participants?: HubParticipant[];
 	tasks?: HubTask[];
+	todos?: HubTodo[];
+	todoSummary?: HubTodoSummary;
+	todosUnavailable?: string;
 	agentActivity?: AgentActivity;
 	stream?: {
 		output?: string;
 		thinking?: string;
 		tasks?: Record<string, { output?: string; thinking?: string }>;
 	};
+}
+
+interface HubTodoListResponse {
+	ok?: boolean;
+	count?: number;
+	summary?: HubTodoSummary;
+	todos?: HubTodo[];
+	unavailable?: boolean;
+	message?: string;
 }
 
 interface HubListResponse {
@@ -1021,9 +1053,24 @@ export class HubOverlay implements Component, Focusable {
 		}
 
 		try {
-			const detail = await this.fetchJson<HubSessionDetail>(
-				`/api/hub/session/${encodeURIComponent(sessionId)}`,
-			);
+			const [detail, todosResponse] = await Promise.all([
+				this.fetchJson<HubSessionDetail>(
+					`/api/hub/session/${encodeURIComponent(sessionId)}`,
+				),
+				this.fetchJson<HubTodoListResponse>(
+					`/api/hub/session/${encodeURIComponent(sessionId)}/todos?includeTerminal=true&includeSync=true&limit=200`,
+				).catch(() => null),
+			]);
+			if (todosResponse) {
+				detail.todos = Array.isArray(todosResponse.todos) ? todosResponse.todos : [];
+				detail.todoSummary =
+					todosResponse.summary && typeof todosResponse.summary === 'object'
+						? todosResponse.summary
+						: undefined;
+				detail.todosUnavailable = todosResponse.unavailable
+					? (typeof todosResponse.message === 'string' ? todosResponse.message : 'Task service unavailable')
+					: undefined;
+			}
 			this.detail = detail;
 			this.detailSessionId = sessionId;
 			this.applyStreamProjection(sessionId, detail.stream);
@@ -1762,6 +1809,55 @@ export class HubOverlay implements Component, Focusable {
 							inner,
 						),
 					);
+				}
+			}
+
+			body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+			body.push(this.contentLine(this.theme.bold('  Session Todos'), inner));
+			if (session.todosUnavailable) {
+				body.push(this.contentLine(this.theme.fg('warning', `  ${session.todosUnavailable}`), inner));
+			} else {
+				const todos = session.todos ?? [];
+				const summary = session.todoSummary ?? {};
+				body.push(
+					this.contentLine(
+						this.theme.fg(
+							'dim',
+							`  open:${summary.open ?? 0} in_progress:${summary.in_progress ?? 0} done:${summary.done ?? 0} closed:${summary.closed ?? 0} cancelled:${summary.cancelled ?? 0}`,
+						),
+						inner,
+					),
+				);
+				if (todos.length === 0) {
+					body.push(this.contentLine(this.theme.fg('dim', '  (no session todos)'), inner));
+				} else {
+					for (const todo of todos.slice(0, 20)) {
+						const statusColor =
+							todo.status === 'done' ? 'success'
+								: todo.status === 'cancelled' || todo.status === 'closed' ? 'error'
+									: todo.status === 'in_progress' ? 'accent'
+										: 'warning';
+						const status = this.theme.fg(statusColor as 'success' | 'error' | 'warning' | 'accent', todo.status);
+						const details = [
+							typeof todo.priority === 'string' ? `prio:${todo.priority}` : undefined,
+							typeof todo.type === 'string' ? `type:${todo.type}` : undefined,
+							typeof todo.assignee === 'string' && todo.assignee.length > 0 ? `owner:${todo.assignee}` : undefined,
+							typeof todo.attachmentCount === 'number' && todo.attachmentCount > 0
+								? `att:${todo.attachmentCount}`
+								: undefined,
+						].filter((part): part is string => !!part);
+						const title = truncateToWidth(toSingleLine(todo.title || ''), Math.max(16, inner - 48));
+						const meta = details.length > 0 ? this.theme.fg('dim', ` ${details.join(' ')}`) : '';
+						body.push(
+							this.contentLine(
+								`  ${shortId(todo.id).padEnd(12)} ${status} ${title}${meta}`,
+								inner,
+							),
+						);
+					}
+					if (todos.length > 20) {
+						body.push(this.contentLine(this.theme.fg('dim', `  ... ${todos.length - 20} more todos`), inner));
+					}
 				}
 			}
 

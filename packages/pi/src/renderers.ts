@@ -343,6 +343,158 @@ function sessionDashboardRenderers(): ToolRenderers {
 	};
 }
 
+function sessionTodoCreateRenderers(): ToolRenderers {
+	return {
+		renderCall(args, theme) {
+			const title = String(args['title'] ?? '');
+			let text = theme.fg('toolTitle', theme.bold('session todo create '));
+			text += theme.fg('accent', truncate(title, 60));
+			return new SimpleText(text);
+		},
+		renderResult(result, { expanded, isPartial }, theme) {
+			if (isPartial) return new SimpleText(theme.fg('warning', 'Creating todo\u2026'));
+			const raw = resultText(result);
+			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
+			const task = parsed && typeof parsed === 'object'
+				? parsed['task'] as Record<string, unknown> | undefined
+				: undefined;
+			if (!task) return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
+			const id = String(task['id'] ?? '');
+			const status = String(task['status'] ?? 'open');
+			const priority = String(task['priority'] ?? 'none');
+			let text = theme.fg('success', `${status} ${id}`);
+			text += theme.fg('dim', ` prio:${priority}`);
+			if (expanded) {
+				text += '\n' + theme.fg('accent', truncate(String(task['title'] ?? ''), 120));
+			}
+			return new SimpleText(text);
+		},
+	};
+}
+
+function sessionTodoUpdateRenderers(): ToolRenderers {
+	return {
+		renderCall(args, theme) {
+			const id = String(args['id'] ?? '');
+			return new SimpleText(
+				theme.fg('toolTitle', theme.bold('session todo update '))
+					+ theme.fg('accent', truncate(id, 32)),
+			);
+		},
+		renderResult(result, { isPartial }, theme) {
+			if (isPartial) return new SimpleText(theme.fg('warning', 'Updating todo\u2026'));
+			const raw = resultText(result);
+			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
+			const task = parsed && typeof parsed === 'object'
+				? parsed['task'] as Record<string, unknown> | undefined
+				: undefined;
+			if (!task) return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
+			const id = String(task['id'] ?? '');
+			const status = String(task['status'] ?? 'open');
+			return new SimpleText(theme.fg('success', `${status} ${id}`));
+		},
+	};
+}
+
+function sessionTodoListRenderers(): ToolRenderers {
+	return {
+		renderCall(args, theme) {
+			const status = args['status'] ? ` status:${String(args['status'])}` : '';
+			const assignee = args['assignee'] ? ` owner:${String(args['assignee'])}` : '';
+			const scope = args['scope'] ? ` scope:${String(args['scope'])}` : '';
+			return new SimpleText(
+				theme.fg('toolTitle', theme.bold('session todos'))
+					+ theme.fg('dim', `${scope}${status}${assignee}`),
+			);
+		},
+		renderResult(result, { expanded, isPartial }, theme) {
+			if (isPartial) return new SimpleText(theme.fg('warning', 'Loading todos\u2026'));
+			const raw = resultText(result);
+			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
+			if (!parsed || typeof parsed !== 'object') {
+				return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 120)));
+			}
+
+			const count = typeof parsed['count'] === 'number' ? parsed['count'] : 0;
+			const summary = parsed['summary'] && typeof parsed['summary'] === 'object'
+				? parsed['summary'] as Record<string, unknown>
+				: {};
+			const todos = Array.isArray(parsed['todos']) ? parsed['todos'] as Array<Record<string, unknown>> : [];
+
+			let text = theme.fg('success', `${count} todo${count === 1 ? '' : 's'}`);
+			text += theme.fg(
+				'dim',
+				`  o:${Number(summary['open'] ?? 0)} ip:${Number(summary['in_progress'] ?? 0)} d:${Number(summary['done'] ?? 0)} c:${Number(summary['closed'] ?? 0)} x:${Number(summary['cancelled'] ?? 0)}`,
+			);
+
+			if (expanded && todos.length > 0) {
+				const lines = todos.slice(0, 20).map((todo) => {
+					const status = String(todo['status'] ?? 'open');
+					const marker =
+						status === 'done' ? theme.fg('success', '✓')
+							: status === 'in_progress' ? theme.fg('accent', '●')
+								: status === 'cancelled' || status === 'closed' ? theme.fg('error', 'x')
+									: theme.fg('warning', '○');
+					const id = truncate(String(todo['id'] ?? ''), 18);
+					const title = truncate(String(todo['title'] ?? ''), 72);
+					const owner = typeof todo['assignee'] === 'string' && (todo['assignee'] as string).length > 0
+						? ` @${todo['assignee']}`
+						: '';
+					return `  ${marker} ${theme.fg('dim', id)} ${title}${theme.fg('muted', owner)}`;
+				});
+				text += '\n' + lines.join('\n');
+				if (todos.length > 20) text += theme.fg('muted', `\n  \u2026and ${todos.length - 20} more`);
+			}
+			return new SimpleText(text);
+		},
+	};
+}
+
+function sessionTodoCommentRenderers(): ToolRenderers {
+	return {
+		renderCall(args, theme) {
+			const id = String(args['id'] ?? '');
+			return new SimpleText(
+				theme.fg('toolTitle', theme.bold('session todo comment '))
+					+ theme.fg('accent', truncate(id, 32)),
+			);
+		},
+		renderResult(result, { isPartial }, theme) {
+			if (isPartial) return new SimpleText(theme.fg('warning', 'Adding comment\u2026'));
+			const raw = resultText(result);
+			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
+			if (parsed && parsed['commented'] === true) {
+				return new SimpleText(theme.fg('success', 'Comment saved'));
+			}
+			return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
+		},
+	};
+}
+
+function sessionTodoAttachRenderers(): ToolRenderers {
+	return {
+		renderCall(args, theme) {
+			const id = String(args['id'] ?? '');
+			const name = String(args['name'] ?? '');
+			let text = theme.fg('toolTitle', theme.bold('session todo attach '));
+			text += theme.fg('accent', truncate(id, 24));
+			if (name) text += theme.fg('dim', ` ${truncate(name, 40)}`);
+			return new SimpleText(text);
+		},
+		renderResult(result, { isPartial }, theme) {
+			if (isPartial) return new SimpleText(theme.fg('warning', 'Attaching\u2026'));
+			const raw = resultText(result);
+			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
+			if (!parsed || typeof parsed !== 'object') {
+				return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
+			}
+			const count = typeof parsed['attachmentCount'] === 'number' ? parsed['attachmentCount'] : undefined;
+			const text = count !== undefined ? `Attachment saved (${count} total)` : 'Attachment saved';
+			return new SimpleText(theme.fg('success', text));
+		},
+	};
+}
+
 // ──────────────────────────────────────────────
 // Registry
 function taskRenderers(): ToolRenderers {
@@ -371,7 +523,7 @@ function taskRenderers(): ToolRenderers {
 					// Show first line of error in collapsed view
 					const firstLine = raw.split('\n')[0] || '';
 					errorContent += theme.fg('dim', '  ' + firstLine.slice(0, 80));
-					errorContent += theme.fg('muted', '  ctrl+h  ctrl+shift+v');
+					errorContent += theme.fg('muted', '  ctrl+h  ctrl+shift+v|alt+shift+v');
 				}
 				box.addChild(new Text(errorContent, 0, 0));
 				return box;
@@ -394,12 +546,12 @@ function taskRenderers(): ToolRenderers {
 			}
 
 			if (!expanded) {
-				text += theme.fg('muted', '  ctrl+h  ctrl+shift+v');
+				text += theme.fg('muted', '  ctrl+h  ctrl+shift+v|alt+shift+v');
 			}
 			if (expanded) {
 				const preview = raw.split('\n').slice(0, 20).map(safeLine).join('\n');
 				text += '\n' + theme.fg('dim', preview);
-				if (lineCount > 20) text += theme.fg('muted', '\n...more  ctrl+shift+v');
+				if (lineCount > 20) text += theme.fg('muted', '\n...more  ctrl+shift+v|alt+shift+v');
 			}
 			return new Text(text, 0, 0);
 		},
@@ -448,7 +600,7 @@ function parallelTasksRenderers(): ToolRenderers {
 			summaryText += theme.fg('dim', ` (${lineCount} lines)`);
 
 			if (!expanded) {
-				summaryText += theme.fg('muted', '  ctrl+h  ctrl+shift+v');
+				summaryText += theme.fg('muted', '  ctrl+h  ctrl+shift+v|alt+shift+v');
 				return new Text(summaryText, 0, 0);
 			}
 
@@ -466,7 +618,7 @@ function parallelTasksRenderers(): ToolRenderers {
 				const preview = lines.slice(0, 15).map(safeLine).join('\n');
 				let sectionContent = preview;
 				if (lines.length > 15) {
-					sectionContent += '\n' + theme.fg('muted', `  ...${lines.length - 15} more lines  ctrl+shift+v`);
+					sectionContent += '\n' + theme.fg('muted', `  ...${lines.length - 15} more lines  ctrl+shift+v|alt+shift+v`);
 				}
 
 				if (isFailed) {
@@ -496,6 +648,11 @@ const RENDERERS: Record<string, () => ToolRenderers> = {
 	context7_search: context7SearchRenderers,
 	grep_app_search: grepAppSearchRenderers,
 	session_dashboard: sessionDashboardRenderers,
+	session_todo_create: sessionTodoCreateRenderers,
+	session_todo_update: sessionTodoUpdateRenderers,
+	session_todo_list: sessionTodoListRenderers,
+	session_todo_comment: sessionTodoCommentRenderers,
+	session_todo_attach: sessionTodoAttachRenderers,
 	task: taskRenderers,
 	parallel_tasks: parallelTasksRenderers,
 };

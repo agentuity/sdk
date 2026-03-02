@@ -29,7 +29,7 @@ const RECONNECT_WAIT_TIMEOUT_MS = 120_000;
 
 type HubUiStatus = 'connected' | 'reconnecting' | 'offline';
 
-// Recent agent results for full-screen viewer (Ctrl+Shift+V)
+// Recent agent results for full-screen viewer (Ctrl+Shift+V / Alt+Shift+V)
 const recentResults: StoredResult[] = [];
 const MAX_STORED_RESULTS = 20;
 
@@ -578,15 +578,23 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			},
 		});
 
+		const openOutputViewer = async (ctx: ExtensionContext): Promise<void> => {
+			if (!ctx.hasUI || recentResults.length === 0) return;
+			await ctx.ui.custom<undefined>(
+				(tui, theme, _keybindings, done) => new OutputViewerOverlay(tui, theme, recentResults, done),
+				{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
+			);
+		};
+
 		pi.registerShortcut('ctrl+shift+v', {
 			description: 'View full agent output',
-			handler: async (ctx) => {
-				if (!ctx.hasUI || recentResults.length === 0) return;
-				await ctx.ui.custom<undefined>(
-					(tui, theme, _keybindings, done) => new OutputViewerOverlay(tui, theme, recentResults, done),
-					{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
-				);
-			},
+			handler: openOutputViewer,
+		});
+
+		// Tmux/terminal environments often cannot emit Ctrl+Shift+V consistently.
+		pi.registerShortcut('alt+shift+v', {
+			description: 'View full agent output',
+			handler: openOutputViewer,
 		});
 
 		pi.registerShortcut('ctrl+shift+c', {
@@ -1046,6 +1054,19 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			handler: async (_args, ctx) => {
 				if (!ctx.hasUI) return;
 				await openHubOverlay(ctx, currentSessionId);
+			},
+		});
+
+		pi.registerCommand('todos', {
+			description: 'Open session todo board for current Hub session',
+			handler: async (args, ctx) => {
+				if (!ctx.hasUI) return;
+				const targetSessionId = args.trim().length > 0 ? args.trim() : currentSessionId;
+				if (!targetSessionId) {
+					ctx.ui.notify('No active Hub session id available yet.', 'warning');
+					return;
+				}
+				await openHubOverlay(ctx, currentSessionId, targetSessionId);
 			},
 		});
 	}
