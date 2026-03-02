@@ -20,6 +20,22 @@ export type {
 	HttpMethod,
 } from './services/adapter.ts';
 export {
+	type EmailActivityDataPoint,
+	type EmailActivityParams,
+	type EmailActivityResult,
+	type EmailAddress,
+	type EmailAttachment,
+	type EmailConnectionConfig,
+	type EmailDestination,
+	type EmailInbound,
+	type EmailOutbound,
+	type EmailProtocolConfig,
+	type EmailSendParams,
+	type EmailService,
+	EmailStorageService,
+	type EmailStoredAttachment,
+} from './services/email.ts';
+export {
 	type EvalRunCompleteEvent,
 	EvalRunCompleteEventDelayedSchema,
 	EvalRunCompleteEventSchema,
