@@ -110,10 +110,10 @@ export function validateBucketName(name: string): { valid: boolean; error?: stri
 		return { valid: false, error: 'bucket name cannot be an IP address' };
 	}
 	// Reserved prefixes (system-generated names)
-	if (name.startsWith('ag-') || name.startsWith('ago-')) {
+	if (name.startsWith('ag-') || name.startsWith('ago-') || name.startsWith('agentuity')) {
 		return {
 			valid: false,
-			error: 'bucket names starting with "ag-" or "ago-" are reserved for system use',
+			error: 'bucket names starting with "ag-", "ago-", or "agentuity" are reserved for system use',
 		};
 	}
 	return { valid: true };
