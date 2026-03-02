@@ -469,4 +469,279 @@ describe('QueueStorageService', () => {
 			expect(afterCalls[0].hasError).toBe(true);
 		});
 	});
+
+	describe('createQueue', () => {
+		test('should create queue and return result', async () => {
+			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.createQueue('my_queue');
+			expect(result.name).toBe('my_queue');
+			expect(result.queueType).toBe('worker');
+			expect(calls).toHaveLength(1);
+			expect(calls[0].url).toContain('/queue/create/2026-01-15');
+			expect(calls[0].options.method).toBe('POST');
+		});
+
+		test('should create pubsub queue when specified', async () => {
+			const mockData = { name: 'events', queue_type: 'pubsub' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.createQueue('events', { queueType: 'pubsub' });
+			expect(result.queueType).toBe('pubsub');
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body.queue_type).toBe('pubsub');
+		});
+
+		test('should default to worker queue type', async () => {
+			const mockData = { name: 'tasks', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.createQueue('tasks');
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body.queue_type).toBe('worker');
+		});
+
+		test('should include description when provided', async () => {
+			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.createQueue('my_queue', { description: 'Test queue' });
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body.description).toBe('Test queue');
+		});
+
+		test('should include settings when provided', async () => {
+			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.createQueue('my_queue', {
+				settings: {
+					defaultTtlSeconds: 3600,
+					defaultMaxRetries: 3,
+					maxInFlightPerClient: 5,
+				},
+			});
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body.settings.default_ttl_seconds).toBe(3600);
+			expect(body.settings.default_max_retries).toBe(3);
+			expect(body.settings.max_in_flight_per_client).toBe(5);
+		});
+
+		test('should handle null defaultTtlSeconds in settings', async () => {
+			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.createQueue('my_queue', {
+				settings: { defaultTtlSeconds: null },
+			});
+			const body = JSON.parse(calls[0].options.body as string);
+			expect(body.settings.default_ttl_seconds).toBeNull();
+		});
+
+		test('should treat 409 as success (idempotent)', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: false, status: 409 }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.createQueue('existing_queue', { queueType: 'pubsub' });
+			expect(result.name).toBe('existing_queue');
+			expect(result.queueType).toBe('pubsub');
+			expect(calls).toHaveLength(1);
+		});
+
+		test('should cache known queues and skip API call on second create', async () => {
+			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+
+			// First call hits API
+			await service.createQueue('my_queue');
+			expect(calls).toHaveLength(1);
+
+			// Second call should use cache (no additional API call)
+			const result2 = await service.createQueue('my_queue');
+			expect(calls).toHaveLength(1); // Still 1 — cached
+			expect(result2.name).toBe('my_queue');
+			expect(result2.queueType).toBe('worker');
+		});
+
+		test('should cache after 409 response', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: false, status: 409 }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+
+			// First call gets 409
+			await service.createQueue('existing_queue');
+			expect(calls).toHaveLength(1);
+
+			// Second call should use cache
+			await service.createQueue('existing_queue');
+			expect(calls).toHaveLength(1); // Still 1 — cached
+		});
+
+		test('should throw ServiceException on server error', async () => {
+			const { adapter } = createMockAdapter([
+				{ ok: false, status: 500, body: { error: 'Internal Server Error' } },
+			]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await expect(service.createQueue('my_queue')).rejects.toThrow(ServiceException);
+		});
+
+		test('should set content type to application/json', async () => {
+			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.createQueue('my_queue');
+			expect(calls[0].options.contentType).toBe('application/json');
+		});
+
+		test('should set telemetry attributes', async () => {
+			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.createQueue('my_queue');
+			expect(calls[0].options.telemetry?.name).toBe('agentuity.queue.create');
+			expect(calls[0].options.telemetry?.attributes?.queueName).toBe('my_queue');
+		});
+
+		test('should set timeout signal', async () => {
+			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.createQueue('my_queue');
+			expect(calls[0].options.signal).toBeDefined();
+		});
+	});
+
+	describe('createQueue - validation', () => {
+		test('should throw QueueValidationError for empty queue name', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await expect(service.createQueue('')).rejects.toThrow(QueueValidationError);
+		});
+
+		test('should throw QueueValidationError for queue name exceeding max length', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const longName = 'a'.repeat(257);
+			await expect(service.createQueue(longName)).rejects.toThrow(QueueValidationError);
+		});
+
+		test('should throw QueueValidationError for invalid queue name characters', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await expect(service.createQueue('Invalid-Queue!')).rejects.toThrow(QueueValidationError);
+		});
+
+		test('should throw QueueValidationError for queue name starting with digit', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await expect(service.createQueue('1queue')).rejects.toThrow(QueueValidationError);
+		});
+	});
+
+	describe('deleteQueue', () => {
+		test('should delete queue successfully', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: {} }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.deleteQueue('my_queue');
+			expect(calls).toHaveLength(1);
+			expect(calls[0].url).toContain('/queue/delete/2026-01-15/my_queue');
+			expect(calls[0].options.method).toBe('DELETE');
+		});
+
+		test('should remove queue from known queues cache after delete', async () => {
+			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const { adapter, calls } = createMockAdapter<unknown>([
+				{ ok: true, data: mockData }, // createQueue response
+				{ ok: true, data: {} }, // deleteQueue response
+				{ ok: true, data: mockData }, // second createQueue response
+			]);
+			const service = new QueueStorageService(baseUrl, adapter);
+
+			// Create queue (adds to cache)
+			await service.createQueue('my_queue');
+			expect(calls).toHaveLength(1);
+
+			// Create again — should use cache
+			await service.createQueue('my_queue');
+			expect(calls).toHaveLength(1); // still 1, cached
+
+			// Delete queue (removes from cache)
+			await service.deleteQueue('my_queue');
+			expect(calls).toHaveLength(2); // now 2
+
+			// Create again — should NOT use cache (was cleared)
+			await service.createQueue('my_queue');
+			expect(calls).toHaveLength(3); // now 3, cache was cleared
+		});
+
+		test('should throw QueueNotFoundError on 404', async () => {
+			const { adapter } = createMockAdapter([{ ok: false, status: 404 }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await expect(service.deleteQueue('nonexistent_queue')).rejects.toThrow(QueueNotFoundError);
+		});
+
+		test('should throw ServiceException on server error', async () => {
+			const { adapter } = createMockAdapter([
+				{ ok: false, status: 500, body: { error: 'Internal Server Error' } },
+			]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await expect(service.deleteQueue('my_queue')).rejects.toThrow(ServiceException);
+		});
+
+		test('should set telemetry attributes', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: {} }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.deleteQueue('my_queue');
+			expect(calls[0].options.telemetry?.name).toBe('agentuity.queue.delete');
+			expect(calls[0].options.telemetry?.attributes?.queueName).toBe('my_queue');
+		});
+
+		test('should set timeout signal', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: {} }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.deleteQueue('my_queue');
+			expect(calls[0].options.signal).toBeDefined();
+		});
+
+		test('should not send request body', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: {} }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.deleteQueue('my_queue');
+			expect(calls[0].options.body).toBeUndefined();
+		});
+
+		test('should URL-encode queue name', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: {} }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await service.deleteQueue('my_queue');
+			expect(calls[0].url).toContain('/queue/delete/2026-01-15/my_queue');
+		});
+	});
+
+	describe('deleteQueue - validation', () => {
+		test('should throw QueueValidationError for empty queue name', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await expect(service.deleteQueue('')).rejects.toThrow(QueueValidationError);
+		});
+
+		test('should throw QueueValidationError for queue name exceeding max length', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const longName = 'a'.repeat(257);
+			await expect(service.deleteQueue(longName)).rejects.toThrow(QueueValidationError);
+		});
+
+		test('should throw QueueValidationError for invalid queue name characters', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await expect(service.deleteQueue('Invalid-Queue!')).rejects.toThrow(QueueValidationError);
+		});
+
+		test('should throw QueueValidationError for queue name starting with digit', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			await expect(service.deleteQueue('1queue')).rejects.toThrow(QueueValidationError);
+		});
+	});
 });
