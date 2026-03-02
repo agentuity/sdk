@@ -770,7 +770,7 @@ export class LocalTaskStorage implements TaskStorage {
 		}
 		if (params.older_than) {
 			const ms = parseDurationMs(params.older_than);
-			const cutoff = new Date(Date.now() - ms).toISOString();
+			const cutoff = Date.now() - ms;
 			conditions.push('created_at < ?');
 			args.push(cutoff);
 		}
@@ -784,6 +784,13 @@ export class LocalTaskStorage implements TaskStorage {
 			throw new BatchDeleteFilterRequiredError();
 		}
 
+		if (params.limit !== undefined && (!Number.isInteger(params.limit) || params.limit <= 0)) {
+			const InvalidBatchDeleteLimitError = StructuredError(
+				'InvalidBatchDeleteLimitError',
+				'Batch delete limit must be a positive integer'
+			);
+			throw new InvalidBatchDeleteLimitError();
+		}
 		const limit = Math.min(params.limit ?? 50, 200);
 
 		const whereClause = conditions.join(' AND ');
@@ -799,34 +806,37 @@ export class LocalTaskStorage implements TaskStorage {
 		const ids = rows.map((r) => r.id);
 		const placeholders = ids.map(() => '?').join(', ');
 
-		const updateStmt = this.#db.prepare(`
-			UPDATE task_storage
-			SET status = 'closed', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
-			WHERE project_path = ? AND id IN (${placeholders})
-		`);
-		updateStmt.run(
-			new Date(timestamp).toISOString(),
-			timestamp,
-			this.#projectPath,
-			...ids
-		);
-
-		const changelogStmt = this.#db.prepare(`
-			INSERT INTO task_changelog_storage (
-				project_path, id, task_id, field, old_value, new_value, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?)
-		`);
-		for (const row of rows) {
-			changelogStmt.run(
+		const txn = this.#db.transaction(() => {
+			const updateStmt = this.#db.prepare(`
+				UPDATE task_storage
+				SET status = 'closed', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
+				WHERE project_path = ? AND id IN (${placeholders})
+			`);
+			updateStmt.run(
+				new Date(timestamp).toISOString(),
+				timestamp,
 				this.#projectPath,
-				generateChangelogId(),
-				row.id,
-				'deleted',
-				'false',
-				'true',
-				timestamp
+				...ids
 			);
-		}
+
+			const changelogStmt = this.#db.prepare(`
+				INSERT INTO task_changelog_storage (
+					project_path, id, task_id, field, old_value, new_value, created_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?)
+			`);
+			for (const row of rows) {
+				changelogStmt.run(
+					this.#projectPath,
+					generateChangelogId(),
+					row.id,
+					'deleted',
+					'false',
+					'true',
+					timestamp
+				);
+			}
+		});
+		txn();
 
 		return {
 			deleted: rows.map((r) => ({ id: r.id, title: r.title })),

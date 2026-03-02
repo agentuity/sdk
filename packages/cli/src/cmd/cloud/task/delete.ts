@@ -106,9 +106,11 @@ export const deleteSubcommand = createCommand({
 			createdId: z.string().optional().describe('filter batch delete by creator ID'),
 			limit: z.coerce
 				.number()
-				.optional()
+				.int()
+				.min(1)
+				.max(200)
 				.default(50)
-				.describe('max tasks to delete in batch mode (default: 50)'),
+				.describe('max tasks to delete in batch mode (default: 50, max: 200)'),
 			confirm: z.boolean().optional().default(false).describe('skip confirmation prompt'),
 		}),
 		response: TaskDeleteResponseSchema,
@@ -209,8 +211,13 @@ export const deleteSubcommand = createCommand({
 				order: 'asc',
 			});
 
-			// Client-side older-than filter for preview (server will apply it on actual delete)
+			// Client-side filters for preview (server will apply these on actual delete)
 			let candidates = preview.tasks;
+			if (batchParams.created_id) {
+				candidates = candidates.filter(
+					(t: { created_id: string }) => t.created_id === batchParams.created_id
+				);
+			}
 			if (opts.olderThan) {
 				const durationMs = parseDuration(opts.olderThan);
 				const cutoff = new Date(Date.now() - durationMs);

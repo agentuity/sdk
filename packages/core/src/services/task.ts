@@ -932,6 +932,9 @@ export interface TaskStorage {
 /** API version string used for task CRUD, comment, tag, and attachment endpoints. */
 const TASK_API_VERSION = '2026-02-24';
 
+/** Maximum number of tasks that can be deleted in a single batch request. */
+const MAX_BATCH_DELETE_LIMIT = 200;
+
 /** API version string used for the task activity analytics endpoint. */
 const TASK_ACTIVITY_API_VERSION = '2026-02-28';
 
@@ -1463,6 +1466,22 @@ export class TaskStorageService implements TaskStorage {
 	 * ```
 	 */
 	async batchDelete(params: BatchDeleteTasksParams): Promise<BatchDeleteTasksResult> {
+		const hasFilter =
+			params.status ||
+			params.type ||
+			params.priority ||
+			params.parent_id ||
+			params.created_id ||
+			params.older_than;
+		if (!hasFilter) {
+			throw new Error('At least one filter is required for batch delete');
+		}
+		if (params.limit !== undefined && params.limit > MAX_BATCH_DELETE_LIMIT) {
+			throw new Error(
+				`Batch delete limit must not exceed ${MAX_BATCH_DELETE_LIMIT} (got ${params.limit})`
+			);
+		}
+
 		const url = buildUrl(this.#baseUrl, `/task/delete/batch/${TASK_API_VERSION}`);
 		const signal = AbortSignal.timeout(60_000);
 
