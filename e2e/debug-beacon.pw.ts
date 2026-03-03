@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test('debug beacon script loading', async ({ page, request }) => {
 	// First check if the beacon endpoint returns content

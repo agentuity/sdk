@@ -83,7 +83,7 @@ export function WorkbenchProvider({
 				logger.warn('Failed to save selected agent to localStorage:', error);
 			}
 		},
-		[getStorageKey]
+		[getStorageKey, logger.warn]
 	);
 
 	const loadSelectedAgent = useCallback((): string | null => {
@@ -93,7 +93,7 @@ export function WorkbenchProvider({
 			logger.warn('Failed to load selected agent from localStorage:', error);
 			return null;
 		}
-	}, [getStorageKey]);
+	}, [getStorageKey, logger.warn]);
 
 	// Thread IDs are stored per baseUrl to avoid signature mismatch between environments
 	// (local signs with 'agentuity', cloud signs with AGENTUITY_SDK_KEY)
@@ -113,7 +113,7 @@ export function WorkbenchProvider({
 				logger.warn('Failed to save thread id to localStorage:', error);
 			}
 		},
-		[getThreadStorageKey]
+		[getThreadStorageKey, logger.warn]
 	);
 
 	const loadThreadId = useCallback((): string | null => {
@@ -124,7 +124,7 @@ export function WorkbenchProvider({
 
 			return null;
 		}
-	}, [getThreadStorageKey]);
+	}, [getThreadStorageKey, logger.warn]);
 
 	const applyThreadIdHeader = useCallback(
 		(headers: Record<string, string>) => {
@@ -297,7 +297,7 @@ export function WorkbenchProvider({
 				schemasError.message
 			);
 		}
-	}, [schemasError]);
+	}, [schemasError, logger.warn]);
 
 	// Fetch state for an agent
 	const fetchAgentState = useCallback(

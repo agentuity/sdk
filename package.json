@@ -1,6 +1,6 @@
 {
 	"name": "sdk-mono",
-	"version": "1.0.30",
+	"version": "1.0.31",
 	"license": "Apache-2.0",
 	"private": true,
 	"workspaces": [
@@ -34,9 +34,10 @@
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
 		"typecheck": "bun run typecheck:apps && bun run typecheck:packages",
 		"clean": "rm -rf packages/*/dist apps/**/dist packages/*/*.tsbuildinfo",
-		"format": "bunx prettier '**/*.{ts,tsx,js,jsx,json,md,yml,yaml}' --write --ignore-unknown",
-		"lint": "bunx eslint packages",
-		"all": "bun clean && bun format && bun run build && bun lint && bun typecheck:packages && bun run test && bun run test:standalone && bun run test:ci",
+		"format": "bunx biome format --write .",
+		"lint": "bunx biome lint .",
+		"check": "bunx biome check --write .",
+		"all": "bun clean && bun format && bun lint && bun run build && bun typecheck:packages && bun run test && bun run test:standalone && bun run test:ci",
 		"whoami": "./packages/cli/bin/cli.ts auth whoami",
 		"cli": "./packages/cli/bin/cli.ts"
 	},
@@ -47,8 +48,7 @@
 		"react-dom": "^19.2.3"
 	},
 	"devDependencies": {
-		"@eslint/js": "^9.38.0",
-		"@eslint/json": "^0.13.2",
+		"@biomejs/biome": "^2.4.5",
 		"@happy-dom/global-registrator": "^20.0.11",
 		"@playwright/test": "^1.57.0",
 		"@testing-library/dom": "^10.4.1",
@@ -60,17 +60,12 @@
 		"@types/react-dom": "^19.2.3",
 		"bun-types": "latest",
 		"concurrently": "^9.2.1",
-		"eslint": "^9.38.0",
-		"eslint-plugin-react": "^7.37.5",
-		"globals": "^16.4.0",
 		"jiti": "^2.6.1",
 		"playwright": "^1.57.0",
-		"prettier": "3.6.2",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
 		"rehype-pretty-code": "^0.14.1",
-		"typescript": "^5.9.0",
-		"typescript-eslint": "^8.46.2"
+		"typescript": "^5.9.0"
 	},
 	"dependencies": {
 		"@better-auth/api-key": "^1.5.0",

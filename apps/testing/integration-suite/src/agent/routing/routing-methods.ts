@@ -14,7 +14,7 @@ const methodsAgent = createAgent('routing-methods', {
 			result: s.string(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		// In a real scenario, we'd detect the HTTP method from context
 		// For now, we'll just echo back the action
 		return {

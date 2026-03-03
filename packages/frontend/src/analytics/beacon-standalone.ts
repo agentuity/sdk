@@ -133,7 +133,7 @@ function safeStringify(obj: unknown): string {
 	}
 }
 
-(function () {
+(() => {
 	const w = window as Window & AgentuityWindow;
 	const d = document;
 	const configRaw = w.__AGENTUITY_ANALYTICS__;

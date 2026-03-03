@@ -71,6 +71,8 @@ export type {
 	SortParams,
 } from './services/pagination.ts';
 export {
+	type QueueCreateParams,
+	type QueueCreateResult,
 	QueueNotFoundError,
 	QueuePublishError,
 	type QueuePublishParams,
@@ -170,6 +172,7 @@ export {
 	type Comment,
 	type CreateAttachmentParams,
 	type CreateTaskParams,
+	type EntityRef,
 	type ListAttachmentsResult,
 	type ListCommentsResult,
 	type ListProjectsResult,
@@ -192,6 +195,8 @@ export {
 	TaskStorageService,
 	type TaskType,
 	type UpdateTaskParams,
+	type UserEntityRef,
+	type UserType,
 } from './services/task.ts';
 export {
 	VECTOR_DEFAULT_TTL_SECONDS,

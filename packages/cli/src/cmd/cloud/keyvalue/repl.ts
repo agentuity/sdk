@@ -52,7 +52,8 @@ export const replSubcommand = createCommand({
 					const contentType = isPossiblyJSON(ctx.parsed.args[2]!)
 						? 'application/json'
 						: 'text/plain';
-					const ttl = ctx.parsed.args.length > 3 ? parseInt(ctx.parsed.args[3]!) : undefined;
+					const ttl =
+						ctx.parsed.args.length > 3 ? parseInt(ctx.parsed.args[3]!, 10) : undefined;
 					await storage.set(ctx.parsed.args[0]!, ctx.parsed.args[1]!, ctx.parsed.args[2]!, {
 						contentType,
 						ttl,
@@ -172,7 +173,10 @@ export const replSubcommand = createCommand({
 							const item = results[key];
 							if (!item) continue;
 							const sizeMB = (item.size / (1024 * 1024)).toFixed(2);
-							const date = item.lastUsed != null ? new Date(item.lastUsed).toLocaleString() : 'unknown';
+							const date =
+								item.lastUsed != null
+									? new Date(item.lastUsed).toLocaleString()
+									: 'unknown';
 							ctx.write(
 								`  ${tui.bold(key)}: ${sizeMB} MB, ${item.contentType}, updated ${date}`
 							);

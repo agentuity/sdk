@@ -275,7 +275,7 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 			},
 			// ignore callback: called AFTER map, receives the MAPPED name
 			// Return true to skip the entry, false to extract it
-			ignore: (name: string, header?: Headers) => {
+			ignore: (_name: string, header?: Headers) => {
 				if (!header) {
 					ignoredCount++;
 					return true;

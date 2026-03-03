@@ -27,7 +27,7 @@ export function decodeKVValue(value: any): any {
 function tryParseValue(text: string): any {
 	// Try to parse as number first (before JSON, since "123" is valid JSON)
 	const num = Number(text);
-	if (!isNaN(num) && text.trim() !== '') {
+	if (!Number.isNaN(num) && text.trim() !== '') {
 		return num;
 	}
 

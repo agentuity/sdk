@@ -942,12 +942,8 @@ export function createCallableClient(config?: string | PostgresConfig): Callable
 	const client = new PostgresClient(config);
 
 	// Create a callable function that delegates to client.query
-	const callable = function (
-		strings: TemplateStringsArray,
-		...values: unknown[]
-	): Promise<unknown[]> {
-		return client.query(strings, ...values);
-	} as unknown as CallablePostgresClient;
+	const callable = ((strings: TemplateStringsArray, ...values: unknown[]): Promise<unknown[]> =>
+		client.query(strings, ...values)) as unknown as CallablePostgresClient;
 
 	// Copy all properties and methods from the client to the callable
 	Object.setPrototypeOf(callable, PostgresClient.prototype);

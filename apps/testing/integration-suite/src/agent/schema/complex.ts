@@ -32,7 +32,7 @@ const schemaComplexAgent = createAgent('schema-complex', {
 			result: s.any().optional(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const { operation, nested, union, arrayOfObjects, record } = input;
 
 		switch (operation) {

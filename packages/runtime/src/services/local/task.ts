@@ -812,12 +812,7 @@ export class LocalTaskStorage implements TaskStorage {
 				SET status = 'closed', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
 				WHERE project_path = ? AND id IN (${placeholders})
 			`);
-			updateStmt.run(
-				new Date(timestamp).toISOString(),
-				timestamp,
-				this.#projectPath,
-				...ids
-			);
+			updateStmt.run(new Date(timestamp).toISOString(), timestamp, this.#projectPath, ...ids);
 
 			const changelogStmt = this.#db.prepare(`
 				INSERT INTO task_changelog_storage (

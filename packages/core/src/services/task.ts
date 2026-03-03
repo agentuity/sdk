@@ -43,6 +43,28 @@ export interface EntityRef {
 }
 
 /**
+ * The type of user entity.
+ *
+ * - `'human'` — A human user.
+ * - `'agent'` — An AI agent.
+ */
+export type UserType = 'human' | 'agent';
+
+/**
+ * A reference to a user entity with type discrimination.
+ * Extends {@link EntityRef} with a {@link UserEntityRef.type | type} field
+ * to distinguish between human users and AI agents.
+ */
+export interface UserEntityRef extends EntityRef {
+	/**
+	 * The type of user. Defaults to `'human'` if not specified.
+	 *
+	 * @default 'human'
+	 */
+	type?: UserType;
+}
+
+/**
  * A work item in the task management system.
  *
  * Tasks can represent epics, features, bugs, enhancements, or generic tasks.
@@ -130,13 +152,13 @@ export interface Task {
 	closed_id?: string;
 
 	/** Reference to the user who created the task. */
-	creator?: EntityRef;
+	creator?: UserEntityRef;
 
 	/** Reference to the user the task is assigned to. */
-	assignee?: EntityRef;
+	assignee?: UserEntityRef;
 
 	/** Reference to the user who closed the task. */
-	closer?: EntityRef;
+	closer?: UserEntityRef;
 
 	/** Reference to the project this task belongs to. */
 	project?: EntityRef;
@@ -171,7 +193,7 @@ export interface Comment {
 	user_id: string;
 
 	/** Reference to the comment author with display name. */
-	author?: EntityRef;
+	author?: UserEntityRef;
 
 	/**
 	 * The comment text content.
@@ -286,11 +308,11 @@ export interface CreateTaskParams {
 	 */
 	assigned_id?: string;
 
-	/** Reference to the user creating the task (id and name). */
-	creator?: EntityRef;
+	/** Reference to the user creating the task (id, name, and optional type). */
+	creator?: UserEntityRef;
 
 	/** Reference to the user being assigned the task. */
-	assignee?: EntityRef;
+	assignee?: UserEntityRef;
 
 	/** Reference to the project this task belongs to. */
 	project?: EntityRef;
@@ -349,10 +371,10 @@ export interface UpdateTaskParams {
 	closed_id?: string;
 
 	/** Reference to the user being assigned the task. */
-	assignee?: EntityRef;
+	assignee?: UserEntityRef;
 
 	/** Reference to the user closing the task. */
-	closer?: EntityRef;
+	closer?: UserEntityRef;
 
 	/** Reference to the project this task belongs to. */
 	project?: EntityRef;
@@ -540,7 +562,7 @@ export interface Attachment {
 	user_id: string;
 
 	/** Reference to the uploader with display name. */
-	author?: EntityRef;
+	author?: UserEntityRef;
 
 	/** Original filename of the uploaded file. */
 	filename: string;
@@ -610,8 +632,8 @@ export interface ListAttachmentsResult {
  * List of all users who have been referenced in tasks (as creators, assignees, or closers).
  */
 export interface ListUsersResult {
-	/** Array of user entity references. */
-	users: EntityRef[];
+	/** Array of user entity references with type information. */
+	users: UserEntityRef[];
 }
 
 /**

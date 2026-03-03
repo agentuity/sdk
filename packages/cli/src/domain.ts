@@ -54,7 +54,7 @@ export function isPending(x: DNSResult): x is DNSPending {
 }
 
 export function isSuccess(x: DNSResult): x is DNSSuccess {
-	return x.success == true && !('pending' in x) && !('error' in x) && !('misconfigured' in x);
+	return x.success === true && !('pending' in x) && !('error' in x) && !('misconfigured' in x);
 }
 
 const timeoutMs = 5000;
@@ -195,8 +195,8 @@ export async function checkCustomDomainForDNS(
 					if (timeoutId) clearTimeout(timeoutId);
 				});
 
-			if (result) {
-				if (result === proxy) {
+				if (result) {
+					if (result === proxy) {
 						// DNS is correct — verify TLS certificate (also triggers Let's Encrypt provisioning)
 						const tlsValid = await checkTLSCertificate(domain);
 						if (tlsValid) {

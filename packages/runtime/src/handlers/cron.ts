@@ -75,7 +75,7 @@ export function cron<E extends Env = Env>(
 export function cron<E extends Env = Env>(schedule: string, handler: CronHandler<E>): Handler<E>;
 
 export function cron<E extends Env = Env>(
-	schedule: string,
+	_schedule: string,
 	optionsOrHandler: CronOptions | CronHandler<E>,
 	maybeHandler?: CronHandler<E>
 ): Handler<E> {

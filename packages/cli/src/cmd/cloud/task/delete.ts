@@ -125,7 +125,12 @@ export const deleteSubcommand = createCommand({
 		// Determine mode: single delete or batch delete
 		const isSingleDelete = !!args.id;
 		const hasFilters =
-			opts.status || opts.type || opts.priority || opts.olderThan || opts.parentId || opts.createdId;
+			opts.status ||
+			opts.type ||
+			opts.priority ||
+			opts.olderThan ||
+			opts.parentId ||
+			opts.createdId;
 
 		if (!isSingleDelete && !hasFilters) {
 			tui.fatal(
@@ -246,7 +251,13 @@ export const deleteSubcommand = createCommand({
 				tui.newline();
 
 				const tableData = candidates.map(
-					(task: { id: string; title: string; status: string; type: string; created_at: string }) => ({
+					(task: {
+						id: string;
+						title: string;
+						status: string;
+						type: string;
+						created_at: string;
+					}) => ({
 						ID: tui.muted(truncate(task.id, 28)),
 						Title: truncate(task.title, 40),
 						Status: task.status,

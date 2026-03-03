@@ -5,7 +5,7 @@ import * as tui from '../../../tui';
 import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util';
 import { getCommand } from '../../../command-prefix';
 import { whoami } from '@agentuity/server';
-import type { TaskPriority, TaskStatus, TaskType } from '@agentuity/core';
+import type { TaskPriority, TaskStatus, TaskType, UserType } from '@agentuity/core';
 import { getCachedUserInfo, setCachedUserInfo } from '../../../cache';
 import { defaultProfileName } from '../../../config';
 
@@ -70,6 +70,10 @@ export const createSubcommand = createCommand({
 				.min(1)
 				.optional()
 				.describe('the display name of the creator (used with --created-id)'),
+			createdType: z
+				.enum(['human', 'agent'])
+				.optional()
+				.describe('the type of the creator - human user or AI agent (default: human)'),
 			projectId: z.string().optional().describe('project ID to associate with the task'),
 			projectName: z
 				.string()
@@ -101,18 +105,23 @@ export const createSubcommand = createCommand({
 
 		// Resolve creator info
 		const createdId = opts.createdId ?? ctx.auth.userId;
-		let creator: { id: string; name: string } | undefined;
-		if (opts.createdId && opts.createdName) {
-			// Explicit creator with name
-			creator = { id: opts.createdId, name: opts.createdName };
-		} else if (!opts.createdId) {
+		const createdType = (opts.createdType as UserType) ?? 'human';
+		let creator: { id: string; name: string; type?: UserType } | undefined;
+		if (opts.createdId) {
+			// Explicit creator — use createdId as name fallback (like project pattern)
+			creator = {
+				id: opts.createdId,
+				name: opts.createdName ?? opts.createdId,
+				type: createdType,
+			};
+		} else {
 			// Using auth userId — check cache first, then fall back to whoami API call
 			const profileName = ctx.config?.name ?? defaultProfileName;
 			const cached = getCachedUserInfo(profileName);
 			if (cached) {
 				const name = [cached.firstName, cached.lastName].filter(Boolean).join(' ');
 				if (name) {
-					creator = { id: createdId, name };
+					creator = { id: createdId, name, type: createdType };
 				}
 			} else {
 				// Fetch from API and cache
@@ -120,7 +129,7 @@ export const createSubcommand = createCommand({
 					const user = await whoami(ctx.apiClient);
 					const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
 					if (name) {
-						creator = { id: createdId, name };
+						creator = { id: createdId, name, type: createdType };
 					}
 					setCachedUserInfo(profileName, createdId, user.firstName, user.lastName);
 				} catch {

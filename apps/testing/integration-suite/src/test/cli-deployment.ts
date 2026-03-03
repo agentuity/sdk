@@ -16,7 +16,7 @@
 import { test } from '@test/suite';
 import { assert, assertEqual, assertDefined } from '@test/helpers';
 import cliAgent from '@agents/cli/agent';
-import { extractDeploymentId, extractSessionId, isAuthenticated } from '@test/helpers/cli';
+import { isAuthenticated } from '@test/helpers/cli';
 
 // Test 1: Check authentication
 test('cli-deployment', 'auth-check', async () => {

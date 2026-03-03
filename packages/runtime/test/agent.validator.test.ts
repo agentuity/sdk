@@ -408,7 +408,7 @@ describe('agent.validator()', () => {
 
 		let middlewareRan = false;
 
-		const afterValidationMiddleware = async (c: Context, next: Next) => {
+		const afterValidationMiddleware = async (_c: Context, next: Next) => {
 			middlewareRan = true;
 			await next();
 		};

@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
-import { BucketConfigSchema, BucketConfigUpdateSchema, type BucketConfig, type BucketConfigUpdate } from './types.ts';
+import {
+	BucketConfigSchema,
+	BucketConfigUpdateSchema,
+	type BucketConfig,
+	type BucketConfigUpdate,
+} from './types.ts';
 import { API_VERSION, BucketConfigResponseError } from './util.ts';
 
 export const BucketConfigGetResponseSchema = APIResponseSchema(BucketConfigSchema);
@@ -20,7 +25,7 @@ export const BucketConfigDeleteResponseSchema = APIResponseSchemaNoData();
 export async function getBucketConfig(
 	client: APIClient,
 	bucketName: string,
-	extraHeaders?: Record<string, string>,
+	extraHeaders?: Record<string, string>
 ): Promise<BucketConfig> {
 	const url = `/bucket/config/${API_VERSION}/${encodeURIComponent(bucketName)}`;
 
@@ -28,7 +33,7 @@ export async function getBucketConfig(
 		url,
 		BucketConfigGetResponseSchema,
 		undefined,
-		extraHeaders,
+		extraHeaders
 	);
 
 	if (resp.success) {
@@ -55,17 +60,20 @@ export async function updateBucketConfig(
 	client: APIClient,
 	bucketName: string,
 	config: BucketConfigUpdate,
-	extraHeaders?: Record<string, string>,
+	extraHeaders?: Record<string, string>
 ): Promise<BucketConfig> {
 	const url = `/bucket/config/${API_VERSION}/${encodeURIComponent(bucketName)}`;
 
-	const resp = await client.put<z.infer<typeof BucketConfigUpdateResponseSchema>, BucketConfigUpdate>(
+	const resp = await client.put<
+		z.infer<typeof BucketConfigUpdateResponseSchema>,
+		BucketConfigUpdate
+	>(
 		url,
 		config,
 		BucketConfigUpdateResponseSchema,
 		BucketConfigUpdateSchema,
 		undefined,
-		extraHeaders,
+		extraHeaders
 	);
 
 	if (resp.success) {
@@ -86,7 +94,7 @@ export async function updateBucketConfig(
 export async function deleteBucketConfig(
 	client: APIClient,
 	bucketName: string,
-	extraHeaders?: Record<string, string>,
+	extraHeaders?: Record<string, string>
 ): Promise<void> {
 	const url = `/bucket/config/${API_VERSION}/${encodeURIComponent(bucketName)}`;
 
@@ -94,7 +102,7 @@ export async function deleteBucketConfig(
 		url,
 		BucketConfigDeleteResponseSchema,
 		undefined,
-		extraHeaders,
+		extraHeaders
 	);
 
 	if (!resp.success) {
