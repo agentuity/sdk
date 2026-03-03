@@ -14,7 +14,7 @@ const getAgent = createAgent('routing-get', {
 			timestamp: s.number(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		return {
 			query: input.query,
 			limit: input.limit ?? 10,

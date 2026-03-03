@@ -14,7 +14,7 @@ const agentEventsAgent = createAgent('events-agent', {
 			success: s.boolean(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const eventsReceived: string[] = [];
 
 		// Track which events fire during execution

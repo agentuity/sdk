@@ -25,7 +25,7 @@ const helperAgent = createAgent('utils-string-helper', {
 			metadata: s.any().optional(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		let transformed: string;
 		let type: TransformType;
 

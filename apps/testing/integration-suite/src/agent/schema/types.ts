@@ -24,7 +24,7 @@ const schemaTypesAgent = createAgent('schema-types', {
 			}),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		return {
 			success: true,
 			receivedTypes: {

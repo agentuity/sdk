@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { useAPI } from '../src/api.ts';

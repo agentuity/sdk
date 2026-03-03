@@ -155,7 +155,7 @@ describe('org env API', () => {
 		});
 
 		test('should update both env and secrets', async () => {
-			mockFetch(async (url, init) => {
+			mockFetch(async (_url, init) => {
 				const body = JSON.parse(init?.body as string);
 				expect(body.env).toEqual({ LOG_LEVEL: 'debug' });
 				expect(body.secrets).toEqual({ DB_PASSWORD: 'password123' });
@@ -233,7 +233,7 @@ describe('org env API', () => {
 		});
 
 		test('should delete both env and secrets', async () => {
-			mockFetch(async (url, init) => {
+			mockFetch(async (_url, init) => {
 				const body = JSON.parse(init?.body as string);
 				expect(body.env).toEqual(['VAR1', 'VAR2']);
 				expect(body.secrets).toEqual(['SECRET1']);

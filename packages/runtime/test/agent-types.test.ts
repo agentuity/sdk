@@ -80,7 +80,7 @@ test('Streaming agent - return type should be ReadableStream', () => {
 			output: z.number(),
 			stream: true,
 		},
-		handler: async (ctx, input) => {
+		handler: async (_ctx, input) => {
 			expectTypeOf(input).toEqualTypeOf<string>();
 			expectTypeOf(input).not.toBeAny();
 			return new ReadableStream<number>();

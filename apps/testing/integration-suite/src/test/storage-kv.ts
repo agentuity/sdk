@@ -5,7 +5,7 @@
  */
 
 import { test } from './suite.ts';
-import { assert, assertEqual, assertDefined, uniqueId } from './helpers/index.ts';
+import { assertEqual, assertDefined, uniqueId } from './helpers/index.ts';
 import { decodeKVValue } from './helpers/kv.ts';
 
 // Import agents

@@ -9,7 +9,7 @@
  */
 
 import { test } from '@test/suite.ts';
-import { assert, assertEqual, uniqueId, testRunId } from '@test/helpers/index.ts';
+import { assert, assertEqual, uniqueId } from '@test/helpers/index.ts';
 import cliAgent from '@agents/cli/agent.ts';
 import { isAuthenticated } from '@test/helpers/cli.ts';
 

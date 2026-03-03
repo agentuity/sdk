@@ -29,7 +29,7 @@ const aiSdkGatewayCheckAgent = createAgent('ai-sdk-gateway-check', {
 			error: s.string().optional(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const { operation } = input;
 
 		const hasSDKKey = !!process.env.AGENTUITY_SDK_KEY;
@@ -55,7 +55,7 @@ const aiSdkGatewayCheckAgent = createAgent('ai-sdk-gateway-check', {
 				// This was the original issue in #348 - it would throw "API key is missing"
 				try {
 					// Create provider without explicit apiKey - gateway should inject it
-					const openai = createOpenAI({});
+					const _openai = createOpenAI({});
 
 					// If we get here without error, the gateway injection is working
 					// (or the provider defers API key validation until actual request)
@@ -92,7 +92,7 @@ const aiSdkGatewayCheckAgent = createAgent('ai-sdk-gateway-check', {
 				// Test creating a model instance (doesn't make API call)
 				try {
 					const openai = createOpenAI({});
-					const model = openai('gpt-4o-mini');
+					const _model = openai('gpt-4o-mini');
 
 					// Model created successfully
 					return {

@@ -5,7 +5,7 @@
  */
 
 import { test } from './suite.ts';
-import { assert, assertEqual, assertDefined, assertThrows } from './helpers/index.ts';
+import { assertEqual, assertDefined, assertThrows } from './helpers/index.ts';
 
 import schemaTypesAgent from '@agents/schema/types.ts';
 import schemaOptionalAgent from '@agents/schema/optional.ts';

@@ -92,7 +92,7 @@ const crashAttemptsAgent = createAgent('resilience-crash-attempts', {
 
 				try {
 					recurse();
-				} catch (err) {
+				} catch (_err) {
 					return {
 						scenario,
 						survived: true,

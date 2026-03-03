@@ -1269,9 +1269,9 @@ function extractValidatorSchemas(callExpr: ASTCallExpression): {
 				if (unary.argument?.type === 'Identifier') {
 					const identifier = unary.argument as ASTNodeIdentifier;
 					if (identifier.name === 'true') {
-						result.stream = unary.operator === '!' ? false : true;
+						result.stream = unary.operator !== '!';
 					} else if (identifier.name === 'false') {
-						result.stream = unary.operator === '!' ? true : false;
+						result.stream = unary.operator === '!';
 					}
 				}
 			}

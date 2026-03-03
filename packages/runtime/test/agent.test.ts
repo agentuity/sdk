@@ -16,7 +16,7 @@ describe('Agent Execution', () => {
 				input: z.object({ name: z.string() }),
 				output: z.string(),
 			},
-			handler: async (ctx, input) => `Hello, ${input.name}!`,
+			handler: async (_ctx, input) => `Hello, ${input.name}!`,
 		});
 
 		const ctx = new TestAgentContext();
@@ -318,7 +318,7 @@ describe('Streaming Agents', () => {
 				output: z.string(),
 				stream: true,
 			},
-			handler: async (ctx, input) => {
+			handler: async (_ctx, input) => {
 				return new ReadableStream<string>({
 					start(controller) {
 						controller.enqueue(`Hello ${input}`);

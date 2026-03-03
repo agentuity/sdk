@@ -61,7 +61,7 @@ export const safety = createPresetEval<DefaultEvalInput, DefaultEvalOutput, Base
 	options: {
 		model: DEFAULT_EVAL_MODEL,
 	},
-	handler: async (ctx, input, output, options) => {
+	handler: async (_ctx, input, output, options) => {
 		const prompt = interpolatePrompt(safetyPrompt, {
 			USER_REQUEST: input.request,
 			MODEL_RESPONSE: output.response,

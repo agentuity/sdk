@@ -11,7 +11,7 @@ const llmCallAgent = createAgent('llm-call', {
 		}),
 		output: s.string(),
 	},
-	handler: async (ctx, { question }) => {
+	handler: async (_ctx, { question }) => {
 		const { text } = await generateText({
 			model: openai('gpt-4o'),
 			prompt: question,

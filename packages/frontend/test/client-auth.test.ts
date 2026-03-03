@@ -16,7 +16,7 @@ describe('Client auth integration', () => {
 		test('should include static headers in requests', async () => {
 			let capturedHeaders: HeadersInit | undefined;
 
-			globalThis.fetch = async (url, init) => {
+			globalThis.fetch = async (_url, init) => {
 				capturedHeaders = init?.headers;
 				return new Response(JSON.stringify({ success: true }), {
 					status: 200,
@@ -58,7 +58,7 @@ describe('Client auth integration', () => {
 				return { 'X-Request-Count': `${callCount}` };
 			};
 
-			globalThis.fetch = async (url, init) => {
+			globalThis.fetch = async (_url, init) => {
 				capturedHeaders = init?.headers;
 				return new Response(JSON.stringify({ success: true }), {
 					status: 200,
@@ -105,7 +105,7 @@ describe('Client auth integration', () => {
 				return {};
 			};
 
-			globalThis.fetch = async (url, init) => {
+			globalThis.fetch = async (_url, init) => {
 				capturedHeaders = init?.headers;
 				return new Response(JSON.stringify({ success: true }), {
 					status: 200,

@@ -10,7 +10,7 @@
  */
 
 import { test } from '@test/suite.ts';
-import { assert, assertEqual, uniqueId } from '@test/helpers/index.ts';
+import { assert, assertEqual } from '@test/helpers/index.ts';
 import agentEventsAgent from '@agents/events/agent-events.ts';
 import sessionEventsAgent from '@agents/events/session-events.ts';
 import threadEventsAgent from '@agents/events/thread-events.ts';

@@ -99,7 +99,7 @@ function generateIndexHtml(): string {
  */
 export async function generateWorkbenchFiles(
 	rootDir: string,
-	projectId: string,
+	_projectId: string,
 	config: WorkbenchConfig,
 	logger: Logger
 ): Promise<void> {

@@ -46,12 +46,12 @@
 			"recommended": true,
 			"correctness": {
 				"noUnusedVariables": "warn",
-				"noUnusedImports": "warn",
+				"noUnusedImports": "error",
 				"noUnusedFunctionParameters": "warn",
 				"useExhaustiveDependencies": "warn",
 				"useHookAtTopLevel": "warn",
-				"useParseIntRadix": "warn",
-				"noUnusedPrivateClassMembers": "warn",
+				"useParseIntRadix": "error",
+				"noUnusedPrivateClassMembers": "error",
 				"useImportExtensions": "error"
 			},
 			"style": {
@@ -60,16 +60,17 @@
 				"useTemplate": "off",
 				"useImportType": "off",
 				"useNodejsImportProtocol": "off",
-				"useExponentiationOperator": "off"
+				"useExponentiationOperator": "off",
+				"useShorthandFunctionType": "error",
+				"useExportType": "error"
 			},
 			"suspicious": {
 				"noExplicitAny": "off",
 				"noEmptyInterface": "off",
 				"noConfusingVoidType": "off",
 				"noControlCharactersInRegex": "off",
-				"noDoubleEquals": "warn",
-				"noGlobalIsNan": "warn",
-				"noGlobalIsFinite": "warn",
+				"noGlobalIsNan": "error",
+				"noGlobalIsFinite": "error",
 				"noGlobalAssign": "warn",
 				"noArrayIndexKey": "warn",
 				"noAssignInExpressions": "warn",
@@ -85,9 +86,11 @@
 				"noUselessSwitchCase": "off",
 				"noUselessUndefinedInitialization": "off",
 				"noUselessContinue": "off",
-				"noUselessTernary": "warn",
+				"noUselessTernary": "error",
 				"noUselessFragments": "warn",
-				"useIndexOf": "warn"
+				"useIndexOf": "error",
+				"noUselessEscapeInRegex": "error",
+				"useArrowFunction": "error"
 			},
 			"performance": {
 				"noAccumulatingSpread": "warn"

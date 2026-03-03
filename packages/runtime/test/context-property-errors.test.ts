@@ -20,7 +20,7 @@ describe('HonoContext Property Access Error Messages', () => {
 	function installContextPropertyHelpers(c: HonoContext): void {
 		for (const property of AGENT_CONTEXT_PROPERTIES) {
 			// Skip if property already exists
-			if (Object.prototype.hasOwnProperty.call(c, property)) {
+			if (Object.hasOwn(c, property)) {
 				continue;
 			}
 

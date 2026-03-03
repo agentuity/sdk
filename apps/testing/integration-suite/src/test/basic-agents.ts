@@ -5,7 +5,7 @@
  */
 
 import { test } from './suite.ts';
-import { assert, assertEqual, assertDefined, assertThrows } from './helpers/index.ts';
+import { assert, assertEqual, assertDefined } from './helpers/index.ts';
 
 // Import agents to trigger registration
 import simpleAgent from '@agents/basic/basic-simple.ts';

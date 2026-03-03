@@ -1,4 +1,4 @@
-import { getTutorialList, getTutorialMeta, type Tutorial } from './tutorial.ts';
+import { getTutorialList, type Tutorial } from './tutorial.ts';
 import type { TutorialState } from './types.ts';
 
 /**

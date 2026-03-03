@@ -64,7 +64,7 @@ beforeAll(() => {
 		if (url.includes('/search')) {
 			const urlObj = new URL(url);
 			const query = urlObj.searchParams.get('q') || '';
-			const limit = parseInt(urlObj.searchParams.get('limit') || '10');
+			const limit = parseInt(urlObj.searchParams.get('limit') || '10', 10);
 			return new Response(JSON.stringify({ query, limit }), {
 				status: 200,
 				headers: { 'Content-Type': 'application/json' },

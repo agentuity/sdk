@@ -23,8 +23,8 @@ router.get('/', bearerTokenAuth, cookieAuth, async (c) => {
 		const userId = (c.get as (key: string) => string)('userId');
 
 		// Parse and validate query parameters
-		let limit = Number.parseInt(c.req.query('limit') ?? String(DEFAULT_SESSIONS_LIMIT));
-		let cursor = Number.parseInt(c.req.query('cursor') ?? '0');
+		let limit = Number.parseInt(c.req.query('limit') ?? String(DEFAULT_SESSIONS_LIMIT), 10);
+		let cursor = Number.parseInt(c.req.query('cursor') ?? '0', 10);
 
 		// Clamp to valid ranges
 		if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_SESSIONS_LIMIT;

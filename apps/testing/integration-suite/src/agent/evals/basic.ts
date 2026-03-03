@@ -17,7 +17,7 @@ const evalsBasicAgent = createAgent('evals-basic', {
 		input: AgentInput,
 		output: AgentOutput,
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const result = input.value * 2;
 
 		return {

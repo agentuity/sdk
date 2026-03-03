@@ -209,7 +209,7 @@ async function uploadToSandbox(
 
 async function uploadSingleFile(
 	client: APIClient,
-	logger: Logger,
+	_logger: Logger,
 	orgId: string,
 	sandboxId: string,
 	resolvedPath: string,
@@ -327,7 +327,7 @@ async function downloadFromSandbox(
 
 async function downloadSingleFile(
 	client: APIClient,
-	logger: Logger,
+	_logger: Logger,
 	orgId: string,
 	sandboxId: string,
 	remotePath: string,

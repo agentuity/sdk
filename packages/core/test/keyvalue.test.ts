@@ -535,7 +535,7 @@ describe('KeyValueStorageService', () => {
 		test('should allow onBefore to modify request', async () => {
 			let modifiedUrl = '';
 			const { adapter } = createMockAdapter([{ ok: true, data: 'test' }], {
-				onBefore: async (url, options, invoke) => {
+				onBefore: async (url, _options, invoke) => {
 					modifiedUrl = url + '?modified=true';
 					await invoke();
 				},
@@ -549,7 +549,7 @@ describe('KeyValueStorageService', () => {
 
 		test('should pass mutated headers from onBefore to server', async () => {
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: { foo: 'bar' } }], {
-				onBefore: async (url, options, invoke) => {
+				onBefore: async (_url, options, invoke) => {
 					options.headers = {
 						...options.headers,
 						'X-Custom-Header': 'test-value',
@@ -622,7 +622,7 @@ describe('KeyValueStorageService', () => {
 			const { adapter } = createMockAdapter(
 				[{ ok: false, status: 403, statusText: 'Forbidden' }],
 				{
-					onAfter: async (response, error) => {
+					onAfter: async (_response, error) => {
 						receivedError = error;
 					},
 				}
@@ -640,7 +640,7 @@ describe('KeyValueStorageService', () => {
 		test('should call both hooks in correct order', async () => {
 			const executionOrder: string[] = [];
 			const { adapter } = createMockAdapter([{ ok: true, data: 'test' }], {
-				onBefore: async (url, options, invoke) => {
+				onBefore: async (_url, _options, invoke) => {
 					executionOrder.push('before-start');
 					await invoke();
 					executionOrder.push('before-end');
@@ -659,7 +659,7 @@ describe('KeyValueStorageService', () => {
 		test('should handle telemetry metadata in hooks', async () => {
 			let capturedTelemetry: { name: string; attributes?: Record<string, string> } | undefined;
 			const { adapter } = createMockAdapter([{ ok: true }], {
-				onBefore: async (url, options, invoke) => {
+				onBefore: async (_url, options, invoke) => {
 					capturedTelemetry = options.telemetry;
 					await invoke();
 				},

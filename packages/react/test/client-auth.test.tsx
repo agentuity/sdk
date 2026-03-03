@@ -1,5 +1,4 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { AgentuityProvider } from '../src/context.tsx';
 import { createClient, setGlobalAuthHeader, getGlobalAuthHeader } from '../src/client.ts';
@@ -29,7 +28,7 @@ describe('React client auth integration', () => {
 		test('should inject auth header from global state', async () => {
 			let capturedHeaders: HeadersInit | undefined;
 
-			globalThis.fetch = async (url, init) => {
+			globalThis.fetch = async (_url, init) => {
 				capturedHeaders = init?.headers;
 				return new Response(JSON.stringify({ success: true }), {
 					status: 200,
@@ -68,7 +67,7 @@ describe('React client auth integration', () => {
 		test('should not inject Authorization header when no auth is set', async () => {
 			let capturedHeaders: HeadersInit | undefined;
 
-			globalThis.fetch = async (url, init) => {
+			globalThis.fetch = async (_url, init) => {
 				capturedHeaders = init?.headers;
 				return new Response(JSON.stringify({ success: true }), {
 					status: 200,
@@ -98,7 +97,7 @@ describe('React client auth integration', () => {
 		test('should merge user headers with auth headers', async () => {
 			let capturedHeaders: HeadersInit | undefined;
 
-			globalThis.fetch = async (url, init) => {
+			globalThis.fetch = async (_url, init) => {
 				capturedHeaders = init?.headers;
 				return new Response(JSON.stringify({ success: true }), {
 					status: 200,
@@ -136,7 +135,7 @@ describe('React client auth integration', () => {
 		test('should allow user headers function to override auth', async () => {
 			let capturedHeaders: HeadersInit | undefined;
 
-			globalThis.fetch = async (url, init) => {
+			globalThis.fetch = async (_url, init) => {
 				capturedHeaders = init?.headers;
 				return new Response(JSON.stringify({ success: true }), {
 					status: 200,
@@ -200,7 +199,7 @@ describe('React client auth integration', () => {
 		test('should use latest auth token for each request', async () => {
 			let capturedHeaders: HeadersInit | undefined;
 
-			globalThis.fetch = async (url, init) => {
+			globalThis.fetch = async (_url, init) => {
 				capturedHeaders = init?.headers;
 				return new Response(JSON.stringify({ success: true }), {
 					status: 200,

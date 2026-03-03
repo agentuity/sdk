@@ -321,7 +321,14 @@ export function AuthProvider({
 
 		const interval = setInterval(fetchAuthState, refreshInterval);
 		return () => clearInterval(interval);
-	}, [authClient, refreshInterval, tokenEndpoint, setAuthHeader, setAuthLoading]);
+	}, [
+		authClient,
+		refreshInterval,
+		tokenEndpoint,
+		setAuthHeader,
+		setAuthLoading, // Identify user for analytics
+		identify,
+	]);
 
 	const contextValue = useMemo(
 		() => ({

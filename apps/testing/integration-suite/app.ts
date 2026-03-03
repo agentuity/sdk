@@ -1,11 +1,7 @@
 import { createApp } from '@agentuity/runtime.ts';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider.ts';
 import { testSessionEventProvider } from './src/test/helpers/session-event-provider.ts';
-import {
-	mockDatabaseMiddleware,
-	mockAuthMiddleware,
-	analyticsMiddleware,
-} from './src/lib/custom-middleware.ts';
+import { mockAuthMiddleware, analyticsMiddleware } from './src/lib/custom-middleware.ts';
 
 // Import test files to register tests
 import './src/test/basic-agents.ts';

@@ -20,7 +20,7 @@ async function globalTeardown(): Promise<void> {
 			stdio: 'pipe',
 		});
 		console.log('[Global Teardown] ✓ App.tsx restored');
-	} catch (err) {
+	} catch (_err) {
 		// File might not have been modified, which is fine
 		console.log('[Global Teardown] App.tsx was not modified or already clean');
 	}

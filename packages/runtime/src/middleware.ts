@@ -74,7 +74,7 @@ export const AGENT_CONTEXT_PROPERTIES = [
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function installContextPropertyHelpers(c: any): void {
 	for (const property of AGENT_CONTEXT_PROPERTIES) {
-		if (Object.prototype.hasOwnProperty.call(c, property)) {
+		if (Object.hasOwn(c, property)) {
 			continue;
 		}
 

@@ -47,7 +47,7 @@ describe('OpenTelemetry Attributes', () => {
 					input: z.object({ value: z.string() }),
 					output: z.string(),
 				},
-				handler: async (ctx, input) => {
+				handler: async (_ctx, input) => {
 					return `processed: ${input.value}`;
 				},
 			});

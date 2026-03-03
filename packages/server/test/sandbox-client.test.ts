@@ -100,7 +100,7 @@ describe('SandboxClient', () => {
 		});
 
 		test('should create sandbox with options', async () => {
-			mockFetch(async (url, opts) => {
+			mockFetch(async (_url, opts) => {
 				if (opts?.method === 'POST') {
 					const body = JSON.parse(opts.body as string);
 					expect(body.resources?.memory).toBe('1Gi');
@@ -130,7 +130,7 @@ describe('SandboxClient', () => {
 		});
 
 		test('should create sandbox with projectId', async () => {
-			mockFetch(async (url, opts) => {
+			mockFetch(async (_url, opts) => {
 				if (opts?.method === 'POST') {
 					const body = JSON.parse(opts.body as string);
 					expect(body.projectId).toBe('proj_123');
@@ -160,7 +160,7 @@ describe('SandboxClient', () => {
 		test('should create sandbox with top-level files', async () => {
 			let requestBody: Record<string, unknown> | null = null;
 
-			mockFetch(async (url, opts) => {
+			mockFetch(async (_url, opts) => {
 				if (opts?.method === 'POST') {
 					requestBody = JSON.parse(opts.body as string);
 					return new Response(

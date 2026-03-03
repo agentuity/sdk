@@ -421,7 +421,7 @@ export async function buildValidationInputAsync(
 	if (schemas.options && !options?.usesStdin) {
 		// Use getShape() instead of parseOptionsSchema() to avoid re-evaluating function defaults
 		const shape = getShape(schemas.options);
-		const hasConfirmOption = Object.prototype.hasOwnProperty.call(shape, 'confirm');
+		const hasConfirmOption = Object.hasOwn(shape, 'confirm');
 		const confirmValue = result.options.confirm;
 
 		if (hasConfirmOption && confirmValue === undefined) {

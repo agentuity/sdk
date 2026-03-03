@@ -77,20 +77,20 @@ export class OtelLogger implements Logger {
 			case 'debug':
 				return (
 					level === LogsAPI.SeverityNumber.DEBUG ||
-					level == LogsAPI.SeverityNumber.INFO ||
-					level == LogsAPI.SeverityNumber.WARN ||
-					level == LogsAPI.SeverityNumber.ERROR
+					level === LogsAPI.SeverityNumber.INFO ||
+					level === LogsAPI.SeverityNumber.WARN ||
+					level === LogsAPI.SeverityNumber.ERROR
 				);
 			case 'info':
 				return (
-					level == LogsAPI.SeverityNumber.INFO ||
-					level == LogsAPI.SeverityNumber.WARN ||
-					level == LogsAPI.SeverityNumber.ERROR
+					level === LogsAPI.SeverityNumber.INFO ||
+					level === LogsAPI.SeverityNumber.WARN ||
+					level === LogsAPI.SeverityNumber.ERROR
 				);
 			case 'warn':
-				return level == LogsAPI.SeverityNumber.WARN || level == LogsAPI.SeverityNumber.ERROR;
+				return level === LogsAPI.SeverityNumber.WARN || level === LogsAPI.SeverityNumber.ERROR;
 			case 'error':
-				return level == LogsAPI.SeverityNumber.ERROR;
+				return level === LogsAPI.SeverityNumber.ERROR;
 		}
 		return false;
 	}

@@ -13,7 +13,7 @@ const simpleAgent = createAgent('simple', {
 			timestamp: s.number(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		// Intentional delay for testing loading/streaming states in workbench UI
 		await Bun.sleep(3000);
 

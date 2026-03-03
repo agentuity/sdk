@@ -72,7 +72,7 @@ export const ambiguity = createPresetEval<
 		model: DEFAULT_EVAL_MODEL,
 		threshold: 0.7,
 	},
-	handler: async (ctx, input, output, options) => {
+	handler: async (_ctx, input, output, options) => {
 		const prompt = interpolatePrompt(ambiguityPrompt, {
 			USER_REQUEST: input.request,
 			MODEL_RESPONSE: output.response,
