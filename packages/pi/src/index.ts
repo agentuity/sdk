@@ -499,6 +499,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			description: toolDef.description,
 			// Server sends JSON Schema; TypeBox schemas are JSON Schema at runtime
 			parameters: toolDef.parameters as TSchema,
+			...(toolDef.promptSnippet ? { promptSnippet: toolDef.promptSnippet } : {}),
+			...(toolDef.promptGuidelines ? { promptGuidelines: toolDef.promptGuidelines } : {}),
 			async execute(
 				toolCallId: string,
 				params: unknown,
