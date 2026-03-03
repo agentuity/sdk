@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
 // Window.__AGENTUITY_ANALYTICS__ type is declared in @agentuity/frontend/analytics/types
 
 interface TestResult {
@@ -51,11 +52,7 @@ export function AnalyticsTestPage() {
 				`Found config with orgId: ${config.orgId || '(empty)'}`
 			);
 		} else {
-			updateResult(
-				'Analytics config injected',
-				'fail',
-				'window.__AGENTUITY_ANALYTICS__ not found'
-			);
+			updateResult('Analytics config injected', 'fail', 'window.__AGENTUITY_ANALYTICS__ not found');
 		}
 
 		// Test 2: Analytics enabled
@@ -138,7 +135,6 @@ export function AnalyticsTestPage() {
 				originalDebugRef.current = null;
 			}
 		};
-		// biome-ignore lint/correctness/useExhaustiveDependencies: runs once on mount intentionally; runTests is defined in component scope
 	}, []);
 
 	const passCount = results.filter((r) => r.status === 'pass').length;
@@ -232,9 +228,7 @@ export function AnalyticsTestPage() {
 						</span>
 						<span style={{ flex: 1 }}>{result.name}</span>
 						{result.message && (
-							<span style={{ color: '#a1a1aa', fontSize: '0.875rem' }}>
-								{result.message}
-							</span>
+							<span style={{ color: '#a1a1aa', fontSize: '0.875rem' }}>{result.message}</span>
 						)}
 					</div>
 				))}

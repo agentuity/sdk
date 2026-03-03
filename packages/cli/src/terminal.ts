@@ -31,9 +31,8 @@ export async function detectColorScheme(): Promise<ColorScheme> {
 						`[DEBUG] OSC 11 response: rgb(${bgColor.r},${bgColor.g},${bgColor.b}), luminance: ${luminance.toFixed(2)}, scheme: ${scheme}`
 					);
 				return scheme;
-			} else {
-				if (debug) console.log('[DEBUG] OSC 11 query timed out or no response');
 			}
+			if (debug) console.log('[DEBUG] OSC 11 query timed out or no response');
 		} catch (error) {
 			if (debug) console.log('[DEBUG] OSC 11 query failed:', error);
 		}
@@ -44,8 +43,8 @@ export async function detectColorScheme(): Promise<ColorScheme> {
 		// COLORFGBG format is "foreground;background"
 		// This is unreliable but better than nothing
 		const parts = process.env.COLORFGBG.split(';');
-		const fg = parseInt(parts[0] || '7', 10);
-		const bg = parseInt(parts[1] || '0', 10);
+		const fg = Number.parseInt(parts[0] || '7', 10);
+		const bg = Number.parseInt(parts[1] || '0', 10);
 
 		// Heuristic: if background is 0 (black) and foreground is light (>=7), it's likely dark mode
 		// if background is light (>=7) and foreground is dark (<7), it's likely light mode
@@ -88,7 +87,6 @@ async function queryTerminalBackground(): Promise<RGBColor | null> {
 			// Pattern 1: ESC ] 11 ; rgb:RRRR/GGGG/BBBB ESC \ (xterm with ESC \ terminator)
 			// Pattern 2: ESC ] 11 ; rgb:RRRR/GGGG/BBBB BEL (xterm with BEL terminator)
 			// The color values can be 8-bit (RR), 12-bit (RRR), or 16-bit (RRRR)
-			// biome-ignore lint/suspicious/noControlCharactersInRegex: Control characters needed for ANSI escape sequences
 			const match = response.match(
 				// eslint-disable-next-line no-control-regex
 				/\x1b\]11;rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)(?:\x1b\\|\x07)/i
@@ -103,14 +101,14 @@ async function queryTerminalBackground(): Promise<RGBColor | null> {
 					if (!hex) return 0;
 					if (hex.length === 4) {
 						// 16-bit: RRRR -> take first 2 chars
-						return parseInt(hex.slice(0, 2), 16);
-					} else if (hex.length === 3) {
-						// 12-bit: RRR -> take first 2 chars
-						return parseInt(hex.slice(0, 2), 16);
-					} else {
-						// 8-bit: RR
-						return parseInt(hex, 16);
+						return Number.parseInt(hex.slice(0, 2), 16);
 					}
+					if (hex.length === 3) {
+						// 12-bit: RRR -> take first 2 chars
+						return Number.parseInt(hex.slice(0, 2), 16);
+					}
+					// 8-bit: RR
+					return Number.parseInt(hex, 16);
 				};
 
 				const r = parseColorValue(match[1]);
@@ -145,9 +143,9 @@ function calculateLuminance(color: RGBColor): number {
 	const gsRGB = color.g / 255;
 	const bsRGB = color.b / 255;
 
-	const r = rsRGB <= 0.03928 ? rsRGB / 12.92 : Math.pow((rsRGB + 0.055) / 1.055, 2.4);
-	const g = gsRGB <= 0.03928 ? gsRGB / 12.92 : Math.pow((gsRGB + 0.055) / 1.055, 2.4);
-	const b = bsRGB <= 0.03928 ? bsRGB / 12.92 : Math.pow((bsRGB + 0.055) / 1.055, 2.4);
+	const r = rsRGB <= 0.03928 ? rsRGB / 12.92 : ((rsRGB + 0.055) / 1.055) ** 2.4;
+	const g = gsRGB <= 0.03928 ? gsRGB / 12.92 : ((gsRGB + 0.055) / 1.055) ** 2.4;
+	const b = bsRGB <= 0.03928 ? bsRGB / 12.92 : ((bsRGB + 0.055) / 1.055) ** 2.4;
 
 	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }

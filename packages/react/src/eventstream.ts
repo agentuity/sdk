@@ -1,4 +1,3 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { InferOutput } from '@agentuity/core';
 import {
 	buildUrl,
@@ -6,6 +5,7 @@ import {
 	jsonEqual,
 	type SSERouteRegistry,
 } from '@agentuity/frontend';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AgentuityContext } from './context';
 
 /**
@@ -115,7 +115,6 @@ export function useEventStream<TRoute extends SSERouteKey, TOutput = SSERouteOut
 	const _queryString = options?.query?.toString();
 	const esUrl = useMemo(
 		() => buildUrl(context.baseUrl!, route as string, options?.subpath, options?.query),
-		// biome-ignore lint/correctness/useExhaustiveDependencies: queryString tracks URLSearchParams mutations that options?.query reference wouldn't catch
 		[context.baseUrl, route, options?.subpath, options?.query]
 	);
 

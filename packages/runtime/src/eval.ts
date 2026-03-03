@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { StandardSchemaV1, InferInput, InferOutput } from '@agentuity/core';
-import type { AgentContext } from './agent';
+import type { InferInput, InferOutput, StandardSchemaV1 } from '@agentuity/core';
 import { z } from 'zod';
+import type { AgentContext } from './agent';
 
 // Eval SDK types
 export type EvalContext = AgentContext<any, any, any>;
 
 export type EvalRunResultMetadata = {
-	// biome-ignore lint/suspicious/noExplicitAny: metadata can contain any type of data
 	[key: string]: any;
 };
 

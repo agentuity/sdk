@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { type Context, Hono, type Schema, type Env as HonoEnv } from 'hono';
+import { type Context, Hono, type Env as HonoEnv, type Schema } from 'hono';
+import { loadBuildMetadata } from './_metadata';
 import { returnResponse } from './_util';
 import type { Env } from './app';
-import { loadBuildMetadata } from './_metadata';
 
 // Re-export both Env types
 export type { Env };
@@ -134,7 +134,6 @@ declare module 'hono' {
 export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): Hono<E, S> => {
 	const router = new Hono<E, S>();
 	// tslint:disable-next-line:no-any no-unused-variable
-	// biome-ignore lint:no-any
 	const _router = router as any;
 
 	for (const method of ['get', 'put', 'post', 'delete', 'options', 'patch']) {
@@ -211,68 +210,68 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 	// Deprecated stubs that throw errors with migration instructions
 	_router.websocket = (path: string, ..._args: any[]) => {
 		throw new Error(
-			`router.websocket() is deprecated and has been removed.\n\n` +
-				`Migration: Use the websocket middleware instead:\n\n` +
+			'router.websocket() is deprecated and has been removed.\n\n' +
+				'Migration: Use the websocket middleware instead:\n\n' +
 				`  import { createRouter, websocket } from '@agentuity/runtime';\n\n` +
-				`  const router = createRouter();\n\n` +
-				`  // Before (deprecated):\n` +
+				'  const router = createRouter();\n\n' +
+				'  // Before (deprecated):\n' +
 				`  // router.websocket('${path}', (c) => (ws) => { ... });\n\n` +
-				`  // After:\n` +
+				'  // After:\n' +
 				`  router.get('${path}', websocket((c, ws) => {\n` +
-				`    ws.onMessage((event) => {\n` +
+				'    ws.onMessage((event) => {\n' +
 				`      ws.send('Echo: ' + event.data);\n` +
-				`    });\n` +
-				`  }));`
+				'    });\n' +
+				'  }));'
 		);
 	};
 
 	_router.sse = (path: string, ..._args: any[]) => {
 		throw new Error(
-			`router.sse() is deprecated and has been removed.\n\n` +
-				`Migration: Use the sse middleware instead:\n\n` +
+			'router.sse() is deprecated and has been removed.\n\n' +
+				'Migration: Use the sse middleware instead:\n\n' +
 				`  import { createRouter, sse } from '@agentuity/runtime';\n\n` +
-				`  const router = createRouter();\n\n` +
-				`  // Before (deprecated):\n` +
+				'  const router = createRouter();\n\n' +
+				'  // Before (deprecated):\n' +
 				`  // router.sse('${path}', (c) => async (stream) => { ... });\n\n` +
-				`  // After:\n` +
+				'  // After:\n' +
 				`  router.get('${path}', sse((c, stream) => {\n` +
 				`    stream.writeSSE({ data: 'Hello', event: 'message' });\n` +
-				`  }));`
+				'  }));'
 		);
 	};
 
 	_router.stream = (path: string, ..._args: any[]) => {
 		throw new Error(
-			`router.stream() is deprecated and has been removed.\n\n` +
-				`Migration: Use the stream middleware instead:\n\n` +
+			'router.stream() is deprecated and has been removed.\n\n' +
+				'Migration: Use the stream middleware instead:\n\n' +
 				`  import { createRouter, stream } from '@agentuity/runtime';\n\n` +
-				`  const router = createRouter();\n\n` +
-				`  // Before (deprecated):\n` +
+				'  const router = createRouter();\n\n' +
+				'  // Before (deprecated):\n' +
 				`  // router.stream('${path}', (c) => new ReadableStream({ ... }));\n\n` +
-				`  // After:\n` +
+				'  // After:\n' +
 				`  router.post('${path}', stream((c) => {\n` +
-				`    return new ReadableStream({\n` +
-				`      start(controller) {\n` +
+				'    return new ReadableStream({\n' +
+				'      start(controller) {\n' +
 				`        controller.enqueue('data\\n');\n` +
-				`        controller.close();\n` +
-				`      }\n` +
-				`    });\n` +
-				`  }));`
+				'        controller.close();\n' +
+				'      }\n' +
+				'    });\n' +
+				'  }));'
 		);
 	};
 
 	_router.cron = (schedule: string, ..._args: any[]) => {
 		throw new Error(
-			`router.cron() is deprecated and has been removed.\n\n` +
-				`Migration: Use the cron middleware instead:\n\n` +
+			'router.cron() is deprecated and has been removed.\n\n' +
+				'Migration: Use the cron middleware instead:\n\n' +
 				`  import { createRouter, cron } from '@agentuity/runtime';\n\n` +
-				`  const router = createRouter();\n\n` +
-				`  // Before (deprecated):\n` +
+				'  const router = createRouter();\n\n' +
+				'  // Before (deprecated):\n' +
 				`  // router.cron('${schedule}', (c) => { ... });\n\n` +
-				`  // After:\n` +
+				'  // After:\n' +
 				`  router.post('/your-cron-path', cron('${schedule}', (c) => {\n` +
 				`    return { status: 'complete' };\n` +
-				`  }));`
+				'  }));'
 		);
 	};
 
