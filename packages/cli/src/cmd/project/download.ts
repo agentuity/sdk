@@ -411,14 +411,6 @@ export async function initGitRepo(dest: string, options?: InitGitRepoOptions): P
 		throw new Error(`Refusing to initialize git: "${dest}" already contains a .git directory.`);
 	}
 
-	// Safety: sanity check file count — templates shouldn't have hundreds of files
-	const files = readdirSync(dest, { recursive: true });
-	if (files.length > 500) {
-		throw new Error(
-			`Refusing to initialize git: "${dest}" contains ${files.length} files — this doesn't look like a template. Aborting to prevent accidentally committing a large directory.`
-		);
-	}
-
 	// Initialize git repository if git is available
 	// Check for real git (not macOS stub that triggers Xcode CLT popup)
 	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper');
