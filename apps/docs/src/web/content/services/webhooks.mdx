@@ -3,14 +3,14 @@ title: Webhooks
 description: Create webhook endpoints to receive HTTP callbacks with delivery tracking and retry
 ---
 
-Use the Webhook platform service when you need a managed ingest endpoint for callbacks from services like Stripe, GitHub, or Slack, with a full audit trail of received payloads and delivery attempts.
+Use the webhook service when you need a managed ingest endpoint for callbacks from services like Stripe, GitHub, or Slack, with a full audit trail of received payloads and delivery attempts.
 
 ## When to Use Webhooks
 
 | Approach | Best For |
 |----------|----------|
-| **Webhook Platform** | Managed ingest endpoints with receipts, delivery tracking, and retry |
-| [Route Handlers](/cookbook/patterns/webhook-handler) | Direct webhook processing with signature verification in your routes |
+| **Webhook Service** | Managed ingest endpoints with receipts, delivery tracking, and retry |
+| [Route Handlers](/cookbook/patterns/webhook-handler) | Processing webhooks directly in your routes with signature verification |
 | [Queues](/services/queues) | Internal async message passing between your own services |
 
 <Callout type="info" title="Webhook Handler Pattern">
@@ -23,7 +23,7 @@ To handle incoming webhooks directly in an agent or route, including signature v
 |--------|--------|---------|
 | SDK functions | `@agentuity/server` | Standalone functions for programmatic management |
 | CLI | `agentuity cloud webhook` | Create and inspect webhooks from the terminal |
-| Web App | [app.agentuity.dev](https://app.agentuity.dev) | Manage webhooks through the dashboard |
+| Web App | [Web App](https://app.agentuity.com/services/webhook) | Manage webhooks in the web app |
 
 <Callout type="info" title="Org-Level Resource">
 Webhooks are organization-level resources, not tied to a specific project. A single webhook can receive payloads from any external service and forward them to multiple destinations.
@@ -227,10 +227,10 @@ for (const delivery of deliveries) {
 ## Best Practices
 
 - **One webhook per source**: Use separate webhooks for Stripe, GitHub, Slack, etc., so receipts stay organized and you can route them to different destinations independently.
-- **Verify signatures in your destination**: The webhook platform records and forwards payloads as received; signature verification (HMAC, Stripe-Signature header, etc.) belongs in your destination handler. See the [Webhook Handler Pattern](/cookbook/patterns/webhook-handler).
+- **Verify signatures in your destination**: The webhook service records and forwards payloads as received; signature verification (HMAC, Stripe-Signature header, etc.) belongs in your destination handler. See the [Webhook Handler Pattern](/cookbook/patterns/webhook-handler) for an example of processing webhooks in your routes with signature verification.
 - **Use receipts as an audit log**: Before debugging a missed event, check `listWebhookReceipts` to confirm the payload was received at the ingest URL.
 - **Poll deliveries after destination changes**: If you update a destination URL, retry any recent `failed` deliveries so they reach the correct endpoint.
-- **Set custom headers for authentication**: Add a shared secret in `headers` when creating a destination so your handler can verify requests came from the platform.
+- **Set custom headers for authentication**: Add a shared secret in `headers` when creating a destination so your handler can verify requests came from the webhook service.
 
 ## Next Steps
 
