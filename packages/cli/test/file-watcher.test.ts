@@ -3,7 +3,7 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import type { Logger } from '@agentuity/core/index.ts';
+import type { Logger } from '@agentuity/core';
 import { createFileWatcher } from '../src/cmd/dev/file-watcher.ts';
 import { join } from 'node:path';
 import { mkdtemp, writeFile, rm, readFile, mkdir } from 'node:fs/promises';

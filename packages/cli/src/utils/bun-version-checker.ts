@@ -1,5 +1,5 @@
 import { $, semver } from 'bun';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { StructuredError } from '@agentuity/core';
 import * as tui from '../tui.ts';
 import { pauseStepUI } from '../steps.ts';
 

@@ -1,4 +1,4 @@
-import { createAgent } from '@agentuity/runtime.ts';
+import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 /**

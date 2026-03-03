@@ -1,4 +1,4 @@
-import { createApp } from '@agentuity/runtime.ts';
+import { createApp } from '@agentuity/runtime';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider.ts';
 import { testSessionEventProvider } from './src/test/helpers/session-event-provider.ts';
 import { mockAuthMiddleware, analyticsMiddleware } from './src/lib/custom-middleware.ts';

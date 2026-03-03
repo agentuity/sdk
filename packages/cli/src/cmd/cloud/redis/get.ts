@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { listResources } from '@agentuity/server/index.ts';
+import { listResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { getCatalystAPIClient } from '../../../config.ts';

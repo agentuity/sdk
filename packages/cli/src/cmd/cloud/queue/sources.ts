@@ -12,7 +12,7 @@ import {
 	SourceSchema,
 	SourceAlreadyExistsError,
 	type Source,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 import { ErrorCode } from '../../../errors.ts';
 
 const SourcesListResponseSchema = z.object({

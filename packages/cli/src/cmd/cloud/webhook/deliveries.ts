@@ -8,7 +8,7 @@ import {
 	retryWebhookDelivery,
 	WebhookDeliverySchema,
 	type WebhookDelivery,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 
 const DeliveriesListResponseSchema = z.object({
 	deliveries: z.array(

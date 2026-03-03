@@ -1,5 +1,5 @@
-import { TaskStorageService, type Logger } from '@agentuity/core/index.ts';
-import { createServerFetchAdapter } from '@agentuity/server/index.ts';
+import { TaskStorageService, type Logger } from '@agentuity/core';
+import { createServerFetchAdapter } from '@agentuity/server';
 import type { AuthData, Config, GlobalOptions } from '../../../types.ts';
 import { getCatalystUrl } from '../../../catalyst.ts';
 import { setResourceInfo } from '../../../cache/index.ts';

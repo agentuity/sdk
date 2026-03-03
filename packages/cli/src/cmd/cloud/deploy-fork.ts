@@ -18,8 +18,8 @@ import type { APIClient } from '../../api.ts';
 import { getUserAgent } from '../../api.ts';
 import { isUnicode } from '../../tui/symbols.ts';
 import { getAgentEnv } from '../../agent-detection.ts';
-import { projectDeploymentFail, type ClientDiagnostics, type Deployment } from '@agentuity/server/index.ts';
-import type { Logger } from '@agentuity/core/index.ts';
+import { projectDeploymentFail, type ClientDiagnostics, type Deployment } from '@agentuity/server';
+import type { Logger } from '@agentuity/core';
 
 export interface ForkDeployOptions {
 	projectDir: string;

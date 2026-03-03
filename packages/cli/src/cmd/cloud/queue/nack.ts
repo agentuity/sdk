@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createQueueAPIClient, getQueueApiOptions } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { nackMessage } from '@agentuity/server/index.ts';
+import { nackMessage } from '@agentuity/server';
 
 const NackResponseSchema = z.object({
 	success: z.boolean(),

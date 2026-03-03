@@ -11,7 +11,7 @@ import {
 	getAPIBaseURL as baseGetAPIBaseURL,
 	getAppBaseURL as baseGetAppBaseURL,
 	type APIClientConfig,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 
 export function getUserAgent(config?: Config | null): string {
 	// If we're skipping version check, send "dev" to signal the server to skip too

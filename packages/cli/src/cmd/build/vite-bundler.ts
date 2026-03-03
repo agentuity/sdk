@@ -6,7 +6,7 @@
 
 import { join } from 'node:path';
 import { stat } from 'node:fs/promises';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { StructuredError } from '@agentuity/core';
 import type { Logger, DeployOptions } from '../../types.ts';
 import { runAllBuilds } from './vite/vite-builder.ts';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker.ts';

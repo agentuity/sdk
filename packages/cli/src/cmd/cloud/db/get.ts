@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { listOrgResources, dbTables, generateCreateTableSQL } from '@agentuity/server/index.ts';
+import { listOrgResources, dbTables, generateCreateTableSQL } from '@agentuity/server';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config.ts';

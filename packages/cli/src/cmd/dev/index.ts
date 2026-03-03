@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
-import { getServiceUrls } from '@agentuity/server/index.ts';
+import { getServiceUrls } from '@agentuity/server';
 import { createCommand } from '../../types.ts';
 import { startBunDevServer } from '../build/vite/bun-dev-server.ts';
 import { startViteAssetServer } from '../build/vite/vite-asset-server.ts';

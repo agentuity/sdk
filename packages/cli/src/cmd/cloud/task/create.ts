@@ -4,8 +4,8 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { whoami } from '@agentuity/server/index.ts';
-import type { TaskPriority, TaskStatus, TaskType, UserType } from '@agentuity/core/index.ts';
+import { whoami } from '@agentuity/server';
+import type { TaskPriority, TaskStatus, TaskType, UserType } from '@agentuity/core';
 import { getCachedUserInfo, setCachedUserInfo } from '../../../cache/index.ts';
 import { defaultProfileName } from '../../../config.ts';
 

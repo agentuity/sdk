@@ -23,7 +23,7 @@ import {
 	hasPrefixedResourceId,
 	resolveOrgIdWithoutPrompt,
 } from './auth.ts';
-import { type RegionList, ValidationOutputError } from '@agentuity/server/index.ts';
+import { type RegionList, ValidationOutputError } from '@agentuity/server';
 import { fetchRegionsWithCache } from './regions.ts';
 import enquirer from 'enquirer';
 import * as tui from './tui.ts';
@@ -33,7 +33,7 @@ import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientTyp
 import { ErrorCode, ExitCode, createError, exitWithError } from './errors.ts';
 import { getCommand } from './command-prefix.ts';
 import { isValidateMode, outputValidation, type ValidationResult } from './output.ts';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { StructuredError } from '@agentuity/core';
 import { setProgram } from './program-ref.ts';
 import { generateIntroPrompt } from './cmd/ai/intro.ts';
 import {
@@ -419,7 +419,7 @@ async function promptProjectSelection(baseCtx: CommandContext): Promise<ProjectC
 	const apiClient = createAPIClient(baseCtx, config);
 
 	// Fetch available projects
-	const { projectList } = await import('@agentuity/server/index.ts');
+	const { projectList } = await import('@agentuity/server');
 	const projects = await projectList(apiClient);
 
 	if (!projects || projects.length === 0) {
@@ -1275,7 +1275,7 @@ async function registerSubcommand(
 					const profile = baseCtx.config?.name ?? 'default';
 					let projectDetails = getCachedProject(profile, projectId);
 					if (!projectDetails) {
-						const { projectGet } = await import('@agentuity/server/index.ts');
+						const { projectGet } = await import('@agentuity/server');
 						// Use keys: false to match other callers and ensure cache consistency
 						projectDetails = await projectGet(apiClient, { id: projectId, keys: false });
 						setCachedProject(profile, projectId, projectDetails);

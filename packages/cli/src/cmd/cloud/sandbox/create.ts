@@ -3,8 +3,8 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createSandboxClient, parseFileArgs, cacheSandboxRegion } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { sandboxCreate } from '@agentuity/server/index.ts';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { sandboxCreate } from '@agentuity/server';
+import { StructuredError } from '@agentuity/core';
 import { validateAptDependencies } from '../../../utils/apt-validator.ts';
 import { ErrorCode } from '../../../errors.ts';
 

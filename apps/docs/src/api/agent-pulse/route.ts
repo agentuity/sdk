@@ -1,8 +1,8 @@
 import { createRouter, validator } from '@agentuity/runtime';
 import { bearerTokenAuth, cookieAuth } from '../../middleware/auth.ts';
 import { config } from '../../config.ts';
-import agentPulse from '@agent/agent_pulse/index.ts';
-import type { ConversationMessage } from '@agent/agent_pulse/types.ts';
+import agentPulse from '@agent/agent_pulse';
+import type { ConversationMessage } from '@agent/agent_pulse/types';
 import {
 	getCurrentTutorialState,
 	updateTutorialProgress,

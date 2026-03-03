@@ -4,7 +4,7 @@ import * as tui from '../../../tui.ts';
 import { createStorageAdapter } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { isDryRunMode, outputDryRun } from '../../../explain.ts';
-import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core/index.ts';
+import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core';
 
 const DURATION_UNITS: Record<string, number> = {
 	s: 1000,

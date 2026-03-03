@@ -1,6 +1,6 @@
 import { createCommand } from '../../types.ts';
 import { getVersion } from '../../version.ts';
-import { createLogger } from '@agentuity/server/index.ts';
+import { createLogger } from '@agentuity/server';
 import { getCommand } from '../../command-prefix.ts';
 import { z } from 'zod';
 import { ErrorCode } from '../../errors.ts';

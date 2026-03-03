@@ -11,7 +11,7 @@ import {
 	deleteWebhookDestination,
 	WebhookDestinationSchema,
 	type WebhookDestination,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 
 const DestinationsListResponseSchema = z.object({
 	destinations: z.array(

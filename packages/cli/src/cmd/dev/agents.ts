@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../types.ts';
 import * as tui from '../../tui.ts';
-import { APIResponseSchema } from '@agentuity/server/index.ts';
+import { APIResponseSchema } from '@agentuity/server';
 import { abbreviate, abbreviateDescription } from '../../utils/format.ts';
 import { getCommand } from '../../command-prefix.ts';
 

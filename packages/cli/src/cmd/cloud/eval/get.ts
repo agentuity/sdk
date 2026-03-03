@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { APIError, evalGet } from '@agentuity/server/index.ts';
+import { APIError, evalGet } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';
 

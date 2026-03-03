@@ -13,10 +13,10 @@
  * - Undeploy
  */
 
-import { test } from '@test/suite.ts';
-import { assert, assertEqual, assertDefined } from '@test/helpers/index.ts';
-import cliAgent from '@agents/cli/agent.ts';
-import { isAuthenticated } from '@test/helpers/cli.ts';
+import { test } from '@test/suite';
+import { assert, assertEqual, assertDefined } from '@test/helpers';
+import cliAgent from '@agents/cli/agent';
+import { isAuthenticated } from '@test/helpers/cli';
 
 // Test 1: Check authentication
 test('cli-deployment', 'auth-check', async () => {

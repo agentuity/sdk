@@ -13,8 +13,8 @@ import {
 	executionGet,
 	sandboxResolve,
 	type APIClient,
-} from '@agentuity/server/index.ts';
-import type { Logger, FileToWrite } from '@agentuity/core/index.ts';
+} from '@agentuity/server';
+import type { Logger, FileToWrite } from '@agentuity/core';
 
 const POLL_INTERVAL_MS = 500;
 const MAX_POLL_ATTEMPTS = 600;

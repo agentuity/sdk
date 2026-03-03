@@ -1,4 +1,4 @@
-import { createRouter } from '@agentuity/runtime.ts';
+import { createRouter } from '@agentuity/runtime';
 
 interface LoginRequest {
 	username: string;

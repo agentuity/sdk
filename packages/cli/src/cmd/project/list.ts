@@ -1,6 +1,6 @@
 import { createSubcommand } from '../../types.ts';
 import * as tui from '../../tui.ts';
-import { projectList } from '@agentuity/server/index.ts';
+import { projectList } from '@agentuity/server';
 import { getCommand } from '../../command-prefix.ts';
 import { z } from 'zod';
 

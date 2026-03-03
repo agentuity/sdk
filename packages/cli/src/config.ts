@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { existsSync, mkdirSync } from 'node:fs';
-import { StructuredError, type Logger } from '@agentuity/core/index.ts';
-import { BuildMetadataSchema, type BuildMetadata, getServiceUrls } from '@agentuity/server/index.ts';
-import { APIClient as ServerAPIClient } from '@agentuity/server/index.ts';
+import { StructuredError, type Logger } from '@agentuity/core';
+import { BuildMetadataSchema, type BuildMetadata, getServiceUrls } from '@agentuity/server';
+import { APIClient as ServerAPIClient } from '@agentuity/server';
 import { YAML } from 'bun';
 import { join, extname, basename, resolve, normalize } from 'node:path';
 import { homedir } from 'node:os';

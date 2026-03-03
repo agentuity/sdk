@@ -51,8 +51,7 @@
 				"useExhaustiveDependencies": "warn",
 				"useHookAtTopLevel": "warn",
 				"useParseIntRadix": "error",
-				"noUnusedPrivateClassMembers": "error",
-				"useImportExtensions": "error"
+				"noUnusedPrivateClassMembers": "error"
 			},
 			"style": {
 				"noNonNullAssertion": "off",
@@ -109,6 +108,18 @@
 			}
 		}
 	},
+	"overrides": [
+		{
+			"includes": ["packages/server/src/**", "packages/core/src/**"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"useImportExtensions": "error"
+					}
+				}
+			}
+		}
+	],
 	"assist": {
 		"enabled": false
 	}

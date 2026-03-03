@@ -4,7 +4,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createSandboxClient } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { sandboxDownloadArchive, sandboxResolve } from '@agentuity/server/index.ts';
+import { sandboxDownloadArchive, sandboxResolve } from '@agentuity/server';
 
 export const downloadSubcommand = createCommand({
 	name: 'download',

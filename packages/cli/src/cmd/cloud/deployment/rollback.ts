@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { projectDeploymentRollback, projectDeploymentList } from '@agentuity/server/index.ts';
+import { projectDeploymentRollback, projectDeploymentList } from '@agentuity/server';
 import { resolveProjectId } from './utils.ts';
 import { getCommand } from '../../../command-prefix.ts';
 const DeploymentRollbackResponseSchema = z.object({

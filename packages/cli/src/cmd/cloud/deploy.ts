@@ -2,7 +2,7 @@ import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { StructuredError } from '@agentuity/core';
 import {
 	type BuildMetadata,
 	type Deployment,
@@ -20,7 +20,7 @@ import {
 	projectGet,
 	projectUpdateRegion,
 	validateResources,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 import { z } from 'zod';
 import { getUserAgent } from '../../api.ts';
 import { BuildReportCollector, clearGlobalCollector, setGlobalCollector } from '../../build-report.ts';

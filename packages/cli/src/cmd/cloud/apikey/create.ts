@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand as createSubcommandHelper } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { apikeyCreate } from '@agentuity/server/index.ts';
+import { apikeyCreate } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix.ts';
 import { parseExpiresAt } from '../../../utils/date.ts';
 

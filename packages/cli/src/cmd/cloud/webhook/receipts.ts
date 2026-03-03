@@ -8,7 +8,7 @@ import {
 	getWebhookReceipt,
 	WebhookReceiptSchema,
 	type WebhookReceipt,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 
 const ReceiptsListResponseSchema = z.object({
 	receipts: z.array(

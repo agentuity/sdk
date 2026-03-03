@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { projectAgentList } from '@agentuity/server/index.ts';
+import { projectAgentList } from '@agentuity/server';
 import Table from 'cli-table3';
 import { abbreviate, abbreviateDescription } from '../../../utils/format.ts';
 import { getCommand } from '../../../command-prefix.ts';

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { projectGet, orgEnvGet } from '@agentuity/server/index.ts';
+import { projectGet, orgEnvGet } from '@agentuity/server';
 import {
 	findExistingEnvFile,
 	readEnvFile,

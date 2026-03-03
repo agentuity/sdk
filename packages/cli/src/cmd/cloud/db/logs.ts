@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { dbLogs, DbQueryLogSchema, listOrgResources } from '@agentuity/server/index.ts';
+import { dbLogs, DbQueryLogSchema, listOrgResources } from '@agentuity/server';
 import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';

@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { APIResponseSchema } from '@agentuity/server/index.ts';
+import { APIResponseSchema } from '@agentuity/server';
 import type { APIClient } from '../../../api.ts';
 import { createHash } from 'crypto';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { StructuredError } from '@agentuity/core';
 
 // Zod schemas for API validation
 const SSHKeySchema = z.object({

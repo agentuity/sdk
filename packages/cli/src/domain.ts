@@ -1,5 +1,5 @@
 import type { Config } from './types.ts';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { StructuredError } from '@agentuity/core';
 import { getIONHost } from './config.ts';
 import * as tui from './tui.ts';
 

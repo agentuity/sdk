@@ -5,7 +5,7 @@ import { getCommand } from './command-prefix.ts';
 import type { CommandContext, AuthData, Config } from './types.ts';
 import * as tui from './tui.ts';
 import { defaultProfileName } from './config.ts';
-import { listOrganizations } from '@agentuity/server/index.ts';
+import { listOrganizations } from '@agentuity/server';
 import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api.ts';
 
 export function isTTY(): boolean {

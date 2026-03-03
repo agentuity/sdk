@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { projectHostnameGet } from '@agentuity/server/index.ts';
+import { projectHostnameGet } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix.ts';
 import { isJSONMode } from '../../../output.ts';
 

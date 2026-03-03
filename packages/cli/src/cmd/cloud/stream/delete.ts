@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { streamGet } from '@agentuity/server/index.ts';
+import { streamGet } from '@agentuity/server';
 import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createStorageAdapterForOrg } from './util.ts';

@@ -7,9 +7,9 @@
 import { test } from './suite.ts';
 import { assertEqual, assertDefined, assertThrows } from './helpers/index.ts';
 
-import schemaTypesAgent from '@agents/schema/types.ts';
-import schemaOptionalAgent from '@agents/schema/optional.ts';
-import schemaComplexAgent from '@agents/schema/complex.ts';
+import schemaTypesAgent from '@agents/schema/types';
+import schemaOptionalAgent from '@agents/schema/optional';
+import schemaComplexAgent from '@agents/schema/complex';
 
 // Test: Basic types validation
 test('schema', 'basic-types', async () => {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { projectEnvDelete, projectGet, orgEnvDelete, orgEnvGet } from '@agentuity/server/index.ts';
+import { projectEnvDelete, projectGet, orgEnvDelete, orgEnvGet } from '@agentuity/server';
 import { isReservedAgentuityKey } from '../../../env-util.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';

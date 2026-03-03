@@ -5,9 +5,9 @@
  * These tests use real WebSocket connections to the integration suite server.
  */
 
-import { test } from '@test/suite.ts';
-import { assert, assertEqual, assertDefined, uniqueId } from '@test/helpers/index.ts';
-import { createWebSocketClient } from '@test/helpers/websocket-client.ts';
+import { test } from '@test/suite';
+import { assert, assertEqual, assertDefined, uniqueId } from '@test/helpers';
+import { createWebSocketClient } from '@test/helpers/websocket-client';
 
 const suiteId = uniqueId('websocket');
 

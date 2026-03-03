@@ -7,8 +7,8 @@
 import { test } from './suite.ts';
 import { assert, assertEqual, assertDefined } from './helpers/index.ts';
 
-import sessionBasicAgent from '@agents/session/session-basic.ts';
-import sessionEventsAgent from '@agents/session/session-events.ts';
+import sessionBasicAgent from '@agents/session/session-basic';
+import sessionEventsAgent from '@agents/session/session-events';
 
 // Test: Get session and thread IDs
 test('session', 'get-ids', async () => {

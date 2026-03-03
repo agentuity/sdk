@@ -3,7 +3,7 @@ import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';
-import { evalRunList } from '@agentuity/server/index.ts';
+import { evalRunList } from '@agentuity/server';
 
 const EvalRunListResponseSchema = z.array(
 	z.object({

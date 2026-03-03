@@ -1,6 +1,6 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
-import type { EmailAttachment } from '@agentuity/core/index.ts';
+import type { EmailAttachment } from '@agentuity/core';
 import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createEmailAdapter, truncate } from './util.ts';

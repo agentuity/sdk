@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createSandboxClient, clearSandboxRegionCache } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { sandboxDestroy, sandboxResolve } from '@agentuity/server/index.ts';
+import { sandboxDestroy, sandboxResolve } from '@agentuity/server';
 
 const SandboxDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

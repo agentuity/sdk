@@ -4,7 +4,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createSandboxClient } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { sandboxUploadArchive, sandboxResolve } from '@agentuity/server/index.ts';
+import { sandboxUploadArchive, sandboxResolve } from '@agentuity/server';
 
 export const uploadSubcommand = createCommand({
 	name: 'upload',

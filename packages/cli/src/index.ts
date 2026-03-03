@@ -87,7 +87,7 @@ export {
 	ConsoleLogger,
 	createLogger,
 	type ColorScheme as LoggerColorScheme,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 export { showBanner } from './banner.ts';
 export { discoverCommands } from './cmd/index.ts';
 export { detectColorScheme } from './terminal.ts';

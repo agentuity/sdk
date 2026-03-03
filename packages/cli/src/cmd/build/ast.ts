@@ -3,9 +3,9 @@ import { dirname, relative, join, basename, resolve } from 'node:path';
 import { parse as parseCronExpression } from '@datasert/cronjs-parser';
 import { generate } from 'astring';
 import type { BuildMetadata } from '../../types.ts';
-import { createLogger } from '@agentuity/server/index.ts';
+import { createLogger } from '@agentuity/server';
 import * as ts from 'typescript';
-import { StructuredError, type WorkbenchConfig } from '@agentuity/core/index.ts';
+import { StructuredError, type WorkbenchConfig } from '@agentuity/core';
 import type { LogLevel } from '../../types.ts';
 
 import { existsSync, mkdirSync, statSync } from 'node:fs';

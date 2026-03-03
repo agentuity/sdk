@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createSandboxClient } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { sandboxResume, sandboxResolve } from '@agentuity/server/index.ts';
+import { sandboxResume, sandboxResolve } from '@agentuity/server';
 
 const SandboxResumeResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

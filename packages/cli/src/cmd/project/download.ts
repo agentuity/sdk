@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { finished } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 import { extract, type Headers } from 'tar-fs';
-import { StructuredError, type Logger } from '@agentuity/core/index.ts';
+import { StructuredError, type Logger } from '@agentuity/core';
 import * as tui from '../../tui.ts';
 import { downloadWithSpinner } from '../../download.ts';
 import { writeAgentsDocs } from '../../agents-docs.ts';

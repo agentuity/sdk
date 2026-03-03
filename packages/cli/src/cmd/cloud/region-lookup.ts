@@ -1,4 +1,4 @@
-import { StreamStorageService, TaskStorageService, type Logger } from '@agentuity/core/index.ts';
+import { StreamStorageService, TaskStorageService, type Logger } from '@agentuity/core';
 import {
 	projectGet,
 	sandboxResolve,
@@ -7,7 +7,7 @@ import {
 	type APIClient,
 	createServerFetchAdapter,
 	getServiceUrls,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 import { getResourceInfo, setResourceInfo } from '../../cache/index.ts';
 import { getDefaultRegion } from '../../config.ts';
 import type { AuthData, Config } from '../../types.ts';

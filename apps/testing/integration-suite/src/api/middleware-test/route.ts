@@ -3,7 +3,7 @@
  * Tests both app.ts middleware and api/index.ts middleware
  */
 
-import { createRouter } from '@agentuity/runtime.ts';
+import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 

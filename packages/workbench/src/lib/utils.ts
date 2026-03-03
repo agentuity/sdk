@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import type { ErrorInfo } from '@/types/config.ts';
+import type { ErrorInfo } from '@/types/config';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));

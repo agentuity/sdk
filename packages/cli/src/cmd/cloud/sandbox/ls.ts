@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createSandboxClient } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { sandboxListFiles, sandboxResolve } from '@agentuity/server/index.ts';
+import { sandboxListFiles, sandboxResolve } from '@agentuity/server';
 
 const FileInfoSchema = z.object({
 	path: z.string(),

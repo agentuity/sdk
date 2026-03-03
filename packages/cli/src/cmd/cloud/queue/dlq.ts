@@ -9,7 +9,7 @@ import {
 	purgeDeadLetter,
 	type DeadLetterMessage,
 	MessageSchema,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 import { ErrorCode } from '../../../errors.ts';
 
 const DlqListResponseSchema = z.object({

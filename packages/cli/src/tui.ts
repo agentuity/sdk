@@ -8,7 +8,7 @@ import { stringWidth } from 'bun';
 import { resolve } from 'node:path';
 import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
-import { type OrganizationList, projectList } from '@agentuity/server/index.ts';
+import { type OrganizationList, projectList } from '@agentuity/server';
 import * as readline from 'readline';
 import type { ColorScheme } from './terminal.ts';
 import type { Profile } from './types.ts';

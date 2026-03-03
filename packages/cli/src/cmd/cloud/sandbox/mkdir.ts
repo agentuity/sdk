@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createSandboxClient } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { sandboxMkDir, sandboxResolve } from '@agentuity/server/index.ts';
+import { sandboxMkDir, sandboxResolve } from '@agentuity/server';
 
 const MkDirResponseSchema = z.object({
 	success: z.boolean(),

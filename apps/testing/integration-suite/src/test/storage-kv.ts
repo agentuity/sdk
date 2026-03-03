@@ -9,9 +9,9 @@ import { assertEqual, assertDefined, uniqueId } from './helpers/index.ts';
 import { decodeKVValue } from './helpers/kv.ts';
 
 // Import agents
-import kvCrudAgent from '@agents/storage/kv/crud.ts';
-import kvTypesAgent from '@agents/storage/kv/types.ts';
-import kvIsolationAgent from '@agents/storage/kv/isolation.ts';
+import kvCrudAgent from '@agents/storage/kv/crud';
+import kvTypesAgent from '@agents/storage/kv/types';
+import kvIsolationAgent from '@agents/storage/kv/isolation';
 
 // Test: KV Set operation
 test('storage-kv', 'set', async () => {

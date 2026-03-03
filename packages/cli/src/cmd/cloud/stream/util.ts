@@ -1,5 +1,5 @@
-import { StreamStorageService, type Logger } from '@agentuity/core/index.ts';
-import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server/index.ts';
+import { StreamStorageService, type Logger } from '@agentuity/core';
+import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
 import { loadProjectSDKKey } from '../../../config.ts';
 import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types.ts';
 import * as tui from '../../../tui.ts';

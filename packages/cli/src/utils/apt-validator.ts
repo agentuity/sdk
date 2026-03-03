@@ -1,6 +1,6 @@
-import { StructuredError, type Logger } from '@agentuity/core/index.ts';
+import { StructuredError, type Logger } from '@agentuity/core';
 import type { Config } from '../types.ts';
-import { getAPIBaseURL } from '@agentuity/server/index.ts';
+import { getAPIBaseURL } from '@agentuity/server';
 import { getUserAgent } from '../api.ts';
 import { getDefaultConfigDir } from '../config.ts';
 import { join, dirname } from 'node:path';

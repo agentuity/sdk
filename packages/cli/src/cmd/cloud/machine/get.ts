@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { machineGet } from '@agentuity/server/index.ts';
+import { machineGet } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';
 import { getGlobalCatalystAPIClient } from '../../../config.ts';

@@ -1,5 +1,5 @@
-import { KeyValueStorageService, type Logger } from '@agentuity/core/index.ts';
-import { createServerFetchAdapter } from '@agentuity/server/index.ts';
+import { KeyValueStorageService, type Logger } from '@agentuity/core';
+import { createServerFetchAdapter } from '@agentuity/server';
 import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types.ts';
 import { getCatalystUrl } from '../../../catalyst.ts';
 import * as tui from '../../../tui.ts';

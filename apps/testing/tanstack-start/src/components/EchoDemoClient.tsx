@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAPI, AgentuityProvider } from '@agentuity/react.ts';
+import { useAPI, AgentuityProvider } from '@agentuity/react';
 import '@agentuity/routes.ts';
 
 function AgentuityLogo() {

@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import type { TaskPriority, TaskStatus, TaskType } from '@agentuity/core/index.ts';
+import type { TaskPriority, TaskStatus, TaskType } from '@agentuity/core';
 
 const TaskUpdateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

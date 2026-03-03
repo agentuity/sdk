@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { orgAuthEnroll } from '@agentuity/server/index.ts';
+import { orgAuthEnroll } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';
 import { readFileSync } from 'fs';

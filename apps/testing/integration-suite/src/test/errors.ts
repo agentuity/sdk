@@ -7,9 +7,9 @@
 import { test } from './suite.ts';
 import { assert, assertEqual, assertDefined, assertThrows } from './helpers/index.ts';
 
-import errorValidationAgent from '@agents/errors/validation.ts';
-import errorStructuredAgent from '@agents/errors/structured.ts';
-import errorPropagationAgent from '@agents/errors/propagation.ts';
+import errorValidationAgent from '@agents/errors/validation';
+import errorStructuredAgent from '@agents/errors/structured';
+import errorPropagationAgent from '@agents/errors/propagation';
 
 // Test: Valid input passes validation
 test('errors', 'validation-success', async () => {

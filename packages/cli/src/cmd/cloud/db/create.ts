@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createResources, APIError, validateDatabaseName } from '@agentuity/server/index.ts';
+import { createResources, APIError, validateDatabaseName } from '@agentuity/server';
 import { createSubcommand as defineSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { getCatalystAPIClient } from '../../../config.ts';

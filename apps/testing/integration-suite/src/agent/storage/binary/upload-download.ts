@@ -5,7 +5,7 @@
  * Tests binary integrity with MD5 verification.
  */
 
-import { createAgent } from '@agentuity/runtime.ts';
+import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 import crypto from 'crypto';
 

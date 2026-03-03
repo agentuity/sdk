@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createWebhookAPIClient, getWebhookApiOptions } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { listWebhooks, type Webhook } from '@agentuity/server/index.ts';
+import { listWebhooks, type Webhook } from '@agentuity/server';
 
 const WebhookListResponseSchema = z.object({
 	webhooks: z.array(

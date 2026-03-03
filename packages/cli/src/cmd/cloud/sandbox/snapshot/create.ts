@@ -3,7 +3,7 @@ import { createCommand } from '../../../../types.ts';
 import * as tui from '../../../../tui.ts';
 import { getSandboxRegion, createSandboxClient } from '../util.ts';
 import { getCommand } from '../../../../command-prefix.ts';
-import { snapshotCreate } from '@agentuity/server/index.ts';
+import { snapshotCreate } from '@agentuity/server';
 
 const SNAPSHOT_NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;

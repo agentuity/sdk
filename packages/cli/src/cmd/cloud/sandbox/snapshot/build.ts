@@ -3,14 +3,14 @@ import { createReadStream, createWriteStream, existsSync, statSync } from 'node:
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, isAbsolute, join, resolve } from 'node:path';
-import type { SnapshotBuildGitInfo, SnapshotFileInfo } from '@agentuity/server/index.ts';
+import type { SnapshotBuildGitInfo, SnapshotFileInfo } from '@agentuity/server';
 import {
 	NPM_PACKAGE_NAME_PATTERN,
 	SnapshotBuildFileSchema,
 	snapshotBuildFinalize,
 	snapshotBuildInit,
 	snapshotUpload,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 import { YAML } from 'bun';
 import * as tar from 'tar';
 import { z } from 'zod';

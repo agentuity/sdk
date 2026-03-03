@@ -3,7 +3,7 @@ import { createCommand } from '../../../../types.ts';
 import * as tui from '../../../../tui.ts';
 import { createSandboxClient } from '../util.ts';
 import { getCommand } from '../../../../command-prefix.ts';
-import { sandboxResolve, diskCheckpointList } from '@agentuity/server/index.ts';
+import { sandboxResolve, diskCheckpointList } from '@agentuity/server';
 
 const CheckpointInfoSchema = z.object({
 	id: z.string(),

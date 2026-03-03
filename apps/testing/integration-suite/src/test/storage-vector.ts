@@ -7,8 +7,8 @@
 import { test } from './suite.ts';
 import { assert, assertEqual, assertDefined, uniqueId } from './helpers/index.ts';
 
-import vectorCrudAgent from '@agents/storage/vector/crud.ts';
-import vectorSearchAgent from '@agents/storage/vector/search.ts';
+import vectorCrudAgent from '@agents/storage/vector/crud';
+import vectorSearchAgent from '@agents/storage/vector/search';
 
 // Test: Upsert single vector
 test('storage-vector', 'upsert-single', async () => {

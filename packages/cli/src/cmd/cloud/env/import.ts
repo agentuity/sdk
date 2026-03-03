@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
-import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server/index.ts';
+import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server';
 import {
 	readEnvFile,
 	filterAgentuitySdkKeys,

@@ -5,7 +5,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createStorageAdapter } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import type { Attachment } from '@agentuity/core/index.ts';
+import type { Attachment } from '@agentuity/core';
 
 function formatBytes(bytes: number | undefined): string {
 	if (bytes === undefined || bytes === null) return '—';

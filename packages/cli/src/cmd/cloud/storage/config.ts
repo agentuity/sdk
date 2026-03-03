@@ -8,7 +8,7 @@ import {
 	type BucketConfigUpdate,
 	type BucketConfig,
 	StorageTierSchema,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config.ts';

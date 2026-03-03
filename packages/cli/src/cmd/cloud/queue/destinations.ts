@@ -12,7 +12,7 @@ import {
 	DestinationSchema,
 	DestinationAlreadyExistsError,
 	type Destination,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 
 const DestinationsListResponseSchema = z.object({
 	destinations: z.array(

@@ -7,8 +7,8 @@ import { getLogSessionsInCurrentWindow } from '../../internal-logger.ts';
 import * as tui from '../../tui.ts';
 import { randomBytes } from 'node:crypto';
 import AdmZip from 'adm-zip';
-import { APIResponseSchema } from '@agentuity/server/index.ts';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { APIResponseSchema } from '@agentuity/server';
+import { StructuredError } from '@agentuity/core';
 
 // Structured errors for this module
 const NoSessionDirectoriesError = StructuredError(

@@ -7,7 +7,7 @@
 import { join, dirname, relative, resolve } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { StructuredError } from '@agentuity/core';
 import { toCamelCase, toPascalCase } from '../../../utils/string.ts';
 import { toForwardSlash } from '../../../utils/normalize-path.ts';
 import type { AgentMetadata } from './agent-discovery.ts';

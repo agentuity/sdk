@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { WebRTCManager, type WebRTCConnectionState } from '@agentuity/frontend.ts';
+import { WebRTCManager, type WebRTCConnectionState } from '@agentuity/frontend';
 import type { RecordingHandle, RecordingState } from '@agentuity/core';
 
 interface Message {

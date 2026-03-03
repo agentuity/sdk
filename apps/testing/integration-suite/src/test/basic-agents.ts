@@ -8,10 +8,10 @@ import { test } from './suite.ts';
 import { assert, assertEqual, assertDefined } from './helpers/index.ts';
 
 // Import agents to trigger registration
-import simpleAgent from '@agents/basic/basic-simple.ts';
-import asyncAgent from '@agents/basic/basic-async.ts';
-import noInputAgent from '@agents/basic/basic-no-input.ts';
-import noOutputAgent from '@agents/basic/basic-no-output.ts';
+import simpleAgent from '@agents/basic/basic-simple';
+import asyncAgent from '@agents/basic/basic-async';
+import noInputAgent from '@agents/basic/basic-no-input';
+import noOutputAgent from '@agents/basic/basic-no-output';
 
 // Helper to call agents
 async function callAgent(agent: any, input?: any) {

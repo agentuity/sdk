@@ -1,4 +1,4 @@
-import type { Logger } from '@agentuity/core/index.ts';
+import type { Logger } from '@agentuity/core';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 

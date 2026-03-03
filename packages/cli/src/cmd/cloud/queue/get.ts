@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createQueueAPIClient, getQueueApiOptions } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { getQueue, getMessage, QueueSchema, MessageSchema, type Message } from '@agentuity/server/index.ts';
+import { getQueue, getMessage, QueueSchema, MessageSchema, type Message } from '@agentuity/server';
 
 const GetResponseSchema = z.union([
 	z.object({ type: z.literal('queue'), queue: QueueSchema }),

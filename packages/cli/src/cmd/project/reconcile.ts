@@ -1,6 +1,6 @@
 import { join, basename } from 'node:path';
 import { existsSync, statSync } from 'node:fs';
-import type { Logger } from '@agentuity/core/index.ts';
+import type { Logger } from '@agentuity/core';
 import {
 	projectGet,
 	projectCreate,
@@ -8,7 +8,7 @@ import {
 	listOrganizations,
 	type OrganizationList,
 	type RegionList,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 import type { APIClient } from '../../api.ts';
 import type { AuthData, Config, Project } from '../../types.ts';
 import { loadProjectConfig, createProjectConfig } from '../../config.ts';

@@ -5,7 +5,7 @@
  * Used for HTTP client tests to verify state across requests.
  */
 
-import { createAgent } from '@agentuity/runtime.ts';
+import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 const statePersistenceAgent = createAgent('state', {

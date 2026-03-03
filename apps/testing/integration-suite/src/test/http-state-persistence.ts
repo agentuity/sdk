@@ -5,9 +5,9 @@
  * These tests use the real HTTP server (port 3500) instead of agent.run().
  */
 
-import { test } from '@test/suite.ts';
-import { assert, assertEqual, assertDefined, uniqueId } from '@test/helpers/index.ts';
-import { CookieJar, httpRequest, getSessionId, getThreadId } from '@test/helpers/http-client.ts';
+import { test } from '@test/suite';
+import { assert, assertEqual, assertDefined, uniqueId } from '@test/helpers';
+import { CookieJar, httpRequest, getSessionId, getThreadId } from '@test/helpers/http-client';
 
 const BASE_URL = 'http://localhost:3500/api';
 

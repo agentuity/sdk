@@ -11,10 +11,10 @@
  * when running `cloud env pull` if the cloud project didn't have an api_key.
  */
 
-import { test } from '@test/suite.ts';
-import { assert, assertEqual, uniqueId } from '@test/helpers/index.ts';
-import cliAgent from '@agents/cli/agent.ts';
-import { isAuthenticated, PROJECT_DIR } from '@test/helpers/cli.ts';
+import { test } from '@test/suite';
+import { assert, assertEqual, uniqueId } from '@test/helpers';
+import cliAgent from '@agents/cli/agent';
+import { isAuthenticated, PROJECT_DIR } from '@test/helpers/cli';
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 

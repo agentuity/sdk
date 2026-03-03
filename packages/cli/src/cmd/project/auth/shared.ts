@@ -3,7 +3,7 @@
  */
 
 import * as path from 'node:path';
-import { listOrgResources, createResources, dbQuery } from '@agentuity/server/index.ts';
+import { listOrgResources, createResources, dbQuery } from '@agentuity/server';
 import * as tui from '../../../tui.ts';
 import {
 	getCatalystAPIClient,

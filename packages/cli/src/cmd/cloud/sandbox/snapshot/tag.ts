@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createCommand } from '../../../../types.ts';
 import * as tui from '../../../../tui.ts';
 import { getCommand } from '../../../../command-prefix.ts';
-import { snapshotTag } from '@agentuity/server/index.ts';
+import { snapshotTag } from '@agentuity/server';
 import { getGlobalCatalystAPIClient } from '../../../../config.ts';
 
 const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9_][a-zA-Z0-9._-]*$/;

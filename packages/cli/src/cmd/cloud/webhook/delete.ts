@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createWebhookAPIClient, getWebhookApiOptions } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { deleteWebhook } from '@agentuity/server/index.ts';
+import { deleteWebhook } from '@agentuity/server';
 import { ErrorCode } from '../../../errors.ts';
 
 const DeleteResponseSchema = z.object({

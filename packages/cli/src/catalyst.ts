@@ -1,4 +1,4 @@
-import { getServiceUrls } from '@agentuity/server/index.ts';
+import { getServiceUrls } from '@agentuity/server';
 
 /**
  * Get the catalyst URL for a specific region.

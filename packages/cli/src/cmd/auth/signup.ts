@@ -1,5 +1,5 @@
 import { createSubcommand } from '../../types.ts';
-import { getAppBaseURL, UpgradeRequiredError } from '@agentuity/server/index.ts';
+import { getAppBaseURL, UpgradeRequiredError } from '@agentuity/server';
 import { saveAuth } from '../../config.ts';
 import { generateSignupOTP, pollForSignupCompletion } from './api.ts';
 import * as tui from '../../tui.ts';

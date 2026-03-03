@@ -7,8 +7,8 @@
 import { test } from './suite.ts';
 import { assertEqual, assertDefined } from './helpers/index.ts';
 
-import evalsBasicAgent from '@agents/evals/basic.ts';
-import evalsSeparateAgent from '@agents/evals/separate/agent.ts';
+import evalsBasicAgent from '@agents/evals/basic';
+import evalsSeparateAgent from '@agents/evals/separate/agent';
 
 // Test: Basic agent execution with evals attached
 test('evals', 'agent-execution', async () => {

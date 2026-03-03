@@ -11,7 +11,7 @@ import {
 	type OrgAnalytics,
 	type QueueAnalytics,
 	type SSEStatsEvent,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 
 const StatsResponseSchema = z.union([
 	z.object({ type: z.literal('org'), analytics: z.unknown() }),

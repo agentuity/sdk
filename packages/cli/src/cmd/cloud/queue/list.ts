@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createQueueAPIClient, getQueueApiOptions } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { listQueues, type Queue } from '@agentuity/server/index.ts';
+import { listQueues, type Queue } from '@agentuity/server';
 
 const QueueListResponseSchema = z.object({
 	queues: z.array(

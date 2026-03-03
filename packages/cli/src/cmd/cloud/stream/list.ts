@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { streamList, type StreamInfo } from '@agentuity/server/index.ts';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { streamList, type StreamInfo } from '@agentuity/server';
+import { StructuredError } from '@agentuity/core';
 import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { getCommand } from '../../../command-prefix.ts';

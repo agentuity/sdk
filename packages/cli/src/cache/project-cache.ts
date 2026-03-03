@@ -1,4 +1,4 @@
-import type { Project } from '@agentuity/server/index.ts';
+import type { Project } from '@agentuity/server';
 
 /**
  * In-memory cache for project data to avoid duplicate API calls within a single CLI command execution.

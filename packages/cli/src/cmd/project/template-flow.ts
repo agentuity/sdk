@@ -12,8 +12,8 @@ import {
 	createResources,
 	validateDatabaseName,
 	validateBucketName,
-} from '@agentuity/server/index.ts';
-import type { Logger } from '@agentuity/core/index.ts';
+} from '@agentuity/server';
+import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui.ts';
 import { createPrompt, note } from '../../tui.ts';
 import { playSound } from '../../sound.ts';

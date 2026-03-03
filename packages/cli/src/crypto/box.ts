@@ -62,7 +62,7 @@
 import { createCipheriv, createDecipheriv, createECDH, randomBytes, KeyObject } from 'node:crypto';
 import { Readable, Writable } from 'node:stream';
 import { createHash } from 'node:crypto';
-import { StructuredError } from '@agentuity/core/index.ts';
+import { StructuredError } from '@agentuity/core';
 
 const FRAME = 65519;
 const DEK_SIZE = 32;

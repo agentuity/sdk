@@ -1,5 +1,5 @@
 import { createRouter } from '@agentuity/runtime';
-import docQAAgent from '@agent/doc_qa/index.ts';
+import docQAAgent from '@agent/doc_qa';
 import { documentPathToUrl } from '../../lib/doc-urls.ts';
 
 const router = createRouter();

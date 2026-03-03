@@ -1,4 +1,4 @@
-import type { Logger } from '@agentuity/core/index.ts';
+import type { Logger } from '@agentuity/core';
 import { z } from 'zod';
 import type { APIClient } from '../../../api.ts';
 import { getAPIBaseURL } from '../../../api.ts';

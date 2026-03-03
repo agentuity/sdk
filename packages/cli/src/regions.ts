@@ -3,8 +3,8 @@
  */
 import { join } from 'node:path';
 import { mkdir, unlink } from 'node:fs/promises';
-import type { Logger } from '@agentuity/core/index.ts';
-import { listRegions, type RegionList } from '@agentuity/server/index.ts';
+import type { Logger } from '@agentuity/core';
+import { listRegions, type RegionList } from '@agentuity/server';
 import { getDefaultConfigDir } from './config.ts';
 import type { APIClient } from './api.ts';
 

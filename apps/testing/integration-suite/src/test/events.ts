@@ -9,13 +9,13 @@
  * - Multiple listeners on same event
  */
 
-import { test } from '@test/suite.ts';
-import { assert, assertEqual } from '@test/helpers/index.ts';
-import agentEventsAgent from '@agents/events/agent-events.ts';
-import sessionEventsAgent from '@agents/events/session-events.ts';
-import threadEventsAgent from '@agents/events/thread-events.ts';
-import listenerRemovalAgent from '@agents/events/listener-removal.ts';
-import multipleListenersAgent from '@agents/events/multiple-listeners.ts';
+import { test } from '@test/suite';
+import { assert, assertEqual } from '@test/helpers';
+import agentEventsAgent from '@agents/events/agent-events';
+import sessionEventsAgent from '@agents/events/session-events';
+import threadEventsAgent from '@agents/events/thread-events';
+import listenerRemovalAgent from '@agents/events/listener-removal';
+import multipleListenersAgent from '@agents/events/multiple-listeners';
 
 // Test: Agent event listeners can be registered
 test('events', 'agent-listeners-register', async () => {

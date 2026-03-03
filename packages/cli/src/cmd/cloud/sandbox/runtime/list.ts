@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createCommand } from '../../../../types.ts';
 import * as tui from '../../../../tui.ts';
 import { getCommand } from '../../../../command-prefix.ts';
-import { runtimeList } from '@agentuity/server/index.ts';
+import { runtimeList } from '@agentuity/server';
 import { getGlobalCatalystAPIClient } from '../../../../config.ts';
 
 const RuntimeInfoSchema = z.object({

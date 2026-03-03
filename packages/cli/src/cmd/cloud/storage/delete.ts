@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { listOrgResources, deleteResources } from '@agentuity/server/index.ts';
+import { listOrgResources, deleteResources } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';

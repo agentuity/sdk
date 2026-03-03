@@ -7,7 +7,7 @@
 import { test } from './suite.ts';
 import { assertEqual, assertDefined } from './helpers/index.ts';
 
-import waitUntilAgent from '@agents/lifecycle/waituntil.ts';
+import waitUntilAgent from '@agents/lifecycle/waituntil';
 
 // Test: Schedule basic background task
 test('lifecycle', 'waituntil-basic', async () => {

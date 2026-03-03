@@ -5,9 +5,9 @@
  * These tests use real SSE connections to the integration suite server.
  */
 
-import { test } from '@test/suite.ts';
-import { assert, assertEqual, assertDefined } from '@test/helpers/index.ts';
-import { createSSEClient } from '@test/helpers/sse-client.ts';
+import { test } from '@test/suite';
+import { assert, assertEqual, assertDefined } from '@test/helpers';
+import { createSSEClient } from '@test/helpers/sse-client';
 
 // Test 1: Basic SSE connection and message reception
 test('sse', 'basic-connection', async () => {

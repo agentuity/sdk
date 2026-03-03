@@ -6,7 +6,7 @@
 
 import { join } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, readdirSync } from 'node:fs';
-import { type BuildMetadata, DeploymentConfig, getContentType } from '@agentuity/server/index.ts';
+import { type BuildMetadata, DeploymentConfig, getContentType } from '@agentuity/server';
 import type { z } from 'zod';
 import type { AgentMetadata } from './agent-discovery.ts';
 import type { RouteMetadata } from './route-discovery.ts';

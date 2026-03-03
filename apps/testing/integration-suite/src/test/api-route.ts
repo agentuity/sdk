@@ -15,7 +15,7 @@
  * - event: complete - Final summary
  */
 
-import { createRouter } from '@agentuity/runtime.ts';
+import { createRouter } from '@agentuity/runtime';
 import { testSuite, type TestResult } from '../test/suite.ts';
 
 const router = createRouter();

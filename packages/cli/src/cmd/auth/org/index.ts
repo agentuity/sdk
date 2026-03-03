@@ -3,7 +3,7 @@ import { createSubcommand, createCommand } from '../../../types.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { saveOrgId, clearOrgId } from '../../../config.ts';
 import * as tui from '../../../tui.ts';
-import { listOrganizations } from '@agentuity/server/index.ts';
+import { listOrganizations } from '@agentuity/server';
 import { enrollSubcommand } from './enroll.ts';
 import { unenrollSubcommand } from './unenroll.ts';
 import { statusSubcommand } from './status.ts';

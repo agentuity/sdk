@@ -5,9 +5,9 @@
  * Tests the full deployment workflow: deploy, list, show, rollback, undeploy.
  */
 
-import { createAgent } from '@agentuity/runtime.ts';
+import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { runCLI, runCLIJSON } from '@test/helpers/cli.ts';
+import { runCLI, runCLIJSON } from '@test/helpers/cli';
 
 const cliDeploymentAgent = createAgent('cli', {
 	description: 'Execute CLI commands for deployment, API keys, and other operations',

@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { generateLifecycleTypes } from '../../../src/cmd/build/vite/lifecycle-generator.ts';
-import { createLogger } from '@agentuity/server/index.ts';
+import { createLogger } from '@agentuity/server';
 
 describe('lifecycle-generator', () => {
 	let testDir: string;

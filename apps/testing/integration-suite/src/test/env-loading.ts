@@ -8,9 +8,9 @@
  * where AGENTUITY_SDK_KEY wasn't being loaded from .env.local
  */
 
-import { test } from '@test/suite.ts';
-import { assert, assertDefined, assertEqual } from '@test/helpers/index.ts';
-import sdkKeyCheckAgent from '@agents/env/sdk-key-check.ts';
+import { test } from '@test/suite';
+import { assert, assertDefined, assertEqual } from '@test/helpers';
+import sdkKeyCheckAgent from '@agents/env/sdk-key-check';
 
 // Test: SDK key is loaded from .env.local
 test('env-loading', 'sdk-key-available', async () => {

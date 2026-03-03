@@ -1,5 +1,5 @@
-import { StructuredError } from '@agentuity/core/index.ts';
-import { APIResponseSchema } from '@agentuity/server/index.ts';
+import { StructuredError } from '@agentuity/core';
+import { APIResponseSchema } from '@agentuity/server';
 import { z } from 'zod';
 import type { APIClient } from '../../api.ts';
 

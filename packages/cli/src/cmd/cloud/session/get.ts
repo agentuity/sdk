@@ -7,7 +7,7 @@ import {
 	type EvalRun,
 	type AgentInfo,
 	APIError,
-} from '@agentuity/server/index.ts';
+} from '@agentuity/server';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';
 import { getGlobalCatalystAPIClient } from '../../../config.ts';

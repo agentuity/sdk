@@ -10,7 +10,7 @@
  * 3. createOpenAI() can be called without explicit apiKey (gateway injection)
  */
 
-import { createAgent } from '@agentuity/runtime.ts';
+import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 import { createOpenAI } from '@ai-sdk/openai';
 

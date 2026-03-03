@@ -5,7 +5,7 @@
  * Used for testing basic WebSocket functionality.
  */
 
-import { createAgent } from '@agentuity/runtime.ts';
+import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 const echoAgent = createAgent('websocket-echo', {

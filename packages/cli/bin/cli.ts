@@ -8,8 +8,8 @@ if (versionArgs.length === 1 && ['version', '-v', '--version', '-V'].includes(ve
 	process.exit(0);
 }
 
-import { ConsoleLogger, getAppBaseURL } from '@agentuity/server/index.ts';
-import { isStructuredError } from '@agentuity/core/index.ts';
+import { ConsoleLogger, getAppBaseURL } from '@agentuity/server';
+import { isStructuredError } from '@agentuity/core';
 import { createCLI, registerCommands } from '../src/cli.ts';
 import { validateRuntime } from '../src/runtime.ts';
 import { loadConfig } from '../src/config.ts';

@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createWebhookAPIClient, getWebhookApiOptions } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { getWebhook, WebhookSchema } from '@agentuity/server/index.ts';
+import { getWebhook, WebhookSchema } from '@agentuity/server';
 
 export const getSubcommand = createCommand({
 	name: 'get',

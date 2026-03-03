@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite';
 import { join } from 'node:path';
-import { createLogger } from '@agentuity/server/index.ts';
+import { createLogger } from '@agentuity/server';
 import type { LogLevel, DeployOptions } from '../../../types.ts';
 import { discoverAgents, type AgentMetadata } from './agent-discovery.ts';
 import { discoverRoutes, type RouteMetadata, type RouteInfo } from './route-discovery.ts';

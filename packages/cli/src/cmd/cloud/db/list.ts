@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { listOrgResources } from '@agentuity/server/index.ts';
+import { listOrgResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { getGlobalCatalystAPIClient } from '../../../config.ts';

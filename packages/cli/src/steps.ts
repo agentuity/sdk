@@ -7,7 +7,7 @@
 
 import type { ColorScheme } from './terminal.ts';
 import type { LogLevel } from './types.ts';
-import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server/index.ts';
+import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server';
 import { clearLastLines, isTTYLike } from './tui.ts';
 import { appendLog, isLogCollectionEnabled } from './log-collector.ts';
 

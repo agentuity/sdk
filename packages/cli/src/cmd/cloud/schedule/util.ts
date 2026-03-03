@@ -1,5 +1,5 @@
-import { ScheduleService, type Logger } from '@agentuity/core/index.ts';
-import { createServerFetchAdapter } from '@agentuity/server/index.ts';
+import { ScheduleService, type Logger } from '@agentuity/core';
+import { createServerFetchAdapter } from '@agentuity/server';
 import type { AuthData, Config, GlobalOptions } from '../../../types.ts';
 import { getCatalystUrl } from '../../../catalyst.ts';
 import { defaultProfileName, getDefaultRegion } from '../../../config.ts';
