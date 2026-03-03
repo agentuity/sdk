@@ -49,10 +49,11 @@ export interface Webhook {
 
 	/**
 	 * The fully-qualified ingest URL where HTTP requests should be sent.
+	 * Only present when the webhook is first created.
 	 *
 	 * @remarks Format: `https://<catalyst-url>/webhook/<orgId>-<webhookId>`
 	 */
-	url: string;
+	url?: string;
 }
 
 /**

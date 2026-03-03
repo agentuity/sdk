@@ -69,7 +69,7 @@ export const WebhookSchema = z.object({
 	/** Human-readable webhook name. */
 	name: z.string(),
 	/** Optional description of the webhook's purpose. */
-	description: z.string().nullable().optional(),
+	description: z.string().nullable(),
 	/** Fully-qualified ingest URL for sending events to this webhook. Only present on create. */
 	url: z.string().optional(),
 });
@@ -133,7 +133,7 @@ export const WebhookReceiptSchema = z.object({
 	/** ID of the webhook this receipt belongs to. */
 	webhook_id: z.string(),
 	/** HTTP headers from the incoming webhook request. */
-	headers: z.record(z.string(), z.unknown()),
+	headers: z.record(z.string(), z.string()),
 	/** Raw payload from the incoming webhook request (can be any type). */
 	payload: z.unknown(),
 });
@@ -173,9 +173,9 @@ export const WebhookDeliverySchema = z.object({
 	/** Number of retry attempts made. */
 	retries: z.number(),
 	/** Error message if the delivery failed. */
-	error: z.string().nullable().optional(),
+	error: z.string().nullable(),
 	/** Response data from the destination (if available). */
-	response: z.record(z.string(), z.unknown()).nullable().optional(),
+	response: z.record(z.string(), z.unknown()).nullable(),
 });
 
 /**

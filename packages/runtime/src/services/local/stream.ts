@@ -126,6 +126,7 @@ export class LocalStreamStorage implements StreamStorage {
 			metadata: row.metadata ? JSON.parse(row.metadata) : {},
 			url: `${this.#serverUrl}/_agentuity/local/stream/${row.id}`,
 			sizeBytes: row.size_bytes,
+			expiresAt: null,
 		}));
 
 		return {
@@ -165,6 +166,7 @@ export class LocalStreamStorage implements StreamStorage {
 			metadata,
 			url,
 			sizeBytes: row.size_bytes,
+			expiresAt: null,
 		};
 	}
 
