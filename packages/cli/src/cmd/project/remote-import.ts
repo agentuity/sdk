@@ -1265,7 +1265,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			await pushToRepo(sourceDir, repoUrl, apiClient, logger);
 			tui.success(`GitHub repo: ${repoUrl}`);
 
-			// Link the repo to the Agentuity project (enables auto-deploy + preview deploys)
+			// Link the repo to the Agentuity project (auto-deploy + preview disabled until first deploy completes)
 			try {
 				const { owner: linkOwner, name: linkName } = parseRepoTarget(repo);
 				const pushedBranch = (await getDefaultBranch()) || 'main';
@@ -1273,8 +1273,8 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 					projectId: projectInfo.id,
 					repoFullName: `${linkOwner}/${linkName}`,
 					branch: pushedBranch,
-					autoDeploy: true,
-					previewDeploy: true,
+					autoDeploy: false,
+					previewDeploy: false,
 					directory: parsed.directory,
 				});
 				tui.success('Linked repo to project');
