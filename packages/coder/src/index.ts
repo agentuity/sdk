@@ -49,7 +49,6 @@ function startStreamingResult(agentName: string, description?: string, prompt?: 
 // Sub-Agent Output Limits (prevents context bloat in parent)
 // Inspired by pi-subagents (200KB/5K lines) and oh-my-pi (500KB/5K lines)
 // ══════════════════════════════════════════════
-const SUB_AGENT_TIMEOUT_MS = 120_000;
 const MAX_OUTPUT_BYTES = 200_000;
 const MAX_OUTPUT_LINES = 5_000;
 
@@ -1473,15 +1472,8 @@ async function runSubAgent(
 
 	log(`Sub-agent started: ${agentConfig.name} (model: ${modelId})`);
 
-	// Timeout
-	const timer = setTimeout(() => {
-		log(`Sub-agent ${agentConfig.name} timed out after ${SUB_AGENT_TIMEOUT_MS}ms — aborting`);
-		try { session.abort?.(); } catch { /* ignore */ }
-	}, SUB_AGENT_TIMEOUT_MS);
-
 	try {
 		await session.prompt(task);
-		clearTimeout(timer);
 
 		// Only return the final assistant text — NOT intermediate JSONL events
 		const output = session.getLastAssistantText?.() || '(no output)';
@@ -1509,7 +1501,6 @@ async function runSubAgent(
 
 		return { output: truncateOutput(output.trim()), duration, tokens: subTokens };
 	} catch (err) {
-		clearTimeout(timer);
 		try { session.abort?.(); } catch { /* ignore */ }
 		throw err;
 	}
