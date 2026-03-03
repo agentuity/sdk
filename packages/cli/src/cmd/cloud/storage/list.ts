@@ -77,9 +77,14 @@ export const listSubcommand = createSubcommand({
 			showCredentials: z
 				.boolean()
 				.optional()
-				.describe('Show credentials in plain text (default: masked in terminal, unmasked in JSON)'),
+				.describe(
+					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
+				),
 			nameOnly: z.boolean().optional().describe('Print the name only'),
-			sort: z.enum(['name', 'created', 'region']).default('created').describe('field to sort by'),
+			sort: z
+				.enum(['name', 'created', 'region'])
+				.default('created')
+				.describe('field to sort by'),
 			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),
 			limit: z.coerce.number().min(0).optional().describe('Maximum number of results to return'),
 			offset: z.coerce.number().min(0).optional().describe('Offset for pagination'),
@@ -87,7 +92,9 @@ export const listSubcommand = createSubcommand({
 		response: StorageListResponseSchema,
 	},
 	webUrl: (ctx) =>
-		ctx.args.name ? `/services/storage/${encodeURIComponent(ctx.args.name)}` : '/services/storage',
+		ctx.args.name
+			? `/services/storage/${encodeURIComponent(ctx.args.name)}`
+			: '/services/storage',
 
 	async handler(ctx) {
 		const { logger, args, opts, options, auth, config } = ctx;
@@ -124,7 +131,13 @@ export const listSubcommand = createSubcommand({
 		// Cache each bucket with its region and orgId for future lookups
 		for (const s3 of resources.s3) {
 			if (s3.cloud_region && s3.org_id) {
-				await setResourceInfo('bucket', profileName, s3.bucket_name, s3.cloud_region, s3.org_id);
+				await setResourceInfo(
+					'bucket',
+					profileName,
+					s3.bucket_name,
+					s3.cloud_region,
+					s3.org_id
+				);
 			}
 		}
 
@@ -137,7 +150,10 @@ export const listSubcommand = createSubcommand({
 			}
 
 			if (!bucket.access_key || !bucket.secret_key || !bucket.endpoint) {
-				tui.fatal(`Storage bucket '${args.name}' is missing credentials`, ErrorCode.CONFIG_INVALID);
+				tui.fatal(
+					`Storage bucket '${args.name}' is missing credentials`,
+					ErrorCode.CONFIG_INVALID
+				);
 			}
 
 			const s3Client = createS3Client({
@@ -173,11 +189,15 @@ export const listSubcommand = createSubcommand({
 						}
 					} else {
 						tui.info(
-							tui.bold(`Files in ${args.name}${args.prefix ? ` (prefix: ${args.prefix})` : ''}`)
+							tui.bold(
+								`Files in ${args.name}${args.prefix ? ` (prefix: ${args.prefix})` : ''}`
+							)
 						);
 						tui.newline();
 						for (const obj of objects) {
-							console.log(`${obj.key}  ${tui.muted(`(${obj.size} bytes, ${obj.lastModified})`)}`);
+							console.log(
+								`${obj.key}  ${tui.muted(`(${obj.size} bytes, ${obj.lastModified})`)}`
+							);
 						}
 					}
 				}
@@ -232,17 +252,22 @@ export const listSubcommand = createSubcommand({
 						console.log(` Organization: ${tui.muted(s3.org_name || s3.org_id)}`);
 					}
 					if (s3.access_key) {
-						const displayAccessKey = shouldMask ? tui.maskSecret(s3.access_key) : s3.access_key;
+						const displayAccessKey = shouldMask
+							? tui.maskSecret(s3.access_key)
+							: s3.access_key;
 						console.log(` Access Key: ${tui.muted(displayAccessKey)}`);
 					}
 					if (s3.secret_key) {
-						const displaySecretKey = shouldMask ? tui.maskSecret(s3.secret_key) : s3.secret_key;
+						const displaySecretKey = shouldMask
+							? tui.maskSecret(s3.secret_key)
+							: s3.secret_key;
 						console.log(` Secret Key: ${tui.muted(displaySecretKey)}`);
 					}
 					if (s3.region) console.log(` Region:     ${tui.muted(s3.region)}`);
 					if (s3.endpoint) console.log(` Endpoint:   ${tui.muted(s3.endpoint)}`);
 					if (s3.object_count != null) {
-						const sizeStr = s3.total_size != null ? tui.formatBytes(s3.total_size) : 'unknown';
+						const sizeStr =
+							s3.total_size != null ? tui.formatBytes(s3.total_size) : 'unknown';
 						console.log(
 							` Objects:    ${tui.muted(`${s3.object_count.toLocaleString()} (${sizeStr})`)}`
 						);

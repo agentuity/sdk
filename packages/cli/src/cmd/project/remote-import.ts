@@ -658,7 +658,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 	const projectDirName = name ?? parsed.repo;
 	const dest = join(process.cwd(), projectDirName);
 	if (existsSync(dest)) {
-		tui.fatal(`Directory "${projectDirName}" already exists. Choose a different name with --name.`);
+		tui.fatal(
+			`Directory "${projectDirName}" already exists. Choose a different name with --name.`
+		);
 	}
 
 	// Check: target GitHub repo doesn't already exist
@@ -717,7 +719,8 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			const sdkKey = process.env.AGENTUITY_SDK_KEY;
 			if (!sdkKey) {
 				throw new RemoteImportConfigError({
-					message: 'AGENTUITY_SDK_KEY environment variable is required when using --project-id',
+					message:
+						'AGENTUITY_SDK_KEY environment variable is required when using --project-id',
 				});
 			}
 			const orgId = org ?? config.preferences?.orgId;
@@ -863,7 +866,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 					}
 					const requiredEnv = envVars.filter((f) => f.required);
 					for (const f of requiredEnv) {
-						tui.info(`Required env var: ${f.key}${f.description ? ` (${f.description})` : ''}`);
+						tui.info(
+							`Required env var: ${f.key}${f.description ? ` (${f.description})` : ''}`
+						);
 					}
 				}
 			} catch (err) {
@@ -956,7 +961,8 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 						});
 						if (created[0]?.env) {
 							// Map using the template-defined envVar name
-							const connStr = created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
+							const connStr =
+								created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
 							if (connStr) resourceEnvVars[r.envVar] = connStr;
 						}
 						tui.success(`Created database: ${overrideName}`);
@@ -1024,7 +1030,8 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 										]),
 								});
 								if (created[0]?.env) {
-									const connStr = created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
+									const connStr =
+										created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
 									if (connStr) resourceEnvVars[r.envVar] = connStr;
 								}
 								tui.success(`Created database: ${dbName}`);
@@ -1039,7 +1046,8 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 							const selectedName = action.slice('existing:'.length);
 							const selectedDb = existingDbs?.db.find((d) => d.name === selectedName);
 							if (selectedDb?.env) {
-								const connStr = selectedDb.env.DATABASE_URL ?? Object.values(selectedDb.env)[0];
+								const connStr =
+									selectedDb.env.DATABASE_URL ?? Object.values(selectedDb.env)[0];
 								if (connStr) resourceEnvVars[r.envVar] = connStr;
 							}
 							dbCreated = true;
@@ -1066,7 +1074,10 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 
 			for (const r of templateResources.filter((resource) => resource.type === 'queue')) {
 				if (!r.queueType) {
-					logger.debug('[remote-import] Queue resource %s missing queueType, skipping', r.envVar);
+					logger.debug(
+						'[remote-import] Queue resource %s missing queueType, skipping',
+						r.envVar
+					);
 					continue;
 				}
 
@@ -1200,7 +1211,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			// Write all collected env vars to .env
 			if (Object.keys(resourceEnvVars).length > 0) {
 				await addResourceEnvVars(sourceDir, resourceEnvVars);
-				tui.success(`Configured ${Object.keys(resourceEnvVars).length} environment variable(s)`);
+				tui.success(
+					`Configured ${Object.keys(resourceEnvVars).length} environment variable(s)`
+				);
 			}
 		}
 
@@ -1280,7 +1293,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				tui.success('Linked repo to project');
 			} catch (err) {
 				logger.debug('[remote-import] Failed to link repo to project: %o', err);
-				tui.warning('Could not link repo to project — you can link manually with `agentuity link`');
+				tui.warning(
+					'Could not link repo to project — you can link manually with `agentuity link`'
+				);
 			}
 		}
 
