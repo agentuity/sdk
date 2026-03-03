@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/postgres",
-	"version": "1.0.31",
+	"version": "1.0.32",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
