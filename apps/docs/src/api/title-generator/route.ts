@@ -44,7 +44,7 @@ function sanitizeTitle(input: string): string {
 	// Sentence case
 	s = sentenceCase(s);
 	// Trim trailing punctuation noise
-	s = s.replace(/[\s\-–—:;,\.]+$/g, '').trim();
+	s = s.replace(/[\s\-–—:;,.]+$/g, '').trim();
 	// Enforce 60 chars
 	if (s.length > 60) s = s.slice(0, 60).trim();
 	return s;

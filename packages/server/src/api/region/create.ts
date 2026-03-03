@@ -126,7 +126,7 @@ function isIPv4Address(s: string): boolean {
 	const parts = s.split('.');
 	for (const part of parts) {
 		const num = parseInt(part, 10);
-		if (isNaN(num) || num < 0 || num > 255) {
+		if (Number.isNaN(num) || num < 0 || num > 255) {
 			return false;
 		}
 	}

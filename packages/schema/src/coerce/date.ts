@@ -27,7 +27,7 @@ export class CoerceDateSchema implements Schema<unknown, Date> {
 		validate: (value: unknown) => {
 			// Already a Date
 			if (value instanceof Date) {
-				if (isNaN(value.getTime())) {
+				if (Number.isNaN(value.getTime())) {
 					return failure([createIssue('Invalid date')]);
 				}
 				return success(value);
@@ -36,7 +36,7 @@ export class CoerceDateSchema implements Schema<unknown, Date> {
 			// Coerce to Date
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const coerced = new Date(value as any);
-			if (isNaN(coerced.getTime())) {
+			if (Number.isNaN(coerced.getTime())) {
 				return failure([createIssue(`Cannot coerce ${typeof value} to date`)]);
 			}
 			return success(coerced);

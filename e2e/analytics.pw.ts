@@ -72,8 +72,8 @@ test.describe('Analytics Beacon', () => {
 			const passMatch = text.match(/(\d+) passed/);
 			const failMatch = text.match(/(\d+) failed/);
 			return {
-				passed: passMatch ? parseInt(passMatch[1]) : 0,
-				failed: failMatch ? parseInt(failMatch[1]) : 0,
+				passed: passMatch ? parseInt(passMatch[1], 10) : 0,
+				failed: failMatch ? parseInt(failMatch[1], 10) : 0,
 			};
 		});
 

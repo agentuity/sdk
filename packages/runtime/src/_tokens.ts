@@ -26,7 +26,7 @@ const parseTokenHeader = (val: string | undefined): Map<string, number> => {
 		for (const entry of tok) {
 			const [name, count] = entry.split(':');
 			if (name) {
-				kv.set(name, parseInt(count ?? '0') ?? 0);
+				kv.set(name, parseInt(count ?? '0', 10) ?? 0);
 			}
 		}
 	}

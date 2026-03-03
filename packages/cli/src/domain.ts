@@ -54,7 +54,7 @@ export function isPending(x: DNSResult): x is DNSPending {
 }
 
 export function isSuccess(x: DNSResult): x is DNSSuccess {
-	return x.success == true && !('pending' in x) && !('error' in x) && !('misconfigured' in x);
+	return x.success === true && !('pending' in x) && !('error' in x) && !('misconfigured' in x);
 }
 
 const timeoutMs = 5000;

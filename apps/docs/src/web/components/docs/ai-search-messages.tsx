@@ -17,7 +17,7 @@ export function AISearchMessages({ messages, loading, onSourceClick }: AISearchM
 
 	React.useEffect(() => {
 		endRef.current?.scrollIntoView({ behavior: 'smooth' });
-	}, [messages, loading]);
+	}, [messages]);
 
 	if (messages.length === 0 && !loading) {
 		return (

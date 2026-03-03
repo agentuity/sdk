@@ -5,7 +5,7 @@
  */
 
 import { test } from './suite';
-import { assert, assertEqual, assertDefined, assertThrows } from './helpers';
+import { assertEqual, assertDefined, assertThrows } from './helpers';
 
 import schemaTypesAgent from '@agents/schema/types';
 import schemaOptionalAgent from '@agents/schema/optional';

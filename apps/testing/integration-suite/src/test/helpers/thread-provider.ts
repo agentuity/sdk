@@ -5,7 +5,7 @@
  * Stores thread state in memory across requests.
  */
 
-import type { Thread, ThreadProvider, ThreadState, MergeOperation } from '@agentuity/runtime';
+import type { Thread, ThreadProvider, ThreadState } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 

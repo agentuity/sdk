@@ -2,7 +2,7 @@ import evalsBasicAgent from './basic';
 
 evalsBasicAgent.createEval('separate-file-eval', {
 	description: 'Eval defined in separate eval.ts file',
-	handler: async (_ctx, input, output) => {
+	handler: async (_ctx, _input, output) => {
 		const passed = output.doubled === true;
 		return {
 			success: true,

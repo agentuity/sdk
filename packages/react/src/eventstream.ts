@@ -112,11 +112,11 @@ export function useEventStream<TRoute extends SSERouteKey, TOutput = SSERouteOut
 	// Track both query object and its string representation to detect mutations.
 	// URLSearchParams can be mutated in-place without changing object identity,
 	// so we compare the string value to trigger recomputation when params change.
-	const queryString = options?.query?.toString();
+	const _queryString = options?.query?.toString();
 	const esUrl = useMemo(
 		() => buildUrl(context.baseUrl!, route as string, options?.subpath, options?.query),
 		// biome-ignore lint/correctness/useExhaustiveDependencies: queryString tracks URLSearchParams mutations that options?.query reference wouldn't catch
-		[context.baseUrl, route, options?.subpath, options?.query, queryString]
+		[context.baseUrl, route, options?.subpath, options?.query]
 	);
 
 	// Initialize manager and connect

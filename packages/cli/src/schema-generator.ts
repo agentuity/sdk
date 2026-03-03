@@ -290,7 +290,7 @@ function extractSubcommandSchema(def: SubcommandDefinition): SchemaCommand {
  * Generate JSON schema for the entire CLI
  */
 export function generateCLISchema(
-	program: Command,
+	_program: Command,
 	commands: CommandDefinition[],
 	version: string
 ): CLISchema {

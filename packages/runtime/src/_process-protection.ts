@@ -46,7 +46,7 @@ export function enableProcessExitProtection(): void {
 
 	// Replace process.exit with a function that throws
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(process as any).exit = function (code?: number | string | null | undefined): never {
+	(process as any).exit = (code?: number | string | null | undefined): never => {
 		throw new ProcessExitAttemptError({ code });
 	};
 }

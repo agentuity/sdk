@@ -8,7 +8,7 @@
  */
 
 import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
-import { join, dirname, relative, basename } from 'node:path';
+import { join, dirname, relative } from 'node:path';
 import matter from 'gray-matter';
 
 const BASE_URL = 'https://agentuity.dev';

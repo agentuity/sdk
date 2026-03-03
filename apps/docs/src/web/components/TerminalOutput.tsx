@@ -50,7 +50,7 @@ export function TerminalOutput({
 		if (outputRef.current) {
 			outputRef.current.scrollTop = outputRef.current.scrollHeight;
 		}
-	}, [output]);
+	}, []);
 
 	const getStatusIndicatorConfig = (
 		status: TerminalStatus,

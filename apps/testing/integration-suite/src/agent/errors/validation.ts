@@ -21,7 +21,7 @@ const errorValidationAgent = createAgent('errors-validation', {
 			}),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const { name, age, email, active = true } = input;
 
 		return {

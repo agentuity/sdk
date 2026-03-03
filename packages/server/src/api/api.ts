@@ -799,12 +799,12 @@ export class APIClient {
 		if (retryAfter) {
 			// Can be either seconds or HTTP date
 			const seconds = parseInt(retryAfter, 10);
-			if (!isNaN(seconds)) {
+			if (!Number.isNaN(seconds)) {
 				return seconds * 1000; // Convert to milliseconds
 			}
 			// Try parsing as HTTP date
 			const retryDate = new Date(retryAfter);
-			if (!isNaN(retryDate.getTime())) {
+			if (!Number.isNaN(retryDate.getTime())) {
 				const delayMs = retryDate.getTime() - Date.now();
 				return Math.max(0, delayMs);
 			}
@@ -814,7 +814,7 @@ export class APIClient {
 		const rateLimitReset = response.headers.get('X-RateLimit-Reset');
 		if (rateLimitReset) {
 			const resetTime = parseInt(rateLimitReset, 10);
-			if (!isNaN(resetTime)) {
+			if (!Number.isNaN(resetTime)) {
 				const delayMs = resetTime * 1000 - Date.now();
 				return Math.max(0, delayMs);
 			}
@@ -824,7 +824,7 @@ export class APIClient {
 		const rateLimitRetryAfter = response.headers.get('X-RateLimit-Retry-After');
 		if (rateLimitRetryAfter) {
 			const seconds = parseInt(rateLimitRetryAfter, 10);
-			if (!isNaN(seconds)) {
+			if (!Number.isNaN(seconds)) {
 				return seconds * 1000;
 			}
 		}

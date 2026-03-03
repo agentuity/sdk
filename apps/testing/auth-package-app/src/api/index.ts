@@ -536,8 +536,8 @@ api.post('/organizations/:id/leave', createSessionMiddleware(auth), async (c) =>
  */
 api.get('/organizations/:id/members', createSessionMiddleware(auth), async (c) => {
 	const organizationId = c.req.param('id');
-	const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!) : undefined;
-	const offset = c.req.query('offset') ? parseInt(c.req.query('offset')!) : undefined;
+	const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : undefined;
+	const offset = c.req.query('offset') ? parseInt(c.req.query('offset')!, 10) : undefined;
 
 	const result = await auth.api.listMembers({
 		query: { organizationId, limit, offset },

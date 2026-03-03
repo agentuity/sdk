@@ -23,7 +23,7 @@ const errorPropagationAgent = createAgent('errors-propagation', {
 			errorHandled: s.boolean().optional(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const { operation, shouldFail } = input;
 
 		switch (operation) {

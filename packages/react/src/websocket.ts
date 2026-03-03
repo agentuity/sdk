@@ -147,7 +147,7 @@ export function useWebsocket<TRoute extends WebSocketRouteKey>(
 		}
 
 		return buildUrl(wsBase, route as string, options?.subpath, queryParams);
-	}, [context.baseUrl, context.authHeader, route, options?.subpath, options?.query?.toString()]);
+	}, [context.baseUrl, context.authHeader, route, options?.subpath, options?.query]);
 
 	// Initialize manager and connect
 	useEffect(() => {
