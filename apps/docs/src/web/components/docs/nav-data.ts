@@ -563,12 +563,6 @@ export const navData: NavSection[] = [
 							'Manage Key-Value, S3, Vector, Database, and Stream storage from the CLI',
 					},
 					{
-						title: 'Queues',
-						url: '/reference/cli/queues',
-						description:
-							'Create, publish, consume, and manage queues from the CLI',
-					},
-					{
 						title: 'Sandbox',
 						url: '/reference/cli/sandbox',
 						description: 'Create and manage isolated execution environments from the CLI',

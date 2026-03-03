@@ -100,7 +100,6 @@ import { Route as DocsServicesDatabasePostgresRouteImport } from './routes/_docs
 import { Route as DocsServicesDatabaseDrizzleRouteImport } from './routes/_docs/services/database/drizzle'
 import { Route as DocsReferenceCliStorageRouteImport } from './routes/_docs/reference/cli/storage'
 import { Route as DocsReferenceCliSandboxRouteImport } from './routes/_docs/reference/cli/sandbox'
-import { Route as DocsReferenceCliQueuesRouteImport } from './routes/_docs/reference/cli/queues'
 import { Route as DocsReferenceCliOpencodePluginRouteImport } from './routes/_docs/reference/cli/opencode-plugin'
 import { Route as DocsReferenceCliGitIntegrationRouteImport } from './routes/_docs/reference/cli/git-integration'
 import { Route as DocsReferenceCliGettingStartedRouteImport } from './routes/_docs/reference/cli/getting-started'
@@ -617,11 +616,6 @@ const DocsReferenceCliSandboxRoute = DocsReferenceCliSandboxRouteImport.update({
   path: '/reference/cli/sandbox',
   getParentRoute: () => DocsRouteRoute,
 } as any)
-const DocsReferenceCliQueuesRoute = DocsReferenceCliQueuesRouteImport.update({
-  id: '/reference/cli/queues',
-  path: '/reference/cli/queues',
-  getParentRoute: () => DocsRouteRoute,
-} as any)
 const DocsReferenceCliOpencodePluginRoute =
   DocsReferenceCliOpencodePluginRouteImport.update({
     id: '/reference/cli/opencode-plugin',
@@ -832,7 +826,6 @@ export interface FileRoutesByFullPath {
   '/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute
   '/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute
   '/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute
-  '/reference/cli/queues': typeof DocsReferenceCliQueuesRoute
   '/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute
   '/reference/cli/storage': typeof DocsReferenceCliStorageRoute
   '/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute
@@ -945,7 +938,6 @@ export interface FileRoutesByTo {
   '/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute
   '/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute
   '/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute
-  '/reference/cli/queues': typeof DocsReferenceCliQueuesRoute
   '/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute
   '/reference/cli/storage': typeof DocsReferenceCliStorageRoute
   '/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute
@@ -1060,7 +1052,6 @@ export interface FileRoutesById {
   '/_docs/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute
   '/_docs/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute
   '/_docs/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute
-  '/_docs/reference/cli/queues': typeof DocsReferenceCliQueuesRoute
   '/_docs/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute
   '/_docs/reference/cli/storage': typeof DocsReferenceCliStorageRoute
   '/_docs/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute
@@ -1175,7 +1166,6 @@ export interface FileRouteTypes {
     | '/reference/cli/getting-started'
     | '/reference/cli/git-integration'
     | '/reference/cli/opencode-plugin'
-    | '/reference/cli/queues'
     | '/reference/cli/sandbox'
     | '/reference/cli/storage'
     | '/services/database/drizzle'
@@ -1288,7 +1278,6 @@ export interface FileRouteTypes {
     | '/reference/cli/getting-started'
     | '/reference/cli/git-integration'
     | '/reference/cli/opencode-plugin'
-    | '/reference/cli/queues'
     | '/reference/cli/sandbox'
     | '/reference/cli/storage'
     | '/services/database/drizzle'
@@ -1402,7 +1391,6 @@ export interface FileRouteTypes {
     | '/_docs/reference/cli/getting-started'
     | '/_docs/reference/cli/git-integration'
     | '/_docs/reference/cli/opencode-plugin'
-    | '/_docs/reference/cli/queues'
     | '/_docs/reference/cli/sandbox'
     | '/_docs/reference/cli/storage'
     | '/_docs/services/database/drizzle'
@@ -2087,13 +2075,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsReferenceCliSandboxRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/reference/cli/queues': {
-      id: '/_docs/reference/cli/queues'
-      path: '/reference/cli/queues'
-      fullPath: '/reference/cli/queues'
-      preLoaderRoute: typeof DocsReferenceCliQueuesRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
     '/_docs/reference/cli/opencode-plugin': {
       id: '/_docs/reference/cli/opencode-plugin'
       path: '/reference/cli/opencode-plugin'
@@ -2309,7 +2290,6 @@ interface DocsRouteRouteChildren {
   DocsReferenceCliGettingStartedRoute: typeof DocsReferenceCliGettingStartedRoute
   DocsReferenceCliGitIntegrationRoute: typeof DocsReferenceCliGitIntegrationRoute
   DocsReferenceCliOpencodePluginRoute: typeof DocsReferenceCliOpencodePluginRoute
-  DocsReferenceCliQueuesRoute: typeof DocsReferenceCliQueuesRoute
   DocsReferenceCliSandboxRoute: typeof DocsReferenceCliSandboxRoute
   DocsReferenceCliStorageRoute: typeof DocsReferenceCliStorageRoute
   DocsServicesDatabaseDrizzleRoute: typeof DocsServicesDatabaseDrizzleRoute
@@ -2415,7 +2395,6 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsReferenceCliGettingStartedRoute: DocsReferenceCliGettingStartedRoute,
   DocsReferenceCliGitIntegrationRoute: DocsReferenceCliGitIntegrationRoute,
   DocsReferenceCliOpencodePluginRoute: DocsReferenceCliOpencodePluginRoute,
-  DocsReferenceCliQueuesRoute: DocsReferenceCliQueuesRoute,
   DocsReferenceCliSandboxRoute: DocsReferenceCliSandboxRoute,
   DocsReferenceCliStorageRoute: DocsReferenceCliStorageRoute,
   DocsServicesDatabaseDrizzleRoute: DocsServicesDatabaseDrizzleRoute,
