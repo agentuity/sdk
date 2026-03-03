@@ -112,14 +112,10 @@ export function TerminalOutput({
 					<span className="text-zinc-400 dark:text-zinc-600">Output will appear here...</span>
 				)}
 				{(status === 'creating' || status === 'recreating') && !output && (
-					<span data-loading="true" className="text-yellow-600 dark:text-yellow-400">
-						{CREATING_MESSAGES[creatingMessageIndex] ?? 'Creating sandbox'}
-					</span>
+					<span data-loading="true" className="text-yellow-600 dark:text-yellow-400">{CREATING_MESSAGES[creatingMessageIndex] ?? 'Creating sandbox'}</span>
 				)}
 				{status === 'running' && !output && (
-					<span data-loading="true" className="text-cyan-600 dark:text-cyan-400">
-						Executing {isRoute ? 'route' : 'agent'}
-					</span>
+					<span data-loading="true" className="text-cyan-600 dark:text-cyan-400">Executing {isRoute ? 'route' : 'agent'}</span>
 				)}
 				{cleanedOutput && <span>{cleanedOutput}</span>}
 				{error && <span className="text-red-600 dark:text-red-400">{error}</span>}

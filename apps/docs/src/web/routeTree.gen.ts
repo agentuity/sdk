@@ -36,8 +36,13 @@ import { Route as DocsCookbookIndexRouteImport } from './routes/_docs/cookbook/i
 import { Route as DocsCommunityIndexRouteImport } from './routes/_docs/community/index'
 import { Route as DocsApisIndexRouteImport } from './routes/_docs/apis/index'
 import { Route as DocsAgentsIndexRouteImport } from './routes/_docs/agents/index'
+import { Route as DocsServicesWebhooksRouteImport } from './routes/_docs/services/webhooks'
+import { Route as DocsServicesTasksRouteImport } from './routes/_docs/services/tasks'
+import { Route as DocsServicesSchedulesRouteImport } from './routes/_docs/services/schedules'
 import { Route as DocsServicesQueuesRouteImport } from './routes/_docs/services/queues'
+import { Route as DocsServicesEmailRouteImport } from './routes/_docs/services/email'
 import { Route as DocsRoutesWebsocketsRouteImport } from './routes/_docs/routes/websockets'
+import { Route as DocsRoutesWebrtcRouteImport } from './routes/_docs/routes/webrtc'
 import { Route as DocsRoutesSseRouteImport } from './routes/_docs/routes/sse'
 import { Route as DocsRoutesMiddlewareRouteImport } from './routes/_docs/routes/middleware'
 import { Route as DocsRoutesHttpRouteImport } from './routes/_docs/routes/http'
@@ -95,6 +100,7 @@ import { Route as DocsServicesDatabasePostgresRouteImport } from './routes/_docs
 import { Route as DocsServicesDatabaseDrizzleRouteImport } from './routes/_docs/services/database/drizzle'
 import { Route as DocsReferenceCliStorageRouteImport } from './routes/_docs/reference/cli/storage'
 import { Route as DocsReferenceCliSandboxRouteImport } from './routes/_docs/reference/cli/sandbox'
+import { Route as DocsReferenceCliQueuesRouteImport } from './routes/_docs/reference/cli/queues'
 import { Route as DocsReferenceCliOpencodePluginRouteImport } from './routes/_docs/reference/cli/opencode-plugin'
 import { Route as DocsReferenceCliGitIntegrationRouteImport } from './routes/_docs/reference/cli/git-integration'
 import { Route as DocsReferenceCliGettingStartedRouteImport } from './routes/_docs/reference/cli/getting-started'
@@ -250,14 +256,39 @@ const DocsAgentsIndexRoute = DocsAgentsIndexRouteImport.update({
   path: '/agents/',
   getParentRoute: () => DocsRouteRoute,
 } as any)
+const DocsServicesWebhooksRoute = DocsServicesWebhooksRouteImport.update({
+  id: '/services/webhooks',
+  path: '/services/webhooks',
+  getParentRoute: () => DocsRouteRoute,
+} as any)
+const DocsServicesTasksRoute = DocsServicesTasksRouteImport.update({
+  id: '/services/tasks',
+  path: '/services/tasks',
+  getParentRoute: () => DocsRouteRoute,
+} as any)
+const DocsServicesSchedulesRoute = DocsServicesSchedulesRouteImport.update({
+  id: '/services/schedules',
+  path: '/services/schedules',
+  getParentRoute: () => DocsRouteRoute,
+} as any)
 const DocsServicesQueuesRoute = DocsServicesQueuesRouteImport.update({
   id: '/services/queues',
   path: '/services/queues',
   getParentRoute: () => DocsRouteRoute,
 } as any)
+const DocsServicesEmailRoute = DocsServicesEmailRouteImport.update({
+  id: '/services/email',
+  path: '/services/email',
+  getParentRoute: () => DocsRouteRoute,
+} as any)
 const DocsRoutesWebsocketsRoute = DocsRoutesWebsocketsRouteImport.update({
   id: '/routes/websockets',
   path: '/routes/websockets',
+  getParentRoute: () => DocsRouteRoute,
+} as any)
+const DocsRoutesWebrtcRoute = DocsRoutesWebrtcRouteImport.update({
+  id: '/routes/webrtc',
+  path: '/routes/webrtc',
   getParentRoute: () => DocsRouteRoute,
 } as any)
 const DocsRoutesSseRoute = DocsRoutesSseRouteImport.update({
@@ -586,6 +617,11 @@ const DocsReferenceCliSandboxRoute = DocsReferenceCliSandboxRouteImport.update({
   path: '/reference/cli/sandbox',
   getParentRoute: () => DocsRouteRoute,
 } as any)
+const DocsReferenceCliQueuesRoute = DocsReferenceCliQueuesRouteImport.update({
+  id: '/reference/cli/queues',
+  path: '/reference/cli/queues',
+  getParentRoute: () => DocsRouteRoute,
+} as any)
 const DocsReferenceCliOpencodePluginRoute =
   DocsReferenceCliOpencodePluginRouteImport.update({
     id: '/reference/cli/opencode-plugin',
@@ -760,8 +796,13 @@ export interface FileRoutesByFullPath {
   '/routes/http': typeof DocsRoutesHttpRoute
   '/routes/middleware': typeof DocsRoutesMiddlewareRoute
   '/routes/sse': typeof DocsRoutesSseRoute
+  '/routes/webrtc': typeof DocsRoutesWebrtcRoute
   '/routes/websockets': typeof DocsRoutesWebsocketsRoute
+  '/services/email': typeof DocsServicesEmailRoute
   '/services/queues': typeof DocsServicesQueuesRoute
+  '/services/schedules': typeof DocsServicesSchedulesRoute
+  '/services/tasks': typeof DocsServicesTasksRoute
+  '/services/webhooks': typeof DocsServicesWebhooksRoute
   '/agents/': typeof DocsAgentsIndexRoute
   '/apis/': typeof DocsApisIndexRoute
   '/community/': typeof DocsCommunityIndexRoute
@@ -791,6 +832,7 @@ export interface FileRoutesByFullPath {
   '/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute
   '/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute
   '/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute
+  '/reference/cli/queues': typeof DocsReferenceCliQueuesRoute
   '/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute
   '/reference/cli/storage': typeof DocsReferenceCliStorageRoute
   '/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute
@@ -867,8 +909,13 @@ export interface FileRoutesByTo {
   '/routes/http': typeof DocsRoutesHttpRoute
   '/routes/middleware': typeof DocsRoutesMiddlewareRoute
   '/routes/sse': typeof DocsRoutesSseRoute
+  '/routes/webrtc': typeof DocsRoutesWebrtcRoute
   '/routes/websockets': typeof DocsRoutesWebsocketsRoute
+  '/services/email': typeof DocsServicesEmailRoute
   '/services/queues': typeof DocsServicesQueuesRoute
+  '/services/schedules': typeof DocsServicesSchedulesRoute
+  '/services/tasks': typeof DocsServicesTasksRoute
+  '/services/webhooks': typeof DocsServicesWebhooksRoute
   '/agents': typeof DocsAgentsIndexRoute
   '/apis': typeof DocsApisIndexRoute
   '/community': typeof DocsCommunityIndexRoute
@@ -898,6 +945,7 @@ export interface FileRoutesByTo {
   '/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute
   '/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute
   '/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute
+  '/reference/cli/queues': typeof DocsReferenceCliQueuesRoute
   '/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute
   '/reference/cli/storage': typeof DocsReferenceCliStorageRoute
   '/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute
@@ -976,8 +1024,13 @@ export interface FileRoutesById {
   '/_docs/routes/http': typeof DocsRoutesHttpRoute
   '/_docs/routes/middleware': typeof DocsRoutesMiddlewareRoute
   '/_docs/routes/sse': typeof DocsRoutesSseRoute
+  '/_docs/routes/webrtc': typeof DocsRoutesWebrtcRoute
   '/_docs/routes/websockets': typeof DocsRoutesWebsocketsRoute
+  '/_docs/services/email': typeof DocsServicesEmailRoute
   '/_docs/services/queues': typeof DocsServicesQueuesRoute
+  '/_docs/services/schedules': typeof DocsServicesSchedulesRoute
+  '/_docs/services/tasks': typeof DocsServicesTasksRoute
+  '/_docs/services/webhooks': typeof DocsServicesWebhooksRoute
   '/_docs/agents/': typeof DocsAgentsIndexRoute
   '/_docs/apis/': typeof DocsApisIndexRoute
   '/_docs/community/': typeof DocsCommunityIndexRoute
@@ -1007,6 +1060,7 @@ export interface FileRoutesById {
   '/_docs/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute
   '/_docs/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute
   '/_docs/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute
+  '/_docs/reference/cli/queues': typeof DocsReferenceCliQueuesRoute
   '/_docs/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute
   '/_docs/reference/cli/storage': typeof DocsReferenceCliStorageRoute
   '/_docs/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute
@@ -1085,8 +1139,13 @@ export interface FileRouteTypes {
     | '/routes/http'
     | '/routes/middleware'
     | '/routes/sse'
+    | '/routes/webrtc'
     | '/routes/websockets'
+    | '/services/email'
     | '/services/queues'
+    | '/services/schedules'
+    | '/services/tasks'
+    | '/services/webhooks'
     | '/agents/'
     | '/apis/'
     | '/community/'
@@ -1116,6 +1175,7 @@ export interface FileRouteTypes {
     | '/reference/cli/getting-started'
     | '/reference/cli/git-integration'
     | '/reference/cli/opencode-plugin'
+    | '/reference/cli/queues'
     | '/reference/cli/sandbox'
     | '/reference/cli/storage'
     | '/services/database/drizzle'
@@ -1192,8 +1252,13 @@ export interface FileRouteTypes {
     | '/routes/http'
     | '/routes/middleware'
     | '/routes/sse'
+    | '/routes/webrtc'
     | '/routes/websockets'
+    | '/services/email'
     | '/services/queues'
+    | '/services/schedules'
+    | '/services/tasks'
+    | '/services/webhooks'
     | '/agents'
     | '/apis'
     | '/community'
@@ -1223,6 +1288,7 @@ export interface FileRouteTypes {
     | '/reference/cli/getting-started'
     | '/reference/cli/git-integration'
     | '/reference/cli/opencode-plugin'
+    | '/reference/cli/queues'
     | '/reference/cli/sandbox'
     | '/reference/cli/storage'
     | '/services/database/drizzle'
@@ -1300,8 +1366,13 @@ export interface FileRouteTypes {
     | '/_docs/routes/http'
     | '/_docs/routes/middleware'
     | '/_docs/routes/sse'
+    | '/_docs/routes/webrtc'
     | '/_docs/routes/websockets'
+    | '/_docs/services/email'
     | '/_docs/services/queues'
+    | '/_docs/services/schedules'
+    | '/_docs/services/tasks'
+    | '/_docs/services/webhooks'
     | '/_docs/agents/'
     | '/_docs/apis/'
     | '/_docs/community/'
@@ -1331,6 +1402,7 @@ export interface FileRouteTypes {
     | '/_docs/reference/cli/getting-started'
     | '/_docs/reference/cli/git-integration'
     | '/_docs/reference/cli/opencode-plugin'
+    | '/_docs/reference/cli/queues'
     | '/_docs/reference/cli/sandbox'
     | '/_docs/reference/cli/storage'
     | '/_docs/services/database/drizzle'
@@ -1567,6 +1639,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsAgentsIndexRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/services/webhooks': {
+      id: '/_docs/services/webhooks'
+      path: '/services/webhooks'
+      fullPath: '/services/webhooks'
+      preLoaderRoute: typeof DocsServicesWebhooksRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/services/tasks': {
+      id: '/_docs/services/tasks'
+      path: '/services/tasks'
+      fullPath: '/services/tasks'
+      preLoaderRoute: typeof DocsServicesTasksRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/services/schedules': {
+      id: '/_docs/services/schedules'
+      path: '/services/schedules'
+      fullPath: '/services/schedules'
+      preLoaderRoute: typeof DocsServicesSchedulesRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
     '/_docs/services/queues': {
       id: '/_docs/services/queues'
       path: '/services/queues'
@@ -1574,11 +1667,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsServicesQueuesRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/services/email': {
+      id: '/_docs/services/email'
+      path: '/services/email'
+      fullPath: '/services/email'
+      preLoaderRoute: typeof DocsServicesEmailRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
     '/_docs/routes/websockets': {
       id: '/_docs/routes/websockets'
       path: '/routes/websockets'
       fullPath: '/routes/websockets'
       preLoaderRoute: typeof DocsRoutesWebsocketsRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/routes/webrtc': {
+      id: '/_docs/routes/webrtc'
+      path: '/routes/webrtc'
+      fullPath: '/routes/webrtc'
+      preLoaderRoute: typeof DocsRoutesWebrtcRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/routes/sse': {
@@ -1980,6 +2087,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsReferenceCliSandboxRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/reference/cli/queues': {
+      id: '/_docs/reference/cli/queues'
+      path: '/reference/cli/queues'
+      fullPath: '/reference/cli/queues'
+      preLoaderRoute: typeof DocsReferenceCliQueuesRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
     '/_docs/reference/cli/opencode-plugin': {
       id: '/_docs/reference/cli/opencode-plugin'
       path: '/reference/cli/opencode-plugin'
@@ -2159,8 +2273,13 @@ interface DocsRouteRouteChildren {
   DocsRoutesHttpRoute: typeof DocsRoutesHttpRoute
   DocsRoutesMiddlewareRoute: typeof DocsRoutesMiddlewareRoute
   DocsRoutesSseRoute: typeof DocsRoutesSseRoute
+  DocsRoutesWebrtcRoute: typeof DocsRoutesWebrtcRoute
   DocsRoutesWebsocketsRoute: typeof DocsRoutesWebsocketsRoute
+  DocsServicesEmailRoute: typeof DocsServicesEmailRoute
   DocsServicesQueuesRoute: typeof DocsServicesQueuesRoute
+  DocsServicesSchedulesRoute: typeof DocsServicesSchedulesRoute
+  DocsServicesTasksRoute: typeof DocsServicesTasksRoute
+  DocsServicesWebhooksRoute: typeof DocsServicesWebhooksRoute
   DocsAgentsIndexRoute: typeof DocsAgentsIndexRoute
   DocsApisIndexRoute: typeof DocsApisIndexRoute
   DocsCommunityIndexRoute: typeof DocsCommunityIndexRoute
@@ -2190,6 +2309,7 @@ interface DocsRouteRouteChildren {
   DocsReferenceCliGettingStartedRoute: typeof DocsReferenceCliGettingStartedRoute
   DocsReferenceCliGitIntegrationRoute: typeof DocsReferenceCliGitIntegrationRoute
   DocsReferenceCliOpencodePluginRoute: typeof DocsReferenceCliOpencodePluginRoute
+  DocsReferenceCliQueuesRoute: typeof DocsReferenceCliQueuesRoute
   DocsReferenceCliSandboxRoute: typeof DocsReferenceCliSandboxRoute
   DocsReferenceCliStorageRoute: typeof DocsReferenceCliStorageRoute
   DocsServicesDatabaseDrizzleRoute: typeof DocsServicesDatabaseDrizzleRoute
@@ -2250,8 +2370,13 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsRoutesHttpRoute: DocsRoutesHttpRoute,
   DocsRoutesMiddlewareRoute: DocsRoutesMiddlewareRoute,
   DocsRoutesSseRoute: DocsRoutesSseRoute,
+  DocsRoutesWebrtcRoute: DocsRoutesWebrtcRoute,
   DocsRoutesWebsocketsRoute: DocsRoutesWebsocketsRoute,
+  DocsServicesEmailRoute: DocsServicesEmailRoute,
   DocsServicesQueuesRoute: DocsServicesQueuesRoute,
+  DocsServicesSchedulesRoute: DocsServicesSchedulesRoute,
+  DocsServicesTasksRoute: DocsServicesTasksRoute,
+  DocsServicesWebhooksRoute: DocsServicesWebhooksRoute,
   DocsAgentsIndexRoute: DocsAgentsIndexRoute,
   DocsApisIndexRoute: DocsApisIndexRoute,
   DocsCommunityIndexRoute: DocsCommunityIndexRoute,
@@ -2290,6 +2415,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsReferenceCliGettingStartedRoute: DocsReferenceCliGettingStartedRoute,
   DocsReferenceCliGitIntegrationRoute: DocsReferenceCliGitIntegrationRoute,
   DocsReferenceCliOpencodePluginRoute: DocsReferenceCliOpencodePluginRoute,
+  DocsReferenceCliQueuesRoute: DocsReferenceCliQueuesRoute,
   DocsReferenceCliSandboxRoute: DocsReferenceCliSandboxRoute,
   DocsReferenceCliStorageRoute: DocsReferenceCliStorageRoute,
   DocsServicesDatabaseDrizzleRoute: DocsServicesDatabaseDrizzleRoute,

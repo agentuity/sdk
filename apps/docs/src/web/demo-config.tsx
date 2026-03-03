@@ -14,7 +14,7 @@ import { SSEStreamDemo } from './components/SSEStreamDemo';
 import { StreamingDemo } from './components/StreamingDemo';
 import { VectorSearch } from './components/VectorSearch';
 /* import { WebRTCDemo } from './components/WebRTCDemo'; */
-import { WebSocketDemo } from './components/WebSocketDemo';
+/* import { WebSocketDemo } from './components/WebSocketDemo'; */
 import type { LineHighlight } from './components/CodeBlock';
 
 export type DemoId =
@@ -27,7 +27,7 @@ export type DemoId =
 	| 'ai-gateway'
 	| 'sse-stream'
 	| 'streaming'
-	| 'websocket'
+	/* | 'websocket' */
 	/* | 'webrtc' */
 	| 'durable-stream'
 	| 'cron'
@@ -304,6 +304,7 @@ export const DEMOS: DemoConfig[] = [
 		sandboxInput: { prompt: 'Explain what Server-Sent Events are in 2-3 sentences.' },
 		isRoute: true,
 	},
+	/* Disabled until sandbox snapshot is rebuilt with websocket.js
 	{
 		id: 'websocket',
 		title: 'WebSocket',
@@ -335,6 +336,7 @@ export const DEMOS: DemoConfig[] = [
 		sandboxScript: 'websocket',
 		isRoute: true,
 	},
+	*/
 	/* WebRTC demo temporarily disabled
 	{
 		id: 'webrtc',

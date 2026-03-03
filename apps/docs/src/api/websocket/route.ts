@@ -13,7 +13,7 @@ router.get('/', (c) => {
 	return c.json({
 		name: 'WebSocket Demo',
 		description: 'Connect to /api/websocket/connect for real-time bidirectional communication',
-		features: ['Echo messages', 'Server heartbeat every 15s', 'Timestamped responses'],
+		features: ['Echo messages', 'Server heartbeat every 30s', 'Timestamped responses'],
 	});
 });
 
@@ -36,7 +36,7 @@ router.get(
 					})
 				);
 
-				// Heartbeat every 15s to keep connection alive
+				// Heartbeat every 30s to keep connection alive
 				heartbeatInterval = setInterval(() => {
 					try {
 						ws.send(
@@ -50,7 +50,7 @@ router.get(
 						c.var.logger?.error('WebSocket heartbeat failed', { error: err });
 						clearInterval(heartbeatInterval);
 					}
-				}, 15000);
+				}, 30000);
 			} catch (err) {
 				c.var.logger?.error('WebSocket onOpen error', { error: err });
 			}

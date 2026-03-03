@@ -1,0 +1,333 @@
+---
+title: Queue Commands
+description: Create, publish, consume, and manage queues from the CLI
+---
+
+Manage queues, publish and consume messages, configure destinations and sources, and monitor queue health from the command line.
+
+<Callout type="info" title="Cloud Prefix Required">
+All queue commands require the `cloud` prefix. For example: `agentuity cloud queue create ...`
+</Callout>
+
+## Creating and Managing Queues
+
+### Create a Queue
+
+```bash
+# Create a worker queue
+agentuity cloud queue create worker --name order-processing
+
+# Create a pubsub queue for broadcasting
+agentuity cloud queue create pubsub --name events
+
+# With all options
+agentuity cloud queue create worker --name tasks \
+  --description "Background task processing" \
+  --ttl 86400 \
+  --visibility-timeout 60 \
+  --max-retries 5
+```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Queue name (optional, auto-generated if omitted) |
+| `--description <desc>` | Queue description |
+| `--ttl <seconds>` | Default message TTL in seconds |
+| `--visibility-timeout <seconds>` | Default visibility timeout (worker queues) |
+| `--max-retries <count>` | Maximum retry attempts before moving to DLQ |
+
+### List Queues
+
+```bash
+# List all queues
+agentuity cloud queue list
+
+# Filter by type and status
+agentuity cloud queue list --queue-type worker --status active
+
+# Filter by name
+agentuity cloud queue list --name order-processing
+
+# Sort by message count, descending
+agentuity cloud queue list --sort message_count --direction desc
+
+# Paginate results
+agentuity cloud queue list --limit 10 --offset 0
+```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Filter by queue name |
+| `--queue-type <type>` | Filter by type: `worker` or `pubsub` |
+| `--status <status>` | Filter by status: `active` or `paused` |
+| `--org-id <id>` | Filter by organization |
+| `--sort <field>` | Sort by `name`, `created`, `updated`, `message_count`, or `dlq_count` (default: `created`) |
+| `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
+| `--limit <n>` | Maximum number of results |
+| `--offset <n>` | Pagination offset |
+
+### Get Queue Details
+
+```bash
+agentuity cloud queue get order-processing
+```
+
+### Pause and Resume
+
+```bash
+agentuity cloud queue pause order-processing
+agentuity cloud queue resume order-processing
+```
+
+### Delete a Queue
+
+```bash
+agentuity cloud queue delete order-processing --confirm
+```
+
+<Callout type="warning" title="Permanent Deletion">
+Deleting a queue removes all pending messages immediately. This cannot be undone.
+</Callout>
+
+## Publishing Messages
+
+```bash
+# Publish a JSON message
+agentuity cloud queue publish order-processing '{"orderId": "123"}'
+
+# With options
+agentuity cloud queue publish order-processing '{"orderId": "123"}' \
+  --partition-key customer-456 \
+  --idempotency-key order-123 \
+  --ttl 3600
+
+# Wait for persistence confirmation
+agentuity cloud queue publish order-processing '{"critical": true}' --sync
+```
+
+| Option | Description |
+|--------|-------------|
+| `--metadata <json>` | JSON key-value pairs for routing or filtering |
+| `--partition-key <key>` | Messages with the same key are processed in order |
+| `--idempotency-key <key>` | Prevents duplicate messages if the same key is published again |
+| `--ttl <seconds>` | Time-to-live before the message expires |
+| `--sync` | Wait for the message to be persisted before returning |
+
+<Callout type="info" title="Aliases">
+`publish` can also be invoked as `pub` or `send`.
+</Callout>
+
+## Consuming Messages
+
+### Receive a Message
+
+Pull a message from a worker queue for processing:
+
+```bash
+# Receive with default 30s timeout
+agentuity cloud queue receive order-processing
+
+# Custom timeout
+agentuity cloud queue receive order-processing --timeout 60
+```
+
+| Option | Description |
+|--------|-------------|
+| `--timeout <seconds>` | Long-poll timeout (default: 30) |
+
+<Callout type="info" title="Aliases">
+`receive` can also be invoked as `recv` or `claim`.
+</Callout>
+
+### Acknowledge a Message
+
+Mark a message as successfully processed:
+
+```bash
+agentuity cloud queue ack order-processing <message_id>
+```
+
+### Negative Acknowledge
+
+Return a message to the queue for retry:
+
+```bash
+agentuity cloud queue nack order-processing <message_id>
+```
+
+## Webhook Destinations
+
+### Create a Destination
+
+```bash
+# Add a webhook destination
+agentuity cloud queue destinations create order-processing \
+  --url https://example.com/webhook
+
+# With custom method and timeout
+agentuity cloud queue destinations create order-processing \
+  --url https://example.com/webhook \
+  --method POST \
+  --timeout 10000
+```
+
+| Option | Description |
+|--------|-------------|
+| `--url <url>` | Webhook URL (required) |
+| `--method <method>` | HTTP method (default: `POST`) |
+| `--timeout <ms>` | Request timeout in milliseconds |
+
+### List Destinations
+
+```bash
+agentuity cloud queue destinations list order-processing
+```
+
+### Delete a Destination
+
+```bash
+agentuity cloud queue destinations delete order-processing <destination_id>
+```
+
+<Callout type="info" title="Aliases">
+`destinations` can also be invoked as `dest`. `delete` can also be invoked as `rm`.
+</Callout>
+
+## HTTP Ingestion Sources
+
+### Create a Source
+
+```bash
+# No authentication
+agentuity cloud queue sources create order-processing --name public-ingest
+
+# With basic auth
+agentuity cloud queue sources create order-processing \
+  --name stripe-ingest \
+  --description "Stripe webhook ingestion" \
+  --auth-type basic \
+  --auth-value user:pass
+
+# With header auth
+agentuity cloud queue sources create order-processing \
+  --name api-ingest \
+  --auth-type header \
+  --auth-value "Bearer my-token"
+```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Source name (required) |
+| `--description <desc>` | Source description |
+| `--auth-type <type>` | Authentication type: `none`, `basic`, or `header` (default: `none`) |
+| `--auth-value <value>` | Auth credentials (`user:pass` for basic, token for header) |
+
+### List Sources
+
+```bash
+agentuity cloud queue sources list order-processing
+```
+
+### Delete a Source
+
+```bash
+agentuity cloud queue sources delete order-processing <source_id>
+```
+
+<Callout type="info" title="Aliases">
+`sources` can also be invoked as `source`. `delete` can also be invoked as `rm`.
+</Callout>
+
+## Dead Letter Queue
+
+Messages that exceed the retry limit are moved to the dead letter queue (DLQ).
+
+### List DLQ Messages
+
+```bash
+agentuity cloud queue dlq list order-processing
+
+# With pagination
+agentuity cloud queue dlq list order-processing --limit 10 --offset 0
+```
+
+| Option | Description |
+|--------|-------------|
+| `--limit <n>` | Maximum number of results |
+| `--offset <n>` | Pagination offset |
+
+### Replay a Message
+
+Move a message from the DLQ back to the main queue for reprocessing:
+
+```bash
+agentuity cloud queue dlq replay order-processing msg_abc123
+```
+
+### Purge the DLQ
+
+```bash
+agentuity cloud queue dlq purge order-processing --confirm
+```
+
+<Callout type="warning" title="Permanent Deletion">
+Purging the DLQ permanently removes all failed messages. This cannot be undone.
+</Callout>
+
+## Monitoring
+
+### Queue Statistics
+
+```bash
+# View current stats
+agentuity cloud queue stats order-processing
+
+# Live stats with auto-refresh
+agentuity cloud queue stats order-processing --live
+
+# Custom refresh interval (seconds)
+agentuity cloud queue stats order-processing --live --interval 10
+
+# Historical stats with time range
+agentuity cloud queue stats order-processing \
+  --start 2025-01-01T00:00:00Z \
+  --end 2025-01-02T00:00:00Z \
+  --granularity hour
+
+# Organization-wide stats (omit queue name)
+agentuity cloud queue stats
+```
+
+| Option | Description |
+|--------|-------------|
+| `--live` | Auto-refresh stats display |
+| `--interval <seconds>` | Refresh interval for live mode (default: 5) |
+| `--start <iso8601>` | Start time for historical stats |
+| `--end <iso8601>` | End time for historical stats |
+| `--granularity <level>` | Time granularity: `minute`, `hour`, or `day` |
+
+### List Messages
+
+```bash
+agentuity cloud queue messages order-processing
+
+# With pagination
+agentuity cloud queue messages order-processing --limit 20
+
+# Get a specific message
+agentuity cloud queue messages order-processing msg_abc123
+```
+
+| Option | Description |
+|--------|-------------|
+| `--limit <n>` | Maximum number of results |
+| `--offset <n>` | Pagination offset |
+
+<Callout type="info" title="Aliases">
+`messages` can also be invoked as `msgs`.
+</Callout>
+
+## Next Steps
+
+- [Queues](/services/queues): SDK API for publishing, consuming, and managing queues
+- [Storage Commands](/reference/cli/storage): KV, S3, Vector, Database, and Stream CLI commands

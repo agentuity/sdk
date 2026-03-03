@@ -380,7 +380,7 @@ The SDK supports any validation library that implements the StandardSchemaV1 int
 
 **Why StandardSchema?**
 
-StandardSchemaV1 is a common interface that allows different validation libraries to work seamlessly with the SDK, so you're not locked into a single library and can choose the one that best fits your needs. For more details on schema validation patterns and best practices, see the [Schema Validation Guide](/guides/schema-validation).
+StandardSchemaV1 is a common interface that allows different validation libraries to work seamlessly with the SDK, so you're not locked into a single library and can choose the one that best fits your needs. For more details on schema validation patterns and best practices, see [Schema Libraries](/agents/schema-libraries).
 
 **Example with Zod:**
 
@@ -729,6 +729,13 @@ interface AgentContext<TConfig = unknown, TAppState = unknown> {
   kv: KeyValueStorage;                // Key-value storage
   vector: VectorStorage;              // Vector database for embeddings
   stream: StreamStorage;              // Stream storage
+
+  // Platform Services
+  queue: QueueService;                // Message queue publishing and management
+  task: TaskStorage;                  // Work item tracking with lifecycle management
+  email: EmailService;                // Email addresses, sending, and destinations
+  schedule: ScheduleService;          // Platform-managed cron jobs
+  sandbox: SandboxService;            // Code execution in isolated containers
 
   // Observability
   logger: Logger;                     // Structured logging
@@ -1315,7 +1322,7 @@ const mysql = new SQL("mysql://user:pass@localhost:3306/mydb");
 const sqlite = new SQL("sqlite://data/app.db");
 ```
 
-For Agentuity-specific patterns, see [Database](/services/database/overview). For the complete Bun SQL API, see [Bun SQL documentation](https://bun.sh/docs/runtime/sql).
+For Agentuity-specific patterns, see [Database](/services/database). For the complete Bun SQL API, see [Bun SQL documentation](https://bun.sh/docs/runtime/sql).
 
 ### Object Storage (Bun S3)
 
@@ -2006,7 +2013,7 @@ Agentuity uses two distinct context types based on where you're writing code:
 
 Both commonly use `c` as the variable name in SDK examples. The distinction is **type-based**, not name-based.
 
-For a detailed explanation with examples, see the [Context Types Guide](/guides/context-types).
+Both contexts provide access to Agentuity services, but through different access patterns.
 
 **Router Context Interface:**
 
@@ -2020,6 +2027,11 @@ interface RouterContext {
     kv: KeyValueStorage;              // Key-value storage
     vector: VectorStorage;            // Vector storage
     stream: StreamStorage;            // Stream storage
+    queue: QueueService;              // Message queues
+    task: TaskStorage;                // Task tracking
+    email: EmailService;              // Email sending and receiving
+    schedule: ScheduleService;        // Scheduled tasks
+    sandbox: SandboxService;          // Isolated code execution
     logger: Logger;                   // Structured logging
     tracer: Tracer;                   // OpenTelemetry tracing
   };
@@ -2080,9 +2092,14 @@ Agentuity services (storage, logging, tracing) are available in multiple context
 | Key-Value | `ctx.kv` | `c.var.kv` | `ctx.kv` |
 | Vector | `ctx.vector` | `c.var.vector` | `ctx.vector` |
 | Streams | `ctx.stream` | `c.var.stream` | `ctx.stream` |
+| [Queue](/services/queues) | `ctx.queue` | `c.var.queue` | `ctx.queue` |
+| [Tasks](/services/tasks) | `ctx.task` | `c.var.task` | `ctx.task` |
+| [Email](/services/email) | `ctx.email` | `c.var.email` | `ctx.email` |
+| [Schedule](/services/schedules) | `ctx.schedule` | `c.var.schedule` | `ctx.schedule` |
+| [Sandbox](/services/sandbox/sdk-usage) | `ctx.sandbox` | `c.var.sandbox` | `ctx.sandbox` |
 | Logger | `ctx.logger` | `c.var.logger` | `ctx.logger` |
 | Tracer | `ctx.tracer` | `c.var.tracer` | `ctx.tracer` |
-| State | `ctx.state` | `c.var.state` | `ctx.state` |
+| State | `ctx.state` | N/A | `ctx.state` |
 | Thread | `ctx.thread` | `c.var.thread` | `ctx.thread` |
 | Session | `ctx.session` | `c.var.session` | `ctx.session` |
 

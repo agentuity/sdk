@@ -237,6 +237,126 @@ WebRTC peers can't connect directly without help. The signaling server relays di
 
 The server never sees the actual media or data, only the signaling messages.
 
+## Connection Quality
+
+To monitor connection health for a specific peer, call `getQualitySummary` with the remote peer's ID:
+
+```typescript
+const { getQualitySummary, getAllQualitySummaries } = useWebRTCCall({ /* ...options */ });
+
+// Single peer
+const summary = await getQualitySummary(remotePeerId);
+if (summary) {
+  console.log(`RTT: ${summary.rtt}ms, packet loss: ${summary.packetLossPercent}%`);
+}
+
+// All connected peers at once
+const all = await getAllQualitySummaries();
+for (const [peerId, stats] of all) {
+  console.log(peerId, stats.bitrate?.video?.inbound);
+}
+```
+
+The returned `ConnectionQualitySummary` contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rtt` | `number` (optional) | Round-trip time in milliseconds |
+| `packetLossPercent` | `number` (optional) | Percentage of packets lost (0–100) |
+| `jitter` | `number` (optional) | Jitter in milliseconds (audio) |
+| `bitrate.audio` | `{ inbound?, outbound? }` (optional) | Audio bitrate in bps |
+| `bitrate.video` | `{ inbound?, outbound? }` (optional) | Video bitrate in bps |
+| `video.framesPerSecond` | `number` (optional) | Current video frame rate |
+| `video.framesDropped` | `number` (optional) | Total frames dropped |
+| `video.frameWidth` | `number` (optional) | Width of the video frame in pixels |
+| `video.frameHeight` | `number` (optional) | Height of the video frame in pixels |
+| `candidatePair.usingRelay` | `boolean` (optional) | Whether the connection is routed through a TURN relay |
+| `timestamp` | `number` | When the stats were collected (ms since epoch) |
+
+All numeric fields are optional: they're omitted when the stat is not available from the browser's WebRTC engine.
+
+## Recording
+
+Record a local or remote stream by passing a stream ID to `startRecording`. Use `'local'` for the local camera/mic stream or a peer ID for any remote stream:
+
+```typescript
+const { startRecording, stopAllRecordings } = useWebRTCCall({ /* ...options */ });
+
+// Start recording the local stream
+const handle = startRecording('local', {
+  mimeType: 'video/webm',
+  videoBitsPerSecond: 2_500_000,
+});
+
+// Pause and resume mid-session
+handle?.pause();
+handle?.resume();
+
+// Stop and download
+const blob = await handle?.stop();
+if (blob) {
+  const url = URL.createObjectURL(blob);
+  // trigger download, preview, or upload
+}
+
+// Stop all active recordings at once (e.g. on hangup)
+// Returns Map<streamId, Blob>
+const blobs = await stopAllRecordings();
+for (const [streamId, blob] of blobs) {
+  const url = URL.createObjectURL(blob);
+  // trigger download for each recorded stream
+}
+```
+
+`startRecording` returns `null` if the stream does not exist, or if no compatible MIME type can be found for the stream.
+
+`RecordingHandle` methods:
+
+| Member | Signature | Description |
+|--------|-----------|-------------|
+| `stop` | `() => Promise<Blob>` | Stop recording and return the accumulated data |
+| `pause` | `() => void` | Pause without discarding buffered data |
+| `resume` | `() => void` | Resume after a pause |
+| `state` | `'inactive' \| 'recording' \| 'paused'` | Current recorder state (read-only) |
+
+## Track Sources
+
+By default `useWebRTCCall` calls `getUserMedia({ video: true, audio: true })` to acquire the local stream. Pass a `TrackSource` instance to the `media` option when you need a different source:
+
+```typescript
+import { UserMediaSource, DisplayMediaSource, CustomStreamSource } from '@agentuity/react';
+```
+
+| Source | Default constraints | Use case |
+|--------|---------------------|----------|
+| `UserMediaSource` | `{ video: true, audio: true }` | Camera and microphone |
+| `DisplayMediaSource` | `{ video: true, audio: false }` | Screen or window sharing |
+| `CustomStreamSource` | — | Any `MediaStream` (canvas, WebAudio, etc.) |
+
+Pass a custom source via the `media` option:
+
+```typescript
+// Share the screen instead of the camera
+const { connect } = useWebRTCCall({
+  roomId,
+  signalUrl: '/api/call/signal',
+  media: new DisplayMediaSource(), // [!code highlight]
+});
+```
+
+`CustomStreamSource` is useful when you already have a `MediaStream`, for example from a canvas element:
+
+```typescript
+const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+const canvasStream = canvas.captureStream(30); // 30 fps
+
+const { connect } = useWebRTCCall({
+  roomId,
+  signalUrl: '/api/call/signal',
+  media: new CustomStreamSource(canvasStream), // [!code highlight]
+});
+```
+
 ## When to Use WebRTC
 
 | Use Case | WebRTC | WebSocket | SSE |

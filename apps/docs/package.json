@@ -7,8 +7,8 @@
 	"type": "module",
 	"scripts": {
 		"predev": "bun run scripts/generate-markdown-files.ts",
-		"prebuild": "bun run scripts/generate-markdown-files.ts",
-		"predeploy": "cd ../.. && bun install && bun run build:packages",
+		"prebuild": "bun run scripts/generate-markdown-files.ts && bun run build:run",
+		"predeploy": "bun run prebuild && cd ../.. && bun install && bun run build:packages",
 		"build": "bun ../../packages/cli/bin/cli.ts build --dir . --dev",
 		"dev": "bun ../../packages/cli/bin/cli.ts dev --dir .",
 		"start": "bun .agentuity/app.js",

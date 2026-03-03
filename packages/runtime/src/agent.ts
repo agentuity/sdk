@@ -271,7 +271,7 @@ export interface AgentContext<
 	 * Schedule service for managing cron-based scheduled tasks with
 	 * destinations and delivery tracking.
 	 *
-	 * @see https://agentuity.dev/services/schedule
+	 * @see https://agentuity.dev/services/schedules
 	 */
 	schedule: ScheduleService;
 
@@ -284,6 +284,7 @@ export interface AgentContext<
 	 *   title: 'Investigate API error',
 	 *   type: 'bug',
 	 *   created_id: ctx.current.id,
+	 *   creator: { id: ctx.current.id, name: ctx.current.name, type: 'agent' },
 	 * });
 	 * await ctx.task.update(task.id, { status: 'in_progress' });
 	 * ```

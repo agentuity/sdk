@@ -1,0 +1,474 @@
+---
+title: Tasks
+description: Track work items, issues, and agent activity with built-in lifecycle management
+---
+
+Use `ctx.task` to create and manage structured work items — bugs, features, epics, and general tasks — across agents and human collaborators, with built-in status tracking, comments, tags, and file attachments.
+
+## When to Use Tasks
+
+| Service | Best For |
+|---------|----------|
+| **Tasks** | Structured work items with lifecycle, assignments, comments, tags |
+| [Queues](/services/queues) | Async message passing for background processing |
+| [Key-Value](/services/storage/key-value) | Simple state, caching, counters |
+
+Use tasks when you need to:
+
+- Track bugs or issues an agent discovers during execution
+- Assign work items to humans or agents with explicit status transitions
+- Attach files, comments, and audit trails to work items
+- Build hierarchical project structures (epics, features, subtasks)
+- Query task history by status, priority, type, or assignee
+
+## Managing Tasks
+
+| Method | Best For |
+|--------|----------|
+| **SDK** (`ctx.task`) | Agents and routes creating or updating tasks programmatically |
+| **CLI** (`agentuity cloud task`) | Human and agent CLI workflows, scripting |
+| **Web App** | Visual task board, manual triage, dashboard views |
+
+## Creating Tasks
+
+`ctx.task.create()` requires `title`, `type`, and `created_id`. Include `creator` (a `UserEntityRef`) as well to preserve display name and attribution type. All other fields are optional.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('BugReporter', {
+  handler: async (ctx, input) => {
+    const task = await ctx.task.create({ // [!code highlight]
+      title: 'Null pointer in payment flow',
+      type: 'bug', // [!code highlight]
+      priority: 'high',
+      description: `Observed at ${new Date().toISOString()}: ${input.errorMessage}`,
+      created_id: ctx.current.id,
+      creator: {
+        id: ctx.current.id,
+        name: ctx.current.name,
+        type: 'agent', // distinguish from human users // [!code highlight]
+      },
+      metadata: {
+        source: 'payment-service',
+        traceId: input.traceId,
+      },
+    });
+
+    ctx.logger.info('Bug filed', { taskId: task.id, status: task.status });
+    return { taskId: task.id };
+  },
+});
+```
+
+**`CreateTaskParams` fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `title` | Yes | Task title, max 1,024 characters |
+| `type` | Yes | Task classification (`'epic'`, `'feature'`, `'enhancement'`, `'bug'`, `'task'`) |
+| `created_id` | Yes | ID of the creating user or agent |
+| `creator` | No | `UserEntityRef` with `id`, `name`, and optional `type`; adds display name alongside `created_id` |
+| `description` | No | Detailed description, max 65,536 characters |
+| `priority` | No | `'high'`, `'medium'`, `'low'`, or `'none'` (default: `'none'`) |
+| `status` | No | Initial status (default: `'open'`) |
+| `assignee` | No | `UserEntityRef` to assign the task to |
+| `parent_id` | No | ID of a parent task for hierarchical organization |
+| `tag_ids` | No | Array of tag IDs to attach at creation |
+| `metadata` | No | Arbitrary key-value metadata for custom fields |
+| `project` | No | `EntityRef` linking the task to a project |
+
+## Task Lifecycle
+
+Tasks move through a defined set of statuses. The server automatically records timestamps when each transition occurs.
+
+| Status | Description | Date field set |
+|--------|-------------|----------------|
+| `open` | Created, not yet started | `open_date` |
+| `in_progress` | Actively being worked on | `in_progress_date` |
+| `done` | Work completed | (no date field) |
+| `closed` | Resolved and closed | `closed_date` |
+| `cancelled` | Abandoned | `cancelled_date` |
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('TaskWorker', {
+  handler: async (ctx, input) => {
+    const task = await ctx.task.get(input.taskId);
+    if (!task) return { error: 'Task not found' };
+
+    // Claim the task before starting work
+    await ctx.task.update(task.id, { // [!code highlight]
+      status: 'in_progress',
+      assignee: { id: ctx.current.id, name: ctx.current.name, type: 'agent' },
+    });
+
+    // ... do the work ...
+
+    // Mark complete when done
+    await ctx.task.update(task.id, {
+      status: 'done', // [!code highlight]
+    });
+
+    return { completed: task.id };
+  },
+});
+```
+
+<Callout type="tip" title="Closing vs Done">
+`ctx.task.close(id)` is a convenience method that sets status to `'closed'` in one call. For `'done'` or `'cancelled'`, use `ctx.task.update(id, { status: '...' })` directly.
+</Callout>
+
+## Task Types and Priority
+
+**Types** classify what a task represents:
+
+| Type | When to use |
+|------|-------------|
+| `epic` | Large initiatives spanning multiple features or tasks |
+| `feature` | New capabilities to build |
+| `enhancement` | Improvements to existing functionality |
+| `bug` | Defects to fix |
+| `task` | General work items |
+
+**Priority** signals urgency:
+
+| Priority | Description |
+|----------|-------------|
+| `high` | Requires immediate attention |
+| `medium` | Standard priority |
+| `low` | Background or nice-to-have work |
+| `none` | No priority assigned (default) |
+
+## Human vs Agent Attribution
+
+`UserEntityRef` carries a `type` field that distinguishes human users from AI agents. This lets dashboards and queries filter by who (or what) created or is working on tasks.
+
+<Callout type="info" title="creator vs created_id">
+`creator` (a `UserEntityRef` with `id`, `name`, and `type`) is the preferred field. `created_id` is a legacy string-only field that remains supported. Use `creator` in new code so display names and type information are preserved.
+</Callout>
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('TaskRouter', {
+  handler: async (ctx, input) => {
+    // Created by this agent, assigned to a human for review
+    const task = await ctx.task.create({
+      title: 'Review anomaly in transaction log',
+      type: 'task',
+      created_id: ctx.current.id,
+      creator: {
+        id: ctx.current.id,
+        name: ctx.current.name,
+        type: 'agent', // [!code highlight]
+      },
+      assignee: {
+        id: input.reviewerId,
+        name: input.reviewerName,
+        type: 'human', // [!code highlight]
+      },
+      priority: 'medium',
+    });
+
+    ctx.logger.info('Task routed to human', {
+      taskId: task.id,
+      assignee: task.assignee?.name,
+    });
+
+    return { taskId: task.id };
+  },
+});
+```
+
+## Comments
+
+Add threaded comments to any task. `userId` identifies the commenter; `author` is an optional `UserEntityRef` (`{ id, name, type? }`) that adds a display name and optional human/agent type discrimination.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('TaskCommentWriter', {
+  handler: async (ctx, input) => {
+    // Add a comment
+    const comment = await ctx.task.createComment( // [!code highlight]
+      input.taskId,
+      `Analysis complete. Root cause: ${input.finding}`,
+      ctx.current.id,
+      { id: ctx.current.id, name: ctx.current.name },
+    );
+
+    // Retrieve all comments with pagination
+    const { comments, total } = await ctx.task.listComments(input.taskId, {
+      limit: 20,
+      offset: 0,
+    });
+
+    ctx.logger.info('Comments loaded', { total });
+    return { commentId: comment.id, total };
+  },
+});
+```
+
+## Tags
+
+Tags are org-wide labels you create once and apply to multiple tasks. Create a tag, then associate it.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('TagManager', {
+  handler: async (ctx, input) => {
+    // Create a reusable tag (once per org)
+    const tag = await ctx.task.createTag('payment-system', '#ff6600'); // [!code highlight]
+
+    // Apply it to a task
+    await ctx.task.addTagToTask(input.taskId, tag.id); // [!code highlight]
+
+    // List all tags on a task
+    const tags = await ctx.task.listTagsForTask(input.taskId);
+
+    ctx.logger.info('Tags applied', { tagCount: tags.length });
+    return { tags };
+  },
+});
+```
+
+## Attachments
+
+Attachments use a two-phase upload: first call `uploadAttachment()` to get a presigned S3 URL, PUT your file bytes directly to that URL, then call `confirmAttachment()` to mark the upload complete.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('AttachmentUploader', {
+  handler: async (ctx, input) => {
+    // Phase 1: request a presigned upload URL
+    const { attachment, presigned_url } = await ctx.task.uploadAttachment( // [!code highlight]
+      input.taskId,
+      {
+        filename: 'error-trace.pdf',
+        content_type: 'application/pdf',
+        size: input.fileBytes.length,
+      },
+    );
+
+    // Phase 2: upload directly to S3 (bypasses Agentuity servers)
+    await fetch(presigned_url, { // [!code highlight]
+      method: 'PUT',
+      body: input.fileBytes,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+
+    // Phase 3: confirm the upload so the attachment becomes visible
+    const confirmed = await ctx.task.confirmAttachment(attachment.id); // [!code highlight]
+    ctx.logger.info('Attachment confirmed', { attachmentId: confirmed.id });
+
+    // Download: get a presigned URL to read the file back
+    const { presigned_url: downloadUrl } = await ctx.task.downloadAttachment(attachment.id);
+
+    return { attachmentId: confirmed.id, downloadUrl };
+  },
+});
+```
+
+<Callout type="info" title="Presigned URL expiry">
+Both upload and download URLs expire after a short window (`expiry_seconds` on the response). Do not cache or share these URLs — request a new one when needed.
+</Callout>
+
+## Filtering and Pagination
+
+`ctx.task.list()` accepts filters to narrow results. All parameters are optional.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('TaskDashboard', {
+  handler: async (ctx, input) => {
+    // High-priority open bugs, newest first
+    const { tasks, total } = await ctx.task.list({ // [!code highlight]
+      type: 'bug',
+      status: 'open',
+      priority: 'high',
+      sort: '-created_at', // descending by creation date // [!code highlight]
+      limit: 25,
+      offset: 0,
+    });
+
+    // Subtasks of a specific epic
+    const { tasks: subtasks } = await ctx.task.list({
+      parent_id: input.epicId, // [!code highlight]
+      limit: 50,
+    });
+
+    ctx.logger.info('Tasks loaded', { total, subtaskCount: subtasks.length });
+    return { tasks, subtasks };
+  },
+});
+```
+
+**`ListTasksParams` options:**
+
+| Field | Description |
+|-------|-------------|
+| `status` | Filter by lifecycle status |
+| `type` | Filter by task type |
+| `priority` | Filter by priority level |
+| `assigned_id` | Filter by assigned user ID |
+| `parent_id` | Filter by parent task (returns subtasks) |
+| `project_id` | Filter by project ID |
+| `tag_id` | Filter by a specific tag |
+| `sort` | Sort field: `'created_at'`, `'updated_at'`, `'priority'`. Prefix with `-` for descending |
+| `order` | Sort direction: `'asc'` or `'desc'` |
+| `limit` | Maximum results to return |
+| `offset` | Results to skip for pagination |
+| `deleted` | Include soft-deleted tasks (default: `false`) |
+
+## Changelog
+
+Every field change on a task is automatically recorded. Use `ctx.task.changelog()` to retrieve the full audit trail.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('TaskAuditor', {
+  handler: async (ctx, input) => {
+    const { changelog, total } = await ctx.task.changelog(input.taskId, { // [!code highlight]
+      limit: 50,
+      offset: 0,
+    });
+
+    for (const entry of changelog) {
+      ctx.logger.info('Field changed', {
+        field: entry.field,
+        from: entry.old_value,
+        to: entry.new_value,
+        at: entry.created_at,
+      });
+    }
+
+    return { changes: total };
+  },
+});
+```
+
+Each `TaskChangelogEntry` records the `field` name, `old_value`, `new_value`, and `created_at` timestamp. Status transitions, priority changes, and reassignments all appear automatically — no extra instrumentation needed.
+
+## Batch Operations
+
+`batchDelete` soft-deletes tasks matching a set of filters. Soft-deleted tasks are hidden from normal queries unless you pass `deleted: true` to `list()`.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('TaskCleaner', {
+  handler: async (ctx, input) => {
+    // Remove cancelled tasks older than 30 days (up to 200 at a time)
+    const { deleted, count } = await ctx.task.batchDelete({ // [!code highlight]
+      status: 'cancelled',
+      older_than: '30d', // Go-style duration: '30m', '24h', '7d', '2w' // [!code highlight]
+      limit: 200,
+    });
+
+    ctx.logger.info('Batch delete complete', { count });
+    return { deletedCount: count };
+  },
+});
+```
+
+<Callout type="warning" title="At least one filter required">
+`batchDelete` requires at least one filter (`status`, `type`, `priority`, `parent_id`, `created_id`, or `older_than`). Calling it without filters throws an error. The maximum per call is 200 tasks.
+</Callout>
+
+## Hierarchical Tasks
+
+Set `parent_id` to build epic-to-feature-to-task hierarchies. Query subtasks with `list({ parent_id: epicId })`.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('ProjectPlanner', {
+  handler: async (ctx, input) => {
+    // Create the top-level epic
+    const epic = await ctx.task.create({
+      title: 'Auth system overhaul',
+      type: 'epic',
+      priority: 'high',
+      created_id: ctx.current.id,
+    });
+
+    // Create features under the epic
+    const feature = await ctx.task.create({
+      title: 'Implement OAuth2 login',
+      type: 'feature',
+      parent_id: epic.id, // [!code highlight]
+      created_id: ctx.current.id,
+    });
+
+    // Create a task under the feature
+    await ctx.task.create({
+      title: 'Write OAuth2 callback handler',
+      type: 'task',
+      parent_id: feature.id, // [!code highlight]
+      created_id: ctx.current.id,
+    });
+
+    ctx.logger.info('Project hierarchy created', { epicId: epic.id });
+    return { epicId: epic.id };
+  },
+});
+```
+
+## Using in Routes
+
+Routes access the same task service via `c.var.task`:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.post('/tasks', async (c) => {
+  const body = await c.req.json();
+
+  const task = await c.var.task.create({ // [!code highlight]
+    title: body.title,
+    type: body.type ?? 'task',
+    created_id: body.userId,
+    creator: {
+      id: body.userId,
+      name: body.userName,
+      type: 'human',
+    },
+  });
+
+  return c.json({ taskId: task.id }, 201);
+});
+
+router.get('/tasks/:id', async (c) => {
+  const task = await c.var.task.get(c.req.param('id')); // [!code highlight]
+
+  if (!task) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  return c.json(task);
+});
+
+export default router;
+```
+
+## Best Practices
+
+- **Use `creator` instead of `created_id`**: The `creator` field stores display name and type alongside the ID, which makes task history readable without joining user records.
+- **Set `type: 'agent'` for programmatic tasks**: This lets dashboards distinguish automated work items from human-filed tickets.
+- **Prefer `update()` over ad-hoc field sets**: Partial updates only modify provided fields, so you won't accidentally overwrite data you didn't intend to change.
+- **Use `metadata` for integration fields**: Store external IDs, trace IDs, or service names in `metadata` rather than encoding them in the title or description.
+- **Page results with `limit` and `offset`**: There is no default page cap, so always set an explicit `limit` when listing tasks in agents to avoid unbounded responses.
+
+## Next Steps
+
+- [Queues](/services/queues): Async message passing for background processing between agents
+- [Key-Value Storage](/services/storage/key-value): Simple per-session state and counters
+- [Agents](/agents/creating-agents): Creating agents that use `ctx.task` and other services

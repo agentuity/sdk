@@ -476,10 +476,10 @@ router.get("/connect", websocket((c, ws) => {
       timestamp: new Date().toISOString(),
     }));
 
-    // Keep-alive heartbeat every 15 seconds
+    // Keep-alive heartbeat every 30 seconds
     heartbeat = setInterval(() => {
       ws.send(JSON.stringify({ type: "heartbeat", message: "ping" }));
-    }, 15000);
+    }, 30000);
   });
 
   ws.onMessage(async (event) => {

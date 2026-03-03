@@ -16,34 +16,6 @@
 	--color-cyan-900: #003333;
 	--color-cyan-950: #001919;
 
-	--animate-ellipsis: ellipsis 1.5s steps(4, end) infinite;
-}
-
-@keyframes ellipsis {
-	0% {
-		content: '.';
-	}
-	25% {
-		content: '..';
-	}
-	50% {
-		content: '...';
-	}
-	75% {
-		content: '';
-	}
-}
-
-[data-loading='true'] {
-	display: inline;
-	white-space: nowrap;
-}
-
-[data-loading='true']::after {
-	content: '.';
-	display: inline;
-	white-space: nowrap;
-	animation: var(--animate-ellipsis);
 }
 
 /* Monaco editor line highlighting */
