@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { s } from '../src/index.js';
+import { s } from '../src/index.ts';
 
 describe('Type Inference', () => {
 	test('should infer object types', () => {

@@ -8,8 +8,8 @@
  */
 
 import { createAgentContext } from '@agentuity/runtime';
-import { app } from './app';
-import greetingAgent from './agents/greeting';
+import { app } from './app.ts';
+import greetingAgent from './agents/greeting.ts';
 
 console.log('🚀 Starting standalone context test...\n');
 

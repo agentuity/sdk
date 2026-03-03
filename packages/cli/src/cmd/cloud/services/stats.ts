@@ -1,14 +1,14 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import {
 	getServiceStats,
 	VALID_SERVICES,
 	type ServiceName,
 	type ServiceStatsData,
-} from '@agentuity/server';
+} from '@agentuity/server/index.ts';
 
 function formatNumber(n: number): string {
 	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;

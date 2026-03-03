@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Logger, FileToWrite } from '@agentuity/core';
-import { APIClient, sandboxGet, getServiceUrls } from '@agentuity/server';
-import type { AuthData } from '../../../types';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache';
-import * as tui from '../../../tui';
-import { ErrorCode } from '../../../errors';
+import type { Logger, FileToWrite } from '@agentuity/core/index.ts';
+import { APIClient, sandboxGet, getServiceUrls } from '@agentuity/server/index.ts';
+import type { AuthData } from '../../../types.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache/index.ts';
+import * as tui from '../../../tui.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 export function createSandboxClient(logger: Logger, auth: AuthData, region: string): APIClient {
 	return new APIClient(getServiceUrls(region).catalyst, logger, auth.apiKey);

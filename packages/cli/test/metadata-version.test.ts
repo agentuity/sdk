@@ -2,8 +2,8 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { join } from 'node:path';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { generateMetadata } from '../src/cmd/build/vite/metadata-generator';
-import { getVersion } from '../src/version';
+import { generateMetadata } from '../src/cmd/build/vite/metadata-generator.ts';
+import { getVersion } from '../src/version.ts';
 
 describe('Metadata Generation - Version Field', () => {
 	let tempDir: string;

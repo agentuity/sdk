@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createWebhookAPIClient, getWebhookApiOptions } from './util';
-import { getCommand } from '../../../command-prefix';
-import { getWebhook, WebhookSchema } from '@agentuity/server';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createWebhookAPIClient, getWebhookApiOptions } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getWebhook, WebhookSchema } from '@agentuity/server/index.ts';
 
 export const getSubcommand = createCommand({
 	name: 'get',

@@ -1,6 +1,6 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import answerQuestion from './rag';
+import answerQuestion from './rag.ts';
 
 const agent = createAgent('DocQA', {
 	description:

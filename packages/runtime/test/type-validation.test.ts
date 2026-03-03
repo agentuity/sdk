@@ -4,7 +4,7 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { type Thread, type Session, type Variables, type Env, createRouter } from '../src/index';
+import { type Thread, type Session, type Variables, type Env, createRouter } from '../src/index.ts';
 
 describe('Type Exports and Definitions', () => {
 	test('Thread interface is correctly defined and exported', () => {

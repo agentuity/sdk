@@ -8,7 +8,7 @@
  * POST /process  - Direct agent call with validation
  */
 import { createRouter } from '@agentuity/runtime';
-import textProcessorAgent from '../../agent/text-processor/agent';
+import textProcessorAgent from '../../agent/text-processor/agent.ts';
 
 const router = createRouter();
 

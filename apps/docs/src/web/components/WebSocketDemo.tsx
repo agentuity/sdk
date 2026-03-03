@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Input } from './ui';
+import { Button, Input } from './ui/index.ts';
 
 interface Message {
 	id: number;

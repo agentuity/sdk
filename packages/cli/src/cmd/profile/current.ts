@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../types';
-import { getCommand } from '../../command-prefix';
+import { createSubcommand } from '../../types.ts';
+import { getCommand } from '../../command-prefix.ts';
 
 export const currentCommand = createSubcommand({
 	name: 'current',

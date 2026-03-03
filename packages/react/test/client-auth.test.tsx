@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
-import { AgentuityProvider } from '../src/context';
-import { createClient, setGlobalAuthHeader, getGlobalAuthHeader } from '../src/client';
+import { AgentuityProvider } from '../src/context.tsx';
+import { createClient, setGlobalAuthHeader, getGlobalAuthHeader } from '../src/client.ts';
 
 // Test metadata for all tests
 const testMetadata = {

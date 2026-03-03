@@ -1,6 +1,6 @@
 import { createRouter } from '@agentuity/runtime';
-import docProcessingAgent from '@agent/doc_processing';
-import { bearerTokenAuth } from '../../middleware/auth';
+import docProcessingAgent from '@agent/doc_processing/index.ts';
+import { bearerTokenAuth } from '../../middleware/auth.ts';
 
 const router = createRouter();
 

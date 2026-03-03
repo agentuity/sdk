@@ -5,10 +5,10 @@
 
 import { join } from 'node:path';
 import { readdir, stat } from 'node:fs/promises';
-import type { Logger } from '../../../types';
+import type { Logger } from '../../../types.ts';
 import type { BunPlugin, BuildOutput } from 'bun';
-import { generatePatches, applyPatch } from '../patch';
-import { getLoaderForPath, rewriteBunImports, rewritePgImports } from './db-rewrite';
+import { generatePatches, applyPatch } from '../patch/index.ts';
+import { getLoaderForPath, rewriteBunImports, rewritePgImports } from './db-rewrite.ts';
 
 /**
  * Format a Bun build log (BuildMessage or ResolveMessage) into a readable string

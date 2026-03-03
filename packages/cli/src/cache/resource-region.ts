@@ -1,7 +1,7 @@
 import { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
-import { getDefaultConfigDir } from '../config';
+import { getDefaultConfigDir } from '../config.ts';
 
 const TTL_DAYS = 7;
 const TTL_MS = TTL_DAYS * 24 * 60 * 60 * 1000;

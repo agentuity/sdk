@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Separator } from './ui';
+import { Button, Separator } from './ui/index.ts';
 
 interface StreamInfo {
 	id: string;

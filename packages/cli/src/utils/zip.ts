@@ -1,7 +1,7 @@
 import { relative } from 'node:path';
 import { Glob } from 'bun';
 import AdmZip from 'adm-zip';
-import { toForwardSlash } from './normalize-path';
+import { toForwardSlash } from './normalize-path.ts';
 
 interface Options {
 	progress?: (val: number) => void;

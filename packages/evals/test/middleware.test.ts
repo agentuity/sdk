@@ -5,7 +5,7 @@
 
 import { describe, test, expect } from 'bun:test';
 import { s, type InferObjectShape } from '@agentuity/schema';
-import { adversarial } from '../src/adversarial';
+import { adversarial } from '../src/adversarial.ts';
 
 type AgentInput = InferObjectShape<{
 	text: ReturnType<typeof s.string>;

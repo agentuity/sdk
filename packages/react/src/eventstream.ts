@@ -6,7 +6,7 @@ import {
 	jsonEqual,
 	type SSERouteRegistry,
 } from '@agentuity/frontend';
-import { AgentuityContext } from './context';
+import { AgentuityContext } from './context.tsx';
 
 /**
  * Extract SSE route keys (e.g., '/events', '/notifications')

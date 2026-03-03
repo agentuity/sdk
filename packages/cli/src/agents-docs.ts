@@ -1,10 +1,10 @@
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
-import { generateLLMPrompt as generateCLIPrompt } from './cmd/ai/prompt/llm';
-import { generateLLMPrompt as generateAgentPrompt } from './cmd/ai/prompt/agent';
-import { generateLLMPrompt as generateWebPrompt } from './cmd/ai/prompt/web';
-import { generateLLMPrompt as generateAPIPrompt } from './cmd/ai/prompt/api';
+import { generateLLMPrompt as generateCLIPrompt } from './cmd/ai/prompt/llm.ts';
+import { generateLLMPrompt as generateAgentPrompt } from './cmd/ai/prompt/agent.ts';
+import { generateLLMPrompt as generateWebPrompt } from './cmd/ai/prompt/web.ts';
+import { generateLLMPrompt as generateAPIPrompt } from './cmd/ai/prompt/api.ts';
 
 interface WriteAgentsDocsOptions {
 	/**

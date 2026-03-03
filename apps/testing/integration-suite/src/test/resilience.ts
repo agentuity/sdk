@@ -6,9 +6,9 @@
  * the server handles it gracefully.
  */
 
-import { test } from '@test/suite';
-import { assert, assertEqual } from '@test/helpers';
-import crashAttemptsAgent from '@agents/resilience/crash-attempts';
+import { test } from '@test/suite.ts';
+import { assert, assertEqual } from '@test/helpers/index.ts';
+import crashAttemptsAgent from '@agents/resilience/crash-attempts.ts';
 
 // Test: Synchronous throw in handler
 test('resilience', 'sync-throw-caught', async () => {

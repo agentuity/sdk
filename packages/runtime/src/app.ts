@@ -2,7 +2,7 @@
 import { type Env as HonoEnv } from 'hono';
 import type { cors } from 'hono/cors';
 import type { compress } from 'hono/compress';
-import type { Logger } from './logger';
+import type { Logger } from './logger/index.ts';
 import type { Meter, Tracer } from '@opentelemetry/api';
 import type {
 	KeyValueStorage,
@@ -18,8 +18,8 @@ import type {
 	SessionStartEvent,
 } from '@agentuity/core';
 
-import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
-import type WaitUntilHandler from './_waituntil';
+import type { ThreadProvider, SessionProvider, Session, Thread } from './session.ts';
+import type WaitUntilHandler from './_waituntil.ts';
 import type { Context } from 'hono';
 
 type HonoCorsOptions = NonNullable<Parameters<typeof cors>[0]>;
@@ -271,13 +271,13 @@ export function getApp(): null {
 }
 
 // Re-export event functions from _events
-export { fireEvent } from './_events';
+export { fireEvent } from './_events.ts';
 import {
 	addEventListener as globalAddEventListener,
 	removeEventListener as globalRemoveEventListener,
-} from './_events';
-import type { AppEventMap } from './_events';
-import { getLogger, getRouter } from './_server';
+} from './_events.ts';
+import type { AppEventMap } from './_events.ts';
+import { getLogger, getRouter } from './_server.ts';
 import type { Hono } from 'hono';
 
 // ============================================================================

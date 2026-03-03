@@ -1,4 +1,4 @@
-import { StructuredError, Logger } from '@agentuity/core';
+import { StructuredError, Logger } from '@agentuity/core/index.ts';
 
 const GITHUB_BRANCH = 'main';
 

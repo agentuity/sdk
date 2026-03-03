@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { apikeyDelete } from '@agentuity/server';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { apikeyDelete } from '@agentuity/server/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 const APIKeyDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

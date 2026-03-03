@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand, createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createWebhookAPIClient, getWebhookApiOptions } from './util';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
+import { createCommand, createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createWebhookAPIClient, getWebhookApiOptions } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
 import {
 	createWebhookDestination,
 	listWebhookDestinations,
@@ -11,7 +11,7 @@ import {
 	deleteWebhookDestination,
 	WebhookDestinationSchema,
 	type WebhookDestination,
-} from '@agentuity/server';
+} from '@agentuity/server/index.ts';
 
 const DestinationsListResponseSchema = z.object({
 	destinations: z.array(

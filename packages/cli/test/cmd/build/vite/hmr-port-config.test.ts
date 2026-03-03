@@ -2,8 +2,8 @@ import { describe, test, expect } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { generateAssetServerConfig } from '../../../../src/cmd/build/vite/vite-asset-server-config';
-import type { Logger } from '../../../../src/types';
+import { generateAssetServerConfig } from '../../../../src/cmd/build/vite/vite-asset-server-config.ts';
+import type { Logger } from '../../../../src/types.ts';
 
 /**
  * Test suite for HMR port configuration

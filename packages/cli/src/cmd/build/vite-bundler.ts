@@ -6,13 +6,13 @@
 
 import { join } from 'node:path';
 import { stat } from 'node:fs/promises';
-import { StructuredError } from '@agentuity/core';
-import type { Logger, DeployOptions } from '../../types';
-import { runAllBuilds } from './vite/vite-builder';
-import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
-import { checkBunVersion } from '../../utils/bun-version-checker';
-import * as tui from '../../tui';
-import type { BuildReportCollector } from '../../build-report';
+import { StructuredError } from '@agentuity/core/index.ts';
+import type { Logger, DeployOptions } from '../../types.ts';
+import { runAllBuilds } from './vite/vite-builder.ts';
+import { checkAndUpgradeDependencies } from '../../utils/dependency-checker.ts';
+import { checkBunVersion } from '../../utils/bun-version-checker.ts';
+import * as tui from '../../tui.ts';
+import type { BuildReportCollector } from '../../build-report.ts';
 
 const AppFileNotFoundError = StructuredError('AppFileNotFoundError');
 const BuildFailedError = StructuredError('BuildFailedError');

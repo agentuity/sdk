@@ -12,7 +12,7 @@
 
 import { test, expect, describe } from 'bun:test';
 import { Hono } from 'hono';
-import { sse } from '../src/handlers/sse';
+import { sse } from '../src/handlers/sse.ts';
 
 /**
  * Helper to read SSE response body as a stream and collect all messages.

@@ -1,7 +1,7 @@
 import type { LogLevel } from '@agentuity/core';
-import { __originalConsole } from '../otel/logger';
-import type { Logger } from './logger';
-import { formatMessage } from './util';
+import { __originalConsole } from '../otel/logger.ts';
+import type { Logger } from './logger.ts';
+import { formatMessage } from './util.ts';
 
 const BOLD = '\x1b[1m';
 const RESET = '\x1b[0m';

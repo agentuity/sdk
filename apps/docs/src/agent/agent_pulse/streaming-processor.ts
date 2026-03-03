@@ -1,6 +1,6 @@
 import type { StreamTextResult, Tool } from 'ai';
-import type { StreamingChunk, Action, Source } from './types';
-import { handleTutorialState } from './state-manager';
+import { handleTutorialState } from './state-manager.ts';
+import type { Action, Source, StreamingChunk } from './types.ts';
 
 /**
  * Creates a ReadableStream that processes AI streaming responses

@@ -1,7 +1,7 @@
-import type { PaneAction, WindowState, TmuxConfig } from './types';
-import { runTmuxCommand, runTmuxCommandSync } from './utils';
+import type { PaneAction, WindowState, TmuxConfig } from './types.ts';
+import { runTmuxCommand, runTmuxCommandSync } from './utils.ts';
 import { spawn, spawnSync } from 'bun';
-import { getCoderProfile } from '../plugin/hooks/tools';
+import { getCoderProfile } from '../plugin/hooks/tools.ts';
 
 /**
  * Escape a string for safe use in shell commands.

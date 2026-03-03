@@ -17,8 +17,8 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { s } from '@agentuity/schema';
 import { mockFetch } from '@agentuity/test-utils';
-import { AgentuityProvider } from '../src/context';
-import { useAPI } from '../src/api';
+import { AgentuityProvider } from '../src/context.tsx';
+import { useAPI } from '../src/api.ts';
 
 // ============================================================================
 // Schema definitions for edge case testing (prefixed with _ as only used in typeof)
@@ -36,7 +36,7 @@ const _userOutput = s.object({ id: s.string(), email: s.string() });
 /**
  * Extended RouteRegistry for edge case testing
  */
-declare module '../src/types' {
+declare module '../src/types.ts' {
 	interface RouteRegistry {
 		// ============================================
 		// Scenario 6: Same path, different methods

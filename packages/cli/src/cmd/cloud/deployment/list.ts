@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { projectDeploymentList } from '@agentuity/server';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { projectDeploymentList } from '@agentuity/server/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 const DeploymentListResponseSchema = z.array(
 	z.object({

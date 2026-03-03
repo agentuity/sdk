@@ -4,14 +4,14 @@
  * Tests core agent functionality: creation, execution, validation, async behavior
  */
 
-import { test } from './suite';
-import { assert, assertEqual, assertDefined, assertThrows } from './helpers';
+import { test } from './suite.ts';
+import { assert, assertEqual, assertDefined, assertThrows } from './helpers/index.ts';
 
 // Import agents to trigger registration
-import simpleAgent from '@agents/basic/basic-simple';
-import asyncAgent from '@agents/basic/basic-async';
-import noInputAgent from '@agents/basic/basic-no-input';
-import noOutputAgent from '@agents/basic/basic-no-output';
+import simpleAgent from '@agents/basic/basic-simple.ts';
+import asyncAgent from '@agents/basic/basic-async.ts';
+import noInputAgent from '@agents/basic/basic-no-input.ts';
+import noOutputAgent from '@agents/basic/basic-no-output.ts';
 
 // Helper to call agents
 async function callAgent(agent: any, input?: any) {

@@ -4,8 +4,8 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { DefaultThread, DefaultSession } from '../src/session';
-import type { ThreadProvider } from '../src/session';
+import { DefaultThread, DefaultSession } from '../src/session.ts';
+import type { ThreadProvider } from '../src/session.ts';
 
 // Helper to create a thread with restoreFn
 function createThread(

@@ -1,8 +1,8 @@
-import { type Logger, VectorStorageService } from '@agentuity/core';
-import { createServerFetchAdapter } from '@agentuity/server';
-import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types';
-import { getCatalystUrl } from '../../../catalyst';
-import * as tui from '../../../tui';
+import { type Logger, VectorStorageService } from '@agentuity/core/index.ts';
+import { createServerFetchAdapter } from '@agentuity/server/index.ts';
+import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types.ts';
+import { getCatalystUrl } from '../../../catalyst.ts';
+import * as tui from '../../../tui.ts';
 
 export function createStorageAdapter(
 	ctx: {

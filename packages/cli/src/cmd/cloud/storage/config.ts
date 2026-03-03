@@ -8,12 +8,12 @@ import {
 	type BucketConfigUpdate,
 	type BucketConfig,
 	StorageTierSchema,
-} from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { getResourceInfo, setResourceInfo } from '../../../cache';
+} from '@agentuity/server/index.ts';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
 
 function displayConfig(config: BucketConfig) {
 	tui.newline();

@@ -1,4 +1,4 @@
-import { s } from '../src/index.js';
+import { s } from '../src/index.ts';
 
 // Basic types
 const userSchema = s.object({

@@ -1,4 +1,4 @@
-import type { EventHandler, EventStreamClient } from './types';
+import type { EventHandler, EventStreamClient } from './types.ts';
 
 /**
  * Create an EventSource (SSE) client wrapper with event-based API.

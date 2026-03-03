@@ -1,7 +1,7 @@
-import type { Client, ClientOptions } from './types';
-import { createWebSocketClient } from './websocket';
-import { createEventStreamClient } from './eventstream';
-import { createStreamClient } from './stream';
+import type { Client, ClientOptions } from './types.ts';
+import { createWebSocketClient } from './websocket.ts';
+import { createEventStreamClient } from './eventstream.ts';
+import { createStreamClient } from './stream.ts';
 
 /**
  * Default base URL (empty = relative URLs).
@@ -264,4 +264,4 @@ export type {
 	EventStreamClient,
 	StreamClient,
 	EventHandler,
-} from './types';
+} from './types.ts';

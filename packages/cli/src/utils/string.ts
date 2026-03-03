@@ -3,4 +3,4 @@
  * Re-exported from @agentuity/core for convenience
  */
 
-export { toCamelCase, toPascalCase } from '@agentuity/core';
+export { toCamelCase, toPascalCase } from '@agentuity/core/index.ts';

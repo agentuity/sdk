@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { join } from 'path';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
-import { generatePatches, applyPatch } from '../../src/cmd/build/patch';
+import { generatePatches, applyPatch } from '../../src/cmd/build/patch/index.ts';
 import type { BunPlugin } from 'bun';
 
 /**

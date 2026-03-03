@@ -1,4 +1,4 @@
-import type { AgentDefinition } from './types';
+import type { AgentDefinition } from './types.ts';
 
 export const LEAD_SYSTEM_PROMPT = `# Lead Agent
 

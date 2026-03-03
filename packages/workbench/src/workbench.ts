@@ -1,5 +1,5 @@
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
-import type { WorkbenchInstance } from './types';
+import type { WorkbenchInstance } from './types.ts';
 
 export function createWorkbench(
 	config: WorkbenchConfig = { route: '/workbench', headers: {} }

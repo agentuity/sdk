@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { isValidProjectStructure, getDefaultProjectName } from '../../../src/cmd/project/reconcile';
+import { isValidProjectStructure, getDefaultProjectName } from '../../../src/cmd/project/reconcile.ts';
 
 describe('project reconcile', () => {
 	let testDir: string;

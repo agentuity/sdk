@@ -5,7 +5,7 @@
  * POST / - Returns greeting with custom name from JSON body
  */
 import { createRouter } from '@agentuity/runtime';
-import helloAgent from '../../agent/hello/agent';
+import helloAgent from '../../agent/hello/agent.ts';
 
 const router = createRouter();
 

@@ -12,7 +12,7 @@
  */
 
 import { z } from 'zod';
-import { SnapshotBuildFileBaseSchema } from '../packages/server/src/api/sandbox/snapshot-build';
+import { SnapshotBuildFileBaseSchema } from '../packages/server/src/api/sandbox/snapshot-build.ts';
 
 const SchemaWith$Schema = SnapshotBuildFileBaseSchema.extend({
 	$schema: z.string().optional().describe('JSON Schema reference URL'),

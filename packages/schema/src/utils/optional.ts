@@ -54,7 +54,7 @@ export class OptionalSchema<T extends Schema<any, any>>
 	nullable(): Schema<Infer<T> | undefined | null, Infer<T> | undefined | null> {
 		// Import here to avoid circular dependency
 		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const { nullable } = require('./nullable.js');
+		const { nullable } = require('./nullable.ts');
 		return nullable(this);
 	}
 

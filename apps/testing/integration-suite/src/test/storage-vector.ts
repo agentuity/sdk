@@ -4,11 +4,11 @@
  * Tests Vector storage operations including upsert, search, get, and delete
  */
 
-import { test } from './suite';
-import { assert, assertEqual, assertDefined, uniqueId } from './helpers';
+import { test } from './suite.ts';
+import { assert, assertEqual, assertDefined, uniqueId } from './helpers/index.ts';
 
-import vectorCrudAgent from '@agents/storage/vector/crud';
-import vectorSearchAgent from '@agents/storage/vector/search';
+import vectorCrudAgent from '@agents/storage/vector/crud.ts';
+import vectorSearchAgent from '@agents/storage/vector/search.ts';
 
 // Test: Upsert single vector
 test('storage-vector', 'upsert-single', async () => {

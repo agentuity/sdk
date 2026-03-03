@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import {
 	selectOrCreateDatabase,
 	ensureAuthDependencies,
@@ -11,8 +11,8 @@ import {
 	detectOrmSetup,
 	generateAuthSchemaSql,
 	getGeneratedSqlDir,
-} from './shared';
-import { readEnvFile, writeEnvFile } from '../../../env-util';
+} from './shared.ts';
+import { readEnvFile, writeEnvFile } from '../../../env-util.ts';
 import enquirer from 'enquirer';
 import * as fs from 'fs';
 import * as path from 'path';

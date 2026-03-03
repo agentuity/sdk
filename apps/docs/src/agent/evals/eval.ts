@@ -9,7 +9,7 @@
 import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import agent, { PROMPT } from './agent';
+import agent, { PROMPT } from './agent.ts';
 
 // KV bucket for storing eval results (5 min TTL for demo purposes)
 export const EVAL_BUCKET = 'sdk-explorer-evals';

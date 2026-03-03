@@ -2,8 +2,8 @@ import { describe, test, expect } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { loadAgentuityConfig } from '../../../../src/cmd/build/vite/config-loader';
-import type { Logger } from '../../../../src/types';
+import { loadAgentuityConfig } from '../../../../src/cmd/build/vite/config-loader.ts';
+import type { Logger } from '../../../../src/types.ts';
 
 /**
  * Test suite for custom define configuration from agentuity.config.ts

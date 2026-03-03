@@ -1,6 +1,6 @@
 import type { ReactNode, ReactElement } from 'react';
 import { Children, isValidElement } from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '../../lib/utils.ts';
 
 interface StepProps {
 	children: ReactNode;

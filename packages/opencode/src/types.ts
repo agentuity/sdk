@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { SkillsConfig } from './skills/types';
-import type { TmuxConfig } from './tmux/types';
+import type { SkillsConfig } from './skills/types.ts';
+import type { TmuxConfig } from './tmux/types.ts';
 
 // Re-export types from @opencode-ai/plugin
 export type {
@@ -10,8 +10,8 @@ export type {
 	ToolDefinition,
 } from '@opencode-ai/plugin';
 
-export type { SkillsConfig, LoadedSkill, SkillMetadata, SkillScope } from './skills';
-export type { TmuxConfig } from './tmux/types';
+export type { SkillsConfig, LoadedSkill, SkillMetadata, SkillScope } from './skills/index.ts';
+export type { TmuxConfig } from './tmux/types.ts';
 
 export const AgentRoleSchema = z.enum([
 	'lead',

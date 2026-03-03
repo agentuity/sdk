@@ -1,4 +1,4 @@
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/core/index.ts';
 
 const InvalidDateFormatError = StructuredError('InvalidDateFormatError')<{ input: string }>();
 

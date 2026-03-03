@@ -8,7 +8,7 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from '../src/handlers';
+import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from '../src/handlers/index.ts';
 
 describe('SSE Done Promise Constants', () => {
 	test('STREAM_DONE_PROMISE_KEY is defined', () => {

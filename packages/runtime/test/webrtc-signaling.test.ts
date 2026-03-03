@@ -5,8 +5,8 @@ import {
 	type SDPDescription,
 	type ICECandidate,
 	type WebRTCSignalingCallbacks,
-} from '../src/webrtc-signaling';
-import type { WebSocketConnection } from '../src/router';
+} from '../src/webrtc-signaling.ts';
+import type { WebSocketConnection } from '../src/router.ts';
 
 // Mock WebSocket connection
 function createMockWs(): WebSocketConnection & { messages: string[] } {

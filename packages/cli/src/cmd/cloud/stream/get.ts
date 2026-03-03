@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { streamGet } from '@agentuity/server';
-import { StructuredError } from '@agentuity/core';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
+import { streamGet } from '@agentuity/server/index.ts';
+import { StructuredError } from '@agentuity/core/index.ts';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 const StreamGetError = StructuredError('StreamGetError')<{
 	streamId?: string;

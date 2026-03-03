@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createMockLogger } from '@agentuity/test-utils';
-import { discoverAgents } from '../../../../src/cmd/build/vite/agent-discovery';
+import { discoverAgents } from '../../../../src/cmd/build/vite/agent-discovery.ts';
 
 describe('agent-discovery', () => {
 	let testDir: string;

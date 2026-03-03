@@ -2,21 +2,21 @@ import * as acornLoose from 'acorn-loose';
 import { dirname, relative, join, basename, resolve } from 'node:path';
 import { parse as parseCronExpression } from '@datasert/cronjs-parser';
 import { generate } from 'astring';
-import type { BuildMetadata } from '../../types';
-import { createLogger } from '@agentuity/server';
+import type { BuildMetadata } from '../../types.ts';
+import { createLogger } from '@agentuity/server/index.ts';
 import * as ts from 'typescript';
-import { StructuredError, type WorkbenchConfig } from '@agentuity/core';
-import type { LogLevel } from '../../types';
+import { StructuredError, type WorkbenchConfig } from '@agentuity/core/index.ts';
+import type { LogLevel } from '../../types.ts';
 
 import { existsSync, mkdirSync, statSync } from 'node:fs';
 import JSON5 from 'json5';
-import { formatSchemaCode } from './format-schema';
-import { toForwardSlash } from '../../utils/normalize-path';
+import { formatSchemaCode } from './format-schema.ts';
+import { toForwardSlash } from '../../utils/normalize-path.ts';
 import {
 	computeApiMountPath,
 	joinMountAndRoute,
 	extractRelativeApiPath,
-} from './vite/api-mount-path';
+} from './vite/api-mount-path.ts';
 
 const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel);
 

@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { writeFileSync } from 'node:fs';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
-import { sandboxDownloadArchive, sandboxResolve } from '@agentuity/server';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createSandboxClient } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { sandboxDownloadArchive, sandboxResolve } from '@agentuity/server/index.ts';
 
 export const downloadSubcommand = createCommand({
 	name: 'download',

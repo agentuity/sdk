@@ -8,7 +8,7 @@ import {
 	outputBatchResult,
 	type BatchItemResult,
 	type GlobalOptions,
-} from '../src/output';
+} from '../src/output.ts';
 
 console.log('Testing Batch Operation Reporting\n');
 console.log('==================================\n');

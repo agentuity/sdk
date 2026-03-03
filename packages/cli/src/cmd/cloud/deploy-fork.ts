@@ -14,12 +14,12 @@ import { spawn, type Subprocess } from 'bun';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { existsSync, readFileSync, unlinkSync } from 'node:fs';
-import type { APIClient } from '../../api';
-import { getUserAgent } from '../../api';
-import { isUnicode } from '../../tui/symbols';
-import { getAgentEnv } from '../../agent-detection';
-import { projectDeploymentFail, type ClientDiagnostics, type Deployment } from '@agentuity/server';
-import type { Logger } from '@agentuity/core';
+import type { APIClient } from '../../api.ts';
+import { getUserAgent } from '../../api.ts';
+import { isUnicode } from '../../tui/symbols.ts';
+import { getAgentEnv } from '../../agent-detection.ts';
+import { projectDeploymentFail, type ClientDiagnostics, type Deployment } from '@agentuity/server/index.ts';
+import type { Logger } from '@agentuity/core/index.ts';
 
 export interface ForkDeployOptions {
 	projectDir: string;

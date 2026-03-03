@@ -5,10 +5,10 @@
  * registered, and can be executed with TypeScript support.
  */
 
-import { test } from '@test/suite';
-import { assertEqual, assertDefined, assert } from '@test/helpers';
-import dataAgent from '@agents/v1/data/agent';
-import helperAgent from '@agents/utils/helpers/agent';
+import { test } from '@test/suite.ts';
+import { assertEqual, assertDefined, assert } from '@test/helpers/index.ts';
+import dataAgent from '@agents/v1/data/agent.ts';
+import helperAgent from '@agents/utils/helpers/agent.ts';
 
 // Test: V1 data agent - create operation
 test('agent-nested', 'v1-data-create', async () => {

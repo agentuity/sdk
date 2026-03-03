@@ -7,7 +7,7 @@ export {
 	type AgentuityContextValue,
 	type AgentuityHookValue,
 	type AuthContextValue,
-} from './context';
+} from './context.tsx';
 export {
 	createClient,
 	createAPIClient,
@@ -15,27 +15,27 @@ export {
 	getGlobalBaseUrl,
 	setGlobalAuthHeader,
 	getGlobalAuthHeader,
-} from './client';
+} from './client.ts';
 export {
 	useWebsocket,
 	type WebSocketRouteKey,
 	type WebSocketRouteInput,
 	type WebSocketRouteOutput,
 	type WebsocketOptions,
-} from './websocket';
+} from './websocket.ts';
 export {
 	useEventStream,
 	type SSERouteKey,
 	type SSERouteOutput,
 	type EventStreamOptions,
-} from './eventstream';
+} from './eventstream.ts';
 export {
 	useWebRTCCall,
 	type UseWebRTCCallOptions,
 	type UseWebRTCCallResult,
 	type WebRTCConnectionState,
 	type WebRTCClientCallbacks,
-} from './webrtc';
+} from './webrtc.tsx';
 export {
 	useAPI,
 	type RouteKey,
@@ -47,8 +47,8 @@ export {
 	type UseAPIOptions,
 	type UseAPIResult,
 	type InvokeOptions,
-} from './api';
-export { useJsonMemo } from './memo';
+} from './api.ts';
+export { useJsonMemo } from './memo.ts';
 
 // Analytics
 export {
@@ -57,7 +57,7 @@ export {
 	withPageTracking,
 	type UseAnalyticsResult,
 	type TrackOnMountOptions,
-} from './analytics.js';
+} from './analytics.tsx';
 
 // Re-export route registry types from @agentuity/frontend
 // These are augmented by generated code via `declare module '@agentuity/frontend'`

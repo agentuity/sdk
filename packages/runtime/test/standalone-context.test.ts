@@ -1,6 +1,6 @@
 import { describe, test, expect, mock } from 'bun:test';
 import { trace, type Tracer } from '@opentelemetry/api';
-import type { Logger } from '../src/logger';
+import type { Logger } from '../src/logger/index.ts';
 
 // Create test stubs
 const testLogger: Logger = {
@@ -134,8 +134,8 @@ mock.module('../src/_services', () => ({
 }));
 
 // Now import the code under test
-import { createAgentContext } from '../src/_standalone';
-import { createAgent } from '../src/agent';
+import { createAgentContext } from '../src/_standalone.ts';
+import { createAgent } from '../src/agent.ts';
 import { s } from '@agentuity/schema';
 
 // Test agents
@@ -360,7 +360,7 @@ describe('createAgentContext', () => {
 
 describe('standalone logger formatting', () => {
 	test('formatMessage produces consistent single-line output for objects', async () => {
-		const { formatMessage } = await import('../src/logger/util');
+		const { formatMessage } = await import('../src/logger/util.ts');
 
 		const result = formatMessage(false, undefined, 'Prompt', [{ prompt: 'Hello world' }]);
 
@@ -371,7 +371,7 @@ describe('standalone logger formatting', () => {
 	});
 
 	test('formatMessage handles string interpolation', async () => {
-		const { formatMessage } = await import('../src/logger/util');
+		const { formatMessage } = await import('../src/logger/util.ts');
 
 		const result = formatMessage(false, undefined, 'Processing: %s', ['test-value']);
 
@@ -380,7 +380,7 @@ describe('standalone logger formatting', () => {
 	});
 
 	test('formatMessage handles multiple object arguments', async () => {
-		const { formatMessage } = await import('../src/logger/util');
+		const { formatMessage } = await import('../src/logger/util.ts');
 
 		const result = formatMessage(false, undefined, 'Data:', [{ a: 1 }, { b: 2 }]);
 

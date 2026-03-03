@@ -1,5 +1,5 @@
-export { Alert, AlertTitle, AlertDescription, alertVariants } from './alert';
-export { Badge, badgeVariants, type BadgeProps } from './badge';
+export { Alert, AlertTitle, AlertDescription, alertVariants } from './alert.tsx';
+export { Badge, badgeVariants, type BadgeProps } from './badge.tsx';
 export {
 	Breadcrumb,
 	BreadcrumbList,
@@ -8,8 +8,8 @@ export {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 	BreadcrumbEllipsis,
-} from './breadcrumb';
-export { Button, buttonVariants, type ButtonProps } from './button';
+} from './breadcrumb.tsx';
+export { Button, buttonVariants, type ButtonProps } from './button.tsx';
 export {
 	Card,
 	CardAction,
@@ -18,8 +18,8 @@ export {
 	CardFooter,
 	CardHeader,
 	CardTitle,
-} from './card';
-export { Collapsible, CollapsibleTrigger, CollapsibleContent } from './collapsible';
+} from './card.tsx';
+export { Collapsible, CollapsibleTrigger, CollapsibleContent } from './collapsible.tsx';
 export {
 	Command,
 	CommandDialog,
@@ -30,7 +30,7 @@ export {
 	CommandItem,
 	CommandShortcut,
 	CommandSeparator,
-} from './command';
+} from './command.tsx';
 export {
 	Dialog,
 	DialogClose,
@@ -42,7 +42,7 @@ export {
 	DialogPortal,
 	DialogTitle,
 	DialogTrigger,
-} from './dialog';
+} from './dialog.tsx';
 export {
 	DropdownMenu,
 	DropdownMenuPortal,
@@ -59,10 +59,10 @@ export {
 	DropdownMenuSub,
 	DropdownMenuSubTrigger,
 	DropdownMenuSubContent,
-} from './dropdown-menu';
-export { Input } from './input';
-export { Progress } from './progress';
-export { ScrollArea, ScrollBar } from './scroll-area';
+} from './dropdown-menu.tsx';
+export { Input } from './input.tsx';
+export { Progress } from './progress.tsx';
+export { ScrollArea, ScrollBar } from './scroll-area.tsx';
 export {
 	Select,
 	SelectContent,
@@ -74,8 +74,8 @@ export {
 	SelectSeparator,
 	SelectTrigger,
 	SelectValue,
-} from './select';
-export { Separator } from './separator';
+} from './select.tsx';
+export { Separator } from './separator.tsx';
 export {
 	Sheet,
 	SheetTrigger,
@@ -85,7 +85,7 @@ export {
 	SheetFooter,
 	SheetTitle,
 	SheetDescription,
-} from './sheet';
+} from './sheet.tsx';
 export {
 	Sidebar,
 	SidebarContent,
@@ -111,10 +111,10 @@ export {
 	SidebarSeparator,
 	SidebarTrigger,
 	useSidebar,
-} from './sidebar';
-export { Skeleton } from './skeleton';
-export { Spinner } from './spinner';
-export { StatusIndicator, type Status, type StatusIndicatorProps } from './status-indicator';
-export { Textarea } from './textarea';
-export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs';
-export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip';
+} from './sidebar.tsx';
+export { Skeleton } from './skeleton.tsx';
+export { Spinner } from './spinner.tsx';
+export { StatusIndicator, type Status, type StatusIndicatorProps } from './status-indicator.tsx';
+export { Textarea } from './textarea.tsx';
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs.tsx';
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip.tsx';

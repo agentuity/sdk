@@ -1,8 +1,8 @@
 import type { VectorUpsertParams } from '@agentuity/core';
-import type { Chunk } from './chunk-mdx';
-import { chunkAndEnrichDoc } from './chunk-mdx';
-import { embedChunks } from './embed-chunks';
-import type { ChunkMetadata } from './types';
+import type { Chunk } from './chunk-mdx.ts';
+import { chunkAndEnrichDoc } from './chunk-mdx.ts';
+import { embedChunks } from './embed-chunks.ts';
+import type { ChunkMetadata } from './types.ts';
 
 /**
  * Processes a single .mdx doc: loads, chunks, and enriches each chunk with metadata.

@@ -1,14 +1,14 @@
 import { readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { createSubcommand, type CommandContext } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
+import { createSubcommand, type CommandContext } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import {
 	type ClaudeSettings,
 	CLAUDE_SETTINGS_FILE,
 	PLUGIN_INSTALL_DIR,
 	AGENTUITY_ALLOW_PERMISSIONS,
 	AGENTUITY_DENY_PERMISSIONS,
-} from './constants';
+} from './constants.ts';
 
 export const uninstallSubcommand = createSubcommand({
 	name: 'uninstall',

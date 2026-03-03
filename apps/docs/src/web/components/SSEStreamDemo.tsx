@@ -9,7 +9,7 @@ import {
 	SelectValue,
 	Separator,
 	StatusIndicator,
-} from './ui';
+} from './ui/index.ts';
 
 interface StreamState {
 	status: 'idle' | 'connecting' | 'streaming' | 'done' | 'error';

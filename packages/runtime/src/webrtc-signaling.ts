@@ -1,4 +1,4 @@
-import type { WebSocketConnection } from './handlers/websocket';
+import type { WebSocketConnection } from './handlers/websocket.ts';
 import type {
 	SDPDescription,
 	ICECandidate,

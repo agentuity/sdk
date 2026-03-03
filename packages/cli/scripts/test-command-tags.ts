@@ -3,7 +3,7 @@
  * Test script to verify command tags are correctly applied
  */
 
-import type { CommandDefinition, SubcommandDefinition } from '../src/types';
+import type { CommandDefinition, SubcommandDefinition } from '../src/types.ts';
 
 interface ValidationResult {
 	file: string;

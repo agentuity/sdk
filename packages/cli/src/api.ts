@@ -4,14 +4,14 @@
  * Re-exports from @agentuity/server with CLI-specific configuration
  */
 
-import type { Config, Logger } from './types';
-import { getVersion, getRevision } from './version';
+import type { Config, Logger } from './types.ts';
+import { getVersion, getRevision } from './version.ts';
 import {
 	APIClient as BaseAPIClient,
 	getAPIBaseURL as baseGetAPIBaseURL,
 	getAppBaseURL as baseGetAppBaseURL,
 	type APIClientConfig,
-} from '@agentuity/server';
+} from '@agentuity/server/index.ts';
 
 export function getUserAgent(config?: Config | null): string {
 	// If we're skipping version check, send "dev" to signal the server to skip too

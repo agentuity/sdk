@@ -1,4 +1,4 @@
-import { createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime.ts';
 import { s } from '@agentuity/schema';
 
 const vectorSearchAgent = createAgent('storage-vector-search', {

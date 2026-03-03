@@ -1,4 +1,4 @@
-import { s, type Infer, ValidationError } from '../src/index.js';
+import { s, type Infer, ValidationError } from '../src/index.ts';
 
 // Define schemas with descriptions
 const Player = s

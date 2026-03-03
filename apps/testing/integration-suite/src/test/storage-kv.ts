@@ -4,14 +4,14 @@
  * Tests KV storage CRUD operations, types, and isolation
  */
 
-import { test } from './suite';
-import { assert, assertEqual, assertDefined, uniqueId } from './helpers';
-import { decodeKVValue } from './helpers/kv';
+import { test } from './suite.ts';
+import { assert, assertEqual, assertDefined, uniqueId } from './helpers/index.ts';
+import { decodeKVValue } from './helpers/kv.ts';
 
 // Import agents
-import kvCrudAgent from '@agents/storage/kv/crud';
-import kvTypesAgent from '@agents/storage/kv/types';
-import kvIsolationAgent from '@agents/storage/kv/isolation';
+import kvCrudAgent from '@agents/storage/kv/crud.ts';
+import kvTypesAgent from '@agents/storage/kv/types.ts';
+import kvIsolationAgent from '@agents/storage/kv/isolation.ts';
 
 // Test: KV Set operation
 test('storage-kv', 'set', async () => {

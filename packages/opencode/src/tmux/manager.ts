@@ -8,17 +8,17 @@ import type {
 	TrackedSession,
 	WindowState,
 	SessionMapping,
-} from './types';
-import { POLL_INTERVAL_MS, SESSION_MISSING_GRACE_MS, SESSION_TIMEOUT_MS } from './types';
+} from './types.ts';
+import { POLL_INTERVAL_MS, SESSION_MISSING_GRACE_MS, SESSION_TIMEOUT_MS } from './types.ts';
 import {
 	canonicalizeServerUrl,
 	getCurrentPaneId,
 	getTmuxPath,
 	getTmuxSessionId,
 	isInsideTmux,
-} from './utils';
-import { queryWindowState } from './state-query';
-import { decideSpawnActions } from './decision-engine';
+} from './utils.ts';
+import { queryWindowState } from './state-query.ts';
+import { decideSpawnActions } from './decision-engine.ts';
 import {
 	executeActions,
 	closeAgentsWindow,
@@ -30,7 +30,7 @@ import {
 	cleanupOwnedResources,
 	cleanupOwnedResourcesSync,
 	findOwnedAgentPanes,
-} from './executor';
+} from './executor.ts';
 
 /**
  * Check if the OpenCode server is running by hitting the health endpoint

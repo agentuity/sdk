@@ -2,7 +2,7 @@ import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/core/index.ts';
 import {
 	type BuildMetadata,
 	type Deployment,
@@ -20,12 +20,12 @@ import {
 	projectGet,
 	projectUpdateRegion,
 	validateResources,
-} from '@agentuity/server';
+} from '@agentuity/server/index.ts';
 import { z } from 'zod';
-import { getUserAgent } from '../../api';
-import { BuildReportCollector, clearGlobalCollector, setGlobalCollector } from '../../build-report';
-import { getCachedProject, setCachedProject } from '../../cache';
-import { getCommand } from '../../command-prefix';
+import { getUserAgent } from '../../api.ts';
+import { BuildReportCollector, clearGlobalCollector, setGlobalCollector } from '../../build-report.ts';
+import { getCachedProject, setCachedProject } from '../../cache/index.ts';
+import { getCommand } from '../../command-prefix.ts';
 import {
 	getDefaultConfigDir,
 	getGlobalCatalystAPIClient,
@@ -34,16 +34,16 @@ import {
 	loadProjectSDKKey,
 	saveProjectDir,
 	updateProjectConfig,
-} from '../../config';
-import { encryptFIPSKEMDEMStream } from '../../crypto/box';
-import * as domain from '../../domain';
+} from '../../config.ts';
+import { encryptFIPSKEMDEMStream } from '../../crypto/box.ts';
+import * as domain from '../../domain.ts';
 import {
 	filterAgentuitySdkKeys,
 	findExistingEnvFile,
 	readEnvFile,
 	splitEnvAndSecrets,
-} from '../../env-util';
-import { ErrorCode, getExitCode } from '../../errors';
+} from '../../env-util.ts';
+import { ErrorCode, getExitCode } from '../../errors.ts';
 import {
 	pauseStepUI,
 	runSteps,
@@ -53,17 +53,17 @@ import {
 	stepError,
 	stepSkipped,
 	stepSuccess,
-} from '../../steps';
-import * as tui from '../../tui';
-import { createSubcommand, DeployOptionsSchema } from '../../types';
-import { validateAptDependencies } from '../../utils/apt-validator';
-import { extractDependencies } from '../../utils/deps';
-import { zipDir } from '../../utils/zip';
-import { typecheck } from '../build/typecheck';
-import { viteBundle } from '../build/vite-bundler';
-import { getProjectGithubStatus } from '../git/api';
-import { runGitLink } from '../git/link';
-import { runForkedDeploy } from './deploy-fork';
+} from '../../steps.ts';
+import * as tui from '../../tui.ts';
+import { createSubcommand, DeployOptionsSchema } from '../../types.ts';
+import { validateAptDependencies } from '../../utils/apt-validator.ts';
+import { extractDependencies } from '../../utils/deps.ts';
+import { zipDir } from '../../utils/zip.ts';
+import { typecheck } from '../build/typecheck.ts';
+import { viteBundle } from '../build/vite-bundler.ts';
+import { getProjectGithubStatus } from '../git/api.ts';
+import { runGitLink } from '../git/link.ts';
+import { runForkedDeploy } from './deploy-fork.ts';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -155,8 +155,8 @@ export const deploySubcommand = createSubcommand({
 		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
 
 		// Verify project access and offer import if needed
-		const { reconcileProject } = await import('../project/reconcile');
-		const { isTTY } = await import('../../auth');
+		const { reconcileProject } = await import('../project/reconcile.ts');
+		const { isTTY } = await import('../../auth.ts');
 
 		const reconcileResult = await reconcileProject({
 			dir: projectDir,

@@ -16,8 +16,8 @@
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import type { Logger } from '../../../types';
-import { hasFrameworkPlugin } from './config-loader';
+import type { Logger } from '../../../types.ts';
+import { hasFrameworkPlugin } from './config-loader.ts';
 
 /** Minimal shape of a TanStack Router route tree node. */
 interface RouteTreeNode {

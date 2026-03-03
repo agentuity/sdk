@@ -1,10 +1,10 @@
 import { Settings } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import type { ConnectionStatus } from '../../types/config';
-import { Button } from '../ui/button';
-import { ThemeToggle } from '../ui/theme-toggle';
-import Logo from './logo';
-import { useWorkbench } from './workbench-provider';
+import { cn } from '../../lib/utils.ts';
+import type { ConnectionStatus } from '../../types/config.ts';
+import { Button } from '../ui/button.tsx';
+import { ThemeToggle } from '../ui/theme-toggle.tsx';
+import Logo from './logo.tsx';
+import { useWorkbench } from './workbench-provider.tsx';
 
 export interface HeaderProps {
 	className?: string;

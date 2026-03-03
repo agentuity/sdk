@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import type { PostgresDrizzleConfig, PostgresDrizzle } from '../src/types';
+import type { PostgresDrizzleConfig, PostgresDrizzle } from '../src/types.ts';
 import type { ReconnectConfig } from '@agentuity/postgres';
 
 /**

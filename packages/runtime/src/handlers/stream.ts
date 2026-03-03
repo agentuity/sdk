@@ -1,9 +1,9 @@
 import type { Context, Handler } from 'hono';
 import { stream as honoStream } from 'hono/streaming';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
-import { getAgentAsyncLocalStorage } from '../_context';
-import type { Env } from '../app';
-import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './sse';
+import { getAgentAsyncLocalStorage } from '../_context.ts';
+import type { Env } from '../app.ts';
+import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './sse.ts';
 
 /**
  * Handler function for streaming responses.

@@ -4,8 +4,8 @@ import {
 	generateEvalResult,
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
-} from './_utils';
-import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
+} from './_utils.ts';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types.ts';
 
 export const knowledgeRetentionPrompt = `You are evaluating whether an LLM response correctly retains and applies facts or decisions provided earlier in the conversation.
 

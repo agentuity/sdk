@@ -5,8 +5,8 @@
  * and accessible at their expected paths with TypeScript support.
  */
 
-import { test } from '@test/suite';
-import { assertEqual, assertDefined, assert } from '@test/helpers';
+import { test } from '@test/suite.ts';
+import { assertEqual, assertDefined, assert } from '@test/helpers/index.ts';
 
 // Test: Subdirectory route mounted at /api/auth
 test('routing-subdirs', 'auth-login', async () => {

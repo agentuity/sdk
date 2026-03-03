@@ -4,7 +4,7 @@
  * Outputs environment variables that can be sourced by bash
  */
 
-import { getServiceUrls } from '../../../../packages/server/src/index';
+import { getServiceUrls } from '../../../../packages/server/src/index.ts';
 
 async function main() {
 	// Load config to get region

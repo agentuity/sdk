@@ -5,8 +5,8 @@
  * frontend asset requests to Vite asset server for HMR support.
  */
 
-import type { Logger } from '../../../types';
-import { getAgentEnv } from '../../../agent-detection';
+import type { Logger } from '../../../types.ts';
+import { getAgentEnv } from '../../../agent-detection.ts';
 
 export interface BunDevServerOptions {
 	rootDir: string;

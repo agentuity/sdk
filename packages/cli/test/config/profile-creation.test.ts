@@ -2,8 +2,8 @@ import { test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadConfig, generateYAMLTemplate, saveConfig, getProfile } from '../../src/config';
-import type { Config } from '../../src/types';
+import { loadConfig, generateYAMLTemplate, saveConfig, getProfile } from '../../src/config.ts';
+import type { Config } from '../../src/types.ts';
 
 let testConfigDir: string;
 let originalHome: string | undefined;

@@ -4,9 +4,9 @@ import {
 	type VectorSearchResult,
 	type StreamInfo,
 	type QueueInfo,
-} from '../../core/cliClient';
-import { getAuthStatus } from '../../core/auth';
-import { hasProject } from '../../core/project';
+} from '../../core/cliClient.ts';
+import { getAuthStatus } from '../../core/auth.ts';
+import { hasProject } from '../../core/project.ts';
 
 export type DataItemType =
 	| 'category'

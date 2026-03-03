@@ -15,7 +15,7 @@
  */
 import { createRouter } from '@agentuity/runtime';
 import { streamText } from 'ai';
-import { getModel } from '../../lib/models';
+import { getModel } from '../../lib/models.ts';
 import agentuityDocs from '../../agent/chat/agentuity-context.txt';
 
 const router = createRouter();

@@ -3,9 +3,9 @@
 import { useLocation } from '@tanstack/react-router';
 import { ChevronDown, Copy, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui';
-import { ClaudeIcon, OpenAIIcon } from '../icons';
-import { cn } from '../../lib/utils';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/index.ts';
+import { ClaudeIcon, OpenAIIcon } from '../icons/index.ts';
+import { cn } from '../../lib/utils.ts';
 
 type ActionType = 'copy-markdown' | 'view-markdown' | 'open-chatgpt' | 'open-claude';
 

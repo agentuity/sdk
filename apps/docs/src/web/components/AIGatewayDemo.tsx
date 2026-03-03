@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import Markdown from 'react-markdown';
-import { Badge, Button, Separator, StatusIndicator } from './ui';
+import { Badge, Button, Separator, StatusIndicator } from './ui/index.ts';
 
 interface ModelResponse {
 	model: string;

@@ -1,19 +1,19 @@
-import type { AgentRole } from '../types';
-import type { AgentDefinition, AgentRegistry } from './types';
-import { leadAgent } from './lead';
-import { scoutAgent } from './scout';
-import { builderAgent } from './builder';
-import { architectAgent } from './architect';
-import { reviewerAgent } from './reviewer';
-import { memoryAgent } from './memory';
-import { expertAgent } from './expert';
-import { expertBackendAgent } from './expert-backend';
-import { expertFrontendAgent } from './expert-frontend';
-import { expertOpsAgent } from './expert-ops';
-import { runnerAgent } from './runner';
-import { productAgent } from './product';
+import type { AgentRole } from '../types.ts';
+import type { AgentDefinition, AgentRegistry } from './types.ts';
+import { leadAgent } from './lead.ts';
+import { scoutAgent } from './scout.ts';
+import { builderAgent } from './builder.ts';
+import { architectAgent } from './architect.ts';
+import { reviewerAgent } from './reviewer.ts';
+import { memoryAgent } from './memory/index.ts';
+import { expertAgent } from './expert.ts';
+import { expertBackendAgent } from './expert-backend.ts';
+import { expertFrontendAgent } from './expert-frontend.ts';
+import { expertOpsAgent } from './expert-ops.ts';
+import { runnerAgent } from './runner.ts';
+import { productAgent } from './product.ts';
 
-export type { AgentDefinition, AgentRegistry } from './types';
+export type { AgentDefinition, AgentRegistry } from './types.ts';
 
 export const agents: Record<AgentRole, AgentDefinition> = {
 	lead: leadAgent,

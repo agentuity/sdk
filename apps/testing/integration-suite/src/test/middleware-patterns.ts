@@ -8,9 +8,9 @@
  * This addresses GitHub Issue #250 and validates the pattern is correct.
  */
 
-import { test } from '@test/suite';
-import { assert, assertEqual, assertDefined } from '@test/helpers';
-import { getRequestCount, resetRequestCount } from '../lib/custom-middleware';
+import { test } from '@test/suite.ts';
+import { assert, assertEqual, assertDefined } from '@test/helpers/index.ts';
+import { getRequestCount, resetRequestCount } from '../lib/custom-middleware.ts';
 
 // Test: App-level middleware is available in routes
 test('middleware-patterns', 'app-level-middleware-available', async () => {

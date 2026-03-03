@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { parseAgentMetadata } from '../src/cmd/build/ast';
+import { parseAgentMetadata } from '../src/cmd/build/ast.ts';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 

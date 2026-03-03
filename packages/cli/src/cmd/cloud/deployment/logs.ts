@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { projectDeploymentLogs, DeploymentLogSchema } from '@agentuity/server';
-import { resolveProjectId } from './utils';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { projectDeploymentLogs, DeploymentLogSchema } from '@agentuity/server/index.ts';
+import { resolveProjectId } from './utils.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 export const logsSubcommand = createSubcommand({
 	name: 'logs',

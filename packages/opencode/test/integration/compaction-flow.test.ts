@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 import type { PluginInput } from '@opencode-ai/plugin';
-import { createCadenceHooks } from '../../src/plugin/hooks/cadence';
-import { createSessionMemoryHooks } from '../../src/plugin/hooks/session-memory';
+import { createCadenceHooks } from '../../src/plugin/hooks/cadence.ts';
+import { createSessionMemoryHooks } from '../../src/plugin/hooks/session-memory.ts';
 
 /**
  * Integration tests for the compaction hook flow.

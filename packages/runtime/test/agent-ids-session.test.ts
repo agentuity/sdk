@@ -17,10 +17,10 @@
 
 import { test, expect, describe } from 'bun:test';
 import { Hono } from 'hono';
-import { createAgent } from '../src/agent';
+import { createAgent } from '../src/agent.ts';
 import { z } from 'zod';
-import type { PrivateVariables } from '../src/app';
-import * as metadataModule from '../src/_metadata';
+import type { PrivateVariables } from '../src/app.ts';
+import * as metadataModule from '../src/_metadata.ts';
 
 describe('Agent IDs Session Tracking', () => {
 	describe('agentIds Set in Hono context', () => {

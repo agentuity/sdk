@@ -1,4 +1,4 @@
-import { getProcessEnv } from './env';
+import { getProcessEnv } from './env.ts';
 
 export const buildUrl = (
 	base: string,

@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode } from 'react';
-import { AgentuityProvider } from '../src/context';
-import { useEventStream } from '../src/eventstream';
+import { AgentuityProvider } from '../src/context.tsx';
+import { useEventStream } from '../src/eventstream.ts';
 
 // Mock EventSource
 class MockEventSource {
@@ -47,7 +47,7 @@ class MockEventSource {
 }
 
 // Augment SSERouteRegistry for testing
-declare module '../src/types' {
+declare module '../src/types.ts' {
 	interface SSERouteRegistry {
 		'/events': {
 			outputSchema: { type: string; data: string };

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import { getCliClient, type SandboxCreateOptions } from '../../core/cliClient';
-import { getAuthStatus } from '../../core/auth';
-import { hasProject, getCurrentProject } from '../../core/project';
-import { getDevServerManager } from '../devServer';
-import { getSandboxManager, formatBytes } from '../../core/sandboxManager';
+import { getCliClient, type SandboxCreateOptions } from '../../core/cliClient.ts';
+import { getAuthStatus } from '../../core/auth.ts';
+import { hasProject, getCurrentProject } from '../../core/project.ts';
+import { getDevServerManager } from '../devServer/index.ts';
+import { getSandboxManager, formatBytes } from '../../core/sandboxManager.ts';
 
 export interface GetAgentsInput {
 	includeDetails?: boolean;

@@ -4,8 +4,8 @@ import {
 	generateEvalResult,
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
-} from './_utils';
-import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
+} from './_utils.ts';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types.ts';
 
 export const ambiguityPrompt = `You are evaluating whether an LLM response contains language that could reasonably be interpreted in multiple conflicting ways.
 

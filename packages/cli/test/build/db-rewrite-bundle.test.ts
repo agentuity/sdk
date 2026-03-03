@@ -7,7 +7,7 @@ import {
 	rewriteBunImports,
 	rewritePgImports,
 	getLoaderForPath,
-} from '../../src/cmd/build/vite/db-rewrite';
+} from '../../src/cmd/build/vite/db-rewrite.ts';
 
 const testDir = join(tmpdir(), `db-rewrite-bundle-test-${Date.now()}`);
 

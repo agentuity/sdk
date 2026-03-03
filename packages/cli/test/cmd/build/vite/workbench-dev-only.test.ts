@@ -3,8 +3,8 @@
  * and uses implicit enablement (presence = enabled, absence = disabled)
  */
 import { test, expect, describe } from 'bun:test';
-import { getWorkbenchConfig } from '../../../../src/cmd/build/vite/config-loader';
-import type { AgentuityConfig } from '../../../../src/types';
+import { getWorkbenchConfig } from '../../../../src/cmd/build/vite/config-loader.ts';
+import type { AgentuityConfig } from '../../../../src/types.ts';
 
 describe('Workbench Implicit Enablement', () => {
 	test('workbench is enabled in dev mode when config.workbench is present', () => {

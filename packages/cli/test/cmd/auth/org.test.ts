@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { orgSubcommand } from '../../../src/cmd/auth/org';
+import { orgSubcommand } from '../../../src/cmd/auth/org/index.ts';
 
 describe('auth org commands', () => {
 	describe('orgSubcommand definition', () => {

@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
-import { getCommand } from '../../../../command-prefix';
-import { sandboxResolve, diskCheckpointList } from '@agentuity/server';
+import { createCommand } from '../../../../types.ts';
+import * as tui from '../../../../tui.ts';
+import { createSandboxClient } from '../util.ts';
+import { getCommand } from '../../../../command-prefix.ts';
+import { sandboxResolve, diskCheckpointList } from '@agentuity/server/index.ts';
 
 const CheckpointInfoSchema = z.object({
 	id: z.string(),

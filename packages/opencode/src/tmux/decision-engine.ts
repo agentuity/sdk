@@ -4,8 +4,8 @@ import type {
 	SessionMapping,
 	SpawnDecision,
 	WindowState,
-} from './types';
-import { MIN_PANE_HEIGHT, MIN_PANE_WIDTH } from './types';
+} from './types.ts';
+import { MIN_PANE_HEIGHT, MIN_PANE_WIDTH } from './types.ts';
 
 /**
  * Extended capacity config that includes maxPanes limit

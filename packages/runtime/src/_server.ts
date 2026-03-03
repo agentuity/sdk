@@ -3,12 +3,12 @@
  * The server is managed by Vite (dev) or Bun.serve in the generated entry file (prod)
  */
 
-import type { Logger } from './logger';
+import type { Logger } from './logger/index.ts';
 import type { Hono, Context as HonoContext } from 'hono';
-import type { Env, PrivateVariables } from './app';
+import type { Env, PrivateVariables } from './app.ts';
 import type { Tracer } from '@opentelemetry/api';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { TokenSpanProcessor } from './_tokens';
+import { TokenSpanProcessor } from './_tokens.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let globalRouterInstance: Hono<Env<any>> | null = null;

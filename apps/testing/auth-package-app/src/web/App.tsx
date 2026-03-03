@@ -1,7 +1,7 @@
 import { useAPI } from '@agentuity/react';
 import React from 'react';
 import { type ChangeEvent, useState } from 'react';
-import { AuthDemo } from './AuthDemo';
+import { AuthDemo } from './AuthDemo.tsx';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 

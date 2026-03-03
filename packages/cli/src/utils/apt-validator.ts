@@ -1,8 +1,8 @@
-import { StructuredError, type Logger } from '@agentuity/core';
-import type { Config } from '../types';
-import { getAPIBaseURL } from '@agentuity/server';
-import { getUserAgent } from '../api';
-import { getDefaultConfigDir } from '../config';
+import { StructuredError, type Logger } from '@agentuity/core/index.ts';
+import type { Config } from '../types.ts';
+import { getAPIBaseURL } from '@agentuity/server/index.ts';
+import { getUserAgent } from '../api.ts';
+import { getDefaultConfigDir } from '../config.ts';
 import { join, dirname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { z } from 'zod';

@@ -10,7 +10,7 @@
 
 import { expect, describe, test } from 'bun:test';
 import { Hono } from 'hono';
-import { createCorsMiddleware } from '../src/middleware';
+import { createCorsMiddleware } from '../src/middleware.ts';
 
 describe('CORS Middleware', () => {
 	describe('Basic CORS behavior', () => {

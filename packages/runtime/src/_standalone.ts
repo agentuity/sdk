@@ -1,5 +1,5 @@
 import { context, SpanKind, SpanStatusCode, type Context, trace } from '@opentelemetry/api';
-import { enrichContextWithTraceState } from './otel/tracestate';
+import { enrichContextWithTraceState } from './otel/tracestate.ts';
 import type {
 	KeyValueStorage,
 	StreamStorage,
@@ -11,24 +11,24 @@ import type {
 	TaskStorage,
 	Logger,
 } from '@agentuity/core';
-import { formatMessage } from './logger/util';
+import { formatMessage } from './logger/util.ts';
 import type {
 	AgentContext,
 	AgentRegistry,
 	AgentRuntimeState,
 	AgentMetadata,
 	AgentRunner,
-} from './agent';
-import { AGENT_RUNTIME, AGENT_IDS, isInsideAgentRuntime } from './_config';
-import type { Thread, Session } from './session';
-import { generateId } from './session';
-import WaitUntilHandler from './_waituntil';
-import { registerServices, createServices } from './_services';
-import { getAgentAsyncLocalStorage } from './_context';
-import { getLogger, getTracer, setGlobalLogger, setGlobalTracer } from './_server';
-import { getAppState } from './app';
-import { getThreadProvider, getSessionProvider, getSessionEventProvider } from './_services';
-import * as runtimeConfig from './_config';
+} from './agent.ts';
+import { AGENT_RUNTIME, AGENT_IDS, isInsideAgentRuntime } from './_config.ts';
+import type { Thread, Session } from './session.ts';
+import { generateId } from './session.ts';
+import WaitUntilHandler from './_waituntil.ts';
+import { registerServices, createServices } from './_services.ts';
+import { getAgentAsyncLocalStorage } from './_context.ts';
+import { getLogger, getTracer, setGlobalLogger, setGlobalTracer } from './_server.ts';
+import { getAppState } from './app.ts';
+import { getThreadProvider, getSessionProvider, getSessionEventProvider } from './_services.ts';
+import * as runtimeConfig from './_config.ts';
 
 /**
  * Flag to track if standalone initialization has already been performed.
@@ -414,7 +414,7 @@ export class StandaloneAgentContext<
 					// For standalone contexts, we create a simple thread/session if not provided
 					// The threadProvider.restore expects a Hono context with cookie/header access
 					// For standalone contexts without HTTP, we just create a new thread
-					const { DefaultThread, generateId: genId } = await import('./session');
+					const { DefaultThread, generateId: genId } = await import('./session.ts');
 					const threadId = genId('thrd');
 					// Create a no-op restore function for standalone contexts
 					const restoreFn = async () => ({ state: new Map(), metadata: {} });

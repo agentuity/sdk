@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button } from './ui';
+import { Button } from './ui/index.ts';
 
 // Fixed sample text for Agent Calls demo
 const SAMPLE_TEXT = 'Hello!!!   from the ***SDK Explorer***...  #demo @test';

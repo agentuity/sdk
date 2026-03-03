@@ -6,9 +6,9 @@ export type {
 	EntityType,
 	Pattern,
 	Relationship,
-} from './types';
+} from './types.ts';
 
-export type { EntityContext } from './entities';
+export type { EntityContext } from './entities.ts';
 
 export {
 	entityId,
@@ -19,4 +19,4 @@ export {
 	resolveProjectId,
 	resolveRepoId,
 	resolveUserId,
-} from './entities';
+} from './entities.ts';

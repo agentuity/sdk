@@ -2,8 +2,8 @@
  * Reusable REPL (Read-Eval-Print Loop) component for building interactive CLI tools
  */
 
-import * as tui from './tui';
-import { getDefaultConfigDir } from './config';
+import * as tui from './tui.ts';
+import { getDefaultConfigDir } from './config.ts';
 import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { z } from 'zod';

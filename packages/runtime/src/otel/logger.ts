@@ -1,8 +1,8 @@
 import { format } from 'node:util';
 import { safeStringify, type LogLevel } from '@agentuity/core';
 import * as LogsAPI from '@opentelemetry/api-logs';
-import type { Logger } from '../logger';
-import ConsoleLogger from '../logger/console';
+import type { Logger } from '../logger/index.ts';
+import ConsoleLogger from '../logger/console.ts';
 
 /**
  * Reference to the original console object before patching.

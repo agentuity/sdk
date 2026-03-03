@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { listResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
+import { listResources } from '@agentuity/server/index.ts';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCatalystAPIClient } from '../../../config.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 const RedisGetResponseSchema = z.object({
 	url: z.string().optional().describe('Redis connection URL'),

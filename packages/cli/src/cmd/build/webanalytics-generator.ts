@@ -4,7 +4,7 @@
  */
 
 import { join } from 'node:path';
-import type { Logger, AnalyticsConfig } from '../../types';
+import type { Logger, AnalyticsConfig } from '../../types.ts';
 
 interface GenerateWebAnalyticsOptions {
 	rootDir: string;

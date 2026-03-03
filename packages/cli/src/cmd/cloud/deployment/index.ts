@@ -1,11 +1,11 @@
-import { createCommand } from '../../../types';
-import { listSubcommand } from './list';
-import { logsSubcommand } from './logs';
-import { showSubcommand } from './show';
-import { removeSubcommand } from './remove';
-import { rollbackSubcommand } from './rollback';
-import { undeploySubcommand } from './undeploy';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { listSubcommand } from './list.ts';
+import { logsSubcommand } from './logs.ts';
+import { showSubcommand } from './show.ts';
+import { removeSubcommand } from './remove.ts';
+import { rollbackSubcommand } from './rollback.ts';
+import { undeploySubcommand } from './undeploy.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const deploymentCommand = createCommand({
 	name: 'deployment',

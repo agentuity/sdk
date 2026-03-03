@@ -3,9 +3,9 @@
  * Replaces the App class event system
  */
 
-import type { Agent, AgentContext } from './agent';
-import type { Session, Thread } from './session';
-import { internal } from './logger/internal';
+import type { Agent, AgentContext } from './agent.ts';
+import type { Session, Thread } from './session.ts';
+import { internal } from './logger/internal.ts';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Note: Generic event system requires 'any' for proper type inference with unknown app states

@@ -1,5 +1,5 @@
 import { createRouter, webrtc } from '@agentuity/runtime';
-import hello from '@agent/hello';
+import hello from '@agent/hello/index.ts';
 
 const api = createRouter();
 

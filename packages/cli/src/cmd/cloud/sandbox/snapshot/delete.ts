@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { getCommand } from '../../../../command-prefix';
-import { snapshotDelete } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../../config';
+import { createCommand } from '../../../../types.ts';
+import * as tui from '../../../../tui.ts';
+import { getCommand } from '../../../../command-prefix.ts';
+import { snapshotDelete } from '@agentuity/server/index.ts';
+import { getGlobalCatalystAPIClient } from '../../../../config.ts';
 
 const SnapshotDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

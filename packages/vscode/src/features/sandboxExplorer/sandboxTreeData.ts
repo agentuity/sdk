@@ -6,9 +6,9 @@ import {
 	type SnapshotInfo,
 	type ExecutionInfo,
 	type SandboxStatus,
-} from '../../core/cliClient';
-import { getAuthStatus } from '../../core/auth';
-import { getSandboxManager, type LinkedSandbox } from '../../core/sandboxManager';
+} from '../../core/cliClient.ts';
+import { getAuthStatus } from '../../core/auth.ts';
+import { getSandboxManager, type LinkedSandbox } from '../../core/sandboxManager.ts';
 
 /**
  * Types of items in the sandbox tree.

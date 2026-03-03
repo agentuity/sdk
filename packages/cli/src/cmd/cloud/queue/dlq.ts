@@ -1,16 +1,16 @@
 import { z } from 'zod';
-import { createCommand, createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createQueueAPIClient, getQueueApiOptions } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand, createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createQueueAPIClient, getQueueApiOptions } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import {
 	listDeadLetterMessages,
 	replayDeadLetterMessage,
 	purgeDeadLetter,
 	type DeadLetterMessage,
 	MessageSchema,
-} from '@agentuity/server';
-import { ErrorCode } from '../../../errors';
+} from '@agentuity/server/index.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 const DlqListResponseSchema = z.object({
 	messages: z.array(

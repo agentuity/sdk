@@ -1,11 +1,11 @@
 import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
-import { StreamsPage } from './StreamsPage';
-import { RpcPage } from './RpcPage';
-import { RpcTestPage } from './RpcTestPage';
-import { PathParamsPage } from './PathParamsPage';
-import { AnalyticsTestPage } from './AnalyticsTestPage';
-import { WebRTCTestPage } from './WebRTCTestPage';
+import { StreamsPage } from './StreamsPage.tsx';
+import { RpcPage } from './RpcPage.tsx';
+import { RpcTestPage } from './RpcTestPage.tsx';
+import { PathParamsPage } from './PathParamsPage.tsx';
+import { AnalyticsTestPage } from './AnalyticsTestPage.tsx';
+import { WebRTCTestPage } from './WebRTCTestPage.tsx';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 

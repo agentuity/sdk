@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { EmailStorageService, type Logger } from '@agentuity/core';
-import { createServerFetchAdapter } from '@agentuity/server';
-import type { AuthData, Config, GlobalOptions } from '../../../types';
-import { getCatalystUrl } from '../../../catalyst';
-import { defaultProfileName, getDefaultRegion } from '../../../config';
-import * as tui from '../../../tui';
+import { EmailStorageService, type Logger } from '@agentuity/core/index.ts';
+import { createServerFetchAdapter } from '@agentuity/server/index.ts';
+import type { AuthData, Config, GlobalOptions } from '../../../types.ts';
+import { getCatalystUrl } from '../../../catalyst.ts';
+import { defaultProfileName, getDefaultRegion } from '../../../config.ts';
+import * as tui from '../../../tui.ts';
 
 export type {
 	EmailAddress,
@@ -13,7 +13,7 @@ export type {
 	EmailOutbound,
 	EmailAttachment,
 	EmailSendParams,
-} from '@agentuity/core';
+} from '@agentuity/core/index.ts';
 
 export interface EmailContext {
 	logger: Logger;

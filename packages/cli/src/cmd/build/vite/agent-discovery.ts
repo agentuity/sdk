@@ -9,9 +9,9 @@ import * as acornLoose from 'acorn-loose';
 import { generate } from 'astring';
 import { dirname, join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
-import type { Logger } from '../../../types';
-import { formatSchemaCode } from '../format-schema';
-import { toForwardSlash } from '../../../utils/normalize-path';
+import type { Logger } from '../../../types.ts';
+import { formatSchemaCode } from '../format-schema.ts';
+import { toForwardSlash } from '../../../utils/normalize-path.ts';
 
 interface ASTNode {
 	type: string;

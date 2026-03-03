@@ -3,7 +3,7 @@
  * This extends the Hono ContextVariableMap to add our custom types
  */
 
-import type { MockDatabaseClient, MockAuthUser } from '../lib/custom-middleware';
+import type { MockDatabaseClient, MockAuthUser } from '../lib/custom-middleware.ts';
 
 declare module 'hono' {
 	interface ContextVariableMap {

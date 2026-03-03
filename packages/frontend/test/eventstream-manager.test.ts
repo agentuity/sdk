@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { EventStreamManager } from '../src/eventstream-manager';
+import { EventStreamManager } from '../src/eventstream-manager.ts';
 
 // Mock EventSource
 class MockEventSource {

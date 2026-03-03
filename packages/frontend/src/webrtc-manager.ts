@@ -10,7 +10,7 @@ import type {
 	RecordingState,
 	TrackSource as CoreTrackSource,
 } from '@agentuity/core';
-import { createReconnectManager, type ReconnectManager } from './reconnect';
+import { createReconnectManager, type ReconnectManager } from './reconnect.ts';
 
 /**
  * Track source interface extended for browser environment.

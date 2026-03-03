@@ -1,5 +1,5 @@
-import { createCommand } from '../../../types';
-import { statsSubcommand } from './stats';
+import { createCommand } from '../../../types.ts';
+import { statsSubcommand } from './stats.ts';
 
 const servicesCommand = createCommand({
 	name: 'services',

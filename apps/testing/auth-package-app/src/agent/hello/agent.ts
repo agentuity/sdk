@@ -6,7 +6,7 @@
 
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import poemAgent from '../poem/agent';
+import poemAgent from '../poem/agent.ts';
 
 const agent = createAgent('hello', {
 	description: 'Greets the user and optionally creates a poem about them',

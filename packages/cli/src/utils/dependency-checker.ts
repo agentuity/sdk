@@ -1,8 +1,8 @@
 import { $ } from 'bun';
 import { join } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { getVersion } from '../version';
-import type { Logger } from '../types';
+import { getVersion } from '../version.ts';
+import type { Logger } from '../types.ts';
 
 interface PackageJson {
 	dependencies?: Record<string, string>;

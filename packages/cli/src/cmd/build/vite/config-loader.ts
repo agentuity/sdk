@@ -3,8 +3,8 @@
  */
 
 import { join } from 'node:path';
-import type { Logger } from '../../../types';
-import type { AgentuityConfig } from '../../../types';
+import type { Logger } from '../../../types.ts';
+import type { AgentuityConfig } from '../../../types.ts';
 
 /**
  * Load agentuity.config.ts from the project root

@@ -1,14 +1,14 @@
-import { createSubcommand } from '../../types';
+import { createSubcommand } from '../../types.ts';
 import { z } from 'zod';
 import { readFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
-import { getLogSessionsInCurrentWindow } from '../../internal-logger';
-import * as tui from '../../tui';
+import { getLogSessionsInCurrentWindow } from '../../internal-logger.ts';
+import * as tui from '../../tui.ts';
 import { randomBytes } from 'node:crypto';
 import AdmZip from 'adm-zip';
-import { APIResponseSchema } from '@agentuity/server';
-import { StructuredError } from '@agentuity/core';
+import { APIResponseSchema } from '@agentuity/server/index.ts';
+import { StructuredError } from '@agentuity/core/index.ts';
 
 // Structured errors for this module
 const NoSessionDirectoriesError = StructuredError(

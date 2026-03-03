@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { getCliClient, type Deployment } from '../../core/cliClient';
-import { getAuthStatus } from '../../core/auth';
-import { hasProject } from '../../core/project';
+import { getCliClient, type Deployment } from '../../core/cliClient.ts';
+import { getAuthStatus } from '../../core/auth.ts';
+import { hasProject } from '../../core/project.ts';
 
 export type DeploymentItemType = 'deployment' | 'info' | 'message';
 

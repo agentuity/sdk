@@ -3,8 +3,8 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { join, dirname } from 'node:path';
 import * as tar from 'tar';
-import { StructuredError } from '@agentuity/core';
-import { spinner } from '../../tui';
+import { StructuredError } from '@agentuity/core/index.ts';
+import { spinner } from '../../tui.ts';
 
 interface GravityClient {
 	filename: string;

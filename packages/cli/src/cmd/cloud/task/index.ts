@@ -1,12 +1,12 @@
-import { createCommand } from '../../../types';
-import { getSubcommand } from './get';
-import { createSubcommand } from './create';
-import { updateSubcommand } from './update';
-import { listSubcommand } from './list';
-import { deleteSubcommand } from './delete';
-import { statsSubcommand } from './stats';
-import { attachmentSubcommand } from './attachment';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { getSubcommand } from './get.ts';
+import { createSubcommand } from './create.ts';
+import { updateSubcommand } from './update.ts';
+import { listSubcommand } from './list.ts';
+import { deleteSubcommand } from './delete.ts';
+import { statsSubcommand } from './stats.ts';
+import { attachmentSubcommand } from './attachment.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const taskCommand = createCommand({
 	name: 'task',

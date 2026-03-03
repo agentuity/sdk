@@ -2,9 +2,9 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { join } from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { formatTypeScriptErrors, hasErrors, getErrorCount } from '../src/typescript-errors';
-import type { GrammarItem } from '../src/tsc-output-parser';
-import { stripAnsi } from '../src/tui';
+import { formatTypeScriptErrors, hasErrors, getErrorCount } from '../src/typescript-errors.ts';
+import type { GrammarItem } from '../src/tsc-output-parser.ts';
+import { stripAnsi } from '../src/tui.ts';
 
 function createMockError(
 	path: string,

@@ -1,7 +1,7 @@
 import type { PluginInput } from '@opencode-ai/plugin';
-import type { CoderConfig } from '../../types';
-import type { OpenCodeDBReader } from '../../sqlite';
-import type { CompactionStats } from '../../sqlite/types';
+import type { CoderConfig } from '../../types.ts';
+import type { OpenCodeDBReader } from '../../sqlite/index.ts';
+import type { CompactionStats } from '../../sqlite/types.ts';
 import {
 	getCurrentBranch,
 	buildCustomCompactionPrompt,
@@ -11,7 +11,7 @@ import {
 	storePreCompactionSnapshot,
 	formatCompactionDiagnostics,
 	countListItems,
-} from './compaction-utils';
+} from './compaction-utils.ts';
 
 export interface SessionMemoryHooks {
 	onEvent: (input: {

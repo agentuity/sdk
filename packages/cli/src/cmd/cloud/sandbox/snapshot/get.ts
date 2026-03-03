@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { getCommand } from '../../../../command-prefix';
-import { snapshotGet, sandboxList } from '@agentuity/server';
-import type { SnapshotFileInfo } from '@agentuity/server';
-import type { SandboxInfo } from '@agentuity/core';
-import { getGlobalCatalystAPIClient } from '../../../../config';
+import { createCommand } from '../../../../types.ts';
+import * as tui from '../../../../tui.ts';
+import { getCommand } from '../../../../command-prefix.ts';
+import { snapshotGet, sandboxList } from '@agentuity/server/index.ts';
+import type { SnapshotFileInfo } from '@agentuity/server/index.ts';
+import type { SandboxInfo } from '@agentuity/core/index.ts';
+import { getGlobalCatalystAPIClient } from '../../../../config.ts';
 
 const SnapshotFileSchema = z.object({
 	path: z.string(),

@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll } from 'bun:test';
 import { generateKeyPairSync, KeyObject } from 'node:crypto';
 import { Readable, Writable } from 'node:stream';
-import { encryptFIPSKEMDEMStream, decryptFIPSKEMDEMStream } from '../src/crypto/box';
+import { encryptFIPSKEMDEMStream, decryptFIPSKEMDEMStream } from '../src/crypto/box.ts';
 
 function createReadableStream(data: Buffer): Readable {
 	return Readable.from([data]);

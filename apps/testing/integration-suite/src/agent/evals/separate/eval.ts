@@ -1,4 +1,4 @@
-import separateEvalsAgent from './agent';
+import separateEvalsAgent from './agent.ts';
 
 separateEvalsAgent.createEval('doubles-correctly', {
 	description: 'Verifies the output is exactly double the input',

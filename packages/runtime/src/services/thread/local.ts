@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import type { Database } from 'bun:sqlite';
-import type { AppState } from '../../index';
-import type { Env } from '../../app';
+import type { AppState } from '../../index.ts';
+import type { Env } from '../../app.ts';
 import {
 	DefaultThread,
 	DefaultThreadIDProvider,
@@ -10,8 +10,8 @@ import {
 	type Thread,
 	type ThreadIDProvider,
 	type ThreadProvider,
-} from '../../session';
-import { getLocalDB } from '../local/_db';
+} from '../../session.ts';
+import { getLocalDB } from '../local/_db.ts';
 
 /**
  * Local thread provider with SQLite persistence.

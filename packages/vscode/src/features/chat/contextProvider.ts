@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import { getCliClient } from '../../core/cliClient';
-import { getAuthStatus } from '../../core/auth';
-import { hasProject, getCurrentProject } from '../../core/project';
-import { getDevServerManager } from '../devServer';
+import { getCliClient } from '../../core/cliClient.ts';
+import { getAuthStatus } from '../../core/auth.ts';
+import { hasProject, getCurrentProject } from '../../core/project.ts';
+import { getDevServerManager } from '../devServer/index.ts';
 
 interface AgentuityContextItem extends vscode.ChatContextItem {
 	contextType: 'workspace' | 'agents' | 'deployments' | 'devServer' | 'agent-detail';

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { createAgent } from '../src/agent';
+import { createAgent } from '../src/agent.ts';
 import { s } from '@agentuity/schema';
 
 describe('createAgent API', () => {
@@ -69,8 +69,8 @@ describe('createAgent API', () => {
 	});
 
 	test('agent.run should accept typed input', async () => {
-		const { runInAgentContext } = await import('../src/agent');
-		const { TestAgentContext } = await import('./helpers/test-context');
+		const { runInAgentContext } = await import('../src/agent.ts');
+		const { TestAgentContext } = await import('./helpers/test-context.ts');
 
 		const agent = createAgent('run-with-input', {
 			schema: {

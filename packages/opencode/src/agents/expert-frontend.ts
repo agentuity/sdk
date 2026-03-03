@@ -1,4 +1,4 @@
-import type { AgentDefinition } from './types';
+import type { AgentDefinition } from './types.ts';
 
 export const EXPERT_FRONTEND_SYSTEM_PROMPT = `# Expert Frontend Agent
 

@@ -1,5 +1,5 @@
-import type { GlobalOptions } from './types';
-import * as tui from './tui';
+import type { GlobalOptions } from './types.ts';
+import * as tui from './tui.ts';
 
 /**
  * Utilities for explain mode and dry-run mode

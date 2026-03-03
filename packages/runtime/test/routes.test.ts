@@ -5,7 +5,7 @@
 
 import { test, expect, describe } from 'bun:test';
 import { Hono } from 'hono';
-import { createAgent } from '../src/agent';
+import { createAgent } from '../src/agent.ts';
 import { z } from 'zod';
 
 describe('Route Handler Tests', () => {

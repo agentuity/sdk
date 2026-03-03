@@ -5,7 +5,7 @@
 
 import { join } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { internal } from './logger/internal';
+import { internal } from './logger/internal.ts';
 
 export interface BuildMetadataAgent {
 	filename: string;

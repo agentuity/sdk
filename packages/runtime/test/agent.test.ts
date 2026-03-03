@@ -4,9 +4,9 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { createAgent, runInAgentContext } from '../src/agent';
+import { createAgent, runInAgentContext } from '../src/agent.ts';
 import { z } from 'zod';
-import { TestAgentContext } from './helpers/test-context';
+import { TestAgentContext } from './helpers/test-context.ts';
 import { createMockLoggerWithCapture } from '@agentuity/test-utils';
 
 describe('Agent Execution', () => {
@@ -109,7 +109,7 @@ describe('Agent Context Access', () => {
 			},
 			handler: async (_ctx) => {
 				// Access internal CURRENT_AGENT symbol for telemetry
-				const { getCurrentAgentMetadata } = await import('../src/_context');
+				const { getCurrentAgentMetadata } = await import('../src/_context.ts');
 				const metadata = getCurrentAgentMetadata();
 				return metadata?.name || 'unknown';
 			},

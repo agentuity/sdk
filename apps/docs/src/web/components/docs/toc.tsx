@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useToc, type TocItem } from '../../hooks/use-toc';
-import { cn } from '../../lib/utils';
+import { useToc, type TocItem } from '../../hooks/use-toc.tsx';
+import { cn } from '../../lib/utils.ts';
 
 // Flatten nested ToC structure for display
 function flattenToc(items: TocItem[], result: TocItem[] = []): TocItem[] {

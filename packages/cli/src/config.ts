@@ -1,25 +1,25 @@
 import { z } from 'zod';
 import { existsSync, mkdirSync } from 'node:fs';
-import { StructuredError, type Logger } from '@agentuity/core';
-import { BuildMetadataSchema, type BuildMetadata, getServiceUrls } from '@agentuity/server';
-import { APIClient as ServerAPIClient } from '@agentuity/server';
+import { StructuredError, type Logger } from '@agentuity/core/index.ts';
+import { BuildMetadataSchema, type BuildMetadata, getServiceUrls } from '@agentuity/server/index.ts';
+import { APIClient as ServerAPIClient } from '@agentuity/server/index.ts';
 import { YAML } from 'bun';
 import { join, extname, basename, resolve, normalize } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import JSON5 from 'json5';
-import type { Config, Profile, AuthData } from './types';
-import { ConfigSchema, ProjectSchema } from './types';
-import * as tui from './tui';
-import { getCatalystUrl } from './catalyst';
+import type { Config, Profile, AuthData } from './types.ts';
+import { ConfigSchema, ProjectSchema } from './types.ts';
+import * as tui from './tui.ts';
+import { getCatalystUrl } from './catalyst.ts';
 import {
 	isMacOS,
 	saveAuthToKeychain,
 	getAuthFromKeychain,
 	deleteAuthFromKeychain,
-} from './keychain';
-import { clearProfileCache } from './cache';
-import { readEnvFile, writeEnvFile } from './env-util';
+} from './keychain.ts';
+import { clearProfileCache } from './cache/index.ts';
+import { readEnvFile, writeEnvFile } from './env-util.ts';
 
 export const defaultProfileName = 'production';
 

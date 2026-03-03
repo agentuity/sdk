@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { cacheSandboxRegion, createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
-import { sandboxGet, sandboxResolve } from '@agentuity/server';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { cacheSandboxRegion, createSandboxClient } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { sandboxGet, sandboxResolve } from '@agentuity/server/index.ts';
 
 const SandboxResourcesSchema = z.object({
 	memory: z.string().optional().describe('Memory limit (e.g., "512Mi", "1Gi")'),

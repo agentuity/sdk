@@ -7,7 +7,7 @@ import {
 	discoverRoutes,
 	detectRouteConflicts,
 	extractPathParams,
-} from '../../../../src/cmd/build/vite/route-discovery';
+} from '../../../../src/cmd/build/vite/route-discovery.ts';
 
 describe('route-discovery', () => {
 	let testDir: string;

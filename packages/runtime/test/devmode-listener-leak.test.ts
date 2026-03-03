@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { Hono } from 'hono';
-import { registerDevModeRoutes } from '../src/devmode';
+import { registerDevModeRoutes } from '../src/devmode.ts';
 
 describe('Dev Mode Event Listener Leaks', () => {
 	let initialListenerCount: number;

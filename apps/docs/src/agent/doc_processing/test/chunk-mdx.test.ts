@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { Document } from 'langchain/document';
-import { detectContentType, hybridChunkDocument } from '../chunk-mdx';
+import { detectContentType, hybridChunkDocument } from '../chunk-mdx.ts';
 
 const makeDoc = (content: string): Document => ({
 	pageContent: content,

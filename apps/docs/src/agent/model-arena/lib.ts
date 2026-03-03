@@ -7,8 +7,8 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { groq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
-import { getStorySystemPrompt } from './prompts';
-import type { ModelResult, Provider, Tone } from './types';
+import { getStorySystemPrompt } from './prompts.ts';
+import type { ModelResult, Provider, Tone } from './types.ts';
 
 export interface GenerationConfig {
 	provider: Provider;

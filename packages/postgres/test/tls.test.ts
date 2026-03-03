@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { injectSslMode } from '../src/tls';
+import { injectSslMode } from '../src/tls.ts';
 
 describe('injectSslMode', () => {
 	it('injects sslmode=require when tls is true and URL has no sslmode', () => {

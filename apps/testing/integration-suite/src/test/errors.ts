@@ -4,12 +4,12 @@
  * Tests error handling, validation errors, StructuredError patterns, and error propagation
  */
 
-import { test } from './suite';
-import { assert, assertEqual, assertDefined, assertThrows } from './helpers';
+import { test } from './suite.ts';
+import { assert, assertEqual, assertDefined, assertThrows } from './helpers/index.ts';
 
-import errorValidationAgent from '@agents/errors/validation';
-import errorStructuredAgent from '@agents/errors/structured';
-import errorPropagationAgent from '@agents/errors/propagation';
+import errorValidationAgent from '@agents/errors/validation.ts';
+import errorStructuredAgent from '@agents/errors/structured.ts';
+import errorPropagationAgent from '@agents/errors/propagation.ts';
 
 // Test: Valid input passes validation
 test('errors', 'validation-success', async () => {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { APIError, APIResponseSchema, APIResponseSchemaOptionalData } from '@agentuity/server';
-import type { APIClient } from '../../api';
-import { StructuredError } from '@agentuity/core';
+import { APIError, APIResponseSchema, APIResponseSchemaOptionalData } from '@agentuity/server/index.ts';
+import type { APIClient } from '../../api.ts';
+import { StructuredError } from '@agentuity/core/index.ts';
 
 // Zod schemas for API validation
 const CodeStartDataSchema = z.object({

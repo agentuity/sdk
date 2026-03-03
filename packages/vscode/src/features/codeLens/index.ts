@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { AgentCodeLensProvider, type AgentCodeLensInfo } from './agentCodeLensProvider';
-import { getDevServerManager } from '../devServer';
-import { getCurrentProject } from '../../core/project';
-import { getAgentProvider } from '../agentExplorer';
-import { getSessionsUrl } from '../../core/urls';
+import { AgentCodeLensProvider, type AgentCodeLensInfo } from './agentCodeLensProvider.ts';
+import { getDevServerManager } from '../devServer/index.ts';
+import { getCurrentProject } from '../../core/project.ts';
+import { getAgentProvider } from '../agentExplorer/index.ts';
+import { getSessionsUrl } from '../../core/urls.ts';
 
 interface BuildMetadataAgent {
 	id: string;

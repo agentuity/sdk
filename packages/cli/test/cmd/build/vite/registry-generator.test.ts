@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import {
 	generateAgentRegistry,
 	generateRouteRegistry,
-} from '../../../../src/cmd/build/vite/registry-generator';
-import type { AgentMetadata } from '../../../../src/cmd/build/vite/agent-discovery';
-import type { RouteInfo } from '../../../../src/cmd/build/vite/route-discovery';
+} from '../../../../src/cmd/build/vite/registry-generator.ts';
+import type { AgentMetadata } from '../../../../src/cmd/build/vite/agent-discovery.ts';
+import type { RouteInfo } from '../../../../src/cmd/build/vite/route-discovery.ts';
 
 describe('registry-generator', () => {
 	let testDir: string;

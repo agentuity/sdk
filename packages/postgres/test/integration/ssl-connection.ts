@@ -17,7 +17,7 @@
  */
 
 import { readFileSync } from 'fs';
-import { SQL, postgres, PostgresClient, PostgresPool } from '../../src/index';
+import { SQL, postgres, PostgresClient, PostgresPool } from '../../src/index.ts';
 import { StructuredError, isStructuredError } from '@agentuity/core';
 
 // ---------------------------------------------------------------------------

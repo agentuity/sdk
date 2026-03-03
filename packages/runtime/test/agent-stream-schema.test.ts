@@ -1,8 +1,8 @@
 import { test, expect } from 'bun:test';
 import { expectTypeOf } from 'expect-type';
-import { createAgent, runInAgentContext } from '../src/agent';
+import { createAgent, runInAgentContext } from '../src/agent.ts';
 import { z } from 'zod';
-import { TestAgentContext } from './helpers/test-context';
+import { TestAgentContext } from './helpers/test-context.ts';
 
 test('Streaming agent with output schema - should return ReadableStream<Type>', async () => {
 	const streamingAgentWithSchema = createAgent('streaming-with-schema', {

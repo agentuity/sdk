@@ -1,12 +1,12 @@
-import type { Logger } from '@agentuity/core';
+import type { Logger } from '@agentuity/core/index.ts';
 import {
 	DeploymentConfig,
 	ProjectBuildConfig,
 	BuildMetadataSchema as ServerBuildMetadataSchema,
-} from '@agentuity/server';
+} from '@agentuity/server/index.ts';
 import type * as z from 'zod';
 import { z as zod } from 'zod';
-import type { APIClient } from './api';
+import type { APIClient } from './api.ts';
 
 export { DeploymentConfig, ProjectBuildConfig };
 

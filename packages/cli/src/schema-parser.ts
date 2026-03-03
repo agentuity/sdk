@@ -1,5 +1,5 @@
 import type { ZodType } from 'zod';
-import type { CommandSchemas } from './types';
+import type { CommandSchemas } from './types.ts';
 
 export interface ParsedArgs {
 	names: string[];

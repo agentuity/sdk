@@ -5,8 +5,8 @@
  */
 
 import { join } from 'node:path';
-import { generateLifecycleTypes as generateLifecycleTypesFromAST } from '../ast';
-import type { Logger } from '../../../types';
+import { generateLifecycleTypes as generateLifecycleTypesFromAST } from '../ast.ts';
+import type { Logger } from '../../../types.ts';
 
 /**
  * Setup lifecycle types by analyzing app.ts for setup() function

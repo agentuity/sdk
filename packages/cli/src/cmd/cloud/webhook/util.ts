@@ -1,7 +1,7 @@
-import type { Logger } from '@agentuity/core';
-import { APIClient, type WebhookApiOptions } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import type { AuthData, Config, GlobalOptions } from '../../../types';
+import type { Logger } from '@agentuity/core/index.ts';
+import { APIClient, type WebhookApiOptions } from '@agentuity/server/index.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import type { AuthData, Config, GlobalOptions } from '../../../types.ts';
 
 /**
  * Context required for webhook API operations.

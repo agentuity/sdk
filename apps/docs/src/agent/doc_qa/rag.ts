@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
-import { rephraseVaguePrompt } from './prompt';
-import { retrieveRelevantDocs } from './retriever';
-import type { Answer } from './types';
+import { rephraseVaguePrompt } from './prompt.ts';
+import { retrieveRelevantDocs } from './retriever.ts';
+import type { Answer } from './types.ts';
 
 // Zod schema for AI SDK compatibility
 const DocumentReferenceSchemaZod = z.object({

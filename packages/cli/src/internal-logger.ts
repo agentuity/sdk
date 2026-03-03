@@ -20,7 +20,7 @@ import {
 } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { homedir, platform, arch, cpus, totalmem } from 'node:os';
-import type { Logger, LogLevel } from '@agentuity/core';
+import type { Logger, LogLevel } from '@agentuity/core/index.ts';
 import { randomUUID } from 'node:crypto';
 
 // Sensitive environment variable patterns to mask

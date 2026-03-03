@@ -1,4 +1,4 @@
-export { OpenCodeDBReader } from './reader';
+export { OpenCodeDBReader } from './reader.ts';
 export type {
 	CompactionStats,
 	DBMessage,
@@ -17,4 +17,4 @@ export type {
 	SessionSummary,
 	SessionTreeNode,
 	TodoSummary,
-} from './types';
+} from './types.ts';

@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type Context, Hono, type Schema, type Env as HonoEnv } from 'hono';
-import { returnResponse } from './_util';
-import type { Env } from './app';
-import { loadBuildMetadata } from './_metadata';
+import { returnResponse } from './_util.ts';
+import type { Env } from './app.ts';
+import { loadBuildMetadata } from './_metadata.ts';
 
 // Re-export both Env types
 export type { Env };
 export type { HonoEnv };
 
 // Re-export WebSocketConnection from handlers
-export type { WebSocketConnection } from './handlers/websocket';
+export type { WebSocketConnection } from './handlers/websocket.ts';
 
 // Module augmentation to extend Hono types for Agentuity runtime
 declare module 'hono' {

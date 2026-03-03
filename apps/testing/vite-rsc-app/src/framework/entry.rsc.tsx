@@ -1,5 +1,5 @@
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
-import App from '../components/App';
+import App from '../components/App.tsx';
 
 // The plugin assumes `rsc` entry has a default export of a request handler
 export default async function handler(request: Request): Promise<Response> {

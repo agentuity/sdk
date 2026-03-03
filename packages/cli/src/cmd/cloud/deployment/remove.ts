@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { projectDeploymentDelete } from '@agentuity/server';
-import { resolveProjectId } from './utils';
-import { getCommand } from '../../../command-prefix';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { projectDeploymentDelete } from '@agentuity/server/index.ts';
+import { resolveProjectId } from './utils.ts';
+import { getCommand } from '../../../command-prefix.ts';
 const DeploymentRemoveResponseSchema = z.object({
 	success: z.boolean().describe('Whether the removal succeeded'),
 	projectId: z.string().describe('Project ID'),

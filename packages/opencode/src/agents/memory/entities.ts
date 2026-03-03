@@ -1,8 +1,8 @@
 import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
-import type { EntityType } from './types';
-import { loadCoderConfig } from '../../config/loader';
-import { getCoderProfile } from '../../plugin/hooks/tools';
+import type { EntityType } from './types.ts';
+import { loadCoderConfig } from '../../config/loader.ts';
+import { getCoderProfile } from '../../plugin/hooks/tools.ts';
 
 const ENTITY_TYPES: EntityType[] = ['user', 'org', 'project', 'repo', 'agent', 'model'];
 const ENTITY_PREFIX = 'entity';

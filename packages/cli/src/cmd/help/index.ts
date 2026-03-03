@@ -1,6 +1,6 @@
-import { createCommand } from '../../types';
-import { getCommand } from '../../command-prefix';
-import { getProgram } from '../../program-ref';
+import { createCommand } from '../../types.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { getProgram } from '../../program-ref.ts';
 
 export const command = createCommand({
 	name: 'help',

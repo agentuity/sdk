@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import { z } from 'zod';
-import { parseOptionsSchema } from '../src/schema-parser';
+import { parseOptionsSchema } from '../src/schema-parser.ts';
 
 describe('parseOptionsSchema', () => {
 	describe('optionalString type detection', () => {

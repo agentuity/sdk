@@ -1,1 +1,1 @@
-export { default } from './agent';
+export { default } from './agent.ts';

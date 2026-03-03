@@ -4,11 +4,11 @@
  * Tests session ID generation, thread persistence, state management, and event listeners
  */
 
-import { test } from './suite';
-import { assert, assertEqual, assertDefined } from './helpers';
+import { test } from './suite.ts';
+import { assert, assertEqual, assertDefined } from './helpers/index.ts';
 
-import sessionBasicAgent from '@agents/session/session-basic';
-import sessionEventsAgent from '@agents/session/session-events';
+import sessionBasicAgent from '@agents/session/session-basic.ts';
+import sessionEventsAgent from '@agents/session/session-events.ts';
 
 // Test: Get session and thread IDs
 test('session', 'get-ids', async () => {

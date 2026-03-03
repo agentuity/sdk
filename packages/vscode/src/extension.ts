@@ -9,24 +9,24 @@ import {
 	watchProjectConfig,
 	disposeProject,
 	requireAuth,
-} from './core';
-import { log, disposeLogger } from './core/logger';
-import { registerReadonlyDocumentProvider } from './core/readonlyDocument';
-import { registerAgentExplorer } from './features/agentExplorer';
-import { registerDataExplorer } from './features/dataExplorer';
-import { registerDeploymentExplorer } from './features/deploymentExplorer';
-import { registerSandboxExplorer } from './features/sandboxExplorer';
-import { disposeSandboxManager } from './core/sandboxManager';
-import { registerDevServerCommands } from './features/devServer';
-import { registerWorkbenchCommands } from './features/workbench';
+} from './core/index.ts';
+import { log, disposeLogger } from './core/logger.ts';
+import { registerReadonlyDocumentProvider } from './core/readonlyDocument.ts';
+import { registerAgentExplorer } from './features/agentExplorer/index.ts';
+import { registerDataExplorer } from './features/dataExplorer/index.ts';
+import { registerDeploymentExplorer } from './features/deploymentExplorer/index.ts';
+import { registerSandboxExplorer } from './features/sandboxExplorer/index.ts';
+import { disposeSandboxManager } from './core/sandboxManager.ts';
+import { registerDevServerCommands } from './features/devServer/index.ts';
+import { registerWorkbenchCommands } from './features/workbench/index.ts';
 import {
 	registerChatParticipant,
 	registerCliTool,
 	registerChatContextProvider,
 	registerAgentTools,
-} from './features/chat';
-import { registerCodeLens } from './features/codeLens';
-import { registerCustomAgentCommands } from './features/customAgents';
+} from './features/chat/index.ts';
+import { registerCodeLens } from './features/codeLens/index.ts';
+import { registerCustomAgentCommands } from './features/customAgents/index.ts';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	log('Extension activating...');

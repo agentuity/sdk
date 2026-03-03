@@ -8,9 +8,9 @@
  * GET /api/agent-ids/last - Gets the last completed session's agentIds
  */
 
-import { createRouter } from '@agentuity/runtime';
-import agentIdTestAgent from '@agents/session/agent-id-test';
-import { testSessionEventProvider } from '@test/helpers/session-event-provider';
+import { createRouter } from '@agentuity/runtime.ts';
+import agentIdTestAgent from '@agents/session/agent-id-test.ts';
+import { testSessionEventProvider } from '@test/helpers/session-event-provider.ts';
 
 const router = createRouter();
 

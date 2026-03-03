@@ -1,4 +1,4 @@
-import { isOpenAIModel, isAnthropicModel } from './presets';
+import { isOpenAIModel, isAnthropicModel } from './presets.ts';
 
 export interface ConfigWarning {
 	agent: string;

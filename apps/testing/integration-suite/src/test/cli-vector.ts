@@ -11,10 +11,10 @@
  * - Delete namespace
  */
 
-import { test } from '@test/suite';
-import { assert, uniqueId } from '@test/helpers';
-import cliAgent from '@agents/cli/agent';
-import { isAuthenticated } from '@test/helpers/cli';
+import { test } from '@test/suite.ts';
+import { assert, uniqueId } from '@test/helpers/index.ts';
+import cliAgent from '@agents/cli/agent.ts';
+import { isAuthenticated } from '@test/helpers/cli.ts';
 
 // Test 1: Vector help command
 test('cli-vector', 'help-command', async () => {

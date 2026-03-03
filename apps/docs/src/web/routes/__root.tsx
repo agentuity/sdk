@@ -1,5 +1,5 @@
 import { createRootRoute } from '@tanstack/react-router';
-import { DocsLayout } from '../components/docs';
+import { DocsLayout } from '../components/docs/index.ts';
 
 function NotFound() {
 	return (

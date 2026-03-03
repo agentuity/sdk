@@ -1,9 +1,9 @@
 /**
  * Box and note rendering utilities for TUI
  */
-import { symbols } from './symbols';
-import { colors } from './colors';
-import { getTerminalWidth } from '../tui';
+import { symbols } from './symbols.ts';
+import { colors } from './colors.ts';
+import { getTerminalWidth } from '../tui.ts';
 
 /**
  * Get string width (accounting for ANSI codes and OSC 8 hyperlinks)

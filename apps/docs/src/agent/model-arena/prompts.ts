@@ -3,7 +3,7 @@
  *
  * System prompts for story generation and LLM judge evaluation.
  */
-import { type ModelResult, PROVIDER_DISPLAY_NAMES, type Tone } from './types';
+import { type ModelResult, PROVIDER_DISPLAY_NAMES, type Tone } from './types.ts';
 
 export const WORD_LIMIT = 200;
 

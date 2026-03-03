@@ -2,7 +2,7 @@ import { Database } from 'bun:sqlite';
 import { existsSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
-import { QUERIES } from './queries';
+import { QUERIES } from './queries.ts';
 import type {
 	DBMessage,
 	DBNonTextPart,
@@ -18,7 +18,7 @@ import type {
 	SessionSummary,
 	SessionTreeNode,
 	TodoSummary,
-} from './types';
+} from './types.ts';
 
 type Statement = ReturnType<Database['prepare']>;
 

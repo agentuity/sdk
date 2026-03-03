@@ -1,4 +1,4 @@
-import type { AgentDefinition } from './types';
+import type { AgentDefinition } from './types.ts';
 
 export const RUNNER_SYSTEM_PROMPT = `# Runner Agent
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Separator } from './ui';
+import { Button, Separator } from './ui/index.ts';
 
 export function KVExplorer() {
 	const [keys, setKeys] = useState<string[]>([]);

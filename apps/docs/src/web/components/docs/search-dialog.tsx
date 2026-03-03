@@ -31,11 +31,11 @@ import {
 	DialogTitle,
 	ScrollArea,
 	Textarea,
-} from '../ui';
-import { cn } from '../../lib/utils';
-import { navData, type NavItem } from './nav-data';
-import { useAISearch } from '../../hooks/use-ai-search';
-import { AISearchMessages, AISearchActions } from './ai-search-messages';
+} from '../ui/index.ts';
+import { cn } from '../../lib/utils.ts';
+import { navData, type NavItem } from './nav-data.ts';
+import { useAISearch } from '../../hooks/use-ai-search.ts';
+import { AISearchMessages, AISearchActions } from './ai-search-messages.tsx';
 
 const MODE_STORAGE_KEY = 'agentuity-search-mode';
 

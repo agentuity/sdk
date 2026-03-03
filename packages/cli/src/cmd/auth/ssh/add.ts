@@ -1,13 +1,13 @@
-import { createSubcommand } from '../../../types';
-import { addSSHKey, computeSSHKeyFingerprint, listSSHKeys } from './api';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
+import { createSubcommand } from '../../../types.ts';
+import { addSSHKey, computeSSHKeyFingerprint, listSSHKeys } from './api.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import enquirer from 'enquirer';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
-import { ErrorCode } from '../../../errors';
+import { ErrorCode } from '../../../errors.ts';
 
 const optionsSchema = z.object({
 	file: z.string().optional().describe('File containing the public key'),

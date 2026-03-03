@@ -1,13 +1,13 @@
 import { decodeWorkbenchConfig } from '@agentuity/core/workbench';
 import { useState } from 'react';
-import { Chat } from './internal/chat';
-import { Header } from './internal/header';
-import { ResizableProvider, useResizable } from './internal/resizable-provider';
-import { Schema } from './internal/schema';
-import { WorkbenchProvider } from './internal/workbench-provider';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from './ui/resizable';
-import { ThemeProvider } from './ui/theme-provider';
-import { TooltipProvider } from './ui/tooltip';
+import { Chat } from './internal/chat.tsx';
+import { Header } from './internal/header.tsx';
+import { ResizableProvider, useResizable } from './internal/resizable-provider.tsx';
+import { Schema } from './internal/schema.tsx';
+import { WorkbenchProvider } from './internal/workbench-provider.tsx';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from './ui/resizable.tsx';
+import { ThemeProvider } from './ui/theme-provider.tsx';
+import { TooltipProvider } from './ui/tooltip.tsx';
 
 export interface AppProps {
 	configBase64: string;

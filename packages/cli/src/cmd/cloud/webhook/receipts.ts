@@ -1,14 +1,14 @@
 import { z } from 'zod';
-import { createCommand, createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createWebhookAPIClient, getWebhookApiOptions } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand, createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createWebhookAPIClient, getWebhookApiOptions } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import {
 	listWebhookReceipts,
 	getWebhookReceipt,
 	WebhookReceiptSchema,
 	type WebhookReceipt,
-} from '@agentuity/server';
+} from '@agentuity/server/index.ts';
 
 const ReceiptsListResponseSchema = z.object({
 	receipts: z.array(

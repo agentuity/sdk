@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import { encodeWorkbenchConfig, type WorkbenchConfig } from '@agentuity/core';
-import { analyzeWorkbench, WorkbenchAnalysis } from './ast';
+import { encodeWorkbenchConfig, type WorkbenchConfig } from '@agentuity/core/index.ts';
+import { analyzeWorkbench, WorkbenchAnalysis } from './ast.ts';
 
 export function generateWorkbenchMainTsx(config: WorkbenchConfig): string {
 	const encodedConfig = encodeWorkbenchConfig(config);

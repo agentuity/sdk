@@ -1,4 +1,4 @@
-import { createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime.ts';
 import { s } from '@agentuity/schema';
 
 export const SeparateEvalsInput = s.object({

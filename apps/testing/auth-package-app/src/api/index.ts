@@ -17,9 +17,9 @@
 import { createRouter, validator } from '@agentuity/runtime';
 import { mountAuthRoutes, createSessionMiddleware, createApiKeyMiddleware } from '@agentuity/auth';
 import { APIError } from 'better-auth/api';
-import hello from '@agent/hello';
-import { auth } from '../auth';
-import * as schemas from './schemas';
+import hello from '@agent/hello/index.ts';
+import { auth } from '../auth.ts';
+import * as schemas from './schemas.ts';
 
 const api = createRouter();
 

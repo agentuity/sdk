@@ -1,4 +1,4 @@
-import { EchoDemo } from './components/EchoDemo';
+import { EchoDemo } from './components/EchoDemo.tsx';
 
 function App() {
 	return <EchoDemo />;

@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { machineList } from '@agentuity/server';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import { getGlobalCatalystAPIClient } from '../../../config';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { machineList } from '@agentuity/server/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
 
 const MachineListResponseSchema = z.array(
 	z.object({

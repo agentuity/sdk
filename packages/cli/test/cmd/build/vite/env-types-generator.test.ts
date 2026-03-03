@@ -2,8 +2,8 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { generateEnvTypes } from '../../../../src/cmd/build/vite/env-types-generator';
-import type { Logger } from '../../../../src/types';
+import { generateEnvTypes } from '../../../../src/cmd/build/vite/env-types-generator.ts';
+import type { Logger } from '../../../../src/types.ts';
 
 /**
  * Create a mock logger that captures log messages for testing

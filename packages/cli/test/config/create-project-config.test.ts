@@ -2,8 +2,8 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createProjectConfig } from '../../src/config';
-import { readEnvFile } from '../../src/env-util';
+import { createProjectConfig } from '../../src/config.ts';
+import { readEnvFile } from '../../src/env-util.ts';
 
 let testDir: string;
 

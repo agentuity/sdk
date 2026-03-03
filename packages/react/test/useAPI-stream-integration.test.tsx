@@ -1,15 +1,15 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
-import { useAPI } from '../src/api';
-import { AgentuityProvider } from '../src/context';
+import { useAPI } from '../src/api.ts';
+import { AgentuityProvider } from '../src/context.tsx';
 
 /**
  * Integration tests for streaming with different output schema types.
  * These tests validate the end-to-end flow from streaming agents to React components.
  */
 
-declare module '../src/types' {
+declare module '../src/types.ts' {
 	interface RouteRegistry {
 		// Object type stream
 		'GET /stream/objects': {

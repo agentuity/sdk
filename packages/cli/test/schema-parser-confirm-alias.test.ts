@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { buildValidationInput, buildValidationInputAsync } from '../src/schema-parser';
+import { buildValidationInput, buildValidationInputAsync } from '../src/schema-parser.ts';
 import { z } from 'zod';
 
 describe('confirm flag aliasing', () => {

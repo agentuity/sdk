@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import { createStorageAdapter } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const deleteNamespaceSubcommand = createCommand({
 	name: 'delete-namespace',

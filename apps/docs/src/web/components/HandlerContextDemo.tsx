@@ -1,7 +1,7 @@
 import { CodeBracketIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
-import { Button } from './ui';
-import { JsonDisplay } from './JsonDisplay';
+import { Button } from './ui/index.ts';
+import { JsonDisplay } from './JsonDisplay.tsx';
 
 // Mock terminal log entries
 interface LogEntry {

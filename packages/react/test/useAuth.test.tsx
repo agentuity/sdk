@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { AgentuityProvider, useAuth, useAgentuity } from '../src/context';
+import { AgentuityProvider, useAuth, useAgentuity } from '../src/context.tsx';
 
 describe('useAuth', () => {
 	test('useAuth is exported and is a function', () => {

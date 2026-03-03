@@ -1,7 +1,7 @@
-import type { APIClient } from '../../../api';
-import type { Config } from '../../../types';
-import * as tui from '../../../tui';
-import { listOrganizations } from '@agentuity/server';
+import type { APIClient } from '../../../api.ts';
+import type { Config } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { listOrganizations } from '@agentuity/server/index.ts';
 
 /**
  * Resolves the organization ID for org-scoped env operations.

@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createWebhookAPIClient, getWebhookApiOptions } from './util';
-import { getCommand } from '../../../command-prefix';
-import { listWebhooks, type Webhook } from '@agentuity/server';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createWebhookAPIClient, getWebhookApiOptions } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { listWebhooks, type Webhook } from '@agentuity/server/index.ts';
 
 const WebhookListResponseSchema = z.object({
 	webhooks: z.array(

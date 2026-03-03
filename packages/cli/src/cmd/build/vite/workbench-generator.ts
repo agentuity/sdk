@@ -7,8 +7,8 @@ import { mkdirSync, existsSync, cpSync } from 'node:fs';
 import {
 	encodeWorkbenchConfig,
 	type WorkbenchConfig as CoreWorkbenchConfig,
-} from '@agentuity/core';
-import type { Logger, WorkbenchConfig } from '../../../types';
+} from '@agentuity/core/index.ts';
+import type { Logger, WorkbenchConfig } from '../../../types.ts';
 
 /**
  * Find the @agentuity/workbench package path

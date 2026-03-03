@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
-import { getCommand } from '../../../command-prefix';
-import { isDryRunMode, outputDryRun } from '../../../explain';
-import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createStorageAdapter } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { isDryRunMode, outputDryRun } from '../../../explain.ts';
+import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core/index.ts';
 
 const DURATION_UNITS: Record<string, number> = {
 	s: 1000,

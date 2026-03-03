@@ -3,7 +3,7 @@
  * Test script to demonstrate exit code system functionality
  */
 
-import { ErrorCode, ExitCode, createError, getExitCode, formatErrorJSON } from '../src/errors';
+import { ErrorCode, ExitCode, createError, getExitCode, formatErrorJSON } from '../src/errors.ts';
 
 console.log('Testing Exit Code System\n');
 console.log('=========================\n');

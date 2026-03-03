@@ -1,4 +1,4 @@
-import type { AgentDefinition } from './types';
+import type { AgentDefinition } from './types.ts';
 
 export const REVIEWER_SYSTEM_PROMPT = `# Reviewer Agent
 

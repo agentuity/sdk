@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { createResources, APIError, validateBucketName } from '@agentuity/server';
-import { createSubcommand as defineSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { isDryRunMode, outputDryRun } from '../../../explain';
-import { ErrorCode } from '../../../errors';
-import { addResourceEnvVars } from '../../../env-util';
+import { createResources, APIError, validateBucketName } from '@agentuity/server/index.ts';
+import { createSubcommand as defineSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCatalystAPIClient } from '../../../config.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { isDryRunMode, outputDryRun } from '../../../explain.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { addResourceEnvVars } from '../../../env-util.ts';
 
 export const createSubcommand = defineSubcommand({
 	name: 'create',

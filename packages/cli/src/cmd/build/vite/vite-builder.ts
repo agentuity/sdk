@@ -8,11 +8,11 @@ import { join } from 'node:path';
 import { existsSync, renameSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { InlineConfig, Plugin } from 'vite';
-import type { Logger, DeployOptions } from '../../../types';
-import { browserEnvPlugin } from './browser-env-plugin';
-import { beaconPlugin } from './beacon-plugin';
-import { publicAssetPathPlugin } from './public-asset-path-plugin';
-import type { BuildReportCollector } from '../../../build-report';
+import type { Logger, DeployOptions } from '../../../types.ts';
+import { browserEnvPlugin } from './browser-env-plugin.ts';
+import { beaconPlugin } from './beacon-plugin.ts';
+import { publicAssetPathPlugin } from './public-asset-path-plugin.ts';
+import type { BuildReportCollector } from '../../../build-report.ts';
 
 /**
  * Vite plugin to flatten the output structure for index.html
@@ -91,22 +91,22 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const srcDir = join(rootDir, 'src');
 
 		// Generate documentation files (if they don't exist)
-		const { generateDocumentation } = await import('./docs-generator');
+		const { generateDocumentation } = await import('./docs-generator.ts');
 		await generateDocumentation(srcDir, logger);
 
 		// Generate/update prompt files in dev mode only (non-blocking)
 		if (dev) {
-			import('./prompt-generator')
+			import('./prompt-generator.ts')
 				.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
 				.catch((err) => logger.warn('Failed to generate prompt files: %s', err.message));
 		}
 
 		// Generate lifecycle types (if setup() exists)
-		const { generateLifecycleTypes } = await import('./lifecycle-generator');
+		const { generateLifecycleTypes } = await import('./lifecycle-generator.ts');
 		await generateLifecycleTypes(rootDir, srcDir, logger);
 
 		// Generate environment types from local .env files
-		const { generateEnvTypes } = await import('./env-types-generator');
+		const { generateEnvTypes } = await import('./env-types-generator.ts');
 		await generateEnvTypes({
 			rootDir,
 			srcDir,
@@ -116,12 +116,12 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		});
 
 		// Load workbench config for entry file generation
-		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
+		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader.ts');
 		const config = await loadAgentuityConfig(rootDir, logger);
 		const workbenchConfig = getWorkbenchConfig(config, dev);
 
 		// Then, generate the entry file
-		const { generateEntryFile } = await import('../entry-generator');
+		const { generateEntryFile } = await import('../entry-generator.ts');
 		await generateEntryFile({
 			rootDir,
 			projectId,
@@ -133,7 +133,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		});
 
 		// Finally, build with Bun.build
-		const { installExternalsAndBuild } = await import('./server-bundler');
+		const { installExternalsAndBuild } = await import('./server-bundler.ts');
 		await installExternalsAndBuild({
 			rootDir,
 			dev,
@@ -182,7 +182,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
-		const { loadAgentuityConfig, hasFrameworkPlugin } = await import('./config-loader');
+		const { loadAgentuityConfig, hasFrameworkPlugin } = await import('./config-loader.ts');
 		const userConfig = await loadAgentuityConfig(rootDir, logger);
 		const userPlugins = userConfig?.plugins || [];
 
@@ -253,7 +253,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const base = workbenchRoute.endsWith('/') ? workbenchRoute : `${workbenchRoute}/`;
 
 		// Load custom user config for define values (same as client mode)
-		const { loadAgentuityConfig } = await import('./config-loader');
+		const { loadAgentuityConfig } = await import('./config-loader.ts');
 		const userConfig = await loadAgentuityConfig(rootDir, logger);
 		const userDefine = userConfig?.define || {};
 		if (Object.keys(userDefine).length > 0) {
@@ -323,21 +323,21 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	};
 
 	// Load config to check if workbench is enabled (dev mode only)
-	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
+	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader.ts');
 	const config = await loadAgentuityConfig(rootDir, logger);
 	const workbenchConfig = getWorkbenchConfig(config, dev);
 	// Generate workbench files BEFORE any builds if enabled (dev mode only)
 	if (workbenchConfig.enabled) {
 		logger.debug('Workbench enabled (dev mode), generating files before build...');
-		const { generateWorkbenchFiles } = await import('./workbench-generator');
+		const { generateWorkbenchFiles } = await import('./workbench-generator.ts');
 		await generateWorkbenchFiles(rootDir, projectId, workbenchConfig, logger);
 	}
 
 	// 1. Discover agents and routes BEFORE builds
 	logger.debug('Discovering agents and routes...');
-	const { generateAgentRegistry, generateRouteRegistry } = await import('./registry-generator');
-	const { discoverAgents } = await import('./agent-discovery');
-	const { discoverRoutes } = await import('./route-discovery');
+	const { generateAgentRegistry, generateRouteRegistry } = await import('./registry-generator.ts');
+	const { discoverAgents } = await import('./agent-discovery.ts');
+	const { discoverRoutes } = await import('./route-discovery.ts');
 
 	const srcDir = join(rootDir, 'src');
 	const agentMetadata = await discoverAgents(
@@ -388,7 +388,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	if (config?.render === 'static' && hasWebFrontend) {
 		logger.debug('Running static rendering (pre-rendering all routes)...');
 		const endStaticDiagnostic = collector?.startDiagnostic('static-render');
-		const { runStaticRender } = await import('./static-renderer');
+		const { runStaticRender } = await import('./static-renderer.ts');
 		const staticResult = await runStaticRender({
 			rootDir,
 			logger,
@@ -428,7 +428,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 5. Generate metadata (after all builds complete)
 	logger.debug('Generating metadata...');
 	const endMetadataDiagnostic = collector?.startDiagnostic('metadata-generation');
-	const { generateMetadata, writeMetadataFile } = await import('./metadata-generator');
+	const { generateMetadata, writeMetadataFile } = await import('./metadata-generator.ts');
 
 	// Generate metadata
 	const metadata = await generateMetadata({

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { drizzle } from '../src/index';
+import { drizzle } from '../src/index.ts';
 import { SQL } from '@agentuity/postgres';
 
 const CONNECTION_URL = 'postgres://localhost:5432/nonexistent_db';

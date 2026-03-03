@@ -5,11 +5,11 @@
  * This validates the fix for the empty agent_ids array issue.
  */
 
-import { test } from './suite';
-import { assert, assertEqual, assertDefined, sleep } from './helpers';
-import { testSessionEventProvider } from './helpers/session-event-provider';
+import { test } from './suite.ts';
+import { assert, assertEqual, assertDefined, sleep } from './helpers/index.ts';
+import { testSessionEventProvider } from './helpers/session-event-provider.ts';
 
-import agentIdTestAgent from '@agents/session/agent-id-test';
+import agentIdTestAgent from '@agents/session/agent-id-test.ts';
 
 // Test: Agent execution captures agent ID in session event
 test('session-agent-ids', 'agent-run-captures-id', async () => {

@@ -1,4 +1,4 @@
-import { hasWaitUntilPending } from './_waituntil';
+import { hasWaitUntilPending } from './_waituntil.ts';
 
 /**
  * returns true if the server is idle (no pending waitUntil tasks)

@@ -1,4 +1,4 @@
-import { createRouter } from '@agentuity/runtime';
+import { createRouter } from '@agentuity/runtime.ts';
 
 const router = createRouter();
 

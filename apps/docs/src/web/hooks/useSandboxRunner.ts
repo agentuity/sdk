@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { TerminalStatus } from '../components/TerminalOutput';
+import type { TerminalStatus } from '../components/TerminalOutput.tsx';
 
 /** Valid status values that the backend can send */
 const VALID_STATUSES: Set<TerminalStatus> = new Set([

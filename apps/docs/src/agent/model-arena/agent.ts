@@ -18,9 +18,9 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 import { generateObject } from 'ai';
-import { generateStory, JUDGE_MODEL, MODELS } from './lib';
-import { getJudgePrompt } from './prompts';
-import { type Judgment, JudgmentSchema, type ModelResult, type Tone } from './types';
+import { generateStory, JUDGE_MODEL, MODELS } from './lib.ts';
+import { getJudgePrompt } from './prompts.ts';
+import { type Judgment, JudgmentSchema, type ModelResult, type Tone } from './types.ts';
 
 async function judgeStories(results: ModelResult[], tone: Tone, prompt: string): Promise<Judgment> {
 	const { object } = await generateObject({

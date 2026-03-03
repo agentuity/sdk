@@ -1,5 +1,5 @@
-import { createSubcommand } from '../../types';
-import { getCommand } from '../../command-prefix';
+import { createSubcommand } from '../../types.ts';
+import { getCommand } from '../../command-prefix.ts';
 import { z } from 'zod';
 
 const ApikeyResponseSchema = z.object({

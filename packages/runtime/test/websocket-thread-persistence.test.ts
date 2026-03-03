@@ -10,7 +10,7 @@ import {
 	ThreadWebSocketClient,
 	parseThreadData,
 	type ThreadWebSocketClientOptions,
-} from '../src/session';
+} from '../src/session.ts';
 
 const testOptions: ThreadWebSocketClientOptions = {
 	connectionTimeoutMs: 100,

@@ -14,16 +14,16 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { convertJsonSchemaToZod } from 'zod-from-json-schema';
-import type { AgentSchemaData } from '../../hooks/useAgentSchemas';
-import { useLogger } from '../../hooks/useLogger';
-import { cn, generateTemplateFromSchema } from '../../lib/utils';
+import type { AgentSchemaData } from '../../hooks/useAgentSchemas.ts';
+import { useLogger } from '../../hooks/useLogger.ts';
+import { cn, generateTemplateFromSchema } from '../../lib/utils.ts';
 import {
 	PromptInput,
 	PromptInputBody,
 	PromptInputFooter,
 	PromptInputTextarea,
-} from '../ai-elements/prompt-input';
-import { Button } from '../ui/button';
+} from '../ai-elements/prompt-input.tsx';
+import { Button } from '../ui/button.tsx';
 import {
 	Command,
 	CommandEmpty,
@@ -31,11 +31,11 @@ import {
 	CommandInput,
 	CommandItem,
 	CommandList,
-} from '../ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { JsonEditor } from './json-editor';
-import { useWorkbench } from './workbench-provider';
+} from '../ui/command.tsx';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover.tsx';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip.tsx';
+import { JsonEditor } from './json-editor.tsx';
+import { useWorkbench } from './workbench-provider.tsx';
 
 export interface InputSectionProps {
 	agents: Record<string, AgentSchemaData>;

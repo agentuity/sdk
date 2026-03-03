@@ -1,6 +1,6 @@
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
+import { App } from './App.tsx';
 
 const elem = document.getElementById('root')!;
 const app = (

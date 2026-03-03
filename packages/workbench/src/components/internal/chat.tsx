@@ -1,18 +1,18 @@
 import { ChevronRight, Copy, Loader, RefreshCcw } from 'lucide-react';
 import { useState } from 'react';
-import { useLogger } from '../../hooks/useLogger';
-import { cn, formatErrorForCopy, parseTokensHeader, getTotalTokens } from '../../lib/utils';
-import { Action, Actions } from '../ai-elements/actions';
-import { CodeBlock } from '../ai-elements/code-block';
+import { useLogger } from '../../hooks/useLogger.ts';
+import { cn, formatErrorForCopy, parseTokensHeader, getTotalTokens } from '../../lib/utils.ts';
+import { Action, Actions } from '../ai-elements/actions.tsx';
+import { CodeBlock } from '../ai-elements/code-block.tsx';
 import {
 	Conversation,
 	ConversationContent,
 	ConversationScrollButton,
-} from '../ai-elements/conversation';
-import { Message, MessageContent } from '../ai-elements/message';
-import { Shimmer } from '../ai-elements/shimmer';
-import { InputSection } from './input-section';
-import { useWorkbench } from './workbench-provider';
+} from '../ai-elements/conversation.tsx';
+import { Message, MessageContent } from '../ai-elements/message.tsx';
+import { Shimmer } from '../ai-elements/shimmer.tsx';
+import { InputSection } from './input-section.tsx';
+import { useWorkbench } from './workbench-provider.tsx';
 
 export interface ChatProps {
 	className?: string;

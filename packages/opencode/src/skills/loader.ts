@@ -1,8 +1,8 @@
 import { homedir } from 'node:os';
 import { basename, join, resolve, sep } from 'node:path';
 import { readdir, realpath } from 'node:fs/promises';
-import type { LoadedSkill, SkillMetadata, SkillScope, SkillsConfig } from './types';
-import { parseFrontmatter } from './frontmatter';
+import type { LoadedSkill, SkillMetadata, SkillScope, SkillsConfig } from './types.ts';
+import { parseFrontmatter } from './frontmatter.ts';
 
 const SKILL_FILENAME = 'SKILL.md';
 

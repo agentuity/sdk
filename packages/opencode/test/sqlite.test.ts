@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { randomUUID } from 'node:crypto';
-import { OpenCodeDBReader } from '../src/sqlite';
+import { OpenCodeDBReader } from '../src/sqlite/index.ts';
 
 type TestContext = {
 	db: Database;

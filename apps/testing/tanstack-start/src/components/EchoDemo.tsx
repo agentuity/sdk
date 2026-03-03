@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 
-const EchoDemoClient = lazy(() => import('./EchoDemoClient'));
+const EchoDemoClient = lazy(() => import('./EchoDemoClient.tsx'));
 
 export function EchoDemo() {
 	const [isClient, setIsClient] = useState(false);

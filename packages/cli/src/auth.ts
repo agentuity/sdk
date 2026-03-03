@@ -1,12 +1,12 @@
 import enquirer from 'enquirer';
-import { getDefaultConfigPath, getAuth, saveConfig, loadConfig, saveOrgId } from './config';
-import { getResourceInfo, type ResourceType } from './cache';
-import { getCommand } from './command-prefix';
-import type { CommandContext, AuthData, Config } from './types';
-import * as tui from './tui';
-import { defaultProfileName } from './config';
-import { listOrganizations } from '@agentuity/server';
-import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
+import { getDefaultConfigPath, getAuth, saveConfig, loadConfig, saveOrgId } from './config.ts';
+import { getResourceInfo, type ResourceType } from './cache/index.ts';
+import { getCommand } from './command-prefix.ts';
+import type { CommandContext, AuthData, Config } from './types.ts';
+import * as tui from './tui.ts';
+import { defaultProfileName } from './config.ts';
+import { listOrganizations } from '@agentuity/server/index.ts';
+import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api.ts';
 
 export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
@@ -191,7 +191,7 @@ export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthD
 	tui.newline();
 
 	// Import and run login flow
-	const { loginCommand } = await import('./cmd/auth/login');
+	const { loginCommand } = await import('./cmd/auth/login.ts');
 
 	// Ensure apiClient and opts are available for login handler
 	const loginCtx = ctx as unknown as Record<string, unknown>;
@@ -285,7 +285,7 @@ export async function optionalAuth(
 			tui.newline();
 
 			// Import and run login flow
-			const { loginCommand } = await import('./cmd/auth/login');
+			const { loginCommand } = await import('./cmd/auth/login.ts');
 
 			// Ensure apiClient and opts are available for login handler
 			const loginCtx1 = ctx as unknown as Record<string, unknown>;
@@ -328,7 +328,7 @@ export async function optionalAuth(
 			tui.newline();
 
 			// Import and run login flow
-			const { loginCommand } = await import('./cmd/auth/login');
+			const { loginCommand } = await import('./cmd/auth/login.ts');
 
 			// Ensure apiClient and opts are available for login handler
 			const loginCtx2 = ctx as unknown as Record<string, unknown>;

@@ -3,8 +3,8 @@
  * Verify that tags appear in the generated CLI schema
  */
 
-import { discoverCommands } from '../src/cmd';
-import { generateCLISchema } from '../src/schema-generator';
+import { discoverCommands } from '../src/cmd/index.ts';
+import { generateCLISchema } from '../src/schema-generator.ts';
 import type { Command } from 'commander';
 
 async function main() {

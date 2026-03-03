@@ -4,12 +4,12 @@
  * Tests Stream storage operations including create, write, read, metadata, and types
  */
 
-import { test } from './suite';
-import { assert, assertEqual, assertDefined } from './helpers';
+import { test } from './suite.ts';
+import { assert, assertEqual, assertDefined } from './helpers/index.ts';
 
-import streamCrudAgent from '@agents/storage/stream/crud';
-import streamMetadataAgent from '@agents/storage/stream/metadata';
-import streamTypesAgent from '@agents/storage/stream/types';
+import streamCrudAgent from '@agents/storage/stream/crud.ts';
+import streamMetadataAgent from '@agents/storage/stream/metadata.ts';
+import streamTypesAgent from '@agents/storage/stream/types.ts';
 
 // Test: Create stream, write, and close
 test('storage-stream', 'create-write-close', async () => {

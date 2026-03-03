@@ -5,7 +5,7 @@
  * Used to test cross-agent thread state sharing.
  */
 
-import { createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime.ts';
 import { s } from '@agentuity/schema';
 
 const stateWriterAgent = createAgent('state-writer', {

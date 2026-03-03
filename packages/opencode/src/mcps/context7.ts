@@ -1,4 +1,4 @@
-import type { McpConfig } from '../types';
+import type { McpConfig } from '../types.ts';
 
 export const context7Mcp: McpConfig = {
 	name: 'context7',

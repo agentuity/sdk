@@ -3,8 +3,8 @@ import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { s } from '@agentuity/schema';
 import { mockFetch } from '@agentuity/test-utils';
-import { AgentuityProvider } from '../src/context';
-import { useAPI } from '../src/api';
+import { AgentuityProvider } from '../src/context.tsx';
+import { useAPI } from '../src/api.ts';
 
 // Define schemas for testing
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -15,7 +15,7 @@ const memberOutput = s.object({ orgId: s.string(), memberId: s.string() });
 const searchOutput = s.object({ query: s.string(), limit: s.number() });
 
 // Extend RouteRegistry for testing
-declare module '../src/types' {
+declare module '../src/types.ts' {
 	interface RouteRegistry {
 		'GET /users/:userId': {
 			inputSchema: never;

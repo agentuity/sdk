@@ -4,8 +4,8 @@
  */
 
 import { z } from 'zod';
-import { createSubcommand } from '../src/types';
-import { getCommand } from '../src/command-prefix';
+import { createSubcommand } from '../src/types.ts';
+import { getCommand } from '../src/command-prefix.ts';
 
 // Define a response schema for testing
 const UserResponseSchema = z.object({

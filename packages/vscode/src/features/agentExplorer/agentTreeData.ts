@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { getCliClient, type Agent } from '../../core/cliClient';
-import { getCurrentProject } from '../../core/project';
-import { BaseTreeDataProvider } from '../../core/baseTreeDataProvider';
+import { getCliClient, type Agent } from '../../core/cliClient.ts';
+import { getCurrentProject } from '../../core/project.ts';
+import { BaseTreeDataProvider } from '../../core/baseTreeDataProvider.ts';
 
 export class AgentTreeItem extends vscode.TreeItem {
 	constructor(

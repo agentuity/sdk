@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { getMinBunVersion } from '../src/utils/bun-version-checker';
+import { getMinBunVersion } from '../src/utils/bun-version-checker.ts';
 import { semver } from 'bun';
 
 describe('Bun Version Checker', () => {

@@ -1,7 +1,7 @@
-import { APIResponseSchema } from '@agentuity/server';
+import { APIResponseSchema } from '@agentuity/server/index.ts';
 import { z } from 'zod';
-import type { APIClient } from '../../api';
-import { StructuredError } from '@agentuity/core';
+import type { APIClient } from '../../api.ts';
+import { StructuredError } from '@agentuity/core/index.ts';
 import { createPublicKey } from 'crypto';
 
 const DevmodeRequestSchema = z.object({

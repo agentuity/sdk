@@ -4,7 +4,7 @@ import {
 	isVersionAvailableOnNpm,
 	isVersionAvailableOnNpmQuick,
 	waitForNpmAvailability,
-} from '../src/cmd/upgrade/npm-availability';
+} from '../src/cmd/upgrade/npm-availability.ts';
 
 // Relaxed timing thresholds for CI stability
 // These are intentionally generous to avoid flaky tests across different environments

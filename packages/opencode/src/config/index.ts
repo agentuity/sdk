@@ -1,3 +1,3 @@
-export { loadCoderConfig, getConfigPath, getDefaultConfig, mergeConfig } from './loader';
-export { isOpenAIModel, isAnthropicModel } from './presets';
-export { validateAgentConfig, validateAndWarnConfigs, type ConfigWarning } from './validation';
+export { loadCoderConfig, getConfigPath, getDefaultConfig, mergeConfig } from './loader.ts';
+export { isOpenAIModel, isAnthropicModel } from './presets.ts';
+export { validateAgentConfig, validateAndWarnConfigs, type ConfigWarning } from './validation.ts';

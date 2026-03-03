@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { parseRoute } from '../src/cmd/build/ast';
+import { parseRoute } from '../src/cmd/build/ast.ts';
 
 describe('Validator Stream Flag Extraction', () => {
 	let tempDir: string;

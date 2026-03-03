@@ -1,5 +1,5 @@
 // This is a React Server Component (no 'use client' directive)
-import EchoDemo from './EchoDemo';
+import EchoDemo from './EchoDemo.tsx';
 
 export default function App() {
 	// This component runs on the server only.

@@ -1,6 +1,6 @@
 import { isStructuredError } from '@agentuity/core';
 import { createRouter } from '@agentuity/runtime';
-import echoAgent from '@agents/echo/agent';
+import echoAgent from '@agents/echo/agent.ts';
 
 const router = createRouter();
 

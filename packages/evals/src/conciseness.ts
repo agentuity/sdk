@@ -4,8 +4,8 @@ import {
 	generateEvalResult,
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
-} from './_utils';
-import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
+} from './_utils.ts';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types.ts';
 
 export const concisenessPrompt = `You are evaluating whether an LLM response is unnecessarily verbose for the request type.
 

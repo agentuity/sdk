@@ -1,1 +1,1 @@
-export { createToolHooks, getEntityContextForSession } from './tools';
+export { createToolHooks, getEntityContextForSession } from './tools.ts';

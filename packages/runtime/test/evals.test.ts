@@ -4,9 +4,9 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { createAgent, runInAgentContext } from '../src/agent';
+import { createAgent, runInAgentContext } from '../src/agent.ts';
 import { z } from 'zod';
-import { TestAgentContext } from './helpers/test-context';
+import { TestAgentContext } from './helpers/test-context.ts';
 
 describe('Eval Creation', () => {
 	test('createEval with input and output schema', () => {

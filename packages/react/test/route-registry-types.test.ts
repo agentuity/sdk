@@ -14,7 +14,7 @@ import type {
 	RouteKey,
 	WebSocketRouteKey,
 	SSERouteKey,
-} from '../src/index';
+} from '../src/index.ts';
 
 describe('Route Registry Type Exports (issue #384)', () => {
 	test('RouteRegistry should be exported from @agentuity/react', () => {

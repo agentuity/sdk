@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { dbLogs, DbQueryLogSchema, listOrgResources } from '@agentuity/server';
-import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import { getResourceInfo, setResourceInfo } from '../../../cache';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { dbLogs, DbQueryLogSchema, listOrgResources } from '@agentuity/server/index.ts';
+import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
 
 const DbLogsResponseSchema = z.array(DbQueryLogSchema);
 

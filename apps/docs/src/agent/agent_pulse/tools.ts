@@ -1,10 +1,10 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { getTutorialMeta } from './tutorial';
-import docQAAgent from '@agent/doc_qa';
-import type { Action } from './types';
-import { ActionType } from './types';
-import { documentPathToUrl } from '../../lib/doc-urls';
+import { getTutorialMeta } from './tutorial.ts';
+import docQAAgent from '@agent/doc_qa/index.ts';
+import type { Action } from './types.ts';
+import { ActionType } from './types.ts';
+import { documentPathToUrl } from '../../lib/doc-urls.ts';
 
 interface ToolState {
 	action: Action | null;

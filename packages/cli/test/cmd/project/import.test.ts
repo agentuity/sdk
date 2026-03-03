@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { importSubcommand } from '../../../src/cmd/project/import';
+import { importSubcommand } from '../../../src/cmd/project/import.ts';
 
 describe('project import', () => {
 	describe('importSubcommand definition', () => {

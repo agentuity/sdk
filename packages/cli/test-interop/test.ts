@@ -1,7 +1,7 @@
 import { generateKeyPairSync, createPrivateKey } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { Readable, Writable } from 'node:stream';
-import { encryptFIPSKEMDEMStream, decryptFIPSKEMDEMStream } from '../src/crypto/box';
+import { encryptFIPSKEMDEMStream, decryptFIPSKEMDEMStream } from '../src/crypto/box.ts';
 
 interface GoKeyPair {
 	publicPEM: string;

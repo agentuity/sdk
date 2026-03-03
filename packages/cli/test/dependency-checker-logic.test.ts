@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { shouldUpgradeVersion } from '../src/utils/dependency-checker';
+import { shouldUpgradeVersion } from '../src/utils/dependency-checker.ts';
 
 describe('dependency-checker logic', () => {
 	describe('shouldUpgradeVersion', () => {

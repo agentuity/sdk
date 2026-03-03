@@ -5,10 +5,10 @@
 import { z } from 'zod';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import { generateAuthSchemaSql, getGeneratedSqlDir } from './shared';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { generateAuthSchemaSql, getGeneratedSqlDir } from './shared.ts';
 
 export const generateSubcommand = createSubcommand({
 	name: 'generate',

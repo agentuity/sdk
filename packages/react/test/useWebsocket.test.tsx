@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode } from 'react';
-import { AgentuityProvider } from '../src/context';
-import { useWebsocket } from '../src/websocket';
+import { AgentuityProvider } from '../src/context.tsx';
+import { useWebsocket } from '../src/websocket.ts';
 
 // Mock WebSocket
 class MockWebSocket {
@@ -64,7 +64,7 @@ class MockWebSocket {
 }
 
 // Augment WebSocketRouteRegistry for testing
-declare module '../src/types' {
+declare module '../src/types.ts' {
 	interface WebSocketRouteRegistry {
 		'/test-ws': {
 			inputSchema: { message: string };

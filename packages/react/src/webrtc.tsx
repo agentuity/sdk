@@ -21,7 +21,7 @@ export type {
 	DataChannelState,
 	ConnectionQualitySummary,
 };
-import { AgentuityContext } from './context';
+import { AgentuityContext } from './context.tsx';
 
 export type { WebRTCConnectionState };
 

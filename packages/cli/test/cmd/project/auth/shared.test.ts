@@ -7,7 +7,7 @@ import {
 	detectOrmSetup,
 	generateAuthSchemaSql,
 	AUTH_DEPENDENCIES,
-} from '../../../../src/cmd/project/auth/shared';
+} from '../../../../src/cmd/project/auth/shared.ts';
 import { createMockLogger } from '@agentuity/test-utils';
 
 describe('splitSqlStatements', () => {

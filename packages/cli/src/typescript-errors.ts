@@ -6,7 +6,7 @@
  */
 
 import { join } from 'node:path';
-import type { GrammarItem } from './tsc-output-parser';
+import type { GrammarItem } from './tsc-output-parser.ts';
 import {
 	colorError,
 	colorPrimary,
@@ -20,8 +20,8 @@ import {
 	sourceLink,
 	getTerminalWidth,
 	truncateToWidth,
-} from './tui';
-import { symbols } from './tui/symbols';
+} from './tui.ts';
+import { symbols } from './tui/symbols.ts';
 
 interface TypeScriptError {
 	path: string;

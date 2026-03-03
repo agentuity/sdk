@@ -3,7 +3,7 @@
  * Test standard response envelope functionality
  */
 
-import { createSuccessResponse, createErrorResponse, createMetadata } from '../src/output';
+import { createSuccessResponse, createErrorResponse, createMetadata } from '../src/output.ts';
 
 console.log('Testing Standard Response Envelope\n');
 console.log('===================================\n');

@@ -4,7 +4,7 @@ import {
 	rewriteNamedSpecifiers,
 	rewriteBunImports,
 	rewritePgImports,
-} from '../../src/cmd/build/vite/db-rewrite';
+} from '../../src/cmd/build/vite/db-rewrite.ts';
 
 // ---------------------------------------------------------------------------
 // getLoaderForPath

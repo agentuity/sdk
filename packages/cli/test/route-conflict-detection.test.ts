@@ -20,7 +20,7 @@ describe('Route Conflict Detection', () => {
 	});
 
 	test('should detect duplicate route paths in same file', async () => {
-		const { parseRoute } = await import('../src/cmd/build/ast');
+		const { parseRoute } = await import('../src/cmd/build/ast.ts');
 		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
@@ -49,7 +49,7 @@ export default router;
 	});
 
 	test('should detect duplicate methods with different cases', async () => {
-		const { parseRoute } = await import('../src/cmd/build/ast');
+		const { parseRoute } = await import('../src/cmd/build/ast.ts');
 		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
@@ -77,7 +77,7 @@ export default router;
 	});
 
 	test('should allow same path with different HTTP methods', async () => {
-		const { parseRoute } = await import('../src/cmd/build/ast');
+		const { parseRoute } = await import('../src/cmd/build/ast.ts');
 		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
@@ -103,7 +103,7 @@ export default router;
 	});
 
 	test('should detect conflicting param names', async () => {
-		const { parseRoute } = await import('../src/cmd/build/ast');
+		const { parseRoute } = await import('../src/cmd/build/ast.ts');
 		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
@@ -127,7 +127,7 @@ export default router;
 	});
 
 	test('should detect wildcard conflicts', async () => {
-		const { parseRoute } = await import('../src/cmd/build/ast');
+		const { parseRoute } = await import('../src/cmd/build/ast.ts');
 		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
@@ -153,7 +153,7 @@ export default router;
 	});
 
 	test('should handle routes with different path separators', async () => {
-		const { parseRoute } = await import('../src/cmd/build/ast');
+		const { parseRoute } = await import('../src/cmd/build/ast.ts');
 		const routeFile = join(API_DIR, 'route.ts');
 
 		const code = `
@@ -186,7 +186,7 @@ export default router;
 
 	test('should validate variable name collisions in auto-mount', async () => {
 		// Test camelCase conversion for potential collisions
-		const { toCamelCase } = await import('../src/utils/string');
+		const { toCamelCase } = await import('../src/utils/string.ts');
 
 		const folders = ['user-api', 'userApi', 'user_api', 'UserAPI'];
 		const camelNames = folders.map((f) => toCamelCase(f));
@@ -201,7 +201,7 @@ export default router;
 	});
 
 	test('should detect cross-file route conflicts', async () => {
-		const { parseRoute } = await import('../src/cmd/build/ast');
+		const { parseRoute } = await import('../src/cmd/build/ast.ts');
 
 		// Create two files with conflicting routes - both mounted at /api (directory-based)
 		// route1.ts and route2.ts are both in src/api/, so both mount at /api

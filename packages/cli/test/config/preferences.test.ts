@@ -28,7 +28,7 @@ describe('config preferences', () => {
 		});
 
 		test('should return saved region preference when config has it', async () => {
-			const { getDefaultRegion } = await import('../../src/config');
+			const { getDefaultRegion } = await import('../../src/config.ts');
 
 			const config = {
 				name: 'production',
@@ -42,7 +42,7 @@ describe('config preferences', () => {
 		});
 
 		test('should return fallback when no preference is set', async () => {
-			const { getDefaultRegion } = await import('../../src/config');
+			const { getDefaultRegion } = await import('../../src/config.ts');
 
 			const config = {
 				name: 'production',
@@ -55,7 +55,7 @@ describe('config preferences', () => {
 		});
 
 		test('should prioritize env var over saved preference', async () => {
-			const { getDefaultRegion } = await import('../../src/config');
+			const { getDefaultRegion } = await import('../../src/config.ts');
 
 			const originalEnv = process.env.AGENTUITY_REGION;
 			process.env.AGENTUITY_REGION = 'apse';
@@ -80,7 +80,7 @@ describe('config preferences', () => {
 		});
 
 		test('should return local for local profile regardless of preference', async () => {
-			const { getDefaultRegion } = await import('../../src/config');
+			const { getDefaultRegion } = await import('../../src/config.ts');
 
 			const config = {
 				name: 'local',

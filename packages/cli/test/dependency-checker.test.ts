@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { checkAndUpgradeDependencies } from '../src/utils/dependency-checker';
+import { checkAndUpgradeDependencies } from '../src/utils/dependency-checker.ts';
 import { createMockLogger } from '@agentuity/test-utils';
 
 describe('dependency-checker', () => {

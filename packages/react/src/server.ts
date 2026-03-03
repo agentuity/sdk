@@ -27,7 +27,7 @@ export {
 	getGlobalBaseUrl,
 	setGlobalAuthHeader,
 	getGlobalAuthHeader,
-} from './client';
+} from './client.ts';
 
 // Re-export all registry types from @agentuity/frontend
 export type {
@@ -57,8 +57,8 @@ export type {
 	RouteInput,
 	RouteOutput,
 	RoutePathParams,
-} from './api';
+} from './api.ts';
 
-export type { WebSocketRouteKey, WebSocketRouteInput, WebSocketRouteOutput } from './websocket';
+export type { WebSocketRouteKey, WebSocketRouteInput, WebSocketRouteOutput } from './websocket.ts';
 
-export type { SSERouteKey, SSERouteOutput } from './eventstream';
+export type { SSERouteKey, SSERouteOutput } from './eventstream.ts';

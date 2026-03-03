@@ -1,19 +1,19 @@
-import { CODE_EXAMPLES } from './code-examples';
-import { AgentCallsDemo } from './components/AgentCallsDemo';
-import { AIGatewayDemo } from './components/AIGatewayDemo';
-import { ChatDemo } from './components/ChatDemo';
-import { CronDemo } from './components/CronDemo';
-import { EvalsDemo } from './components/EvalsDemo';
-import { HandlerContextDemo } from './components/HandlerContextDemo';
-import { HelloDemo } from './components/HelloDemo';
-import { KVExplorer } from './components/KVExplorer';
-import { ModelArena } from './components/ModelArena';
-import { ObjectStoreDemo } from './components/ObjectStoreDemo';
-import { PersistentStreamDemo } from './components/PersistentStreamDemo';
-import { SSEStreamDemo } from './components/SSEStreamDemo';
-import { StreamingDemo } from './components/StreamingDemo';
-import { VectorSearch } from './components/VectorSearch';
-import type { LineHighlight } from './components/CodeBlock';
+import { CODE_EXAMPLES } from './code-examples.ts';
+import { AgentCallsDemo } from './components/AgentCallsDemo.tsx';
+import { AIGatewayDemo } from './components/AIGatewayDemo.tsx';
+import { ChatDemo } from './components/ChatDemo.tsx';
+import { CronDemo } from './components/CronDemo.tsx';
+import { EvalsDemo } from './components/EvalsDemo.tsx';
+import { HandlerContextDemo } from './components/HandlerContextDemo.tsx';
+import { HelloDemo } from './components/HelloDemo.tsx';
+import { KVExplorer } from './components/KVExplorer.tsx';
+import { ModelArena } from './components/ModelArena.tsx';
+import { ObjectStoreDemo } from './components/ObjectStoreDemo.tsx';
+import { PersistentStreamDemo } from './components/PersistentStreamDemo.tsx';
+import { SSEStreamDemo } from './components/SSEStreamDemo.tsx';
+import { StreamingDemo } from './components/StreamingDemo.tsx';
+import { VectorSearch } from './components/VectorSearch.tsx';
+import type { LineHighlight } from './components/CodeBlock.tsx';
 
 export type DemoId =
 	| 'hello'

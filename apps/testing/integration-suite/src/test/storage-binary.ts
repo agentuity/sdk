@@ -9,9 +9,9 @@
  * - MD5 hash verification
  */
 
-import { test } from '@test/suite';
-import { assert, assertEqual, assertDefined, uniqueId } from '@test/helpers';
-import binaryStorageAgent from '@agents/storage/binary/upload-download';
+import { test } from '@test/suite.ts';
+import { assert, assertEqual, assertDefined, uniqueId } from '@test/helpers/index.ts';
+import binaryStorageAgent from '@agents/storage/binary/upload-download.ts';
 import crypto from 'crypto';
 
 // Helper: Generate random binary data

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { getCurrentProject } from '../../core/project';
-import { getAppUrl, getWorkbenchUrl } from '../../core/urls';
+import { getCurrentProject } from '../../core/project.ts';
+import { getAppUrl, getWorkbenchUrl } from '../../core/urls.ts';
 
 export function registerWorkbenchCommands(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(

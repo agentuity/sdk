@@ -9,8 +9,8 @@ import {
 	isSecureConnection,
 	signThreadId,
 	verifySignedThreadId,
-} from '../src/session';
-import type { AppState } from '../src/index';
+} from '../src/session.ts';
+import type { AppState } from '../src/index.ts';
 
 describe('Thread ID Header Support', () => {
 	test('DefaultThreadIDProvider uses x-thread-id header when present and properly signed', async () => {

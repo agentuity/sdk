@@ -7,10 +7,10 @@
  * - AGENTUITY_PUBLIC_* keys ARE allowed as env vars
  */
 
-import { test } from '@test/suite';
-import { assert, assertEqual, uniqueId, testRunId } from '@test/helpers';
-import cliAgent from '@agents/cli/agent';
-import { isAuthenticated } from '@test/helpers/cli';
+import { test } from '@test/suite.ts';
+import { assert, assertEqual, uniqueId, testRunId } from '@test/helpers/index.ts';
+import cliAgent from '@agents/cli/agent.ts';
+import { isAuthenticated } from '@test/helpers/cli.ts';
 
 // Track all env vars created during tests for cleanup
 const createdEnvVars: string[] = [];

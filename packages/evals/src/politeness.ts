@@ -4,8 +4,8 @@ import {
 	generateEvalResult,
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
-} from './_utils';
-import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
+} from './_utils.ts';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types.ts';
 
 export const politenessPrompt = `You are evaluating the politeness of an LLM response.
 

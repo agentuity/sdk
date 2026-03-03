@@ -1,1 +1,1 @@
-export { HTTPSandboxService } from './http';
+export { HTTPSandboxService } from './http.ts';

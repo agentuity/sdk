@@ -1,10 +1,10 @@
-import { createCommand } from '../../../types';
-import { installSubcommand } from './install';
-import { uninstallSubcommand } from './uninstall';
-import { runSubcommand } from './run';
-import { dashboardSubcommand } from './dashboard';
-import { inspectSubcommand } from './inspect';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { installSubcommand } from './install.ts';
+import { uninstallSubcommand } from './uninstall.ts';
+import { runSubcommand } from './run.ts';
+import { dashboardSubcommand } from './dashboard.ts';
+import { inspectSubcommand } from './inspect.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'opencode',

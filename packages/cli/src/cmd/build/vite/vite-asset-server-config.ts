@@ -8,7 +8,7 @@
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import type { InlineConfig } from 'vite';
-import type { Logger } from '../../../types';
+import type { Logger } from '../../../types.ts';
 
 export interface GenerateAssetServerConfigOptions {
 	rootDir: string;
@@ -26,7 +26,7 @@ export async function generateAssetServerConfig(
 	const { rootDir, logger, workbenchPath, port } = options;
 
 	// Load custom user config for define values and plugins
-	const { loadAgentuityConfig } = await import('./config-loader');
+	const { loadAgentuityConfig } = await import('./config-loader.ts');
 	const userConfig = await loadAgentuityConfig(rootDir, logger);
 	const userDefine = userConfig?.define || {};
 	const userPlugins = userConfig?.plugins || [];
@@ -131,9 +131,9 @@ export async function generateAssetServerConfig(
 		// Plugins: User plugins first (includes framework plugin like React/Svelte/Vue), then browser env
 		// Try project's node_modules first, fall back to CLI's bundled version
 		plugins: await (async () => {
-			const { browserEnvPlugin } = await import('./browser-env-plugin');
-			const { publicAssetPathPlugin } = await import('./public-asset-path-plugin');
-			const { hasFrameworkPlugin } = await import('./config-loader');
+			const { browserEnvPlugin } = await import('./browser-env-plugin.ts');
+			const { publicAssetPathPlugin } = await import('./public-asset-path-plugin.ts');
+			const { hasFrameworkPlugin } = await import('./config-loader.ts');
 
 			// Auto-add React plugin if no framework plugin is present (backwards compatibility)
 			const resolvedUserPlugins = [...userPlugins];

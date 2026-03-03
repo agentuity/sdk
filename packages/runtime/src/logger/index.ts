@@ -1,2 +1,2 @@
-export { internal } from './internal';
-export { type Logger, logger } from './user';
+export { internal } from './internal.ts';
+export { type Logger, logger } from './user.ts';

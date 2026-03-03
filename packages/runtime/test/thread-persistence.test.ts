@@ -9,7 +9,7 @@ import {
 	LazyThreadState,
 	parseThreadData,
 	type ThreadProvider,
-} from '../src/session';
+} from '../src/session.ts';
 
 describe('parseThreadData', () => {
 	test('returns empty object for undefined input', () => {

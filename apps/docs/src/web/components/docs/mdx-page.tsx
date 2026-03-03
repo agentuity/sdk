@@ -1,8 +1,8 @@
 import { MDXProvider } from '@mdx-js/react';
 import { useEffect } from 'react';
-import { mdxComponents } from './mdx-components';
-import { useToc, type TocItem } from '../../hooks/use-toc';
-import { CopyPageDropdown } from './copy-page-dropdown';
+import { mdxComponents } from './mdx-components.tsx';
+import { useToc, type TocItem } from '../../hooks/use-toc.tsx';
+import { CopyPageDropdown } from './copy-page-dropdown.tsx';
 
 interface Frontmatter {
 	title?: string;

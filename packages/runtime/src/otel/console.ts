@@ -2,7 +2,7 @@ import { SeverityNumber } from '@opentelemetry/api-logs';
 import { type ExportResult, ExportResultCode } from '@opentelemetry/core';
 import type { LogRecordExporter, ReadableLogRecord } from '@opentelemetry/sdk-logs';
 import type { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { __originalConsole } from './logger';
+import { __originalConsole } from './logger.ts';
 
 /**
  * Console implementation of the LogRecordExporter interface

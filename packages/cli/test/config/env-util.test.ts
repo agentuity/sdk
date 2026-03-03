@@ -7,7 +7,7 @@ import {
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 	AGENTUITY_ALLOWED_KEYS,
-} from '../../src/env-util';
+} from '../../src/env-util.ts';
 
 describe('AGENTUITY_ALLOWED_KEYS', () => {
 	test('contains AGENTUITY_AUTH_SECRET', () => {

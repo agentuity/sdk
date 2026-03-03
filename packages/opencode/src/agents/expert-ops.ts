@@ -1,4 +1,4 @@
-import type { AgentDefinition } from './types';
+import type { AgentDefinition } from './types.ts';
 
 export const EXPERT_OPS_SYSTEM_PROMPT = `# Expert Ops Agent
 

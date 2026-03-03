@@ -1,16 +1,16 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
 import {
 	sessionGet,
 	type SpanNode,
 	type EvalRun,
 	type AgentInfo,
 	APIError,
-} from '@agentuity/server';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import { getGlobalCatalystAPIClient } from '../../../config';
+} from '@agentuity/server/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
 
 const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
 	z.object({

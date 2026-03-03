@@ -12,8 +12,8 @@
 
 import { expect, describe, test } from 'bun:test';
 import { Hono } from 'hono';
-import { createCompressionMiddleware } from '../src/middleware';
-import type { CompressionConfig } from '../src/app';
+import { createCompressionMiddleware } from '../src/middleware.ts';
+import type { CompressionConfig } from '../src/app.ts';
 
 // Generate a large string that will exceed the default threshold
 function generateLargePayload(size = 2048): string {

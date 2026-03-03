@@ -6,8 +6,8 @@
  * GET /session/:id   - Fetches eval results from KV storage
  */
 import { createRouter } from '@agentuity/runtime';
-import evalsAgent from '../../agent/evals/agent';
-import { EVAL_BUCKET, EVAL_NAMES } from '../../agent/evals/eval';
+import evalsAgent from '../../agent/evals/agent.ts';
+import { EVAL_BUCKET, EVAL_NAMES } from '../../agent/evals/eval.ts';
 
 const router = createRouter();
 

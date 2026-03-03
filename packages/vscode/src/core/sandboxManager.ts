@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { spawn } from 'child_process';
-import { getCliClient, CliClient, type SandboxInfo } from './cliClient';
+import { getCliClient, CliClient, type SandboxInfo } from './cliClient.ts';
 
 /** Default remote path for sandbox file operations */
 export const DEFAULT_SANDBOX_PATH = CliClient.SANDBOX_HOME;

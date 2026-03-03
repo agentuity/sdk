@@ -2,8 +2,8 @@
 
 import type { ReactNode, ReactElement } from 'react';
 import { Children, isValidElement } from 'react';
-import { Tabs as TabsRoot, TabsList, TabsTrigger, TabsContent } from '../ui';
-import { cn } from '../../lib/utils';
+import { Tabs as TabsRoot, TabsList, TabsTrigger, TabsContent } from '../ui/index.ts';
+import { cn } from '../../lib/utils.ts';
 
 interface TabProps {
 	value: string;

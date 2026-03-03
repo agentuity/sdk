@@ -4,7 +4,7 @@ import {
 	sleep,
 	mergeReconnectConfig,
 	DEFAULT_RECONNECT_CONFIG,
-} from '../src/reconnect';
+} from '../src/reconnect.ts';
 
 describe('reconnect utilities', () => {
 	describe('DEFAULT_RECONNECT_CONFIG', () => {

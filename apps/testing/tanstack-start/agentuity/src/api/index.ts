@@ -1,5 +1,5 @@
 import { createRouter } from '@agentuity/runtime';
-import echoAgent from '../agent/echo/agent';
+import echoAgent from '../agent/echo/agent.ts';
 
 const api = createRouter();
 

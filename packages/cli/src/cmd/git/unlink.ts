@@ -1,8 +1,8 @@
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
-import { getProjectGithubStatus, unlinkProjectFromRepo } from './api';
+import { createSubcommand } from '../../types.ts';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
+import { getProjectGithubStatus, unlinkProjectFromRepo } from './api.ts';
 import { z } from 'zod';
 
 const UnlinkOptionsSchema = z.object({

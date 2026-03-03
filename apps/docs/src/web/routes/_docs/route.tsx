@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router';
-import { TableOfContents, FooterNav } from '../../components/docs';
-import { TocProvider } from '../../hooks/use-toc';
+import { TableOfContents, FooterNav } from '../../components/docs/index.ts';
+import { TocProvider } from '../../hooks/use-toc.tsx';
 
 export const Route = createFileRoute('/_docs')({
 	component: DocsContentLayout,

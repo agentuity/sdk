@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { Writable } from 'node:stream';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
-import { sandboxExecute, executionGet, writeAndDrain, sandboxResolve } from '@agentuity/server';
-import type { Logger } from '@agentuity/core';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createSandboxClient } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { sandboxExecute, executionGet, writeAndDrain, sandboxResolve } from '@agentuity/server/index.ts';
+import type { Logger } from '@agentuity/core/index.ts';
 
 // Server-side long-poll wait duration (max 5 minutes supported by server)
 const EXECUTION_WAIT_DURATION = '5m';

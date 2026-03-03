@@ -6,7 +6,7 @@
  * POST /seed     - Seeds KV store with sample data
  */
 import { createRouter } from '@agentuity/runtime';
-import kvAgent from '../../agent/kv/agent';
+import kvAgent from '../../agent/kv/agent.ts';
 
 const router = createRouter();
 

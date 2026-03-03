@@ -24,31 +24,31 @@ import {
 	StructuredError,
 } from '@agentuity/core';
 import { APIClient, createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
-import { HTTPSandboxService } from './services/sandbox';
+import { HTTPSandboxService } from './services/sandbox/index.ts';
 import {
 	CompositeSessionEventProvider,
 	LocalSessionEventProvider,
 	JSONSessionEventProvider,
 	HTTPSessionEventProvider,
-} from './services/session';
+} from './services/session/index.ts';
 import {
 	CompositeEvalRunEventProvider,
 	LocalEvalRunEventProvider,
 	JSONEvalRunEventProvider,
 	HTTPEvalRunEventProvider,
-} from './services/evalrun';
-import { LocalThreadProvider } from './services/thread/local';
-import { injectTraceContextToHeaders } from './otel/http';
-import { getTracer } from './_server';
-import { populateAgentsRegistry } from './agent.js';
-import { getSDKVersion, isAuthenticated, isProduction } from './_config';
-import type { AppConfig } from './app';
+} from './services/evalrun/index.ts';
+import { LocalThreadProvider } from './services/thread/local.ts';
+import { injectTraceContextToHeaders } from './otel/http.ts';
+import { getTracer } from './_server.ts';
+import { populateAgentsRegistry } from './agent.ts';
+import { getSDKVersion, isAuthenticated, isProduction } from './_config.ts';
+import type { AppConfig } from './app.ts';
 import {
 	DefaultSessionProvider,
 	DefaultThreadProvider,
 	type ThreadProvider,
 	type SessionProvider,
-} from './session';
+} from './session.ts';
 import {
 	LocalKeyValueStorage,
 	LocalStreamStorage,
@@ -59,7 +59,7 @@ import {
 	getLocalDB,
 	normalizeProjectPath,
 	createLocalStorageRouter,
-} from './services/local';
+} from './services/local/index.ts';
 
 const userAgent = `Agentuity SDK/${getSDKVersion()}`;
 

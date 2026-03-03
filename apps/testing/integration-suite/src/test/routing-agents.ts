@@ -4,15 +4,15 @@
  * Tests HTTP routing, methods, query params, headers, and request handling
  */
 
-import { test } from './suite';
-import { assert, assertEqual, assertDefined } from './helpers';
+import { test } from './suite.ts';
+import { assert, assertEqual, assertDefined } from './helpers/index.ts';
 
 // Import agents
-import getAgent from '@agents/routing/routing-get';
-import postAgent from '@agents/routing/routing-post';
-import methodsAgent from '@agents/routing/routing-methods';
-import headersAgent from '@agents/routing/routing-headers';
-import paramsAgent from '@agents/routing/routing-params';
+import getAgent from '@agents/routing/routing-get.ts';
+import postAgent from '@agents/routing/routing-post.ts';
+import methodsAgent from '@agents/routing/routing-methods.ts';
+import headersAgent from '@agents/routing/routing-headers.ts';
+import paramsAgent from '@agents/routing/routing-params.ts';
 
 // Helper to call agents
 async function callAgent(agent: any, input?: any) {

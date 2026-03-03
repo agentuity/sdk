@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Agent } from '@agentuity/server';
+import type { Agent } from '@agentuity/server/index.ts';
 
 export const AgentSchema: z.ZodType<Agent> = z.object({
 	id: z.string(),

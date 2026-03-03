@@ -2,8 +2,8 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { generateLifecycleTypes } from '../../../src/cmd/build/vite/lifecycle-generator';
-import { createLogger } from '@agentuity/server';
+import { generateLifecycleTypes } from '../../../src/cmd/build/vite/lifecycle-generator.ts';
+import { createLogger } from '@agentuity/server/index.ts';
 
 describe('lifecycle-generator', () => {
 	let testDir: string;

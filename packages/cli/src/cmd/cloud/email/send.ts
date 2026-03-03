@@ -1,10 +1,10 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
-import type { EmailAttachment } from '@agentuity/core';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createEmailAdapter, truncate } from './util';
-import { EmailOutboundSchema } from './outbound/schemas';
+import type { EmailAttachment } from '@agentuity/core/index.ts';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createEmailAdapter, truncate } from './util.ts';
+import { EmailOutboundSchema } from './outbound/schemas.ts';
 
 export const sendSubcommand = createCommand({
 	name: 'send',

@@ -1,5 +1,5 @@
 import type { PluginInput } from '@opencode-ai/plugin';
-import type { AgentConfig, CoderConfig } from '../../types';
+import type { AgentConfig, CoderConfig } from '../../types.ts';
 
 export interface ParamsHooks {
 	onParams: (input: unknown, output: unknown) => Promise<void>;

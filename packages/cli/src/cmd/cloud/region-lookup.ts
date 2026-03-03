@@ -1,4 +1,4 @@
-import { StreamStorageService, TaskStorageService, type Logger } from '@agentuity/core';
+import { StreamStorageService, TaskStorageService, type Logger } from '@agentuity/core/index.ts';
 import {
 	projectGet,
 	sandboxResolve,
@@ -7,12 +7,12 @@ import {
 	type APIClient,
 	createServerFetchAdapter,
 	getServiceUrls,
-} from '@agentuity/server';
-import { getResourceInfo, setResourceInfo } from '../../cache';
-import { getDefaultRegion } from '../../config';
-import type { AuthData, Config } from '../../types';
-import * as tui from '../../tui';
-import { ErrorCode } from '../../errors';
+} from '@agentuity/server/index.ts';
+import { getResourceInfo, setResourceInfo } from '../../cache/index.ts';
+import { getDefaultRegion } from '../../config.ts';
+import type { AuthData, Config } from '../../types.ts';
+import * as tui from '../../tui.ts';
+import { ErrorCode } from '../../errors.ts';
 
 export type IdentifierType = 'project' | 'deployment' | 'sandbox' | 'stream' | 'webhook' | 'task';
 

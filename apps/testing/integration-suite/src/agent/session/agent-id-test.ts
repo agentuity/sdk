@@ -5,7 +5,7 @@
  * in session events. This agent returns its own metadata for verification.
  */
 
-import { createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime.ts';
 import { s } from '@agentuity/schema';
 
 const agentIdTestAgent = createAgent('agent-id-test', {

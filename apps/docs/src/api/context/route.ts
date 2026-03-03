@@ -10,8 +10,8 @@
  * GET /background - Demonstrates waitUntil() for background tasks
  */
 import { createRouter } from '@agentuity/runtime';
-import contextAgent from '../../agent/context/agent';
-import { formatTimestamps } from '../../lib/utils';
+import contextAgent from '../../agent/context/agent.ts';
+import { formatTimestamps } from '../../lib/utils.ts';
 
 const router = createRouter();
 

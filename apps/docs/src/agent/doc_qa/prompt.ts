@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { openai } from '@ai-sdk/openai';
 import { generateObject, generateText } from 'ai';
 
-import type { PromptType } from './types';
+import type { PromptType } from './types.ts';
 
 // Zod schema for AI SDK compatibility (separate from @agentuity/schema)
 const PromptClassificationSchemaZod = z.object({

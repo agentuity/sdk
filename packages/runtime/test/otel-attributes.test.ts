@@ -4,10 +4,10 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { createAgent, runInAgentContext } from '../src/agent';
+import { createAgent, runInAgentContext } from '../src/agent.ts';
 import { z } from 'zod';
-import { TestAgentContext } from './helpers/test-context';
-import type { Logger } from '../src/logger';
+import { TestAgentContext } from './helpers/test-context.ts';
+import type { Logger } from '../src/logger/index.ts';
 
 // Track logger.child() calls to verify attributes
 function createLoggerWithChildTracking(): {
