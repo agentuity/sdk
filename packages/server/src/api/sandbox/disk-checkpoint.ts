@@ -1,7 +1,7 @@
-import { z } from 'zod';
 import type { z as zType } from 'zod';
-import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
-import { API_VERSION, throwSandboxError } from './util';
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api.ts';
+import { API_VERSION, throwSandboxError } from './util.ts';
 
 // --- Schemas ---
 

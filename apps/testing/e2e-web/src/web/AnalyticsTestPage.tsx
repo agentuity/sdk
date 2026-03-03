@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
 // Window.__AGENTUITY_ANALYTICS__ type is declared in @agentuity/frontend/analytics/types
 
 interface TestResult {
@@ -138,7 +139,6 @@ export function AnalyticsTestPage() {
 				originalDebugRef.current = null;
 			}
 		};
-		// biome-ignore lint/correctness/useExhaustiveDependencies: runs once on mount intentionally; runTests is defined in component scope
 	}, []);
 
 	const passCount = results.filter((r) => r.status === 'pass').length;

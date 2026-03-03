@@ -35,7 +35,6 @@ export default router;
 
 const invalidDirRegex = /[<>:"/\\|?*]/;
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: checking for invalid control characters in directory names
 const invalidControlChars = /[\u0000-\u001F]/;
 const reservedWindowsNames = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 const invalidTrailing = /[. ]$/;

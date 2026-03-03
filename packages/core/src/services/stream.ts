@@ -1,7 +1,7 @@
-import { safeStringify } from '../json.ts';
-import { FetchAdapter } from './adapter.ts';
-import { buildUrl, toServiceException } from './_util.ts';
 import { StructuredError } from '../error.ts';
+import { safeStringify } from '../json.ts';
+import { buildUrl, toServiceException } from './_util.ts';
+import type { FetchAdapter } from './adapter.ts';
 import type { ListParams } from './pagination.ts';
 
 /**
@@ -19,17 +19,11 @@ export const STREAM_MAX_TTL_SECONDS = 7776000;
  */
 export const STREAM_DEFAULT_TTL_SECONDS = 2592000;
 
-// Use Web API streams - in Node.js/Bun, import from 'stream/web' which provides proper Web API
-// In browsers, use globalThis directly
-// Check for Node.js/Bun by looking for process.versions.node
-const isNode =
-	typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const streamWeb = isNode ? require('stream/web') : globalThis;
-const NativeWritableStream = streamWeb.WritableStream as typeof WritableStream;
-const NativeReadableStream = streamWeb.ReadableStream as typeof ReadableStream;
-const NativeCompressionStream = (streamWeb.CompressionStream ??
-	globalThis.CompressionStream) as typeof CompressionStream;
+// Web Streams API (ReadableStream, WritableStream, CompressionStream) are globally
+// available in all modern runtimes: Node.js 18+, Bun, Deno, and browsers.
+const NativeWritableStream = globalThis.WritableStream;
+const NativeReadableStream = globalThis.ReadableStream;
+const NativeCompressionStream = globalThis.CompressionStream;
 
 /**
  * Properties for creating a stream

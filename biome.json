@@ -108,6 +108,18 @@
 			}
 		}
 	},
+	"overrides": [
+		{
+			"includes": ["packages/server/src/**", "packages/core/src/**"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"useImportExtensions": "error"
+					}
+				}
+			}
+		}
+	],
 	"assist": {
 		"enabled": false
 	}
