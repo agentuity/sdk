@@ -1,6 +1,6 @@
 import type { z } from 'zod';
-import { type APIClient, APIResponseSchemaNoData } from '../api';
-import { API_VERSION, throwSandboxError } from './util';
+import { type APIClient, APIResponseSchemaNoData } from '../api.ts';
+import { API_VERSION, throwSandboxError } from './util.ts';
 
 export const ResumeResponseSchema = APIResponseSchemaNoData();
 

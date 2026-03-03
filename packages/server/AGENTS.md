@@ -47,6 +47,7 @@ src/
 - **Zod schemas** - Use zod for runtime validation
 - **Shared with runtime** - Common utilities used by @agentuity/runtime
 - **Re-exports** - `@agentuity/core` types and `z` from zod
+- **Import extensions** - Always use `.ts` extensions in relative imports (e.g., `from '../api.ts'`, not `from '../api'`). This is required for Node.js ESM compatibility — `tsc` rewrites `.ts` → `.js` in compiled output, but leaves extensionless imports untouched, which breaks Node.js module resolution. This is enforced by the `useImportExtensions` Biome lint rule.
 
 ## Key Exports
 

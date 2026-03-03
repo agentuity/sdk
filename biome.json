@@ -8,13 +8,13 @@
 	"files": {
 		"includes": [
 			"**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts,json,md,yml,yaml}",
-			"!**/dist/**",
-			"!**/node_modules/**",
-			"!**/templates/**",
-			"!**/.agentuity/**",
-			"!**/.test-projects/**",
-			"!**/test-interop/go-common/**",
-			"!**/ai-elements/**",
+			"!**/dist",
+			"!**/node_modules",
+			"!**/templates",
+			"!**/.agentuity",
+			"!**/.test-projects",
+			"!**/test-interop/go-common",
+			"!**/ai-elements",
 			"!**/tsc-output-parser.ts",
 			"!**/generated/*.ts",
 			"!bun.lock",
@@ -51,7 +51,8 @@
 				"useExhaustiveDependencies": "warn",
 				"useHookAtTopLevel": "warn",
 				"useParseIntRadix": "warn",
-				"noUnusedPrivateClassMembers": "warn"
+				"noUnusedPrivateClassMembers": "warn",
+				"useImportExtensions": "error"
 			},
 			"style": {
 				"noNonNullAssertion": "off",
