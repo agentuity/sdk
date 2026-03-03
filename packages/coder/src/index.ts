@@ -88,7 +88,7 @@ type GenericEventHandler = (
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
 function log(msg: string): void {
-	if (DEBUG) console.error(`[agentuity-pi] ${msg}`);
+	if (DEBUG) console.error(`[agentuity-coder] ${msg}`);
 }
 
 // ══════════════════════════════════════════════

@@ -21,7 +21,7 @@ const QUEUED_REQUEST_TIMEOUT_MS = 120_000;
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
 function log(message: string): void {
-	if (DEBUG) console.error(`[agentuity-pi] ${message}`);
+	if (DEBUG) console.error(`[agentuity-coder] ${message}`);
 }
 
 export type ConnectionState = 'connected' | 'disconnected' | 'reconnecting' | 'closed';

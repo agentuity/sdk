@@ -8,12 +8,12 @@ import { ErrorCode } from '../../errors';
 import { resolveHubWsUrl } from './hub-url';
 
 /**
- * Resolve the Pi extension path.
+ * Resolve the Coder extension path.
  *
  * Priority:
  *   1. --extension flag (explicit override)
  *   2. AGENTUITY_CODER_EXTENSION env var
- *   3. Installed @agentuity/pi package (node_modules)
+ *   3. Installed @agentuity/coder package (node_modules)
  *   4. Local dev path relative to CLI package (SDK monorepo)
  */
 function resolveExtensionPath(flagPath?: string): string | null {
@@ -32,7 +32,7 @@ function resolveExtensionPath(flagPath?: string): string | null {
 	}
 
 	// 3. Installed npm package in cwd
-	const cwdNodeModules = resolve(process.cwd(), 'node_modules', '@agentuity', 'pi');
+	const cwdNodeModules = resolve(process.cwd(), 'node_modules', '@agentuity', 'coder');
 	if (existsSync(cwdNodeModules)) return cwdNodeModules;
 
 	// 4. SDK monorepo sibling (for development)
@@ -40,8 +40,8 @@ function resolveExtensionPath(flagPath?: string): string | null {
 	try {
 		const cliDir = dirname(new URL(import.meta.url).pathname);
 		const sdkRoot = resolve(cliDir, '..', '..', '..', '..', '..');
-		const piPath = join(sdkRoot, 'packages', 'pi');
-		if (existsSync(join(piPath, 'src', 'index.ts'))) return piPath;
+		const coderPath = join(sdkRoot, 'packages', 'coder');
+		if (existsSync(join(coderPath, 'src', 'index.ts'))) return coderPath;
 	} catch {
 		// Not in SDK monorepo
 	}
@@ -78,7 +78,7 @@ export const startSubcommand = createSubcommand({
 			description: 'Start with explicit Hub URL',
 		},
 		{
-			command: getCommand('coder start --extension ~/repos/agentuity/sdk/packages/pi'),
+			command: getCommand('coder start --extension ~/repos/agentuity/sdk/packages/coder'),
 			description: 'Start with explicit extension path',
 		},
 		{
@@ -89,7 +89,7 @@ export const startSubcommand = createSubcommand({
 	schema: {
 		options: z.object({
 			hubUrl: z.string().optional().describe('Hub WebSocket URL override'),
-			extension: z.string().optional().describe('Pi extension path override'),
+			extension: z.string().optional().describe('Coder extension path override'),
 			pi: z.string().optional().describe('Path to pi binary'),
 			agent: z.string().optional().describe('Agent role (e.g. scout, builder)'),
 			task: z.string().optional().describe('Initial task to execute'),
@@ -112,7 +112,7 @@ export const startSubcommand = createSubcommand({
 		const extensionPath = resolveExtensionPath(opts?.extension);
 		if (!extensionPath) {
 			tui.fatal(
-				'Could not find the Agentuity Pi extension.\n\nEither:\n  - Install it: npm install @agentuity/pi\n  - Set AGENTUITY_CODER_EXTENSION environment variable\n  - Pass --extension flag',
+				'Could not find the Agentuity Coder extension.\n\nEither:\n  - Install it: npm install @agentuity/coder\n  - Set AGENTUITY_CODER_EXTENSION environment variable\n  - Pass --extension flag',
 				ErrorCode.CONFIG_INVALID,
 			);
 			return;

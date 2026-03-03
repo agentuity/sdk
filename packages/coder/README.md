@@ -1,4 +1,4 @@
-# @agentuity/pi
+# @agentuity/coder
 
 Lightweight [Pi TUI](https://github.com/mariozechner/pi-coding-agent) extension that connects to the Agentuity Coder Hub.
 
