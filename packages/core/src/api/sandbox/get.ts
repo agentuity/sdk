@@ -201,7 +201,7 @@ export async function sandboxGet(
 		queryParams.set('includeDeleted', 'true');
 	}
 	const queryString = queryParams.toString();
-	const url = `/sandbox/${sandboxId}${queryString ? `?${queryString}` : ''}`;
+	const url = `/sandbox/${encodeURIComponent(sandboxId)}${queryString ? `?${queryString}` : ''}`;
 
 	const resp = await client.get<z.infer<typeof SandboxGetResponseSchema>>(
 		url,

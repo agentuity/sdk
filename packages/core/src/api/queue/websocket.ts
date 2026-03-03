@@ -133,6 +133,8 @@ export interface SubscribeToQueueOptions {
 	clientId?: string;
 	/** Optional last processed offset from a previous session to resume from. */
 	lastOffset?: number;
+	/** When using a key that requires a specific org id to be set, pass this along */
+	orgId?: string;
 }
 
 // ============================================================================
@@ -470,6 +472,7 @@ export async function* subscribeToQueue(
 		baseUrl: options.baseUrl,
 		clientId: options.clientId,
 		lastOffset: options.lastOffset,
+		orgId: options.orgId,
 		onMessage: push,
 		onError: (err) => finish(err),
 		onClose: () => {

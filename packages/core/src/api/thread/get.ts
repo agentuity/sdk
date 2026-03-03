@@ -22,7 +22,7 @@ export type ThreadGetResponse = z.infer<typeof ThreadGetResponseSchema>;
 export async function threadGet(client: APIClient, request: ThreadGetRequest): Promise<Thread> {
 	const resp = await client.request<ThreadGetResponse>(
 		'GET',
-		`/thread/${request.id}`,
+		`/thread/${encodeURIComponent(request.id)}`,
 		ThreadGetResponseSchema
 	);
 

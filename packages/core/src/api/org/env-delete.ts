@@ -23,7 +23,7 @@ export async function orgEnvDelete(client: APIClient, request: OrgEnvDeleteReque
 
 	const resp = await client.request<OrgEnvDeleteResponse, Omit<OrgEnvDeleteRequest, 'id'>>(
 		'DELETE',
-		`/cli/organization/${id}/env`,
+		`/cli/organization/${encodeURIComponent(id)}/env`,
 		OrgEnvDeleteResponseSchema,
 		{
 			env,

@@ -27,7 +27,7 @@ export async function orgEnvGet(client: APIClient, request: OrgEnvGetRequest): P
 	const { id, mask = true } = request;
 
 	const resp = await client.get<OrgEnvGetResponse>(
-		`/cli/organization/${id}/env?mask=${mask}`,
+		`/cli/organization/${encodeURIComponent(id)}/env?mask=${mask}`,
 		OrgEnvGetResponseSchema
 	);
 

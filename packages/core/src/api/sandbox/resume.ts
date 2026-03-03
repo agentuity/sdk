@@ -23,7 +23,7 @@ export async function sandboxResume(client: APIClient, params: SandboxResumePara
 		queryParams.set('orgId', orgId);
 	}
 	const queryString = queryParams.toString();
-	const url = `/sandbox/${sandboxId}/resume${queryString ? `?${queryString}` : ''}`;
+	const url = `/sandbox/${encodeURIComponent(sandboxId)}/resume${queryString ? `?${queryString}` : ''}`;
 
 	const resp = await client.post<z.infer<typeof ResumeResponseSchema>>(
 		url,
