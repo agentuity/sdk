@@ -1,10 +1,10 @@
-import { createSubcommand } from '../../types.ts';
+import { createSubcommand } from '../../types';
 import { z } from 'zod';
 import { readFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
-import { getLogSessionsInCurrentWindow } from '../../internal-logger.ts';
-import * as tui from '../../tui.ts';
+import { getLogSessionsInCurrentWindow } from '../../internal-logger';
+import * as tui from '../../tui';
 import { randomBytes } from 'node:crypto';
 import AdmZip from 'adm-zip';
 import { APIResponseSchema } from '@agentuity/server';

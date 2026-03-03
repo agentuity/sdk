@@ -1,7 +1,7 @@
-import { createCommand } from '../../../types.ts';
-import { initSubcommand } from './init.ts';
-import { generateSubcommand } from './generate.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { initSubcommand } from './init';
+import { generateSubcommand } from './generate';
+import { getCommand } from '../../../command-prefix';
 
 export const authCommand = createCommand({
 	name: 'auth',

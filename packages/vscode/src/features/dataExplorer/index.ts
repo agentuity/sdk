@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import { DataTreeDataProvider, DataTreeItem } from './dataTreeData.ts';
-import { onAuthStatusChanged } from '../../core/auth.ts';
-import { onProjectChanged } from '../../core/project.ts';
-import { getCliClient } from '../../core/cliClient.ts';
-import { openReadonlyDocument } from '../../core/readonlyDocument.ts';
+import { DataTreeDataProvider, DataTreeItem } from './dataTreeData';
+import { onAuthStatusChanged } from '../../core/auth';
+import { onProjectChanged } from '../../core/project';
+import { getCliClient } from '../../core/cliClient';
+import { openReadonlyDocument } from '../../core/readonlyDocument';
 
 export function registerDataExplorer(context: vscode.ExtensionContext): DataTreeDataProvider {
 	const provider = new DataTreeDataProvider();

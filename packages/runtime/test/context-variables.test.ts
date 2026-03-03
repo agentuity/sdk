@@ -5,15 +5,15 @@
 
 import { test, expect, describe } from 'bun:test';
 import { Hono } from 'hono';
-import type { Variables, PrivateVariables, Env } from '../src/app.ts';
+import type { Variables, PrivateVariables, Env } from '../src/app';
 import { createMockLogger } from '@agentuity/test-utils';
 import { metrics, trace } from '@opentelemetry/api';
-import WaitUntilHandler from '../src/_waituntil.ts';
+import WaitUntilHandler from '../src/_waituntil';
 import {
 	createMockKeyValueStorage,
 	createMockStreamStorage,
 	createMockVectorStorage,
-} from './helpers/mock-services.ts';
+} from './helpers/mock-services';
 
 describe('Hono Context Variables - Type Safety', () => {
 	test('Variables interface includes all required properties', () => {

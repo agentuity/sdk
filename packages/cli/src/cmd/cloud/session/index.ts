@@ -1,8 +1,8 @@
-import { createCommand } from '../../../types.ts';
-import { getSubcommand } from './get.ts';
-import { listSubcommand } from './list.ts';
-import { logsSubcommand } from './logs.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { getSubcommand } from './get';
+import { listSubcommand } from './list';
+import { logsSubcommand } from './logs';
+import { getCommand } from '../../../command-prefix';
 
 export const sessionCommand = createCommand({
 	name: 'session',

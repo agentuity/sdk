@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { WebSocketManager } from '../src/websocket-manager.ts';
+import { WebSocketManager } from '../src/websocket-manager';
 
 // Mock WebSocket
 class MockWebSocket {

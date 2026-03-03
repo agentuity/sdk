@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIError, APIResponseSchema, APIResponseSchemaOptionalData } from '@agentuity/server';
-import type { APIClient } from '../../api.ts';
+import type { APIClient } from '../../api';
 import { StructuredError } from '@agentuity/core';
 
 // Zod schemas for API validation

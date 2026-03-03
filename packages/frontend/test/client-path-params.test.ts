@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { createClient } from '../src/client/index.ts';
+import { createClient } from '../src/client/index';
 
 describe('Client path params', () => {
 	let originalFetch: typeof globalThis.fetch;

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { streamList, type StreamInfo } from '@agentuity/server';
 import { StructuredError } from '@agentuity/core';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
 
 const StreamListError = StructuredError('StreamListError')<{
 	namespace?: string;

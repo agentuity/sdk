@@ -10,7 +10,7 @@
 import { test, expect, describe } from 'bun:test';
 import { Hono } from 'hono';
 import type { Context as HonoContext } from 'hono';
-import { AGENT_CONTEXT_PROPERTIES } from '../src/index.ts';
+import { AGENT_CONTEXT_PROPERTIES } from '../src';
 
 describe('HonoContext Property Access Error Messages', () => {
 	// Use the exported constant to ensure tests stay in sync with implementation

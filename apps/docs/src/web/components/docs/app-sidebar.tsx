@@ -14,9 +14,9 @@ import {
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
 	SidebarRail,
-} from '../ui/index.ts';
-import { cn } from '../../lib/utils.ts';
-import { navData, hasActiveChild, type NavItem, type NavSection } from './nav-data.ts';
+} from '../ui';
+import { cn } from '../../lib/utils';
+import { navData, hasActiveChild, type NavItem, type NavSection } from './nav-data';
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	currentPage: string;

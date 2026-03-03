@@ -1,7 +1,7 @@
-import { createSubcommand } from '../../../types.ts';
-import type { CommandContext } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createSubcommand } from '../../../types';
+import type { CommandContext } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
 import { z } from 'zod';
 
 export interface Capability {

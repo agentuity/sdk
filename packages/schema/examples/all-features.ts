@@ -1,4 +1,4 @@
-import { s, type Infer, ValidationError } from '../src/index.ts';
+import { s, type Infer, ValidationError } from '../src/index.js';
 
 console.log('=== @agentuity/schema - Complete Feature Demo ===\n');
 

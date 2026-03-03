@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'bun:test';
-import { getDefaultConfig, mergeConfig } from '../src/config/loader.ts';
-import { isOpenAIModel, isAnthropicModel } from '../src/config/presets.ts';
-import { validateAgentConfig, validateAndWarnConfigs } from '../src/config/validation.ts';
+import { getDefaultConfig, mergeConfig } from '../src/config/loader';
+import { isOpenAIModel, isAnthropicModel } from '../src/config/presets';
+import { validateAgentConfig, validateAndWarnConfigs } from '../src/config/validation';
 
 describe('Config', () => {
 	describe('getDefaultConfig', () => {

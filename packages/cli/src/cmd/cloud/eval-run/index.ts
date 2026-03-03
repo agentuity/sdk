@@ -1,7 +1,7 @@
-import { createCommand } from '../../../types.ts';
-import { getSubcommand } from './get.ts';
-import { listSubcommand } from './list.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { getSubcommand } from './get';
+import { listSubcommand } from './list';
+import { getCommand } from '../../../command-prefix';
 
 export const evalRunCommand = createCommand({
 	name: 'eval-run',

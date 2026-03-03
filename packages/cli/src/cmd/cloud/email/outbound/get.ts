@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types.ts';
-import * as tui from '../../../../tui.ts';
-import { createEmailAdapter, truncate } from '../util.ts';
-import { EmailOutboundSchema } from './schemas.ts';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { createEmailAdapter, truncate } from '../util';
+import { EmailOutboundSchema } from './schemas';
 
 export const getSubcommand = createCommand({
 	name: 'get',

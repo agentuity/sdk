@@ -4,16 +4,16 @@
 
 import * as path from 'node:path';
 import { listOrgResources, createResources, dbQuery } from '@agentuity/server';
-import * as tui from '../../../tui.ts';
+import * as tui from '../../../tui';
 import {
 	getCatalystAPIClient,
 	getGlobalCatalystAPIClient,
 	loadProjectConfig,
 	ProjectConfigNotFoundException,
-} from '../../../config.ts';
-import type { Logger } from '../../../types.ts';
-import type { AuthData } from '../../../types.ts';
-import type { Config } from '../../../types.ts';
+} from '../../../config';
+import type { Logger } from '../../../types';
+import type { AuthData } from '../../../types';
+import type { Config } from '../../../types';
 import enquirer from 'enquirer';
 
 /**

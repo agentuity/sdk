@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
 import { projectEnvDelete, projectGet, orgEnvDelete, orgEnvGet } from '@agentuity/server';
-import { isReservedAgentuityKey } from '../../../env-util.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
-import { resolveOrgId, isOrgScope } from './org-util.ts';
+import { isReservedAgentuityKey } from '../../../env-util';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
+import { resolveOrgId, isOrgScope } from './org-util';
 
 const EnvDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

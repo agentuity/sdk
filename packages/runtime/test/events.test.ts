@@ -4,8 +4,8 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { createAgent, runInAgentContext } from '../src/agent.ts';
-import { TestAgentContext } from './helpers/test-context.ts';
+import { createAgent, runInAgentContext } from '../src/agent';
+import { TestAgentContext } from './helpers/test-context';
 
 describe('Agent Event Listeners', () => {
 	test('agent fires started event', async () => {

@@ -207,7 +207,7 @@ async function main() {
 	console.log();
 	console.log('Testing getLogSessionsInCurrentWindow()...');
 
-	const { getLogSessionsInCurrentWindow } = await import('../src/internal-logger.ts');
+	const { getLogSessionsInCurrentWindow } = await import('../src/internal-logger');
 	const windowSessions = getLogSessionsInCurrentWindow();
 
 	console.log(`  Found ${windowSessions.length} sessions in current window`);

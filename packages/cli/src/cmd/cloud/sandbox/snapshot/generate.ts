@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { getCommand } from '../../../../command-prefix.ts';
-import { createCommand } from '../../../../types.ts';
+import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types';
 
 const TEMPLATE_YAML = `# yaml-language-server: $schema=https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json
 #

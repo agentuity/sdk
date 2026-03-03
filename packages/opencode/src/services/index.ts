@@ -1,1 +1,1 @@
-export { checkAuth, getCloudContext, type CloudContext } from './auth.ts';
+export { checkAuth, getCloudContext, type CloudContext } from './auth';

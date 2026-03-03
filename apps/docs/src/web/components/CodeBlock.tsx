@@ -1,7 +1,7 @@
 import Editor, { type OnMount } from '@monaco-editor/react';
 import { useCallback, useState } from 'react';
-import { Button, Separator } from './ui/index.ts';
-import { useTheme } from './ThemeContext.tsx';
+import { Button, Separator } from './ui';
+import { useTheme } from './ThemeContext';
 
 // Line highlight configuration
 export interface LineHighlight {

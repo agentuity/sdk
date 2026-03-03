@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { RotateCcwIcon, SparklesIcon, Trash2Icon, UserIcon } from 'lucide-react';
-import { Skeleton } from '../ui/index.ts';
+import { Skeleton } from '../ui';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { AIMessage } from '../../hooks/use-ai-search.ts';
-import { ChatCodeBlock } from '../../components/ChatCodeBlock.tsx';
+import type { AIMessage } from '../../hooks/use-ai-search';
+import { ChatCodeBlock } from '../../components/ChatCodeBlock';
 
 interface AISearchMessagesProps {
 	messages: AIMessage[];

@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
 import { projectGet, orgEnvGet } from '@agentuity/server';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
-import { resolveOrgId, isOrgScope } from './org-util.ts';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
+import { resolveOrgId, isOrgScope } from './org-util';
 
 const EnvGetResponseSchema = z.object({
 	key: z.string().describe('Environment variable key name'),

@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { loadProjectConfig } from '../../../config.ts';
-import { isJSONMode } from '../../../output.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
+import { loadProjectConfig } from '../../../config';
+import { isJSONMode } from '../../../output';
 import {
 	checkCustomDomainForDNS,
 	isSuccess,
@@ -11,7 +11,7 @@ import {
 	isMissing,
 	isMisconfigured,
 	isError,
-} from '../../../domain.ts';
+} from '../../../domain';
 
 export const checkSubcommand = createSubcommand({
 	name: 'check',

@@ -1,4 +1,4 @@
-import evalsBasicAgent from './basic.ts';
+import evalsBasicAgent from './basic';
 
 evalsBasicAgent.createEval('separate-file-eval', {
 	description: 'Eval defined in separate eval.ts file',

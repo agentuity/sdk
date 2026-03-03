@@ -1,17 +1,17 @@
 import { createRouter, validator } from '@agentuity/runtime';
-import { bearerTokenAuth, cookieAuth } from '../../middleware/auth.ts';
-import { config } from '../../config.ts';
+import { bearerTokenAuth, cookieAuth } from '../../middleware/auth';
+import { config } from '../../config';
 import agentPulse from '@agent/agent_pulse';
 import type { ConversationMessage } from '@agent/agent_pulse/types';
 import {
 	getCurrentTutorialState,
 	updateTutorialProgress,
-} from '../../services/tutorial-state-manager.ts';
+} from '../../services/tutorial-state-manager';
 import {
 	withPersistence,
 	type Session,
 	type TutorialData,
-} from '../../services/stream-persistence.ts';
+} from '../../services/stream-persistence';
 import { z } from 'zod';
 
 // Schema for agent pulse request

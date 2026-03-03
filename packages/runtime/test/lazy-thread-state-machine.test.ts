@@ -17,7 +17,7 @@
  */
 
 import { test, expect, describe, mock } from 'bun:test';
-import { DefaultThread, LazyThreadState, type ThreadProvider } from '../src/session.ts';
+import { DefaultThread, LazyThreadState, type ThreadProvider } from '../src/session';
 
 describe('LazyThreadState State Machine', () => {
 	describe('idle state', () => {

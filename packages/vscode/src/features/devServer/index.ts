@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { getDevServerManager, disposeDevServerManager } from './devServerManager.ts';
-import { requireProject } from '../../core/project.ts';
-import { requireAuth } from '../../core/auth.ts';
+import { getDevServerManager, disposeDevServerManager } from './devServerManager';
+import { requireProject } from '../../core/project';
+import { requireAuth } from '../../core/auth';
 
 export function registerDevServerCommands(context: vscode.ExtensionContext): void {
 	const manager = getDevServerManager();
@@ -53,4 +53,4 @@ export function registerDevServerCommands(context: vscode.ExtensionContext): voi
 	context.subscriptions.push({ dispose: () => disposeDevServerManager() });
 }
 
-export { getDevServerManager, type DevServerState } from './devServerManager.ts';
+export { getDevServerManager, type DevServerState } from './devServerManager';

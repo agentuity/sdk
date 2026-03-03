@@ -15,11 +15,11 @@ import {
 	toCamelCase,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
-import { enrichContextWithTraceState } from './otel/tracestate.ts';
+import { enrichContextWithTraceState } from './otel/tracestate';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Handler } from 'hono/types';
 import { validator } from 'hono/validator';
-import { AGENT_RUNTIME, INTERNAL_AGENT, CURRENT_AGENT, AGENT_IDS } from './_config.ts';
+import { AGENT_RUNTIME, INTERNAL_AGENT, CURRENT_AGENT, AGENT_IDS } from './_config';
 import {
 	getAgentContext,
 	inHTTPContext,
@@ -27,19 +27,19 @@ import {
 	setupRequestAgentContext,
 	getAgentAsyncLocalStorage,
 	type RequestAgentContextArgs,
-} from './_context.ts';
-import type { Logger } from './logger/index.ts';
-import type { Eval, EvalHandlerResult, EvalRunResult, EvalFunction } from './eval.ts';
-import { internal } from './logger/internal.ts';
-import { fireEvent } from './_events.ts';
-import type { Thread, Session } from './session.ts';
-import { privateContext } from './_server.ts';
-import { generateId } from './session.ts';
-import { getEvalRunEventProvider } from './_services.ts';
-import * as runtimeConfig from './_config.ts';
-import type { AppState } from './index.ts';
-import { validateSchema, formatValidationIssues } from './_validation.ts';
-import { getAgentMetadataByName, getEvalMetadata } from './_metadata.ts';
+} from './_context';
+import type { Logger } from './logger';
+import type { Eval, EvalHandlerResult, EvalRunResult, EvalFunction } from './eval';
+import { internal } from './logger/internal';
+import { fireEvent } from './_events';
+import type { Thread, Session } from './session';
+import { privateContext } from './_server';
+import { generateId } from './session';
+import { getEvalRunEventProvider } from './_services';
+import * as runtimeConfig from './_config';
+import type { AppState } from './index';
+import { validateSchema, formatValidationIssues } from './_validation';
+import { getAgentMetadataByName, getEvalMetadata } from './_metadata';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 

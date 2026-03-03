@@ -1,10 +1,10 @@
 import { Database } from 'bun:sqlite';
-import { createSubcommand, type CommandContext } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { isJSONMode, outputJSON } from '../../../output.ts';
+import { createSubcommand, type CommandContext } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
+import { isJSONMode, outputJSON } from '../../../output';
 import { z } from 'zod';
-import { REQUIRED_TABLES, isMemoryPath, getDefaultDBCandidates, resolveOpenCodeDBPath } from './db.ts';
+import { REQUIRED_TABLES, isMemoryPath, getDefaultDBCandidates, resolveOpenCodeDBPath } from './db';
 
 const DashboardOptionsSchema = z.object({
 	json: z.boolean().optional().describe('Output JSON format'),

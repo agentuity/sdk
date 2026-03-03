@@ -1,7 +1,7 @@
-import { createCommand } from '../../../types.ts';
-import { addSubcommand } from './add.ts';
-import { listSubcommand } from './list.ts';
-import { removeSubcommand } from './remove.ts';
+import { createCommand } from '../../../types';
+import { addSubcommand } from './add';
+import { listSubcommand } from './list';
+import { removeSubcommand } from './remove';
 
 export const accountCommand = createCommand({
 	name: 'account',

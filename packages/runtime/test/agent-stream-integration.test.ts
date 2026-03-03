@@ -1,9 +1,9 @@
 import { test, expect } from 'bun:test';
 import { expectTypeOf } from 'expect-type';
-import { createAgent, runInAgentContext } from '../src/agent.ts';
+import { createAgent, runInAgentContext } from '../src/agent';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { TestAgentContext } from './helpers/test-context.ts';
+import { TestAgentContext } from './helpers/test-context';
 
 test('Integration: streaming agent with output schema in route', async () => {
 	const streamingAgent = createAgent('stream-with-schema', {

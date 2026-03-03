@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../types.ts';
-import { fetchProfiles } from '../../config.ts';
+import { createSubcommand } from '../../types';
+import { fetchProfiles } from '../../config';
 import { basename, dirname } from 'node:path';
-import * as tui from '../../tui.ts';
-import { getCommand } from '../../command-prefix.ts';
+import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
 
 const ProfileListResponseSchema = z.array(
 	z.object({

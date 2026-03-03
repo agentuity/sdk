@@ -1,11 +1,11 @@
-import type { Config, Logger, CommandDefinition, SubcommandDefinition } from './types.ts';
-import { getInstallationType } from './utils/installation-type.ts';
-import { fetchLatestVersion } from './cmd/upgrade/index.ts';
-import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version.ts';
-import * as tui from './tui.ts';
-import { saveConfig } from './config.ts';
+import type { Config, Logger, CommandDefinition, SubcommandDefinition } from './types';
+import { getInstallationType } from './utils/installation-type';
+import { fetchLatestVersion } from './cmd/upgrade';
+import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version';
+import * as tui from './tui';
+import { saveConfig } from './config';
 import { tmpdir } from 'node:os';
-import { getExecutingAgent } from './agent-detection.ts';
+import { getExecutingAgent } from './agent-detection';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -173,7 +173,7 @@ async function performUpgrade(logger: Logger, targetVersion: string): Promise<vo
 
 		// Use bun to install the specific version globally with retry for CDN propagation delays
 		// Run from tmpdir to avoid interference from any local package.json/node_modules
-		const { installWithRetry, spawnWithTimeout } = await import('./cmd/upgrade/npm-availability.ts');
+		const { installWithRetry, spawnWithTimeout } = await import('./cmd/upgrade/npm-availability');
 		await installWithRetry(
 			async () => {
 				// spawnWithTimeout kills the process if it exceeds 30s
@@ -291,7 +291,7 @@ export async function checkForUpdates(
 
 		// Quick npm availability check before prompting (short timeout, no retries)
 		// This avoids blocking the user's command if npm is slow or version not yet available
-		const { isVersionAvailableOnNpmQuick } = await import('./cmd/upgrade/npm-availability.ts');
+		const { isVersionAvailableOnNpmQuick } = await import('./cmd/upgrade/npm-availability');
 		const isAvailable = await isVersionAvailableOnNpmQuick(latestVersion);
 
 		if (!isAvailable) {

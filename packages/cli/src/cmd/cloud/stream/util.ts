@@ -1,8 +1,8 @@
 import { StreamStorageService, type Logger } from '@agentuity/core';
 import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
-import { loadProjectSDKKey } from '../../../config.ts';
-import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { loadProjectSDKKey } from '../../../config';
+import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types';
+import * as tui from '../../../tui';
 
 /**
  * Create a storage adapter for stream operations that create new streams.

@@ -9,8 +9,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AgentuityProvider } from '@agentuity/react';
 import { AuthProvider } from '@agentuity/auth/react';
-import { App } from './App.tsx';
-import { authClient } from './auth-client.ts';
+import { App } from './App';
+import { authClient } from './auth-client';
 
 const elem = document.getElementById('root')!;
 const app = (

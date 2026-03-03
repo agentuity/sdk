@@ -1,8 +1,8 @@
-import { createSubcommand } from '../../../types.ts';
-import { listSSHKeys } from './api.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
+import { createSubcommand } from '../../../types';
+import { listSSHKeys } from './api';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
 import { z } from 'zod';
 
 const SSHListResponseSchema = z.array(

@@ -38,10 +38,10 @@ describe('Dev Mode Registry Generation', () => {
 		// 4. Generate route registry
 		// All before entry file generation
 
-		const { discoverAgents } = await import('../src/cmd/build/vite/agent-discovery.ts');
-		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery.ts');
+		const { discoverAgents } = await import('../src/cmd/build/vite/agent-discovery');
+		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery');
 		const { generateAgentRegistry, generateRouteRegistry } = await import(
-			'../src/cmd/build/vite/registry-generator.ts'
+			'../src/cmd/build/vite/registry-generator'
 		);
 
 		// Create a simple agent file
@@ -120,8 +120,8 @@ export default router;
 	});
 
 	test('should generate route registry with proper type information for API routes', async () => {
-		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery.ts');
-		const { generateRouteRegistry } = await import('../src/cmd/build/vite/registry-generator.ts');
+		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery');
+		const { generateRouteRegistry } = await import('../src/cmd/build/vite/registry-generator');
 
 		// Create API route with validator (the user's exact scenario)
 		const routeCode = `
@@ -192,10 +192,10 @@ export default router;
 	});
 
 	test('should handle empty agents and routes appropriately', async () => {
-		const { discoverAgents } = await import('../src/cmd/build/vite/agent-discovery.ts');
-		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery.ts');
+		const { discoverAgents } = await import('../src/cmd/build/vite/agent-discovery');
+		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery');
 		const { generateAgentRegistry, generateRouteRegistry } = await import(
-			'../src/cmd/build/vite/registry-generator.ts'
+			'../src/cmd/build/vite/registry-generator'
 		);
 
 		const logger = {
@@ -286,8 +286,8 @@ describe('Route Type Generation Scenarios', () => {
 	});
 
 	test('should handle route without agent (types should not be never)', async () => {
-		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery.ts');
-		const { generateRouteRegistry } = await import('../src/cmd/build/vite/registry-generator.ts');
+		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery');
+		const { generateRouteRegistry } = await import('../src/cmd/build/vite/registry-generator');
 
 		// Route without agent - just a plain API endpoint
 		const routeCode = `
@@ -333,8 +333,8 @@ export default router;
 	});
 
 	test('should handle multiple HTTP methods on same route path', async () => {
-		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery.ts');
-		const { generateRouteRegistry } = await import('../src/cmd/build/vite/registry-generator.ts');
+		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery');
+		const { generateRouteRegistry } = await import('../src/cmd/build/vite/registry-generator');
 
 		const routeCode = `
 import { createRouter } from '@agentuity/runtime';
@@ -377,8 +377,8 @@ export default router;
 	});
 
 	test('should handle nested API routes', async () => {
-		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery.ts');
-		const { generateRouteRegistry } = await import('../src/cmd/build/vite/registry-generator.ts');
+		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery');
+		const { generateRouteRegistry } = await import('../src/cmd/build/vite/registry-generator');
 
 		// Create nested structure: /api/users/profile/settings
 		const routeCode = `

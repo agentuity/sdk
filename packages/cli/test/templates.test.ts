@@ -7,7 +7,7 @@ import { test, expect, describe, beforeEach, afterEach } from 'bun:test';
 import { mkdtempSync, rmSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createAgentTemplates, createAPITemplates } from '../src/cmd/dev/templates.ts';
+import { createAgentTemplates, createAPITemplates } from '../src/cmd/dev/templates';
 
 describe('createAgentTemplates', () => {
 	let tempDir: string;

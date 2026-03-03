@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import { Hono } from 'hono';
-import { validator } from '../src/validator.ts';
+import { validator } from '../src/validator';
 import { s } from '@agentuity/schema';
 
 describe('validator middleware', () => {

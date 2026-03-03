@@ -12,8 +12,8 @@
 
 import { expect, describe, beforeEach, afterEach, test } from 'bun:test';
 import { Hono } from 'hono';
-import { createCorsMiddleware } from '../src/middleware.ts';
-import { createTrustedCorsOrigin } from '../src/cors.ts';
+import { createCorsMiddleware } from '../src/middleware';
+import { createTrustedCorsOrigin } from '../src/cors';
 
 function clearEnvVars() {
 	delete process.env.AGENTUITY_BASE_URL;

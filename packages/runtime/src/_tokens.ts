@@ -1,7 +1,7 @@
 import type { Context, AttributeValue } from '@opentelemetry/api';
 import type { Span } from '@opentelemetry/sdk-trace-base';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { inAgentContext, inHTTPContext, getHTTPContext } from './_context.ts';
+import { inAgentContext, inHTTPContext, getHTTPContext } from './_context';
 import {
 	ATTR_GEN_AI_SYSTEM,
 	ATTR_GEN_AI_RESPONSE_MODEL,

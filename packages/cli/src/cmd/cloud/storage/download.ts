@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getGlobalCatalystAPIClient } from '../../../config.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
-import { createS3Client } from './utils.ts';
-import { getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
+import { createS3Client } from './utils';
+import { getResourceInfo, setResourceInfo } from '../../../cache';
 
 export const downloadSubcommand = createSubcommand({
 	name: 'download',

@@ -10,7 +10,7 @@ import type {
 	GetAllStatsParams,
 	KeyValueStatsPaginated,
 } from '@agentuity/core';
-import { now } from './_util.ts';
+import { now } from './_util';
 
 export class LocalKeyValueStorage implements KeyValueStorage {
 	#db: Database;

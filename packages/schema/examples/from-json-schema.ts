@@ -1,4 +1,4 @@
-import { s } from '../src/index.ts';
+import { s } from '../src/index.js';
 
 console.log('=== Test 1: Round-trip conversion ===\n');
 

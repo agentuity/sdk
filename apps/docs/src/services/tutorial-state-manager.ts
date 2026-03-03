@@ -1,4 +1,4 @@
-import { config } from '../config.ts';
+import { config } from '../config';
 
 // Tutorial state management types
 export interface TutorialProgress {

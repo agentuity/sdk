@@ -1,20 +1,20 @@
 import type { Context, Handler, MiddlewareHandler } from 'hono';
 import { toJSONSchema } from '@agentuity/server';
-import { getAgents, createAgentMiddleware } from './agent.ts';
-import { createRouter } from './router.ts';
-import { websocket, type WebSocketConnection } from './handlers/websocket.ts';
-import { privateContext } from './_server.ts';
-import { getThreadProvider } from './_services.ts';
+import { getAgents, createAgentMiddleware } from './agent';
+import { createRouter } from './router';
+import { websocket, type WebSocketConnection } from './handlers/websocket';
+import { privateContext } from './_server';
+import { getThreadProvider } from './_services';
 import {
 	loadBuildMetadata,
 	getAgentMetadataByAgentId,
 	hasMetadata,
 	ensureAgentsImported,
-} from './_metadata.ts';
-import { TOKENS_HEADER, DURATION_HEADER } from './_tokens.ts';
-import { verifySignature } from './signature.ts';
-import { isProduction } from './_config.ts';
-import { createCorsMiddleware } from './middleware.ts';
+} from './_metadata';
+import { TOKENS_HEADER, DURATION_HEADER } from './_tokens';
+import { verifySignature } from './signature';
+import { isProduction } from './_config';
+import { createCorsMiddleware } from './middleware';
 
 /**
  * Trusted Agentuity domain suffixes for workbench CORS.

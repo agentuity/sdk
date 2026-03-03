@@ -25,7 +25,7 @@
  */
 
 // Re-export everything from server (types, createClient, utilities)
-export * from './server.ts';
+export * from './server';
 
 // Context and Provider
 export {
@@ -37,19 +37,19 @@ export {
 	type AgentuityContextValue,
 	type AgentuityHookValue,
 	type AuthContextValue,
-} from './context.tsx';
+} from './context';
 
 // API hook
-export { useAPI, type UseAPIOptions, type UseAPIResult } from './api.ts';
+export { useAPI, type UseAPIOptions, type UseAPIResult } from './api';
 
 // WebSocket hook
-export { useWebsocket, type WebsocketOptions } from './websocket.ts';
+export { useWebsocket, type WebsocketOptions } from './websocket';
 
 // EventStream hook
-export { useEventStream, type EventStreamOptions } from './eventstream.ts';
+export { useEventStream, type EventStreamOptions } from './eventstream';
 
 // JSON memo hook
-export { useJsonMemo } from './memo.ts';
+export { useJsonMemo } from './memo';
 
 // Analytics hooks
 export {
@@ -58,7 +58,7 @@ export {
 	withPageTracking,
 	type UseAnalyticsResult,
 	type TrackOnMountOptions,
-} from './analytics.tsx';
+} from './analytics';
 
 // Re-export additional web utilities from @agentuity/frontend
 export {

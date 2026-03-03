@@ -7,7 +7,7 @@
 
 import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
-import type { Logger } from '../../../types.ts';
+import type { Logger } from '../../../types';
 
 const README_CONTENT = `# Generated Files - DO NOT EDIT
 

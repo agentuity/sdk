@@ -1,4 +1,4 @@
-import type { AgentDefinition } from './types.ts';
+import type { AgentDefinition } from './types';
 
 export const SCOUT_SYSTEM_PROMPT = `# Scout Agent
 

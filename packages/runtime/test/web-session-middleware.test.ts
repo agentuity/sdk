@@ -17,7 +17,7 @@ describe('Web Session Middleware', () => {
 	test('does not set x-session-id response header', async () => {
 		// Import dynamically to get fresh instance
 		const { Hono } = await import('hono');
-		const { createWebSessionMiddleware } = await import('../src/middleware.ts');
+		const { createWebSessionMiddleware } = await import('../src/middleware');
 
 		const app = new Hono();
 		app.use('*', createWebSessionMiddleware());
@@ -33,7 +33,7 @@ describe('Web Session Middleware', () => {
 
 	test('does not set x-thread-id response header', async () => {
 		const { Hono } = await import('hono');
-		const { createWebSessionMiddleware } = await import('../src/middleware.ts');
+		const { createWebSessionMiddleware } = await import('../src/middleware');
 
 		const app = new Hono();
 		app.use('*', createWebSessionMiddleware());
@@ -49,7 +49,7 @@ describe('Web Session Middleware', () => {
 
 	test('does not set sessionId in context', async () => {
 		const { Hono } = await import('hono');
-		const { createWebSessionMiddleware } = await import('../src/middleware.ts');
+		const { createWebSessionMiddleware } = await import('../src/middleware');
 
 		const app = new Hono();
 		app.use('*', createWebSessionMiddleware());
@@ -70,7 +70,7 @@ describe('Web Session Middleware', () => {
 
 	test('does not set thread in context (uses _webThreadId instead)', async () => {
 		const { Hono } = await import('hono');
-		const { createWebSessionMiddleware } = await import('../src/middleware.ts');
+		const { createWebSessionMiddleware } = await import('../src/middleware');
 
 		const app = new Hono();
 		app.use('*', createWebSessionMiddleware());
@@ -91,7 +91,7 @@ describe('Web Session Middleware', () => {
 
 	test('does not set _webSessionId in context (removed)', async () => {
 		const { Hono } = await import('hono');
-		const { createWebSessionMiddleware } = await import('../src/middleware.ts');
+		const { createWebSessionMiddleware } = await import('../src/middleware');
 
 		const app = new Hono();
 		app.use('*', createWebSessionMiddleware());

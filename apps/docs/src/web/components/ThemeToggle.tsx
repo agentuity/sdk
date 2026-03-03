@@ -1,6 +1,6 @@
 import { ComputerDesktopIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef, useState } from 'react';
-import { useTheme } from './ThemeContext.tsx';
+import { useTheme } from './ThemeContext';
 
 type Theme = 'light' | 'dark' | 'system';
 

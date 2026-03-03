@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { createContext, useContext, type Context } from 'react';
 import { defaultBaseUrl } from '@agentuity/frontend';
-import { setGlobalBaseUrl, setGlobalAuthHeader } from './client.ts';
+import { setGlobalBaseUrl, setGlobalAuthHeader } from './client';
 
 export interface ContextProviderArgs {
 	children?: React.ReactNode;

@@ -10,8 +10,8 @@ import './index.css';
 import { StrictMode } from 'react';
 import { hydrateRoot, createRoot } from 'react-dom/client';
 import { AgentuityProvider } from '@agentuity/react';
-import { ThemeProvider } from './components/ThemeContext.tsx';
-import { App } from './App.tsx';
+import { ThemeProvider } from './components/ThemeContext';
+import { App } from './App';
 
 const elem = document.getElementById('root');
 if (!elem) {

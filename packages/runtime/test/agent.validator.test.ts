@@ -13,7 +13,7 @@
 import { describe, test, expect } from 'bun:test';
 import { Hono, type Context, type Next } from 'hono';
 import { z } from 'zod';
-import { createAgent } from '../src/agent.ts';
+import { createAgent } from '../src/agent';
 
 describe('agent.validator()', () => {
 	const testAgent = createAgent('test-agent', {

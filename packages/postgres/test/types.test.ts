@@ -6,7 +6,7 @@ import type {
 	TLSConfig,
 	TransactionOptions,
 	ReserveOptions,
-} from '../src/types.ts';
+} from '../src/types';
 
 /**
  * Type-level tests for the postgres types.

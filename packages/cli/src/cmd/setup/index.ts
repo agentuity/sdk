@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createCommand } from '../../types.ts';
-import { hasLoggedInBefore } from '../../auth.ts';
-import { showBanner } from '../../banner.ts';
-import * as tui from '../../tui.ts';
-import { getCommand } from '../../command-prefix.ts';
-import { getAgentPromptMarkdown } from '../../onboarding/agentPrompt.ts';
+import { createCommand } from '../../types';
+import { hasLoggedInBefore } from '../../auth';
+import { showBanner } from '../../banner';
+import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
+import { getAgentPromptMarkdown } from '../../onboarding/agentPrompt';
 
 const validateToken = /[\d]{7,}\.[\w-_.]{22}/;
 

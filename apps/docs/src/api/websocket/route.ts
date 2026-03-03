@@ -5,7 +5,7 @@
  * WS /connect    - WebSocket endpoint with echo and heartbeat
  */
 import { createRouter, websocket } from '@agentuity/runtime';
-import websocketAgent from '../../agent/websocket/agent.ts';
+import websocketAgent from '../../agent/websocket/agent';
 
 const router = createRouter();
 

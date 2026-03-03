@@ -1,19 +1,19 @@
 import type { Plugin } from 'vite';
 import { join } from 'node:path';
 import { createLogger } from '@agentuity/server';
-import type { LogLevel, DeployOptions } from '../../../types.ts';
-import { discoverAgents, type AgentMetadata } from './agent-discovery.ts';
-import { discoverRoutes, type RouteMetadata, type RouteInfo } from './route-discovery.ts';
-import { generateAgentRegistry, generateRouteRegistry } from './registry-generator.ts';
-import { generateLifecycleTypes } from './lifecycle-generator.ts';
-import { generateEnvTypes } from './env-types-generator.ts';
-import { generateMetadata, writeMetadataFile, generateRouteMapping } from './metadata-generator.ts';
-import { generateEntryFile } from '../entry-generator.ts';
-import { loadAgentuityConfig, getWorkbenchConfig } from './config-loader.ts';
+import type { LogLevel, DeployOptions } from '../../../types';
+import { discoverAgents, type AgentMetadata } from './agent-discovery';
+import { discoverRoutes, type RouteMetadata, type RouteInfo } from './route-discovery';
+import { generateAgentRegistry, generateRouteRegistry } from './registry-generator';
+import { generateLifecycleTypes } from './lifecycle-generator';
+import { generateEnvTypes } from './env-types-generator';
+import { generateMetadata, writeMetadataFile, generateRouteMapping } from './metadata-generator';
+import { generateEntryFile } from '../entry-generator';
+import { loadAgentuityConfig, getWorkbenchConfig } from './config-loader';
 
 // Re-export plugins
-export { browserEnvPlugin } from './browser-env-plugin.ts';
-export { publicAssetPathPlugin } from './public-asset-path-plugin.ts';
+export { browserEnvPlugin } from './browser-env-plugin';
+export { publicAssetPathPlugin } from './public-asset-path-plugin';
 
 export interface AgentuityPluginOptions {
 	dev?: boolean;

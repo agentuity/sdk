@@ -1,12 +1,12 @@
-import { createCommand } from '../../../types.ts';
-import { pullSubcommand } from './pull.ts';
-import { pushSubcommand } from './push.ts';
-import { setSubcommand } from './set.ts';
-import { getSubcommand } from './get.ts';
-import { deleteSubcommand } from './delete.ts';
-import { importSubcommand } from './import.ts';
-import { listSubcommand } from './list.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { pullSubcommand } from './pull';
+import { pushSubcommand } from './push';
+import { setSubcommand } from './set';
+import { getSubcommand } from './get';
+import { deleteSubcommand } from './delete';
+import { importSubcommand } from './import';
+import { listSubcommand } from './list';
+import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
 	name: 'env',

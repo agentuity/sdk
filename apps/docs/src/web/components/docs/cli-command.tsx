@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { cn } from '../../lib/utils.ts';
+import { cn } from '../../lib/utils';
 
 interface CLICommandProps {
 	command: string;

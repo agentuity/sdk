@@ -3,8 +3,8 @@ import { mkdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createMockLogger } from '@agentuity/test-utils';
-import { discoverRoutes } from '../src/cmd/build/vite/route-discovery.ts';
-import { generateRouteRegistry } from '../src/cmd/build/vite/registry-generator.ts';
+import { discoverRoutes } from '../src/cmd/build/vite/route-discovery';
+import { generateRouteRegistry } from '../src/cmd/build/vite/registry-generator';
 
 /**
  * Integration tests for Hono validator('json', callback) schema extraction

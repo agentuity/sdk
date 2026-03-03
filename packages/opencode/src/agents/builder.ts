@@ -1,4 +1,4 @@
-import type { AgentDefinition } from './types.ts';
+import type { AgentDefinition } from './types';
 
 export const BUILDER_SYSTEM_PROMPT = `# Builder Agent
 

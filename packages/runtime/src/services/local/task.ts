@@ -28,7 +28,7 @@ import type {
 	TaskActivityResult,
 } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
-import { now } from './_util.ts';
+import { now } from './_util';
 
 const TaskTitleRequiredError = StructuredError(
 	'TaskTitleRequiredError',

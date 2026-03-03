@@ -4,8 +4,8 @@
 import { test, expect, describe } from 'bun:test';
 import { join } from 'node:path';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
-import { generateMetadata } from '../../../../src/cmd/build/vite/metadata-generator.ts';
-import type { Logger } from '../../../../src/types.ts';
+import { generateMetadata } from '../../../../src/cmd/build/vite/metadata-generator';
+import type { Logger } from '../../../../src/types';
 
 const mockLogger: Logger = {
 	trace: () => {},

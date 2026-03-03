@@ -1,4 +1,4 @@
-import type { TutorialSnippet } from './tutorial.ts';
+import type { TutorialSnippet } from './tutorial';
 
 export interface Source {
 	url: string;

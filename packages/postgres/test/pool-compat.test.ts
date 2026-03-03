@@ -1,6 +1,6 @@
 import { describe, test, expect, mock } from 'bun:test';
 import { EventEmitter } from 'node:events';
-import type { PoolConfig } from '../src/types.ts';
+import type { PoolConfig } from '../src/types';
 
 class MockPool extends EventEmitter {
 	static lastConfig: PoolConfig | undefined;
@@ -47,7 +47,7 @@ mock.module('pg', () => ({
 	Pool: MockPool,
 }));
 
-import { PostgresPool } from '../src/pool.ts';
+import { PostgresPool } from '../src/pool';
 
 describe('PostgresPool pg.Pool compatibility', () => {
 	test('passes pg.PoolConfig options through to pg.Pool', async () => {

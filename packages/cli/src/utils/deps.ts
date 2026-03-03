@@ -1,6 +1,6 @@
 import { $ } from 'bun';
 import { join } from 'node:path';
-import type { Logger } from '../types.ts';
+import type { Logger } from '../types';
 
 export interface PackageRef {
 	name: string;

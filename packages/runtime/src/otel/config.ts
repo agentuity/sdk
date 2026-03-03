@@ -1,9 +1,9 @@
 import type { LogLevel } from '@agentuity/core';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { getServiceUrls } from '@agentuity/server';
-import * as runtimeConfig from '../_config.ts';
-import type { OtelConfig, OtelResponse } from './otel.ts';
-import { registerOtel } from './otel.ts';
+import * as runtimeConfig from '../_config';
+import type { OtelConfig, OtelResponse } from './otel';
+import { registerOtel } from './otel';
 
 /**
  * Configuration for user provided OpenTelemetry

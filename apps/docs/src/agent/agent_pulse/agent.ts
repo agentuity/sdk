@@ -1,11 +1,11 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
+import { streamText, stepCountIs } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import { stepCountIs, streamText } from 'ai';
-import { buildContext, buildSystemPrompt } from './context-builder.ts';
-import { createStreamingProcessor } from './streaming-processor.ts';
-import { createTools } from './tools.ts';
-import type { Action, ConversationMessage } from './types.ts';
+import { buildContext, buildSystemPrompt } from './context-builder';
+import { createTools } from './tools';
+import { createStreamingProcessor } from './streaming-processor';
+import type { ConversationMessage, Action } from './types';
 
 const agent = createAgent('AgentPulse', {
 	description:

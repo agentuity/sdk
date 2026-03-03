@@ -1,5 +1,5 @@
 import { Github } from 'lucide-react';
-import { Button } from '../ui/button.tsx';
+import { Button } from '../ui/button';
 
 // Discord icon
 function DiscordIcon({ className }: { className?: string }) {

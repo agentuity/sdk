@@ -8,18 +8,18 @@ import { join, extname, basename, resolve, normalize } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import JSON5 from 'json5';
-import type { Config, Profile, AuthData } from './types.ts';
-import { ConfigSchema, ProjectSchema } from './types.ts';
-import * as tui from './tui.ts';
-import { getCatalystUrl } from './catalyst.ts';
+import type { Config, Profile, AuthData } from './types';
+import { ConfigSchema, ProjectSchema } from './types';
+import * as tui from './tui';
+import { getCatalystUrl } from './catalyst';
 import {
 	isMacOS,
 	saveAuthToKeychain,
 	getAuthFromKeychain,
 	deleteAuthFromKeychain,
-} from './keychain.ts';
-import { clearProfileCache } from './cache/index.ts';
-import { readEnvFile, writeEnvFile } from './env-util.ts';
+} from './keychain';
+import { clearProfileCache } from './cache';
+import { readEnvFile, writeEnvFile } from './env-util';
 
 export const defaultProfileName = 'production';
 

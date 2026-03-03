@@ -16,7 +16,7 @@
  */
 
 import { createRouter } from '@agentuity/runtime';
-import { testSuite, type TestResult } from '../test/suite.ts';
+import { testSuite, type TestResult } from '../test/suite';
 
 const router = createRouter();
 

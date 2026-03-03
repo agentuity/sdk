@@ -9,7 +9,7 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { authClient } from './auth-client.ts';
+import { authClient } from './auth-client';
 import { useAPI } from '@agentuity/react';
 import { useAuth } from '@agentuity/auth/react';
 

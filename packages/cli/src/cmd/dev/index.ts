@@ -2,25 +2,25 @@ import { z } from 'zod';
 import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { getServiceUrls } from '@agentuity/server';
-import { createCommand } from '../../types.ts';
-import { startBunDevServer } from '../build/vite/bun-dev-server.ts';
-import { startViteAssetServer } from '../build/vite/vite-asset-server.ts';
-import * as tui from '../../tui.ts';
-import { getCommand } from '../../command-prefix.ts';
-import { generateEndpoint, type DevmodeResponse } from './api.ts';
-import { APIClient, getAPIBaseURL, getAppBaseURL, getGravityDevModeURL } from '../../api.ts';
-import { download } from './download.ts';
-import { createDevmodeSyncService } from './sync.ts';
-import { getDevmodeDeploymentId } from '../build/ast.ts';
-import { getDefaultConfigDir, saveConfig, loadProjectSDKKey, getAuth } from '../../config.ts';
-import type { Config } from '../../types.ts';
-import { typecheck } from '../build/typecheck.ts';
-import { validateGravityRequiresUpgrade } from '../../runtime.ts';
-import { isTTY, hasLoggedInBefore } from '../../auth.ts';
-import { createFileWatcher } from './file-watcher.ts';
-import { prepareDevLock, releaseLockSync } from './dev-lock.ts';
-import { checkAndUpgradeDependencies } from '../../utils/dependency-checker.ts';
-import { ErrorCode } from '../../errors.ts';
+import { createCommand } from '../../types';
+import { startBunDevServer } from '../build/vite/bun-dev-server';
+import { startViteAssetServer } from '../build/vite/vite-asset-server';
+import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
+import { generateEndpoint, type DevmodeResponse } from './api';
+import { APIClient, getAPIBaseURL, getAppBaseURL, getGravityDevModeURL } from '../../api';
+import { download } from './download';
+import { createDevmodeSyncService } from './sync';
+import { getDevmodeDeploymentId } from '../build/ast';
+import { getDefaultConfigDir, saveConfig, loadProjectSDKKey, getAuth } from '../../config';
+import type { Config } from '../../types';
+import { typecheck } from '../build/typecheck';
+import { validateGravityRequiresUpgrade } from '../../runtime';
+import { isTTY, hasLoggedInBefore } from '../../auth';
+import { createFileWatcher } from './file-watcher';
+import { prepareDevLock, releaseLockSync } from './dev-lock';
+import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
+import { ErrorCode } from '../../errors';
 
 const DEFAULT_PORT = 3500;
 const MIN_PORT = 1024;
@@ -299,7 +299,7 @@ export const command = createCommand({
 						tui.newline();
 
 						// Run login flow inline
-						const { loginCommand } = await import('../auth/login.ts');
+						const { loginCommand } = await import('../auth/login');
 
 						// Ensure apiClient is available for login handler
 						const loginCtx = ctx as unknown as Record<string, unknown>;
@@ -339,7 +339,7 @@ export const command = createCommand({
 
 			// After auth is established, verify project access
 			if (auth && config) {
-				const { reconcileProject } = await import('../project/reconcile.ts');
+				const { reconcileProject } = await import('../project/reconcile');
 				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
 
 				const result = await reconcileProject({
@@ -366,7 +366,7 @@ export const command = createCommand({
 		} else {
 			// No agentuity.json - check if this is a valid project that needs importing
 			if (auth && config) {
-				const { reconcileProject } = await import('../project/reconcile.ts');
+				const { reconcileProject } = await import('../project/reconcile');
 				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
 
 				const result = await reconcileProject({
@@ -506,7 +506,7 @@ export const command = createCommand({
 
 			// Get workbench info from config (new Vite approach)
 			const { loadAgentuityConfig, getWorkbenchConfig } = await import(
-				'../build/vite/config-loader.ts'
+				'../build/vite/config-loader'
 			);
 			const agentuityConfig = await loadAgentuityConfig(rootDir, ctx.logger);
 			const workbenchConfigData = getWorkbenchConfig(agentuityConfig, true); // dev mode
@@ -885,7 +885,7 @@ export const command = createCommand({
 							if (workbenchConfigData.enabled) {
 								logger.debug('Workbench enabled, generating source files before bundle...');
 								const { generateWorkbenchFiles } = await import(
-									'../build/vite/workbench-generator.ts'
+									'../build/vite/workbench-generator'
 								);
 								await generateWorkbenchFiles(
 									rootDir,
@@ -897,10 +897,10 @@ export const command = createCommand({
 
 							// Step 2: Discover agents and routes in parallel
 							const srcDir = join(rootDir, 'src');
-							const { discoverAgents } = await import('../build/vite/agent-discovery.ts');
-							const { discoverRoutes } = await import('../build/vite/route-discovery.ts');
+							const { discoverAgents } = await import('../build/vite/agent-discovery');
+							const { discoverRoutes } = await import('../build/vite/route-discovery');
 							const { generateAgentRegistry, generateRouteRegistry } = await import(
-								'../build/vite/registry-generator.ts'
+								'../build/vite/registry-generator'
 							);
 
 							const [agentMetadata, { routes, routeInfoList }] = await Promise.all([
@@ -933,7 +933,7 @@ export const command = createCommand({
 
 								// Step 3: Generate entry file with workbench and analytics config
 								// Pass pre-discovered routes to avoid redundant route discovery
-								const { generateEntryFile } = await import('../build/entry-generator.ts');
+								const { generateEntryFile } = await import('../build/entry-generator');
 								await generateEntryFile({
 									rootDir,
 									projectId: project?.projectId ?? '',
@@ -957,7 +957,7 @@ export const command = createCommand({
 								// This produces .agentuity/app.js with AI Gateway routing patches applied
 								// Must re-bundle even if discovery unchanged (user code may have changed)
 								const { installExternalsAndBuild } = await import(
-									'../build/vite/server-bundler.ts'
+									'../build/vite/server-bundler'
 								);
 								await installExternalsAndBuild({
 									rootDir,
@@ -971,14 +971,14 @@ export const command = createCommand({
 							// Generate metadata file (needed for eval ID lookup at runtime)
 							// Reuse agentMetadata and routes from Step 2
 							const { generateMetadata, writeMetadataFile } = await import(
-								'../build/vite/metadata-generator.ts'
+								'../build/vite/metadata-generator'
 							);
 
 							const promises: Promise<void>[] = [];
 
 							// Generate/update prompt files (non-blocking)
 							promises.push(
-								import('../build/vite/prompt-generator.ts')
+								import('../build/vite/prompt-generator')
 									.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
 									.catch((err) =>
 										logger.warn('Failed to generate prompt files: %s', err.message)

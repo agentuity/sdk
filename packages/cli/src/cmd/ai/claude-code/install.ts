@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createSubcommand, type CommandContext } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createSubcommand, type CommandContext } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
 import {
 	type ClaudeSettings,
 	CLAUDE_DIR,
@@ -10,7 +10,7 @@ import {
 	PLUGIN_INSTALL_DIR,
 	AGENTUITY_ALLOW_PERMISSIONS,
 	AGENTUITY_DENY_PERMISSIONS,
-} from './constants.ts';
+} from './constants';
 
 async function readClaudeSettings(): Promise<ClaudeSettings> {
 	try {

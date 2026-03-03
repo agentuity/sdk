@@ -1,8 +1,8 @@
-import { createCommand } from '../../../types.ts';
-import { listCommand } from './list.ts';
-import { addCommand } from './add.ts';
-import { deleteCommand } from './delete.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { listCommand } from './list';
+import { addCommand } from './add';
+import { deleteCommand } from './delete';
+import { getCommand } from '../../../command-prefix';
 
 export const sshSubcommand = createCommand({
 	name: 'ssh',

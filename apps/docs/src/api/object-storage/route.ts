@@ -9,7 +9,7 @@
  */
 import { createRouter } from '@agentuity/runtime';
 import { s3 } from 'bun';
-import objectstoreAgent from '../../agent/objectstore/agent.ts';
+import objectstoreAgent from '../../agent/objectstore/agent';
 
 const router = createRouter();
 

@@ -1,14 +1,14 @@
 import { describe, expect, it, afterEach } from 'bun:test';
-import { calculateCapacity, decideSpawnActions } from '../src/tmux/decision-engine.ts';
-import { isInsideTmux, getCurrentPaneId } from '../src/tmux/utils.ts';
+import { calculateCapacity, decideSpawnActions } from '../src/tmux/decision-engine';
+import { isInsideTmux, getCurrentPaneId } from '../src/tmux/utils';
 import type {
 	WindowState,
 	TmuxPaneInfo,
 	CapacityConfig,
 	SessionMapping,
 	SpawnDecision,
-} from '../src/tmux/types.ts';
-import { MIN_PANE_WIDTH, MIN_PANE_HEIGHT } from '../src/tmux/types.ts';
+} from '../src/tmux/types';
+import { MIN_PANE_WIDTH, MIN_PANE_HEIGHT } from '../src/tmux/types';
 
 describe('Tmux', () => {
 	describe('utils', () => {

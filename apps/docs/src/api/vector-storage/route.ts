@@ -6,7 +6,7 @@
  * GET /status  - Checks if vector store contains data
  */
 import { createRouter } from '@agentuity/runtime';
-import vectorAgent from '../../agent/vector/agent.ts';
+import vectorAgent from '../../agent/vector/agent';
 
 const router = createRouter();
 

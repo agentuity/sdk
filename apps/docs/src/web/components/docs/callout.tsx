@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Info, AlertTriangle, Lightbulb, AlertCircle, CheckCircle } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '../ui/index.ts';
-import { cn } from '../../lib/utils.ts';
+import { Alert, AlertTitle, AlertDescription } from '../ui';
+import { cn } from '../../lib/utils';
 
 type CalloutType = 'info' | 'warning' | 'tip' | 'error' | 'success';
 

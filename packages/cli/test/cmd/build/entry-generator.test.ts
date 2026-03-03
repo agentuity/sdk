@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createMockLogger } from '@agentuity/test-utils';
-import { generateEntryFile } from '../../../src/cmd/build/entry-generator.ts';
+import { generateEntryFile } from '../../../src/cmd/build/entry-generator';
 
 /**
  * Tests for entry-generator.ts

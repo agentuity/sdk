@@ -12,20 +12,20 @@
 
 import { join, dirname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
-import type { Logger } from '../../../types.ts';
-import { needsUpdate } from '../../ai/prompt/version.ts';
+import type { Logger } from '../../../types';
+import { needsUpdate } from '../../ai/prompt/version';
 import {
 	generateLLMPrompt as generateAgentPrompt,
 	getPromptContent as getAgentContent,
-} from '../../ai/prompt/agent.ts';
+} from '../../ai/prompt/agent';
 import {
 	generateLLMPrompt as generateApiPrompt,
 	getPromptContent as getApiContent,
-} from '../../ai/prompt/api.ts';
+} from '../../ai/prompt/api';
 import {
 	generateLLMPrompt as generateWebPrompt,
 	getPromptContent as getWebContent,
-} from '../../ai/prompt/web.ts';
+} from '../../ai/prompt/web';
 
 interface PromptConfig {
 	name: string;

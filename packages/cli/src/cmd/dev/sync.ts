@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { Logger, BuildMetadata } from '../../types.ts';
-import type { APIClient } from '../../api.ts';
+import type { Logger, BuildMetadata } from '../../types';
+import type { APIClient } from '../../api';
 
 interface AgentSyncPayload {
 	id: string;

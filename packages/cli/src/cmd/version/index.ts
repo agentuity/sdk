@@ -1,9 +1,9 @@
-import { createCommand } from '../../types.ts';
-import { getVersion } from '../../version.ts';
+import { createCommand } from '../../types';
+import { getVersion } from '../../version';
 import { createLogger } from '@agentuity/server';
-import { getCommand } from '../../command-prefix.ts';
+import { getCommand } from '../../command-prefix';
 import { z } from 'zod';
-import { ErrorCode } from '../../errors.ts';
+import { ErrorCode } from '../../errors';
 
 const VersionResponseSchema = z.string().describe('CLI version number');
 

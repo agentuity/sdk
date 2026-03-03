@@ -16,7 +16,7 @@
 import { SQL } from 'bun';
 import { eq } from 'drizzle-orm';
 import { pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
-import { createPostgresDrizzle } from '../../src/postgres.ts';
+import { createPostgresDrizzle } from '../../src/postgres';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 

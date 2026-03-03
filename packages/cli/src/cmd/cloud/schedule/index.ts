@@ -1,13 +1,13 @@
-import { createCommand } from '../../../types.ts';
-import { listSubcommand } from './list.ts';
-import { createSubcommand } from './create.ts';
-import { getSubcommand } from './get.ts';
-import { deleteSubcommand } from './delete.ts';
-import { updateSubcommand } from './update.ts';
-import destinationSubcommand from './destination/index.ts';
-import deliverySubcommand from './delivery/index.ts';
-import { statsSubcommand } from './stats.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { listSubcommand } from './list';
+import { createSubcommand } from './create';
+import { getSubcommand } from './get';
+import { deleteSubcommand } from './delete';
+import { updateSubcommand } from './update';
+import destinationSubcommand from './destination';
+import deliverySubcommand from './delivery';
+import { statsSubcommand } from './stats';
+import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
 	name: 'schedule',

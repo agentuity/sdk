@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { agents, getAgentByRole, getAgentById } from '../src/agents/index.ts';
+import { agents, getAgentByRole, getAgentById } from '../src/agents';
 
 describe('Agents', () => {
 	describe('agent definitions', () => {

@@ -1,8 +1,8 @@
-import { createCommand } from '../../types.ts';
+import { createCommand } from '../../types';
 import { z } from 'zod';
 import { $ } from 'bun';
 import { tmpdir } from 'node:os';
-import * as tui from '../../tui.ts';
+import * as tui from '../../tui';
 
 const CANARY_BASE_URL = 'https://agentuity-sdk-objects.t3.storageapi.dev/npm';
 

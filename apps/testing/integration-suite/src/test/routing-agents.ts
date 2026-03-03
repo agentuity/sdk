@@ -4,8 +4,8 @@
  * Tests HTTP routing, methods, query params, headers, and request handling
  */
 
-import { test } from './suite.ts';
-import { assert, assertEqual, assertDefined } from './helpers/index.ts';
+import { test } from './suite';
+import { assert, assertEqual, assertDefined } from './helpers';
 
 // Import agents
 import getAgent from '@agents/routing/routing-get';

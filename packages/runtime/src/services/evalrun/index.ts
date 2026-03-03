@@ -1,4 +1,4 @@
-export { HTTPEvalRunEventProvider } from './http.ts';
-export { LocalEvalRunEventProvider } from './local.ts';
-export { JSONEvalRunEventProvider } from './json.ts';
-export { CompositeEvalRunEventProvider } from './composite.ts';
+export { HTTPEvalRunEventProvider } from './http';
+export { LocalEvalRunEventProvider } from './local';
+export { JSONEvalRunEventProvider } from './json';
+export { CompositeEvalRunEventProvider } from './composite';

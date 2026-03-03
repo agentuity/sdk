@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { readFileSync, writeFileSync, mkdirSync, statSync, readdirSync } from 'node:fs';
 import { dirname, resolve, basename, join, relative } from 'node:path';
-import { createCommand } from '../../../types.ts';
-import { toForwardSlash } from '../../../utils/normalize-path.ts';
-import * as tui from '../../../tui.ts';
-import { createSandboxClient } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { toForwardSlash } from '../../../utils/normalize-path';
+import * as tui from '../../../tui';
+import { createSandboxClient } from './util';
+import { getCommand } from '../../../command-prefix';
 import {
 	sandboxWriteFiles,
 	sandboxReadFile,

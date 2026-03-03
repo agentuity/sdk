@@ -22,7 +22,7 @@ import {
 	SandboxTerminatedError,
 } from '@agentuity/server';
 import { Writable } from 'node:stream';
-import { SCRIPT_NAMES, SCRIPT_DEFAULTS } from './scripts.ts';
+import { SCRIPT_NAMES, SCRIPT_DEFAULTS } from './scripts';
 
 const router = createRouter();
 

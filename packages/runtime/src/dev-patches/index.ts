@@ -11,9 +11,9 @@
  * 3. OTel LLM: Wrap LLM SDK .create() methods with OpenTelemetry spans
  */
 
-import { applyGatewayPatches } from './gateway.ts';
-import { applyAISDKCorePatches, applyAISDKProviderPatches } from './aisdk.ts';
-import { applyOtelLLMPatches } from './otel-llm.ts';
+import { applyGatewayPatches } from './gateway';
+import { applyAISDKCorePatches, applyAISDKProviderPatches } from './aisdk';
+import { applyOtelLLMPatches } from './otel-llm';
 
 /**
  * Apply all runtime dev patches.

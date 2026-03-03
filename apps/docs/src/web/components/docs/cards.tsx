@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ExternalLink } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardAction } from '../ui/index.ts';
-import { cn } from '../../lib/utils.ts';
+import { Card, CardHeader, CardTitle, CardDescription, CardAction } from '../ui';
+import { cn } from '../../lib/utils';
 
 interface CardLinkProps {
 	href: string;

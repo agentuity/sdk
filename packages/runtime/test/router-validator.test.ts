@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { createRouter, validator } from '../src/index.ts';
+import { createRouter, validator } from '../src/index';
 import { s } from '@agentuity/schema';
 
 describe('createRouter with validator', () => {

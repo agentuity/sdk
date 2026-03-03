@@ -3,8 +3,8 @@ import { stream as honoStream } from 'hono/streaming';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
 import { StructuredError } from '@agentuity/core';
 import type { Schema } from '@agentuity/schema';
-import { getAgentAsyncLocalStorage } from '../_context.ts';
-import type { Env } from '../app.ts';
+import { getAgentAsyncLocalStorage } from '../_context';
+import type { Env } from '../app';
 
 /**
  * Error thrown when sse() is called without a handler function.

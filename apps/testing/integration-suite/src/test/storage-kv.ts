@@ -4,9 +4,9 @@
  * Tests KV storage CRUD operations, types, and isolation
  */
 
-import { test } from './suite.ts';
-import { assertEqual, assertDefined, uniqueId } from './helpers/index.ts';
-import { decodeKVValue } from './helpers/kv.ts';
+import { test } from './suite';
+import { assertEqual, assertDefined, uniqueId } from './helpers';
+import { decodeKVValue } from './helpers/kv';
 
 // Import agents
 import kvCrudAgent from '@agents/storage/kv/crud';

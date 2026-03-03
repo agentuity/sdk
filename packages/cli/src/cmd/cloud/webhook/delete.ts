@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { createWebhookAPIClient, getWebhookApiOptions } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
+import { createWebhookAPIClient, getWebhookApiOptions } from './util';
+import { getCommand } from '../../../command-prefix';
 import { deleteWebhook } from '@agentuity/server';
-import { ErrorCode } from '../../../errors.ts';
+import { ErrorCode } from '../../../errors';
 
 const DeleteResponseSchema = z.object({
 	success: z.boolean(),

@@ -1,6 +1,6 @@
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
-import type { Logger } from './logger/index.ts';
-import { internal } from './logger/internal.ts';
+import type { Logger } from './logger';
+import { internal } from './logger/internal';
 import { StructuredError } from '@agentuity/core';
 
 let running = 0;

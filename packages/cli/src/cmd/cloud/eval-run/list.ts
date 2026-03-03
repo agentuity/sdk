@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
 import { evalRunList } from '@agentuity/server';
 
 const EvalRunListResponseSchema = z.array(

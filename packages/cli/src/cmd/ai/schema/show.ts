@@ -1,6 +1,6 @@
-import { createSubcommand, type CommandContext } from '../../../types.ts';
-import { ErrorCode } from '../../../errors.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createSubcommand, type CommandContext } from '../../../types';
+import { ErrorCode } from '../../../errors';
+import { getCommand } from '../../../command-prefix';
 
 export const showSubcommand = createSubcommand({
 	name: 'show',

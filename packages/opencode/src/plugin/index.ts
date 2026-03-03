@@ -1,1 +1,1 @@
-export { createCoderPlugin } from './plugin.ts';
+export { createCoderPlugin } from './plugin';

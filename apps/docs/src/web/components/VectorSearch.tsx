@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Badge, Button, Input, Separator, Skeleton } from './ui/index.ts';
+import { Badge, Button, Input, Separator, Skeleton } from './ui';
 
 interface SearchMatch {
 	sku: string;

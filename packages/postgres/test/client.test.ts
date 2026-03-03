@@ -6,7 +6,7 @@
  * connection. We do this by setting _connected = true on the client instance.
  */
 import { describe, it, expect } from 'bun:test';
-import { PostgresClient } from '../src/client.ts';
+import { PostgresClient } from '../src/client';
 
 /**
  * Creates a PostgresClient with a dummy URL and forces internal state

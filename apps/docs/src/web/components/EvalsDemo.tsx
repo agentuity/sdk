@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Separator } from './ui/index.ts';
+import { Button, Separator } from './ui';
 
 interface EvalResultData {
 	passed: boolean;

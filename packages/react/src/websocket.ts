@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
 import { buildUrl, WebSocketManager, type WebSocketRouteRegistry } from '@agentuity/frontend';
-import { AgentuityContext } from './context.tsx';
+import { AgentuityContext } from './context';
 
 // WebSocket ready state constants for SSR compatibility
 // (WebSocket global may not exist during SSR)

@@ -6,7 +6,7 @@
  * Usage: bun run src/run/hello.ts '{"name":"World"}'
  */
 import { createAgentContext } from '@agentuity/runtime';
-import helloAgent from '../agent/hello/agent.ts';
+import helloAgent from '../agent/hello/agent';
 
 const input = JSON.parse(process.argv[2] ?? '{"name":"World"}');
 const ctx = createAgentContext();

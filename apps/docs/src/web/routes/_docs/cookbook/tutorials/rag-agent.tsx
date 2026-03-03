@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { MDXPage } from '../../../../components/docs/mdx-page.tsx';
+import { MDXPage } from '../../../../components/docs/mdx-page';
 
 export const Route = createFileRoute('/_docs/cookbook/tutorials/rag-agent')({
 	component: () => <MDXPage route="cookbook/tutorials/rag-agent" />,

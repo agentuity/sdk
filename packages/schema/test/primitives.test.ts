@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { s, ValidationError } from '../src/index.ts';
+import { s, ValidationError } from '../src/index.js';
 
 describe('Primitive Schemas', () => {
 	describe('string', () => {

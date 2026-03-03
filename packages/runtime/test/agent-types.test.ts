@@ -1,6 +1,6 @@
 import { test } from 'bun:test';
 import { expectTypeOf } from 'expect-type';
-import { createAgent, type AppState } from '../src/index.ts';
+import { createAgent, type AppState } from '../src/index';
 import { z } from 'zod';
 
 test('Handler with input schema - parameters should NOT be any', () => {

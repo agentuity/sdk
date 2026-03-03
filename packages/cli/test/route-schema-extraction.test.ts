@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { parseRoute } from '../src/cmd/build/ast.ts';
+import { parseRoute } from '../src/cmd/build/ast';
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';

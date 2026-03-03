@@ -1,7 +1,7 @@
-import { createCommand } from '../../../types.ts';
-import { listSubcommand } from './list.ts';
-import { getSubcommand } from './get.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { listSubcommand } from './list';
+import { getSubcommand } from './get';
+import { getCommand } from '../../../command-prefix';
 
 export const agentCommand = createCommand({
 	name: 'agent',

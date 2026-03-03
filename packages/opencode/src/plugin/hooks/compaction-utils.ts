@@ -1,5 +1,5 @@
-import type { OpenCodeDBReader } from '../../sqlite/reader.ts';
-import type { CompactionStats, DBNonTextPart, PreCompactionSnapshot } from '../../sqlite/types.ts';
+import type { OpenCodeDBReader } from '../../sqlite/reader';
+import type { CompactionStats, DBNonTextPart, PreCompactionSnapshot } from '../../sqlite/types';
 
 /**
  * Get the current git branch name.
@@ -276,10 +276,10 @@ export function countListItems(s: string | null): number {
 }
 
 // Re-export types used by consumers of this module
-export type { CompactionConfig } from '../../types.ts';
+export type { CompactionConfig } from '../../types';
 export type {
 	CompactionStats,
 	DBNonTextPart,
 	DBToolCallSummary,
 	PreCompactionSnapshot,
-} from '../../sqlite/types.ts';
+} from '../../sqlite/types';

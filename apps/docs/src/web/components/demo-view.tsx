@@ -1,10 +1,10 @@
 import { BookOpenIcon } from '@heroicons/react/24/outline';
 import { useCallback, useEffect } from 'react';
-import { CodeBlock } from './CodeBlock.tsx';
-import { TerminalOutput } from './TerminalOutput.tsx';
-import { Separator } from './ui/index.ts';
-import { useSandboxRunner } from '../hooks/useSandboxRunner.ts';
-import { getDemoById } from '../demo-config.tsx';
+import { CodeBlock } from './CodeBlock';
+import { TerminalOutput } from './TerminalOutput';
+import { Separator } from './ui';
+import { useSandboxRunner } from '../hooks/useSandboxRunner';
+import { getDemoById } from '../demo-config';
 
 export function DemoView({ demoId }: { demoId: string }) {
 	const demo = getDemoById(demoId);

@@ -1,13 +1,13 @@
-import { createSubcommand } from '../../types.ts';
+import { createSubcommand } from '../../types';
 import { z } from 'zod';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { platform, arch, cpus, totalmem, homedir } from 'node:os';
-import { getLatestLogSession } from '../../internal-logger.ts';
-import * as tui from '../../tui.ts';
-import { getVersion, getPackageName } from '../../version.ts';
-import { getAuth } from '../../config.ts';
-import { getExecutingAgent } from '../../agent-detection.ts';
+import { getLatestLogSession } from '../../internal-logger';
+import * as tui from '../../tui';
+import { getVersion, getPackageName } from '../../version';
+import { getAuth } from '../../config';
+import { getExecutingAgent } from '../../agent-detection';
 
 const argsSchema = z.object({});
 

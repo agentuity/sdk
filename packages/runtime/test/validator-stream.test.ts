@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
 import { Hono } from 'hono';
 import { s } from '@agentuity/schema';
-import { validator } from '../src/validator.ts';
+import { validator } from '../src/validator';
 
 describe('validator with stream option', () => {
 	test('POST route with stream flag skips output validation', async () => {

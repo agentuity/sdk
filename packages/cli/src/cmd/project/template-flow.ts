@@ -14,15 +14,15 @@ import {
 	validateBucketName,
 } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
-import * as tui from '../../tui.ts';
-import { createPrompt, note } from '../../tui.ts';
-import { playSound } from '../../sound.ts';
-import { fetchTemplates, type TemplateInfo } from './templates.ts';
-import { downloadTemplate, setupProject, initGitRepo } from './download.ts';
-import { type AuthData, type Config } from '../../types.ts';
-import { ErrorCode } from '../../errors.ts';
-import type { APIClient } from '../../api.ts';
-import { createProjectConfig } from '../../config.ts';
+import * as tui from '../../tui';
+import { createPrompt, note } from '../../tui';
+import { playSound } from '../../sound';
+import { fetchTemplates, type TemplateInfo } from './templates';
+import { downloadTemplate, setupProject, initGitRepo } from './download';
+import { type AuthData, type Config } from '../../types';
+import { ErrorCode } from '../../errors';
+import type { APIClient } from '../../api';
+import { createProjectConfig } from '../../config';
 import {
 	findExistingEnvFile,
 	readEnvFile,
@@ -30,15 +30,15 @@ import {
 	splitEnvAndSecrets,
 	addResourceEnvVars,
 	type EnvVars,
-} from '../../env-util.ts';
-import { promptForDNS } from '../../domain.ts';
+} from '../../env-util';
+import { promptForDNS } from '../../domain';
 import {
 	ensureAuthDependencies,
 	runAuthMigrations,
 	generateAuthFileContent,
 	printIntegrationExamples,
 	generateAuthSchemaSql,
-} from './auth/shared.ts';
+} from './auth/shared';
 
 interface CreateFlowOptions {
 	projectName?: string;

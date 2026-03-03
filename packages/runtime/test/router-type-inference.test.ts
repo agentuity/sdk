@@ -4,8 +4,8 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { createRouter } from '../src/router.ts';
-import type { Thread, Session } from '../src/session.ts';
+import { createRouter } from '../src/router';
+import type { Thread, Session } from '../src/session';
 
 describe('Router Type Inference', () => {
 	test('thread should be typed as Thread, not any', async () => {

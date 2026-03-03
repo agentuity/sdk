@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { join } from 'node:path';
 import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { formatBuildLog } from '../../../../src/cmd/build/vite/server-bundler.ts';
+import { formatBuildLog } from '../../../../src/cmd/build/vite/server-bundler';
 
 describe('Build Error Formatting', () => {
 	let tempDir: string;

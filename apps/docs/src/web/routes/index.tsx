@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/index.ts';
-import { DEMOS, type DemoId } from '../demo-config.tsx';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui';
+import { DEMOS, type DemoId } from '../demo-config';
 
 export const Route = createFileRoute('/')({
 	component: LandingPage,

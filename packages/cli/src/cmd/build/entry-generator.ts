@@ -4,10 +4,10 @@
  */
 
 import { join } from 'node:path';
-import type { Logger, WorkbenchConfig, AnalyticsConfig } from '../../types.ts';
-import { discoverRoutes } from './vite/route-discovery.ts';
-import { generateWebAnalyticsFile } from './webanalytics-generator.ts';
-import { computeApiMountPath } from './vite/api-mount-path.ts';
+import type { Logger, WorkbenchConfig, AnalyticsConfig } from '../../types';
+import { discoverRoutes } from './vite/route-discovery';
+import { generateWebAnalyticsFile } from './webanalytics-generator';
+import { computeApiMountPath } from './vite/api-mount-path';
 
 interface GenerateEntryOptions {
 	rootDir: string;

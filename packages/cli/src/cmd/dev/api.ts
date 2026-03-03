@@ -1,6 +1,6 @@
 import { APIResponseSchema } from '@agentuity/server';
 import { z } from 'zod';
-import type { APIClient } from '../../api.ts';
+import type { APIClient } from '../../api';
 import { StructuredError } from '@agentuity/core';
 import { createPublicKey } from 'crypto';
 

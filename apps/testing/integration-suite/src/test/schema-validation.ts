@@ -4,8 +4,8 @@
  * Tests various schema patterns: types, optional fields, defaults, nested objects, unions, arrays
  */
 
-import { test } from './suite.ts';
-import { assertEqual, assertDefined, assertThrows } from './helpers/index.ts';
+import { test } from './suite';
+import { assertEqual, assertDefined, assertThrows } from './helpers';
 
 import schemaTypesAgent from '@agents/schema/types';
 import schemaOptionalAgent from '@agents/schema/optional';

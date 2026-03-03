@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { cacheSandboxRegion, createSandboxClient } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
+import { cacheSandboxRegion, createSandboxClient } from './util';
+import { getCommand } from '../../../command-prefix';
 import { sandboxGet, sandboxResolve } from '@agentuity/server';
 
 const SandboxResourcesSchema = z.object({

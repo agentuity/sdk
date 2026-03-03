@@ -1,3 +1,3 @@
-export * from './types.ts';
-export * from './frontmatter.ts';
-export * from './loader.ts';
+export * from './types';
+export * from './frontmatter';
+export * from './loader';

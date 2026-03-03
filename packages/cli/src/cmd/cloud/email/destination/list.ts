@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types.ts';
-import * as tui from '../../../../tui.ts';
-import { createEmailAdapter } from '../util.ts';
-import { DestinationSchema } from './schemas.ts';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { createEmailAdapter } from '../util';
+import { DestinationSchema } from './schemas';
 
 export const listSubcommand = createCommand({
 	name: 'list',

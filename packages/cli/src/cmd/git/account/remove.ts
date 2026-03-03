@@ -1,14 +1,14 @@
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
-import * as tui from '../../../tui.ts';
-import { createSubcommand } from '../../../types.ts';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 import {
 	disconnectGithubIntegration,
 	type GithubInstallation,
 	getGithubIntegrationStatus,
-} from '../api.ts';
+} from '../api';
 
 const RemoveOptionsSchema = z.object({
 	account: z.string().optional().describe('Installation ID to remove'),

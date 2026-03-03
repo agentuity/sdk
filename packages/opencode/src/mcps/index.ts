@@ -1,9 +1,9 @@
-import type { McpConfig } from '../types.ts';
-import { grepAppMcp } from './grep-app.ts';
-import { context7Mcp } from './context7.ts';
+import type { McpConfig } from '../types';
+import { grepAppMcp } from './grep-app';
+import { context7Mcp } from './context7';
 
-export { grepAppMcp } from './grep-app.ts';
-export { context7Mcp } from './context7.ts';
+export { grepAppMcp } from './grep-app';
+export { context7Mcp } from './context7';
 
 export type McpName = 'grep_app' | 'context7';
 

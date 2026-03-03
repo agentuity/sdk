@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import { ErrorCode } from '../../../errors.ts';
-import * as tui from '../../../tui.ts';
-import { createStorageAdapter } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createStorageAdapter } from './util';
+import { getCommand } from '../../../command-prefix';
 const VectorDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	namespace: z.string().describe('Namespace name'),

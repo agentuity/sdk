@@ -13,11 +13,11 @@ import {
 	runInHTTPContext,
 	getAgentAsyncLocalStorage,
 	type RequestAgentContextArgs,
-} from '../src/_context.ts';
+} from '../src/_context';
 import type { AuthInterface } from '@agentuity/auth/types';
-import type { Logger } from '../src/logger/index.ts';
-import type { Thread, Session } from '../src/session.ts';
-import type WaitUntilHandler from '../src/_waituntil.ts';
+import type { Logger } from '../src/logger';
+import type { Thread, Session } from '../src/session';
+import type WaitUntilHandler from '../src/_waituntil';
 import { trace } from '@opentelemetry/api';
 
 // Create a proper mock tracer

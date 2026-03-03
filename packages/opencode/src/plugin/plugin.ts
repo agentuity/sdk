@@ -5,22 +5,22 @@ import { existsSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
-import type { AgentConfig, CommandDefinition } from '../types.ts';
-import { loadAllSkills, type LoadedSkill } from '../skills/index.ts';
-import { agents } from '../agents/index.ts';
-import { loadCoderConfig, getDefaultConfig, mergeConfig, validateAndWarnConfigs } from '../config/index.ts';
-import { createSessionHooks } from './hooks/session.ts';
-import { createToolHooks, getCoderProfile } from './hooks/tools.ts';
-import { createKeywordHooks } from './hooks/keyword.ts';
-import { createParamsHooks } from './hooks/params.ts';
-import { createCadenceHooks } from './hooks/cadence.ts';
-import { createSessionMemoryHooks } from './hooks/session-memory.ts';
-import { createCompletionHooks } from './hooks/completion.ts';
-import type { AgentRole } from '../types.ts';
-import type { SessionTreeNode } from '../sqlite/index.ts';
-import { OpenCodeDBReader } from '../sqlite/index.ts';
-import { TmuxSessionManager } from '../tmux/index.ts';
-import { checkAuth } from '../services/auth.ts';
+import type { AgentConfig, CommandDefinition } from '../types';
+import { loadAllSkills, type LoadedSkill } from '../skills';
+import { agents } from '../agents';
+import { loadCoderConfig, getDefaultConfig, mergeConfig, validateAndWarnConfigs } from '../config';
+import { createSessionHooks } from './hooks/session';
+import { createToolHooks, getCoderProfile } from './hooks/tools';
+import { createKeywordHooks } from './hooks/keyword';
+import { createParamsHooks } from './hooks/params';
+import { createCadenceHooks } from './hooks/cadence';
+import { createSessionMemoryHooks } from './hooks/session-memory';
+import { createCompletionHooks } from './hooks/completion';
+import type { AgentRole } from '../types';
+import type { SessionTreeNode } from '../sqlite';
+import { OpenCodeDBReader } from '../sqlite';
+import { TmuxSessionManager } from '../tmux';
+import { checkAuth } from '../services/auth';
 
 const sessionInputSchema = z.object({
 	sessionID: z.string().optional(),

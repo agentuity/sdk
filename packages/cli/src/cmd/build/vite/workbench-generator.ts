@@ -8,7 +8,7 @@ import {
 	encodeWorkbenchConfig,
 	type WorkbenchConfig as CoreWorkbenchConfig,
 } from '@agentuity/core';
-import type { Logger, WorkbenchConfig } from '../../../types.ts';
+import type { Logger, WorkbenchConfig } from '../../../types';
 
 /**
  * Find the @agentuity/workbench package path

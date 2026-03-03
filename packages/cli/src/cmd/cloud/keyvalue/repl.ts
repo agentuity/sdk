@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import { createRepl, type ReplCommand } from '../../../repl.ts';
-import { showBanner } from '../../../banner.ts';
-import * as tui from '../../../tui.ts';
-import { isPossiblyJSON, tryParseJSON } from '../../../json.ts';
-import { createStorageAdapter } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { createRepl, type ReplCommand } from '../../../repl';
+import { showBanner } from '../../../banner';
+import * as tui from '../../../tui';
+import { isPossiblyJSON, tryParseJSON } from '../../../json';
+import { createStorageAdapter } from './util';
+import { getCommand } from '../../../command-prefix';
 export const replSubcommand = createCommand({
 	name: 'repl',
 	description: 'Start an interactive repl for working with keyvalue database',

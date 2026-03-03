@@ -1,6 +1,6 @@
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type { UIMessage } from 'ai';
-import type { AgentSchemaData, AgentSchemasResponse } from '../hooks/useAgentSchemas.ts';
+import type { AgentSchemaData, AgentSchemasResponse } from '../hooks/useAgentSchemas';
 
 /**
  * Extended message type with execution metadata.

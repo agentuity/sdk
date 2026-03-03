@@ -14,10 +14,10 @@ import { finished } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 import { extract, type Headers } from 'tar-fs';
 import { StructuredError, type Logger } from '@agentuity/core';
-import * as tui from '../../tui.ts';
-import { downloadWithSpinner } from '../../download.ts';
-import { writeAgentsDocs } from '../../agents-docs.ts';
-import type { TemplateInfo } from './templates.ts';
+import * as tui from '../../tui';
+import { downloadWithSpinner } from '../../download';
+import { writeAgentsDocs } from '../../agents-docs';
+import type { TemplateInfo } from './templates';
 
 const GITHUB_BRANCH = 'main';
 const BASE_TEMPLATE_DIR = '_base';
@@ -399,7 +399,7 @@ export async function setupProject(options: SetupOptions): Promise<{ success: bo
 export async function initGitRepo(dest: string): Promise<void> {
 	// Initialize git repository if git is available
 	// Check for real git (not macOS stub that triggers Xcode CLT popup)
-	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper.ts');
+	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper');
 	const gitAvailable = await isGitAvailable();
 
 	if (gitAvailable) {

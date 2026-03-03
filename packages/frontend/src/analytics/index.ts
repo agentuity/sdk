@@ -7,7 +7,7 @@
  * This module re-exports types and utilities for programmatic access.
  */
 
-import type { AnalyticsClient } from './types.ts';
+import type { AnalyticsClient } from './types';
 
 export type {
 	AnalyticsClient,
@@ -17,10 +17,10 @@ export type {
 	ScrollEvent,
 	AnalyticsCustomEvent,
 	GeoLocation,
-} from './types.ts';
+} from './types';
 
-export { getVisitorId, isOptedOut, setOptOut } from './utils/storage.ts';
-export { getUTMParams } from './utils/utm.ts';
+export { getVisitorId, isOptedOut, setOptOut } from './utils/storage';
+export { getUTMParams } from './utils/utm';
 
 /**
  * Get the analytics client from the global window object.

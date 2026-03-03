@@ -7,9 +7,9 @@
 
 import { join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
-import type { Logger } from '../../../types.ts';
-import { parseRoute } from '../ast.ts';
-import { toForwardSlash } from '../../../utils/normalize-path.ts';
+import type { Logger } from '../../../types';
+import { parseRoute } from '../ast';
+import { toForwardSlash } from '../../../utils/normalize-path';
 
 export interface RouteMetadata {
 	id: string;

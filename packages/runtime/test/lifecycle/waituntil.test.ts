@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { createAgent, runInAgentContext } from '../../src/agent.ts';
-import { TestAgentContext } from '../helpers/test-context.ts';
+import { createAgent, runInAgentContext } from '../../src/agent';
+import { TestAgentContext } from '../helpers/test-context';
 
 /**
  * Unit tests for ctx.waitUntil() lifecycle functionality

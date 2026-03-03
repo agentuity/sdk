@@ -12,9 +12,9 @@ import type {
 	Logger,
 	AuthData,
 	GlobalOptions,
-} from './types.ts';
-import { showBanner, generateBanner } from './banner.ts';
-import { getExecutingAgent } from './agent-detection.ts';
+} from './types';
+import { showBanner, generateBanner } from './banner';
+import { getExecutingAgent } from './agent-detection';
 import {
 	requireAuth,
 	optionalAuth,
@@ -22,20 +22,20 @@ import {
 	optionalOrg as selectOptionalOrg,
 	hasPrefixedResourceId,
 	resolveOrgIdWithoutPrompt,
-} from './auth.ts';
+} from './auth';
 import { type RegionList, ValidationOutputError } from '@agentuity/server';
-import { fetchRegionsWithCache } from './regions.ts';
+import { fetchRegionsWithCache } from './regions';
 import enquirer from 'enquirer';
-import * as tui from './tui.ts';
-import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser.ts';
-import { defaultProfileName, loadProjectConfig, saveProjectId, saveRegion } from './config.ts';
-import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api.ts';
-import { ErrorCode, ExitCode, createError, exitWithError } from './errors.ts';
-import { getCommand } from './command-prefix.ts';
-import { isValidateMode, outputValidation, type ValidationResult } from './output.ts';
+import * as tui from './tui';
+import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser';
+import { defaultProfileName, loadProjectConfig, saveProjectId, saveRegion } from './config';
+import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
+import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
+import { getCommand } from './command-prefix';
+import { isValidateMode, outputValidation, type ValidationResult } from './output';
 import { StructuredError } from '@agentuity/core';
-import { setProgram } from './program-ref.ts';
-import { generateIntroPrompt } from './cmd/ai/intro.ts';
+import { setProgram } from './program-ref';
+import { generateIntroPrompt } from './cmd/ai/intro';
 import {
 	getCachedProject,
 	getResourceInfo,
@@ -43,7 +43,7 @@ import {
 	type ResourceType,
 	hasAgentSeenIntro,
 	markAgentIntroSeen,
-} from './cache/index.ts';
+} from './cache';
 
 /**
  * Check if an error is a CLI input validation error (Zod error from schema parsing),
@@ -151,7 +151,7 @@ async function executeOrValidate(
 		if (ctx.options.json) {
 			// If command has a response schema but returned nothing, that's an error
 			if (hasResponseSchema && result === undefined) {
-				const { createError, exitWithError, ErrorCode } = await import('./errors.ts');
+				const { createError, exitWithError, ErrorCode } = await import('./errors');
 				exitWithError(
 					createError(
 						ErrorCode.INTERNAL_ERROR,
@@ -164,7 +164,7 @@ async function executeOrValidate(
 
 			// Output the result as JSON if we have data
 			if (result !== undefined) {
-				const { outputJSON } = await import('./output.ts');
+				const { outputJSON } = await import('./output');
 				outputJSON(result);
 			}
 		}
@@ -1662,7 +1662,7 @@ async function registerSubcommand(
 
 						// If command has a response schema but returned nothing, that's an error
 						if (hasResponseSchema && result === undefined) {
-							const { createError, exitWithError, ErrorCode } = await import('./errors.ts');
+							const { createError, exitWithError, ErrorCode } = await import('./errors');
 							exitWithError(
 								createError(
 									ErrorCode.INTERNAL_ERROR,
@@ -1675,7 +1675,7 @@ async function registerSubcommand(
 
 						// Output the result as JSON if we have data
 						if (result !== undefined) {
-							const { outputJSON } = await import('./output.ts');
+							const { outputJSON } = await import('./output');
 							outputJSON(result);
 						}
 					}
@@ -1945,7 +1945,7 @@ async function registerSubcommand(
 
 						// If command has a response schema but returned nothing, that's an error
 						if (hasResponseSchema && result === undefined) {
-							const { createError, exitWithError, ErrorCode } = await import('./errors.ts');
+							const { createError, exitWithError, ErrorCode } = await import('./errors');
 							exitWithError(
 								createError(
 									ErrorCode.INTERNAL_ERROR,
@@ -1958,7 +1958,7 @@ async function registerSubcommand(
 
 						// Output the result as JSON if we have data
 						if (result !== undefined) {
-							const { outputJSON } = await import('./output.ts');
+							const { outputJSON } = await import('./output');
 							outputJSON(result);
 						}
 					}
@@ -2087,7 +2087,7 @@ async function registerSubcommand(
 
 						// If command has a response schema but returned nothing, that's an error
 						if (hasResponseSchema && result === undefined) {
-							const { createError, exitWithError, ErrorCode } = await import('./errors.ts');
+							const { createError, exitWithError, ErrorCode } = await import('./errors');
 							exitWithError(
 								createError(
 									ErrorCode.INTERNAL_ERROR,
@@ -2100,7 +2100,7 @@ async function registerSubcommand(
 
 						// Output the result as JSON if we have data
 						if (result !== undefined) {
-							const { outputJSON } = await import('./output.ts');
+							const { outputJSON } = await import('./output');
 							outputJSON(result);
 						}
 					}

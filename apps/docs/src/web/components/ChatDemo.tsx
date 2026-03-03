@@ -1,8 +1,8 @@
 import { useAPI } from '@agentuity/react';
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
-import { Button, Input, Separator } from './ui/index.ts';
-import { ChatCodeBlock } from './ChatCodeBlock.tsx';
+import { Button, Input, Separator } from './ui';
+import { ChatCodeBlock } from './ChatCodeBlock';
 
 interface Message {
 	id: string;

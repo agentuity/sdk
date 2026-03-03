@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { generatePatches } from '../../src/cmd/build/patch/index.ts';
+import { generatePatches } from '../../src/cmd/build/patch';
 
 /**
  * Integration test for LLM provider patching during build.

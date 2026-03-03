@@ -1,11 +1,11 @@
-import { createCommand } from '../../types.ts';
-import { createCommand as createProfileCmd } from './create.ts';
-import { useCommand } from './use.ts';
-import { listCommand } from './list.ts';
-import { showCommand } from './show.ts';
-import { deleteCommand } from './delete.ts';
-import { currentCommand } from './current.ts';
-import { getCommand } from '../../command-prefix.ts';
+import { createCommand } from '../../types';
+import { createCommand as createProfileCmd } from './create';
+import { useCommand } from './use';
+import { listCommand } from './list';
+import { showCommand } from './show';
+import { deleteCommand } from './delete';
+import { currentCommand } from './current';
+import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
 	name: 'profile',

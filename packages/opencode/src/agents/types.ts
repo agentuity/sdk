@@ -1,4 +1,4 @@
-import type { AgentRole, ReasoningEffort, ThinkingConfig } from '../types.ts';
+import type { AgentRole, ReasoningEffort, ThinkingConfig } from '../types';
 
 export interface AgentDefinition {
 	/** Internal role key for config lookup */

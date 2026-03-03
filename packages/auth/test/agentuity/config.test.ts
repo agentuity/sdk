@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { createAuth } from '../../src/agentuity/config.ts';
+import { createAuth } from '../../src/agentuity/config';
 
 // Ensure default env vars exist for BetterAuth lazy initialization
 const DEFAULT_BASE_URL = 'https://test.example.com';

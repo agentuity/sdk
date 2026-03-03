@@ -7,7 +7,7 @@
  * Usage: bun run src/run/agent-calls.ts '{"name":"World"}'
  */
 import { createAgentContext, getAgentContext } from '@agentuity/runtime';
-import helloAgent from '../agent/hello/agent.ts';
+import helloAgent from '../agent/hello/agent';
 
 interface Input {
 	name?: string;

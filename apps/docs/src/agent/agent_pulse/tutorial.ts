@@ -1,4 +1,4 @@
-import type { Tutorial, ApiResponse } from './types.ts';
+import type { Tutorial, ApiResponse } from './types';
 
 export type { Tutorial, ApiResponse };
 

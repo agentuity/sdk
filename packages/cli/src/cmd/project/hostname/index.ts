@@ -1,7 +1,7 @@
-import { createCommand } from '../../../types.ts';
-import { getSubcommand } from './get.ts';
-import { setSubcommand } from './set.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { getSubcommand } from './get';
+import { setSubcommand } from './set';
+import { getCommand } from '../../../command-prefix';
 
 export const hostnameCommand = createCommand({
 	name: 'hostname',

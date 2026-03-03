@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { StandardSchemaV1, InferInput, InferOutput } from '@agentuity/core';
-import type { AgentContext } from './agent.ts';
+import type { AgentContext } from './agent';
 import { z } from 'zod';
 
 // Eval SDK types

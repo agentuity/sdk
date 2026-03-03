@@ -1,10 +1,10 @@
 import { basename, join } from 'path';
 import { stat as fsStat } from 'node:fs/promises';
 import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { createStorageAdapter } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
+import { createStorageAdapter } from './util';
+import { getCommand } from '../../../command-prefix';
 import type { Attachment } from '@agentuity/core';
 
 function formatBytes(bytes: number | undefined): string {

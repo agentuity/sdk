@@ -2,7 +2,7 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
 import { deserializeData, buildUrl, type RouteRegistry } from '@agentuity/frontend';
-import { AgentuityContext } from './context.tsx';
+import { AgentuityContext } from './context';
 
 /**
  * Extract route keys from RouteRegistry (e.g., 'GET /users', 'POST /users')

@@ -9,7 +9,7 @@
  */
 
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { publicAssetPathPlugin } from '../../../../src/cmd/build/vite/public-asset-path-plugin.ts';
+import { publicAssetPathPlugin } from '../../../../src/cmd/build/vite/public-asset-path-plugin';
 import type { Plugin } from 'vite';
 
 describe('publicAssetPathPlugin', () => {

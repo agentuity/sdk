@@ -1,11 +1,11 @@
-import { createSubcommand } from '../../../types.ts';
-import { removeSSHKey, listSSHKeys } from './api.ts';
-import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types';
+import { removeSSHKey, listSSHKeys } from './api';
+import * as tui from '../../../tui';
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import { isExplainMode, isDryRunMode, outputExplain, outputDryRun } from '../../../explain.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
+import { isExplainMode, isDryRunMode, outputExplain, outputDryRun } from '../../../explain';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
 
 const SSHDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

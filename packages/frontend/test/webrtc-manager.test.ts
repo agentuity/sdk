@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { WebRTCManager } from '../src/webrtc-manager.ts';
+import { WebRTCManager } from '../src/webrtc-manager';
 
 type PartialStats = Record<string, unknown> & { id: string; type: string };
 

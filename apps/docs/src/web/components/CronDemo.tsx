@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from './ui/index.ts';
+import { Button } from './ui';
 
 interface LogEntry {
 	time: string;

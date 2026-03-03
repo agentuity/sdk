@@ -24,13 +24,13 @@ import {
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
-import type { Logger } from '../logger/index.ts';
-import { ConsoleLogRecordExporter, DebugSpanExporter } from './console.ts';
-import { instrumentFetch } from './fetch.ts';
-import { createLogger, patchConsole } from './logger.ts';
-import { getSDKVersion, isAuthenticated } from '../_config.ts';
+import type { Logger } from '../logger';
+import { ConsoleLogRecordExporter, DebugSpanExporter } from './console';
+import { instrumentFetch } from './fetch';
+import { createLogger, patchConsole } from './logger';
+import { getSDKVersion, isAuthenticated } from '../_config';
 import type { LogLevel } from '@agentuity/core';
-import { JSONLLogExporter, JSONLTraceExporter, JSONLMetricExporter } from './exporters/index.ts';
+import { JSONLLogExporter, JSONLTraceExporter, JSONLMetricExporter } from './exporters';
 
 /**
  * Configuration for OpenTelemetry initialization

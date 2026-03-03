@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../types.ts';
-import * as tui from '../../tui.ts';
+import { createSubcommand } from '../../types';
+import * as tui from '../../tui';
 import { projectDelete, projectList, projectGet } from '@agentuity/server';
 import enquirer from 'enquirer';
-import { getCommand } from '../../command-prefix.ts';
+import { getCommand } from '../../command-prefix';
 
 interface ProjectDisplayInfo {
 	id: string;

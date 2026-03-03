@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getIONHost } from '../../../config.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { getIdentifierRegion } from '../region-lookup.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getIONHost } from '../../../config';
+import { getCommand } from '../../../command-prefix';
+import { getIdentifierRegion } from '../region-lookup';
 const args = z.object({
 	source: z.string().describe('the source file'),
 	destination: z

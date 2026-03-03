@@ -5,7 +5,7 @@
 import { describe, test, expect } from 'bun:test';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { createAgent } from '../src/agent.ts';
+import { createAgent } from '../src/agent';
 
 describe('agent.validator() - Edge Cases', () => {
 	test('validator({ output }) with no input schema (GET route pattern)', async () => {

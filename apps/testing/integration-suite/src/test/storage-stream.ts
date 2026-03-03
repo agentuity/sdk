@@ -4,8 +4,8 @@
  * Tests Stream storage operations including create, write, read, metadata, and types
  */
 
-import { test } from './suite.ts';
-import { assert, assertEqual, assertDefined } from './helpers/index.ts';
+import { test } from './suite';
+import { assert, assertEqual, assertDefined } from './helpers';
 
 import streamCrudAgent from '@agents/storage/stream/crud';
 import streamMetadataAgent from '@agents/storage/stream/metadata';

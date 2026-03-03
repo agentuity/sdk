@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'bun:test';
 import { Kysely, PostgresDialect, Generated, Selectable } from 'kysely';
 import type { PostgresPool as KyselyPostgresPool } from 'kysely';
-import { PostgresPool, Pool } from '../src/pool.ts';
+import { PostgresPool, Pool } from '../src/pool';
 
 // Example database schema for type testing
 interface Database {

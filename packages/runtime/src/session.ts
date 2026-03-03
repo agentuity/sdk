@@ -2,10 +2,10 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: anys are great */
 import type { Context } from 'hono';
 import { getSignedCookie, setSignedCookie } from 'hono/cookie';
-import { type Env, fireEvent } from './app.ts';
-import type { AppState } from './index.ts';
+import { type Env, fireEvent } from './app';
+import type { AppState } from './index';
 import { getServiceUrls } from '@agentuity/server';
-import { internal } from './logger/internal.ts';
+import { internal } from './logger/internal';
 import { timingSafeEqual } from 'node:crypto';
 
 /**

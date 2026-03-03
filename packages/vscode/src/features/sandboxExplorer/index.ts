@@ -2,22 +2,22 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
-import { SandboxTreeDataProvider, SandboxTreeItem } from './sandboxTreeData.ts';
-import { onAuthStatusChanged } from '../../core/auth.ts';
+import { SandboxTreeDataProvider, SandboxTreeItem } from './sandboxTreeData';
+import { onAuthStatusChanged } from '../../core/auth';
 import {
 	getCliClient,
 	type SandboxCreateOptions,
 	type SnapshotInfo,
 	CliClient,
-} from '../../core/cliClient.ts';
+} from '../../core/cliClient';
 import {
 	getSandboxManager,
 	initSandboxManager,
 	onLinkedSandboxesChanged,
 	formatBytes,
 	DEFAULT_SANDBOX_PATH,
-} from '../../core/sandboxManager.ts';
-import { openReadonlyDocument } from '../../core/readonlyDocument.ts';
+} from '../../core/sandboxManager';
+import { openReadonlyDocument } from '../../core/readonlyDocument';
 import {
 	createSandboxStatusBar,
 	updateStatusBar,
@@ -25,7 +25,7 @@ import {
 	showSyncSuccess,
 	showSyncError,
 	disposeSandboxStatusBar,
-} from './statusBar.ts';
+} from './statusBar';
 
 const sandboxTerminals: Map<string, vscode.Terminal> = new Map();
 

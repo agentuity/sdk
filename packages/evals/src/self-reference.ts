@@ -4,8 +4,8 @@ import {
 	generateEvalResult,
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
-} from './_utils.ts';
-import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types.ts';
+} from './_utils';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const selfReferencePrompt = `You are evaluating whether an LLM response inappropriately references the model itself.
 

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { Writable } from 'node:stream';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { createSandboxClient } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
+import { createSandboxClient } from './util';
+import { getCommand } from '../../../command-prefix';
 import { sandboxExecute, executionGet, writeAndDrain, sandboxResolve } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
 

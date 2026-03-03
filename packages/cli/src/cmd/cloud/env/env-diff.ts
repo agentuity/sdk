@@ -1,5 +1,5 @@
-import * as tui from '../../../tui.ts';
-import { maskSecret } from '../../../env-util.ts';
+import * as tui from '../../../tui';
+import { maskSecret } from '../../../env-util';
 
 export interface EnvDiffEntry {
 	key: string;

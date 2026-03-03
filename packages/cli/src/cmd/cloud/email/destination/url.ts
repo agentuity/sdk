@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types.ts';
-import * as tui from '../../../../tui.ts';
-import { setResourceInfo } from '../../../../cache/index.ts';
-import { createEmailAdapter, resolveEmailOrgId } from '../util.ts';
-import { defaultProfileName, getDefaultRegion } from '../../../../config.ts';
-import { DestinationSchema } from './schemas.ts';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { setResourceInfo } from '../../../../cache';
+import { createEmailAdapter, resolveEmailOrgId } from '../util';
+import { defaultProfileName, getDefaultRegion } from '../../../../config';
+import { DestinationSchema } from './schemas';
 
 export const urlSubcommand = createCommand({
 	name: 'url',

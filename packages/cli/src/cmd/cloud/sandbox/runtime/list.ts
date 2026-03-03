@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types.ts';
-import * as tui from '../../../../tui.ts';
-import { getCommand } from '../../../../command-prefix.ts';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { getCommand } from '../../../../command-prefix';
 import { runtimeList } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../../config.ts';
+import { getGlobalCatalystAPIClient } from '../../../../config';
 
 const RuntimeInfoSchema = z.object({
 	id: z.string().describe('Runtime ID'),

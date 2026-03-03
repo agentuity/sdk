@@ -5,7 +5,7 @@
  * at build time, since runtime instrumentation (traceloop) doesn't work with
  * bundled code.
  */
-import { type PatchModule } from './_util.ts';
+import { type PatchModule } from './_util';
 
 interface OtelPatchConfig {
 	provider: string;

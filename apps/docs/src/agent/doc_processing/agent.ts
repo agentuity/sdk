@@ -1,6 +1,6 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { syncDocsFromPayload } from './docs-orchestrator.ts';
+import { syncDocsFromPayload } from './docs-orchestrator';
 
 const agent = createAgent('DocProcessing', {
 	description: 'Documentation Sync Agent - Processes embedded MDX content from GitHub workflows',

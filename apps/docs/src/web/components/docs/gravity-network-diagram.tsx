@@ -13,8 +13,8 @@ import '@xyflow/react/dist/style.css';
 import type { LucideIcon } from 'lucide-react';
 import { BookText, Container, Database, DatabaseZap, ListTodo, Radio } from 'lucide-react';
 import { useState } from 'react';
-import { useTheme } from '../ThemeContext.tsx';
-import { Dialog, DialogContent, DialogTitle } from '../ui/dialog.tsx';
+import { useTheme } from '../ThemeContext';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 const iconMap: Record<string, LucideIcon> = {
 	database: Database,

@@ -11,7 +11,7 @@
  * - Re-resolves raw inside the retry callback
  */
 import { describe, it, expect, mock } from 'bun:test';
-import { createResilientSQLProxy } from '../src/postgres.ts';
+import { createResilientSQLProxy } from '../src/postgres';
 import type { CallablePostgresClient } from '@agentuity/postgres';
 
 /**

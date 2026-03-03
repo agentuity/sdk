@@ -1,6 +1,6 @@
-import { createCommand } from '../../../types.ts';
-import { checkSubcommand } from './check.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { checkSubcommand } from './check';
+import { getCommand } from '../../../command-prefix';
 
 export const domainCommand = createCommand({
 	name: 'domain',

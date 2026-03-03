@@ -4,8 +4,8 @@ import {
 	generateEvalResult,
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
-} from './_utils.ts';
-import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types.ts';
+} from './_utils';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const roleAdherencePrompt = `You are evaluating whether an LLM response stays within an assigned role, persona, or responsibility.
 

@@ -1,5 +1,5 @@
-import type { WindowState, TmuxPaneInfo } from './types.ts';
-import { runTmuxCommand } from './utils.ts';
+import type { WindowState, TmuxPaneInfo } from './types';
+import { runTmuxCommand } from './utils';
 
 /**
  * Query the current tmux window state

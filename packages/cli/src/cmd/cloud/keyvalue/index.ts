@@ -1,15 +1,15 @@
-import { createCommand } from '../../../types.ts';
-import { createNamespaceSubcommand } from './create-namespace.ts';
-import { deleteSubcommand } from './delete.ts';
-import { deleteNamespaceSubcommand } from './delete-namespace.ts';
-import { getSubcommand } from './get.ts';
-import { keysSubcommand } from './keys.ts';
-import { listNamespacesSubcommand } from './list-namespaces.ts';
-import { replSubcommand } from './repl.ts';
-import { searchSubcommand } from './search.ts';
-import { setSubcommand } from './set.ts';
-import { statsSubcommand } from './stats.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { createNamespaceSubcommand } from './create-namespace';
+import { deleteSubcommand } from './delete';
+import { deleteNamespaceSubcommand } from './delete-namespace';
+import { getSubcommand } from './get';
+import { keysSubcommand } from './keys';
+import { listNamespacesSubcommand } from './list-namespaces';
+import { replSubcommand } from './repl';
+import { searchSubcommand } from './search';
+import { setSubcommand } from './set';
+import { statsSubcommand } from './stats';
+import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
 	name: 'keyvalue',

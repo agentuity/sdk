@@ -10,13 +10,13 @@ import {
 	SidebarInset,
 	SidebarProvider,
 	SidebarTrigger,
-} from '../ui/index.ts';
-import { AppSidebar } from './app-sidebar.tsx';
-import { HeaderLinks } from './header-links.tsx';
-import { getFrontmatterForRoute } from './mdx-page.tsx';
-import { ModeToggle } from './mode-toggle.tsx';
-import { findBreadcrumbChain } from './nav-data.ts';
-import { SearchDialog } from './search-dialog.tsx';
+} from '../ui';
+import { AppSidebar } from './app-sidebar';
+import { HeaderLinks } from './header-links';
+import { getFrontmatterForRoute } from './mdx-page';
+import { ModeToggle } from './mode-toggle';
+import { findBreadcrumbChain } from './nav-data';
+import { SearchDialog } from './search-dialog';
 
 function HeaderBreadcrumb({
 	currentPage,

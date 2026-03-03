@@ -1,4 +1,4 @@
-import { s } from '../src/index.ts';
+import { s } from '../src/index.js';
 
 console.log('=== Coercion Examples (like zod.coerce) ===\n');
 

@@ -1,7 +1,7 @@
 import { $, semver } from 'bun';
 import { StructuredError } from '@agentuity/core';
-import * as tui from '../tui.ts';
-import { pauseStepUI } from '../steps.ts';
+import * as tui from '../tui';
+import { pauseStepUI } from '../steps';
 
 const InvalidBunVersion = StructuredError('InvalidBunVersion')<{
 	current: string;

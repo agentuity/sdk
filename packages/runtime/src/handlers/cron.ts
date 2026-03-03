@@ -1,7 +1,7 @@
 import type { Context, Handler } from 'hono';
-import { returnResponse } from '../_util.ts';
-import type { Env } from '../app.ts';
-import { verifySignature } from '../signature.ts';
+import { returnResponse } from '../_util';
+import type { Env } from '../app';
+import { verifySignature } from '../signature';
 
 /**
  * Handler function for cron jobs.

@@ -1,10 +1,10 @@
-import { createSubcommand, ConfigSchema } from '../../types.ts';
+import { createSubcommand, ConfigSchema } from '../../types';
 import { z } from 'zod';
-import { fetchProfiles } from '../../config.ts';
+import { fetchProfiles } from '../../config';
 import { readFile } from 'node:fs/promises';
-import * as tui from '../../tui.ts';
-import { getCommand } from '../../command-prefix.ts';
-import { ErrorCode } from '../../errors.ts';
+import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
 
 const ProfileShowResponseSchema = ConfigSchema;
 

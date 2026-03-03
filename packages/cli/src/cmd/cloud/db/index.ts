@@ -1,12 +1,12 @@
-import { createCommand } from '../../../types.ts';
-import { createSubcommand } from './create.ts';
-import { listSubcommand } from './list.ts';
-import { deleteSubcommand } from './delete.ts';
-import { getSubcommand } from './get.ts';
-import { logsSubcommand } from './logs.ts';
-import { sqlSubcommand } from './sql.ts';
-import { statsSubcommand } from './stats.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { createSubcommand } from './create';
+import { listSubcommand } from './list';
+import { deleteSubcommand } from './delete';
+import { getSubcommand } from './get';
+import { logsSubcommand } from './logs';
+import { sqlSubcommand } from './sql';
+import { statsSubcommand } from './stats';
+import { getCommand } from '../../../command-prefix';
 
 export const dbCommand = createCommand({
 	name: 'db',

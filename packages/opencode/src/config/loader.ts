@@ -1,10 +1,10 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { YAML } from 'bun';
-import type { CoderConfig, SkillsConfig } from '../types.ts';
-import { CoderConfigSchema } from '../types.ts';
-import type { TmuxConfig } from '../tmux/types.ts';
-import { MIN_PANE_WIDTH } from '../tmux/types.ts';
+import type { CoderConfig, SkillsConfig } from '../types';
+import { CoderConfigSchema } from '../types';
+import type { TmuxConfig } from '../tmux/types';
+import { MIN_PANE_WIDTH } from '../tmux/types';
 
 const CONFIG_DIR = join(homedir(), '.config', 'agentuity');
 const DEFAULT_PROFILE = 'production.yaml';

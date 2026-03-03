@@ -1,5 +1,5 @@
-import { getTutorialList, type Tutorial } from './tutorial.ts';
-import type { TutorialState } from './types.ts';
+import { getTutorialList, type Tutorial } from './tutorial';
+import type { TutorialState } from './types';
 
 /**
  * Builds a context string containing available tutorials for the system prompt

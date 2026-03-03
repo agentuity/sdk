@@ -1,28 +1,28 @@
-export { getProcessEnv } from './env.ts';
-export { buildUrl, defaultBaseUrl } from './url.ts';
-export { deserializeData } from './serialization.ts';
-export { createReconnectManager, type ReconnectOptions, type ReconnectManager } from './reconnect.ts';
+export { getProcessEnv } from './env';
+export { buildUrl, defaultBaseUrl } from './url';
+export { deserializeData } from './serialization';
+export { createReconnectManager, type ReconnectOptions, type ReconnectManager } from './reconnect';
 export type {
 	RouteRegistry,
 	WebSocketRouteRegistry,
 	SSERouteRegistry,
 	RPCRouteRegistry,
-} from './types.ts';
-export { jsonEqual } from './memo.ts';
+} from './types';
+export { jsonEqual } from './memo';
 export {
 	WebSocketManager,
 	type MessageHandler as WebSocketMessageHandler,
 	type WebSocketCallbacks,
 	type WebSocketManagerOptions,
 	type WebSocketManagerState,
-} from './websocket-manager.ts';
+} from './websocket-manager';
 export {
 	EventStreamManager,
 	type MessageHandler as EventStreamMessageHandler,
 	type EventStreamCallbacks,
 	type EventStreamManagerOptions,
 	type EventStreamManagerState,
-} from './eventstream-manager.ts';
+} from './eventstream-manager';
 export {
 	WebRTCManager,
 	UserMediaSource,
@@ -32,7 +32,7 @@ export {
 	type WebRTCManagerState,
 	type WebRTCClientCallbacks,
 	type TrackSource,
-} from './webrtc-manager.ts';
+} from './webrtc-manager';
 
 // Re-export core WebRTC types for convenience
 export type {
@@ -48,7 +48,7 @@ export type {
 } from '@agentuity/core';
 
 // Export client implementation (local to this package)
-export { createClient } from './client/index.ts';
+export { createClient } from './client/index';
 export type {
 	Client,
 	ClientOptions,
@@ -57,7 +57,7 @@ export type {
 	EventStreamClient,
 	StreamClient,
 	EventHandler,
-} from './client/types.ts';
+} from './client/types';
 
 // Export analytics (beacon is bundled separately via beacon-standalone.ts)
 export {
@@ -74,8 +74,8 @@ export {
 	type ScrollEvent,
 	type AnalyticsCustomEvent,
 	type GeoLocation,
-} from './analytics/index.ts';
+} from './analytics';
 
 // Re-export beacon script for server-side use
 // The actual value is replaced at build time by scripts/build-beacon.ts
-export { BEACON_SCRIPT, validateBeaconScript } from './beacon-script.ts';
+export { BEACON_SCRIPT, validateBeaconScript } from './beacon-script';

@@ -1,7 +1,7 @@
-import type { CommandDefinition } from '../../../types.ts';
-import { createCommand } from '../../../types.ts';
-import { showSubcommand } from './show.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import type { CommandDefinition } from '../../../types';
+import { createCommand } from '../../../types';
+import { showSubcommand } from './show';
+import { getCommand } from '../../../command-prefix';
 
 export const capabilitiesCommand: CommandDefinition = createCommand({
 	name: 'capabilities',

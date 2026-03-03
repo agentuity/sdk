@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
 import { projectDeploymentUndeploy } from '@agentuity/server';
-import { resolveProjectId } from './utils.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { resolveProjectId } from './utils';
+import { getCommand } from '../../../command-prefix';
 export const undeploySubcommand = createSubcommand({
 	name: 'undeploy',
 	description: 'Undeploy the latest deployment',

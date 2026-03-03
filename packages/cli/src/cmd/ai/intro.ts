@@ -1,9 +1,9 @@
-import { createSubcommand } from '../../types.ts';
-import type { CommandContext } from '../../types.ts';
-import { getCommand } from '../../command-prefix.ts';
-import { getExecutingAgent, getAgentDisplayName, KNOWN_AGENTS } from '../../agent-detection.ts';
-import { getVersion } from '../../version.ts';
-import * as tui from '../../tui.ts';
+import { createSubcommand } from '../../types';
+import type { CommandContext } from '../../types';
+import { getCommand } from '../../command-prefix';
+import { getExecutingAgent, getAgentDisplayName, KNOWN_AGENTS } from '../../agent-detection';
+import { getVersion } from '../../version';
+import * as tui from '../../tui';
 
 /**
  * Generate the introduction prompt for AI agents

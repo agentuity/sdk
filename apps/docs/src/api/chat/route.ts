@@ -5,7 +5,7 @@
  * GET  / - Usage information
  */
 import { createRouter } from '@agentuity/runtime';
-import chatAgent from '../../agent/chat/agent.ts';
+import chatAgent from '../../agent/chat/agent';
 
 const router = createRouter();
 

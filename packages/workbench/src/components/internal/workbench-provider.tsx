@@ -1,11 +1,11 @@
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type React from 'react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useAgentSchemas } from '../../hooks/useAgentSchemas.ts';
-import { useLogger } from '../../hooks/useLogger.ts';
-import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket.ts';
-import { defaultBaseUrl } from '../../lib/utils.ts';
-import type { ConnectionStatus, WorkbenchContextType, WorkbenchMessage } from '../../types/config.ts';
+import { useAgentSchemas } from '../../hooks/useAgentSchemas';
+import { useLogger } from '../../hooks/useLogger';
+import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
+import { defaultBaseUrl } from '../../lib/utils';
+import type { ConnectionStatus, WorkbenchContextType, WorkbenchMessage } from '../../types/config';
 
 const WorkbenchContext = createContext<WorkbenchContextType | null>(null);
 

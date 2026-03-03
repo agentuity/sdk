@@ -21,8 +21,8 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { s } from '@agentuity/schema';
 import { mockFetch } from '@agentuity/test-utils';
-import { AgentuityProvider } from '../src/context.tsx';
-import { useAPI } from '../src/api.ts';
+import { AgentuityProvider } from '../src/context';
+import { useAPI } from '../src/api';
 
 // Define schemas for testing (prefixed with _ as they're only used in typeof expressions)
 const _usersListOutput = s.object({
@@ -52,7 +52,7 @@ const _patchOutput = s.object({ id: s.string(), status: s.string() });
  * - Routes WITH multiple params
  * - Various HTTP methods (GET, POST, DELETE, PUT, PATCH)
  */
-declare module '../src/types.ts' {
+declare module '../src/types' {
 	interface RouteRegistry {
 		// ============================================
 		// GET routes WITHOUT params

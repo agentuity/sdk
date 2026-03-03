@@ -1,4 +1,4 @@
-import type { EventHandler, WebSocketClient } from './types.ts';
+import type { EventHandler, WebSocketClient } from './types';
 
 /**
  * Create a WebSocket client wrapper with event-based API.

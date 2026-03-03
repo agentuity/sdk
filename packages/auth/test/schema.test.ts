@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { getTableName } from 'drizzle-orm';
-import * as schema from '../src/schema.ts';
+import * as schema from '../src/schema';
 
 describe('Agentuity Auth Schema', () => {
 	describe('table exports', () => {

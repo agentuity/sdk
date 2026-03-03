@@ -1,15 +1,15 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
 import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server';
 import {
 	looksLikeSecret,
 	isReservedAgentuityKey,
 	isPublicVarKey,
 	PUBLIC_VAR_PREFIXES,
-} from '../../../env-util.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { resolveOrgId, isOrgScope } from './org-util.ts';
+} from '../../../env-util';
+import { getCommand } from '../../../command-prefix';
+import { resolveOrgId, isOrgScope } from './org-util';
 
 interface ParsedEnvPair {
 	key: string;

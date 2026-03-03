@@ -1,5 +1,5 @@
-import { getTutorialStep } from './tutorial.ts';
-import { type Action, ActionType, type TutorialData } from './types.ts';
+import { ActionType, type Action, type TutorialData } from './types';
+import { getTutorialStep } from './tutorial';
 
 /**
  * Handles tutorial state and fetches complete tutorial step data
@@ -20,7 +20,11 @@ export async function handleTutorialState(
 			case ActionType.START_TUTORIAL_STEP:
 				if (action.tutorialId) {
 					// Fetch the complete tutorial step content
-					const tutorialStep = await getTutorialStep(action.tutorialId, action.currentStep, ctx);
+					const tutorialStep = await getTutorialStep(
+						action.tutorialId,
+						action.currentStep,
+						ctx
+					);
 
 					if (tutorialStep.success && tutorialStep.data) {
 						const tutorialData: TutorialData = {
@@ -35,14 +39,15 @@ export async function handleTutorialState(
 							},
 						};
 						return tutorialData;
-					}
-					// Handle API errors gracefully
-					ctx.logger.error(
-						'Failed to fetch tutorial step: %s',
-						tutorialStep.error || 'Unknown error'
-					);
-					if (tutorialStep.details) {
-						ctx.logger.error('Error details: %s', JSON.stringify(tutorialStep.details));
+					} else {
+						// Handle API errors gracefully
+						ctx.logger.error(
+							'Failed to fetch tutorial step: %s',
+							tutorialStep.error || 'Unknown error'
+						);
+						if (tutorialStep.details) {
+							ctx.logger.error('Error details: %s', JSON.stringify(tutorialStep.details));
+						}
 					}
 				}
 				break;

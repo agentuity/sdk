@@ -4,8 +4,8 @@
  * Tests Vector storage operations including upsert, search, get, and delete
  */
 
-import { test } from './suite.ts';
-import { assert, assertEqual, assertDefined, uniqueId } from './helpers/index.ts';
+import { test } from './suite';
+import { assert, assertEqual, assertDefined, uniqueId } from './helpers';
 
 import vectorCrudAgent from '@agents/storage/vector/crud';
 import vectorSearchAgent from '@agents/storage/vector/search';

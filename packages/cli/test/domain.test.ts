@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { getIONHost } from '../src/config.ts';
+import { getIONHost } from '../src/config';
 
 /**
  * Generates a project identifier from a project ID using xxHash64.

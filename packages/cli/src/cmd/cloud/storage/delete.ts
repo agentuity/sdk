@@ -1,15 +1,15 @@
 import { z } from 'zod';
 import { listOrgResources, deleteResources } from '@agentuity/server';
 import enquirer from 'enquirer';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { isDryRunMode, outputDryRun } from '../../../explain.ts';
-import { ErrorCode } from '../../../errors.ts';
-import { createS3Client } from './utils.ts';
-import { removeResourceEnvVars } from '../../../env-util.ts';
-import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache/index.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
+import { getCommand } from '../../../command-prefix';
+import { isDryRunMode, outputDryRun } from '../../../explain';
+import { ErrorCode } from '../../../errors';
+import { createS3Client } from './utils';
+import { removeResourceEnvVars } from '../../../env-util';
+import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',

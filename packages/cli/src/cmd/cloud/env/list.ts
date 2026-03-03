@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
 import { projectGet, orgEnvGet } from '@agentuity/server';
-import { getCommand } from '../../../command-prefix.ts';
-import { resolveOrgId, isOrgScope } from './org-util.ts';
+import { getCommand } from '../../../command-prefix';
+import { resolveOrgId, isOrgScope } from './org-util';
 
 const EnvItemSchema = z.object({
 	value: z.string().describe('Variable value'),

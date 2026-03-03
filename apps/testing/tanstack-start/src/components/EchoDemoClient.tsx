@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAPI, AgentuityProvider } from '@agentuity/react';
-import '@agentuity/routes.ts';
+import '@agentuity/routes';
 
 function AgentuityLogo() {
 	return (

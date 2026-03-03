@@ -1,4 +1,4 @@
-import { s } from '../src/index.ts';
+import { s } from '../src/index.js';
 
 // Example with descriptions
 const userSchema = s

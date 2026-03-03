@@ -1,7 +1,7 @@
 import { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
-import { getDefaultConfigDir } from '../config.ts';
+import { getDefaultConfigDir } from '../config';
 
 let db: Database | null = null;
 

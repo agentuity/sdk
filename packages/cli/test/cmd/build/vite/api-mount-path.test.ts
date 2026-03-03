@@ -3,7 +3,7 @@ import {
 	computeApiMountPath,
 	joinMountAndRoute,
 	extractRelativeApiPath,
-} from '../../../../src/cmd/build/vite/api-mount-path.ts';
+} from '../../../../src/cmd/build/vite/api-mount-path';
 
 describe('api-mount-path', () => {
 	describe('computeApiMountPath', () => {

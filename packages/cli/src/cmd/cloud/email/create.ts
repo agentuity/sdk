@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import enquirer from 'enquirer';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { setResourceInfo } from '../../../cache/index.ts';
-import { createEmailAdapter, resolveEmailOrgId, EmailAddressSchema } from './util.ts';
-import { defaultProfileName, getDefaultRegion } from '../../../config.ts';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
+import { setResourceInfo } from '../../../cache';
+import { createEmailAdapter, resolveEmailOrgId, EmailAddressSchema } from './util';
+import { defaultProfileName, getDefaultRegion } from '../../../config';
 
 export const createSubcommand = createCommand({
 	name: 'create',

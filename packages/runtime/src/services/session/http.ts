@@ -9,7 +9,7 @@ import {
 	StructuredError,
 } from '@agentuity/core';
 import { context, trace, SpanStatusCode } from '@opentelemetry/api';
-import { internal } from '../../logger/internal.ts';
+import { internal } from '../../logger/internal';
 
 const SessionResponseError = StructuredError('SessionResponseError');
 

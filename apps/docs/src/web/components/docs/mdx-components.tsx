@@ -11,15 +11,15 @@ import {
 	useState,
 } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { cn } from '../../lib/utils.ts';
-import { Callout } from './callout.tsx';
-import { Steps, Step } from './steps.tsx';
-import { Tabs, Tab } from './tabs.tsx';
-import { Cards, CardLink, ExternalCard } from './cards.tsx';
-import { ThemeImage } from './theme-image.tsx';
-import { CLICommand } from './cli-command.tsx';
-import { GravityNetworkDiagram } from './gravity-network-diagram.tsx';
-import { CopyMigrationPrompt } from './copy-migration-prompt.tsx';
+import { cn } from '../../lib/utils';
+import { Callout } from './callout';
+import { Steps, Step } from './steps';
+import { Tabs, Tab } from './tabs';
+import { Cards, CardLink, ExternalCard } from './cards';
+import { ThemeImage } from './theme-image';
+import { CLICommand } from './cli-command';
+import { GravityNetworkDiagram } from './gravity-network-diagram';
+import { CopyMigrationPrompt } from './copy-migration-prompt';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MDXComponents = Record<string, React.ComponentType<any>>;

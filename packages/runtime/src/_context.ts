@@ -19,12 +19,12 @@ import type {
 	AgentRunner,
 	AgentRuntimeState,
 	AgentMetadata,
-} from './agent.ts';
-import { AGENT_RUNTIME, CURRENT_AGENT } from './_config.ts';
-import type { Logger } from './logger/index.ts';
-import type WaitUntilHandler from './_waituntil.ts';
-import { registerServices } from './_services.ts';
-import type { Thread, Session } from './session.ts';
+} from './agent';
+import { AGENT_RUNTIME, CURRENT_AGENT } from './_config';
+import type { Logger } from './logger';
+import type WaitUntilHandler from './_waituntil';
+import { registerServices } from './_services';
+import type { Thread, Session } from './session';
 
 export interface RequestAgentContextArgs<
 	TAgentMap extends AgentRegistry = AgentRegistry,

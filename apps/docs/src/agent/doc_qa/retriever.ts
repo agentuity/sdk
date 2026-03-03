@@ -1,5 +1,5 @@
-import { VECTOR_STORE_NAME, vectorSearchNumber } from '../../config.ts';
-import type { RelevantDoc } from './types.ts';
+import { VECTOR_STORE_NAME, vectorSearchNumber } from '../../config';
+import type { RelevantDoc } from './types';
 
 /**
  * Expands a group of chunks from the same path by creating a set of all needed chunk indices

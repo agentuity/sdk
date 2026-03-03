@@ -5,7 +5,7 @@ import type { JSONSchema7 } from 'ai';
 import type * as monaco from 'monaco-editor';
 import React, { useEffect, useRef, useState } from 'react';
 import type { ThemeRegistration } from 'shiki';
-import { useTheme } from '../ui/theme-provider.tsx';
+import { useTheme } from '../ui/theme-provider';
 
 interface JsonEditorProps {
 	'aria-invalid'?: boolean;

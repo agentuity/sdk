@@ -1,12 +1,12 @@
-export { default as App } from './components/App.tsx';
-export { Chat } from './components/internal/chat.tsx';
-export { StatusIndicator } from './components/internal/header.tsx';
-export { Schema } from './components/internal/schema.tsx';
+export { default as App } from './components/App';
+export { Chat } from './components/internal/chat';
+export { StatusIndicator } from './components/internal/header';
+export { Schema } from './components/internal/schema';
 export {
 	useWorkbench,
 	WorkbenchProvider,
 	type GetAuthHeaders,
-} from './components/internal/workbench-provider.tsx';
-export type { WorkbenchInstance } from './types.ts';
-export type { ConnectionStatus, WorkbenchMessage } from './types/config.ts';
-export { createWorkbench } from './workbench.ts';
+} from './components/internal/workbench-provider';
+export type { WorkbenchInstance } from './types';
+export type { ConnectionStatus, WorkbenchMessage } from './types/config';
+export { createWorkbench } from './workbench';

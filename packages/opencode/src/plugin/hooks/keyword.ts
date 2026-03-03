@@ -1,5 +1,5 @@
 import type { PluginInput } from '@opencode-ai/plugin';
-import type { CoderConfig } from '../../types.ts';
+import type { CoderConfig } from '../../types';
 
 export interface KeywordHooks {
 	onMessage: (input: unknown, output: unknown) => Promise<void>;

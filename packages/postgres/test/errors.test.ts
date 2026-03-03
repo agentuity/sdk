@@ -6,7 +6,7 @@ import {
 	QueryTimeoutError,
 	TransactionError,
 	isRetryableError,
-} from '../src/errors.ts';
+} from '../src/errors';
 
 describe('error classes', () => {
 	describe('PostgresError', () => {

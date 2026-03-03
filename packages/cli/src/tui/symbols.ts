@@ -2,7 +2,7 @@
  * Box drawing and UI symbols for TUI components
  * Supports Unicode with ASCII fallbacks for non-unicode terminals
  */
-import { getExecutingAgent } from '../agent-detection.ts';
+import { getExecutingAgent } from '../agent-detection';
 
 // Detect unicode support
 const isUnicodeSupported = (): boolean => {

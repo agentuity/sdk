@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types.ts';
-import * as tui from '../../../../tui.ts';
-import { getCommand } from '../../../../command-prefix.ts';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { getCommand } from '../../../../command-prefix';
 import { snapshotTag } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../../config.ts';
+import { getGlobalCatalystAPIClient } from '../../../../config';
 
 const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9_][a-zA-Z0-9._-]*$/;
 const MAX_SNAPSHOT_TAG_LENGTH = 128;

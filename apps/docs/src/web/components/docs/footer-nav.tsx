@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLocation, useNavigate } from '@tanstack/react-router';
-import { findPrevNext } from './nav-data.ts';
-import { getFrontmatterForRoute } from './mdx-page.tsx';
+import { findPrevNext } from './nav-data';
+import { getFrontmatterForRoute } from './mdx-page';
 
 export function FooterNav() {
 	const location = useLocation();

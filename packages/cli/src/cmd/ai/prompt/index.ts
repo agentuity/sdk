@@ -1,9 +1,9 @@
-import { createCommand } from '../../../types.ts';
-import { llmSubcommand } from './llm.ts';
-import { apiSubcommand } from './api.ts';
-import { agentSubcommand } from './agent.ts';
-import { webSubcommand } from './web.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import { llmSubcommand } from './llm';
+import { apiSubcommand } from './api';
+import { agentSubcommand } from './agent';
+import { webSubcommand } from './web';
+import { getCommand } from '../../../command-prefix';
 
 export const promptCommand = createCommand({
 	name: 'prompt',

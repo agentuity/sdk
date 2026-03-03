@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { resolve, join, relative } from 'node:path';
-import { createCommand } from '../../types.ts';
-import { viteBundle } from './vite-bundler.ts';
-import * as tui from '../../tui.ts';
-import { getCommand } from '../../command-prefix.ts';
-import { ErrorCode } from '../../errors.ts';
-import { typecheck } from './typecheck.ts';
-import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report.ts';
+import { createCommand } from '../../types';
+import { viteBundle } from './vite-bundler';
+import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
+import { typecheck } from './typecheck';
+import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
 
 const BuildResponseSchema = z.object({
 	success: z.boolean().describe('Whether the build succeeded'),

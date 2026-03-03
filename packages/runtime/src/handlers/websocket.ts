@@ -1,8 +1,8 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { upgradeWebSocket } from 'hono/bun';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
-import { getAgentAsyncLocalStorage } from '../_context.ts';
-import type { Env } from '../app.ts';
+import { getAgentAsyncLocalStorage } from '../_context';
+import type { Env } from '../app';
 
 /**
  * Context key for WebSocket close promise.

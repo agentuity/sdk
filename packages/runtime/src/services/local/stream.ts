@@ -7,7 +7,7 @@ import type {
 	ListStreamsResponse,
 	StreamInfo,
 } from '@agentuity/core';
-import { now } from './_util.ts';
+import { now } from './_util';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';

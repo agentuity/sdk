@@ -1,6 +1,6 @@
-import { VECTOR_STORE_NAME } from '../../config.ts';
-import { processDoc } from './docs-processor.ts';
-import type { SyncPayload, SyncStats } from './types.ts';
+import { VECTOR_STORE_NAME } from '../../config';
+import { processDoc } from './docs-processor';
+import type { SyncPayload, SyncStats } from './types';
 
 /**
  * Helper to remove all vectors for a given logical path from the vector store.

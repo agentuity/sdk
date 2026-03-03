@@ -4,7 +4,7 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { DefaultThread, parseThreadData, type ThreadProvider } from '../src/session.ts';
+import { DefaultThread, parseThreadData, type ThreadProvider } from '../src/session';
 
 // Helper to create a thread with initial state
 function createThread(

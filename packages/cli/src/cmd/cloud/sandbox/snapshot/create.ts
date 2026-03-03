@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types.ts';
-import * as tui from '../../../../tui.ts';
-import { getSandboxRegion, createSandboxClient } from '../util.ts';
-import { getCommand } from '../../../../command-prefix.ts';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { getSandboxRegion, createSandboxClient } from '../util';
+import { getCommand } from '../../../../command-prefix';
 import { snapshotCreate } from '@agentuity/server';
 
 const SNAPSHOT_NAME_REGEX = /^[a-zA-Z0-9_-]+$/;

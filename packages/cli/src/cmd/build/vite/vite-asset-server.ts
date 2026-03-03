@@ -9,8 +9,8 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { createServer as createNetServer } from 'node:net';
 import type { ViteDevServer } from 'vite';
-import type { Logger } from '../../../types.ts';
-import { generateAssetServerConfig } from './vite-asset-server-config.ts';
+import type { Logger } from '../../../types';
+import { generateAssetServerConfig } from './vite-asset-server-config';
 
 export interface ViteAssetServerResult {
 	server: ViteDevServer;

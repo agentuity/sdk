@@ -1,5 +1,5 @@
-import type { GlobalOptions } from './types.ts';
-import { isTTYLike } from './tui.ts';
+import type { GlobalOptions } from './types';
+import { isTTYLike } from './tui';
 
 /**
  * Output formatting utilities for agent-friendly CLI

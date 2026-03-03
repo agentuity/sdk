@@ -9,8 +9,8 @@
  * 3. createOpenAI() works without explicit apiKey when gateway is configured
  */
 
-import { test } from './suite.ts';
-import { assert, assertEqual, assertTruthy } from './helpers/index.ts';
+import { test } from './suite';
+import { assert, assertEqual, assertTruthy } from './helpers';
 import aiSdkGatewayCheckAgent from '@agents/ai-sdk/gateway-check';
 
 // Test: Environment variables are loaded for AI Gateway

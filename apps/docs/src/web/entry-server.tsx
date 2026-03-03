@@ -7,8 +7,8 @@ import { renderToString } from 'react-dom/server';
 import { StrictMode } from 'react';
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router';
 import { AgentuityProvider } from '@agentuity/react';
-import { ThemeProvider } from './components/ThemeContext.tsx';
-import { routeTree } from './routeTree.gen.ts';
+import { ThemeProvider } from './components/ThemeContext';
+import { routeTree } from './routeTree.gen';
 
 // Re-export for automatic route discovery by the CLI static renderer.
 // All non-parameterized routes are discovered automatically from the route tree.

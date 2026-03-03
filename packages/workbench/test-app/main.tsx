@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { App } from '../src/components/App.tsx';
+import { App } from '../src/components/App';
 import './styles.css';
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
 

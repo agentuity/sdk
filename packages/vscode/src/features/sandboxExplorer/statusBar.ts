@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getSandboxManager, formatBytes } from '../../core/sandboxManager.ts';
+import { getSandboxManager, formatBytes } from '../../core/sandboxManager';
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 let syncStatusItem: vscode.StatusBarItem | undefined;

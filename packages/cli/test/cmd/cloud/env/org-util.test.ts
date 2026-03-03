@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { isOrgScope } from '../../../../src/cmd/cloud/env/org-util.ts';
+import { isOrgScope } from '../../../../src/cmd/cloud/env/org-util';
 
 describe('org-util', () => {
 	describe('isOrgScope', () => {

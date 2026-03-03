@@ -3,7 +3,7 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { isAgentuityStorageEndpoint, patchBunS3ForStorageDev } from '../src/bun-s3-patch.ts';
+import { isAgentuityStorageEndpoint, patchBunS3ForStorageDev } from '../src/bun-s3-patch';
 
 describe('isAgentuityStorageEndpoint', () => {
 	test('returns true for storage.dev', () => {

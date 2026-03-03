@@ -1,4 +1,4 @@
-import { type PatchModule, generateEnvGuard, generateGatewayEnvGuard } from './_util.ts';
+import { type PatchModule, generateEnvGuard, generateGatewayEnvGuard } from './_util';
 
 function registerLLMPatch(
 	patches: Map<string, PatchModule>,

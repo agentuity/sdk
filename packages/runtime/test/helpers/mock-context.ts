@@ -3,16 +3,16 @@
  * Provides a fully functional context without requiring a real server.
  */
 
-import type { AgentContext, AgentRegistry, AgentRuntimeState } from '../../src/agent.ts';
-import type { Logger } from '../../src/logger/index.ts';
-import type { Thread, Session } from '../../src/session.ts';
+import type { AgentContext, AgentRegistry, AgentRuntimeState } from '../../src/agent';
+import type { Logger } from '../../src/logger';
+import type { Thread, Session } from '../../src/session';
 import { trace, type Tracer } from '@opentelemetry/api';
 import {
 	createMockKeyValueStorage,
 	createMockStreamStorage,
 	createMockVectorStorage,
-} from './mock-services.ts';
-import { AGENT_RUNTIME } from '../../src/_config.ts';
+} from './mock-services';
+import { AGENT_RUNTIME } from '../../src/_config';
 
 export interface CreateMockContextOptions<TConfig = unknown, TAppState = Record<string, never>> {
 	/**
@@ -202,7 +202,7 @@ export async function runAgentWithContext<TInput, TOutput>(
 	ctx: AgentContext<any, any, any, any, any>,
 	input?: TInput
 ): Promise<TOutput> {
-	const { getAgentAsyncLocalStorage } = await import('../../src/_context.ts');
+	const { getAgentAsyncLocalStorage } = await import('../../src/_context');
 	const storage = getAgentAsyncLocalStorage();
 
 	return storage.run(ctx, async () => {

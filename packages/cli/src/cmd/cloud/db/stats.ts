@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getGlobalCatalystAPIClient } from '../../../config.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import { getCommand } from '../../../command-prefix';
 import { getServiceStats, type ServiceStatsData } from '@agentuity/server';
 
 function formatNumber(n: number): string {

@@ -7,8 +7,8 @@
  * - URL priority chain tests (via resolvePostgresClientConfig)
  */
 import { describe, it, expect } from 'bun:test';
-import { createPostgresDrizzle, resolvePostgresClientConfig } from '../src/postgres.ts';
-import type { PostgresDrizzleConfig } from '../src/types.ts';
+import { createPostgresDrizzle, resolvePostgresClientConfig } from '../src/postgres';
+import type { PostgresDrizzleConfig } from '../src/types';
 
 describe('createPostgresDrizzle config', () => {
 	describe('type compatibility', () => {

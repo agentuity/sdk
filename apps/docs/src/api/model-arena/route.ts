@@ -6,14 +6,14 @@
  */
 import { createRouter, sse } from '@agentuity/runtime';
 import { generateObject } from 'ai';
-import { generateStory, JUDGE_MODEL, MODELS } from '../../agent/model-arena/lib.ts';
-import { getJudgePrompt } from '../../agent/model-arena/prompts.ts';
+import { generateStory, JUDGE_MODEL, MODELS } from '../../agent/model-arena/lib';
+import { getJudgePrompt } from '../../agent/model-arena/prompts';
 import {
 	JudgmentSchema,
 	type ModelResult,
 	PROVIDER_DISPLAY_NAMES,
 	type Tone,
-} from '../../agent/model-arena/types.ts';
+} from '../../agent/model-arena/types';
 
 const router = createRouter();
 

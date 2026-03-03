@@ -8,10 +8,10 @@ import { join, dirname, relative, resolve } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { StructuredError } from '@agentuity/core';
-import { toCamelCase, toPascalCase } from '../../../utils/string.ts';
-import { toForwardSlash } from '../../../utils/normalize-path.ts';
-import type { AgentMetadata } from './agent-discovery.ts';
-import type { RouteInfo } from './route-discovery.ts';
+import { toCamelCase, toPascalCase } from '../../../utils/string';
+import { toForwardSlash } from '../../../utils/normalize-path';
+import type { AgentMetadata } from './agent-discovery';
+import type { RouteInfo } from './route-discovery';
 
 /**
  * Rebase a relative import path from the route file's location to the generated file's location.

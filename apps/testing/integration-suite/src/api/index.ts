@@ -1,11 +1,11 @@
 import { createRouter, websocket, sse, type WebSocketConnection } from '@agentuity/runtime';
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { testSuite } from '../test/suite.ts';
+import { testSuite } from '../test/suite';
 import statePersistenceAgent from '@agents/state/agent';
 import stateReaderAgent from '@agents/state/reader-agent';
 import stateWriterAgent from '@agents/state/writer-agent';
-import { mockDatabaseMiddleware } from '../lib/custom-middleware.ts';
+import { mockDatabaseMiddleware } from '../lib/custom-middleware';
 
 const router = createRouter();
 

@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
 import { orgAuthStatus } from '@agentuity/server';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
 
 const StatusResponseSchema = z.object({
 	publicKey: z.string().nullable().describe('The public key or null if not set'),

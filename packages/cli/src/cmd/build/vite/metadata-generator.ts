@@ -8,12 +8,12 @@ import { join } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, readdirSync } from 'node:fs';
 import { type BuildMetadata, DeploymentConfig, getContentType } from '@agentuity/server';
 import type { z } from 'zod';
-import type { AgentMetadata } from './agent-discovery.ts';
-import type { RouteMetadata } from './route-discovery.ts';
-import type { Logger, DeployOptions } from '../../../types.ts';
-import { toForwardSlash } from '../../../utils/normalize-path.ts';
-import { getVersion } from '../../../version.ts';
-import { getGitInfo, buildGitTags } from '../../../utils/git.ts';
+import type { AgentMetadata } from './agent-discovery';
+import type { RouteMetadata } from './route-discovery';
+import type { Logger, DeployOptions } from '../../../types';
+import { toForwardSlash } from '../../../utils/normalize-path';
+import { getVersion } from '../../../version';
+import { getGitInfo, buildGitTags } from '../../../utils/git';
 
 interface ViteManifestEntry {
 	file: string;

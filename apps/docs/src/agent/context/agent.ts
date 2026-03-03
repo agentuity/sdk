@@ -16,7 +16,7 @@
  */
 import { createAgent, getAgents } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { formatTimestamps } from '../../lib/utils.ts';
+import { formatTimestamps } from '../../lib/utils';
 
 const agent = createAgent('context', {
 	description: 'Demonstrates AgentContext: sessions, threads, services, state, logging',

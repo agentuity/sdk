@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getCliClient, type WhoamiResponse } from './cliClient.ts';
+import { getCliClient, type WhoamiResponse } from './cliClient';
 
 export type AuthState = 'unknown' | 'authenticated' | 'unauthenticated' | 'cli-missing' | 'error';
 

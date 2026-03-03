@@ -14,7 +14,7 @@
  */
 
 import { SQL } from 'bun';
-import { postgres } from '../../src/index.ts';
+import { postgres } from '../../src/index';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 

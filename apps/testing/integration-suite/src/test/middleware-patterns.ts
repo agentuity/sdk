@@ -10,7 +10,7 @@
 
 import { test } from '@test/suite';
 import { assert, assertEqual, assertDefined } from '@test/helpers';
-import { resetRequestCount } from '../lib/custom-middleware.ts';
+import { resetRequestCount } from '../lib/custom-middleware';
 
 // Test: App-level middleware is available in routes
 test('middleware-patterns', 'app-level-middleware-available', async () => {

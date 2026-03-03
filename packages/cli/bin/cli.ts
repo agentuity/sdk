@@ -3,33 +3,33 @@
 // Fast-path for version command - check before loading heavy modules
 const versionArgs = process.argv.slice(2);
 if (versionArgs.length === 1 && ['version', '-v', '--version', '-V'].includes(versionArgs[0])) {
-	const { getVersion } = await import('../src/version.ts');
+	const { getVersion } = await import('../src/version');
 	console.log(getVersion());
 	process.exit(0);
 }
 
 import { ConsoleLogger, getAppBaseURL } from '@agentuity/server';
 import { isStructuredError } from '@agentuity/core';
-import { createCLI, registerCommands } from '../src/cli.ts';
-import { validateRuntime } from '../src/runtime.ts';
-import { loadConfig } from '../src/config.ts';
-import { discoverCommands } from '../src/cmd/index.ts';
-import { detectColorScheme } from '../src/terminal.ts';
-import { setColorScheme } from '../src/tui.ts';
-import { getVersion, getPackageName } from '../src/version.ts';
+import { createCLI, registerCommands } from '../src/cli';
+import { validateRuntime } from '../src/runtime';
+import { loadConfig } from '../src/config';
+import { discoverCommands } from '../src/cmd';
+import { detectColorScheme } from '../src/terminal';
+import { setColorScheme } from '../src/tui';
+import { getVersion, getPackageName } from '../src/version';
 
-import type { CommandContext, LogLevel } from '../src/types.ts';
-import { generateCLISchema } from '../src/schema-generator.ts';
-import { generateAIHelp } from '../src/ai-help.ts';
-import { setOutputOptions } from '../src/output.ts';
-import type { GlobalOptions } from '../src/types.ts';
-import { ensureBunOnPath } from '../src/bun-path.ts';
-import { checkForUpdates } from '../src/version-check.ts';
-import { closeDatabase } from '../src/cache/index.ts';
-import { createInternalLogger } from '../src/internal-logger.ts';
-import { createCompositeLogger } from '../src/composite-logger.ts';
-import { getAuth } from '../src/config.ts';
-import { getExecutingAgent } from '../src/agent-detection.ts';
+import type { CommandContext, LogLevel } from '../src/types';
+import { generateCLISchema } from '../src/schema-generator';
+import { generateAIHelp } from '../src/ai-help';
+import { setOutputOptions } from '../src/output';
+import type { GlobalOptions } from '../src/types';
+import { ensureBunOnPath } from '../src/bun-path';
+import { checkForUpdates } from '../src/version-check';
+import { closeDatabase } from '../src/cache';
+import { createInternalLogger } from '../src/internal-logger';
+import { createCompositeLogger } from '../src/composite-logger';
+import { getAuth } from '../src/config';
+import { getExecutingAgent } from '../src/agent-detection';
 
 /**
  * Extract --dir flag from process.argv before command parsing
@@ -342,7 +342,7 @@ try {
 		((errorWithMessage._tag === 'ServiceException' && errorWithMessage.statusCode === 402) ||
 			errorWithMessage._tag === 'PaymentRequiredError')
 	) {
-		const { errorBox, link, newline } = await import('../src/tui.ts');
+		const { errorBox, link, newline } = await import('../src/tui');
 		const overrides = config?.overrides as { app_url?: string } | undefined;
 		const appBaseUrl = getAppBaseURL(undefined, overrides);
 		const billingUrl = `${appBaseUrl}/billing`;

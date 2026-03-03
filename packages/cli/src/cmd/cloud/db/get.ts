@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { listOrgResources, dbTables, generateCreateTableSQL } from '@agentuity/server';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
-import { setResourceInfo } from '../../../cache/index.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
+import { setResourceInfo } from '../../../cache';
 
 const DBGetResponseSchema = z
 	.object({

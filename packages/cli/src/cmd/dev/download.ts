@@ -4,7 +4,7 @@ import { tmpdir, platform } from 'node:os';
 import { join, dirname } from 'node:path';
 import * as tar from 'tar';
 import { StructuredError } from '@agentuity/core';
-import { spinner } from '../../tui.ts';
+import { spinner } from '../../tui';
 
 interface GravityClient {
 	filename: string;

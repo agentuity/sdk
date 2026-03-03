@@ -5,7 +5,7 @@
  * for improved discoverability and usability by AI agents.
  */
 
-import type { CLISchema, SchemaCommand } from './schema-generator.ts';
+import type { CLISchema, SchemaCommand } from './schema-generator';
 
 export interface DashdashConfig {
 	name: string;

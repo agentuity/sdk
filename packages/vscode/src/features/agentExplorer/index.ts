@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { AgentTreeDataProvider, AgentTreeItem } from './agentTreeData.ts';
-import { onAuthStatusChanged } from '../../core/auth.ts';
-import { onProjectChanged, getCurrentProject } from '../../core/project.ts';
-import { getSessionsUrl } from '../../core/urls.ts';
+import { AgentTreeDataProvider, AgentTreeItem } from './agentTreeData';
+import { onAuthStatusChanged } from '../../core/auth';
+import { onProjectChanged, getCurrentProject } from '../../core/project';
+import { getSessionsUrl } from '../../core/urls';
 
 let agentProvider: AgentTreeDataProvider | undefined;
 

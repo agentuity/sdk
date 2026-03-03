@@ -1,5 +1,5 @@
 import type { PluginInput } from '@opencode-ai/plugin';
-import type { CoderConfig } from '../../types.ts';
+import type { CoderConfig } from '../../types';
 
 export interface CompletionHooks {
 	onParams: (input: unknown) => void;

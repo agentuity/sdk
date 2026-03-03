@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { HTTPSandboxService } from '../src/services/sandbox/http.ts';
+import { HTTPSandboxService } from '../src/services/sandbox/http';
 import { APIClient } from '@agentuity/server';
 import { mockFetch, createMockLogger } from '@agentuity/test-utils';
 

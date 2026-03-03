@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { Button, Separator, StatusIndicator } from './ui/index.ts';
+import { Button, Separator, StatusIndicator } from './ui';
 
 export type TerminalStatus = 'idle' | 'creating' | 'recreating' | 'running' | 'completed' | 'error';
 

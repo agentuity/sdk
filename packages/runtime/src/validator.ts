@@ -3,7 +3,7 @@ import { StructuredError, type InferOutput, type StandardSchemaV1 } from '@agent
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Handler } from 'hono/types';
 import { validator as honoValidator } from 'hono/validator';
-import { validateSchema, formatValidationIssues } from './_validation.ts';
+import { validateSchema, formatValidationIssues } from './_validation';
 
 /**
  * Route validator for standard HTTP routes (non-agent routes).

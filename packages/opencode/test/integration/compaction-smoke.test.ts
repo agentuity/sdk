@@ -4,8 +4,8 @@ import {
 	fetchAndFormatPlanningState,
 	formatCompactionDiagnostics,
 	getCurrentBranch,
-} from '../../src/plugin/hooks/compaction-utils.ts';
-import type { CompactionStats } from '../../src/sqlite/types.ts';
+} from '../../src/plugin/hooks/compaction-utils';
+import type { CompactionStats } from '../../src/sqlite/types';
 
 describe('compaction integration', () => {
 	describe('custom compaction prompt', () => {

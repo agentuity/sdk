@@ -4,8 +4,8 @@
  * Tests error handling, validation errors, StructuredError patterns, and error propagation
  */
 
-import { test } from './suite.ts';
-import { assert, assertEqual, assertDefined, assertThrows } from './helpers/index.ts';
+import { test } from './suite';
+import { assert, assertEqual, assertDefined, assertThrows } from './helpers';
 
 import errorValidationAgent from '@agents/errors/validation';
 import errorStructuredAgent from '@agents/errors/structured';

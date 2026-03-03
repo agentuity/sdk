@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { regionSubcommand } from '../../../src/cmd/cloud/region/index.ts';
+import { regionSubcommand } from '../../../src/cmd/cloud/region';
 
 describe('cloud region commands', () => {
 	describe('regionSubcommand definition', () => {

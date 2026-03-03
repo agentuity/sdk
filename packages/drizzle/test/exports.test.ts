@@ -8,13 +8,13 @@ import { describe, test, expect } from 'bun:test';
 describe('exports', () => {
 	describe('main factory function', () => {
 		test('createPostgresDrizzle is exported and is a function', async () => {
-			const { createPostgresDrizzle } = await import('../src/index.ts');
+			const { createPostgresDrizzle } = await import('../src/index');
 			expect(createPostgresDrizzle).toBeDefined();
 			expect(typeof createPostgresDrizzle).toBe('function');
 		});
 
 		test('drizzle is exported and is a function', async () => {
-			const { drizzle } = await import('../src/index.ts');
+			const { drizzle } = await import('../src/index');
 			expect(drizzle).toBeDefined();
 			expect(typeof drizzle).toBe('function');
 		});
@@ -22,13 +22,13 @@ describe('exports', () => {
 
 	describe('re-exports from @agentuity/postgres', () => {
 		test('postgres is exported and is a function', async () => {
-			const { postgres } = await import('../src/index.ts');
+			const { postgres } = await import('../src/index');
 			expect(postgres).toBeDefined();
 			expect(typeof postgres).toBe('function');
 		});
 
 		test('PostgresClient is exported', async () => {
-			const { PostgresClient } = await import('../src/index.ts');
+			const { PostgresClient } = await import('../src/index');
 			expect(PostgresClient).toBeDefined();
 			expect(typeof PostgresClient).toBe('function');
 		});
@@ -36,12 +36,12 @@ describe('exports', () => {
 
 	describe('re-exports from drizzle-orm', () => {
 		test('sql is exported', async () => {
-			const { sql } = await import('../src/index.ts');
+			const { sql } = await import('../src/index');
 			expect(sql).toBeDefined();
 		});
 
 		test('comparison operators are exported', async () => {
-			const { eq, and, or, not, gt, gte, lt, lte, ne } = await import('../src/index.ts');
+			const { eq, and, or, not, gt, gte, lt, lte, ne } = await import('../src/index');
 			expect(eq).toBeDefined();
 			expect(typeof eq).toBe('function');
 			expect(and).toBeDefined();
@@ -63,7 +63,7 @@ describe('exports', () => {
 		});
 
 		test('ordering operators are exported', async () => {
-			const { desc, asc } = await import('../src/index.ts');
+			const { desc, asc } = await import('../src/index');
 			expect(desc).toBeDefined();
 			expect(typeof desc).toBe('function');
 			expect(asc).toBeDefined();
@@ -71,7 +71,7 @@ describe('exports', () => {
 		});
 
 		test('null check operators are exported', async () => {
-			const { isNull, isNotNull } = await import('../src/index.ts');
+			const { isNull, isNotNull } = await import('../src/index');
 			expect(isNull).toBeDefined();
 			expect(typeof isNull).toBe('function');
 			expect(isNotNull).toBeDefined();
@@ -79,7 +79,7 @@ describe('exports', () => {
 		});
 
 		test('array operators are exported', async () => {
-			const { inArray, notInArray } = await import('../src/index.ts');
+			const { inArray, notInArray } = await import('../src/index');
 			expect(inArray).toBeDefined();
 			expect(typeof inArray).toBe('function');
 			expect(notInArray).toBeDefined();
@@ -87,7 +87,7 @@ describe('exports', () => {
 		});
 
 		test('range and pattern operators are exported', async () => {
-			const { between, like, ilike } = await import('../src/index.ts');
+			const { between, like, ilike } = await import('../src/index');
 			expect(between).toBeDefined();
 			expect(typeof between).toBe('function');
 			expect(like).toBeDefined();
@@ -99,19 +99,19 @@ describe('exports', () => {
 
 	describe('re-exports from drizzle-orm/pg-core', () => {
 		test('pgTable is exported', async () => {
-			const { pgTable } = await import('../src/index.ts');
+			const { pgTable } = await import('../src/index');
 			expect(pgTable).toBeDefined();
 			expect(typeof pgTable).toBe('function');
 		});
 
 		test('pgSchema is exported', async () => {
-			const { pgSchema } = await import('../src/index.ts');
+			const { pgSchema } = await import('../src/index');
 			expect(pgSchema).toBeDefined();
 			expect(typeof pgSchema).toBe('function');
 		});
 
 		test('pgEnum is exported', async () => {
-			const { pgEnum } = await import('../src/index.ts');
+			const { pgEnum } = await import('../src/index');
 			expect(pgEnum).toBeDefined();
 			expect(typeof pgEnum).toBe('function');
 		});
@@ -143,7 +143,7 @@ describe('exports', () => {
 				timestamp,
 				uuid,
 				varchar,
-			} = await import('../src/index.ts');
+			} = await import('../src/index');
 
 			expect(bigint).toBeDefined();
 			expect(bigserial).toBeDefined();
@@ -174,7 +174,7 @@ describe('exports', () => {
 
 		test('constraints and indexes are exported', async () => {
 			const { primaryKey, foreignKey, unique, uniqueIndex, index, check } = await import(
-				'../src/index.ts'
+				'../src/index'
 			);
 
 			expect(primaryKey).toBeDefined();
@@ -198,7 +198,7 @@ describe('exports', () => {
 		// Type-only exports are erased at runtime, so we verify they exist in the
 		// TypeScript source via a simple module import (no runtime value check).
 		test('module imports successfully (types are available at compile time)', async () => {
-			const mod = await import('../src/index.ts');
+			const mod = await import('../src/index');
 			// The module should load without circular dependency errors.
 			// BunSQL types are type-only exports and won't appear as runtime values.
 			expect(mod).toBeDefined();
@@ -207,7 +207,7 @@ describe('exports', () => {
 
 	describe('re-exports from better-auth', () => {
 		test('drizzleAdapter is exported', async () => {
-			const { drizzleAdapter } = await import('../src/index.ts');
+			const { drizzleAdapter } = await import('../src/index');
 			expect(drizzleAdapter).toBeDefined();
 			expect(typeof drizzleAdapter).toBe('function');
 		});

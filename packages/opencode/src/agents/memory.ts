@@ -1,4 +1,4 @@
-import type { AgentDefinition } from './types.ts';
+import type { AgentDefinition } from './types';
 
 export const MEMORY_SYSTEM_PROMPT = `# Memory Agent
 

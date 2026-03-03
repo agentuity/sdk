@@ -1,10 +1,10 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
-import { useAPI } from '../src/api.ts';
-import { AgentuityProvider } from '../src/context.tsx';
+import { useAPI } from '../src/api';
+import { AgentuityProvider } from '../src/context';
 
-declare module '../src/types.ts' {
+declare module '../src/types' {
 	interface RouteRegistry {
 		'GET /stream': {
 			inputSchema: never;

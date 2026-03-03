@@ -1,7 +1,7 @@
 import type { JSONSchema7 } from 'ai';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GetAuthHeaders } from '../components/internal/workbench-provider.tsx';
-import { useLogger } from './useLogger.ts';
+import type { GetAuthHeaders } from '../components/internal/workbench-provider';
+import { useLogger } from './useLogger';
 
 export interface AgentSchema {
 	input?: {

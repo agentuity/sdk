@@ -21,7 +21,7 @@ import {
 	enrichContextWithTraceState,
 	generateTraceId,
 	generateSpanId,
-} from '../src/otel/tracestate.ts';
+} from '../src/otel/tracestate';
 
 // ── Test infrastructure ──────────────────────────────────────────────
 

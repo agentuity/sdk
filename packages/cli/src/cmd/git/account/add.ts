@@ -1,17 +1,17 @@
 import type { Logger } from '@agentuity/core';
 import { z } from 'zod';
-import type { APIClient } from '../../../api.ts';
-import { getAPIBaseURL } from '../../../api.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { ErrorCode } from '../../../errors.ts';
-import * as tui from '../../../tui.ts';
-import type { Config } from '../../../types.ts';
-import { createSubcommand } from '../../../types.ts';
+import type { APIClient } from '../../../api';
+import { getAPIBaseURL } from '../../../api';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import type { Config } from '../../../types';
+import { createSubcommand } from '../../../types';
 import {
 	getGithubIntegrationStatus,
 	pollForGithubIntegration,
 	startGithubIntegration,
-} from '../api.ts';
+} from '../api';
 
 export interface RunGitAccountAddOptions {
 	apiClient: APIClient;

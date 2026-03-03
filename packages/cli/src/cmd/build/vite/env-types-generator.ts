@@ -6,8 +6,8 @@
 
 import { join } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
-import { getEnvFilePaths, readEnvFile, isPublicVarKey } from '../../../env-util.ts';
-import type { Logger } from '../../../types.ts';
+import { getEnvFilePaths, readEnvFile, isPublicVarKey } from '../../../env-util';
+import type { Logger } from '../../../types';
 
 /**
  * Generate TypeScript declarations for environment variables

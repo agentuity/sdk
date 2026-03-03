@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { isMutationStatement } from '../src/mutation.ts';
+import { isMutationStatement } from '../src/mutation';
 
 describe('isMutationStatement', () => {
 	// Direct mutations

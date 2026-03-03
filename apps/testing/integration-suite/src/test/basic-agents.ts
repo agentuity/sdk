@@ -4,8 +4,8 @@
  * Tests core agent functionality: creation, execution, validation, async behavior
  */
 
-import { test } from './suite.ts';
-import { assert, assertEqual, assertDefined } from './helpers/index.ts';
+import { test } from './suite';
+import { assert, assertEqual, assertDefined } from './helpers';
 
 // Import agents to trigger registration
 import simpleAgent from '@agents/basic/basic-simple';

@@ -1,4 +1,4 @@
-import { s } from '../src/index.ts';
+import { s } from '../src/index.js';
 
 console.log('=== Using s.infer (like z.infer in zod) ===\n');
 
@@ -133,7 +133,7 @@ console.log('  Form data age type:', typeof formData.age, '=', formData.age);
 console.log('\n6. Both methods work:');
 
 // Method 1: Import Infer type
-import type { Infer } from '../src/index.ts';
+import type { Infer } from '../src/index.js';
 type Method1 = Infer<typeof Player>;
 
 // Method 2: Use s.infer (recommended, like zod)

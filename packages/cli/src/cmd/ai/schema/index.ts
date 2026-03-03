@@ -1,8 +1,8 @@
-import type { CommandDefinition } from '../../../types.ts';
-import { createCommand } from '../../../types.ts';
-import { showSubcommand } from './show.ts';
-import { generateSubcommand } from './generate.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import type { CommandDefinition } from '../../../types';
+import { createCommand } from '../../../types';
+import { showSubcommand } from './show';
+import { generateSubcommand } from './generate';
+import { getCommand } from '../../../command-prefix';
 
 export const schemaCommand: CommandDefinition = createCommand({
 	name: 'schema',

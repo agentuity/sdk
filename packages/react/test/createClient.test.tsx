@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { setGlobalBaseUrl, getGlobalBaseUrl, createClient, createAPIClient } from '../src/client.ts';
+import { setGlobalBaseUrl, getGlobalBaseUrl, createClient, createAPIClient } from '../src/client';
 
 describe('React createClient', () => {
 	describe('Global baseUrl helpers', () => {

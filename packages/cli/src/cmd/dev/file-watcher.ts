@@ -7,8 +7,8 @@
 
 import { watch, type FSWatcher, statSync, readdirSync, lstatSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
-import type { Logger } from '../../types.ts';
-import { createAgentTemplates, createAPITemplates } from './templates.ts';
+import type { Logger } from '../../types';
+import { createAgentTemplates, createAPITemplates } from './templates';
 
 export interface FileWatcherOptions {
 	rootDir: string;

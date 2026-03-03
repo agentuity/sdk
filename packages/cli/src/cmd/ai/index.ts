@@ -1,12 +1,12 @@
-import { createCommand } from '../../types.ts';
-import capabilitiesCommand from './capabilities/index.ts';
-import promptCommand from './prompt/index.ts';
-import schemaCommand from './schema/index.ts';
-import opencodeCommand from './opencode/index.ts';
-import claudeCodeCommand from './claude-code/index.ts';
-import introSubcommand from './intro.ts';
-import detectSubcommand from './detect.ts';
-import { getCommand } from '../../command-prefix.ts';
+import { createCommand } from '../../types';
+import capabilitiesCommand from './capabilities';
+import promptCommand from './prompt';
+import schemaCommand from './schema';
+import opencodeCommand from './opencode';
+import claudeCodeCommand from './claude-code';
+import introSubcommand from './intro';
+import detectSubcommand from './detect';
+import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
 	name: 'ai',

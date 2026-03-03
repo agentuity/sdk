@@ -1,11 +1,11 @@
 import { describe, test, expect, afterEach } from 'bun:test';
 import { mockFetch } from '@agentuity/test-utils';
-import { getInstallationType, isGlobalInstall } from '../src/cmd/upgrade/index.ts';
+import { getInstallationType, isGlobalInstall } from '../src/cmd/upgrade';
 import {
 	isVersionAvailableOnNpm,
 	isVersionAvailableOnNpmQuick,
 	waitForNpmAvailability,
-} from '../src/cmd/upgrade/npm-availability.ts';
+} from '../src/cmd/upgrade/npm-availability';
 
 describe('upgrade command', () => {
 	test('getInstallationType returns source when running from test', () => {

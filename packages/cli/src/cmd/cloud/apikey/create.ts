@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand as createSubcommandHelper } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { createSubcommand as createSubcommandHelper } from '../../../types';
+import * as tui from '../../../tui';
 import { apikeyCreate } from '@agentuity/server';
-import { getCommand } from '../../../command-prefix.ts';
-import { parseExpiresAt } from '../../../utils/date.ts';
+import { getCommand } from '../../../command-prefix';
+import { parseExpiresAt } from '../../../utils/date';
 
 const APIKeyCreateResponseSchema = z.object({
 	id: z.string().describe('the API key id'),

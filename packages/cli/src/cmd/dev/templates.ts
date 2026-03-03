@@ -1,7 +1,7 @@
 /* eslint-disable no-control-regex */
 import { writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { toPascalCase } from '../../utils/string.ts';
+import { toPascalCase } from '../../utils/string';
 
 const newAgentTemplate = (name: string) => `import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

@@ -3,7 +3,7 @@
  */
 import { describe, test, expect } from 'bun:test';
 import { Hono } from 'hono';
-import { createAgent, createRouter, validator } from '../src/index.ts';
+import { createAgent, createRouter, validator } from '../src/index';
 import { s } from '@agentuity/schema';
 
 describe('agent.validator() regression tests', () => {

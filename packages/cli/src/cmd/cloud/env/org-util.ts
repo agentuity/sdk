@@ -1,6 +1,6 @@
-import type { APIClient } from '../../../api.ts';
-import type { Config } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import type { APIClient } from '../../../api';
+import type { Config } from '../../../types';
+import * as tui from '../../../tui';
 import { listOrganizations } from '@agentuity/server';
 
 /**

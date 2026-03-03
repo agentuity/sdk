@@ -4,9 +4,9 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { createAgent, runInAgentContext } from '../src/agent.ts';
+import { createAgent, runInAgentContext } from '../src/agent';
 import { z } from 'zod';
-import { TestAgentContext } from './helpers/test-context.ts';
+import { TestAgentContext } from './helpers/test-context';
 
 describe('Agent Session and Thread Context', () => {
 	test('agent receives session and thread from context', async () => {

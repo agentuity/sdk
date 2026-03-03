@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getCliClient } from '../../core/cliClient.ts';
+import { getCliClient } from '../../core/cliClient';
 
 const DESTRUCTIVE_PATTERNS = [
 	/^auth\s+logout/i,

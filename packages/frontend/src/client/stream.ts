@@ -1,4 +1,4 @@
-import type { EventHandler, StreamClient } from './types.ts';
+import type { EventHandler, StreamClient } from './types';
 
 /**
  * Create a streaming response reader with event-based API.

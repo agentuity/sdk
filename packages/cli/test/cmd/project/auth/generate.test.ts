@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { generateSubcommand } from '../../../../src/cmd/project/auth/generate.ts';
+import { generateSubcommand } from '../../../../src/cmd/project/auth/generate';
 
 describe('project auth generate', () => {
 	describe('generateSubcommand definition', () => {

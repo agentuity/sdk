@@ -1,4 +1,4 @@
-import { toForwardSlash } from './normalize-path.ts';
+import { toForwardSlash } from './normalize-path';
 
 /**
  * Detects if a file path represents a subagent based on path structure.

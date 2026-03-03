@@ -1,4 +1,4 @@
-import { formatMessage } from './util.ts';
+import { formatMessage } from './util';
 
 const cyan = '\x1b[1;96m';
 const reset = '\x1b[0m';

@@ -1,7 +1,7 @@
-import { generatePatches as aisdkGeneratePatches } from './aisdk.ts';
-import { generatePatches as llmGeneratePatches } from './llm.ts';
-import { generatePatches as otelLlmGeneratePatches } from './otel-llm.ts';
-import { type PatchModule, searchBackwards } from './_util.ts';
+import { generatePatches as aisdkGeneratePatches } from './aisdk';
+import { generatePatches as llmGeneratePatches } from './llm';
+import { generatePatches as otelLlmGeneratePatches } from './otel-llm';
+import { type PatchModule, searchBackwards } from './_util';
 
 export function generatePatches(): Map<string, PatchModule> {
 	const patches = new Map<string, PatchModule>();

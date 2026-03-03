@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { useTheme } from './ThemeContext.tsx';
-import { cn } from '../lib/utils.ts';
+import { useTheme } from './ThemeContext';
+import { cn } from '../lib/utils';
 import githubDarkModule from '@shikijs/themes/github-dark';
 import githubLightModule from '@shikijs/themes/github-light';
 import typescriptLang from '@shikijs/langs/typescript';

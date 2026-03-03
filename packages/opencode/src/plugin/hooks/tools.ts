@@ -1,8 +1,8 @@
 import type { PluginInput } from '@opencode-ai/plugin';
-import type { CoderConfig } from '../../types.ts';
-import { checkAuth } from '../../services/auth.ts';
-import { entityId, getEntityContext } from '../../agents/memory/entities.ts';
-import { agents } from '../../agents/index.ts';
+import type { CoderConfig } from '../../types';
+import { checkAuth } from '../../services/auth';
+import { entityId, getEntityContext } from '../../agents/memory/entities';
+import { agents } from '../../agents';
 import { z } from 'zod';
 
 const sessionInputSchema = z.object({

@@ -1,7 +1,7 @@
-import { createSubcommand } from '../../types.ts';
-import { getExecutingAgent, getAgentDisplayName, KNOWN_AGENTS } from '../../agent-detection.ts';
-import { getCommand } from '../../command-prefix.ts';
-import * as tui from '../../tui.ts';
+import { createSubcommand } from '../../types';
+import { getExecutingAgent, getAgentDisplayName, KNOWN_AGENTS } from '../../agent-detection';
+import { getCommand } from '../../command-prefix';
+import * as tui from '../../tui';
 
 export const detectSubcommand = createSubcommand({
 	name: 'detect',

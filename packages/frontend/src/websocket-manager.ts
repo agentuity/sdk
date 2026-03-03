@@ -1,5 +1,5 @@
-import { createReconnectManager, type ReconnectManager } from './reconnect.ts';
-import { deserializeData } from './serialization.ts';
+import { createReconnectManager, type ReconnectManager } from './reconnect';
+import { deserializeData } from './serialization';
 
 /**
  * Serialize data for WebSocket transmission

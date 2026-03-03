@@ -3,7 +3,7 @@
  * Used by cron handlers and workbench routes.
  */
 
-import { isProduction } from './_config.ts';
+import { isProduction } from './_config';
 
 // Maximum age for signatures (5 minutes)
 const MAX_SIGNATURE_AGE_SECONDS = 300;

@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseAgentMetadata } from '../src/cmd/build/ast.ts';
+import { parseAgentMetadata } from '../src/cmd/build/ast';
 
 const TEST_DIR = '/tmp/agentuity-cli-test-nested-agents';
 

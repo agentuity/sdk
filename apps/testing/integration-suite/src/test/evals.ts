@@ -4,8 +4,8 @@
  * Tests eval framework functionality: execution, scoring, error handling
  */
 
-import { test } from './suite.ts';
-import { assertEqual, assertDefined } from './helpers/index.ts';
+import { test } from './suite';
+import { assertEqual, assertDefined } from './helpers';
 
 import evalsBasicAgent from '@agents/evals/basic';
 import evalsSeparateAgent from '@agents/evals/separate/agent';

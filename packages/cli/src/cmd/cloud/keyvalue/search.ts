@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { createStorageAdapter } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
+import { createStorageAdapter } from './util';
+import { getCommand } from '../../../command-prefix';
 const KVSearchResponseSchema = z.object({
 	namespace: z.string().describe('Namespace name'),
 	keyword: z.string().describe('Search keyword used'),

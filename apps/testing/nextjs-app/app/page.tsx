@@ -1,4 +1,4 @@
-import EchoDemo from './components/EchoDemo.tsx';
+import EchoDemo from './components/EchoDemo';
 
 export default function Home() {
 	return (

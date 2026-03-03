@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
 import { projectHostnameGet } from '@agentuity/server';
-import { getCommand } from '../../../command-prefix.ts';
-import { isJSONMode } from '../../../output.ts';
+import { getCommand } from '../../../command-prefix';
+import { isJSONMode } from '../../../output';
 
 const HostnameGetResponseSchema = z.object({
 	hostname: z.string().nullable().describe('The vanity hostname'),

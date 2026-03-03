@@ -1,8 +1,8 @@
-import { createSubcommand } from '../../types.ts';
-import { clearAuth, defaultProfileName } from '../../config.ts';
-import { clearCachedUserInfo } from '../../cache/index.ts';
-import * as tui from '../../tui.ts';
-import { getCommand } from '../../command-prefix.ts';
+import { createSubcommand } from '../../types';
+import { clearAuth, defaultProfileName } from '../../config';
+import { clearCachedUserInfo } from '../../cache';
+import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
 
 export const logoutCommand = createSubcommand({
 	name: 'logout',

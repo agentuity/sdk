@@ -14,7 +14,7 @@ import { apiKeyClient } from '@better-auth/api-key/client';
 import { useAuth as useAgentuityReactAuth, useAnalytics } from '@agentuity/react';
 import type { BetterAuthClientPlugin } from 'better-auth/client';
 
-import type { AuthSession, AuthUser } from './types.ts';
+import type { AuthSession, AuthUser } from './types';
 
 // =============================================================================
 // Auth Client Factory

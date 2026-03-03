@@ -3,16 +3,16 @@
  * Does not require AsyncLocalStorage or any server infrastructure.
  */
 
-import type { AgentContext, AgentRegistry, AgentRunner, AgentRuntimeState } from '../../src/agent.ts';
-import { AGENT_RUNTIME } from '../../src/_config.ts';
-import type { Logger } from '../../src/logger/index.ts';
-import type { Thread, Session } from '../../src/session.ts';
+import type { AgentContext, AgentRegistry, AgentRunner, AgentRuntimeState } from '../../src/agent';
+import { AGENT_RUNTIME } from '../../src/_config';
+import type { Logger } from '../../src/logger';
+import type { Thread, Session } from '../../src/session';
 import { trace, type Tracer } from '@opentelemetry/api';
 import {
 	createMockKeyValueStorage,
 	createMockStreamStorage,
 	createMockVectorStorage,
-} from './mock-services.ts';
+} from './mock-services';
 
 /**
  * Options for configuring TestAgentContext.
@@ -224,7 +224,7 @@ export class TestAgentContext<TConfig = unknown, TAppState = Record<string, neve
 
 			// Copy event listeners if they exist
 			// eslint-disable-next-line @typescript-eslint/no-require-imports
-			const { agentEventListeners } = require('../../src/agent.ts');
+			const { agentEventListeners } = require('../../src/agent');
 			const listeners = agentEventListeners?.get(agent);
 			if (listeners) {
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any

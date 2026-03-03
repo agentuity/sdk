@@ -4,8 +4,8 @@
  * Tests background task scheduling with ctx.waitUntil()
  */
 
-import { test } from './suite.ts';
-import { assertEqual, assertDefined } from './helpers/index.ts';
+import { test } from './suite';
+import { assertEqual, assertDefined } from './helpers';
 
 import waitUntilAgent from '@agents/lifecycle/waituntil';
 

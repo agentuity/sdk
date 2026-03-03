@@ -1,6 +1,6 @@
 import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
-import { Button, Input } from './ui/index.ts';
+import { Button, Input } from './ui';
 
 export function HelloDemo() {
 	const [name, setName] = useState('World');

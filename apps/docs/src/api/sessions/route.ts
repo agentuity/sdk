@@ -1,7 +1,7 @@
 import { createRouter, validator } from '@agentuity/runtime';
-import { bearerTokenAuth, cookieAuth } from '../../middleware/auth.ts';
-import { config } from '../../config.ts';
-import { SessionSchema, MessageSchema, type Session } from '../../types/chat.ts';
+import { bearerTokenAuth, cookieAuth } from '../../middleware/auth';
+import { config } from '../../config';
+import { SessionSchema, MessageSchema, type Session } from '../../types/chat';
 import { z } from 'zod';
 
 const router = createRouter();

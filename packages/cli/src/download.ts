@@ -1,7 +1,7 @@
 import { Transform, Readable } from 'node:stream';
-import * as tui from './tui.ts';
+import * as tui from './tui';
 import { APIError } from '@agentuity/server';
-import { getVersion } from './version.ts';
+import { getVersion } from './version';
 
 export interface DownloadOptions {
 	url: string;

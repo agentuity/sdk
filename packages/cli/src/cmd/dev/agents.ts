@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../types.ts';
-import * as tui from '../../tui.ts';
+import { createSubcommand } from '../../types';
+import * as tui from '../../tui';
 import { APIResponseSchema } from '@agentuity/server';
-import { abbreviate, abbreviateDescription } from '../../utils/format.ts';
-import { getCommand } from '../../command-prefix.ts';
+import { abbreviate, abbreviateDescription } from '../../utils/format';
+import { getCommand } from '../../command-prefix';
 
 const AgentSchema = z.object({
 	id: z.string(),

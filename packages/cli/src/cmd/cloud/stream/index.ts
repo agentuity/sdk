@@ -1,10 +1,10 @@
-import { createCommand } from '../../../types.ts';
-import createSubcommand from './create.ts';
-import listSubcommand from './list.ts';
-import getSubcommand from './get.ts';
-import deleteSubcommand from './delete.ts';
-import statsSubcommand from './stats.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createCommand } from '../../../types';
+import createSubcommand from './create';
+import listSubcommand from './list';
+import getSubcommand from './get';
+import deleteSubcommand from './delete';
+import statsSubcommand from './stats';
+import { getCommand } from '../../../command-prefix';
 
 export const streamCommand = createCommand({
 	name: 'stream',

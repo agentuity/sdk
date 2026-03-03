@@ -3,7 +3,7 @@ import {
 	type SessionStartEvent,
 	type SessionCompleteEvent,
 } from '@agentuity/core';
-import { internal } from '../../logger/internal.ts';
+import { internal } from '../../logger/internal';
 
 /**
  * An implementation of the SessionEventProvider which is no-op

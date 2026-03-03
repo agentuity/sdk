@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { cn } from '../../lib/utils.ts';
+import { cn } from '../../lib/utils';
 
 const Logo = forwardRef<SVGSVGElement, { className?: string; alt?: string }>(
 	({ className = '' }, ref) => {

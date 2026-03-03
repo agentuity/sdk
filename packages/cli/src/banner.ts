@@ -1,4 +1,4 @@
-import { getVersion, getReleaseUrl } from './version.ts';
+import { getVersion, getReleaseUrl } from './version';
 import {
 	shouldUseColors,
 	isDarkMode,
@@ -6,8 +6,8 @@ import {
 	supportsHyperlinks,
 	getDisplayWidth,
 	stripAnsi,
-} from './tui.ts';
-import { getExecutingAgent } from './agent-detection.ts';
+} from './tui';
+import { getExecutingAgent } from './agent-detection';
 
 export function generateBanner(version?: string, compact?: true): string {
 	const _version = version ?? getVersion();

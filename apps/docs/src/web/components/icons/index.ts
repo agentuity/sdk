@@ -1,2 +1,2 @@
-export { ClaudeIcon } from './claude-icon.tsx';
-export { OpenAIIcon } from './openai-icon.tsx';
+export { ClaudeIcon } from './claude-icon';
+export { OpenAIIcon } from './openai-icon';

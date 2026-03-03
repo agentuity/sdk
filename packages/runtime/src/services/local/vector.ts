@@ -14,7 +14,7 @@ import type {
 	VectorStatsPaginated,
 } from '@agentuity/core';
 import { randomUUID } from 'node:crypto';
-import { simpleEmbedding, cosineSimilarity, now } from './_util.ts';
+import { simpleEmbedding, cosineSimilarity, now } from './_util';
 
 export class LocalVectorStorage implements VectorStorage {
 	#db: Database;

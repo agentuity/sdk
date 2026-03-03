@@ -5,7 +5,7 @@ import {
 	resolveAliases,
 	type PackageRef,
 	type AliasMap,
-} from '../src/utils/deps.ts';
+} from '../src/utils/deps';
 import { createMockLogger } from '@agentuity/test-utils';
 
 const mockLogger = createMockLogger();

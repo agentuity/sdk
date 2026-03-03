@@ -3,7 +3,7 @@ import { WebSocketServer } from 'ws';
 import type { WebSocket } from 'ws';
 // Note: ThreadWebSocketClient is an internal class exported for testing only
 // It's not part of the public API and subject to change
-import { ThreadWebSocketClient, type ThreadWebSocketClientOptions } from '../src/session.ts';
+import { ThreadWebSocketClient, type ThreadWebSocketClientOptions } from '../src/session';
 
 // Test configuration: scale down timeouts to ~1/100 of production values
 const testOptions: ThreadWebSocketClientOptions = {

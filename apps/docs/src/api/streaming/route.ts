@@ -6,7 +6,7 @@
  */
 import { createRouter, stream } from '@agentuity/runtime';
 import { streamText } from 'ai';
-import { getModel } from '../../lib/models.ts';
+import { getModel } from '../../lib/models';
 
 const router = createRouter();
 

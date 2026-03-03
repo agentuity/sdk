@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { s, SCHEMA_KIND } from '../src/index.ts';
+import { s, SCHEMA_KIND } from '../src/index.js';
 
 describe('JSON Schema Conversion', () => {
 	describe('toJSONSchema', () => {

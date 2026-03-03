@@ -7,23 +7,23 @@ import { createMiddleware } from 'hono/factory';
 import { cors } from 'hono/cors';
 import { compress } from 'hono/compress';
 import { setSignedCookie } from 'hono/cookie';
-import type { Env, CompressionConfig, CorsConfig } from './app.ts';
-import { createTrustedCorsOrigin } from './cors.ts';
-import type { Logger } from './logger/index.ts';
-import { getAppConfig } from './app.ts';
-import { generateId } from './session.ts';
-import { runInHTTPContext } from './_context.ts';
-import { DURATION_HEADER, TOKENS_HEADER } from './_tokens.ts';
-import { extractTraceContextFromRequest } from './otel/http.ts';
-import { enrichContextWithTraceState } from './otel/tracestate.ts';
+import type { Env, CompressionConfig, CorsConfig } from './app';
+import { createTrustedCorsOrigin } from './cors';
+import type { Logger } from './logger';
+import { getAppConfig } from './app';
+import { generateId } from './session';
+import { runInHTTPContext } from './_context';
+import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
+import { extractTraceContextFromRequest } from './otel/http';
+import { enrichContextWithTraceState } from './otel/tracestate';
 import { context, SpanKind, SpanStatusCode, trace, propagation } from '@opentelemetry/api';
 import type { Meter, Tracer } from '@opentelemetry/api';
-import * as runtimeConfig from './_config.ts';
-import { getSessionEventProvider } from './_services.ts';
-import { internal } from './logger/internal.ts';
-import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './handlers/sse.ts';
-import { WS_DONE_PROMISE_KEY } from './handlers/websocket.ts';
-import { loadBuildMetadata } from './_metadata.ts';
+import * as runtimeConfig from './_config';
+import { getSessionEventProvider } from './_services';
+import { internal } from './logger/internal';
+import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './handlers/sse';
+import { WS_DONE_PROMISE_KEY } from './handlers/websocket';
+import { loadBuildMetadata } from './_metadata';
 
 const SESSION_HEADER = 'x-session-id';
 const THREAD_HEADER = 'x-thread-id';
@@ -110,8 +110,8 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 		c.set('meter', config.meter);
 
 		// Import services dynamically to avoid circular deps
-		const { getServices } = await import('./_services.ts');
-		const { getAppState } = await import('./app.ts');
+		const { getServices } = await import('./_services');
+		const { getAppState } = await import('./app');
 
 		c.set('app', getAppState());
 
@@ -295,8 +295,8 @@ export function createOtelMiddleware() {
 		const skipSessionEvents = OTEL_SESSION_EVENT_SKIP_PATHS.has(c.req.path);
 
 		// Import providers dynamically to avoid circular deps
-		const { getThreadProvider, getSessionProvider } = await import('./_services.ts');
-		const WaitUntilHandler = (await import('./_waituntil.ts')).default;
+		const { getThreadProvider, getSessionProvider } = await import('./_services');
+		const WaitUntilHandler = (await import('./_waituntil')).default;
 
 		const extractedContext = extractTraceContextFromRequest(c.req.raw);
 		const method = c.req.method;
@@ -1118,7 +1118,7 @@ export function createWebSessionMiddleware() {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Import providers dynamically to avoid circular deps
-		const { getThreadProvider } = await import('./_services.ts');
+		const { getThreadProvider } = await import('./_services');
 
 		const secret = getSessionSecret();
 

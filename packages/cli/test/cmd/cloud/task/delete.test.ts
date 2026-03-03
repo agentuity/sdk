@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { deleteSubcommand, parseDuration } from '../../../../src/cmd/cloud/task/delete.ts';
+import { deleteSubcommand, parseDuration } from '../../../../src/cmd/cloud/task/delete';
 
 describe('task delete command', () => {
 	describe('command metadata', () => {

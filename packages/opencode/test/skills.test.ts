@@ -1,9 +1,9 @@
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import { join } from 'node:path';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { parseFrontmatter } from '../src/skills/frontmatter.ts';
-import { loadSkillsFromDir, getSkillByName } from '../src/skills/loader.ts';
-import type { SkillMetadata, LoadedSkill, SkillScope } from '../src/skills/types.ts';
+import { parseFrontmatter } from '../src/skills/frontmatter';
+import { loadSkillsFromDir, getSkillByName } from '../src/skills/loader';
+import type { SkillMetadata, LoadedSkill, SkillScope } from '../src/skills/types';
 
 describe('Skills', () => {
 	describe('parseFrontmatter', () => {

@@ -19,7 +19,7 @@ import type {
 	ExtractPath,
 	ExtractMethod,
 	UseAPIResult,
-} from '../src/api.ts';
+} from '../src/api';
 
 // ============================================================================
 // Schema definitions for type testing
@@ -44,7 +44,7 @@ const _createUserInput = s.object({
 // Augment RouteRegistry for testing
 // ============================================================================
 
-declare module '../src/types.ts' {
+declare module '../src/types' {
 	interface RouteRegistry {
 		'GET /test/users': {
 			inputSchema: never;

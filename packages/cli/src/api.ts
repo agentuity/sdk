@@ -4,8 +4,8 @@
  * Re-exports from @agentuity/server with CLI-specific configuration
  */
 
-import type { Config, Logger } from './types.ts';
-import { getVersion, getRevision } from './version.ts';
+import type { Config, Logger } from './types';
+import { getVersion, getRevision } from './version';
 import {
 	APIClient as BaseAPIClient,
 	getAPIBaseURL as baseGetAPIBaseURL,

@@ -1,6 +1,6 @@
-import { parse, type GrammarItem } from '../../tsc-output-parser.ts';
-import { formatTypeScriptErrors, hasErrors } from '../../typescript-errors.ts';
-import type { BuildReportCollector } from '../../build-report.ts';
+import { parse, type GrammarItem } from '../../tsc-output-parser';
+import { formatTypeScriptErrors, hasErrors } from '../../typescript-errors';
+import type { BuildReportCollector } from '../../build-report';
 
 interface TypeError {
 	success: false;

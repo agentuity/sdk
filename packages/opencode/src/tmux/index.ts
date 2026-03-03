@@ -1,7 +1,7 @@
-export * from './types.ts';
-export * from './utils.ts';
-export { queryWindowState } from './state-query.ts';
-export { decideSpawnActions, calculateCapacity } from './decision-engine.ts';
+export * from './types';
+export * from './utils';
+export { queryWindowState } from './state-query';
+export { decideSpawnActions, calculateCapacity } from './decision-engine';
 export {
 	executeAction,
 	executeActions,
@@ -13,5 +13,5 @@ export {
 	findOwnedAgentPanes,
 	getPanePid,
 	getPanePidSync,
-} from './executor.ts';
-export { TmuxSessionManager } from './manager.ts';
+} from './executor';
+export { TmuxSessionManager } from './manager';

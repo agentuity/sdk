@@ -1,8 +1,8 @@
 import { Braces, X } from 'lucide-react';
-import { CodeBlock, CodeBlockCopyButton } from '../ai-elements/code-block.tsx';
-import { Button } from '../ui/button.tsx';
-import { ScrollArea } from '../ui/scroll-area.tsx';
-import { useWorkbench } from './workbench-provider.tsx';
+import { CodeBlock, CodeBlockCopyButton } from '../ai-elements/code-block';
+import { Button } from '../ui/button';
+import { ScrollArea } from '../ui/scroll-area';
+import { useWorkbench } from './workbench-provider';
 
 export interface SchemaProps {
 	onOpenChange?: (open: boolean) => void;

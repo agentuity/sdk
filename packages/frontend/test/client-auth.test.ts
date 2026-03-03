@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { createClient } from '../src/client/index.ts';
+import { createClient } from '../src/client/index';
 
 describe('Client auth integration', () => {
 	let originalFetch: typeof globalThis.fetch;

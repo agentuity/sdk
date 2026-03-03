@@ -2,8 +2,8 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { initSubcommand } from '../../../../src/cmd/project/auth/init.ts';
-import { authCommand } from '../../../../src/cmd/project/auth/index.ts';
+import { initSubcommand } from '../../../../src/cmd/project/auth/init';
+import { authCommand } from '../../../../src/cmd/project/auth';
 
 describe('project auth init', () => {
 	let testDir: string;

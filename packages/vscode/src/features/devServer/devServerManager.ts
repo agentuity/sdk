@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { spawn, exec, type ChildProcess } from 'child_process';
-import { getCurrentProject } from '../../core/project.ts';
-import { getCliClient } from '../../core/cliClient.ts';
+import { getCurrentProject } from '../../core/project';
+import { getCliClient } from '../../core/cliClient';
 
 export type DevServerState = 'stopped' | 'starting' | 'running' | 'error';
 

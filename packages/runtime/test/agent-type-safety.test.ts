@@ -12,7 +12,7 @@
 
 import { test, expect, describe } from 'bun:test';
 import { Hono } from 'hono';
-import { createAgent } from '../src/agent.ts';
+import { createAgent } from '../src/agent';
 import { z } from 'zod';
 
 describe('Agent Validator Type Safety', () => {

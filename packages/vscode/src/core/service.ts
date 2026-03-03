@@ -6,10 +6,10 @@ import {
 	type Deployment,
 	type DbInfo,
 	type VectorSearchResult,
-} from './cliClient.ts';
-import { getAuthStatus, checkAuth, type AuthStatus } from './auth.ts';
-import { getCurrentProject, hasProject, type AgentuityProject } from './project.ts';
-import { getDevServerManager, type DevServerState } from '../features/devServer/index.ts';
+} from './cliClient';
+import { getAuthStatus, checkAuth, type AuthStatus } from './auth';
+import { getCurrentProject, hasProject, type AgentuityProject } from './project';
+import { getDevServerManager, type DevServerState } from '../features/devServer';
 
 export interface AgentuityStatus {
 	auth: AuthStatus;

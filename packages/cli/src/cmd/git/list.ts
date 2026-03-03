@@ -1,10 +1,10 @@
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import { getCommand } from '../../command-prefix.ts';
-import { ErrorCode } from '../../errors.ts';
-import * as tui from '../../tui.ts';
-import { createSubcommand } from '../../types.ts';
-import { getGithubIntegrationStatus, listGithubRepos } from './api.ts';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
+import * as tui from '../../tui';
+import { createSubcommand } from '../../types';
+import { getGithubIntegrationStatus, listGithubRepos } from './api';
 
 const ListOptionsSchema = z.object({
 	account: z.string().optional().describe('GitHub account name to filter by'),

@@ -3,8 +3,8 @@ import {
 	buildCustomCompactionPrompt,
 	formatCompactionDiagnostics,
 	countListItems,
-} from '../src/plugin/hooks/compaction-utils.ts';
-import type { CompactionStats } from '../src/sqlite/types.ts';
+} from '../src/plugin/hooks/compaction-utils';
+import type { CompactionStats } from '../src/sqlite/types';
 
 describe('compaction-utils', () => {
 	describe('buildCustomCompactionPrompt', () => {

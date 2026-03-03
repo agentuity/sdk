@@ -2,8 +2,8 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { generateRouteRegistry } from '../src/cmd/build/vite/registry-generator.ts';
-import type { RouteInfo } from '../src/cmd/build/vite/route-discovery.ts';
+import { generateRouteRegistry } from '../src/cmd/build/vite/registry-generator';
+import type { RouteInfo } from '../src/cmd/build/vite/route-discovery';
 
 describe('RPC Registry Type Generation', () => {
 	let testDir: string;
