@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { getCommand } from '../../../../command-prefix';
 import { runtimeList } from '@agentuity/server';
+import { z } from 'zod';
+import { getCommand } from '../../../../command-prefix';
 import { getGlobalCatalystAPIClient } from '../../../../config';
+import * as tui from '../../../../tui';
+import { createCommand } from '../../../../types';
 
 const RuntimeInfoSchema = z.object({
 	id: z.string().describe('Runtime ID'),
@@ -34,10 +34,7 @@ export const listSubcommand = createCommand({
 			limit: z.number().optional().describe('Maximum number of results'),
 			offset: z.number().optional().describe('Offset for pagination'),
 			orgId: z.string().optional().describe('filter by organization id'),
-			sort: z
-				.enum(['name', 'created'])
-				.optional()
-				.describe('field to sort by (default: created)'),
+			sort: z.enum(['name', 'created']).optional().describe('field to sort by (default: created)'),
 			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: RuntimeListResponseSchema,
@@ -45,7 +42,7 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options, orgId: ctxOrgId, logger, auth, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name, undefined, config);
 		const effectiveOrgId = opts?.orgId || ctxOrgId;
 
 		const result = await runtimeList(client, {

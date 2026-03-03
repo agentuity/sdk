@@ -1,9 +1,9 @@
-import { ScheduleService, type Logger } from '@agentuity/core';
+import { type Logger, ScheduleService } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
-import type { AuthData, Config, GlobalOptions } from '../../../types';
 import { getCatalystUrl } from '../../../catalyst';
 import { defaultProfileName, getDefaultRegion } from '../../../config';
 import * as tui from '../../../tui';
+import type { AuthData, Config, GlobalOptions } from '../../../types';
 
 export interface ScheduleContext {
 	logger: Logger;
@@ -23,6 +23,6 @@ export async function createScheduleAdapter(ctx: ScheduleContext) {
 		ctx.logger
 	);
 	const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
-	const baseUrl = getCatalystUrl(region);
+	const baseUrl = getCatalystUrl(region, ctx.config?.overrides);
 	return new ScheduleService(baseUrl, adapter);
 }

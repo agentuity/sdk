@@ -1,9 +1,9 @@
-import { z } from 'zod';
 import { listResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
+import { getCatalystAPIClient } from '../../../config';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const RedisGetResponseSchema = z.object({
 	url: z.string().optional().describe('Redis connection URL'),
@@ -32,9 +32,7 @@ export const showSubcommand = createSubcommand({
 			showCredentials: z
 				.boolean()
 				.optional()
-				.describe(
-					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
-				),
+				.describe('Show credentials in plain text (default: masked in terminal, unmasked in JSON)'),
 		}),
 		response: RedisGetResponseSchema,
 	},
@@ -42,7 +40,7 @@ export const showSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { logger, opts, options, orgId, region, auth } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, ctx.config);
 
 		const resources = await tui.spinner({
 			message: `Fetching Redis for ${orgId} in ${region}`,

@@ -1,10 +1,10 @@
+import { APIError, threadGet } from '@agentuity/server';
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { threadGet, APIError } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
 import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const ThreadGetResponseSchema = z.object({
 	id: z.string().describe('Thread ID'),
@@ -38,7 +38,13 @@ export const getSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const { logger, auth, args, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		try {
 			const thread = await threadGet(catalystClient, { id: args.thread_id });

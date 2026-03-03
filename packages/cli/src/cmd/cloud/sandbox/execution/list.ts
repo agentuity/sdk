@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { getSandboxRegion, createSandboxClient } from '../util';
-import { getCommand } from '../../../../command-prefix';
 import { executionList } from '@agentuity/server';
+import { z } from 'zod';
+import { getCommand } from '../../../../command-prefix';
+import * as tui from '../../../../tui';
+import { createCommand } from '../../../../types';
+import { createSandboxClient, getSandboxRegion } from '../util';
 
 const ExecutionInfoSchema = z.object({
 	executionId: z.string().describe('Execution ID'),
@@ -56,7 +56,8 @@ export const listSubcommand = createCommand({
 			auth,
 			config?.name,
 			args.sandboxId,
-			effectiveOrgId
+			effectiveOrgId,
+			config
 		);
 		const client = createSandboxClient(logger, auth, region);
 

@@ -1,10 +1,10 @@
-import { TaskStorageService, type Logger } from '@agentuity/core';
+import { type Logger, TaskStorageService } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
-import type { AuthData, Config, GlobalOptions } from '../../../types';
-import { getCatalystUrl } from '../../../catalyst';
 import { setResourceInfo } from '../../../cache';
+import { getCatalystUrl } from '../../../catalyst';
 import { defaultProfileName, getDefaultRegion } from '../../../config';
 import * as tui from '../../../tui';
+import type { AuthData, Config, GlobalOptions } from '../../../types';
 
 export interface TaskContext {
 	logger: Logger;
@@ -32,7 +32,7 @@ export async function createStorageAdapter(ctx: TaskContext) {
 
 	// Task tenant DB is not regional — any Catalyst can serve the request.
 	const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
-	const baseUrl = getCatalystUrl(region);
+	const baseUrl = getCatalystUrl(region, ctx.config?.overrides);
 	return new TaskStorageService(baseUrl, adapter);
 }
 

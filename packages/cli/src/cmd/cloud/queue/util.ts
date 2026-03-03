@@ -1,5 +1,5 @@
 import type { Logger } from '@agentuity/core';
-import { APIClient, type QueueApiOptions } from '@agentuity/server';
+import type { APIClient, QueueApiOptions } from '@agentuity/server';
 import { getGlobalCatalystAPIClient } from '../../../config';
 import type { AuthData, Config, GlobalOptions } from '../../../types';
 
@@ -21,7 +21,7 @@ export interface QueueContext {
  * Uses the global Catalyst API client with user authentication.
  */
 export async function createQueueAPIClient(ctx: QueueContext): Promise<APIClient> {
-	return getGlobalCatalystAPIClient(ctx.logger, ctx.auth, ctx.config?.name);
+	return getGlobalCatalystAPIClient(ctx.logger, ctx.auth, ctx.config?.name, undefined, ctx.config);
 }
 
 /**

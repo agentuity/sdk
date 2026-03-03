@@ -315,3 +315,130 @@ export async function getProjectGithubStatus(
 
 	return resp.data;
 }
+
+// ─── GitHub Token ───
+
+const GithubTokenDataSchema = z.object({
+	token: z.string(),
+	username: z.string(),
+});
+
+export type GithubTokenResult = z.infer<typeof GithubTokenDataSchema>;
+
+const GithubTokenError = StructuredError(
+	'GithubTokenError',
+	'Failed to retrieve GitHub token from Agentuity'
+);
+
+export async function getGithubToken(apiClient: APIClient): Promise<GithubTokenResult> {
+	const resp = await apiClient.get('/cli/github/token', APIResponseSchema(GithubTokenDataSchema));
+
+	if (!resp.success || !resp.data) {
+		throw new GithubTokenError();
+	}
+
+	return resp.data;
+}
+
+const GithubRepoCheckDataSchema = z.object({
+	available: z.boolean(),
+	exists: z.boolean(),
+	error: z.string().optional(),
+});
+
+export type GithubRepoCheckResult = z.infer<typeof GithubRepoCheckDataSchema>;
+
+const GithubRepoCheckError = StructuredError(
+	'GithubRepoCheckError',
+	'Error checking GitHub repository availability'
+);
+
+export async function checkGithubRepo(
+	apiClient: APIClient,
+	params: { owner: string; name: string }
+): Promise<GithubRepoCheckResult> {
+	const resp = await apiClient.get(
+		`/cli/github/repo/check?owner=${encodeURIComponent(params.owner)}&name=${encodeURIComponent(params.name)}`,
+		APIResponseSchema(GithubRepoCheckDataSchema)
+	);
+
+	if (!resp.success || !resp.data) {
+		throw new GithubRepoCheckError();
+	}
+
+	return resp.data;
+}
+
+// Repo creation
+
+const GithubRepoCreateDataSchema = z.object({
+	url: z.string(),
+	cloneUrl: z.string(),
+	fullName: z.string(),
+	private: z.boolean(),
+	created: z.boolean(),
+});
+
+export interface GithubRepoCreateResult {
+	url: string;
+	cloneUrl: string;
+	fullName: string;
+	private: boolean;
+	created: boolean;
+}
+
+export interface GithubRepoCreateOptions {
+	name: string;
+	owner: string;
+	private: boolean;
+	description?: string;
+}
+
+const GithubRepoCreateError = StructuredError(
+	'GithubRepoCreateError',
+	'Error creating GitHub repository'
+);
+
+export async function createGithubRepo(
+	apiClient: APIClient,
+	params: GithubRepoCreateOptions
+): Promise<GithubRepoCreateResult> {
+	const resp = await apiClient.post(
+		'/cli/github/repo',
+		params,
+		APIResponseSchema(GithubRepoCreateDataSchema)
+	);
+
+	if (!resp.success || !resp.data) {
+		throw new GithubRepoCreateError();
+	}
+
+	return resp.data;
+}
+
+// ─── Bot Identity ───
+
+const GithubBotIdentityDataSchema = z.object({
+	name: z.string(),
+	email: z.string(),
+});
+
+export type GithubBotIdentity = z.infer<typeof GithubBotIdentityDataSchema>;
+
+const GithubBotIdentityError = StructuredError(
+	'GithubBotIdentityError',
+	'Error fetching GitHub App bot identity'
+);
+
+export async function getGithubBotIdentity(apiClient: APIClient): Promise<GithubBotIdentity> {
+	const resp = await apiClient.get(
+		'/cli/github/bot-identity',
+		APIResponseSchema(GithubBotIdentityDataSchema)
+	);
+
+	if (!resp.success || !resp.data) {
+		throw new GithubBotIdentityError();
+	}
+
+	return resp.data;
+}
