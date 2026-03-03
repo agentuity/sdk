@@ -344,7 +344,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	async get<T>(name: string, key: string): Promise<DataResult<T>> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/kv/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(key)}`
+			`/kv/${encodeURIComponent(name)}/${encodeURIComponent(key)}`
 		);
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<T>(url, {
@@ -406,7 +406,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		}
 		const url = buildUrl(
 			this.#baseUrl,
-			`/kv/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(key)}${ttlstr}`
+			`/kv/${encodeURIComponent(name)}/${encodeURIComponent(key)}${ttlstr}`
 		);
 		const [body, contentType] = await toPayload(value);
 		const signal = AbortSignal.timeout(30_000);
@@ -433,7 +433,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	async delete(name: string, key: string): Promise<void> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/kv/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(key)}`
+			`/kv/${encodeURIComponent(name)}/${encodeURIComponent(key)}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke(url, {
@@ -454,7 +454,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	}
 
 	async getStats(name: string): Promise<KeyValueStats> {
-		const url = buildUrl(this.#baseUrl, `/kv/2025-03-17/stats/${encodeURIComponent(name)}`);
+		const url = buildUrl(this.#baseUrl, `/kv/stats/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<KeyValueStats>(url, {
 			method: 'GET',
@@ -504,7 +504,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		const queryString = queryParams.toString();
 		const url = buildUrl(
 			this.#baseUrl,
-			`/kv/2025-03-17/stats${queryString ? `?${queryString}` : ''}`
+			`/kv/stats${queryString ? `?${queryString}` : ''}`
 		);
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<
@@ -524,7 +524,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	}
 
 	async getNamespaces(): Promise<string[]> {
-		const url = buildUrl(this.#baseUrl, '/kv/2025-03-17/namespaces');
+		const url = buildUrl(this.#baseUrl, '/kv/namespaces');
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<string[]>(url, {
 			method: 'GET',
@@ -546,7 +546,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	): Promise<Record<string, KeyValueItemWithMetadata<T>>> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/kv/2025-03-17/search/${encodeURIComponent(name)}/${encodeURIComponent(keyword)}`
+			`/kv/search/${encodeURIComponent(name)}/${encodeURIComponent(keyword)}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<Record<string, KeyValueItemWithMetadata<T>>>(url, {
@@ -564,7 +564,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	}
 
 	async getKeys(name: string): Promise<string[]> {
-		const url = buildUrl(this.#baseUrl, `/kv/2025-03-17/keys/${encodeURIComponent(name)}`);
+		const url = buildUrl(this.#baseUrl, `/kv/keys/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<string[]>(url, {
 			method: 'GET',
@@ -581,7 +581,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	}
 
 	async deleteNamespace(name: string): Promise<void> {
-		const url = buildUrl(this.#baseUrl, `/kv/2025-03-17/${encodeURIComponent(name)}`);
+		const url = buildUrl(this.#baseUrl, `/kv/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke(url, {
 			method: 'DELETE',
@@ -598,7 +598,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	}
 
 	async createNamespace(name: string, params?: CreateNamespaceParams): Promise<void> {
-		const url = buildUrl(this.#baseUrl, `/kv/2025-03-17/${encodeURIComponent(name)}`);
+		const url = buildUrl(this.#baseUrl, `/kv/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const body =

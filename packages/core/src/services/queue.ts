@@ -424,7 +424,7 @@ export class QueueStorageService implements QueueService {
 			});
 		}
 
-		const basePath = `/queue/messages/publish/2026-01-15/${encodeURIComponent(queueName)}`;
+		const basePath = `/queue/messages/publish/${encodeURIComponent(queueName)}`;
 		const url = buildUrl(this.#baseUrl, params?.sync ? `${basePath}?sync=true` : basePath);
 
 		const requestBody: Record<string, unknown> = {
@@ -499,7 +499,7 @@ export class QueueStorageService implements QueueService {
 			};
 		}
 
-		const url = buildUrl(this.#baseUrl, '/queue/create/2026-01-15');
+		const url = buildUrl(this.#baseUrl, '/queue/create');
 
 		const requestBody: Record<string, unknown> = {
 			name: queueName,
@@ -575,7 +575,7 @@ export class QueueStorageService implements QueueService {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/queue/delete/2026-01-15/${encodeURIComponent(queueName)}`
+			`/queue/delete/${encodeURIComponent(queueName)}`
 		);
 
 		const signal = AbortSignal.timeout(30_000);

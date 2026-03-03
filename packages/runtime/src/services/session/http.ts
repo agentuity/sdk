@@ -66,7 +66,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			const spanContext = trace.setSpan(currentContext, span);
 			const resp = await context.with(spanContext, () =>
 				this.apiClient.post(
-					'/session/2025-03-17',
+					'/session',
 					{ ...event, timestamp: Date.now() },
 					APIResponseSchemaNoData(),
 					SessionStartEventDelayedSchema
@@ -136,7 +136,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			const spanContext = trace.setSpan(currentContext, span);
 			const resp = await context.with(spanContext, () =>
 				this.apiClient.put(
-					'/session/2025-03-17',
+					'/session',
 					{ ...event, timestamp: Date.now() },
 					APIResponseSchemaNoData(),
 					SessionCompleteEventDelayedSchema

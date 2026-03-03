@@ -371,7 +371,7 @@ export class WebhookService {
 	 * ```
 	 */
 	async create(params: CreateWebhookParams): Promise<WebhookCreateResult> {
-		const url = buildUrl(this.#baseUrl, '/webhook/2026-02-24/create');
+		const url = buildUrl(this.#baseUrl, '/webhook/create');
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook>>(url, {
 			method: 'POST',
@@ -422,8 +422,8 @@ export class WebhookService {
 		}
 
 		const path = qs.toString()
-			? `/webhook/2026-02-24/list?${qs.toString()}`
-			: '/webhook/2026-02-24/list';
+			? `/webhook/list?${qs.toString()}`
+			: '/webhook/list';
 		const url = buildUrl(this.#baseUrl, path);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook[]>>(url, {
@@ -471,7 +471,7 @@ export class WebhookService {
 	async get(webhookId: string): Promise<WebhookGetResult> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/webhook/2026-02-24/get/${encodeURIComponent(webhookId)}`
+			`/webhook/get/${encodeURIComponent(webhookId)}`
 		);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook>>(url, {
@@ -516,7 +516,7 @@ export class WebhookService {
 	async update(webhookId: string, params: UpdateWebhookParams): Promise<UpdateWebhookResult> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/webhook/2026-02-24/update/${encodeURIComponent(webhookId)}`
+			`/webhook/update/${encodeURIComponent(webhookId)}`
 		);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook>>(url, {
@@ -557,7 +557,7 @@ export class WebhookService {
 	async delete(webhookId: string): Promise<void> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/webhook/2026-02-24/delete/${encodeURIComponent(webhookId)}`
+			`/webhook/delete/${encodeURIComponent(webhookId)}`
 		);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<null>>(url, {
@@ -611,7 +611,7 @@ export class WebhookService {
 	): Promise<CreateDestinationResult> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/webhook/2026-02-24/destination-create/${encodeURIComponent(webhookId)}`
+			`/webhook/destination-create/${encodeURIComponent(webhookId)}`
 		);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<WebhookDestination>>(url, {
@@ -656,7 +656,7 @@ export class WebhookService {
 	async listDestinations(webhookId: string): Promise<ListDestinationsResult> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/webhook/2026-02-24/destination-list/${encodeURIComponent(webhookId)}`
+			`/webhook/destination-list/${encodeURIComponent(webhookId)}`
 		);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<WebhookDestination[]>>(url, {
@@ -696,7 +696,7 @@ export class WebhookService {
 	async deleteDestination(webhookId: string, destinationId: string): Promise<void> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/webhook/2026-02-24/destination-delete/${encodeURIComponent(webhookId)}/${encodeURIComponent(destinationId)}`
+			`/webhook/destination-delete/${encodeURIComponent(webhookId)}/${encodeURIComponent(destinationId)}`
 		);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<null>>(url, {
@@ -754,7 +754,7 @@ export class WebhookService {
 			qs.set('offset', String(params.offset));
 		}
 
-		const basePath = `/webhook/2026-02-24/receipt-list/${encodeURIComponent(webhookId)}`;
+		const basePath = `/webhook/receipt-list/${encodeURIComponent(webhookId)}`;
 		const path = qs.toString() ? `${basePath}?${qs.toString()}` : basePath;
 		const url = buildUrl(this.#baseUrl, path);
 		const signal = createTimeoutSignal();
@@ -799,7 +799,7 @@ export class WebhookService {
 	async getReceipt(webhookId: string, receiptId: string): Promise<WebhookReceipt> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/webhook/2026-02-24/receipt-get/${encodeURIComponent(webhookId)}/${encodeURIComponent(receiptId)}`
+			`/webhook/receipt-get/${encodeURIComponent(webhookId)}/${encodeURIComponent(receiptId)}`
 		);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<WebhookReceipt>>(url, {
@@ -852,7 +852,7 @@ export class WebhookService {
 			qs.set('offset', String(params.offset));
 		}
 
-		const basePath = `/webhook/2026-02-24/delivery-list/${encodeURIComponent(webhookId)}`;
+		const basePath = `/webhook/delivery-list/${encodeURIComponent(webhookId)}`;
 		const path = qs.toString() ? `${basePath}?${qs.toString()}` : basePath;
 		const url = buildUrl(this.#baseUrl, path);
 		const signal = createTimeoutSignal();
@@ -901,7 +901,7 @@ export class WebhookService {
 	async retryDelivery(webhookId: string, deliveryId: string): Promise<void> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/webhook/2026-02-24/delivery-retry/${encodeURIComponent(webhookId)}/${encodeURIComponent(deliveryId)}`
+			`/webhook/delivery-retry/${encodeURIComponent(webhookId)}/${encodeURIComponent(deliveryId)}`
 		);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<null>>(url, {

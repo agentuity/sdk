@@ -26,7 +26,7 @@ describe('QueueStorageService', () => {
 			expect(result.offset).toBe(42);
 			expect(result.publishedAt).toBe('2026-02-13T14:32:37.283Z');
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toContain('/queue/messages/publish/2026-01-15/my_queue');
+			expect(calls[0].url).toContain('/queue/messages/publish/my_queue');
 			expect(calls[0].options.method).toBe('POST');
 		});
 
@@ -224,7 +224,7 @@ describe('QueueStorageService', () => {
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.publish('my_queue', 'payload');
 
-			expect(calls[0].url).toContain('/queue/messages/publish/2026-01-15/my_queue');
+			expect(calls[0].url).toContain('/queue/messages/publish/my_queue');
 		});
 
 		test('should set content type to application/json', async () => {
@@ -427,7 +427,7 @@ describe('QueueStorageService', () => {
 			expect(beforeCalls).toHaveLength(1);
 			expect(onBeforeCalls).toHaveLength(1);
 			expect(onBeforeCalls[0].method).toBe('POST');
-			expect(onBeforeCalls[0].url).toContain('/queue/messages/publish/2026-01-15/my_queue');
+			expect(onBeforeCalls[0].url).toContain('/queue/messages/publish/my_queue');
 		});
 	});
 
@@ -479,7 +479,7 @@ describe('QueueStorageService', () => {
 			expect(result.name).toBe('my_queue');
 			expect(result.queueType).toBe('worker');
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toContain('/queue/create/2026-01-15');
+			expect(calls[0].url).toContain('/queue/create');
 			expect(calls[0].options.method).toBe('POST');
 		});
 
@@ -644,7 +644,7 @@ describe('QueueStorageService', () => {
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.deleteQueue('my_queue');
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toContain('/queue/delete/2026-01-15/my_queue');
+			expect(calls[0].url).toContain('/queue/delete/my_queue');
 			expect(calls[0].options.method).toBe('DELETE');
 		});
 
@@ -714,7 +714,7 @@ describe('QueueStorageService', () => {
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: {} }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.deleteQueue('my_queue');
-			expect(calls[0].url).toContain('/queue/delete/2026-01-15/my_queue');
+			expect(calls[0].url).toContain('/queue/delete/my_queue');
 		});
 	});
 
