@@ -18,10 +18,10 @@ export class AgentCodeLensProvider implements vscode.CodeLensProvider {
 		const codeLenses: vscode.CodeLens[] = [];
 		const text = document.getText();
 
-		let match: RegExpExecArray | null;
 		this.createAgentRegex.lastIndex = 0;
 
-		while ((match = this.createAgentRegex.exec(text)) !== null) {
+		let match: RegExpExecArray | null = this.createAgentRegex.exec(text);
+		while (match !== null) {
 			const position = document.positionAt(match.index);
 			const range = new vscode.Range(position, position);
 
@@ -44,6 +44,8 @@ export class AgentCodeLensProvider implements vscode.CodeLensProvider {
 					tooltip: 'View sessions for this agent',
 				})
 			);
+
+			match = this.createAgentRegex.exec(text);
 		}
 
 		return codeLenses;

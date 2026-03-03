@@ -34,7 +34,9 @@ export const initSubcommand = createSubcommand({
 			skipMigrations: z
 				.boolean()
 				.optional()
-				.describe('Skip running database migrations (run `agentuity project auth generate` later)'),
+				.describe(
+					'Skip running database migrations (run `agentuity project auth generate` later)'
+				),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether setup succeeded'),
@@ -178,7 +180,9 @@ export const initSubcommand = createSubcommand({
 			if (ormSetup === 'drizzle') {
 				tui.info(tui.bold('Drizzle detected in your project.'));
 				tui.newline();
-				console.log('  Since you manage your own Drizzle schema, add authSchema to your schema:');
+				console.log(
+					'  Since you manage your own Drizzle schema, add authSchema to your schema:'
+				);
 				tui.newline();
 				console.log(tui.muted("    import * as authSchema from '@agentuity/auth/schema';"));
 				console.log(tui.muted('    export const schema = { ...authSchema, ...yourSchema };'));

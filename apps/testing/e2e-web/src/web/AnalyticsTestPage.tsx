@@ -128,6 +128,7 @@ export function AnalyticsTestPage() {
 		}
 	};
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: runTests is intentionally only called once on mount
 	useEffect(() => {
 		// Wait for analytics to initialize
 		const timer = setTimeout(runTests, 1000);

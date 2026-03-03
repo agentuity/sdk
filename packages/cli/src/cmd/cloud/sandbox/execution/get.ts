@@ -41,7 +41,13 @@ export const getSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, options, auth, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name, undefined, config);
+		const client = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		const result = await executionGet(client, { executionId: args.executionId, orgId });
 

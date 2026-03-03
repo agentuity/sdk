@@ -60,7 +60,11 @@ export const importSubcommand = createSubcommand({
 				.boolean()
 				.optional()
 				.describe('Only validate the project structure without prompting'),
-			deploy: z.boolean().optional().default(false).describe('Deploy the project after importing'),
+			deploy: z
+				.boolean()
+				.optional()
+				.default(false)
+				.describe('Deploy the project after importing'),
 			projectId: z.string().optional().describe('Use a pre-created project ID (skip creation)'),
 			remote: z
 				.string()

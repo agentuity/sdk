@@ -15,6 +15,7 @@ interface AISearchMessagesProps {
 export function AISearchMessages({ messages, loading, onSourceClick }: AISearchMessagesProps) {
 	const endRef = React.useRef<HTMLDivElement>(null);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: messages is used as a trigger to scroll on new messages
 	React.useEffect(() => {
 		endRef.current?.scrollIntoView({ behavior: 'smooth' });
 	}, [messages]);

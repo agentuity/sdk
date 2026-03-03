@@ -75,7 +75,9 @@ export const getSubcommand = createSubcommand({
 			showCredentials: z
 				.boolean()
 				.optional()
-				.describe('Show credentials in plain text (default: masked in terminal, unmasked in JSON)'),
+				.describe(
+					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
+				),
 			showTables: z.boolean().optional().describe('Fetch table schemas from the database'),
 			sql: z.boolean().optional().describe('Output table schemas as SQL CREATE statements'),
 		}),

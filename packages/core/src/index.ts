@@ -275,3 +275,6 @@ export {
 } from './workbench-config.ts';
 
 // Client code moved to @agentuity/frontend for better bundler compatibility
+
+// API client and modules (moved from @agentuity/server)
+export * from './api/index.ts';

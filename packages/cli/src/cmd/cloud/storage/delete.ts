@@ -361,7 +361,9 @@ export const deleteSubcommand = createSubcommand({
 			message: `Deleting storage bucket ${bucketName}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return deleteResources(regionalClient, orgId, region, [{ type: 's3', name: bucketName }]);
+				return deleteResources(regionalClient, orgId, region, [
+					{ type: 's3', name: bucketName },
+				]);
 			},
 		});
 

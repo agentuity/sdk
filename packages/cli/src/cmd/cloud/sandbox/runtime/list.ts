@@ -34,7 +34,10 @@ export const listSubcommand = createCommand({
 			limit: z.number().optional().describe('Maximum number of results'),
 			offset: z.number().optional().describe('Offset for pagination'),
 			orgId: z.string().optional().describe('filter by organization id'),
-			sort: z.enum(['name', 'created']).optional().describe('field to sort by (default: created)'),
+			sort: z
+				.enum(['name', 'created'])
+				.optional()
+				.describe('field to sort by (default: created)'),
 			direction: z.enum(['asc', 'desc']).optional().describe('sort direction (default: desc)'),
 		}),
 		response: RuntimeListResponseSchema,
@@ -42,7 +45,13 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options, orgId: ctxOrgId, logger, auth, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name, undefined, config);
+		const client = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 		const effectiveOrgId = opts?.orgId || ctxOrgId;
 
 		const result = await runtimeList(client, {

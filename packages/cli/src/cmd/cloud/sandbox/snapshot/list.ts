@@ -58,7 +58,13 @@ export const listSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options, orgId: ctxOrgId, logger, auth, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name, undefined, config);
+		const client = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 		const effectiveOrgId = opts?.orgId || ctxOrgId;
 
 		const result = await snapshotList(client, {

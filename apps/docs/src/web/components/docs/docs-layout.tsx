@@ -84,6 +84,7 @@ export function DocsLayout() {
 	const pageDescription = fm?.description || 'Agentuity SDK documentation for building AI agents.';
 
 	// Scroll to top on route change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: location.pathname is used as a trigger to scroll to top on route change
 	React.useLayoutEffect(() => {
 		mainRef.current?.scrollTo(0, 0);
 	}, [location.pathname]);

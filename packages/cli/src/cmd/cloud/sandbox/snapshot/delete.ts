@@ -53,7 +53,13 @@ export const deleteSubcommand = createCommand({
 			}
 		}
 
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name, undefined, config);
+		const client = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		await snapshotDelete(client, {
 			snapshotId: args.snapshotId,

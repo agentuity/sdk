@@ -334,7 +334,9 @@ function makeIdempotent(sql: string): string {
 		} else if (trimmed.startsWith('ALTER TABLE ') && trimmed.includes('ADD CONSTRAINT')) {
 			const constraintMatch = trimmed.match(/ADD CONSTRAINT "([^"]+)"/);
 			if (constraintMatch) {
-				result.push(`DO $$ BEGIN ${trimmed} EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+				result.push(
+					`DO $$ BEGIN ${trimmed} EXCEPTION WHEN duplicate_object THEN NULL; END $$;`
+				);
 			} else {
 				result.push(line);
 			}

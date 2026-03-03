@@ -49,7 +49,10 @@ export const uploadSubcommand = createSubcommand({
 				.string()
 				.optional()
 				.describe('Remote object key (defaults to basename or "stdin" for piped uploads)'),
-			contentType: z.string().optional().describe('Content type (auto-detected if not provided)'),
+			contentType: z
+				.string()
+				.optional()
+				.describe('Content type (auto-detected if not provided)'),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether upload succeeded'),
@@ -95,7 +98,13 @@ export const uploadSubcommand = createSubcommand({
 
 		// Cache the bucket info for future lookups
 		if (bucket?.cloud_region) {
-			await setResourceInfo('bucket', profileName, bucket.bucket_name, bucket.cloud_region, orgId);
+			await setResourceInfo(
+				'bucket',
+				profileName,
+				bucket.bucket_name,
+				bucket.cloud_region,
+				orgId
+			);
 		}
 
 		if (!bucket) {
@@ -103,7 +112,10 @@ export const uploadSubcommand = createSubcommand({
 		}
 
 		if (!bucket.access_key || !bucket.secret_key || !bucket.endpoint) {
-			tui.fatal(`Storage bucket '${args.name}' is missing credentials`, ErrorCode.CONFIG_INVALID);
+			tui.fatal(
+				`Storage bucket '${args.name}' is missing credentials`,
+				ErrorCode.CONFIG_INVALID
+			);
 		}
 
 		// Prepare streaming upload - we don't buffer the entire file in memory

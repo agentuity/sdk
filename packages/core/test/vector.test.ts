@@ -278,7 +278,7 @@ describe('VectorStorageService', () => {
 				{ key: 'k2', id: 'vec-2' },
 			]);
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/my-vectors`);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/my-vectors`);
 			expect(calls[0].options).toMatchObject({
 				method: 'PUT',
 				contentType: 'application/json',
@@ -590,7 +590,7 @@ describe('VectorStorageService', () => {
 
 			expect(result).toBe(1);
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/my-vectors/k1`);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/my-vectors/k1`);
 			expect(calls[0].options).toMatchObject({ method: 'DELETE' });
 		});
 
@@ -604,7 +604,7 @@ describe('VectorStorageService', () => {
 
 			expect(result).toBe(3);
 
-			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/my-vectors`);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/my-vectors`);
 			const body = JSON.parse(calls[0].options.body as string);
 			expect(body.keys).toEqual(['k1', 'k2', 'k3']);
 		});
@@ -984,7 +984,7 @@ describe('VectorStorageService', () => {
 			expect(stats.sampledResults).toBeDefined();
 			expect(stats.sampledResults?.doc1.size).toBe(256);
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/stats/my-vectors`);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/stats/my-vectors`);
 			expect(calls[0].options.method).toBe('GET');
 		});
 
@@ -1032,7 +1032,7 @@ describe('VectorStorageService', () => {
 			expect(allStats.products.count).toBe(10);
 			expect(allStats.embeddings.count).toBe(20);
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/stats`);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/stats`);
 		});
 
 		test('returns empty object when no namespaces exist', async () => {
@@ -1076,7 +1076,7 @@ describe('VectorStorageService', () => {
 			expect(namespaces).toContain('embeddings');
 			expect(namespaces).toContain('documents');
 
-			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/namespaces`);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/namespaces`);
 			expect(calls[0].options.method).toBe('GET');
 		});
 
@@ -1100,7 +1100,7 @@ describe('VectorStorageService', () => {
 			await service.deleteNamespace('my-vectors');
 
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/my-vectors`);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/my-vectors`);
 			expect(calls[0].options.method).toBe('DELETE');
 			expect(calls[0].options.body).toBeUndefined();
 		});

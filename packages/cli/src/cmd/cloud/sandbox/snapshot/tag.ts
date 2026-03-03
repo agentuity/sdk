@@ -41,7 +41,13 @@ export const tagSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, opts, options, auth, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name, undefined, config);
+		const client = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		if (!args.tag && !opts.clear) {
 			throw new Error('Either provide a tag name or use --clear to remove the tag');
@@ -49,7 +55,9 @@ export const tagSubcommand = createCommand({
 
 		if (args.tag) {
 			if (args.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
-				logger.fatal(`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`);
+				logger.fatal(
+					`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`
+				);
 			}
 			if (!SNAPSHOT_TAG_REGEX.test(args.tag)) {
 				logger.fatal(

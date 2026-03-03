@@ -721,7 +721,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/${encodeURIComponent(name)}`);
+		const url = buildUrl(this.#baseUrl, `/vector/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		// Transform documents to handle TTL: null → 0 for "no expiration"
@@ -780,7 +780,7 @@ export class VectorStorageService implements VectorStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/vector/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(key)}`
+			`/vector/${encodeURIComponent(name)}/${encodeURIComponent(key)}`
 		);
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
@@ -881,7 +881,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/search/${encodeURIComponent(name)}`);
+		const url = buildUrl(this.#baseUrl, `/vector/search/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const attributes: Record<string, string> = {
@@ -946,10 +946,10 @@ export class VectorStorageService implements VectorStorage {
 		if (keys.length === 1 && firstKey) {
 			url = buildUrl(
 				this.#baseUrl,
-				`/vector/2025-03-17/${encodeURIComponent(name)}/${encodeURIComponent(firstKey)}`
+				`/vector/${encodeURIComponent(name)}/${encodeURIComponent(firstKey)}`
 			);
 		} else {
-			url = buildUrl(this.#baseUrl, `/vector/2025-03-17/${encodeURIComponent(name)}`);
+			url = buildUrl(this.#baseUrl, `/vector/${encodeURIComponent(name)}`);
 			body = safeStringify({ keys });
 		}
 
@@ -998,7 +998,7 @@ export class VectorStorageService implements VectorStorage {
 			throw new VectorStorageNameRequiredError();
 		}
 
-		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/stats/${encodeURIComponent(name)}`);
+		const url = buildUrl(this.#baseUrl, `/vector/stats/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const res = await this.#adapter.invoke<VectorStatsResponse>(url, {
@@ -1043,10 +1043,7 @@ export class VectorStorageService implements VectorStorage {
 			queryParams.set('name', params.name);
 		}
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/vector/2025-03-17/stats${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/vector/stats${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const res = await this.#adapter.invoke<
@@ -1068,7 +1065,7 @@ export class VectorStorageService implements VectorStorage {
 	}
 
 	async getNamespaces(): Promise<string[]> {
-		const url = buildUrl(this.#baseUrl, '/vector/2025-03-17/namespaces');
+		const url = buildUrl(this.#baseUrl, '/vector/namespaces');
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<string[]>(url, {
 			method: 'GET',
@@ -1089,7 +1086,7 @@ export class VectorStorageService implements VectorStorage {
 			throw new VectorStorageNameRequiredError();
 		}
 
-		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/${encodeURIComponent(name)}`);
+		const url = buildUrl(this.#baseUrl, `/vector/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<VectorDeleteNamespaceResponse>(url, {

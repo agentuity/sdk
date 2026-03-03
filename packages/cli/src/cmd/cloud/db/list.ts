@@ -43,9 +43,14 @@ export const listSubcommand = createSubcommand({
 			showCredentials: z
 				.boolean()
 				.optional()
-				.describe('Show credentials in plain text (default: masked in terminal, unmasked in JSON)'),
+				.describe(
+					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
+				),
 			nameOnly: z.boolean().optional().describe('Print the name only'),
-			sort: z.enum(['name', 'created', 'region']).default('created').describe('field to sort by'),
+			sort: z
+				.enum(['name', 'created', 'region'])
+				.default('created')
+				.describe('field to sort by'),
 			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),
 			limit: z.coerce.number().min(0).optional().describe('Maximum number of results to return'),
 			offset: z.coerce.number().min(0).optional().describe('Offset for pagination'),

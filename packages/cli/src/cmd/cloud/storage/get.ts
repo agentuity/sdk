@@ -49,7 +49,9 @@ export const getSubcommand = createSubcommand({
 			showCredentials: z
 				.boolean()
 				.optional()
-				.describe('Show credentials in plain text (default: masked in terminal, unmasked in JSON)'),
+				.describe(
+					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
+				),
 		}),
 		response: StorageGetResponseSchema,
 	},
@@ -103,11 +105,15 @@ export const getSubcommand = createSubcommand({
 				console.log(tui.bold('Organization: ') + (bucket.org_name || bucket.org_id));
 			}
 			if (bucket.access_key) {
-				const displayAccessKey = shouldMask ? tui.maskSecret(bucket.access_key) : bucket.access_key;
+				const displayAccessKey = shouldMask
+					? tui.maskSecret(bucket.access_key)
+					: bucket.access_key;
 				console.log(tui.bold('Access Key:   ') + displayAccessKey);
 			}
 			if (bucket.secret_key) {
-				const displaySecretKey = shouldMask ? tui.maskSecret(bucket.secret_key) : bucket.secret_key;
+				const displaySecretKey = shouldMask
+					? tui.maskSecret(bucket.secret_key)
+					: bucket.secret_key;
 				console.log(tui.bold('Secret Key:   ') + displaySecretKey);
 			}
 			if (bucket.region) {

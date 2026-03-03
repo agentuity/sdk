@@ -79,7 +79,8 @@ export const databaseSubcommand = createSubcommand({
 
 		if (availableDatabases.length === 0) {
 			tui.fatal(
-				'No databases available. Create one first with: ' + tui.bold(getCommand('cloud db create')),
+				'No databases available. Create one first with: ' +
+					tui.bold(getCommand('cloud db create')),
 				ErrorCode.RESOURCE_NOT_FOUND
 			);
 		}

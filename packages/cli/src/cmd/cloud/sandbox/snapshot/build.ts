@@ -358,7 +358,9 @@ export const buildSubcommand = createCommand({
 			description: 'Build using a custom build file',
 		},
 		{
-			command: getCommand('cloud sandbox snapshot build . --env API_KEY=secret --tag production'),
+			command: getCommand(
+				'cloud sandbox snapshot build . --env API_KEY=secret --tag production'
+			),
 			description: 'Build with environment variable substitution and custom tag',
 		},
 		{
@@ -379,7 +381,10 @@ export const buildSubcommand = createCommand({
 				.string()
 				.optional()
 				.describe('Path to build file (defaults to agentuity-snapshot.[json|yaml|yml])'),
-			env: z.array(z.string()).optional().describe('Environment variable substitution (KEY=VALUE)'),
+			env: z
+				.array(z.string())
+				.optional()
+				.describe('Environment variable substitution (KEY=VALUE)'),
 			name: z.string().optional().describe('Snapshot name (overrides build file)'),
 			tag: z.string().optional().describe('Snapshot tag (defaults to "latest")'),
 			description: z.string().optional().describe('Snapshot description (overrides build file)'),
@@ -529,7 +534,9 @@ export const buildSubcommand = createCommand({
 
 		if (opts.tag) {
 			if (opts.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
-				logger.fatal(`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`);
+				logger.fatal(
+					`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`
+				);
 			}
 			if (!SNAPSHOT_TAG_REGEX.test(opts.tag)) {
 				logger.fatal(
@@ -576,7 +583,12 @@ export const buildSubcommand = createCommand({
 				message: 'Validating apt dependencies...',
 				type: 'simple',
 				callback: async () => {
-					return await validateAptDependencies(buildConfig.dependencies!, region, config, logger);
+					return await validateAptDependencies(
+						buildConfig.dependencies!,
+						region,
+						config,
+						logger
+					);
 				},
 			});
 
@@ -890,7 +902,11 @@ export const buildSubcommand = createCommand({
 						clearOnError: true,
 						callback: async (updateProgress) => {
 							const uploadFile = Bun.file(uploadPath);
-							const progressStream = createProgressStream(uploadFile, uploadSize, updateProgress);
+							const progressStream = createProgressStream(
+								uploadFile,
+								uploadSize,
+								updateProgress
+							);
 							await snapshotUpload(client, {
 								snapshotId: initResult.snapshotId!,
 								body: progressStream,
@@ -933,7 +949,10 @@ export const buildSubcommand = createCommand({
 							'Malware Detected',
 							`Your snapshot was rejected because it contains malware.\n\nVirus: ${virusName}\n\nPlease remove the infected files and try again.`
 						);
-						tui.fatal('Snapshot build failed due to malware detection', ErrorCode.MALWARE_DETECTED);
+						tui.fatal(
+							'Snapshot build failed due to malware detection',
+							ErrorCode.MALWARE_DETECTED
+						);
 					}
 
 					throw err;

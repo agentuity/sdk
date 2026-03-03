@@ -743,7 +743,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async createAddress(localPart: string): Promise<EmailAddress> {
-		const url = buildUrl(this.#baseUrl, '/email/2025-03-17/addresses');
+		const url = buildUrl(this.#baseUrl, '/email/addresses');
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'POST',
@@ -778,7 +778,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async listAddresses(): Promise<EmailAddress[]> {
-		const url = buildUrl(this.#baseUrl, '/email/2025-03-17/addresses');
+		const url = buildUrl(this.#baseUrl, '/email/addresses');
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',
@@ -814,7 +814,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async getAddress(id: string): Promise<EmailAddress | null> {
-		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/addresses/${encodeURIComponent(id)}`);
+		const url = buildUrl(this.#baseUrl, `/email/addresses/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',
@@ -855,10 +855,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async getConnectionConfig(id: string): Promise<EmailConnectionConfig | null> {
-		const url = buildUrl(
-			this.#baseUrl,
-			`/email/2025-03-17/addresses/${encodeURIComponent(id)}/connection`
-		);
+		const url = buildUrl(this.#baseUrl, `/email/addresses/${encodeURIComponent(id)}/connection`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',
@@ -893,7 +890,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async deleteAddress(id: string): Promise<void> {
-		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/addresses/${encodeURIComponent(id)}`);
+		const url = buildUrl(this.#baseUrl, `/email/addresses/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'DELETE',
@@ -940,7 +937,7 @@ export class EmailStorageService implements EmailService {
 	): Promise<EmailDestination> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/email/2025-03-17/addresses/${encodeURIComponent(addressId)}/destinations`
+			`/email/addresses/${encodeURIComponent(addressId)}/destinations`
 		);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
@@ -980,7 +977,7 @@ export class EmailStorageService implements EmailService {
 	async listDestinations(addressId: string): Promise<EmailDestination[]> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/email/2025-03-17/addresses/${encodeURIComponent(addressId)}/destinations`
+			`/email/addresses/${encodeURIComponent(addressId)}/destinations`
 		);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
@@ -1020,7 +1017,7 @@ export class EmailStorageService implements EmailService {
 	async deleteDestination(addressId: string, destinationId: string): Promise<void> {
 		const url = buildUrl(
 			this.#baseUrl,
-			`/email/2025-03-17/addresses/${encodeURIComponent(addressId)}/destinations/${encodeURIComponent(destinationId)}`
+			`/email/addresses/${encodeURIComponent(addressId)}/destinations/${encodeURIComponent(destinationId)}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
@@ -1073,7 +1070,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async send(params: EmailSendParams): Promise<EmailOutbound> {
-		const url = buildUrl(this.#baseUrl, '/email/2025-03-17/outbound/send');
+		const url = buildUrl(this.#baseUrl, '/email/outbound/send');
 		const signal = AbortSignal.timeout(30_000);
 
 		// Transform attachments to API format (snake_case)
@@ -1144,10 +1141,7 @@ export class EmailStorageService implements EmailService {
 			queryParams.set('address_id', addressId);
 		}
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/email/2025-03-17/inbound${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/email/inbound${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',
@@ -1186,7 +1180,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async getInbound(id: string): Promise<EmailInbound | null> {
-		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/inbound/${encodeURIComponent(id)}`);
+		const url = buildUrl(this.#baseUrl, `/email/inbound/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',
@@ -1221,7 +1215,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async deleteInbound(id: string): Promise<void> {
-		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/inbound/${encodeURIComponent(id)}`);
+		const url = buildUrl(this.#baseUrl, `/email/inbound/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'DELETE',
@@ -1265,10 +1259,7 @@ export class EmailStorageService implements EmailService {
 			queryParams.set('address_id', addressId);
 		}
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/email/2025-03-17/outbound${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/email/outbound${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',
@@ -1309,7 +1300,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async getOutbound(id: string): Promise<EmailOutbound | null> {
-		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/outbound/${encodeURIComponent(id)}`);
+		const url = buildUrl(this.#baseUrl, `/email/outbound/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',
@@ -1344,7 +1335,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async deleteOutbound(id: string): Promise<void> {
-		const url = buildUrl(this.#baseUrl, `/email/2025-03-17/outbound/${encodeURIComponent(id)}`);
+		const url = buildUrl(this.#baseUrl, `/email/outbound/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'DELETE',

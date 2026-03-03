@@ -116,9 +116,9 @@ export interface StreamInfo {
 	sizeBytes: number;
 
 	/**
-	 * ISO 8601 timestamp when stream expires, or undefined if stream never expires
+	 * ISO 8601 timestamp when stream expires, or null if stream never expires
 	 */
-	expiresAt?: string;
+	expiresAt: string | null;
 }
 
 /**
@@ -792,7 +792,7 @@ export class StreamStorageService implements StreamStorage {
 					metadata: s.metadata ?? {},
 					url: s.url,
 					sizeBytes: s.size_bytes,
-					...(s.expires_at && { expiresAt: s.expires_at }),
+					expiresAt: s.expires_at ?? null,
 				})),
 				total: res.data.total,
 			};
@@ -833,7 +833,7 @@ export class StreamStorageService implements StreamStorage {
 				metadata: res.data.metadata ?? {},
 				url: res.data.url,
 				sizeBytes: res.data.size_bytes,
-				...(res.data.expires_at && { expiresAt: res.data.expires_at }),
+				expiresAt: res.data.expires_at ?? null,
 			};
 		}
 		throw await toServiceException('POST', url, res.response);

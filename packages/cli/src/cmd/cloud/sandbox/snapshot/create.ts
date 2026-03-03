@@ -75,7 +75,9 @@ export const createSubcommand = createCommand({
 
 		if (opts.tag) {
 			if (opts.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
-				logger.fatal(`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`);
+				logger.fatal(
+					`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`
+				);
 			}
 			if (!SNAPSHOT_TAG_REGEX.test(opts.tag)) {
 				logger.fatal(
@@ -85,7 +87,14 @@ export const createSubcommand = createCommand({
 		}
 
 		const profileName = config?.name;
-		const region = await getSandboxRegion(logger, auth, profileName, args.sandboxId, orgId, config);
+		const region = await getSandboxRegion(
+			logger,
+			auth,
+			profileName,
+			args.sandboxId,
+			orgId,
+			config
+		);
 		const client = createSandboxClient(logger, auth, region);
 
 		const snapshot = await snapshotCreate(client, {

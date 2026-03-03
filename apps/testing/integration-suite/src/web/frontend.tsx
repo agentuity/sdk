@@ -10,7 +10,8 @@ const app = (
 );
 
 if (import.meta.hot) {
-	const root = (import.meta.hot.data.root ??= createRoot(elem));
+	import.meta.hot.data.root ??= createRoot(elem);
+	const root = import.meta.hot.data.root;
 	root.render(app);
 } else {
 	createRoot(elem).render(app);

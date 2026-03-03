@@ -24,7 +24,11 @@ export function Steps({ children, className }: StepsProps) {
 	return (
 		<div className={cn('my-6 space-y-10', className)}>
 			{steps.map((step, index) => (
-				<div key={index} className="relative flex gap-4">
+				<div
+					// biome-ignore lint/suspicious/noArrayIndexKey: steps are static children, never reordered
+					key={index}
+					className="relative flex gap-4"
+				>
 					{/* Vertical line */}
 					{index < steps.length - 1 && (
 						<div className="absolute left-[15px] top-8 -bottom-10 w-px bg-zinc-200 dark:bg-zinc-800" />
