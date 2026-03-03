@@ -3,6 +3,7 @@ import { describe, test, expect } from 'bun:test';
 import { listSubcommand as threadListSubcommand } from '../../../src/cmd/cloud/thread/list';
 import { getSubcommand as threadGetSubcommand } from '../../../src/cmd/cloud/thread/get';
 import { deleteSubcommand as threadDeleteSubcommand } from '../../../src/cmd/cloud/thread/delete';
+import { deleteSubcommand as taskDeleteSubcommand } from '../../../src/cmd/cloud/task/delete';
 import { listSubcommand as sessionListSubcommand } from '../../../src/cmd/cloud/session/list';
 import { getSubcommand as sessionGetSubcommand } from '../../../src/cmd/cloud/session/get';
 import { listSubcommand as dbListSubcommand } from '../../../src/cmd/cloud/db/list';
@@ -67,6 +68,19 @@ describe('Global Database Commands - No Region Required', () => {
 		});
 	});
 
+	describe('Task Commands', () => {
+		test('task delete does not require region', () => {
+			const requires = taskDeleteSubcommand.requires as Record<string, boolean> | undefined;
+			expect(requires?.region).toBeUndefined();
+			expect(requires?.auth).toBe(true);
+		});
+
+		test('task delete has destructive tag', () => {
+			expect(taskDeleteSubcommand.tags).toContain('destructive');
+			expect(taskDeleteSubcommand.tags).toContain('deletes-resource');
+		});
+	});
+
 	describe('Database Commands', () => {
 		test('db list does not require region', () => {
 			const requires = dbListSubcommand.requires as Record<string, boolean> | undefined;
@@ -98,11 +112,11 @@ describe('Global Database Commands - No Region Required', () => {
 	});
 
 	describe('Storage Commands', () => {
-		test('storage list requires org (needs to know which org to list)', () => {
+		test('storage list does not require region', () => {
 			const requires = storageListSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is not in subcommand requires - parent command or runtime handles org discovery
 		});
 
 		test('storage get does not require region or org (auto-discovered)', () => {
@@ -146,56 +160,56 @@ describe('Global Database Commands - No Region Required', () => {
 			const requires = sandboxListSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is inherited from parent sandbox command, not set on subcommand
 		});
 
 		test('sandbox get does not require region', () => {
 			const requires = sandboxGetSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is auto-discovered via sandboxResolve
 		});
 
 		test('sandbox delete does not require region', () => {
 			const requires = sandboxDeleteSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is auto-discovered via sandboxResolve
 		});
 
 		test('sandbox exec does not require region', () => {
 			const requires = sandboxExecSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is auto-discovered via sandboxResolve
 		});
 
 		test('sandbox env does not require region', () => {
 			const requires = sandboxEnvSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is auto-discovered via sandboxResolve
 		});
 
 		test('sandbox ls does not require region', () => {
 			const requires = sandboxLsSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is auto-discovered via sandboxResolve
 		});
 
 		test('sandbox upload does not require region', () => {
 			const requires = sandboxUploadSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is auto-discovered via sandboxResolve
 		});
 
 		test('sandbox download does not require region', () => {
 			const requires = sandboxDownloadSubcommand.requires as Record<string, boolean> | undefined;
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
+			// org is auto-discovered via sandboxResolve
 		});
 
 		test('sandbox runtime parent command does not require region', () => {

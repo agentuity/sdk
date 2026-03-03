@@ -43,6 +43,28 @@ export interface EntityRef {
 }
 
 /**
+ * The type of user entity.
+ *
+ * - `'human'` — A human user.
+ * - `'agent'` — An AI agent.
+ */
+export type UserType = 'human' | 'agent';
+
+/**
+ * A reference to a user entity with type discrimination.
+ * Extends {@link EntityRef} with a {@link UserEntityRef.type | type} field
+ * to distinguish between human users and AI agents.
+ */
+export interface UserEntityRef extends EntityRef {
+	/**
+	 * The type of user. Defaults to `'human'` if not specified.
+	 *
+	 * @default 'human'
+	 */
+	type?: UserType;
+}
+
+/**
  * A work item in the task management system.
  *
  * Tasks can represent epics, features, bugs, enhancements, or generic tasks.
@@ -130,13 +152,13 @@ export interface Task {
 	closed_id?: string;
 
 	/** Reference to the user who created the task. */
-	creator?: EntityRef;
+	creator?: UserEntityRef;
 
 	/** Reference to the user the task is assigned to. */
-	assignee?: EntityRef;
+	assignee?: UserEntityRef;
 
 	/** Reference to the user who closed the task. */
-	closer?: EntityRef;
+	closer?: UserEntityRef;
 
 	/** Reference to the project this task belongs to. */
 	project?: EntityRef;
@@ -171,7 +193,7 @@ export interface Comment {
 	user_id: string;
 
 	/** Reference to the comment author with display name. */
-	author?: EntityRef;
+	author?: UserEntityRef;
 
 	/**
 	 * The comment text content.
@@ -286,11 +308,11 @@ export interface CreateTaskParams {
 	 */
 	assigned_id?: string;
 
-	/** Reference to the user creating the task (id and name). */
-	creator?: EntityRef;
+	/** Reference to the user creating the task (id, name, and optional type). */
+	creator?: UserEntityRef;
 
 	/** Reference to the user being assigned the task. */
-	assignee?: EntityRef;
+	assignee?: UserEntityRef;
 
 	/** Reference to the project this task belongs to. */
 	project?: EntityRef;
@@ -349,10 +371,10 @@ export interface UpdateTaskParams {
 	closed_id?: string;
 
 	/** Reference to the user being assigned the task. */
-	assignee?: EntityRef;
+	assignee?: UserEntityRef;
 
 	/** Reference to the user closing the task. */
-	closer?: EntityRef;
+	closer?: UserEntityRef;
 
 	/** Reference to the project this task belongs to. */
 	project?: EntityRef;
@@ -426,6 +448,62 @@ export interface ListTasksResult {
 }
 
 /**
+ * Parameters for batch-deleting tasks by filter.
+ * At least one filter must be provided.
+ */
+export interface BatchDeleteTasksParams {
+	/** Filter by task status. */
+	status?: TaskStatus;
+
+	/** Filter by task type. */
+	type?: TaskType;
+
+	/** Filter by priority level. */
+	priority?: TaskPriority;
+
+	/** Filter by parent task ID (delete subtasks). */
+	parent_id?: string;
+
+	/** Filter by creator ID. */
+	created_id?: string;
+
+	/**
+	 * Delete tasks older than this duration.
+	 * Accepts Go-style duration strings: `'30m'`, `'24h'`, `'7d'`, `'2w'`.
+	 */
+	older_than?: string;
+
+	/**
+	 * Maximum number of tasks to delete.
+	 * @default 50
+	 * @maximum 200
+	 */
+	limit?: number;
+}
+
+/**
+ * A single task that was deleted in a batch operation.
+ */
+export interface BatchDeletedTask {
+	/** The ID of the deleted task. */
+	id: string;
+
+	/** The title of the deleted task. */
+	title: string;
+}
+
+/**
+ * Result of a batch delete operation.
+ */
+export interface BatchDeleteTasksResult {
+	/** Array of tasks that were deleted. */
+	deleted: BatchDeletedTask[];
+
+	/** Total number of tasks deleted. */
+	count: number;
+}
+
+/**
  * Paginated list of changelog entries for a task.
  */
 export interface TaskChangelogResult {
@@ -484,7 +562,7 @@ export interface Attachment {
 	user_id: string;
 
 	/** Reference to the uploader with display name. */
-	author?: EntityRef;
+	author?: UserEntityRef;
 
 	/** Original filename of the uploaded file. */
 	filename: string;
@@ -554,8 +632,8 @@ export interface ListAttachmentsResult {
  * List of all users who have been referenced in tasks (as creators, assignees, or closers).
  */
 export interface ListUsersResult {
-	/** Array of user entity references. */
-	users: EntityRef[];
+	/** Array of user entity references with type information. */
+	users: UserEntityRef[];
 }
 
 /**
@@ -671,6 +749,15 @@ export interface TaskStorage {
 	 * @returns The soft-deleted task
 	 */
 	softDelete(id: string): Promise<Task>;
+
+	/**
+	 * Batch soft-delete tasks matching the given filters.
+	 * At least one filter must be provided.
+	 *
+	 * @param params - Filters to select which tasks to delete
+	 * @returns The list of deleted tasks and count
+	 */
+	batchDelete(params: BatchDeleteTasksParams): Promise<BatchDeleteTasksResult>;
 
 	/**
 	 * Get the changelog (audit trail) for a task.
@@ -866,6 +953,9 @@ export interface TaskStorage {
 
 /** API version string used for task CRUD, comment, tag, and attachment endpoints. */
 const TASK_API_VERSION = '2026-02-24';
+
+/** Maximum number of tasks that can be deleted in a single batch request. */
+const MAX_BATCH_DELETE_LIMIT = 200;
 
 /** API version string used for the task activity analytics endpoint. */
 const TASK_ACTIVITY_API_VERSION = '2026-02-28';
@@ -1367,6 +1457,77 @@ export class TaskStorageService implements TaskStorage {
 			telemetry: {
 				name: 'agentuity.task.softDelete',
 				attributes: { id },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	/**
+	 * Batch soft-delete tasks matching the given filters.
+	 * At least one filter must be provided. The server caps the limit at 200.
+	 *
+	 * @param params - Filters to select which tasks to delete
+	 * @returns The list of deleted tasks and count
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await tasks.batchDelete({ status: 'closed', older_than: '7d', limit: 50 });
+	 * console.log(`Deleted ${result.count} tasks`);
+	 * ```
+	 */
+	async batchDelete(params: BatchDeleteTasksParams): Promise<BatchDeleteTasksResult> {
+		const hasFilter =
+			params.status ||
+			params.type ||
+			params.priority ||
+			params.parent_id ||
+			params.created_id ||
+			params.older_than;
+		if (!hasFilter) {
+			throw new Error('At least one filter is required for batch delete');
+		}
+		if (params.limit !== undefined && params.limit > MAX_BATCH_DELETE_LIMIT) {
+			throw new Error(
+				`Batch delete limit must not exceed ${MAX_BATCH_DELETE_LIMIT} (got ${params.limit})`
+			);
+		}
+
+		const url = buildUrl(this.#baseUrl, `/task/delete/batch/${TASK_API_VERSION}`);
+		const signal = AbortSignal.timeout(60_000);
+
+		const body: Record<string, unknown> = {};
+		if (params.status) body.status = params.status;
+		if (params.type) body.type = params.type;
+		if (params.priority) body.priority = params.priority;
+		if (params.parent_id) body.parent_id = params.parent_id;
+		if (params.created_id) body.created_id = params.created_id;
+		if (params.older_than) body.older_than = params.older_than;
+		if (params.limit !== undefined) body.limit = params.limit;
+
+		const res = await this.#adapter.invoke<TaskResponse<BatchDeleteTasksResult>>(url, {
+			method: 'POST',
+			body: safeStringify(body),
+			headers: { 'Content-Type': 'application/json' },
+			signal,
+			telemetry: {
+				name: 'agentuity.task.batchDelete',
+				attributes: {
+					...(params.status ? { status: params.status } : {}),
+					...(params.type ? { type: params.type } : {}),
+					...(params.older_than ? { older_than: params.older_than } : {}),
+				},
 			},
 		});
 
