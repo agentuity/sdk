@@ -24,7 +24,7 @@ const vectorCrudAgent = createAgent('storage-vector-crud', {
 		}),
 	},
 	handler: async (ctx, input) => {
-		const { operation, namespace, key, keys, document, metadata } = input;
+		const { operation, namespace, key, keys, document: _document, metadata } = input;
 
 		switch (operation) {
 			case 'upsert-single': {

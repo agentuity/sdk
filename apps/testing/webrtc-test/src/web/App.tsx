@@ -86,6 +86,7 @@ export function App() {
 							<span className="video-label">You</span>
 						</div>
 						<div className="video-container remote">
+							{/* biome-ignore lint/a11y/useMediaCaption: WebRTC test video does not have captions */}
 							<video ref={remoteVideoRef} autoPlay playsInline />
 							<span className="video-label">
 								{remotePeerId ? 'Remote Peer' : 'Waiting for peer...'}

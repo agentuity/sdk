@@ -502,10 +502,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 			queryParams.set('agent_name', params.agentName);
 		}
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/kv/stats${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/kv/stats${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 		const res = await this.#adapter.invoke<
 			Record<string, KeyValueStats> | KeyValueStatsPaginated

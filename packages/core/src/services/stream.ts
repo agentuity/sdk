@@ -786,14 +786,14 @@ export class StreamStorageService implements StreamStorage {
 			return {
 				success: res.data.success,
 				message: res.data.message,
-			streams: res.data.streams.map((s) => ({
-				id: s.id,
-				namespace: s.name,
-				metadata: s.metadata ?? {},
-				url: s.url,
-				sizeBytes: s.size_bytes,
-				expiresAt: s.expires_at ?? null,
-			})),
+				streams: res.data.streams.map((s) => ({
+					id: s.id,
+					namespace: s.name,
+					metadata: s.metadata ?? {},
+					url: s.url,
+					sizeBytes: s.size_bytes,
+					expiresAt: s.expires_at ?? null,
+				})),
 				total: res.data.total,
 			};
 		}

@@ -291,6 +291,6 @@ export function patchConsole(
 		delegate.debug('profileEnd:', ...args);
 	};
 
-	// eslint-disable-next-line no-global-assign
+	// biome-ignore lint/suspicious/noGlobalAssign: intentionally replacing console with instrumented version
 	console = globalThis.console = _patch;
 }

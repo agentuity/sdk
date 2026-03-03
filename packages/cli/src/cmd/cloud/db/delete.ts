@@ -178,7 +178,9 @@ export const deleteSubcommand = createSubcommand({
 				message: `Deleting database ${dbName}`,
 				clearOnSuccess: true,
 				callback: async () => {
-					return deleteResources(regionalClient, orgId!, region, [{ type: 'db', name: dbName }]);
+					return deleteResources(regionalClient, orgId!, region, [
+						{ type: 'db', name: dbName },
+					]);
 				},
 			});
 

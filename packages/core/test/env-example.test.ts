@@ -289,7 +289,11 @@ describe('parseEnvExample', () => {
 				resource: 'database',
 				required: true,
 			});
-			expect(resources[1]).toMatchObject({ key: 'TASK_QUEUE', resource: 'queue', required: true });
+			expect(resources[1]).toMatchObject({
+				key: 'TASK_QUEUE',
+				resource: 'queue',
+				required: true,
+			});
 
 			// Non-resource env vars — optional
 			const regular = result.filter((f) => !f.resource);
@@ -299,7 +303,9 @@ describe('parseEnvExample', () => {
 			}
 
 			// Comments
-			expect(result.find((f) => f.key === 'DATABASE_URL')?.comment).toBe('Database configuration');
+			expect(result.find((f) => f.key === 'DATABASE_URL')?.comment).toBe(
+				'Database configuration'
+			);
 			expect(result.find((f) => f.key === 'OPENAI_API_KEY')?.comment).toBe('Third-party APIs');
 			expect(result.find((f) => f.key === 'PORT')?.comment).toBe('App config');
 		});

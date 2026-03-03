@@ -132,7 +132,11 @@ export function CronDemo() {
 					</div>
 					<div className="space-y-1">
 						{logs.map((log, i) => (
-							<div key={i} className="flex gap-2">
+							<div
+								// biome-ignore lint/suspicious/noArrayIndexKey: logs are append-only and have no stable id
+								key={i}
+								className="flex gap-2"
+							>
 								<span className="text-green-600">[{log.time}]</span>
 								<span className="text-green-300">{log.message}</span>
 							</div>

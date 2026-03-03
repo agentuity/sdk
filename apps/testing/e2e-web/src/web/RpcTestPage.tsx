@@ -130,6 +130,7 @@ export function RpcTestPage() {
 				</button>
 				<div data-testid="ws-messages" style={{ marginTop: '1rem', fontFamily: 'monospace' }}>
 					{wsMessages.map((msg, i) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: messages are append-only with no stable id
 						<div key={i}>{msg}</div>
 					))}
 				</div>
@@ -150,6 +151,7 @@ export function RpcTestPage() {
 				</button>
 				<div data-testid="sse-events" style={{ marginTop: '1rem', fontFamily: 'monospace' }}>
 					{sseEvents.map((event, i) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: events are append-only with no stable id
 						<div key={i}>{event}</div>
 					))}
 				</div>

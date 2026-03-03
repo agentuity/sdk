@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
 
-test('debug beacon script loading', async ({ page, request }) => {
+test('debug beacon script loading', async ({ page: _page, request }) => {
 	// First check if the beacon endpoint returns content
 	const beaconResponse = await request.get(
 		'http://localhost:3500/_agentuity/webanalytics/analytics.js'

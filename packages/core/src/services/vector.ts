@@ -1043,10 +1043,7 @@ export class VectorStorageService implements VectorStorage {
 			queryParams.set('name', params.name);
 		}
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/vector/stats${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/vector/stats${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000); // 30s timeout for Neon cold starts
 
 		const res = await this.#adapter.invoke<

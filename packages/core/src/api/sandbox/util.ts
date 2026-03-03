@@ -240,7 +240,6 @@ export function throwSandboxError(
 
 /** Current sandbox API version */
 
-
 /**
  * Write a chunk to a writable stream and wait for it to drain if necessary.
  * Properly cleans up event listeners to avoid memory leaks.

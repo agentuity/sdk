@@ -62,7 +62,9 @@ export async function getProfile(profileFromFlag?: string): Promise<string> {
 			return flagProfilePath;
 		}
 		// If --profile flag was explicitly provided but file doesn't exist, throw an error
-		throw new Error(`Profile '${profileFromFlag}' not found. Expected file at: ${flagProfilePath}`);
+		throw new Error(
+			`Profile '${profileFromFlag}' not found. Expected file at: ${flagProfilePath}`
+		);
 	}
 
 	// Check environment variable second

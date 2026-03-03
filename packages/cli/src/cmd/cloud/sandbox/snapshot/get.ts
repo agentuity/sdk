@@ -60,7 +60,10 @@ const SnapshotGetResponseSchema = z.object({
 		.nullable()
 		.optional()
 		.describe('User-defined metadata'),
-	sandboxes: z.array(SandboxInfoSchema).optional().describe('Attached sandboxes (idle or running)'),
+	sandboxes: z
+		.array(SandboxInfoSchema)
+		.optional()
+		.describe('Attached sandboxes (idle or running)'),
 });
 
 export const getSubcommand = createCommand({
@@ -84,7 +87,13 @@ export const getSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, options, auth, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name, undefined, config);
+		const client = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		const snapshot = await snapshotGet(client, {
 			snapshotId: args.snapshotId,

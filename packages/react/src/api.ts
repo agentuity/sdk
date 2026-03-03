@@ -758,12 +758,14 @@ export function useAPI(routeOrOptions: unknown): any {
 
 	// For GET requests: auto-fetch and provide refetch
 	if (method === 'GET') {
+		// biome-ignore lint/correctness/useHookAtTopLevel: method is constant per hook usage
 		const refetch = useCallback(async () => {
 			await fetchData();
 		}, [fetchData]);
 
 		// Auto-fetch on mount if enabled (default: true for GET)
 		const shouldAutoFetch = enabled ?? true;
+		// biome-ignore lint/correctness/useHookAtTopLevel: method is constant per hook usage
 		useEffect(() => {
 			if (shouldAutoFetch) {
 				fetchData();
@@ -771,6 +773,7 @@ export function useAPI(routeOrOptions: unknown): any {
 		}, [shouldAutoFetch, fetchData]);
 
 		// Refetch interval
+		// biome-ignore lint/correctness/useHookAtTopLevel: method is constant per hook usage
 		useEffect(() => {
 			if (!refetchInterval || refetchInterval <= 0) return;
 
@@ -794,6 +797,7 @@ export function useAPI(routeOrOptions: unknown): any {
 	}
 
 	// For POST/PUT/PATCH/DELETE: provide invoke method (manual invocation)
+	// biome-ignore lint/correctness/useHookAtTopLevel: only reached for non-GET methods which is constant per hook usage
 	const invoke = useCallback(
 		async (invokeInput?: any, invokeOptions?: { params?: Record<string, string> }) => {
 			// Use invokeInput parameter if provided

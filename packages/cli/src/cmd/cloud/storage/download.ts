@@ -88,7 +88,13 @@ export const downloadSubcommand = createSubcommand({
 
 		// Cache the bucket info for future lookups
 		if (bucket?.cloud_region) {
-			await setResourceInfo('bucket', profileName, bucket.bucket_name, bucket.cloud_region, orgId);
+			await setResourceInfo(
+				'bucket',
+				profileName,
+				bucket.bucket_name,
+				bucket.cloud_region,
+				orgId
+			);
 		}
 
 		if (!bucket) {
@@ -96,7 +102,10 @@ export const downloadSubcommand = createSubcommand({
 		}
 
 		if (!bucket.access_key || !bucket.secret_key || !bucket.endpoint) {
-			tui.fatal(`Storage bucket '${args.name}' is missing credentials`, ErrorCode.CONFIG_INVALID);
+			tui.fatal(
+				`Storage bucket '${args.name}' is missing credentials`,
+				ErrorCode.CONFIG_INVALID
+			);
 		}
 
 		// Initialize S3 client

@@ -412,9 +412,7 @@ export class ScheduleService {
 			qs.set('offset', String(params.offset));
 		}
 
-		const path = qs.toString()
-			? `/schedule/list?${qs.toString()}`
-			: '/schedule/list';
+		const path = qs.toString() ? `/schedule/list?${qs.toString()}` : '/schedule/list';
 		const url = buildUrl(this.#baseUrl, path);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<ScheduleListResult>(url, {
@@ -452,10 +450,7 @@ export class ScheduleService {
 	 * ```
 	 */
 	async get(scheduleId: string): Promise<ScheduleGetResult> {
-		const url = buildUrl(
-			this.#baseUrl,
-			`/schedule/get/${encodeURIComponent(scheduleId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/schedule/get/${encodeURIComponent(scheduleId)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<ScheduleGetResult>(url, {
 			method: 'GET',
@@ -501,10 +496,7 @@ export class ScheduleService {
 	 * ```
 	 */
 	async update(scheduleId: string, params: UpdateScheduleParams): Promise<{ schedule: Schedule }> {
-		const url = buildUrl(
-			this.#baseUrl,
-			`/schedule/update/${encodeURIComponent(scheduleId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/schedule/update/${encodeURIComponent(scheduleId)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<{ schedule: Schedule }>(url, {
 			method: 'PUT',
@@ -539,10 +531,7 @@ export class ScheduleService {
 	 * ```
 	 */
 	async delete(scheduleId: string): Promise<void> {
-		const url = buildUrl(
-			this.#baseUrl,
-			`/schedule/delete/${encodeURIComponent(scheduleId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/schedule/delete/${encodeURIComponent(scheduleId)}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<void>(url, {
 			method: 'DELETE',

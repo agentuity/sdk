@@ -422,9 +422,7 @@ export class WebhookService {
 			qs.set('offset', String(params.offset));
 		}
 
-		const path = qs.toString()
-			? `/webhook/list?${qs.toString()}`
-			: '/webhook/list';
+		const path = qs.toString() ? `/webhook/list?${qs.toString()}` : '/webhook/list';
 		const url = buildUrl(this.#baseUrl, path);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook[]>>(url, {
@@ -470,10 +468,7 @@ export class WebhookService {
 	 * ```
 	 */
 	async get(webhookId: string): Promise<WebhookGetResult> {
-		const url = buildUrl(
-			this.#baseUrl,
-			`/webhook/get/${encodeURIComponent(webhookId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/webhook/get/${encodeURIComponent(webhookId)}`);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook>>(url, {
 			method: 'GET',
@@ -515,10 +510,7 @@ export class WebhookService {
 	 * ```
 	 */
 	async update(webhookId: string, params: UpdateWebhookParams): Promise<UpdateWebhookResult> {
-		const url = buildUrl(
-			this.#baseUrl,
-			`/webhook/update/${encodeURIComponent(webhookId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/webhook/update/${encodeURIComponent(webhookId)}`);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<Webhook>>(url, {
 			method: 'PUT',
@@ -556,10 +548,7 @@ export class WebhookService {
 	 * ```
 	 */
 	async delete(webhookId: string): Promise<void> {
-		const url = buildUrl(
-			this.#baseUrl,
-			`/webhook/delete/${encodeURIComponent(webhookId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/webhook/delete/${encodeURIComponent(webhookId)}`);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<WebhookResponse<null>>(url, {
 			method: 'DELETE',

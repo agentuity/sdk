@@ -50,6 +50,7 @@ function BreadcrumbLink({
 
 function BreadcrumbPage({ className, ...props }: React.ComponentProps<'span'>) {
 	return (
+		// biome-ignore lint/a11y/useFocusableInteractive: breadcrumb page is a non-interactive indicator using role="link" with aria-disabled
 		<span
 			data-slot="breadcrumb-page"
 			role="link"

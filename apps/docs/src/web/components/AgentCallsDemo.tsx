@@ -12,7 +12,7 @@ interface LogEntry {
 }
 
 // Mock terminal component - shows logs progressively with delays
-function MockTerminal({ logs, taskId }: { logs: LogEntry[]; taskId: string }) {
+function MockTerminal({ logs, taskId: _taskId }: { logs: LogEntry[]; taskId: string }) {
 	const [visibleLogs, setVisibleLogs] = useState<LogEntry[]>([]);
 
 	useEffect(() => {

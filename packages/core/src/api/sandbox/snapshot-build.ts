@@ -59,18 +59,14 @@ export const SnapshotBuildFileBaseSchema = z
 			.describe(
 				'Glob patterns for files to include from the build context. Supports negative patterns with ! prefix for exclusions'
 			),
-		env: z
-			.record(z.string(), z.string())
-			.optional()
-			.describe(
-				'Environment variables to set. Use ${VAR} syntax for build-time substitution via --env flag'
-			),
-		metadata: z
-			.record(z.string(), z.string())
-			.optional()
-			.describe(
-				'User-defined metadata key-value pairs. Use ${VAR} syntax for build-time substitution via --metadata flag'
-			),
+		env: z.record(z.string(), z.string()).optional().describe(
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: describes the ${VAR} substitution syntax for users
+			'Environment variables to set. Use ${VAR} syntax for build-time substitution via --env flag'
+		),
+		metadata: z.record(z.string(), z.string()).optional().describe(
+			// biome-ignore lint/suspicious/noTemplateCurlyInString: describes the ${VAR} substitution syntax for users
+			'User-defined metadata key-value pairs. Use ${VAR} syntax for build-time substitution via --metadata flag'
+		),
 		public: z
 			.boolean()
 			.optional()

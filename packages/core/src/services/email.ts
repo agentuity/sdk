@@ -855,10 +855,7 @@ export class EmailStorageService implements EmailService {
 	 * ```
 	 */
 	async getConnectionConfig(id: string): Promise<EmailConnectionConfig | null> {
-		const url = buildUrl(
-			this.#baseUrl,
-			`/email/addresses/${encodeURIComponent(id)}/connection`
-		);
+		const url = buildUrl(this.#baseUrl, `/email/addresses/${encodeURIComponent(id)}/connection`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',
@@ -1144,10 +1141,7 @@ export class EmailStorageService implements EmailService {
 			queryParams.set('address_id', addressId);
 		}
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/email/inbound${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/email/inbound${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',
@@ -1265,10 +1259,7 @@ export class EmailStorageService implements EmailService {
 			queryParams.set('address_id', addressId);
 		}
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/email/outbound${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/email/outbound${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<unknown>(url, {
 			method: 'GET',

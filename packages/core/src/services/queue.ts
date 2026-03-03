@@ -573,10 +573,7 @@ export class QueueStorageService implements QueueService {
 	async deleteQueue(queueName: string): Promise<void> {
 		validateQueueNameInternal(queueName);
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/queue/delete/${encodeURIComponent(queueName)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/queue/delete/${encodeURIComponent(queueName)}`);
 
 		const signal = AbortSignal.timeout(30_000);
 		const res = await this.#adapter.invoke<void>(url, {

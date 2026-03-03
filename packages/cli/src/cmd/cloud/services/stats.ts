@@ -60,7 +60,9 @@ function displayServiceStats(data: ServiceStatsData): void {
 		tui.newline();
 		console.log(tui.colorPrimary('Queue:'));
 		console.log(`  ${tui.muted('Queues:')}          ${formatNumber(services.queue.queueCount)}`);
-		console.log(`  ${tui.muted('Total Messages:')}  ${formatNumber(services.queue.totalMessages)}`);
+		console.log(
+			`  ${tui.muted('Total Messages:')}  ${formatNumber(services.queue.totalMessages)}`
+		);
 		console.log(`  ${tui.muted('DLQ Messages:')}    ${formatNumber(services.queue.totalDlq)}`);
 	}
 
@@ -68,7 +70,9 @@ function displayServiceStats(data: ServiceStatsData): void {
 		hasData = true;
 		tui.newline();
 		console.log(tui.colorPrimary('Stream:'));
-		console.log(`  ${tui.muted('Streams:')}         ${formatNumber(services.stream.streamCount)}`);
+		console.log(
+			`  ${tui.muted('Streams:')}         ${formatNumber(services.stream.streamCount)}`
+		);
 		console.log(
 			`  ${tui.muted('Total Size:')}      ${tui.formatBytes(services.stream.totalSizeBytes)}`
 		);

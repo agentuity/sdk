@@ -483,11 +483,7 @@ describe('SandboxClient', () => {
 			let getCalled = false;
 
 			mockFetch(async (url, opts) => {
-				if (
-					opts?.method === 'GET' &&
-					url.includes('/sandbox') &&
-					url.includes('sandbox-123')
-				) {
+				if (opts?.method === 'GET' && url.includes('/sandbox') && url.includes('sandbox-123')) {
 					getCalled = true;
 					return new Response(
 						JSON.stringify({
