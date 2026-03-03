@@ -128,6 +128,7 @@ export function AnalyticsTestPage() {
 		}
 	};
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: runTests is intentionally only called once on mount
 	useEffect(() => {
 		// Wait for analytics to initialize
 		const timer = setTimeout(runTests, 1000);
@@ -139,8 +140,7 @@ export function AnalyticsTestPage() {
 				originalDebugRef.current = null;
 			}
 		};
-		// biome-ignore lint/correctness/useExhaustiveDependencies: runTests is intentionally only called once on mount
-	}, [runTests]);
+	}, []);
 
 	const passCount = results.filter((r) => r.status === 'pass').length;
 	const failCount = results.filter((r) => r.status === 'fail').length;
