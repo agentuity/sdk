@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
 import { getServiceStats, type ServiceStatsData } from '@agentuity/server';
+import { z } from 'zod';
+import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import * as tui from '../../../tui';
+import { createCommand } from '../../../types';
 
 function formatNumber(n: number): string {
 	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -46,7 +46,13 @@ export const statsSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { opts, options } = ctx;
-		const client = await getGlobalCatalystAPIClient(ctx.logger, ctx.auth, ctx.config?.name);
+		const client = await getGlobalCatalystAPIClient(
+			ctx.logger,
+			ctx.auth,
+			ctx.config?.name,
+			undefined,
+			ctx.config
+		);
 		const orgId = ctx.orgId ?? ctx.options.orgId ?? ctx.config?.preferences?.orgId;
 
 		if (!orgId) {

@@ -1,10 +1,10 @@
-import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
 import { machineGet } from '@agentuity/server';
+import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
 import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const MachineGetResponseSchema = z.object({
 	id: z.string().describe('Machine ID'),
@@ -46,7 +46,13 @@ export const getSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, options, logger, auth, config, orgId } = ctx;
 
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name, orgId);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			orgId,
+			config
+		);
 
 		try {
 			const machine = await machineGet(catalystClient, args.machine_id);

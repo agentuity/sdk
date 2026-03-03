@@ -1,9 +1,9 @@
-import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
+import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const DBListResponseSchema = z.object({
 	databases: z
@@ -43,14 +43,9 @@ export const listSubcommand = createSubcommand({
 			showCredentials: z
 				.boolean()
 				.optional()
-				.describe(
-					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
-				),
+				.describe('Show credentials in plain text (default: masked in terminal, unmasked in JSON)'),
 			nameOnly: z.boolean().optional().describe('Print the name only'),
-			sort: z
-				.enum(['name', 'created', 'region'])
-				.default('created')
-				.describe('field to sort by'),
+			sort: z.enum(['name', 'created', 'region']).default('created').describe('field to sort by'),
 			direction: z.enum(['asc', 'desc']).default('desc').describe('sort direction'),
 			limit: z.coerce.number().min(0).optional().describe('Maximum number of results to return'),
 			offset: z.coerce.number().min(0).optional().describe('Offset for pagination'),
@@ -62,7 +57,13 @@ export const listSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { logger, opts, options, auth, config } = ctx;
 
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		const resources = await tui.spinner({
 			message: 'Fetching databases',

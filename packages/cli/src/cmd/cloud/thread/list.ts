@@ -1,10 +1,10 @@
+import { type Thread, threadList } from '@agentuity/server';
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { threadList, type Thread } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
 import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const ThreadListResponseSchema = z.array(
 	z.object({
@@ -73,7 +73,13 @@ export const listSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const { logger, auth, project, opts, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		if (opts?.orgId && opts?.projectId) {
 			tui.fatal('--org-id and --project-id are mutually exclusive. Use one or the other.');

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Integration test for the `agentuity create` command
  *
@@ -13,9 +14,9 @@
  *   bun scripts/test-create-flow.ts
  */
 
-import { join, resolve } from 'node:path';
-import { existsSync, rmSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 const MONOREPO_ROOT = resolve(import.meta.dir, '../../..');
 const TEMPLATES_DIR = join(MONOREPO_ROOT, 'templates');
@@ -332,10 +333,9 @@ async function verifyGitInit(): Promise<boolean> {
 	if (lastCommitMessage && lastCommitMessage.includes('Initial Setup')) {
 		logSuccess('Initial commit message is "Initial Setup"');
 		return true;
-	} else {
-		logError('Initial commit message not correct');
-		return false;
 	}
+	logError('Initial commit message not correct');
+	return false;
 }
 
 async function buildCLI(): Promise<boolean> {

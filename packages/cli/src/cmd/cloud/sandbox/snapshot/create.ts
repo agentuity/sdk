@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { getSandboxRegion, createSandboxClient } from '../util';
-import { getCommand } from '../../../../command-prefix';
 import { snapshotCreate } from '@agentuity/server';
+import { z } from 'zod';
+import { getCommand } from '../../../../command-prefix';
+import * as tui from '../../../../tui';
+import { createCommand } from '../../../../types';
+import { createSandboxClient, getSandboxRegion } from '../util';
 
 const SNAPSHOT_NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
@@ -75,9 +75,7 @@ export const createSubcommand = createCommand({
 
 		if (opts.tag) {
 			if (opts.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
-				logger.fatal(
-					`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`
-				);
+				logger.fatal(`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`);
 			}
 			if (!SNAPSHOT_TAG_REGEX.test(opts.tag)) {
 				logger.fatal(
@@ -87,7 +85,7 @@ export const createSubcommand = createCommand({
 		}
 
 		const profileName = config?.name;
-		const region = await getSandboxRegion(logger, auth, profileName, args.sandboxId, orgId);
+		const region = await getSandboxRegion(logger, auth, profileName, args.sandboxId, orgId, config);
 		const client = createSandboxClient(logger, auth, region);
 
 		const snapshot = await snapshotCreate(client, {

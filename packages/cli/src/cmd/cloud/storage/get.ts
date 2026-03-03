@@ -1,11 +1,11 @@
-import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
+import { z } from 'zod';
 import { setResourceInfo } from '../../../cache';
+import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const StorageGetResponseSchema = z.object({
 	bucket_name: z.string().describe('Storage bucket name'),
@@ -49,9 +49,7 @@ export const getSubcommand = createSubcommand({
 			showCredentials: z
 				.boolean()
 				.optional()
-				.describe(
-					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
-				),
+				.describe('Show credentials in plain text (default: masked in terminal, unmasked in JSON)'),
 		}),
 		response: StorageGetResponseSchema,
 	},
@@ -61,7 +59,13 @@ export const getSubcommand = createSubcommand({
 		const { logger, args, opts, options, auth, config } = ctx;
 
 		const profileName = config?.name ?? 'production';
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
 
 		// Search across all orgs the user has access to
 		const resources = await tui.spinner({
@@ -99,15 +103,11 @@ export const getSubcommand = createSubcommand({
 				console.log(tui.bold('Organization: ') + (bucket.org_name || bucket.org_id));
 			}
 			if (bucket.access_key) {
-				const displayAccessKey = shouldMask
-					? tui.maskSecret(bucket.access_key)
-					: bucket.access_key;
+				const displayAccessKey = shouldMask ? tui.maskSecret(bucket.access_key) : bucket.access_key;
 				console.log(tui.bold('Access Key:   ') + displayAccessKey);
 			}
 			if (bucket.secret_key) {
-				const displaySecretKey = shouldMask
-					? tui.maskSecret(bucket.secret_key)
-					: bucket.secret_key;
+				const displaySecretKey = shouldMask ? tui.maskSecret(bucket.secret_key) : bucket.secret_key;
 				console.log(tui.bold('Secret Key:   ') + displaySecretKey);
 			}
 			if (bucket.region) {

@@ -1,12 +1,12 @@
-import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import { createS3Client } from './utils';
+import { z } from 'zod';
 import { setResourceInfo } from '../../../cache';
+import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
+import { createS3Client } from './utils';
 
 const StorageListResponseSchema = z.object({
 	buckets: z
@@ -99,7 +99,13 @@ export const listSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { logger, args, opts, options, auth, config } = ctx;
 
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		const profileName = config?.name ?? 'production';
 		const resources = await tui.spinner({
