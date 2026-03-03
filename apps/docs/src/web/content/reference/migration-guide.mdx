@@ -443,11 +443,7 @@ await file.delete();
 2. Use `s3.file(path)` to create a lazy file reference
 3. `presign()` takes seconds, not milliseconds, and is synchronous
 4. File operations are methods on the file object: `file.write()`, `file.text()`, `file.delete()`
-5. Credentials are auto-injected via environment variables
-
-<Callout type="info" title="Credential Auto-Injection">
-Agentuity automatically injects S3 credentials (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_ENDPOINT`) during development and deployment.
-</Callout>
+5. Set S3 credentials via environment variables: see [Object Storage setup](/services/storage/object#setup)
 
 #### Database Support
 
