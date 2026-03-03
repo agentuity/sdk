@@ -283,7 +283,11 @@ export function StructuredError<const Tag extends string>(
 export function StructuredError<const Tag extends string>(tag: Tag, defaultMessage?: string) {
 	function createErrorClass<
 		Shape extends PlainObject = Record<string, never>,
-	>(): StructuredErrorConstructor<Tag, Shape, typeof defaultMessage extends string ? true : false> {
+	>(): StructuredErrorConstructor<
+		Tag,
+		Shape,
+		typeof defaultMessage extends string ? true : false
+	> {
 		// create a unique symbol for this tag's args storage so different factories don't clash
 		const tagArgsSym = Symbol.for(`@StructuredError:tag:${tag}`);
 

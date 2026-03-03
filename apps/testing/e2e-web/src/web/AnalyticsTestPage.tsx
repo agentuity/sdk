@@ -52,7 +52,11 @@ export function AnalyticsTestPage() {
 				`Found config with orgId: ${config.orgId || '(empty)'}`
 			);
 		} else {
-			updateResult('Analytics config injected', 'fail', 'window.__AGENTUITY_ANALYTICS__ not found');
+			updateResult(
+				'Analytics config injected',
+				'fail',
+				'window.__AGENTUITY_ANALYTICS__ not found'
+			);
 		}
 
 		// Test 2: Analytics enabled
@@ -228,7 +232,9 @@ export function AnalyticsTestPage() {
 						</span>
 						<span style={{ flex: 1 }}>{result.name}</span>
 						{result.message && (
-							<span style={{ color: '#a1a1aa', fontSize: '0.875rem' }}>{result.message}</span>
+							<span style={{ color: '#a1a1aa', fontSize: '0.875rem' }}>
+								{result.message}
+							</span>
 						)}
 					</div>
 				))}
