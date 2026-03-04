@@ -118,6 +118,9 @@ export {
 	QueueSummarySchema,
 	type QueueType,
 	QueueTypeSchema,
+	type Consumer,
+	// Consumer types
+	ConsumerSchema,
 	type Source,
 	type SourceAuthType,
 	// Source types
@@ -256,6 +259,15 @@ export {
 	SourcesListResponseSchema,
 	updateSource,
 } from './sources.ts';
+
+// ============================================================================
+// Consumer Operations
+// ============================================================================
+
+export {
+	listConsumers,
+	ConsumersListResponseSchema,
+} from './consumers.ts';
 
 // ============================================================================
 // Analytics Operations

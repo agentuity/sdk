@@ -1125,6 +1125,43 @@ export const ListDeliveryLogsRequestSchema = z.object({
 export type ListDeliveryLogsRequest = z.infer<typeof ListDeliveryLogsRequestSchema>;
 
 // ============================================================================
+// Consumer Types
+// ============================================================================
+
+/**
+ * Schema for a queue consumer (WebSocket connection).
+ *
+ * Consumers represent active or recently disconnected WebSocket connections
+ * that receive messages from a queue in real-time.
+ *
+ * @example
+ * ```typescript
+ * const consumers = await listConsumers(client, 'my-queue');
+ * for (const c of consumers) {
+ *   const status = c.disconnected_at ? 'disconnected' : 'connected';
+ *   console.log(`Consumer ${c.id}: ${status} (durable: ${c.durable})`);
+ * }
+ * ```
+ */
+export const ConsumerSchema = z.object({
+	id: z.string().describe('Unique consumer identifier (qcns_ prefix).'),
+	queue_id: z.string().describe('Queue this consumer is connected to.'),
+	client_id: z.string().nullable().optional().describe('Client-provided ID for reconnection.'),
+	durable: z.boolean().describe('Whether this consumer uses durable offset tracking.'),
+	ip_address: z.string().nullable().optional().describe('IP address of the consumer.'),
+	last_offset: z.number().nullable().optional().describe('Last processed message offset.'),
+	connected_at: z.string().describe('When the consumer connected.'),
+	disconnected_at: z.string().nullable().optional().describe('When the consumer disconnected (null if still connected).'),
+	created_at: z.string().describe('Record creation timestamp.'),
+	updated_at: z.string().describe('Record last update timestamp.'),
+}).describe('Consumer schema');
+
+/**
+ * Queue consumer type representing a WebSocket connection.
+ */
+export type Consumer = z.infer<typeof ConsumerSchema>;
+
+// ============================================================================
 // WebSocket Types
 // ============================================================================
 
