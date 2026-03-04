@@ -1059,9 +1059,11 @@ export class HubOverlay implements Component, Focusable {
 				),
 				this.fetchJson<HubTodoListResponse>(
 					`/api/hub/session/${encodeURIComponent(sessionId)}/todos?includeTerminal=true&includeSync=true&limit=200`,
-				).catch(() => null),
+				).catch((err: any) => ({ _fetchError: true, message: err?.message || 'Failed to load todos' }) as any),
 			]);
-			if (todosResponse) {
+			if (todosResponse?._fetchError) {
+				detail.todosUnavailable = todosResponse.message;
+			} else if (todosResponse) {
 				detail.todos = Array.isArray(todosResponse.todos) ? todosResponse.todos : [];
 				detail.todoSummary =
 					todosResponse.summary && typeof todosResponse.summary === 'object'

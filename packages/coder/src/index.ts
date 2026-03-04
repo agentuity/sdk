@@ -1077,6 +1077,43 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				await openHubOverlay(ctx, currentSessionId, targetSessionId);
 			},
 		});
+
+		pi.registerCommand('sync-hub-skills', {
+			description: 'Sync skills from Coder Hub to local .agents/skills/ directory',
+			handler: async (_args, ctx) => {
+				const baseUrl = getHubHttpBaseUrl(hubUrl);
+				const url = `${baseUrl}/api/hub/skills`;
+				try {
+					const resp = await fetch(url);
+					if (!resp.ok) {
+						const msg = `Hub skills fetch failed: ${resp.status} ${resp.statusText}`;
+						if (ctx.hasUI) ctx.ui.notify(msg, 'error');
+						return;
+					}
+					const data = (await resp.json()) as { ok: boolean; count: number; skills: Array<{ path: string; content: string }> };
+					if (!data.ok || !data.skills?.length) {
+						if (ctx.hasUI) ctx.ui.notify('No skills available from Hub.', 'info');
+						return;
+					}
+					const { mkdirSync, writeFileSync } = _require('node:fs') as typeof import('node:fs');
+					const { dirname, join } = _require('node:path') as typeof import('node:path');
+					const cwd = process.cwd();
+					const synced: string[] = [];
+					for (const skill of data.skills) {
+						const fullPath = join(cwd, skill.path);
+						mkdirSync(dirname(fullPath), { recursive: true });
+						writeFileSync(fullPath, skill.content, 'utf-8');
+						synced.push(skill.path);
+					}
+					const msg = `Synced ${synced.length} skill files:\n${synced.map(p => `  ${p}`).join('\n')}`;
+					if (ctx.hasUI) ctx.ui.notify(msg, 'info');
+					log(msg);
+				} catch (err: any) {
+					const msg = `Failed to sync skills: ${err?.message || err}`;
+					if (ctx.hasUI) ctx.ui.notify(msg, 'error');
+				}
+			},
+		});
 	}
 
 	// ══════════════════════════════════════════════
@@ -1366,7 +1403,6 @@ async function runSubAgent(
 	const subLoader = new DefaultResourceLoader({
 		cwd: process.cwd(),
 		noExtensions: true,
-		noSkills: true,
 		extensionFactories: hubTools.length > 0
 			? [(pi: ExtensionAPI) => {
 				for (const toolDef of hubTools) {
