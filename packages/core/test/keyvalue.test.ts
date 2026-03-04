@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { KeyValueStorageService } from '../src/services/keyvalue.ts';
+import { KeyValueStorageService } from '../src/services/keyvalue/index.ts';
 import { createMockAdapter } from '@agentuity/test-utils';
 import { ServiceException } from '../src/services/exception.ts';
 

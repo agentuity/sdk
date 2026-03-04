@@ -1,0 +1,140 @@
+import { SortDirectionSchema } from '../pagination.ts';
+import { z } from 'zod';
+import { APIResponseSchema, APIClient } from '../api.ts';
+import { OrgResourceResponseError } from './util.ts';
+
+export const OrgS3Resource = z.object({
+	bucket_name: z.string().describe('the S3 bucket name'),
+	access_key: z.string().nullable().optional().describe('the S3 access key'),
+	secret_key: z.string().nullable().optional().describe('the S3 secret key'),
+	region: z.string().nullable().optional().describe('the S3 region'),
+	endpoint: z.string().nullable().optional().describe('the S3 endpoint'),
+	cloud_region: z.string().describe('the cloud region where this resource is provisioned'),
+	org_id: z.string().describe('the organization ID that owns this resource'),
+	org_name: z.string().describe('the organization name that owns this resource'),
+	bucket_type: z.string().describe('the bucket type (user or snapshots)'),
+	internal: z.boolean().describe('whether this is a system-managed bucket'),
+	description: z.string().nullable().optional().describe('optional description of the bucket'),
+	object_count: z
+		.number()
+		.int()
+		.nonnegative()
+		.optional()
+		.describe('number of objects in this bucket'),
+	total_size: z.number().int().nonnegative().optional().describe('total size of objects in bytes'),
+	last_event_at: z.string().optional().describe('last activity timestamp (ISO8601)'),
+});
+
+export const OrgDBResource = z.object({
+	name: z.string().describe('the database name'),
+	description: z.string().nullable().optional().describe('optional description of the database'),
+	username: z.string().nullable().optional().describe('the database username'),
+	password: z.string().nullable().optional().describe('the database password'),
+	url: z.string().nullable().optional().describe('the full database connection URL'),
+	cloud_region: z.string().describe('the cloud region where this resource is provisioned'),
+	org_id: z.string().describe('the organization ID that owns this resource'),
+	org_name: z.string().describe('the organization name that owns this resource'),
+	internal: z.boolean().describe('whether this is a system-managed database (KV/Vector/Queue)'),
+});
+
+export const OrgResourceListResponse = z.object({
+	s3: z.array(OrgS3Resource),
+	db: z.array(OrgDBResource),
+});
+
+export const OrgResourceListResponseSchema = APIResponseSchema(OrgResourceListResponse);
+
+export type OrgResourceListResponse = z.infer<typeof OrgResourceListResponseSchema>;
+export type OrgResourceList = z.infer<typeof OrgResourceListResponse>;
+export type OrgS3Resource = z.infer<typeof OrgS3Resource>;
+export type OrgDBResource = z.infer<typeof OrgDBResource>;
+
+export type ResourceSortField = 'name' | 'created' | 'region';
+
+export const ResourceSortFieldSchema = z.enum(['name', 'created', 'region']);
+
+export const ListOrgResourcesOptionsSchema = z.object({
+	type: z
+		.enum(['all', 's3', 'db'])
+		.optional()
+		.describe('Optional resource type filter; defaults to all resources'),
+	name: z.string().optional().describe('Optional case-insensitive resource name filter'),
+	orgId: z.string().optional().describe('Optional org id header value for CLI token auth'),
+	limit: z.number().optional().describe('Optional maximum number of resources to return'),
+	offset: z.number().optional().describe('Optional pagination offset'),
+	sort: ResourceSortFieldSchema.optional().describe('Optional sort field'),
+	direction: SortDirectionSchema.optional().describe('Optional sort direction'),
+});
+
+export type ListOrgResourcesOptions = z.infer<typeof ListOrgResourcesOptionsSchema>;
+
+/**
+ * List all resources for the authenticated organization (across all regions)
+ *
+ * @param client - Catalyst API client (must be authenticated)
+ * @param options - Optional filters including orgId for CLI auth
+ * @returns List of S3 and DB resources with their cloud regions
+ *
+ * @example
+ * // Get all resources (SDK auth - orgId from context)
+ * const all = await listOrgResources(client);
+ *
+ * @example
+ * // Get all resources (CLI auth - orgId required)
+ * const all = await listOrgResources(client, { orgId: 'org_123' });
+ *
+ * @example
+ * // Get only S3 buckets
+ * const s3Only = await listOrgResources(client, { type: 's3', orgId: 'org_123' });
+ *
+ * @example
+ * // Get only DBs
+ * const dbsOnly = await listOrgResources(client, { type: 'db', orgId: 'org_123' });
+ */
+export async function listOrgResources(
+	client: APIClient,
+	options?: ListOrgResourcesOptions
+): Promise<OrgResourceList> {
+	const params = new URLSearchParams();
+	if (options?.type && options.type !== 'all') {
+		params.set('type', options.type);
+	}
+	if (options?.name) {
+		params.set('name', options.name);
+	}
+	if (options?.limit !== undefined) {
+		params.set('limit', options.limit.toString());
+	}
+	if (options?.offset !== undefined) {
+		params.set('offset', options.offset.toString());
+	}
+	if (options?.sort) {
+		params.set('sort', options.sort);
+	}
+	if (options?.direction) {
+		params.set('direction', options.direction);
+	}
+
+	const query = params.toString();
+	const url = `/resource${query ? `?${query}` : ''}`;
+
+	// Build headers - include orgId for CLI auth
+	const headers: Record<string, string> = {};
+	if (options?.orgId) {
+		headers['x-agentuity-orgid'] = options.orgId;
+	}
+
+	const resp = await client.request<OrgResourceListResponse>(
+		'GET',
+		url,
+		OrgResourceListResponseSchema,
+		undefined,
+		undefined,
+		undefined,
+		headers
+	);
+	if (resp.success) {
+		return resp.data;
+	}
+	throw new OrgResourceResponseError({ message: resp.message });
+}

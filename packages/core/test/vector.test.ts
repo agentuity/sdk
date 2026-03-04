@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import { VectorStorageService } from '../src/services/vector.ts';
-import type { VectorUpsertParams } from '../src/services/vector.ts';
+import { VectorStorageService } from '../src/services/vector/index.ts';
+import type { VectorUpsertParams } from '../src/services/vector/index.ts';
 import { createMockAdapter } from '@agentuity/test-utils';
 
 describe('VectorStorageService', () => {

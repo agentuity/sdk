@@ -3,7 +3,7 @@ import {
 	QueueStorageService,
 	QueueValidationError,
 	QueueNotFoundError,
-} from '../src/services/queue.ts';
+} from '../src/services/queue/service.ts';
 import { createMockAdapter } from '@agentuity/test-utils';
 import { ServiceException } from '../src/services/exception.ts';
 
