@@ -484,7 +484,23 @@ export async function* subscribeToQueue(
 		lastOffset: options.lastOffset,
 		orgId: options.orgId,
 		onMessage: push,
-		onError: (err) => finish(err),
+		onError: (err) => {
+			// Terminal errors should stop the iterator.
+			// Auth failures and max-reconnect-exceeded are terminal.
+			// Transient errors (connection drops, server shutdown) are handled
+			// by the reconnection logic in createQueueWebSocket.
+			const msg = err instanceof Error ? err.message : String(err);
+			if (
+				msg.includes('Authentication failed') ||
+				msg.includes('Exceeded maximum reconnection attempts') ||
+				msg.includes('No API key provided')
+			) {
+				finish(err);
+			} else {
+				// Buffer the error for potential later use, but don't terminate.
+				lastError = err;
+			}
+		},
 		onClose: () => {
 			// Only finish if the connection is intentionally closed (signal aborted).
 			// Otherwise, the callback-based API handles reconnection.
