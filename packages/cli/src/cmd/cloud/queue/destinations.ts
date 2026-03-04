@@ -18,6 +18,8 @@ const DestinationsListResponseSchema = z.object({
 	destinations: z.array(
 		z.object({
 			id: z.string(),
+			name: z.string(),
+			description: z.string().nullable().optional(),
 			destination_type: z.string(),
 			url: z.string(),
 			enabled: z.boolean(),
@@ -57,18 +59,21 @@ const listDestinationsSubcommand = createSubcommand({
 			} else {
 				const tableData = destinations.map((d: Destination) => ({
 					ID: d.id,
+					Name: d.name,
 					Type: d.destination_type,
 					URL: d.config.url,
 					Enabled: d.enabled ? 'Yes' : 'No',
 					Created: new Date(d.created_at).toLocaleString(),
 				}));
-				tui.table(tableData, ['ID', 'Type', 'URL', 'Enabled', 'Created']);
+				tui.table(tableData, ['ID', 'Name', 'Type', 'URL', 'Enabled', 'Created']);
 			}
 		}
 
 		return {
 			destinations: destinations.map((d: Destination) => ({
 				id: d.id,
+				name: d.name,
+				description: d.description ?? null,
 				destination_type: d.destination_type,
 				url: d.config.url,
 				enabled: d.enabled,
@@ -86,7 +91,7 @@ const createDestinationSubcommand = createSubcommand({
 	examples: [
 		{
 			command: getCommand(
-				'cloud queue destinations create my-queue --url https://example.com/webhook'
+				'cloud queue destinations create my-queue --name order-webhooks --url https://example.com/webhook'
 			),
 			description: 'Create a webhook destination',
 		},
@@ -96,6 +101,8 @@ const createDestinationSubcommand = createSubcommand({
 			queue_name: z.string().min(1).describe('Queue name'),
 		}),
 		options: z.object({
+			name: z.string().min(1).describe('Destination name'),
+			description: z.string().optional().describe('Destination description'),
 			url: z.string().url().describe('Webhook URL'),
 			method: z.string().default('POST').optional().describe('HTTP method (default: POST)'),
 			timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
@@ -112,6 +119,8 @@ const createDestinationSubcommand = createSubcommand({
 				client,
 				args.queue_name,
 				{
+					name: opts.name,
+					description: opts.description,
 					destination_type: 'http',
 					config: {
 						url: opts.url,
@@ -125,6 +134,7 @@ const createDestinationSubcommand = createSubcommand({
 
 			if (!options.json) {
 				tui.success(`Created destination: ${destination.id}`);
+				console.log(`  Name:   ${destination.name}`);
 				console.log(`  URL:    ${destination.config.url}`);
 				console.log(`  Method: ${destination.config.method}`);
 			}
@@ -149,7 +159,7 @@ const updateDestinationSubcommand = createSubcommand({
 	requires: { auth: true },
 	examples: [
 		{
-			command: getCommand('cloud queue destinations update my-queue dest_abc123 --disabled'),
+			command: getCommand('cloud queue destinations update my-queue qdest_abc123 --disabled'),
 			description: 'Disable a destination',
 		},
 	],
@@ -159,6 +169,8 @@ const updateDestinationSubcommand = createSubcommand({
 			destination_id: z.string().min(1).describe('Destination ID'),
 		}),
 		options: z.object({
+			name: z.string().min(1).optional().describe('Destination name'),
+			description: z.string().optional().describe('Destination description'),
 			url: z.string().url().optional().describe('Webhook URL'),
 			method: z.string().optional().describe('HTTP method'),
 			timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
@@ -173,9 +185,14 @@ const updateDestinationSubcommand = createSubcommand({
 		const client = await createQueueAPIClient(ctx);
 
 		const updateParams: {
+			name?: string;
+			description?: string | null;
 			config?: { url?: string; method?: string; timeout_ms?: number };
 			enabled?: boolean;
 		} = {};
+
+		if (opts.name !== undefined) updateParams.name = opts.name;
+		if (opts.description !== undefined) updateParams.description = opts.description || null;
 
 		if (opts.url || opts.method || opts.timeout !== undefined) {
 			updateParams.config = {};
@@ -202,6 +219,7 @@ const updateDestinationSubcommand = createSubcommand({
 
 		if (!options.json) {
 			tui.success(`Updated destination: ${destination.id}`);
+			console.log(`  Name:    ${destination.name}`);
 			console.log(`  URL:     ${destination.config.url}`);
 			console.log(`  Enabled: ${destination.enabled ? 'Yes' : 'No'}`);
 		}

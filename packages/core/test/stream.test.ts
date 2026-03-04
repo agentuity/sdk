@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { StreamStorageService } from '../src/services/stream.ts';
+import { StreamStorageService } from '../src/services/stream/service.ts';
 import { createMockAdapter } from '@agentuity/test-utils';
 import { ServiceException } from '../src/services/exception.ts';
 
