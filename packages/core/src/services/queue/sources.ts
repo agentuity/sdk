@@ -336,8 +336,8 @@ export async function listSourceEvents(
 	validateSourceId(sourceId);
 
 	const queryParts: string[] = [];
-	if (params?.limit) queryParts.push(`limit=${params.limit}`);
-	if (params?.offset) queryParts.push(`offset=${params.offset}`);
+	if (params?.limit !== undefined) queryParts.push(`limit=${params.limit}`);
+	if (params?.offset !== undefined) queryParts.push(`offset=${params.offset}`);
 	if (params?.status) queryParts.push(`status=${params.status}`);
 	const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
 

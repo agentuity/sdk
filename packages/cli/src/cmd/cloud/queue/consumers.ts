@@ -3,10 +3,7 @@ import { createCommand, createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createQueueAPIClient, getQueueApiOptions } from './util';
 import { getCommand } from '../../../command-prefix';
-import {
-	listConsumers,
-	type Consumer,
-} from '@agentuity/server';
+import { listConsumers, type Consumer } from '@agentuity/server';
 
 const ConsumersListResponseSchema = z.object({
 	consumers: z.array(
@@ -58,7 +55,14 @@ const listConsumersSubcommand = createSubcommand({
 					'IP Address': c.ip_address || '-',
 					'Last Offset': c.last_offset != null ? String(c.last_offset) : '-',
 				}));
-				tui.table(tableData, ['ID', 'Client ID', 'Durable', 'Connected', 'IP Address', 'Last Offset']);
+				tui.table(tableData, [
+					'ID',
+					'Client ID',
+					'Durable',
+					'Connected',
+					'IP Address',
+					'Last Offset',
+				]);
 			}
 		}
 
@@ -87,9 +91,7 @@ export const consumersSubcommand = createCommand({
 			description: 'List consumers',
 		},
 	],
-	subcommands: [
-		listConsumersSubcommand,
-	],
+	subcommands: [listConsumersSubcommand],
 });
 
 export default consumersSubcommand;

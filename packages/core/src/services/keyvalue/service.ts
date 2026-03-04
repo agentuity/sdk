@@ -1,6 +1,6 @@
 import { FetchAdapter } from '../adapter.ts';
 import { buildUrl, toServiceException, toPayload } from '../_util.ts';
-import { ListParamsSchema, SortDirectionSchema, type SortDirection } from '../pagination.ts';
+import { ListParamsSchema, SortDirectionSchema } from '../pagination.ts';
 import { z } from 'zod';
 
 /**
@@ -23,25 +23,25 @@ export const KV_DEFAULT_TTL_SECONDS = 604800;
  */
 export const DataResultFoundSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
 	z.object({
-	/**
-	 * the data from the result of the operation
-	 */
+		/**
+		 * the data from the result of the operation
+		 */
 		data: dataSchema.describe('the data from the result of the operation'),
 
-	/**
-	 * the content type of the data
-	 */
+		/**
+		 * the content type of the data
+		 */
 		contentType: z.string().describe('the content type of the data'),
 
-	/**
-	 * the data was found
-	 */
+		/**
+		 * the data was found
+		 */
 		exists: z.literal(true).describe('the data was found'),
 
-	/**
-	 * the expiration time of the data as an ISO 8601 timestamp.
-	 * undefined if the key does not expire.
-	 */
+		/**
+		 * the expiration time of the data as an ISO 8601 timestamp.
+		 * undefined if the key does not expire.
+		 */
 		expiresAt: z
 			.string()
 			.optional()
@@ -94,7 +94,13 @@ export const KeyValueStorageSetParamsSchema = z.object({
 	 * TTL values below 60 seconds are clamped to 60 seconds by the server.
 	 * TTL values above 7,776,000 seconds (90 days) are clamped to 90 days.
 	 */
-	ttl: z.number().nullable().optional().describe('Time-to-live in seconds for the key. Controls when the key expires and is automatically deleted.'),
+	ttl: z
+		.number()
+		.nullable()
+		.optional()
+		.describe(
+			'Time-to-live in seconds for the key. Controls when the key expires and is automatically deleted.'
+		),
 	/**
 	 * the content type of the value
 	 */
@@ -117,7 +123,10 @@ export const CreateNamespaceParamsSchema = z.object({
 	 * Active keys are automatically extended (sliding expiration) when read
 	 * if their remaining TTL is less than 50% of the original TTL.
 	 */
-	defaultTTLSeconds: z.number().optional().describe('Default TTL for keys in this namespace (in seconds).'),
+	defaultTTLSeconds: z
+		.number()
+		.optional()
+		.describe('Default TTL for keys in this namespace (in seconds).'),
 });
 
 export type CreateNamespaceParams = z.infer<typeof CreateNamespaceParamsSchema>;
@@ -128,8 +137,14 @@ export type CreateNamespaceParams = z.infer<typeof CreateNamespaceParamsSchema>;
 export const KeyValueStatsSchema = z.object({
 	sum: z.number().describe('Total size in bytes for the namespace.'),
 	count: z.number().describe('Number of records in the namespace.'),
-	createdAt: z.number().optional().describe('Unix timestamp (milliseconds) when the namespace was created.'),
-	lastUsedAt: z.number().optional().describe('Unix timestamp (milliseconds) when the namespace was last used.'),
+	createdAt: z
+		.number()
+		.optional()
+		.describe('Unix timestamp (milliseconds) when the namespace was created.'),
+	lastUsedAt: z
+		.number()
+		.optional()
+		.describe('Unix timestamp (milliseconds) when the namespace was last used.'),
 });
 
 export type KeyValueStats = z.infer<typeof KeyValueStatsSchema>;
@@ -141,7 +156,10 @@ export const KeyValueItemWithMetadataSchema = <T extends z.ZodTypeAny>(valueSche
 	z.object({
 		value: valueSchema.describe('Stored value for this key.'),
 		contentType: z.string().describe('Content type of the stored value.'),
-		contentEncoding: z.string().nullish().describe('Optional content encoding for the stored value.'),
+		contentEncoding: z
+			.string()
+			.nullish()
+			.describe('Optional content encoding for the stored value.'),
 		size: z.number().describe('Size in bytes for the stored value.'),
 		expiresAt: z
 			.string()
@@ -183,8 +201,14 @@ export const GetAllStatsParamsSchema = ListParamsSchema(KVSortFieldSchema).exten
 	projectName: z.string().optional().describe('Filter by project name'),
 	agentName: z.string().optional().describe('Filter by agent name'),
 	// re-describe inherited fields to preserve this file's docs
-	limit: z.number().optional().describe('Maximum number of namespaces to return (default: 100, max: 1000)'),
-	offset: z.number().optional().describe('Number of namespaces to skip for pagination (default: 0)'),
+	limit: z
+		.number()
+		.optional()
+		.describe('Maximum number of namespaces to return (default: 100, max: 1000)'),
+	offset: z
+		.number()
+		.optional()
+		.describe('Number of namespaces to skip for pagination (default: 0)'),
 	sort: KVSortFieldSchema.optional().describe('Field to sort by'),
 	direction: SortDirectionSchema.optional().describe("Sort direction (default: 'desc')"),
 });

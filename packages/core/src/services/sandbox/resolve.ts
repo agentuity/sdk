@@ -5,14 +5,19 @@ import { type APIClient, APIResponseSchemaOptionalData } from '../api.ts';
 /**
  * Data schema for sandbox resolve endpoint
  */
-export const SandboxResolveDataSchema = z.object({
-	id: z.string().describe('Unique identifier for the sandbox.'),
-	name: z.string().nullable().describe('Sandbox name, or null if unnamed.'),
-	region: z.string().describe('Cloud region where the sandbox is running.'),
-	status: z.string().describe('Current status of the sandbox.'),
-	orgId: z.string().describe('Organization ID that owns the sandbox.'),
-	projectId: z.string().nullable().describe('Project ID the sandbox belongs to, or null if unassigned.'),
-}).describe('Resolved sandbox information from cross-organization lookup.');
+export const SandboxResolveDataSchema = z
+	.object({
+		id: z.string().describe('Unique identifier for the sandbox.'),
+		name: z.string().nullable().describe('Sandbox name, or null if unnamed.'),
+		region: z.string().describe('Cloud region where the sandbox is running.'),
+		status: z.string().describe('Current status of the sandbox.'),
+		orgId: z.string().describe('Organization ID that owns the sandbox.'),
+		projectId: z
+			.string()
+			.nullable()
+			.describe('Project ID the sandbox belongs to, or null if unassigned.'),
+	})
+	.describe('Resolved sandbox information from cross-organization lookup.');
 
 /**
  * Response schema for sandbox resolve endpoint using standardized discriminated union

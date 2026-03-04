@@ -49,7 +49,7 @@ export const ScheduleSchema = z.object({
 	 * @remarks Validated on creation and update by the server.
 	 * Supports standard five-field cron syntax including step values (e.g., every 5 minutes).
 	 */
-	expression: z.string().describe('A cron expression defining the schedule\'s firing interval'),
+	expression: z.string().describe("A cron expression defining the schedule's firing interval"),
 
 	/**
 	 * ISO 8601 timestamp of the next scheduled execution.
@@ -98,7 +98,11 @@ export const ScheduleDestinationSchema = z.object({
 	/**
 	 * The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution.
 	 */
-	type: z.enum(['url', 'sandbox']).describe("The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution."),
+	type: z
+		.enum(['url', 'sandbox'])
+		.describe(
+			"The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution."
+		),
 
 	/**
 	 * Type-specific destination configuration.
@@ -140,12 +144,18 @@ export const ScheduleDeliverySchema = z.object({
 	/**
 	 * The ID of the destination this delivery was sent to.
 	 */
-	schedule_destination_id: z.string().describe('The ID of the destination this delivery was sent to.'),
+	schedule_destination_id: z
+		.string()
+		.describe('The ID of the destination this delivery was sent to.'),
 
 	/**
 	 * Delivery status: `'pending'` (queued), `'success'` (delivered), or `'failed'` (delivery error).
 	 */
-	status: z.enum(['pending', 'success', 'failed']).describe("Delivery status: `'pending'` (queued), `'success'` (delivered), or `'failed'` (delivery error)."),
+	status: z
+		.enum(['pending', 'success', 'failed'])
+		.describe(
+			"Delivery status: `'pending'` (queued), `'success'` (delivered), or `'failed'` (delivery error)."
+		),
 
 	/**
 	 * Number of retry attempts made for this delivery.
@@ -155,7 +165,10 @@ export const ScheduleDeliverySchema = z.object({
 	/**
 	 * Error message if the delivery failed, `null` on success.
 	 */
-	error: z.string().nullable().describe('Error message if the delivery failed, `null` on success.'),
+	error: z
+		.string()
+		.nullable()
+		.describe('Error message if the delivery failed, `null` on success.'),
 
 	/**
 	 * The response received from the destination, or `null` if no response.
@@ -212,7 +225,11 @@ export const CreateScheduleDestinationParamsSchema = z.object({
 	/**
 	 * The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution.
 	 */
-	type: z.enum(['url', 'sandbox']).describe("The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution."),
+	type: z
+		.enum(['url', 'sandbox'])
+		.describe(
+			"The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution."
+		),
 
 	/**
 	 * Type-specific destination configuration.

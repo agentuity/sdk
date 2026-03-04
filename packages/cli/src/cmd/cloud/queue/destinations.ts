@@ -15,17 +15,17 @@ import {
 } from '@agentuity/server';
 
 const DestinationsListResponseSchema = z.object({
-		destinations: z.array(
-			z.object({
-				id: z.string(),
-				name: z.string(),
-				description: z.string().nullable().optional(),
-				destination_type: z.string(),
-				url: z.string(),
-				enabled: z.boolean(),
-				created_at: z.string(),
-			})
-		),
+	destinations: z.array(
+		z.object({
+			id: z.string(),
+			name: z.string(),
+			description: z.string().nullable().optional(),
+			destination_type: z.string(),
+			url: z.string(),
+			enabled: z.boolean(),
+			created_at: z.string(),
+		})
+	),
 });
 
 const listDestinationsSubcommand = createSubcommand({
@@ -100,13 +100,13 @@ const createDestinationSubcommand = createSubcommand({
 		args: z.object({
 			queue_name: z.string().min(1).describe('Queue name'),
 		}),
-	options: z.object({
-		name: z.string().min(1).describe('Destination name'),
-		description: z.string().optional().describe('Destination description'),
-		url: z.string().url().describe('Webhook URL'),
-		method: z.string().default('POST').optional().describe('HTTP method (default: POST)'),
-		timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
-	}),
+		options: z.object({
+			name: z.string().min(1).describe('Destination name'),
+			description: z.string().optional().describe('Destination description'),
+			url: z.string().url().describe('Webhook URL'),
+			method: z.string().default('POST').optional().describe('HTTP method (default: POST)'),
+			timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
+		}),
 		response: DestinationSchema,
 	},
 
@@ -115,22 +115,22 @@ const createDestinationSubcommand = createSubcommand({
 		const client = await createQueueAPIClient(ctx);
 
 		try {
-		const destination = await createDestination(
-			client,
-			args.queue_name,
-			{
-				name: opts.name,
-				description: opts.description,
-				destination_type: 'http',
-				config: {
-					url: opts.url,
-					method: opts.method || 'POST',
-					timeout_ms: opts.timeout ?? 30000,
+			const destination = await createDestination(
+				client,
+				args.queue_name,
+				{
+					name: opts.name,
+					description: opts.description,
+					destination_type: 'http',
+					config: {
+						url: opts.url,
+						method: opts.method || 'POST',
+						timeout_ms: opts.timeout ?? 30000,
+					},
+					enabled: true,
 				},
-				enabled: true,
-			},
-			getQueueApiOptions(ctx)
-		);
+				getQueueApiOptions(ctx)
+			);
 
 			if (!options.json) {
 				tui.success(`Created destination: ${destination.id}`);
@@ -168,15 +168,15 @@ const updateDestinationSubcommand = createSubcommand({
 			queue_name: z.string().min(1).describe('Queue name'),
 			destination_id: z.string().min(1).describe('Destination ID'),
 		}),
-	options: z.object({
-		name: z.string().optional().describe('Destination name'),
-		description: z.string().optional().describe('Destination description'),
-		url: z.string().url().optional().describe('Webhook URL'),
-		method: z.string().optional().describe('HTTP method'),
-		timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
-		enabled: z.boolean().optional().describe('Enable the destination'),
-		disabled: z.boolean().optional().describe('Disable the destination'),
-	}),
+		options: z.object({
+			name: z.string().optional().describe('Destination name'),
+			description: z.string().optional().describe('Destination description'),
+			url: z.string().url().optional().describe('Webhook URL'),
+			method: z.string().optional().describe('HTTP method'),
+			timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
+			enabled: z.boolean().optional().describe('Enable the destination'),
+			disabled: z.boolean().optional().describe('Disable the destination'),
+		}),
 		response: DestinationSchema,
 	},
 

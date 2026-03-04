@@ -50,19 +50,13 @@ export const QueuePublishParamsSchema = z.object({
 	 * Optional partition key for message ordering.
 	 * Messages with the same partition key are guaranteed to be processed in order.
 	 */
-	partitionKey: z
-		.string()
-		.optional()
-		.describe('Optional partition key for message ordering.'),
+	partitionKey: z.string().optional().describe('Optional partition key for message ordering.'),
 
 	/**
 	 * Optional idempotency key for deduplication.
 	 * If a message with the same key was recently published, it will be deduplicated.
 	 */
-	idempotencyKey: z
-		.string()
-		.optional()
-		.describe('Optional idempotency key for deduplication.'),
+	idempotencyKey: z.string().optional().describe('Optional idempotency key for deduplication.'),
 
 	/**
 	 * Optional time-to-live in seconds.
@@ -153,24 +147,28 @@ export const QueueCreateParamsSchema = z.object({
 	 */
 	settings: z
 		.object({
-		/** Default time-to-live for messages in seconds. Null means no expiration. */
-			defaultTtlSeconds: z.number().nullable().optional().describe('Default time-to-live for messages in seconds. Null means no expiration.'),
-		/** Time in seconds a message is invisible after being received. */
+			/** Default time-to-live for messages in seconds. Null means no expiration. */
+			defaultTtlSeconds: z
+				.number()
+				.nullable()
+				.optional()
+				.describe('Default time-to-live for messages in seconds. Null means no expiration.'),
+			/** Time in seconds a message is invisible after being received. */
 			defaultVisibilityTimeoutSeconds: z
 				.number()
 				.optional()
 				.describe('Time in seconds a message is invisible after being received.'),
-		/** Maximum number of delivery attempts before moving to DLQ. */
+			/** Maximum number of delivery attempts before moving to DLQ. */
 			defaultMaxRetries: z
 				.number()
 				.optional()
 				.describe('Maximum number of delivery attempts before moving to DLQ.'),
-		/** Maximum number of messages a single client can process concurrently. */
+			/** Maximum number of messages a single client can process concurrently. */
 			maxInFlightPerClient: z
 				.number()
 				.optional()
 				.describe('Maximum number of messages a single client can process concurrently.'),
-		/** Retention period for acknowledged messages in seconds. */
+			/** Retention period for acknowledged messages in seconds. */
 			retentionSeconds: z
 				.number()
 				.optional()

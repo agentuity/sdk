@@ -160,14 +160,20 @@ export const SandboxInfoDataSchema = z
 		timeout: z
 			.object({
 				idle: z.string().optional().describe('Idle timeout duration (e.g., "5m", "1h").'),
-				execution: z.string().optional().describe('Execution timeout duration (e.g., "30m", "2h").'),
+				execution: z
+					.string()
+					.optional()
+					.describe('Execution timeout duration (e.g., "30m", "2h").'),
 			})
 			.optional()
 			.describe('Timeout configuration for the sandbox.'),
 		command: z
 			.object({
 				exec: z.array(z.string()).describe('Command and arguments to execute.'),
-				mode: z.enum(['oneshot', 'interactive']).optional().describe('Execution mode for the command.'),
+				mode: z
+					.enum(['oneshot', 'interactive'])
+					.optional()
+					.describe('Execution mode for the command.'),
 			})
 			.optional()
 			.describe('Command configuration for the sandbox.'),

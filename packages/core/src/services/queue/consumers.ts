@@ -1,10 +1,6 @@
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api.ts';
-import {
-	type Consumer,
-	ConsumerSchema,
-	type QueueApiOptions,
-} from './types.ts';
+import { type Consumer, ConsumerSchema, type QueueApiOptions } from './types.ts';
 import { buildQueueHeaders, QueueError, queueApiPath, withQueueErrorHandling } from './util.ts';
 import { validateQueueName } from './validation.ts';
 

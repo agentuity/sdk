@@ -45,7 +45,10 @@ export const EmailAddressSchema = z.object({
 	/**
 	 * ISO 8601 timestamp when the address was last updated.
 	 */
-	updated_at: z.string().optional().describe('ISO 8601 timestamp when the address was last updated.'),
+	updated_at: z
+		.string()
+		.optional()
+		.describe('ISO 8601 timestamp when the address was last updated.'),
 
 	/**
 	 * Total number of inbound emails received at this address.
@@ -397,10 +400,7 @@ export const EmailSendParamsSchema = z.object({
 	/**
 	 * File attachments
 	 */
-	attachments: z
-		.array(EmailAttachmentSchema)
-		.optional()
-		.describe('File attachments'),
+	attachments: z.array(EmailAttachmentSchema).optional().describe('File attachments'),
 
 	/**
 	 * Custom email headers (e.g., In-Reply-To, References for threading)
@@ -424,12 +424,7 @@ export const EmailActivityParamsSchema = z.object({
 	 *
 	 * @default 7
 	 */
-	days: z
-		.number()
-		.min(7)
-		.max(365)
-		.optional()
-		.describe('Number of days of activity to retrieve.'), // min 7, max 365, default 7
+	days: z.number().min(7).max(365).optional().describe('Number of days of activity to retrieve.'), // min 7, max 365, default 7
 });
 
 export type EmailActivityParams = z.infer<typeof EmailActivityParamsSchema>;

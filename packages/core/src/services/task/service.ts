@@ -64,7 +64,9 @@ export type UserType = z.infer<typeof UserTypeSchema>;
  * to distinguish between human users and AI agents.
  */
 export const UserEntityRefSchema = EntityRefSchema.extend({
-	type: UserTypeSchema.optional().describe("The type of user. Defaults to `'human'` if not specified."),
+	type: UserTypeSchema.optional().describe(
+		"The type of user. Defaults to `'human'` if not specified."
+	),
 });
 
 export type UserEntityRef = z.infer<typeof UserEntityRefSchema>;
@@ -92,10 +94,16 @@ export const TaskSchema = z.object({
 		.optional()
 		.describe('Arbitrary key-value metadata attached to the task.'),
 	priority: TaskPrioritySchema.describe('The priority level of the task.'),
-	parent_id: z.string().optional().describe('ID of the parent task, enabling hierarchical task organization'),
+	parent_id: z
+		.string()
+		.optional()
+		.describe('ID of the parent task, enabling hierarchical task organization'),
 	type: TaskTypeSchema.describe('The classification of this task.'),
 	status: TaskStatusSchema.describe('The current lifecycle status of the task.'),
-	open_date: z.string().optional().describe("ISO 8601 timestamp when the task was moved to `'open'` status."),
+	open_date: z
+		.string()
+		.optional()
+		.describe("ISO 8601 timestamp when the task was moved to `'open'` status."),
 	in_progress_date: z
 		.string()
 		.optional()
@@ -104,15 +112,27 @@ export const TaskSchema = z.object({
 	created_id: z.string().describe('ID of the user who created the task.'),
 	assigned_id: z.string().optional().describe('ID of the user the task is assigned to.'),
 	closed_id: z.string().optional().describe('ID of the user who closed the task.'),
-	creator: z.lazy(() => UserEntityRefSchema).optional().describe('Reference to the user who created the task.'),
+	creator: z
+		.lazy(() => UserEntityRefSchema)
+		.optional()
+		.describe('Reference to the user who created the task.'),
 	assignee: z
 		.lazy(() => UserEntityRefSchema)
 		.optional()
 		.describe('Reference to the user the task is assigned to.'),
-	closer: z.lazy(() => UserEntityRefSchema).optional().describe('Reference to the user who closed the task.'),
+	closer: z
+		.lazy(() => UserEntityRefSchema)
+		.optional()
+		.describe('Reference to the user who closed the task.'),
 	project: EntityRefSchema.optional().describe('Reference to the project this task belongs to.'),
-	cancelled_date: z.string().optional().describe('ISO 8601 timestamp when the task was cancelled.'),
-	tags: z.lazy(() => z.array(TagSchema)).optional().describe('Array of tags associated with this task.'),
+	cancelled_date: z
+		.string()
+		.optional()
+		.describe('ISO 8601 timestamp when the task was cancelled.'),
+	tags: z
+		.lazy(() => z.array(TagSchema))
+		.optional()
+		.describe('Array of tags associated with this task.'),
 	comments: z
 		.lazy(() => z.array(CommentSchema))
 		.optional()
@@ -130,7 +150,9 @@ export const CommentSchema = z.object({
 	updated_at: z.string().describe('ISO 8601 timestamp when the comment was last edited.'),
 	task_id: z.string().describe('ID of the task this comment belongs to.'),
 	user_id: z.string().describe('ID of the user who authored the comment.'),
-	author: UserEntityRefSchema.optional().describe('Reference to the comment author with display name.'),
+	author: UserEntityRefSchema.optional().describe(
+		'Reference to the comment author with display name.'
+	),
 	body: z.string().describe('The comment text content.'),
 });
 
@@ -159,11 +181,15 @@ export const TaskChangelogEntrySchema = z.object({
 	old_value: z
 		.string()
 		.optional()
-		.describe('The previous value of the field (as a string), or `undefined` if the field was newly set.'),
+		.describe(
+			'The previous value of the field (as a string), or `undefined` if the field was newly set.'
+		),
 	new_value: z
 		.string()
 		.optional()
-		.describe('The new value of the field (as a string), or `undefined` if the field was cleared.'),
+		.describe(
+			'The new value of the field (as a string), or `undefined` if the field was cleared.'
+		),
 });
 
 export type TaskChangelogEntry = z.infer<typeof TaskChangelogEntrySchema>;
@@ -194,10 +220,15 @@ export const CreateTaskParamsSchema = z.object({
 	 *
 	 * @default 'none'
 	 */
-	priority: TaskPrioritySchema.optional().describe("Priority level. Defaults to `'none'` if not provided."),
+	priority: TaskPrioritySchema.optional().describe(
+		"Priority level. Defaults to `'none'` if not provided."
+	),
 
 	/** ID of the parent task for hierarchical organization. */
-	parent_id: z.string().optional().describe('ID of the parent task for hierarchical organization.'),
+	parent_id: z
+		.string()
+		.optional()
+		.describe('ID of the parent task for hierarchical organization.'),
 
 	/** The task classification (required). */
 	type: TaskTypeSchema.describe('The task classification (required).'),
@@ -207,7 +238,9 @@ export const CreateTaskParamsSchema = z.object({
 	 *
 	 * @default 'open'
 	 */
-	status: TaskStatusSchema.optional().describe("Initial status. Defaults to `'open'` if not provided."),
+	status: TaskStatusSchema.optional().describe(
+		"Initial status. Defaults to `'open'` if not provided."
+	),
 
 	/**
 	 * ID of the creator.
@@ -224,16 +257,23 @@ export const CreateTaskParamsSchema = z.object({
 	assigned_id: z.string().optional().describe('ID of the assigned user.'),
 
 	/** Reference to the user creating the task (id, name, and optional type). */
-	creator: UserEntityRefSchema.optional().describe('Reference to the user creating the task (id, name, and optional type).'),
+	creator: UserEntityRefSchema.optional().describe(
+		'Reference to the user creating the task (id, name, and optional type).'
+	),
 
 	/** Reference to the user being assigned the task. */
-	assignee: UserEntityRefSchema.optional().describe('Reference to the user being assigned the task.'),
+	assignee: UserEntityRefSchema.optional().describe(
+		'Reference to the user being assigned the task.'
+	),
 
 	/** Reference to the project this task belongs to. */
 	project: EntityRefSchema.optional().describe('Reference to the project this task belongs to.'),
 
 	/** Array of tag IDs to associate with the task at creation. */
-	tag_ids: z.array(z.string()).optional().describe('Array of tag IDs to associate with the task at creation.'),
+	tag_ids: z
+		.array(z.string())
+		.optional()
+		.describe('Array of tag IDs to associate with the task at creation.'),
 });
 
 export type CreateTaskParams = z.infer<typeof CreateTaskParamsSchema>;
@@ -288,7 +328,9 @@ export const UpdateTaskParamsSchema = z.object({
 	closed_id: z.string().optional().describe('ID of the user closing the task.'),
 
 	/** Reference to the user being assigned the task. */
-	assignee: UserEntityRefSchema.optional().describe('Reference to the user being assigned the task.'),
+	assignee: UserEntityRefSchema.optional().describe(
+		'Reference to the user being assigned the task.'
+	),
 
 	/** Reference to the user closing the task. */
 	closer: UserEntityRefSchema.optional().describe('Reference to the user closing the task.'),
@@ -508,7 +550,9 @@ export type CreateAttachmentParams = z.infer<typeof CreateAttachmentParamsSchema
  */
 export const PresignUploadResponseSchema = z.object({
 	attachment: AttachmentSchema.describe('The created attachment record.'),
-	presigned_url: z.string().describe('A presigned S3 URL to upload the file content via HTTP PUT.'),
+	presigned_url: z
+		.string()
+		.describe('A presigned S3 URL to upload the file content via HTTP PUT.'),
 	expiry_seconds: z.number().describe('Number of seconds until the presigned URL expires.'),
 });
 
@@ -541,7 +585,9 @@ export type ListAttachmentsResult = z.infer<typeof ListAttachmentsResultSchema>;
  * List of all users who have been referenced in tasks (as creators, assignees, or closers).
  */
 export const ListUsersResultSchema = z.object({
-	users: z.array(UserEntityRefSchema).describe('Array of user entity references with type information.'),
+	users: z
+		.array(UserEntityRefSchema)
+		.describe('Array of user entity references with type information.'),
 });
 
 export type ListUsersResult = z.infer<typeof ListUsersResultSchema>;

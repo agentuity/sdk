@@ -111,7 +111,10 @@ export const QueueWebSocketOptionsSchema = z.object({
 		.number()
 		.optional()
 		.describe('Optional last processed offset used to resume stream consumption'),
-	orgId: z.string().optional().describe('Optional org id for API keys requiring explicit org scope'),
+	orgId: z
+		.string()
+		.optional()
+		.describe('Optional org id for API keys requiring explicit org scope'),
 });
 
 export type QueueWebSocketOptions = z.infer<typeof QueueWebSocketOptionsSchema>;
@@ -142,7 +145,10 @@ export const SubscribeToQueueOptionsSchema = z.object({
 		.number()
 		.optional()
 		.describe('Optional last processed offset used to resume stream consumption'),
-	orgId: z.string().optional().describe('Optional org id for API keys requiring explicit org scope'),
+	orgId: z
+		.string()
+		.optional()
+		.describe('Optional org id for API keys requiring explicit org scope'),
 });
 
 export type SubscribeToQueueOptions = z.infer<typeof SubscribeToQueueOptionsSchema>;
@@ -497,8 +503,9 @@ export async function* subscribeToQueue(
 			) {
 				finish(err);
 			} else {
-				// Buffer the error for potential later use, but don't terminate.
-				lastError = err;
+				// Transient error — don't store it; the reconnection logic in
+				// createQueueWebSocket will handle retry.  Storing it would cause
+				// it to be thrown on clean shutdown / abort.
 			}
 		},
 		onClose: () => {

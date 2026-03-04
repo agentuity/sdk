@@ -222,18 +222,30 @@ export type SandboxCommand = z.infer<typeof SandboxCommandSchema>;
 /** Network configuration for sandbox */
 export const SandboxNetworkConfigSchema = z.object({
 	/** Whether to enable outbound network access (default: false) */
-	enabled: z.boolean().optional().describe('Whether to enable outbound network access (default: false)'),
+	enabled: z
+		.boolean()
+		.optional()
+		.describe('Whether to enable outbound network access (default: false)'),
 	/** Port to expose from the sandbox to the outside Internet (1024-65535) */
-	port: z.number().optional().describe('Port to expose from the sandbox to the outside Internet (1024-65535)'),
+	port: z
+		.number()
+		.optional()
+		.describe('Port to expose from the sandbox to the outside Internet (1024-65535)'),
 });
 export type SandboxNetworkConfig = z.infer<typeof SandboxNetworkConfigSchema>;
 
 /** Timeout configuration for sandbox */
 export const SandboxTimeoutConfigSchema = z.object({
 	/** Idle timeout before sandbox is reaped (e.g., "10m", "1h") */
-	idle: z.string().optional().describe('Idle timeout before sandbox is reaped (e.g., "10m", "1h")'),
+	idle: z
+		.string()
+		.optional()
+		.describe('Idle timeout before sandbox is reaped (e.g., "10m", "1h")'),
 	/** Maximum execution time per command (e.g., "5m", "1h") */
-	execution: z.string().optional().describe('Maximum execution time per command (e.g., "5m", "1h")'),
+	execution: z
+		.string()
+		.optional()
+		.describe('Maximum execution time per command (e.g., "5m", "1h")'),
 });
 export type SandboxTimeoutConfig = z.infer<typeof SandboxTimeoutConfigSchema>;
 
@@ -264,13 +276,25 @@ export const SandboxCreateOptionsSchema = z.object({
 		'Command to execute (if provided, creates a sandbox with initial execution)'
 	),
 	/** Files to write to the sandbox workspace on creation. */
-	files: z.array(FileToWriteSchema).optional().describe('Files to write to the sandbox workspace on creation.'),
+	files: z
+		.array(FileToWriteSchema)
+		.optional()
+		.describe('Files to write to the sandbox workspace on creation.'),
 	/** Snapshot ID or tag to restore from when creating the sandbox. */
-	snapshot: z.string().optional().describe('Snapshot ID or tag to restore from when creating the sandbox.'),
+	snapshot: z
+		.string()
+		.optional()
+		.describe('Snapshot ID or tag to restore from when creating the sandbox.'),
 	/** Apt packages to install when creating the sandbox. */
-	dependencies: z.array(z.string()).optional().describe('Apt packages to install when creating the sandbox.'),
+	dependencies: z
+		.array(z.string())
+		.optional()
+		.describe('Apt packages to install when creating the sandbox.'),
 	/** npm/bun packages to install globally when creating the sandbox. */
-	packages: z.array(z.string()).optional().describe('npm/bun packages to install globally when creating the sandbox.'),
+	packages: z
+		.array(z.string())
+		.optional()
+		.describe('npm/bun packages to install globally when creating the sandbox.'),
 	/** Optional user-defined metadata to associate with the sandbox. */
 	metadata: z
 		.record(z.string(), z.unknown())
@@ -305,9 +329,13 @@ export const SandboxSchema = z.object({
 		.optional()
 		.describe('Stream ID for the audit event stream (eBPF/Tetragon security events).'),
 	/** Execute a command in the sandbox */
-	execute: z.custom<(options: ExecuteOptions) => Promise<Execution>>().describe('Execute a command in the sandbox'),
+	execute: z
+		.custom<(options: ExecuteOptions) => Promise<Execution>>()
+		.describe('Execute a command in the sandbox'),
 	/** Write files to the sandbox workspace. */
-	writeFiles: z.custom<(files: FileToWrite[]) => Promise<void>>().describe('Write files to the sandbox workspace.'),
+	writeFiles: z
+		.custom<(files: FileToWrite[]) => Promise<void>>()
+		.describe('Write files to the sandbox workspace.'),
 	/** Read a file from the sandbox workspace. */
 	readFile: z
 		.custom<(path: string) => Promise<ReadableStream<Uint8Array>>>()
@@ -383,7 +411,9 @@ export const SandboxInfoSchema = z.object({
 	exitCode: z
 		.number()
 		.optional()
-		.describe('Exit code from the last execution (only available for terminated/failed sandboxes)'),
+		.describe(
+			'Exit code from the last execution (only available for terminated/failed sandboxes)'
+		),
 	/** URL to the stdout output stream */
 	stdoutStreamUrl: z.string().optional().describe('URL to the stdout output stream'),
 	/** URL to the stderr output stream */
@@ -401,7 +431,10 @@ export const SandboxInfoSchema = z.object({
 	/** Apt packages installed in the sandbox */
 	dependencies: z.array(z.string()).optional().describe('Apt packages installed in the sandbox'),
 	/** npm/bun packages installed globally in the sandbox */
-	packages: z.array(z.string()).optional().describe('npm/bun packages installed globally in the sandbox'),
+	packages: z
+		.array(z.string())
+		.optional()
+		.describe('npm/bun packages installed globally in the sandbox'),
 	/** User-defined metadata associated with the sandbox */
 	metadata: z
 		.record(z.string(), z.unknown())
@@ -410,23 +443,45 @@ export const SandboxInfoSchema = z.object({
 	/** Resource limits for this sandbox */
 	resources: SandboxResourcesSchema.optional().describe('Resource limits for this sandbox'),
 	/** Total CPU time consumed in milliseconds (available when terminated) */
-	cpuTimeMs: z.number().optional().describe('Total CPU time consumed in milliseconds (available when terminated)'),
+	cpuTimeMs: z
+		.number()
+		.optional()
+		.describe('Total CPU time consumed in milliseconds (available when terminated)'),
 	/** Total memory usage in byte-seconds (available when terminated) */
-	memoryByteSec: z.number().optional().describe('Total memory usage in byte-seconds (available when terminated)'),
+	memoryByteSec: z
+		.number()
+		.optional()
+		.describe('Total memory usage in byte-seconds (available when terminated)'),
 	/** Total network egress in bytes (available when terminated) */
-	networkEgressBytes: z.number().optional().describe('Total network egress in bytes (available when terminated)'),
+	networkEgressBytes: z
+		.number()
+		.optional()
+		.describe('Total network egress in bytes (available when terminated)'),
 	/** Whether network access is enabled for this sandbox */
-	networkEnabled: z.boolean().optional().describe('Whether network access is enabled for this sandbox'),
+	networkEnabled: z
+		.boolean()
+		.optional()
+		.describe('Whether network access is enabled for this sandbox'),
 	/** Network port exposed from the sandbox (1024-65535) */
-	networkPort: z.number().optional().describe('Network port exposed from the sandbox (1024-65535)'),
+	networkPort: z
+		.number()
+		.optional()
+		.describe('Network port exposed from the sandbox (1024-65535)'),
 	/** Public URL for the sandbox (only set if networkPort is configured) */
-	url: z.string().optional().describe('Public URL for the sandbox (only set if networkPort is configured)'),
+	url: z
+		.string()
+		.optional()
+		.describe('Public URL for the sandbox (only set if networkPort is configured)'),
 	/** User who created the sandbox (if available) */
 	user: SandboxUserInfoSchema.optional().describe('User who created the sandbox (if available)'),
 	/** Agent associated with the sandbox (if available) */
-	agent: SandboxAgentInfoSchema.optional().describe('Agent associated with the sandbox (if available)'),
+	agent: SandboxAgentInfoSchema.optional().describe(
+		'Agent associated with the sandbox (if available)'
+	),
 	/** Project associated with the sandbox (if available) */
-	project: SandboxProjectInfoSchema.optional().describe('Project associated with the sandbox (if available)'),
+	project: SandboxProjectInfoSchema.optional().describe(
+		'Project associated with the sandbox (if available)'
+	),
 	/** Organization associated with the sandbox */
 	org: SandboxOrgInfoSchema.describe('Organization associated with the sandbox'),
 	/** Timeout configuration for this sandbox */
@@ -513,7 +568,10 @@ export const ExecuteOptionsSchema = z.object({
 	/** Command and arguments to execute */
 	command: z.array(z.string()).describe('Command and arguments to execute'),
 	/** Files to create/update before execution. */
-	files: z.array(FileToWriteSchema).optional().describe('Files to create/update before execution.'),
+	files: z
+		.array(FileToWriteSchema)
+		.optional()
+		.describe('Files to create/update before execution.'),
 	/** Execution timeout (e.g., "5m") */
 	timeout: z.string().optional().describe('Execution timeout (e.g., "5m")'),
 	/** Stream configuration (can override sandbox defaults) */
@@ -541,9 +599,15 @@ export const ExecutionSchema = z.object({
 	/** Duration in milliseconds (set when completed) */
 	durationMs: z.number().optional().describe('Duration in milliseconds (set when completed)'),
 	/** URL to stream stdout output for this execution */
-	stdoutStreamUrl: z.string().optional().describe('URL to stream stdout output for this execution'),
+	stdoutStreamUrl: z
+		.string()
+		.optional()
+		.describe('URL to stream stdout output for this execution'),
 	/** URL to stream stderr output for this execution */
-	stderrStreamUrl: z.string().optional().describe('URL to stream stderr output for this execution'),
+	stderrStreamUrl: z
+		.string()
+		.optional()
+		.describe('URL to stream stderr output for this execution'),
 });
 export type Execution = z.infer<typeof ExecutionSchema>;
 
@@ -595,7 +659,10 @@ export const SnapshotInfoSchema = z.object({
 	/** Display name for the snapshot */
 	name: z.string().describe('Display name for the snapshot'),
 	/** Full name with org slug for public snapshots (@slug/name:tag) */
-	fullName: z.string().optional().describe('Full name with org slug for public snapshots (@slug/name:tag)'),
+	fullName: z
+		.string()
+		.optional()
+		.describe('Full name with org slug for public snapshots (@slug/name:tag)'),
 	/** Description of the snapshot */
 	description: z.string().nullish().describe('Description of the snapshot'),
 	/** Build message for the snapshot */
@@ -607,7 +674,10 @@ export const SnapshotInfoSchema = z.object({
 	/** Number of files in the snapshot */
 	fileCount: z.number().describe('Number of files in the snapshot'),
 	/** ID of the parent snapshot (for incremental snapshots) */
-	parentSnapshotId: z.string().nullish().describe('ID of the parent snapshot (for incremental snapshots)'),
+	parentSnapshotId: z
+		.string()
+		.nullish()
+		.describe('ID of the parent snapshot (for incremental snapshots)'),
 	/** Whether the snapshot is publicly accessible */
 	public: z.boolean().optional().describe('Whether the snapshot is publicly accessible'),
 	/** Organization name (for public snapshots) */
@@ -617,7 +687,9 @@ export const SnapshotInfoSchema = z.object({
 	/** Organization details (for public snapshots) */
 	org: SnapshotOrgInfoSchema.nullish().describe('Organization details (for public snapshots)'),
 	/** User who pushed the snapshot (for private snapshots) */
-	user: SnapshotUserInfoSchema.nullish().describe('User who pushed the snapshot (for private snapshots)'),
+	user: SnapshotUserInfoSchema.nullish().describe(
+		'User who pushed the snapshot (for private snapshots)'
+	),
 	/** ISO timestamp when the snapshot was created */
 	createdAt: z.string().describe('ISO timestamp when the snapshot was created'),
 	/** URL to download the snapshot archive */

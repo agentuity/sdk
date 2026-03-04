@@ -36,11 +36,23 @@ export const CLISandboxListOptionsSchema = z.object({
 	orgId: z.string().optional().describe('Filter by specific organization ID'),
 	/** Filter by sandbox status */
 	status: z
-		.enum(['creating', 'idle', 'running', 'paused', 'stopping', 'suspended', 'terminated', 'failed'])
+		.enum([
+			'creating',
+			'idle',
+			'running',
+			'paused',
+			'stopping',
+			'suspended',
+			'terminated',
+			'failed',
+		])
 		.optional()
 		.describe('Filter by sandbox status'),
 	/** Maximum number of sandboxes to return (default: 50, max: 100) */
-	limit: z.number().optional().describe('Maximum number of sandboxes to return (default: 50, max: 100)'),
+	limit: z
+		.number()
+		.optional()
+		.describe('Maximum number of sandboxes to return (default: 50, max: 100)'),
 	/** Number of sandboxes to skip for pagination */
 	offset: z.number().optional().describe('Number of sandboxes to skip for pagination'),
 	/** Field to sort by */

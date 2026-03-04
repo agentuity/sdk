@@ -1,15 +1,17 @@
 import { getEnv } from './env.ts';
 import { z } from 'zod';
 
-export const ServiceUrlsSchema = z.object({
-	keyvalue: z.string().describe('URL for the key-value storage service.'),
-	stream: z.string().describe('URL for the stream service.'),
-	vector: z.string().describe('URL for the vector storage service.'),
-	catalyst: z.string().describe('URL for the Catalyst API gateway.'),
-	otel: z.string().describe('URL for the OpenTelemetry collector.'),
-	sandbox: z.string().describe('URL for the sandbox service.'),
-	email: z.string().describe('URL for the email service.'),
-}).describe('Service endpoint URLs for the Agentuity platform.');
+export const ServiceUrlsSchema = z
+	.object({
+		keyvalue: z.string().describe('URL for the key-value storage service.'),
+		stream: z.string().describe('URL for the stream service.'),
+		vector: z.string().describe('URL for the vector storage service.'),
+		catalyst: z.string().describe('URL for the Catalyst API gateway.'),
+		otel: z.string().describe('URL for the OpenTelemetry collector.'),
+		sandbox: z.string().describe('URL for the sandbox service.'),
+		email: z.string().describe('URL for the email service.'),
+	})
+	.describe('Service endpoint URLs for the Agentuity platform.');
 
 export type ServiceUrls = z.infer<typeof ServiceUrlsSchema>;
 

@@ -54,7 +54,9 @@ export const VectorUpsertBaseSchema = z.object({
 		.number()
 		.nullable()
 		.optional()
-		.describe('Time-to-live in seconds for the vector. Controls when the vector expires and is automatically deleted.'),
+		.describe(
+			'Time-to-live in seconds for the vector. Controls when the vector expires and is automatically deleted.'
+		),
 });
 
 export type VectorUpsertBase = z.infer<typeof VectorUpsertBaseSchema>;
@@ -99,57 +101,65 @@ export const VectorUpsertParamsSchema = z.discriminatedUnion('document', [
  */
 export const VectorSearchParamsSchema = <T extends z.ZodTypeAny>(metadataSchema: T) =>
 	z.object({
-	/**
-	 * The text query to search for in the vector storage. This will be converted to embeddings
-	 * and used to find semantically similar documents.
-	 *
-	 * @example "comfortable office chair"
-	 * @example "machine learning algorithms"
-	 */
+		/**
+		 * The text query to search for in the vector storage. This will be converted to embeddings
+		 * and used to find semantically similar documents.
+		 *
+		 * @example "comfortable office chair"
+		 * @example "machine learning algorithms"
+		 */
 		query: z
 			.string()
-			.describe('The text query to search for in the vector storage. This will be converted to embeddings and used to find semantically similar documents.'),
+			.describe(
+				'The text query to search for in the vector storage. This will be converted to embeddings and used to find semantically similar documents.'
+			),
 
-	/**
-	 * Maximum number of search results to return. If not specified, the server default will be used.
-	 * Must be a positive integer.
-	 *
-	 * @default 10
-	 * @example 5
-	 * @example 20
-	 */
+		/**
+		 * Maximum number of search results to return. If not specified, the server default will be used.
+		 * Must be a positive integer.
+		 *
+		 * @default 10
+		 * @example 5
+		 * @example 20
+		 */
 		limit: z
 			.number()
 			.optional()
-			.describe('Maximum number of search results to return. If not specified, the server default will be used.'),
+			.describe(
+				'Maximum number of search results to return. If not specified, the server default will be used.'
+			),
 
-	/**
-	 * Minimum similarity threshold for results. Only vectors with similarity scores greater than or equal
-	 * to this value will be returned. Value must be between 0.0 and 1.0, where 1.0 means exact match
-	 * and 0.0 means no similarity requirement.
-	 *
-	 * @minimum 0.0
-	 * @maximum 1.0
-	 * @example 0.7
-	 * @example 0.5
-	 */
+		/**
+		 * Minimum similarity threshold for results. Only vectors with similarity scores greater than or equal
+		 * to this value will be returned. Value must be between 0.0 and 1.0, where 1.0 means exact match
+		 * and 0.0 means no similarity requirement.
+		 *
+		 * @minimum 0.0
+		 * @maximum 1.0
+		 * @example 0.7
+		 * @example 0.5
+		 */
 		similarity: z
 			.number()
 			.min(0)
 			.max(1)
 			.optional()
-			.describe('Minimum similarity threshold for results. Only vectors with similarity scores greater than or equal to this value will be returned.'),
+			.describe(
+				'Minimum similarity threshold for results. Only vectors with similarity scores greater than or equal to this value will be returned.'
+			),
 
-	/**
-	 * Metadata filters to apply to the search. Only vectors whose metadata matches all specified
-	 * key-value pairs will be included in results. Must be a valid JSON object if provided.
-	 *
-	 * @example { category: "furniture", inStock: true }
-	 * @example { userId: "123", type: "product" }
-	 */
+		/**
+		 * Metadata filters to apply to the search. Only vectors whose metadata matches all specified
+		 * key-value pairs will be included in results. Must be a valid JSON object if provided.
+		 *
+		 * @example { category: "furniture", inStock: true }
+		 * @example { userId: "123", type: "product" }
+		 */
 		metadata: metadataSchema
 			.optional()
-			.describe('Metadata filters to apply to the search. Only vectors whose metadata matches all specified key-value pairs will be included in results.'),
+			.describe(
+				'Metadata filters to apply to the search. Only vectors whose metadata matches all specified key-value pairs will be included in results.'
+			),
 	});
 
 export type VectorSearchParams<T extends Record<string, unknown> = Record<string, unknown>> = {
@@ -164,32 +174,36 @@ export type VectorSearchParams<T extends Record<string, unknown> = Record<string
  */
 export const VectorSearchResultSchema = <T extends z.ZodTypeAny>(metadataSchema: T) =>
 	z.object({
-	/**
-	 * the unique id of the object in vector storage
-	 */
+		/**
+		 * the unique id of the object in vector storage
+		 */
 		id: z.string().describe('the unique id of the object in vector storage'),
 
-	/**
-	 * the key used when the vector object was added to vector storage
-	 */
+		/**
+		 * the key used when the vector object was added to vector storage
+		 */
 		key: z.string().describe('the key used when the vector object was added to vector storage'),
 
-	/**
-	 * the metadata of the vector object when it was stored
-	 */
-		metadata: metadataSchema.optional().describe('the metadata of the vector object when it was stored'),
+		/**
+		 * the metadata of the vector object when it was stored
+		 */
+		metadata: metadataSchema
+			.optional()
+			.describe('the metadata of the vector object when it was stored'),
 
-	/**
-	 * the distance of the vector object from the query from 0-1. The larger the number, the more similar the vector object is to the query.
-	 */
+		/**
+		 * the distance of the vector object from the query from 0-1. The larger the number, the more similar the vector object is to the query.
+		 */
 		similarity: z
 			.number()
-			.describe('the distance of the vector object from the query from 0-1. The larger the number, the more similar the vector object is to the query.'),
+			.describe(
+				'the distance of the vector object from the query from 0-1. The larger the number, the more similar the vector object is to the query.'
+			),
 
-	/**
-	 * the expiration time of the vector as an ISO 8601 timestamp.
-	 * undefined if the vector does not expire.
-	 */
+		/**
+		 * the expiration time of the vector as an ISO 8601 timestamp.
+		 * undefined if the vector does not expire.
+		 */
 		expiresAt: z
 			.string()
 			.optional()
@@ -209,14 +223,17 @@ export type VectorSearchResult<T extends Record<string, unknown> = Record<string
  */
 export const VectorSearchResultWithDocumentSchema = <T extends z.ZodTypeAny>(metadataSchema: T) =>
 	VectorSearchResultSchema(metadataSchema).extend({
-	/**
-	 * the document that was used to create the vector object
-	 */
-		document: z.string().optional().describe('the document that was used to create the vector object'),
+		/**
+		 * the document that was used to create the vector object
+		 */
+		document: z
+			.string()
+			.optional()
+			.describe('the document that was used to create the vector object'),
 
-	/**
-	 * the embeddings of the vector object
-	 */
+		/**
+		 * the embeddings of the vector object
+		 */
 		embeddings: z.array(z.number()).optional().describe('the embeddings of the vector object'),
 	});
 
@@ -249,14 +266,14 @@ export type VectorUpsertResult = z.infer<typeof VectorUpsertResultSchema>;
  */
 export const VectorResultFoundSchema = <T extends z.ZodTypeAny>(metadataSchema: T) =>
 	z.object({
-	/**
-	 * the vector data
-	 */
+		/**
+		 * the vector data
+		 */
 		data: VectorSearchResultWithDocumentSchema(metadataSchema).describe('the vector data'),
 
-	/**
-	 * the vector was found
-	 */
+		/**
+		 * the vector was found
+		 */
 		exists: z.literal(true).describe('the vector was found'),
 	});
 
@@ -312,12 +329,18 @@ export const VectorNamespaceStatsSchema = z.object({
 	/**
 	 * Unix timestamp (milliseconds) when the namespace was created
 	 */
-	createdAt: z.number().optional().describe('Unix timestamp (milliseconds) when the namespace was created'),
+	createdAt: z
+		.number()
+		.optional()
+		.describe('Unix timestamp (milliseconds) when the namespace was created'),
 
 	/**
 	 * Unix timestamp (milliseconds) when the namespace was last used
 	 */
-	lastUsed: z.number().optional().describe('Unix timestamp (milliseconds) when the namespace was last used'),
+	lastUsed: z
+		.number()
+		.optional()
+		.describe('Unix timestamp (milliseconds) when the namespace was last used'),
 });
 
 export type VectorNamespaceStats = z.infer<typeof VectorNamespaceStatsSchema>;
@@ -344,12 +367,17 @@ export const VectorItemStatsSchema = z.object({
 	/**
 	 * Metadata associated with the vector
 	 */
-	metadata: z.record(z.string(), z.unknown()).optional().describe('Metadata associated with the vector'),
+	metadata: z
+		.record(z.string(), z.unknown())
+		.optional()
+		.describe('Metadata associated with the vector'),
 
 	/**
 	 * Unix timestamp (milliseconds) when the vector was first accessed
 	 */
-	firstUsed: z.number().describe('Unix timestamp (milliseconds) when the vector was first accessed'),
+	firstUsed: z
+		.number()
+		.describe('Unix timestamp (milliseconds) when the vector was first accessed'),
 
 	/**
 	 * Unix timestamp (milliseconds) when the vector was last accessed

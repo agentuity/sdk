@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api.ts';
 import { ProjectResponseError } from './util.ts';
 
-export const ProjectDeleteRequestSchema = z.object({ ids: z.array(z.string()).describe('Array of project IDs to delete.') }).describe('Request to delete one or more projects.');
+export const ProjectDeleteRequestSchema = z
+	.object({ ids: z.array(z.string()).describe('Array of project IDs to delete.') })
+	.describe('Request to delete one or more projects.');
 export const ProjectDeleteResponseSchema = APIResponseSchema(z.array(z.string()));
 
 type ProjectDeleteRequest = z.infer<typeof ProjectDeleteRequestSchema>;

@@ -9,8 +9,14 @@ export const ProjectHostnameGetRequestSchema = z.object({
 });
 
 const HostnameGetDataSchema = z.object({
-	hostname: z.string().nullable().describe('The vanity hostname for the project, or null if not set.'),
-	url: z.string().nullable().describe('The full URL for the project hostname, or null if not set.'),
+	hostname: z
+		.string()
+		.nullable()
+		.describe('The vanity hostname for the project, or null if not set.'),
+	url: z
+		.string()
+		.nullable()
+		.describe('The full URL for the project hostname, or null if not set.'),
 });
 
 const ProjectHostnameGetResponseSchema = APIResponseSchema(HostnameGetDataSchema);

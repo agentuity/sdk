@@ -33,7 +33,10 @@ export const CreateStreamPropsSchema = z.object({
 	/**
 	 * optional metadata for the stream
 	 */
-	metadata: z.record(z.string(), z.string()).optional().describe('optional metadata for the stream'),
+	metadata: z
+		.record(z.string(), z.string())
+		.optional()
+		.describe('optional metadata for the stream'),
 
 	/**
 	 * optional contentType for the stream data. If not set, defaults to application/octet-stream
@@ -41,7 +44,9 @@ export const CreateStreamPropsSchema = z.object({
 	contentType: z
 		.string()
 		.optional()
-		.describe('optional contentType for the stream data. If not set, defaults to application/octet-stream'),
+		.describe(
+			'optional contentType for the stream data. If not set, defaults to application/octet-stream'
+		),
 
 	/**
 	 * optional flag to enable gzip compression of stream data during upload. if true, will also add
@@ -51,7 +56,9 @@ export const CreateStreamPropsSchema = z.object({
 	compress: z
 		.literal(true)
 		.optional()
-		.describe('optional flag to enable gzip compression of stream data during upload. if true, will also add add Content-Encoding: gzip header to responses.'),
+		.describe(
+			'optional flag to enable gzip compression of stream data during upload. if true, will also add add Content-Encoding: gzip header to responses.'
+		),
 
 	/**
 	 * optional time-to-live in seconds for the stream. Controls when the stream expires and is automatically deleted.
@@ -69,12 +76,21 @@ export const CreateStreamPropsSchema = z.object({
 		.number()
 		.nullable()
 		.optional()
-		.describe('optional time-to-live in seconds for the stream. Controls when the stream expires and is automatically deleted.'),
+		.describe(
+			'optional time-to-live in seconds for the stream. Controls when the stream expires and is automatically deleted.'
+		),
 });
 
 export type CreateStreamProps = z.infer<typeof CreateStreamPropsSchema>;
 
-export const StreamSortFieldSchema = z.enum(['name', 'created', 'updated', 'size', 'count', 'lastUsed']);
+export const StreamSortFieldSchema = z.enum([
+	'name',
+	'created',
+	'updated',
+	'size',
+	'count',
+	'lastUsed',
+]);
 
 export type StreamSortField = z.infer<typeof StreamSortFieldSchema>;
 

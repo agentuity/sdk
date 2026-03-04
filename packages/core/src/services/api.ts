@@ -24,7 +24,10 @@ export const APIClientConfigSchema = z.object({
 		.describe('Skip client/server SDK version compatibility checks'),
 	userAgent: z.string().optional().describe('Override the default User-Agent header value'),
 	maxRetries: z.number().optional().describe('Maximum retry attempts for failed API requests'),
-	retryDelayMs: z.number().optional().describe('Base delay in milliseconds between retry attempts'),
+	retryDelayMs: z
+		.number()
+		.optional()
+		.describe('Base delay in milliseconds between retry attempts'),
 	headers: z
 		.record(z.string(), z.string())
 		.optional()
@@ -32,21 +35,23 @@ export const APIClientConfigSchema = z.object({
 	serviceUnavailableTimeoutMs: z
 		.number()
 		.optional()
-		.describe(
-			'Maximum milliseconds to keep retrying 502/503 service unavailable responses'
-		),
+		.describe('Maximum milliseconds to keep retrying 502/503 service unavailable responses'),
 });
 
 export type APIClientConfig = z.infer<typeof APIClientConfigSchema>;
 
-export const ZodIssuesSchema = z.array(
-	z.object({
-		code: z.string().describe('Zod issue code identifying the validation error type.'),
-		input: z.unknown().optional().describe('The input value that failed validation.'),
-		path: z.array(z.union([z.string(), z.number()])).describe('Path to the field that failed validation.'),
-		message: z.string().describe('Human-readable error message.'),
-	})
-).describe('Array of Zod validation issues.');
+export const ZodIssuesSchema = z
+	.array(
+		z.object({
+			code: z.string().describe('Zod issue code identifying the validation error type.'),
+			input: z.unknown().optional().describe('The input value that failed validation.'),
+			path: z
+				.array(z.union([z.string(), z.number()]))
+				.describe('Path to the field that failed validation.'),
+			message: z.string().describe('Human-readable error message.'),
+		})
+	)
+	.describe('Array of Zod validation issues.');
 
 export type IssuesType = z.infer<typeof ZodIssuesSchema>;
 
@@ -59,22 +64,28 @@ const toIssues = (issues: z.core.$ZodIssue[]): IssuesType => {
 	}));
 };
 
-export const APIErrorSchema = z.object({
-	success: z.boolean().describe('Whether the API request was successful.'),
-	code: z.string().optional().describe('Machine-readable error code.'),
-	message: z.string().optional().describe('Human-readable error message.'),
-	error: z
-		.union([
-			z.string(),
-			z.object({
-				name: z.string().optional().describe('Error class name.'),
-				issues: ZodIssuesSchema.optional().describe('Validation issues if the error is a Zod validation failure.'),
-			}),
-		])
-		.optional()
-		.describe('Error details — either a string message or a structured error with validation issues.'),
-	details: z.record(z.string(), z.unknown()).optional().describe('Additional error details.'),
-}).describe('Standard API error response.');
+export const APIErrorSchema = z
+	.object({
+		success: z.boolean().describe('Whether the API request was successful.'),
+		code: z.string().optional().describe('Machine-readable error code.'),
+		message: z.string().optional().describe('Human-readable error message.'),
+		error: z
+			.union([
+				z.string(),
+				z.object({
+					name: z.string().optional().describe('Error class name.'),
+					issues: ZodIssuesSchema.optional().describe(
+						'Validation issues if the error is a Zod validation failure.'
+					),
+				}),
+			])
+			.optional()
+			.describe(
+				'Error details — either a string message or a structured error with validation issues.'
+			),
+		details: z.record(z.string(), z.unknown()).optional().describe('Additional error details.'),
+	})
+	.describe('Standard API error response.');
 
 export const APIError = StructuredError('APIErrorResponse')<{
 	url: string;

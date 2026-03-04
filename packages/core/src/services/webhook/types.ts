@@ -37,7 +37,9 @@ export const WebhookSchema = z
 		url: z
 			.string()
 			.optional()
-			.describe('Fully-qualified ingest URL for sending events to this webhook. Only present on create'),
+			.describe(
+				'Fully-qualified ingest URL for sending events to this webhook. Only present on create'
+			),
 	})
 	.describe('Webhook endpoint configuration');
 
@@ -51,7 +53,9 @@ export const WebhookDestinationSchema = z
 		created_by: z.string().describe('ID of the user who created the destination'),
 		webhook_id: z.string().describe('ID of the webhook this destination belongs to'),
 		type: WebhookDestinationTypeSchema.describe("Type of destination (currently only 'url')"),
-		config: z.record(z.string(), z.unknown()).describe('Configuration object for the destination (e.g., URL, headers)'),
+		config: z
+			.record(z.string(), z.unknown())
+			.describe('Configuration object for the destination (e.g., URL, headers)'),
 	})
 	.describe('Webhook destination representing a delivery target for webhook events');
 
@@ -62,8 +66,12 @@ export const WebhookReceiptSchema = z
 		id: z.string().describe('Unique identifier for the receipt (prefixed with whrc_)'),
 		date: z.string().describe('ISO 8601 timestamp when the receipt was recorded'),
 		webhook_id: z.string().describe('ID of the webhook this receipt belongs to'),
-		headers: z.record(z.string(), z.string()).describe('HTTP headers from the incoming webhook request'),
-		payload: z.unknown().describe('Raw payload from the incoming webhook request (can be any type)'),
+		headers: z
+			.record(z.string(), z.string())
+			.describe('HTTP headers from the incoming webhook request'),
+		payload: z
+			.unknown()
+			.describe('Raw payload from the incoming webhook request (can be any type)'),
 	})
 	.describe('Webhook receipt representing an incoming webhook payload that was received');
 
@@ -74,12 +82,17 @@ export const WebhookDeliverySchema = z
 		id: z.string().describe('Unique identifier for the delivery (prefixed with whdv_)'),
 		date: z.string().describe('ISO 8601 timestamp when the delivery was attempted'),
 		webhook_id: z.string().describe('ID of the webhook this delivery belongs to'),
-		webhook_destination_id: z.string().describe('ID of the destination this delivery was sent to'),
+		webhook_destination_id: z
+			.string()
+			.describe('ID of the destination this delivery was sent to'),
 		webhook_receipt_id: z.string().describe('ID of the receipt that triggered this delivery'),
 		status: WebhookDeliveryStatusSchema.describe('Current status of the delivery'),
 		retries: z.number().describe('Number of retry attempts made'),
 		error: z.string().nullable().describe('Error message if the delivery failed'),
-		response: z.record(z.string(), z.unknown()).nullable().describe('Response data from the destination (if available)'),
+		response: z
+			.record(z.string(), z.unknown())
+			.nullable()
+			.describe('Response data from the destination (if available)'),
 	})
 	.describe('Webhook delivery representing a delivery attempt to a destination');
 
@@ -125,7 +138,9 @@ export type UpdateWebhookRequest = z.infer<typeof UpdateWebhookRequestSchema>;
 export const CreateWebhookDestinationRequestSchema = z
 	.object({
 		type: WebhookDestinationTypeSchema.describe('Type of destination to create'),
-		config: z.record(z.string(), z.unknown()).describe('Configuration object for the destination'),
+		config: z
+			.record(z.string(), z.unknown())
+			.describe('Configuration object for the destination'),
 	})
 	.describe('Request for creating a webhook destination');
 
@@ -133,7 +148,10 @@ export type CreateWebhookDestinationRequest = z.infer<typeof CreateWebhookDestin
 
 export const UpdateWebhookDestinationRequestSchema = z
 	.object({
-		config: z.record(z.string(), z.unknown()).optional().describe('Updated configuration object for the destination'),
+		config: z
+			.record(z.string(), z.unknown())
+			.optional()
+			.describe('Updated configuration object for the destination'),
 	})
 	.describe('Request for updating a webhook destination');
 
@@ -148,7 +166,9 @@ export const PaginationRequestSchema = z
 
 export type PaginationRequest = z.infer<typeof PaginationRequestSchema>;
 
-export const ListWebhooksRequestSchema = PaginationRequestSchema.describe('Request for listing webhooks');
+export const ListWebhooksRequestSchema = PaginationRequestSchema.describe(
+	'Request for listing webhooks'
+);
 
 export type ListWebhooksRequest = z.infer<typeof ListWebhooksRequestSchema>;
 

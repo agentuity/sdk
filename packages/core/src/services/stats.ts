@@ -10,86 +10,110 @@ export const ServiceStatsError = StructuredError('ServiceStatsError')<{
 
 // --- Per-Service Stat Schemas ---
 
-export const KeyValueStatSchema = z.object({
-	namespaceCount: z.number().describe('Total number of key-value namespaces.'),
-	keyCount: z.number().describe('Total number of keys across all namespaces.'),
-	totalSizeBytes: z.number().describe('Total storage size in bytes across all namespaces.'),
-}).describe('Key-value service statistics.');
+export const KeyValueStatSchema = z
+	.object({
+		namespaceCount: z.number().describe('Total number of key-value namespaces.'),
+		keyCount: z.number().describe('Total number of keys across all namespaces.'),
+		totalSizeBytes: z.number().describe('Total storage size in bytes across all namespaces.'),
+	})
+	.describe('Key-value service statistics.');
 
-export const VectorStatSchema = z.object({
-	namespaceCount: z.number().describe('Total number of vector namespaces.'),
-	documentCount: z.number().describe('Total number of documents across all namespaces.'),
-	totalSizeBytes: z.number().describe('Total storage size in bytes across all namespaces.'),
-}).describe('Vector service statistics.');
+export const VectorStatSchema = z
+	.object({
+		namespaceCount: z.number().describe('Total number of vector namespaces.'),
+		documentCount: z.number().describe('Total number of documents across all namespaces.'),
+		totalSizeBytes: z.number().describe('Total storage size in bytes across all namespaces.'),
+	})
+	.describe('Vector service statistics.');
 
-export const QueueStatSchema = z.object({
-	queueCount: z.number().describe('Total number of queues.'),
-	totalMessages: z.number().describe('Total number of messages across all queues.'),
-	totalDlq: z.number().describe('Total number of dead letter queue messages across all queues.'),
-}).describe('Queue service statistics.');
+export const QueueStatSchema = z
+	.object({
+		queueCount: z.number().describe('Total number of queues.'),
+		totalMessages: z.number().describe('Total number of messages across all queues.'),
+		totalDlq: z
+			.number()
+			.describe('Total number of dead letter queue messages across all queues.'),
+	})
+	.describe('Queue service statistics.');
 
-export const StreamStatSchema = z.object({
-	streamCount: z.number().describe('Total number of streams.'),
-	totalSizeBytes: z.number().describe('Total storage size in bytes across all streams.'),
-}).describe('Stream service statistics.');
+export const StreamStatSchema = z
+	.object({
+		streamCount: z.number().describe('Total number of streams.'),
+		totalSizeBytes: z.number().describe('Total storage size in bytes across all streams.'),
+	})
+	.describe('Stream service statistics.');
 
-export const SandboxStatSchema = z.object({
-	totalActive: z.number().describe('Total number of active sandboxes.'),
-	running: z.number().describe('Number of sandboxes currently running.'),
-	idle: z.number().describe('Number of sandboxes currently idle.'),
-	creating: z.number().describe('Number of sandboxes being created.'),
-	totalExecutions: z.number().describe('Total number of sandbox executions.'),
-	totalCpuTimeMs: z.number().describe('Total CPU time consumed in milliseconds.'),
-	totalMemoryByteSec: z.number().describe('Total memory usage in byte-seconds.'),
-	totalNetworkEgressBytes: z.number().describe('Total network egress in bytes.'),
-}).describe('Sandbox service statistics.');
+export const SandboxStatSchema = z
+	.object({
+		totalActive: z.number().describe('Total number of active sandboxes.'),
+		running: z.number().describe('Number of sandboxes currently running.'),
+		idle: z.number().describe('Number of sandboxes currently idle.'),
+		creating: z.number().describe('Number of sandboxes being created.'),
+		totalExecutions: z.number().describe('Total number of sandbox executions.'),
+		totalCpuTimeMs: z.number().describe('Total CPU time consumed in milliseconds.'),
+		totalMemoryByteSec: z.number().describe('Total memory usage in byte-seconds.'),
+		totalNetworkEgressBytes: z.number().describe('Total network egress in bytes.'),
+	})
+	.describe('Sandbox service statistics.');
 
-export const EmailStatSchema = z.object({
-	addressCount: z.number().describe('Total number of email addresses.'),
-	inboundCount: z.number().describe('Total number of inbound emails received.'),
-	outboundCount: z.number().describe('Total number of outbound emails sent.'),
-	outboundSuccess: z.number().describe('Number of outbound emails delivered successfully.'),
-	outboundFailed: z.number().describe('Number of outbound emails that failed delivery.'),
-}).describe('Email service statistics.');
+export const EmailStatSchema = z
+	.object({
+		addressCount: z.number().describe('Total number of email addresses.'),
+		inboundCount: z.number().describe('Total number of inbound emails received.'),
+		outboundCount: z.number().describe('Total number of outbound emails sent.'),
+		outboundSuccess: z.number().describe('Number of outbound emails delivered successfully.'),
+		outboundFailed: z.number().describe('Number of outbound emails that failed delivery.'),
+	})
+	.describe('Email service statistics.');
 
-export const TaskStatSchema = z.object({
-	total: z.number().default(0).describe('Total number of tasks.'),
-	open: z.number().default(0).describe('Number of open tasks.'),
-	inProgress: z.number().default(0).describe('Number of tasks currently in progress.'),
-	done: z.number().default(0).describe('Number of completed tasks.'),
-	closed: z.number().default(0).describe('Number of closed tasks.'),
-	cancelled: z.number().default(0).describe('Number of cancelled tasks.'),
-}).describe('Task service statistics.');
+export const TaskStatSchema = z
+	.object({
+		total: z.number().default(0).describe('Total number of tasks.'),
+		open: z.number().default(0).describe('Number of open tasks.'),
+		inProgress: z.number().default(0).describe('Number of tasks currently in progress.'),
+		done: z.number().default(0).describe('Number of completed tasks.'),
+		closed: z.number().default(0).describe('Number of closed tasks.'),
+		cancelled: z.number().default(0).describe('Number of cancelled tasks.'),
+	})
+	.describe('Task service statistics.');
 
-export const ScheduleStatSchema = z.object({
-	scheduleCount: z.number().describe('Total number of schedules.'),
-	totalDeliveries: z.number().describe('Total number of scheduled deliveries.'),
-	successDeliveries: z.number().describe('Number of successful scheduled deliveries.'),
-	failedDeliveries: z.number().describe('Number of failed scheduled deliveries.'),
-}).describe('Schedule service statistics.');
+export const ScheduleStatSchema = z
+	.object({
+		scheduleCount: z.number().describe('Total number of schedules.'),
+		totalDeliveries: z.number().describe('Total number of scheduled deliveries.'),
+		successDeliveries: z.number().describe('Number of successful scheduled deliveries.'),
+		failedDeliveries: z.number().describe('Number of failed scheduled deliveries.'),
+	})
+	.describe('Schedule service statistics.');
 
-export const DatabaseStatSchema = z.object({
-	databaseCount: z.number().describe('Total number of databases.'),
-	totalTableCount: z.number().describe('Total number of tables across all databases.'),
-	totalRecordCount: z.number().describe('Total number of records across all tables.'),
-	totalSizeBytes: z.number().describe('Total storage size in bytes across all databases.'),
-}).describe('Database service statistics.');
+export const DatabaseStatSchema = z
+	.object({
+		databaseCount: z.number().describe('Total number of databases.'),
+		totalTableCount: z.number().describe('Total number of tables across all databases.'),
+		totalRecordCount: z.number().describe('Total number of records across all tables.'),
+		totalSizeBytes: z.number().describe('Total storage size in bytes across all databases.'),
+	})
+	.describe('Database service statistics.');
 
 // --- Aggregate Schema ---
 
-export const ServiceStatsDataSchema = z.object({
-	services: z.object({
-		database: DatabaseStatSchema.optional().describe('Database service statistics.'),
-		keyvalue: KeyValueStatSchema.optional().describe('Key-value service statistics.'),
-		vector: VectorStatSchema.optional().describe('Vector service statistics.'),
-		queue: QueueStatSchema.optional().describe('Queue service statistics.'),
-		stream: StreamStatSchema.optional().describe('Stream service statistics.'),
-		sandbox: SandboxStatSchema.optional().describe('Sandbox service statistics.'),
-		email: EmailStatSchema.optional().describe('Email service statistics.'),
-		task: TaskStatSchema.optional().describe('Task service statistics.'),
-		schedule: ScheduleStatSchema.optional().describe('Schedule service statistics.'),
-	}).describe('Per-service statistics breakdown.'),
-}).describe('Aggregated service statistics data.');
+export const ServiceStatsDataSchema = z
+	.object({
+		services: z
+			.object({
+				database: DatabaseStatSchema.optional().describe('Database service statistics.'),
+				keyvalue: KeyValueStatSchema.optional().describe('Key-value service statistics.'),
+				vector: VectorStatSchema.optional().describe('Vector service statistics.'),
+				queue: QueueStatSchema.optional().describe('Queue service statistics.'),
+				stream: StreamStatSchema.optional().describe('Stream service statistics.'),
+				sandbox: SandboxStatSchema.optional().describe('Sandbox service statistics.'),
+				email: EmailStatSchema.optional().describe('Email service statistics.'),
+				task: TaskStatSchema.optional().describe('Task service statistics.'),
+				schedule: ScheduleStatSchema.optional().describe('Schedule service statistics.'),
+			})
+			.describe('Per-service statistics breakdown.'),
+	})
+	.describe('Aggregated service statistics data.');
 
 export const ServiceStatsResponseSchema = APIResponseSchema(ServiceStatsDataSchema);
 

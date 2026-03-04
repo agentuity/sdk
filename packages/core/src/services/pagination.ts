@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 /** Sort direction for list operations */
-export const SortDirectionSchema = z.enum(['asc', 'desc']).describe('Sort direction for list operations (ascending or descending).');
+export const SortDirectionSchema = z
+	.enum(['asc', 'desc'])
+	.describe('Sort direction for list operations (ascending or descending).');
 
 export type SortDirection = z.infer<typeof SortDirectionSchema>;
 
