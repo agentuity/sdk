@@ -6,14 +6,14 @@
 	},
 	"metadata": {
 		"description": "Agentuity plugins for Claude Code",
-		"version": "1.0.33"
+		"version": "1.0.34"
 	},
 	"plugins": [
 		{
 			"name": "agentuity-coder",
 			"source": "./packages/claude-code",
 			"description": "Agentuity Coder - a team of specialized AI agents for code assistance with persistent memory via Agentuity Cloud",
-			"version": "1.0.33",
+			"version": "1.0.34",
 			"author": {
 				"name": "Agentuity"
 			},
