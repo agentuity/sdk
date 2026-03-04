@@ -119,17 +119,17 @@ describe('@agentuity/core subpath exports', () => {
 					const exportKey = subpath === '' ? '.' : `.${subpath}`;
 					const exportPath = pkgJson.exports?.[exportKey];
 
-				if (typeof exportPath === 'string') {
-					return { path: join(corePackageDir, exportPath) };
-				}
-
-				// Support conditional exports with types/default format
-				if (typeof exportPath === 'object' && exportPath !== null) {
-					const resolved = exportPath.default || exportPath.import;
-					if (resolved) {
-						return { path: join(corePackageDir, resolved) };
+					if (typeof exportPath === 'string') {
+						return { path: join(corePackageDir, exportPath) };
 					}
-				}
+
+					// Support conditional exports with types/default format
+					if (typeof exportPath === 'object' && exportPath !== null) {
+						const resolved = exportPath.default || exportPath.import;
+						if (resolved) {
+							return { path: join(corePackageDir, resolved) };
+						}
+					}
 
 					return undefined;
 				});
