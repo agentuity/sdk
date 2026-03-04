@@ -159,7 +159,7 @@ const updateDestinationSubcommand = createSubcommand({
 	requires: { auth: true },
 	examples: [
 		{
-			command: getCommand('cloud queue destinations update my-queue dest_abc123 --disabled'),
+			command: getCommand('cloud queue destinations update my-queue qdest_abc123 --disabled'),
 			description: 'Disable a destination',
 		},
 	],
@@ -169,7 +169,7 @@ const updateDestinationSubcommand = createSubcommand({
 			destination_id: z.string().min(1).describe('Destination ID'),
 		}),
 		options: z.object({
-			name: z.string().optional().describe('Destination name'),
+			name: z.string().min(1).optional().describe('Destination name'),
 			description: z.string().optional().describe('Destination description'),
 			url: z.string().url().optional().describe('Webhook URL'),
 			method: z.string().optional().describe('HTTP method'),
@@ -191,7 +191,7 @@ const updateDestinationSubcommand = createSubcommand({
 			enabled?: boolean;
 		} = {};
 
-		if (opts.name) updateParams.name = opts.name;
+		if (opts.name !== undefined) updateParams.name = opts.name;
 		if (opts.description !== undefined) updateParams.description = opts.description || null;
 
 		if (opts.url || opts.method || opts.timeout !== undefined) {

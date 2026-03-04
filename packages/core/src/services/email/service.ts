@@ -424,7 +424,7 @@ export const EmailActivityParamsSchema = z.object({
 	 *
 	 * @default 7
 	 */
-	days: z.number().min(7).max(365).optional().describe('Number of days of activity to retrieve.'), // min 7, max 365, default 7
+	days: z.number().min(7).max(365).default(7).describe('Number of days of activity to retrieve.'), // min 7, max 365, default 7
 });
 
 export type EmailActivityParams = z.infer<typeof EmailActivityParamsSchema>;

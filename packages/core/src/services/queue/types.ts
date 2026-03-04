@@ -440,7 +440,7 @@ export type DestinationStats = z.infer<typeof DestinationStatsSchema>;
  */
 export const DestinationSchema = z
 	.object({
-		id: z.string().describe('Unique identifier for the destination (prefixed with dest_).'),
+		id: z.string().describe('Unique identifier for the destination (prefixed with qdest_).'),
 		name: z.string().describe('Human-readable name for the destination.'),
 		description: z
 			.string()
@@ -1005,7 +1005,7 @@ export type QueuePeriodStats = z.infer<typeof QueuePeriodStatsSchema>;
  */
 export const DestinationAnalyticsSchema = z
 	.object({
-		id: z.string().describe('Unique destination identifier (prefixed with dest_).'),
+		id: z.string().describe('Unique destination identifier (prefixed with qdest_).'),
 		type: z.string().describe("Destination type (currently only 'http')."),
 		url: z.string().describe('Webhook URL.'),
 		success_count: z.number().describe('Total successful deliveries.'),

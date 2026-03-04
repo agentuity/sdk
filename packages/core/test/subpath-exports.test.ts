@@ -125,8 +125,10 @@ describe('@agentuity/core subpath exports', () => {
 
 					// Support conditional exports with types/default format
 					if (typeof exportPath === 'object' && exportPath !== null) {
-						const resolved = exportPath.default || exportPath.import;
-						if (resolved) {
+						const resolved =
+							(exportPath as Record<string, unknown>).default ??
+							(exportPath as Record<string, unknown>).import;
+						if (typeof resolved === 'string') {
 							return { path: join(corePackageDir, resolved) };
 						}
 					}

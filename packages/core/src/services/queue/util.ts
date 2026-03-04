@@ -60,7 +60,7 @@ export const MessageNotFoundError = StructuredError('MessageNotFoundError')<{
  * @example
  * ```typescript
  * try {
- *   await deleteDestination(client, 'my-queue', 'dest_abc123');
+ *   await deleteDestination(client, 'my-queue', 'qdest_abc123');
  * } catch (error) {
  *   if (error instanceof DestinationNotFoundError) {
  *     console.error(`Destination ${error.destinationId} not found`);

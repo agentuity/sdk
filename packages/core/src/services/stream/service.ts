@@ -49,7 +49,7 @@ export const CreateStreamPropsSchema = z.object({
 		),
 
 	/**
-	 * optional flag to enable gzip compression of stream data during upload. if true, will also add
+	 * optional flag to enable gzip compression of stream data during upload. if true, will also
 	 * add Content-Encoding: gzip header to responses. The client MUST be able to accept gzip
 	 * compression for this to work or must be able to uncompress the raw data it receives.
 	 */
@@ -57,7 +57,7 @@ export const CreateStreamPropsSchema = z.object({
 		.literal(true)
 		.optional()
 		.describe(
-			'optional flag to enable gzip compression of stream data during upload. if true, will also add add Content-Encoding: gzip header to responses.'
+			'optional flag to enable gzip compression of stream data during upload. if true, will also add Content-Encoding: gzip header to responses.'
 		),
 
 	/**

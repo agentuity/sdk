@@ -148,7 +148,7 @@ export async function listDestinations(
  *
  * @param client - The API client instance
  * @param queueName - The name of the queue
- * @param destinationId - The destination ID to update (prefixed with dest_)
+ * @param destinationId - The destination ID to update (prefixed with qdest_)
  * @param params - Fields to update (partial update supported)
  * @returns The updated destination
  * @throws {QueueValidationError} If validation fails (invalid queue name, destination ID, or config)
@@ -159,12 +159,12 @@ export async function listDestinations(
  * @example
  * ```typescript
  * // Disable a destination temporarily
- * const updated = await updateDestination(client, 'order-events', 'dest_abc123', {
+ * const updated = await updateDestination(client, 'order-events', 'qdest_abc123', {
  *   enabled: false,
  * });
  *
  * // Update URL and retry settings
- * const updated = await updateDestination(client, 'order-events', 'dest_abc123', {
+ * const updated = await updateDestination(client, 'order-events', 'qdest_abc123', {
  *   url: 'https://api.example.com/v2/webhooks/orders',
  *   config: {
  *     retry_attempts: 5,
@@ -217,7 +217,7 @@ export async function updateDestination(
  *
  * @param client - The API client instance
  * @param queueName - The name of the queue
- * @param destinationId - The destination ID to delete (prefixed with dest_)
+ * @param destinationId - The destination ID to delete (prefixed with qdest_)
  * @returns void
  * @throws {QueueValidationError} If validation fails (invalid queue name or destination ID)
  * @throws {DestinationNotFoundError} If the destination does not exist
@@ -226,7 +226,7 @@ export async function updateDestination(
  *
  * @example
  * ```typescript
- * await deleteDestination(client, 'order-events', 'dest_abc123');
+ * await deleteDestination(client, 'order-events', 'qdest_abc123');
  * console.log('Destination deleted');
  * ```
  */

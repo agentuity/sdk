@@ -9,8 +9,13 @@ export type SortDirection = z.infer<typeof SortDirectionSchema>;
 
 /** Base pagination parameters used by all list operations */
 export const PaginationParamsSchema = z.object({
-	limit: z.number().optional().describe('Maximum number of items to return'),
-	offset: z.number().optional().describe('Number of items to skip for pagination'),
+	limit: z.number().int().nonnegative().optional().describe('Maximum number of items to return'),
+	offset: z
+		.number()
+		.int()
+		.nonnegative()
+		.optional()
+		.describe('Number of items to skip for pagination'),
 });
 
 export type PaginationParams = z.infer<typeof PaginationParamsSchema>;
