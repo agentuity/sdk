@@ -19,20 +19,27 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const corePackageDir = join(__dirname, '..');
 
 describe('@agentuity/core subpath exports', () => {
-	test('package.json exports use simple string format (not conditional objects)', async () => {
+	test('package.json exports are correctly configured', async () => {
 		const pkgJsonPath = join(corePackageDir, 'package.json');
 		const pkgJson = await Bun.file(pkgJsonPath).json();
 
 		// Verify exports exist
 		expect(pkgJson.exports).toBeDefined();
 
-		// Verify main export is a simple string (not an object with conditions)
-		expect(typeof pkgJson.exports['.']).toBe('string');
-		expect(pkgJson.exports['.']).toBe('./dist/index.js');
+		// Helper to get the resolved path from an export value (string or conditional object)
+		const getExportPath = (exp: unknown): string | undefined => {
+			if (typeof exp === 'string') return exp;
+			if (typeof exp === 'object' && exp !== null && 'default' in exp) {
+				return (exp as Record<string, string>).default;
+			}
+			return undefined;
+		};
 
-		// Verify workbench subpath export is a simple string
-		expect(typeof pkgJson.exports['./workbench']).toBe('string');
-		expect(pkgJson.exports['./workbench']).toBe('./dist/workbench.js');
+		// Verify main export resolves to ./dist/index.js
+		expect(getExportPath(pkgJson.exports['.'])).toBe('./dist/index.js');
+
+		// Verify workbench subpath export resolves to ./dist/workbench.js
+		expect(getExportPath(pkgJson.exports['./workbench'])).toBe('./dist/workbench.js');
 	});
 
 	test('typesVersions provides TypeScript type resolution for subpaths', async () => {
@@ -112,14 +119,17 @@ describe('@agentuity/core subpath exports', () => {
 					const exportKey = subpath === '' ? '.' : `.${subpath}`;
 					const exportPath = pkgJson.exports?.[exportKey];
 
-					if (typeof exportPath === 'string') {
-						return { path: join(corePackageDir, exportPath) };
-					}
+				if (typeof exportPath === 'string') {
+					return { path: join(corePackageDir, exportPath) };
+				}
 
-					// Fallback for conditional exports (should not happen with fix)
-					if (exportPath?.import) {
-						return { path: join(corePackageDir, exportPath.import) };
+				// Support conditional exports with types/default format
+				if (typeof exportPath === 'object' && exportPath !== null) {
+					const resolved = exportPath.default || exportPath.import;
+					if (resolved) {
+						return { path: join(corePackageDir, resolved) };
 					}
+				}
 
 					return undefined;
 				});
@@ -167,10 +177,14 @@ console.log(decodeWorkbenchConfig);
 		expect(pkgJson.exports).toBeDefined();
 		if (!pkgJson.exports) return;
 
-		// esbuild requires simple string exports for subpaths
-		// Conditional exports objects like { "types": "...", "import": "..." } are NOT supported
+		// Exports should be either simple strings or conditional objects with a default field
 		for (const [_key, value] of Object.entries(pkgJson.exports)) {
-			expect(typeof value).toBe('string');
+			if (typeof value === 'string') {
+				expect(value).toStartWith('./');
+			} else {
+				expect(typeof value).toBe('object');
+				expect(typeof (value as any).default).toBe('string');
+			}
 		}
 	});
 });
