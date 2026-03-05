@@ -158,24 +158,27 @@ export const startSubcommand = createSubcommand({
 					return;
 				}
 				try {
-					const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`);
-					if (!resp.ok) {
-						tui.fatal(
-							`Failed to fetch connectable sessions: ${resp.status} ${resp.statusText}`,
-							ErrorCode.NETWORK_ERROR,
-						);
-						return;
-					}
-					const data = await resp.json() as {
-						sessions: Array<{
-							id: string;
-							label: string;
-							status: string;
-							task: string | null;
-							createdAt: string;
-						}>;
+					type SessionInfo = {
+						id: string;
+						label: string;
+						status: string;
+						task: string | null;
+						createdAt: string;
 					};
-					if (data.sessions.length === 0) {
+
+					const sessions = await tui.spinner({
+						message: 'Fetching connectable sessions…',
+						callback: async () => {
+							const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`);
+							if (!resp.ok) {
+								throw new Error(`${resp.status} ${resp.statusText}`);
+							}
+							const data = await resp.json() as { sessions: SessionInfo[] };
+							return data.sessions;
+						},
+					});
+
+					if (sessions.length === 0) {
 						tui.fatal(
 							'No connectable sandbox sessions found.\n\nCreate one with: ag-dev coder session create --task "your task"',
 							ErrorCode.CONFIG_INVALID,
@@ -183,28 +186,25 @@ export const startSubcommand = createSubcommand({
 						return;
 					}
 
-					// Show picker
-					tui.newline();
-					tui.output('  Available sessions:');
-					tui.newline();
-					for (let i = 0; i < data.sessions.length; i++) {
-						const session = data.sessions[i]!;
-						const age = timeSince(new Date(session.createdAt));
-						const taskPreview = session.task ? ` — ${session.task.slice(0, 60)}` : '';
-						tui.output(`  ${tui.bold(String(i + 1))}. ${session.label} (${session.status}, ${age})${taskPreview}`);
-						tui.output(`     ${session.id}`);
-					}
-					tui.newline();
-
-					// Simple numeric picker via stdin
-					const choice = await promptForChoice(data.sessions.length);
-					if (choice === null) {
-						tui.output('  Cancelled.');
-						return;
-					}
-					remoteSessionId = data.sessions[choice]!.id;
+					const prompt = tui.createPrompt();
+					remoteSessionId = await prompt.select<string>({
+						message: 'Select a sandbox session to connect to',
+						options: sessions.map((s) => {
+							const age = timeSince(new Date(s.createdAt));
+							const taskPreview = s.task ? s.task.slice(0, 55) : null;
+							const label = taskPreview
+								? `${s.label} ${tui.muted(`(${s.status}, ${age})`)} — ${taskPreview}`
+								: `${s.label} ${tui.muted(`(${s.status}, ${age})`)}`;
+							return {
+								value: s.id,
+								label,
+								hint: s.id,
+							};
+						}),
+					});
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
+					if (msg === 'User cancelled') return;
 					tui.fatal(`Failed to fetch connectable sessions: ${msg}`, ErrorCode.NETWORK_ERROR);
 					return;
 				}
@@ -397,20 +397,4 @@ function timeSince(date: Date): string {
 	return `${days}d ago`;
 }
 
-/** Prompt user to select a numbered option from stdin. */
-async function promptForChoice(count: number): Promise<number | null> {
-	const { createInterface } = await import('node:readline');
-	const rl = createInterface({ input: process.stdin, output: process.stdout });
 
-	return new Promise((resolve) => {
-		rl.question(`  Select session (1-${count}): `, (answer) => {
-			rl.close();
-			const num = Number.parseInt(answer.trim(), 10);
-			if (Number.isNaN(num) || num < 1 || num > count) {
-				resolve(null);
-			} else {
-				resolve(num - 1);
-			}
-		});
-	});
-}
