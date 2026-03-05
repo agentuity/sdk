@@ -14,14 +14,8 @@ interface DNSSuccess extends BaseDNSResult {
 	success: true;
 }
 
-interface DNSPending extends BaseDNSResult {
-	success: true;
-	pending: true;
-}
-
 interface DNSMissing extends BaseDNSResult {
 	success: false;
-	pending: false;
 }
 
 interface DNSError extends BaseDNSResult {
@@ -34,27 +28,23 @@ interface DNSMisconfigured extends BaseDNSResult {
 	misconfigured: string;
 }
 
-export type DNSResult = DNSSuccess | DNSPending | DNSMissing | DNSError | DNSMisconfigured;
-export type DNSFailed = DNSPending | DNSMissing | DNSError | DNSMisconfigured;
+export type DNSResult = DNSSuccess | DNSMissing | DNSError | DNSMisconfigured;
+export type DNSFailed = DNSMissing | DNSError | DNSMisconfigured;
 
 export function isMisconfigured(x: DNSResult): x is DNSMisconfigured {
 	return 'misconfigured' in x && !!x.misconfigured;
 }
 
 export function isMissing(x: DNSResult): x is DNSMissing {
-	return 'pending' in x && x.pending === false && 'success' in x && x.success === false;
+	return x.success === false && !('error' in x) && !('misconfigured' in x);
 }
 
 export function isError(x: DNSResult): x is DNSError {
 	return 'error' in x && !!x.error;
 }
 
-export function isPending(x: DNSResult): x is DNSPending {
-	return 'pending' in x && x.pending === true && x.success === true;
-}
-
 export function isSuccess(x: DNSResult): x is DNSSuccess {
-	return x.success === true && !('pending' in x) && !('error' in x) && !('misconfigured' in x);
+	return x.success === true;
 }
 
 const timeoutMs = 5000;
@@ -93,30 +83,6 @@ async function fetchDNSRecords(name: string, type: string): Promise<string[]> {
 async function fetchDNSRecord(name: string, type: string): Promise<string | null> {
 	const records = await fetchDNSRecords(name, type);
 	return records[0] ?? null;
-}
-
-/**
- * Check if a domain has a valid TLS certificate by making a HEAD request.
- * This also triggers Let's Encrypt certificate provisioning on first access.
- * Returns true if the TLS certificate is valid (any HTTP status code received).
- * Returns false if the certificate is not yet provisioned (timeout or TLS error).
- */
-async function checkTLSCertificate(domain: string): Promise<boolean> {
-	try {
-		await fetch(`https://${domain}`, {
-			method: 'HEAD',
-			signal: AbortSignal.timeout(timeoutMs),
-			redirect: 'manual',
-			// @ts-expect-error - cache is supported by Bun's fetch at runtime but missing from type definitions
-			cache: 'no-store',
-		});
-		// Any HTTP response means TLS handshake succeeded and certificate is valid
-		return true;
-	} catch {
-		// Timeout, TLS certificate error, connection refused, etc.
-		// All indicate the certificate is not yet provisioned
-		return false;
-	}
 }
 
 const LOCAL_DNS = 'agentuity.io';
@@ -197,25 +163,14 @@ export async function checkCustomDomainForDNS(
 
 				if (result) {
 					if (result === proxy) {
-						// DNS is correct — verify TLS certificate (also triggers Let's Encrypt provisioning)
-						const tlsValid = await checkTLSCertificate(domain);
-						if (tlsValid) {
-							return {
-								domain,
-								target: proxy,
-								aRecordTarget,
-								recordType: 'CNAME',
-								success: true,
-							} as DNSSuccess;
-						}
+						// DNS is correctly configured
 						return {
 							domain,
 							target: proxy,
 							aRecordTarget,
 							recordType: 'CNAME',
 							success: true,
-							pending: true,
-						} as DNSPending;
+						} as DNSSuccess;
 					}
 					return {
 						domain,
@@ -278,25 +233,14 @@ export async function checkCustomDomainForDNS(
 					if (domainARecords.length > 0) {
 						const matching = domainARecords.some((a) => ionIPs.includes(a));
 						if (matching) {
-							// DNS is correct — verify TLS certificate (also triggers Let's Encrypt provisioning)
-							const tlsValid = await checkTLSCertificate(domain);
-							if (tlsValid) {
-								return {
-									domain,
-									target: proxy,
-									aRecordTarget,
-									recordType: 'A',
-									success: true,
-								} as DNSSuccess;
-							}
+							// DNS is correctly configured
 							return {
 								domain,
 								target: proxy,
 								aRecordTarget,
 								recordType: 'A',
 								success: true,
-								pending: true,
-							} as DNSPending;
+							} as DNSSuccess;
 						}
 						return {
 							domain,
@@ -318,7 +262,6 @@ export async function checkCustomDomainForDNS(
 				target: proxy,
 				aRecordTarget,
 				recordType: 'CNAME',
-				pending: false,
 			} as DNSMissing;
 		})
 	);
@@ -370,13 +313,6 @@ export async function promptForDNS(
 						cnameTarget: r.target,
 						aRecordTarget: r.aRecordTarget,
 						status: tui.colorWarning(`${tui.ICONS.error} ${r.misconfigured}`),
-					});
-				} else if (isPending(r)) {
-					records.push({
-						domain: r.domain,
-						cnameTarget: r.target,
-						aRecordTarget: r.aRecordTarget,
-						status: tui.colorWarning('⌛️ Pending'),
 					});
 				} else if (isMissing(r)) {
 					records.push({
