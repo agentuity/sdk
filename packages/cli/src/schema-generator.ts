@@ -76,6 +76,37 @@ export interface CLISchema {
 }
 
 /**
+ * Apply args, options, and response from a CommandSchemas to a SchemaCommand.
+ * Shared by both extractCommandSchema and extractSubcommandSchema.
+ */
+function applySchemaFields(schema: SchemaCommand, schemas: CommandSchemas): void {
+	if (schemas.args) {
+		const parsedArgs = parseArgsSchema(schemas.args);
+		schema.arguments = parsedArgs.metadata.map((arg) => ({
+			name: arg.name,
+			type: arg.variadic ? 'array' : 'string',
+			required: !arg.optional,
+			variadic: arg.variadic,
+		}));
+	}
+
+	if (schemas.options) {
+		const parsedOptions = parseOptionsSchema(schemas.options);
+		schema.options = parsedOptions.map((opt) => ({
+			name: opt.name,
+			type: opt.type,
+			required: !opt.hasDefault,
+			default: opt.defaultValue,
+			description: opt.description,
+		}));
+	}
+
+	if (schemas.response) {
+		schema.response = z.toJSONSchema(schemas.response);
+	}
+}
+
+/**
  * Extract schema information from a CommandDefinition
  */
 export function extractCommandSchema(def: CommandDefinition): SchemaCommand {
@@ -149,6 +180,14 @@ export function extractCommandSchema(def: CommandDefinition): SchemaCommand {
 			org: d.optional.org === true,
 			region: d.optional.region === true,
 		};
+	}
+
+	// Extract args and options from schema if available
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if ((def as any).schema) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const schemas = (def as any).schema as CommandSchemas;
+		applySchemaFields(schema, schemas);
 	}
 
 	// Extract subcommands recursively
@@ -249,31 +288,7 @@ export function extractSubcommandSchema(def: SubcommandDefinition): SchemaComman
 	// Extract args and options from schema if available
 	if (d.schema) {
 		const schemas = d.schema as CommandSchemas;
-
-		if (schemas.args) {
-			const parsedArgs = parseArgsSchema(schemas.args);
-			schema.arguments = parsedArgs.metadata.map((arg) => ({
-				name: arg.name,
-				type: arg.variadic ? 'array' : 'string',
-				required: !arg.optional,
-				variadic: arg.variadic,
-			}));
-		}
-
-		if (schemas.options) {
-			const parsedOptions = parseOptionsSchema(schemas.options);
-			schema.options = parsedOptions.map((opt) => ({
-				name: opt.name,
-				type: opt.type,
-				required: !opt.hasDefault,
-				default: opt.defaultValue,
-				description: opt.description,
-			}));
-		}
-
-		if (schemas.response) {
-			schema.response = z.toJSONSchema(schemas.response);
-		}
+		applySchemaFields(schema, schemas);
 	}
 
 	// Extract nested subcommands recursively

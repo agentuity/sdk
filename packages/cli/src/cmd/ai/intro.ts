@@ -67,7 +67,7 @@ ${getCommand('env set KEY value --secret')} # Set secrets (encrypted)
    ${getCommand('cloud sandbox create --input \'{"runtime":"bun:1","memory":"1Gi","network":true}\'')}
    ${getCommand('cloud kv set --input \'{"namespace":"ns","key":"k","value":"v","ttl":300}\'')}
    \`\`\`
-   JSON keys map directly to argument and option names from the command schema. CLI flags take precedence over --input values.
+   JSON keys must be the **camelCase schema keys** shown by \`--describe\` output (not kebab-case flag names). For example, the flag \`--dry-run\` becomes \`dryRun\` in JSON. CLI flags take precedence over --input values.
 
 2. **Use \`--describe\` to introspect what a command accepts before calling it**
    \`\`\`bash

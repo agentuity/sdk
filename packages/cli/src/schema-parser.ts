@@ -1,5 +1,16 @@
 import type { ZodType } from 'zod';
 import type { CommandSchemas } from './types';
+import { StructuredError } from '@agentuity/core';
+
+const InputJSONParseError = StructuredError('InputJSONParseError')<{
+	flag: string;
+	errorType: string;
+}>();
+const InputJSONTypeError = StructuredError('InputJSONTypeError')<{
+	flag: string;
+	expected: string;
+	actual: string;
+}>();
 
 export interface ParsedArgs {
 	names: string[];
@@ -449,15 +460,20 @@ export function buildValidationInput(
 		try {
 			parsed = JSON.parse(inputJson) as Record<string, unknown>;
 		} catch (e) {
-			throw new Error(
-				`Invalid JSON in --input flag: ${e instanceof Error ? e.message : String(e)}`
-			);
+			throw new InputJSONParseError({
+				message: `Invalid JSON in --input flag: ${e instanceof Error ? e.message : String(e)}`,
+				flag: '--input',
+				errorType: 'json_parse',
+			});
 		}
 
 		if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-			throw new Error(
-				`Invalid JSON in --input flag: expected a JSON object, got ${parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed}`
-			);
+			throw new InputJSONTypeError({
+				message: `Invalid JSON in --input flag: expected a JSON object, got ${parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed}`,
+				flag: '--input',
+				expected: 'object',
+				actual: parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed,
+			});
 		}
 
 		if (schemas.args) {

@@ -1049,6 +1049,18 @@ async function registerSubcommand(
 				cmd.help();
 			});
 
+		// Handle --describe for command-group nodes
+		cmd.action(async () => {
+			if (baseCtx.options.describe) {
+				const { extractSubcommandSchema } = await import('./schema-generator');
+				const schema = extractSubcommandSchema(subcommand);
+				const { outputJSON } = await import('./output');
+				outputJSON(schema);
+				return;
+			}
+			cmd.help();
+		});
+
 		// Don't add options to parent commands - only to leaf commands
 		return;
 	}
