@@ -320,6 +320,25 @@ export async function runRemoteTui(options: {
 			agent.replaceMessages(agentMessages);
 			log(`Hydrated ${agentMessages.length} agent messages (+ session manager)`);
 		}
+
+		// Restore streaming state from hydration — fixes first-connect miss
+		const streamingState = (event as any).streamingState as {
+			isStreaming?: boolean;
+			activeTasks?: Array<{ taskId: string; agent: string }>;
+		} | undefined;
+
+		if (streamingState?.isStreaming) {
+			agent._state.isStreaming = true;
+			// Create runningPrompt so InteractiveMode knows we're busy
+			if (!agent.runningPrompt) {
+				const runPromise = new Promise<void>((resolve) => {
+					runningPromptResolve = resolve;
+				});
+				agent.runningPrompt = runPromise;
+			}
+			log(`Hydration: session is streaming with ${streamingState.activeTasks?.length ?? 0} active tasks`);
+		}
+
 		resolveHydration!();
 	});
 
