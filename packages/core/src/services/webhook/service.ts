@@ -8,6 +8,7 @@ import type {
 	Webhook,
 	WebhookDelivery,
 	WebhookDestination,
+	WebhookOrgAnalytics,
 	WebhookReceipt,
 } from './types.ts';
 
@@ -772,5 +773,128 @@ export class WebhookService {
 		}
 
 		throw await toServiceException('POST', url, res.response);
+	}
+
+	/**
+	 * Get org-level webhook analytics summary.
+	 *
+	 * Returns total received, delivered, and failed counts for all webhooks
+	 * in the org within the specified time period.
+	 *
+	 * @param options - Analytics options (start, end, granularity)
+	 * @returns Org-level webhook analytics with period and summary
+	 * @throws {@link ServiceException} if the API request fails
+	 */
+	async getOrgAnalytics(options?: {
+		start?: string;
+		end?: string;
+		granularity?: string;
+	}): Promise<WebhookOrgAnalytics> {
+		const params = new URLSearchParams();
+		if (options?.start) params.set('start', options.start);
+		if (options?.end) params.set('end', options.end);
+		if (options?.granularity) params.set('granularity', options.granularity);
+		const query = params.toString();
+		const path = query ? `/webhook/analytics/org?${query}` : '/webhook/analytics/org';
+		const url = buildUrl(this.#baseUrl, path);
+		const signal = createTimeoutSignal();
+		const res = await this.#adapter.invoke<
+			WebhookResponse<{
+				analytics: {
+					period: { start: string; end: string };
+					summary: { total_received: number; total_delivered: number; total_failed: number };
+				};
+			}>
+		>(url, {
+			method: 'GET',
+			signal,
+			telemetry: { name: 'agentuity.webhook.analytics.org' },
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				const unwrapped = this.#unwrap<{
+					analytics: {
+						period: { start: string; end: string };
+						summary: {
+							total_received: number;
+							total_delivered: number;
+							total_failed: number;
+						};
+					};
+				}>(res.data.data);
+				return unwrapped.analytics;
+			}
+			throw new WebhookResponseError({ status: res.response.status, message: res.data.message });
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	/**
+	 * Get org-level webhook time series data.
+	 *
+	 * Returns time-bucketed received, delivered, and failed counts for all webhooks
+	 * in the org within the specified time period.
+	 *
+	 * @param options - Analytics options (start, end, granularity)
+	 * @returns Webhook time series data with period and series array
+	 * @throws {@link ServiceException} if the API request fails
+	 */
+	async getOrgTimeSeries(options?: {
+		start?: string;
+		end?: string;
+		granularity?: string;
+	}): Promise<{
+		period: { start: string; end: string; granularity?: string };
+		series: Array<{ timestamp: string; received: number; delivered: number; failed: number }>;
+	}> {
+		const params = new URLSearchParams();
+		if (options?.start) params.set('start', options.start);
+		if (options?.end) params.set('end', options.end);
+		if (options?.granularity) params.set('granularity', options.granularity);
+		const query = params.toString();
+		const path = query
+			? `/webhook/analytics/org/timeseries?${query}`
+			: '/webhook/analytics/org/timeseries';
+		const url = buildUrl(this.#baseUrl, path);
+		const signal = createTimeoutSignal();
+		const res = await this.#adapter.invoke<
+			WebhookResponse<{
+				timeseries: {
+					period: { start: string; end: string; granularity?: string };
+					series: Array<{
+						timestamp: string;
+						received: number;
+						delivered: number;
+						failed: number;
+					}>;
+				};
+			}>
+		>(url, {
+			method: 'GET',
+			signal,
+			telemetry: { name: 'agentuity.webhook.analytics.org.timeseries' },
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				const unwrapped = this.#unwrap<{
+					timeseries: {
+						period: { start: string; end: string; granularity?: string };
+						series: Array<{
+							timestamp: string;
+							received: number;
+							delivered: number;
+							failed: number;
+						}>;
+					};
+				}>(res.data.data);
+				return unwrapped.timeseries;
+			}
+			throw new WebhookResponseError({ status: res.response.status, message: res.data.message });
+		}
+
+		throw await toServiceException('GET', url, res.response);
 	}
 }

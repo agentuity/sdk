@@ -40,6 +40,17 @@ export const WebhookSchema = z
 			.describe(
 				'Fully-qualified ingest URL for sending events to this webhook. Only present on create'
 			),
+		internal: z
+			.boolean()
+			.describe(
+				'Whether this is a system-managed webhook (e.g., S3 bucket notifications). Internal webhooks cannot be modified or deleted by users'
+			),
+		metadata: z
+			.record(z.string(), z.unknown())
+			.nullable()
+			.describe(
+				'System metadata for internal webhooks (e.g., bucket_name, type). Null for user-created webhooks'
+			),
 	})
 	.describe('Webhook endpoint configuration');
 
@@ -56,6 +67,17 @@ export const WebhookDestinationSchema = z
 		config: z
 			.record(z.string(), z.unknown())
 			.describe('Configuration object for the destination (e.g., URL, headers)'),
+		internal: z
+			.boolean()
+			.describe(
+				'Whether this is a system-managed destination. Internal destinations cannot be modified or deleted by users'
+			),
+		metadata: z
+			.record(z.string(), z.unknown())
+			.nullable()
+			.describe(
+				'System metadata for internal destinations (e.g., bucket_name, type). Null for user-created destinations'
+			),
 	})
 	.describe('Webhook destination representing a delivery target for webhook events');
 
@@ -97,6 +119,76 @@ export const WebhookDeliverySchema = z
 	.describe('Webhook delivery representing a delivery attempt to a destination');
 
 export type WebhookDelivery = z.infer<typeof WebhookDeliverySchema>;
+
+// ============================================================================
+// Analytics Types
+// ============================================================================
+
+export const WebhookAnalyticsGranularitySchema = z
+	.enum(['minute', 'hour', 'day'])
+	.describe('Time bucket granularity for analytics queries');
+
+export type WebhookAnalyticsGranularity = z.infer<typeof WebhookAnalyticsGranularitySchema>;
+
+export const WebhookAnalyticsOptionsSchema = z
+	.object({
+		start: z.string().optional().describe('ISO 8601 start time for the analytics window'),
+		end: z.string().optional().describe('ISO 8601 end time for the analytics window'),
+		granularity: WebhookAnalyticsGranularitySchema.optional().describe('Time bucket granularity'),
+		orgId: z.string().optional().describe('Organization ID for CLI-authenticated requests'),
+	})
+	.describe('Options for webhook analytics queries');
+
+export type WebhookAnalyticsOptions = z.infer<typeof WebhookAnalyticsOptionsSchema>;
+
+export const WebhookTimePeriodSchema = z
+	.object({
+		start: z.string().describe('ISO 8601 start time'),
+		end: z.string().describe('ISO 8601 end time'),
+		granularity: WebhookAnalyticsGranularitySchema.optional(),
+	})
+	.describe('Time period for analytics data');
+
+export type WebhookTimePeriod = z.infer<typeof WebhookTimePeriodSchema>;
+
+export const WebhookAnalyticsSummarySchema = z
+	.object({
+		total_received: z.number().describe('Total webhook receipts in the period'),
+		total_delivered: z.number().describe('Total successful deliveries in the period'),
+		total_failed: z.number().describe('Total failed deliveries in the period'),
+	})
+	.describe('Summary analytics for webhook activity');
+
+export type WebhookAnalyticsSummary = z.infer<typeof WebhookAnalyticsSummarySchema>;
+
+export const WebhookOrgAnalyticsSchema = z
+	.object({
+		period: WebhookTimePeriodSchema,
+		summary: WebhookAnalyticsSummarySchema,
+	})
+	.describe('Org-level webhook analytics response');
+
+export type WebhookOrgAnalytics = z.infer<typeof WebhookOrgAnalyticsSchema>;
+
+export const WebhookTimeSeriesPointSchema = z
+	.object({
+		timestamp: z.string().describe('ISO 8601 timestamp for this data point'),
+		received: z.number().describe('Number of receipts in this bucket'),
+		delivered: z.number().describe('Number of successful deliveries in this bucket'),
+		failed: z.number().describe('Number of failed deliveries in this bucket'),
+	})
+	.describe('Single data point in webhook time series');
+
+export type WebhookTimeSeriesPoint = z.infer<typeof WebhookTimeSeriesPointSchema>;
+
+export const WebhookTimeSeriesDataSchema = z
+	.object({
+		period: WebhookTimePeriodSchema,
+		series: z.array(WebhookTimeSeriesPointSchema),
+	})
+	.describe('Webhook time series analytics data');
+
+export type WebhookTimeSeriesData = z.infer<typeof WebhookTimeSeriesDataSchema>;
 
 // ============================================================================
 // API Options

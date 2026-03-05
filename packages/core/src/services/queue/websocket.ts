@@ -58,9 +58,9 @@
  */
 
 import { z } from 'zod';
+import { getEnv } from '../env.ts';
 import type { Message } from './types.ts';
 import { WebSocketAuthResponseSchema, WebSocketMessageSchema } from './types.ts';
-import { getEnv } from '../env.ts';
 import { QueueError } from './util.ts';
 import { validateQueueName } from './validation.ts';
 
@@ -106,7 +106,13 @@ export const QueueWebSocketOptionsSchema = z.object({
 		.describe('Maximum reconnect attempts before giving up'),
 	reconnectDelayMs: z.number().optional().describe('Initial reconnect delay in milliseconds'),
 	maxReconnectDelayMs: z.number().optional().describe('Maximum reconnect delay in milliseconds'),
-	clientId: z.string().optional().describe('Optional prior client id used for resume semantics'),
+	clientId: z
+		.string()
+		.max(256)
+		.optional()
+		.describe(
+			'Optional client identifier (max 256 characters). Can be any string for your own identification. Reuse on reconnect for resume semantics.'
+		),
 	lastOffset: z
 		.number()
 		.optional()
@@ -140,7 +146,13 @@ export const SubscribeToQueueOptionsSchema = z.object({
 		.describe('Optional API key override; falls back to AGENTUITY_SDK_KEY'),
 	baseUrl: z.string().describe('Base Catalyst URL used to construct the WebSocket endpoint'),
 	signal: z.custom<AbortSignal>().optional().describe('AbortSignal used to stop the subscription'),
-	clientId: z.string().optional().describe('Optional prior client id used for resume semantics'),
+	clientId: z
+		.string()
+		.max(256)
+		.optional()
+		.describe(
+			'Optional client identifier (max 256 characters). Can be any string for your own identification. Reuse on reconnect for resume semantics.'
+		),
 	lastOffset: z
 		.number()
 		.optional()
@@ -227,7 +239,7 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 		onClose,
 		onError,
 		autoReconnect = true,
-		maxReconnectAttempts = Infinity,
+		maxReconnectAttempts = Number.POSITIVE_INFINITY,
 		reconnectDelayMs = 1000,
 		maxReconnectDelayMs = 30000,
 		orgId,
@@ -349,6 +361,12 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 			state = 'closed';
 			ws = null;
 
+			// Close codes 4000–4999 are application-level terminal errors
+			// (auth failure, validation error, etc.) — do not reconnect.
+			if (event.code >= 4000 && event.code < 5000) {
+				intentionallyClosed = true;
+			}
+
 			onClose?.(event.code, event.reason);
 
 			// Reconnect on any unintentional close — whether we were fully
@@ -383,7 +401,7 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 		}
 
 		// Exponential backoff with jitter, capped at maxReconnectDelayMs.
-		const baseDelay = reconnectDelayMs * Math.pow(2, reconnectAttempts);
+		const baseDelay = reconnectDelayMs * 2 ** reconnectAttempts;
 		const jitter = 0.5 + Math.random() * 0.5;
 		const delay = Math.min(Math.floor(baseDelay * jitter), maxReconnectDelayMs);
 
@@ -508,9 +526,15 @@ export async function* subscribeToQueue(
 				// it to be thrown on clean shutdown / abort.
 			}
 		},
-		onClose: () => {
-			// Only finish if the connection is intentionally closed (signal aborted).
-			// Otherwise, the callback-based API handles reconnection.
+		onClose: (code: number) => {
+			// Terminal close codes (4000–4999) mean the connection will not
+			// reconnect — signal the async iterator to stop so it doesn't
+			// hang forever.  For abort-initiated closes, `finish()` is
+			// already called by the `onAbort` handler; calling it again is
+			// harmless (it's idempotent).
+			if (code >= 4000 && code < 5000) {
+				finish();
+			}
 		},
 		autoReconnect: true,
 	});

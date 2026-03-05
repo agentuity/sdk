@@ -1568,7 +1568,14 @@ export const ConsumerSchema = z
 	.object({
 		id: z.string().describe('Unique consumer identifier (qcns_ prefix).'),
 		queue_id: z.string().describe('Queue this consumer is connected to.'),
-		client_id: z.string().nullable().optional().describe('Client-provided ID for reconnection.'),
+		client_id: z
+			.string()
+			.max(256)
+			.nullable()
+			.optional()
+			.describe(
+				'Client-provided identifier (max 256 characters). Can be any string for your own identification purposes.'
+			),
 		durable: z.boolean().describe('Whether this consumer uses durable offset tracking.'),
 		ip_address: z.string().nullable().optional().describe('IP address of the consumer.'),
 		last_offset: z.number().nullable().optional().describe('Last processed message offset.'),
@@ -1603,8 +1610,11 @@ export const WebSocketAuthRequestSchema = z
 			.describe('The API key for authentication (raw key, not "Bearer ...").'),
 		client_id: z
 			.string()
+			.max(256)
 			.optional()
-			.describe('Optional client ID from a previous connection for reconnection.'),
+			.describe(
+				'Optional client identifier (max 256 characters). Can be any string for your own identification purposes. If omitted, the server generates one. Store and reuse on reconnect for resume semantics.'
+			),
 		last_offset: z
 			.number()
 			.optional()
