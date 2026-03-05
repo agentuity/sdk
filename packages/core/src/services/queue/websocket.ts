@@ -58,9 +58,9 @@
  */
 
 import { z } from 'zod';
+import { getEnv } from '../env.ts';
 import type { Message } from './types.ts';
 import { WebSocketAuthResponseSchema, WebSocketMessageSchema } from './types.ts';
-import { getEnv } from '../env.ts';
 import { QueueError } from './util.ts';
 import { validateQueueName } from './validation.ts';
 
@@ -239,7 +239,7 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 		onClose,
 		onError,
 		autoReconnect = true,
-		maxReconnectAttempts = Infinity,
+		maxReconnectAttempts = Number.POSITIVE_INFINITY,
 		reconnectDelayMs = 1000,
 		maxReconnectDelayMs = 30000,
 		orgId,
@@ -361,6 +361,12 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 			state = 'closed';
 			ws = null;
 
+			// Close codes 4000–4999 are application-level terminal errors
+			// (auth failure, validation error, etc.) — do not reconnect.
+			if (event.code >= 4000 && event.code < 5000) {
+				intentionallyClosed = true;
+			}
+
 			onClose?.(event.code, event.reason);
 
 			// Reconnect on any unintentional close — whether we were fully
@@ -395,7 +401,7 @@ export function createQueueWebSocket(options: QueueWebSocketOptions): QueueWebSo
 		}
 
 		// Exponential backoff with jitter, capped at maxReconnectDelayMs.
-		const baseDelay = reconnectDelayMs * Math.pow(2, reconnectAttempts);
+		const baseDelay = reconnectDelayMs * 2 ** reconnectAttempts;
 		const jitter = 0.5 + Math.random() * 0.5;
 		const delay = Math.min(Math.floor(baseDelay * jitter), maxReconnectDelayMs);
 
