@@ -306,7 +306,12 @@ export async function runRemoteTui(options: {
 
 			if (!text) continue;
 
-			if (entry.role === 'assistant' || entry.type === 'assistant') {
+			// Hub conversation entries use type: 'message' for assistant, 'thinking' for thinking,
+		// 'task_result' for delegation results, 'turn' for turn markers, 'user_prompt' for user input.
+		// Only 'user_prompt' entries are user messages; everything else is assistant-side.
+		const isAssistant = entry.role === 'assistant' || entry.type === 'message'
+			|| entry.type === 'thinking' || entry.type === 'task_result' || entry.type === 'assistant';
+		if (isAssistant) {
 				const msg = {
 					role: 'assistant' as const,
 					content: [{ type: 'text' as const, text }],
