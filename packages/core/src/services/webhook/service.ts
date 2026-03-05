@@ -8,6 +8,7 @@ import type {
 	Webhook,
 	WebhookDelivery,
 	WebhookDestination,
+	WebhookOrgAnalytics,
 	WebhookReceipt,
 } from './types.ts';
 
@@ -788,10 +789,7 @@ export class WebhookService {
 		start?: string;
 		end?: string;
 		granularity?: string;
-	}): Promise<{
-		period: { start: string; end: string };
-		summary: { total_received: number; total_delivered: number; total_failed: number };
-	}> {
+	}): Promise<WebhookOrgAnalytics> {
 		const params = new URLSearchParams();
 		if (options?.start) params.set('start', options.start);
 		if (options?.end) params.set('end', options.end);

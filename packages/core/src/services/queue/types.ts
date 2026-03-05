@@ -1570,6 +1570,7 @@ export const ConsumerSchema = z
 		queue_id: z.string().describe('Queue this consumer is connected to.'),
 		client_id: z
 			.string()
+			.max(256)
 			.nullable()
 			.optional()
 			.describe(

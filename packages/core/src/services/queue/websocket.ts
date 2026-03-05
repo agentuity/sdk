@@ -526,9 +526,15 @@ export async function* subscribeToQueue(
 				// it to be thrown on clean shutdown / abort.
 			}
 		},
-		onClose: () => {
-			// Only finish if the connection is intentionally closed (signal aborted).
-			// Otherwise, the callback-based API handles reconnection.
+		onClose: (code: number) => {
+			// Terminal close codes (4000–4999) mean the connection will not
+			// reconnect — signal the async iterator to stop so it doesn't
+			// hang forever.  For abort-initiated closes, `finish()` is
+			// already called by the `onAbort` handler; calling it again is
+			// harmless (it's idempotent).
+			if (code >= 4000 && code < 5000) {
+				finish();
+			}
 		},
 		autoReconnect: true,
 	});
