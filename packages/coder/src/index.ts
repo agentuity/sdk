@@ -453,6 +453,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					observerState.count = observerParticipantIds.size;
 					log(`Observer joined: ${observerState.count} observers`);
 				}
+			} else if (event === 'session_label_updated') {
+				const label = (message.data as Record<string, unknown>)?.label as string | undefined;
+				if (label) {
+					observerState.label = label;
+					log(`Session label updated: ${label}`);
+				}
 			} else if (event === 'session_leave') {
 				const participant = (message.data as Record<string, unknown>)?.participant as Record<string, unknown> | undefined;
 				if (participant?.role === 'observer' && typeof participant.id === 'string') {
@@ -1682,6 +1688,7 @@ function setupRemoteModeExtension(pi: ExtensionAPI, hubUrl: string, sessionId: s
 	let remote: RemoteSession | null = null;
 	let extensionCtx: ExtensionContext | null = null;
 	let footerSetUp = false;
+	const remoteObserverState: ObserverState = { count: 0, label: sessionId.slice(0, 12) };
 
 	log(`Setting up remote mode for session ${sessionId} via ${hubUrl}`);
 
@@ -1701,7 +1708,7 @@ function setupRemoteModeExtension(pi: ExtensionAPI, hubUrl: string, sessionId: s
 		if (!footerSetUp && ctx.hasUI) {
 			footerSetUp = true;
 			ctx.ui.setStatus('remote_connection', `Remote: ${sessionId.slice(0, 12)}…`);
-			setupCoderFooter(ctx, () => remote?.isConnected ? 'connected' : 'reconnecting');
+			setupCoderFooter(ctx, () => remote?.isConnected ? 'connected' : 'reconnecting', () => remoteObserverState);
 		}
 	}
 
@@ -1750,6 +1757,17 @@ function setupRemoteModeExtension(pi: ExtensionAPI, hubUrl: string, sessionId: s
 		try {
 			remote = await setupRemoteMode(pi, hubUrl, sessionId);
 			log(`Connected to remote session ${sessionId}`);
+
+			// Listen for label updates from Hub broadcasts
+			remote.onEvent((event: any) => {
+				if (event.type === 'session_label_updated' && event.label) {
+					remoteObserverState.label = event.label as string;
+					log(`Remote session label updated: ${event.label}`);
+				} else if (event.type === 'session_hydration' && event.label) {
+					remoteObserverState.label = event.label as string;
+					log(`Remote session label from hydration: ${event.label}`);
+				}
+			});
 
 			// Pass extension context if already available
 			if (extensionCtx) {
