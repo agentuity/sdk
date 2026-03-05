@@ -144,6 +144,7 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 
 			processed++;
 			ctx.logger.info('Successfully processed file: %s (%d chunks)', logicalPath, chunks.length);
+			return { success: true as const };
 		} catch (err) {
 			ctx.logger.error('Error processing file %s: %o', file.path, err);
 			return { success: false as const, path: file.path };
@@ -165,7 +166,7 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 	);
 
 	for (const result of changeResults) {
-		if (result && !result.success) {
+		if (!result.success) {
 			errors++;
 			errorFiles.push(result.path);
 		}

@@ -83,15 +83,27 @@ export function DocsLayout() {
 		: 'Agentuity Documentation';
 	const pageDescription = fm?.description || 'Agentuity SDK documentation for building AI agents.';
 
-	// Scroll to top on route change
+	// Scroll to top on non-hash route changes; hash scrolling is handled by TanStack Router
 	React.useLayoutEffect(() => {
-		mainRef.current?.scrollTo(0, 0);
-	}, [location.pathname]);
+		if (!location.hash) {
+			mainRef.current?.scrollTo(0, 0);
+		}
+	}, [location.pathname, location.hash]);
 
 	const handleNavigate = React.useCallback(
 		(path: string) => {
-			const to = path === 'home' ? '/' : `/${path}`;
-			void navigate({ to });
+			if (path === 'home') {
+				void navigate({ to: '/' });
+				return;
+			}
+			const hashIndex = path.indexOf('#');
+			if (hashIndex >= 0) {
+				const to = `/${path.slice(0, hashIndex)}`;
+				const hash = path.slice(hashIndex + 1);
+				void navigate({ to, hash, resetScroll: false });
+			} else {
+				void navigate({ to: `/${path}` });
+			}
 		},
 		[navigate]
 	);

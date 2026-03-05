@@ -11,6 +11,7 @@ import {
 	useState,
 } from 'react';
 import { Check, Copy } from 'lucide-react';
+import { slug } from 'github-slugger';
 import { cn } from '../../lib/utils';
 import { Callout } from './callout';
 import { Steps, Step } from './steps';
@@ -56,6 +57,11 @@ function extractTextContent(node: ReactNode): string {
 		return extractTextContent(element.props.children);
 	}
 	return '';
+}
+
+function headingId(children: ReactNode): string | undefined {
+	const text = extractTextContent(children);
+	return text ? slug(text) : undefined;
 }
 
 function findCodeNode(node: ReactNode): ReactElement<{ children?: ReactNode }> | null {
@@ -267,64 +273,60 @@ function InlineCode({ className, ...props }: CodeProps) {
 export const mdxComponents: MDXComponents = {
 	// Headings with anchor IDs
 	h1: ({ className, children, ...props }: ComponentPropsWithoutRef<'h1'>) => {
-		const id =
-			typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
+		const id = headingId(children);
 		return (
 			<h1
+				{...props}
 				id={id}
 				className={cn(
 					'scroll-m-20 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mb-6',
 					className
 				)}
-				{...props}
 			>
 				{children}
 			</h1>
 		);
 	},
 	h2: ({ className, children, ...props }: ComponentPropsWithoutRef<'h2'>) => {
-		const id =
-			typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
+		const id = headingId(children);
 		return (
 			<h2
+				{...props}
 				id={id}
 				className={cn(
 					'scroll-m-20 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mt-10 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2',
 					className
 				)}
-				{...props}
 			>
 				{children}
 			</h2>
 		);
 	},
 	h3: ({ className, children, ...props }: ComponentPropsWithoutRef<'h3'>) => {
-		const id =
-			typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
+		const id = headingId(children);
 		return (
 			<h3
+				{...props}
 				id={id}
 				className={cn(
 					'scroll-m-20 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mt-8 mb-3',
 					className
 				)}
-				{...props}
 			>
 				{children}
 			</h3>
 		);
 	},
 	h4: ({ className, children, ...props }: ComponentPropsWithoutRef<'h4'>) => {
-		const id =
-			typeof children === 'string' ? children.toLowerCase().replace(/\s+/g, '-') : undefined;
+		const id = headingId(children);
 		return (
 			<h4
+				{...props}
 				id={id}
 				className={cn(
 					'scroll-m-20 text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 mt-6 mb-2',
 					className
 				)}
-				{...props}
 			>
 				{children}
 			</h4>
