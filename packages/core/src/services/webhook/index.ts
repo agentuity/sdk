@@ -68,6 +68,20 @@ export {
 	WebhookDestinationTypeSchema,
 	type WebhookReceipt,
 	WebhookReceiptSchema,
+	type WebhookAnalyticsGranularity,
+	WebhookAnalyticsGranularitySchema,
+	type WebhookAnalyticsOptions,
+	WebhookAnalyticsOptionsSchema,
+	type WebhookAnalyticsSummary,
+	WebhookAnalyticsSummarySchema,
+	type WebhookOrgAnalytics,
+	WebhookOrgAnalyticsSchema,
+	type WebhookTimePeriod,
+	WebhookTimePeriodSchema,
+	type WebhookTimeSeriesData,
+	WebhookTimeSeriesDataSchema,
+	type WebhookTimeSeriesPoint,
+	WebhookTimeSeriesPointSchema,
 	WebhookSchema,
 } from './types.ts';
 
@@ -133,3 +147,14 @@ export {
 	WebhookDeliveriesListResponseSchema,
 	WebhookDeliveryResponseSchema,
 } from './deliveries.ts';
+
+// ============================================================================
+// Analytics Operations
+// ============================================================================
+
+export {
+	getWebhookOrgAnalytics,
+	getWebhookOrgTimeSeries,
+	WebhookOrgAnalyticsResponseSchema,
+	WebhookTimeSeriesResponseSchema,
+} from './analytics.ts';
