@@ -953,31 +953,29 @@ type SchemaStream<TSchema> = TSchema extends { stream: infer S }
 		: false
 	: false;
 
-type SchemaHandlerReturn<TSchema> = SchemaStream<TSchema> extends true
-	? SchemaOutput<TSchema> extends StandardSchemaV1
-		? ReadableStream<InferOutput<SchemaOutput<TSchema>>>
-		: ReadableStream<unknown>
-	: SchemaOutput<TSchema> extends StandardSchemaV1
-		? InferOutput<SchemaOutput<TSchema>>
-		: void;
+type SchemaHandlerReturn<TSchema> =
+	SchemaStream<TSchema> extends true
+		? SchemaOutput<TSchema> extends StandardSchemaV1
+			? ReadableStream<InferOutput<SchemaOutput<TSchema>>>
+			: ReadableStream<unknown>
+		: SchemaOutput<TSchema> extends StandardSchemaV1
+			? InferOutput<SchemaOutput<TSchema>>
+			: void;
 
 // Handler signature based on schema + setup result (no self-reference)
-type AgentHandlerFromConfig<
-	TSchema,
-	TSetupReturn,
-	TAppState = AppState,
-> = SchemaInput<TSchema> extends infer I
-	? I extends StandardSchemaV1
-		? (
-				ctx: AgentContext<any, TSetupReturn, TAppState>,
-				input: InferOutput<I>
-			) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
+type AgentHandlerFromConfig<TSchema, TSetupReturn, TAppState = AppState> =
+	SchemaInput<TSchema> extends infer I
+		? I extends StandardSchemaV1
+			? (
+					ctx: AgentContext<any, TSetupReturn, TAppState>,
+					input: InferOutput<I>
+				) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
+			: (
+					ctx: AgentContext<any, TSetupReturn, TAppState>
+				) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
 		: (
 				ctx: AgentContext<any, TSetupReturn, TAppState>
-			) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
-	: (
-			ctx: AgentContext<any, TSetupReturn, TAppState>
-		) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>;
+			) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>;
 
 /**
  * Configuration object for creating an agent with automatic type inference.

@@ -130,7 +130,6 @@ const SandboxSnapshotInfoBaseSchema = z.object({
 	/** Full name with org slug (@slug/name:tag) */
 	fullName: z.string().optional().describe('Full name with org slug (@slug/name:tag)'),
 });
-type SandboxSnapshotInfoBase = z.infer<typeof SandboxSnapshotInfoBaseSchema>;
 
 /** Public snapshot information - includes org info */
 export const SandboxSnapshotInfoPublicSchema = SandboxSnapshotInfoBaseSchema.extend({
