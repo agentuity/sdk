@@ -142,6 +142,7 @@ export const invitation = pgTable(
 		status: text('status').notNull(),
 		expiresAt: timestamp('expiresAt', { withTimezone: true }).notNull(),
 		createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow().notNull(),
+		teamId: text('teamId'),
 		inviterId: text('inviterId')
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
@@ -274,61 +275,86 @@ export const apikeyRelations = relations(apikey, ({ one }) => ({
 // =============================================================================
 
 /**
- * Ensures every field a BetterAuth model type expects is present in the
- * corresponding Drizzle table. If BetterAuth adds or renames a field in
- * a new version this will fail at compile time, preventing silent runtime
- * mismatches (e.g. the configId / referenceId incident with @better-auth/api-key@1.5).
+ * Compile-time check that every field a BetterAuth model expects is present
+ * in the corresponding Drizzle table.
  *
- * Fields that are stored as serialized text in the DB but BetterAuth
- * expects as parsed objects (permissions, metadata) are excluded via the
- * Omit parameter since they undergo a transform step.
+ * How it works:
+ *   1. A mapped type checks each key in the BetterAuth model (minus Excluded)
+ *      and resolves to `true` if the key exists in the Drizzle row, or to a
+ *      descriptive error-string literal if it does not.
+ *   2. Indexing the mapped type with `[keyof ...]` collapses it to a union of
+ *      all values: either all `true`, or `true | "ERROR: …"`.
+ *   3. We then strip `true` from the union via `Exclude`. If no errors remain
+ *      (`extends never`), the final type is `true`. Otherwise it is only the
+ *      error-string literal(s) — so `const x: EnsureAllKeysPresent<…> = true`
+ *      will fail because `true` is not assignable to an error-string type.
+ *
+ * Fields stored as serialized text in the DB but expected as parsed objects
+ * by BetterAuth (permissions, metadata) are excluded via the Omit parameter.
  */
-type AssertFieldsCovered<BetterAuthModel, DrizzleRow, Excluded extends string = never> = {
-	[K in keyof Omit<BetterAuthModel, Excluded>]: K extends keyof DrizzleRow
+type _FieldCheck<BetterAuthModel, DrizzleRow, Excluded extends string = never> = {
+	[K in keyof Omit<BetterAuthModel, Excluded>]-?: K extends keyof DrizzleRow
 		? true
 		: `ERROR: BetterAuth field "${K & string}" is missing from the Drizzle schema`;
-};
+}[keyof Omit<BetterAuthModel, Excluded>];
+
+type EnsureAllKeysPresent<
+	BetterAuthModel,
+	DrizzleRow,
+	Excluded extends string = never,
+> =
+	Exclude<_FieldCheck<BetterAuthModel, DrizzleRow, Excluded>, true> extends never
+		? true
+		: Exclude<_FieldCheck<BetterAuthModel, DrizzleRow, Excluded>, true>;
 
 // --- Core tables ---
-type _AssertUser = AssertFieldsCovered<BetterAuthUser, InferSelectModel<typeof user>>;
-type _AssertSession = AssertFieldsCovered<BetterAuthSession, InferSelectModel<typeof session>>;
-type _AssertAccount = AssertFieldsCovered<BetterAuthAccount, InferSelectModel<typeof account>>;
-type _AssertVerification = AssertFieldsCovered<
+const _assertUser: EnsureAllKeysPresent<BetterAuthUser, InferSelectModel<typeof user>> = true;
+const _assertSession: EnsureAllKeysPresent<
+	BetterAuthSession,
+	InferSelectModel<typeof session>
+> = true;
+const _assertAccount: EnsureAllKeysPresent<
+	BetterAuthAccount,
+	InferSelectModel<typeof account>
+> = true;
+const _assertVerification: EnsureAllKeysPresent<
 	BetterAuthVerification,
 	InferSelectModel<typeof verification>
->;
+> = true;
 
 // --- Organization plugin tables ---
 // Organization.metadata is serialized text in DB but an object in the BetterAuth type.
-type _AssertOrganization = AssertFieldsCovered<
+const _assertOrganization: EnsureAllKeysPresent<
 	BetterAuthOrganization,
 	InferSelectModel<typeof organization>,
 	'metadata'
->;
-type _AssertMember = AssertFieldsCovered<BetterAuthMember, InferSelectModel<typeof member>>;
-type _AssertInvitation = AssertFieldsCovered<
+> = true;
+const _assertMember: EnsureAllKeysPresent<
+	BetterAuthMember,
+	InferSelectModel<typeof member>
+> = true;
+const _assertInvitation: EnsureAllKeysPresent<
 	BetterAuthInvitation,
 	InferSelectModel<typeof invitation>
->;
+> = true;
 
 // --- API Key plugin table ---
 // permissions and metadata are serialized text in DB but objects in the BetterAuth type.
-type _AssertApiKey = AssertFieldsCovered<
+const _assertApiKey: EnsureAllKeysPresent<
 	ApiKey,
 	InferSelectModel<typeof apikey>,
 	'permissions' | 'metadata'
->;
+> = true;
 
-// Force the compiler to evaluate all assertions (unused at runtime).
-void (0 as unknown as
-	| _AssertUser
-	| _AssertSession
-	| _AssertAccount
-	| _AssertVerification
-	| _AssertOrganization
-	| _AssertMember
-	| _AssertInvitation
-	| _AssertApiKey);
+// Suppress unused-variable warnings.
+void _assertUser;
+void _assertSession;
+void _assertAccount;
+void _assertVerification;
+void _assertOrganization;
+void _assertMember;
+void _assertInvitation;
+void _assertApiKey;
 
 export const authSchema = {
 	user,
