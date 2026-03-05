@@ -3,7 +3,7 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { resolveHubUrl } from './hub-url';
+import { resolveHubUrl, hubFetchHeaders } from './hub-url';
 
 function formatRelativeTime(isoDate: string): string {
 	const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -84,7 +84,7 @@ export const listSubcommand = createSubcommand({
 		};
 
 		try {
-			const resp = await fetch(`${hubUrl}/api/hub/sessions`);
+			const resp = await fetch(`${hubUrl}/api/hub/sessions`, { headers: hubFetchHeaders() });
 			if (!resp.ok) {
 				tui.fatal(
 					`Hub returned ${resp.status}: ${resp.statusText}. Is the Coder Hub running at ${hubUrl}?`,

@@ -5,7 +5,7 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { resolveHubWsUrl, resolveHubUrl } from './hub-url';
+import { resolveHubWsUrl, resolveHubUrl, hubFetchHeaders } from './hub-url';
 
 /**
  * Resolve the Coder extension path.
@@ -169,7 +169,7 @@ export const startSubcommand = createSubcommand({
 					const sessions = await tui.spinner({
 						message: 'Fetching connectable sessions…',
 						callback: async () => {
-							const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`);
+							const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`, { headers: hubFetchHeaders() });
 							if (!resp.ok) {
 								throw new Error(`${resp.status} ${resp.statusText}`);
 							}
@@ -268,7 +268,7 @@ export const startSubcommand = createSubcommand({
 			try {
 				const resp = await fetch(`${hubHttpUrl}/api/hub/session`, {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: hubFetchHeaders({ 'Content-Type': 'application/json' }),
 					body: JSON.stringify(body),
 				});
 				if (!resp.ok) {
@@ -298,7 +298,7 @@ export const startSubcommand = createSubcommand({
 			while (Date.now() - pollStart < POLL_TIMEOUT) {
 				await new Promise((r) => setTimeout(r, POLL_INTERVAL));
 				try {
-					const pollResp = await fetch(`${hubHttpUrl}/api/hub/session/${sessionId}`);
+					const pollResp = await fetch(`${hubHttpUrl}/api/hub/session/${sessionId}`, { headers: hubFetchHeaders() });
 					if (pollResp.ok) {
 						const data = await pollResp.json() as {
 							participants?: Array<{ role: string }>;
@@ -342,6 +342,9 @@ export const startSubcommand = createSubcommand({
 			...process.env as Record<string, string>,
 			AGENTUITY_CODER_HUB_URL: hubWsUrl,
 		};
+		// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+		const cliApiKey = process.env.AGENTUITY_CODER_API_KEY;
+		if (cliApiKey) env.AGENTUITY_CODER_API_KEY = cliApiKey;
 
 		if (opts?.agent) {
 			env.AGENTUITY_CODER_AGENT = opts.agent;

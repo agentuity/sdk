@@ -74,4 +74,21 @@ function normalizeToWs(httpUrl: string): string {
 	return wsUrl;
 }
 
+/**
+ * Resolve the API key for Hub authentication.
+ * TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+ */
+export function resolveApiKey(): string | null {
+	return process.env.AGENTUITY_CODER_API_KEY || null;
+}
 
+/**
+ * Build headers object with API key if available.
+ * TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+ */
+export function hubFetchHeaders(extra?: Record<string, string>): Record<string, string> {
+	const headers: Record<string, string> = { ...extra };
+	const apiKey = resolveApiKey();
+	if (apiKey) headers['x-agentuity-auth-api-key'] = apiKey;
+	return headers;
+}

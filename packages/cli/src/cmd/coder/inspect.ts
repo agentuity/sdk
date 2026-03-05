@@ -3,7 +3,7 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { resolveHubUrl } from './hub-url';
+import { resolveHubUrl, hubFetchHeaders } from './hub-url';
 
 function formatRelativeTime(isoDate: string): string {
 	const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -103,7 +103,7 @@ export const inspectSubcommand = createSubcommand({
 		};
 
 		try {
-			const resp = await fetch(`${hubUrl}/api/hub/session/${encodeURIComponent(sessionId)}`);
+			const resp = await fetch(`${hubUrl}/api/hub/session/${encodeURIComponent(sessionId)}`, { headers: hubFetchHeaders() });
 			if (resp.status === 404) {
 				tui.fatal(`Session not found: ${sessionId}`, ErrorCode.RESOURCE_NOT_FOUND);
 				return;
