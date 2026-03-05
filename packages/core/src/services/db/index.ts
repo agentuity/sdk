@@ -8,6 +8,21 @@ export {
 	dbLogs,
 } from './logs.ts';
 export {
+	DbLogStatsAPIResponseSchema,
+	DbLogStatsCommandBreakdownSchema,
+	type DbLogStatsCommandBreakdown,
+	DbLogStatsQueryPatternSchema,
+	type DbLogStatsQueryPattern,
+	DbLogStatsRequestSchema,
+	DbLogStatsResponseSchema,
+	type DbLogStatsResponse,
+	DbLogStatsSummarySchema,
+	type DbLogStatsSummary,
+	DbLogStatsTimeSeriesPointSchema,
+	type DbLogStatsTimeSeriesPoint,
+	dbLogStats,
+} from './stats.ts';
+export {
 	dbQuery,
 	type QueryColumn,
 	QueryColumnSchema,
