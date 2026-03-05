@@ -40,6 +40,17 @@ export const WebhookSchema = z
 			.describe(
 				'Fully-qualified ingest URL for sending events to this webhook. Only present on create'
 			),
+		internal: z
+			.boolean()
+			.describe(
+				'Whether this is a system-managed webhook (e.g., S3 bucket notifications). Internal webhooks cannot be modified or deleted by users'
+			),
+		metadata: z
+			.record(z.string(), z.unknown())
+			.nullable()
+			.describe(
+				'System metadata for internal webhooks (e.g., bucket_name, type). Null for user-created webhooks'
+			),
 	})
 	.describe('Webhook endpoint configuration');
 
@@ -56,6 +67,17 @@ export const WebhookDestinationSchema = z
 		config: z
 			.record(z.string(), z.unknown())
 			.describe('Configuration object for the destination (e.g., URL, headers)'),
+		internal: z
+			.boolean()
+			.describe(
+				'Whether this is a system-managed destination. Internal destinations cannot be modified or deleted by users'
+			),
+		metadata: z
+			.record(z.string(), z.unknown())
+			.nullable()
+			.describe(
+				'System metadata for internal destinations (e.g., bucket_name, type). Null for user-created destinations'
+			),
 	})
 	.describe('Webhook destination representing a delivery target for webhook events');
 
