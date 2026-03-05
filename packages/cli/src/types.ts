@@ -310,6 +310,9 @@ export interface GlobalOptions {
 	dryRun?: boolean;
 	validate?: boolean;
 	skipVersionCheck?: boolean;
+	input?: string;
+	describe?: boolean;
+	fields?: string;
 }
 
 export interface PaginationInfo {

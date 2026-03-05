@@ -84,6 +84,14 @@ export async function dbLogStats(
 	client: APIClient,
 	request: DbLogStatsRequest
 ): Promise<DbLogStatsResponse> {
+	if (!request) {
+		throw new DbInvalidArgumentError({
+			message: 'request is required',
+			orgId: undefined,
+			region: undefined,
+		});
+	}
+
 	const { database, orgId, region, startDate, endDate } = request;
 
 	if (!orgId || !region || !database || !startDate || !endDate) {
