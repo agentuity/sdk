@@ -69,6 +69,7 @@ export async function runRemoteTui(options: {
 	// We register all handlers BEFORE connecting so that the hydration
 	// message from the Hub (sent immediately after init) is captured.
 	const remote = new RemoteSession(sessionId);
+	let hydrationStreamingDetected = false;
 
 	// ── 2. Create AgentSession with coder extension loaded ──
 	// The extension provides Hub UI (footer, /hub overlay, commands, titlebar).
@@ -216,6 +217,8 @@ export async function runRemoteTui(options: {
 	// so agent.emit() before that fires into the void).
 	let interactiveModeReady = false;
 	let eventBuffer: RpcEvent[] = [];
+	let seenMessageStart = false;
+	let seenAgentStart = false;
 
 	remote.onEvent((rpcEvent: RpcEvent) => {
 		const source = (rpcEvent as any)._source ?? 'unknown';
@@ -238,6 +241,13 @@ export async function runRemoteTui(options: {
 			return;
 		}
 
+		// Track streaming lifecycle events so we can inject synthetics when
+		// we attach mid-stream (controller connected after agent already started).
+		if (rpcEvent.type === 'agent_start') seenAgentStart = true;
+		if (rpcEvent.type === 'agent_end') { seenAgentStart = false; seenMessageStart = false; }
+		if (rpcEvent.type === 'message_start') seenMessageStart = true;
+		if (rpcEvent.type === 'message_end') seenMessageStart = false;
+
 		// Update agent internal state (mirrors Agent._runLoop behavior)
 		updateAgentState(agent, rpcEvent);
 
@@ -246,6 +256,31 @@ export async function runRemoteTui(options: {
 			eventBuffer.push(rpcEvent);
 			log(`Buffered event: ${rpcEvent.type} (InteractiveMode not ready)`);
 			return;
+		}
+
+		// Mid-stream attach guard: if we receive message_update without having
+		// seen message_start, inject synthetic agent_start + message_start so
+		// InteractiveMode sets up its streaming component. Without this,
+		// message_update events are silently dropped.
+		if (rpcEvent.type === 'message_update' && !seenMessageStart) {
+			log('Live message_update without prior message_start — injecting synthetics');
+			if (!seenAgentStart) {
+				agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
+				seenAgentStart = true;
+			}
+			agent.emit({
+				type: 'message_start',
+				message: {
+					role: 'assistant',
+					content: [],
+					api: 'anthropic-messages',
+					provider: 'anthropic',
+					model: 'remote',
+					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+					timestamp: Date.now(),
+				},
+			} as any);
+			seenMessageStart = true;
 		}
 
 		// Emit to subscribers — InteractiveMode.handleEvent processes this
@@ -348,6 +383,7 @@ export async function runRemoteTui(options: {
 
 		if (streamingState?.isStreaming) {
 			agent._state.isStreaming = true;
+			hydrationStreamingDetected = true;
 			// Create runningPrompt so InteractiveMode knows we're busy
 			if (!agent.runningPrompt) {
 				const runPromise = new Promise<void>((resolve) => {
@@ -385,8 +421,44 @@ export async function runRemoteTui(options: {
 	log('InteractiveMode created, calling init...');
 	await interactive.init();
 
-	// Flush buffered events now that InteractiveMode is listening
+	// Flush buffered events now that InteractiveMode is listening.
+	// If the session was already streaming when we connected (mid-stream attach),
+	// InteractiveMode needs agent_start + message_start to set up its streaming
+	// components. Without these, message_update events are silently dropped
+	// because InteractiveMode.streamingComponent is null.
 	interactiveModeReady = true;
+
+	if (hydrationStreamingDetected) {
+		const hasAgentStart = eventBuffer.some((e) => e.type === 'agent_start');
+		const hasMessageStart = eventBuffer.some((e) => e.type === 'message_start');
+
+		if (!hasAgentStart) {
+			log('Injecting synthetic agent_start for mid-stream attach');
+			eventBuffer.unshift({
+				type: 'agent_start',
+				agentName: 'lead',
+				timestamp: Date.now(),
+			} as RpcEvent);
+		}
+		if (!hasMessageStart) {
+			log('Injecting synthetic message_start for mid-stream attach');
+			// Insert after agent_start (if we just added one) or at the start
+			const insertIdx = eventBuffer.findIndex((e) => e.type === 'agent_start') + 1;
+			eventBuffer.splice(insertIdx, 0, {
+				type: 'message_start',
+				message: {
+					role: 'assistant',
+					content: [],
+					api: 'anthropic-messages',
+					provider: 'anthropic',
+					model: 'remote',
+					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+					timestamp: Date.now(),
+				},
+			} as unknown as RpcEvent);
+		}
+	}
+
 	if (eventBuffer.length > 0) {
 		log(`Flushing ${eventBuffer.length} buffered events to InteractiveMode`);
 		for (const buffered of eventBuffer) {
