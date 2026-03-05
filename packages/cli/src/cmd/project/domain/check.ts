@@ -7,7 +7,6 @@ import { isJSONMode } from '../../../output';
 import {
 	checkCustomDomainForDNS,
 	isSuccess,
-	isPending,
 	isMissing,
 	isMisconfigured,
 	isError,
@@ -92,9 +91,6 @@ export const checkSubcommand = createSubcommand({
 				status = tui.colorSuccess(`${tui.ICONS.success} Configured`);
 				statusRaw = 'configured';
 				success = true;
-			} else if (isPending(r)) {
-				status = tui.colorWarning('⏳ Pending');
-				statusRaw = 'pending';
 			} else if (isMisconfigured(r)) {
 				status = tui.colorWarning(`${tui.ICONS.warning} ${r.misconfigured}`);
 				statusRaw = 'misconfigured';
