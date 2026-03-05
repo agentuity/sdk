@@ -86,15 +86,19 @@ export async function dbLogStats(
 ): Promise<DbLogStatsResponse> {
 	const { database, orgId, region, startDate, endDate } = request;
 
-	if (!orgId || !region) {
-		throw new DbInvalidArgumentError({ message: 'orgId and region are required', orgId, region });
+	if (!orgId || !region || !database || !startDate || !endDate) {
+		throw new DbInvalidArgumentError({
+			message: 'orgId, region, database, startDate, and endDate are required',
+			orgId,
+			region,
+		});
 	}
 
 	const params = new URLSearchParams();
 	params.append('startDate', startDate);
 	params.append('endDate', endDate);
 
-	const url = `/resource/${orgId}/${region}/${database}/logs/stats?${params.toString()}`;
+	const url = `/resource/${encodeURIComponent(orgId)}/${encodeURIComponent(region)}/${encodeURIComponent(database)}/logs/stats?${params.toString()}`;
 
 	const resp = await client.get<DbLogStatsAPIResponse>(url, DbLogStatsAPIResponseSchema);
 
