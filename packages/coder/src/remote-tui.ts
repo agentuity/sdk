@@ -210,6 +210,13 @@ export async function runRemoteTui(options: {
 	// Only emit LIVE events (from broadcast) to Agent → InteractiveMode.
 	// Replay events (from Durable Stream) are historical — skip them.
 	// Hydration is handled separately via session_hydration → agent.replaceMessages().
+	//
+	// Events that arrive before InteractiveMode is initialized are buffered
+	// and flushed after init (InteractiveMode registers listeners during init,
+	// so agent.emit() before that fires into the void).
+	let interactiveModeReady = false;
+	let eventBuffer: RpcEvent[] = [];
+
 	remote.onEvent((rpcEvent: RpcEvent) => {
 		const source = (rpcEvent as any)._source ?? 'unknown';
 		log(`Event received: ${rpcEvent.type} (source=${source})`);
@@ -233,6 +240,13 @@ export async function runRemoteTui(options: {
 
 		// Update agent internal state (mirrors Agent._runLoop behavior)
 		updateAgentState(agent, rpcEvent);
+
+		// Buffer events until InteractiveMode is ready to receive them
+		if (!interactiveModeReady) {
+			eventBuffer.push(rpcEvent);
+			log(`Buffered event: ${rpcEvent.type} (InteractiveMode not ready)`);
+			return;
+		}
 
 		// Emit to subscribers — InteractiveMode.handleEvent processes this
 		agent.emit(rpcEvent);
@@ -365,6 +379,20 @@ export async function runRemoteTui(options: {
 	const interactive = new InteractiveMode(session);
 	log('InteractiveMode created, calling init...');
 	await interactive.init();
+
+	// Flush buffered events now that InteractiveMode is listening
+	interactiveModeReady = true;
+	if (eventBuffer.length > 0) {
+		log(`Flushing ${eventBuffer.length} buffered events to InteractiveMode`);
+		for (const buffered of eventBuffer) {
+			agent.emit(buffered);
+			if (buffered.type === 'agent_end') {
+				resolveRunningPrompt();
+			}
+		}
+	}
+	eventBuffer = [];
+
 	log('InteractiveMode initialized, calling run...');
 
 	// Handle clean shutdown
