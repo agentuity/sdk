@@ -1,7 +1,7 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { type Logger, parseEnvExample, StructuredError } from '@agentuity/core';
+import { type Logger, StructuredError } from '@agentuity/core';
 import {
 	createQueue,
 	createResources,
@@ -658,9 +658,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 	const projectDirName = name ?? parsed.repo;
 	const dest = join(process.cwd(), projectDirName);
 	if (existsSync(dest)) {
-		tui.fatal(
-			`Directory "${projectDirName}" already exists. Choose a different name with --name.`
-		);
+		tui.fatal(`Directory "${projectDirName}" already exists. Choose a different name with --name.`);
 	}
 
 	// Check: target GitHub repo doesn't already exist
@@ -719,8 +717,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			const sdkKey = process.env.AGENTUITY_SDK_KEY;
 			if (!sdkKey) {
 				throw new RemoteImportConfigError({
-					message:
-						'AGENTUITY_SDK_KEY environment variable is required when using --project-id',
+					message: 'AGENTUITY_SDK_KEY environment variable is required when using --project-id',
 				});
 			}
 			const orgId = org ?? config.preferences?.orgId;
@@ -759,16 +756,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			);
 		}
 
-		// Parse .env.example to detect required env vars and resources
-		// Platform-managed vars that should not appear in requirements
-		const platformManagedVars = new Set([
-			'AGENTUITY_SDK_KEY',
-			'AGENTUITY_URL',
-			'AGENTUITY_TRANSPORT_URL',
-			'AGENTUITY_BEARER_TOKEN',
-			'NODE_ENV',
-		]);
-
+		// Read template requirements from agentuity.json (the source of truth)
 		type TemplateConfig = {
 			source?: string;
 			requirements?: {
@@ -784,71 +772,12 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		};
 
 		let template: TemplateConfig | undefined;
-		const envExamplePath = join(sourceDir, '.env.example');
-		if (await Bun.file(envExamplePath).exists()) {
+		const configPath = join(sourceDir, 'agentuity.json');
+		if (await Bun.file(configPath).exists()) {
 			try {
-				const envContent = await Bun.file(envExamplePath).text();
-				const envFields = parseEnvExample(envContent).filter(
-					(f) => !platformManagedVars.has(f.key)
-				);
-
-				const resources: NonNullable<NonNullable<TemplateConfig['requirements']>['resources']> =
-					envFields
-						.filter((f) => f.resource)
-						.map((f) => ({
-							type: f.resource!,
-							envVar: f.key,
-							description: f.comment,
-						}));
-
-				const envVars = envFields
-					.filter((f) => !f.resource)
-					.map((f) => ({
-						key: f.key,
-						required: f.required ?? false,
-						description: f.comment,
-					}));
-
-				// Merge curated metadata from the source template's existing agentuity.json
-				const existingConfigPath = join(sourceDir, 'agentuity.json');
-				if (await Bun.file(existingConfigPath).exists()) {
-					try {
-						const existingConfig = JSON.parse(await Bun.file(existingConfigPath).text());
-						const existingResources = existingConfig?.template?.requirements?.resources;
-						if (Array.isArray(existingResources)) {
-							// Merge extra fields (like defaultName) from curated config
-							for (const resource of resources) {
-								const curated = existingResources.find(
-									(r: { envVar?: string }) => r.envVar === resource.envVar
-								);
-								if (curated?.defaultName) {
-									resource.defaultName = curated.defaultName;
-								}
-								if (curated?.queueType) {
-									resource.queueType = curated.queueType;
-								}
-							}
-							// Preserve curated resources NOT detected by parser
-							for (const curated of existingResources) {
-								if (!resources.some((r) => r.envVar === curated.envVar)) {
-									resources.push(curated);
-								}
-							}
-						}
-
-						// Merge curated env vars not detected by parser
-						const existingEnv = existingConfig?.template?.requirements?.env;
-						if (Array.isArray(existingEnv)) {
-							for (const curated of existingEnv) {
-								if (!envVars.some((e) => e.key === curated.key)) {
-									envVars.push(curated);
-								}
-							}
-						}
-					} catch {
-						// Ignore parse errors — source config may be malformed
-					}
-				}
+				const config = JSON.parse(await Bun.file(configPath).text());
+				const resources = config?.template?.requirements?.resources ?? [];
+				const envVars = config?.template?.requirements?.env ?? [];
 
 				if (resources.length > 0 || envVars.length > 0) {
 					template = {
@@ -864,19 +793,17 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 							`Requires ${r.type}: ${r.envVar}${r.description ? ` (${r.description})` : ''}`
 						);
 					}
-					const requiredEnv = envVars.filter((f) => f.required);
+					const requiredEnv = envVars.filter((f: { required?: boolean }) => f.required);
 					for (const f of requiredEnv) {
-						tui.info(
-							`Required env var: ${f.key}${f.description ? ` (${f.description})` : ''}`
-						);
+						tui.info(`Required env var: ${f.key}${f.description ? ` (${f.description})` : ''}`);
 					}
 				}
 			} catch (err) {
-				logger.debug('[remote-import] Could not parse .env.example: %o', err);
+				logger.debug('[remote-import] Could not parse agentuity.json: %o', err);
 			}
 		}
 
-		// If no .env.example but we know the source, still track it
+		// Track source even if no requirements defined
 		if (!template && parsed.owner && parsed.repo) {
 			template = { source: `github.com/${parsed.owner}/${parsed.repo}` };
 		}
@@ -961,8 +888,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 						});
 						if (created[0]?.env) {
 							// Map using the template-defined envVar name
-							const connStr =
-								created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
+							const connStr = created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
 							if (connStr) resourceEnvVars[r.envVar] = connStr;
 						}
 						tui.success(`Created database: ${overrideName}`);
@@ -1030,8 +956,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 										]),
 								});
 								if (created[0]?.env) {
-									const connStr =
-										created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
+									const connStr = created[0].env.DATABASE_URL ?? Object.values(created[0].env)[0];
 									if (connStr) resourceEnvVars[r.envVar] = connStr;
 								}
 								tui.success(`Created database: ${dbName}`);
@@ -1046,8 +971,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 							const selectedName = action.slice('existing:'.length);
 							const selectedDb = existingDbs?.db.find((d) => d.name === selectedName);
 							if (selectedDb?.env) {
-								const connStr =
-									selectedDb.env.DATABASE_URL ?? Object.values(selectedDb.env)[0];
+								const connStr = selectedDb.env.DATABASE_URL ?? Object.values(selectedDb.env)[0];
 								if (connStr) resourceEnvVars[r.envVar] = connStr;
 							}
 							dbCreated = true;
@@ -1074,10 +998,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 
 			for (const r of templateResources.filter((resource) => resource.type === 'queue')) {
 				if (!r.queueType) {
-					logger.debug(
-						'[remote-import] Queue resource %s missing queueType, skipping',
-						r.envVar
-					);
+					logger.debug('[remote-import] Queue resource %s missing queueType, skipping', r.envVar);
 					continue;
 				}
 
@@ -1211,9 +1132,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			// Write all collected env vars to .env
 			if (Object.keys(resourceEnvVars).length > 0) {
 				await addResourceEnvVars(sourceDir, resourceEnvVars);
-				tui.success(
-					`Configured ${Object.keys(resourceEnvVars).length} environment variable(s)`
-				);
+				tui.success(`Configured ${Object.keys(resourceEnvVars).length} environment variable(s)`);
 			}
 		}
 
@@ -1293,9 +1212,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				tui.success('Linked repo to project');
 			} catch (err) {
 				logger.debug('[remote-import] Failed to link repo to project: %o', err);
-				tui.warning(
-					'Could not link repo to project — you can link manually with `agentuity link`'
-				);
+				tui.warning('Could not link repo to project — you can link manually with `agentuity link`');
 			}
 		}
 
