@@ -399,6 +399,7 @@ export class HubOverlay implements Component, Focusable {
 
 	private sessions: HubSessionSummary[] = [];
 	private detail: HubSessionDetail | null = null;
+	private cachedTodos: { todos: any[]; summary: any; sessionId: string } | null = null;
 	private feed: FeedEntry[] = [];
 	private sessionFeed = new Map<string, FeedEntry[]>();
 	private sessionBuffers = new Map<string, StreamBuffer>();
@@ -992,9 +993,9 @@ export class HubOverlay implements Component, Focusable {
 		return `  ${tab('1', 'List', active === 'list')}${divider}${tab('2', 'Feed', active === 'feed')}`;
 	}
 
-	private async fetchJson<T>(path: string): Promise<T> {
+	private async fetchJson<T>(path: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+		const timeout = setTimeout(() => controller.abort(), timeoutMs);
 		try {
 			const response = await fetch(`${this.baseUrl}${path}`, {
 				headers: { accept: 'application/json' },
@@ -1058,11 +1059,25 @@ export class HubOverlay implements Component, Focusable {
 					`/api/hub/session/${encodeURIComponent(sessionId)}`,
 				),
 				this.fetchJson<HubTodoListResponse>(
-					`/api/hub/session/${encodeURIComponent(sessionId)}/todos?includeTerminal=true&includeSync=true&limit=200`,
-				).catch((err: any) => ({ _fetchError: true, message: err?.message || 'Failed to load todos' }) as any),
+					`/api/hub/session/${encodeURIComponent(sessionId)}/todos?includeTerminal=true&includeSync=true&limit=30`,
+					15_000,
+				).catch((err: any) => {
+					const isAbort = err?.name === 'AbortError' || err?.message?.includes('aborted');
+					return {
+						_fetchError: true,
+						message: isAbort ? 'Todos loading\u2026' : (err?.message || 'Failed to load todos'),
+					} as any;
+				}),
 			]);
 			if (todosResponse?._fetchError) {
-				detail.todosUnavailable = todosResponse.message;
+				// Use cached todos if available, show loading indicator
+				if (this.cachedTodos && this.cachedTodos.sessionId === sessionId) {
+					detail.todos = this.cachedTodos.todos;
+					detail.todoSummary = this.cachedTodos.summary;
+					detail.todosUnavailable = todosResponse.message;
+				} else {
+					detail.todosUnavailable = todosResponse.message;
+				}
 			} else if (todosResponse) {
 				detail.todos = Array.isArray(todosResponse.todos) ? todosResponse.todos : [];
 				detail.todoSummary =
@@ -1072,6 +1087,10 @@ export class HubOverlay implements Component, Focusable {
 				detail.todosUnavailable = todosResponse.unavailable
 					? (typeof todosResponse.message === 'string' ? todosResponse.message : 'Task service unavailable')
 					: undefined;
+				// Cache successful todo data
+				if (detail.todos && detail.todos.length > 0) {
+					this.cachedTodos = { todos: detail.todos, summary: detail.todoSummary, sessionId };
+				}
 			}
 			this.detail = detail;
 			this.detailSessionId = sessionId;

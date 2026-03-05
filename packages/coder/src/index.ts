@@ -19,12 +19,15 @@ import { ChainEditorOverlay, type ChainResult } from './chain-preview.ts';
 import { HubOverlay } from './hub-overlay.ts';
 import { OutputViewerOverlay, type StoredResult } from './output-viewer.ts';
 import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition, AgentProgressUpdate } from './protocol.ts';
+import { setupRemoteMode, type RemoteSession, type RemoteSessionInternal } from './remote-session.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
 const _require = createRequire(import.meta.url);
 
 const HUB_URL_ENV = 'AGENTUITY_CODER_HUB_URL';
 const AGENT_ENV = 'AGENTUITY_CODER_AGENT';
+const REMOTE_SESSION_ENV = 'AGENTUITY_CODER_REMOTE_SESSION';
+const NATIVE_REMOTE_ENV = 'AGENTUITY_CODER_NATIVE_REMOTE';
 const RECONNECT_WAIT_TIMEOUT_MS = 120_000;
 
 type HubUiStatus = 'connected' | 'reconnecting' | 'offline';
@@ -243,6 +246,15 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	const hubUrl = process.env[HUB_URL_ENV];
 	if (!hubUrl) return;
 
+	// ── Remote mode detection ──
+	// If AGENTUITY_CODER_REMOTE_SESSION is set, the TUI connects as a controller
+	// to an existing sandbox session. The full UI is set up (tools, commands, /hub)
+	// but user input is relayed to the remote sandbox instead of the local Pi agent.
+	const remoteSessionId = process.env[REMOTE_SESSION_ENV] || null;
+	if (remoteSessionId) {
+		log(`Remote mode: will connect as controller to session ${remoteSessionId}`);
+	}
+
 	const isSubAgent = !!process.env[AGENT_ENV];
 	const agentRole = process.env[AGENT_ENV] || 'lead';
 
@@ -362,7 +374,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	let currentSessionId: string | null = initMsg.sessionId ?? null;
 	let systemPromptApplied = false;
 	let connectPromise: Promise<InitMessage | null> | null = null;
-	let hubUiStatus: HubUiStatus = 'offline';
+	// In native remote mode, remote-tui.ts owns the Hub connection — show as connected
+	let hubUiStatus: HubUiStatus = process.env[NATIVE_REMOTE_ENV] ? 'connected' : 'offline';
 	let footerCtx: ExtensionContext | null = null;
 	let hubOverlayOpen = false;
 
@@ -449,14 +462,17 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				observerState.count = observerParticipantIds.size;
 				log(`Presence update: ${observerState.count} observers`);
 			}
-		} else if (msgType === 'session_hydration') {
-			const sessionId = message.sessionId as string | undefined;
-			if (sessionId) currentSessionId = sessionId;
 		}
 	};
 
 	// Lazy WebSocket connect — returns cached InitMessage
+	// In native remote mode, remote-tui.ts owns the controller WebSocket via RemoteSession.
+	// Skip the extension's own HubClient connection to avoid duplicate controllers.
 	function ensureConnected(): Promise<InitMessage | null> {
+		if (isNativeRemote) {
+			log('Native remote mode — skipping HubClient WebSocket (remote-tui owns controller)');
+			return Promise.resolve(cachedInitMessage);
+		}
 		if (client.connected && cachedInitMessage) return Promise.resolve(cachedInitMessage);
 		if (client.connectionState === 'reconnecting' || client.connectionState === 'disconnected') {
 			return client
@@ -469,7 +485,11 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		connectPromise = (async () => {
 			log('Connecting WebSocket to Hub...');
 			try {
-				const wsInitMsg = await client.connect(hubUrl!);
+				// In remote mode, connect as a controller to the existing session
+				const connectOpts = remoteSessionId
+					? { sessionId: remoteSessionId, role: 'controller' }
+					: undefined;
+				const wsInitMsg = await client.connect(hubUrl!, connectOpts);
 				log('WebSocket connected');
 				applyInitMessage(wsInitMsg);
 				connectPromise = null; // Clear so future disconnects can reconnect
@@ -1114,6 +1134,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				}
 			},
 		});
+
 	}
 
 	// ══════════════════════════════════════════════
@@ -1234,9 +1255,106 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		});
 	}
 
+	// ── Remote mode: input interception + remote event rendering ──
+	// Two sub-modes:
+	//   1. Native remote (AGENTUITY_CODER_NATIVE_REMOTE=1): remote-tui.ts drives rendering
+	//      via Agent.emit(). Extension only provides Hub UI (footer, /hub, commands).
+	//      No pi.sendMessage() rendering, no setupRemoteMode() event handlers.
+	//   2. Legacy remote: Extension handles all rendering via pi.sendMessage({ customType }).
+	const isNativeRemote = !!process.env[NATIVE_REMOTE_ENV];
+
+	if (remoteSessionId) {
+		let remoteSession: RemoteSession | null = null;
+
+		// Register custom message renderers (used only in legacy mode, harmless in native)
+		try {
+			pi.registerMessageRenderer('remote_message', () => undefined);
+			pi.registerMessageRenderer('remote_history', () => undefined);
+		} catch { /* not available in this Pi version */ }
+
+		if (!isNativeRemote) {
+			// Legacy remote: intercept input and render events via pi.sendMessage()
+			(pi.on as GenericEventHandler)('input', async (event: unknown, ctx: ExtensionContext) => {
+				const inputEvent = event as { text?: string; message?: string; images?: string[] };
+				const userMessage = inputEvent.text || inputEvent.message;
+				if (!userMessage) return;
+
+				if (!remoteSession?.isConnected) {
+					if (ctx.hasUI) ctx.ui.notify('Not connected to remote session yet');
+					return { action: 'handled' };
+				}
+
+				pi.sendMessage({
+					customType: 'remote_message',
+					content: `**You:** ${userMessage}`,
+					display: true,
+				});
+
+				remoteSession.prompt(userMessage, inputEvent.images);
+				log(`Sent prompt to remote: ${userMessage.slice(0, 100)}`);
+
+				if (ctx.hasUI) {
+					ctx.ui.setWorkingMessage('Sending to remote agent…');
+				}
+				return { action: 'handled' };
+			});
+
+			// Connect the remote session with legacy event rendering
+			(async () => {
+				try {
+					remoteSession = await setupRemoteMode(pi, hubUrl, remoteSessionId);
+					log(`Remote session connected: ${remoteSessionId}`);
+
+					if (footerCtx) {
+						(remoteSession as RemoteSessionInternal)._setExtensionCtx?.(footerCtx);
+					}
+
+					pi.sendMessage({
+						customType: 'remote_message',
+						content: `Connected to remote session **${remoteSessionId}**`,
+						display: true,
+					});
+
+					remoteSession.setUiHandler(async (request) => {
+						if (!footerCtx?.hasUI) return null;
+						const ui = footerCtx.ui;
+						switch (request.method) {
+							case 'select': {
+								const options = (request.params.options as Array<{ label: string; value: string }>) ?? [];
+								const title = (request.params.title as string) ?? 'Select';
+								const result = await ui.select(title, options.map((o) => o.label));
+								if (result === null || result === undefined) return null;
+								const idx = typeof result === 'number' ? result : Number(result);
+								return options[idx]?.value ?? null;
+							}
+							case 'confirm': return await ui.confirm((request.params.message as string) ?? 'Confirm?', (request.params.message as string) ?? 'Confirm?');
+							case 'input': return await ui.input((request.params.prompt as string) ?? 'Input:', (request.params.placeholder as string) ?? '');
+							case 'editor': return await ui.editor((request.params.content as string) ?? '', (request.params.language as string) ?? 'text');
+							case 'notify': ui.notify((request.params.message as string) ?? ''); return undefined;
+							case 'setStatus': ui.setStatus((request.params.key as string) ?? 'remote', (request.params.text as string) ?? ''); return undefined;
+							case 'setTitle': ui.setTitle((request.params.title as string) ?? ''); return undefined;
+							default: return null;
+						}
+					});
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					log(`Remote connection failed: ${msg}`);
+					pi.sendMessage({
+						customType: 'remote_message',
+						content: `Failed to connect to remote session: ${msg}`,
+						display: true,
+					});
+				}
+			})();
+		}
+		// In native remote mode: no input interception, no event rendering.
+		// remote-tui.ts handles Agent.emit() for native rendering and
+		// monkey-patches Agent.prompt/steer/abort for input relay.
+	}
+
 	// Clean up on shutdown
-	pi.on('session_shutdown', async () => {
-		log('Shutting down');
+	(pi.on as GenericEventHandler)('session_shutdown', async (_event: unknown, _ctx: ExtensionContext) => {
+		log('Shutting down — closing Hub connection');
 		client.close();
 	});
 }
@@ -1540,6 +1658,166 @@ async function runSubAgent(
 		try { session.abort?.(); } catch { /* ignore */ }
 		throw err;
 	}
+}
+
+// ══════════════════════════════════════════════
+// Remote Mode Extension Setup
+// Connects to an existing sandbox session through the Hub.
+// Pi runs locally as the TUI shell; agent execution is in the sandbox.
+// ══════════════════════════════════════════════
+
+function setupRemoteModeExtension(pi: ExtensionAPI, hubUrl: string, sessionId: string): void {
+	let remote: RemoteSession | null = null;
+	let extensionCtx: ExtensionContext | null = null;
+	let footerSetUp = false;
+
+	log(`Setting up remote mode for session ${sessionId} via ${hubUrl}`);
+
+	// Set up titlebar for branding
+	setupTitlebar(pi);
+
+	// Register custom message renderer for remote messages (safe — may not exist in all Pi versions)
+	try {
+		pi.registerMessageRenderer('remote_message', (_message, _options, _theme) => undefined);
+		pi.registerMessageRenderer('remote_history', (_message, _options, _theme) => undefined);
+	} catch { /* registerMessageRenderer not available in this Pi version */ }
+
+	function initCtx(ctx: ExtensionContext): void {
+		extensionCtx = ctx;
+		if (remote) (remote as RemoteSessionInternal)._setExtensionCtx?.(ctx);
+
+		if (!footerSetUp && ctx.hasUI) {
+			footerSetUp = true;
+			ctx.ui.setStatus('remote_connection', `Remote: ${sessionId.slice(0, 12)}…`);
+			setupCoderFooter(ctx, () => remote?.isConnected ? 'connected' : 'reconnecting');
+		}
+	}
+
+	// Capture extension context from whichever event fires first
+	pi.on('session_start', async (_event, ctx) => { initCtx(ctx); });
+	(pi.on as GenericEventHandler)('agent_start', async (_event: unknown, ctx: ExtensionContext) => { initCtx(ctx); });
+
+	// Intercept user input — relay to remote sandbox instead of local agent
+	(pi.on as GenericEventHandler)('input', async (event: unknown, ctx: ExtensionContext) => {
+		initCtx(ctx);
+
+		const inputEvent = event as { text?: string; message?: string; images?: string[] };
+		const userMessage = inputEvent.text || inputEvent.message;
+
+		if (!userMessage) return;
+
+		if (!remote?.isConnected) {
+			log(`Input received but remote not connected (remote=${!!remote}, connected=${remote?.isConnected})`);
+			if (extensionCtx?.hasUI) {
+				extensionCtx.ui.notify('Not connected to remote session');
+			}
+			return { action: 'handled' };
+		}
+
+		// Show the user message in the TUI as a conversation entry
+		pi.sendMessage({
+			customType: 'remote_message',
+			content: `**You:** ${userMessage}`,
+			display: true,
+		});
+
+		// Send as RPC prompt command to the sandbox
+		remote.prompt(userMessage, inputEvent.images);
+		log(`Sent prompt to remote: ${userMessage.slice(0, 100)}`);
+
+		if (extensionCtx?.hasUI) {
+			extensionCtx.ui.setWorkingMessage('Sending to remote agent…');
+		}
+
+		// Prevent local Pi from processing this input — we've relayed it to the sandbox
+		return { action: 'handled' };
+	});
+
+	// Connect to Hub asynchronously
+	(async () => {
+		try {
+			remote = await setupRemoteMode(pi, hubUrl, sessionId);
+			log(`Connected to remote session ${sessionId}`);
+
+			// Pass extension context if already available
+			if (extensionCtx) {
+				(remote as RemoteSessionInternal)._setExtensionCtx?.(extensionCtx);
+			}
+
+			// Show connection success in the TUI
+			pi.sendMessage({
+				customType: 'remote_message',
+				content: `Connected to remote session **${sessionId}**`,
+				display: true,
+			});
+
+			// Set up UI handler using Pi's extension API
+			remote.setUiHandler(async (request) => {
+				if (!extensionCtx?.hasUI) return null;
+				const ui = extensionCtx.ui;
+
+				switch (request.method) {
+					case 'select': {
+						const options = (request.params.options as Array<{ label: string; value: string }>) ?? [];
+						const title = (request.params.title as string) ?? 'Select';
+						const result = await ui.select(title, options.map((o) => o.label));
+						if (result === null || result === undefined) return null;
+						const selectedIdx = typeof result === 'number' ? result : Number(result);
+						return options[selectedIdx]?.value ?? null;
+					}
+					case 'confirm': {
+						const message = (request.params.message as string) ?? 'Confirm?';
+						return await ui.confirm(message, message);
+					}
+					case 'input': {
+						const prompt = (request.params.prompt as string) ?? 'Input:';
+						const placeholder = (request.params.placeholder as string) ?? '';
+						return await ui.input(prompt, placeholder);
+					}
+					case 'editor': {
+						const content = (request.params.content as string) ?? '';
+						const language = (request.params.language as string) ?? 'text';
+						return await ui.editor(content, language);
+					}
+					case 'notify': {
+						const message = (request.params.message as string) ?? '';
+						ui.notify(message);
+						return undefined;
+					}
+					case 'setStatus': {
+						const key = (request.params.key as string) ?? 'remote';
+						const text = (request.params.text as string) ?? '';
+						ui.setStatus(key, text);
+						return undefined;
+					}
+					case 'setTitle': {
+						const title = (request.params.title as string) ?? '';
+						ui.setTitle(title);
+						return undefined;
+					}
+					default:
+						return null;
+				}
+			});
+
+			log('Remote mode fully initialized');
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			log(`Failed to connect: ${msg}`);
+			// Show error in TUI so user sees it
+			pi.sendMessage({
+				customType: 'remote_message',
+				content: `Failed to connect to remote session: ${msg}`,
+				display: true,
+			});
+		}
+	})();
+
+	// Clean up on shutdown
+	(pi.on as GenericEventHandler)('session_shutdown', async () => {
+		log('Pi session_shutdown — closing remote connection');
+		remote?.close();
+	});
 }
 
 export default agentuityCoderHub;

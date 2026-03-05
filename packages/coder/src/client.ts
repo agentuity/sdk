@@ -300,7 +300,8 @@ export class HubClient {
 				// Unsolicited server messages (broadcast, presence, hydration)
 				// These have a `type` field but no `id` matching a pending request.
 				const msgType = data.type as string | undefined;
-				if (msgType === 'broadcast' || msgType === 'presence' || msgType === 'session_hydration') {
+				if (msgType === 'broadcast' || msgType === 'presence' || msgType === 'session_hydration'
+				|| msgType === 'rpc_event' || msgType === 'rpc_response' || msgType === 'rpc_ui_request') {
 					this.onServerMessage?.(data);
 					return;
 				}
@@ -340,17 +341,29 @@ export class HubClient {
 		});
 	}
 
-	async connect(url: string): Promise<InitMessage> {
+	async connect(url: string, opts?: { sessionId?: string; role?: string }): Promise<InitMessage> {
 		if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
 			throw new Error('Already connected or connecting — call close() first');
 		}
 
 		this.intentionallyClosed = false;
-		this.lastConnectUrl = url;
+
+		// Append query params for session/role targeting
+		let connectUrl = url;
+		if (opts?.sessionId) {
+			const separator = connectUrl.includes('?') ? '&' : '?';
+			connectUrl = `${connectUrl}${separator}sessionId=${encodeURIComponent(opts.sessionId)}`;
+		}
+		if (opts?.role) {
+			const separator = connectUrl.includes('?') ? '&' : '?';
+			connectUrl = `${connectUrl}${separator}role=${encodeURIComponent(opts.role)}`;
+		}
+
+		this.lastConnectUrl = connectUrl;
 		this.reconnectAttempts = 0;
 		this.clearReconnectTimer();
 
-		return this.connectInternal(url, false);
+		return this.connectInternal(connectUrl, false);
 	}
 
 	private waitForConnection(timeoutMs: number): Promise<void> {
@@ -456,6 +469,11 @@ export class HubClient {
 		}
 
 		if (this.ws) {
+			// Detach handlers so the stale onclose doesn't trigger reconnect
+			// after a subsequent connect() resets intentionallyClosed.
+			this.ws.onclose = null;
+			this.ws.onerror = null;
+			this.ws.onmessage = null;
 			this.ws.close();
 			this.ws = null;
 		}

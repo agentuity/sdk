@@ -5,7 +5,7 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { resolveHubWsUrl } from './hub-url';
+import { resolveHubWsUrl, resolveHubUrl } from './hub-url';
 
 /**
  * Resolve the Coder extension path.
@@ -85,6 +85,14 @@ export const startSubcommand = createSubcommand({
 			command: getCommand('coder start --agent scout'),
 			description: 'Start as a specific agent role',
 		},
+		{
+			command: getCommand('coder start --remote sess_abc123'),
+			description: 'Connect to an existing sandbox session remotely',
+		},
+		{
+			command: getCommand('coder start --remote'),
+			description: 'Browse and select a sandbox session to connect to',
+		},
 	],
 	schema: {
 		options: z.object({
@@ -93,6 +101,7 @@ export const startSubcommand = createSubcommand({
 			pi: z.string().optional().describe('Path to pi binary'),
 			agent: z.string().optional().describe('Agent role (e.g. scout, builder)'),
 			task: z.string().optional().describe('Initial task to execute'),
+			remote: z.string().optional().describe('Connect to existing sandbox session (pass session ID or omit for picker)'),
 		}),
 	},
 	async handler(ctx) {
@@ -121,7 +130,104 @@ export const startSubcommand = createSubcommand({
 		// Resolve pi binary
 		const piBinary = resolvePiBinary(opts?.pi);
 
-		// Build environment
+		// ── Remote mode: resolve session ID ──
+		let remoteSessionId: string | undefined;
+		if (opts?.remote !== undefined) {
+			// --remote was passed (might be empty string for picker, or a session ID)
+			const remoteValue = opts.remote?.trim();
+			if (remoteValue) {
+				remoteSessionId = remoteValue;
+			} else {
+				// No session ID — fetch connectable sessions and show picker
+				const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
+				if (!hubHttpUrl) {
+					tui.fatal(
+						'Could not find Hub URL for session picker.',
+						ErrorCode.NETWORK_ERROR,
+					);
+					return;
+				}
+				try {
+					const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`);
+					if (!resp.ok) {
+						tui.fatal(
+							`Failed to fetch connectable sessions: ${resp.status} ${resp.statusText}`,
+							ErrorCode.NETWORK_ERROR,
+						);
+						return;
+					}
+					const data = await resp.json() as {
+						sessions: Array<{
+							id: string;
+							label: string;
+							status: string;
+							task: string | null;
+							createdAt: string;
+						}>;
+					};
+					if (data.sessions.length === 0) {
+						tui.fatal(
+							'No connectable sandbox sessions found.\n\nCreate one with: ag-dev coder session create --task "your task"',
+							ErrorCode.CONFIG_INVALID,
+						);
+						return;
+					}
+
+					// Show picker
+					tui.newline();
+					tui.output('  Available sessions:');
+					tui.newline();
+					for (let i = 0; i < data.sessions.length; i++) {
+						const session = data.sessions[i]!;
+						const age = timeSince(new Date(session.createdAt));
+						const taskPreview = session.task ? ` — ${session.task.slice(0, 60)}` : '';
+						tui.output(`  ${tui.bold(String(i + 1))}. ${session.label} (${session.status}, ${age})${taskPreview}`);
+						tui.output(`     ${session.id}`);
+					}
+					tui.newline();
+
+					// Simple numeric picker via stdin
+					const choice = await promptForChoice(data.sessions.length);
+					if (choice === null) {
+						tui.output('  Cancelled.');
+						return;
+					}
+					remoteSessionId = data.sessions[choice]!.id;
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					tui.fatal(`Failed to fetch connectable sessions: ${msg}`, ErrorCode.NETWORK_ERROR);
+					return;
+				}
+			}
+		}
+
+		// ── Remote mode: native Pi TUI backed by Hub WebSocket ──
+		// Uses remote-tui.ts which creates AgentSession + InteractiveMode directly,
+		// with the coder extension loaded for Hub UI (footer, /hub, commands).
+		// Agent.emit() drives native rendering — no [remote_message] blocks.
+		if (remoteSessionId) {
+			if (!options.json) {
+				tui.newline();
+				tui.output(`  Hub:       ${tui.bold(hubWsUrl)}`);
+				tui.output(`  Extension: ${tui.bold(extensionPath)}`);
+				tui.output(`  Remote:    ${tui.bold(remoteSessionId)}`);
+				tui.newline();
+			}
+
+			try {
+				const { runRemoteTui } = await import(join(extensionPath, 'src', 'remote-tui.ts'));
+				await runRemoteTui({
+					hubWsUrl,
+					sessionId: remoteSessionId,
+				});
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				tui.fatal(`Remote TUI failed: ${msg}`, ErrorCode.NETWORK_ERROR);
+			}
+			return;
+		}
+
+		// ── Normal mode: spawn pi with extension ──
 		const env: Record<string, string> = {
 			...process.env as Record<string, string>,
 			AGENTUITY_CODER_HUB_URL: hubWsUrl,
@@ -168,3 +274,33 @@ export const startSubcommand = createSubcommand({
 		}
 	},
 });
+
+/** Format a duration since a given date. */
+function timeSince(date: Date): string {
+	const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+	if (seconds < 60) return `${seconds}s ago`;
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	return `${days}d ago`;
+}
+
+/** Prompt user to select a numbered option from stdin. */
+async function promptForChoice(count: number): Promise<number | null> {
+	const { createInterface } = await import('node:readline');
+	const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+	return new Promise((resolve) => {
+		rl.question(`  Select session (1-${count}): `, (answer) => {
+			rl.close();
+			const num = Number.parseInt(answer.trim(), 10);
+			if (Number.isNaN(num) || num < 1 || num > count) {
+				resolve(null);
+			} else {
+				resolve(num - 1);
+			}
+		});
+	});
+}

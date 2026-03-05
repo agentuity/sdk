@@ -232,6 +232,10 @@ export const command = createCommand({
 				.boolean()
 				.optional()
 				.describe('Skip TypeScript type checking on startup and restarts'),
+			resume: z
+				.string()
+				.optional()
+				.describe('Resume a paused Hub session by ID'),
 		}),
 	},
 	optional: { project: true },
@@ -1088,6 +1092,10 @@ export const command = createCommand({
 					process.env.AGENTUITY_PORT = process.env.PORT;
 					process.env.AGENTUITY_BASE_URL =
 						process.env.AGENTUITY_BASE_URL || `http://localhost:${opts.port}`;
+
+					if (opts.resume) {
+						process.env.AGENTUITY_CODER_RESUME_SESSION = opts.resume;
+					}
 
 					if (project) {
 						// Set environment variables for LLM provider patches
