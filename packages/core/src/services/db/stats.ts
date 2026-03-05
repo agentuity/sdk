@@ -80,7 +80,10 @@ type DbLogStatsAPIResponse = z.infer<typeof DbLogStatsAPIResponseSchema>;
 /**
  * Get query performance stats for a database
  */
-export async function dbLogStats(client: APIClient, request: DbLogStatsRequest): Promise<DbLogStatsResponse> {
+export async function dbLogStats(
+	client: APIClient,
+	request: DbLogStatsRequest
+): Promise<DbLogStatsResponse> {
 	const { database, orgId, region, startDate, endDate } = request;
 
 	if (!orgId || !region) {
