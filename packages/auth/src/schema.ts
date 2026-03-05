@@ -17,7 +17,10 @@
  */
 
 import { pgTable, text, boolean, timestamp, integer, index } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, type InferSelectModel } from 'drizzle-orm';
+import type { User as BetterAuthUser, Session as BetterAuthSession, Account as BetterAuthAccount, Verification as BetterAuthVerification } from 'better-auth';
+import type { Organization as BetterAuthOrganization, Member as BetterAuthMember, Invitation as BetterAuthInvitation } from 'better-auth/plugins/organization';
+import type { ApiKey } from '@better-auth/api-key';
 
 // =============================================================================
 // BetterAuth Core Tables
@@ -160,6 +163,7 @@ export const apikey = pgTable(
 	'apikey',
 	{
 		id: text('id').primaryKey(),
+		configId: text('configId').notNull().default('default'),
 		name: text('name'),
 		start: text('start'),
 		prefix: text('prefix'),
@@ -167,6 +171,7 @@ export const apikey = pgTable(
 		userId: text('userId')
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
+		referenceId: text('referenceId').notNull().default(''),
 		refillInterval: integer('refillInterval'),
 		refillAmount: integer('refillAmount'),
 		lastRefillAt: timestamp('lastRefillAt', { withTimezone: true }),
@@ -183,7 +188,12 @@ export const apikey = pgTable(
 		permissions: text('permissions'),
 		metadata: text('metadata'),
 	},
-	(table) => [index('apikey_userId_idx').on(table.userId), index('apikey_key_idx').on(table.key)]
+	(table) => [
+		index('apikey_userId_idx').on(table.userId),
+		index('apikey_key_idx').on(table.key),
+		index('apikey_configId_idx').on(table.configId),
+		index('apikey_referenceId_idx').on(table.referenceId),
+	]
 );
 
 // =============================================================================
@@ -249,6 +259,73 @@ export const apikeyRelations = relations(apikey, ({ one }) => ({
 // =============================================================================
 // Combined schema export (for easy spreading into app schema)
 // =============================================================================
+
+// =============================================================================
+// Compile-time type assertions: Drizzle schema ↔ BetterAuth models
+// =============================================================================
+
+/**
+ * Ensures every field a BetterAuth model type expects is present in the
+ * corresponding Drizzle table. If BetterAuth adds or renames a field in
+ * a new version this will fail at compile time, preventing silent runtime
+ * mismatches (e.g. the configId / referenceId incident with @better-auth/api-key@1.5).
+ *
+ * Fields that are stored as serialized text in the DB but BetterAuth
+ * expects as parsed objects (permissions, metadata) are excluded via the
+ * Omit parameter since they undergo a transform step.
+ */
+type AssertFieldsCovered<
+	BetterAuthModel,
+	DrizzleRow,
+	Excluded extends string = never,
+> = {
+	[K in keyof Omit<BetterAuthModel, Excluded>]: K extends keyof DrizzleRow
+		? true
+		: `ERROR: BetterAuth field "${K & string}" is missing from the Drizzle schema`;
+};
+
+// --- Core tables ---
+type _AssertUser = AssertFieldsCovered<BetterAuthUser, InferSelectModel<typeof user>>;
+type _AssertSession = AssertFieldsCovered<BetterAuthSession, InferSelectModel<typeof session>>;
+type _AssertAccount = AssertFieldsCovered<BetterAuthAccount, InferSelectModel<typeof account>>;
+type _AssertVerification = AssertFieldsCovered<
+	BetterAuthVerification,
+	InferSelectModel<typeof verification>
+>;
+
+// --- Organization plugin tables ---
+// Organization.metadata is serialized text in DB but an object in the BetterAuth type.
+type _AssertOrganization = AssertFieldsCovered<
+	BetterAuthOrganization,
+	InferSelectModel<typeof organization>,
+	'metadata'
+>;
+type _AssertMember = AssertFieldsCovered<BetterAuthMember, InferSelectModel<typeof member>>;
+type _AssertInvitation = AssertFieldsCovered<
+	BetterAuthInvitation,
+	InferSelectModel<typeof invitation>
+>;
+
+// --- API Key plugin table ---
+// permissions and metadata are serialized text in DB but objects in the BetterAuth type.
+type _AssertApiKey = AssertFieldsCovered<
+	ApiKey,
+	InferSelectModel<typeof apikey>,
+	'permissions' | 'metadata'
+>;
+
+// Force the compiler to evaluate all assertions (unused at runtime).
+void (
+	0 as unknown as
+		| _AssertUser
+		| _AssertSession
+		| _AssertAccount
+		| _AssertVerification
+		| _AssertOrganization
+		| _AssertMember
+		| _AssertInvitation
+		| _AssertApiKey
+);
 
 export const authSchema = {
 	user,

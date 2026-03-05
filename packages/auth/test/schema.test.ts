@@ -130,8 +130,10 @@ describe('Agentuity Auth Schema', () => {
 		it('apikey table has required columns', () => {
 			const columns = Object.keys(schema.apikey);
 			expect(columns).toContain('id');
+			expect(columns).toContain('configId');
 			expect(columns).toContain('key');
 			expect(columns).toContain('userId');
+			expect(columns).toContain('referenceId');
 			expect(columns).toContain('permissions');
 			expect(columns).toContain('metadata');
 		});
