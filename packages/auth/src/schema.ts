@@ -18,8 +18,17 @@
 
 import { pgTable, text, boolean, timestamp, integer, index } from 'drizzle-orm/pg-core';
 import { relations, type InferSelectModel } from 'drizzle-orm';
-import type { User as BetterAuthUser, Session as BetterAuthSession, Account as BetterAuthAccount, Verification as BetterAuthVerification } from 'better-auth';
-import type { Organization as BetterAuthOrganization, Member as BetterAuthMember, Invitation as BetterAuthInvitation } from 'better-auth/plugins/organization';
+import type {
+	User as BetterAuthUser,
+	Session as BetterAuthSession,
+	Account as BetterAuthAccount,
+	Verification as BetterAuthVerification,
+} from 'better-auth';
+import type {
+	Organization as BetterAuthOrganization,
+	Member as BetterAuthMember,
+	Invitation as BetterAuthInvitation,
+} from 'better-auth/plugins/organization';
 import type { ApiKey } from '@better-auth/api-key';
 
 // =============================================================================
@@ -274,11 +283,7 @@ export const apikeyRelations = relations(apikey, ({ one }) => ({
  * expects as parsed objects (permissions, metadata) are excluded via the
  * Omit parameter since they undergo a transform step.
  */
-type AssertFieldsCovered<
-	BetterAuthModel,
-	DrizzleRow,
-	Excluded extends string = never,
-> = {
+type AssertFieldsCovered<BetterAuthModel, DrizzleRow, Excluded extends string = never> = {
 	[K in keyof Omit<BetterAuthModel, Excluded>]: K extends keyof DrizzleRow
 		? true
 		: `ERROR: BetterAuth field "${K & string}" is missing from the Drizzle schema`;
@@ -315,17 +320,15 @@ type _AssertApiKey = AssertFieldsCovered<
 >;
 
 // Force the compiler to evaluate all assertions (unused at runtime).
-void (
-	0 as unknown as
-		| _AssertUser
-		| _AssertSession
-		| _AssertAccount
-		| _AssertVerification
-		| _AssertOrganization
-		| _AssertMember
-		| _AssertInvitation
-		| _AssertApiKey
-);
+void (0 as unknown as
+	| _AssertUser
+	| _AssertSession
+	| _AssertAccount
+	| _AssertVerification
+	| _AssertOrganization
+	| _AssertMember
+	| _AssertInvitation
+	| _AssertApiKey);
 
 export const authSchema = {
 	user,
