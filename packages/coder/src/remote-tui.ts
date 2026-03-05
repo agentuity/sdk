@@ -44,16 +44,6 @@ function log(msg: string): void {
 	if (DEBUG) console.error(`[remote-tui] ${msg}`);
 }
 
-// ══════════════════════════════════════════════
-// Agent event types we handle (subset of AgentEvent)
-// ══════════════════════════════════════════════
-const AGENT_EVENT_TYPES = new Set([
-	'agent_start', 'agent_end',
-	'turn_start', 'turn_end',
-	'message_start', 'message_update', 'message_end',
-	'tool_execution_start', 'tool_execution_update', 'tool_execution_end',
-]);
-
 /**
  * Run the native Pi TUI connected to a remote sandbox session.
  *
@@ -108,6 +98,7 @@ export async function runRemoteTui(options: {
 	// ── 3. Patch Agent to be remote-backed ──
 	// Track the running prompt promise so InteractiveMode waits correctly
 	let runningPromptResolve: (() => void) | null = null;
+	let syntheticAgentStartEmitted = false;
 
 	// Override Agent.prompt — send RPC prompt command, block until agent_end
 	agent.prompt = async (input: any): Promise<void> => {
@@ -125,6 +116,10 @@ export async function runRemoteTui(options: {
 			runningPromptResolve = resolve;
 		});
 		agent.runningPrompt = runPromise;
+
+		// Emit synthetic agent_start so InteractiveMode shows "working" immediately
+		syntheticAgentStartEmitted = true;
+		agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() });
 
 		// Send RPC command to sandbox
 		remote.prompt(text);
@@ -219,7 +214,16 @@ export async function runRemoteTui(options: {
 		const source = (rpcEvent as any)._source ?? 'unknown';
 		log(`Event received: ${rpcEvent.type} (source=${source})`);
 
-		if (!AGENT_EVENT_TYPES.has(rpcEvent.type)) return;
+		// session_hydration is handled separately below — skip it here
+		if (rpcEvent.type === 'session_hydration') return;
+
+		// Skip duplicate agent_start if we already emitted a synthetic one
+		if (rpcEvent.type === 'agent_start' && syntheticAgentStartEmitted) {
+			syntheticAgentStartEmitted = false;
+			// Still update state from real event
+			updateAgentState(agent, rpcEvent);
+			return;
+		}
 
 		// Skip replay events — these are historical from Durable Stream
 		if (source === 'replay') {
@@ -364,6 +368,7 @@ export async function runRemoteTui(options: {
 
 	// ── Helper: resolve the running prompt promise ──
 	function resolveRunningPrompt(): void {
+		syntheticAgentStartEmitted = false;
 		agent._state.isStreaming = false;
 		agent._state.streamMessage = null;
 		agent._state.pendingToolCalls = new Set();
@@ -421,6 +426,28 @@ function updateAgentState(agent: any, event: RpcEvent): void {
 			state.pendingToolCalls = s;
 			break;
 		}
+
+		case 'thinking_start':
+			state.isStreaming = true;
+			break;
+
+		case 'thinking_end':
+			break;
+
+		case 'tool_call':
+			state.isStreaming = true;
+			break;
+
+		case 'tool_result':
+			break;
+
+		case 'task_start':
+			state.isStreaming = true;
+			break;
+
+		case 'task_complete':
+		case 'task_error':
+			break;
 
 		case 'turn_end': {
 			const msg = (event as any).message;
