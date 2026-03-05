@@ -455,7 +455,7 @@ export function buildValidationInput(
 	}
 
 	// Merge --input JSON values: CLI flags take precedence over --input values
-	if (inputJson) {
+	if (inputJson !== undefined) {
 		let parsed: Record<string, unknown>;
 		try {
 			parsed = JSON.parse(inputJson) as Record<string, unknown>;
