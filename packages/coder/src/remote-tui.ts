@@ -224,6 +224,7 @@ export async function runRemoteTui(options: {
 		const source = (rpcEvent as any)._source ?? 'unknown';
 		log(`Event received: ${rpcEvent.type} (source=${source})`);
 
+
 		// session_hydration is handled separately below — skip it here
 		if (rpcEvent.type === 'session_hydration') return;
 
@@ -258,12 +259,16 @@ export async function runRemoteTui(options: {
 			return;
 		}
 
-		// Mid-stream attach guard: if we receive message_update without having
-		// seen message_start, inject synthetic agent_start + message_start so
-		// InteractiveMode sets up its streaming component. Without this,
-		// message_update events are silently dropped.
-		if (rpcEvent.type === 'message_update' && !seenMessageStart) {
-			log('Live message_update without prior message_start — injecting synthetics');
+		// Mid-stream attach guard: if we receive message_update or message_end
+		// without having seen message_start, inject synthetic agent_start +
+		// message_start so InteractiveMode sets up its streaming component.
+		// Without this, the events are silently dropped because
+		// InteractiveMode.streamingComponent is null.
+		// This happens when the controller connects mid-stream or after the
+		// agent finishes — the broadcast of agent_start/message_start occurred
+		// before the controller WebSocket was registered.
+		if ((rpcEvent.type === 'message_update' || rpcEvent.type === 'message_end') && !seenMessageStart) {
+			log(`Live ${rpcEvent.type} without prior message_start — injecting synthetics`);
 			if (!seenAgentStart) {
 				agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
 				seenAgentStart = true;
@@ -320,14 +325,33 @@ export async function runRemoteTui(options: {
 			timestamp?: number;
 		}> | undefined;
 
+		// Extract task text from hydration (Hub includes session.sandbox?.task)
+		const hydrationTask = (event as any).task as string | undefined;
+
 		if (!entries?.length) {
 			log('Received session_hydration with no entries');
+			// Even with no entries, inject task as user message if available
+			if (hydrationTask) {
+				const taskMsg = { role: 'user' as const, content: [{ type: 'text' as const, text: hydrationTask }], timestamp: Date.now() };
+				agent.replaceMessages([taskMsg]);
+				try { sm.appendMessage(taskMsg as any); } catch (err) { log(`SM append task error: ${err}`); }
+				log('Injected task as user message (no entries)');
+			}
 			resolveHydration!();
 			return;
 		}
 
 		log(`Hydrating ${entries.length} entries`);
 		const agentMessages: any[] = [];
+
+		// If we have a task and no user_prompt entry, inject the task as the first user message
+		const hasUserEntry = entries.some(e => e.type === 'user_prompt' || e.role === 'user');
+		if (hydrationTask && !hasUserEntry) {
+			const taskMsg = { role: 'user' as const, content: [{ type: 'text' as const, text: hydrationTask }], timestamp: Date.now() };
+			agentMessages.push(taskMsg);
+			try { sm.appendMessage(taskMsg as any); } catch (err) { log(`SM append task error: ${err}`); }
+			log('Injected task as user message');
+		}
 
 		for (const entry of entries) {
 			const text = typeof entry.content === 'string'
@@ -373,6 +397,8 @@ export async function runRemoteTui(options: {
 		if (agentMessages.length > 0) {
 			agent.replaceMessages(agentMessages);
 			log(`Hydrated ${agentMessages.length} agent messages (+ session manager)`);
+		} else {
+			log('Hydration: 0 messages after filtering (all entries had empty text?)');
 		}
 
 		// Restore streaming state from hydration — fixes first-connect miss
@@ -413,7 +439,9 @@ export async function runRemoteTui(options: {
 			resolve();
 		}, HYDRATION_TIMEOUT_MS)),
 	]);
-	log(`SessionManager has ${sm.getEntries?.() ? 'entries' : 'no getEntries method'} after hydration`);
+	const smEntries = sm.getEntries?.() ?? [];
+	log(`SessionManager has ${smEntries.length} entries after hydration`);
+	log(`Post-hydration: SM has ${smEntries.length} entries, leafId=${sm.getLeafId?.() ?? 'N/A'}`);
 
 	// ── 9. Start InteractiveMode — full native Pi TUI ──
 	log('Creating InteractiveMode');
@@ -429,38 +457,33 @@ export async function runRemoteTui(options: {
 	interactiveModeReady = true;
 
 	if (hydrationStreamingDetected) {
-		const hasAgentStart = eventBuffer.some((e) => e.type === 'agent_start');
-		const hasMessageStart = eventBuffer.some((e) => e.type === 'message_start');
-
-		if (!hasAgentStart) {
-			log('Injecting synthetic agent_start for mid-stream attach');
-			eventBuffer.unshift({
-				type: 'agent_start',
-				agentName: 'lead',
+		// Immediately emit agent_start + message_start so InteractiveMode shows
+		// the streaming indicator right away, before any buffered events flush.
+		// This prevents the blank screen gap between connect and first event.
+		log('Hydration detected streaming — emitting immediate synthetics');
+		agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
+		agent.emit({
+			type: 'message_start',
+			message: {
+				role: 'assistant',
+				content: [],
+				api: 'anthropic-messages',
+				provider: 'anthropic',
+				model: 'remote',
+				usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
 				timestamp: Date.now(),
-			} as RpcEvent);
-		}
-		if (!hasMessageStart) {
-			log('Injecting synthetic message_start for mid-stream attach');
-			// Insert after agent_start (if we just added one) or at the start
-			const insertIdx = eventBuffer.findIndex((e) => e.type === 'agent_start') + 1;
-			eventBuffer.splice(insertIdx, 0, {
-				type: 'message_start',
-				message: {
-					role: 'assistant',
-					content: [],
-					api: 'anthropic-messages',
-					provider: 'anthropic',
-					model: 'remote',
-					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
-					timestamp: Date.now(),
-				},
-			} as unknown as RpcEvent);
-		}
+			},
+		} as any);
+		seenAgentStart = true;
+		seenMessageStart = true;
+
+		// Remove any agent_start/message_start from buffer since we already emitted them
+		eventBuffer = eventBuffer.filter((e) => e.type !== 'agent_start' && e.type !== 'message_start');
 	}
 
 	if (eventBuffer.length > 0) {
 		log(`Flushing ${eventBuffer.length} buffered events to InteractiveMode`);
+		log(`Flushing ${eventBuffer.length} events: ${eventBuffer.map(e => e.type).join(', ')}`);
 		for (const buffered of eventBuffer) {
 			agent.emit(buffered);
 			if (buffered.type === 'agent_end') {
