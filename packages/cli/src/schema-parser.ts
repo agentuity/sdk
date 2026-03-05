@@ -394,7 +394,8 @@ export function buildValidationInput(
 	schemas: CommandSchemas,
 	rawArgs: unknown[],
 	rawOptions: Record<string, unknown>,
-	_options?: { usesStdin?: boolean }
+	_options?: { usesStdin?: boolean },
+	inputJson?: string
 ): { args: Record<string, unknown>; options: Record<string, unknown> } {
 	const result = { args: {} as Record<string, unknown>, options: {} as Record<string, unknown> };
 
@@ -442,6 +443,42 @@ export function buildValidationInput(
 		}
 	}
 
+	// Merge --input JSON values: CLI flags take precedence over --input values
+	if (inputJson) {
+		let parsed: Record<string, unknown>;
+		try {
+			parsed = JSON.parse(inputJson) as Record<string, unknown>;
+		} catch (e) {
+			throw new Error(
+				`Invalid JSON in --input flag: ${e instanceof Error ? e.message : String(e)}`
+			);
+		}
+
+		if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+			throw new Error(
+				`Invalid JSON in --input flag: expected a JSON object, got ${parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed}`
+			);
+		}
+
+		if (schemas.args) {
+			const argsMeta = parseArgsSchema(schemas.args);
+			for (const name of argsMeta.names) {
+				if (result.args[name] === undefined && parsed[name] !== undefined) {
+					result.args[name] = parsed[name];
+				}
+			}
+		}
+
+		if (schemas.options) {
+			const optsMeta = parseOptionsSchema(schemas.options);
+			for (const opt of optsMeta) {
+				if (result.options[opt.name] === undefined && parsed[opt.name] !== undefined) {
+					result.options[opt.name] = parsed[opt.name];
+				}
+			}
+		}
+	}
+
 	return result;
 }
 
@@ -453,9 +490,10 @@ export async function buildValidationInputAsync(
 	schemas: CommandSchemas,
 	rawArgs: unknown[],
 	rawOptions: Record<string, unknown>,
-	options?: { usesStdin?: boolean }
+	options?: { usesStdin?: boolean },
+	inputJson?: string
 ): Promise<{ args: Record<string, unknown>; options: Record<string, unknown> }> {
-	const result = buildValidationInput(schemas, rawArgs, rawOptions, options);
+	const result = buildValidationInput(schemas, rawArgs, rawOptions, options, inputJson);
 
 	// Check for stdin confirmation if:
 	// 1. Command has a confirm option in schema

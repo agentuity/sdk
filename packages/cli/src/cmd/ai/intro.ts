@@ -31,6 +31,7 @@ The Agentuity CLI is designed to be agent-friendly. Here are the key commands:
 
 ### Discovery & Introspection
 \`\`\`bash
+${getCommand('<command> --describe')}     # Get command schema as JSON (args, options, response)
 ${getCommand('--help=json')}              # Get complete CLI schema as JSON
 ${getCommand('ai capabilities show')}     # List all capabilities and workflows
 ${getCommand('ai schema show')}           # Detailed command metadata
@@ -61,22 +62,41 @@ ${getCommand('env set KEY value --secret')} # Set secrets (encrypted)
 
 ## Best Practices for AI Agents
 
-1. **Always use \`--json\` for machine-readable output**
+1. **Use \`--input <json>\` to pass arguments and options as a single JSON object**
+   \`\`\`bash
+   ${getCommand('cloud sandbox create --input \'{"runtime":"bun:1","memory":"1Gi","network":true}\'')}
+   ${getCommand('cloud kv set --input \'{"namespace":"ns","key":"k","value":"v","ttl":300}\'')}
+   \`\`\`
+   JSON keys map directly to argument and option names from the command schema. CLI flags take precedence over --input values.
+
+2. **Use \`--describe\` to introspect what a command accepts before calling it**
+   \`\`\`bash
+   ${getCommand('cloud sandbox create --describe')}
+   \`\`\`
+   Returns the full command schema as JSON: arguments, options (with types), response shape, requirements, and examples. No authentication required.
+
+3. **Use \`--fields\` with \`--json\` to limit output and protect your context window**
+   \`\`\`bash
+   ${getCommand('--json --fields "id,name,status" cloud deployment list')}
+   \`\`\`
+   Comma-separated field names, supports dot notation for nested fields (e.g., \`properties.title\`).
+
+4. **Always use \`--json\` for machine-readable output**
    \`\`\`bash
    ${getCommand('--json project list')}
    \`\`\`
 
-2. **Use \`--explain\` before destructive operations**
-   \`\`\`bash
-   ${getCommand('--explain cloud deployment delete <id>')}
-   \`\`\`
-
-3. **Use \`--dry-run\` to test commands safely**
+5. **Use \`--dry-run\` to test commands safely before mutating**
    \`\`\`bash
    ${getCommand('--dry-run cloud deploy')}
    \`\`\`
 
-4. **Check requirements before running commands**
+6. **Use \`--validate\` to check inputs without executing**
+   \`\`\`bash
+   ${getCommand('--validate cloud kv set --input \'{"namespace":"ns","key":"k","value":"v"}\'')}
+   \`\`\`
+
+7. **Check requirements before running commands**
    - Many commands require authentication (\`${getCommand('auth login')}\`)
    - Project commands require an \`agentuity.json\` file in the current directory
 
