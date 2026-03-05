@@ -1116,6 +1116,29 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			},
 		});
 
+		pi.registerCommand('name', {
+			description: 'Rename the current Hub session (max 30 chars)',
+			handler: async (args, ctx) => {
+				const label = args.trim().slice(0, 30);
+				if (!label) {
+					if (ctx.hasUI) ctx.ui.notify('Usage: /name <label>', 'warning');
+					return;
+				}
+				if (!client.connected) {
+					if (ctx.hasUI) ctx.ui.notify('Not connected to Hub', 'warning');
+					return;
+				}
+				try {
+					client.send({ type: 'rename_session', label } as any);
+					observerState.label = label;
+					if (ctx.hasUI) ctx.ui.notify(`Session renamed to "${label}"`, 'info');
+					log(`Session renamed to "${label}"`);
+				} catch (err: any) {
+					if (ctx.hasUI) ctx.ui.notify(`Failed to rename: ${err?.message || err}`, 'error');
+				}
+			},
+		});
+
 		pi.registerCommand('sync-hub-skills', {
 			description: 'Sync skills from Coder Hub to local .agents/skills/ directory',
 			handler: async (_args, ctx) => {
