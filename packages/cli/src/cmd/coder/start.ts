@@ -93,6 +93,14 @@ export const startSubcommand = createSubcommand({
 			command: getCommand('coder start --remote'),
 			description: 'Browse and select a sandbox session to connect to',
 		},
+		{
+			command: getCommand('coder start --sandbox "Build an auth system"'),
+			description: 'Create a new sandbox session and attach',
+		},
+		{
+			command: getCommand('coder start --sandbox "Build auth" --repo https://github.com/org/repo'),
+			description: 'Create a sandbox with a git repo cloned',
+		},
 	],
 	schema: {
 		options: z.object({
@@ -102,6 +110,8 @@ export const startSubcommand = createSubcommand({
 			agent: z.string().optional().describe('Agent role (e.g. scout, builder)'),
 			task: z.string().optional().describe('Initial task to execute'),
 			remote: z.string().optional().describe('Connect to existing sandbox session (pass session ID or omit for picker)'),
+			sandbox: z.string().optional().describe('Create a new sandbox session with the given task and attach'),
+			repo: z.string().optional().describe('Git repo URL to clone in the sandbox (used with --sandbox)'),
 		}),
 	},
 	async handler(ctx) {
@@ -219,6 +229,106 @@ export const startSubcommand = createSubcommand({
 				await runRemoteTui({
 					hubWsUrl,
 					sessionId: remoteSessionId,
+				});
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				tui.fatal(`Remote TUI failed: ${msg}`, ErrorCode.NETWORK_ERROR);
+			}
+			return;
+		}
+
+		// ── Sandbox mode: create sandbox + attach ──
+		if (opts?.sandbox !== undefined) {
+			const task = opts.sandbox?.trim();
+			if (!task) {
+				tui.fatal(
+					'--sandbox requires a task description.\n\nExample: --sandbox "Build an authentication system"',
+					ErrorCode.CONFIG_INVALID,
+				);
+				return;
+			}
+
+			const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
+			if (!hubHttpUrl) {
+				tui.fatal('Could not find Hub URL for sandbox creation.', ErrorCode.NETWORK_ERROR);
+				return;
+			}
+
+			// Build request body
+			const body: Record<string, unknown> = { task };
+			if (opts?.repo) {
+				body.repo = { url: opts.repo };
+			}
+
+			// Create sandbox session via Hub API
+			tui.newline();
+			tui.output(`  Creating sandbox session...`);
+
+			let sessionId: string;
+			try {
+				const resp = await fetch(`${hubHttpUrl}/api/hub/session`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(body),
+				});
+				if (!resp.ok) {
+					const errText = await resp.text();
+					tui.fatal(`Failed to create sandbox session: ${resp.status} ${errText}`, ErrorCode.NETWORK_ERROR);
+					return;
+				}
+				const sessionInfo = await resp.json() as { sessionId: string };
+				sessionId = sessionInfo.sessionId;
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				tui.fatal(`Failed to create sandbox session: ${msg}`, ErrorCode.NETWORK_ERROR);
+				return;
+			}
+
+			tui.output(`  Session:   ${tui.bold(sessionId)}`);
+			tui.output(`  Task:      ${task.slice(0, 80)}`);
+			if (opts?.repo) tui.output(`  Repo:      ${opts.repo}`);
+			tui.output(`  Waiting for sandbox driver to connect...`);
+
+			// Poll until driver (lead) connects
+			const POLL_TIMEOUT = 120_000; // 2 min (matches Hub's DRIVER_CONNECT_TIMEOUT)
+			const POLL_INTERVAL = 2_000;
+			const pollStart = Date.now();
+			let driverConnected = false;
+
+			while (Date.now() - pollStart < POLL_TIMEOUT) {
+				await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+				try {
+					const pollResp = await fetch(`${hubHttpUrl}/api/hub/session/${sessionId}`);
+					if (pollResp.ok) {
+						const data = await pollResp.json() as {
+							participants?: Array<{ role: string }>;
+						};
+						if (data.participants?.some((p) => p.role === 'lead')) {
+							driverConnected = true;
+							break;
+						}
+					}
+				} catch {
+					// Network blip — keep polling
+				}
+			}
+
+			if (!driverConnected) {
+				tui.fatal(
+					`Sandbox driver did not connect within ${POLL_TIMEOUT / 1000}s.\n\nThe sandbox may still be starting. Try attaching later with:\n  ${getCommand(`coder start --remote ${sessionId}`)}`,
+					ErrorCode.NETWORK_ERROR,
+				);
+				return;
+			}
+
+			tui.output(`  Driver connected. Attaching...`);
+			tui.newline();
+
+			try {
+				const { runRemoteTui } = await import(join(extensionPath, 'src', 'remote-tui.ts'));
+				await runRemoteTui({
+					hubWsUrl,
+					sessionId,
 				});
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
