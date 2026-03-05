@@ -76,6 +76,10 @@ export class RemoteSession {
 	/** Session label (populated after connection) */
 	public label: string = '';
 
+	/** API key for Hub authentication */
+	// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+	public apiKey: string | null = null;
+
 	constructor(sessionId: string) {
 		this.sessionId = sessionId;
 	}
@@ -134,7 +138,10 @@ export class RemoteSession {
 			url.searchParams.set('role', 'controller');
 
 			log(`${isReconnect ? 'Reconnecting' : 'Connecting'} to ${url.toString()}`);
-			this.ws = new WebSocket(url.toString());
+			// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+			this.ws = this.apiKey
+				? new WebSocket(url.toString(), { headers: { 'x-agentuity-auth-api-key': this.apiKey } })
+				: new WebSocket(url.toString());
 
 			const connectTimeout = setTimeout(() => {
 				reject(new Error('Remote session connection timed out'));

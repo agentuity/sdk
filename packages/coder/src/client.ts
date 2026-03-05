@@ -67,6 +67,10 @@ export class HubClient {
 	/** Called when an unsolicited server message arrives (broadcast, presence, hydration). */
 	public onServerMessage?: (message: Record<string, unknown>) => void;
 
+	/** API key for Hub authentication (sent as x-agentuity-auth-api-key header) */
+	// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+	public apiKey: string | null = null;
+
 	private setConnectionState(state: ConnectionState): void {
 		if (this.connectionState === state) return;
 		this.connectionState = state;
@@ -248,7 +252,11 @@ export class HubClient {
 
 	private async connectInternal(url: string, isReconnect = false): Promise<InitMessage> {
 		const wsUrl = this.buildWebSocketUrl(url);
-		const ws = new WebSocket(wsUrl);
+		// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+		// Bun extension: custom headers on WebSocket upgrade request
+		const ws = this.apiKey
+			? new WebSocket(wsUrl, { headers: { 'x-agentuity-auth-api-key': this.apiKey } })
+			: new WebSocket(wsUrl);
 		this.ws = ws;
 
 		return new Promise((resolve, reject) => {

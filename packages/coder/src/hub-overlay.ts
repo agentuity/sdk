@@ -997,8 +997,12 @@ export class HubOverlay implements Component, Focusable {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), timeoutMs);
 		try {
+			// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+			const apiKey = process.env.AGENTUITY_CODER_API_KEY;
+			const headers: Record<string, string> = { accept: 'application/json' };
+			if (apiKey) headers['x-agentuity-auth-api-key'] = apiKey;
 			const response = await fetch(`${this.baseUrl}${path}`, {
-				headers: { accept: 'application/json' },
+				headers,
 				signal: controller.signal,
 			});
 			if (!response.ok) {
@@ -1214,10 +1218,14 @@ export class HubOverlay implements Component, Focusable {
 		const subscribe = mode === 'full' ? '*' : 'session_*,task_*,agent_*';
 
 		try {
+			// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+			const apiKey = process.env.AGENTUITY_CODER_API_KEY;
+			const sseHeaders: Record<string, string> = { accept: 'text/event-stream' };
+			if (apiKey) sseHeaders['x-agentuity-auth-api-key'] = apiKey;
 			const response = await fetch(
 				`${this.baseUrl}/api/hub/session/${encodeURIComponent(sessionId)}/events?subscribe=${encodeURIComponent(subscribe)}`,
 				{
-					headers: { accept: 'text/event-stream' },
+					headers: sseHeaders,
 					signal: controller.signal,
 				},
 			);

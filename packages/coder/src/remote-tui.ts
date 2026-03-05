@@ -69,6 +69,8 @@ export async function runRemoteTui(options: {
 	// We register all handlers BEFORE connecting so that the hydration
 	// message from the Hub (sent immediately after init) is captured.
 	const remote = new RemoteSession(sessionId);
+	// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+	remote.apiKey = process.env.AGENTUITY_CODER_API_KEY || null;
 	let hydrationStreamingDetected = false;
 
 	// ── 2. Create AgentSession with coder extension loaded ──

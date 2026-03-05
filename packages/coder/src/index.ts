@@ -28,6 +28,9 @@ const HUB_URL_ENV = 'AGENTUITY_CODER_HUB_URL';
 const AGENT_ENV = 'AGENTUITY_CODER_AGENT';
 const REMOTE_SESSION_ENV = 'AGENTUITY_CODER_REMOTE_SESSION';
 const NATIVE_REMOTE_ENV = 'AGENTUITY_CODER_NATIVE_REMOTE';
+// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+const API_KEY_ENV = 'AGENTUITY_CODER_API_KEY';
+const API_KEY_HEADER = 'x-agentuity-auth-api-key';
 const RECONNECT_WAIT_TIMEOUT_MS = 120_000;
 
 type HubUiStatus = 'connected' | 'reconnecting' | 'offline';
@@ -93,6 +96,15 @@ function log(msg: string): void {
 	if (DEBUG) console.error(`[agentuity-coder] ${msg}`);
 }
 
+/** Build headers object with API key if available. Merges with any existing headers. */
+// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+	const apiKey = process.env[API_KEY_ENV];
+	const headers: Record<string, string> = { ...extra };
+	if (apiKey) headers[API_KEY_HEADER] = apiKey;
+	return headers;
+}
+
 // ══════════════════════════════════════════════
 // Synchronous Bootstrap — fetch InitMessage from Hub REST endpoint
 // This runs BEFORE tool registration so we know what tools/agents
@@ -139,12 +151,12 @@ function fetchInitMessageSync(hubUrl: string, agentRole?: string): InitMessage |
 
 	try {
 		const { execFileSync } = _require('node:child_process') as typeof import('node:child_process');
-		const result = execFileSync('curl', [
-			'-s',
-			'--connect-timeout', '3',
-			'--max-time', '5',
-			httpUrl,
-		], { encoding: 'utf-8' });
+		const apiKey = process.env[API_KEY_ENV];
+		const curlArgs = ['-s', '--connect-timeout', '3', '--max-time', '5'];
+		// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+		if (apiKey) curlArgs.push('-H', `${API_KEY_HEADER}: ${apiKey}`);
+		curlArgs.push(httpUrl);
+		const result = execFileSync('curl', curlArgs, { encoding: 'utf-8' });
 
 		const parsed = JSON.parse(result);
 		if (parsed && parsed.type === 'init') {
@@ -177,7 +189,7 @@ async function fetchSessionSnapshot(
 	try {
 		const response = await fetch(httpUrl, {
 			signal: controller.signal,
-			headers: { accept: 'application/json' },
+			headers: authHeaders({ accept: 'application/json' }),
 		});
 		if (!response.ok) return;
 
@@ -223,9 +235,7 @@ async function fetchInitMessage(hubUrl: string, agentRole?: string): Promise<Ini
 	try {
 		const response = await fetch(httpUrl, {
 			signal: controller.signal,
-			headers: {
-				accept: 'application/json',
-			},
+			headers: authHeaders({ accept: 'application/json' }),
 		});
 
 		if (!response.ok) return null;
@@ -370,6 +380,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// ══════════════════════════════════════════════
 
 	const client = new HubClient();
+	// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+	client.apiKey = process.env[API_KEY_ENV] || null;
 	let cachedInitMessage: InitMessage | null = initMsg;
 	let currentSessionId: string | null = initMsg.sessionId ?? null;
 	let systemPromptApplied = false;
@@ -1104,7 +1116,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				const baseUrl = getHubHttpBaseUrl(hubUrl);
 				const url = `${baseUrl}/api/hub/skills`;
 				try {
-					const resp = await fetch(url);
+					const resp = await fetch(url, { headers: authHeaders() });
 					if (!resp.ok) {
 						const msg = `Hub skills fetch failed: ${resp.status} ${resp.statusText}`;
 						if (ctx.hasUI) ctx.ui.notify(msg, 'error');
