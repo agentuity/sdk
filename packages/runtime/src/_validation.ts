@@ -65,16 +65,22 @@ export type InferSchemaOutput<T> = T extends StandardSchemaV1 ? InferOutput<T> :
  *
  * @template T - RouteSchema or GetRouteSchema type
  */
-export type ExtractInputSchema<T> =
-	T extends RouteSchema<infer I, any> ? I : T extends GetRouteSchema<any> ? never : never;
+export type ExtractInputSchema<T> = T extends RouteSchema<infer I, any>
+	? I
+	: T extends GetRouteSchema<any>
+		? never
+		: never;
 
 /**
  * Extract output schema from RouteSchema or GetRouteSchema.
  *
  * @template T - RouteSchema or GetRouteSchema type
  */
-export type ExtractOutputSchema<T> =
-	T extends RouteSchema<any, infer O> ? O : T extends GetRouteSchema<infer O> ? O : never;
+export type ExtractOutputSchema<T> = T extends RouteSchema<any, infer O>
+	? O
+	: T extends GetRouteSchema<infer O>
+		? O
+		: never;
 
 /**
  * Validation result from StandardSchema validation.

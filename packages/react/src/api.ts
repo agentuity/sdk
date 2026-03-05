@@ -241,10 +241,9 @@ type UseAPIResultQuery<TRoute extends RouteKey> = UseAPIResultBase &
  * Options that can be passed to invoke() at invocation time.
  * Allows dynamic path parameter substitution when calling mutations.
  */
-export type InvokeOptions<TRoute extends RouteKey> =
-	RoutePathParams<TRoute> extends never
-		? { params?: never }
-		: { params?: RoutePathParams<TRoute> };
+export type InvokeOptions<TRoute extends RouteKey> = RoutePathParams<TRoute> extends never
+	? { params?: never }
+	: { params?: RoutePathParams<TRoute> };
 
 /**
  * Return value for POST/PUT/PATCH/DELETE requests (manual execution)
@@ -299,8 +298,9 @@ type UseAPIResultMutation<TRoute extends RouteKey> = UseAPIResultBase &
  * - GET requests: Auto-executes, returns refetch()
  * - POST/PUT/PATCH/DELETE: Manual execution, returns execute(input)
  */
-export type UseAPIResult<TRoute extends RouteKey> =
-	ExtractMethod<TRoute> extends 'GET' ? UseAPIResultQuery<TRoute> : UseAPIResultMutation<TRoute>;
+export type UseAPIResult<TRoute extends RouteKey> = ExtractMethod<TRoute> extends 'GET'
+	? UseAPIResultQuery<TRoute>
+	: UseAPIResultMutation<TRoute>;
 
 /**
  * Parse route key into method and path

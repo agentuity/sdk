@@ -801,7 +801,12 @@ export class WebhookService {
 		const url = buildUrl(this.#baseUrl, path);
 		const signal = createTimeoutSignal();
 		const res = await this.#adapter.invoke<
-			WebhookResponse<{ analytics: { period: { start: string; end: string }; summary: { total_received: number; total_delivered: number; total_failed: number } } }>
+			WebhookResponse<{
+				analytics: {
+					period: { start: string; end: string };
+					summary: { total_received: number; total_delivered: number; total_failed: number };
+				};
+			}>
 		>(url, {
 			method: 'GET',
 			signal,
@@ -811,7 +816,14 @@ export class WebhookService {
 		if (res.ok) {
 			if (res.data.success) {
 				const unwrapped = this.#unwrap<{
-					analytics: { period: { start: string; end: string }; summary: { total_received: number; total_delivered: number; total_failed: number } };
+					analytics: {
+						period: { start: string; end: string };
+						summary: {
+							total_received: number;
+							total_delivered: number;
+							total_failed: number;
+						};
+					};
 				}>(res.data.data);
 				return unwrapped.analytics;
 			}
@@ -853,7 +865,12 @@ export class WebhookService {
 			WebhookResponse<{
 				timeseries: {
 					period: { start: string; end: string; granularity?: string };
-					series: Array<{ timestamp: string; received: number; delivered: number; failed: number }>;
+					series: Array<{
+						timestamp: string;
+						received: number;
+						delivered: number;
+						failed: number;
+					}>;
 				};
 			}>
 		>(url, {
@@ -867,7 +884,12 @@ export class WebhookService {
 				const unwrapped = this.#unwrap<{
 					timeseries: {
 						period: { start: string; end: string; granularity?: string };
-						series: Array<{ timestamp: string; received: number; delivered: number; failed: number }>;
+						series: Array<{
+							timestamp: string;
+							received: number;
+							delivered: number;
+							failed: number;
+						}>;
 					};
 				}>(res.data.data);
 				return unwrapped.timeseries;
