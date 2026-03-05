@@ -109,7 +109,7 @@ export const startSubcommand = createSubcommand({
 			pi: z.string().optional().describe('Path to pi binary'),
 			agent: z.string().optional().describe('Agent role (e.g. scout, builder)'),
 			task: z.string().optional().describe('Initial task to execute'),
-			remote: z.string().optional().describe('Connect to existing sandbox session (pass session ID or omit for picker)'),
+			remote: z.union([z.boolean(), z.string()]).optional().describe('Connect to existing sandbox session (pass session ID or omit for picker)'),
 			sandbox: z.string().optional().describe('Create a new sandbox session with the given task and attach'),
 			repo: z.string().optional().describe('Git repo URL to clone in the sandbox (used with --sandbox)'),
 		}),
@@ -143,8 +143,8 @@ export const startSubcommand = createSubcommand({
 		// ── Remote mode: resolve session ID ──
 		let remoteSessionId: string | undefined;
 		if (opts?.remote !== undefined) {
-			// --remote was passed (might be empty string for picker, or a session ID)
-			const remoteValue = opts.remote?.trim();
+			// --remote was passed (might be bare flag → boolean true, or a session ID string)
+			const remoteValue = typeof opts.remote === 'string' ? opts.remote.trim() : '';
 			if (remoteValue) {
 				remoteSessionId = remoteValue;
 			} else {
