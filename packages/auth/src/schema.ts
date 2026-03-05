@@ -298,11 +298,7 @@ type _FieldCheck<BetterAuthModel, DrizzleRow, Excluded extends string = never> =
 		: `ERROR: BetterAuth field "${K & string}" is missing from the Drizzle schema`;
 }[keyof Omit<BetterAuthModel, Excluded>];
 
-type EnsureAllKeysPresent<
-	BetterAuthModel,
-	DrizzleRow,
-	Excluded extends string = never,
-> =
+type EnsureAllKeysPresent<BetterAuthModel, DrizzleRow, Excluded extends string = never> =
 	Exclude<_FieldCheck<BetterAuthModel, DrizzleRow, Excluded>, true> extends never
 		? true
 		: Exclude<_FieldCheck<BetterAuthModel, DrizzleRow, Excluded>, true>;
@@ -329,10 +325,7 @@ const _assertOrganization: EnsureAllKeysPresent<
 	InferSelectModel<typeof organization>,
 	'metadata'
 > = true;
-const _assertMember: EnsureAllKeysPresent<
-	BetterAuthMember,
-	InferSelectModel<typeof member>
-> = true;
+const _assertMember: EnsureAllKeysPresent<BetterAuthMember, InferSelectModel<typeof member>> = true;
 const _assertInvitation: EnsureAllKeysPresent<
 	BetterAuthInvitation,
 	InferSelectModel<typeof invitation>
