@@ -106,7 +106,13 @@ export const QueueWebSocketOptionsSchema = z.object({
 		.describe('Maximum reconnect attempts before giving up'),
 	reconnectDelayMs: z.number().optional().describe('Initial reconnect delay in milliseconds'),
 	maxReconnectDelayMs: z.number().optional().describe('Maximum reconnect delay in milliseconds'),
-	clientId: z.string().optional().describe('Optional prior client id used for resume semantics'),
+	clientId: z
+		.string()
+		.max(256)
+		.optional()
+		.describe(
+			'Optional client identifier (max 256 characters). Can be any string for your own identification. Reuse on reconnect for resume semantics.'
+		),
 	lastOffset: z
 		.number()
 		.optional()
@@ -140,7 +146,13 @@ export const SubscribeToQueueOptionsSchema = z.object({
 		.describe('Optional API key override; falls back to AGENTUITY_SDK_KEY'),
 	baseUrl: z.string().describe('Base Catalyst URL used to construct the WebSocket endpoint'),
 	signal: z.custom<AbortSignal>().optional().describe('AbortSignal used to stop the subscription'),
-	clientId: z.string().optional().describe('Optional prior client id used for resume semantics'),
+	clientId: z
+		.string()
+		.max(256)
+		.optional()
+		.describe(
+			'Optional client identifier (max 256 characters). Can be any string for your own identification. Reuse on reconnect for resume semantics.'
+		),
 	lastOffset: z
 		.number()
 		.optional()
