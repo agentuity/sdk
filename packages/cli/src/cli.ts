@@ -291,9 +291,7 @@ function handleValidationError(
 					? errorMessages[0]
 					: 'Invalid options or arguments';
 
-			const suggestions = [
-				`Run 'agentuity ${commandName} --help' for usage information`,
-			];
+			const suggestions = [`Run 'agentuity ${commandName} --help' for usage information`];
 			// Add agent-friendly hints when running from an AI agent
 			if (getExecutingAgent()) {
 				suggestions.push(
@@ -1747,9 +1745,15 @@ async function registerSubcommand(
 				try {
 					// Check if command uses stdin (don't auto-confirm if it does)
 					const usesStdin = subcommand.tags?.includes('uses-stdin') ?? false;
-					const input = await buildValidationInputAsync(subcommand.schema, args, options, {
-						usesStdin,
-					}, baseCtx.options.input);
+					const input = await buildValidationInputAsync(
+						subcommand.schema,
+						args,
+						options,
+						{
+							usesStdin,
+						},
+						baseCtx.options.input
+					);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 						config: auth
@@ -2011,9 +2015,15 @@ async function registerSubcommand(
 				try {
 					// Check if command uses stdin (don't auto-confirm if it does)
 					const usesStdin = subcommand.tags?.includes('uses-stdin') ?? false;
-					const input = await buildValidationInputAsync(subcommand.schema, args, options, {
-						usesStdin,
-					}, baseCtx.options.input);
+					const input = await buildValidationInputAsync(
+						subcommand.schema,
+						args,
+						options,
+						{
+							usesStdin,
+						},
+						baseCtx.options.input
+					);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 					};
@@ -2197,22 +2207,22 @@ export async function registerCommands(
 				});
 			}
 
-		if (cmdDef.handler) {
-			cmd.action(async () => {
-				// Handle --describe mode: output command schema and exit
-				if (baseCtx.options.describe) {
-					const { extractCommandSchema } = await import('./schema-generator');
-					const schema = extractCommandSchema(cmdDef);
-					const { outputJSON } = await import('./output');
-					outputJSON(schema);
-					return;
-				}
+			if (cmdDef.handler) {
+				cmd.action(async () => {
+					// Handle --describe mode: output command schema and exit
+					if (baseCtx.options.describe) {
+						const { extractCommandSchema } = await import('./schema-generator');
+						const schema = extractCommandSchema(cmdDef);
+						const { outputJSON } = await import('./output');
+						outputJSON(schema);
+						return;
+					}
 
-				if (cmdDef.banner) {
-					showBanner();
-				}
+					if (cmdDef.banner) {
+						showBanner();
+					}
 
-				const normalized = normalizeReqs(cmdDef);
+					const normalized = normalizeReqs(cmdDef);
 					if (normalized.requiresAuth) {
 						// Create apiClient before requireAuth since login command needs it
 						if (normalized.requiresAPIClient) {

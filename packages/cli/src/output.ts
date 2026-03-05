@@ -87,15 +87,15 @@ function filterFields(data: unknown, fields: string[]): unknown {
 				) {
 					if (i === parts.length - 1) {
 						target[part] = (current as Record<string, unknown>)[part];
+					} else {
+						target[part] = target[part] || {};
+						target = target[part] as Record<string, unknown>;
+						current = (current as Record<string, unknown>)[part];
+					}
 				} else {
-					target[part] = target[part] || {};
-					target = target[part] as Record<string, unknown>;
-					current = (current as Record<string, unknown>)[part];
+					break; // path segment not found — stop traversal for this field
 				}
-			} else {
-				break; // path segment not found — stop traversal for this field
 			}
-		}
 		}
 		return result;
 	}
