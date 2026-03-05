@@ -187,7 +187,13 @@ describe('Agentuity Auth Schema', () => {
 		it('organization table has all BetterAuth Organization columns', () => {
 			const columns = Object.keys(schema.organization);
 			// metadata is excluded from type check (serialized text) but must still be in schema
-			const requiredByBetterAuth: (keyof Organization)[] = ['id', 'name', 'slug', 'logo', 'createdAt'];
+			const requiredByBetterAuth: (keyof Organization)[] = [
+				'id',
+				'name',
+				'slug',
+				'logo',
+				'createdAt',
+			];
 			for (const field of requiredByBetterAuth) {
 				expect(columns).toContain(field);
 			}
@@ -196,7 +202,13 @@ describe('Agentuity Auth Schema', () => {
 
 		it('member table has all BetterAuth Member columns', () => {
 			const columns = Object.keys(schema.member);
-			const requiredByBetterAuth: (keyof Member)[] = ['id', 'organizationId', 'userId', 'role', 'createdAt'];
+			const requiredByBetterAuth: (keyof Member)[] = [
+				'id',
+				'organizationId',
+				'userId',
+				'role',
+				'createdAt',
+			];
 			for (const field of requiredByBetterAuth) {
 				expect(columns).toContain(field);
 			}
