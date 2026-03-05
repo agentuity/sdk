@@ -1226,6 +1226,11 @@ export const deploySubcommand = createSubcommand({
 				});
 			}
 
+			// Trigger TLS certificate provisioning for custom domains (fire-and-forget)
+			if (project.deployment?.domains?.length) {
+				void domain.triggerTLSProvisioning(project.deployment.domains);
+			}
+
 			// Write final report on success
 			if (opts.reportFile) {
 				await collector.forceWrite();

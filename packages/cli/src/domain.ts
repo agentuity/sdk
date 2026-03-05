@@ -356,3 +356,23 @@ export async function promptForDNS(
 		break;
 	}
 }
+
+/**
+ * Trigger TLS certificate provisioning for custom domains by making HTTPS requests.
+ * This causes the Ion proxy to initiate Let's Encrypt certificate issuance.
+ * Fire-and-forget — failures are silently ignored since certs will be provisioned
+ * on first real request if this doesn't succeed.
+ */
+export async function triggerTLSProvisioning(domains: string[]): Promise<void> {
+	await Promise.allSettled(
+		domains.map((domain) =>
+			fetch(`https://${domain}`, {
+				method: 'HEAD',
+				signal: AbortSignal.timeout(10000),
+				redirect: 'manual',
+			}).catch(() => {
+				// Silently ignore — cert will be provisioned on first real request
+			})
+		)
+	);
+}
