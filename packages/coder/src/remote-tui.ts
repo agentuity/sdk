@@ -242,6 +242,18 @@ export async function runRemoteTui(options: {
 			return;
 		}
 
+		// Skip user-role message events — the TUI already shows user messages
+		// locally via InteractiveMode input. Pi emits message_start/end for
+		// both user and assistant messages; without this guard the user message
+		// appears twice (once from local input, once from the broadcast).
+		if (rpcEvent.type === 'message_start' || rpcEvent.type === 'message_end') {
+			const msg = (rpcEvent as any).message;
+			if (msg?.role === 'user') {
+				log(`Skipping ${rpcEvent.type} (role=user) — handled locally`);
+				return;
+			}
+		}
+
 		// Track streaming lifecycle events so we can inject synthetics when
 		// we attach mid-stream (controller connected after agent already started).
 		if (rpcEvent.type === 'agent_start') seenAgentStart = true;
