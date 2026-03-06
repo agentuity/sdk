@@ -91,7 +91,6 @@ export const getSubcommand = createCommand({
 		const storage = await createStorageAdapterOptionalOrg(ctx);
 
 		const task = await storage.get(args.id);
-		const durationMs = Date.now() - started;
 
 		if (!task) {
 			tui.fatal(`Task not found: ${args.id}`);
@@ -108,6 +107,7 @@ export const getSubcommand = createCommand({
 			priority: string;
 			assignee?: { id: string; name: string; type?: 'human' | 'agent' };
 		}[] = [];
+		let subtasksError: string | undefined;
 		if (!opts['no-subtasks']) {
 			try {
 				const subtasksResult = await storage.list({ parent_id: task.id });
@@ -119,10 +119,15 @@ export const getSubcommand = createCommand({
 					priority: st.priority,
 					assignee: st.assignee,
 				}));
-			} catch {
-				// Silently ignore subtask fetch errors
+			} catch (err) {
+				subtasksError = err instanceof Error ? err.message : 'Failed to fetch subtasks';
+				if (!options.json) {
+					tui.warn(`Could not load subtasks: ${subtasksError}`);
+				}
 			}
 		}
+
+		const durationMs = Date.now() - started;
 
 		if (!options.json) {
 			const tableData: Record<string, string> = {
@@ -215,6 +220,7 @@ export const getSubcommand = createCommand({
 				cancelled_date: task.cancelled_date,
 			},
 			subtasks: subtasksList.length > 0 ? subtasksList : undefined,
+			subtasksError,
 			durationMs,
 		};
 	},
