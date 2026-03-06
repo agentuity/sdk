@@ -1051,15 +1051,18 @@ export const command = createCommand({
 					// Resume watcher to detect changes for retry
 					fileWatcher.resume();
 
-					// Wait for next restart trigger
+					// Wait for next restart trigger or shutdown
 					await new Promise<void>((resolve) => {
 						const checkRestart = setInterval(() => {
-							if (shouldRestart) {
+							if (shouldRestart || shutdownRequested) {
 								clearInterval(checkRestart);
 								resolve();
 							}
 						}, 100);
 					});
+					if (shutdownRequested) {
+						break;
+					}
 					continue;
 				}
 
@@ -1134,10 +1137,6 @@ export const command = createCommand({
 						noBundle: opts.experimentalNoBundle,
 					});
 
-					// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
-					// Give it 2 seconds to ensure app initialization completes
-					await Bun.sleep(2000);
-
 					// Check if shutdown was requested during startup
 					if (shutdownRequested) {
 						break;
@@ -1145,6 +1144,12 @@ export const command = createCommand({
 				} catch (error) {
 					tui.error(`Failed to start dev server: ${error}`);
 					tui.warning('Waiting for file changes to retry...');
+
+					// Clean up any partially started server resources
+					await cleanupForRestart();
+
+					// Resume watcher to detect changes for retry
+					fileWatcher.resume();
 
 					// Wait for next restart trigger or shutdown
 					await new Promise<void>((resolve) => {
