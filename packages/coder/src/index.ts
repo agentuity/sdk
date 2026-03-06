@@ -1260,11 +1260,22 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						return;
 					}
 					const { mkdirSync, writeFileSync } = _require('node:fs') as typeof import('node:fs');
-					const { dirname, join } = _require('node:path') as typeof import('node:path');
+					const { dirname, resolve, relative } = _require(
+						'node:path'
+					) as typeof import('node:path');
 					const cwd = process.cwd();
 					const synced: string[] = [];
 					for (const skill of data.skills) {
-						const fullPath = join(cwd, skill.path);
+						if (skill.path.includes('\0')) {
+							log(`Skipping skill with null byte in path: ${skill.path}`);
+							continue;
+						}
+						const fullPath = resolve(cwd, skill.path);
+						const rel = relative(cwd, fullPath);
+						if (rel.startsWith('..') || resolve(cwd, rel) !== fullPath) {
+							log(`Skipping skill with path traversal: ${skill.path}`);
+							continue;
+						}
 						mkdirSync(dirname(fullPath), { recursive: true });
 						writeFileSync(fullPath, skill.content, 'utf-8');
 						synced.push(skill.path);

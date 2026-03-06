@@ -103,9 +103,13 @@ export const inspectSubcommand = createSubcommand({
 		};
 
 		try {
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), 10_000);
 			const resp = await fetch(`${hubUrl}/api/hub/session/${encodeURIComponent(sessionId)}`, {
 				headers: hubFetchHeaders(),
+				signal: controller.signal,
 			});
+			clearTimeout(timeout);
 			if (resp.status === 404) {
 				tui.fatal(`Session not found: ${sessionId}`, ErrorCode.RESOURCE_NOT_FOUND);
 				return;

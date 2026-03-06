@@ -92,7 +92,7 @@ export async function processActions(
 				const content = action.message?.content?.trim();
 				if (!content) break;
 
-				if (action.message.role === 'user') {
+				if (action.message?.role === 'user') {
 					if (ctx.sendUserMessage) {
 						ctx.sendUserMessage(content, { deliverAs: 'followUp' });
 					} else if (ctx.ui) {

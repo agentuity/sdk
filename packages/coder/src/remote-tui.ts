@@ -553,7 +553,6 @@ export async function runRemoteTui(options: {
 	}
 
 	if (eventBuffer.length > 0) {
-		log(`Flushing ${eventBuffer.length} buffered events to InteractiveMode`);
 		log(`Flushing ${eventBuffer.length} events: ${eventBuffer.map((e) => e.type).join(', ')}`);
 		for (const buffered of eventBuffer) {
 			agent.emit(buffered);

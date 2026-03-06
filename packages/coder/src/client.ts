@@ -210,6 +210,7 @@ export class HubClient {
 			if (this.reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
 				log(`Reconnect failed after ${RECONNECT_MAX_ATTEMPTS} attempts; giving up`);
 				this.reconnectTimer = null;
+				this.setConnectionState('disconnected');
 				this.rejectQueuedRequests(
 					'Reconnect attempts exhausted before queued request could be sent'
 				);

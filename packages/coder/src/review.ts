@@ -44,7 +44,13 @@ function execGit(args: string[]): string {
 			maxBuffer: 5 * 1024 * 1024,
 			stdio: ['pipe', 'pipe', 'pipe'],
 		});
-	} catch {
+	} catch (err: unknown) {
+		const stderr =
+			err && typeof err === 'object' && 'stderr' in err ? String((err as any).stderr) : '';
+		const msg = err instanceof Error ? err.message : String(err);
+		if (process.env['AGENTUITY_DEBUG']) {
+			console.error(`[agentuity-coder] git ${args.join(' ')} failed: ${stderr || msg}`);
+		}
 		return '';
 	}
 }
@@ -79,7 +85,8 @@ function parseDiffStats(diff: string): DiffStats {
 	for (const fileDiff of fileDiffs) {
 		// Extract file path from "a/path b/path" header
 		const headerMatch = fileDiff.match(/^a\/(.+?) b\//);
-		const filePath = headerMatch?.[1] ?? '';
+		if (!headerMatch) continue;
+		const filePath = headerMatch[1] ?? '';
 
 		if (isExcluded(filePath)) {
 			excludedFiles.push(filePath);

@@ -67,8 +67,16 @@ function normalizeToWs(httpUrl: string): string {
 	if (wsUrl.startsWith('http://')) wsUrl = 'ws://' + wsUrl.slice(7);
 	else if (wsUrl.startsWith('https://')) wsUrl = 'wss://' + wsUrl.slice(8);
 
-	if (!wsUrl.includes('/api/ws')) {
-		wsUrl = wsUrl.replace(/\/?$/, '/api/ws');
+	try {
+		const parsed = new URL(wsUrl);
+		if (parsed.pathname !== '/api/ws') {
+			parsed.pathname = '/api/ws';
+			wsUrl = parsed.toString().replace(/\/$/, '');
+		}
+	} catch {
+		if (!wsUrl.endsWith('/api/ws')) {
+			wsUrl = wsUrl.replace(/\/?$/, '/api/ws');
+		}
 	}
 
 	return wsUrl;
