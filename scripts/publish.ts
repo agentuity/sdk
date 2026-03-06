@@ -765,6 +765,9 @@ async function main() {
 			console.log('─'.repeat(80));
 		}
 
+		console.log('\n🗑️  Deleting bun.lock...');
+		await $`rm -f bun.lock`.cwd(rootDir);
+
 		console.log('\n📥 Running bun install...');
 		await $`bun install`.cwd(rootDir);
 
@@ -842,6 +845,12 @@ async function main() {
 
 		if (!isDryRun) {
 			await restoreWorkspaceDependencies(newVersion);
+
+			console.log('\n🗑️  Deleting bun.lock...');
+			await $`rm -f bun.lock`.cwd(rootDir);
+
+			console.log('\n📥 Running bun install to pick up new versions...');
+			await $`bun install`.cwd(rootDir);
 		}
 	} catch (err) {
 		console.error('\n❌ Publish failed:', err);
