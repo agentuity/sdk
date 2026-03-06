@@ -1116,12 +1116,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			},
 		});
 
-		pi.registerCommand('name', {
+		pi.registerCommand('rename', {
 			description: 'Rename the current Hub session (max 30 chars)',
 			handler: async (args, ctx) => {
 				const label = args.trim().slice(0, 30);
 				if (!label) {
-					if (ctx.hasUI) ctx.ui.notify('Usage: /name <label>', 'warning');
+					if (ctx.hasUI) ctx.ui.notify('Usage: /rename <label>', 'warning');
 					return;
 				}
 				if (!client.connected) {
