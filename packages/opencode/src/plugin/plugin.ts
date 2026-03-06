@@ -664,7 +664,7 @@ Returns the public URL that can be copied and used anywhere.`,
 			ttl_seconds: s
 				.number()
 				.optional()
-				.describe('TTL in seconds (60-7776000, or omit for 30-day default)'),
+				.describe('TTL in seconds (60-31536000, or omit for 30-day default)'),
 			content_type: s.string().optional().describe('Content type (default: text/markdown)'),
 			metadata: s
 				.record(s.string(), s.string())

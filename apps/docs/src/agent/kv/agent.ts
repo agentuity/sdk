@@ -10,7 +10,7 @@
  * - ctx.kv.set(bucket, key, value, { ttl }) - Store with optional expiration
  * - ctx.kv.getKeys(bucket) - List all keys in a bucket
  *
- * TTL (time-to-live) is in seconds, minimum 60s. Great for caching.
+ * TTL (time-to-live) is in seconds, minimum 60s (0 for no expiration). Great for caching.
  *
  * Docs: https://agentuity.dev/Services/Storage/key-value
  */
