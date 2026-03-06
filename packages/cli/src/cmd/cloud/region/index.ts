@@ -3,6 +3,7 @@ import { createSubcommand, createCommand } from '../../../types';
 import { getCommand } from '../../../command-prefix';
 import { saveRegion, clearRegion } from '../../../config';
 import * as tui from '../../../tui';
+import { listSubcommand } from './list';
 
 const selectCommand = createSubcommand({
 	name: 'select',
@@ -150,8 +151,9 @@ export const regionSubcommand = createCommand({
 	description: 'Manage default cloud region preference',
 	tags: ['fast'],
 	examples: [
+		{ command: getCommand('cloud region list'), description: 'List available regions' },
 		{ command: getCommand('cloud region select'), description: 'Set default region' },
 		{ command: getCommand('cloud region current'), description: 'Show current default' },
 	],
-	subcommands: [selectCommand, unselectCommand, currentCommand],
+	subcommands: [listSubcommand, selectCommand, unselectCommand, currentCommand],
 });
