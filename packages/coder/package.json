@@ -25,8 +25,8 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"peerDependencies": {
-		"@mariozechner/pi-coding-agent": ">=0.54.2",
-		"@mariozechner/pi-tui": ">=0.55.1",
+		"@mariozechner/pi-coding-agent": "^0.54.2",
+		"@mariozechner/pi-tui": "^0.55.1",
 		"@sinclair/typebox": "^0.34.48"
 	},
 	"devDependencies": {
