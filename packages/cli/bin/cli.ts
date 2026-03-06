@@ -26,6 +26,7 @@ import type { GlobalOptions } from '../src/types';
 import { ensureBunOnPath } from '../src/bun-path';
 import { checkForUpdates } from '../src/version-check';
 import { closeDatabase } from '../src/cache';
+import { ErrorCode, createError, formatErrorJSON } from '../src/errors';
 import { createInternalLogger } from '../src/internal-logger';
 import { createCompositeLogger } from '../src/composite-logger';
 import { getAuth } from '../src/config';
@@ -342,21 +343,52 @@ try {
 		((errorWithMessage._tag === 'ServiceException' && errorWithMessage.statusCode === 402) ||
 			errorWithMessage._tag === 'PaymentRequiredError')
 	) {
-		const { errorBox, link, newline } = await import('../src/tui');
-		const overrides = config?.overrides as { app_url?: string } | undefined;
-		const appBaseUrl = getAppBaseURL(undefined, overrides);
-		const billingUrl = `${appBaseUrl}/billing`;
-		newline();
-		errorBox(
-			'Out of Credit',
-			`Your organization is out of credit.\n\nPlease add more here:\n${link(billingUrl)}`,
-			false // standalone box, not connected to a guide
-		);
+		if (earlyOpts.errorFormat === 'json') {
+			console.error(
+				formatErrorJSON(
+					createError(
+						ErrorCode.PAYMENT_REQUIRED,
+						'Your organization is out of credit. Please visit your billing page to add credit.'
+					)
+				)
+			);
+		} else {
+			const { errorBox, link, newline } = await import('../src/tui');
+			const overrides = config?.overrides as { app_url?: string } | undefined;
+			const appBaseUrl = getAppBaseURL(undefined, overrides);
+			const billingUrl = `${appBaseUrl}/billing`;
+			newline();
+			errorBox(
+				'Out of Credit',
+				`Your organization is out of credit.\n\nPlease add more here:\n${link(billingUrl)}`,
+				false // standalone box, not connected to a guide
+			);
+		}
 		closeDatabase();
 		exit(1);
 	}
 
-	if (isStructuredError(error)) {
+	if (earlyOpts.errorFormat === 'json') {
+		const message = errorWithMessage?.message ?? String(error);
+		const code = isStructuredError(error) ? ErrorCode.API_ERROR : ErrorCode.INTERNAL_ERROR;
+		const details: Record<string, unknown> = {};
+		if (isStructuredError(error) && errorWithMessage._tag) {
+			details.tag = errorWithMessage._tag;
+		}
+		if (
+			typeof error === 'object' &&
+			error !== null &&
+			'status' in error &&
+			typeof (error as any).status === 'number'
+		) {
+			details.status = (error as any).status;
+		}
+		console.error(
+			formatErrorJSON(
+				createError(code, message, Object.keys(details).length > 0 ? details : undefined)
+			)
+		);
+	} else if (isStructuredError(error)) {
 		logger.error(error);
 	} else {
 		logger.error(
