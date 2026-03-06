@@ -84,13 +84,10 @@ export const listSubcommand = createSubcommand({
 		};
 
 		try {
-			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 10_000);
 			const resp = await fetch(`${hubUrl}/api/hub/sessions`, {
 				headers: hubFetchHeaders(),
-				signal: controller.signal,
+				signal: AbortSignal.timeout(10_000),
 			});
-			clearTimeout(timeout);
 			if (!resp.ok) {
 				tui.fatal(
 					`Hub returned ${resp.status}: ${resp.statusText}. Is the Coder Hub running at ${hubUrl}?`,

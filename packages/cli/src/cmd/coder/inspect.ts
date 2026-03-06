@@ -34,18 +34,18 @@ export const inspectSubcommand = createSubcommand({
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [
 		{
-			command: getCommand('coder inspect ses_abc123'),
+			command: getCommand('coder inspect codesess_abc123'),
 			description: 'Inspect a session by ID',
 		},
 		{
-			command: getCommand('coder inspect ses_abc123 --json'),
+			command: getCommand('coder inspect codesess_abc123 --json'),
 			description: 'Get session details as JSON',
 		},
 	],
 	idempotent: true,
 	schema: {
 		args: z.object({
-			session_id: z.string().describe('Session ID to inspect'),
+			session_id: z.string().describe('Coder session ID to inspect'),
 		}),
 		options: z.object({
 			hubUrl: z.string().optional().describe('Hub URL override'),
@@ -103,13 +103,10 @@ export const inspectSubcommand = createSubcommand({
 		};
 
 		try {
-			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 10_000);
 			const resp = await fetch(`${hubUrl}/api/hub/session/${encodeURIComponent(sessionId)}`, {
 				headers: hubFetchHeaders(),
-				signal: controller.signal,
+				signal: AbortSignal.timeout(10_000),
 			});
-			clearTimeout(timeout);
 			if (resp.status === 404) {
 				tui.fatal(`Session not found: ${sessionId}`, ErrorCode.RESOURCE_NOT_FOUND);
 				return;
