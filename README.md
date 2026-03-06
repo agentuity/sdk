@@ -27,6 +27,25 @@ curl -fsSL https://agentuity.sh | sh
 
 Visit [https://agentuity.com/](https://agentuity.com/) to learn more about Agentuity and create a free account or sign up in the CLI after installation.
 
+# Agent Skills
+
+This repository includes [Agent Skills](https://agentskills.io/) that teach AI coding agents how to work with the Agentuity SDK. Install them with:
+
+```bash
+npx skills add agentuity/sdk
+```
+
+Available skills:
+
+| Skill | Description |
+|-------|-------------|
+| **agentuity-agents** | Building agents with `createAgent`, schemas, context APIs, state management |
+| **agentuity-routing** | API routes, middleware, WebSocket/SSE/WebRTC handlers |
+| **agentuity-cli** | Project scaffolding, dev server, deployment, cloud services |
+| **agentuity-workbench** | Interactive dev UI for testing agents |
+
+See [`skills/README.md`](./skills/README.md) for details.
+
 # Documentation
 
 Visit [https://agentuity.dev](https://agentuity.dev/) to view the full documentation.
