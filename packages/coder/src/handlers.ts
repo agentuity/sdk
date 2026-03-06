@@ -3,6 +3,8 @@ import type { HubAction } from './protocol.ts';
 export interface ActionResult {
 	block?: { block: true; reason: string };
 	returnValue?: unknown;
+	systemPrompt?: string;
+	systemPromptMode?: 'replace' | 'prefix' | 'suffix';
 	// undefined means ACK (proceed normally)
 }
 
@@ -13,6 +15,7 @@ interface ActionContext {
 		confirm(title: string, message: string): Promise<boolean>;
 		setStatus(key: string, text?: string): void;
 	};
+	sendUserMessage?: (message: string, options?: { deliverAs?: 'followUp' }) => void;
 }
 
 export async function processActions(
@@ -72,6 +75,34 @@ export async function processActions(
 							reason: action.deny_reason ?? 'Confirmation required but no UI available',
 						},
 					};
+				}
+				break;
+			}
+
+			case 'SYSTEM_PROMPT':
+				// System prompt injection — store for before_agent_start handler
+				result = {
+					...result,
+					systemPrompt: action.systemPrompt,
+					systemPromptMode: action.mode,
+				};
+				break;
+
+			case 'INJECT_MESSAGE': {
+				const content = action.message?.content?.trim();
+				if (!content) break;
+
+				if (action.message?.role === 'user') {
+					if (ctx.sendUserMessage) {
+						ctx.sendUserMessage(content, { deliverAs: 'followUp' });
+					} else if (ctx.ui) {
+						ctx.ui.notify(content, 'info');
+					}
+					break;
+				}
+
+				if (ctx.ui) {
+					ctx.ui.notify(content, 'info');
 				}
 				break;
 			}
