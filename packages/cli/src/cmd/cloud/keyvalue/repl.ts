@@ -13,7 +13,9 @@ export const replSubcommand = createCommand({
 	idempotent: false,
 	requires: { auth: true, region: true },
 	optional: { project: true },
-	examples: [{ command: getCommand('kv repl'), description: 'Start interactive KV session' }],
+	examples: [
+		{ command: getCommand('cloud kv repl'), description: 'Start interactive KV session' },
+	],
 
 	async handler(ctx) {
 		showBanner(undefined, true);

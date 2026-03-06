@@ -9,9 +9,9 @@ import { z } from 'zod';
 export const KV_MIN_TTL_SECONDS = 60;
 
 /**
- * Maximum TTL value in seconds (90 days)
+ * Maximum TTL value in seconds (365 days)
  */
-export const KV_MAX_TTL_SECONDS = 7776000;
+export const KV_MAX_TTL_SECONDS = 31536000;
 
 /**
  * Default TTL value in seconds (7 days) - used when namespace is auto-created or no TTL specified
@@ -88,11 +88,11 @@ export const KeyValueStorageSetParamsSchema = z.object({
 	 * Time-to-live in seconds for the key. Controls when the key expires and is automatically deleted.
 	 * - `undefined` (not provided): Key inherits the namespace's default TTL (7 days if not configured)
 	 * - `null` or `0`: Key never expires
-	 * - positive number (≥60): Key expires after the specified number of seconds (max 90 days)
+	 * - positive number (≥60): Key expires after the specified number of seconds (max 365 days)
 	 *
 	 * @remarks
 	 * TTL values below 60 seconds are clamped to 60 seconds by the server.
-	 * TTL values above 7,776,000 seconds (90 days) are clamped to 90 days.
+	 * TTL values above 31,536,000 seconds (365 days) are clamped to 365 days.
 	 */
 	ttl: z
 		.number()
@@ -117,7 +117,7 @@ export const CreateNamespaceParamsSchema = z.object({
 	 * Default TTL for keys in this namespace (in seconds).
 	 * - If undefined/omitted: uses server default (7 days / 604,800 seconds)
 	 * - If 0: keys will not expire by default
-	 * - If 60-7,776,000: custom TTL in seconds (1 minute to 90 days)
+	 * - If 60-31,536,000: custom TTL in seconds (1 minute to 365 days)
 	 *
 	 * Keys can override this default by specifying TTL in the set() call.
 	 * Active keys are automatically extended (sliding expiration) when read
@@ -444,7 +444,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	 * - If TTL is null or 0, the key will not expire
 	 * - If TTL is a positive number, the key expires after that many seconds
 	 * - TTL values below 60 seconds are clamped to 60 seconds by the server
-	 * - TTL values above 7,776,000 seconds (90 days) are clamped to 90 days
+	 * - TTL values above 31,536,000 seconds (365 days) are clamped to 365 days
 	 * - If the namespace doesn't exist, it is auto-created with a 7-day default TTL
 	 */
 	async set<T = unknown>(

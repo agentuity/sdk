@@ -13,9 +13,9 @@ export const listNamespacesSubcommand = createCommand({
 	requires: { auth: true, region: true },
 	optional: { project: true },
 	examples: [
-		{ command: getCommand('kv list-namespaces'), description: 'List all namespaces' },
-		{ command: getCommand('kv namespaces'), description: 'List namespaces (using alias)' },
-		{ command: getCommand('kv ns'), description: 'List namespaces (short alias)' },
+		{ command: getCommand('cloud kv list-namespaces'), description: 'List all namespaces' },
+		{ command: getCommand('cloud kv namespaces'), description: 'List namespaces (using alias)' },
+		{ command: getCommand('cloud kv ns'), description: 'List namespaces (short alias)' },
 	],
 	schema: {
 		options: z.object({
