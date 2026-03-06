@@ -100,7 +100,14 @@ export const getSubcommand = createCommand({
 		await cacheTaskId(ctx, task.id);
 
 		// Fetch subtasks unless disabled
-		let subtasksList: { id: string; title: string; type: string; status: string; priority: string; assignee?: { id: string; name: string; type?: 'human' | 'agent' } }[] = [];
+		let subtasksList: {
+			id: string;
+			title: string;
+			type: string;
+			status: string;
+			priority: string;
+			assignee?: { id: string; name: string; type?: 'human' | 'agent' };
+		}[] = [];
 		if (!opts['no-subtasks']) {
 			try {
 				const subtasksResult = await storage.list({ parent_id: task.id });
