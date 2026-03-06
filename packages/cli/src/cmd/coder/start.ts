@@ -86,7 +86,7 @@ export const startSubcommand = createSubcommand({
 			description: 'Start as a specific agent role',
 		},
 		{
-			command: getCommand('coder start --remote sess_abc123'),
+			command: getCommand('coder start --remote codesess_abc123'),
 			description: 'Connect to an existing sandbox session remotely',
 		},
 		{
@@ -177,13 +177,10 @@ export const startSubcommand = createSubcommand({
 					const sessions = await tui.spinner({
 						message: 'Fetching connectable sessions…',
 						callback: async () => {
-							const controller = new AbortController();
-							const timeout = setTimeout(() => controller.abort(), 10_000);
 							const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`, {
 								headers: hubFetchHeaders(),
-								signal: controller.signal,
+								signal: AbortSignal.timeout(10_000),
 							});
-							clearTimeout(timeout);
 							if (!resp.ok) {
 								throw new Error(`${resp.status} ${resp.statusText}`);
 							}
@@ -280,15 +277,12 @@ export const startSubcommand = createSubcommand({
 
 			let sessionId: string;
 			try {
-				const createController = new AbortController();
-				const createTimeout = setTimeout(() => createController.abort(), 10_000);
 				const resp = await fetch(`${hubHttpUrl}/api/hub/session`, {
 					method: 'POST',
 					headers: hubFetchHeaders({ 'Content-Type': 'application/json' }),
 					body: JSON.stringify(body),
-					signal: createController.signal,
+					signal: AbortSignal.timeout(10_000),
 				});
-				clearTimeout(createTimeout);
 				if (!resp.ok) {
 					const errText = await resp.text();
 					tui.fatal(
@@ -319,13 +313,10 @@ export const startSubcommand = createSubcommand({
 			while (Date.now() - pollStart < POLL_TIMEOUT) {
 				await new Promise((r) => setTimeout(r, POLL_INTERVAL));
 				try {
-					const pollController = new AbortController();
-					const pollTimeout = setTimeout(() => pollController.abort(), 5_000);
 					const pollResp = await fetch(`${hubHttpUrl}/api/hub/session/${sessionId}`, {
 						headers: hubFetchHeaders(),
-						signal: pollController.signal,
+						signal: AbortSignal.timeout(5_000),
 					});
-					clearTimeout(pollTimeout);
 					if (pollResp.ok) {
 						const data = (await pollResp.json()) as {
 							participants?: Array<{ role: string }>;

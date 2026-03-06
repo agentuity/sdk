@@ -7,6 +7,8 @@
  *   3. AGENTUITY_DEVMODE_URL env var (dev tunnel URL)
  */
 
+import { getVersion } from '../../version';
+
 /**
  * Resolve the Hub HTTP base URL for REST API calls.
  * Converts ws:// URLs to http:// automatically.
@@ -96,6 +98,7 @@ export function resolveApiKey(): string | null {
  */
 export function hubFetchHeaders(extra?: Record<string, string>): Record<string, string> {
 	const headers: Record<string, string> = { ...extra };
+	headers['User-Agent'] = `Agentuity Coder/${getVersion()}`;
 	const apiKey = resolveApiKey();
 	if (apiKey) headers['x-agentuity-auth-api-key'] = apiKey;
 	return headers;
