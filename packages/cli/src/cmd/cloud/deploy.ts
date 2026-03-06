@@ -449,7 +449,13 @@ export const deploySubcommand = createSubcommand({
 					}
 					logger.debug('Checking %d packages for malware', packages.length);
 					// Use Catalyst client directly for malware check (security routes are on Catalyst)
-					const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+					const catalystClient = await getGlobalCatalystAPIClient(
+						logger,
+						auth,
+						config?.name,
+						undefined,
+						config
+					);
 					const result = await projectDeploymentMalwareCheck(
 						catalystClient,
 						deployment!.id,
@@ -1218,6 +1224,11 @@ export const deploySubcommand = createSubcommand({
 					topSpacer: false,
 					bottomSpacer: false,
 				});
+			}
+
+			// Trigger TLS certificate provisioning for custom domains (fire-and-forget)
+			if (project.deployment?.domains?.length) {
+				void domain.triggerTLSProvisioning(project.deployment.domains);
 			}
 
 			// Write final report on success

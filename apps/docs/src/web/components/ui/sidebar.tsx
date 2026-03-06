@@ -66,6 +66,7 @@ function SidebarProvider({
 				_setOpen(openState);
 			}
 
+			// biome-ignore lint/suspicious/noDocumentCookie: sidebar state persistence via cookie is intentional
 			document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
 		},
 		[setOpenProp, open]
@@ -73,7 +74,7 @@ function SidebarProvider({
 
 	const toggleSidebar = React.useCallback(() => {
 		return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
-	}, [isMobile, setOpen, setOpenMobile]);
+	}, [isMobile, setOpen]);
 
 	React.useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -99,7 +100,7 @@ function SidebarProvider({
 			setOpenMobile,
 			toggleSidebar,
 		}),
-		[state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+		[state, open, setOpen, isMobile, openMobile, toggleSidebar]
 	);
 
 	return (

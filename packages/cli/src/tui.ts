@@ -130,7 +130,7 @@ export function getTerminalWidth(defaultWidth = 80): number {
 	}
 	if (process.env.COLUMNS) {
 		const cols = parseInt(process.env.COLUMNS, 10);
-		if (!isNaN(cols) && cols > 0) {
+		if (!Number.isNaN(cols) && cols > 0) {
 			return cols;
 		}
 	}

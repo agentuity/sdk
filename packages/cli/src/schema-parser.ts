@@ -1,5 +1,16 @@
 import type { ZodType } from 'zod';
 import type { CommandSchemas } from './types';
+import { StructuredError } from '@agentuity/core';
+
+const InputJSONParseError = StructuredError('InputJSONParseError')<{
+	flag: string;
+	errorType: string;
+}>();
+const InputJSONTypeError = StructuredError('InputJSONTypeError')<{
+	flag: string;
+	expected: string;
+	actual: string;
+}>();
 
 export interface ParsedArgs {
 	names: string[];
@@ -111,6 +122,34 @@ function getShape(schema: ZodType): Record<string, unknown> {
 		const leftShape = def.left ? getShape(def.left as ZodType) : {};
 		const rightShape = def.right ? getShape(def.right as ZodType) : {};
 		return { ...leftShape, ...rightShape };
+	}
+
+	if (typeId === 'ZodTuple' || typeId === 'tuple') {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const items = (unwrapped as any)._def?.items as unknown[];
+		if (Array.isArray(items)) {
+			const result: Record<string, unknown> = {};
+			for (let i = 0; i < items.length; i++) {
+				const item = items[i] as ZodTypeInternal;
+				// Try to extract a name from the description — check the item directly (Zod 4),
+				// the _def (Zod 3), and the unwrapped inner schema
+				const desc =
+					(item as unknown as { description?: string })?.description ||
+					item?._def?.description ||
+					(unwrapSchema(item) as ZodTypeInternal)?._def?.description ||
+					(unwrapSchema(item) as unknown as { description?: string })?.description;
+				let name = `arg${i}`;
+				if (desc) {
+					// Slugify: lowercase, replace non-alphanumeric with dashes, trim
+					name = desc
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, '-')
+						.replace(/^-|-$/g, '');
+				}
+				result[name] = item;
+			}
+			return result;
+		}
 	}
 
 	return {};
@@ -366,16 +405,32 @@ export function buildValidationInput(
 	schemas: CommandSchemas,
 	rawArgs: unknown[],
 	rawOptions: Record<string, unknown>,
-	_options?: { usesStdin?: boolean }
+	_options?: { usesStdin?: boolean },
+	inputJson?: string
 ): { args: Record<string, unknown>; options: Record<string, unknown> } {
 	const result = { args: {} as Record<string, unknown>, options: {} as Record<string, unknown> };
 
 	if (schemas.args) {
-		const parsed = parseArgsSchema(schemas.args);
-		for (let i = 0; i < parsed.names.length; i++) {
-			const name = parsed.names[i];
-			if (name !== undefined) {
-				result.args[name] = rawArgs[i];
+		// Check if the schema is a tuple — tuples need array input, not object
+		const unwrapped = unwrapSchema(schemas.args) as ZodTypeInternal;
+		const typeId = unwrapped?._def?.typeName || unwrapped?._def?.type;
+		if (typeId === 'ZodTuple' || typeId === 'tuple') {
+			// Tuple schemas — map each item to a named key from the schema
+			// (rawArgs may include trailing Commander.js options object)
+			const parsed = parseArgsSchema(schemas.args);
+			for (let i = 0; i < parsed.names.length; i++) {
+				const name = parsed.names[i];
+				if (name !== undefined) {
+					result.args[name] = rawArgs[i];
+				}
+			}
+		} else {
+			const parsed = parseArgsSchema(schemas.args);
+			for (let i = 0; i < parsed.names.length; i++) {
+				const name = parsed.names[i];
+				if (name !== undefined) {
+					result.args[name] = rawArgs[i];
+				}
 			}
 		}
 	}
@@ -399,6 +454,47 @@ export function buildValidationInput(
 		}
 	}
 
+	// Merge --input JSON values: CLI flags take precedence over --input values
+	if (inputJson !== undefined) {
+		let parsed: Record<string, unknown>;
+		try {
+			parsed = JSON.parse(inputJson) as Record<string, unknown>;
+		} catch (e) {
+			throw new InputJSONParseError({
+				message: `Invalid JSON in --input flag: ${e instanceof Error ? e.message : String(e)}`,
+				flag: '--input',
+				errorType: 'json_parse',
+			});
+		}
+
+		if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+			throw new InputJSONTypeError({
+				message: `Invalid JSON in --input flag: expected a JSON object, got ${parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed}`,
+				flag: '--input',
+				expected: 'object',
+				actual: parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed,
+			});
+		}
+
+		if (schemas.args) {
+			const argsMeta = parseArgsSchema(schemas.args);
+			for (const name of argsMeta.names) {
+				if (result.args[name] === undefined && parsed[name] !== undefined) {
+					result.args[name] = parsed[name];
+				}
+			}
+		}
+
+		if (schemas.options) {
+			const optsMeta = parseOptionsSchema(schemas.options);
+			for (const opt of optsMeta) {
+				if (result.options[opt.name] === undefined && parsed[opt.name] !== undefined) {
+					result.options[opt.name] = parsed[opt.name];
+				}
+			}
+		}
+	}
+
 	return result;
 }
 
@@ -410,9 +506,10 @@ export async function buildValidationInputAsync(
 	schemas: CommandSchemas,
 	rawArgs: unknown[],
 	rawOptions: Record<string, unknown>,
-	options?: { usesStdin?: boolean }
+	options?: { usesStdin?: boolean },
+	inputJson?: string
 ): Promise<{ args: Record<string, unknown>; options: Record<string, unknown> }> {
-	const result = buildValidationInput(schemas, rawArgs, rawOptions, options);
+	const result = buildValidationInput(schemas, rawArgs, rawOptions, options, inputJson);
 
 	// Check for stdin confirmation if:
 	// 1. Command has a confirm option in schema
@@ -421,7 +518,7 @@ export async function buildValidationInputAsync(
 	if (schemas.options && !options?.usesStdin) {
 		// Use getShape() instead of parseOptionsSchema() to avoid re-evaluating function defaults
 		const shape = getShape(schemas.options);
-		const hasConfirmOption = Object.prototype.hasOwnProperty.call(shape, 'confirm');
+		const hasConfirmOption = Object.hasOwn(shape, 'confirm');
 		const confirmValue = result.options.confirm;
 
 		if (hasConfirmOption && confirmValue === undefined) {

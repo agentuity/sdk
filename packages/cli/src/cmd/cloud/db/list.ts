@@ -1,9 +1,9 @@
-import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
+import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const DBListResponseSchema = z.object({
 	databases: z
@@ -62,7 +62,13 @@ export const listSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { logger, opts, options, auth, config } = ctx;
 
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		const resources = await tui.spinner({
 			message: 'Fetching databases',

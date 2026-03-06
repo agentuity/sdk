@@ -1,14 +1,14 @@
-import { z } from 'zod';
-import { listOrgResources, listOrganizations, deleteResources, APIError } from '@agentuity/server';
+import { APIError, deleteResources, listOrganizations, listOrgResources } from '@agentuity/server';
 import enquirer from 'enquirer';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
+import { z } from 'zod';
+import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache';
 import { getCommand } from '../../../command-prefix';
-import { isDryRunMode, outputDryRun } from '../../../explain';
-import { ErrorCode } from '../../../errors';
+import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config';
 import { removeResourceEnvVars } from '../../../env-util';
-import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache';
+import { ErrorCode } from '../../../errors';
+import { isDryRunMode, outputDryRun } from '../../../explain';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
@@ -41,7 +41,13 @@ export const deleteSubcommand = createSubcommand({
 		const { logger, args, opts, auth, options, config } = ctx;
 
 		const profileName = config?.name ?? 'production';
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
 
 		let dbName = args.name;
 
@@ -167,7 +173,7 @@ export const deleteSubcommand = createSubcommand({
 
 		try {
 			// Use regional client for the delete operation
-			const regionalClient = getCatalystAPIClient(logger, auth, region);
+			const regionalClient = getCatalystAPIClient(logger, auth, region, undefined, config);
 			const deleted = await tui.spinner({
 				message: `Deleting database ${dbName}`,
 				clearOnSuccess: true,
@@ -198,10 +204,9 @@ export const deleteSubcommand = createSubcommand({
 					success: true,
 					name: resource.name,
 				};
-			} else {
-				tui.error('Failed to delete database');
-				return { success: false, name: dbName };
 			}
+			tui.error('Failed to delete database');
+			return { success: false, name: dbName };
 		} catch (ex) {
 			if (ex instanceof APIError) {
 				if (ex.status === 404) {

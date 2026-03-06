@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { getCommand } from '../../../../command-prefix';
 import { snapshotDelete } from '@agentuity/server';
+import { z } from 'zod';
+import { getCommand } from '../../../../command-prefix';
 import { getGlobalCatalystAPIClient } from '../../../../config';
+import * as tui from '../../../../tui';
+import { createCommand } from '../../../../types';
 
 const SnapshotDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -53,7 +53,13 @@ export const deleteSubcommand = createCommand({
 			}
 		}
 
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const client = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		await snapshotDelete(client, {
 			snapshotId: args.snapshotId,

@@ -92,6 +92,7 @@ export function StreamsPage() {
 					) : (
 						wsMessages.map((msg, i) => (
 							<div
+								// biome-ignore lint/suspicious/noArrayIndexKey: messages are append-only with no stable id
 								key={i}
 								style={{
 									marginBottom: '0.5rem',

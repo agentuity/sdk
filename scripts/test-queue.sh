@@ -246,7 +246,7 @@ section "DESTINATION Command Tests"
 
 # Test: Create destination
 info "Test: queue destinations create"
-DEST_OUTPUT=$($CLI cloud queue destinations create "$QUEUE_NAME" --url "https://httpbin.org/post" --json 2>&1) || true
+DEST_OUTPUT=$($CLI cloud queue destinations create "$QUEUE_NAME" --url "https://httpbin.org/post" --name "test-destination" --json 2>&1) || true
 if echo "$DEST_OUTPUT" | grep -q '"id".*"qdest_'; then
 	DEST_ID=$(echo "$DEST_OUTPUT" | tr -d '\n ' | grep -o '"id":"qdest_[^"]*"' | sed 's/"id":"//;s/"$//')
 	pass "queue destinations create returns destination ID: $DEST_ID"

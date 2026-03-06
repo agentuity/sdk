@@ -205,7 +205,7 @@ async function cleanupStaleLock(
  */
 async function ensureNoActiveDevForProject(
 	rootDir: string,
-	port: number,
+	_port: number,
 	logger: LoggerLike
 ): Promise<void> {
 	const lockPath = getLockPath(rootDir);
@@ -214,7 +214,7 @@ async function ensureNoActiveDevForProject(
 
 	const now = Date.now();
 	const createdAt = Date.parse(existing.createdAt || '');
-	const ageMs = isFinite(createdAt) ? now - createdAt : Infinity;
+	const ageMs = Number.isFinite(createdAt) ? now - createdAt : Infinity;
 
 	const mainAlive = pidExists(existing.mainPid);
 

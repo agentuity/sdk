@@ -14,7 +14,7 @@ const paramsAgent = createAgent('routing-params', {
 			found: s.boolean(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		return {
 			id: input.id,
 			action: input.action ?? 'view',

@@ -197,7 +197,7 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			// Execute the agent handler directly
 			// The agentMiddleware has already set up the AsyncLocalStorage context
 			// so the handler can access it via getAgentContext()
-			let result;
+			let result: unknown;
 			if (agentObj.inputSchema) {
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				result = await (agentObj as any).handler(input);

@@ -1,15 +1,15 @@
-import { z } from 'zod';
-import { listOrgResources, deleteResources } from '@agentuity/server';
+import { deleteResources, listOrgResources } from '@agentuity/server';
 import enquirer from 'enquirer';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
+import { z } from 'zod';
+import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache';
 import { getCommand } from '../../../command-prefix';
-import { isDryRunMode, outputDryRun } from '../../../explain';
-import { ErrorCode } from '../../../errors';
-import { createS3Client } from './utils';
+import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config';
 import { removeResourceEnvVars } from '../../../env-util';
-import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache';
+import { ErrorCode } from '../../../errors';
+import { isDryRunMode, outputDryRun } from '../../../explain';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
+import { createS3Client } from './utils';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
@@ -60,7 +60,13 @@ export const deleteSubcommand = createSubcommand({
 		const { logger, args, opts, auth, options, config } = ctx;
 
 		const profileName = config?.name ?? 'production';
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
 
 		let bucketName = args.name;
 
@@ -350,7 +356,7 @@ export const deleteSubcommand = createSubcommand({
 		}
 
 		// Use regional client for the delete operation
-		const regionalClient = getCatalystAPIClient(logger, auth, region);
+		const regionalClient = getCatalystAPIClient(logger, auth, region, undefined, config);
 		const deleted = await tui.spinner({
 			message: `Deleting storage bucket ${bucketName}`,
 			clearOnSuccess: true,
@@ -381,9 +387,8 @@ export const deleteSubcommand = createSubcommand({
 				success: true,
 				name: resource.name,
 			};
-		} else {
-			tui.error('Failed to delete storage bucket');
-			return { success: false, name: bucketName };
 		}
+		tui.error('Failed to delete storage bucket');
+		return { success: false, name: bucketName };
 	},
 });

@@ -212,7 +212,7 @@ export const createSubcommand = createCommand({
 		let expiresAt: string | undefined;
 		try {
 			const info = await storage.get(stream.id);
-			expiresAt = info.expiresAt;
+			expiresAt = info.expiresAt ?? undefined;
 		} catch {
 			// expiresAt is optional, ignore errors
 		}

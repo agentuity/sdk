@@ -1,19 +1,19 @@
-import { z } from 'zod';
 import {
-	getBucketConfig,
-	updateBucketConfig,
-	deleteBucketConfig,
-	BucketConfigResponseError,
-	listOrgResources,
-	type BucketConfigUpdate,
 	type BucketConfig,
+	BucketConfigResponseError,
+	type BucketConfigUpdate,
+	deleteBucketConfig,
+	getBucketConfig,
+	listOrgResources,
 	StorageTierSchema,
+	updateBucketConfig,
 } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
+import { z } from 'zod';
 import { getResourceInfo, setResourceInfo } from '../../../cache';
+import { getCommand } from '../../../command-prefix';
+import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 function displayConfig(config: BucketConfig) {
 	tui.newline();
@@ -117,7 +117,13 @@ export const configSubcommand = createSubcommand({
 		const { name: bucketName } = args;
 
 		const profileName = config?.name ?? 'production';
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
 
 		// Look up bucket to get cloud_region
 		const cachedInfo = await getResourceInfo('bucket', profileName, bucketName);
@@ -152,7 +158,13 @@ export const configSubcommand = createSubcommand({
 		}
 
 		// Create regional client for bucket config operations (orgId required for CLI auth)
-		const regionalClient = getCatalystAPIClient(logger, auth, bucket.cloud_region, bucket.org_id);
+		const regionalClient = getCatalystAPIClient(
+			logger,
+			auth,
+			bucket.cloud_region,
+			bucket.org_id,
+			config
+		);
 
 		// Handle --reset flag (DELETE)
 		if (opts.reset) {

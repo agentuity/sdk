@@ -63,7 +63,7 @@ export const politeness = createPresetEval<
 		model: DEFAULT_EVAL_MODEL,
 		threshold: 0.8,
 	},
-	handler: async (ctx, input, output, options) => {
+	handler: async (_ctx, input, output, options) => {
 		const prompt = interpolatePrompt(politenessPrompt, {
 			USER_REQUEST: input.request,
 			MODEL_RESPONSE: output.response,

@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { getCommand } from '../../../../command-prefix';
 import { snapshotTag } from '@agentuity/server';
+import { z } from 'zod';
+import { getCommand } from '../../../../command-prefix';
 import { getGlobalCatalystAPIClient } from '../../../../config';
+import * as tui from '../../../../tui';
+import { createCommand } from '../../../../types';
 
 const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9_][a-zA-Z0-9._-]*$/;
 const MAX_SNAPSHOT_TAG_LENGTH = 128;
@@ -41,7 +41,13 @@ export const tagSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, opts, options, auth, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const client = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		if (!args.tag && !opts.clear) {
 			throw new Error('Either provide a tag name or use --clear to remove the tag');

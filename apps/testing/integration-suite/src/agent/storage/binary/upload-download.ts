@@ -84,7 +84,7 @@ const binaryStorageAgent = createAgent('storage-binary-upload-download', {
 
 				// Read chunks
 				const chunks: Buffer[] = [];
-				let idx = 0;
+				let _idx = 0;
 				for await (const chunk of readable as any) {
 					// Normalize to Buffer
 					const buf = Buffer.isBuffer(chunk)
@@ -94,7 +94,7 @@ const binaryStorageAgent = createAgent('storage-binary-upload-download', {
 							: Buffer.from(chunk);
 
 					chunks.push(buf);
-					idx++;
+					_idx++;
 				}
 
 				// Combine chunks

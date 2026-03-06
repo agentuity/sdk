@@ -44,7 +44,7 @@ export function validateCPUSpec(input: string): ResourceValidationResult {
 		if (matchedValue !== undefined) {
 			const cores = parseFloat(matchedValue);
 			const millicores = Math.round(cores * 1000);
-			if (isNaN(millicores) || millicores <= 0) {
+			if (Number.isNaN(millicores) || millicores <= 0) {
 				return {
 					valid: false,
 					error: `Invalid CPU value "${input}": must be at least 1m (0.001 cores)`,
@@ -103,7 +103,7 @@ export function validateMemorySpec(
 
 		const amount = parseFloat(amountStr);
 
-		if (isNaN(amount) || amount <= 0) {
+		if (Number.isNaN(amount) || amount <= 0) {
 			return {
 				valid: false,
 				error: `Invalid ${fieldName} value "${input}": must be greater than 0`,

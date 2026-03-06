@@ -3,18 +3,16 @@
  */
 
 import * as path from 'node:path';
-import { listOrgResources, createResources, dbQuery } from '@agentuity/server';
-import * as tui from '../../../tui';
+import { createResources, dbQuery, listOrgResources } from '@agentuity/server';
+import enquirer from 'enquirer';
 import {
 	getCatalystAPIClient,
 	getGlobalCatalystAPIClient,
 	loadProjectConfig,
 	ProjectConfigNotFoundException,
 } from '../../../config';
-import type { Logger } from '../../../types';
-import type { AuthData } from '../../../types';
-import type { Config } from '../../../types';
-import enquirer from 'enquirer';
+import * as tui from '../../../tui';
+import type { AuthData, Config, Logger } from '../../../types';
 
 /**
  * Database info returned from selection
@@ -39,7 +37,13 @@ export async function selectOrCreateDatabase(options: {
 }): Promise<DatabaseInfo> {
 	const { logger, auth, orgId, config, existingUrl, projectDir } = options;
 	const profileName = config?.name;
-	const globalClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+	const globalClient = await getGlobalCatalystAPIClient(
+		logger,
+		auth,
+		profileName,
+		undefined,
+		config
+	);
 
 	const resources = await tui.spinner({
 		message: `Fetching databases for ${orgId}`,
@@ -122,7 +126,7 @@ export async function selectOrCreateDatabase(options: {
 			logger.trace(`[auth init] Using fallback region: ${region}`);
 		}
 
-		const regionalClient = getCatalystAPIClient(logger, auth, region);
+		const regionalClient = getCatalystAPIClient(logger, auth, region, undefined, config);
 
 		const created = await tui.spinner({
 			message: `Creating database in ${region}`,
@@ -393,9 +397,10 @@ export async function runAuthMigrations(options: {
 	region: string;
 	databaseName: string;
 	sql: string;
+	config?: Config | null;
 }): Promise<void> {
-	const { logger, auth, orgId, region, databaseName, sql } = options;
-	const catalystClient = getCatalystAPIClient(logger, auth, region);
+	const { logger, auth, orgId, region, databaseName, sql, config } = options;
+	const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, config);
 
 	const statements = splitSqlStatements(sql);
 

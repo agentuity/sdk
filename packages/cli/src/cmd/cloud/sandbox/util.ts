@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Logger, FileToWrite } from '@agentuity/core';
-import { APIClient, sandboxGet, getServiceUrls } from '@agentuity/server';
-import type { AuthData } from '../../../types';
+import type { FileToWrite, Logger } from '@agentuity/core';
+import { APIClient, getServiceUrls, sandboxGet } from '@agentuity/server';
+import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache';
 import { getGlobalCatalystAPIClient } from '../../../config';
-import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache';
-import * as tui from '../../../tui';
 import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import type { AuthData, Config } from '../../../types';
 
 export function createSandboxClient(logger: Logger, auth: AuthData, region: string): APIClient {
 	return new APIClient(getServiceUrls(region).catalyst, logger, auth.apiKey);
@@ -21,7 +21,8 @@ export async function getSandboxRegion(
 	auth: AuthData,
 	profileName = 'production',
 	sandboxId: string,
-	orgId?: string
+	orgId?: string,
+	config?: Config | null
 ): Promise<string> {
 	// Check cache first
 	const cachedInfo = await getResourceInfo('sandbox', profileName, sandboxId);
@@ -32,7 +33,13 @@ export async function getSandboxRegion(
 
 	// Fallback to API lookup using global client
 	logger.trace(`[sandbox] Cache miss for ${sandboxId}, fetching from API`);
-	const globalClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+	const globalClient = await getGlobalCatalystAPIClient(
+		logger,
+		auth,
+		profileName,
+		undefined,
+		config
+	);
 
 	const sandbox = await sandboxGet(globalClient, { sandboxId, orgId });
 	if (!sandbox.region) {

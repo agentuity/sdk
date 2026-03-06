@@ -1,25 +1,29 @@
-import { z } from 'zod';
 import { existsSync, mkdirSync } from 'node:fs';
-import { StructuredError, type Logger } from '@agentuity/core';
-import { BuildMetadataSchema, type BuildMetadata, getServiceUrls } from '@agentuity/server';
-import { APIClient as ServerAPIClient } from '@agentuity/server';
-import { YAML } from 'bun';
-import { join, extname, basename, resolve, normalize } from 'node:path';
+import { chmod, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
-import JSON5 from 'json5';
-import type { Config, Profile, AuthData } from './types';
-import { ConfigSchema, ProjectSchema } from './types';
-import * as tui from './tui';
-import { getCatalystUrl } from './catalyst';
+import { basename, extname, join, normalize, resolve } from 'node:path';
+import { type Logger, StructuredError } from '@agentuity/core';
 import {
+	type BuildMetadata,
+	BuildMetadataSchema,
+	getServiceUrls,
+	APIClient as ServerAPIClient,
+} from '@agentuity/server';
+import { YAML } from 'bun';
+import JSON5 from 'json5';
+import { z } from 'zod';
+import { clearProfileCache } from './cache';
+import { getCatalystUrl } from './catalyst';
+import { readEnvFile, writeEnvFile } from './env-util';
+import {
+	deleteAuthFromKeychain,
+	getAuthFromKeychain,
 	isMacOS,
 	saveAuthToKeychain,
-	getAuthFromKeychain,
-	deleteAuthFromKeychain,
 } from './keychain';
-import { clearProfileCache } from './cache';
-import { readEnvFile, writeEnvFile } from './env-util';
+import * as tui from './tui';
+import type { AuthData, Config, Profile } from './types';
+import { ConfigSchema, ProjectSchema } from './types';
 
 export const defaultProfileName = 'production';
 
@@ -768,16 +772,17 @@ export async function loadProjectSDKKey(
 			logger.trace(`[SDK_KEY] File does not exist: ${fn}`);
 		}
 	}
-	logger.trace(`[SDK_KEY] AGENTUITY_SDK_KEY not found in any file`);
+	logger.trace('[SDK_KEY] AGENTUITY_SDK_KEY not found in any file');
 }
 
 export function getCatalystAPIClient(
 	logger: Logger,
 	auth: AuthData,
 	region: string,
-	orgId?: string
+	orgId?: string,
+	config?: Config | null
 ) {
-	const catalystUrl = getCatalystUrl(region);
+	const catalystUrl = getCatalystUrl(region, config?.overrides);
 	const headers: Record<string, string> = {};
 	if (orgId) {
 		headers['x-agentuity-orgid'] = orgId;
@@ -857,7 +862,7 @@ export async function getGlobalCatalystAPIClient(
 	config?: Config | null
 ) {
 	const region = await getDefaultRegion(profileName, config);
-	return getCatalystAPIClient(logger, auth, region, orgId);
+	return getCatalystAPIClient(logger, auth, region, orgId, config);
 }
 
 export function getIONHost(config: Config | null, region: string) {

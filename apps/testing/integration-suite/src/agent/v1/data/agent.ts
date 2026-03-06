@@ -18,7 +18,7 @@ const dataAgent = createAgent('v1-data-processor', {
 			result: s.any().optional(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		switch (input.operation) {
 			case 'create': {
 				const record: DataRecord = {

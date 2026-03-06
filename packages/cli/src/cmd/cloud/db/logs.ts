@@ -1,11 +1,11 @@
+import { DbQueryLogSchema, dbLogs, listOrgResources } from '@agentuity/server';
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { dbLogs, DbQueryLogSchema, listOrgResources } from '@agentuity/server';
-import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
 import { getResourceInfo, setResourceInfo } from '../../../cache';
+import { getCommand } from '../../../command-prefix';
+import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const DbLogsResponseSchema = z.array(DbQueryLogSchema);
 
@@ -89,7 +89,13 @@ export const logsSubcommand = createSubcommand({
 		const profileName = config?.name ?? 'production';
 
 		try {
-			const globalClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+			const globalClient = await getGlobalCatalystAPIClient(
+				logger,
+				auth,
+				profileName,
+				undefined,
+				config
+			);
 
 			// Check cache first for orgId
 			const cachedInfo = await getResourceInfo('db', profileName, args.database);
@@ -114,7 +120,7 @@ export const logsSubcommand = createSubcommand({
 			await setResourceInfo('db', profileName, database.name, region, orgId);
 
 			// Use regional client for logs (ClickHouse queries are region-specific)
-			const catalystClient = getCatalystAPIClient(logger, auth, region);
+			const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, config);
 
 			const logs = await dbLogs(catalystClient, {
 				database: args.database,

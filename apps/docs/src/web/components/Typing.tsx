@@ -34,6 +34,7 @@ export function Typing({
 	const hasCompletedRef = useRef(false);
 
 	// Reset animation state when children changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: children is used as a trigger to reset animation state
 	useEffect(() => {
 		hasCompletedRef.current = false;
 		setDisplayedText('');

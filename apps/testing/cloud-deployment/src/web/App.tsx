@@ -25,6 +25,7 @@ export function App() {
 				<p id="public-asset-status">Checking public asset...</p>
 			</div>
 			<script
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: inline script needed for analytics config detection before React hydration
 				dangerouslySetInnerHTML={{
 					__html: `
 						(function() {

@@ -14,7 +14,7 @@ const listenerRemovalAgent = createAgent('events-removal', {
 			success: s.boolean(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const eventsReceived: string[] = [];
 
 		// Create a listener function

@@ -1,0 +1,27 @@
+import { z } from 'zod';
+import { type APIClient, APIResponseSchema } from '../api.ts';
+import { ProjectResponseError } from './util.ts';
+
+export const ProjectDeleteRequestSchema = z
+	.object({ ids: z.array(z.string()).describe('Array of project IDs to delete.') })
+	.describe('Request to delete one or more projects.');
+export const ProjectDeleteResponseSchema = APIResponseSchema(z.array(z.string()));
+
+type ProjectDeleteRequest = z.infer<typeof ProjectDeleteRequestSchema>;
+type ProjectDeleteResponse = z.infer<typeof ProjectDeleteResponseSchema>;
+
+export async function projectDelete(client: APIClient, ...ids: string[]): Promise<string[]> {
+	const resp = await client.request<ProjectDeleteResponse, ProjectDeleteRequest>(
+		'DELETE',
+		'/cli/project',
+		ProjectDeleteResponseSchema,
+		{ ids },
+		ProjectDeleteRequestSchema
+	);
+
+	if (resp.success) {
+		return resp.data;
+	}
+
+	throw new ProjectResponseError({ message: resp.message ?? 'failed to delete project' });
+}

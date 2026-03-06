@@ -1,16 +1,16 @@
-import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
 import {
-	sessionGet,
-	type SpanNode,
-	type EvalRun,
 	type AgentInfo,
 	APIError,
+	type EvalRun,
+	type SpanNode,
+	sessionGet,
 } from '@agentuity/server';
+import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
 import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
 	z.object({
@@ -126,7 +126,13 @@ export const getSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const { logger, auth, args, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		try {
 			const enriched = await sessionGet(catalystClient, { id: args.session_id });

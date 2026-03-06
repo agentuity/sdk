@@ -230,6 +230,7 @@ export function Chat({
 																			// json!
 																			return (
 																				<CodeBlock
+																					// biome-ignore lint/suspicious/noArrayIndexKey: message parts have no stable unique id
 																					key={`${id}-${part.text}-${index}`}
 																					code={JSON.stringify(json, null, 2)}
 																					language="json"
@@ -240,6 +241,7 @@ export function Chat({
 																			// not json :(
 																			return (
 																				<div
+																					// biome-ignore lint/suspicious/noArrayIndexKey: message parts have no stable unique id
 																					key={`${id}-${part.text}-${index}`}
 																				>
 																					{part.text || ''}
@@ -250,6 +252,7 @@ export function Chat({
 
 																	// text/markdown
 																	return (
+																		// biome-ignore lint/suspicious/noArrayIndexKey: message parts have no stable unique id
 																		<div key={`${id}-${part.text}-${index}`}>
 																			{part.text || ''}
 																		</div>

@@ -1,19 +1,19 @@
-import { z } from 'zod';
 import { listResources, projectEnvUpdate } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createPrompt } from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
-import { isDryRunMode, outputDryRun } from '../../../explain';
-import { ErrorCode } from '../../../errors';
+import { getCatalystAPIClient } from '../../../config';
 import {
 	addResourceEnvVars,
+	filterAgentuitySdkKeys,
 	findExistingEnvFile,
 	readEnvFile,
-	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 } from '../../../env-util';
+import { ErrorCode } from '../../../errors';
+import { isDryRunMode, outputDryRun } from '../../../explain';
+import * as tui from '../../../tui';
+import { createPrompt } from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 export const databaseSubcommand = createSubcommand({
 	name: 'database',
@@ -65,7 +65,7 @@ export const databaseSubcommand = createSubcommand({
 			};
 		}
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const catalystClient = getCatalystAPIClient(logger, auth, region, undefined, ctx.config);
 
 		const resources = await tui.spinner({
 			message: 'Fetching databases',
