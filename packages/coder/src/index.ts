@@ -1116,12 +1116,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			},
 		});
 
-		pi.registerCommand('rename', {
+		pi.registerCommand('rename-session', {
 			description: 'Rename the current Hub session (max 30 chars)',
 			handler: async (args, ctx) => {
 				const label = args.trim().slice(0, 30);
 				if (!label) {
-					if (ctx.hasUI) ctx.ui.notify('Usage: /rename <label>', 'warning');
+					if (ctx.hasUI) ctx.ui.notify('Usage: /rename-session <label>', 'warning');
 					return;
 				}
 				if (!client.connected) {
@@ -1396,7 +1396,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// Clean up on shutdown
 	(pi.on as GenericEventHandler)('session_shutdown', async (_event: unknown, _ctx: ExtensionContext) => {
 		log('Shutting down — closing Hub connection');
-		client.close();
+		try { client.close(); } catch { /* pending promises rejected on close — safe to ignore */ }
 	});
 }
 
