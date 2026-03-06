@@ -40,12 +40,15 @@ export const statsSubcommand = createCommand({
 	optional: { project: true },
 	idempotent: true,
 	examples: [
-		{ command: getCommand('kv stats'), description: 'Show stats for all namespaces' },
+		{ command: getCommand('cloud kv stats'), description: 'Show stats for all namespaces' },
 		{
-			command: getCommand('kv stats production'),
+			command: getCommand('cloud kv stats production'),
 			description: 'Show stats for production namespace',
 		},
-		{ command: getCommand('kv stats cache'), description: 'Show stats for cache namespace' },
+		{
+			command: getCommand('cloud kv stats cache'),
+			description: 'Show stats for cache namespace',
+		},
 	],
 	schema: {
 		args: z.object({
