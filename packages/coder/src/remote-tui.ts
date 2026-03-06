@@ -27,7 +27,6 @@
  *   4. THEN connect — so hydration + replay events are captured
  */
 
-import type { AgentSession } from '@mariozechner/pi-coding-agent';
 import {
 	createAgentSession,
 	DefaultResourceLoader,
@@ -226,7 +225,6 @@ export async function runRemoteTui(options: {
 		const source = (rpcEvent as any)._source ?? 'unknown';
 		log(`Event received: ${rpcEvent.type} (source=${source})`);
 
-
 		// session_hydration is handled separately below — skip it here
 		if (rpcEvent.type === 'session_hydration') return;
 
@@ -247,7 +245,10 @@ export async function runRemoteTui(options: {
 		// Track streaming lifecycle events so we can inject synthetics when
 		// we attach mid-stream (controller connected after agent already started).
 		if (rpcEvent.type === 'agent_start') seenAgentStart = true;
-		if (rpcEvent.type === 'agent_end') { seenAgentStart = false; seenMessageStart = false; }
+		if (rpcEvent.type === 'agent_end') {
+			seenAgentStart = false;
+			seenMessageStart = false;
+		}
 		if (rpcEvent.type === 'message_start') seenMessageStart = true;
 		if (rpcEvent.type === 'message_end') seenMessageStart = false;
 
@@ -269,7 +270,10 @@ export async function runRemoteTui(options: {
 		// This happens when the controller connects mid-stream or after the
 		// agent finishes — the broadcast of agent_start/message_start occurred
 		// before the controller WebSocket was registered.
-		if ((rpcEvent.type === 'message_update' || rpcEvent.type === 'message_end') && !seenMessageStart) {
+		if (
+			(rpcEvent.type === 'message_update' || rpcEvent.type === 'message_end') &&
+			!seenMessageStart
+		) {
 			log(`Live ${rpcEvent.type} without prior message_start — injecting synthetics`);
 			if (!seenAgentStart) {
 				agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
@@ -283,7 +287,14 @@ export async function runRemoteTui(options: {
 					api: 'anthropic-messages',
 					provider: 'anthropic',
 					model: 'remote',
-					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+					usage: {
+						input: 0,
+						output: 0,
+						cacheRead: 0,
+						cacheWrite: 0,
+						totalTokens: 0,
+						cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+					},
 					timestamp: Date.now(),
 				},
 			} as any);
@@ -315,17 +326,21 @@ export async function runRemoteTui(options: {
 	// InteractiveMode (which calls renderInitialMessages from SessionManager).
 	const sm = session.sessionManager;
 	let resolveHydration: () => void;
-	const hydrationReady = new Promise<void>((resolve) => { resolveHydration = resolve; });
+	const hydrationReady = new Promise<void>((resolve) => {
+		resolveHydration = resolve;
+	});
 
 	remote.onEvent((event: RpcEvent) => {
 		if (event.type !== 'session_hydration') return;
 
-		const entries = (event as any).entries as Array<{
-			type: string;
-			content?: string | Array<{ type: string; text?: string }>;
-			role?: string;
-			timestamp?: number;
-		}> | undefined;
+		const entries = (event as any).entries as
+			| Array<{
+					type: string;
+					content?: string | Array<{ type: string; text?: string }>;
+					role?: string;
+					timestamp?: number;
+			  }>
+			| undefined;
 
 		// Extract task text from hydration (Hub includes session.sandbox?.task)
 		const hydrationTask = (event as any).task as string | undefined;
@@ -334,9 +349,17 @@ export async function runRemoteTui(options: {
 			log('Received session_hydration with no entries');
 			// Even with no entries, inject task as user message if available
 			if (hydrationTask) {
-				const taskMsg = { role: 'user' as const, content: [{ type: 'text' as const, text: hydrationTask }], timestamp: Date.now() };
+				const taskMsg = {
+					role: 'user' as const,
+					content: [{ type: 'text' as const, text: hydrationTask }],
+					timestamp: Date.now(),
+				};
 				agent.replaceMessages([taskMsg]);
-				try { sm.appendMessage(taskMsg as any); } catch (err) { log(`SM append task error: ${err}`); }
+				try {
+					sm.appendMessage(taskMsg as any);
+				} catch (err) {
+					log(`SM append task error: ${err}`);
+				}
 				log('Injected task as user message (no entries)');
 			}
 			resolveHydration!();
@@ -347,44 +370,71 @@ export async function runRemoteTui(options: {
 		const agentMessages: any[] = [];
 
 		// If we have a task and no user_prompt entry, inject the task as the first user message
-		const hasUserEntry = entries.some(e => e.type === 'user_prompt' || e.role === 'user');
+		const hasUserEntry = entries.some((e) => e.type === 'user_prompt' || e.role === 'user');
 		if (hydrationTask && !hasUserEntry) {
-			const taskMsg = { role: 'user' as const, content: [{ type: 'text' as const, text: hydrationTask }], timestamp: Date.now() };
+			const taskMsg = {
+				role: 'user' as const,
+				content: [{ type: 'text' as const, text: hydrationTask }],
+				timestamp: Date.now(),
+			};
 			agentMessages.push(taskMsg);
-			try { sm.appendMessage(taskMsg as any); } catch (err) { log(`SM append task error: ${err}`); }
+			try {
+				sm.appendMessage(taskMsg as any);
+			} catch (err) {
+				log(`SM append task error: ${err}`);
+			}
 			log('Injected task as user message');
 		}
 
 		for (const entry of entries) {
-			const text = typeof entry.content === 'string'
-				? entry.content
-				: Array.isArray(entry.content)
+			const text =
+				typeof entry.content === 'string'
 					? entry.content
-						.filter((c): c is { type: string; text: string } => c.type === 'text' && typeof c.text === 'string')
-						.map((c) => c.text)
-						.join('\n')
-					: '';
+					: Array.isArray(entry.content)
+						? entry.content
+								.filter(
+									(c): c is { type: string; text: string } =>
+										c.type === 'text' && typeof c.text === 'string'
+								)
+								.map((c) => c.text)
+								.join('\n')
+						: '';
 
 			if (!text) continue;
 
 			// Hub conversation entries use type: 'message' for assistant, 'thinking' for thinking,
-		// 'task_result' for delegation results, 'turn' for turn markers, 'user_prompt' for user input.
-		// Only 'user_prompt' entries are user messages; everything else is assistant-side.
-		const isAssistant = entry.role === 'assistant' || entry.type === 'message'
-			|| entry.type === 'thinking' || entry.type === 'task_result' || entry.type === 'assistant';
-		if (isAssistant) {
+			// 'task_result' for delegation results, 'turn' for turn markers, 'user_prompt' for user input.
+			// Only 'user_prompt' entries are user messages; everything else is assistant-side.
+			const isAssistant =
+				entry.role === 'assistant' ||
+				entry.type === 'message' ||
+				entry.type === 'thinking' ||
+				entry.type === 'task_result' ||
+				entry.type === 'assistant';
+			if (isAssistant) {
 				const msg = {
 					role: 'assistant' as const,
 					content: [{ type: 'text' as const, text }],
 					api: 'anthropic-messages',
 					provider: 'anthropic',
 					model: 'remote',
-					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+					usage: {
+						input: 0,
+						output: 0,
+						cacheRead: 0,
+						cacheWrite: 0,
+						totalTokens: 0,
+						cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+					},
 					stopReason: 'stop',
 					timestamp: entry.timestamp ?? Date.now(),
 				};
 				agentMessages.push(msg);
-				try { sm.appendMessage(msg as any); } catch (err) { log(`SM append error: ${err}`); }
+				try {
+					sm.appendMessage(msg as any);
+				} catch (err) {
+					log(`SM append error: ${err}`);
+				}
 			} else {
 				const msg = {
 					role: 'user' as const,
@@ -392,7 +442,11 @@ export async function runRemoteTui(options: {
 					timestamp: entry.timestamp ?? Date.now(),
 				};
 				agentMessages.push(msg);
-				try { sm.appendMessage(msg as any); } catch (err) { log(`SM append error: ${err}`); }
+				try {
+					sm.appendMessage(msg as any);
+				} catch (err) {
+					log(`SM append error: ${err}`);
+				}
 			}
 		}
 
@@ -404,10 +458,12 @@ export async function runRemoteTui(options: {
 		}
 
 		// Restore streaming state from hydration — fixes first-connect miss
-		const streamingState = (event as any).streamingState as {
-			isStreaming?: boolean;
-			activeTasks?: Array<{ taskId: string; agent: string }>;
-		} | undefined;
+		const streamingState = (event as any).streamingState as
+			| {
+					isStreaming?: boolean;
+					activeTasks?: Array<{ taskId: string; agent: string }>;
+			  }
+			| undefined;
 
 		if (streamingState?.isStreaming) {
 			agent._state.isStreaming = true;
@@ -419,7 +475,9 @@ export async function runRemoteTui(options: {
 				});
 				agent.runningPrompt = runPromise;
 			}
-			log(`Hydration: session is streaming with ${streamingState.activeTasks?.length ?? 0} active tasks`);
+			log(
+				`Hydration: session is streaming with ${streamingState.activeTasks?.length ?? 0} active tasks`
+			);
 		}
 
 		resolveHydration!();
@@ -436,10 +494,12 @@ export async function runRemoteTui(options: {
 	const HYDRATION_TIMEOUT_MS = 2000;
 	await Promise.race([
 		hydrationReady,
-		new Promise<void>((resolve) => setTimeout(() => {
-			log('Hydration timeout — no session_hydration received');
-			resolve();
-		}, HYDRATION_TIMEOUT_MS)),
+		new Promise<void>((resolve) =>
+			setTimeout(() => {
+				log('Hydration timeout — no session_hydration received');
+				resolve();
+			}, HYDRATION_TIMEOUT_MS)
+		),
 	]);
 	const smEntries = sm.getEntries?.() ?? [];
 	log(`SessionManager has ${smEntries.length} entries after hydration`);
@@ -472,7 +532,14 @@ export async function runRemoteTui(options: {
 				api: 'anthropic-messages',
 				provider: 'anthropic',
 				model: 'remote',
-				usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+				usage: {
+					input: 0,
+					output: 0,
+					cacheRead: 0,
+					cacheWrite: 0,
+					totalTokens: 0,
+					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+				},
 				timestamp: Date.now(),
 			},
 		} as any);
@@ -480,12 +547,14 @@ export async function runRemoteTui(options: {
 		seenMessageStart = true;
 
 		// Remove any agent_start/message_start from buffer since we already emitted them
-		eventBuffer = eventBuffer.filter((e) => e.type !== 'agent_start' && e.type !== 'message_start');
+		eventBuffer = eventBuffer.filter(
+			(e) => e.type !== 'agent_start' && e.type !== 'message_start'
+		);
 	}
 
 	if (eventBuffer.length > 0) {
 		log(`Flushing ${eventBuffer.length} buffered events to InteractiveMode`);
-		log(`Flushing ${eventBuffer.length} events: ${eventBuffer.map(e => e.type).join(', ')}`);
+		log(`Flushing ${eventBuffer.length} events: ${eventBuffer.map((e) => e.type).join(', ')}`);
 		for (const buffered of eventBuffer) {
 			agent.emit(buffered);
 			if (buffered.type === 'agent_end') {

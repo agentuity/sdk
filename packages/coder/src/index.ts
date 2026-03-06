@@ -18,8 +18,20 @@ import { AgentManagerOverlay } from './overlay.ts';
 import { ChainEditorOverlay, type ChainResult } from './chain-preview.ts';
 import { HubOverlay } from './hub-overlay.ts';
 import { OutputViewerOverlay, type StoredResult } from './output-viewer.ts';
-import type { HubAction, HubResponse, InitMessage, HubConfig, HubToolDefinition, AgentDefinition, AgentProgressUpdate } from './protocol.ts';
-import { setupRemoteMode, type RemoteSession, type RemoteSessionInternal } from './remote-session.ts';
+import type {
+	HubAction,
+	HubResponse,
+	InitMessage,
+	HubConfig,
+	HubToolDefinition,
+	AgentDefinition,
+	AgentProgressUpdate,
+} from './protocol.ts';
+import {
+	setupRemoteMode,
+	type RemoteSession,
+	type RemoteSessionInternal,
+} from './remote-session.ts';
 
 // ESM doesn't have require() — create one for synchronous child_process access
 const _require = createRequire(import.meta.url);
@@ -39,13 +51,20 @@ type HubUiStatus = 'connected' | 'reconnecting' | 'offline';
 const recentResults: StoredResult[] = [];
 const MAX_STORED_RESULTS = 20;
 
-function storeResult(agentName: string, text: string, tokenInfo?: string, description?: string, prompt?: string): void {
-	recentResults.unshift({ agentName, text, thinking: '', timestamp: Date.now(), tokenInfo, description, prompt, isStreaming: false });
-	if (recentResults.length > MAX_STORED_RESULTS) recentResults.pop();
-}
-
-function startStreamingResult(agentName: string, description?: string, prompt?: string): StoredResult {
-	const result: StoredResult = { agentName, text: '', thinking: '', timestamp: Date.now(), isStreaming: true, description, prompt };
+function startStreamingResult(
+	agentName: string,
+	description?: string,
+	prompt?: string
+): StoredResult {
+	const result: StoredResult = {
+		agentName,
+		text: '',
+		thinking: '',
+		timestamp: Date.now(),
+		isStreaming: true,
+		description,
+		prompt,
+	};
 	recentResults.unshift(result);
 	if (recentResults.length > MAX_STORED_RESULTS) recentResults.pop();
 	return result;
@@ -112,9 +131,7 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
 // ══════════════════════════════════════════════
 
 function buildInitUrl(hubUrl: string, agentRole?: string): string {
-	let httpUrl = hubUrl
-		.replace(/^ws:\/\//, 'http://')
-		.replace(/^wss:\/\//, 'https://');
+	let httpUrl = hubUrl.replace(/^ws:\/\//, 'http://').replace(/^wss:\/\//, 'https://');
 
 	if (httpUrl.includes('/api/ws')) {
 		httpUrl = httpUrl.replace('/api/ws', '/api/hub/tui/init');
@@ -130,9 +147,7 @@ function buildInitUrl(hubUrl: string, agentRole?: string): string {
 }
 
 function getHubHttpBaseUrl(hubUrl: string): string {
-	let httpUrl = hubUrl
-		.replace(/^ws:\/\//, 'http://')
-		.replace(/^wss:\/\//, 'https://');
+	let httpUrl = hubUrl.replace(/^ws:\/\//, 'http://').replace(/^wss:\/\//, 'https://');
 	httpUrl = httpUrl.replace(/\/api\/ws\b.*$/, '');
 	return httpUrl.replace(/\/+$/, '');
 }
@@ -150,7 +165,9 @@ function fetchInitMessageSync(hubUrl: string, agentRole?: string): InitMessage |
 	const httpUrl = buildInitUrl(hubUrl, agentRole);
 
 	try {
-		const { execFileSync } = _require('node:child_process') as typeof import('node:child_process');
+		const { execFileSync } = _require(
+			'node:child_process'
+		) as typeof import('node:child_process');
 		const apiKey = process.env[API_KEY_ENV];
 		const curlArgs = ['-s', '--connect-timeout', '3', '--max-time', '5'];
 		// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
@@ -176,7 +193,7 @@ function fetchInitMessageSync(hubUrl: string, agentRole?: string): InitMessage |
 async function fetchSessionSnapshot(
 	hubUrl: string,
 	sessionId?: string | null,
-	observerState?: ObserverState,
+	observerState?: ObserverState
 ): Promise<void> {
 	const baseUrl = getHubHttpBaseUrl(hubUrl);
 	const httpUrl = sessionId
@@ -201,7 +218,9 @@ async function fetchSessionSnapshot(
 			if (observerState) {
 				if (snapshot.label) observerState.label = snapshot.label;
 				if (Array.isArray(snapshot.participants)) {
-					observerState.count = snapshot.participants.filter((p) => p.role === 'observer').length;
+					observerState.count = snapshot.participants.filter(
+						(p) => p.role === 'observer'
+					).length;
 				}
 			}
 			return;
@@ -288,13 +307,17 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	let hubConfig: HubConfig | undefined = initMsg.config;
 	const openChainEditor = async (
 		ctx: ExtensionContext | ExtensionCommandContext,
-		initialAgents: string[] = [],
+		initialAgents: string[] = []
 	): Promise<void> => {
 		if (!ctx.hasUI) return;
 
 		const result = await ctx.ui.custom<ChainResult | undefined>(
-			(_tui, theme, _keybindings, done) => new ChainEditorOverlay(theme, serverAgents, done, initialAgents),
-			{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
+			(_tui, theme, _keybindings, done) =>
+				new ChainEditorOverlay(theme, serverAgents, done, initialAgents),
+			{
+				overlay: true,
+				overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 },
+			}
 		);
 
 		if (!result || result.steps.length === 0) return;
@@ -303,9 +326,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			.map((step, index) => `${index + 1}) @${step.agent}: ${step.task || '(no task provided)'}`)
 			.join(', ');
 
-		const message = result.mode === 'parallel'
-			? `@lead Execute these tasks in parallel: ${instructions}`
-			: `@lead Execute this plan in order: ${instructions}`;
+		const message =
+			result.mode === 'parallel'
+				? `@lead Execute these tasks in parallel: ${instructions}`
+				: `@lead Execute this plan in order: ${instructions}`;
 
 		pi.sendUserMessage(message, { deliverAs: 'followUp' });
 	};
@@ -314,12 +338,17 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		| { action: 'run'; agent: string }
 		| { action: 'chain'; agents: string[] };
 
-	const openAgentManager = async (ctx: ExtensionContext | ExtensionCommandContext): Promise<void> => {
+	const openAgentManager = async (
+		ctx: ExtensionContext | ExtensionCommandContext
+	): Promise<void> => {
 		if (!ctx.hasUI) return;
 
 		const result = await ctx.ui.custom<AgentManagerOverlayResult | undefined>(
 			(_tui, theme, _keybindings, done) => new AgentManagerOverlay(theme, serverAgents, done),
-			{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
+			{
+				overlay: true,
+				overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 },
+			}
 		);
 
 		// TODO: chain action from Agent Manager overlay (multi-select + Ctrl+R) not yet implemented
@@ -340,7 +369,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	const openHubOverlay = async (
 		ctx: ExtensionContext | ExtensionCommandContext,
 		activeSessionId: string | null,
-		detailSessionId?: string | null,
+		detailSessionId?: string | null
 	): Promise<void> => {
 		if (!ctx.hasUI) return;
 		if (hubOverlayOpen) return;
@@ -356,7 +385,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						startInDetail: !!detailSessionId,
 						done,
 					}),
-				{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
+				{
+					overlay: true,
+					overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 },
+				}
 			);
 		} finally {
 			hubOverlayOpen = false;
@@ -447,7 +479,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		if (msgType === 'broadcast') {
 			const event = message.event as string;
 			if (event === 'session_join') {
-				const participant = (message.data as Record<string, unknown>)?.participant as Record<string, unknown> | undefined;
+				const participant = (message.data as Record<string, unknown>)?.participant as
+					| Record<string, unknown>
+					| undefined;
 				if (participant?.role === 'observer' && typeof participant.id === 'string') {
 					observerParticipantIds.add(participant.id);
 					observerState.count = observerParticipantIds.size;
@@ -460,7 +494,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					log(`Session label updated: ${label}`);
 				}
 			} else if (event === 'session_leave') {
-				const participant = (message.data as Record<string, unknown>)?.participant as Record<string, unknown> | undefined;
+				const participant = (message.data as Record<string, unknown>)?.participant as
+					| Record<string, unknown>
+					| undefined;
 				if (participant?.role === 'observer' && typeof participant.id === 'string') {
 					observerParticipantIds.delete(participant.id);
 					observerState.count = observerParticipantIds.size;
@@ -543,7 +579,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				params: unknown,
 				_signal: AbortSignal | undefined,
 				_onUpdate: unknown,
-				ctx: ExtensionContext,
+				ctx: ExtensionContext
 			): Promise<AgentToolResult<unknown>> {
 				// Ensure WebSocket is connected before executing
 				await ensureConnected();
@@ -578,9 +614,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				// If there's a return value from processActions, use it
 				if (result.returnValue !== undefined) {
-					const text = typeof result.returnValue === 'string'
-						? result.returnValue
-						: JSON.stringify(result.returnValue, null, 2);
+					const text =
+						typeof result.returnValue === 'string'
+							? result.returnValue
+							: JSON.stringify(result.returnValue, null, 2);
 					return {
 						content: [{ type: 'text' as const, text }],
 						details: undefined as unknown,
@@ -590,9 +627,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				// Fallback — check for RETURN action directly (backward compat)
 				const returnAction = response.actions.find((a: HubAction) => a.action === 'RETURN');
 				if (returnAction && 'result' in returnAction) {
-					const text = typeof returnAction.result === 'string'
-						? returnAction.result
-						: JSON.stringify(returnAction.result, null, 2);
+					const text =
+						typeof returnAction.result === 'string'
+							? returnAction.result
+							: JSON.stringify(returnAction.result, null, 2);
 					return {
 						content: [{ type: 'text' as const, text }],
 						details: undefined as unknown,
@@ -603,11 +641,15 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					content: [{ type: 'text' as const, text: 'Done' }],
 					details: undefined as unknown,
 				};
-				},
+			},
 			// TUI renderers — optional, only for known Hub tools.
 			// Cast needed: SimpleText satisfies Component, but TS can't verify cross-package structural match.
-			...(renderers?.renderCall && { renderCall: renderers.renderCall as ToolDefinition['renderCall'] }),
-			...(renderers?.renderResult && { renderResult: renderers.renderResult as ToolDefinition['renderResult'] }),
+			...(renderers?.renderCall && {
+				renderCall: renderers.renderCall as ToolDefinition['renderCall'],
+			}),
+			...(renderers?.renderResult && {
+				renderResult: renderers.renderResult as ToolDefinition['renderResult'],
+			}),
 		});
 	}
 
@@ -627,8 +669,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		const openOutputViewer = async (ctx: ExtensionContext): Promise<void> => {
 			if (!ctx.hasUI || recentResults.length === 0) return;
 			await ctx.ui.custom<undefined>(
-				(tui, theme, _keybindings, done) => new OutputViewerOverlay(tui, theme, recentResults, done),
-				{ overlay: true, overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 } },
+				(tui, theme, _keybindings, done) =>
+					new OutputViewerOverlay(tui, theme, recentResults, done),
+				{
+					overlay: true,
+					overlayOptions: { width: '95%', maxHeight: '95%', anchor: 'center', margin: 1 },
+				}
 			);
 		};
 
@@ -683,7 +729,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				params: unknown,
 				signal: AbortSignal | undefined,
 				_onUpdate: unknown,
-				ctx: ExtensionContext,
+				ctx: ExtensionContext
 			): Promise<AgentToolResult<unknown>> {
 				const { description, prompt, subagent_type } = params as {
 					description: string;
@@ -701,7 +747,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				const agent = agentRegistry.get(subagent_type);
 				if (!agent) {
 					return {
-						content: [{ type: 'text' as const, text: `Unknown agent: ${subagent_type}. Available: ${agentNames.join(', ')}` }],
+						content: [
+							{
+								type: 'text' as const,
+								text: `Unknown agent: ${subagent_type}. Available: ${agentNames.join(', ')}`,
+							},
+						],
 						details: undefined as unknown,
 					};
 				}
@@ -762,36 +813,40 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						client,
 						ctx.hasUI
 							? (progress) => {
-								// Update TUI working message with live tool activity
-								try {
-									if (progress.status === 'thinking_delta' && progress.delta) {
-										liveResult.thinking += progress.delta;
-										updateWidget('running', 'thinking...');
-									} else if (progress.status === 'text_delta' && progress.delta) {
-										liveResult.text += progress.delta;
-										updateWidget('running', 'writing...');
-									} else if (progress.status === 'tool_start' && progress.currentTool) {
-										lastWidgetTool = progress.currentTool;
-										lastWidgetToolArgs = progress.currentToolArgs;
-										updateWidget('running', progress.currentTool, progress.currentToolArgs);
+									// Update TUI working message with live tool activity
+									try {
+										if (progress.status === 'thinking_delta' && progress.delta) {
+											liveResult.thinking += progress.delta;
+											updateWidget('running', 'thinking...');
+										} else if (progress.status === 'text_delta' && progress.delta) {
+											liveResult.text += progress.delta;
+											updateWidget('running', 'writing...');
+										} else if (progress.status === 'tool_start' && progress.currentTool) {
+											lastWidgetTool = progress.currentTool;
+											lastWidgetToolArgs = progress.currentToolArgs;
+											updateWidget(
+												'running',
+												progress.currentTool,
+												progress.currentToolArgs
+											);
+										}
+									} catch {
+										// Best-effort live widget updates.
 									}
-								} catch {
-									// Best-effort live widget updates.
-								}
 
-								// Forward progress to Hub (fire-and-forget, queued while disconnected)
-								sendEventNoWait('agent_progress', {
-									agentName: progress.agentName,
-									status: progress.status,
-									taskId: toolCallId,
-									delta: progress.delta,
-									currentTool: progress.currentTool,
-									currentToolArgs: progress.currentToolArgs,
-									elapsed: progress.elapsed,
-								});
-							}
+									// Forward progress to Hub (fire-and-forget, queued while disconnected)
+									sendEventNoWait('agent_progress', {
+										agentName: progress.agentName,
+										status: progress.status,
+										taskId: toolCallId,
+										delta: progress.delta,
+										currentTool: progress.currentTool,
+										currentToolArgs: progress.currentToolArgs,
+										elapsed: progress.elapsed,
+									});
+								}
 							: undefined,
-						signal,
+						signal
 					);
 
 					// Flash completed state briefly before clearing
@@ -800,12 +855,16 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					// Finalize the live result instead of creating a new one
 					liveResult.isStreaming = false;
 					liveResult.text = result.output || liveResult.text || '(no output)';
-					await sendEvent('task_complete', {
-						taskId: toolCallId,
-						agent: subagent_type,
-						duration: result.duration,
-						result: result.output.slice(0, 10000),
-					}, ctx);
+					await sendEvent(
+						'task_complete',
+						{
+							taskId: toolCallId,
+							agent: subagent_type,
+							duration: result.duration,
+							result: result.output.slice(0, 10000),
+						},
+						ctx
+					);
 
 					let output = result.output;
 					let tokenInfoStr: string | undefined;
@@ -822,14 +881,20 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					const errorMsg = err instanceof Error ? err.message : String(err);
 					liveResult.isStreaming = false;
 					liveResult.text = liveResult.text || `Agent ${subagent_type} failed: ${errorMsg}`;
-					await sendEvent('task_error', {
-						taskId: toolCallId,
-						agent: subagent_type,
-						error: errorMsg,
-					}, ctx);
+					await sendEvent(
+						'task_error',
+						{
+							taskId: toolCallId,
+							agent: subagent_type,
+							error: errorMsg,
+						},
+						ctx
+					);
 					updateWidget('failed');
 					return {
-						content: [{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` }],
+						content: [
+							{ type: 'text' as const, text: `Agent ${subagent_type} failed: ${errorMsg}` },
+						],
 						details: undefined as unknown,
 					};
 				} finally {
@@ -840,8 +905,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					}
 				}
 			},
-			...(taskRenderers?.renderCall && { renderCall: taskRenderers.renderCall as ToolDefinition['renderCall'] }),
-			...(taskRenderers?.renderResult && { renderResult: taskRenderers.renderResult as ToolDefinition['renderResult'] }),
+			...(taskRenderers?.renderCall && {
+				renderCall: taskRenderers.renderCall as ToolDefinition['renderCall'],
+			}),
+			...(taskRenderers?.renderResult && {
+				renderResult: taskRenderers.renderResult as ToolDefinition['renderResult'],
+			}),
 		});
 
 		const parallelRenderers = getToolRenderers('parallel_tasks');
@@ -852,18 +921,21 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				`Run multiple agent tasks concurrently (max 4). ` +
 				`Available agents: ${agentNames.join(', ')}.`,
 			parameters: Type.Object({
-				tasks: Type.Array(Type.Object({
-					description: Type.String({ description: 'Short task description' }),
-					prompt: Type.String({ description: 'Detailed instructions' }),
-					subagent_type: Type.String({ description: 'Agent to delegate to' }),
-				}), { maxItems: 4 }),
+				tasks: Type.Array(
+					Type.Object({
+						description: Type.String({ description: 'Short task description' }),
+						prompt: Type.String({ description: 'Detailed instructions' }),
+						subagent_type: Type.String({ description: 'Agent to delegate to' }),
+					}),
+					{ maxItems: 4 }
+				),
 			}),
 			async execute(
 				toolCallId: string,
 				params: unknown,
 				signal: AbortSignal | undefined,
 				_onUpdate: unknown,
-				ctx: ExtensionContext,
+				ctx: ExtensionContext
 			): Promise<AgentToolResult<unknown>> {
 				const { tasks } = params as {
 					tasks: Array<{ description: string; prompt: string; subagent_type: string }>;
@@ -883,7 +955,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					};
 				}
 
-				log(`Parallel tasks: ${tasks.map((t) => `${t.subagent_type}:${t.description}`).join(', ')}`);
+				log(
+					`Parallel tasks: ${tasks.map((t) => `${t.subagent_type}:${t.description}`).join(', ')}`
+				);
 
 				let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -907,8 +981,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					const parts = agentStatuses
 						.filter((s) => s.status !== 'pending')
 						.map((s) => {
-							const elapsed = s.startTime ? Math.floor((Date.now() - s.startTime) / 1000) : 0;
-							const timeStr = elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m${elapsed % 60}s`;
+							const elapsed = s.startTime
+								? Math.floor((Date.now() - s.startTime) / 1000)
+								: 0;
+							const timeStr =
+								elapsed < 60
+									? `${elapsed}s`
+									: `${Math.floor(elapsed / 60)}m${elapsed % 60}s`;
 							if (s.status === 'running') {
 								let info = `\u25CF ${s.name}`;
 								if (s.currentTool) info += ` ${s.currentTool.slice(0, 15)}`;
@@ -935,7 +1014,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 				// Create live streaming results for each parallel task
 				const liveResults = tasks.map((task) =>
-					startStreamingResult(task.subagent_type, task.description, task.prompt),
+					startStreamingResult(task.subagent_type, task.description, task.prompt)
 				);
 
 				const promises = tasks.map(async (task, index) => {
@@ -945,13 +1024,20 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						agentStatuses[index]!.status = 'failed';
 						liveResults[index]!.isStreaming = false;
 						liveResults[index]!.text = `Unknown agent: ${task.subagent_type}`;
-						await sendEvent('task_error', {
-							taskId,
+						await sendEvent(
+							'task_error',
+							{
+								taskId,
+								agent: task.subagent_type,
+								error: `Unknown agent: ${task.subagent_type}`,
+							},
+							ctx
+						);
+						updateWidget();
+						return {
 							agent: task.subagent_type,
 							error: `Unknown agent: ${task.subagent_type}`,
-						}, ctx);
-						updateWidget();
-						return { agent: task.subagent_type, error: `Unknown agent: ${task.subagent_type}` };
+						};
 					}
 
 					agentStatuses[index]!.status = 'running';
@@ -971,31 +1057,31 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 							client,
 							ctx.hasUI
 								? (progress) => {
-									// Handle streaming deltas
-									if (progress.status === 'thinking_delta' && progress.delta) {
-										liveResults[index]!.thinking += progress.delta;
-									} else if (progress.status === 'text_delta' && progress.delta) {
-										liveResults[index]!.text += progress.delta;
+										// Handle streaming deltas
+										if (progress.status === 'thinking_delta' && progress.delta) {
+											liveResults[index]!.thinking += progress.delta;
+										} else if (progress.status === 'text_delta' && progress.delta) {
+											liveResults[index]!.text += progress.delta;
+										}
+
+										// Update per-agent widget with tool activity
+										agentStatuses[index]!.currentTool = progress.currentTool;
+										agentStatuses[index]!.currentToolArgs = progress.currentToolArgs;
+										updateWidget();
+
+										// Forward progress to Hub (fire-and-forget, queued while disconnected)
+										sendEventNoWait('agent_progress', {
+											agentName: progress.agentName,
+											status: progress.status,
+											taskId,
+											delta: progress.delta,
+											currentTool: progress.currentTool,
+											currentToolArgs: progress.currentToolArgs,
+											elapsed: progress.elapsed,
+										});
 									}
-
-									// Update per-agent widget with tool activity
-									agentStatuses[index]!.currentTool = progress.currentTool;
-									agentStatuses[index]!.currentToolArgs = progress.currentToolArgs;
-									updateWidget();
-
-									// Forward progress to Hub (fire-and-forget, queued while disconnected)
-									sendEventNoWait('agent_progress', {
-										agentName: progress.agentName,
-										status: progress.status,
-										taskId,
-										delta: progress.delta,
-										currentTool: progress.currentTool,
-										currentToolArgs: progress.currentToolArgs,
-										elapsed: progress.elapsed,
-									});
-								}
 								: undefined,
-							signal,
+							signal
 						);
 
 						agentStatuses[index]!.status = 'completed';
@@ -1005,16 +1091,26 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 						// Finalize the live result
 						liveResults[index]!.isStreaming = false;
-						liveResults[index]!.text = result.output || liveResults[index]!.text || '(no output)';
-						await sendEvent('task_complete', {
-							taskId,
-							agent: task.subagent_type,
-							duration: result.duration,
-							result: result.output.slice(0, 10000),
-						}, ctx);
+						liveResults[index]!.text =
+							result.output || liveResults[index]!.text || '(no output)';
+						await sendEvent(
+							'task_complete',
+							{
+								taskId,
+								agent: task.subagent_type,
+								duration: result.duration,
+								result: result.output.slice(0, 10000),
+							},
+							ctx
+						);
 						updateWidget();
 
-						return { agent: task.subagent_type, output: result.output, duration: result.duration, tokens: result.tokens };
+						return {
+							agent: task.subagent_type,
+							output: result.output,
+							duration: result.duration,
+							tokens: result.tokens,
+						};
 					} catch (err) {
 						const errorMsg = err instanceof Error ? err.message : String(err);
 						agentStatuses[index]!.status = 'failed';
@@ -1022,11 +1118,15 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						agentStatuses[index]!.currentToolArgs = undefined;
 						liveResults[index]!.isStreaming = false;
 						liveResults[index]!.text = liveResults[index]!.text || `Failed: ${errorMsg}`;
-						await sendEvent('task_error', {
-							taskId,
-							agent: task.subagent_type,
-							error: errorMsg,
-						}, ctx);
+						await sendEvent(
+							'task_error',
+							{
+								taskId,
+								agent: task.subagent_type,
+								error: errorMsg,
+							},
+							ctx
+						);
 						updateWidget();
 						return { agent: task.subagent_type, error: errorMsg };
 					}
@@ -1039,7 +1139,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					results.forEach((r, idx) => {
 						if ('output' in r && r.output && !('error' in r && r.error)) {
 							if ('tokens' in r && r.tokens && (r.tokens.input > 0 || r.tokens.output > 0)) {
-								liveResults[idx]!.tokenInfo = `${r.agent}: ${'duration' in r ? r.duration : 0}ms | ${r.tokens.input} in ${r.tokens.output} out | $${r.tokens.cost.toFixed(4)}`;
+								liveResults[idx]!.tokenInfo =
+									`${r.agent}: ${'duration' in r ? r.duration : 0}ms | ${r.tokens.input} in ${r.tokens.output} out | $${r.tokens.cost.toFixed(4)}`;
 							}
 						}
 					});
@@ -1067,8 +1168,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					}
 				}
 			},
-			...(parallelRenderers?.renderCall && { renderCall: parallelRenderers.renderCall as ToolDefinition['renderCall'] }),
-			...(parallelRenderers?.renderResult && { renderResult: parallelRenderers.renderResult as ToolDefinition['renderResult'] }),
+			...(parallelRenderers?.renderCall && {
+				renderCall: parallelRenderers.renderCall as ToolDefinition['renderCall'],
+			}),
+			...(parallelRenderers?.renderResult && {
+				renderResult: parallelRenderers.renderResult as ToolDefinition['renderResult'],
+			}),
 		});
 	}
 
@@ -1081,13 +1186,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// ══════════════════════════════════════════════
 
 	if (!isSubAgent && serverAgents.length > 0) {
-		registerAgentCommands(
-			pi,
-			serverAgents,
-			getHubUiStatus,
-			openAgentManager,
-			openChainEditor,
-		);
+		registerAgentCommands(pi, serverAgents, getHubUiStatus, openAgentManager, openChainEditor);
 	}
 
 	// ══════════════════════════════════════════════
@@ -1151,7 +1250,11 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						if (ctx.hasUI) ctx.ui.notify(msg, 'error');
 						return;
 					}
-					const data = (await resp.json()) as { ok: boolean; count: number; skills: Array<{ path: string; content: string }> };
+					const data = (await resp.json()) as {
+						ok: boolean;
+						count: number;
+						skills: Array<{ path: string; content: string }>;
+					};
 					if (!data.ok || !data.skills?.length) {
 						if (ctx.hasUI) ctx.ui.notify('No skills available from Hub.', 'info');
 						return;
@@ -1166,7 +1269,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						writeFileSync(fullPath, skill.content, 'utf-8');
 						synced.push(skill.path);
 					}
-					const msg = `Synced ${synced.length} skill files:\n${synced.map(p => `  ${p}`).join('\n')}`;
+					const msg = `Synced ${synced.length} skill files:\n${synced.map((p) => `  ${p}`).join('\n')}`;
 					if (ctx.hasUI) ctx.ui.notify(msg, 'info');
 					log(msg);
 				} catch (err: any) {
@@ -1175,7 +1278,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				}
 			},
 		});
-
 	}
 
 	// ══════════════════════════════════════════════
@@ -1187,7 +1289,12 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		if (event && typeof event === 'object') {
 			for (const [key, value] of Object.entries(event)) {
 				if (typeof value !== 'function' && key !== 'signal') {
-					try { JSON.stringify(value); data[key] = value; } catch { /* skip */ }
+					try {
+						JSON.stringify(value);
+						data[key] = value;
+					} catch {
+						/* skip */
+					}
 				}
 			}
 		}
@@ -1197,7 +1304,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	async function sendEvent(
 		eventName: string,
 		data: Record<string, unknown>,
-		ctx: ExtensionContext,
+		ctx: ExtensionContext
 	): Promise<unknown> {
 		const id = client.nextId();
 		try {
@@ -1210,7 +1317,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			const result = await processActions(response.actions, buildActionContext(ctx));
 			if (result.block) return result.block;
 			if (result.returnValue !== undefined) return result.returnValue;
-		} catch { /* ignore */ }
+		} catch {
+			/* ignore */
+		}
 		return undefined;
 	}
 
@@ -1272,7 +1381,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					systemPrompt = result.systemPrompt;
 				}
 			}
-		} catch { /* ignore */ }
+		} catch {
+			/* ignore */
+		}
 
 		// Apply config prefix/suffix — LEAD ONLY
 		if (!isSubAgent) {
@@ -1311,7 +1422,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		try {
 			pi.registerMessageRenderer('remote_message', () => undefined);
 			pi.registerMessageRenderer('remote_history', () => undefined);
-		} catch { /* not available in this Pi version */ }
+		} catch {
+			/* not available in this Pi version */
+		}
 
 		if (!isNativeRemote) {
 			// Legacy remote: intercept input and render events via pi.sendMessage()
@@ -1361,20 +1474,47 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 						const ui = footerCtx.ui;
 						switch (request.method) {
 							case 'select': {
-								const options = (request.params.options as Array<{ label: string; value: string }>) ?? [];
+								const options =
+									(request.params.options as Array<{ label: string; value: string }>) ??
+									[];
 								const title = (request.params.title as string) ?? 'Select';
-								const result = await ui.select(title, options.map((o) => o.label));
+								const result = await ui.select(
+									title,
+									options.map((o) => o.label)
+								);
 								if (result === null || result === undefined) return null;
 								const idx = typeof result === 'number' ? result : Number(result);
 								return options[idx]?.value ?? null;
 							}
-							case 'confirm': return await ui.confirm((request.params.message as string) ?? 'Confirm?', (request.params.message as string) ?? 'Confirm?');
-							case 'input': return await ui.input((request.params.prompt as string) ?? 'Input:', (request.params.placeholder as string) ?? '');
-							case 'editor': return await ui.editor((request.params.content as string) ?? '', (request.params.language as string) ?? 'text');
-							case 'notify': ui.notify((request.params.message as string) ?? ''); return undefined;
-							case 'setStatus': ui.setStatus((request.params.key as string) ?? 'remote', (request.params.text as string) ?? ''); return undefined;
-							case 'setTitle': ui.setTitle((request.params.title as string) ?? ''); return undefined;
-							default: return null;
+							case 'confirm':
+								return await ui.confirm(
+									(request.params.message as string) ?? 'Confirm?',
+									(request.params.message as string) ?? 'Confirm?'
+								);
+							case 'input':
+								return await ui.input(
+									(request.params.prompt as string) ?? 'Input:',
+									(request.params.placeholder as string) ?? ''
+								);
+							case 'editor':
+								return await ui.editor(
+									(request.params.content as string) ?? '',
+									(request.params.language as string) ?? 'text'
+								);
+							case 'notify':
+								ui.notify((request.params.message as string) ?? '');
+								return undefined;
+							case 'setStatus':
+								ui.setStatus(
+									(request.params.key as string) ?? 'remote',
+									(request.params.text as string) ?? ''
+								);
+								return undefined;
+							case 'setTitle':
+								ui.setTitle((request.params.title as string) ?? '');
+								return undefined;
+							default:
+								return null;
 						}
 					});
 				} catch (err) {
@@ -1394,10 +1534,17 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	}
 
 	// Clean up on shutdown
-	(pi.on as GenericEventHandler)('session_shutdown', async (_event: unknown, _ctx: ExtensionContext) => {
-		log('Shutting down — closing Hub connection');
-		try { client.close(); } catch { /* pending promises rejected on close — safe to ignore */ }
-	});
+	(pi.on as GenericEventHandler)(
+		'session_shutdown',
+		async (_event: unknown, _ctx: ExtensionContext) => {
+			log('Shutting down — closing Hub connection');
+			try {
+				client.close();
+			} catch {
+				/* pending promises rejected on close — safe to ignore */
+			}
+		}
+	);
 }
 
 // ══════════════════════════════════════════════
@@ -1421,11 +1568,13 @@ function truncateOutput(text: string): string {
 	let result = text;
 	const lines = result.split('\n');
 	if (lines.length > MAX_OUTPUT_LINES) {
-		result = lines.slice(0, MAX_OUTPUT_LINES).join('\n') +
+		result =
+			lines.slice(0, MAX_OUTPUT_LINES).join('\n') +
 			`\n\n[Output truncated — ${lines.length - MAX_OUTPUT_LINES} lines omitted]`;
 	}
 	if (result.length > MAX_OUTPUT_BYTES) {
-		result = result.slice(0, MAX_OUTPUT_BYTES) +
+		result =
+			result.slice(0, MAX_OUTPUT_BYTES) +
 			`\n\n[Output truncated — exceeded ${MAX_OUTPUT_BYTES} bytes]`;
 	}
 	return result;
@@ -1449,7 +1598,9 @@ async function loadPiSdk(): Promise<{ piSdk: unknown; piAi: unknown }> {
 		const piAi = await import('@mariozechner/pi-ai');
 		_piSdkCache = { piSdk, piAi };
 		return _piSdkCache;
-	} catch { /* fall through to argv[1] resolution */ }
+	} catch {
+		/* fall through to argv[1] resolution */
+	}
 
 	// Resolve from Pi CLI binary (process.argv[1] → pi-coding-agent package root)
 	const { realpathSync } = _require('node:fs') as typeof import('node:fs');
@@ -1459,7 +1610,9 @@ async function loadPiSdk(): Promise<{ piSdk: unknown; piAi: unknown }> {
 	const piRealPath = realpathSync(process.argv[1] || '');
 	const piPkgDir = dirname(dirname(piRealPath));
 	const piSdkEntry = pathToFileURL(join(piPkgDir, 'dist', 'index.js')).href;
-	const piAiEntry = pathToFileURL(join(piPkgDir, 'node_modules', '@mariozechner', 'pi-ai', 'dist', 'index.js')).href;
+	const piAiEntry = pathToFileURL(
+		join(piPkgDir, 'node_modules', '@mariozechner', 'pi-ai', 'dist', 'index.js')
+	).href;
 
 	const piSdk = await import(piSdkEntry);
 	const piAi = await import(piAiEntry);
@@ -1471,7 +1624,10 @@ async function loadPiSdk(): Promise<{ piSdk: unknown; piAi: unknown }> {
  * Create a Pi-compatible tool that proxies execution to the Hub via WebSocket.
  * Used to give sub-agents access to Hub tools (memory, context7, etc.).
  */
-function createHubToolProxy(toolDef: HubToolDefinition, hubClient: HubClient): Record<string, unknown> {
+function createHubToolProxy(
+	toolDef: HubToolDefinition,
+	hubClient: HubClient
+): Record<string, unknown> {
 	return {
 		name: toolDef.name,
 		label: toolDef.label || toolDef.name,
@@ -1479,11 +1635,13 @@ function createHubToolProxy(toolDef: HubToolDefinition, hubClient: HubClient): R
 		parameters: toolDef.parameters,
 		async execute(
 			toolCallId: string,
-			params: unknown,
+			params: unknown
 		): Promise<{ content: Array<{ type: string; text: string }>; details: unknown }> {
 			if (!hubClient.connected) {
 				return {
-					content: [{ type: 'text', text: `Hub not connected — cannot execute ${toolDef.name}` }],
+					content: [
+						{ type: 'text', text: `Hub not connected — cannot execute ${toolDef.name}` },
+					],
 					details: undefined,
 				};
 			}
@@ -1499,15 +1657,19 @@ function createHubToolProxy(toolDef: HubToolDefinition, hubClient: HubClient): R
 				// Extract RETURN action result
 				const returnAction = response.actions.find((a: HubAction) => a.action === 'RETURN');
 				if (returnAction && 'result' in returnAction) {
-					const text = typeof returnAction.result === 'string'
-						? returnAction.result
-						: JSON.stringify(returnAction.result, null, 2);
+					const text =
+						typeof returnAction.result === 'string'
+							? returnAction.result
+							: JSON.stringify(returnAction.result, null, 2);
 					return { content: [{ type: 'text', text }], details: undefined };
 				}
 				return { content: [{ type: 'text', text: 'Done' }], details: undefined };
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				return { content: [{ type: 'text', text: `Hub tool error: ${msg}` }], details: undefined };
+				return {
+					content: [{ type: 'text', text: `Hub tool error: ${msg}` }],
+					details: undefined,
+				};
 			}
 		},
 	};
@@ -1525,28 +1687,34 @@ async function runSubAgent(
 	task: string,
 	hubClient: HubClient,
 	onProgress?: ProgressCallback,
-	signal?: AbortSignal,
+	signal?: AbortSignal
 ): Promise<{ output: string; duration: number; tokens: SubAgentTokens }> {
 	const startTime = Date.now();
 
 	const { piSdk, piAi } = await loadPiSdk();
 	// Runtime-resolved dynamic imports — exact types unavailable statically
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const { createAgentSession, DefaultResourceLoader, SessionManager, createCodingTools, createReadOnlyTools } = piSdk as any;
+	const {
+		createAgentSession,
+		DefaultResourceLoader,
+		SessionManager,
+		createCodingTools,
+		createReadOnlyTools,
+	} = piSdk as any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const { getModel } = piAi as any;
 
 	// Model — use agent's configured model (sub-agents typically use haiku for speed)
 	const modelId = agentConfig.model || 'claude-haiku-4-5';
 	const [provider, id] = modelId.includes('/')
-		? modelId.split('/', 2) as [string, string]
+		? (modelId.split('/', 2) as [string, string])
 		: ['anthropic', modelId];
 	const subModel = getModel(provider, id);
 	if (!subModel) {
 		throw new Error(
 			`Model "${modelId}" not available. ` +
-			`Check that the ${provider} API key is configured ` +
-			`(e.g. ${provider.toUpperCase().replace(/[^A-Z]/g, '_')}_API_KEY).`,
+				`Check that the ${provider} API key is configured ` +
+				`(e.g. ${provider.toUpperCase().replace(/[^A-Z]/g, '_')}_API_KEY).`
 		);
 	}
 
@@ -1562,28 +1730,37 @@ async function runSubAgent(
 	const subLoader = new DefaultResourceLoader({
 		cwd: process.cwd(),
 		noExtensions: true,
-		extensionFactories: hubTools.length > 0
-			? [(pi: ExtensionAPI) => {
-				for (const toolDef of hubTools) {
-					// Proxy object has the correct shape; cast needed because return type is Record<string, unknown>
-					pi.registerTool(createHubToolProxy(toolDef, hubClient) as unknown as ToolDefinition);
-				}
-			}]
-			: [],
+		extensionFactories:
+			hubTools.length > 0
+				? [
+						(pi: ExtensionAPI) => {
+							for (const toolDef of hubTools) {
+								// Proxy object has the correct shape; cast needed because return type is Record<string, unknown>
+								pi.registerTool(
+									createHubToolProxy(toolDef, hubClient) as unknown as ToolDefinition
+								);
+							}
+						},
+					]
+				: [],
 		systemPromptOverride: () => agentConfig.systemPrompt,
 	});
 	await subLoader.reload();
 
 	// Select tools based on readOnly flag
 	const cwd = process.cwd();
-	const tools = agentConfig.readOnly
-		? createReadOnlyTools(cwd)
-		: createCodingTools(cwd);
+	const tools = agentConfig.readOnly ? createReadOnlyTools(cwd) : createCodingTools(cwd);
 
 	const { session } = await createAgentSession({
 		// subModel is already untyped (from dynamic import) — createAgentSession is also dynamically imported
 		model: subModel,
-		thinkingLevel: (agentConfig.thinkingLevel || 'xhigh') as 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh',
+		thinkingLevel: (agentConfig.thinkingLevel || 'xhigh') as
+			| 'off'
+			| 'minimal'
+			| 'low'
+			| 'medium'
+			| 'high'
+			| 'xhigh',
 		tools,
 		resourceLoader: subLoader,
 		sessionManager: SessionManager.inMemory('/tmp'),
@@ -1626,7 +1803,8 @@ async function runSubAgent(
 						if (evt.args && typeof evt.args === 'object') {
 							const args = evt.args as Record<string, unknown>;
 							if (args.command) toolArgs = String(args.command).slice(0, 60);
-							else if (args.filePath || args.path) toolArgs = String(args.filePath || args.path);
+							else if (args.filePath || args.path)
+								toolArgs = String(args.filePath || args.path);
 							else if (args.pattern) toolArgs = String(args.pattern).slice(0, 40);
 							else {
 								const first = Object.values(args)[0];
@@ -1648,9 +1826,13 @@ async function runSubAgent(
 							elapsed,
 						});
 					}
-				} catch { /* ignore — progress tracking is best-effort */ }
+				} catch {
+					/* ignore — progress tracking is best-effort */
+				}
 			});
-		} catch { /* ignore — subscribe may not be available */ }
+		} catch {
+			/* ignore — subscribe may not be available */
+		}
 	}
 
 	// Abort signal support — cancel sub-agent when user presses Esc
@@ -1660,7 +1842,11 @@ async function runSubAgent(
 		}
 		const onAbort = () => {
 			log(`Sub-agent ${agentConfig.name} aborted by signal`);
-			try { session.abort?.(); } catch { /* ignore */ }
+			try {
+				session.abort?.();
+			} catch {
+				/* ignore */
+			}
 		};
 		signal.addEventListener('abort', onAbort, { once: true });
 	}
@@ -1676,7 +1862,7 @@ async function runSubAgent(
 		log(`Sub-agent ${agentConfig.name} completed in ${duration}ms`);
 
 		// Best-effort token extraction from sub-agent session messages
-		let subTokens: SubAgentTokens = { input: 0, output: 0, cost: 0 };
+		const subTokens: SubAgentTokens = { input: 0, output: 0, cost: 0 };
 		try {
 			const branch = session.sessionManager?.getBranch?.() || [];
 			for (const entry of branch) {
@@ -1692,185 +1878,19 @@ async function runSubAgent(
 					}
 				}
 			}
-		} catch { /* ignore — token extraction is best-effort */ }
+		} catch {
+			/* ignore — token extraction is best-effort */
+		}
 
 		return { output: truncateOutput(output.trim()), duration, tokens: subTokens };
 	} catch (err) {
-		try { session.abort?.(); } catch { /* ignore */ }
+		try {
+			session.abort?.();
+		} catch {
+			/* ignore */
+		}
 		throw err;
 	}
-}
-
-// ══════════════════════════════════════════════
-// Remote Mode Extension Setup
-// Connects to an existing sandbox session through the Hub.
-// Pi runs locally as the TUI shell; agent execution is in the sandbox.
-// ══════════════════════════════════════════════
-
-function setupRemoteModeExtension(pi: ExtensionAPI, hubUrl: string, sessionId: string): void {
-	let remote: RemoteSession | null = null;
-	let extensionCtx: ExtensionContext | null = null;
-	let footerSetUp = false;
-	const remoteObserverState: ObserverState = { count: 0, label: sessionId.slice(0, 12) };
-
-	log(`Setting up remote mode for session ${sessionId} via ${hubUrl}`);
-
-	// Set up titlebar for branding
-	setupTitlebar(pi);
-
-	// Register custom message renderer for remote messages (safe — may not exist in all Pi versions)
-	try {
-		pi.registerMessageRenderer('remote_message', (_message, _options, _theme) => undefined);
-		pi.registerMessageRenderer('remote_history', (_message, _options, _theme) => undefined);
-	} catch { /* registerMessageRenderer not available in this Pi version */ }
-
-	function initCtx(ctx: ExtensionContext): void {
-		extensionCtx = ctx;
-		if (remote) (remote as RemoteSessionInternal)._setExtensionCtx?.(ctx);
-
-		if (!footerSetUp && ctx.hasUI) {
-			footerSetUp = true;
-			ctx.ui.setStatus('remote_connection', `Remote: ${sessionId.slice(0, 12)}…`);
-			setupCoderFooter(ctx, () => remote?.isConnected ? 'connected' : 'reconnecting', () => remoteObserverState);
-		}
-	}
-
-	// Capture extension context from whichever event fires first
-	pi.on('session_start', async (_event, ctx) => { initCtx(ctx); });
-	(pi.on as GenericEventHandler)('agent_start', async (_event: unknown, ctx: ExtensionContext) => { initCtx(ctx); });
-
-	// Intercept user input — relay to remote sandbox instead of local agent
-	(pi.on as GenericEventHandler)('input', async (event: unknown, ctx: ExtensionContext) => {
-		initCtx(ctx);
-
-		const inputEvent = event as { text?: string; message?: string; images?: string[] };
-		const userMessage = inputEvent.text || inputEvent.message;
-
-		if (!userMessage) return;
-
-		if (!remote?.isConnected) {
-			log(`Input received but remote not connected (remote=${!!remote}, connected=${remote?.isConnected})`);
-			if (extensionCtx?.hasUI) {
-				extensionCtx.ui.notify('Not connected to remote session');
-			}
-			return { action: 'handled' };
-		}
-
-		// Show the user message in the TUI as a conversation entry
-		pi.sendMessage({
-			customType: 'remote_message',
-			content: `**You:** ${userMessage}`,
-			display: true,
-		});
-
-		// Send as RPC prompt command to the sandbox
-		remote.prompt(userMessage, inputEvent.images);
-		log(`Sent prompt to remote: ${userMessage.slice(0, 100)}`);
-
-		if (extensionCtx?.hasUI) {
-			extensionCtx.ui.setWorkingMessage('Sending to remote agent…');
-		}
-
-		// Prevent local Pi from processing this input — we've relayed it to the sandbox
-		return { action: 'handled' };
-	});
-
-	// Connect to Hub asynchronously
-	(async () => {
-		try {
-			remote = await setupRemoteMode(pi, hubUrl, sessionId);
-			log(`Connected to remote session ${sessionId}`);
-
-			// Listen for label updates from Hub broadcasts
-			remote.onEvent((event: any) => {
-				if (event.type === 'session_label_updated' && event.label) {
-					remoteObserverState.label = event.label as string;
-					log(`Remote session label updated: ${event.label}`);
-				} else if (event.type === 'session_hydration' && event.label) {
-					remoteObserverState.label = event.label as string;
-					log(`Remote session label from hydration: ${event.label}`);
-				}
-			});
-
-			// Pass extension context if already available
-			if (extensionCtx) {
-				(remote as RemoteSessionInternal)._setExtensionCtx?.(extensionCtx);
-			}
-
-			// Show connection success in the TUI
-			pi.sendMessage({
-				customType: 'remote_message',
-				content: `Connected to remote session **${sessionId}**`,
-				display: true,
-			});
-
-			// Set up UI handler using Pi's extension API
-			remote.setUiHandler(async (request) => {
-				if (!extensionCtx?.hasUI) return null;
-				const ui = extensionCtx.ui;
-
-				switch (request.method) {
-					case 'select': {
-						const options = (request.params.options as Array<{ label: string; value: string }>) ?? [];
-						const title = (request.params.title as string) ?? 'Select';
-						const result = await ui.select(title, options.map((o) => o.label));
-						if (result === null || result === undefined) return null;
-						const selectedIdx = typeof result === 'number' ? result : Number(result);
-						return options[selectedIdx]?.value ?? null;
-					}
-					case 'confirm': {
-						const message = (request.params.message as string) ?? 'Confirm?';
-						return await ui.confirm(message, message);
-					}
-					case 'input': {
-						const prompt = (request.params.prompt as string) ?? 'Input:';
-						const placeholder = (request.params.placeholder as string) ?? '';
-						return await ui.input(prompt, placeholder);
-					}
-					case 'editor': {
-						const content = (request.params.content as string) ?? '';
-						const language = (request.params.language as string) ?? 'text';
-						return await ui.editor(content, language);
-					}
-					case 'notify': {
-						const message = (request.params.message as string) ?? '';
-						ui.notify(message);
-						return undefined;
-					}
-					case 'setStatus': {
-						const key = (request.params.key as string) ?? 'remote';
-						const text = (request.params.text as string) ?? '';
-						ui.setStatus(key, text);
-						return undefined;
-					}
-					case 'setTitle': {
-						const title = (request.params.title as string) ?? '';
-						ui.setTitle(title);
-						return undefined;
-					}
-					default:
-						return null;
-				}
-			});
-
-			log('Remote mode fully initialized');
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : String(err);
-			log(`Failed to connect: ${msg}`);
-			// Show error in TUI so user sees it
-			pi.sendMessage({
-				customType: 'remote_message',
-				content: `Failed to connect to remote session: ${msg}`,
-				display: true,
-			});
-		}
-	})();
-
-	// Clean up on shutdown
-	(pi.on as GenericEventHandler)('session_shutdown', async () => {
-		log('Pi session_shutdown — closing remote connection');
-		remote?.close();
-	});
 }
 
 export default agentuityCoderHub;

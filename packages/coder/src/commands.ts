@@ -31,7 +31,7 @@ export function registerAgentCommands(
 	agents: AgentDefinition[],
 	getHubStatus: () => HubStatus,
 	openAgentManager?: (ctx: ExtensionCommandContext) => Promise<void>,
-	openChainEditor?: (ctx: ExtensionCommandContext, initialAgents: string[]) => Promise<void>,
+	openChainEditor?: (ctx: ExtensionCommandContext, initialAgents: string[]) => Promise<void>
 ): void {
 	for (const agent of agents) {
 		const name = agent.name;
@@ -64,7 +64,7 @@ export function registerAgentCommands(
 				return;
 			}
 
-			const lines = agents.map(a => {
+			const lines = agents.map((a) => {
 				const model = a.model ? ` [${a.model}]` : '';
 				const caps = a.capabilities?.length ? ` (${a.capabilities.join(', ')})` : '';
 				const readOnly = a.readOnly ? ' [read-only]' : '';
@@ -105,10 +105,14 @@ export function registerAgentCommands(
 			lines.push('Coder Hub Status');
 			lines.push(`  Hub: ${hubStatus}`);
 			lines.push(`  Agents: ${agents.length} available`);
-			lines.push(`  ${agents.map(a => {
-				const model = a.model || 'default';
-				return `${a.name} [${model}]`;
-			}).join(', ')}`);
+			lines.push(
+				`  ${agents
+					.map((a) => {
+						const model = a.model || 'default';
+						return `${a.name} [${model}]`;
+					})
+					.join(', ')}`
+			);
 			const message = lines.join('\n');
 			if (ctx.hasUI) {
 				ctx.ui.notify(message, 'info');

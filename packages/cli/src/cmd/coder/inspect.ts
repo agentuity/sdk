@@ -59,7 +59,7 @@ export const inspectSubcommand = createSubcommand({
 		if (!hubUrl) {
 			tui.fatal(
 				'Could not find a running Coder Hub.\n\nEither:\n  - Start the Hub with: bun run dev\n  - Set AGENTUITY_CODER_HUB_URL environment variable\n  - Pass --hub-url flag',
-				ErrorCode.NETWORK_ERROR,
+				ErrorCode.NETWORK_ERROR
 			);
 			return;
 		}
@@ -103,7 +103,9 @@ export const inspectSubcommand = createSubcommand({
 		};
 
 		try {
-			const resp = await fetch(`${hubUrl}/api/hub/session/${encodeURIComponent(sessionId)}`, { headers: hubFetchHeaders() });
+			const resp = await fetch(`${hubUrl}/api/hub/session/${encodeURIComponent(sessionId)}`, {
+				headers: hubFetchHeaders(),
+			});
 			if (resp.status === 404) {
 				tui.fatal(`Session not found: ${sessionId}`, ErrorCode.RESOURCE_NOT_FOUND);
 				return;
@@ -115,7 +117,7 @@ export const inspectSubcommand = createSubcommand({
 			if (!resp.ok) {
 				tui.fatal(
 					`Hub returned ${resp.status}: ${resp.statusText}. Is the Coder Hub running at ${hubUrl}?`,
-					ErrorCode.API_ERROR,
+					ErrorCode.API_ERROR
 				);
 				return;
 			}
@@ -124,7 +126,7 @@ export const inspectSubcommand = createSubcommand({
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(
 				`Could not connect to Coder Hub at ${hubUrl}: ${msg}\n\nSet AGENTUITY_CODER_HUB_URL or start the Hub with: bun run dev`,
-				ErrorCode.NETWORK_ERROR,
+				ErrorCode.NETWORK_ERROR
 			);
 			return;
 		}
@@ -150,8 +152,12 @@ export const inspectSubcommand = createSubcommand({
 		} else {
 			for (const p of data.participants) {
 				const idle = p.idle ? '  (idle)' : '';
-				const connected = p.connectedAt ? `  connected ${formatRelativeTime(p.connectedAt)}` : '';
-				console.log(`    ${p.id.padEnd(12)} ${p.role.padEnd(10)} ${p.transport}${connected}${idle}`);
+				const connected = p.connectedAt
+					? `  connected ${formatRelativeTime(p.connectedAt)}`
+					: '';
+				console.log(
+					`    ${p.id.padEnd(12)} ${p.role.padEnd(10)} ${p.transport}${connected}${idle}`
+				);
 			}
 		}
 
@@ -161,10 +167,9 @@ export const inspectSubcommand = createSubcommand({
 			console.log('  Tasks:');
 			for (const t of data.tasks) {
 				const dur = t.duration ? formatDuration(t.duration) : '-';
-				const prompt =
-					t.prompt.length > 40 ? t.prompt.slice(0, 37) + '...' : t.prompt;
+				const prompt = t.prompt.length > 40 ? t.prompt.slice(0, 37) + '...' : t.prompt;
 				console.log(
-					`    ${t.taskId.padEnd(10)} ${t.agent.padEnd(10)} ${t.status.padEnd(10)} ${prompt.padEnd(42)} ${dur}`,
+					`    ${t.taskId.padEnd(10)} ${t.agent.padEnd(10)} ${t.status.padEnd(10)} ${prompt.padEnd(42)} ${dur}`
 				);
 			}
 		}
@@ -175,10 +180,14 @@ export const inspectSubcommand = createSubcommand({
 			console.log();
 			console.log('  Agent Activity:');
 			for (const a of agents) {
-				const tool = a.currentTool ? `${a.currentTool} (${a.toolCallCount} calls)` : `${a.toolCallCount} calls`;
-				const lastAct = a.lastActivity ? formatRelativeTime(new Date(a.lastActivity).toISOString()) : '-';
+				const tool = a.currentTool
+					? `${a.currentTool} (${a.toolCallCount} calls)`
+					: `${a.toolCallCount} calls`;
+				const lastAct = a.lastActivity
+					? formatRelativeTime(new Date(a.lastActivity).toISOString())
+					: '-';
 				console.log(
-					`    ${a.name.padEnd(12)} ${a.status.padEnd(8)} ${tool.padEnd(28)} last: ${lastAct}`,
+					`    ${a.name.padEnd(12)} ${a.status.padEnd(8)} ${tool.padEnd(28)} last: ${lastAct}`
 				);
 			}
 		}

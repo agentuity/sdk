@@ -232,10 +232,7 @@ export const command = createCommand({
 				.boolean()
 				.optional()
 				.describe('Skip TypeScript type checking on startup and restarts'),
-			resume: z
-				.string()
-				.optional()
-				.describe('Resume a paused Hub session by ID'),
+			resume: z.string().optional().describe('Resume a paused Hub session by ID'),
 		}),
 	},
 	optional: { project: true },

@@ -98,7 +98,9 @@ export const startSubcommand = createSubcommand({
 			description: 'Create a new sandbox session and attach',
 		},
 		{
-			command: getCommand('coder start --sandbox "Build auth" --repo https://github.com/org/repo'),
+			command: getCommand(
+				'coder start --sandbox "Build auth" --repo https://github.com/org/repo'
+			),
 			description: 'Create a sandbox with a git repo cloned',
 		},
 	],
@@ -109,9 +111,18 @@ export const startSubcommand = createSubcommand({
 			pi: z.string().optional().describe('Path to pi binary'),
 			agent: z.string().optional().describe('Agent role (e.g. scout, builder)'),
 			task: z.string().optional().describe('Initial task to execute'),
-			remote: z.union([z.boolean(), z.string()]).optional().describe('Connect to existing sandbox session (pass session ID or omit for picker)'),
-			sandbox: z.string().optional().describe('Create a new sandbox session with the given task and attach'),
-			repo: z.string().optional().describe('Git repo URL to clone in the sandbox (used with --sandbox)'),
+			remote: z
+				.union([z.boolean(), z.string()])
+				.optional()
+				.describe('Connect to existing sandbox session (pass session ID or omit for picker)'),
+			sandbox: z
+				.string()
+				.optional()
+				.describe('Create a new sandbox session with the given task and attach'),
+			repo: z
+				.string()
+				.optional()
+				.describe('Git repo URL to clone in the sandbox (used with --sandbox)'),
 		}),
 	},
 	async handler(ctx) {
@@ -122,7 +133,7 @@ export const startSubcommand = createSubcommand({
 		if (!hubWsUrl) {
 			tui.fatal(
 				'Could not find a running Coder Hub.\n\nEither:\n  - Start the Hub with: bun run dev\n  - Set AGENTUITY_CODER_HUB_URL environment variable\n  - Pass --hub-url flag',
-				ErrorCode.NETWORK_ERROR,
+				ErrorCode.NETWORK_ERROR
 			);
 			return;
 		}
@@ -132,7 +143,7 @@ export const startSubcommand = createSubcommand({
 		if (!extensionPath) {
 			tui.fatal(
 				'Could not find the Agentuity Coder extension.\n\nEither:\n  - Install it: npm install @agentuity/coder\n  - Set AGENTUITY_CODER_EXTENSION environment variable\n  - Pass --extension flag',
-				ErrorCode.CONFIG_INVALID,
+				ErrorCode.CONFIG_INVALID
 			);
 			return;
 		}
@@ -151,10 +162,7 @@ export const startSubcommand = createSubcommand({
 				// No session ID — fetch connectable sessions and show picker
 				const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
 				if (!hubHttpUrl) {
-					tui.fatal(
-						'Could not find Hub URL for session picker.',
-						ErrorCode.NETWORK_ERROR,
-					);
+					tui.fatal('Could not find Hub URL for session picker.', ErrorCode.NETWORK_ERROR);
 					return;
 				}
 				try {
@@ -169,11 +177,13 @@ export const startSubcommand = createSubcommand({
 					const sessions = await tui.spinner({
 						message: 'Fetching connectable sessions…',
 						callback: async () => {
-							const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`, { headers: hubFetchHeaders() });
+							const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`, {
+								headers: hubFetchHeaders(),
+							});
 							if (!resp.ok) {
 								throw new Error(`${resp.status} ${resp.statusText}`);
 							}
-							const data = await resp.json() as { sessions: SessionInfo[] };
+							const data = (await resp.json()) as { sessions: SessionInfo[] };
 							return data.sessions;
 						},
 					});
@@ -181,7 +191,7 @@ export const startSubcommand = createSubcommand({
 					if (sessions.length === 0) {
 						tui.fatal(
 							'No connectable sandbox sessions found.\n\nCreate one with: ag-dev coder session create --task "your task"',
-							ErrorCode.CONFIG_INVALID,
+							ErrorCode.CONFIG_INVALID
 						);
 						return;
 					}
@@ -243,7 +253,7 @@ export const startSubcommand = createSubcommand({
 			if (!task) {
 				tui.fatal(
 					'--sandbox requires a task description.\n\nExample: --sandbox "Build an authentication system"',
-					ErrorCode.CONFIG_INVALID,
+					ErrorCode.CONFIG_INVALID
 				);
 				return;
 			}
@@ -273,10 +283,13 @@ export const startSubcommand = createSubcommand({
 				});
 				if (!resp.ok) {
 					const errText = await resp.text();
-					tui.fatal(`Failed to create sandbox session: ${resp.status} ${errText}`, ErrorCode.NETWORK_ERROR);
+					tui.fatal(
+						`Failed to create sandbox session: ${resp.status} ${errText}`,
+						ErrorCode.NETWORK_ERROR
+					);
 					return;
 				}
-				const sessionInfo = await resp.json() as { sessionId: string };
+				const sessionInfo = (await resp.json()) as { sessionId: string };
 				sessionId = sessionInfo.sessionId;
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
@@ -298,9 +311,11 @@ export const startSubcommand = createSubcommand({
 			while (Date.now() - pollStart < POLL_TIMEOUT) {
 				await new Promise((r) => setTimeout(r, POLL_INTERVAL));
 				try {
-					const pollResp = await fetch(`${hubHttpUrl}/api/hub/session/${sessionId}`, { headers: hubFetchHeaders() });
+					const pollResp = await fetch(`${hubHttpUrl}/api/hub/session/${sessionId}`, {
+						headers: hubFetchHeaders(),
+					});
 					if (pollResp.ok) {
-						const data = await pollResp.json() as {
+						const data = (await pollResp.json()) as {
 							participants?: Array<{ role: string }>;
 						};
 						if (data.participants?.some((p) => p.role === 'lead')) {
@@ -316,7 +331,7 @@ export const startSubcommand = createSubcommand({
 			if (!driverConnected) {
 				tui.fatal(
 					`Sandbox driver did not connect within ${POLL_TIMEOUT / 1000}s.\n\nThe sandbox may still be starting. Try attaching later with:\n  ${getCommand(`coder start --remote ${sessionId}`)}`,
-					ErrorCode.NETWORK_ERROR,
+					ErrorCode.NETWORK_ERROR
 				);
 				return;
 			}
@@ -339,7 +354,7 @@ export const startSubcommand = createSubcommand({
 
 		// ── Normal mode: spawn pi with extension ──
 		const env: Record<string, string> = {
-			...process.env as Record<string, string>,
+			...(process.env as Record<string, string>),
 			AGENTUITY_CODER_HUB_URL: hubWsUrl,
 		};
 		// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
@@ -379,7 +394,7 @@ export const startSubcommand = createSubcommand({
 			if (msg.includes('ENOENT') || msg.includes('not found')) {
 				tui.fatal(
 					`Could not find pi binary at '${piBinary}'.\n\nInstall Pi: https://pi.dev\nOr pass --pi flag with the path to the pi binary.`,
-					ErrorCode.CONFIG_INVALID,
+					ErrorCode.CONFIG_INVALID
 				);
 			} else {
 				tui.fatal(`Failed to start Pi: ${msg}`, ErrorCode.NETWORK_ERROR);
@@ -399,5 +414,3 @@ function timeSince(date: Date): string {
 	const days = Math.floor(hours / 24);
 	return `${days}d ago`;
 }
-
-

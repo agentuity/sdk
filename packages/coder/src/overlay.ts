@@ -106,9 +106,10 @@ export class AgentManagerOverlay implements Component, Focusable {
 		// Match overlay maxHeight of 95%, leave margin for overlay chrome
 		const maxLines = Math.max(10, Math.floor(termHeight * 0.95) - 2);
 
-		const lines = this.screen === 'detail'
-			? this.renderDetailScreen(safeWidth)
-			: this.renderListScreen(safeWidth, maxLines);
+		const lines =
+			this.screen === 'detail'
+				? this.renderDetailScreen(safeWidth)
+				: this.renderListScreen(safeWidth, maxLines);
 		return lines.map((line) => truncateToWidth(line, safeWidth));
 	}
 
@@ -167,7 +168,10 @@ export class AgentManagerOverlay implements Component, Focusable {
 
 		// Fixed footer (always rendered)
 		const footer: string[] = [
-			this.contentLine(this.theme.fg('dim', '  [↑↓] Navigate  [Enter] Details  [Esc] Close'), inner),
+			this.contentLine(
+				this.theme.fg('dim', '  [↑↓] Navigate  [Enter] Details  [Esc] Close'),
+				inner
+			),
 			buildBottomBorder(width),
 		];
 
@@ -201,9 +205,7 @@ export class AgentManagerOverlay implements Component, Focusable {
 		for (let i = start; i < end; i++) {
 			const agent = this.agents[i]!;
 			const selected = i === this.selectedIndex;
-			const prefix = selected
-				? this.theme.fg('accent', '› ')
-				: '  ';
+			const prefix = selected ? this.theme.fg('accent', '› ') : '  ';
 
 			const model = agent.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
 			const readOnly = agent.readOnly ? this.theme.fg('warning', ' read-only') : '';
@@ -213,9 +215,7 @@ export class AgentManagerOverlay implements Component, Focusable {
 			const description = this.theme.fg('text', `  ${agent.description || 'No description'}`);
 			content.push(this.contentLine(description, inner));
 
-			const capsText = agent.capabilities?.length
-				? agent.capabilities.join(', ')
-				: 'none';
+			const capsText = agent.capabilities?.length ? agent.capabilities.join(', ') : 'none';
 			const caps = this.theme.fg('muted', `  capabilities: ${capsText}`);
 			content.push(this.contentLine(caps, inner));
 
@@ -223,7 +223,12 @@ export class AgentManagerOverlay implements Component, Focusable {
 		}
 
 		if (end < this.agents.length) {
-			content.push(this.contentLine(this.theme.fg('dim', `  ↓ ${this.agents.length - end} more below`), inner));
+			content.push(
+				this.contentLine(
+					this.theme.fg('dim', `  ↓ ${this.agents.length - end} more below`),
+					inner
+				)
+			);
 		}
 
 		return [...header, ...content, ...footer];

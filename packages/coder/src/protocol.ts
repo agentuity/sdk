@@ -134,7 +134,14 @@ export type HubAction =
 /** Progress update from a running sub-agent */
 export interface AgentProgressUpdate {
 	agentName: string;
-	status: 'running' | 'tool_start' | 'tool_end' | 'completed' | 'failed' | 'thinking_delta' | 'text_delta';
+	status:
+		| 'running'
+		| 'tool_start'
+		| 'tool_end'
+		| 'completed'
+		| 'failed'
+		| 'thinking_delta'
+		| 'text_delta';
 	currentTool?: string;
 	currentToolArgs?: string;
 	elapsed: number;

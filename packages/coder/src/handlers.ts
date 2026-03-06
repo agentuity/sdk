@@ -88,24 +88,24 @@ export async function processActions(
 				};
 				break;
 
-		case 'INJECT_MESSAGE': {
-			const content = action.message?.content?.trim();
-			if (!content) break;
+			case 'INJECT_MESSAGE': {
+				const content = action.message?.content?.trim();
+				if (!content) break;
 
-			if (action.message.role === 'user') {
-				if (ctx.sendUserMessage) {
-					ctx.sendUserMessage(content, { deliverAs: 'followUp' });
-				} else if (ctx.ui) {
+				if (action.message.role === 'user') {
+					if (ctx.sendUserMessage) {
+						ctx.sendUserMessage(content, { deliverAs: 'followUp' });
+					} else if (ctx.ui) {
+						ctx.ui.notify(content, 'info');
+					}
+					break;
+				}
+
+				if (ctx.ui) {
 					ctx.ui.notify(content, 'info');
 				}
 				break;
 			}
-
-			if (ctx.ui) {
-				ctx.ui.notify(content, 'info');
-			}
-			break;
-		}
 		}
 	}
 

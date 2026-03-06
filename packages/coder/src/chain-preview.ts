@@ -105,7 +105,7 @@ export class ChainEditorOverlay implements Component, Focusable {
 		theme: Theme,
 		agents: AgentDefinition[],
 		done: DoneFn,
-		initialAgents: string[] = [],
+		initialAgents: string[] = []
 	) {
 		this.theme = theme;
 		this.done = done;
@@ -136,9 +136,10 @@ export class ChainEditorOverlay implements Component, Focusable {
 		// Match overlay maxHeight of 95%, leave margin for overlay chrome
 		const maxLines = Math.max(10, Math.floor(termHeight * 0.95) - 2);
 
-		const lines = this.screen === 'picker'
-			? this.renderPickerScreen(safeWidth, maxLines)
-			: this.renderComposeScreen(safeWidth, maxLines);
+		const lines =
+			this.screen === 'picker'
+				? this.renderPickerScreen(safeWidth, maxLines)
+				: this.renderComposeScreen(safeWidth, maxLines);
 		return lines.map((line) => truncateToWidth(line, safeWidth));
 	}
 
@@ -170,7 +171,8 @@ export class ChainEditorOverlay implements Component, Focusable {
 
 		if (matchesKey(data, 'up')) {
 			if (this.steps.length > 0) {
-				this.selectedStepIndex = (this.selectedStepIndex - 1 + this.steps.length) % this.steps.length;
+				this.selectedStepIndex =
+					(this.selectedStepIndex - 1 + this.steps.length) % this.steps.length;
 				this.statusMessage = '';
 			}
 			this.invalidate();
@@ -347,7 +349,9 @@ export class ChainEditorOverlay implements Component, Focusable {
 
 		if (matchesKey(data, 'backspace')) {
 			if (this.editCursor > 0) {
-				this.editBuffer = this.editBuffer.slice(0, this.editCursor - 1) + this.editBuffer.slice(this.editCursor);
+				this.editBuffer =
+					this.editBuffer.slice(0, this.editCursor - 1) +
+					this.editBuffer.slice(this.editCursor);
 				this.editCursor -= 1;
 				selected.task = this.editBuffer;
 				this.invalidate();
@@ -357,7 +361,9 @@ export class ChainEditorOverlay implements Component, Focusable {
 
 		if (matchesKey(data, 'delete')) {
 			if (this.editCursor < this.editBuffer.length) {
-				this.editBuffer = this.editBuffer.slice(0, this.editCursor) + this.editBuffer.slice(this.editCursor + 1);
+				this.editBuffer =
+					this.editBuffer.slice(0, this.editCursor) +
+					this.editBuffer.slice(this.editCursor + 1);
 				selected.task = this.editBuffer;
 				this.invalidate();
 			}
@@ -366,7 +372,10 @@ export class ChainEditorOverlay implements Component, Focusable {
 
 		const char = parsePrintableChar(data);
 		if (char) {
-			this.editBuffer = this.editBuffer.slice(0, this.editCursor) + char + this.editBuffer.slice(this.editCursor);
+			this.editBuffer =
+				this.editBuffer.slice(0, this.editCursor) +
+				char +
+				this.editBuffer.slice(this.editCursor);
 			this.editCursor += char.length;
 			selected.task = this.editBuffer;
 			this.invalidate();
@@ -386,9 +395,8 @@ export class ChainEditorOverlay implements Component, Focusable {
 		const inner = Math.max(0, width - 2);
 
 		// Fixed header (always rendered)
-		const chainSummary = this.steps.length > 0
-			? this.steps.map((step) => step.agent).join(' → ')
-			: '(empty)';
+		const chainSummary =
+			this.steps.length > 0 ? this.steps.map((step) => step.agent).join(' → ') : '(empty)';
 		const header: string[] = [
 			buildTopBorder(width, 'Chain Editor'),
 			this.contentLine('', inner),
@@ -398,12 +406,16 @@ export class ChainEditorOverlay implements Component, Focusable {
 		];
 
 		// Fixed footer (always rendered)
-		const hintRun = this.steps.length >= 2
-			? '[Enter] Run'
-			: '[Enter] Run (needs 2+ steps)';
+		const hintRun = this.steps.length >= 2 ? '[Enter] Run' : '[Enter] Run (needs 2+ steps)';
 		const footer: string[] = [
-			this.contentLine(this.theme.fg('dim', `  [↑↓] Navigate  [e] Edit task  [d] Remove`), inner),
-			this.contentLine(this.theme.fg('dim', `  [a] Add step  [p] Toggle mode  ${hintRun}  [Esc] Cancel`), inner),
+			this.contentLine(
+				this.theme.fg('dim', `  [↑↓] Navigate  [e] Edit task  [d] Remove`),
+				inner
+			),
+			this.contentLine(
+				this.theme.fg('dim', `  [a] Add step  [p] Toggle mode  ${hintRun}  [Esc] Cancel`),
+				inner
+			),
 			buildBottomBorder(width),
 		];
 
@@ -412,7 +424,10 @@ export class ChainEditorOverlay implements Component, Focusable {
 
 		if (this.steps.length === 0) {
 			const content = [
-				this.contentLine(this.theme.fg('muted', '  No steps yet. Press [a] to add an agent step.'), inner),
+				this.contentLine(
+					this.theme.fg('muted', '  No steps yet. Press [a] to add an agent step.'),
+					inner
+				),
 				this.contentLine('', inner),
 			];
 			return [...header, ...content, ...footer];
@@ -440,12 +455,25 @@ export class ChainEditorOverlay implements Component, Focusable {
 			const agent = this.agentByName.get(step.agent);
 			const model = agent?.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
 
-			content.push(this.contentLine(`${marker} ${this.theme.bold(`Step ${i + 1}: ${step.agent}`)}${model}`, inner));
+			content.push(
+				this.contentLine(
+					`${marker} ${this.theme.bold(`Step ${i + 1}: ${step.agent}`)}${model}`,
+					inner
+				)
+			);
 
 			if (this.screen === 'edit' && selected) {
-				const displayTask = this.editBuffer.slice(0, this.editCursor) + this.theme.fg('accent', '│') + this.editBuffer.slice(this.editCursor);
+				const displayTask =
+					this.editBuffer.slice(0, this.editCursor) +
+					this.theme.fg('accent', '│') +
+					this.editBuffer.slice(this.editCursor);
 				content.push(this.contentLine(this.theme.fg('text', `  task: ${displayTask}`), inner));
-				content.push(this.contentLine(this.theme.fg('dim', '  editing: [Enter] Save  [Esc] Cancel  [←→] Move cursor'), inner));
+				content.push(
+					this.contentLine(
+						this.theme.fg('dim', '  editing: [Enter] Save  [Esc] Cancel  [←→] Move cursor'),
+						inner
+					)
+				);
 			} else {
 				const task = step.task || this.theme.fg('muted', '(empty)');
 				content.push(this.contentLine(this.theme.fg('text', `  task: ${task}`), inner));
@@ -455,7 +483,12 @@ export class ChainEditorOverlay implements Component, Focusable {
 		}
 
 		if (endIdx < this.steps.length) {
-			content.push(this.contentLine(this.theme.fg('dim', `  ↓ ${this.steps.length - endIdx} more below`), inner));
+			content.push(
+				this.contentLine(
+					this.theme.fg('dim', `  ↓ ${this.steps.length - endIdx} more below`),
+					inner
+				)
+			);
 		}
 
 		if (this.statusMessage) {
@@ -477,13 +510,19 @@ export class ChainEditorOverlay implements Component, Focusable {
 		const header: string[] = [
 			buildTopBorder(width, 'Add Agent Step'),
 			this.contentLine('', inner),
-			this.contentLine(this.theme.fg('text', `  Filter: ${this.pickerFilter || '(type to filter)'}`), inner),
+			this.contentLine(
+				this.theme.fg('text', `  Filter: ${this.pickerFilter || '(type to filter)'}`),
+				inner
+			),
 			this.contentLine('', inner),
 		];
 
 		// Fixed footer (always rendered)
 		const footer: string[] = [
-			this.contentLine(this.theme.fg('dim', '  [↑↓] Navigate  [Enter] Select  [Esc] Back  [Backspace] Filter'), inner),
+			this.contentLine(
+				this.theme.fg('dim', '  [↑↓] Navigate  [Enter] Select  [Esc] Back  [Backspace] Filter'),
+				inner
+			),
 			buildBottomBorder(width),
 		];
 
@@ -519,12 +558,19 @@ export class ChainEditorOverlay implements Component, Focusable {
 			const marker = selected ? this.theme.fg('accent', '► ') : '  ';
 			const model = agent.model ? this.theme.fg('dim', ` [${agent.model}]`) : '';
 			content.push(this.contentLine(`${marker}${this.theme.bold(agent.name)}${model}`, inner));
-			content.push(this.contentLine(this.theme.fg('muted', `   ${agent.description || ''}`), inner));
+			content.push(
+				this.contentLine(this.theme.fg('muted', `   ${agent.description || ''}`), inner)
+			);
 			content.push(this.contentLine('', inner));
 		}
 
 		if (endIdx < filtered.length) {
-			content.push(this.contentLine(this.theme.fg('dim', `  ↓ ${filtered.length - endIdx} more below`), inner));
+			content.push(
+				this.contentLine(
+					this.theme.fg('dim', `  ↓ ${filtered.length - endIdx} more below`),
+					inner
+				)
+			);
 		}
 
 		return [...header, ...content, ...footer];

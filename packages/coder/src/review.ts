@@ -124,9 +124,9 @@ function buildReviewPrompt(context: string, diff: string, stats: DiffStats): str
 // ── Main Handler ──
 
 export async function handleReview(
-	args: string,
+	_args: string,
 	ctx: ExtensionCommandContext,
-	pi: ExtensionAPI,
+	pi: ExtensionAPI
 ): Promise<void> {
 	// Non-interactive fallback
 	if (!ctx.hasUI) {

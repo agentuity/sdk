@@ -95,7 +95,9 @@ export class HubClient {
 			const dropped = this.queue.shift();
 			if (dropped?.kind === 'request') {
 				clearTimeout(dropped.queueTimer);
-				dropped.reject(new Error('Dropped queued request because queue reached maximum capacity'));
+				dropped.reject(
+					new Error('Dropped queued request because queue reached maximum capacity')
+				);
 			}
 			log(`Queue full (${MAX_QUEUED_MESSAGES}); dropping oldest queued message`);
 		}
@@ -114,7 +116,9 @@ export class HubClient {
 				if (entry) {
 					this.pending.delete(request.id);
 					entry.reject(
-						new Error(`Hub response timeout after ${SEND_TIMEOUT_MS}ms for request ${request.id}`),
+						new Error(
+							`Hub response timeout after ${SEND_TIMEOUT_MS}ms for request ${request.id}`
+						)
 					);
 				}
 			}, SEND_TIMEOUT_MS);
@@ -206,14 +210,16 @@ export class HubClient {
 			if (this.reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
 				log(`Reconnect failed after ${RECONNECT_MAX_ATTEMPTS} attempts; giving up`);
 				this.reconnectTimer = null;
-				this.rejectQueuedRequests('Reconnect attempts exhausted before queued request could be sent');
+				this.rejectQueuedRequests(
+					'Reconnect attempts exhausted before queued request could be sent'
+				);
 				return;
 			}
 
 			const attempt = this.reconnectAttempts + 1;
 			const delay = Math.min(
 				RECONNECT_MAX_DELAY_MS,
-				RECONNECT_BASE_DELAY_MS * 2 ** this.reconnectAttempts,
+				RECONNECT_BASE_DELAY_MS * 2 ** this.reconnectAttempts
 			);
 			const jitter = Math.floor(Math.random() * (RECONNECT_JITTER_MAX_MS + 1));
 			const waitMs = delay + jitter;
@@ -221,7 +227,7 @@ export class HubClient {
 			this.setConnectionState('reconnecting');
 			log(
 				`Reconnect attempt ${attempt}/${RECONNECT_MAX_ATTEMPTS} in ${waitMs}ms ` +
-					`(base=${delay}ms, jitter=${jitter}ms)`,
+					`(base=${delay}ms, jitter=${jitter}ms)`
 			);
 
 			this.reconnectTimer = setTimeout(async () => {
@@ -240,7 +246,7 @@ export class HubClient {
 					log(
 						`Reconnect attempt ${attempt} failed: ${
 							err instanceof Error ? err.message : String(err)
-						}`,
+						}`
 					);
 					attemptReconnect();
 				}
@@ -282,34 +288,45 @@ export class HubClient {
 					return;
 				}
 
-					// First message should be init
-					if (data.type === 'init' && !initResolved) {
-						initResolved = true;
-						clearTimeout(connectTimer);
-						const initMessage = data as unknown as InitMessage;
-						this.onInitMessage?.(initMessage);
-						this.setConnectionState('connected');
-						void this.flushQueue();
-						resolve(initMessage);
-						return;
-					}
+				// First message should be init
+				if (data.type === 'init' && !initResolved) {
+					initResolved = true;
+					clearTimeout(connectTimer);
+					const initMessage = data as unknown as InitMessage;
+					this.onInitMessage?.(initMessage);
+					this.setConnectionState('connected');
+					void this.flushQueue();
+					resolve(initMessage);
+					return;
+				}
 
-					// Explicit server-side rejection before init (expired session, duplicate lead, etc.)
-					if (!initResolved && data.type === 'connection_rejected') {
-						clearTimeout(connectTimer);
-						this.intentionallyClosed = true;
-						const code = typeof data.code === 'string' ? data.code : 'unknown';
-						const message = typeof data.message === 'string' ? data.message : 'Connection rejected';
-						reject(new Error(`Hub rejected connection (${code}): ${message}`));
-						try { this.ws?.close(); } catch { /* ignore */ }
-						return;
+				// Explicit server-side rejection before init (expired session, duplicate lead, etc.)
+				if (!initResolved && data.type === 'connection_rejected') {
+					clearTimeout(connectTimer);
+					this.intentionallyClosed = true;
+					const code = typeof data.code === 'string' ? data.code : 'unknown';
+					const message =
+						typeof data.message === 'string' ? data.message : 'Connection rejected';
+					reject(new Error(`Hub rejected connection (${code}): ${message}`));
+					try {
+						this.ws?.close();
+					} catch {
+						/* ignore */
 					}
+					return;
+				}
 
 				// Unsolicited server messages (broadcast, presence, hydration)
 				// These have a `type` field but no `id` matching a pending request.
 				const msgType = data.type as string | undefined;
-				if (msgType === 'broadcast' || msgType === 'presence' || msgType === 'session_hydration'
-				|| msgType === 'rpc_event' || msgType === 'rpc_response' || msgType === 'rpc_ui_request') {
+				if (
+					msgType === 'broadcast' ||
+					msgType === 'presence' ||
+					msgType === 'session_hydration' ||
+					msgType === 'rpc_event' ||
+					msgType === 'rpc_response' ||
+					msgType === 'rpc_ui_request'
+				) {
 					this.onServerMessage?.(data);
 					return;
 				}
@@ -335,15 +352,19 @@ export class HubClient {
 				reject(new Error(`WebSocket error: ${message}`));
 			};
 
-				ws.onclose = (event: CloseEvent) => {
-					clearTimeout(connectTimer);
-					if (!initResolved) {
-						const reason = event.reason ? ` (${event.reason})` : '';
-						reject(new Error(`WebSocket closed before init message received (code ${event.code})${reason}`));
-					}
-					if (isReconnect) {
-						this.setConnectionState('disconnected');
-					}
+			ws.onclose = (event: CloseEvent) => {
+				clearTimeout(connectTimer);
+				if (!initResolved) {
+					const reason = event.reason ? ` (${event.reason})` : '';
+					reject(
+						new Error(
+							`WebSocket closed before init message received (code ${event.code})${reason}`
+						)
+					);
+				}
+				if (isReconnect) {
+					this.setConnectionState('disconnected');
+				}
 				this.handleUnexpectedClose();
 			};
 		});
@@ -422,8 +443,8 @@ export class HubClient {
 						this.queue = this.queue.filter((item) => item !== queuedEntry);
 						reject(
 							new Error(
-								`Timed out waiting ${QUEUED_REQUEST_TIMEOUT_MS}ms for Hub reconnection`,
-							),
+								`Timed out waiting ${QUEUED_REQUEST_TIMEOUT_MS}ms for Hub reconnection`
+							)
 						);
 					}, QUEUED_REQUEST_TIMEOUT_MS),
 				};

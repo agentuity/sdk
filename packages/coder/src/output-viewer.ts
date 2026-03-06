@@ -91,7 +91,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 		theme: Theme,
 		results: StoredResult[],
 		done: DoneFn,
-		startIndex?: number,
+		startIndex?: number
 	) {
 		this.tui = tui;
 		this.theme = theme;
@@ -304,14 +304,13 @@ export class OutputViewerOverlay implements Component, Focusable {
 		const nameLabel = result.description
 			? `${result.agentName} - ${result.description}`
 			: result.agentName;
-		const posLabel = this.results.length > 1
-			? `${nameLabel}${streamLabel} (${this.currentIndex + 1} of ${this.results.length})`
-			: `${nameLabel}${streamLabel}`;
+		const posLabel =
+			this.results.length > 1
+				? `${nameLabel}${streamLabel} (${this.currentIndex + 1} of ${this.results.length})`
+				: `${nameLabel}${streamLabel}`;
 		const titleLabel = this.viewMode === 'prompt' ? `${posLabel} [PROMPT]` : posLabel;
 
-		const header: string[] = [
-			buildTopBorder(safeWidth, titleLabel),
-		];
+		const header: string[] = [buildTopBorder(safeWidth, titleLabel)];
 
 		// Sub-header: token info or prompt-mode indicator
 		if (this.viewMode === 'prompt') {
@@ -324,8 +323,12 @@ export class OutputViewerOverlay implements Component, Focusable {
 		header.push(this.contentLine('', inner)); // padding line after header
 
 		// Footer with position indicator and new hints
-		const thinkingHint = result.thinking ? `[t] ${this.showThinking ? 'Hide' : 'Show'} thinking  ` : '';
-		const followHint = result.isStreaming ? `[f] ${this.following ? 'Unfollow' : 'Follow'}  ` : '';
+		const thinkingHint = result.thinking
+			? `[t] ${this.showThinking ? 'Hide' : 'Show'} thinking  `
+			: '';
+		const followHint = result.isStreaming
+			? `[f] ${this.following ? 'Unfollow' : 'Follow'}  `
+			: '';
 		const promptHint = result.prompt ? '[p] Prompt  ' : '';
 		const navHint = this.results.length > 1 ? '[<- ->] Switch  ' : '';
 
@@ -356,7 +359,13 @@ export class OutputViewerOverlay implements Component, Focusable {
 		const vimHint = totalLines > contentBudget ? '[g/G] Top/Bot  [{/}] Jump  ' : '';
 		const footer: string[] = [
 			this.contentLine('', inner), // padding line before footer
-			this.contentLine(this.theme.fg('dim', `   ${posInfo}${vimHint}[Up/Dn] Scroll  ${thinkingHint}${followHint}${promptHint}${navHint}[Esc] Close`), inner),
+			this.contentLine(
+				this.theme.fg(
+					'dim',
+					`   ${posInfo}${vimHint}[Up/Dn] Scroll  ${thinkingHint}${followHint}${promptHint}${navHint}[Esc] Close`
+				),
+				inner
+			),
 			buildBottomBorder(safeWidth),
 		];
 
@@ -365,26 +374,33 @@ export class OutputViewerOverlay implements Component, Focusable {
 		// Scroll indicator: above
 		const aboveCount = this.scrollOffset;
 		if (aboveCount > 0) {
-			content.push(this.contentLine(this.theme.fg('dim', `   ^ ${aboveCount} more above`), inner));
+			content.push(
+				this.contentLine(this.theme.fg('dim', `   ^ ${aboveCount} more above`), inner)
+			);
 		}
 
 		// Visible lines
-		const visibleBudget = aboveCount > 0
-			? contentBudget - 1 // reserve 1 line for "above" indicator
-			: contentBudget;
+		const visibleBudget =
+			aboveCount > 0
+				? contentBudget - 1 // reserve 1 line for "above" indicator
+				: contentBudget;
 		const belowCount = totalLines - this.scrollOffset - visibleBudget;
 		const actualVisible = belowCount > 0 ? visibleBudget - 1 : visibleBudget; // reserve 1 for "below"
 
 		const sliceEnd = Math.min(this.scrollOffset + actualVisible, totalLines);
 		for (let i = this.scrollOffset; i < sliceEnd; i++) {
 			const line = contentLines[i] ?? '';
-			content.push(this.contentLine('   ' + truncateToWidth(line, Math.max(0, inner - 3)), inner));
+			content.push(
+				this.contentLine('   ' + truncateToWidth(line, Math.max(0, inner - 3)), inner)
+			);
 		}
 
 		// Scroll indicator: below
 		const remainingBelow = totalLines - sliceEnd;
 		if (remainingBelow > 0) {
-			content.push(this.contentLine(this.theme.fg('dim', `   v ${remainingBelow} more below`), inner));
+			content.push(
+				this.contentLine(this.theme.fg('dim', `   v ${remainingBelow} more below`), inner)
+			);
 		}
 
 		const lines = [...header, ...content, ...footer];

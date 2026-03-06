@@ -51,7 +51,9 @@ export interface RpcResponse {
 export type RemoteEventHandler = (event: RpcEvent) => void;
 export type RemoteResponseHandler = (response: RpcResponse) => void;
 export type RemoteUiHandler = (request: RpcUiRequest) => Promise<unknown>;
-export type RemoteConnectionHandler = (state: 'connected' | 'reconnecting' | 'disconnected') => void;
+export type RemoteConnectionHandler = (
+	state: 'connected' | 'reconnecting' | 'disconnected'
+) => void;
 
 // ── Remote Session Client ──
 
@@ -86,7 +88,9 @@ export class RemoteSession {
 
 	private dispatchEvent(event: RpcEvent): void {
 		for (const handler of this.eventHandlers) {
-			try { handler(event); } catch (err) {
+			try {
+				handler(event);
+			} catch (err) {
 				log(`Event handler error: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		}
@@ -94,7 +98,9 @@ export class RemoteSession {
 
 	private dispatchResponse(response: RpcResponse): void {
 		for (const handler of this.responseHandlers) {
-			try { handler(response); } catch (err) {
+			try {
+				handler(response);
+			} catch (err) {
 				log(`Response handler error: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		}
@@ -140,7 +146,9 @@ export class RemoteSession {
 			log(`${isReconnect ? 'Reconnecting' : 'Connecting'} to ${url.toString()}`);
 			// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
 			this.ws = this.apiKey
-				? new WebSocket(url.toString(), { headers: { 'x-agentuity-auth-api-key': this.apiKey } })
+				? new WebSocket(url.toString(), {
+						headers: { 'x-agentuity-auth-api-key': this.apiKey },
+					})
 				: new WebSocket(url.toString());
 
 			const connectTimeout = setTimeout(() => {
@@ -155,9 +163,10 @@ export class RemoteSession {
 			this.ws.onmessage = (event: MessageEvent) => {
 				let data: Record<string, unknown>;
 				try {
-					const raw = typeof event.data === 'string'
-						? event.data
-						: new TextDecoder().decode(event.data as ArrayBuffer);
+					const raw =
+						typeof event.data === 'string'
+							? event.data
+							: new TextDecoder().decode(event.data as ArrayBuffer);
 					data = JSON.parse(raw) as Record<string, unknown>;
 				} catch {
 					return;
@@ -189,7 +198,7 @@ export class RemoteSession {
 				// Format: { type: 'broadcast', event: '<name>', data: { ...payload } }
 				if (type === 'broadcast') {
 					const broadcastEvent = data.event as string;
-					const broadcastData = data.data as Record<string, unknown> ?? {};
+					const broadcastData = (data.data as Record<string, unknown>) ?? {};
 					if (broadcastEvent === 'rpc_event') {
 						const rpcEvent = broadcastData.event as RpcEvent;
 						if (rpcEvent) this.dispatchEvent({ ...rpcEvent, _source: 'live' } as RpcEvent);
@@ -206,7 +215,11 @@ export class RemoteSession {
 						// Lifecycle event broadcasts (agent_start, message_end, turn_start, etc.)
 						// The broadcastData IS the event payload with a `type` field matching broadcastEvent.
 						// Dispatch as a regular event so the TUI can render agent activity.
-						this.dispatchEvent({ type: broadcastEvent, ...broadcastData, _source: 'live' } as RpcEvent);
+						this.dispatchEvent({
+							type: broadcastEvent,
+							...broadcastData,
+							_source: 'live',
+						} as RpcEvent);
 					}
 					return;
 				}
@@ -237,8 +250,12 @@ export class RemoteSession {
 				if (type === 'session_hydration') {
 					// Pass through as an event so the extension can render it
 					for (const handler of this.eventHandlers) {
-						try { handler({ type: 'session_hydration', ...data }); } catch (err) {
-							log(`Hydration handler error: ${err instanceof Error ? err.message : String(err)}`);
+						try {
+							handler({ type: 'session_hydration', ...data });
+						} catch (err) {
+							log(
+								`Hydration handler error: ${err instanceof Error ? err.message : String(err)}`
+							);
 						}
 					}
 					return;
@@ -250,9 +267,7 @@ export class RemoteSession {
 			this.ws.onerror = (err: Event) => {
 				clearTimeout(connectTimeout);
 				if (!this.connected) {
-					const message = 'message' in err
-						? (err as ErrorEvent).message
-						: 'WebSocket error';
+					const message = 'message' in err ? (err as ErrorEvent).message : 'WebSocket error';
 					reject(new Error(message));
 				}
 			};
@@ -285,7 +300,7 @@ export class RemoteSession {
 
 		const delay = Math.min(
 			RECONNECT_BASE_MS * Math.pow(2, this.reconnectAttempts),
-			RECONNECT_MAX_MS,
+			RECONNECT_MAX_MS
 		);
 		this.reconnectAttempts++;
 		log(`Reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
@@ -305,7 +320,11 @@ export class RemoteSession {
 
 	private notifyConnectionChange(state: 'connected' | 'reconnecting' | 'disconnected'): void {
 		for (const handler of this.connectionHandlers) {
-			try { handler(state); } catch { /* ignore */ }
+			try {
+				handler(state);
+			} catch {
+				/* ignore */
+			}
 		}
 	}
 
@@ -315,10 +334,12 @@ export class RemoteSession {
 			log('Cannot send command — not connected');
 			return;
 		}
-		this.ws.send(JSON.stringify({
-			type: 'rpc_command',
-			command,
-		}));
+		this.ws.send(
+			JSON.stringify({
+				type: 'rpc_command',
+				command,
+			})
+		);
 	}
 
 	/** Send a user prompt to the remote sandbox */
@@ -382,7 +403,9 @@ export class RemoteSession {
 			const result = await this.uiHandler(request);
 			this.sendUiResponse(request.id, result);
 		} catch (err) {
-			log(`UI handler error for ${request.method}: ${err instanceof Error ? err.message : String(err)}`);
+			log(
+				`UI handler error for ${request.method}: ${err instanceof Error ? err.message : String(err)}`
+			);
 			this.sendUiResponse(request.id, null);
 		}
 	}
@@ -390,11 +413,13 @@ export class RemoteSession {
 	/** Send UI response back to sandbox */
 	private sendUiResponse(id: string, result: unknown): void {
 		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-		this.ws.send(JSON.stringify({
-			type: 'rpc_ui_response',
-			id,
-			result,
-		}));
+		this.ws.send(
+			JSON.stringify({
+				type: 'rpc_ui_response',
+				id,
+				result,
+			})
+		);
 	}
 }
 
@@ -413,7 +438,7 @@ export class RemoteSession {
 export async function setupRemoteMode(
 	pi: ExtensionAPI,
 	hubWsUrl: string,
-	sessionId: string,
+	sessionId: string
 ): Promise<RemoteSession> {
 	const remote = new RemoteSession(sessionId);
 
@@ -439,9 +464,8 @@ export async function setupRemoteMode(
 		if (!isStreaming && !messageBuffer) return;
 
 		// Show the most recent streaming text in a widget
-		const display = messageBuffer.length > 2000
-			? `...${messageBuffer.slice(-2000)}`
-			: messageBuffer;
+		const display =
+			messageBuffer.length > 2000 ? `...${messageBuffer.slice(-2000)}` : messageBuffer;
 
 		if (display) {
 			extensionCtxRef.ui.setWidget('remote_stream', display.split('\n'));
@@ -471,11 +495,13 @@ export async function setupRemoteMode(
 
 		switch (response.command) {
 			case 'get_state': {
-				const state = response.data as {
-					isStreaming?: boolean;
-					isWaitingForInput?: boolean;
-					sessionName?: string;
-				} | undefined;
+				const state = response.data as
+					| {
+							isStreaming?: boolean;
+							isWaitingForInput?: boolean;
+							sessionName?: string;
+					  }
+					| undefined;
 				if (state) {
 					isStreaming = !!state.isStreaming;
 					if (extensionCtxRef?.hasUI) {
@@ -487,17 +513,21 @@ export async function setupRemoteMode(
 							extensionCtxRef.ui.setStatus('remote_activity', 'idle');
 						}
 					}
-					log(`State hydrated: streaming=${state.isStreaming}, waiting=${state.isWaitingForInput}`);
+					log(
+						`State hydrated: streaming=${state.isStreaming}, waiting=${state.isWaitingForInput}`
+					);
 				}
 				break;
 			}
 
 			case 'get_messages': {
-				const messages = response.data as Array<{
-					role: string;
-					content?: string | Array<{ type: string; text?: string }>;
-					timestamp?: number;
-				}> | undefined;
+				const messages = response.data as
+					| Array<{
+							role: string;
+							content?: string | Array<{ type: string; text?: string }>;
+							timestamp?: number;
+					  }>
+					| undefined;
 				if (messages?.length) {
 					hydrateMessages(messages);
 				}
@@ -507,24 +537,30 @@ export async function setupRemoteMode(
 	});
 
 	// ── Hydrate message history into the TUI ──
-	function hydrateMessages(messages: Array<{
-		role: string;
-		content?: string | Array<{ type: string; text?: string }>;
-		timestamp?: number;
-	}>): void {
+	function hydrateMessages(
+		messages: Array<{
+			role: string;
+			content?: string | Array<{ type: string; text?: string }>;
+			timestamp?: number;
+		}>
+	): void {
 		// Show the last few messages as custom messages in the TUI
 		const recent = messages.slice(-20);
 		let hydrated = 0;
 
 		for (const msg of recent) {
-			const text = typeof msg.content === 'string'
-				? msg.content
-				: Array.isArray(msg.content)
+			const text =
+				typeof msg.content === 'string'
 					? msg.content
-						.filter((c): c is { type: string; text: string } => c.type === 'text' && typeof c.text === 'string')
-						.map((c) => c.text)
-						.join('\n')
-					: '';
+					: Array.isArray(msg.content)
+						? msg.content
+								.filter(
+									(c): c is { type: string; text: string } =>
+										c.type === 'text' && typeof c.text === 'string'
+								)
+								.map((c) => c.text)
+								.join('\n')
+						: '';
 
 			if (!text) continue;
 
@@ -573,15 +609,22 @@ export async function setupRemoteMode(
 				let finalContent = messageBuffer.trim();
 				if (!finalContent) {
 					// Lifecycle broadcasts include full message in the event payload
-					const msg = (event as Record<string, unknown>).message as Record<string, unknown> | undefined;
+					const msg = (event as Record<string, unknown>).message as
+						| Record<string, unknown>
+						| undefined;
 					if (msg) {
 						const content = msg.content;
 						if (typeof content === 'string') {
 							finalContent = content.trim();
 						} else if (Array.isArray(content)) {
 							finalContent = content
-								.filter((c: unknown): c is { type: string; text: string } =>
-									!!c && typeof c === 'object' && (c as Record<string, unknown>).type === 'text' && typeof (c as Record<string, unknown>).text === 'string')
+								.filter(
+									(c: unknown): c is { type: string; text: string } =>
+										!!c &&
+										typeof c === 'object' &&
+										(c as Record<string, unknown>).type === 'text' &&
+										typeof (c as Record<string, unknown>).text === 'string'
+								)
 								.map((c) => c.text)
 								.join('\n')
 								.trim();
@@ -590,7 +633,9 @@ export async function setupRemoteMode(
 				}
 
 				// Only display assistant messages (skip user message echoes)
-				const msgRole = ((event as Record<string, unknown>).message as Record<string, unknown> | undefined)?.role as string | undefined;
+				const msgRole = (
+					(event as Record<string, unknown>).message as Record<string, unknown> | undefined
+				)?.role as string | undefined;
 				if (finalContent && msgRole !== 'user') {
 					pi.sendMessage({
 						customType: 'remote_message',
@@ -679,12 +724,14 @@ export async function setupRemoteMode(
 
 			case 'session_hydration': {
 				// Hydrate conversation history from Hub
-				const entries = (event as Record<string, unknown>).entries as Array<{
-					type: string;
-					content?: string;
-					agent?: string;
-					timestamp?: number;
-				}> | undefined;
+				const entries = (event as Record<string, unknown>).entries as
+					| Array<{
+							type: string;
+							content?: string;
+							agent?: string;
+							timestamp?: number;
+					  }>
+					| undefined;
 				if (entries?.length) {
 					let hydrated = 0;
 					for (const entry of entries.slice(-30)) {
@@ -724,7 +771,10 @@ export async function setupRemoteMode(
 		if (!extensionCtxRef?.hasUI) return;
 		switch (state) {
 			case 'connected':
-				extensionCtxRef.ui.setStatus('remote_connection', `Remote: ${sessionId.slice(0, 16)}...`);
+				extensionCtxRef.ui.setStatus(
+					'remote_connection',
+					`Remote: ${sessionId.slice(0, 16)}...`
+				);
 				break;
 			case 'reconnecting':
 				extensionCtxRef.ui.setStatus('remote_connection', 'Reconnecting...');

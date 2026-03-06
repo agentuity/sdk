@@ -11,10 +11,7 @@
  *   [3] SwiftRaven — 3 observers watching, session label "SwiftRaven"
  */
 
-import type {
-	ExtensionContext,
-	ReadonlyFooterDataProvider,
-} from '@mariozechner/pi-coding-agent';
+import type { ExtensionContext, ReadonlyFooterDataProvider } from '@mariozechner/pi-coding-agent';
 
 const RESET = '\x1b[0m';
 const SEP = '>';
@@ -59,8 +56,16 @@ const FG_OBSERVER: RGB = [140, 180, 220];
 // ──────────────────────────────────────────────
 
 const SPINNER_FRAMES = [
-	'\u280B', '\u2819', '\u2839', '\u2838', '\u283C',
-	'\u2834', '\u2826', '\u2827', '\u2807', '\u280F',
+	'\u280B',
+	'\u2819',
+	'\u2839',
+	'\u2838',
+	'\u283C',
+	'\u2834',
+	'\u2826',
+	'\u2827',
+	'\u2807',
+	'\u280F',
 ];
 
 // ──────────────────────────────────────────────
@@ -120,12 +125,11 @@ function buildFooter(left: string, rightText: string, width: number): string {
 class FooterComponent {
 	private getText: (width: number) => string;
 	private _unsubscribeBranch?: () => void;
-	private _spinnerTimer: ReturnType<typeof setInterval> | null = null;
 
 	constructor(
 		getText: (width: number) => string,
 		footerData: ReadonlyFooterDataProvider,
-		cleanupSpinner: () => void,
+		cleanupSpinner: () => void
 	) {
 		this.getText = getText;
 		this._cleanupSpinner = cleanupSpinner;
@@ -188,7 +192,7 @@ function formatCost(n: number): string {
 export function setupCoderFooter(
 	ctx: ExtensionContext,
 	getHubStatus: () => HubStatus,
-	getObserverState?: () => ObserverState,
+	getObserverState?: () => ObserverState
 ): void {
 	if (!ctx.hasUI) return;
 
@@ -236,9 +240,7 @@ export function setupCoderFooter(
 			const leftParts: string[] = [];
 
 			// Brand (with spinner)
-			const brandChar = spinnerTimer
-				? SPINNER_FRAMES[spinnerFrame]!
-				: '\u2A3A';
+			const brandChar = spinnerTimer ? SPINNER_FRAMES[spinnerFrame]! : '\u2A3A';
 			leftParts.push(fg(FG_BRAND, ` ${brandChar}`));
 
 			// Branch
@@ -253,9 +255,7 @@ export function setupCoderFooter(
 			if (activeAgent) {
 				leftParts.push(fg(FG_AGENT, activeAgent));
 			} else {
-				const modelId = ctx.model
-					? String((ctx.model as { id?: string }).id ?? '?')
-					: '?';
+				const modelId = ctx.model ? String((ctx.model as { id?: string }).id ?? '?') : '?';
 				leftParts.push(fg(FG_MODEL, modelId));
 			}
 

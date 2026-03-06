@@ -28,7 +28,7 @@ const SessionListResponseSchema = z.array(
 		subAgentCount: z.number().describe('Number of sub-agents'),
 		observerCount: z.number().describe('Number of observers'),
 		participantCount: z.number().describe('Total participant count'),
-	}),
+	})
 );
 
 export const listSubcommand = createSubcommand({
@@ -60,7 +60,7 @@ export const listSubcommand = createSubcommand({
 		if (!hubUrl) {
 			tui.fatal(
 				'Could not find a running Coder Hub.\n\nEither:\n  - Start the Hub with: bun run dev\n  - Set AGENTUITY_CODER_HUB_URL environment variable\n  - Pass --hub-url flag',
-				ErrorCode.NETWORK_ERROR,
+				ErrorCode.NETWORK_ERROR
 			);
 			return [];
 		}
@@ -88,7 +88,7 @@ export const listSubcommand = createSubcommand({
 			if (!resp.ok) {
 				tui.fatal(
 					`Hub returned ${resp.status}: ${resp.statusText}. Is the Coder Hub running at ${hubUrl}?`,
-					ErrorCode.API_ERROR,
+					ErrorCode.API_ERROR
 				);
 				return [];
 			}
@@ -97,7 +97,7 @@ export const listSubcommand = createSubcommand({
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(
 				`Could not connect to Coder Hub at ${hubUrl}: ${msg}\n\nSet AGENTUITY_CODER_HUB_URL or start the Hub with: bun run dev`,
-				ErrorCode.NETWORK_ERROR,
+				ErrorCode.NETWORK_ERROR
 			);
 			return [];
 		}

@@ -271,10 +271,13 @@ interface MessageSegments {
 function summarizeArgs(value: unknown, maxWidth = 100): string {
 	if (!value || typeof value !== 'object') return '';
 	const args = value as Record<string, unknown>;
-	if (typeof args.command === 'string') return truncateToWidth(toSingleLine(args.command), maxWidth);
+	if (typeof args.command === 'string')
+		return truncateToWidth(toSingleLine(args.command), maxWidth);
 	if (typeof args.path === 'string') return truncateToWidth(toSingleLine(args.path), maxWidth);
-	if (typeof args.filePath === 'string') return truncateToWidth(toSingleLine(args.filePath), maxWidth);
-	if (typeof args.pattern === 'string') return truncateToWidth(toSingleLine(args.pattern), maxWidth);
+	if (typeof args.filePath === 'string')
+		return truncateToWidth(toSingleLine(args.filePath), maxWidth);
+	if (typeof args.pattern === 'string')
+		return truncateToWidth(toSingleLine(args.pattern), maxWidth);
 	try {
 		const raw = JSON.stringify(value);
 		return truncateToWidth(toSingleLine(raw), 100);
@@ -284,20 +287,26 @@ function summarizeArgs(value: unknown, maxWidth = 100): string {
 }
 
 function summarizeToolCall(name: string, argsRaw: unknown): string | null {
-	const args = argsRaw && typeof argsRaw === 'object' ? argsRaw as Record<string, unknown> : undefined;
+	const args =
+		argsRaw && typeof argsRaw === 'object' ? (argsRaw as Record<string, unknown>) : undefined;
 
 	if (name === 'task') {
 		const agent = typeof args?.subagent_type === 'string' ? args.subagent_type : '?';
-		const description = typeof args?.description === 'string'
-			? truncateToWidth(toSingleLine(args.description), 80)
-			: '';
+		const description =
+			typeof args?.description === 'string'
+				? truncateToWidth(toSingleLine(args.description), 80)
+				: '';
 		return description ? `${agent} - ${description}` : `${agent} - delegated task`;
 	}
 
 	if (name === 'parallel_tasks') {
 		const tasks = Array.isArray(args?.tasks) ? args.tasks : [];
 		const agents = tasks
-			.map((task) => task && typeof task === 'object' ? (task as Record<string, unknown>).subagent_type : undefined)
+			.map((task) =>
+				task && typeof task === 'object'
+					? (task as Record<string, unknown>).subagent_type
+					: undefined
+			)
 			.filter((agent): agent is string => typeof agent === 'string');
 		if (agents.length > 0) return agents.join(' + ');
 		return 'parallel delegated tasks';
@@ -483,8 +492,9 @@ export class HubOverlay implements Component, Focusable {
 		}
 
 		if (data === '3') {
-			const atSessionLevel = !!this.detailSessionId
-				&& (this.screen === 'detail' || (this.screen === 'feed' && this.feedScope === 'session'));
+			const atSessionLevel =
+				!!this.detailSessionId &&
+				(this.screen === 'detail' || (this.screen === 'feed' && this.feedScope === 'session'));
 			if (!atSessionLevel) return;
 
 			this.feedScope = 'session';
@@ -522,7 +532,10 @@ export class HubOverlay implements Component, Focusable {
 
 		if (matchesKey(data, 'r') || data.toLowerCase() === 'r') {
 			void this.refreshList();
-			if ((this.screen === 'detail' || this.screen === 'task' || this.screen === 'feed') && this.detailSessionId) {
+			if (
+				(this.screen === 'detail' || this.screen === 'task' || this.screen === 'feed') &&
+				this.detailSessionId
+			) {
 				void this.refreshDetail(this.detailSessionId);
 			}
 			return;
@@ -627,7 +640,11 @@ export class HubOverlay implements Component, Focusable {
 	}
 
 	private isSessionContext(): boolean {
-		return this.screen === 'detail' || this.screen === 'task' || (this.screen === 'feed' && this.feedScope === 'session');
+		return (
+			this.screen === 'detail' ||
+			this.screen === 'task' ||
+			(this.screen === 'feed' && this.feedScope === 'session')
+		);
 	}
 
 	private handleDetailInput(data: string): void {
@@ -704,9 +721,9 @@ export class HubOverlay implements Component, Focusable {
 		}
 
 		if (
-			this.feedScope === 'session'
-			&& this.feedViewMode === 'stream'
-			&& (matchesKey(data, 'enter') || matchesKey(data, 'v') || data.toLowerCase() === 'v')
+			this.feedScope === 'session' &&
+			this.feedViewMode === 'stream' &&
+			(matchesKey(data, 'enter') || matchesKey(data, 'v') || data.toLowerCase() === 'v')
 		) {
 			const tasks = this.getDetailTasks();
 			if (tasks.length > 0) {
@@ -922,7 +939,7 @@ export class HubOverlay implements Component, Focusable {
 		sessionId: string,
 		kind: 'output' | 'thinking',
 		chunk: string,
-		taskId?: string,
+		taskId?: string
 	): void {
 		if (!chunk) return;
 
@@ -958,7 +975,7 @@ export class HubOverlay implements Component, Focusable {
 		output: string,
 		thinking: string,
 		showThinking: boolean,
-		width: number,
+		width: number
 	): string[] {
 		const lines: string[] = [];
 
@@ -977,7 +994,10 @@ export class HubOverlay implements Component, Focusable {
 		return lines;
 	}
 
-	private buildTopTabs(active: 'detail' | 'feed' | 'events' | 'list', sessionTabs: boolean): string {
+	private buildTopTabs(
+		active: 'detail' | 'feed' | 'events' | 'list',
+		sessionTabs: boolean
+	): string {
 		const divider = this.theme.fg('dim', ' | ');
 		const tab = (key: string, label: string, isActive: boolean): string => {
 			const text = `[${key}] ${label}`;
@@ -1059,17 +1079,15 @@ export class HubOverlay implements Component, Focusable {
 
 		try {
 			const [detail, todosResponse] = await Promise.all([
-				this.fetchJson<HubSessionDetail>(
-					`/api/hub/session/${encodeURIComponent(sessionId)}`,
-				),
+				this.fetchJson<HubSessionDetail>(`/api/hub/session/${encodeURIComponent(sessionId)}`),
 				this.fetchJson<HubTodoListResponse>(
 					`/api/hub/session/${encodeURIComponent(sessionId)}/todos?includeTerminal=true&includeSync=true&limit=30`,
-					15_000,
+					15_000
 				).catch((err: any) => {
 					const isAbort = err?.name === 'AbortError' || err?.message?.includes('aborted');
 					return {
 						_fetchError: true,
-						message: isAbort ? 'Todos loading\u2026' : (err?.message || 'Failed to load todos'),
+						message: isAbort ? 'Todos loading\u2026' : err?.message || 'Failed to load todos',
 					} as any;
 				}),
 			]);
@@ -1089,7 +1107,9 @@ export class HubOverlay implements Component, Focusable {
 						? todosResponse.summary
 						: undefined;
 				detail.todosUnavailable = todosResponse.unavailable
-					? (typeof todosResponse.message === 'string' ? todosResponse.message : 'Task service unavailable')
+					? typeof todosResponse.message === 'string'
+						? todosResponse.message
+						: 'Task service unavailable'
 					: undefined;
 				// Cache successful todo data
 				if (detail.todos && detail.todos.length > 0) {
@@ -1121,7 +1141,9 @@ export class HubOverlay implements Component, Focusable {
 	private updateFeedFromList(sessions: HubSessionSummary[]): void {
 		if (this.previousDigests.size === 0) {
 			if (sessions.length > 0) {
-				this.pushFeed(`Loaded ${sessions.length} active session${sessions.length === 1 ? '' : 's'}`);
+				this.pushFeed(
+					`Loaded ${sessions.length} active session${sessions.length === 1 ? '' : 's'}`
+				);
 			}
 			for (const session of sessions) {
 				this.previousDigests.set(session.sessionId, {
@@ -1147,13 +1169,22 @@ export class HubOverlay implements Component, Focusable {
 				}
 				if (session.taskCount > prev.taskCount) {
 					const delta = session.taskCount - prev.taskCount;
-					this.pushFeed(`${label}: +${delta} task${delta === 1 ? '' : 's'}`, session.sessionId);
+					this.pushFeed(
+						`${label}: +${delta} task${delta === 1 ? '' : 's'}`,
+						session.sessionId
+					);
 				}
 				if (session.observerCount !== prev.observerCount) {
-					this.pushFeed(`${label}: observers ${prev.observerCount} -> ${session.observerCount}`, session.sessionId);
+					this.pushFeed(
+						`${label}: observers ${prev.observerCount} -> ${session.observerCount}`,
+						session.sessionId
+					);
 				}
 				if (session.subAgentCount !== prev.subAgentCount) {
-					this.pushFeed(`${label}: agents ${prev.subAgentCount} -> ${session.subAgentCount}`, session.sessionId);
+					this.pushFeed(
+						`${label}: agents ${prev.subAgentCount} -> ${session.subAgentCount}`,
+						session.sessionId
+					);
 				}
 			}
 
@@ -1227,7 +1258,7 @@ export class HubOverlay implements Component, Focusable {
 				{
 					headers: sseHeaders,
 					signal: controller.signal,
-				},
+				}
 			);
 
 			if (!response.ok || !response.body) {
@@ -1258,7 +1289,11 @@ export class HubOverlay implements Component, Focusable {
 		}
 	}
 
-	private consumeSseBuffer(sessionId: string, mode: 'summary' | 'full', rawBuffer: string): string {
+	private consumeSseBuffer(
+		sessionId: string,
+		mode: 'summary' | 'full',
+		rawBuffer: string
+	): string {
 		const normalized = rawBuffer.replace(/\r\n/g, '\n');
 		let cursor = 0;
 
@@ -1290,7 +1325,7 @@ export class HubOverlay implements Component, Focusable {
 		sessionId: string,
 		mode: 'summary' | 'full',
 		sseEvent: string,
-		dataText: string,
+		dataText: string
 	): void {
 		let payload: unknown = undefined;
 		if (dataText) {
@@ -1319,9 +1354,10 @@ export class HubOverlay implements Component, Focusable {
 			return;
 		}
 
-		const data = eventData && typeof eventData === 'object'
-			? eventData as Record<string, unknown>
-			: undefined;
+		const data =
+			eventData && typeof eventData === 'object'
+				? (eventData as Record<string, unknown>)
+				: undefined;
 		const taskId = typeof data?.taskId === 'string' ? data.taskId : undefined;
 
 		const text = this.formatEventFeedLine(sessionId, eventName, eventData);
@@ -1339,14 +1375,12 @@ export class HubOverlay implements Component, Focusable {
 
 		if (
 			this.detailSessionId === sessionId &&
-			(
-				eventName === 'session_join' ||
+			(eventName === 'session_join' ||
 				eventName === 'session_leave' ||
 				eventName === 'task_start' ||
 				eventName === 'task_complete' ||
 				eventName === 'task_error' ||
-				eventName === 'session_shutdown'
-			)
+				eventName === 'session_shutdown')
 		) {
 			void this.refreshDetail(sessionId);
 		}
@@ -1393,9 +1427,10 @@ export class HubOverlay implements Component, Focusable {
 		const sessionBuffer = this.getSessionBuffer(sessionId);
 		sessionBuffer.output = typeof stream.output === 'string' ? stream.output : '';
 		sessionBuffer.thinking = typeof stream.thinking === 'string' ? stream.thinking : '';
-		const taskStreams = stream.tasks && typeof stream.tasks === 'object'
-			? stream.tasks as Record<string, unknown>
-			: {};
+		const taskStreams =
+			stream.tasks && typeof stream.tasks === 'object'
+				? (stream.tasks as Record<string, unknown>)
+				: {};
 		for (const [taskId, rawBlock] of Object.entries(taskStreams)) {
 			if (!rawBlock || typeof rawBlock !== 'object') continue;
 			const block = rawBlock as Record<string, unknown>;
@@ -1406,10 +1441,16 @@ export class HubOverlay implements Component, Focusable {
 		return true;
 	}
 
-	private captureStreamContent(sessionId: string, eventName: string, eventData: unknown, taskId?: string): void {
-		const data = eventData && typeof eventData === 'object'
-			? eventData as Record<string, unknown>
-			: undefined;
+	private captureStreamContent(
+		sessionId: string,
+		eventName: string,
+		eventData: unknown,
+		taskId?: string
+	): void {
+		const data =
+			eventData && typeof eventData === 'object'
+				? (eventData as Record<string, unknown>)
+				: undefined;
 
 		if (eventName === 'message_update') {
 			const assistantMessageEvent = data?.assistantMessageEvent;
@@ -1472,11 +1513,16 @@ export class HubOverlay implements Component, Focusable {
 		}
 	}
 
-	private formatEventFeedLine(sessionId: string, eventName: string, eventData: unknown): string | null {
+	private formatEventFeedLine(
+		sessionId: string,
+		eventName: string,
+		eventData: unknown
+	): string | null {
 		const label = this.getSessionLabel(sessionId);
-		const data = eventData && typeof eventData === 'object'
-			? eventData as Record<string, unknown>
-			: undefined;
+		const data =
+			eventData && typeof eventData === 'object'
+				? (eventData as Record<string, unknown>)
+				: undefined;
 
 		if (eventName === 'task_start') {
 			const taskId = typeof data?.taskId === 'string' ? shortId(data.taskId) : 'task';
@@ -1498,14 +1544,19 @@ export class HubOverlay implements Component, Focusable {
 			return `${label}: ${role} ${eventName === 'session_join' ? 'joined' : 'left'}`;
 		}
 		if (eventName === 'agent_start' || eventName === 'agent_end') {
-			const agent = typeof data?.agentName === 'string'
-				? data.agentName
-				: typeof data?.agent === 'string'
-					? data.agent
-					: 'agent';
+			const agent =
+				typeof data?.agentName === 'string'
+					? data.agentName
+					: typeof data?.agent === 'string'
+						? data.agent
+						: 'agent';
 			return `${label}: ${agent} ${eventName === 'agent_start' ? 'started' : 'ended'}`;
 		}
-		if (eventName === 'session_complete' || eventName === 'session_error' || eventName === 'session_shutdown') {
+		if (
+			eventName === 'session_complete' ||
+			eventName === 'session_error' ||
+			eventName === 'session_shutdown'
+		) {
 			return `${label}: ${eventName}`;
 		}
 
@@ -1544,9 +1595,10 @@ export class HubOverlay implements Component, Focusable {
 	}
 
 	private formatStreamLine(eventName: string, eventData: unknown): string | null {
-		const data = eventData && typeof eventData === 'object'
-			? eventData as Record<string, unknown>
-			: undefined;
+		const data =
+			eventData && typeof eventData === 'object'
+				? (eventData as Record<string, unknown>)
+				: undefined;
 		const normalize = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
 		if (eventName === 'message_update') {
@@ -1579,9 +1631,12 @@ export class HubOverlay implements Component, Focusable {
 		}
 
 		if (eventName === 'tool_call') {
-			const name = typeof data?.name === 'string' ? data.name
-				: typeof data?.toolName === 'string' ? data.toolName
-					: 'tool';
+			const name =
+				typeof data?.name === 'string'
+					? data.name
+					: typeof data?.toolName === 'string'
+						? data.toolName
+						: 'tool';
 			const input = data?.args ?? data?.input;
 			const summarized = summarizeToolCall(name, input);
 			if (summarized) return summarized;
@@ -1590,19 +1645,25 @@ export class HubOverlay implements Component, Focusable {
 		}
 
 		if (eventName === 'tool_result') {
-			const name = typeof data?.name === 'string' ? data.name
-				: typeof data?.toolName === 'string' ? data.toolName
-					: 'tool';
+			const name =
+				typeof data?.name === 'string'
+					? data.name
+					: typeof data?.toolName === 'string'
+						? data.toolName
+						: 'tool';
 			const input = (data?.args ?? data?.input) as Record<string, unknown> | undefined;
 			if (name === 'task') {
 				const agent = typeof input?.subagent_type === 'string' ? input.subagent_type : 'agent';
-				const description = typeof input?.description === 'string'
-					? truncateToWidth(toSingleLine(input.description), 80)
-					: '';
+				const description =
+					typeof input?.description === 'string'
+						? truncateToWidth(toSingleLine(input.description), 80)
+						: '';
 				const header = description ? `${agent} - ${description}` : `${agent} - delegated task`;
 
 				const rawResult = extractToolResultText(data?.content);
-				const stats = rawResult.match(/_(\w+): (\d+)ms \| (\d+) in (\d+) out tokens \| \$([0-9.]+)_/);
+				const stats = rawResult.match(
+					/_(\w+): (\d+)ms \| (\d+) in (\d+) out tokens \| \$([0-9.]+)_/
+				);
 				if (stats) {
 					const durationMs = Number(stats[2] ?? 0);
 					const tokIn = stats[3] ?? '0';
@@ -1611,12 +1672,12 @@ export class HubOverlay implements Component, Focusable {
 					return `${header}\ndone ${formatDuration(durationMs)} ↑${tokIn} ↓${tokOut} $${cost}`;
 				}
 
-				const details = data?.details && typeof data.details === 'object'
-					? data.details as Record<string, unknown>
-					: undefined;
-				const duration = typeof details?.duration === 'number'
-					? ` ${formatDuration(details.duration)}`
-					: '';
+				const details =
+					data?.details && typeof data.details === 'object'
+						? (data.details as Record<string, unknown>)
+						: undefined;
+				const duration =
+					typeof details?.duration === 'number' ? ` ${formatDuration(details.duration)}` : '';
 				const failed = data?.isError === true || details?.error === true;
 				return `${header}\n${failed ? 'failed' : `done${duration}`}`;
 			}
@@ -1628,9 +1689,7 @@ export class HubOverlay implements Component, Focusable {
 			const status = typeof data?.status === 'string' ? data.status : 'progress';
 			const toolName = typeof data?.currentTool === 'string' ? data.currentTool : '';
 			const toolArgsRaw = typeof data?.currentToolArgs === 'string' ? data.currentToolArgs : '';
-			const toolArgs = toolArgsRaw
-				? truncateToWidth(normalize(toolArgsRaw), 80)
-				: '';
+			const toolArgs = toolArgsRaw ? truncateToWidth(normalize(toolArgsRaw), 80) : '';
 
 			// Deltas are already represented in rendered stream mode; skip them in event mode
 			// to avoid noisy, low-signal token lines.
@@ -1646,9 +1705,7 @@ export class HubOverlay implements Component, Focusable {
 			}
 
 			if (status === 'tool_end') {
-				return toolName
-					? `tool_result ${agent} ${toolName}`
-					: `tool_result ${agent}`;
+				return toolName ? `tool_result ${agent} ${toolName}` : `tool_result ${agent}`;
 			}
 
 			if (status === 'completed' || status === 'failed') {
@@ -1684,7 +1741,8 @@ export class HubOverlay implements Component, Focusable {
 
 		if (eventData !== undefined) {
 			try {
-				const serialized = typeof eventData === 'string' ? eventData : JSON.stringify(eventData);
+				const serialized =
+					typeof eventData === 'string' ? eventData : JSON.stringify(eventData);
 				if (serialized) {
 					const compact = truncateToWidth(serialized.replace(/\s+/g, ' ').trim(), 140);
 					return `${eventName} ${compact}`;
@@ -1716,10 +1774,19 @@ export class HubOverlay implements Component, Focusable {
 		} else if (this.listError) {
 			body.push(this.contentLine(this.theme.fg('error', `  ${this.listError}`), inner));
 		} else {
-			const updated = this.lastUpdatedAt ? `${formatClock(this.lastUpdatedAt)} updated` : 'not updated';
-			body.push(this.contentLine(this.theme.fg('muted', `  Active: ${this.sessions.length} sessions  ${updated}`), inner));
+			const updated = this.lastUpdatedAt
+				? `${formatClock(this.lastUpdatedAt)} updated`
+				: 'not updated';
+			body.push(
+				this.contentLine(
+					this.theme.fg('muted', `  Active: ${this.sessions.length} sessions  ${updated}`),
+					inner
+				)
+			);
 		}
-		body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+		body.push(
+			this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+		);
 		body.push(this.contentLine(this.theme.bold('  Teams / Observers'), inner));
 
 		if (this.sessions.length === 0 && !this.loadingList && !this.listError) {
@@ -1737,19 +1804,37 @@ export class HubOverlay implements Component, Focusable {
 				const label = session.label || shortId(session.sessionId);
 				const name = selected ? this.theme.bold(label) : label;
 				const statusColor =
-					session.status === 'running' ? 'success'
-						: session.status === 'error' || session.status === 'failed' ? 'error'
+					session.status === 'running'
+						? 'success'
+						: session.status === 'error' || session.status === 'failed'
+							? 'error'
 							: 'warning';
-				const status = this.theme.fg(statusColor as 'success' | 'error' | 'warning', session.status);
-				const self = this.currentSessionId === session.sessionId ? this.theme.fg('accent', ' (this)') : '';
+				const status = this.theme.fg(
+					statusColor as 'success' | 'error' | 'warning',
+					session.status
+				);
+				const self =
+					this.currentSessionId === session.sessionId
+						? this.theme.fg('accent', ' (this)')
+						: '';
 				const metrics = this.theme.fg(
 					'muted',
-					`obs:${session.observerCount} agents:${session.subAgentCount} tasks:${session.taskCount} ${formatRelative(session.createdAt)}`,
+					`obs:${session.observerCount} agents:${session.subAgentCount} tasks:${session.taskCount} ${formatRelative(session.createdAt)}`
 				);
-				body.push(this.contentLine(` ${marker} ${name}${self}  ${status} ${session.mode}  ${metrics}`, inner));
+				body.push(
+					this.contentLine(
+						` ${marker} ${name}${self}  ${status} ${session.mode}  ${metrics}`,
+						inner
+					)
+				);
 			}
 			if (end < this.sessions.length) {
-				body.push(this.contentLine(this.theme.fg('dim', `  ↓ ${this.sessions.length - end} more below`), inner));
+				body.push(
+					this.contentLine(
+						this.theme.fg('dim', `  ↓ ${this.sessions.length - end} more below`),
+						inner
+					)
+				);
 			}
 		}
 
@@ -1762,8 +1847,8 @@ export class HubOverlay implements Component, Focusable {
 		lines.push(
 			this.contentLine(
 				this.theme.fg('dim', '  [↑↓] Select  [Enter] Open  [r] Refresh  [Esc] Close'),
-				inner,
-			),
+				inner
+			)
 		);
 		lines.push(buildBottomBorder(width));
 		return lines.slice(0, maxLines);
@@ -1796,26 +1881,53 @@ export class HubOverlay implements Component, Focusable {
 
 			body.push(this.contentLine(this.theme.bold('  Overview'), inner));
 			body.push(this.contentLine(this.theme.fg('muted', `  ID: ${session.sessionId}`), inner));
-			body.push(this.contentLine(this.theme.fg('muted', `  Status: ${session.status}  Mode: ${session.mode}`), inner));
-			body.push(this.contentLine(this.theme.fg('muted', `  Created: ${formatRelative(session.createdAt)}`), inner));
+			body.push(
+				this.contentLine(
+					this.theme.fg('muted', `  Status: ${session.status}  Mode: ${session.mode}`),
+					inner
+				)
+			);
+			body.push(
+				this.contentLine(
+					this.theme.fg('muted', `  Created: ${formatRelative(session.createdAt)}`),
+					inner
+				)
+			);
 			body.push(
 				this.contentLine(
 					this.theme.fg(
 						'muted',
-						`  Participants: ${participants.length}  Tasks: ${tasks.length}  Active agents: ${activityEntries.length}`,
+						`  Participants: ${participants.length}  Tasks: ${tasks.length}  Active agents: ${activityEntries.length}`
 					),
-					inner,
-				),
+					inner
+				)
 			);
 			if (session.context?.branch) {
-				body.push(this.contentLine(this.theme.fg('muted', `  Branch: ${session.context.branch}`), inner));
+				body.push(
+					this.contentLine(
+						this.theme.fg('muted', `  Branch: ${session.context.branch}`),
+						inner
+					)
+				);
 			}
 			if (session.context?.workingDirectory) {
-				body.push(this.contentLine(this.theme.fg('muted', `  CWD: ${session.context.workingDirectory}`), inner));
+				body.push(
+					this.contentLine(
+						this.theme.fg('muted', `  CWD: ${session.context.workingDirectory}`),
+						inner
+					)
+				);
 			}
-			body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+			body.push(
+				this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+			);
 			body.push(this.contentLine(this.theme.bold('  Tasks'), inner));
-			body.push(this.contentLine(this.theme.fg('dim', '  Use ↑ and ↓ to move, Enter to open task view'), inner));
+			body.push(
+				this.contentLine(
+					this.theme.fg('dim', '  Use ↑ and ↓ to move, Enter to open task view'),
+					inner
+				)
+			);
 			if (tasks.length === 0) {
 				body.push(this.contentLine(this.theme.fg('dim', '  (no tasks yet)'), inner));
 			} else {
@@ -1826,26 +1938,37 @@ export class HubOverlay implements Component, Focusable {
 					const task = tasks[i]!;
 					const selected = i === this.selectedTaskIndex;
 					const statusColor =
-						task.status === 'completed' ? 'success'
-							: task.status === 'failed' ? 'error'
+						task.status === 'completed'
+							? 'success'
+							: task.status === 'failed'
+								? 'error'
 								: 'warning';
-					const status = this.theme.fg(statusColor as 'success' | 'error' | 'warning', task.status);
-					const prompt = task.prompt ? truncateToWidth(toSingleLine(task.prompt), Math.max(16, inner - 34)) : '';
+					const status = this.theme.fg(
+						statusColor as 'success' | 'error' | 'warning',
+						task.status
+					);
+					const prompt = task.prompt
+						? truncateToWidth(toSingleLine(task.prompt), Math.max(16, inner - 34))
+						: '';
 					const duration = typeof task.duration === 'number' ? ` ${task.duration}ms` : '';
 					const marker = selected ? this.theme.fg('accent', '›') : ' ';
 					body.push(
 						this.contentLine(
 							`${marker} ${shortId(task.taskId).padEnd(12)} ${task.agent.padEnd(9)} ${status}${duration} ${prompt}`,
-							inner,
-						),
+							inner
+						)
 					);
 				}
 			}
 
-			body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+			body.push(
+				this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+			);
 			body.push(this.contentLine(this.theme.bold('  Session Todos'), inner));
 			if (session.todosUnavailable) {
-				body.push(this.contentLine(this.theme.fg('warning', `  ${session.todosUnavailable}`), inner));
+				body.push(
+					this.contentLine(this.theme.fg('warning', `  ${session.todosUnavailable}`), inner)
+				);
 			} else {
 				const todos = session.todos ?? [];
 				const summary = session.todoSummary ?? {};
@@ -1853,50 +1976,72 @@ export class HubOverlay implements Component, Focusable {
 					this.contentLine(
 						this.theme.fg(
 							'dim',
-							`  open:${summary.open ?? 0} in_progress:${summary.in_progress ?? 0} done:${summary.done ?? 0} closed:${summary.closed ?? 0} cancelled:${summary.cancelled ?? 0}`,
+							`  open:${summary.open ?? 0} in_progress:${summary.in_progress ?? 0} done:${summary.done ?? 0} closed:${summary.closed ?? 0} cancelled:${summary.cancelled ?? 0}`
 						),
-						inner,
-					),
+						inner
+					)
 				);
 				if (todos.length === 0) {
 					body.push(
 						this.contentLine(
-							this.theme.fg('dim', `  (no todos linked to session ${shortId(session.sessionId)})`),
-							inner,
-						),
+							this.theme.fg(
+								'dim',
+								`  (no todos linked to session ${shortId(session.sessionId)})`
+							),
+							inner
+						)
 					);
 				} else {
 					for (const todo of todos.slice(0, 20)) {
 						const statusColor =
-							todo.status === 'done' ? 'success'
-								: todo.status === 'cancelled' || todo.status === 'closed' ? 'error'
-									: todo.status === 'in_progress' ? 'accent'
+							todo.status === 'done'
+								? 'success'
+								: todo.status === 'cancelled' || todo.status === 'closed'
+									? 'error'
+									: todo.status === 'in_progress'
+										? 'accent'
 										: 'warning';
-						const status = this.theme.fg(statusColor as 'success' | 'error' | 'warning' | 'accent', todo.status);
+						const status = this.theme.fg(
+							statusColor as 'success' | 'error' | 'warning' | 'accent',
+							todo.status
+						);
 						const details = [
 							typeof todo.priority === 'string' ? `prio:${todo.priority}` : undefined,
 							typeof todo.type === 'string' ? `type:${todo.type}` : undefined,
-							typeof todo.assignee === 'string' && todo.assignee.length > 0 ? `owner:${todo.assignee}` : undefined,
+							typeof todo.assignee === 'string' && todo.assignee.length > 0
+								? `owner:${todo.assignee}`
+								: undefined,
 							typeof todo.attachmentCount === 'number' && todo.attachmentCount > 0
 								? `att:${todo.attachmentCount}`
 								: undefined,
 						].filter((part): part is string => !!part);
-						const title = truncateToWidth(toSingleLine(todo.title || ''), Math.max(16, inner - 48));
-						const meta = details.length > 0 ? this.theme.fg('dim', ` ${details.join(' ')}`) : '';
+						const title = truncateToWidth(
+							toSingleLine(todo.title || ''),
+							Math.max(16, inner - 48)
+						);
+						const meta =
+							details.length > 0 ? this.theme.fg('dim', ` ${details.join(' ')}`) : '';
 						body.push(
 							this.contentLine(
 								`  ${shortId(todo.id).padEnd(12)} ${status} ${title}${meta}`,
-								inner,
-							),
+								inner
+							)
 						);
 					}
 					if (todos.length > 20) {
-						body.push(this.contentLine(this.theme.fg('dim', `  ... ${todos.length - 20} more todos`), inner));
+						body.push(
+							this.contentLine(
+								this.theme.fg('dim', `  ... ${todos.length - 20} more todos`),
+								inner
+							)
+						);
 					}
 				}
 			}
 
-			body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+			body.push(
+				this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+			);
 			body.push(this.contentLine(this.theme.bold('  Participants'), inner));
 			if (participants.length === 0) {
 				body.push(this.contentLine(this.theme.fg('dim', '  (none)'), inner));
@@ -1907,13 +2052,15 @@ export class HubOverlay implements Component, Focusable {
 					body.push(
 						this.contentLine(
 							`  ${participant.id.padEnd(12)} ${participant.role.padEnd(9)} ${(participant.transport || 'ws').padEnd(3)} ${when}${idle}`,
-							inner,
-						),
+							inner
+						)
 					);
 				}
 			}
 
-			body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+			body.push(
+				this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+			);
 			body.push(this.contentLine(this.theme.bold('  Agent Activity'), inner));
 			if (activityEntries.length === 0) {
 				body.push(this.contentLine(this.theme.fg('dim', '  (none)'), inner));
@@ -1934,20 +2081,24 @@ export class HubOverlay implements Component, Focusable {
 		if (this.detailScrollOffset > this.detailMaxScroll) {
 			this.detailScrollOffset = this.detailMaxScroll;
 		}
-		const windowedBody = body.slice(this.detailScrollOffset, this.detailScrollOffset + contentBudget);
+		const windowedBody = body.slice(
+			this.detailScrollOffset,
+			this.detailScrollOffset + contentBudget
+		);
 		lines.push(...windowedBody);
 		while (lines.length < maxLines - footerRows) {
 			lines.push(this.contentLine('', inner));
 		}
 
-		const scrollInfo = this.detailMaxScroll > 0
-			? this.theme.fg('dim', `  scroll ${this.detailScrollOffset}/${this.detailMaxScroll}`)
-			: this.theme.fg('dim', '  scroll 0/0');
+		const scrollInfo =
+			this.detailMaxScroll > 0
+				? this.theme.fg('dim', `  scroll ${this.detailScrollOffset}/${this.detailMaxScroll}`)
+				: this.theme.fg('dim', '  scroll 0/0');
 		lines.push(
 			this.contentLine(
 				`${scrollInfo}  ${this.theme.fg('dim', '[↑↓] Task  [j/k] Scroll  [Enter] Open  [r] Refresh  [Esc] Back')}`,
-				inner,
-			),
+				inner
+			)
 		);
 		lines.push(buildBottomBorder(width));
 		return lines.slice(0, maxLines);
@@ -1964,35 +2115,36 @@ export class HubOverlay implements Component, Focusable {
 			? `${this.feedViewMode === 'events' ? 'Session Events' : 'Session Feed'} ${shortId(this.getSessionLabel(this.detailSessionId!))}`
 			: 'Global Feed';
 		const entryBudget = Math.max(1, contentBudget - 2);
-		const sessionBuffer = scoped && this.detailSessionId ? this.sessionBuffers.get(this.detailSessionId) : undefined;
+		const sessionBuffer =
+			scoped && this.detailSessionId ? this.sessionBuffers.get(this.detailSessionId) : undefined;
 
 		lines.push(buildTopBorder(width, title));
 		lines.push(this.contentLine('', inner));
 		lines.push(
 			this.contentLine(
 				this.buildTopTabs(
+					scoped ? (this.feedViewMode === 'events' ? 'events' : 'feed') : 'feed',
 					scoped
-						? (this.feedViewMode === 'events' ? 'events' : 'feed')
-						: 'feed',
-					scoped,
 				),
-				inner,
-			),
+				inner
+			)
 		);
 		lines.push(
 			this.contentLine(
 				this.theme.fg(
 					'muted',
 					scoped
-						? (this.feedViewMode === 'stream'
-								? '  Streaming rendered session output (sub-agent style) — [v] task stream'
-								: '  Streaming full session events')
-						: '  Streaming event summaries across all sessions',
+						? this.feedViewMode === 'stream'
+							? '  Streaming rendered session output (sub-agent style) — [v] task stream'
+							: '  Streaming full session events'
+						: '  Streaming event summaries across all sessions'
 				),
-				inner,
-			),
+				inner
+			)
 		);
-		lines.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+		lines.push(
+			this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+		);
 
 		let contentLines: string[] = [];
 		if (scoped && this.feedViewMode === 'stream') {
@@ -2000,7 +2152,7 @@ export class HubOverlay implements Component, Focusable {
 				sessionBuffer?.output ?? '',
 				sessionBuffer?.thinking ?? '',
 				this.showFeedThinking,
-				Math.max(12, inner - 4),
+				Math.max(12, inner - 4)
 			);
 			if (contentLines.length === 0) {
 				contentLines = [this.theme.fg('dim', '(no streamed output yet)')];
@@ -2023,7 +2175,10 @@ export class HubOverlay implements Component, Focusable {
 			this.feedScrollOffset = this.feedMaxScroll;
 		}
 
-		const windowed = contentLines.slice(this.feedScrollOffset, this.feedScrollOffset + entryBudget);
+		const windowed = contentLines.slice(
+			this.feedScrollOffset,
+			this.feedScrollOffset + entryBudget
+		);
 		for (const line of windowed) {
 			lines.push(this.contentLine(`  ${line}`, inner));
 		}
@@ -2031,17 +2186,21 @@ export class HubOverlay implements Component, Focusable {
 			lines.push(this.contentLine('', inner));
 		}
 
-		const scrollInfo = this.feedMaxScroll > 0
-			? this.theme.fg('dim', `  scroll ${this.feedScrollOffset}/${this.feedMaxScroll}`)
-			: this.theme.fg('dim', '  scroll 0/0');
-		const thinkingHint = scoped && this.feedViewMode === 'stream' && sessionBuffer?.thinking ? '  [t] Thinking' : '';
+		const scrollInfo =
+			this.feedMaxScroll > 0
+				? this.theme.fg('dim', `  scroll ${this.feedScrollOffset}/${this.feedMaxScroll}`)
+				: this.theme.fg('dim', '  scroll 0/0');
+		const thinkingHint =
+			scoped && this.feedViewMode === 'stream' && sessionBuffer?.thinking
+				? '  [t] Thinking'
+				: '';
 		const taskHint = scoped && this.feedViewMode === 'stream' ? '  [v] Task view' : '';
 		const followHint = `  [f] ${this.feedFollowing ? 'Unfollow' : 'Follow'}`;
 		lines.push(
 			this.contentLine(
 				`${scrollInfo}  ${this.theme.fg('dim', `[↑↓] Scroll${thinkingHint}${taskHint}${followHint}  [r] Refresh  [Esc] Back`)}`,
-				inner,
-			),
+				inner
+			)
 		);
 		lines.push(buildBottomBorder(width));
 		return lines.slice(0, maxLines);
@@ -2055,9 +2214,7 @@ export class HubOverlay implements Component, Focusable {
 		const contentBudget = Math.max(5, maxLines - headerRows - footerRows);
 		const tasks = this.getDetailTasks();
 		const selected = tasks[this.selectedTaskIndex];
-		const title = selected
-			? `Task ${shortId(selected.taskId)} ${selected.agent}`
-			: 'Task Detail';
+		const title = selected ? `Task ${shortId(selected.taskId)} ${selected.agent}` : 'Task Detail';
 
 		lines.push(buildTopBorder(width, title));
 		lines.push(this.contentLine('', inner));
@@ -2067,32 +2224,45 @@ export class HubOverlay implements Component, Focusable {
 			body.push(this.contentLine(this.theme.fg('dim', '  No task selected'), inner));
 		} else {
 			body.push(this.contentLine(this.theme.bold('  Task Overview'), inner));
-			body.push(this.contentLine(this.theme.fg('muted', `  Task ID: ${selected.taskId}`), inner));
+			body.push(
+				this.contentLine(this.theme.fg('muted', `  Task ID: ${selected.taskId}`), inner)
+			);
 			body.push(this.contentLine(this.theme.fg('muted', `  Agent: ${selected.agent}`), inner));
 			body.push(this.contentLine(this.theme.fg('muted', `  Status: ${selected.status}`), inner));
 			if (typeof selected.duration === 'number') {
-				body.push(this.contentLine(this.theme.fg('muted', `  Duration: ${selected.duration}ms`), inner));
+				body.push(
+					this.contentLine(this.theme.fg('muted', `  Duration: ${selected.duration}ms`), inner)
+				);
 			}
 			if (selected.startedAt) {
-				body.push(this.contentLine(this.theme.fg('muted', `  Started: ${selected.startedAt}`), inner));
+				body.push(
+					this.contentLine(this.theme.fg('muted', `  Started: ${selected.startedAt}`), inner)
+				);
 			}
 			if (selected.completedAt) {
-				body.push(this.contentLine(this.theme.fg('muted', `  Completed: ${selected.completedAt}`), inner));
+				body.push(
+					this.contentLine(
+						this.theme.fg('muted', `  Completed: ${selected.completedAt}`),
+						inner
+					)
+				);
 			}
-			body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
+			body.push(
+				this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+			);
 			body.push(this.contentLine(this.theme.bold('  Prompt'), inner));
 
-			const wrappedPrompt = wrapText(selected.prompt || '(no prompt recorded)', Math.max(10, inner - 4));
+			const wrappedPrompt = wrapText(
+				selected.prompt || '(no prompt recorded)',
+				Math.max(10, inner - 4)
+			);
 			for (const wrapped of wrappedPrompt) {
 				body.push(this.contentLine(`  ${wrapped}`, inner));
 			}
-			body.push(this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner));
 			body.push(
-				this.contentLine(
-					this.theme.bold('  Task Output'),
-					inner,
-				),
+				this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
 			);
+			body.push(this.contentLine(this.theme.bold('  Task Output'), inner));
 
 			const taskBuffer = this.detailSessionId
 				? this.taskBuffers.get(this.getTaskFeedKey(this.detailSessionId, selected.taskId))
@@ -2102,15 +2272,10 @@ export class HubOverlay implements Component, Focusable {
 				taskBuffer?.output ?? '',
 				taskBuffer?.thinking ?? '',
 				this.showTaskThinking,
-				Math.max(12, inner - 4),
+				Math.max(12, inner - 4)
 			);
 			if (rendered.length === 0) {
-				body.push(
-					this.contentLine(
-						this.theme.fg('dim', '  (no task output yet)'),
-						inner,
-					),
-				);
+				body.push(this.contentLine(this.theme.fg('dim', '  (no task output yet)'), inner));
 			} else {
 				for (const line of rendered) {
 					body.push(this.contentLine(`  ${line}`, inner));
@@ -2132,20 +2297,23 @@ export class HubOverlay implements Component, Focusable {
 			lines.push(this.contentLine('', inner));
 		}
 
-		const scrollInfo = this.taskMaxScroll > 0
-			? this.theme.fg('dim', `  scroll ${this.taskScrollOffset}/${this.taskMaxScroll}`)
-			: this.theme.fg('dim', '  scroll 0/0');
-		const selectedTaskThinking = this.detailSessionId && selected
-			? this.taskBuffers.get(this.getTaskFeedKey(this.detailSessionId, selected.taskId))?.thinking
-			: '';
+		const scrollInfo =
+			this.taskMaxScroll > 0
+				? this.theme.fg('dim', `  scroll ${this.taskScrollOffset}/${this.taskMaxScroll}`)
+				: this.theme.fg('dim', '  scroll 0/0');
+		const selectedTaskThinking =
+			this.detailSessionId && selected
+				? this.taskBuffers.get(this.getTaskFeedKey(this.detailSessionId, selected.taskId))
+						?.thinking
+				: '';
 		const thinkingHint = selectedTaskThinking ? '  [t] Thinking' : '';
 		const followHint = `  [f] ${this.taskFollowing ? 'Unfollow' : 'Follow'}`;
-			lines.push(
-				this.contentLine(
-					`${scrollInfo}  ${this.theme.fg('dim', `[↑↓] Scroll  [[ and ]] Task${thinkingHint}${followHint}  [Esc] Back`)}`,
-					inner,
-				),
-			);
+		lines.push(
+			this.contentLine(
+				`${scrollInfo}  ${this.theme.fg('dim', `[↑↓] Scroll  [[ and ]] Task${thinkingHint}${followHint}  [Esc] Back`)}`,
+				inner
+			)
+		);
 		lines.push(buildBottomBorder(width));
 		return lines.slice(0, maxLines);
 	}
