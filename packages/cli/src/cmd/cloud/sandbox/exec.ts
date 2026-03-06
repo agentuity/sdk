@@ -15,6 +15,14 @@ const SandboxExecResponseSchema = z.object({
 	status: z.string().describe('Execution status'),
 	exitCode: z.number().optional().describe('Exit code (if completed)'),
 	durationMs: z.number().optional().describe('Duration in milliseconds (if completed)'),
+	stdout: z
+		.string()
+		.optional()
+		.describe('Standard output (only when separate streams are available)'),
+	stderr: z
+		.string()
+		.optional()
+		.describe('Standard error output (only when separate streams are available)'),
 	output: z.string().optional().describe('Combined stdout/stderr output'),
 });
 
@@ -68,16 +76,6 @@ export const execSubcommand = createCommand({
 		process.on('SIGINT', handleSignal);
 		process.on('SIGTERM', handleSignal);
 
-		const outputChunks: string[] = [];
-
-		// For JSON output, capture to buffer; otherwise stream to process
-		const stdout = options.json
-			? createCaptureStream((chunk) => outputChunks.push(chunk))
-			: process.stdout;
-		const stderr = options.json
-			? createCaptureStream((chunk) => outputChunks.push(chunk))
-			: process.stderr;
-
 		try {
 			const execution = await sandboxExecute(client, {
 				sandboxId: args.sandboxId,
@@ -98,24 +96,69 @@ export const execSubcommand = createCommand({
 			const isCombinedOutput =
 				stdoutStreamUrl && stderrStreamUrl && stdoutStreamUrl === stderrStreamUrl;
 
+			// Set up stream capture — in JSON mode, capture to buffers;
+			// when streams are separate, capture stdout/stderr independently
+			const outputChunks: string[] = [];
+			const stdoutChunks: string[] = [];
+			const stderrChunks: string[] = [];
+
+			let stdoutWritable: NodeJS.WritableStream;
+			let stderrWritable: NodeJS.WritableStream;
+
+			if (options.json) {
+				if (isCombinedOutput) {
+					// Combined stream: can't distinguish stdout from stderr
+					stdoutWritable = createCaptureStream((chunk) => outputChunks.push(chunk));
+					stderrWritable = createCaptureStream((chunk) => outputChunks.push(chunk));
+				} else {
+					// Separate streams: capture each independently and also to combined output
+					stdoutWritable = createCaptureStream((chunk) => {
+						stdoutChunks.push(chunk);
+						outputChunks.push(chunk);
+					});
+					stderrWritable = createCaptureStream((chunk) => {
+						stderrChunks.push(chunk);
+						outputChunks.push(chunk);
+					});
+				}
+			} else {
+				stdoutWritable = process.stdout;
+				stderrWritable = process.stderr;
+			}
+
 			if (isCombinedOutput) {
 				// Stream combined output to stdout only to avoid duplicates
 				logger.debug('using combined output stream (stdout === stderr): %s', stdoutStreamUrl);
 				streamPromises.push(
-					streamUrlToWritable(stdoutStreamUrl, stdout, streamAbortController.signal, logger)
+					streamUrlToWritable(
+						stdoutStreamUrl,
+						stdoutWritable,
+						streamAbortController.signal,
+						logger
+					)
 				);
 			} else {
 				if (stdoutStreamUrl) {
 					logger.debug('starting stdout stream from: %s', stdoutStreamUrl);
 					streamPromises.push(
-						streamUrlToWritable(stdoutStreamUrl, stdout, streamAbortController.signal, logger)
+						streamUrlToWritable(
+							stdoutStreamUrl,
+							stdoutWritable,
+							streamAbortController.signal,
+							logger
+						)
 					);
 				}
 
 				if (stderrStreamUrl) {
 					logger.debug('starting stderr stream from: %s', stderrStreamUrl);
 					streamPromises.push(
-						streamUrlToWritable(stderrStreamUrl, stderr, streamAbortController.signal, logger)
+						streamUrlToWritable(
+							stderrStreamUrl,
+							stderrWritable,
+							streamAbortController.signal,
+							logger
+						)
 					);
 				}
 			}
@@ -145,6 +188,10 @@ export const execSubcommand = createCommand({
 
 			const duration = Date.now() - started;
 			const output = outputChunks.join('');
+			const stdoutOutput =
+				!isCombinedOutput && stdoutStreamUrl ? stdoutChunks.join('') : undefined;
+			const stderrOutput =
+				!isCombinedOutput && stderrStreamUrl ? stderrChunks.join('') : undefined;
 
 			if (!options.json) {
 				if (finalExecution.exitCode === 0) {
@@ -163,6 +210,8 @@ export const execSubcommand = createCommand({
 				status: finalExecution.status,
 				exitCode: finalExecution.exitCode,
 				durationMs: finalExecution.durationMs,
+				stdout: options.json ? stdoutOutput : undefined,
+				stderr: options.json ? stderrOutput : undefined,
 				output: options.json ? output : undefined,
 			};
 		} finally {
