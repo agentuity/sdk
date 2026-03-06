@@ -44,7 +44,7 @@ import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('CacheManager', {
   handler: async (ctx, input) => {
-    // Store with custom TTL (minimum 60 seconds, maximum 90 days)
+    // Store with custom TTL (minimum 60 seconds, maximum 365 days)
     await ctx.kv.set('cache', 'api-response', responseData, {
       ttl: 3600,  // expires in 1 hour
       contentType: 'application/json',
@@ -193,10 +193,10 @@ const agent = createAgent('NamespaceManager', {
 |-------|----------|
 | `undefined` | Keys expire after 7 days (default) |
 | `null` or `0` | Keys never expire |
-| `>= 60` | Custom TTL in seconds (minimum 60 seconds, maximum 90 days) |
+| `>= 60` | Custom TTL in seconds (minimum 60 seconds, maximum 365 days) |
 
 <Callout type="info" title="TTL Limits">
-The minimum TTL is 60 seconds. The maximum is 90 days (7,776,000 seconds). Values outside this range will be rejected.
+The minimum TTL is 60 seconds. The maximum is 365 days (31,536,000 seconds). Values outside this range will be clamped to valid bounds. A TTL of 0 means the key never expires.
 </Callout>
 
 <Callout type="info" title="Sliding Expiration">
