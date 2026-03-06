@@ -18,6 +18,10 @@ const TaskCreateResponseSchema = z.object({
 		status: z.string().describe('Task status'),
 		priority: z.string().describe('Task priority'),
 		created_at: z.string().describe('Creation timestamp'),
+		tags: z
+			.array(z.object({ id: z.string(), name: z.string() }))
+			.optional()
+			.describe('Tags attached to the task'),
 	}),
 	attachment: z
 		.object({
@@ -46,6 +50,12 @@ export const createSubcommand = createCommand({
 				'cloud task create "Add dark mode" --type feature --created-id agent_001 --priority high --description "Implement dark mode toggle"'
 			),
 			description: 'Create a feature with priority and description',
+		},
+		{
+			command: getCommand(
+				'cloud task create "Fix login bug" --type bug --tag sandbox --tag regression'
+			),
+			description: 'Create a task with tags (auto-creates tags that do not exist)',
 		},
 		{
 			command: getCommand(
@@ -90,6 +100,10 @@ export const createSubcommand = createCommand({
 				.describe('initial task status (default: open)'),
 			parentId: z.string().optional().describe('parent task ID for subtasks'),
 			assignedId: z.string().optional().describe('ID of the assigned agent or user'),
+			tag: z
+				.array(z.string())
+				.optional()
+				.describe('tag name to attach (repeatable, auto-creates missing tags)'),
 			metadata: z.string().optional().describe('JSON metadata object'),
 			file: z.string().optional().describe('file path to attach to the task'),
 		}),
@@ -161,6 +175,28 @@ export const createSubcommand = createCommand({
 			project = { id: ctx.project.projectId, name: projectName };
 		}
 
+		// Resolve --tag names to tag IDs (auto-create missing tags)
+		let tag_ids: string[] | undefined;
+		if (opts.tag?.length) {
+			const { tags: existingTags } = await storage.listTags();
+			const resolvedIds: string[] = [];
+			for (const tagName of opts.tag) {
+				const byName = existingTags.find((t) => t.name.toLowerCase() === tagName.toLowerCase());
+				if (byName) {
+					resolvedIds.push(byName.id);
+				} else {
+					const byId = existingTags.find((t) => t.id === tagName);
+					if (byId) {
+						resolvedIds.push(byId.id);
+					} else {
+						const created = await storage.createTag(tagName);
+						resolvedIds.push(created.id);
+					}
+				}
+			}
+			tag_ids = resolvedIds;
+		}
+
 		const task = await storage.create({
 			title: args.title,
 			type: opts.type as TaskType,
@@ -172,6 +208,7 @@ export const createSubcommand = createCommand({
 			status: opts.status as TaskStatus,
 			parent_id: opts.parentId,
 			assigned_id: opts.assignedId,
+			tag_ids,
 			metadata,
 		});
 
@@ -228,6 +265,10 @@ export const createSubcommand = createCommand({
 				tableData['Description'] = task.description;
 			}
 
+			if (task.tags?.length) {
+				tableData['Tags'] = task.tags.map((t) => t.name).join(', ');
+			}
+
 			if (project) {
 				tableData['Project'] = project.name;
 			}
@@ -248,6 +289,9 @@ export const createSubcommand = createCommand({
 				status: task.status,
 				priority: task.priority,
 				created_at: task.created_at,
+				...(task.tags?.length
+					? { tags: task.tags.map((t) => ({ id: t.id, name: t.name })) }
+					: {}),
 			},
 			...(attachmentInfo ? { attachment: attachmentInfo } : {}),
 			durationMs,
