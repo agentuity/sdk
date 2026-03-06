@@ -277,16 +277,18 @@ describe('Agentuity Auth Schema', () => {
 	});
 
 	describe('apikey table specifics (configId / referenceId fix)', () => {
-		it('configId has a default value of "default"', () => {
+		it('configId is notNull with default literal "default"', () => {
 			const col = schema.apikey.configId;
 			expect(col.notNull).toBe(true);
 			expect(col.hasDefault).toBe(true);
+			expect(col.default).toBe('default');
 		});
 
-		it('referenceId has a default value', () => {
+		it('referenceId is notNull with default literal empty string', () => {
 			const col = schema.apikey.referenceId;
 			expect(col.notNull).toBe(true);
 			expect(col.hasDefault).toBe(true);
+			expect(col.default).toBe('');
 		});
 	});
 
