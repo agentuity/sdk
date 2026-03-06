@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter, cacheTaskId } from './util';
+import { createStorageAdapterOptionalOrg, cacheTaskId } from './util';
 import { getCommand } from '../../../command-prefix';
 
 const EntityRefSchema = z
@@ -18,6 +18,15 @@ const UserEntityRefSchema = z
 		type: z.enum(['human', 'agent']).optional(),
 	})
 	.optional();
+
+const SubtaskSchema = z.object({
+	id: z.string().describe('Subtask ID'),
+	title: z.string().describe('Subtask title'),
+	type: z.string().describe('Subtask type'),
+	status: z.string().describe('Subtask status'),
+	priority: z.string().describe('Subtask priority'),
+	assignee: UserEntityRefSchema.describe('Subtask assignee'),
+});
 
 const TaskGetResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -41,6 +50,7 @@ const TaskGetResponseSchema = z.object({
 		closed_date: z.string().optional().describe('Date task was closed'),
 		cancelled_date: z.string().optional().describe('Date task was cancelled'),
 	}),
+	subtasks: z.array(SubtaskSchema).optional().describe('Subtasks of this task'),
 	durationMs: z.number().describe('Operation duration in milliseconds'),
 });
 
@@ -60,27 +70,64 @@ export const getSubcommand = createCommand({
 			command: getCommand('cloud task get task_abc123 --json'),
 			description: 'Get task details as JSON',
 		},
+		{
+			command: getCommand('cloud task get task_abc123 --no-subtasks'),
+			description: 'Get task details without subtasks',
+		},
 	],
 	schema: {
 		args: z.object({
 			id: z.string().min(1).describe('the task ID to get'),
 		}),
+		options: z.object({
+			'no-subtasks': z.boolean().optional().describe('Do not show subtasks'),
+		}),
 		response: TaskGetResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, opts, options } = ctx;
 		const started = Date.now();
-		const storage = await createStorageAdapter(ctx);
+		const storage = await createStorageAdapterOptionalOrg(ctx);
 
 		const task = await storage.get(args.id);
-		const durationMs = Date.now() - started;
 
 		if (!task) {
 			tui.fatal(`Task not found: ${args.id}`);
 		}
 
 		await cacheTaskId(ctx, task.id);
+
+		// Fetch subtasks unless disabled
+		let subtasksList: {
+			id: string;
+			title: string;
+			type: string;
+			status: string;
+			priority: string;
+			assignee?: { id: string; name: string; type?: 'human' | 'agent' };
+		}[] = [];
+		let subtasksError: string | undefined;
+		if (!opts['no-subtasks']) {
+			try {
+				const subtasksResult = await storage.list({ parent_id: task.id });
+				subtasksList = subtasksResult.tasks.map((st) => ({
+					id: st.id,
+					title: st.title,
+					type: st.type,
+					status: st.status,
+					priority: st.priority,
+					assignee: st.assignee,
+				}));
+			} catch (err) {
+				subtasksError = err instanceof Error ? err.message : 'Failed to fetch subtasks';
+				if (!options.json) {
+					tui.warn(`Could not load subtasks: ${subtasksError}`);
+				}
+			}
+		}
+
+		const durationMs = Date.now() - started;
 
 		if (!options.json) {
 			const tableData: Record<string, string> = {
@@ -133,6 +180,21 @@ export const getSubcommand = createCommand({
 				tui.header('Metadata');
 				tui.json(task.metadata);
 			}
+
+			// Show subtasks
+			if (subtasksList.length > 0) {
+				tui.newline();
+				tui.header('Subtasks');
+				const subtaskRows = subtasksList.map((st) => ({
+					ID: st.id,
+					Title: st.title,
+					Type: st.type,
+					Status: st.status,
+					Priority: st.priority,
+					Assignee: st.assignee?.name ?? 'Unassigned',
+				}));
+				tui.table(subtaskRows, ['ID', 'Title', 'Type', 'Status', 'Priority', 'Assignee']);
+			}
 		}
 
 		return {
@@ -157,6 +219,8 @@ export const getSubcommand = createCommand({
 				closed_date: task.closed_date,
 				cancelled_date: task.cancelled_date,
 			},
+			subtasks: subtasksList.length > 0 ? subtasksList : undefined,
+			subtasksError,
 			durationMs,
 		};
 	},

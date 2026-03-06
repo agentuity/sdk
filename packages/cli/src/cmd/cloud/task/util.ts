@@ -36,6 +36,24 @@ export async function createStorageAdapter(ctx: TaskContext) {
 	return new TaskStorageService(baseUrl, adapter);
 }
 
+export async function createStorageAdapterOptionalOrg(ctx: TaskContext) {
+	const orgId =
+		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+
+	const headers: Record<string, string> = {
+		Authorization: `Bearer ${ctx.auth.apiKey}`,
+	};
+	if (orgId) {
+		headers['x-agentuity-orgid'] = orgId;
+	}
+
+	const adapter = createServerFetchAdapter({ headers }, ctx.logger);
+
+	const region = await getDefaultRegion(ctx.config?.name ?? defaultProfileName, ctx.config);
+	const baseUrl = getCatalystUrl(region, ctx.config?.overrides);
+	return new TaskStorageService(baseUrl, adapter);
+}
+
 export async function cacheTaskId(
 	ctx: {
 		config: Config | null;
