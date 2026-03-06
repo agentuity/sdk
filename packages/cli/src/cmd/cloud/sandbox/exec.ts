@@ -188,8 +188,10 @@ export const execSubcommand = createCommand({
 
 			const duration = Date.now() - started;
 			const output = outputChunks.join('');
-			const stdoutOutput = !isCombinedOutput ? stdoutChunks.join('') : undefined;
-			const stderrOutput = !isCombinedOutput ? stderrChunks.join('') : undefined;
+			const stdoutOutput =
+				!isCombinedOutput && stdoutStreamUrl ? stdoutChunks.join('') : undefined;
+			const stderrOutput =
+				!isCombinedOutput && stderrStreamUrl ? stderrChunks.join('') : undefined;
 
 			if (!options.json) {
 				if (finalExecution.exitCode === 0) {
