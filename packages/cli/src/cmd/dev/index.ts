@@ -1039,6 +1039,10 @@ export const command = createCommand({
 						if (shutdownRequested) {
 							return;
 						}
+						// Re-enter the main loop to re-typecheck and rebuild
+						// Without this, the code falls through and tries to start the server
+						// with the old/stale bundle instead of rebuilding first
+						continue;
 					}
 				} catch (error) {
 					tui.error(`Failed to build dev bundle: ${error}`);
