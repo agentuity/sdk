@@ -6,6 +6,7 @@ import * as tui from '../../../tui';
 const RegionSchema = z.object({
 	region: z.string().describe('Region code'),
 	description: z.string().describe('Human-readable region description'),
+	default: z.boolean().describe('Whether this is the default region'),
 });
 
 export const listSubcommand = createSubcommand({
@@ -31,11 +32,13 @@ export const listSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { regions, options } = ctx;
+		const { regions, options, config } = ctx;
+		const defaultRegion = config?.preferences?.region ?? null;
 
 		const result = regions.map((r) => ({
 			region: r.region,
 			description: r.description,
+			default: r.region === defaultRegion,
 		}));
 
 		if (!options.json) {
@@ -44,11 +47,13 @@ export const listSubcommand = createSubcommand({
 			const tableData = regions.map((r) => ({
 				Code: r.region,
 				Description: r.description,
+				Default: r.region === defaultRegion ? 'Yes' : '',
 			}));
 
 			tui.table(tableData, [
 				{ name: 'Code', alignment: 'left' },
 				{ name: 'Description', alignment: 'left' },
+				{ name: 'Default', alignment: 'center' },
 			]);
 		}
 
