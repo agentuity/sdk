@@ -26,6 +26,9 @@ export interface SearchResult {
 	match: Record<string, string[]>;
 }
 
+// Subsection titles that are cross-reference lists, not topical content
+const GENERIC_TITLES = new Set(['next steps', 'see also']);
+
 let index: MiniSearch<SearchEntry> | null = null;
 let indexPromise: Promise<MiniSearch<SearchEntry>> | null = null;
 
@@ -37,7 +40,7 @@ function getIndex(): Promise<MiniSearch<SearchEntry>> {
 			if (!res.ok) throw new Error(`Failed to load search index: ${res.status}`);
 			return res.json();
 		})
-		.then((data: { entries: SearchEntry[] }) => {
+		.then(async (data: { entries: SearchEntry[] }) => {
 			index = new MiniSearch<SearchEntry>({
 				fields: ['title', 'pageTitle', 'searchText'],
 				storeFields: ['id', 'title', 'pageTitle', 'section', 'url', 'snippet', 'isPageLevel'],
@@ -46,11 +49,18 @@ function getIndex(): Promise<MiniSearch<SearchEntry>> {
 					prefix: true,
 					fuzzy: (term: string) => (term.length <= 5 ? false : 0.2),
 					weights: { fuzzy: 0.5, prefix: 0.9 },
-					boostDocument: (_id, _term, storedFields) =>
-						storedFields?.isPageLevel ? 1.5 : 1,
+					boostDocument: (_id, _term, storedFields) => {
+						if (storedFields?.isPageLevel) return 1.5;
+						if (
+							!storedFields?.isPageLevel &&
+							GENERIC_TITLES.has((storedFields?.title as string)?.toLowerCase())
+						)
+							return 0.4;
+						return 1;
+					},
 				},
 			});
-			index.addAll(data.entries);
+			await index.addAllAsync(data.entries, { chunkSize: 50 });
 			return index;
 		})
 		.catch((err) => {
