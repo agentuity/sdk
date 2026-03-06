@@ -175,28 +175,6 @@ export const createSubcommand = createCommand({
 			project = { id: ctx.project.projectId, name: projectName };
 		}
 
-		// Resolve --tag names to tag IDs (auto-create missing tags)
-		let tag_ids: string[] | undefined;
-		if (opts.tag?.length) {
-			const { tags: existingTags } = await storage.listTags();
-			const resolvedIds: string[] = [];
-			for (const tagName of opts.tag) {
-				const byName = existingTags.find((t) => t.name.toLowerCase() === tagName.toLowerCase());
-				if (byName) {
-					resolvedIds.push(byName.id);
-				} else {
-					const byId = existingTags.find((t) => t.id === tagName);
-					if (byId) {
-						resolvedIds.push(byId.id);
-					} else {
-						const created = await storage.createTag(tagName);
-						resolvedIds.push(created.id);
-					}
-				}
-			}
-			tag_ids = resolvedIds;
-		}
-
 		const task = await storage.create({
 			title: args.title,
 			type: opts.type as TaskType,
@@ -208,7 +186,7 @@ export const createSubcommand = createCommand({
 			status: opts.status as TaskStatus,
 			parent_id: opts.parentId,
 			assigned_id: opts.assignedId,
-			tag_ids,
+			tag_ids: opts.tag,
 			metadata,
 		});
 
