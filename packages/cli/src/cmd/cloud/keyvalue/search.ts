@@ -25,14 +25,17 @@ export const searchSubcommand = createCommand({
 	idempotent: true,
 	examples: [
 		{
-			command: getCommand('kv search production user'),
+			command: getCommand('cloud kv search production user'),
 			description: 'Find all user-related keys',
 		},
 		{
-			command: getCommand('kv search cache session'),
+			command: getCommand('cloud kv search cache session'),
 			description: 'Find all session keys in cache',
 		},
-		{ command: getCommand('kv search staging config'), description: 'Find all config keys' },
+		{
+			command: getCommand('cloud kv search staging config'),
+			description: 'Find all config keys',
+		},
 	],
 	schema: {
 		args: z.object({

@@ -18,9 +18,12 @@ export const getSubcommand = createCommand({
 	requires: { auth: true, region: true },
 	optional: { project: true },
 	examples: [
-		{ command: getCommand('kv get production user:123'), description: 'Get user data' },
-		{ command: getCommand('kv get cache session:abc'), description: 'Get cached session' },
-		{ command: getCommand('kv get staging cache:homepage'), description: 'Get homepage cache' },
+		{ command: getCommand('cloud kv get production user:123'), description: 'Get user data' },
+		{ command: getCommand('cloud kv get cache session:abc'), description: 'Get cached session' },
+		{
+			command: getCommand('cloud kv get staging cache:homepage'),
+			description: 'Get homepage cache',
+		},
 	],
 	schema: {
 		args: z.object({

@@ -24,16 +24,16 @@ export const setSubcommand = createCommand({
 	examples: [
 		{
 			command: getCommand(
-				'kv set production user:123 \'{"name":"Alice","email":"alice@example.com"}\''
+				'cloud kv set production user:123 \'{"name":"Alice","email":"alice@example.com"}\''
 			),
 			description: 'Store user data',
 		},
 		{
-			command: getCommand('kv set cache session:abc "session-data-here" --ttl 3600'),
+			command: getCommand('cloud kv set cache session:abc "session-data-here" --ttl 3600'),
 			description: 'Store session with 1h TTL',
 		},
 		{
-			command: getCommand('kv set staging cache:homepage "<!DOCTYPE html>..." --ttl 600'),
+			command: getCommand('cloud kv set staging cache:homepage "<!DOCTYPE html>..." --ttl 600'),
 			description: 'Cache homepage for 10m',
 		},
 	],
@@ -42,6 +42,8 @@ export const setSubcommand = createCommand({
 			namespace: z.string().min(1).max(64).describe('the namespace name'),
 			key: z.string().min(1).max(64).describe('the key name'),
 			value: z.string().min(1).describe('the value'),
+		}),
+		options: z.object({
 			ttl: z.coerce
 				.number()
 				.refine((val) => val >= 0, {
@@ -54,11 +56,11 @@ export const setSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, opts, options } = ctx;
 		const started = Date.now();
 		const storage = await createStorageAdapter(ctx);
 		const contentType = isPossiblyJSON(args.value) ? 'application/json' : 'text/plain';
-		const ttl = args.ttl;
+		const ttl = opts?.ttl;
 		await storage.set(args.namespace, args.key, args.value, {
 			contentType,
 			ttl,

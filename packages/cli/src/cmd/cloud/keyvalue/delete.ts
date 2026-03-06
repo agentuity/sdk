@@ -19,10 +19,16 @@ export const deleteSubcommand = createCommand({
 	requires: { auth: true, region: true },
 	optional: { project: true },
 	examples: [
-		{ command: getCommand('kv delete production user:123'), description: 'Delete user data' },
-		{ command: getCommand('kv delete cache session:abc'), description: 'Delete cached session' },
 		{
-			command: getCommand('kv rm staging cache:homepage'),
+			command: getCommand('cloud kv delete production user:123'),
+			description: 'Delete user data',
+		},
+		{
+			command: getCommand('cloud kv delete cache session:abc'),
+			description: 'Delete cached session',
+		},
+		{
+			command: getCommand('cloud kv rm staging cache:homepage'),
 			description: 'Delete homepage cache (using alias)',
 		},
 	],
