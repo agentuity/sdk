@@ -145,6 +145,10 @@ export const KeyValueStatsSchema = z.object({
 		.number()
 		.optional()
 		.describe('Unix timestamp (milliseconds) when the namespace was last used.'),
+	internal: z
+		.boolean()
+		.optional()
+		.describe('Whether this namespace is system-managed (internal).'),
 });
 
 export type KeyValueStats = z.infer<typeof KeyValueStatsSchema>;
