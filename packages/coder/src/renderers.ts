@@ -472,8 +472,8 @@ function sessionTodoListRenderers(): ToolRenderers {
 				const lines = todos.slice(0, 20).map((todo) => {
 					const status = String(todo['status'] ?? 'open');
 					const marker =
-					status === 'done' || status === 'closed'
-						? theme.fg('success', '✓')
+						status === 'done' || status === 'closed'
+							? theme.fg('success', '✓')
 							: status === 'in_progress'
 								? theme.fg('accent', '●')
 								: status === 'cancelled'

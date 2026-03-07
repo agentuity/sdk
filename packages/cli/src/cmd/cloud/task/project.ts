@@ -135,7 +135,7 @@ const getProjectSubcommand = createCommand({
 			}
 
 			return { success: true, project, durationMs };
-		} catch (err) {
+		} catch (_err) {
 			const durationMs = Date.now() - started;
 			if (!options.json) {
 				tui.error(`Project not found: ${args.id}`);
@@ -182,7 +182,7 @@ const deleteProjectSubcommand = createCommand({
 			}
 
 			return { success: true, durationMs };
-		} catch (err) {
+		} catch (_err) {
 			const durationMs = Date.now() - started;
 			if (!options.json) {
 				tui.error(`Failed to delete project: ${args.id}`);

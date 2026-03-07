@@ -1993,14 +1993,14 @@ export class HubOverlay implements Component, Focusable {
 					);
 				} else {
 					for (const todo of todos.slice(0, 20)) {
-					const statusColor =
-						todo.status === 'done' || todo.status === 'closed'
-							? 'success'
-							: todo.status === 'cancelled'
-								? 'error'
-								: todo.status === 'in_progress'
-									? 'accent'
-									: 'warning';
+						const statusColor =
+							todo.status === 'done' || todo.status === 'closed'
+								? 'success'
+								: todo.status === 'cancelled'
+									? 'error'
+									: todo.status === 'in_progress'
+										? 'accent'
+										: 'warning';
 						const status = this.theme.fg(
 							statusColor as 'success' | 'error' | 'warning' | 'accent',
 							todo.status

@@ -150,19 +150,29 @@ const getUserSubcommand = createCommand({
 
 			if (!options.json) {
 				tui.table(
-					[{ id: user.id, name: user.name, type: (user as { type?: string }).type ?? 'human' }],
+					[
+						{
+							id: user.id,
+							name: user.name,
+							type: (user as { type?: string }).type ?? 'human',
+						},
+					],
 					['id', 'name', 'type'],
 					{ layout: 'vertical' }
 				);
 			}
 
 			return { success: true, user, durationMs };
-		} catch (err) {
+		} catch (_err) {
 			const durationMs = Date.now() - started;
 			if (!options.json) {
 				tui.error(`User not found: ${args.id}`);
 			}
-			return { success: false, user: { id: args.id, name: '', type: 'human' as const }, durationMs };
+			return {
+				success: false,
+				user: { id: args.id, name: '', type: 'human' as const },
+				durationMs,
+			};
 		}
 	},
 });
