@@ -32,6 +32,7 @@ import './src/test/middleware-patterns';
 import './src/test/evals';
 import './src/test/ai-sdk-gateway';
 import './src/test/session-agent-ids';
+import './src/test/sandbox-basic';
 
 const threadProvider = new InMemoryThreadProvider();
 

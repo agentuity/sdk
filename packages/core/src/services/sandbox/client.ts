@@ -1,7 +1,9 @@
 import {
 	ExecuteOptionsSchema as CoreExecuteOptionsSchema,
 	type SandboxCreateOptions,
+	type SandboxFileInfo,
 	type SandboxInfo,
+	type SandboxStatus,
 	type Execution,
 	type FileToWrite,
 	type SandboxRunOptions,
@@ -12,11 +14,21 @@ import type { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
 import { APIClient } from '../api.ts';
 import { getEnv } from '../env.ts';
-import { sandboxCreate, type SandboxCreateResponse } from './create.ts';
+import { sandboxCreate } from './create.ts';
 import { sandboxDestroy } from './destroy.ts';
 import { sandboxGet } from './get.ts';
 import { sandboxExecute } from './execute.ts';
-import { sandboxWriteFiles, sandboxReadFile } from './files.ts';
+import {
+	sandboxWriteFiles,
+	sandboxReadFile,
+	sandboxListFiles,
+	sandboxMkDir,
+	sandboxRmFile,
+	sandboxRmDir,
+	sandboxSetEnv,
+} from './files.ts';
+import { sandboxPause } from './pause.ts';
+import { sandboxResume } from './resume.ts';
 import { sandboxRun } from './run.ts';
 import { executionGet, type ExecutionInfo } from './execution.ts';
 import { createMinimalLogger } from '../logger.ts';
@@ -130,7 +142,7 @@ export const SandboxClientRunIOSchema = z.object({
 export type SandboxClientRunIO = z.infer<typeof SandboxClientRunIOSchema>;
 
 /**
- * A sandbox instance returned by SandboxClient.create()
+ * A sandbox instance returned by SandboxClient.create() or SandboxClient.connect()
  */
 export interface SandboxInstance {
 	/**
@@ -139,9 +151,9 @@ export interface SandboxInstance {
 	id: string;
 
 	/**
-	 * Sandbox status at creation time
+	 * Sandbox status at creation or connection time
 	 */
-	status: SandboxCreateResponse['status'];
+	status: SandboxStatus;
 
 	/**
 	 * URL to stream stdout output
@@ -174,14 +186,168 @@ export interface SandboxInstance {
 	readFile(path: string): Promise<ReadableStream<Uint8Array>>;
 
 	/**
+	 * List files in the sandbox workspace
+	 */
+	listFiles(path?: string): Promise<SandboxFileInfo[]>;
+
+	/**
+	 * Create a directory in the sandbox workspace
+	 */
+	mkDir(path: string, recursive?: boolean): Promise<void>;
+
+	/**
+	 * Remove a file from the sandbox workspace
+	 */
+	rmFile(path: string): Promise<void>;
+
+	/**
+	 * Remove a directory from the sandbox workspace
+	 */
+	rmDir(path: string, recursive?: boolean): Promise<void>;
+
+	/**
+	 * Set environment variables on the sandbox. Pass null to delete a variable.
+	 */
+	setEnv(env: Record<string, string | null>): Promise<Record<string, string>>;
+
+	/**
 	 * Get current sandbox information
 	 */
 	get(): Promise<SandboxInfo>;
 
 	/**
+	 * Pause the sandbox, creating a checkpoint of its current state
+	 */
+	pause(): Promise<void>;
+
+	/**
+	 * Resume the sandbox from a paused or evacuated state
+	 */
+	resume(): Promise<void>;
+
+	/**
 	 * Destroy the sandbox and release all resources
 	 */
 	destroy(): Promise<void>;
+}
+
+/**
+ * Creates the method implementations shared by both create() and connect().
+ * Modelled after the similar helper in packages/runtime/src/services/sandbox/http.ts.
+ */
+function createSandboxInstanceMethods(
+	client: APIClient,
+	sandboxId: string,
+	orgId?: string
+): Omit<
+	SandboxInstance,
+	'id' | 'status' | 'stdoutStreamUrl' | 'stderrStreamUrl' | 'auditStreamUrl'
+> {
+	return {
+		async execute(executeOptions: ExecuteOptions): Promise<Execution> {
+			const { pipe, ...coreOptions } = executeOptions;
+
+			const initialResult = await sandboxExecute(client, {
+				sandboxId,
+				options: coreOptions,
+				orgId,
+				signal: coreOptions.signal,
+			});
+
+			// If pipe options provided, stream the output to the writable streams
+			if (pipe) {
+				const streamPromises: Promise<void>[] = [];
+
+				if (pipe.stdout && initialResult.stdoutStreamUrl) {
+					streamPromises.push(
+						pipeStreamToWritable(
+							initialResult.stdoutStreamUrl,
+							pipe.stdout,
+							coreOptions.signal
+						)
+					);
+				}
+				if (pipe.stderr && initialResult.stderrStreamUrl) {
+					streamPromises.push(
+						pipeStreamToWritable(
+							initialResult.stderrStreamUrl,
+							pipe.stderr,
+							coreOptions.signal
+						)
+					);
+				}
+
+				// Wait for all streams to complete
+				if (streamPromises.length > 0) {
+					await Promise.all(streamPromises);
+				}
+			}
+
+			// Wait for execution to complete and get final result with exit code
+			const finalResult = await waitForExecution(
+				client,
+				initialResult.executionId,
+				orgId,
+				coreOptions.signal
+			);
+
+			return {
+				executionId: finalResult.executionId,
+				status: finalResult.status,
+				exitCode: finalResult.exitCode,
+				durationMs: finalResult.durationMs,
+				stdoutStreamUrl: initialResult.stdoutStreamUrl,
+				stderrStreamUrl: initialResult.stderrStreamUrl,
+			};
+		},
+
+		async writeFiles(files: FileToWrite[]): Promise<number> {
+			const result = await sandboxWriteFiles(client, { sandboxId, files, orgId });
+			return result.filesWritten;
+		},
+
+		async readFile(path: string): Promise<ReadableStream<Uint8Array>> {
+			return sandboxReadFile(client, { sandboxId, path, orgId });
+		},
+
+		async listFiles(path?: string): Promise<SandboxFileInfo[]> {
+			const result = await sandboxListFiles(client, { sandboxId, path, orgId });
+			return result.files;
+		},
+
+		async mkDir(path: string, recursive?: boolean): Promise<void> {
+			await sandboxMkDir(client, { sandboxId, path, recursive, orgId });
+		},
+
+		async rmFile(path: string): Promise<void> {
+			await sandboxRmFile(client, { sandboxId, path, orgId });
+		},
+
+		async rmDir(path: string, recursive?: boolean): Promise<void> {
+			await sandboxRmDir(client, { sandboxId, path, recursive, orgId });
+		},
+
+		async setEnv(env: Record<string, string | null>): Promise<Record<string, string>> {
+			const result = await sandboxSetEnv(client, { sandboxId, env, orgId });
+			return result.env;
+		},
+
+		async get(): Promise<SandboxInfo> {
+			return sandboxGet(client, { sandboxId, orgId });
+		},
+
+		async pause(): Promise<void> {
+			return sandboxPause(client, { sandboxId, orgId });
+		},
+
+		async resume(): Promise<void> {
+			return sandboxResume(client, { sandboxId, orgId });
+		},
+
+		async destroy(): Promise<void> {
+			return sandboxDestroy(client, { sandboxId, orgId });
+		},
+	};
 }
 
 /**
@@ -284,90 +450,13 @@ export class SandboxClient {
 			orgId: this.#orgId,
 		});
 
-		const sandboxId = response.sandboxId;
-		const client = this.#client;
-		const orgId = this.#orgId;
-
 		return {
-			id: sandboxId,
+			id: response.sandboxId,
 			status: response.status,
 			stdoutStreamUrl: response.stdoutStreamUrl,
 			stderrStreamUrl: response.stderrStreamUrl,
 			auditStreamUrl: response.auditStreamUrl,
-
-			async execute(executeOptions: ExecuteOptions): Promise<Execution> {
-				const { pipe, ...coreOptions } = executeOptions;
-
-				const initialResult = await sandboxExecute(client, {
-					sandboxId,
-					options: coreOptions,
-					orgId,
-					signal: coreOptions.signal,
-				});
-
-				// If pipe options provided, stream the output to the writable streams
-				if (pipe) {
-					const streamPromises: Promise<void>[] = [];
-
-					if (pipe.stdout && initialResult.stdoutStreamUrl) {
-						streamPromises.push(
-							pipeStreamToWritable(
-								initialResult.stdoutStreamUrl,
-								pipe.stdout,
-								coreOptions.signal
-							)
-						);
-					}
-					if (pipe.stderr && initialResult.stderrStreamUrl) {
-						streamPromises.push(
-							pipeStreamToWritable(
-								initialResult.stderrStreamUrl,
-								pipe.stderr,
-								coreOptions.signal
-							)
-						);
-					}
-
-					// Wait for all streams to complete
-					if (streamPromises.length > 0) {
-						await Promise.all(streamPromises);
-					}
-				}
-
-				// Wait for execution to complete and get final result with exit code
-				const finalResult = await waitForExecution(
-					client,
-					initialResult.executionId,
-					orgId,
-					coreOptions.signal
-				);
-
-				return {
-					executionId: finalResult.executionId,
-					status: finalResult.status,
-					exitCode: finalResult.exitCode,
-					durationMs: finalResult.durationMs,
-					stdoutStreamUrl: initialResult.stdoutStreamUrl,
-					stderrStreamUrl: initialResult.stderrStreamUrl,
-				};
-			},
-
-			async writeFiles(files: FileToWrite[]): Promise<number> {
-				const result = await sandboxWriteFiles(client, { sandboxId, files, orgId });
-				return result.filesWritten;
-			},
-
-			async readFile(path: string): Promise<ReadableStream<Uint8Array>> {
-				return sandboxReadFile(client, { sandboxId, path, orgId });
-			},
-
-			async get(): Promise<SandboxInfo> {
-				return sandboxGet(client, { sandboxId, orgId });
-			},
-
-			async destroy(): Promise<void> {
-				return sandboxDestroy(client, { sandboxId, orgId });
-			},
+			...createSandboxInstanceMethods(this.#client, response.sandboxId, this.#orgId),
 		};
 	}
 
@@ -431,5 +520,47 @@ export class SandboxClient {
 			orgId: this.#orgId,
 			signal,
 		});
+	}
+
+	/**
+	 * Get a full sandbox instance for an existing sandbox by ID.
+	 *
+	 * Unlike `get()` which returns read-only metadata, `connect()` returns
+	 * a `SandboxInstance` with `execute()`, `writeFiles()`, and all other
+	 * interaction methods — allowing you to resume working with a sandbox
+	 * using just its ID.
+	 *
+	 * @param sandboxId - The sandbox ID to connect to
+	 * @returns A sandbox instance with all interaction methods
+	 */
+	async connect(sandboxId: string): Promise<SandboxInstance> {
+		const info = await sandboxGet(this.#client, { sandboxId, orgId: this.#orgId });
+
+		return {
+			id: info.sandboxId,
+			status: info.status,
+			stdoutStreamUrl: info.stdoutStreamUrl,
+			stderrStreamUrl: info.stderrStreamUrl,
+			auditStreamUrl: info.auditStreamUrl,
+			...createSandboxInstanceMethods(this.#client, info.sandboxId, this.#orgId),
+		};
+	}
+
+	/**
+	 * Pause a running sandbox, creating a checkpoint of its current state
+	 *
+	 * @param sandboxId - The sandbox ID to pause
+	 */
+	async pause(sandboxId: string): Promise<void> {
+		return sandboxPause(this.#client, { sandboxId, orgId: this.#orgId });
+	}
+
+	/**
+	 * Resume a paused or evacuated sandbox from its checkpoint
+	 *
+	 * @param sandboxId - The sandbox ID to resume
+	 */
+	async resume(sandboxId: string): Promise<void> {
+		return sandboxResume(this.#client, { sandboxId, orgId: this.#orgId });
 	}
 }

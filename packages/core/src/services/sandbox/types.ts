@@ -339,10 +339,56 @@ export const SandboxSchema = z.object({
 	readFile: z
 		.custom<(path: string) => Promise<ReadableStream<Uint8Array>>>()
 		.describe('Read a file from the sandbox workspace.'),
+	/** List files in the sandbox workspace. */
+	listFiles: z
+		.custom<(path?: string) => Promise<SandboxFileInfo[]>>()
+		.describe('List files in the sandbox workspace.'),
+	/** Create a directory in the sandbox workspace. */
+	mkDir: z
+		.custom<(path: string, recursive?: boolean) => Promise<void>>()
+		.describe('Create a directory in the sandbox workspace.'),
+	/** Remove a file from the sandbox workspace. */
+	rmFile: z
+		.custom<(path: string) => Promise<void>>()
+		.describe('Remove a file from the sandbox workspace.'),
+	/** Remove a directory from the sandbox workspace. */
+	rmDir: z
+		.custom<(path: string, recursive?: boolean) => Promise<void>>()
+		.describe('Remove a directory from the sandbox workspace.'),
+	/** Set environment variables on the sandbox. Pass null to delete a variable. */
+	setEnv: z
+		.custom<(env: Record<string, string | null>) => Promise<Record<string, string>>>()
+		.describe('Set environment variables on the sandbox. Pass null to delete a variable.'),
+	/** Pause the sandbox, creating a checkpoint of its current state. */
+	pause: z
+		.custom<() => Promise<void>>()
+		.describe('Pause the sandbox, creating a checkpoint of its current state.'),
+	/** Resume the sandbox from a paused or evacuated state. */
+	resume: z
+		.custom<() => Promise<void>>()
+		.describe('Resume the sandbox from a paused or evacuated state.'),
 	/** Destroy the sandbox */
 	destroy: z.custom<() => Promise<void>>().describe('Destroy the sandbox'),
 });
 export type Sandbox = z.infer<typeof SandboxSchema>;
+
+/**
+ * File information returned by sandbox file operations.
+ * NOTE: This interface is structurally identical to FileInfo in ./files.ts.
+ * It is duplicated here to avoid circular type imports. Keep these in sync.
+ */
+export interface SandboxFileInfo {
+	/** File path relative to the listed directory */
+	path: string;
+	/** File size in bytes */
+	size: number;
+	/** Whether the entry is a directory */
+	isDir: boolean;
+	/** Unix permissions as octal string (e.g., "0644") */
+	mode: string;
+	/** Modification time in RFC3339 format */
+	modTime: string;
+}
 
 /** Information about a user who created the sandbox */
 export const SandboxUserInfoSchema = z.object({
@@ -785,9 +831,15 @@ export type SandboxRunResult = z.infer<typeof SandboxRunResultSchema>;
 export interface SandboxService {
 	run(options: SandboxRunOptions): Promise<SandboxRunResult>;
 	create(options?: SandboxCreateOptions): Promise<Sandbox>;
+	/** Get a full Sandbox instance for an existing sandbox by ID. */
+	connect(sandboxId: string): Promise<Sandbox>;
 	get(sandboxId: string): Promise<SandboxInfo>;
 	list(params?: ListSandboxesParams): Promise<ListSandboxesResponse>;
 	destroy(sandboxId: string): Promise<void>;
+	/** Pause a running sandbox, creating a checkpoint of its current state. */
+	pause(sandboxId: string): Promise<void>;
+	/** Resume a paused or evacuated sandbox from its checkpoint. */
+	resume(sandboxId: string): Promise<void>;
 	snapshot: SnapshotService;
 }
 
