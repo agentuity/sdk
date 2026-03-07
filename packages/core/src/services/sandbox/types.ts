@@ -363,6 +363,10 @@ export const SandboxSchema = z.object({
 	pause: z
 		.custom<() => Promise<void>>()
 		.describe('Pause the sandbox, creating a checkpoint of its current state.'),
+	/** Resume the sandbox from a paused or evacuated state. */
+	resume: z
+		.custom<() => Promise<void>>()
+		.describe('Resume the sandbox from a paused or evacuated state.'),
 	/** Destroy the sandbox */
 	destroy: z.custom<() => Promise<void>>().describe('Destroy the sandbox'),
 });

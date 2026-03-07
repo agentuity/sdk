@@ -221,6 +221,11 @@ export interface SandboxInstance {
 	pause(): Promise<void>;
 
 	/**
+	 * Resume the sandbox from a paused or evacuated state
+	 */
+	resume(): Promise<void>;
+
+	/**
 	 * Destroy the sandbox and release all resources
 	 */
 	destroy(): Promise<void>;
@@ -333,6 +338,10 @@ function createSandboxInstanceMethods(
 
 		async pause(): Promise<void> {
 			return sandboxPause(client, { sandboxId, orgId });
+		},
+
+		async resume(): Promise<void> {
+			return sandboxResume(client, { sandboxId, orgId });
 		},
 
 		async destroy(): Promise<void> {

@@ -217,6 +217,12 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 			);
 		},
 
+		async resume(): Promise<void> {
+			await withSpan('agentuity.sandbox.resume', { 'sandbox.id': sandboxId }, () =>
+				sandboxResume(client, { sandboxId })
+			);
+		},
+
 		async destroy(): Promise<void> {
 			await withSpan('agentuity.sandbox.destroy', { 'sandbox.id': sandboxId }, () =>
 				sandboxDestroy(client, { sandboxId })
