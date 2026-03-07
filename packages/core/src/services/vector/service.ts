@@ -341,6 +341,14 @@ export const VectorNamespaceStatsSchema = z.object({
 		.number()
 		.optional()
 		.describe('Unix timestamp (milliseconds) when the namespace was last used'),
+
+	/**
+	 * Whether this namespace is system-managed (internal)
+	 */
+	internal: z
+		.boolean()
+		.optional()
+		.describe('Whether this namespace is system-managed (internal).'),
 });
 
 export type VectorNamespaceStats = z.infer<typeof VectorNamespaceStatsSchema>;
