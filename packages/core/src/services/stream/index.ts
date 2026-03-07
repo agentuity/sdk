@@ -10,5 +10,8 @@ export {
 	type StreamListOptions,
 	streamList,
 } from './list.ts';
+export * from './namespaces.ts';
+export * from './delete.ts';
+export * from './search.ts';
 export * from './service.ts';
 export * from './util.ts';
