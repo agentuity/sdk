@@ -26,6 +26,8 @@ import type {
 	ListAttachmentsResult,
 	TaskActivityParams,
 	TaskActivityResult,
+	UserEntityRef,
+	EntityRef,
 } from '@agentuity/core';
 import { StructuredError } from '@agentuity/core';
 import { now } from './_util';
@@ -61,6 +63,20 @@ const TagNameRequiredError = StructuredError(
 const AttachmentNotSupportedError = StructuredError(
 	'AttachmentNotSupportedError',
 	'Attachments are not supported in local task storage'
+);
+
+const UserNotFoundError = StructuredError('UserNotFoundError', 'User not found');
+
+const UserNameRequiredError = StructuredError(
+	'UserNameRequiredError',
+	'User name is required and must be a non-empty string'
+);
+
+const ProjectNotFoundError = StructuredError('ProjectNotFoundError', 'Project not found');
+
+const ProjectNameRequiredError = StructuredError(
+	'ProjectNameRequiredError',
+	'Project name is required and must be a non-empty string'
 );
 
 type CommentRow = {
@@ -205,6 +221,14 @@ function generateTagId(): string {
 	return `tag_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
 }
 
+function generateUserId(): string {
+	return `usr_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
+}
+
+function generateProjectId(): string {
+	return `prj_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
+}
+
 function toChangelogEntry(row: TaskChangelogRow): TaskChangelogEntry {
 	return {
 		id: row.id,
@@ -237,7 +261,7 @@ export class LocalTaskStorage implements TaskStorage {
 		const priority: TaskPriority = params.priority ?? 'none';
 		const openDate = status === 'open' ? new Date(timestamp).toISOString() : null;
 		const inProgressDate = status === 'in_progress' ? new Date(timestamp).toISOString() : null;
-		const closedDate = status === 'closed' ? new Date(timestamp).toISOString() : null;
+		const closedDate = status === 'done' ? new Date(timestamp).toISOString() : null;
 
 		const stmt = this.#db.prepare(`
 			INSERT INTO task_storage (
@@ -472,7 +496,7 @@ export class LocalTaskStorage implements TaskStorage {
 				if (params.status === 'in_progress' && !existing.in_progress_date) {
 					updated.in_progress_date = nowIso;
 				}
-				if (params.status === 'closed' && !existing.closed_date) {
+				if (params.status === 'done' && !existing.closed_date) {
 					updated.closed_date = nowIso;
 				}
 			}
@@ -618,14 +642,14 @@ export class LocalTaskStorage implements TaskStorage {
 				throw new TaskNotFoundError();
 			}
 
-			if (existing.status === 'closed') {
+			if (existing.status === 'done') {
 				throw new TaskAlreadyClosedError();
 			}
 			const timestamp = now();
 			const nowIso = new Date(timestamp).toISOString();
 			const updated: TaskRow = {
 				...existing,
-				status: 'closed',
+				status: 'done',
 				closed_date: existing.closed_date ?? nowIso,
 				updated_at: timestamp,
 			};
@@ -718,9 +742,9 @@ export class LocalTaskStorage implements TaskStorage {
 
 		const updateStmt = this.#db.prepare(`
 			UPDATE task_storage
-			SET status = 'closed', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
-			WHERE project_path = ? AND id = ?
-		`);
+		SET status = 'done', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
+		WHERE project_path = ? AND id = ?
+	`);
 
 		updateStmt.run(new Date(timestamp).toISOString(), timestamp, this.#projectPath, id);
 
@@ -809,8 +833,8 @@ export class LocalTaskStorage implements TaskStorage {
 		const txn = this.#db.transaction(() => {
 			const updateStmt = this.#db.prepare(`
 				UPDATE task_storage
-				SET status = 'closed', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
-				WHERE project_path = ? AND id IN (${placeholders})
+			SET status = 'done', deleted = 1, closed_date = COALESCE(closed_date, ?), updated_at = ?
+			WHERE project_path = ? AND id IN (${placeholders})
 			`);
 			updateStmt.run(new Date(timestamp).toISOString(), timestamp, this.#projectPath, ...ids);
 
@@ -1110,11 +1134,145 @@ export class LocalTaskStorage implements TaskStorage {
 	}
 
 	async listUsers(): Promise<ListUsersResult> {
-		return { users: [] };
+		const query = this.#db.query(`
+			SELECT id, name, type
+			FROM task_user_storage
+			WHERE project_path = ?
+			ORDER BY name ASC
+		`);
+
+		const rows = query.all(this.#projectPath) as Array<{
+			id: string;
+			name: string;
+			type: 'human' | 'agent';
+		}>;
+
+		return {
+			users: rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				type: row.type,
+			})),
+		};
 	}
 
 	async listProjects(): Promise<ListProjectsResult> {
-		return { projects: [] };
+		const query = this.#db.query(`
+			SELECT id, name
+			FROM task_project_storage
+			WHERE project_path = ?
+			ORDER BY name ASC
+		`);
+
+		const rows = query.all(this.#projectPath) as Array<{
+			id: string;
+			name: string;
+		}>;
+
+		return {
+			projects: rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+			})),
+		};
+	}
+
+	async createUser(params: { name: string; type?: 'human' | 'agent' }): Promise<UserEntityRef> {
+		const trimmedName = params?.name?.trim();
+		if (!trimmedName) {
+			throw new UserNameRequiredError();
+		}
+
+		const id = generateUserId();
+		const timestamp = now();
+		const type = params.type ?? 'human';
+
+		const stmt = this.#db.prepare(`
+			INSERT INTO task_user_storage (
+				project_path, id, name, type, created_at
+			) VALUES (?, ?, ?, ?, ?)
+		`);
+
+		stmt.run(this.#projectPath, id, trimmedName, type, timestamp);
+
+		return { id, name: trimmedName, type };
+	}
+
+	async getUser(userId: string): Promise<UserEntityRef> {
+		const query = this.#db.query(`
+			SELECT id, name, type
+			FROM task_user_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		const row = query.get(this.#projectPath, userId) as {
+			id: string;
+			name: string;
+			type: 'human' | 'agent';
+		} | null;
+
+		if (!row) {
+			throw new UserNotFoundError();
+		}
+
+		return { id: row.id, name: row.name, type: row.type };
+	}
+
+	async deleteUser(userId: string): Promise<void> {
+		const stmt = this.#db.prepare(`
+			DELETE FROM task_user_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		stmt.run(this.#projectPath, userId);
+	}
+
+	async createProject(params: { name: string }): Promise<EntityRef> {
+		const trimmedName = params?.name?.trim();
+		if (!trimmedName) {
+			throw new ProjectNameRequiredError();
+		}
+
+		const id = generateProjectId();
+		const timestamp = now();
+
+		const stmt = this.#db.prepare(`
+			INSERT INTO task_project_storage (
+				project_path, id, name, created_at
+			) VALUES (?, ?, ?, ?)
+		`);
+
+		stmt.run(this.#projectPath, id, trimmedName, timestamp);
+
+		return { id, name: trimmedName };
+	}
+
+	async getProject(projectId: string): Promise<EntityRef> {
+		const query = this.#db.query(`
+			SELECT id, name
+			FROM task_project_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		const row = query.get(this.#projectPath, projectId) as {
+			id: string;
+			name: string;
+		} | null;
+
+		if (!row) {
+			throw new ProjectNotFoundError();
+		}
+
+		return { id: row.id, name: row.name };
+	}
+
+	async deleteProject(projectId: string): Promise<void> {
+		const stmt = this.#db.prepare(`
+			DELETE FROM task_project_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		stmt.run(this.#projectPath, projectId);
 	}
 
 	async getActivity(params?: TaskActivityParams): Promise<TaskActivityResult> {
@@ -1132,9 +1290,8 @@ export class LocalTaskStorage implements TaskStorage {
 					`SELECT
 						COALESCE(SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END), 0) as open,
 						COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress,
-						COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0) as done,
-						COALESCE(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0) as closed,
-						COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled
+					COALESCE(SUM(CASE WHEN status IN ('done', 'closed') THEN 1 ELSE 0 END), 0) as done,
+					COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled
 					FROM task_storage
 					WHERE project_path = ? AND date(created_at) = ?`
 				)
@@ -1142,7 +1299,6 @@ export class LocalTaskStorage implements TaskStorage {
 				open: number;
 				in_progress: number;
 				done: number;
-				closed: number;
 				cancelled: number;
 			};
 
@@ -1151,7 +1307,6 @@ export class LocalTaskStorage implements TaskStorage {
 				open: row.open,
 				inProgress: row.in_progress,
 				done: row.done,
-				closed: row.closed,
 				cancelled: row.cancelled,
 			});
 		}

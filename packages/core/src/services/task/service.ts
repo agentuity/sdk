@@ -30,10 +30,9 @@ export type TaskType = z.infer<typeof TaskTypeSchema>;
  * - `'open'` — Created, not yet started.
  * - `'in_progress'` — Actively being worked on.
  * - `'done'` — Work completed.
- * - `'closed'` — Resolved and closed.
  * - `'cancelled'` — Abandoned.
  */
-export const TaskStatusSchema = z.enum(['open', 'in_progress', 'closed', 'done', 'cancelled']);
+export const TaskStatusSchema = z.enum(['open', 'in_progress', 'done', 'cancelled']);
 
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
@@ -452,6 +451,24 @@ export const BatchDeleteTasksParamsSchema = z.object({
 export type BatchDeleteTasksParams = z.infer<typeof BatchDeleteTasksParamsSchema>;
 
 /**
+ * Parameters for creating a new user entity.
+ */
+export interface CreateUserParams {
+	/** The user's display name. */
+	name: string;
+	/** The user type — defaults to 'human'. */
+	type?: 'human' | 'agent';
+}
+
+/**
+ * Parameters for creating a new project entity.
+ */
+export interface CreateProjectParams {
+	/** The project name. */
+	name: string;
+}
+
+/**
  * A single task that was deleted in a batch operation.
  */
 export const BatchDeletedTaskSchema = z.object({
@@ -639,9 +656,6 @@ export const TaskActivityDataPointSchema = z.object({
 	/** Number of tasks in `'done'` status on this date. */
 	done: z.number().describe("Number of tasks in `'done'` status on this date."),
 
-	/** Number of tasks in `'closed'` status on this date. */
-	closed: z.number().describe("Number of tasks in `'closed'` status on this date."),
-
 	/** Number of tasks in `'cancelled'` status on this date. */
 	cancelled: z.number().describe("Number of tasks in `'cancelled'` status on this date."),
 });
@@ -700,10 +714,10 @@ export interface TaskStorage {
 	update(id: string, params: UpdateTaskParams): Promise<Task>;
 
 	/**
-	 * Close a task by setting its status to closed.
+	 * Close a task by setting its status to done.
 	 *
 	 * @param id - The unique task identifier
-	 * @returns The closed task
+	 * @returns The task with updated closed_date and status set to done
 	 */
 	close(id: string): Promise<Task>;
 
@@ -908,6 +922,52 @@ export interface TaskStorage {
 	listProjects(): Promise<ListProjectsResult>;
 
 	/**
+	 * Create a new user entity.
+	 *
+	 * @param params - The user creation parameters
+	 * @returns The created user entity reference
+	 */
+	createUser(params: CreateUserParams): Promise<UserEntityRef>;
+
+	/**
+	 * Get a user entity by ID.
+	 *
+	 * @param userId - The unique user identifier
+	 * @returns The user entity reference
+	 */
+	getUser(userId: string): Promise<UserEntityRef>;
+
+	/**
+	 * Delete a user entity.
+	 *
+	 * @param userId - The unique user identifier
+	 */
+	deleteUser(userId: string): Promise<void>;
+
+	/**
+	 * Create a new project entity.
+	 *
+	 * @param params - The project creation parameters
+	 * @returns The created project entity reference
+	 */
+	createProject(params: CreateProjectParams): Promise<EntityRef>;
+
+	/**
+	 * Get a project entity by ID.
+	 *
+	 * @param projectId - The unique project identifier
+	 * @returns The project entity reference
+	 */
+	getProject(projectId: string): Promise<EntityRef>;
+
+	/**
+	 * Delete a project entity.
+	 *
+	 * @param projectId - The unique project identifier
+	 */
+	deleteProject(projectId: string): Promise<void>;
+
+	/**
 	 * Get task activity time-series data showing daily status counts.
 	 *
 	 * @param params - Optional parameters controlling the number of days to retrieve
@@ -973,6 +1033,24 @@ const UserIdRequiredError = StructuredError(
 	'User ID is required and must be a non-empty string'
 );
 
+/** Thrown when a user name parameter is empty or not a string. */
+const UserNameRequiredError = StructuredError(
+	'UserNameRequiredError',
+	'A non-empty user name is required.'
+);
+
+/** Thrown when a project name parameter is empty or not a string. */
+const ProjectNameRequiredError = StructuredError(
+	'ProjectNameRequiredError',
+	'A non-empty project name is required.'
+);
+
+/** Thrown when a project ID parameter is empty or not a string. */
+const ProjectIdRequiredError = StructuredError(
+	'ProjectIdRequiredError',
+	'A non-empty project ID is required.'
+);
+
 /**
  * Thrown when the API returns a success HTTP status but the response body indicates failure.
  */
@@ -1009,7 +1087,7 @@ type TaskResponse<T> = TaskSuccessResponse<T> | TaskErrorResponse;
  * presigned S3 URLs, changelog tracking, and activity analytics.
  *
  * Tasks support lifecycle management through status transitions (`open` → `in_progress`
- * → `done`/`closed`/`cancelled`) with automatic date tracking for each transition.
+ * → `done`/`cancelled`) with automatic date tracking for each transition.
  *
  * All methods validate inputs client-side and throw structured errors for invalid
  * parameters. API errors throw {@link ServiceException}.
@@ -1286,17 +1364,17 @@ export class TaskStorageService implements TaskStorage {
 	}
 
 	/**
-	 * Close a task by setting its status to closed.
+	 * Close a task by setting its status to done.
 	 *
 	 * @param id - The unique task identifier
-	 * @returns The closed task with updated `closed_date`
+	 * @returns The task with status set to done and updated closed_date
 	 * @throws {@link TaskIdRequiredError} if the ID is empty or not a string
 	 * @throws {@link ServiceException} if the API request fails
 	 *
 	 * @example
 	 * ```typescript
-	 * const closed = await tasks.close('task_abc123');
-	 * console.log('Closed at:', closed.closed_date);
+	 * const task = await tasks.close('task_abc123');
+	 * console.log('Done at:', task.closed_date);
 	 * ```
 	 */
 	async close(id: string): Promise<Task> {
@@ -1449,7 +1527,7 @@ export class TaskStorageService implements TaskStorage {
 	 *
 	 * @example
 	 * ```typescript
-	 * const result = await tasks.batchDelete({ status: 'closed', older_than: '7d', limit: 50 });
+	 * const result = await tasks.batchDelete({ status: 'done', older_than: '7d', limit: 50 });
 	 * console.log(`Deleted ${result.count} tasks`);
 	 * ```
 	 */
@@ -2522,6 +2600,286 @@ export class TaskStorageService implements TaskStorage {
 		}
 
 		throw await toServiceException('GET', url, res.response);
+	}
+
+	/**
+	 * Create a new user entity.
+	 *
+	 * @param params - The user creation parameters including name and optional type
+	 * @returns The created user entity reference
+	 * @throws {@link UserNameRequiredError} if the name is empty or not a string
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const user = await tasks.createUser({ name: 'Jane Doe', type: 'human' });
+	 * console.log('Created user:', user.id, user.name);
+	 * ```
+	 */
+	async createUser(params: CreateUserParams): Promise<UserEntityRef> {
+		if (!params?.name || typeof params.name !== 'string' || params.name.trim().length === 0) {
+			throw new UserNameRequiredError();
+		}
+
+		const normalizedName = params.name.trim();
+		const url = buildUrl(this.#baseUrl, `/task/users/create/${TASK_API_VERSION}`);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<UserEntityRef>>(url, {
+			method: 'POST',
+			body: safeStringify({ ...params, name: normalizedName }),
+			contentType: 'application/json',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.createUser',
+				attributes: { userName: normalizedName },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	/**
+	 * Get a user entity by ID.
+	 *
+	 * @param userId - The unique user identifier
+	 * @returns The user entity reference
+	 * @throws {@link UserIdRequiredError} if the user ID is empty or not a string
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const user = await tasks.getUser('usr_abc123');
+	 * console.log(`${user.name} (${user.type})`);
+	 * ```
+	 */
+	async getUser(userId: string): Promise<UserEntityRef> {
+		if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+			throw new UserIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/users/get/${TASK_API_VERSION}/${encodeURIComponent(userId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<UserEntityRef>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.getUser',
+				attributes: { userId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	/**
+	 * Delete a user entity.
+	 *
+	 * @param userId - The unique user identifier
+	 * @throws {@link UserIdRequiredError} if the user ID is empty or not a string
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * await tasks.deleteUser('usr_abc123');
+	 * console.log('User deleted');
+	 * ```
+	 */
+	async deleteUser(userId: string): Promise<void> {
+		if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+			throw new UserIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/users/delete/${TASK_API_VERSION}/${encodeURIComponent(userId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
+			method: 'DELETE',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.deleteUser',
+				attributes: { userId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data?.success === false) {
+				throw new TaskStorageResponseError({
+					status: res.response.status,
+					message: res.data.message ?? 'Operation failed',
+				});
+			}
+			return;
+		}
+
+		throw await toServiceException('DELETE', url, res.response);
+	}
+
+	/**
+	 * Create a new project entity.
+	 *
+	 * @param params - The project creation parameters including name
+	 * @returns The created project entity reference
+	 * @throws {@link ProjectNameRequiredError} if the name is empty or not a string
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const project = await tasks.createProject({ name: 'My Project' });
+	 * console.log('Created project:', project.id, project.name);
+	 * ```
+	 */
+	async createProject(params: CreateProjectParams): Promise<EntityRef> {
+		if (!params?.name || typeof params.name !== 'string' || params.name.trim().length === 0) {
+			throw new ProjectNameRequiredError();
+		}
+
+		const normalizedName = params.name.trim();
+		const url = buildUrl(this.#baseUrl, `/task/projects/create/${TASK_API_VERSION}`);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<EntityRef>>(url, {
+			method: 'POST',
+			body: safeStringify({ ...params, name: normalizedName }),
+			contentType: 'application/json',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.createProject',
+				attributes: { projectName: normalizedName },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	/**
+	 * Get a project entity by ID.
+	 *
+	 * @param projectId - The unique project identifier
+	 * @returns The project entity reference
+	 * @throws {@link ProjectIdRequiredError} if the project ID is empty or not a string
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const project = await tasks.getProject('prj_abc123');
+	 * console.log(`${project.name} (${project.id})`);
+	 * ```
+	 */
+	async getProject(projectId: string): Promise<EntityRef> {
+		if (!projectId || typeof projectId !== 'string' || projectId.trim().length === 0) {
+			throw new ProjectIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/projects/get/${TASK_API_VERSION}/${encodeURIComponent(projectId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<EntityRef>>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.getProject',
+				attributes: { projectId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	/**
+	 * Delete a project entity.
+	 *
+	 * @param projectId - The unique project identifier
+	 * @throws {@link ProjectIdRequiredError} if the project ID is empty or not a string
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * await tasks.deleteProject('prj_abc123');
+	 * console.log('Project deleted');
+	 * ```
+	 */
+	async deleteProject(projectId: string): Promise<void> {
+		if (!projectId || typeof projectId !== 'string' || projectId.trim().length === 0) {
+			throw new ProjectIdRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/task/projects/delete/${TASK_API_VERSION}/${encodeURIComponent(projectId)}`
+		);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
+			method: 'DELETE',
+			signal,
+			telemetry: {
+				name: 'agentuity.task.deleteProject',
+				attributes: { projectId },
+			},
+		});
+
+		if (res.ok) {
+			if (res.data?.success === false) {
+				throw new TaskStorageResponseError({
+					status: res.response.status,
+					message: res.data.message ?? 'Operation failed',
+				});
+			}
+			return;
+		}
+
+		throw await toServiceException('DELETE', url, res.response);
 	}
 
 	/**

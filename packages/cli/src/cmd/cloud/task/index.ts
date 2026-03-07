@@ -6,6 +6,8 @@ import { listSubcommand } from './list';
 import { deleteSubcommand } from './delete';
 import { statsSubcommand } from './stats';
 import { attachmentSubcommand } from './attachment';
+import { userSubcommand } from './user';
+import { projectSubcommand } from './project';
 import { getCommand } from '../../../command-prefix';
 
 export const taskCommand = createCommand({
@@ -34,12 +36,20 @@ export const taskCommand = createCommand({
 			description: 'Delete a task by ID',
 		},
 		{
-			command: getCommand('cloud task delete --status closed --older-than 7d'),
-			description: 'Batch delete closed tasks older than 7 days',
+			command: getCommand('cloud task delete --status done --older-than 7d'),
+			description: 'Batch delete done tasks older than 7 days',
 		},
 		{
 			command: getCommand('cloud task attachment upload task_abc123 ./report.pdf'),
 			description: 'Upload a file attachment to a task',
+		},
+		{
+			command: getCommand('cloud task user list'),
+			description: 'List task users',
+		},
+		{
+			command: getCommand('cloud task project list'),
+			description: 'List task projects',
 		},
 	],
 	subcommands: [
@@ -50,6 +60,8 @@ export const taskCommand = createCommand({
 		deleteSubcommand,
 		statsSubcommand,
 		attachmentSubcommand,
+		userSubcommand,
+		projectSubcommand,
 	],
 	requires: { auth: true },
 });
