@@ -116,8 +116,15 @@ function createStreamReader(id: string | undefined, baseUrl: string): StreamRead
 
 function createStreamReaderFromUrl(streamUrl: string | undefined): StreamReader {
 	const url = streamUrl ?? '';
-	const id = url ? (url.split('/').pop() ?? '') : '';
-	return buildStreamReader(id, url);
+	if (!url) return buildStreamReader('', '');
+	try {
+		const pathname = new URL(url).pathname.replace(/\/+$/, '');
+		const id = pathname.split('/').pop() ?? '';
+		return buildStreamReader(id, url);
+	} catch {
+		const id = url.split('/').pop() ?? '';
+		return buildStreamReader(id, url);
+	}
 }
 
 /**
@@ -281,6 +288,9 @@ function createSandboxInstanceFromInfo(client: APIClient, info: SandboxInfo): Sa
 	return {
 		id: info.sandboxId,
 		status: info.status,
+		name: info.name,
+		description: info.description,
+		runtime: info.runtime,
 		stdout: createStreamReaderFromUrl(info.stdoutStreamUrl),
 		stderr: createStreamReaderFromUrl(info.stderrStreamUrl),
 		interleaved,
