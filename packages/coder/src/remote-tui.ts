@@ -221,6 +221,12 @@ export async function runRemoteTui(options: {
 	let seenMessageStart = false;
 	let seenAgentStart = false;
 
+	// Dedup guard: some events may arrive twice via different broadcast paths
+	// (rpc_event envelope + direct lifecycle broadcast). Track recent live events
+	// by type+timestamp to skip duplicates.
+	const recentEventKeys = new Set<string>();
+	const DEDUP_WINDOW_MS = 100;
+
 	// InteractiveMode adds a new assistant component on every assistant message_start.
 	// Track active/completed remote messages so normal terminal events and late duplicates
 	// do not spawn extra components.
@@ -240,10 +246,39 @@ export async function runRemoteTui(options: {
 
 	remote.onEvent((rpcEvent: RpcEvent) => {
 		const source = (rpcEvent as any)._source ?? 'unknown';
+		const isReplay =
+			source === 'replay' ||
+			(rpcEvent as any).replay === true ||
+			(rpcEvent as any).isReplay === true;
 		log(`Event received: ${rpcEvent.type} (source=${source})`);
 
 		// session_hydration is handled separately below — skip it here
 		if (rpcEvent.type === 'session_hydration') return;
+
+		// Skip user-role message events — the TUI already shows user messages
+		// locally via InteractiveMode input. Pi emits message_start/end for
+		// both user and assistant messages; without this guard the user message
+		// appears twice (once from local input, once from the broadcast).
+		if (rpcEvent.type === 'message_start' || rpcEvent.type === 'message_end') {
+			const msg = (rpcEvent as any).message;
+			if (msg?.role === 'user') {
+				log(`Skipping ${rpcEvent.type} (role=user) — handled locally`);
+				return;
+			}
+		}
+
+		// Dedup: skip if we already processed the same event type + timestamp recently
+		// Replays still check the cache, but they never populate it.
+		const ts = (rpcEvent as any).timestamp ?? 0;
+		const dedupKey = `${rpcEvent.type}:${ts}`;
+		if (recentEventKeys.has(dedupKey)) {
+			log(`Dedup: skipping duplicate ${rpcEvent.type} (ts=${ts})`);
+			return;
+		}
+		if (!isReplay && ts > 0) {
+			recentEventKeys.add(dedupKey);
+			setTimeout(() => recentEventKeys.delete(dedupKey), DEDUP_WINDOW_MS);
+		}
 
 		// Skip duplicate agent_start if we already emitted a synthetic one
 		if (rpcEvent.type === 'agent_start' && syntheticAgentStartEmitted) {
@@ -254,7 +289,7 @@ export async function runRemoteTui(options: {
 		}
 
 		// Skip replay events — these are historical from Durable Stream
-		if (source === 'replay') {
+		if (isReplay) {
 			log(`Skipping replay event: ${rpcEvent.type}`);
 			return;
 		}
