@@ -221,11 +221,11 @@ export async function runRemoteTui(options: {
 	let seenMessageStart = false;
 	let seenAgentStart = false;
 
-	// Dedup guard: some events may arrive twice via different broadcast paths
-	// (rpc_event envelope + direct lifecycle broadcast). Track recent events
-	// by type+timestamp to skip duplicates.
-	const recentEventKeys = new Set<string>();
-	const DEDUP_WINDOW_MS = 100;
+	// State-based dedup: InteractiveMode adds a NEW AssistantMessageComponent to the
+	// chat on every message_start(assistant) WITHOUT checking for an existing one.
+	// If message_start fires twice before message_end, TWO components appear in the
+	// DOM — the first becomes an orphaned duplicate. Track streaming state to prevent this.
+	let assistantStreamActive = false;
 
 	remote.onEvent((rpcEvent: RpcEvent) => {
 		const source = (rpcEvent as any)._source ?? 'unknown';
@@ -233,18 +233,6 @@ export async function runRemoteTui(options: {
 
 		// session_hydration is handled separately below — skip it here
 		if (rpcEvent.type === 'session_hydration') return;
-
-		// Dedup: skip if we already processed the same event type + timestamp recently
-		const ts = (rpcEvent as any).timestamp ?? 0;
-		const dedupKey = `${rpcEvent.type}:${ts}`;
-		if (recentEventKeys.has(dedupKey)) {
-			log(`Dedup: skipping duplicate ${rpcEvent.type} (ts=${ts})`);
-			return;
-		}
-		if (ts > 0) {
-			recentEventKeys.add(dedupKey);
-			setTimeout(() => recentEventKeys.delete(dedupKey), DEDUP_WINDOW_MS);
-		}
 
 		// Skip duplicate agent_start if we already emitted a synthetic one
 		if (rpcEvent.type === 'agent_start' && syntheticAgentStartEmitted) {
@@ -260,10 +248,27 @@ export async function runRemoteTui(options: {
 			return;
 		}
 
-		// NOTE: Do NOT skip user-role message events here.
-		// InteractiveMode displays user messages ONLY via message_start (role=user)
-		// events — there is no separate "local input display". Skipping these
-		// would cause user messages to be invisible in the chat.
+		// State-based dedup for assistant message streaming.
+		// Prevents duplicate AssistantMessageComponent from being added to the DOM.
+		if (rpcEvent.type === 'message_start') {
+			const msg = (rpcEvent as any).message;
+			if (msg?.role === 'assistant') {
+				if (assistantStreamActive) {
+					log(`Dedup: skipping duplicate assistant message_start (stream already active)`);
+					return;
+				}
+				assistantStreamActive = true;
+			}
+		}
+		if (rpcEvent.type === 'message_end') {
+			const msg = (rpcEvent as any).message;
+			if (msg?.role === 'assistant') {
+				assistantStreamActive = false;
+			}
+		}
+		if (rpcEvent.type === 'agent_end') {
+			assistantStreamActive = false;
+		}
 
 		// Track streaming lifecycle events so we can inject synthetics when
 		// we attach mid-stream (controller connected after agent already started).
@@ -322,6 +327,7 @@ export async function runRemoteTui(options: {
 				},
 			} as any);
 			seenMessageStart = true;
+			assistantStreamActive = true;
 		}
 
 		// Emit to subscribers — InteractiveMode.handleEvent processes this
@@ -583,6 +589,7 @@ export async function runRemoteTui(options: {
 		} as any);
 		seenAgentStart = true;
 		seenMessageStart = true;
+		assistantStreamActive = true;
 
 		// Remove any agent_start/message_start from buffer since we already emitted them
 		eventBuffer = eventBuffer.filter(
