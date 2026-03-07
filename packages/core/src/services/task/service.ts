@@ -357,6 +357,9 @@ export const ListTasksParamsSchema = z.object({
 	/** Filter by assigned user ID. */
 	assigned_id: z.string().optional().describe('Filter by assigned user ID.'),
 
+	/** Filter by creator user ID. */
+	created_id: z.string().optional().describe('Filter by creator user ID.'),
+
 	/** Filter by parent task ID (get subtasks). */
 	parent_id: z.string().optional().describe('Filter by parent task ID (get subtasks).'),
 
@@ -1181,6 +1184,7 @@ export class TaskStorageService implements TaskStorage {
 		if (params?.type) queryParams.set('type', params.type);
 		if (params?.priority) queryParams.set('priority', params.priority);
 		if (params?.assigned_id) queryParams.set('assigned_id', params.assigned_id);
+		if (params?.created_id) queryParams.set('created_id', params.created_id);
 		if (params?.parent_id) queryParams.set('parent_id', params.parent_id);
 		if (params?.project_id) queryParams.set('project_id', params.project_id);
 		if (params?.tag_id) queryParams.set('tag_id', params.tag_id);
