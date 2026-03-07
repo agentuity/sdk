@@ -1,5 +1,6 @@
 import {
 	APIClient,
+	executionGet,
 	sandboxCreate,
 	sandboxDestroy,
 	sandboxExecute,
@@ -131,7 +132,26 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					'sandbox.id': sandboxId,
 					'sandbox.command': options.command?.join(' ') ?? '',
 				},
-				() => sandboxExecute(client, { sandboxId, options, signal: options.signal })
+				async () => {
+					const initial = await sandboxExecute(client, {
+						sandboxId,
+						options,
+						signal: options.signal,
+					});
+					// Wait for execution to reach a terminal state via long-polling
+					const final = await executionGet(client, {
+						executionId: initial.executionId,
+						wait: '60s',
+					});
+					return {
+						executionId: final.executionId,
+						status: final.status,
+						exitCode: final.exitCode,
+						durationMs: final.durationMs,
+						stdoutStreamUrl: initial.stdoutStreamUrl,
+						stderrStreamUrl: initial.stderrStreamUrl,
+					};
+				}
 			);
 		},
 
