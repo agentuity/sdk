@@ -221,12 +221,30 @@ export async function runRemoteTui(options: {
 	let seenMessageStart = false;
 	let seenAgentStart = false;
 
+	// Dedup guard: some events may arrive twice via different broadcast paths
+	// (rpc_event envelope + direct lifecycle broadcast). Track recent events
+	// by type+timestamp to skip duplicates.
+	const recentEventKeys = new Set<string>();
+	const DEDUP_WINDOW_MS = 100;
+
 	remote.onEvent((rpcEvent: RpcEvent) => {
 		const source = (rpcEvent as any)._source ?? 'unknown';
 		log(`Event received: ${rpcEvent.type} (source=${source})`);
 
 		// session_hydration is handled separately below — skip it here
 		if (rpcEvent.type === 'session_hydration') return;
+
+		// Dedup: skip if we already processed the same event type + timestamp recently
+		const ts = (rpcEvent as any).timestamp ?? 0;
+		const dedupKey = `${rpcEvent.type}:${ts}`;
+		if (recentEventKeys.has(dedupKey)) {
+			log(`Dedup: skipping duplicate ${rpcEvent.type} (ts=${ts})`);
+			return;
+		}
+		if (ts > 0) {
+			recentEventKeys.add(dedupKey);
+			setTimeout(() => recentEventKeys.delete(dedupKey), DEDUP_WINDOW_MS);
+		}
 
 		// Skip duplicate agent_start if we already emitted a synthetic one
 		if (rpcEvent.type === 'agent_start' && syntheticAgentStartEmitted) {
@@ -342,8 +360,10 @@ export async function runRemoteTui(options: {
 		resolveHydration = resolve;
 	});
 
+	let hydrationCount = 0;
 	remote.onEvent((event: RpcEvent) => {
 		if (event.type !== 'session_hydration') return;
+		hydrationCount++;
 
 		const entries = (event as any).entries as
 			| Array<{
@@ -356,6 +376,19 @@ export async function runRemoteTui(options: {
 
 		// Extract task text from hydration (Hub includes session.sandbox?.task)
 		const hydrationTask = (event as any).task as string | undefined;
+
+		// On reconnect (2nd+ hydration), clear SM to prevent duplicate accumulation.
+		// agent.replaceMessages() already replaces state.messages, but SM only appends.
+		if (hydrationCount > 1) {
+			log(`Re-hydration #${hydrationCount} — clearing SessionManager to prevent duplicates`);
+			try {
+				if (typeof (sm as any).clear === 'function') {
+					(sm as any).clear();
+				}
+			} catch (err) {
+				log(`SM clear error (non-fatal): ${err}`);
+			}
+		}
 
 		if (!entries?.length) {
 			log('Received session_hydration with no entries');
@@ -378,7 +411,7 @@ export async function runRemoteTui(options: {
 			return;
 		}
 
-		log(`Hydrating ${entries.length} entries`);
+		log(`Hydrating ${entries.length} entries (hydration #${hydrationCount})`);
 		const agentMessages: any[] = [];
 
 		// If we have a task and no user_prompt entry, inject the task as the first user message
@@ -639,7 +672,10 @@ function updateAgentState(agent: any, event: RpcEvent): void {
 
 		case 'message_end':
 			state.streamMessage = null;
-			state.messages = [...state.messages, (event as any).message];
+			// NOTE: Do NOT push to state.messages here.
+			// AgentSession._handleAgentEvent already persists via sessionManager.appendMessage().
+			// Pushing here causes state.messages to accumulate duplicates with SM,
+			// leading to visual duplicates if rebuildChatFromMessages() is ever triggered.
 			break;
 
 		case 'tool_execution_start': {
