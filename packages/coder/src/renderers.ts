@@ -465,7 +465,7 @@ function sessionTodoListRenderers(): ToolRenderers {
 			let text = theme.fg('success', `${count} todo${count === 1 ? '' : 's'}`);
 			text += theme.fg(
 				'dim',
-				`  o:${Number(summary['open'] ?? 0)} ip:${Number(summary['in_progress'] ?? 0)} d:${Number(summary['done'] ?? 0)} c:${Number(summary['closed'] ?? 0)} x:${Number(summary['cancelled'] ?? 0)}`
+				`  o:${Number(summary['open'] ?? 0)} ip:${Number(summary['in_progress'] ?? 0)} d:${Number(summary['done'] ?? 0)} x:${Number(summary['cancelled'] ?? 0)}`
 			);
 
 			if (expanded && todos.length > 0) {
@@ -476,7 +476,7 @@ function sessionTodoListRenderers(): ToolRenderers {
 							? theme.fg('success', '✓')
 							: status === 'in_progress'
 								? theme.fg('accent', '●')
-								: status === 'cancelled' || status === 'closed'
+								: status === 'cancelled'
 									? theme.fg('error', 'x')
 									: theme.fg('warning', '○');
 					const id = truncate(String(todo['id'] ?? ''), 18);
