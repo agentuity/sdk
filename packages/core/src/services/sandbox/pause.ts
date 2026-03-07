@@ -25,7 +25,7 @@ export async function sandboxPause(client: APIClient, params: SandboxPauseParams
 		queryParams.set('orgId', orgId);
 	}
 	const queryString = queryParams.toString();
-	const url = `/sandbox/${sandboxId}/pause${queryString ? `?${queryString}` : ''}`;
+	const url = `/sandbox/${encodeURIComponent(sandboxId)}/pause${queryString ? `?${queryString}` : ''}`;
 
 	const resp = await client.post<z.infer<typeof PauseResponseSchema>>(
 		url,
