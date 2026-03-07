@@ -280,19 +280,17 @@ function createSandboxInstance(
 }
 
 function createSandboxInstanceFromInfo(client: APIClient, info: SandboxInfo): Sandbox {
-	const interleaved = !!(
-		info.stdoutStreamUrl &&
-		info.stderrStreamUrl &&
-		info.stdoutStreamUrl === info.stderrStreamUrl
-	);
+	const stdoutReader = createStreamReaderFromUrl(info.stdoutStreamUrl);
+	const stderrReader = createStreamReaderFromUrl(info.stderrStreamUrl);
+	const interleaved = !!(stdoutReader.id && stderrReader.id && stdoutReader.id === stderrReader.id);
 	return {
 		id: info.sandboxId,
 		status: info.status,
 		name: info.name,
 		description: info.description,
 		runtime: info.runtime,
-		stdout: createStreamReaderFromUrl(info.stdoutStreamUrl),
-		stderr: createStreamReaderFromUrl(info.stderrStreamUrl),
+		stdout: stdoutReader,
+		stderr: stderrReader,
 		interleaved,
 		auditStreamId: info.auditStreamId,
 		...createSandboxMethods(client, info.sandboxId),
