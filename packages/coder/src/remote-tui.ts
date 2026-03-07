@@ -244,6 +244,28 @@ export async function runRemoteTui(options: {
 		}
 	}
 
+	function emitRemoteUserPrompt(text: string, timestamp: number): void {
+		const userMessage = {
+			role: 'user' as const,
+			content: [{ type: 'text' as const, text }],
+			timestamp,
+		};
+		const syntheticEvents = [
+			{ type: 'message_start', message: userMessage },
+			{ type: 'message_end', message: userMessage },
+		] as RpcEvent[];
+
+		if (!interactiveModeReady) {
+			eventBuffer.push(...syntheticEvents);
+			log('Buffered synthetic user_prompt events (InteractiveMode not ready)');
+			return;
+		}
+
+		for (const event of syntheticEvents) {
+			agent.emit(event);
+		}
+	}
+
 	remote.onEvent((rpcEvent: RpcEvent) => {
 		const source = (rpcEvent as any)._source ?? 'unknown';
 		const isReplay =
@@ -255,10 +277,39 @@ export async function runRemoteTui(options: {
 		// session_hydration is handled separately below — skip it here
 		if (rpcEvent.type === 'session_hydration') return;
 
+		// Remote prompts from other controllers are broadcast as user_prompt.
+		// Convert them to synthetic user message lifecycle events so InteractiveMode
+		// renders them like locally-entered prompts. Replays are covered by hydration.
+		if (rpcEvent.type === 'user_prompt') {
+			if (isReplay) {
+				log('Skipping replay user_prompt');
+				return;
+			}
+
+			const promptText =
+				typeof (rpcEvent as any).content === 'string'
+					? (rpcEvent as any).content
+					: typeof (rpcEvent as any).text === 'string'
+						? (rpcEvent as any).text
+						: '';
+			if (!promptText.trim()) {
+				log('Skipping empty user_prompt');
+				return;
+			}
+
+			const promptTimestamp =
+				typeof (rpcEvent as any).timestamp === 'number'
+					? (rpcEvent as any).timestamp
+					: Date.now();
+			log('Rendering live user_prompt as synthetic user message');
+			emitRemoteUserPrompt(promptText, promptTimestamp);
+			return;
+		}
+
 		// Skip user-role message events — the TUI already shows user messages
-		// locally via InteractiveMode input. Pi emits message_start/end for
-		// both user and assistant messages; without this guard the user message
-		// appears twice (once from local input, once from the broadcast).
+		// via InteractiveMode input or the synthetic user_prompt path above.
+		// Pi emits message_start/end for both user and assistant messages; without
+		// this guard the same prompt can appear twice.
 		if (rpcEvent.type === 'message_start' || rpcEvent.type === 'message_end') {
 			const msg = (rpcEvent as any).message;
 			if (msg?.role === 'user') {
