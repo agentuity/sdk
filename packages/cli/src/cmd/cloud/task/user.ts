@@ -144,18 +144,26 @@ const getUserSubcommand = createCommand({
 		const { args, options } = ctx;
 		const started = Date.now();
 		const storage = await createStorageAdapter(ctx);
-		const user = await storage.getUser(args.id);
-		const durationMs = Date.now() - started;
+		try {
+			const user = await storage.getUser(args.id);
+			const durationMs = Date.now() - started;
 
-		if (!options.json) {
-			tui.table(
-				[{ id: user.id, name: user.name, type: (user as { type?: string }).type ?? 'human' }],
-				['id', 'name', 'type'],
-				{ layout: 'vertical' }
-			);
+			if (!options.json) {
+				tui.table(
+					[{ id: user.id, name: user.name, type: (user as { type?: string }).type ?? 'human' }],
+					['id', 'name', 'type'],
+					{ layout: 'vertical' }
+				);
+			}
+
+			return { success: true, user, durationMs };
+		} catch (err) {
+			const durationMs = Date.now() - started;
+			if (!options.json) {
+				tui.error(`User not found: ${args.id}`);
+			}
+			return { success: false, user: { id: args.id, name: '', type: 'human' as const }, durationMs };
 		}
-
-		return { success: true, user, durationMs };
 	},
 });
 

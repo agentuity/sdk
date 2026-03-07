@@ -47,7 +47,12 @@ const listProjectsSubcommand = createCommand({
 			}
 		}
 
-		return { success: true, projects: result.projects, total: result.projects.length, durationMs };
+		return {
+			success: true,
+			projects: result.projects,
+			total: result.projects.length,
+			durationMs,
+		};
 	},
 });
 
@@ -119,14 +124,24 @@ const getProjectSubcommand = createCommand({
 		const { args, options } = ctx;
 		const started = Date.now();
 		const storage = await createStorageAdapter(ctx);
-		const project = await storage.getProject(args.id);
-		const durationMs = Date.now() - started;
+		try {
+			const project = await storage.getProject(args.id);
+			const durationMs = Date.now() - started;
 
-		if (!options.json) {
-			tui.table([{ id: project.id, name: project.name }], ['id', 'name'], { layout: 'vertical' });
+			if (!options.json) {
+				tui.table([{ id: project.id, name: project.name }], ['id', 'name'], {
+					layout: 'vertical',
+				});
+			}
+
+			return { success: true, project, durationMs };
+		} catch (err) {
+			const durationMs = Date.now() - started;
+			if (!options.json) {
+				tui.error(`Project not found: ${args.id}`);
+			}
+			return { success: false, project: { id: args.id, name: '' }, durationMs };
 		}
-
-		return { success: true, project, durationMs };
 	},
 });
 
@@ -158,14 +173,22 @@ const deleteProjectSubcommand = createCommand({
 		const { args, options } = ctx;
 		const started = Date.now();
 		const storage = await createStorageAdapter(ctx);
-		await storage.deleteProject(args.id);
-		const durationMs = Date.now() - started;
+		try {
+			await storage.deleteProject(args.id);
+			const durationMs = Date.now() - started;
 
-		if (!options.json) {
-			tui.success(`Deleted project: ${args.id}`);
+			if (!options.json) {
+				tui.success(`Deleted project: ${args.id}`);
+			}
+
+			return { success: true, durationMs };
+		} catch (err) {
+			const durationMs = Date.now() - started;
+			if (!options.json) {
+				tui.error(`Failed to delete project: ${args.id}`);
+			}
+			return { success: false, durationMs };
 		}
-
-		return { success: true, durationMs };
 	},
 });
 
@@ -195,5 +218,10 @@ export const projectSubcommand = createCommand({
 			description: 'Delete a project',
 		},
 	],
-	subcommands: [listProjectsSubcommand, createProjectSubcommand, getProjectSubcommand, deleteProjectSubcommand],
+	subcommands: [
+		listProjectsSubcommand,
+		createProjectSubcommand,
+		getProjectSubcommand,
+		deleteProjectSubcommand,
+	],
 });

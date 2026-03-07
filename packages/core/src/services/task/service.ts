@@ -451,6 +451,24 @@ export const BatchDeleteTasksParamsSchema = z.object({
 export type BatchDeleteTasksParams = z.infer<typeof BatchDeleteTasksParamsSchema>;
 
 /**
+ * Parameters for creating a new user entity.
+ */
+export interface CreateUserParams {
+	/** The user's display name. */
+	name: string;
+	/** The user type — defaults to 'human'. */
+	type?: 'human' | 'agent';
+}
+
+/**
+ * Parameters for creating a new project entity.
+ */
+export interface CreateProjectParams {
+	/** The project name. */
+	name: string;
+}
+
+/**
  * A single task that was deleted in a batch operation.
  */
 export const BatchDeletedTaskSchema = z.object({
@@ -696,10 +714,10 @@ export interface TaskStorage {
 	update(id: string, params: UpdateTaskParams): Promise<Task>;
 
 	/**
-	 * Close a task by setting its status to closed.
+	 * Close a task by setting its status to done.
 	 *
 	 * @param id - The unique task identifier
-	 * @returns The closed task
+	 * @returns The task with updated closed_date and status set to done
 	 */
 	close(id: string): Promise<Task>;
 
@@ -909,7 +927,7 @@ export interface TaskStorage {
 	 * @param params - The user creation parameters
 	 * @returns The created user entity reference
 	 */
-	createUser(params: { name: string; type?: 'human' | 'agent' }): Promise<UserEntityRef>;
+	createUser(params: CreateUserParams): Promise<UserEntityRef>;
 
 	/**
 	 * Get a user entity by ID.
@@ -932,7 +950,7 @@ export interface TaskStorage {
 	 * @param params - The project creation parameters
 	 * @returns The created project entity reference
 	 */
-	createProject(params: { name: string }): Promise<EntityRef>;
+	createProject(params: CreateProjectParams): Promise<EntityRef>;
 
 	/**
 	 * Get a project entity by ID.
@@ -1069,7 +1087,7 @@ type TaskResponse<T> = TaskSuccessResponse<T> | TaskErrorResponse;
  * presigned S3 URLs, changelog tracking, and activity analytics.
  *
  * Tasks support lifecycle management through status transitions (`open` → `in_progress`
- * → `done`/`closed`/`cancelled`) with automatic date tracking for each transition.
+ * → `done`/`cancelled`) with automatic date tracking for each transition.
  *
  * All methods validate inputs client-side and throw structured errors for invalid
  * parameters. API errors throw {@link ServiceException}.
@@ -1346,17 +1364,17 @@ export class TaskStorageService implements TaskStorage {
 	}
 
 	/**
-	 * Close a task by setting its status to closed.
+	 * Close a task by setting its status to done.
 	 *
 	 * @param id - The unique task identifier
-	 * @returns The closed task with updated `closed_date`
+	 * @returns The task with status set to done and updated closed_date
 	 * @throws {@link TaskIdRequiredError} if the ID is empty or not a string
 	 * @throws {@link ServiceException} if the API request fails
 	 *
 	 * @example
 	 * ```typescript
-	 * const closed = await tasks.close('task_abc123');
-	 * console.log('Closed at:', closed.closed_date);
+	 * const task = await tasks.close('task_abc123');
+	 * console.log('Done at:', task.closed_date);
 	 * ```
 	 */
 	async close(id: string): Promise<Task> {
@@ -1509,7 +1527,7 @@ export class TaskStorageService implements TaskStorage {
 	 *
 	 * @example
 	 * ```typescript
-	 * const result = await tasks.batchDelete({ status: 'closed', older_than: '7d', limit: 50 });
+	 * const result = await tasks.batchDelete({ status: 'done', older_than: '7d', limit: 50 });
 	 * console.log(`Deleted ${result.count} tasks`);
 	 * ```
 	 */
@@ -2598,22 +2616,23 @@ export class TaskStorageService implements TaskStorage {
 	 * console.log('Created user:', user.id, user.name);
 	 * ```
 	 */
-	async createUser(params: { name: string; type?: 'human' | 'agent' }): Promise<UserEntityRef> {
+	async createUser(params: CreateUserParams): Promise<UserEntityRef> {
 		if (!params?.name || typeof params.name !== 'string' || params.name.trim().length === 0) {
 			throw new UserNameRequiredError();
 		}
 
+		const normalizedName = params.name.trim();
 		const url = buildUrl(this.#baseUrl, `/task/users/create/${TASK_API_VERSION}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<UserEntityRef>>(url, {
 			method: 'POST',
-			body: safeStringify(params),
+			body: safeStringify({ ...params, name: normalizedName }),
 			contentType: 'application/json',
 			signal,
 			telemetry: {
 				name: 'agentuity.task.createUser',
-				attributes: { userName: params.name },
+				attributes: { userName: normalizedName },
 			},
 		});
 
@@ -2737,22 +2756,23 @@ export class TaskStorageService implements TaskStorage {
 	 * console.log('Created project:', project.id, project.name);
 	 * ```
 	 */
-	async createProject(params: { name: string }): Promise<EntityRef> {
+	async createProject(params: CreateProjectParams): Promise<EntityRef> {
 		if (!params?.name || typeof params.name !== 'string' || params.name.trim().length === 0) {
 			throw new ProjectNameRequiredError();
 		}
 
+		const normalizedName = params.name.trim();
 		const url = buildUrl(this.#baseUrl, `/task/projects/create/${TASK_API_VERSION}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<EntityRef>>(url, {
 			method: 'POST',
-			body: safeStringify(params),
+			body: safeStringify({ ...params, name: normalizedName }),
 			contentType: 'application/json',
 			signal,
 			telemetry: {
 				name: 'agentuity.task.createProject',
-				attributes: { projectName: params.name },
+				attributes: { projectName: normalizedName },
 			},
 		});
 

@@ -642,14 +642,14 @@ export class LocalTaskStorage implements TaskStorage {
 				throw new TaskNotFoundError();
 			}
 
-		if (existing.status === 'done') {
-			throw new TaskAlreadyClosedError();
-		}
-		const timestamp = now();
-		const nowIso = new Date(timestamp).toISOString();
-		const updated: TaskRow = {
-			...existing,
-			status: 'done',
+			if (existing.status === 'done') {
+				throw new TaskAlreadyClosedError();
+			}
+			const timestamp = now();
+			const nowIso = new Date(timestamp).toISOString();
+			const updated: TaskRow = {
+				...existing,
+				status: 'done',
 				closed_date: existing.closed_date ?? nowIso,
 				updated_at: timestamp,
 			};
@@ -746,7 +746,7 @@ export class LocalTaskStorage implements TaskStorage {
 		WHERE project_path = ? AND id = ?
 	`);
 
-	updateStmt.run(new Date(timestamp).toISOString(), timestamp, this.#projectPath, id);
+		updateStmt.run(new Date(timestamp).toISOString(), timestamp, this.#projectPath, id);
 
 		const changelogStmt = this.#db.prepare(`
 			INSERT INTO task_changelog_storage (
@@ -1296,10 +1296,10 @@ export class LocalTaskStorage implements TaskStorage {
 					WHERE project_path = ? AND date(created_at) = ?`
 				)
 				.get(this.#projectPath, dateStr) as {
-			open: number;
-			in_progress: number;
-			done: number;
-			cancelled: number;
+				open: number;
+				in_progress: number;
+				done: number;
+				cancelled: number;
 			};
 
 			activity.push({

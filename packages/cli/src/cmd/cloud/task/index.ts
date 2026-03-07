@@ -36,8 +36,8 @@ export const taskCommand = createCommand({
 			description: 'Delete a task by ID',
 		},
 		{
-			command: getCommand('cloud task delete --status closed --older-than 7d'),
-			description: 'Batch delete closed tasks older than 7 days',
+			command: getCommand('cloud task delete --status done --older-than 7d'),
+			description: 'Batch delete done tasks older than 7 days',
 		},
 		{
 			command: getCommand('cloud task attachment upload task_abc123 ./report.pdf'),

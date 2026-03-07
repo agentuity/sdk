@@ -55,7 +55,10 @@ export const updateSubcommand = createCommand({
 				.enum(['epic', 'feature', 'enhancement', 'bug', 'task'])
 				.optional()
 				.describe('new task type'),
-			status: z.enum(['open', 'in_progress', 'done', 'cancelled']).optional().describe('new task status'),
+			status: z
+				.enum(['open', 'in_progress', 'done', 'cancelled'])
+				.optional()
+				.describe('new task status'),
 			assignedId: z.string().optional().describe('new assigned agent or user ID'),
 			parentId: z.string().optional().describe('new parent task ID'),
 			closedId: z.string().optional().describe('ID of the closer (agent or user)'),

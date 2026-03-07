@@ -465,15 +465,15 @@ function sessionTodoListRenderers(): ToolRenderers {
 			let text = theme.fg('success', `${count} todo${count === 1 ? '' : 's'}`);
 			text += theme.fg(
 				'dim',
-				`  o:${Number(summary['open'] ?? 0)} ip:${Number(summary['in_progress'] ?? 0)} d:${Number(summary['done'] ?? 0)} x:${Number(summary['cancelled'] ?? 0)}`
+				`  o:${Number(summary['open'] ?? 0)} ip:${Number(summary['in_progress'] ?? 0)} d:${Number(summary['done'] ?? 0) + Number(summary['closed'] ?? 0)} x:${Number(summary['cancelled'] ?? 0)}`
 			);
 
 			if (expanded && todos.length > 0) {
 				const lines = todos.slice(0, 20).map((todo) => {
 					const status = String(todo['status'] ?? 'open');
 					const marker =
-						status === 'done'
-							? theme.fg('success', '✓')
+					status === 'done' || status === 'closed'
+						? theme.fg('success', '✓')
 							: status === 'in_progress'
 								? theme.fg('accent', '●')
 								: status === 'cancelled'
