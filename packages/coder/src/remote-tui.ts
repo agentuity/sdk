@@ -221,12 +221,115 @@ export async function runRemoteTui(options: {
 	let seenMessageStart = false;
 	let seenAgentStart = false;
 
+	// Dedup guard: some events may arrive twice via different broadcast paths
+	// (rpc_event envelope + direct lifecycle broadcast). Track recent live events
+	// by type+timestamp to skip duplicates.
+	const recentEventKeys = new Set<string>();
+	const DEDUP_WINDOW_MS = 100;
+
+	// InteractiveMode adds a new assistant component on every assistant message_start.
+	// Track active/completed remote messages so normal terminal events and late duplicates
+	// do not spawn extra components.
+	let assistantStreamActive = false;
+	const recentCompletedAssistantMessageKeys: string[] = [];
+	const completedAssistantMessageKeySet = new Set<string>();
+
+	function rememberCompletedAssistantMessage(key: string): void {
+		if (completedAssistantMessageKeySet.has(key)) return;
+		recentCompletedAssistantMessageKeys.push(key);
+		completedAssistantMessageKeySet.add(key);
+		if (recentCompletedAssistantMessageKeys.length > 32) {
+			const expired = recentCompletedAssistantMessageKeys.shift();
+			if (expired) completedAssistantMessageKeySet.delete(expired);
+		}
+	}
+
+	function emitRemoteUserPrompt(text: string, timestamp: number): void {
+		const userMessage = {
+			role: 'user' as const,
+			content: [{ type: 'text' as const, text }],
+			timestamp,
+		};
+		const syntheticEvents = [
+			{ type: 'message_start', message: userMessage },
+			{ type: 'message_end', message: userMessage },
+		] as RpcEvent[];
+
+		if (!interactiveModeReady) {
+			eventBuffer.push(...syntheticEvents);
+			log('Buffered synthetic user_prompt events (InteractiveMode not ready)');
+			return;
+		}
+
+		for (const event of syntheticEvents) {
+			agent.emit(event);
+		}
+	}
+
 	remote.onEvent((rpcEvent: RpcEvent) => {
 		const source = (rpcEvent as any)._source ?? 'unknown';
+		const isReplay =
+			source === 'replay' ||
+			(rpcEvent as any).replay === true ||
+			(rpcEvent as any).isReplay === true;
 		log(`Event received: ${rpcEvent.type} (source=${source})`);
 
 		// session_hydration is handled separately below — skip it here
 		if (rpcEvent.type === 'session_hydration') return;
+
+		// Remote prompts from other controllers are broadcast as user_prompt.
+		// Convert them to synthetic user message lifecycle events so InteractiveMode
+		// renders them like locally-entered prompts. Replays are covered by hydration.
+		if (rpcEvent.type === 'user_prompt') {
+			if (isReplay) {
+				log('Skipping replay user_prompt');
+				return;
+			}
+
+			const promptText =
+				typeof (rpcEvent as any).content === 'string'
+					? (rpcEvent as any).content
+					: typeof (rpcEvent as any).text === 'string'
+						? (rpcEvent as any).text
+						: '';
+			if (!promptText.trim()) {
+				log('Skipping empty user_prompt');
+				return;
+			}
+
+			const promptTimestamp =
+				typeof (rpcEvent as any).timestamp === 'number'
+					? (rpcEvent as any).timestamp
+					: Date.now();
+			log('Rendering live user_prompt as synthetic user message');
+			emitRemoteUserPrompt(promptText, promptTimestamp);
+			return;
+		}
+
+		// Skip user-role message events — the TUI already shows user messages
+		// via InteractiveMode input or the synthetic user_prompt path above.
+		// Pi emits message_start/end for both user and assistant messages; without
+		// this guard the same prompt can appear twice.
+		if (rpcEvent.type === 'message_start' || rpcEvent.type === 'message_end') {
+			const msg = (rpcEvent as any).message;
+			if (msg?.role === 'user') {
+				log(`Skipping ${rpcEvent.type} (role=user) — handled locally`);
+				return;
+			}
+		}
+
+		// Dedup: skip if we already processed the same event type + timestamp recently
+		// Replays still check the cache, but they never populate it.
+		const ts = (rpcEvent as any).timestamp ?? 0;
+		const dedupKey = `${rpcEvent.type}:${ts}`;
+		if (recentEventKeys.has(dedupKey)) {
+			log(`Dedup: skipping duplicate ${rpcEvent.type} (ts=${ts})`);
+			return;
+		}
+		if (!isReplay && ts > 0) {
+			recentEventKeys.add(dedupKey);
+			setTimeout(() => recentEventKeys.delete(dedupKey), DEDUP_WINDOW_MS);
+		}
 
 		// Skip duplicate agent_start if we already emitted a synthetic one
 		if (rpcEvent.type === 'agent_start' && syntheticAgentStartEmitted) {
@@ -237,9 +340,46 @@ export async function runRemoteTui(options: {
 		}
 
 		// Skip replay events — these are historical from Durable Stream
-		if (source === 'replay') {
+		if (isReplay) {
 			log(`Skipping replay event: ${rpcEvent.type}`);
 			return;
+		}
+
+		const hadSeenAgentStart = seenAgentStart;
+		const hadSeenMessageStart = seenMessageStart;
+		const assistantMessageKey = getRemoteAssistantMessageKey(rpcEvent);
+		if (
+			assistantMessageKey &&
+			(rpcEvent.type === 'message_start' || rpcEvent.type === 'message_end') &&
+			completedAssistantMessageKeySet.has(assistantMessageKey)
+		) {
+			log(`Dedup: skipping repeated assistant ${rpcEvent.type}`);
+			return;
+		}
+
+		// State-based dedup for assistant message streaming.
+		// Prevents duplicate AssistantMessageComponent from being added to the DOM.
+		if (rpcEvent.type === 'message_start') {
+			const msg = (rpcEvent as any).message;
+			if (msg?.role === 'assistant') {
+				if (assistantStreamActive) {
+					log(`Dedup: skipping duplicate assistant message_start (stream already active)`);
+					return;
+				}
+				assistantStreamActive = true;
+			}
+		}
+		if (rpcEvent.type === 'message_end') {
+			const msg = (rpcEvent as any).message;
+			if (msg?.role === 'assistant') {
+				assistantStreamActive = false;
+				if (assistantMessageKey) {
+					rememberCompletedAssistantMessage(assistantMessageKey);
+				}
+			}
+		}
+		if (rpcEvent.type === 'agent_end') {
+			assistantStreamActive = false;
 		}
 
 		// Track streaming lifecycle events so we can inject synthetics when
@@ -270,12 +410,13 @@ export async function runRemoteTui(options: {
 		// This happens when the controller connects mid-stream or after the
 		// agent finishes — the broadcast of agent_start/message_start occurred
 		// before the controller WebSocket was registered.
+		let injectedSyntheticMessageStart = false;
 		if (
 			(rpcEvent.type === 'message_update' || rpcEvent.type === 'message_end') &&
-			!seenMessageStart
+			!hadSeenMessageStart
 		) {
 			log(`Live ${rpcEvent.type} without prior message_start — injecting synthetics`);
-			if (!seenAgentStart) {
+			if (!hadSeenAgentStart) {
 				agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
 				seenAgentStart = true;
 			}
@@ -299,10 +440,17 @@ export async function runRemoteTui(options: {
 				},
 			} as any);
 			seenMessageStart = true;
+			assistantStreamActive = true;
+			injectedSyntheticMessageStart = true;
 		}
 
 		// Emit to subscribers — InteractiveMode.handleEvent processes this
 		agent.emit(rpcEvent);
+		if (injectedSyntheticMessageStart && rpcEvent.type === 'message_end') {
+			seenMessageStart = false;
+			seenAgentStart = hadSeenAgentStart;
+			assistantStreamActive = false;
+		}
 
 		// Resolve running prompt when agent finishes
 		if (rpcEvent.type === 'agent_end') {
@@ -330,8 +478,10 @@ export async function runRemoteTui(options: {
 		resolveHydration = resolve;
 	});
 
+	let hydrationCount = 0;
 	remote.onEvent((event: RpcEvent) => {
 		if (event.type !== 'session_hydration') return;
+		hydrationCount++;
 
 		const entries = (event as any).entries as
 			| Array<{
@@ -344,6 +494,19 @@ export async function runRemoteTui(options: {
 
 		// Extract task text from hydration (Hub includes session.sandbox?.task)
 		const hydrationTask = (event as any).task as string | undefined;
+
+		// On reconnect (2nd+ hydration), clear SM to prevent duplicate accumulation.
+		// agent.replaceMessages() already replaces state.messages, but SM only appends.
+		if (hydrationCount > 1) {
+			log(`Re-hydration #${hydrationCount} — clearing SessionManager to prevent duplicates`);
+			try {
+				if (typeof (sm as any).clear === 'function') {
+					(sm as any).clear();
+				}
+			} catch (err) {
+				log(`SM clear error (non-fatal): ${err}`);
+			}
+		}
 
 		if (!entries?.length) {
 			log('Received session_hydration with no entries');
@@ -366,7 +529,7 @@ export async function runRemoteTui(options: {
 			return;
 		}
 
-		log(`Hydrating ${entries.length} entries`);
+		log(`Hydrating ${entries.length} entries (hydration #${hydrationCount})`);
 		const agentMessages: any[] = [];
 
 		// If we have a task and no user_prompt entry, inject the task as the first user message
@@ -545,6 +708,7 @@ export async function runRemoteTui(options: {
 		} as any);
 		seenAgentStart = true;
 		seenMessageStart = true;
+		assistantStreamActive = true;
 
 		// Remove any agent_start/message_start from buffer since we already emitted them
 		eventBuffer = eventBuffer.filter(
@@ -627,7 +791,10 @@ function updateAgentState(agent: any, event: RpcEvent): void {
 
 		case 'message_end':
 			state.streamMessage = null;
-			state.messages = [...state.messages, (event as any).message];
+			// NOTE: Do NOT push to state.messages here.
+			// AgentSession._handleAgentEvent already persists via sessionManager.appendMessage().
+			// Pushing here causes state.messages to accumulate duplicates with SM,
+			// leading to visual duplicates if rebuildChatFromMessages() is ever triggered.
 			break;
 
 		case 'tool_execution_start': {
@@ -704,4 +871,34 @@ function extractMessageText(msg: any): string {
 	}
 
 	return '';
+}
+
+function getRemoteAssistantMessageKey(event: RpcEvent): string | undefined {
+	if (event.type !== 'message_start' && event.type !== 'message_end') return undefined;
+
+	const message = (event as any).message;
+	if (!message || typeof message !== 'object' || message.role !== 'assistant') {
+		return undefined;
+	}
+
+	const messageId = typeof message.id === 'string' ? message.id : '';
+	if (messageId) return `id:${messageId}`;
+
+	const timestamp =
+		typeof message.timestamp === 'number'
+			? String(message.timestamp)
+			: typeof message.timestamp === 'string'
+				? message.timestamp
+				: typeof (event as any).timestamp === 'number'
+					? String((event as any).timestamp)
+					: typeof (event as any).timestamp === 'string'
+						? (event as any).timestamp
+						: '';
+	if (timestamp) return `ts:${timestamp}`;
+
+	const text = extractMessageText(message);
+	if (!text) return undefined;
+
+	const stopReason = typeof message.stopReason === 'string' ? message.stopReason : '';
+	return `text:${stopReason}|${text}`;
 }

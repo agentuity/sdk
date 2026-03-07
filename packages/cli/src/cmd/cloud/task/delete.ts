@@ -70,8 +70,8 @@ export const deleteSubcommand = createCommand({
 			description: 'Delete a single task by ID',
 		},
 		{
-			command: getCommand('cloud task delete --status closed --older-than 7d'),
-			description: 'Delete closed tasks older than 7 days',
+			command: getCommand('cloud task delete --status done --older-than 7d'),
+			description: 'Delete done tasks older than 7 days',
 		},
 		{
 			command: getCommand('cloud task delete --status done --limit 10 --dry-run'),
@@ -88,7 +88,7 @@ export const deleteSubcommand = createCommand({
 		}),
 		options: z.object({
 			status: z
-				.enum(['open', 'in_progress', 'done', 'closed', 'cancelled'])
+				.enum(['open', 'in_progress', 'done', 'cancelled'])
 				.optional()
 				.describe('filter batch delete by status'),
 			type: z

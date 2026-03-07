@@ -1976,7 +1976,7 @@ export class HubOverlay implements Component, Focusable {
 					this.contentLine(
 						this.theme.fg(
 							'dim',
-							`  open:${summary.open ?? 0} in_progress:${summary.in_progress ?? 0} done:${summary.done ?? 0} closed:${summary.closed ?? 0} cancelled:${summary.cancelled ?? 0}`
+							`  open:${summary.open ?? 0} in_progress:${summary.in_progress ?? 0} done:${(summary.done ?? 0) + (summary.closed ?? 0)} cancelled:${summary.cancelled ?? 0}`
 						),
 						inner
 					)
@@ -1994,9 +1994,9 @@ export class HubOverlay implements Component, Focusable {
 				} else {
 					for (const todo of todos.slice(0, 20)) {
 						const statusColor =
-							todo.status === 'done'
+							todo.status === 'done' || todo.status === 'closed'
 								? 'success'
-								: todo.status === 'cancelled' || todo.status === 'closed'
+								: todo.status === 'cancelled'
 									? 'error'
 									: todo.status === 'in_progress'
 										? 'accent'
