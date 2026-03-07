@@ -33,6 +33,11 @@ const sandboxBasicAgent = createAgent('sandbox-basic', {
 				})
 				.optional(),
 			error: s.string().optional(),
+			errorTag: s.string().optional(),
+			statusCode: s.number().optional(),
+			errorMethod: s.string().optional(),
+			errorUrl: s.string().optional(),
+			sessionId: s.string().optional(),
 		}),
 	},
 	handler: async (ctx, input) => {
@@ -211,11 +216,17 @@ const sandboxBasicAgent = createAgent('sandbox-basic', {
 					throw new Error(`Unknown operation: ${operation}`);
 			}
 		} catch (err) {
+			const e = err as Record<string, unknown>;
 			return {
 				operation,
 				success: false,
 				sandboxId,
 				error: err instanceof Error ? err.message : String(err),
+				errorTag: typeof e._tag === 'string' ? e._tag : undefined,
+				statusCode: typeof e.statusCode === 'number' ? e.statusCode : undefined,
+				errorMethod: typeof e.method === 'string' ? e.method : undefined,
+				errorUrl: typeof e.url === 'string' ? e.url : undefined,
+				sessionId: typeof e.sessionId === 'string' ? e.sessionId : undefined,
 			};
 		}
 	},
