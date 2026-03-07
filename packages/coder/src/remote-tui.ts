@@ -221,11 +221,22 @@ export async function runRemoteTui(options: {
 	let seenMessageStart = false;
 	let seenAgentStart = false;
 
-	// State-based dedup: InteractiveMode adds a NEW AssistantMessageComponent to the
-	// chat on every message_start(assistant) WITHOUT checking for an existing one.
-	// If message_start fires twice before message_end, TWO components appear in the
-	// DOM — the first becomes an orphaned duplicate. Track streaming state to prevent this.
+	// InteractiveMode adds a new assistant component on every assistant message_start.
+	// Track active/completed remote messages so normal terminal events and late duplicates
+	// do not spawn extra components.
 	let assistantStreamActive = false;
+	const recentCompletedAssistantMessageKeys: string[] = [];
+	const completedAssistantMessageKeySet = new Set<string>();
+
+	function rememberCompletedAssistantMessage(key: string): void {
+		if (completedAssistantMessageKeySet.has(key)) return;
+		recentCompletedAssistantMessageKeys.push(key);
+		completedAssistantMessageKeySet.add(key);
+		if (recentCompletedAssistantMessageKeys.length > 32) {
+			const expired = recentCompletedAssistantMessageKeys.shift();
+			if (expired) completedAssistantMessageKeySet.delete(expired);
+		}
+	}
 
 	remote.onEvent((rpcEvent: RpcEvent) => {
 		const source = (rpcEvent as any)._source ?? 'unknown';
@@ -248,6 +259,18 @@ export async function runRemoteTui(options: {
 			return;
 		}
 
+		const hadSeenAgentStart = seenAgentStart;
+		const hadSeenMessageStart = seenMessageStart;
+		const assistantMessageKey = getRemoteAssistantMessageKey(rpcEvent);
+		if (
+			assistantMessageKey &&
+			(rpcEvent.type === 'message_start' || rpcEvent.type === 'message_end') &&
+			completedAssistantMessageKeySet.has(assistantMessageKey)
+		) {
+			log(`Dedup: skipping repeated assistant ${rpcEvent.type}`);
+			return;
+		}
+
 		// State-based dedup for assistant message streaming.
 		// Prevents duplicate AssistantMessageComponent from being added to the DOM.
 		if (rpcEvent.type === 'message_start') {
@@ -264,6 +287,9 @@ export async function runRemoteTui(options: {
 			const msg = (rpcEvent as any).message;
 			if (msg?.role === 'assistant') {
 				assistantStreamActive = false;
+				if (assistantMessageKey) {
+					rememberCompletedAssistantMessage(assistantMessageKey);
+				}
 			}
 		}
 		if (rpcEvent.type === 'agent_end') {
@@ -298,12 +324,13 @@ export async function runRemoteTui(options: {
 		// This happens when the controller connects mid-stream or after the
 		// agent finishes — the broadcast of agent_start/message_start occurred
 		// before the controller WebSocket was registered.
+		let injectedSyntheticMessageStart = false;
 		if (
 			(rpcEvent.type === 'message_update' || rpcEvent.type === 'message_end') &&
-			!seenMessageStart
+			!hadSeenMessageStart
 		) {
 			log(`Live ${rpcEvent.type} without prior message_start — injecting synthetics`);
-			if (!seenAgentStart) {
+			if (!hadSeenAgentStart) {
 				agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
 				seenAgentStart = true;
 			}
@@ -328,10 +355,16 @@ export async function runRemoteTui(options: {
 			} as any);
 			seenMessageStart = true;
 			assistantStreamActive = true;
+			injectedSyntheticMessageStart = true;
 		}
 
 		// Emit to subscribers — InteractiveMode.handleEvent processes this
 		agent.emit(rpcEvent);
+		if (injectedSyntheticMessageStart && rpcEvent.type === 'message_end') {
+			seenMessageStart = false;
+			seenAgentStart = hadSeenAgentStart;
+			assistantStreamActive = false;
+		}
 
 		// Resolve running prompt when agent finishes
 		if (rpcEvent.type === 'agent_end') {
@@ -752,4 +785,34 @@ function extractMessageText(msg: any): string {
 	}
 
 	return '';
+}
+
+function getRemoteAssistantMessageKey(event: RpcEvent): string | undefined {
+	if (event.type !== 'message_start' && event.type !== 'message_end') return undefined;
+
+	const message = (event as any).message;
+	if (!message || typeof message !== 'object' || message.role !== 'assistant') {
+		return undefined;
+	}
+
+	const messageId = typeof message.id === 'string' ? message.id : '';
+	if (messageId) return `id:${messageId}`;
+
+	const timestamp =
+		typeof message.timestamp === 'number'
+			? String(message.timestamp)
+			: typeof message.timestamp === 'string'
+				? message.timestamp
+				: typeof (event as any).timestamp === 'number'
+					? String((event as any).timestamp)
+					: typeof (event as any).timestamp === 'string'
+						? (event as any).timestamp
+						: '';
+	if (timestamp) return `ts:${timestamp}`;
+
+	const text = extractMessageText(message);
+	if (!text) return undefined;
+
+	const stopReason = typeof message.stopReason === 'string' ? message.stopReason : '';
+	return `text:${stopReason}|${text}`;
 }
