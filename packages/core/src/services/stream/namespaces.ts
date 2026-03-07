@@ -142,7 +142,7 @@ export async function streamGetNamespace(
 	options: StreamGetNamespaceOptions = {}
 ): Promise<StreamNamespaceResult> {
 	const resp = await client.post<GetNamespaceResponse>(
-		`/namespace/${encodeURIComponent(name)}`,
+		`/namespace/${encodeURIComponent(name)}/info`,
 		{ limit: options.limit, offset: options.offset },
 		GetNamespaceResponseSchema
 	);
