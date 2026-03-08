@@ -40,6 +40,10 @@ Bun workspaces monorepo with packages in `packages/`:
 - **Exports**: Named exports from package `index.ts`
 - **Errors**: Use `StructuredError` from `@agentuity/core`
 
+## Configuration
+
+See [docs/configuration.md](docs/configuration.md) for the `agentuity.config.ts` reference (build options, plugins, analytics, file bundling).
+
 ## Testing
 
 See [docs/testing.md](docs/testing.md) for detailed standards.
