@@ -325,6 +325,17 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// Load config to check if workbench is enabled (dev mode only)
 	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
 	const config = await loadAgentuityConfig(rootDir, logger);
+
+	// Copy bundle files if configured (before build so build output takes priority)
+	if (config?.bundle?.length) {
+		const { copyBundleFiles } = await import('./bundle-files');
+		const outDir = join(rootDir, '.agentuity');
+		const count = await copyBundleFiles(rootDir, outDir, config.bundle, logger);
+		if (count > 0) {
+			logger.debug(`Copied ${count} bundle file(s) to .agentuity`);
+		}
+	}
+
 	const workbenchConfig = getWorkbenchConfig(config, dev);
 	// Generate workbench files BEFORE any builds if enabled (dev mode only)
 	if (workbenchConfig.enabled) {

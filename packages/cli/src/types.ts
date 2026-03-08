@@ -249,6 +249,15 @@ export interface AgentuityConfig {
 	 * Note: Cannot override AGENTUITY_PUBLIC_* or process.env.NODE_ENV
 	 */
 	define?: Record<string, string>;
+	/**
+	 * Glob patterns for additional files to include in the deployment bundle.
+	 * Files matching these patterns will be copied into the .agentuity build
+	 * output directory before the build runs, preserving their relative paths
+	 * from the project root. Build output will overwrite any conflicting files.
+	 *
+	 * @example ['data/**', 'templates/*.json', 'models/weights.bin']
+	 */
+	bundle?: string[];
 }
 
 /**
