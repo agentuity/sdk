@@ -18,10 +18,6 @@ Bun-native CLI framework for Agentuity applications. Provides command structure,
 - **Config**: YAML from `~/.config/agentuity/production.yaml`
 - **Commands**: Auto-discovered from `src/cmd/` directories
 
-## Configuration
-
-Project build configuration is defined in `agentuity.config.ts`. See [../../docs/configuration.md](../../docs/configuration.md) for the full reference.
-
 ## Code Conventions
 
 - **Command structure**: Each command is a directory in `src/cmd/` with `index.ts`
