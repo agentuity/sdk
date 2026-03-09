@@ -104,17 +104,33 @@ export interface BaseAppConfig<TAppState = Record<string, never>> extends AppCon
 	 * It will be mounted at `routePrefix` (default: `/api`) with all Agentuity
 	 * middleware (CORS, OTel session tracking, agent context) applied to that prefix.
 	 *
-	 * @example
+	 * You can use either `createRouter()` (recommended — pre-typed with Agentuity
+	 * context variables) or a plain `new Hono<Env>()` if you want explicit control:
+	 *
+	 * @example Using createRouter (recommended)
 	 * ```typescript
 	 * import { createRouter } from '@agentuity/runtime';
-	 * import usersRouter from './api/users';
 	 *
 	 * const router = createRouter();
 	 * router.route('/users', usersRouter);
 	 * router.get('/health', (c) => c.text('OK'));
 	 *
 	 * const app = await createBaseApp({ router });
-	 * // Routes are available at /api/users/*, /api/health
+	 * ```
+	 *
+	 * @example Using plain Hono with Env for typed context variables
+	 * ```typescript
+	 * import { type Env } from '@agentuity/runtime';
+	 * import { Hono } from 'hono';
+	 *
+	 * const router = new Hono<Env>();
+	 * router.get('/test', (c) => {
+	 *   // c.var.logger, c.var.thread, c.var.session, c.var.kv — all typed
+	 *   c.var.logger.info('hello');
+	 *   return c.json({ threadId: c.var.thread.id });
+	 * });
+	 *
+	 * const app = await createBaseApp({ router });
 	 * ```
 	 */
 	router: Hono;
