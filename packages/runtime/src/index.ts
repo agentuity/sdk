@@ -74,9 +74,6 @@ export { internalExit } from './_process-protection';
 // devmode.ts exports
 export { registerDevModeRoutes } from './devmode';
 
-// base-app.ts exports (simplified routing without file-based convention)
-export { createBaseApp, type BaseAppConfig, type BaseAppResult } from './base-app';
-
 // router.ts exports
 export { type HonoEnv, type WebSocketConnection, createRouter } from './router';
 

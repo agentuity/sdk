@@ -1,70 +1,14 @@
 /**
- * Tests for createBaseApp - standalone bring-your-own-router pattern.
+ * Tests for sub-router composition with createRouter.
  *
- * These tests verify that createBaseApp correctly:
- * - Accepts a user-provided Hono router
- * - Applies Agentuity middleware (base, CORS, OTel, agent context)
- * - Mounts the user router at the configured prefix
- * - Mounts system routes (health checks, workbench)
- * - Returns the expected result shape
- *
- * Note: createBaseApp bootstraps OTel, services, etc. — these tests focus on
- * the routing/middleware wiring, not full integration (which requires env vars).
+ * These tests verify that createRouter-based sub-routers compose correctly
+ * when mounted via Hono's .route() — the same pattern used by the CLI's
+ * generated entry file and the route consolidation migration.
  */
 
 import { describe, test, expect } from 'bun:test';
 import { Hono } from 'hono';
 import { createRouter } from '../src/router';
-import type { BaseAppConfig, BaseAppResult } from '../src/base-app';
-
-describe('createBaseApp', () => {
-	test('exports are available from index', async () => {
-		const mod = await import('../src/index');
-		expect(mod.createBaseApp).toBeFunction();
-	});
-
-	test('BaseAppConfig type requires router property', () => {
-		// Type-level test: this should compile
-		const _config: BaseAppConfig = {
-			router: new Hono(),
-		};
-		expect(_config.router).toBeDefined();
-	});
-
-	test('BaseAppConfig accepts all AppConfig properties', () => {
-		// Type-level test: verify the config extends AppConfig properly
-		const _config: BaseAppConfig<{ db: string }> = {
-			router: new Hono(),
-			setup: async () => ({ db: 'test' }),
-			shutdown: async (_state) => {},
-			cors: { origin: '*' },
-			compression: { enabled: false },
-			requestTimeout: 30,
-			routePrefix: '/v1',
-			workbench: false,
-			healthChecks: true,
-			port: 4000,
-			logLevel: 'debug',
-		};
-		expect(_config.routePrefix).toBe('/v1');
-	});
-
-	test('BaseAppResult has the expected shape', () => {
-		// Type-level test
-		type _Check = BaseAppResult<{ db: string }>;
-
-		// Verify the interface has the expected keys
-		const keys: (keyof BaseAppResult)[] = [
-			'router',
-			'state',
-			'logger',
-			'server',
-			'addEventListener',
-			'removeEventListener',
-		];
-		expect(keys).toHaveLength(6);
-	});
-});
 
 describe('createRouter - sub-router compatibility', () => {
 	test('createRouter produces a Hono instance that can be used as sub-router', () => {
@@ -97,7 +41,7 @@ describe('createRouter - sub-router compatibility', () => {
 		router.route('/auth', auth);
 		router.get('/health', (c) => c.text('OK'));
 
-		// Simulate what createBaseApp does: mount user router at a prefix
+		// Simulate what the entry generator does: mount user router at a prefix
 		const app = new Hono();
 		app.route('/api', router);
 

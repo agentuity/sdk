@@ -90,7 +90,7 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		});
 	}
 
-	// Check if project can migrate to explicit routing (createBaseApp)
+	// Check if project can consolidate file-based routes into a single root router
 	await promptRouteMigration(rootDir, logger);
 
 	try {
