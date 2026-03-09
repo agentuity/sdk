@@ -271,7 +271,8 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 * });
 	 * ```
 	 */
-	router?: import('hono').Hono | RouteMount | RouteMount[];
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	router?: import('hono').Hono<any, any, any> | RouteMount | RouteMount[];
 }
 
 /**
@@ -288,7 +289,8 @@ export interface RouteMount {
 	/**
 	 * The Hono router to mount.
 	 */
-	router: import('hono').Hono;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	router: import('hono').Hono<any, any, any>;
 }
 
 export interface Variables<TAppState = Record<string, never>> {
@@ -541,7 +543,8 @@ export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefine
  * @internal
  */
 function normalizeRouterConfig(
-	router: import('hono').Hono | RouteMount | RouteMount[]
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	router: import('hono').Hono<any, any, any> | RouteMount | RouteMount[]
 ): RouteMount[] {
 	if (Array.isArray(router)) {
 		return router;
@@ -549,7 +552,8 @@ function normalizeRouterConfig(
 	if ('router' in router && 'path' in router) {
 		return [router as RouteMount];
 	}
-	return [{ path: '/api', router: router as import('hono').Hono }];
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return [{ path: '/api', router: router as import('hono').Hono<any, any, any> }];
 }
 
 /**
