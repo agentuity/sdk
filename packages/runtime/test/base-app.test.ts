@@ -1,14 +1,17 @@
 /**
- * Tests for sub-router composition with createRouter.
+ * Tests for sub-router composition with createRouter and the
+ * createApp({ router }) user-provided router feature.
  *
  * These tests verify that createRouter-based sub-routers compose correctly
  * when mounted via Hono's .route() — the same pattern used by the CLI's
  * generated entry file and the route consolidation migration.
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, afterEach } from 'bun:test';
 import { Hono } from 'hono';
 import { createRouter } from '../src/router';
+import type { AppConfig } from '../src/app';
+import { getUserRouter } from '../src/app';
 
 describe('createRouter - sub-router compatibility', () => {
 	test('createRouter produces a Hono instance that can be used as sub-router', () => {
@@ -180,5 +183,75 @@ describe('createRouter - sub-router compatibility', () => {
 		const apiRes = await app.request('/api/data');
 		expect(apiRes.status).toBe(200);
 		expect(middlewareCallCount).toBe(1);
+	});
+});
+
+describe('createApp({ router }) - user-provided router', () => {
+	afterEach(() => {
+		// Clean up globals
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		delete (globalThis as any).__AGENTUITY_USER_ROUTER__;
+	});
+
+	test('AppConfig accepts optional router property', () => {
+		const router = createRouter();
+		const _config: AppConfig = {
+			router,
+		};
+		expect(_config.router).toBeDefined();
+	});
+
+	test('AppConfig router is optional — omitting it uses file-based routing', () => {
+		const _config: AppConfig = {};
+		expect(_config.router).toBeUndefined();
+	});
+
+	test('getUserRouter returns undefined when no user router is set', () => {
+		expect(getUserRouter()).toBeUndefined();
+	});
+
+	test('getUserRouter returns the router after it is stored on globalThis', () => {
+		const router = createRouter();
+		// Simulate what createApp does internally
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(globalThis as any).__AGENTUITY_USER_ROUTER__ = router;
+
+		expect(getUserRouter()).toBe(router);
+	});
+
+	test('user-provided router works when mounted at /api by entry file', async () => {
+		// Simulate the full flow: user builds a router, entry file mounts it
+		const users = createRouter();
+		users.get('/', (c) => c.json({ users: [] }));
+		users.get('/:id', (c) => c.json({ id: c.req.param('id') }));
+
+		const auth = createRouter();
+		auth.post('/login', (c) => c.json({ token: 'abc' }));
+
+		// User builds their root router (what they'd pass to createApp({ router }))
+		const userRouter = createRouter();
+		userRouter.route('/users', users);
+		userRouter.route('/auth', auth);
+		userRouter.get('/health', (c) => c.text('OK'));
+
+		// Entry file mounts it at /api (simulating the generated code)
+		const app = new Hono();
+		app.route('/api', userRouter);
+
+		let res = await app.request('/api/users');
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ users: [] });
+
+		res = await app.request('/api/users/42');
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ id: '42' });
+
+		res = await app.request('/api/auth/login', { method: 'POST' });
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ token: 'abc' });
+
+		res = await app.request('/api/health');
+		expect(res.status).toBe(200);
+		expect(await res.text()).toBe('OK');
 	});
 });

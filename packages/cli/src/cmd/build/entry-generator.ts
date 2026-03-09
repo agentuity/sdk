@@ -84,6 +84,7 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		`  createCompressionMiddleware,`,
 		`  getAppState,`,
 		`  getAppConfig,`,
+		`  getUserRouter,`,
 		`  register,`,
 		`  getSpanProcessors,`,
 		`  createServices,`,
@@ -152,7 +153,13 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		routeImportsAndMounts.length > 0
 			? `
 // Mount API routes
-${routeImportsAndMounts.join('\n')}
+// If user passed a router via createApp({ router }), mount that instead of discovered files
+const __userRouter = getUserRouter();
+if (__userRouter) {
+	app.route('/api', __userRouter);
+} else {
+${routeImportsAndMounts.map((line) => `\t${line}`).join('\n')}
+}
 `
 			: '';
 

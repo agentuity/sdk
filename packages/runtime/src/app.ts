@@ -226,6 +226,36 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 * to zero which will cause the request to wait indefinitely.
 	 */
 	requestTimeout?: number;
+
+	/**
+	 * Optional user-provided Hono router to use instead of file-based routing.
+	 *
+	 * When provided, the CLI's generated entry file will mount this single router
+	 * at `/api` instead of auto-discovering and mounting individual route files
+	 * from `src/api/`. All Agentuity middleware (CORS, OTel, agent context) is
+	 * still applied to `/api/*` as normal.
+	 *
+	 * Use `createRouter()` to get typed access to Agentuity context variables
+	 * (`c.var.logger`, `c.var.thread`, `c.var.session`, etc.), or use
+	 * `new Hono<Env>()` for the same types with a plain Hono instance.
+	 *
+	 * @example
+	 * ```typescript
+	 * // app.ts
+	 * import { createApp, createRouter } from '@agentuity/runtime';
+	 * import usersRouter from './api/users';
+	 * import authRouter from './api/auth';
+	 *
+	 * const router = createRouter();
+	 * router.route('/users', usersRouter);
+	 * router.route('/auth', authRouter);
+	 * router.get('/health', (c) => c.text('OK'));
+	 *
+	 * export const app = await createApp({ router });
+	 * // Routes are mounted at /api/users, /api/auth, /api/health
+	 * ```
+	 */
+	router?: import('hono').Hono;
 }
 
 export interface Variables<TAppState = Record<string, never>> {
@@ -373,6 +403,12 @@ export async function createApp<TAppState = Record<string, never>>(
 	(globalThis as any).__AGENTUITY_APP_STATE__ = state;
 	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
 
+	// Store user-provided router for generated entry file to detect
+	// When set, the entry file mounts this instead of auto-discovered route files
+	if (config?.router) {
+		(globalThis as any).__AGENTUITY_USER_ROUTER__ = config.router;
+	}
+
 	// Store shutdown function for cleanup
 	const shutdown = config?.shutdown;
 	if (shutdown) {
@@ -462,6 +498,15 @@ export function getAppState<TAppState = any>(): TAppState {
  */
 export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefined {
 	return (globalThis as any).__AGENTUITY_APP_CONFIG__;
+}
+
+/**
+ * Get the user-provided router from createApp({ router })
+ * Used by generated entry file to skip file-based route discovery
+ * @internal
+ */
+export function getUserRouter(): import('hono').Hono | undefined {
+	return (globalThis as any).__AGENTUITY_USER_ROUTER__;
 }
 
 /**

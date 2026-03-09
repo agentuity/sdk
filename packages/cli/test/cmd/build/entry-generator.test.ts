@@ -99,6 +99,51 @@ export default router;
 		expect(appContent).toContain('proxyToVite');
 	});
 
+	test('generated app.ts supports user-provided router via getUserRouter()', async () => {
+		// Use subdirectories to avoid route conflicts (both would otherwise mount at /api)
+		const usersDir = join(apiDir, 'users');
+		const authDir = join(apiDir, 'auth');
+		mkdirSync(usersDir, { recursive: true });
+		mkdirSync(authDir, { recursive: true });
+
+		writeFileSync(
+			join(usersDir, 'route.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+router.get('/', async (c) => c.json({ users: [] }));
+export default router;`
+		);
+		writeFileSync(
+			join(authDir, 'route.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+router.post('/login', async (c) => c.json({ ok: true }));
+export default router;`
+		);
+
+		await generateEntryFile({
+			rootDir: testDir,
+			projectId: 'test-project',
+			deploymentId: 'test-deployment',
+			logger,
+			mode: 'prod',
+			workbench: undefined,
+		});
+
+		const appContent = await Bun.file(join(generatedDir, 'app.ts')).text();
+
+		// Should import getUserRouter
+		expect(appContent).toContain('getUserRouter');
+
+		// Should check for user router at runtime
+		expect(appContent).toContain('const __userRouter = getUserRouter()');
+		expect(appContent).toContain("app.route('/api', __userRouter)");
+
+		// Should still have file-based fallback
+		expect(appContent).toContain("await import('../api/auth/route.js')");
+		expect(appContent).toContain("await import('../api/users/route.js')");
+	});
+
 	test('generated app.ts contains runtime mode detection', async () => {
 		writeFileSync(join(apiDir, 'index.ts'), 'export default {};');
 

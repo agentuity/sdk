@@ -41,6 +41,7 @@ export {
 	getApp,
 	getAppState,
 	getAppConfig,
+	getUserRouter,
 	runShutdown,
 	registerShutdownHook,
 	fireEvent,
