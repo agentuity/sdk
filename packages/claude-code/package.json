@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/claude-code",
-	"version": "1.0.38",
+	"version": "1.0.39",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Agentuity Coder plugin for Claude Code with specialized AI coding agents",
