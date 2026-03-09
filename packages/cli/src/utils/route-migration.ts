@@ -265,31 +265,6 @@ function computeRouteMountInfo(file: string): {
 }
 
 /**
- * Detect whether a route file has named exports (besides the default export).
- * Returns true if the file has `export const/let/var/function/class/enum/type/interface`
- * or `export { ... }` statements.
- */
-function hasNamedExports(rootDir: string, routeFile: string): boolean {
-	const filePath = join(rootDir, 'src', 'api', routeFile);
-	if (!existsSync(filePath)) return false;
-
-	try {
-		const content = readFileSync(filePath, 'utf-8');
-		// Strip comments to avoid false positives
-		const stripped = content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-
-		// Look for named export patterns (not `export default`)
-		return (
-			/export\s+(?:const|let|var|function|class|enum|type|interface|async\s+function)\s/.test(
-				stripped
-			) || /export\s*\{[^}]+\}/.test(stripped)
-		);
-	} catch {
-		return false;
-	}
-}
-
-/**
  * Deduplicate import names by appending a numeric suffix when collisions occur.
  */
 function deduplicateImportNames(
@@ -308,27 +283,13 @@ function deduplicateImportNames(
 
 /**
  * Generate a fresh src/api/index.ts that imports and mounts all route files.
- * Also re-exports named exports from each route file so the index acts as a barrel.
  */
-function generateRootRouter(routeFiles: string[], rootDir?: string): string {
+function generateRootRouter(routeFiles: string[]): string {
 	const sorted = [...routeFiles].sort();
 	const infos = deduplicateImportNames(sorted.map(computeRouteMountInfo));
 
 	const imports = infos.map((i) => `import ${i.importName} from '${i.importPath}';`);
 	const mounts = infos.map((i) => `router.route('${i.mountPath}', ${i.importName});`);
-
-	// Re-export named exports from route files that have them
-	const reExports: string[] = [];
-	if (rootDir) {
-		for (const file of sorted) {
-			if (hasNamedExports(rootDir, file)) {
-				const importPath = `./${file.replace(/\.tsx?$/, '')}`;
-				reExports.push(`export * from '${importPath}';`);
-			}
-		}
-	}
-
-	const reExportBlock = reExports.length > 0 ? `\n${reExports.join('\n')}\n` : '';
 
 	return `import { createRouter } from '@agentuity/runtime';
 ${imports.join('\n')}
@@ -336,7 +297,7 @@ ${imports.join('\n')}
 const router = createRouter();
 
 ${mounts.join('\n')}
-${reExportBlock}
+
 export default router;
 `;
 }
@@ -384,8 +345,7 @@ function detectRouterVariableName(content: string): string {
  */
 function mergeIntoExistingIndex(
 	existingContent: string,
-	routeFiles: string[],
-	rootDir?: string
+	routeFiles: string[]
 ): { content: string; added: string[] } {
 	const sorted = [...routeFiles].sort();
 	const allInfos = deduplicateImportNames(sorted.map(computeRouteMountInfo));
@@ -402,25 +362,6 @@ function mergeIntoExistingIndex(
 
 	const newImports = newInfos.map((i) => `import ${i.importName} from '${i.importPath}';`);
 	const newMounts = newInfos.map((i) => `${routerVar}.route('${i.mountPath}', ${i.importName});`);
-
-	// Re-export named exports from new route files that have them
-	const newReExports: string[] = [];
-	if (rootDir) {
-		for (const info of newInfos) {
-			// Find the original route file for this info
-			const routeFile = sorted.find((f) => `./${f.replace(/\.tsx?$/, '')}` === info.importPath);
-			if (routeFile && hasNamedExports(rootDir, routeFile)) {
-				// Only add if not already re-exported
-				const reExportLine = `export * from '${info.importPath}';`;
-				if (
-					!existingContent.includes(`from '${info.importPath}'`) ||
-					!existingContent.includes('export *')
-				) {
-					newReExports.push(reExportLine);
-				}
-			}
-		}
-	}
 
 	const lines = existingContent.split('\n');
 
@@ -456,11 +397,6 @@ function mergeIntoExistingIndex(
 
 	// Insert mounts before export default, with a blank line separator
 	lines.splice(adjustedExportIndex, 0, '', ...newMounts, '');
-
-	// Append re-exports after export default
-	if (newReExports.length > 0) {
-		lines.push('', ...newReExports);
-	}
 
 	return {
 		content: lines.join('\n'),
@@ -663,11 +599,7 @@ export function performMigration(rootDir: string, routeFiles: string[]): Migrati
 		if (existsSync(apiIndexPath)) {
 			// Existing index.ts — merge new imports and mounts into it
 			const existingContent = readFileSync(apiIndexPath, 'utf-8');
-			const { content: merged, added } = mergeIntoExistingIndex(
-				existingContent,
-				filesToMount,
-				rootDir
-			);
+			const { content: merged, added } = mergeIntoExistingIndex(existingContent, filesToMount);
 
 			if (added.length === 0) {
 				// All routes already imported — still try to update app.ts
@@ -697,7 +629,7 @@ export function performMigration(rootDir: string, routeFiles: string[]): Migrati
 			indexMessage = `Added ${added.length} route mount(s) to existing src/api/index.ts.`;
 		} else {
 			// No existing index.ts — generate a fresh one
-			const rootRouterContent = generateRootRouter(filesToMount, rootDir);
+			const rootRouterContent = generateRootRouter(filesToMount);
 			const apiDir = join(rootDir, 'src', 'api');
 			if (!existsSync(apiDir)) mkdirSync(apiDir, { recursive: true });
 			writeFileSync(apiIndexPath, rootRouterContent);

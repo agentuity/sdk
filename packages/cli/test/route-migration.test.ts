@@ -291,65 +291,6 @@ export default router;`
 		expect(indexContent).toContain('export default router');
 	});
 
-	test('re-exports named exports from route files in generated index.ts', () => {
-		writeFileSync(
-			join(testDir, 'src', 'api', 'users.ts'),
-			`import { createRouter } from '@agentuity/runtime';
-import { z } from 'zod';
-
-export const getUsersQuerySchema = z.object({ page: z.number() });
-export const searchUsersQuerySchema = z.object({ q: z.string() });
-
-const router = createRouter();
-router.get('/', (c) => c.json([]));
-export default router;`
-		);
-		writeFileSync(
-			join(testDir, 'src', 'api', 'health.ts'),
-			`import { createRouter } from '@agentuity/runtime';
-const router = createRouter();
-router.get('/', (c) => c.text('OK'));
-export default router;`
-		);
-
-		const result = performMigration(testDir, ['users.ts', 'health.ts']);
-
-		expect(result.success).toBe(true);
-		const indexContent = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
-		// users.ts has named exports → should be re-exported
-		expect(indexContent).toContain("export * from './users';");
-		// health.ts has no named exports → should NOT be re-exported
-		expect(indexContent).not.toContain("export * from './health'");
-	});
-
-	test('re-exports named exports when merging into existing index.ts', () => {
-		writeFileSync(
-			join(testDir, 'src', 'api', 'index.ts'),
-			`import { createRouter } from '@agentuity/runtime';
-
-const router = createRouter();
-
-export default router;`
-		);
-		writeFileSync(
-			join(testDir, 'src', 'api', 'agents.ts'),
-			`import { createRouter } from '@agentuity/runtime';
-import { z } from 'zod';
-
-export const getAgentsQuerySchema = z.object({ limit: z.number() });
-
-const router = createRouter();
-export default router;`
-		);
-
-		const result = performMigration(testDir, ['index.ts', 'agents.ts']);
-
-		expect(result.success).toBe(true);
-		const indexContent = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
-		expect(indexContent).toContain("router.route('/agents', agentsRouter)");
-		expect(indexContent).toContain("export * from './agents';");
-	});
-
 	test('merges new routes into existing src/api/index.ts with a router', () => {
 		writeFileSync(
 			join(testDir, 'src', 'api', 'index.ts'),
