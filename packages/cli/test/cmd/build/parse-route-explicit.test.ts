@@ -116,6 +116,52 @@ export default router;`
 		expect(paths).toContain('post /api/v1/auth/logout');
 	});
 
+	test('sub-router routes carry schemaSourceFile for schema import resolution', async () => {
+		mkdirSync(join(testDir, 'src', 'api', 'sub'), { recursive: true });
+
+		writeFileSync(
+			join(testDir, 'src', 'api', 'sub', 'agents.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+router.get('/', (c) => c.json([]));
+router.post('/search', (c) => c.json({}));
+export default router;`
+		);
+
+		writeFileSync(
+			join(testDir, 'src', 'api', 'index.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+import agents from './sub/agents';
+const router = createRouter();
+router.route('/agents', agents);
+router.get('/health', (c) => c.text('OK'));
+export default router;`
+		);
+
+		const routes = await parseRoute(
+			testDir,
+			join(testDir, 'src', 'api', 'index.ts'),
+			'proj',
+			'dep',
+			{ mountPrefix: '/api' }
+		);
+
+		// The /health route is defined in index.ts — filename is index.ts, no schemaSourceFile
+		const healthRoute = routes.find((r) => r.path === '/api/health');
+		expect(healthRoute).toBeDefined();
+		expect(healthRoute!.filename).toBe('src/api/index.ts');
+		expect(healthRoute!.config?.schemaSourceFile).toBeUndefined();
+
+		// The agents routes are mounted via .route() — filename is the parent (index.ts)
+		// for dedup, but schemaSourceFile points to the actual sub-router file
+		const agentRoutes = routes.filter((r) => r.path.includes('/agents'));
+		expect(agentRoutes.length).toBe(2);
+		for (const route of agentRoutes) {
+			expect(route.filename).toBe('src/api/index.ts');
+			expect(route.config?.schemaSourceFile).toBe('src/api/sub/agents.ts');
+		}
+	});
+
 	test('without mountPrefix falls back to filesystem-derived path', async () => {
 		writeFileSync(
 			join(testDir, 'src', 'api', 'users.ts'),

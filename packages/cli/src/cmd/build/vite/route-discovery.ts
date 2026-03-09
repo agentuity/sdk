@@ -48,6 +48,12 @@ export interface RouteInfo {
 	outputSchemaCode?: string;
 	stream?: boolean;
 	pathParams?: string[];
+	/**
+	 * When a route is mounted via .route(), its filename is set to the parent file
+	 * (for dedup filtering). schemaSourceFile preserves the actual file where the
+	 * route's schema variables are defined/exported, so registry imports resolve correctly.
+	 */
+	schemaSourceFile?: string;
 }
 
 /**
@@ -173,6 +179,7 @@ async function discoverExplicitRoutes(
 									? true
 									: undefined,
 						pathParams: pathParams.length > 0 ? pathParams : undefined,
+						schemaSourceFile: route.config?.schemaSourceFile as string | undefined,
 					});
 				}
 			}
@@ -294,6 +301,7 @@ async function discoverFileBasedRoutes(
 										? true
 										: undefined,
 							pathParams: pathParams.length > 0 ? pathParams : undefined,
+							schemaSourceFile: route.config?.schemaSourceFile as string | undefined,
 						});
 					}
 				}

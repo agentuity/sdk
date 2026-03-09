@@ -1932,11 +1932,20 @@ export async function parseRoute(
 											subRoute.version
 										);
 
+										// Preserve the sub-route's original filename for schema
+										// import resolution. The registry generator needs to know
+										// which file actually defines/exports the schema variable.
+										const config = { ...subRoute.config };
+										if (subRoute.filename && subRoute.filename !== rel) {
+											config.schemaSourceFile = subRoute.filename;
+										}
+
 										routes.push({
 											...subRoute,
 											id,
 											path: fullPath,
-											filename: rel, // Keep parent file as the filename since routes are mounted here
+											filename: rel,
+											config: Object.keys(config).length > 0 ? config : undefined,
 										});
 									}
 								} catch {
@@ -2489,7 +2498,19 @@ export async function parseRoute(
 											fullPath,
 											subRoute.version
 										);
-										routes.push({ ...subRoute, id, path: fullPath, filename: rel });
+
+										const config = { ...subRoute.config };
+										if (subRoute.filename && subRoute.filename !== rel) {
+											config.schemaSourceFile = subRoute.filename;
+										}
+
+										routes.push({
+											...subRoute,
+											id,
+											path: fullPath,
+											filename: rel,
+											config: Object.keys(config).length > 0 ? config : undefined,
+										});
 									}
 								} catch {
 									// Sub-router parse failure — skip
