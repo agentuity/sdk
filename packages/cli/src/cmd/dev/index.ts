@@ -20,6 +20,11 @@ import { isTTY, hasLoggedInBefore } from '../../auth';
 import { createFileWatcher } from './file-watcher';
 import { prepareDevLock, releaseLockSync } from './dev-lock';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
+import {
+	promptRouteMigration,
+	performMigration,
+	detectFileBasedRoutes,
+} from '../../utils/route-migration';
 import { ErrorCode } from '../../errors';
 
 const DEFAULT_PORT = 3500;
@@ -232,6 +237,12 @@ export const command = createCommand({
 				.boolean()
 				.optional()
 				.describe('Skip TypeScript type checking on startup and restarts'),
+			migrateRoutes: z
+				.boolean()
+				.optional()
+				.describe(
+					'Consolidate route files in src/api/ into a single root router (src/api/index.ts)'
+				),
 			resume: z.string().optional().describe('Resume a paused Hub session by ID'),
 		}),
 	},
@@ -412,6 +423,29 @@ export const command = createCommand({
 				`Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`,
 				ErrorCode.BUILD_FAILED
 			);
+		}
+
+		// Check if project can consolidate routes into a single root router
+		if (opts.migrateRoutes) {
+			const routeFiles = detectFileBasedRoutes(rootDir);
+			if (routeFiles.length >= 2) {
+				const result = performMigration(rootDir, routeFiles);
+				if (result.success) {
+					tui.success(result.message);
+					if (result.filesCreated.length > 0) {
+						tui.info(`Created: ${result.filesCreated.map((f) => tui.muted(f)).join(', ')}`);
+					}
+					tui.newline();
+				} else {
+					tui.warning(result.message);
+					tui.newline();
+				}
+			} else {
+				tui.info('No route consolidation needed (fewer than 2 route files in src/api/).');
+				tui.newline();
+			}
+		} else {
+			await promptRouteMigration(rootDir, logger);
 		}
 
 		try {
