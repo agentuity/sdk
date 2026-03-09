@@ -160,6 +160,12 @@ export function checkMigrationEligibility(rootDir: string): MigrationCheckResult
 	}
 
 	const state = readMigrationState(rootDir);
+
+	// Already migrated — don't prompt again
+	if (state?.state === 'migrated') {
+		return { available: false, routeFiles: [], alreadyNotified: true };
+	}
+
 	const alreadyNotified = state?.state === 'notified' || state?.state === 'dismissed';
 
 	return { available: true, routeFiles, alreadyNotified };

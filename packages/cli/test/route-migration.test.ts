@@ -216,6 +216,32 @@ export default router;`
 		// Should include health.ts (not yet imported) and others
 		expect(result.routeFiles.length).toBeGreaterThanOrEqual(2);
 	});
+
+	test('not eligible when migration state is "migrated"', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		// Simulate a completed migration by writing the sentinel file
+		const stateDir = join(testDir, '.agentuity');
+		mkdirSync(stateDir, { recursive: true });
+		writeFileSync(
+			join(stateDir, '.route-migration-state'),
+			JSON.stringify({ state: 'migrated', timestamp: new Date().toISOString() })
+		);
+
+		const result = checkMigrationEligibility(testDir);
+		expect(result.available).toBe(false);
+	});
 });
 
 describe('Route Migration - Perform Migration', () => {
