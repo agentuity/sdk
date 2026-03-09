@@ -136,6 +136,10 @@ export const TaskSchema = z.object({
 		.lazy(() => z.array(CommentSchema))
 		.optional()
 		.describe('Array of comments on this task.'),
+	subtask_count: z
+		.number()
+		.optional()
+		.describe('Number of direct child tasks (subtasks). Only included in list responses.'),
 });
 
 export type Task = z.infer<typeof TaskSchema>;
