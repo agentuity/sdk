@@ -23,7 +23,7 @@ import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
 import {
 	promptRouteMigration,
 	performMigration,
-	detectFileBasedRoutes,
+	checkMigrationEligibility,
 } from '../../utils/route-migration';
 import { ErrorCode } from '../../errors';
 
@@ -427,9 +427,9 @@ export const command = createCommand({
 
 		// Check if project can consolidate routes into a single root router
 		if (opts.migrateRoutes) {
-			const routeFiles = detectFileBasedRoutes(rootDir);
-			if (routeFiles.length >= 2) {
-				const result = performMigration(rootDir, routeFiles);
+			const eligibility = checkMigrationEligibility(rootDir);
+			if (eligibility.available) {
+				const result = performMigration(rootDir, eligibility.routeFiles);
 				if (result.success) {
 					tui.success(result.message);
 					if (result.filesCreated.length > 0) {
@@ -441,11 +441,11 @@ export const command = createCommand({
 					tui.newline();
 				}
 			} else {
-				tui.info('No route consolidation needed (fewer than 2 route files in src/api/).');
+				tui.info('No route consolidation needed.');
 				tui.newline();
 			}
 		} else {
-			await promptRouteMigration(rootDir, logger);
+			await promptRouteMigration(rootDir, logger, { interactive });
 		}
 
 		try {

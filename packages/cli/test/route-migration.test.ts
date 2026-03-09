@@ -59,6 +59,32 @@ export default router;`
 		expect(files).toHaveLength(0);
 	});
 
+	test('ignores files that import createRouter but do not export a router', () => {
+		// A helper file that references createRouter in a comment or import
+		writeFileSync(
+			join(testDir, 'src', 'api', 'helpers.ts'),
+			`// This file uses createRouter internally but does not export a default router
+import { createRouter } from '@agentuity/runtime';
+
+export function makeRouter() {
+	return createRouter();
+}`
+		);
+
+		const files = detectFileBasedRoutes(testDir);
+		expect(files).toHaveLength(0);
+	});
+
+	test('ignores barrel files that re-export but do not create routers', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'barrel.ts'),
+			`export { default } from './users';\n// uses createRouter pattern`
+		);
+
+		const files = detectFileBasedRoutes(testDir);
+		expect(files).toHaveLength(0);
+	});
+
 	test('detects nested route files', () => {
 		mkdirSync(join(testDir, 'src', 'api', 'auth'), { recursive: true });
 		mkdirSync(join(testDir, 'src', 'api', 'users'), { recursive: true });
@@ -234,6 +260,35 @@ export default router;`
 		// Verify original file untouched
 		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
 		expect(content).toContain('/custom');
+	});
+
+	test('does not overwrite existing src/api/index.ts even if not a router', () => {
+		// A barrel file or helper — must never be silently replaced
+		writeFileSync(
+			join(testDir, 'src', 'api', 'index.ts'),
+			`export { helper } from './utils';\nexport const API_VERSION = '1.0';`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['users.ts', 'health.ts']);
+
+		expect(result.success).toBe(false);
+		expect(result.message).toContain('already exists');
+
+		// Verify barrel file untouched
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		expect(content).toContain('API_VERSION');
 	});
 
 	test('filters out index.ts from mounted routes', () => {
@@ -559,5 +614,29 @@ export default router;`
 		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
 		expect(content).toContain("router.route('/other'");
 		expect(content).toContain("router.route('/v1'");
+	});
+
+	test('preserves filename segment for named files in subdirectories', () => {
+		mkdirSync(join(testDir, 'src', 'api', 'users'), { recursive: true });
+
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users', 'profile.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users', 'settings.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		performMigration(testDir, ['users/profile.ts', 'users/settings.ts']);
+
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		// Named files in subdirs should include the filename: /users/profile, /users/settings
+		expect(content).toContain("router.route('/users/profile'");
+		expect(content).toContain("router.route('/users/settings'");
 	});
 });

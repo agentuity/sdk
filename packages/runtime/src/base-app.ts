@@ -282,6 +282,10 @@ export async function createBaseApp<TAppState = Record<string, never>>(
 	if (config.shutdown) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(globalThis as any).__AGENTUITY_SHUTDOWN__ = config.shutdown;
+	} else {
+		// Clear any stale shutdown hook from a previous createBaseApp() call
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		delete (globalThis as any).__AGENTUITY_SHUTDOWN__;
 	}
 
 	// Step 4: Initialize services

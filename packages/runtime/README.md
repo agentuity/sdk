@@ -73,7 +73,7 @@ export default router;
 
 ### Using Plain Hono with Agentuity Types
 
-If you prefer using `new Hono()` directly instead of `createRouter()`, import the `Env` type to get typed access to Agentuity context variables (`c.var.logger`, `c.var.thread`, `c.var.session`, `c.var.kv`, etc.):
+If you prefer using `new Hono()` directly instead of `createRouter()`, import the `Env` type to type Agentuity context variables (`c.var.logger`, `c.var.thread`, `c.var.session`, `c.var.kv`, etc.). These values are populated at runtime when the router is mounted through the Agentuity runtime (via `createApp()` or `createBaseApp()`):
 
 ```typescript
 import { type Env } from '@agentuity/runtime';

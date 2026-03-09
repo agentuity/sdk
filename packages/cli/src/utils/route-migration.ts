@@ -60,6 +60,25 @@ function writeMigrationState(rootDir: string, state: MigrationState): void {
  * Detect if a project uses file-based routing (has route files in src/api/).
  * Returns the list of discovered route files, or empty array if none found.
  */
+/**
+ * Check if a file exports a router as its default export.
+ * Matches patterns like:
+ *   export default router;
+ *   export default createRouter();
+ *   export default new Hono();
+ * But NOT files that merely import/reference createRouter or Hono without exporting a router.
+ */
+function isRouterFile(content: string): boolean {
+	// Strip single-line and multi-line comments to avoid false positives
+	const stripped = content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+	// Must have a default export
+	if (!stripped.includes('export default')) return false;
+
+	// Must actually create a router (not just import the function)
+	return /createRouter\s*\(/.test(stripped) || /new\s+Hono\s*[<(]/.test(stripped);
+}
+
 export function detectFileBasedRoutes(rootDir: string): string[] {
 	const apiDir = join(rootDir, 'src', 'api');
 	if (!existsSync(apiDir)) return [];
@@ -70,8 +89,7 @@ export function detectFileBasedRoutes(rootDir: string): string[] {
 		const filePath = join(apiDir, file);
 		try {
 			const content = readFileSync(filePath, 'utf-8');
-			// Only count files that actually have a router (createRouter or new Hono)
-			if (content.includes('createRouter') || content.includes('new Hono')) {
+			if (isRouterFile(content)) {
 				routeFiles.push(file);
 			}
 		} catch {
@@ -90,10 +108,11 @@ function hasConsolidatedRootRouter(rootDir: string): boolean {
 	if (!existsSync(indexPath)) return false;
 	try {
 		const content = readFileSync(indexPath, 'utf-8');
+		const stripped = content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
 		// A consolidated root router both creates a router AND mounts sub-routers via .route()
 		return (
-			(content.includes('createRouter') || content.includes('new Hono')) &&
-			content.includes('.route(') &&
+			(/createRouter\s*\(/.test(stripped) || /new\s+Hono\s*[<(]/.test(stripped)) &&
+			stripped.includes('.route(') &&
 			content.includes('export default')
 		);
 	} catch {
@@ -171,9 +190,12 @@ function generateRootRouter(routeFiles: string[]): string {
 			} else {
 				mountPath = `/${base}`;
 			}
-		} else {
-			// File in subdirectory — mount at directory path
+		} else if (base === 'index' || base === 'route') {
+			// Convention files in subdirectory — mount at directory path
 			mountPath = `/${dir}`;
+		} else {
+			// Named file in subdirectory — preserve filename segment
+			mountPath = `/${dir}/${base}`;
 		}
 
 		imports.push(`import ${importName} from '${importPath}';`);
@@ -215,18 +237,15 @@ export function performMigration(rootDir: string, routeFiles: string[]): Migrati
 	try {
 		const apiIndexPath = join(rootDir, 'src', 'api', 'index.ts');
 
-		// Check if src/api/index.ts already exists (don't overwrite user code)
+		// Never overwrite an existing src/api/index.ts — could be user code
 		if (existsSync(apiIndexPath)) {
-			const content = readFileSync(apiIndexPath, 'utf-8');
-			if (content.includes('createRouter') || content.includes('new Hono')) {
-				return {
-					success: false,
-					filesCreated: [],
-					filesModified: [],
-					message:
-						'src/api/index.ts already exists with a router. Please consolidate routes manually or remove it first.',
-				};
-			}
+			return {
+				success: false,
+				filesCreated: [],
+				filesModified: [],
+				message:
+					'src/api/index.ts already exists. Please consolidate routes manually or remove it first.',
+			};
 		}
 
 		// Filter out index.ts itself from the route files to mount
