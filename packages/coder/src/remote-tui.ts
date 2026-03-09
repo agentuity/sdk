@@ -33,9 +33,15 @@ import {
 	InteractiveMode,
 	SessionManager,
 } from '@mariozechner/pi-coding-agent';
+import {
+	getNativeRemoteExtensionContext,
+	setNativeRemoteExtensionContext,
+	waitForNativeRemoteExtensionContext,
+} from './native-remote-ui-context.ts';
 import { RemoteSession } from './remote-session.ts';
 import type { RpcEvent } from './remote-session.ts';
 import { agentuityCoderHub } from './index.ts';
+import { handleRemoteUiRequest, REMOTE_FIRE_AND_FORGET_UI_METHODS } from './remote-ui-handler.ts';
 
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
@@ -63,6 +69,7 @@ export async function runRemoteTui(options: {
 	process.env.AGENTUITY_CODER_HUB_URL = hubWsUrl;
 	process.env.AGENTUITY_CODER_REMOTE_SESSION = sessionId;
 	process.env.AGENTUITY_CODER_NATIVE_REMOTE = '1';
+	setNativeRemoteExtensionContext(null);
 
 	// ── 1. Create RemoteSession (NOT connected yet) ──
 	// We register all handlers BEFORE connecting so that the hydration
@@ -460,11 +467,23 @@ export async function runRemoteTui(options: {
 
 	// ── 6. Wire up UI handlers for extension dialogs from sandbox ──
 	remote.setUiHandler(async (request) => {
-		// TODO: Bridge to InteractiveMode's extension UI context
-		log(`UI request: ${request.method} (no handler yet)`);
-		const fireAndForget = ['notify', 'setStatus', 'setWidget', 'setTitle', 'set_editor_text'];
-		if (fireAndForget.includes(request.method)) return undefined;
-		return null;
+		const ctx =
+			getNativeRemoteExtensionContext() ?? (await waitForNativeRemoteExtensionContext(10_000));
+		if (!ctx) {
+			log(
+				`UI request: ${request.method} (${request.id}) timed out waiting for extension UI context`
+			);
+			return REMOTE_FIRE_AND_FORGET_UI_METHODS.has(request.method) ? undefined : null;
+		}
+
+		try {
+			return await handleRemoteUiRequest(ctx, request);
+		} catch (err) {
+			log(
+				`UI request handler error for ${request.method}: ${err instanceof Error ? err.message : String(err)}`
+			);
+			return REMOTE_FIRE_AND_FORGET_UI_METHODS.has(request.method) ? undefined : null;
+		}
 	});
 
 	// ── 7. Handle hydration (initial state from Hub) ──
@@ -732,6 +751,7 @@ export async function runRemoteTui(options: {
 	// Handle clean shutdown
 	const cleanup = () => {
 		remote.close();
+		setNativeRemoteExtensionContext(null);
 		interactive.stop();
 	};
 	process.on('SIGINT', cleanup);
@@ -744,6 +764,7 @@ export async function runRemoteTui(options: {
 		throw err;
 	} finally {
 		remote.close();
+		setNativeRemoteExtensionContext(null);
 		log('Remote TUI exited');
 	}
 
