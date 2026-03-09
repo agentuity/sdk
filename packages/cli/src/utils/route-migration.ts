@@ -5,15 +5,13 @@
  * and offers to consolidate them into a single src/api/index.ts root router
  * that explicitly imports and mounts all sub-routers.
  *
- * This is a structural refactor only — it does NOT change app.ts or the runtime.
- * The generated entry file continues to work exactly as before, but instead of
- * scanning N individual route files, it finds a single src/api/index.ts that
- * already has all the mounts.
+ * Also updates src/app.ts to import the consolidated router and pass it to
+ * createApp({ router }), completing the migration to explicit routing.
  *
  * Runs during `dev` and `build` after dependency upgrades.
  */
 
-import { join, basename, dirname } from 'node:path';
+import { join, basename, dirname, relative } from 'node:path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import type { Logger } from '../types';
 import * as tui from '../tui';
@@ -299,9 +297,45 @@ export default router;
 }
 
 /**
+ * Detect the router variable name used in an existing file.
+ * Looks for patterns like:
+ * - `const router = createRouter()` / `const api = createRouter()`
+ * - `const router = new Hono()` / `const app = new Hono()`
+ * - Falls back to checking what identifier is default-exported
+ *
+ * Returns the variable name (e.g., 'router', 'api', 'app') or 'router' as fallback.
+ */
+function detectRouterVariableName(content: string): string {
+	// Look for variable assigned from createRouter() or new Hono()
+	const routerAssignMatch = content.match(
+		/(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:createRouter\s*\(|new\s+Hono\s*[<(])/
+	);
+	if (routerAssignMatch?.[1]) {
+		return routerAssignMatch[1];
+	}
+
+	// Look for existing .route() calls to infer the variable name
+	const routeCallMatch = content.match(/([a-zA-Z_$][a-zA-Z0-9_$]*)\.route\s*\(/);
+	if (routeCallMatch?.[1]) {
+		return routeCallMatch[1];
+	}
+
+	// Fall back to the default export identifier
+	const exportMatch = content.match(/export\s+default\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*;?\s*$/m);
+	if (exportMatch?.[1]) {
+		return exportMatch[1];
+	}
+
+	return 'router';
+}
+
+/**
  * Modify an existing src/api/index.ts to add imports and route mounts for
  * route files that are not already imported. Inserts imports at the top
  * (after existing imports) and mounts just before the `export default` line.
+ *
+ * Detects the router variable name used in the file (e.g., 'router', 'api', 'app')
+ * and uses it in the generated `.route()` calls.
  */
 function mergeIntoExistingIndex(
 	existingContent: string,
@@ -317,8 +351,11 @@ function mergeIntoExistingIndex(
 		return { content: existingContent, added: [] };
 	}
 
+	// Detect the router variable name used in this file
+	const routerVar = detectRouterVariableName(existingContent);
+
 	const newImports = newInfos.map((i) => `import ${i.importName} from '${i.importPath}';`);
-	const newMounts = newInfos.map((i) => `router.route('${i.mountPath}', ${i.importName});`);
+	const newMounts = newInfos.map((i) => `${routerVar}.route('${i.mountPath}', ${i.importName});`);
 
 	const lines = existingContent.split('\n');
 
@@ -361,6 +398,163 @@ function mergeIntoExistingIndex(
 	};
 }
 
+/**
+ * Detect the default export name from a router file.
+ * Returns the identifier name if found (e.g., 'router', 'api', 'app'),
+ * or 'router' as a fallback for anonymous/expression default exports.
+ */
+function detectDefaultExportName(filePath: string): string {
+	if (!existsSync(filePath)) return 'router';
+
+	try {
+		const content = readFileSync(filePath, 'utf-8');
+		const lines = content.split('\n');
+
+		for (const line of lines) {
+			const trimmed = line.trim();
+
+			// export default router;
+			const identifierMatch = trimmed.match(
+				/^export\s+default\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*;?\s*$/
+			);
+			if (identifierMatch && identifierMatch[1]) {
+				return identifierMatch[1];
+			}
+		}
+
+		// Check for `const X = createRouter(); ... export default X;` pattern
+		// by finding the variable assigned from createRouter() or new Hono()
+		const routerVarMatch = content.match(
+			/(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:createRouter\s*\(|new\s+Hono\s*[<(])/
+		);
+		if (routerVarMatch && routerVarMatch[1]) {
+			// Verify this variable is actually the default export
+			const exportPattern = new RegExp(`export\\s+default\\s+${routerVarMatch[1]}\\s*;?`);
+			if (exportPattern.test(content)) {
+				return routerVarMatch[1];
+			}
+		}
+	} catch {
+		// Fall through to default
+	}
+
+	return 'router';
+}
+
+/**
+ * Update src/app.ts to import the consolidated router and pass it to createApp().
+ *
+ * Handles these createApp patterns:
+ * - `createApp()`          → `createApp({ router })`
+ * - `createApp({})`        → `createApp({ router })`
+ * - `createApp({ ... })`   → `createApp({ router, ... })`
+ * - `createApp({ router: x })` → already has router, skip
+ *
+ * The import name is derived from the default export of src/api/index.ts
+ * (e.g., if it exports `api`, the import is `import api from './api/index'`
+ * and the property is `router: api`).
+ *
+ * Returns null if app.ts doesn't exist or doesn't need changes.
+ */
+function updateAppTs(
+	rootDir: string,
+	routerExportName: string
+): { content: string; changed: boolean; appPath: string } | null {
+	// Try root app.ts first (standard convention), then src/app.ts
+	const rootAppPath = join(rootDir, 'app.ts');
+	const srcAppPath = join(rootDir, 'src', 'app.ts');
+	const appPath = existsSync(rootAppPath)
+		? rootAppPath
+		: existsSync(srcAppPath)
+			? srcAppPath
+			: null;
+
+	if (!appPath) return null;
+
+	const content = readFileSync(appPath, 'utf-8');
+
+	// Skip if already has a router property in createApp
+	if (/createApp\s*\(\s*\{[^}]*\brouter\b/.test(content)) {
+		return { content, changed: false, appPath };
+	}
+
+	// Skip if createApp is not used
+	if (!content.includes('createApp')) {
+		return { content, changed: false, appPath };
+	}
+
+	const lines = content.split('\n');
+
+	// Step 1: Add import for the router after the last import
+	// Import path depends on where app.ts lives:
+	//   root app.ts   → './src/api/index'
+	//   src/app.ts    → './api/index'
+	const isRootAppTs = appPath === rootAppPath;
+	const importName = routerExportName;
+	const importPath = isRootAppTs ? './src/api/index' : './api/index';
+	const importStatement = `import ${importName} from '${importPath}';`;
+
+	// Check if this import already exists
+	const alreadyImported = lines.some(
+		(line) =>
+			line.includes("from './api/index'") ||
+			line.includes("from './api'") ||
+			line.includes("from './src/api/index'") ||
+			line.includes("from './src/api'")
+	);
+
+	if (!alreadyImported) {
+		let lastImportIndex = -1;
+		for (let i = 0; i < lines.length; i++) {
+			const trimmed = lines[i]!.trim();
+			if (trimmed.startsWith('import ') || trimmed.startsWith('import{')) {
+				lastImportIndex = i;
+			}
+		}
+		const insertAt = lastImportIndex === -1 ? 0 : lastImportIndex + 1;
+		lines.splice(insertAt, 0, importStatement);
+	}
+
+	// Step 2: Add router property to createApp() call
+	// Determine the property value: if export name is 'router', use shorthand
+	// Otherwise use `router: exportName`
+	const routerProp = importName === 'router' ? 'router' : `router: ${importName}`;
+	let modified = false;
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i]!;
+
+		// Match createApp() with no arguments
+		if (/createApp\s*\(\s*\)/.test(line)) {
+			lines[i] = line.replace(/createApp\s*\(\s*\)/, `createApp({ ${routerProp} })`);
+			modified = true;
+			break;
+		}
+
+		// Match createApp({}) with empty object
+		if (/createApp\s*\(\s*\{\s*\}\s*\)/.test(line)) {
+			lines[i] = line.replace(/createApp\s*\(\s*\{\s*\}\s*\)/, `createApp({ ${routerProp} })`);
+			modified = true;
+			break;
+		}
+
+		// Match createApp({ ...existing }) with existing properties
+		// Insert router as the first property after the opening brace
+		if (/createApp\s*\(\s*\{/.test(line)) {
+			lines[i] = line.replace(/createApp\s*\(\s*\{/, `createApp({ ${routerProp},`);
+			modified = true;
+			break;
+		}
+	}
+
+	if (!modified && !alreadyImported) {
+		// createApp pattern not recognized — don't write partial changes
+		return null;
+	}
+
+	return { content: lines.join('\n'), changed: !alreadyImported || modified, appPath };
+}
+
 export interface MigrationResult {
 	success: boolean;
 	filesCreated: string[];
@@ -371,13 +565,10 @@ export interface MigrationResult {
 /**
  * Perform the route consolidation.
  *
- * This generates a new `src/api/index.ts` that imports and mounts all existing
- * route files as sub-routers. The existing route files are NOT modified — they
- * already export routers via `createRouter()`.
+ * 1. Generates/updates `src/api/index.ts` to import and mount all route files
+ * 2. Updates `src/app.ts` to import the router and pass it to `createApp({ router })`
  *
- * The user's `app.ts` is also NOT modified — `createApp()` continues to work
- * exactly as before. The generated entry file will discover the new index.ts
- * and mount it as the root.
+ * Existing route files are NOT modified — they already export routers.
  */
 export function performMigration(rootDir: string, routeFiles: string[]): MigrationResult {
 	const filesCreated: string[] = [];
@@ -397,12 +588,28 @@ export function performMigration(rootDir: string, routeFiles: string[]): Migrati
 			};
 		}
 
+		let indexMessage: string;
+
 		if (existsSync(apiIndexPath)) {
 			// Existing index.ts — merge new imports and mounts into it
 			const existingContent = readFileSync(apiIndexPath, 'utf-8');
 			const { content: merged, added } = mergeIntoExistingIndex(existingContent, filesToMount);
 
 			if (added.length === 0) {
+				// All routes already imported — still try to update app.ts
+				const routerExportName = detectDefaultExportName(apiIndexPath);
+				const appResult = updateAppTs(rootDir, routerExportName);
+				if (appResult?.changed) {
+					writeFileSync(appResult.appPath, appResult.content);
+					const relAppPath = relative(rootDir, appResult.appPath);
+					filesModified.push(relAppPath);
+					return {
+						success: true,
+						filesCreated: [],
+						filesModified,
+						message: `All route files are already imported in src/api/index.ts. Updated ${relAppPath} with router.`,
+					};
+				}
 				return {
 					success: true,
 					filesCreated: [],
@@ -413,31 +620,33 @@ export function performMigration(rootDir: string, routeFiles: string[]): Migrati
 
 			writeFileSync(apiIndexPath, merged);
 			filesModified.push('src/api/index.ts');
-
-			writeMigrationState(rootDir, 'migrated');
-
-			return {
-				success: true,
-				filesCreated: [],
-				filesModified,
-				message: `Added ${added.length} route mount(s) to existing src/api/index.ts.`,
-			};
+			indexMessage = `Added ${added.length} route mount(s) to existing src/api/index.ts.`;
+		} else {
+			// No existing index.ts — generate a fresh one
+			const rootRouterContent = generateRootRouter(filesToMount);
+			const apiDir = join(rootDir, 'src', 'api');
+			if (!existsSync(apiDir)) mkdirSync(apiDir, { recursive: true });
+			writeFileSync(apiIndexPath, rootRouterContent);
+			filesCreated.push('src/api/index.ts');
+			indexMessage = 'Routes consolidated into src/api/index.ts.';
 		}
 
-		// No existing index.ts — generate a fresh one
-		const rootRouterContent = generateRootRouter(filesToMount);
-		const apiDir = join(rootDir, 'src', 'api');
-		if (!existsSync(apiDir)) mkdirSync(apiDir, { recursive: true });
-		writeFileSync(apiIndexPath, rootRouterContent);
-		filesCreated.push('src/api/index.ts');
+		// Update app.ts to import and use the consolidated router
+		const routerExportName = detectDefaultExportName(apiIndexPath);
+		const appResult = updateAppTs(rootDir, routerExportName);
+		if (appResult?.changed) {
+			writeFileSync(appResult.appPath, appResult.content);
+			const relAppPath = relative(rootDir, appResult.appPath);
+			filesModified.push(relAppPath);
+		}
 
 		writeMigrationState(rootDir, 'migrated');
 
 		return {
 			success: true,
 			filesCreated,
-			filesModified: [],
-			message: 'Routes consolidated! All sub-routers are now mounted from src/api/index.ts.',
+			filesModified,
+			message: indexMessage,
 		};
 	} catch (error) {
 		return {
@@ -499,8 +708,8 @@ export async function promptRouteMigration(
 				`${tui.muted('Before:')} ${routeFiles.length} files auto-discovered from src/api/**/*.ts\n` +
 				`${tui.muted('After:')}  One src/api/index.ts that imports and mounts them\n` +
 				'\n' +
-				'Your existing route files and app.ts are not modified.\n' +
-				'Everything continues to work exactly as before.',
+				'Your existing route files are not modified. Your app.ts will be\n' +
+				'updated to import the router and pass it to createApp({ router }).',
 			{ centerTitle: false }
 		);
 	} else {

@@ -393,6 +393,89 @@ export default router;`
 		expect(content).toContain("router.route('/users', usersRouter)");
 	});
 
+	test('uses existing router variable name when merging (not hardcoded "router")', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'index.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+
+const api = createRouter();
+api.get('/custom', (c) => c.text('custom'));
+
+export default api;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['index.ts', 'users.ts']);
+
+		expect(result.success).toBe(true);
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		// Should use 'api' variable name, not 'router'
+		expect(content).toContain("api.route('/users', usersRouter)");
+		expect(content).not.toContain("router.route('/users'");
+	});
+
+	test('detects router variable from new Hono() pattern', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'index.ts'),
+			`import { Hono } from 'hono';
+
+const app = new Hono();
+app.get('/ping', (c) => c.text('pong'));
+
+export default app;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'auth.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['index.ts', 'auth.ts']);
+
+		expect(result.success).toBe(true);
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		expect(content).toContain("app.route('/auth', authRouter)");
+		expect(content).not.toContain('router.route(');
+	});
+
+	test('detects router variable from existing .route() calls', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'index.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+import usersRouter from './users';
+
+const myApi = createRouter();
+myApi.route('/users', usersRouter);
+
+export default myApi;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['index.ts', 'users.ts', 'health.ts']);
+
+		expect(result.success).toBe(true);
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		// Should use 'myApi' from the existing .route() call pattern
+		expect(content).toContain("myApi.route('/health', healthRouter)");
+	});
+
 	test('filters out index.ts from mounted routes', () => {
 		writeFileSync(
 			join(testDir, 'src', 'api', 'health.ts'),
@@ -412,14 +495,12 @@ export default router;`
 		expect(content).not.toContain("from './index'");
 	});
 
-	test('does not modify app.ts', () => {
-		const appContent = `import { createApp } from '@agentuity/runtime';
-const app = await createApp({
-	setup: async () => ({ db: null }),
-});
-export { app };`;
-
-		writeFileSync(join(testDir, 'app.ts'), appContent);
+	test('updates root app.ts with router import using ./src/api/index path', () => {
+		writeFileSync(
+			join(testDir, 'app.ts'),
+			`import { createApp } from '@agentuity/runtime';
+export const app = await createApp();`
+		);
 		writeFileSync(
 			join(testDir, 'src', 'api', 'users.ts'),
 			`import { createRouter } from '@agentuity/runtime';
@@ -436,11 +517,188 @@ export default router;`
 		const result = performMigration(testDir, ['users.ts', 'health.ts']);
 
 		expect(result.success).toBe(true);
-		expect(result.filesModified).toHaveLength(0);
+		expect(result.filesModified).toContain('app.ts');
 
-		// app.ts must be untouched
-		const afterContent = readFileSync(join(testDir, 'app.ts'), 'utf-8');
-		expect(afterContent).toBe(appContent);
+		const appContent = readFileSync(join(testDir, 'app.ts'), 'utf-8');
+		// Root app.ts uses ./src/api/index (not ./api/index)
+		expect(appContent).toContain("import router from './src/api/index'");
+		expect(appContent).toContain('createApp({ router })');
+	});
+
+	test('updates src/app.ts with router import using ./api/index path', () => {
+		writeFileSync(
+			join(testDir, 'src', 'app.ts'),
+			`import { createApp } from '@agentuity/runtime';
+export const app = await createApp();`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['users.ts', 'health.ts']);
+
+		expect(result.success).toBe(true);
+		expect(result.filesModified).toContain('src/app.ts');
+
+		const appContent = readFileSync(join(testDir, 'src', 'app.ts'), 'utf-8');
+		// src/app.ts uses ./api/index (sibling to src/api/)
+		expect(appContent).toContain("import router from './api/index'");
+		expect(appContent).toContain('createApp({ router })');
+	});
+
+	test('prefers root app.ts over src/app.ts when both exist', () => {
+		writeFileSync(
+			join(testDir, 'app.ts'),
+			`import { createApp } from '@agentuity/runtime';
+export const app = await createApp();`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'app.ts'),
+			`import { createApp } from '@agentuity/runtime';
+export const other = await createApp();`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['users.ts']);
+
+		expect(result.success).toBe(true);
+		expect(result.filesModified).toContain('app.ts');
+
+		// Root app.ts should be updated
+		const rootContent = readFileSync(join(testDir, 'app.ts'), 'utf-8');
+		expect(rootContent).toContain("import router from './src/api/index'");
+		expect(rootContent).toContain('createApp({ router })');
+
+		// src/app.ts should be untouched
+		const srcContent = readFileSync(join(testDir, 'src', 'app.ts'), 'utf-8');
+		expect(srcContent).toContain('createApp()');
+		expect(srcContent).not.toContain('./api/index');
+	});
+
+	test('updates app.ts with existing config properties', () => {
+		writeFileSync(
+			join(testDir, 'app.ts'),
+			`import { createApp } from '@agentuity/runtime';
+export const app = await createApp({ name: 'my-app' });`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['users.ts', 'health.ts']);
+
+		expect(result.success).toBe(true);
+		const appContent = readFileSync(join(testDir, 'app.ts'), 'utf-8');
+		expect(appContent).toContain("import router from './src/api/index'");
+		// Router should be added to existing config
+		expect(appContent).toContain('createApp({ router,');
+		expect(appContent).toContain("name: 'my-app'");
+	});
+
+	test('uses non-standard export name from api/index.ts in app.ts import', () => {
+		writeFileSync(
+			join(testDir, 'app.ts'),
+			`import { createApp } from '@agentuity/runtime';
+export const app = await createApp();`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'index.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const api = createRouter();
+export default api;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['index.ts', 'users.ts']);
+
+		expect(result.success).toBe(true);
+		const appContent = readFileSync(join(testDir, 'app.ts'), 'utf-8');
+		// Should import as 'api' (matching the export name) and use router: api
+		expect(appContent).toContain("import api from './src/api/index'");
+		expect(appContent).toContain('createApp({ router: api })');
+	});
+
+	test('skips app.ts update when router property already exists', () => {
+		const originalAppContent = `import { createApp } from '@agentuity/runtime';
+import myRouter from './src/api/index';
+export const app = await createApp({ router: myRouter });`;
+
+		writeFileSync(join(testDir, 'app.ts'), originalAppContent);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['users.ts', 'health.ts']);
+
+		expect(result.success).toBe(true);
+		// app.ts should NOT be in filesModified since it already has router
+		expect(result.filesModified).not.toContain('app.ts');
+		const appContent = readFileSync(join(testDir, 'app.ts'), 'utf-8');
+		expect(appContent).toBe(originalAppContent);
+	});
+
+	test('does not modify app.ts when createApp is not used', () => {
+		const originalAppContent = `import { Hono } from 'hono';
+const app = new Hono();
+export default app;`;
+
+		writeFileSync(join(testDir, 'app.ts'), originalAppContent);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['users.ts', 'health.ts']);
+
+		expect(result.success).toBe(true);
+		expect(result.filesModified).not.toContain('app.ts');
+		const appContent = readFileSync(join(testDir, 'app.ts'), 'utf-8');
+		expect(appContent).toBe(originalAppContent);
 	});
 
 	test('existing route files are not modified', () => {
