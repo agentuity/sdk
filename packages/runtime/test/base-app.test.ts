@@ -10,7 +10,7 @@
 import { describe, test, expect, afterEach } from 'bun:test';
 import { Hono } from 'hono';
 import { createRouter } from '../src/router';
-import type { AppConfig } from '../src/app';
+import type { AppConfig, RouteMount } from '../src/app';
 import { getUserRouter } from '../src/app';
 
 describe('createRouter - sub-router compatibility', () => {
@@ -193,12 +193,28 @@ describe('createApp({ router }) - user-provided router', () => {
 		delete (globalThis as any).__AGENTUITY_USER_ROUTER__;
 	});
 
-	test('AppConfig accepts optional router property', () => {
+	test('AppConfig accepts a plain Hono router (mounted at /api)', () => {
+		const router = createRouter();
+		const _config: AppConfig = { router };
+		expect(_config.router).toBeDefined();
+	});
+
+	test('AppConfig accepts a RouteMount object with custom path', () => {
 		const router = createRouter();
 		const _config: AppConfig = {
-			router,
+			router: { path: '/v1', router },
 		};
 		expect(_config.router).toBeDefined();
+	});
+
+	test('AppConfig accepts an array of RouteMount objects', () => {
+		const _config: AppConfig = {
+			router: [
+				{ path: '/api/v1', router: createRouter() },
+				{ path: '/api/v2', router: createRouter() },
+			],
+		};
+		expect(Array.isArray(_config.router)).toBe(true);
 	});
 
 	test('AppConfig router is optional — omitting it uses file-based routing', () => {
@@ -210,48 +226,125 @@ describe('createApp({ router }) - user-provided router', () => {
 		expect(getUserRouter()).toBeUndefined();
 	});
 
-	test('getUserRouter returns the router after it is stored on globalThis', () => {
+	test('getUserRouter returns normalized RouteMount[] for plain Hono', () => {
 		const router = createRouter();
-		// Simulate what createApp does internally
+		// Simulate what createApp does internally: normalize and store
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(globalThis as any).__AGENTUITY_USER_ROUTER__ = router;
+		(globalThis as any).__AGENTUITY_USER_ROUTER__ = [{ path: '/api', router }];
 
-		expect(getUserRouter()).toBe(router);
+		const result = getUserRouter();
+		expect(result).toHaveLength(1);
+		expect(result![0].path).toBe('/api');
+		expect(result![0].router).toBe(router);
 	});
 
-	test('user-provided router works when mounted at /api by entry file', async () => {
-		// Simulate the full flow: user builds a router, entry file mounts it
-		const users = createRouter();
-		users.get('/', (c) => c.json({ users: [] }));
-		users.get('/:id', (c) => c.json({ id: c.req.param('id') }));
+	test('getUserRouter returns normalized RouteMount[] for RouteMount input', () => {
+		const router = createRouter();
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(globalThis as any).__AGENTUITY_USER_ROUTER__ = [{ path: '/v1', router }];
 
-		const auth = createRouter();
-		auth.post('/login', (c) => c.json({ token: 'abc' }));
+		const result = getUserRouter();
+		expect(result).toHaveLength(1);
+		expect(result![0].path).toBe('/v1');
+	});
 
-		// User builds their root router (what they'd pass to createApp({ router }))
+	test('getUserRouter returns normalized RouteMount[] for array input', () => {
+		const r1 = createRouter();
+		const r2 = createRouter();
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(globalThis as any).__AGENTUITY_USER_ROUTER__ = [
+			{ path: '/api/v1', router: r1 },
+			{ path: '/api/v2', router: r2 },
+		];
+
+		const result = getUserRouter();
+		expect(result).toHaveLength(2);
+		expect(result![0].path).toBe('/api/v1');
+		expect(result![1].path).toBe('/api/v2');
+	});
+
+	test('plain router mounts at /api by entry file', async () => {
 		const userRouter = createRouter();
-		userRouter.route('/users', users);
-		userRouter.route('/auth', auth);
 		userRouter.get('/health', (c) => c.text('OK'));
+		userRouter.get('/users', (c) => c.json({ users: [] }));
 
-		// Entry file mounts it at /api (simulating the generated code)
+		// Simulate entry file: iterate RouteMount[], mount each
+		const mounts: RouteMount[] = [{ path: '/api', router: userRouter }];
 		const app = new Hono();
-		app.route('/api', userRouter);
+		for (const mount of mounts) {
+			app.route(mount.path, mount.router);
+		}
 
-		let res = await app.request('/api/users');
-		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ users: [] });
-
-		res = await app.request('/api/users/42');
-		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ id: '42' });
-
-		res = await app.request('/api/auth/login', { method: 'POST' });
-		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ token: 'abc' });
-
-		res = await app.request('/api/health');
+		let res = await app.request('/api/health');
 		expect(res.status).toBe(200);
 		expect(await res.text()).toBe('OK');
+
+		res = await app.request('/api/users');
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ users: [] });
+	});
+
+	test('multiple routers mount at different prefixes', async () => {
+		const v1 = createRouter();
+		v1.get('/users', (c) => c.json({ version: 1, users: [] }));
+
+		const v2 = createRouter();
+		v2.get('/users', (c) => c.json({ version: 2, users: [] }));
+
+		// Simulate entry file with array of mounts
+		const mounts: RouteMount[] = [
+			{ path: '/api/v1', router: v1 },
+			{ path: '/api/v2', router: v2 },
+		];
+		const app = new Hono();
+		for (const mount of mounts) {
+			app.route(mount.path, mount.router);
+		}
+
+		let res = await app.request('/api/v1/users');
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ version: 1, users: [] });
+
+		res = await app.request('/api/v2/users');
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ version: 2, users: [] });
+	});
+
+	test('middleware is applied per mount prefix', async () => {
+		const v1 = createRouter();
+		v1.get('/data', (c) => c.text('v1'));
+
+		const v2 = createRouter();
+		v2.get('/data', (c) => c.text('v2'));
+
+		const mounts: RouteMount[] = [
+			{ path: '/api/v1', router: v1 },
+			{ path: '/api/v2', router: v2 },
+		];
+
+		const app = new Hono();
+		const intercepted: string[] = [];
+
+		// Simulate entry file: apply middleware to each prefix
+		for (const mount of mounts) {
+			const prefix = mount.path + '/*';
+			app.use(prefix, async (c, next) => {
+				intercepted.push(c.req.path);
+				await next();
+			});
+			app.route(mount.path, mount.router);
+		}
+
+		// System route — no middleware
+		app.get('/_agentuity/health', (c) => c.text('OK'));
+
+		await app.request('/_agentuity/health');
+		expect(intercepted).toHaveLength(0);
+
+		await app.request('/api/v1/data');
+		expect(intercepted).toEqual(['/api/v1/data']);
+
+		await app.request('/api/v2/data');
+		expect(intercepted).toEqual(['/api/v1/data', '/api/v2/data']);
 	});
 });

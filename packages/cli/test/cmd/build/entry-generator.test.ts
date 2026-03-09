@@ -135,11 +135,18 @@ export default router;`
 		// Should import getUserRouter
 		expect(appContent).toContain('getUserRouter');
 
-		// Should check for user router at runtime
-		expect(appContent).toContain('const __userRouter = getUserRouter()');
-		expect(appContent).toContain("app.route('/api', __userRouter)");
+		// Should check for user mounts at runtime
+		expect(appContent).toContain('const __userMounts = getUserRouter()');
 
-		// Should still have file-based fallback
+		// Should iterate mounts, apply middleware per prefix, and mount routers
+		expect(appContent).toContain('for (const mount of __userMounts)');
+		expect(appContent).toContain('app.use(prefix, createCorsMiddleware())');
+		expect(appContent).toContain('app.use(prefix, createOtelMiddleware())');
+		expect(appContent).toContain("app.use(prefix, createAgentMiddleware(''))");
+		expect(appContent).toContain('app.route(mount.path, mount.router)');
+
+		// File-based fallback should apply /api/* middleware and mount discovered files
+		expect(appContent).toContain("app.use('/api/*', createCorsMiddleware())");
 		expect(appContent).toContain("await import('../api/auth/route.js')");
 		expect(appContent).toContain("await import('../api/users/route.js')");
 	});

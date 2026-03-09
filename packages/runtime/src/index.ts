@@ -35,6 +35,7 @@ export {
 	type TriggerType,
 	type PrivateVariables,
 	type Env,
+	type RouteMount,
 	type AppResult,
 	type ShutdownHook,
 	createApp,
