@@ -167,8 +167,8 @@ export default router;`
 		expect(result.alreadyNotified).toBe(false);
 	});
 
-	test('not eligible when consolidated root router already exists', () => {
-		// An index.ts that imports and mounts sub-routers = already consolidated
+	test('not eligible when consolidated root router has all routes imported', () => {
+		// An index.ts that imports and mounts all sub-routers = fully consolidated
 		writeFileSync(
 			join(testDir, 'src', 'api', 'index.ts'),
 			`import { createRouter } from '@agentuity/runtime';
@@ -187,6 +187,34 @@ export default router;`
 
 		const result = checkMigrationEligibility(testDir);
 		expect(result.available).toBe(false);
+	});
+
+	test('eligible when consolidated root router is missing some routes', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'index.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+import usersRouter from './users';
+const router = createRouter();
+router.route('/users', usersRouter);
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = checkMigrationEligibility(testDir);
+		expect(result.available).toBe(true);
+		// Should include health.ts (not yet imported) and others
+		expect(result.routeFiles.length).toBeGreaterThanOrEqual(2);
 	});
 });
 
@@ -227,22 +255,24 @@ export default router;`
 		expect(result.filesCreated).toContain('src/api/index.ts');
 		expect(result.filesModified).toHaveLength(0);
 
-		// Verify generated content
+		// Verify generated content uses descriptive import names
 		const indexContent = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
 		expect(indexContent).toContain("import { createRouter } from '@agentuity/runtime'");
-		expect(indexContent).toContain("import router_0 from './auth/route'");
-		expect(indexContent).toContain("import router_1 from './users'");
-		expect(indexContent).toContain("router.route('/auth', router_0)");
-		expect(indexContent).toContain("router.route('/users', router_1)");
+		expect(indexContent).toContain("import authRouter from './auth/route'");
+		expect(indexContent).toContain("import usersRouter from './users'");
+		expect(indexContent).toContain("router.route('/auth', authRouter)");
+		expect(indexContent).toContain("router.route('/users', usersRouter)");
 		expect(indexContent).toContain('export default router');
 	});
 
-	test('does not overwrite existing src/api/index.ts with a router', () => {
+	test('merges new routes into existing src/api/index.ts with a router', () => {
 		writeFileSync(
 			join(testDir, 'src', 'api', 'index.ts'),
 			`import { createRouter } from '@agentuity/runtime';
+
 const router = createRouter();
 router.get('/custom', (c) => c.text('custom'));
+
 export default router;`
 		);
 		writeFileSync(
@@ -254,19 +284,86 @@ export default router;`
 
 		const result = performMigration(testDir, ['index.ts', 'users.ts']);
 
-		expect(result.success).toBe(false);
-		expect(result.message).toContain('already exists');
+		expect(result.success).toBe(true);
+		expect(result.filesModified).toContain('src/api/index.ts');
+		expect(result.filesCreated).toHaveLength(0);
 
-		// Verify original file untouched
+		// Verify original content preserved AND new import/mount added
 		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
 		expect(content).toContain('/custom');
+		expect(content).toContain("import usersRouter from './users'");
+		expect(content).toContain("router.route('/users', usersRouter)");
 	});
 
-	test('does not overwrite existing src/api/index.ts even if not a router', () => {
-		// A barrel file or helper — must never be silently replaced
+	test('merges into existing index.ts without duplicating already-imported routes', () => {
 		writeFileSync(
 			join(testDir, 'src', 'api', 'index.ts'),
-			`export { helper } from './utils';\nexport const API_VERSION = '1.0';`
+			`import { createRouter } from '@agentuity/runtime';
+import usersRouter from './users';
+
+const router = createRouter();
+router.route('/users', usersRouter);
+
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['index.ts', 'users.ts', 'health.ts']);
+
+		expect(result.success).toBe(true);
+
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		// health should be added
+		expect(content).toContain("import healthRouter from './health'");
+		expect(content).toContain("router.route('/health', healthRouter)");
+		// users import should appear only once (the original)
+		const usersImportCount = (content.match(/import.*from '\.\/users'/g) || []).length;
+		expect(usersImportCount).toBe(1);
+	});
+
+	test('reports no changes when all routes already imported', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'index.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+import usersRouter from './users';
+
+const router = createRouter();
+router.route('/users', usersRouter);
+
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = performMigration(testDir, ['index.ts', 'users.ts']);
+
+		expect(result.success).toBe(true);
+		expect(result.filesModified).toHaveLength(0);
+		expect(result.message).toContain('already imported');
+	});
+
+	test('merges into non-router index.ts (barrel file)', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'index.ts'),
+			`export { helper } from './utils';
+export const API_VERSION = '1.0';
+
+export default {};`
 		);
 		writeFileSync(
 			join(testDir, 'src', 'api', 'users.ts'),
@@ -283,12 +380,17 @@ export default router;`
 
 		const result = performMigration(testDir, ['users.ts', 'health.ts']);
 
-		expect(result.success).toBe(false);
-		expect(result.message).toContain('already exists');
+		expect(result.success).toBe(true);
+		expect(result.filesModified).toContain('src/api/index.ts');
 
-		// Verify barrel file untouched
 		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		// Original content preserved
 		expect(content).toContain('API_VERSION');
+		// New imports and mounts added
+		expect(content).toContain("import healthRouter from './health'");
+		expect(content).toContain("import usersRouter from './users'");
+		expect(content).toContain("router.route('/health', healthRouter)");
+		expect(content).toContain("router.route('/users', usersRouter)");
 	});
 
 	test('filters out index.ts from mounted routes', () => {
@@ -306,7 +408,7 @@ export default router;`
 		expect(result.success).toBe(true);
 		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
 		// Should only import health, not index (itself)
-		expect(content).toContain("import router_0 from './health'");
+		expect(content).toContain("import healthRouter from './health'");
 		expect(content).not.toContain("from './index'");
 	});
 
