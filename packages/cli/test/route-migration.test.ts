@@ -718,6 +718,97 @@ export default router;`
 		expect(content).toContain("router.route('/v1'");
 	});
 
+	test('sanitizes hyphens in filenames to valid camelCase import names', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'user-profile.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health-check.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		performMigration(testDir, ['user-profile.ts', 'health-check.ts']);
+
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		// Hyphens should be converted to camelCase boundaries
+		expect(content).toContain('import userProfileRouter from');
+		expect(content).toContain('import healthCheckRouter from');
+		// Mount paths keep hyphens (they're valid in URL paths)
+		expect(content).toContain("router.route('/user-profile'");
+		expect(content).toContain("router.route('/health-check'");
+	});
+
+	test('sanitizes underscores in filenames to valid camelCase import names', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', 'my_api.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'foo_bar.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		performMigration(testDir, ['my_api.ts', 'foo_bar.ts']);
+
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		expect(content).toContain('import myApiRouter from');
+		expect(content).toContain('import fooBarRouter from');
+	});
+
+	test('sanitizes hyphens in subdirectory names', () => {
+		mkdirSync(join(testDir, 'src', 'api', 'my-api'), { recursive: true });
+
+		writeFileSync(
+			join(testDir, 'src', 'api', 'my-api', 'route.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'other.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		performMigration(testDir, ['my-api/route.ts', 'other.ts']);
+
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		expect(content).toContain('import myApiRouter from');
+		expect(content).toContain("router.route('/my-api'");
+	});
+
+	test('handles filenames starting with digits', () => {
+		writeFileSync(
+			join(testDir, 'src', 'api', '2fa.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'auth.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		performMigration(testDir, ['2fa.ts', 'auth.ts']);
+
+		const content = readFileSync(join(testDir, 'src', 'api', 'index.ts'), 'utf-8');
+		// Should prefix with underscore to make valid identifier
+		expect(content).toContain('import _2faRouter from');
+		expect(content).toContain('import authRouter from');
+	});
+
 	test('preserves filename segment for named files in subdirectories', () => {
 		mkdirSync(join(testDir, 'src', 'api', 'users'), { recursive: true });
 

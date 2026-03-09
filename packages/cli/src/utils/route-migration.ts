@@ -168,11 +168,44 @@ export function checkMigrationEligibility(rootDir: string): MigrationCheckResult
 }
 
 /**
+ * Convert a string segment into a valid camelCase identifier part.
+ * Splits on non-alphanumeric characters (hyphens, dots, underscores, spaces, etc.)
+ * and capitalizes each sub-word.
+ *
+ * e.g. "user-profile" → "userProfile"
+ *      "my_api"       → "myApi"
+ *      "foo.bar"      → "fooBar"
+ *      "123start"     → "_123start"  (leading digit gets underscore prefix)
+ */
+function sanitizeSegment(segment: string, capitalize: boolean): string {
+	// Split on non-alphanumeric characters
+	const parts = segment.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+	if (parts.length === 0) return '_';
+
+	const result = parts
+		.map((part, i) => {
+			if (i === 0 && !capitalize) return part.toLowerCase();
+			return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+		})
+		.join('');
+
+	// Prefix with underscore if starts with a digit
+	if (/^\d/.test(result)) return `_${result}`;
+	return result;
+}
+
+/**
  * Derive a descriptive camelCase import name from a route file path.
- * e.g. "auth/route.ts" → "authRouter"
- *      "users.ts" → "usersRouter"
- *      "users/profile.ts" → "usersProfileRouter"
- *      "health.ts" → "healthRouter"
+ * Handles special characters (hyphens, dots, underscores) in file/directory names
+ * by converting them to camelCase boundaries.
+ *
+ * e.g. "auth/route.ts"        → "authRouter"
+ *      "users.ts"             → "usersRouter"
+ *      "users/profile.ts"     → "usersProfileRouter"
+ *      "health.ts"            → "healthRouter"
+ *      "user-profile.ts"      → "userProfileRouter"
+ *      "my-api/v2-routes.ts"  → "myApiV2RoutesRouter"
+ *      "foo_bar/route.ts"     → "fooBarRouter"
  */
 function deriveImportName(file: string): string {
 	const withoutExt = file.replace(/\.tsx?$/, '');
@@ -191,10 +224,8 @@ function deriveImportName(file: string): string {
 		segments = [...dir.split('/'), base];
 	}
 
-	// Convert to camelCase + "Router" suffix
-	const camel = segments
-		.map((s, i) => (i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)))
-		.join('');
+	// Convert to camelCase + "Router" suffix, sanitizing each segment
+	const camel = segments.map((s, i) => sanitizeSegment(s, i > 0)).join('');
 	return `${camel}Router`;
 }
 
