@@ -623,18 +623,32 @@ export const createWorkbenchWebsocketRoute = createWorkbenchWebsocketHandler;
  * // "{\n  name: string;\n  age: number;\n}"
  * ```
  */
+/** Escape a string for use inside a double-quoted TypeScript string literal. */
+function escapeString(s: string): string {
+	return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+
+/** Check if a property key is a valid unquoted TypeScript identifier. */
+function isValidIdentifier(key: string): boolean {
+	return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key);
+}
+
 function jsonSchemaToTypeScript(schema: JSONSchema, indent = 0): string {
 	const pad = '  '.repeat(indent);
 	const inner = '  '.repeat(indent + 1);
 
 	// Handle const (literal type)
 	if (schema.const !== undefined) {
-		return typeof schema.const === 'string' ? `"${schema.const}"` : String(schema.const);
+		return typeof schema.const === 'string'
+			? `"${escapeString(schema.const)}"`
+			: String(schema.const);
 	}
 
 	// Handle enum (union of literals)
 	if (schema.enum) {
-		return schema.enum.map((v) => (typeof v === 'string' ? `"${v}"` : String(v))).join(' | ');
+		return schema.enum
+			.map((v) => (typeof v === 'string' ? `"${escapeString(String(v))}"` : String(v)))
+			.join(' | ');
 	}
 
 	// Handle anyOf / oneOf (union types)
@@ -691,7 +705,8 @@ function jsonSchemaToTypeScript(schema: JSONSchema, indent = 0): string {
 				const optional = !required.has(key);
 				const propType = jsonSchemaToTypeScript(propSchema, indent + 1);
 				const desc = propSchema.description ? ` // ${propSchema.description}` : '';
-				lines.push(`${inner}${key}${optional ? '?' : ''}: ${propType};${desc}`);
+				const quotedKey = isValidIdentifier(key) ? key : `"${escapeString(key)}"`;
+				lines.push(`${inner}${quotedKey}${optional ? '?' : ''}: ${propType};${desc}`);
 			}
 
 			lines.push(`${pad}}`);

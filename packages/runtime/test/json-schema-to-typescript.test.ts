@@ -7,16 +7,28 @@ import { describe, test, expect } from 'bun:test';
 import type { JSONSchema } from '@agentuity/schema';
 
 // Copy of the function from workbench.ts for isolated testing
+function escapeString(s: string): string {
+	return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+
+function isValidIdentifier(key: string): boolean {
+	return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key);
+}
+
 function jsonSchemaToTypeScript(schema: JSONSchema, indent = 0): string {
 	const pad = '  '.repeat(indent);
 	const inner = '  '.repeat(indent + 1);
 
 	if (schema.const !== undefined) {
-		return typeof schema.const === 'string' ? `"${schema.const}"` : String(schema.const);
+		return typeof schema.const === 'string'
+			? `"${escapeString(schema.const)}"`
+			: String(schema.const);
 	}
 
 	if (schema.enum) {
-		return schema.enum.map((v) => (typeof v === 'string' ? `"${v}"` : String(v))).join(' | ');
+		return schema.enum
+			.map((v) => (typeof v === 'string' ? `"${escapeString(String(v))}"` : String(v)))
+			.join(' | ');
 	}
 
 	const unionSchemas = schema.anyOf ?? schema.oneOf;
@@ -65,7 +77,8 @@ function jsonSchemaToTypeScript(schema: JSONSchema, indent = 0): string {
 				const optional = !required.has(key);
 				const propType = jsonSchemaToTypeScript(propSchema, indent + 1);
 				const desc = propSchema.description ? ` // ${propSchema.description}` : '';
-				lines.push(`${inner}${key}${optional ? '?' : ''}: ${propType};${desc}`);
+				const quotedKey = isValidIdentifier(key) ? key : `"${escapeString(key)}"`;
+				lines.push(`${inner}${quotedKey}${optional ? '?' : ''}: ${propType};${desc}`);
 			}
 			lines.push(`${pad}}`);
 			return lines.join('\n');
@@ -232,6 +245,34 @@ describe('jsonSchemaToTypeScript', () => {
 			items: { type: 'string' },
 		});
 		expect(result).toBe('string[]');
+	});
+
+	test('escapes special characters in string literals', () => {
+		expect(jsonSchemaToTypeScript({ const: 'say "hello"' })).toBe('"say \\"hello\\""');
+		expect(jsonSchemaToTypeScript({ const: 'line1\nline2' })).toBe('"line1\\nline2"');
+		expect(jsonSchemaToTypeScript({ const: 'back\\slash' })).toBe('"back\\\\slash"');
+	});
+
+	test('escapes special characters in enum values', () => {
+		const result = jsonSchemaToTypeScript({ enum: ['a"b', 'c\\d'] });
+		expect(result).toBe('"a\\"b" | "c\\\\d"');
+	});
+
+	test('quotes property keys with special characters', () => {
+		const result = jsonSchemaToTypeScript({
+			type: 'object',
+			properties: {
+				'foo-bar': { type: 'string' },
+				'123start': { type: 'number' },
+				'with space': { type: 'boolean' },
+				normalKey: { type: 'string' },
+			},
+			required: ['foo-bar', '123start', 'with space', 'normalKey'],
+		});
+		expect(result).toContain('"foo-bar": string;');
+		expect(result).toContain('"123start": number;');
+		expect(result).toContain('"with space": boolean;');
+		expect(result).toContain('normalKey: string;');
 	});
 
 	test('complex real-world schema', () => {
