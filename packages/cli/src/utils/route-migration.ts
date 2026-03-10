@@ -737,9 +737,7 @@ export async function promptRouteMigration(
 
 	if (!action) {
 		writeMigrationState(rootDir, 'dismissed');
-		tui.info(
-			`You can migrate later by running: ${tui.muted('agentuity dev --migrate-routes')}`
-		);
+		tui.info(`You can migrate later by running: ${tui.muted('agentuity dev --migrate-routes')}`);
 		tui.newline();
 		return false;
 	}
