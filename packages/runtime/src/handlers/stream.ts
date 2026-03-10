@@ -4,6 +4,7 @@ import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
 import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './sse';
+import { tagRoute } from './_route-meta';
 
 /**
  * Handler function for streaming responses.
@@ -57,7 +58,7 @@ export type StreamHandler<E extends Env = Env> = (
  * @returns Hono handler for streaming response
  */
 export function stream<E extends Env = Env>(handler: StreamHandler<E>): Handler<E> {
-	return (c: Context<E>) => {
+	const streamHandler: Handler<E> = (c: Context<E>) => {
 		const asyncLocalStorage = getAgentAsyncLocalStorage();
 		const capturedContext = asyncLocalStorage.getStore();
 
@@ -125,4 +126,6 @@ export function stream<E extends Env = Env>(handler: StreamHandler<E>): Handler<
 			});
 		});
 	};
+
+	return tagRoute(streamHandler, { type: 'stream' });
 }

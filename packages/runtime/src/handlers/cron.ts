@@ -2,6 +2,7 @@ import type { Context, Handler } from 'hono';
 import { returnResponse } from '../_util';
 import type { Env } from '../app';
 import { verifySignature } from '../signature';
+import { tagRoute } from './_route-meta';
 
 /**
  * Handler function for cron jobs.
@@ -92,7 +93,7 @@ export function cron<E extends Env = Env>(
 		handler = maybeHandler!;
 	}
 
-	return async (c: Context<E>) => {
+	const cronHandler: Handler<E> = async (c: Context<E>) => {
 		if (c.req.method !== 'POST') {
 			throw new Error(
 				`Cron endpoint must use POST method, but received ${c.req.method}. ` +
@@ -127,6 +128,8 @@ export function cron<E extends Env = Env>(
 
 		return returnResponse(c, result);
 	};
+
+	return tagRoute(cronHandler, { type: 'cron' });
 }
 
 /**

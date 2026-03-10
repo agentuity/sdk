@@ -3,6 +3,7 @@ import { upgradeWebSocket } from 'hono/bun';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
 import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
+import { tagRoute } from './_route-meta';
 
 /**
  * Context key for WebSocket close promise.
@@ -225,5 +226,5 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 	const middleware: MiddlewareHandler<E> = (c, next) =>
 		(wsHandler as unknown as MiddlewareHandler<E>)(c, next);
 
-	return middleware;
+	return tagRoute(middleware, { type: 'websocket' });
 }
