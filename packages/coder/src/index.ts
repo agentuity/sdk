@@ -18,6 +18,8 @@ import { AgentManagerOverlay } from './overlay.ts';
 import { ChainEditorOverlay, type ChainResult } from './chain-preview.ts';
 import { HubOverlay } from './hub-overlay.ts';
 import { OutputViewerOverlay, type StoredResult } from './output-viewer.ts';
+import { setNativeRemoteExtensionContext } from './native-remote-ui-context.ts';
+import { handleRemoteUiRequest } from './remote-ui-handler.ts';
 import type {
 	HubAction,
 	HubResponse,
@@ -280,6 +282,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// to an existing sandbox session. The full UI is set up (tools, commands, /hub)
 	// but user input is relayed to the remote sandbox instead of the local Pi agent.
 	const remoteSessionId = process.env[REMOTE_SESSION_ENV] || null;
+	const isNativeRemote = !!process.env[NATIVE_REMOTE_ENV];
 	if (remoteSessionId) {
 		log(`Remote mode: will connect as controller to session ${remoteSessionId}`);
 	}
@@ -573,7 +576,13 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			// Server sends JSON Schema; TypeBox schemas are JSON Schema at runtime
 			parameters: toolDef.parameters as TSchema,
 			...(toolDef.promptSnippet ? { promptSnippet: toolDef.promptSnippet } : {}),
-			...(toolDef.promptGuidelines ? { promptGuidelines: toolDef.promptGuidelines } : {}),
+			...(toolDef.promptGuidelines
+				? {
+						promptGuidelines: Array.isArray(toolDef.promptGuidelines)
+							? toolDef.promptGuidelines
+							: [toolDef.promptGuidelines],
+					}
+				: {}),
 			async execute(
 				toolCallId: string,
 				params: unknown,
@@ -1347,8 +1356,11 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	// session_start: establish WebSocket connection to Hub + set up footer
 	onEvent('session_start', async (event: unknown, ctx: ExtensionContext) => {
-		await ensureConnected();
 		footerCtx = ctx;
+		if (isNativeRemote && remoteSessionId) {
+			setNativeRemoteExtensionContext(ctx);
+		}
+		await ensureConnected();
 		if (ctx.hasUI) {
 			ctx.ui.setStatus('hub_connection', getHubUiStatus());
 		}
@@ -1424,8 +1436,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	//      via Agent.emit(). Extension only provides Hub UI (footer, /hub, commands).
 	//      No pi.sendMessage() rendering, no setupRemoteMode() event handlers.
 	//   2. Legacy remote: Extension handles all rendering via pi.sendMessage({ customType }).
-	const isNativeRemote = !!process.env[NATIVE_REMOTE_ENV];
-
 	if (remoteSessionId) {
 		let remoteSession: RemoteSession | null = null;
 
@@ -1481,52 +1491,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					});
 
 					remoteSession.setUiHandler(async (request) => {
-						if (!footerCtx?.hasUI) return null;
-						const ui = footerCtx.ui;
-						switch (request.method) {
-							case 'select': {
-								const options =
-									(request.params.options as Array<{ label: string; value: string }>) ??
-									[];
-								const title = (request.params.title as string) ?? 'Select';
-								const result = await ui.select(
-									title,
-									options.map((o) => o.label)
-								);
-								if (result === null || result === undefined) return null;
-								const idx = typeof result === 'number' ? result : Number(result);
-								return options[idx]?.value ?? null;
-							}
-							case 'confirm':
-								return await ui.confirm(
-									(request.params.message as string) ?? 'Confirm?',
-									(request.params.message as string) ?? 'Confirm?'
-								);
-							case 'input':
-								return await ui.input(
-									(request.params.prompt as string) ?? 'Input:',
-									(request.params.placeholder as string) ?? ''
-								);
-							case 'editor':
-								return await ui.editor(
-									(request.params.content as string) ?? '',
-									(request.params.language as string) ?? 'text'
-								);
-							case 'notify':
-								ui.notify((request.params.message as string) ?? '');
-								return undefined;
-							case 'setStatus':
-								ui.setStatus(
-									(request.params.key as string) ?? 'remote',
-									(request.params.text as string) ?? ''
-								);
-								return undefined;
-							case 'setTitle':
-								ui.setTitle((request.params.title as string) ?? '');
-								return undefined;
-							default:
-								return null;
-						}
+						if (!footerCtx) return null;
+						return await handleRemoteUiRequest(footerCtx, request);
 					});
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
@@ -1549,6 +1515,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		'session_shutdown',
 		async (_event: unknown, _ctx: ExtensionContext) => {
 			log('Shutting down — closing Hub connection');
+			if (isNativeRemote && remoteSessionId) {
+				setNativeRemoteExtensionContext(null);
+			}
 			try {
 				client.close();
 			} catch {

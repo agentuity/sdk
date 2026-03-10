@@ -6,7 +6,7 @@ export interface HubToolDefinition {
 	description: string;
 	parameters: Record<string, unknown>; // JSON Schema object
 	promptSnippet?: string;
-	promptGuidelines?: string;
+	promptGuidelines?: string | string[];
 }
 
 /** Command definition sent by Hub for agent routing slash commands. */
