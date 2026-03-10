@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
+import React, { useState, useLayoutEffect, useMemo, useCallback } from 'react';
 import { createContext, useContext, type Context } from 'react';
 import { defaultBaseUrl } from '@agentuity/frontend';
 
@@ -39,7 +39,7 @@ export const AgentuityProvider = ({
 
 	// Sync authHeader prop changes to state synchronously
 	// useLayoutEffect ensures the state is updated before child effects run,
-	// preventing race conditions where useAPI makes requests before auth is set (issue #732)
+	// preventing race conditions where API hooks make requests before auth is set (issue #732)
 	useLayoutEffect(() => {
 		if (authHeaderProp !== undefined) {
 			setAuthHeaderState(authHeaderProp);
@@ -94,7 +94,7 @@ export interface AuthContextValue {
  * Low-level hook for Agentuity's transport auth.
  *
  * This hook exposes the Authorization header and loading state used by
- * Agentuity's API clients (useAPI, useWebsocket, etc.).
+ * Agentuity's API clients.
  *
  * @example
  * ```tsx
