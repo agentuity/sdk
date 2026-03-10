@@ -11,7 +11,7 @@
 
 import ts from 'typescript';
 import { join, dirname, resolve } from 'node:path';
-import { existsSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import type { Logger } from '../../types';
 
 /**
@@ -38,7 +38,7 @@ export interface AppRouterDetection {
  * Resolve an import path to an actual file on disk.
  * Tries the path as-is, then with common extensions.
  */
-function resolveImportFile(fromDir: string, importPath: string): string | null {
+async function resolveImportFile(fromDir: string, importPath: string): Promise<string | null> {
 	if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
 		return null; // Package import — can't resolve
 	}
@@ -46,7 +46,8 @@ function resolveImportFile(fromDir: string, importPath: string): string | null {
 	const basePath = resolve(fromDir, importPath);
 	const extensions = ['.ts', '.tsx', '/index.ts', '/index.tsx'];
 
-	if (existsSync(basePath)) {
+	const baseFile = Bun.file(basePath);
+	if (await baseFile.exists()) {
 		try {
 			if (statSync(basePath).isFile()) return basePath;
 		} catch {
@@ -56,7 +57,7 @@ function resolveImportFile(fromDir: string, importPath: string): string | null {
 
 	for (const ext of extensions) {
 		const candidate = basePath + ext;
-		if (existsSync(candidate)) {
+		if (await Bun.file(candidate).exists()) {
 			return candidate;
 		}
 	}
@@ -230,9 +231,9 @@ export async function detectExplicitRouter(
 
 	// Look for app.ts in src/ (standard location), then root
 	let appFile = join(rootDir, 'src', 'app.ts');
-	if (!existsSync(appFile)) {
+	if (!(await Bun.file(appFile).exists())) {
 		appFile = join(rootDir, 'app.ts');
-		if (!existsSync(appFile)) {
+		if (!(await Bun.file(appFile).exists())) {
 			logger.trace('[router-detect] No app.ts found');
 			return noDetection;
 		}
@@ -278,7 +279,7 @@ export async function detectExplicitRouter(
 				continue;
 			}
 
-			const resolvedFile = resolveImportFile(appDir, importPath);
+			const resolvedFile = await resolveImportFile(appDir, importPath);
 			if (!resolvedFile) {
 				logger.warn(
 					'[router-detect] Could not resolve import %s for router variable %s',

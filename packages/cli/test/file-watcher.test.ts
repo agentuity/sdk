@@ -340,42 +340,39 @@ describe('File Watcher', () => {
 		expect(existsSync(join(agentDir, 'existing.ts'))).toBe(true);
 	});
 
-	test.serial(
-		'does not create templates for directories outside src/agent',
-		async () => {
-			watcher = createFileWatcher({
-				rootDir: testDir,
-				logger: {
-					trace: () => {},
-					debug: () => {},
-					info: () => {},
-					warn: () => {},
-					error: () => {},
-					fatal: (): never => {
-						throw new Error('Fatal error');
-					},
-					child: () => ({}) as unknown as Logger,
+	test.serial('does not create templates for directories outside src/agent', async () => {
+		watcher = createFileWatcher({
+			rootDir: testDir,
+			logger: {
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('Fatal error');
 				},
-				onRestart: () => {
-					restartCount++;
-				},
-			});
+				child: () => ({}) as unknown as Logger,
+			},
+			onRestart: () => {
+				restartCount++;
+			},
+		});
 
-			watcher.start();
-			watcher.resume();
+		watcher.start();
+		watcher.resume();
 
-			// Give watcher time to settle
-			await Bun.sleep(100);
+		// Give watcher time to settle
+		await Bun.sleep(100);
 
-			// Create a directory in a different location
-			const libDir = join(testDir, 'src', 'lib', 'utils');
-			await mkdir(libDir, { recursive: true });
+		// Create a directory in a different location
+		const libDir = join(testDir, 'src', 'lib', 'utils');
+		await mkdir(libDir, { recursive: true });
 
-			// Wait
-			await Bun.sleep(1000);
+		// Wait
+		await Bun.sleep(1000);
 
-			// No templates should be created
-			expect(existsSync(join(libDir, 'index.ts'))).toBe(false);
-		}
-	);
+		// No templates should be created
+		expect(existsSync(join(libDir, 'index.ts'))).toBe(false);
+	});
 });

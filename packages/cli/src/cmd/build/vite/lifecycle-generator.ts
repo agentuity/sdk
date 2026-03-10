@@ -10,15 +10,12 @@
 
 import ts from 'typescript';
 import { join, relative, dirname } from 'node:path';
-import { existsSync, mkdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { StructuredError } from '@agentuity/core';
 import type { Logger } from '../../../types';
+import { toForwardSlash } from '../../../utils/normalize-path';
 
 const RuntimePackageNotFound = StructuredError('RuntimePackageNotFound');
-
-function toForwardSlash(p: string): string {
-	return p.replace(/\\/g, '/');
-}
 
 /**
  * Use the TypeScript type checker to extract the return type of the setup
@@ -171,21 +168,21 @@ function extractSetupReturnType(appFilePath: string, logger: Logger): string | n
 /**
  * Find the @agentuity/runtime package by walking up the directory tree.
  */
-function findRuntimePackage(rootDir: string, logger: Logger): string {
+async function findRuntimePackage(rootDir: string, logger: Logger): Promise<string> {
 	let currentDir = rootDir;
 	const searchedPaths: string[] = [];
 
 	while (currentDir && currentDir !== '/' && currentDir !== '.') {
 		const candidatePath = join(currentDir, 'node_modules', '@agentuity', 'runtime');
 		searchedPaths.push(candidatePath);
-		if (existsSync(candidatePath)) {
+		if (await Bun.file(join(candidatePath, 'package.json')).exists()) {
 			logger.debug(`Found runtime package at: ${candidatePath}`);
 			return candidatePath;
 		}
 
 		const packagesPath = join(currentDir, 'packages', 'runtime');
 		searchedPaths.push(packagesPath);
-		if (existsSync(packagesPath)) {
+		if (await Bun.file(join(packagesPath, 'package.json')).exists()) {
 			logger.debug(`Found runtime package (source) at: ${packagesPath}`);
 			return packagesPath;
 		}
@@ -366,11 +363,9 @@ export async function generateLifecycleTypes(
 	logger.debug(`[lifecycle] Extracted setup return type: ${appStateType}`);
 
 	// Generate files
-	if (!existsSync(outDir)) {
-		mkdirSync(outDir, { recursive: true });
-	}
+	mkdirSync(outDir, { recursive: true });
 
-	const runtimePkgPath = findRuntimePackage(rootDir, logger);
+	const runtimePkgPath = await findRuntimePackage(rootDir, logger);
 	const runtimeImportPath = toForwardSlash(relative(outDir, runtimePkgPath));
 
 	await Bun.write(join(outDir, 'state.ts'), generateStateContent(appStateType));

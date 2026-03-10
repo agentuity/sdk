@@ -7,7 +7,6 @@
  */
 
 import { dirname, join, relative } from 'node:path';
-import { existsSync } from 'node:fs';
 import type { Logger } from '../../../types';
 import { toForwardSlash } from '../../../utils/normalize-path';
 
@@ -88,14 +87,16 @@ async function schemaToJsonString(
 	if (!schema) return undefined;
 
 	try {
-		// Resolve @agentuity/schema from the user's project
-		const schemaModulePath = join(rootDir, 'node_modules', '@agentuity', 'schema');
-		if (!existsSync(schemaModulePath)) {
+		// Resolve @agentuity/schema from the user's project and import its public entry point.
+		// The CLI doesn't declare @agentuity/schema as its own dependency — it lives in the
+		// user's node_modules, so we resolve the path dynamically.
+		const schemaPackageDir = join(rootDir, 'node_modules', '@agentuity', 'schema');
+		if (!(await Bun.file(join(schemaPackageDir, 'package.json')).exists())) {
 			logger.debug('[agent-discovery] @agentuity/schema not found in user project');
 			return undefined;
 		}
 
-		const { toJSONSchema } = await import(join(schemaModulePath, 'src', 'json-schema.ts'));
+		const { toJSONSchema } = await import(schemaPackageDir);
 		const jsonSchema = toJSONSchema(schema);
 		return JSON.stringify(jsonSchema);
 	} catch (error) {
@@ -122,12 +123,8 @@ async function importAgentMetadata(
 		const source = await Bun.file(filePath).text();
 		const version = hash(source);
 
-		// Quick check — skip files without createAgent
-		if (!source.includes('createAgent')) {
-			return null;
-		}
-
 		// Import the agent file — Bun handles TS natively
+		// No source-level gate: files may re-export agents created elsewhere
 		const mod = await import(filePath);
 		const agent = mod.default;
 
@@ -186,7 +183,7 @@ async function importAgentMetadata(
 		// Also check for evals in separate eval.ts file in same directory
 		const agentDir = dirname(filePath);
 		const evalsPath = join(agentDir, 'eval.ts');
-		if (existsSync(evalsPath)) {
+		if (await Bun.file(evalsPath).exists()) {
 			const evalsSource = await Bun.file(evalsPath).text();
 			if (evalsSource.includes('createEval')) {
 				try {
@@ -280,14 +277,17 @@ export async function discoverAgents(
 	const agents: AgentMetadata[] = [];
 	const rootDir = join(srcDir, '..');
 
-	if (!existsSync(agentsDir)) {
+	// Scan all .ts files in agent directory
+	const glob = new Bun.Glob('**/*.ts');
+	let files: string[];
+	try {
+		files = await Array.fromAsync(glob.scan(agentsDir));
+	} catch {
 		logger.trace('No agent directory found at %s', agentsDir);
 		return agents;
 	}
 
-	// Scan all .ts files in agent directory
-	const glob = new Bun.Glob('**/*.ts');
-	for await (const file of glob.scan(agentsDir)) {
+	for (const file of files) {
 		const filePath = join(agentsDir, file);
 
 		// Skip eval.ts files (processed as part of agent discovery)

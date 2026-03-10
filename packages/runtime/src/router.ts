@@ -1,4 +1,5 @@
 import { Hono, type Env as HonoEnv, type Schema } from 'hono';
+import type { BlankSchema } from 'hono/types';
 import type { Env } from './app';
 
 // Re-export both Env types
@@ -69,6 +70,6 @@ declare module 'hono' {
  * }));
  * ```
  */
-export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): Hono<E, S> => {
+export const createRouter = <E extends Env = Env, S extends Schema = BlankSchema>(): Hono<E, S> => {
 	return new Hono<E, S>();
 };

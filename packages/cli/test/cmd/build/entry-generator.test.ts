@@ -144,7 +144,6 @@ export default router;`
 		expect(appContent).toContain('app.use(prefix, createOtelMiddleware())');
 		expect(appContent).toContain("app.use(prefix, createAgentMiddleware(''))");
 		expect(appContent).toContain('app.route(mount.path, mount.router)');
-
 	});
 
 	test('generated app.ts contains runtime mode detection', async () => {
