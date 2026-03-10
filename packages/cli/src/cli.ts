@@ -1215,7 +1215,7 @@ async function registerSubcommand(
 		}
 	}
 
-	// Add hidden --yes alias for --confirm if command has a confirm option
+	// Add hidden --yes and --force aliases for --confirm if command has a confirm option
 	if (subcommand.schema?.options) {
 		const parsed = parseOptionsSchema(subcommand.schema.options);
 		const hasConfirmOption = parsed.some((opt) => opt.name === 'confirm');
@@ -1224,6 +1224,10 @@ async function registerSubcommand(
 			const yesOption = cmd.createOption('--yes', 'Alias for --confirm');
 			yesOption.hideHelp();
 			cmd.addOption(yesOption);
+			// Add hidden --force option that sets confirm to true
+			const forceOption = cmd.createOption('--force', 'Alias for --confirm');
+			forceOption.hideHelp();
+			cmd.addOption(forceOption);
 		}
 	}
 

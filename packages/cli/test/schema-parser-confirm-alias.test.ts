@@ -21,6 +21,11 @@ describe('confirm flag aliasing', () => {
 			expect(input.options.confirm).toBe(true);
 		});
 
+		test('--force flag should set confirm to true', () => {
+			const input = buildValidationInput(schemaWithConfirm, [], { force: true });
+			expect(input.options.confirm).toBe(true);
+		});
+
 		test('--confirm flag should still work', () => {
 			const input = buildValidationInput(schemaWithConfirm, [], { confirm: true });
 			expect(input.options.confirm).toBe(true);
@@ -36,9 +41,23 @@ describe('confirm flag aliasing', () => {
 			expect(input.options.confirm).toBe(true);
 		});
 
+		test('--confirm takes precedence over --force', () => {
+			const input = buildValidationInput(schemaWithConfirm, [], {
+				confirm: true,
+				force: false,
+			});
+			expect(input.options.confirm).toBe(true);
+		});
+
 		test('--yes should not affect schemas without confirm option', () => {
 			const input = buildValidationInput(schemaWithoutConfirm, [], { yes: true });
 			expect(input.options.yes).toBeUndefined();
+			expect(input.options.confirm).toBeUndefined();
+		});
+
+		test('--force should not affect schemas without confirm option', () => {
+			const input = buildValidationInput(schemaWithoutConfirm, [], { force: true });
+			expect(input.options.force).toBeUndefined();
 			expect(input.options.confirm).toBeUndefined();
 		});
 
@@ -53,6 +72,11 @@ describe('confirm flag aliasing', () => {
 	describe('buildValidationInputAsync', () => {
 		test('--yes flag should set confirm to true asynchronously', async () => {
 			const input = await buildValidationInputAsync(schemaWithConfirm, [], { yes: true });
+			expect(input.options.confirm).toBe(true);
+		});
+
+		test('--force flag should set confirm to true asynchronously', async () => {
+			const input = await buildValidationInputAsync(schemaWithConfirm, [], { force: true });
 			expect(input.options.confirm).toBe(true);
 		});
 
