@@ -17,28 +17,12 @@ type AppRouter = Hono<AppEnv>;
 /**
  * Creates a Hono router with extended methods for Agentuity-specific routing patterns.
  *
- * In addition to standard HTTP methods (get, post, put, delete, patch), the router includes:
- * - **stream()** - Stream responses with ReadableStream
- * - **websocket()** - WebSocket connections
- * - **sse()** - Server-Sent Events
- * - **email()** - Email handler routing
- * - **sms()** - SMS handler routing
- * - **cron()** - Scheduled task routing
- *
  * @returns Extended Hono router with custom methods and app state typing
  *
  * @example
  * ```typescript
  * const router = createRouter();
- *
- * // Standard HTTP routes
  * router.get('/hello', (c) => c.text('Hello!'));
- * router.post('/data', async (c) => {
- *   const body = await c.req.json();
- *   return c.json({ received: body });
- * });
- *
- * // Access app state (strongly typed!)
  * router.get('/db', (c) => {
  *   const db = c.var.app; // Your app state from createApp setup
  *   return c.json({ connected: true });

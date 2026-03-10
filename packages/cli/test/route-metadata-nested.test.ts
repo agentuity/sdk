@@ -47,7 +47,6 @@ describe('Route Metadata - Nested Routes', () => {
 		expect(metadata.routes).toBeDefined();
 		expect(Array.isArray(metadata.routes)).toBe(true);
 
-		// Extract route paths
 		const routes: Route[] = metadata.routes.map((r) => ({
 			method: r.method,
 			path: r.path,
@@ -58,82 +57,56 @@ describe('Route Metadata - Nested Routes', () => {
 		const loginRoute = routes.find((r) => r.path === '/api/auth/login');
 		expect(loginRoute).toBeDefined();
 		expect(loginRoute!.method).toBe('post');
-		expect(loginRoute!.filename).toBe('src/api/auth/route.ts');
 
 		const logoutRoute = routes.find((r) => r.path === '/api/auth/logout');
 		expect(logoutRoute).toBeDefined();
 		expect(logoutRoute!.method).toBe('post');
-		expect(logoutRoute!.filename).toBe('src/api/auth/route.ts');
 
 		// 2-level deep routes (users/profile)
 		const profileGetRoute = routes.find((r) => r.path === '/api/users/profile');
 		expect(profileGetRoute).toBeDefined();
 		expect(profileGetRoute!.method).toBe('get');
-		expect(profileGetRoute!.filename).toBe('src/api/users/profile/route.ts');
 
 		const profilePatchRoute = routes.find(
 			(r) => r.path === '/api/users/profile' && r.method === 'patch'
 		);
 		expect(profilePatchRoute).toBeDefined();
-		expect(profilePatchRoute!.filename).toBe('src/api/users/profile/route.ts');
 
 		const profileDeleteRoute = routes.find(
 			(r) => r.path === '/api/users/profile' && r.method === 'delete'
 		);
 		expect(profileDeleteRoute).toBeDefined();
-		expect(profileDeleteRoute!.filename).toBe('src/api/users/profile/route.ts');
 	});
 
 	test('metadata.json nested route paths should be correct', () => {
 		ensureMetadataExists();
 		const metadata: Metadata = JSON.parse(readFileSync(METADATA_PATH, 'utf-8'));
 
-		const routes = metadata.routes.filter(
-			(r) =>
-				r.filename.startsWith('src/api/') &&
-				r.filename !== 'src/api/test.ts' && // test.ts has hardcoded /api paths (known issue)
-				r.filename !== 'src/api/hello.ts' &&
-				!r.path.startsWith('/workbench')
-		);
+		const routes = metadata.routes.filter((r) => !r.path.startsWith('/workbench'));
 
-		// All filtered routes should start with /api and not have duplicate /api prefixes
+		// All routes should start with /api and not have duplicate /api prefixes
 		for (const route of routes) {
-			expect(route.path).toMatch(/^\/api\/[^/]/);
+			expect(route.path).toMatch(/^\/api\//);
 			expect(route.path).not.toContain('/api/api');
 		}
 	});
 
-	test('metadata.json should have correct filename paths for nested routes', () => {
+	test('metadata.json should have routes from explicit router', () => {
 		ensureMetadataExists();
 		const metadata: Metadata = JSON.parse(readFileSync(METADATA_PATH, 'utf-8'));
 
-		// All filenames should be relative to project root
-		const allFilenames = metadata.routes.map((r) => r.filename);
+		// With explicit routing, all routes trace to the router file
+		const routerRoutes = metadata.routes.filter((r) => r.filename.startsWith('src/api/'));
+		expect(routerRoutes.length).toBeGreaterThan(0);
 
-		// Check they all start with src/api
-		const allInSrcApi = allFilenames
-			.filter((f) => !f.includes('workbench'))
-			.every((f) => f.startsWith('src/api'));
-		expect(allInSrcApi).toBe(true);
+		// Nested paths should be present
+		const nestedPaths = routerRoutes.filter((r) => r.path.includes('/users/profile'));
+		expect(nestedPaths.length).toBeGreaterThan(0);
 
-		// Check nested paths are preserved
-		const nestedFile = allFilenames.find((f) => f === 'src/api/users/profile/route.ts');
-		expect(nestedFile).toBeDefined();
-	});
-
-	test('metadata.json nested routes should have full path from src/api', () => {
-		ensureMetadataExists();
-		const metadata: Metadata = JSON.parse(readFileSync(METADATA_PATH, 'utf-8'));
-
-		// Find a nested route
-		const nestedRoute = metadata.routes.find(
-			(r) => r.filename === 'src/api/users/profile/route.ts'
-		);
-
-		expect(nestedRoute).toBeDefined();
 		// Path should include the full nested structure: /api/users/profile
-		expect(nestedRoute!.path).toContain('/api/users/profile');
-		// Should NOT be just /api/profile (which would happen if only basename was used)
-		expect(nestedRoute!.path).not.toBe('/api/profile');
+		const profileRoute = nestedPaths[0];
+		expect(profileRoute.path).toContain('/api/users/profile');
+		// Should NOT be just /api/profile
+		expect(profileRoute.path).not.toBe('/api/profile');
 	});
 });

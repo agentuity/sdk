@@ -1,8 +1,11 @@
 import { createApp } from '@agentuity/runtime';
-import { bootstrapRuntimeEnv } from '@agentuity/runtime';
+import router from './src/api/index';
 
-await bootstrapRuntimeEnv();
-
-const app = await createApp();
+const app = await createApp({
+	router: {
+		path: '/api',
+		router,
+	},
+});
 
 export default app;

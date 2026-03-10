@@ -1,6 +1,8 @@
 import { createApp } from '@agentuity/runtime';
+import router from './src/api/index';
 
 const { server, logger } = await createApp({
+	router: { path: '/api', router },
 	setup: async () => {
 		// Auth schema is managed via `agentuity project auth generate` CLI command
 		// which uses BetterAuth CLI to generate Drizzle migrations

@@ -287,6 +287,9 @@ export async function discoverAgents(
 		return agents;
 	}
 
+	// Track seen agent names to deduplicate — e.g., index.ts re-exporting agent.ts
+	const seenAgentNames = new Set<string>();
+
 	for (const file of files) {
 		const filePath = join(agentsDir, file);
 
@@ -306,6 +309,15 @@ export async function discoverAgents(
 		);
 
 		if (agentMetadata) {
+			if (seenAgentNames.has(agentMetadata.name)) {
+				logger.trace(
+					'Skipping duplicate agent %s from %s (already discovered)',
+					agentMetadata.name,
+					relativeFilename
+				);
+				continue;
+			}
+			seenAgentNames.add(agentMetadata.name);
 			logger.trace('Discovered agent: %s at %s', agentMetadata.name, relativeFilename);
 			agents.push(agentMetadata);
 		}

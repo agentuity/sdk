@@ -18,12 +18,9 @@
  * });
  * ```
  */
-export type GeneratedAppState = {
-	foo: string;
-};
+export type GeneratedAppState = {    foo: string;};
 
 // Augment the @agentuity/runtime module with AppState
-// This will be picked up when imported through the wrapper
 declare module '@agentuity/runtime' {
 	interface AppState extends GeneratedAppState {}
 }
