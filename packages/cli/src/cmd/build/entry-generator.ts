@@ -5,9 +5,7 @@
 
 import { join } from 'node:path';
 import type { Logger, WorkbenchConfig, AnalyticsConfig } from '../../types';
-import { discoverRoutes } from './vite/route-discovery';
 import { generateWebAnalyticsFile } from './webanalytics-generator';
-import { computeApiMountPath } from './vite/api-mount-path';
 
 interface GenerateEntryOptions {
 	rootDir: string;
@@ -19,26 +17,16 @@ interface GenerateEntryOptions {
 	analytics?: boolean | AnalyticsConfig;
 	vitePort?: number; // Port of Vite asset server (dev mode only)
 	noBundle?: boolean; // Skip bundling — apply runtime patches instead
-	/** Pre-discovered routes to avoid redundant route discovery */
-	preDiscoveredRoutes?: Awaited<ReturnType<typeof discoverRoutes>>['routeInfoList'];
 }
 
 /**
  * Generate entry file with clean Vite-native architecture
  */
 export async function generateEntryFile(options: GenerateEntryOptions): Promise<void> {
-	const {
-		rootDir,
-		projectId,
-		deploymentId,
-		logger,
-		mode,
-		workbench,
-		analytics,
-		vitePort,
-		noBundle,
-		preDiscoveredRoutes,
-	} = options;
+	const { rootDir, logger, mode, workbench, analytics, vitePort, noBundle } = options;
+	// projectId and deploymentId are part of the interface for consistency with
+	// other build steps, but the entry file itself doesn't need them — routes
+	// are mounted at runtime by getUserRouter().
 
 	const srcDir = join(rootDir, 'src');
 	const generatedDir = join(srcDir, 'generated');
@@ -54,25 +42,12 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		await generateWebAnalyticsFile({ rootDir, logger, analytics });
 	}
 
-	// Use pre-discovered routes if available, otherwise discover them
-	const routeInfoList =
-		preDiscoveredRoutes ??
-		(await discoverRoutes(srcDir, projectId, deploymentId, logger)).routeInfoList;
-
 	// Check for web and workbench
 	const hasWebFrontend =
 		(await Bun.file(join(srcDir, 'web', 'index.html')).exists()) ||
 		(await Bun.file(join(srcDir, 'web', 'frontend.tsx')).exists());
 	// Workbench is configured at build time, but only enabled at runtime in dev mode
 	const hasWorkbenchConfig = !!workbench;
-
-	// Get unique route files that need to be imported (relative to src/)
-	const routeFiles = new Set<string>();
-	for (const route of routeInfoList) {
-		if (route.filename) {
-			routeFiles.add(route.filename);
-		}
-	}
 
 	// Generate imports
 	const runtimeImports = [
@@ -126,34 +101,8 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		imports.push(`import { analyticsConfig } from './analytics-config.js';`);
 	}
 
-	// Generate route mounting code for all discovered routes
-	// Sort route files for deterministic output
-	const sortedRouteFiles = [...routeFiles].sort();
-	const routeImportsAndMounts: string[] = [];
-	let routeIndex = 0;
-
-	for (const routeFile of sortedRouteFiles) {
-		// Normalize path separators for cross-platform compatibility (Windows uses backslashes)
-		const normalizedRouteFile = routeFile.replace(/\\/g, '/');
-		// Convert src/api/auth/route.ts -> auth/route
-		const relativePath = normalizedRouteFile.replace(/^src\/api\//, '').replace(/\.tsx?$/, '');
-
-		// Determine the mount path using the shared helper
-		// This ensures consistency with route type generation in ast.ts
-		const mountPath = computeApiMountPath(relativePath);
-
-		const importName = `router_${routeIndex++}`;
-		routeImportsAndMounts.push(
-			`const { default: ${importName} } = await import('../api/${relativePath}.js');`
-		);
-		routeImportsAndMounts.push(`app.route('${mountPath}', ${importName});`);
-	}
-
-	const apiMount =
-		routeImportsAndMounts.length > 0
-			? `
-// Apply middleware and mount API routes
-// If user passed router(s) via createApp({ router }), mount those instead of discovered files
+	const apiMount = `
+// Mount user-provided routers from createApp({ router })
 const __userMounts = getUserRouter();
 if (__userMounts) {
 	for (const mount of __userMounts) {
@@ -164,15 +113,8 @@ if (__userMounts) {
 		app.use(prefix, createAgentMiddleware(''));
 		app.route(mount.path, mount.router);
 	}
-} else {
-	// File-based routing: apply middleware to /api/* and mount discovered route files
-	app.use('/api/*', createCorsMiddleware());
-	app.use('/api/*', createOtelMiddleware());
-	app.use('/api/*', createAgentMiddleware(''));
-${routeImportsAndMounts.map((line) => `\t${line}`).join('\n')}
 }
-`
-			: '';
+`;
 
 	// Workbench API routes mounting
 	// Always mounted - these routes are needed for the cloud workbench to communicate with deployed agents

@@ -8,7 +8,7 @@
 import { watch, type FSWatcher, statSync, readdirSync, lstatSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 import type { Logger } from '../../types';
-import { createAgentTemplates, createAPITemplates } from './templates';
+import { createAgentTemplates } from './templates';
 
 export interface FileWatcherOptions {
 	rootDir: string;
@@ -219,7 +219,7 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 			isDirectory = false;
 		}
 
-		// Check if an empty directory was created in src/agent/ or src/api/
+		// Check if an empty directory was created in src/agent/
 		// This helps with developer experience by auto-scaffolding template files
 		if (changedFile && eventType === 'rename' && isDirectory) {
 			try {
@@ -229,19 +229,12 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 				// Check if it's empty
 				const contents = readdirSync(absPath);
 				if (contents.length === 0) {
-					// Check if this is an agent or API directory
 					if (
 						normalizedPath.startsWith('src/agent/') ||
 						normalizedPath.includes('/src/agent/')
 					) {
 						logger.debug('Agent directory created: %s', changedFile);
 						createAgentTemplates(absPath);
-					} else if (
-						normalizedPath.startsWith('src/api/') ||
-						normalizedPath.includes('/src/api/')
-					) {
-						logger.debug('API directory created: %s', changedFile);
-						createAPITemplates(absPath);
 					}
 				}
 			} catch (error) {

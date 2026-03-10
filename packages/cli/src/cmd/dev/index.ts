@@ -20,11 +20,7 @@ import { isTTY, hasLoggedInBefore } from '../../auth';
 import { createFileWatcher } from './file-watcher';
 import { prepareDevLock, releaseLockSync } from './dev-lock';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
-import {
-	promptRouteMigration,
-	performMigration,
-	checkMigrationEligibility,
-} from '../../utils/route-migration';
+
 import { ErrorCode } from '../../errors';
 
 const DEFAULT_PORT = 3500;
@@ -237,12 +233,7 @@ export const command = createCommand({
 				.boolean()
 				.optional()
 				.describe('Skip TypeScript type checking on startup and restarts'),
-			migrateRoutes: z
-				.boolean()
-				.optional()
-				.describe(
-					'Migrate file-based routes to explicit routing (src/api/index.ts root router)'
-				),
+
 			resume: z.string().optional().describe('Resume a paused Hub session by ID'),
 		}),
 	},
@@ -423,29 +414,6 @@ export const command = createCommand({
 				`Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`,
 				ErrorCode.BUILD_FAILED
 			);
-		}
-
-		// Check if project can migrate to explicit routing
-		if (opts.migrateRoutes) {
-			const eligibility = checkMigrationEligibility(rootDir);
-			if (eligibility.available) {
-				const result = performMigration(rootDir, eligibility.routeFiles);
-				if (result.success) {
-					tui.success(result.message);
-					if (result.filesCreated.length > 0) {
-						tui.info(`Created: ${result.filesCreated.map((f) => tui.muted(f)).join(', ')}`);
-					}
-					tui.newline();
-				} else {
-					tui.warning(result.message);
-					tui.newline();
-				}
-			} else {
-				tui.info('No migration needed — already using explicit routing.');
-				tui.newline();
-			}
-		} else {
-			await promptRouteMigration(rootDir, logger, { interactive });
 		}
 
 		try {
@@ -978,7 +946,6 @@ export const command = createCommand({
 									workbench: workbenchConfigData.enabled ? workbenchConfigData : undefined,
 									analytics: agentuityConfig?.analytics,
 									noBundle: opts.experimentalNoBundle,
-									preDiscoveredRoutes: routeInfoList,
 								});
 							} else {
 								logger.debug(

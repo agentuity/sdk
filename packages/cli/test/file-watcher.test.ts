@@ -301,59 +301,6 @@ describe('File Watcher', () => {
 		expect(restartCount).toBeGreaterThan(0);
 	});
 
-	test.serial('creates API templates when new API directory is created', async () => {
-		watcher = createFileWatcher({
-			rootDir: testDir,
-			logger: {
-				trace: () => {},
-				debug: () => {},
-				info: () => {},
-				warn: () => {},
-				error: () => {},
-				fatal: (): never => {
-					throw new Error('Fatal error');
-				},
-				child: () => ({}) as unknown as Logger,
-			},
-			onRestart: () => {
-				restartCount++;
-			},
-		});
-
-		watcher.start();
-		watcher.resume();
-
-		// Give watcher time to settle (longer for CI)
-		await Bun.sleep(500);
-
-		// Create a new API directory (empty)
-		const apiDir = join(testDir, 'src', 'api', 'my-api');
-		await mkdir(apiDir, { recursive: true });
-
-		// Wait for watcher to detect and create templates with polling
-		const maxWait = 3000; // 3 seconds max
-		const pollInterval = 100; // check every 100ms
-		let elapsed = 0;
-		while (elapsed < maxWait) {
-			if (existsSync(join(apiDir, 'index.ts'))) {
-				break;
-			}
-			await Bun.sleep(pollInterval);
-			elapsed += pollInterval;
-		}
-
-		// Verify template was created
-		expect(existsSync(join(apiDir, 'index.ts'))).toBe(true);
-
-		// Verify content
-		const indexContent = await readFile(join(apiDir, 'index.ts'), 'utf-8');
-		expect(indexContent).toContain('createRouter');
-		expect(indexContent).toContain("router.get('/'");
-
-		// Should also trigger restart
-		expect(restartCount).toBeGreaterThan(0);
-	});
-
 	test.serial('does not create templates for non-empty directories', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
@@ -394,7 +341,7 @@ describe('File Watcher', () => {
 	});
 
 	test.serial(
-		'does not create templates for directories outside src/agent or src/api',
+		'does not create templates for directories outside src/agent',
 		async () => {
 			watcher = createFileWatcher({
 				rootDir: testDir,
