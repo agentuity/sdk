@@ -2,11 +2,13 @@
  * Route Migration Utility
  *
  * Detects projects using file-based routing (multiple route files in src/api/)
- * and offers to consolidate them into a single src/api/index.ts root router
- * that explicitly imports and mounts all sub-routers.
+ * and offers to migrate them to explicit routing — a single src/api/index.ts
+ * root router that imports and mounts all sub-routers explicitly.
  *
- * Also updates src/app.ts to import the consolidated router and pass it to
+ * Also updates src/app.ts to import the router and pass it to
  * createApp({ router }), completing the migration to explicit routing.
+ *
+ * Explicit routing will become the default in the next major release.
  *
  * Runs during `dev` and `build` after dependency upgrades.
  */
@@ -99,15 +101,15 @@ export function detectFileBasedRoutes(rootDir: string): string[] {
 
 /**
  * Check if src/api/index.ts already exists and is a root router that mounts sub-routers.
- * This means the project has already been consolidated (manually or via migration).
+ * This means the project has already migrated to explicit routing.
  */
-function hasConsolidatedRootRouter(rootDir: string): boolean {
+function hasExplicitRootRouter(rootDir: string): boolean {
 	const indexPath = join(rootDir, 'src', 'api', 'index.ts');
 	if (!existsSync(indexPath)) return false;
 	try {
 		const content = readFileSync(indexPath, 'utf-8');
 		const stripped = content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-		// A consolidated root router both creates a router AND mounts sub-routers via .route()
+		// An explicit root router both creates a router AND mounts sub-routers via .route()
 		return (
 			(/createRouter\s*\(/.test(stripped) || /new\s+Hono\s*[<(]/.test(stripped)) &&
 			stripped.includes('.route(') &&
@@ -128,25 +130,25 @@ export interface MigrationCheckResult {
 }
 
 /**
- * Check if a project is eligible for route consolidation.
+ * Check if a project is eligible for migration to explicit routing.
  * Returns info about the project's routing state without performing any action.
  *
  * A project is eligible when:
  * - It has multiple route files in src/api/
- * - It does NOT already have a consolidated src/api/index.ts root router
+ * - It does NOT already have an explicit src/api/index.ts root router
  */
 export function checkMigrationEligibility(rootDir: string): MigrationCheckResult {
 	const routeFiles = detectFileBasedRoutes(rootDir);
 
-	// Need at least 2 route files for consolidation to be useful
-	// (a single file means there's nothing to consolidate)
+	// Need at least 2 route files for migration to be useful
+	// (a single file already acts as an explicit root router)
 	if (routeFiles.length < 2) {
 		return { available: false, routeFiles: [], alreadyNotified: false };
 	}
 
-	// If there's already a consolidated root router, check if all route files
+	// If there's already an explicit root router, check if all route files
 	// are already imported. If so, nothing to do.
-	if (hasConsolidatedRootRouter(rootDir)) {
+	if (hasExplicitRootRouter(rootDir)) {
 		const indexPath = join(rootDir, 'src', 'api', 'index.ts');
 		const indexContent = readFileSync(indexPath, 'utf-8');
 		const filesToMount = routeFiles.filter((f) => f !== 'index.ts');
@@ -448,7 +450,7 @@ function detectDefaultExportName(filePath: string): string {
 }
 
 /**
- * Update src/app.ts to import the consolidated router and pass it to createApp().
+ * Update src/app.ts to import the explicit router and pass it to createApp().
  *
  * Handles these createApp patterns:
  * - `createApp()`          → `createApp({ router })`
@@ -569,7 +571,7 @@ export interface MigrationResult {
 }
 
 /**
- * Perform the route consolidation.
+ * Perform the migration to explicit routing.
  *
  * 1. Generates/updates `src/api/index.ts` to import and mount all route files
  * 2. Updates `src/app.ts` to import the router and pass it to `createApp({ router })`
@@ -590,7 +592,7 @@ export function performMigration(rootDir: string, routeFiles: string[]): Migrati
 				success: false,
 				filesCreated: [],
 				filesModified: [],
-				message: 'No route files to consolidate (only index.ts found).',
+				message: 'No route files to migrate (only index.ts found).',
 			};
 		}
 
@@ -613,7 +615,7 @@ export function performMigration(rootDir: string, routeFiles: string[]): Migrati
 						success: true,
 						filesCreated: [],
 						filesModified,
-						message: `All route files are already imported in src/api/index.ts. Updated ${relAppPath} with router.`,
+						message: `All route files are already imported in src/api/index.ts. Updated ${relAppPath} with explicit router.`,
 					};
 				}
 				return {
@@ -634,10 +636,10 @@ export function performMigration(rootDir: string, routeFiles: string[]): Migrati
 			if (!existsSync(apiDir)) mkdirSync(apiDir, { recursive: true });
 			writeFileSync(apiIndexPath, rootRouterContent);
 			filesCreated.push('src/api/index.ts');
-			indexMessage = 'Routes consolidated into src/api/index.ts.';
+			indexMessage = 'Migrated to explicit routing in src/api/index.ts.';
 		}
 
-		// Update app.ts to import and use the consolidated router
+		// Update app.ts to import and use the explicit router
 		const routerExportName = detectDefaultExportName(apiIndexPath);
 		const appResult = updateAppTs(rootDir, routerExportName);
 		if (appResult?.changed) {
@@ -690,9 +692,9 @@ export async function promptRouteMigration(
 	if (!interactive) {
 		if (!alreadyNotified) {
 			logger.info(
-				'[migration] This project has %d route files in src/api/. ' +
-					'You can consolidate them into a single src/api/index.ts root router. ' +
-					'Run `agentuity dev --migrate-routes` to consolidate.',
+				'[migration] This project uses file-based routing with %d route files in src/api/. ' +
+					'Agentuity is moving to explicit routing, which will become the default in the next major release. ' +
+					'Run `agentuity dev --migrate-routes` to migrate.',
 				routeFiles.length
 			);
 			writeMigrationState(rootDir, 'notified');
@@ -704,12 +706,15 @@ export async function promptRouteMigration(
 	if (!alreadyNotified) {
 		tui.newline();
 		tui.banner(
-			'✨ Consolidate Your Routes',
-			`Your project has ${routeFiles.length} route files scattered across src/api/.\n` +
+			'✨ Migrate to Explicit Routing',
+			'Agentuity is moving to explicit routing, which will become the\n' +
+				'default in the next major release. File-based route discovery\n' +
+				'will be deprecated.\n' +
 				'\n' +
-				'You can consolidate them into a single src/api/index.ts that\n' +
-				'imports and mounts all sub-routers explicitly — just like a\n' +
-				'standard Hono application.\n' +
+				`Your project has ${routeFiles.length} route files in src/api/ that are\n` +
+				'auto-discovered at build time. Explicit routing gives you a single\n' +
+				'src/api/index.ts that imports and mounts all sub-routers — just\n' +
+				'like a standard Hono application.\n' +
 				'\n' +
 				`${tui.muted('Before:')} ${routeFiles.length} files auto-discovered from src/api/**/*.ts\n` +
 				`${tui.muted('After:')}  One src/api/index.ts that imports and mounts them\n` +
@@ -722,18 +727,18 @@ export async function promptRouteMigration(
 		// Subsequent runs: shorter reminder
 		tui.newline();
 		tui.info(
-			`${tui.bold('Route consolidation available')} — run with ${tui.muted('--migrate-routes')} or choose below.`
+			`${tui.bold('Explicit routing migration available')} — run with ${tui.muted('--migrate-routes')} or choose below.`
 		);
 	}
 
 	tui.newline();
 
-	const action = await tui.confirm('Would you like to consolidate your routes now?', false);
+	const action = await tui.confirm('Would you like to migrate to explicit routing now?', false);
 
 	if (!action) {
 		writeMigrationState(rootDir, 'dismissed');
 		tui.info(
-			`You can consolidate later by running: ${tui.muted('agentuity dev --migrate-routes')}`
+			`You can migrate later by running: ${tui.muted('agentuity dev --migrate-routes')}`
 		);
 		tui.newline();
 		return false;

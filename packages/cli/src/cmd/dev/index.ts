@@ -241,7 +241,7 @@ export const command = createCommand({
 				.boolean()
 				.optional()
 				.describe(
-					'Consolidate route files in src/api/ into a single root router (src/api/index.ts)'
+					'Migrate file-based routes to explicit routing (src/api/index.ts root router)'
 				),
 			resume: z.string().optional().describe('Resume a paused Hub session by ID'),
 		}),
@@ -425,7 +425,7 @@ export const command = createCommand({
 			);
 		}
 
-		// Check if project can consolidate routes into a single root router
+		// Check if project can migrate to explicit routing
 		if (opts.migrateRoutes) {
 			const eligibility = checkMigrationEligibility(rootDir);
 			if (eligibility.available) {
@@ -441,7 +441,7 @@ export const command = createCommand({
 					tui.newline();
 				}
 			} else {
-				tui.info('No route consolidation needed.');
+				tui.info('No migration needed — already using explicit routing.');
 				tui.newline();
 			}
 		} else {

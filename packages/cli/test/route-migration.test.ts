@@ -167,8 +167,8 @@ export default router;`
 		expect(result.alreadyNotified).toBe(false);
 	});
 
-	test('not eligible when consolidated root router has all routes imported', () => {
-		// An index.ts that imports and mounts all sub-routers = fully consolidated
+	test('not eligible when explicit root router has all routes imported', () => {
+		// An index.ts that imports and mounts all sub-routers = already using explicit routing
 		writeFileSync(
 			join(testDir, 'src', 'api', 'index.ts'),
 			`import { createRouter } from '@agentuity/runtime';
@@ -189,7 +189,7 @@ export default router;`
 		expect(result.available).toBe(false);
 	});
 
-	test('eligible when consolidated root router is missing some routes', () => {
+	test('eligible when explicit root router is missing some routes', () => {
 		writeFileSync(
 			join(testDir, 'src', 'api', 'index.ts'),
 			`import { createRouter } from '@agentuity/runtime';
@@ -878,7 +878,7 @@ export default router;`
 		expect(healthRoutesAfter).toEqual(healthRoutesBefore);
 	});
 
-	test('entry generator works with consolidated routes', async () => {
+	test('entry generator works with explicit routes', async () => {
 		const { generateEntryFile } = await import('../src/cmd/build/entry-generator');
 		const { createMockLogger } = await import('@agentuity/test-utils');
 		const logger = createMockLogger();
