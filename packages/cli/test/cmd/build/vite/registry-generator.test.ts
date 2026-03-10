@@ -1986,8 +1986,46 @@ describe('registry-generator', () => {
 			const content = await Bun.file(routesPath).text();
 
 			// Should import the actual exported name (UserSchema), not the local alias (US)
-			expect(content).toContain('UserSchema as UserSchema_');
-			expect(content).toContain("from '../utils/schemas'");
+			// No aliasing needed since the name is unique across all imports
+			expect(content).toContain("import type { UserSchema } from '../utils/schemas'");
+			expect(content).not.toContain('UserSchema as');
+		});
+
+		test('should alias schema names only when they collide across files', async () => {
+			// Two routes importing schemas with the same name from different files
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/v1/users',
+					filename: './api/v1/users.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'QuerySchema',
+					inputSchemaImportPath: '../../schemas/v1',
+					inputSchemaImportedName: 'QuerySchema',
+				},
+				{
+					method: 'GET',
+					path: '/api/v2/users',
+					filename: './api/v2/users.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'QuerySchema',
+					inputSchemaImportPath: '../../schemas/v2',
+					inputSchemaImportedName: 'QuerySchema',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const content = await Bun.file(routesPath).text();
+
+			// Same name from different files — both should be aliased
+			expect(content).toContain('QuerySchema as QuerySchema_0');
+			expect(content).toContain('QuerySchema as QuerySchema_1');
+			expect(content).toContain("from '../schemas/v1'");
+			expect(content).toContain("from '../schemas/v2'");
 		});
 
 		test('should handle bare module imports (non-relative) as-is', async () => {
@@ -2059,11 +2097,12 @@ describe('registry-generator', () => {
 			const routesPath = join(generatedDir, 'routes.ts');
 			const content = await Bun.file(routesPath).text();
 
-			// Should have imports from both schema files
-			expect(content).toContain("from '../schemas/input'");
-			expect(content).toContain("from '../schemas/output'");
-			expect(content).toContain('InputSchema as InputSchema_');
-			expect(content).toContain('OutputSchema as OutputSchema_');
+			// Should have imports from both schema files — no aliasing needed since names are unique
+			expect(content).toContain("import type { InputSchema } from '../schemas/input'");
+			expect(content).toContain("import type { OutputSchema } from '../schemas/output'");
+			// Aliases should NOT be used when names don't collide
+			expect(content).not.toContain('InputSchema as');
+			expect(content).not.toContain('OutputSchema as');
 		});
 	});
 

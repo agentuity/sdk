@@ -865,19 +865,37 @@ export async function generateRouteRegistry(
 		}
 	});
 
-	// Generate schema imports with unique aliases to avoid conflicts
+	// Generate schema imports, only aliasing when names collide across files
 	const schemaImportAliases = new Map<string, Map<string, string>>(); // importPath -> (schemaName -> alias)
-	let aliasCounter = 0;
+
+	// First pass: count how many times each schema name appears across all import paths
+	const globalNameCount = new Map<string, number>();
+	routeFileImports.forEach((schemas) => {
+		for (const schemaName of schemas) {
+			globalNameCount.set(schemaName, (globalNameCount.get(schemaName) ?? 0) + 1);
+		}
+	});
+
+	// Track aliases assigned to duplicated names for uniqueness
+	const duplicateCounters = new Map<string, number>();
 
 	routeFileImports.forEach((schemas, importPath) => {
 		const aliases = new Map<string, string>();
 		const importParts: string[] = [];
 
 		for (const schemaName of Array.from(schemas)) {
-			// Create a unique alias for this schema to avoid collisions
-			const alias = `${schemaName}_${aliasCounter++}`;
-			aliases.set(schemaName, alias);
-			importParts.push(`${schemaName} as ${alias}`);
+			if ((globalNameCount.get(schemaName) ?? 0) > 1) {
+				// Name appears in multiple import paths — alias to avoid collision
+				const counter = duplicateCounters.get(schemaName) ?? 0;
+				duplicateCounters.set(schemaName, counter + 1);
+				const alias = `${schemaName}_${counter}`;
+				aliases.set(schemaName, alias);
+				importParts.push(`${schemaName} as ${alias}`);
+			} else {
+				// Unique name — import directly, no alias needed
+				aliases.set(schemaName, schemaName);
+				importParts.push(schemaName);
+			}
 		}
 
 		schemaImportAliases.set(importPath, aliases);
