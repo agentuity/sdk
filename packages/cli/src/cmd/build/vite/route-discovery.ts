@@ -1,8 +1,9 @@
 /**
  * Route Discovery - READ-ONLY AST analysis
  *
- * Discovers routes by scanning src/api/**\/*.ts files
- * Extracts route definitions WITHOUT mutating source files
+ * Discovers routes by scanning src/api/**\/*.ts files or by following
+ * explicit router mounts from createApp({ router }).
+ * Extracts route definitions WITHOUT mutating source files.
  */
 
 import { join, relative } from 'node:path';
@@ -10,6 +11,7 @@ import { existsSync } from 'node:fs';
 import type { Logger } from '../../../types';
 import { parseRoute } from '../ast';
 import { toForwardSlash } from '../../../utils/normalize-path';
+import { detectExplicitRouter, type AppRouterDetection } from '../app-router-detector';
 
 export interface RouteMetadata {
 	id: string;
@@ -46,6 +48,12 @@ export interface RouteInfo {
 	outputSchemaCode?: string;
 	stream?: boolean;
 	pathParams?: string[];
+	/**
+	 * When a route is mounted via .route(), its filename is set to the parent file
+	 * (for dedup filtering). schemaSourceFile preserves the actual file where the
+	 * route's schema variables are defined/exported, so registry imports resolve correctly.
+	 */
+	schemaSourceFile?: string;
 }
 
 /**
@@ -66,9 +74,148 @@ export function extractPathParams(path: string): string[] {
 }
 
 /**
- * Discover all routes in src/api directory (READ-ONLY)
+ * Discover all routes — tries explicit router detection first, falls back to file-based.
+ *
+ * When `createApp({ router })` is detected in app.ts, routes are discovered by
+ * following the router imports with code-derived mount paths. Otherwise, falls back
+ * to scanning src/api/**\/*.ts with filesystem-derived paths.
  */
 export async function discoverRoutes(
+	srcDir: string,
+	projectId: string,
+	deploymentId: string,
+	logger: Logger
+): Promise<{
+	routes: RouteMetadata[];
+	routeInfoList: RouteInfo[];
+	/** Whether explicit router was detected (vs file-based fallback) */
+	explicitRouter?: AppRouterDetection;
+}> {
+	const rootDir = join(srcDir, '..');
+
+	// Try explicit router detection first
+	const detection = await detectExplicitRouter(rootDir, logger);
+	if (detection.detected && detection.mounts.length > 0) {
+		logger.debug(
+			'Using explicit router detection (%d mount(s) from createApp)',
+			detection.mounts.length
+		);
+		const result = await discoverExplicitRoutes(
+			rootDir,
+			srcDir,
+			projectId,
+			deploymentId,
+			detection,
+			logger
+		);
+		return { ...result, explicitRouter: detection };
+	}
+
+	// Fall back to file-based discovery
+	return discoverFileBasedRoutes(srcDir, projectId, deploymentId, logger);
+}
+
+/**
+ * Discover routes from explicit router mounts detected in app.ts.
+ * Parses each router file with its code-derived mount prefix.
+ */
+async function discoverExplicitRoutes(
+	rootDir: string,
+	srcDir: string,
+	projectId: string,
+	deploymentId: string,
+	detection: AppRouterDetection,
+	logger: Logger
+): Promise<{ routes: RouteMetadata[]; routeInfoList: RouteInfo[] }> {
+	const routes: RouteMetadata[] = [];
+	const routeInfoList: RouteInfo[] = [];
+	const visited = new Set<string>();
+	const mountedSubrouters = new Set<string>();
+
+	for (const mount of detection.mounts) {
+		try {
+			const parsedRoutes = await parseRoute(rootDir, mount.routerFile, projectId, deploymentId, {
+				visitedFiles: visited,
+				mountedSubrouters,
+				mountPrefix: mount.path,
+			});
+
+			if (parsedRoutes.length > 0) {
+				const relFile = './' + toForwardSlash(relative(srcDir, mount.routerFile));
+				logger.trace(
+					'Discovered %d route(s) from explicit mount at %s (%s)',
+					parsedRoutes.length,
+					mount.path,
+					relFile
+				);
+				routes.push(...parsedRoutes);
+
+				for (const route of parsedRoutes) {
+					const pathParams = extractPathParams(route.path);
+					routeInfoList.push({
+						method: route.method.toUpperCase(),
+						path: route.path,
+						filename: route.filename,
+						hasValidator: route.config?.hasValidator === true,
+						routeType: route.type || 'api',
+						agentVariable: route.config?.agentVariable as string | undefined,
+						agentImportPath: route.config?.agentImportPath as string | undefined,
+						inputSchemaVariable: route.config?.inputSchemaVariable as string | undefined,
+						outputSchemaVariable: route.config?.outputSchemaVariable as string | undefined,
+						inputSchemaImportPath: route.config?.inputSchemaImportPath as string | undefined,
+						inputSchemaImportedName: route.config?.inputSchemaImportedName as
+							| string
+							| undefined,
+						outputSchemaImportPath: route.config?.outputSchemaImportPath as
+							| string
+							| undefined,
+						outputSchemaImportedName: route.config?.outputSchemaImportedName as
+							| string
+							| undefined,
+						stream:
+							route.config?.stream !== undefined && route.config.stream !== null
+								? Boolean(route.config.stream)
+								: route.type === 'stream'
+									? true
+									: undefined,
+						pathParams: pathParams.length > 0 ? pathParams : undefined,
+						schemaSourceFile: route.config?.schemaSourceFile as string | undefined,
+					});
+				}
+			}
+		} catch (error) {
+			logger.warn(
+				'Failed to parse explicit router at %s: %s',
+				mount.routerFile,
+				error instanceof Error ? error.message : String(error)
+			);
+		}
+	}
+
+	logger.debug('Discovered %d route(s) via explicit router detection', routes.length);
+
+	// Check for route conflicts
+	const conflicts = detectRouteConflicts(routeInfoList);
+	if (conflicts.length > 0) {
+		logger.error('Route conflicts detected:');
+		for (const conflict of conflicts) {
+			logger.error('  %s', conflict.message);
+			for (const route of conflict.routes) {
+				logger.error('    - %s %s in %s', route.method, route.path, route.filename);
+			}
+		}
+		throw new Error(
+			`Found ${conflicts.length} route conflict(s). Fix the conflicts and try again.`
+		);
+	}
+
+	return { routes, routeInfoList };
+}
+
+/**
+ * Discover routes by scanning src/api directory (original file-based approach).
+ */
+async function discoverFileBasedRoutes(
 	srcDir: string,
 	projectId: string,
 	deploymentId: string,
@@ -154,6 +301,7 @@ export async function discoverRoutes(
 										? true
 										: undefined,
 							pathParams: pathParams.length > 0 ? pathParams : undefined,
+							schemaSourceFile: route.config?.schemaSourceFile as string | undefined,
 						});
 					}
 				}
