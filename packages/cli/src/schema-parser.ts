@@ -444,10 +444,12 @@ export function buildValidationInput(
 			let value = rawOptions[opt.name] ?? rawOptions[camelCaseName];
 
 			// Handle --yes and --force aliases for --confirm: if confirm is not set but yes/force is, use that value
+			// Only treat --force as a --confirm alias if the schema does NOT declare a separate 'force' option
 			if (
 				opt.name === 'confirm' &&
 				value === undefined &&
-				(rawOptions.yes === true || rawOptions.force === true)
+				(rawOptions.yes === true ||
+					(rawOptions.force === true && !parsed.some((o) => o.name === 'force')))
 			) {
 				value = true;
 			}

@@ -1224,10 +1224,14 @@ async function registerSubcommand(
 			const yesOption = cmd.createOption('--yes', 'Alias for --confirm');
 			yesOption.hideHelp();
 			cmd.addOption(yesOption);
-			// Add hidden --force option that sets confirm to true
-			const forceOption = cmd.createOption('--force', 'Alias for --confirm');
-			forceOption.hideHelp();
-			cmd.addOption(forceOption);
+			// Add hidden --force option that sets confirm to true,
+			// but only if the schema doesn't already declare its own --force option
+			const hasForceOption = parsed.some((opt) => opt.name === 'force');
+			if (!hasForceOption) {
+				const forceOption = cmd.createOption('--force', 'Alias for --confirm');
+				forceOption.hideHelp();
+				cmd.addOption(forceOption);
+			}
 		}
 	}
 
