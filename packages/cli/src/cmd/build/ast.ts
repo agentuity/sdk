@@ -138,9 +138,7 @@ function hashSHA1(...val: string[]): string {
 	return hasher.digest().toHex();
 }
 
-export function getDevmodeDeploymentId(projectId: string, endpointId: string): string {
-	return `devmode_${hashSHA1(projectId, endpointId)}`;
-}
+// getDevmodeDeploymentId moved to ids.ts
 
 // getAgentId generates the deployment-specific agent ID (becomes database PK agent.id)
 // This ID changes with each deployment and uses the agentid_ prefix

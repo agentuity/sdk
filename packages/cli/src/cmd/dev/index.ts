@@ -11,7 +11,7 @@ import { generateEndpoint, type DevmodeResponse } from './api';
 import { APIClient, getAPIBaseURL, getAppBaseURL, getGravityDevModeURL } from '../../api';
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
-import { getDevmodeDeploymentId } from '../build/ast';
+import { getDevmodeDeploymentId } from '../build/ids';
 import { getDefaultConfigDir, saveConfig, loadProjectSDKKey, getAuth } from '../../config';
 import type { Config } from '../../types';
 import { typecheck } from '../build/typecheck';
