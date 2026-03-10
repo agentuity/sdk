@@ -130,14 +130,41 @@ export interface MigrationCheckResult {
 }
 
 /**
+ * Check if the user's app.ts already passes a router to createApp().
+ * If so, they've already adopted explicit routing and no migration is needed.
+ */
+function hasExplicitRouterInCreateApp(rootDir: string): boolean {
+	const rootAppPath = join(rootDir, 'app.ts');
+	const srcAppPath = join(rootDir, 'src', 'app.ts');
+	const appPath = existsSync(rootAppPath)
+		? rootAppPath
+		: existsSync(srcAppPath)
+			? srcAppPath
+			: null;
+	if (!appPath) return false;
+	try {
+		const content = readFileSync(appPath, 'utf-8');
+		return /createApp\s*\(\s*\{[^}]*\brouter\b/.test(content);
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Check if a project is eligible for migration to explicit routing.
  * Returns info about the project's routing state without performing any action.
  *
  * A project is eligible when:
+ * - createApp() does NOT already have a `router` property
  * - It has multiple route files in src/api/
  * - It does NOT already have an explicit src/api/index.ts root router
  */
 export function checkMigrationEligibility(rootDir: string): MigrationCheckResult {
+	// If createApp({ router }) is already present, they've adopted explicit routing
+	if (hasExplicitRouterInCreateApp(rootDir)) {
+		return { available: false, routeFiles: [], alreadyNotified: false };
+	}
+
 	const routeFiles = detectFileBasedRoutes(rootDir);
 
 	// Need at least 2 route files for migration to be useful

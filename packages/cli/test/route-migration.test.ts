@@ -167,6 +167,58 @@ export default router;`
 		expect(result.alreadyNotified).toBe(false);
 	});
 
+	test('not eligible when createApp already has router property', () => {
+		// User has already adopted explicit routing in app.ts
+		writeFileSync(
+			join(testDir, 'src', 'app.ts'),
+			`import { createApp } from '@agentuity/runtime';
+import router from './api/index';
+export const app = await createApp({ router });`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+router.get('/', (c) => c.json([]));
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+router.get('/', (c) => c.text('ok'));
+export default router;`
+		);
+
+		const result = checkMigrationEligibility(testDir);
+		expect(result.available).toBe(false);
+	});
+
+	test('not eligible when root app.ts already has router property', () => {
+		// User has app.ts at root level (not src/)
+		writeFileSync(
+			join(testDir, 'app.ts'),
+			`import { createApp } from '@agentuity/runtime';
+import router from './src/api/index';
+export const app = await createApp({ router, cors: { sameOrigin: true } });`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'users.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+		writeFileSync(
+			join(testDir, 'src', 'api', 'health.ts'),
+			`import { createRouter } from '@agentuity/runtime';
+const router = createRouter();
+export default router;`
+		);
+
+		const result = checkMigrationEligibility(testDir);
+		expect(result.available).toBe(false);
+	});
+
 	test('not eligible when explicit root router has all routes imported', () => {
 		// An index.ts that imports and mounts all sub-routers = already using explicit routing
 		writeFileSync(
