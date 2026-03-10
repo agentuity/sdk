@@ -9,9 +9,38 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync, existsSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, rmSync, existsSync, writeFileSync, symlinkSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+
+// Resolve the monorepo root — test is at packages/cli/test/
+const SDK_ROOT = resolve(import.meta.dir, '../../..');
+
+/**
+ * Set up node_modules symlinks so that import() can resolve workspace packages.
+ */
+function setupNodeModules(testDir: string) {
+	const nmDir = join(testDir, 'node_modules');
+	const agentuityDir = join(nmDir, '@agentuity');
+	mkdirSync(agentuityDir, { recursive: true });
+
+	for (const pkg of ['runtime', 'schema', 'core', 'server', 'auth', 'frontend', 'test-utils']) {
+		const target = join(SDK_ROOT, 'packages', pkg);
+		const link = join(agentuityDir, pkg);
+		if (existsSync(target) && !existsSync(link)) {
+			symlinkSync(target, link, 'dir');
+		}
+	}
+
+	const runtimeNm = join(SDK_ROOT, 'packages', 'runtime', 'node_modules');
+	for (const dep of ['hono', 'zod']) {
+		const target = join(runtimeNm, dep);
+		const link = join(nmDir, dep);
+		if (existsSync(target) && !existsSync(link)) {
+			symlinkSync(target, link, 'dir');
+		}
+	}
+}
 
 describe('Dev Mode Registry Generation', () => {
 	let testDir: string;
@@ -22,6 +51,7 @@ describe('Dev Mode Registry Generation', () => {
 		srcDir = join(testDir, 'src');
 		mkdirSync(join(srcDir, 'agent'), { recursive: true });
 		mkdirSync(join(srcDir, 'api'), { recursive: true });
+		setupNodeModules(testDir);
 	});
 
 	afterEach(() => {
