@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { createContext, useContext, type Context } from 'react';
 import { defaultBaseUrl } from '@agentuity/frontend';
-import { setGlobalBaseUrl, setGlobalAuthHeader } from './client';
 
 export interface ContextProviderArgs {
 	children?: React.ReactNode;
@@ -37,16 +36,6 @@ export const AgentuityProvider = ({
 	const setAuthLoading = useCallback((loading: boolean) => {
 		setAuthLoadingState(loading);
 	}, []);
-
-	// Set global baseUrl for RPC clients
-	useEffect(() => {
-		setGlobalBaseUrl(resolvedBaseUrl);
-	}, [resolvedBaseUrl]);
-
-	// Sync authHeader to global state for RPC clients
-	useEffect(() => {
-		setGlobalAuthHeader(authHeader);
-	}, [authHeader]);
 
 	// Sync authHeader prop changes to state synchronously
 	// useLayoutEffect ensures the state is updated before child effects run,

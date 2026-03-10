@@ -28,34 +28,6 @@ export interface RouteMetadata {
 	};
 }
 
-export interface RouteInfo {
-	method: string;
-	path: string;
-	filename: string;
-	hasValidator: boolean;
-	routeType: 'api' | 'sms' | 'email' | 'cron' | 'websocket' | 'sse' | 'stream';
-	agentVariable?: string;
-	agentImportPath?: string;
-	agentName?: string;
-	agentDescription?: string;
-	inputSchemaVariable?: string;
-	outputSchemaVariable?: string;
-	inputSchemaImportPath?: string;
-	inputSchemaImportedName?: string;
-	outputSchemaImportPath?: string;
-	outputSchemaImportedName?: string;
-	inputSchemaCode?: string;
-	outputSchemaCode?: string;
-	stream?: boolean;
-	pathParams?: string[];
-	/**
-	 * When a route is mounted via .route(), its filename is set to the parent file
-	 * (for dedup filtering). schemaSourceFile preserves the actual file where the
-	 * route's schema variables are defined/exported, so registry imports resolve correctly.
-	 */
-	schemaSourceFile?: string;
-}
-
 /**
  * Extract path parameters from a route path.
  * Matches patterns like :id, :userId, :id?, *path, etc.
@@ -137,7 +109,6 @@ export async function discoverRoutes(
 	logger: Logger
 ): Promise<{
 	routes: RouteMetadata[];
-	routeInfoList: RouteInfo[];
 	explicitRouter?: AppRouterDetection;
 }> {
 	const rootDir = join(srcDir, '..');
@@ -145,7 +116,7 @@ export async function discoverRoutes(
 	const detection = await detectExplicitRouter(rootDir, logger);
 	if (!detection.detected || detection.mounts.length === 0) {
 		logger.debug('No explicit router detected in createApp() — no routes to discover');
-		return { routes: [], routeInfoList: [] };
+		return { routes: [] };
 	}
 
 	logger.debug(
@@ -154,7 +125,7 @@ export async function discoverRoutes(
 	);
 
 	const routes: RouteMetadata[] = [];
-	const routeInfoList: RouteInfo[] = [];
+
 	const seenRoutes = new Set<string>();
 
 	for (const mount of detection.mounts) {
@@ -194,7 +165,6 @@ export async function discoverRoutes(
 				seenRoutes.add(routeKey);
 
 				const routeType = detectRouteType(route.handler);
-				const pathParams = extractPathParams(fullPath);
 				const id = generateRouteId(projectId, deploymentId, fullPath, method);
 
 				routes.push({
@@ -204,16 +174,6 @@ export async function discoverRoutes(
 					method: method.toLowerCase(),
 					version,
 					type: routeType,
-				});
-
-				routeInfoList.push({
-					method,
-					path: fullPath,
-					filename: toForwardSlash(relative(rootDir, mount.routerFile)),
-					hasValidator: false,
-					routeType,
-					stream: routeType === 'stream' || routeType === 'sse' ? true : undefined,
-					pathParams: pathParams.length > 0 ? pathParams : undefined,
 				});
 			}
 
@@ -233,7 +193,7 @@ export async function discoverRoutes(
 	}
 
 	// Check for route conflicts
-	const conflicts = detectRouteConflicts(routeInfoList);
+	const conflicts = detectRouteConflicts(routes);
 	if (conflicts.length > 0) {
 		logger.error('Route conflicts detected:');
 		for (const conflict of conflicts) {
@@ -248,7 +208,7 @@ export async function discoverRoutes(
 	}
 
 	logger.debug('Discovered %d route(s) via explicit router detection', routes.length);
-	return { routes, routeInfoList, explicitRouter: detection };
+	return { routes, explicitRouter: detection };
 }
 
 export interface RouteConflict {

@@ -346,7 +346,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 
 	// 1. Discover agents and routes BEFORE builds
 	logger.debug('Discovering agents and routes...');
-	const { generateAgentRegistry, generateRouteRegistry } = await import('./registry-generator');
+	const { generateAgentRegistry } = await import('./registry-generator');
 	const { discoverAgents } = await import('./agent-discovery');
 	const { discoverRoutes } = await import('./route-discovery');
 
@@ -357,18 +357,12 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		options.deploymentId || '',
 		logger
 	);
-	const { routes, routeInfoList } = await discoverRoutes(
-		srcDir,
-		projectId,
-		options.deploymentId || '',
-		logger
-	);
+	const { routes } = await discoverRoutes(srcDir, projectId, options.deploymentId || '', logger);
 
-	// Generate agent and route registries for type augmentation BEFORE builds
+	// Generate agent registry for type augmentation BEFORE builds
 	// (TypeScript needs these files to exist during type checking)
 	generateAgentRegistry(srcDir, agentMetadata);
-	await generateRouteRegistry(srcDir, routeInfoList);
-	logger.debug('Agent and route registries generated');
+	logger.debug('Agent registry generated');
 
 	// Check if web frontend exists
 	const hasWebFrontend = await Bun.file(join(rootDir, 'src', 'web', 'index.html')).exists();
