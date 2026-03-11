@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
 // Window.__AGENTUITY_ANALYTICS__ type is declared in @agentuity/frontend/analytics/types
 
 interface TestResult {
@@ -127,6 +128,7 @@ export function AnalyticsTestPage() {
 		}
 	};
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: runTests is intentionally only called once on mount
 	useEffect(() => {
 		// Wait for analytics to initialize
 		const timer = setTimeout(runTests, 1000);

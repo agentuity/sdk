@@ -1,4 +1,4 @@
-import { getTutorialList, getTutorialMeta, type Tutorial } from './tutorial';
+import { getTutorialList, type Tutorial } from './tutorial';
 import type { TutorialState } from './types';
 
 /**

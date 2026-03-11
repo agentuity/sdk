@@ -70,7 +70,7 @@ describe('SandboxClient', () => {
 	describe('create', () => {
 		test('should create a sandbox and return instance with methods', async () => {
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -100,7 +100,7 @@ describe('SandboxClient', () => {
 		});
 
 		test('should create sandbox with options', async () => {
-			mockFetch(async (url, opts) => {
+			mockFetch(async (_url, opts) => {
 				if (opts?.method === 'POST') {
 					const body = JSON.parse(opts.body as string);
 					expect(body.resources?.memory).toBe('1Gi');
@@ -130,7 +130,7 @@ describe('SandboxClient', () => {
 		});
 
 		test('should create sandbox with projectId', async () => {
-			mockFetch(async (url, opts) => {
+			mockFetch(async (_url, opts) => {
 				if (opts?.method === 'POST') {
 					const body = JSON.parse(opts.body as string);
 					expect(body.projectId).toBe('proj_123');
@@ -160,7 +160,7 @@ describe('SandboxClient', () => {
 		test('should create sandbox with top-level files', async () => {
 			let requestBody: Record<string, unknown> | null = null;
 
-			mockFetch(async (url, opts) => {
+			mockFetch(async (_url, opts) => {
 				if (opts?.method === 'POST') {
 					requestBody = JSON.parse(opts.body as string);
 					return new Response(
@@ -235,7 +235,7 @@ describe('SandboxClient', () => {
 					);
 				}
 
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -292,7 +292,7 @@ describe('SandboxClient', () => {
 					);
 				}
 
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -356,7 +356,7 @@ describe('SandboxClient', () => {
 					);
 				}
 
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -398,7 +398,7 @@ describe('SandboxClient', () => {
 			});
 
 			mockFetch(async (url, opts) => {
-				// Execute endpoint - must check before /sandbox/ since it also contains /sandbox/
+				// Execute endpoint - must check before /sandbox since it also contains /sandbox
 				if (opts?.method === 'POST' && url.includes('/execute')) {
 					return new Response(
 						JSON.stringify({
@@ -415,7 +415,7 @@ describe('SandboxClient', () => {
 				}
 
 				// Sandbox create endpoint
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -483,11 +483,7 @@ describe('SandboxClient', () => {
 			let getCalled = false;
 
 			mockFetch(async (url, opts) => {
-				if (
-					opts?.method === 'GET' &&
-					url.includes('/sandbox/') &&
-					url.includes('sandbox-123')
-				) {
+				if (opts?.method === 'GET' && url.includes('/sandbox') && url.includes('sandbox-123')) {
 					getCalled = true;
 					return new Response(
 						JSON.stringify({
@@ -504,7 +500,7 @@ describe('SandboxClient', () => {
 					);
 				}
 
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -539,7 +535,7 @@ describe('SandboxClient', () => {
 					});
 				}
 
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -584,7 +580,7 @@ describe('SandboxClient', () => {
 			let createBody: Record<string, unknown> | null = null;
 
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					createCalled = true;
 					createBody = JSON.parse(opts.body as string);
 					return new Response(
@@ -636,7 +632,7 @@ describe('SandboxClient', () => {
 
 		test('should return actual exit code from sandbox info', async () => {
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -678,7 +674,7 @@ describe('SandboxClient', () => {
 
 		test('should return exit code 1 for failed sandbox without explicit exit code', async () => {
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -724,7 +720,7 @@ describe('SandboxClient', () => {
 			];
 
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -801,7 +797,7 @@ describe('SandboxClient', () => {
 			];
 
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -886,7 +882,7 @@ describe('SandboxClient', () => {
 			});
 
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -975,7 +971,7 @@ describe('SandboxClient', () => {
 			});
 
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -1059,7 +1055,7 @@ describe('SandboxClient', () => {
 			const combinedStreamUrl = 'https://stream.example.com/combined/test';
 
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -1143,7 +1139,7 @@ describe('SandboxClient', () => {
 			const combinedStreamUrl = 'https://stream.example.com/combined/both-streams';
 
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -1212,7 +1208,7 @@ describe('SandboxClient', () => {
 
 		test('should return empty strings when no output', async () => {
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -1279,7 +1275,7 @@ describe('SandboxClient', () => {
 			}
 
 			mockFetch(async (url, opts) => {
-				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
 					return new Response(
 						JSON.stringify({
 							success: true,

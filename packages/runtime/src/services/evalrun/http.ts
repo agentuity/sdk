@@ -42,7 +42,7 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 		const currentContext = context.active();
 		const span = tracer.startSpan('Eval Start', {}, currentContext);
 
-		const endpoint = '/evalrun/2025-03-17';
+		const endpoint = '/evalrun';
 		const fullUrl = `${this.baseUrl}${endpoint}`;
 
 		const payload = { ...event, timestamp: Date.now() };
@@ -118,7 +118,7 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 		const currentContext = context.active();
 		const span = tracer.startSpan('Eval End', {}, currentContext);
 
-		const endpoint = '/evalrun/2025-03-17';
+		const endpoint = '/evalrun';
 		const fullUrl = `${this.baseUrl}${endpoint}`;
 		this.logger.debug('[EVALRUN HTTP] Sending eval run complete event: %s', event.id);
 		this.logger.debug('[EVALRUN HTTP] URL: %s %s', 'PUT', fullUrl);

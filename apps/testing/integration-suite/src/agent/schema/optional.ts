@@ -18,7 +18,7 @@ const schemaOptionalAgent = createAgent('schema-optional', {
 			}),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		const { required, optional, withDefault = 42 } = input;
 
 		return {

@@ -19,6 +19,7 @@
 		"declarationMap": true,
 		"emitDeclarationOnly": false,
 		"sourceMap": true,
+		"rewriteRelativeImportExtensions": true,
 		"composite": true,
 		"outDir": "./dist",
 		"rootDir": "./src",

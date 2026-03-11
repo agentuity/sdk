@@ -1269,9 +1269,9 @@ function extractValidatorSchemas(callExpr: ASTCallExpression): {
 				if (unary.argument?.type === 'Identifier') {
 					const identifier = unary.argument as ASTNodeIdentifier;
 					if (identifier.name === 'true') {
-						result.stream = unary.operator === '!' ? false : true;
+						result.stream = unary.operator !== '!';
 					} else if (identifier.name === 'false') {
-						result.stream = unary.operator === '!' ? true : false;
+						result.stream = unary.operator === '!';
 					}
 				}
 			}
@@ -1520,16 +1520,124 @@ function resolveImportPath(fromDir: string, importPath: string): string | null {
 	return null;
 }
 
+/**
+ * Check if a CallExpression is a chained router initializer.
+ * Walks up the callee chain looking for createRouter() or new Hono() at the root.
+ *
+ * Example AST for `createRouter().get('/foo', handler).post('/bar', handler)`:
+ * ```
+ * CallExpression (.post)
+ *   callee: MemberExpression
+ *     object: CallExpression (.get)
+ *       callee: MemberExpression
+ *         object: CallExpression (createRouter)
+ *     property: "post"
+ * ```
+ */
+function isChainedRouterInit(node: ASTNode): boolean {
+	let current: ASTNode = node;
+
+	// Walk down the chain: each link is CallExpression → MemberExpression → CallExpression
+	while (current.type === 'CallExpression') {
+		const callee = (current as ASTCallExpression).callee as ASTNode;
+		if (!callee) return false;
+
+		// Direct createRouter()
+		if (callee.type === 'Identifier' && (callee as ASTNodeIdentifier).name === 'createRouter')
+			return true;
+
+		// Chained: .method() → MemberExpression
+		if (callee.type === 'MemberExpression' && (callee as ASTMemberExpression).object) {
+			current = (callee as ASTMemberExpression).object as ASTNode;
+			continue;
+		}
+
+		break;
+	}
+
+	// Check if we landed on createRouter() or new Hono()
+	if (current.type === 'CallExpression') {
+		const callee = (current as ASTCallExpression).callee as ASTNode;
+		if (callee?.type === 'Identifier' && (callee as ASTNodeIdentifier).name === 'createRouter')
+			return true;
+	}
+	if (current.type === 'NewExpression') {
+		const callee = (current as ASTCallExpression).callee as ASTNode;
+		if (callee?.type === 'Identifier' && (callee as ASTNodeIdentifier).name === 'Hono')
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * Flatten a chained call expression into individual method calls.
+ *
+ * Given `createRouter().get('/a', h1).post('/b', h2).route('/c', sub)`, returns:
+ * ```
+ * [
+ *   { method: 'get', arguments: ['/a', h1] },
+ *   { method: 'post', arguments: ['/b', h2] },
+ *   { method: 'route', arguments: ['/c', sub] },
+ * ]
+ * ```
+ */
+function flattenChainedCalls(node: ASTNode): Array<{ method: string; arguments: unknown[] }> {
+	const calls: Array<{ method: string; arguments: unknown[] }> = [];
+
+	let current: ASTNode = node;
+	while (current.type === 'CallExpression') {
+		const callee = (current as ASTCallExpression).callee as ASTNode;
+		if (!callee) break;
+
+		if (
+			callee.type === 'MemberExpression' &&
+			((callee as ASTMemberExpression).property as ASTNode)?.type === 'Identifier'
+		) {
+			calls.unshift({
+				method: ((callee as ASTMemberExpression).property as ASTNodeIdentifier).name,
+				arguments: (current as ASTCallExpression).arguments || [],
+			});
+			current = (callee as ASTMemberExpression).object as ASTNode;
+			continue;
+		}
+
+		break; // Reached the root (createRouter() / new Hono())
+	}
+
+	return calls;
+}
+
+export interface ParseRouteOptions {
+	visitedFiles?: Set<string>;
+	mountedSubrouters?: Set<string>;
+	/**
+	 * Explicit mount prefix for this router file, derived from code-based routing
+	 * (e.g., from `createApp({ router })` or `.route()` calls).
+	 * When provided, overrides the filesystem-derived mount path.
+	 */
+	mountPrefix?: string;
+}
+
 export async function parseRoute(
 	rootDir: string,
 	filename: string,
 	projectId: string,
 	deploymentId: string,
-	visitedFiles?: Set<string>,
+	visitedFilesOrOptions?: Set<string> | ParseRouteOptions,
 	mountedSubrouters?: Set<string>
 ): Promise<BuildMetadata['routes']> {
+	// Support both old positional args and new options object
+	let options: ParseRouteOptions;
+	if (visitedFilesOrOptions instanceof Set) {
+		options = { visitedFiles: visitedFilesOrOptions, mountedSubrouters };
+	} else if (visitedFilesOrOptions && typeof visitedFilesOrOptions === 'object') {
+		options = visitedFilesOrOptions;
+	} else {
+		options = { mountedSubrouters };
+	}
 	// Track visited files to prevent infinite recursion
-	const visited = visitedFiles ?? new Set<string>();
+	const visited = options.visitedFiles ?? new Set<string>();
 	const resolvedFilename = resolve(filename);
 	if (visited.has(resolvedFilename)) {
 		return []; // Already parsed this file, avoid infinite loop
@@ -1643,6 +1751,10 @@ export async function parseRoute(
 			message: `could not find default export for ${filename} using ${rootDir}`,
 		});
 	}
+	// Track the chained init expression (e.g., createRouter().get(...).post(...))
+	// so we can extract routes from it later
+	let chainedInitExpr: ASTNode | undefined;
+
 	for (const body of ast.body) {
 		if (body.type === 'VariableDeclaration') {
 			for (const vardecl of body.declarations) {
@@ -1654,6 +1766,14 @@ export async function parseRoute(
 							// Support both createRouter() and new Hono()
 							if (call.callee.name === 'createRouter') {
 								variableName = identifier.name;
+								break;
+							}
+							// Support chained calls: createRouter().get(...).post(...)
+							// The init is a CallExpression whose callee is a MemberExpression chain
+							// that eventually roots at createRouter() or new Hono()
+							if (isChainedRouterInit(call)) {
+								variableName = identifier.name;
+								chainedInitExpr = call;
 								break;
 							}
 						} else if (vardecl.init?.type === 'NewExpression') {
@@ -1678,16 +1798,18 @@ export async function parseRoute(
 
 	const rel = toForwardSlash(relative(rootDir, filename));
 
-	// Compute the API mount path using the shared helper
-	// This ensures consistency between route type generation (here) and runtime mounting (entry-generator.ts)
-	// Examples:
-	//   src/api/index.ts           -> basePath = '/api'
-	//   src/api/sessions.ts        -> basePath = '/api/sessions'
-	//   src/api/auth/route.ts      -> basePath = '/api/auth'
-	//   src/api/users/profile/route.ts -> basePath = '/api/users/profile'
-	const srcDir = join(rootDir, 'src');
-	const relativeApiPath = extractRelativeApiPath(filename, srcDir);
-	const basePath = computeApiMountPath(relativeApiPath);
+	// Determine the base mount path for routes in this file.
+	// When mountPrefix is provided (explicit routing via createApp({ router })),
+	// use it directly — the mount path comes from the code, not the filesystem.
+	// Otherwise, derive it from the file's position in src/api/ (file-based routing).
+	let basePath: string;
+	if (options.mountPrefix !== undefined) {
+		basePath = options.mountPrefix;
+	} else {
+		const srcDir = join(rootDir, 'src');
+		const relativeApiPath = extractRelativeApiPath(filename, srcDir);
+		basePath = computeApiMountPath(relativeApiPath);
+	}
 
 	const routes: RouteDefinition = [];
 
@@ -1773,40 +1895,33 @@ export async function parseRoute(
 								}
 
 								try {
-									// Parse sub-router's routes
+									// The combined mount point for this sub-router
+									const combinedBase = joinMountAndRoute(basePath, mountPath);
+
+									// Parse sub-router's routes with the code-derived mount prefix.
+									// This ensures the sub-router's routes are prefixed correctly
+									// regardless of where the file lives on disk.
 									const subRoutes = await parseRoute(
 										rootDir,
 										resolvedFile,
 										projectId,
 										deploymentId,
-										visited,
-										mountedSubrouters
+										{
+											visitedFiles: visited,
+											mountedSubrouters: options.mountedSubrouters,
+											mountPrefix: combinedBase,
+										}
 									);
 
 									// Track this file as a mounted sub-router
-									if (mountedSubrouters) {
-										mountedSubrouters.add(resolve(resolvedFile));
+									if (options.mountedSubrouters) {
+										options.mountedSubrouters.add(resolve(resolvedFile));
 									}
 
-									// Compute the sub-router's own basePath so we can strip it
-									const subSrcDir = join(rootDir, 'src');
-									const subRelativeApiPath = extractRelativeApiPath(
-										resolvedFile,
-										subSrcDir
-									);
-									const subBasePath = computeApiMountPath(subRelativeApiPath);
-
-									// The combined mount point for sub-routes
-									const combinedBase = joinMountAndRoute(basePath, mountPath);
-
 									for (const subRoute of subRoutes) {
-										// Strip the sub-router's own basePath from the route path
-										let routeSuffix = subRoute.path;
-										if (routeSuffix.startsWith(subBasePath)) {
-											routeSuffix = routeSuffix.slice(subBasePath.length) || '/';
-										}
-
-										const fullPath = joinMountAndRoute(combinedBase, routeSuffix);
+										// Sub-routes already have the correct full path
+										// (the recursive call used combinedBase as mountPrefix)
+										const fullPath = subRoute.path;
 										const id = generateRouteId(
 											projectId,
 											deploymentId,
@@ -1817,11 +1932,20 @@ export async function parseRoute(
 											subRoute.version
 										);
 
+										// Preserve the sub-route's original filename for schema
+										// import resolution. The registry generator needs to know
+										// which file actually defines/exports the schema variable.
+										const config = { ...subRoute.config };
+										if (subRoute.filename && subRoute.filename !== rel) {
+											config.schemaSourceFile = subRoute.filename;
+										}
+
 										routes.push({
 											...subRoute,
 											id,
 											path: fullPath,
-											filename: rel, // Keep parent file as the filename since routes are mounted here
+											filename: rel,
+											config: Object.keys(config).length > 0 ? config : undefined,
 										});
 									}
 								} catch {
@@ -2306,6 +2430,185 @@ export async function parseRoute(
 							config: Object.keys(routeConfig).length > 0 ? routeConfig : undefined,
 						});
 					}
+				}
+			}
+		}
+		// Process routes from chained initialization expressions
+		// e.g., const router = createRouter().get('/foo', handler).post('/bar', handler)
+		if (chainedInitExpr) {
+			const chainedCalls = flattenChainedCalls(chainedInitExpr);
+			for (const chainedCall of chainedCalls) {
+				const { method: chainMethod, arguments: chainArgs } = chainedCall;
+
+				// Skip non-route methods
+				if (
+					chainMethod === 'use' ||
+					chainMethod === 'onError' ||
+					chainMethod === 'notFound' ||
+					chainMethod === 'basePath' ||
+					chainMethod === 'mount'
+				) {
+					continue;
+				}
+
+				// Handle .route() for sub-router mounting (same as the ExpressionStatement case)
+				if (chainMethod === 'route') {
+					const mountPathArg = chainArgs[0] as ASTNode | undefined;
+					const subRouterArg = chainArgs[1] as ASTNode | undefined;
+
+					if (
+						mountPathArg &&
+						(mountPathArg as ASTLiteral).type === 'Literal' &&
+						subRouterArg &&
+						(subRouterArg as ASTNodeIdentifier).type === 'Identifier'
+					) {
+						const mountPath = String((mountPathArg as ASTLiteral).value);
+						const subRouterName = (subRouterArg as ASTNodeIdentifier).name;
+						const subRouterImportPath = importMap.get(subRouterName);
+
+						if (subRouterImportPath) {
+							const resolvedFile = resolveImportPath(dirname(filename), subRouterImportPath);
+							if (resolvedFile && !visited.has(resolve(resolvedFile))) {
+								try {
+									const combinedBase = joinMountAndRoute(basePath, mountPath);
+									const subRoutes = await parseRoute(
+										rootDir,
+										resolvedFile,
+										projectId,
+										deploymentId,
+										{
+											visitedFiles: visited,
+											mountedSubrouters: options.mountedSubrouters,
+											mountPrefix: combinedBase,
+										}
+									);
+
+									if (options.mountedSubrouters) {
+										options.mountedSubrouters.add(resolve(resolvedFile));
+									}
+
+									for (const subRoute of subRoutes) {
+										const fullPath = subRoute.path;
+										const id = generateRouteId(
+											projectId,
+											deploymentId,
+											subRoute.type,
+											subRoute.method,
+											rel,
+											fullPath,
+											subRoute.version
+										);
+
+										const config = { ...subRoute.config };
+										if (subRoute.filename && subRoute.filename !== rel) {
+											config.schemaSourceFile = subRoute.filename;
+										}
+
+										routes.push({
+											...subRoute,
+											id,
+											path: fullPath,
+											filename: rel,
+											config: Object.keys(config).length > 0 ? config : undefined,
+										});
+									}
+								} catch {
+									// Sub-router parse failure — skip
+								}
+							}
+						}
+					}
+					continue;
+				}
+
+				// Handle HTTP methods: get, post, put, patch, delete
+				const CHAINED_HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch'] as const;
+				if (
+					CHAINED_HTTP_METHODS.includes(
+						chainMethod.toLowerCase() as (typeof CHAINED_HTTP_METHODS)[number]
+					)
+				) {
+					const pathArg = chainArgs[0] as ASTNode | undefined;
+					if (!pathArg || (pathArg as ASTLiteral).type !== 'Literal') continue;
+
+					const suffix = String((pathArg as ASTLiteral).value);
+					let type = 'api';
+
+					// Check for websocket/sse/stream wrappers in handler args
+					for (const arg of chainArgs.slice(1)) {
+						if ((arg as ASTCallExpression)?.type === 'CallExpression') {
+							const callExpr = arg as ASTCallExpression;
+							if (callExpr.callee?.type === 'Identifier') {
+								const calleeName = (callExpr.callee as ASTNodeIdentifier).name;
+								if (
+									calleeName === 'websocket' ||
+									calleeName === 'sse' ||
+									calleeName === 'stream'
+								) {
+									type = calleeName;
+									break;
+								}
+							}
+						}
+					}
+
+					const thepath = joinMountAndRoute(basePath, suffix);
+					const id = generateRouteId(
+						projectId,
+						deploymentId,
+						type,
+						chainMethod,
+						rel,
+						thepath,
+						version
+					);
+
+					// Check for validators in chained args
+					const validatorInfo = hasValidatorCall(chainArgs as unknown[]);
+					const routeConfig: Record<string, unknown> = {};
+					if (validatorInfo.hasValidator) {
+						routeConfig.hasValidator = true;
+						if (validatorInfo.agentVariable) {
+							routeConfig.agentVariable = validatorInfo.agentVariable;
+							const agentImportPath = importMap.get(validatorInfo.agentVariable);
+							if (agentImportPath) routeConfig.agentImportPath = agentImportPath;
+						}
+						if (validatorInfo.inputSchemaVariable) {
+							routeConfig.inputSchemaVariable = validatorInfo.inputSchemaVariable;
+							const inputImportInfo = importInfoMap.get(validatorInfo.inputSchemaVariable);
+							if (inputImportInfo) {
+								routeConfig.inputSchemaImportPath = inputImportInfo.modulePath;
+								routeConfig.inputSchemaImportedName = inputImportInfo.importedName;
+							}
+						}
+						if (validatorInfo.outputSchemaVariable) {
+							routeConfig.outputSchemaVariable = validatorInfo.outputSchemaVariable;
+							const outputImportInfo = importInfoMap.get(validatorInfo.outputSchemaVariable);
+							if (outputImportInfo) {
+								routeConfig.outputSchemaImportPath = outputImportInfo.modulePath;
+								routeConfig.outputSchemaImportedName = outputImportInfo.importedName;
+							}
+						}
+						if (validatorInfo.stream !== undefined) routeConfig.stream = validatorInfo.stream;
+					}
+
+					// Fall back to exported schemas
+					if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
+						routeConfig.inputSchemaVariable = exportedInputSchemaName;
+					}
+					if (!routeConfig.outputSchemaVariable && exportedOutputSchemaName) {
+						routeConfig.outputSchemaVariable = exportedOutputSchemaName;
+					}
+
+					routes.push({
+						id,
+						method: chainMethod as 'get' | 'post' | 'put' | 'delete' | 'patch',
+						type: type as 'api' | 'sms' | 'email' | 'cron',
+						filename: rel,
+						path: thepath,
+						version,
+						config: Object.keys(routeConfig).length > 0 ? routeConfig : undefined,
+					});
 				}
 			}
 		}

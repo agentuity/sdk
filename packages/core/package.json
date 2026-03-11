@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/core",
-	"version": "1.0.30",
+	"version": "1.0.40",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -14,16 +14,68 @@
 		"dist"
 	],
 	"exports": {
-		".": "./dist/index.js",
-		"./workbench": "./dist/workbench.js"
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./workbench": {
+			"types": "./dist/workbench.d.ts",
+			"default": "./dist/workbench.js"
+		},
+		"./error": {
+			"types": "./dist/error.d.ts",
+			"default": "./dist/error.js"
+		},
+		"./pagination": {
+			"types": "./dist/services/pagination.d.ts",
+			"default": "./dist/services/pagination.js"
+		},
+		"./adapter": {
+			"types": "./dist/services/adapter.d.ts",
+			"default": "./dist/services/adapter.js"
+		},
+		"./exception": {
+			"types": "./dist/services/exception.d.ts",
+			"default": "./dist/services/exception.js"
+		},
+		"./config": {
+			"types": "./dist/services/config.d.ts",
+			"default": "./dist/services/config.js"
+		},
+		"./api": {
+			"types": "./dist/services/api.d.ts",
+			"default": "./dist/services/api.js"
+		},
+		"./*": {
+			"types": "./dist/services/*/index.d.ts",
+			"default": "./dist/services/*/index.js"
+		}
 	},
 	"typesVersions": {
 		"*": {
-			".": [
-				"./dist/index.d.ts"
-			],
 			"workbench": [
 				"./dist/workbench.d.ts"
+			],
+			"error": [
+				"./dist/error.d.ts"
+			],
+			"pagination": [
+				"./dist/services/pagination.d.ts"
+			],
+			"adapter": [
+				"./dist/services/adapter.d.ts"
+			],
+			"exception": [
+				"./dist/services/exception.d.ts"
+			],
+			"config": [
+				"./dist/services/config.d.ts"
+			],
+			"api": [
+				"./dist/services/api.d.ts"
+			],
+			"*": [
+				"./dist/services/*/index.d.ts"
 			]
 		}
 	},

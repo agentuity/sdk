@@ -42,6 +42,10 @@ const SandboxCpResponseSchema = z.object({
 	destination: z.string().describe('Destination path'),
 	bytesTransferred: z.number().describe('Number of bytes transferred'),
 	filesTransferred: z.number().describe('Number of files transferred'),
+	directoriesCreated: z
+		.array(z.string())
+		.optional()
+		.describe('Parent directories auto-created on the destination'),
 });
 
 export const cpSubcommand = createCommand({
@@ -156,6 +160,30 @@ function getAllFiles(dirPath: string, basePath: string = dirPath): string[] {
 	return files;
 }
 
+/**
+ * Computes the parent directories that would be auto-created by the server
+ * when writing files to the given paths. Filters out directories that always
+ * exist in a sandbox (/, /home, /home/agentuity).
+ */
+function getImplicitDirectories(filePaths: string[]): string[] {
+	const dirs = new Set<string>();
+	// Directories that always exist in a sandbox
+	const knownDirs = new Set(['/', '/home', '/home/agentuity']);
+
+	for (const filePath of filePaths) {
+		let dir = dirname(filePath);
+		while (dir && dir !== '.' && dir !== '/') {
+			if (!knownDirs.has(dir)) {
+				dirs.add(dir);
+			}
+			const parent = dirname(dir);
+			if (parent === dir) break;
+			dir = parent;
+		}
+	}
+	return Array.from(dirs).sort();
+}
+
 async function uploadToSandbox(
 	client: APIClient,
 	logger: Logger,
@@ -209,7 +237,7 @@ async function uploadToSandbox(
 
 async function uploadSingleFile(
 	client: APIClient,
-	logger: Logger,
+	_logger: Logger,
 	orgId: string,
 	sandboxId: string,
 	resolvedPath: string,
@@ -234,11 +262,13 @@ async function uploadSingleFile(
 		tui.success(`Copied ${displayPath} → ${sandboxId}:${targetPath} (${buffer.length} bytes)`);
 	}
 
+	const implicitDirs = getImplicitDirectories([targetPath]);
 	return {
 		source: displayPath,
 		destination: `${sandboxId}:${targetPath}`,
 		bytesTransferred: buffer.length,
 		filesTransferred: 1,
+		directoriesCreated: implicitDirs.length > 0 ? implicitDirs : undefined,
 	};
 }
 
@@ -281,11 +311,13 @@ async function uploadDirectory(
 		);
 	}
 
+	const implicitDirs = getImplicitDirectories(files.map((f) => f.path));
 	return {
 		source: localDir,
 		destination: `${sandboxId}:${baseRemotePath}`,
 		bytesTransferred: totalBytes,
 		filesTransferred: allFiles.length,
+		directoriesCreated: implicitDirs.length > 0 ? implicitDirs : undefined,
 	};
 }
 
@@ -327,7 +359,7 @@ async function downloadFromSandbox(
 
 async function downloadSingleFile(
 	client: APIClient,
-	logger: Logger,
+	_logger: Logger,
 	orgId: string,
 	sandboxId: string,
 	remotePath: string,

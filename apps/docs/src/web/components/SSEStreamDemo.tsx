@@ -194,7 +194,10 @@ export function SSEStreamDemo() {
 					{/* Model select and buttons */}
 					<div className="flex gap-4 items-end flex-wrap">
 						<div className="flex-1 min-w-[150px]">
-							<label className="text-zinc-500 dark:text-zinc-400 block text-xs mb-2 uppercase">
+							<label
+								className="text-zinc-500 dark:text-zinc-400 block text-xs mb-2 uppercase"
+								htmlFor="sse-model-select"
+							>
 								Model
 							</label>
 							<Select value={model} onValueChange={setModel} disabled={isStreaming}>

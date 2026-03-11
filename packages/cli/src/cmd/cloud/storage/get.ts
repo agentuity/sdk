@@ -1,11 +1,11 @@
-import { z } from 'zod';
 import { listOrgResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
+import { z } from 'zod';
 import { setResourceInfo } from '../../../cache';
+import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
 
 const StorageGetResponseSchema = z.object({
 	bucket_name: z.string().describe('Storage bucket name'),
@@ -61,7 +61,13 @@ export const getSubcommand = createSubcommand({
 		const { logger, args, opts, options, auth, config } = ctx;
 
 		const profileName = config?.name ?? 'production';
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
 
 		// Search across all orgs the user has access to
 		const resources = await tui.spinner({

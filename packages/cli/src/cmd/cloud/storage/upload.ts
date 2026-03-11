@@ -1,13 +1,13 @@
-import { z } from 'zod';
-import { basename } from 'path';
 import { listOrgResources } from '@agentuity/server';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import { createS3Client } from './utils';
+import { basename } from 'path';
+import { z } from 'zod';
 import { getResourceInfo, setResourceInfo } from '../../../cache';
+import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import { ErrorCode } from '../../../errors';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
+import { createS3Client } from './utils';
 
 export const uploadSubcommand = createSubcommand({
 	name: 'upload',
@@ -66,7 +66,13 @@ export const uploadSubcommand = createSubcommand({
 		const { logger, args, opts, options, auth, config } = ctx;
 
 		const profileName = config?.name ?? 'production';
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			profileName,
+			undefined,
+			config
+		);
 
 		// Check cache first for orgId
 		const cachedInfo = await getResourceInfo('bucket', profileName, args.name);

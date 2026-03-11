@@ -5,7 +5,7 @@
  */
 
 import { test } from './suite';
-import { assert, assertEqual, assertDefined, assertThrows } from './helpers';
+import { assert, assertEqual, assertDefined } from './helpers';
 
 // Import agents to trigger registration
 import simpleAgent from '@agents/basic/basic-simple';

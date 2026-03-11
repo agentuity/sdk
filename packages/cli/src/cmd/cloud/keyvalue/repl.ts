@@ -13,7 +13,9 @@ export const replSubcommand = createCommand({
 	idempotent: false,
 	requires: { auth: true, region: true },
 	optional: { project: true },
-	examples: [{ command: getCommand('kv repl'), description: 'Start interactive KV session' }],
+	examples: [
+		{ command: getCommand('cloud kv repl'), description: 'Start interactive KV session' },
+	],
 
 	async handler(ctx) {
 		showBanner(undefined, true);
@@ -52,7 +54,8 @@ export const replSubcommand = createCommand({
 					const contentType = isPossiblyJSON(ctx.parsed.args[2]!)
 						? 'application/json'
 						: 'text/plain';
-					const ttl = ctx.parsed.args.length > 3 ? parseInt(ctx.parsed.args[3]!) : undefined;
+					const ttl =
+						ctx.parsed.args.length > 3 ? parseInt(ctx.parsed.args[3]!, 10) : undefined;
 					await storage.set(ctx.parsed.args[0]!, ctx.parsed.args[1]!, ctx.parsed.args[2]!, {
 						contentType,
 						ttl,

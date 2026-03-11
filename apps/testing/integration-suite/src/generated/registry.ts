@@ -25,6 +25,7 @@ import routingHeaders from '../agent/routing/routing-headers.js';
 import routingMethods from '../agent/routing/routing-methods.js';
 import routingParams from '../agent/routing/routing-params.js';
 import routingPost from '../agent/routing/routing-post.js';
+import sandboxBasic from '../agent/sandbox/basic.js';
 import schemaComplex from '../agent/schema/complex.js';
 import schemaOptional from '../agent/schema/optional.js';
 import schemaTypes from '../agent/schema/types.js';
@@ -905,6 +906,40 @@ export type RoutingPostAgent = AgentRunner<
 	RoutingPostInputSchema,
 	RoutingPostOutputSchema,
 	typeof routingPost['stream'] extends true ? true : false
+>;
+
+/**
+ * Input type for sandbox-basic agent
+ * Sandbox service integration tests via ctx.sandbox
+ */
+export type SandboxBasicInput = InferInput<typeof sandboxBasic['inputSchema']>;
+
+/**
+ * Output type for sandbox-basic agent
+ * Sandbox service integration tests via ctx.sandbox
+ */
+export type SandboxBasicOutput = InferOutput<typeof sandboxBasic['outputSchema']>;
+
+/**
+ * Input schema type for sandbox-basic agent
+ * Sandbox service integration tests via ctx.sandbox
+ */
+export type SandboxBasicInputSchema = typeof sandboxBasic['inputSchema'];
+
+/**
+ * Output schema type for sandbox-basic agent
+ * Sandbox service integration tests via ctx.sandbox
+ */
+export type SandboxBasicOutputSchema = typeof sandboxBasic['outputSchema'];
+
+/**
+ * Agent type for sandbox-basic
+ * Sandbox service integration tests via ctx.sandbox
+ */
+export type SandboxBasicAgent = AgentRunner<
+	SandboxBasicInputSchema,
+	SandboxBasicOutputSchema,
+	typeof sandboxBasic['stream'] extends true ? true : false
 >;
 
 /**
@@ -1789,6 +1824,12 @@ export const AgentDefinitions = {
 	 */
 	routingPost,
 	/**
+	 * sandbox-basic
+	 * Sandbox service integration tests via ctx.sandbox
+	 * @type {SandboxBasicAgent}
+	 */
+	sandboxBasic,
+	/**
 	 * schema-complex
 	 * Test complex nested schemas
 	 * @type {SchemaComplexAgent}
@@ -1947,6 +1988,7 @@ declare module "@agentuity/runtime" {
 		routingMethods: RoutingMethodsAgent;
 		routingParams: RoutingParamsAgent;
 		routingPost: RoutingPostAgent;
+		sandboxBasic: SandboxBasicAgent;
 		schemaComplex: SchemaComplexAgent;
 		schemaOptional: SchemaOptionalAgent;
 		schemaTypes: SchemaTypesAgent;

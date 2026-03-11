@@ -1,13 +1,21 @@
 import {
 	APIClient,
+	executionGet,
 	sandboxCreate,
 	sandboxDestroy,
 	sandboxExecute,
 	sandboxGet,
 	sandboxList,
-	sandboxRun,
-	sandboxWriteFiles,
+	sandboxListFiles,
+	sandboxMkDir,
+	sandboxPause,
 	sandboxReadFile,
+	sandboxResume,
+	sandboxRmDir,
+	sandboxRmFile,
+	sandboxRun,
+	sandboxSetEnv,
+	sandboxWriteFiles,
 	snapshotCreate,
 	snapshotGet,
 	snapshotList,
@@ -17,6 +25,7 @@ import {
 import type {
 	SandboxService,
 	Sandbox,
+	SandboxFileInfo,
 	SandboxInfo,
 	SandboxCreateOptions,
 	SandboxRunOptions,
@@ -62,12 +71,9 @@ async function withSpan<T>(
 	}
 }
 
-function createStreamReader(id: string | undefined, baseUrl: string): StreamReader {
-	const streamId = id ?? '';
-	const url = streamId ? `${baseUrl}/${streamId}` : '';
-
+function buildStreamReader(id: string, url: string): StreamReader {
 	return {
-		id: streamId,
+		id,
 		url,
 		readonly: true as const,
 		getReader(): ReadableStream<Uint8Array> {
@@ -102,24 +108,30 @@ function createStreamReader(id: string | undefined, baseUrl: string): StreamRead
 	};
 }
 
-function createSandboxInstance(
-	client: APIClient,
-	sandboxId: string,
-	status: SandboxStatus,
-	streamBaseUrl: string,
-	stdoutStreamId?: string,
-	stderrStreamId?: string,
-	auditStreamId?: string
-): Sandbox {
-	const interleaved = !!(stdoutStreamId && stderrStreamId && stdoutStreamId === stderrStreamId);
-	return {
-		id: sandboxId,
-		status,
-		stdout: createStreamReader(stdoutStreamId, streamBaseUrl),
-		stderr: createStreamReader(stderrStreamId, streamBaseUrl),
-		interleaved,
-		auditStreamId,
+function createStreamReader(id: string | undefined, baseUrl: string): StreamReader {
+	const streamId = id ?? '';
+	const url = streamId ? `${baseUrl}/${streamId}` : '';
+	return buildStreamReader(streamId, url);
+}
 
+function createStreamReaderFromUrl(streamUrl: string | undefined): StreamReader {
+	const url = streamUrl ?? '';
+	if (!url) return buildStreamReader('', '');
+	try {
+		const pathname = new URL(url).pathname.replace(/\/+$/, '');
+		const id = pathname.split('/').pop() ?? '';
+		return buildStreamReader(id, url);
+	} catch {
+		const id = url.split('/').pop() ?? '';
+		return buildStreamReader(id, url);
+	}
+}
+
+/**
+ * Creates the method implementations shared by all Sandbox instances.
+ */
+function createSandboxMethods(client: APIClient, sandboxId: string) {
+	return {
 		async execute(options: ExecuteOptions): Promise<Execution> {
 			return withSpan(
 				'agentuity.sandbox.execute',
@@ -127,7 +139,26 @@ function createSandboxInstance(
 					'sandbox.id': sandboxId,
 					'sandbox.command': options.command?.join(' ') ?? '',
 				},
-				() => sandboxExecute(client, { sandboxId, options, signal: options.signal })
+				async () => {
+					const initial = await sandboxExecute(client, {
+						sandboxId,
+						options,
+						signal: options.signal,
+					});
+					// Wait for execution to reach a terminal state via long-polling
+					const final = await executionGet(client, {
+						executionId: initial.executionId,
+						wait: '60s',
+					});
+					return {
+						executionId: final.executionId,
+						status: final.status,
+						exitCode: final.exitCode,
+						durationMs: final.durationMs,
+						stdoutStreamUrl: initial.stdoutStreamUrl,
+						stderrStreamUrl: initial.stderrStreamUrl,
+					};
+				}
 			);
 		},
 
@@ -153,11 +184,120 @@ function createSandboxInstance(
 			);
 		},
 
+		async listFiles(path?: string): Promise<SandboxFileInfo[]> {
+			return withSpan(
+				'agentuity.sandbox.listFiles',
+				{
+					'sandbox.id': sandboxId,
+					'sandbox.dir.path': path ?? '',
+				},
+				async () => {
+					const result = await sandboxListFiles(client, { sandboxId, path });
+					return result.files;
+				}
+			);
+		},
+
+		async mkDir(path: string, recursive?: boolean): Promise<void> {
+			await withSpan(
+				'agentuity.sandbox.mkDir',
+				{
+					'sandbox.id': sandboxId,
+					'sandbox.dir.path': path,
+				},
+				() => sandboxMkDir(client, { sandboxId, path, recursive })
+			);
+		},
+
+		async rmFile(path: string): Promise<void> {
+			await withSpan(
+				'agentuity.sandbox.rmFile',
+				{
+					'sandbox.id': sandboxId,
+					'sandbox.file.path': path,
+				},
+				() => sandboxRmFile(client, { sandboxId, path })
+			);
+		},
+
+		async rmDir(path: string, recursive?: boolean): Promise<void> {
+			await withSpan(
+				'agentuity.sandbox.rmDir',
+				{
+					'sandbox.id': sandboxId,
+					'sandbox.dir.path': path,
+				},
+				() => sandboxRmDir(client, { sandboxId, path, recursive })
+			);
+		},
+
+		async setEnv(env: Record<string, string | null>): Promise<Record<string, string>> {
+			return withSpan('agentuity.sandbox.setEnv', { 'sandbox.id': sandboxId }, async () => {
+				const result = await sandboxSetEnv(client, { sandboxId, env });
+				return result.env;
+			});
+		},
+
+		async pause(): Promise<void> {
+			await withSpan('agentuity.sandbox.pause', { 'sandbox.id': sandboxId }, () =>
+				sandboxPause(client, { sandboxId })
+			);
+		},
+
+		async resume(): Promise<void> {
+			await withSpan('agentuity.sandbox.resume', { 'sandbox.id': sandboxId }, () =>
+				sandboxResume(client, { sandboxId })
+			);
+		},
+
 		async destroy(): Promise<void> {
 			await withSpan('agentuity.sandbox.destroy', { 'sandbox.id': sandboxId }, () =>
 				sandboxDestroy(client, { sandboxId })
 			);
 		},
+	};
+}
+
+function createSandboxInstance(
+	client: APIClient,
+	sandboxId: string,
+	status: SandboxStatus,
+	streamBaseUrl: string,
+	stdoutStreamId?: string,
+	stderrStreamId?: string,
+	auditStreamId?: string
+): Sandbox {
+	const interleaved = !!(stdoutStreamId && stderrStreamId && stdoutStreamId === stderrStreamId);
+	return {
+		id: sandboxId,
+		status,
+		stdout: createStreamReader(stdoutStreamId, streamBaseUrl),
+		stderr: createStreamReader(stderrStreamId, streamBaseUrl),
+		interleaved,
+		auditStreamId,
+		...createSandboxMethods(client, sandboxId),
+	};
+}
+
+function createSandboxInstanceFromInfo(client: APIClient, info: SandboxInfo): Sandbox {
+	const stdoutReader = createStreamReaderFromUrl(info.stdoutStreamUrl);
+	const stderrReader = createStreamReaderFromUrl(info.stderrStreamUrl);
+	const interleaved = !!(
+		stdoutReader.id &&
+		stderrReader.id &&
+		stdoutReader.id === stderrReader.id
+	);
+	return {
+		id: info.sandboxId,
+		status: info.status,
+		name: info.name,
+		description: info.description,
+		runtime: info.runtime,
+		stdout: stdoutReader,
+		stderr: stderrReader,
+		interleaved,
+		auditStreamId: info.auditStreamId,
+		...createSandboxMethods(client, info.sandboxId),
 	};
 }
 
@@ -298,9 +438,28 @@ export class HTTPSandboxService implements SandboxService {
 		);
 	}
 
+	async connect(sandboxId: string): Promise<Sandbox> {
+		return withSpan('agentuity.sandbox.connect', { 'sandbox.id': sandboxId }, async () => {
+			const info = await sandboxGet(this.client, { sandboxId });
+			return createSandboxInstanceFromInfo(this.client, info);
+		});
+	}
+
 	async destroy(sandboxId: string): Promise<void> {
 		return withSpan('agentuity.sandbox.destroy', { 'sandbox.id': sandboxId }, () =>
 			sandboxDestroy(this.client, { sandboxId })
+		);
+	}
+
+	async pause(sandboxId: string): Promise<void> {
+		return withSpan('agentuity.sandbox.pause', { 'sandbox.id': sandboxId }, () =>
+			sandboxPause(this.client, { sandboxId })
+		);
+	}
+
+	async resume(sandboxId: string): Promise<void> {
+		return withSpan('agentuity.sandbox.resume', { 'sandbox.id': sandboxId }, () =>
+			sandboxResume(this.client, { sandboxId })
 		);
 	}
 }

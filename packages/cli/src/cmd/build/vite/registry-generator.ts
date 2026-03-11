@@ -732,7 +732,8 @@ export async function generateRouteRegistry(
 				resolvedPath = `../api/${finalPath}`;
 			} else if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
 				// Resolve relative import from route file's directory
-				const normalizedFilename = toForwardSlash(route.filename);
+				// Use schemaSourceFile when available (sub-router routes)
+				const normalizedFilename = toForwardSlash(route.schemaSourceFile ?? route.filename);
 				const routeDir = normalizedFilename.substring(0, normalizedFilename.lastIndexOf('/'));
 				// Join and normalize the path
 				const joined = `${routeDir}/${resolvedPath}`;
@@ -793,15 +794,19 @@ export async function generateRouteRegistry(
 
 			if (route.inputSchemaImportPath) {
 				// Schema is imported - rebase the import path from route file to generated file
-				importPath = rebaseImportPath(route.filename, route.inputSchemaImportPath, srcDir);
+				// Use schemaSourceFile if available (sub-router routes carry the original file)
+				const sourceFile = route.schemaSourceFile ?? route.filename;
+				importPath = rebaseImportPath(sourceFile, route.inputSchemaImportPath, srcDir);
 				// Use the actual exported name (handles aliased imports like `import { A as B }`)
 				schemaNameToImport =
 					route.inputSchemaImportedName === 'default'
 						? route.inputSchemaVariable
 						: (route.inputSchemaImportedName ?? route.inputSchemaVariable);
 			} else {
-				// Schema is locally defined - import from the route file
-				const filename = toForwardSlash(route.filename);
+				// Schema is locally defined - import from the file that defines/exports it
+				// When route is mounted via .route(), schemaSourceFile points to the sub-router file
+				const sourceFile = route.schemaSourceFile ?? route.filename;
+				const filename = toForwardSlash(sourceFile);
 				const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
 				const withoutLeadingDot = withoutSrc.startsWith('./')
 					? withoutSrc.substring(2)
@@ -828,15 +833,17 @@ export async function generateRouteRegistry(
 
 			if (route.outputSchemaImportPath) {
 				// Schema is imported - rebase the import path from route file to generated file
-				importPath = rebaseImportPath(route.filename, route.outputSchemaImportPath, srcDir);
+				const sourceFile = route.schemaSourceFile ?? route.filename;
+				importPath = rebaseImportPath(sourceFile, route.outputSchemaImportPath, srcDir);
 				// Use the actual exported name (handles aliased imports like `import { A as B }`)
 				schemaNameToImport =
 					route.outputSchemaImportedName === 'default'
 						? route.outputSchemaVariable
 						: (route.outputSchemaImportedName ?? route.outputSchemaVariable);
 			} else {
-				// Schema is locally defined - import from the route file
-				const filename = toForwardSlash(route.filename);
+				// Schema is locally defined - import from the file that defines/exports it
+				const sourceFile = route.schemaSourceFile ?? route.filename;
+				const filename = toForwardSlash(sourceFile);
 				const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
 				const withoutLeadingDot = withoutSrc.startsWith('./')
 					? withoutSrc.substring(2)
@@ -858,19 +865,37 @@ export async function generateRouteRegistry(
 		}
 	});
 
-	// Generate schema imports with unique aliases to avoid conflicts
+	// Generate schema imports, only aliasing when names collide across files
 	const schemaImportAliases = new Map<string, Map<string, string>>(); // importPath -> (schemaName -> alias)
-	let aliasCounter = 0;
+
+	// First pass: count how many times each schema name appears across all import paths
+	const globalNameCount = new Map<string, number>();
+	routeFileImports.forEach((schemas) => {
+		for (const schemaName of schemas) {
+			globalNameCount.set(schemaName, (globalNameCount.get(schemaName) ?? 0) + 1);
+		}
+	});
+
+	// Track aliases assigned to duplicated names for uniqueness
+	const duplicateCounters = new Map<string, number>();
 
 	routeFileImports.forEach((schemas, importPath) => {
 		const aliases = new Map<string, string>();
 		const importParts: string[] = [];
 
 		for (const schemaName of Array.from(schemas)) {
-			// Create a unique alias for this schema to avoid collisions
-			const alias = `${schemaName}_${aliasCounter++}`;
-			aliases.set(schemaName, alias);
-			importParts.push(`${schemaName} as ${alias}`);
+			if ((globalNameCount.get(schemaName) ?? 0) > 1) {
+				// Name appears in multiple import paths — alias to avoid collision
+				const counter = duplicateCounters.get(schemaName) ?? 0;
+				duplicateCounters.set(schemaName, counter + 1);
+				const alias = `${schemaName}_${counter}`;
+				aliases.set(schemaName, alias);
+				importParts.push(`${schemaName} as ${alias}`);
+			} else {
+				// Unique name — import directly, no alias needed
+				aliases.set(schemaName, schemaName);
+				importParts.push(schemaName);
+			}
 		}
 
 		schemaImportAliases.set(importPath, aliases);

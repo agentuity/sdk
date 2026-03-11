@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { KeyValueStorageService } from '../src/services/keyvalue.ts';
+import { KeyValueStorageService } from '../src/services/keyvalue/index.ts';
 import { createMockAdapter } from '@agentuity/test-utils';
 import { ServiceException } from '../src/services/exception.ts';
 
@@ -19,7 +19,7 @@ describe('KeyValueStorageService', () => {
 				expect(result.data).toEqual(mockData);
 			}
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore/mykey`);
 			expect(calls[0].options?.method).toBe('GET');
 		});
 
@@ -31,7 +31,7 @@ describe('KeyValueStorageService', () => {
 
 			expect(result.exists).toBe(false);
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/missing`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore/missing`);
 		});
 
 		test('should encode special characters in name and key', async () => {
@@ -40,7 +40,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			await service.get('my store', 'my/key');
 
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/my%20store/my%2Fkey`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/my%20store/my%2Fkey`);
 		});
 
 		test('should throw ServiceException on error response', async () => {
@@ -114,7 +114,7 @@ describe('KeyValueStorageService', () => {
 			await service.set('mystore', 'mykey', 'myvalue');
 
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore/mykey`);
 			expect(calls[0].options?.method).toBe('PUT');
 			expect(calls[0].options?.body).toBe('myvalue');
 			expect(calls[0].options?.contentType).toBe('text/plain');
@@ -157,7 +157,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			await service.set('mystore', 'mykey', 'value', { ttl: 3600 });
 
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey/3600`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore/mykey/3600`);
 		});
 
 		test('should not include ttl in url when not specified (uses namespace default)', async () => {
@@ -167,7 +167,7 @@ describe('KeyValueStorageService', () => {
 			await service.set('mystore', 'mykey', 'value');
 
 			// TTL should not be in the URL when not specified (server uses namespace default)
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore/mykey`);
 		});
 
 		test('should send ttl=0 when ttl is null (no expiration)', async () => {
@@ -177,7 +177,7 @@ describe('KeyValueStorageService', () => {
 			await service.set('mystore', 'mykey', 'value', { ttl: null });
 
 			// null should be converted to 0 (no expiration)
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey/0`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore/mykey/0`);
 		});
 
 		test('should send ttl=0 when ttl is 0 (no expiration)', async () => {
@@ -186,7 +186,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			await service.set('mystore', 'mykey', 'value', { ttl: 0 });
 
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey/0`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore/mykey/0`);
 		});
 
 		test('should send low ttl values to server (server clamps to minimum)', async () => {
@@ -196,7 +196,7 @@ describe('KeyValueStorageService', () => {
 			await service.set('mystore', 'mykey', 'value', { ttl: 30 });
 
 			// Low TTL values are sent to server, which clamps them to minimum (60 seconds)
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey/30`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore/mykey/30`);
 		});
 
 		test('should use custom contentType when provided', async () => {
@@ -214,7 +214,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			await service.set('my store', 'my/key', 'value');
 
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/my%20store/my%2Fkey`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/my%20store/my%2Fkey`);
 		});
 
 		test('should throw ServiceException on error response', async () => {
@@ -245,7 +245,7 @@ describe('KeyValueStorageService', () => {
 			await service.delete('mystore', 'mykey');
 
 			expect(calls).toHaveLength(1);
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore/mykey`);
 			expect(calls[0].options?.method).toBe('DELETE');
 		});
 
@@ -255,7 +255,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			await service.delete('my store', 'my/key');
 
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/my%20store/my%2Fkey`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/my%20store/my%2Fkey`);
 		});
 
 		test('should throw ServiceException on error response', async () => {
@@ -433,7 +433,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			await service.search('my store', 'my/keyword');
 
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/search/my%20store/my%2Fkeyword`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/search/my%20store/my%2Fkeyword`);
 		});
 
 		test('should throw ServiceException on error response', async () => {
@@ -497,7 +497,7 @@ describe('KeyValueStorageService', () => {
 			expect(beforeCalls).toHaveLength(1);
 			expect(onBeforeCalls).toHaveLength(1);
 			expect(onBeforeCalls[0].method).toBe('GET');
-			expect(onBeforeCalls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore/mykey`);
+			expect(onBeforeCalls[0].url).toBe(`${baseUrl}/kv/mystore/mykey`);
 		});
 
 		test('should call onBefore for set operation', async () => {
@@ -535,7 +535,7 @@ describe('KeyValueStorageService', () => {
 		test('should allow onBefore to modify request', async () => {
 			let modifiedUrl = '';
 			const { adapter } = createMockAdapter([{ ok: true, data: 'test' }], {
-				onBefore: async (url, options, invoke) => {
+				onBefore: async (url, _options, invoke) => {
 					modifiedUrl = url + '?modified=true';
 					await invoke();
 				},
@@ -549,7 +549,7 @@ describe('KeyValueStorageService', () => {
 
 		test('should pass mutated headers from onBefore to server', async () => {
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: { foo: 'bar' } }], {
-				onBefore: async (url, options, invoke) => {
+				onBefore: async (_url, options, invoke) => {
 					options.headers = {
 						...options.headers,
 						'X-Custom-Header': 'test-value',
@@ -622,7 +622,7 @@ describe('KeyValueStorageService', () => {
 			const { adapter } = createMockAdapter(
 				[{ ok: false, status: 403, statusText: 'Forbidden' }],
 				{
-					onAfter: async (response, error) => {
+					onAfter: async (_response, error) => {
 						receivedError = error;
 					},
 				}
@@ -640,7 +640,7 @@ describe('KeyValueStorageService', () => {
 		test('should call both hooks in correct order', async () => {
 			const executionOrder: string[] = [];
 			const { adapter } = createMockAdapter([{ ok: true, data: 'test' }], {
-				onBefore: async (url, options, invoke) => {
+				onBefore: async (_url, _options, invoke) => {
 					executionOrder.push('before-start');
 					await invoke();
 					executionOrder.push('before-end');
@@ -659,7 +659,7 @@ describe('KeyValueStorageService', () => {
 		test('should handle telemetry metadata in hooks', async () => {
 			let capturedTelemetry: { name: string; attributes?: Record<string, string> } | undefined;
 			const { adapter } = createMockAdapter([{ ok: true }], {
-				onBefore: async (url, options, invoke) => {
+				onBefore: async (_url, options, invoke) => {
 					capturedTelemetry = options.telemetry;
 					await invoke();
 				},
@@ -688,7 +688,7 @@ describe('KeyValueStorageService', () => {
 			expect(namespaces).toContain('products');
 			expect(namespaces).toContain('users');
 			expect(namespaces).toContain('sessions');
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/namespaces`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/namespaces`);
 			expect(calls[0].options.method).toBe('GET');
 		});
 
@@ -726,7 +726,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			const result = await service.getAllStats();
 
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/stats`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/stats`);
 			expect(calls[0].url).not.toContain('limit=');
 			expect('namespaces' in result).toBe(false);
 			expect(Object.keys(result)).toContain('products');
@@ -771,7 +771,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			await service.createNamespace('mystore');
 
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore`);
 			expect(calls[0].options.method).toBe('POST');
 			expect(calls[0].options.body).toBeUndefined();
 		});
@@ -782,7 +782,7 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			await service.createNamespace('mystore', { defaultTTLSeconds: 3600 });
 
-			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore`);
+			expect(calls[0].url).toBe(`${baseUrl}/kv/mystore`);
 			expect(calls[0].options.method).toBe('POST');
 			expect(calls[0].options.body).toBe(JSON.stringify({ default_ttl_seconds: 3600 }));
 			expect(calls[0].options.contentType).toBe('application/json');

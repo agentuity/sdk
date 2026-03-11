@@ -168,8 +168,8 @@ export function withPersistence(
 function extractTextDeltas(text: string): string {
 	let result = '';
 	const regex = /"type":"text-delta","textDelta":"((?:[^"\\]|\\.)*)"/g;
-	let match;
-	while ((match = regex.exec(text)) !== null) {
+	let match: RegExpExecArray | null = regex.exec(text);
+	while (match !== null) {
 		try {
 			// Unescape JSON string (handles \n, \t, unicode, etc.)
 			result += JSON.parse(`"${match[1]}"`);
@@ -177,6 +177,7 @@ function extractTextDeltas(text: string): string {
 			// If parse fails, use raw match
 			result += match[1];
 		}
+		match = regex.exec(text);
 	}
 	return result;
 }

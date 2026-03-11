@@ -92,7 +92,7 @@ const sessionData = {
 
 ctx.logger.info("Setting key", { key });
 
-// SET: store data with optional TTL (minimum 60 seconds)
+// SET: store data with optional TTL (minimum 60 seconds, 0 for no expiration)
 await ctx.kv.set(bucket, key, sessionData, { ttl: 300 });
 
 ctx.logger.info("Getting key", { key });

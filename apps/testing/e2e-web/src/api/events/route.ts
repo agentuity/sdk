@@ -10,7 +10,7 @@ const router = createRouter();
 
 router.get(
 	'/',
-	sse(async (c, stream) => {
+	sse(async (_c, stream) => {
 		let count = 0;
 
 		for (let i = 0; i < 5; i++) {

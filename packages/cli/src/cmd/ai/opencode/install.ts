@@ -56,7 +56,7 @@ export const installSubcommand = createSubcommand({
 		const hasExactEntry = openCodeConfig.plugin.includes(pluginEntry);
 
 		// Check if there's an existing entry that needs updating
-		const existingIndex = openCodeConfig.plugin.findIndex((p) => p === '@agentuity/opencode');
+		const existingIndex = openCodeConfig.plugin.indexOf('@agentuity/opencode');
 
 		if (hasExactEntry) {
 			if (!jsonMode) {

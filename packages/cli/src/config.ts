@@ -1,25 +1,29 @@
-import { z } from 'zod';
 import { existsSync, mkdirSync } from 'node:fs';
-import { StructuredError, type Logger } from '@agentuity/core';
-import { BuildMetadataSchema, type BuildMetadata, getServiceUrls } from '@agentuity/server';
-import { APIClient as ServerAPIClient } from '@agentuity/server';
-import { YAML } from 'bun';
-import { join, extname, basename, resolve, normalize } from 'node:path';
+import { chmod, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
-import JSON5 from 'json5';
-import type { Config, Profile, AuthData } from './types';
-import { ConfigSchema, ProjectSchema } from './types';
-import * as tui from './tui';
-import { getCatalystUrl } from './catalyst';
+import { basename, extname, join, normalize, resolve } from 'node:path';
+import { type Logger, StructuredError } from '@agentuity/core';
 import {
+	type BuildMetadata,
+	BuildMetadataSchema,
+	getServiceUrls,
+	APIClient as ServerAPIClient,
+} from '@agentuity/server';
+import { YAML } from 'bun';
+import JSON5 from 'json5';
+import { z } from 'zod';
+import { clearProfileCache } from './cache';
+import { getCatalystUrl } from './catalyst';
+import { readEnvFile, writeEnvFile } from './env-util';
+import {
+	deleteAuthFromKeychain,
+	getAuthFromKeychain,
 	isMacOS,
 	saveAuthToKeychain,
-	getAuthFromKeychain,
-	deleteAuthFromKeychain,
 } from './keychain';
-import { clearProfileCache } from './cache';
-import { readEnvFile, writeEnvFile } from './env-util';
+import * as tui from './tui';
+import type { AuthData, Config, Profile } from './types';
+import { ConfigSchema, ProjectSchema } from './types';
 
 export const defaultProfileName = 'production';
 
@@ -137,6 +141,8 @@ function expandTilde(path: string): string {
 }
 
 let cachedConfig: Config | null | undefined;
+// Track the resolved config path so saveConfig writes back to the same file
+let cachedConfigPath: string | undefined;
 
 export async function loadConfig(
 	customPath?: string,
@@ -213,6 +219,7 @@ export async function loadConfig(
 		// This ensures --config flag is respected across all commands
 		if (!skipCache) {
 			cachedConfig = result.data;
+			cachedConfigPath = configPath;
 		}
 		return result.data;
 	} catch (error) {
@@ -223,6 +230,7 @@ export async function loadConfig(
 		// Note: For long-running processes, consider time-based cache expiry for transient failures.
 		if (!skipCache) {
 			cachedConfig = null;
+			cachedConfigPath = configPath;
 		}
 		return null;
 	}
@@ -271,7 +279,10 @@ function formatYAML(obj: unknown, indent = 0): string {
 }
 
 export async function saveConfig(config: Config, customPath?: string): Promise<void> {
-	const configPath = customPath || (await getProfile());
+	// Use the path the config was originally loaded from (cachedConfigPath) so that
+	// saves go back to the correct profile even when --profile was used to load it.
+	// Falls back to getProfile() if no config has been loaded yet.
+	const configPath = customPath || cachedConfigPath || (await getProfile());
 	await ensureConfigDir();
 
 	const content = formatYAML(config);
@@ -768,16 +779,17 @@ export async function loadProjectSDKKey(
 			logger.trace(`[SDK_KEY] File does not exist: ${fn}`);
 		}
 	}
-	logger.trace(`[SDK_KEY] AGENTUITY_SDK_KEY not found in any file`);
+	logger.trace('[SDK_KEY] AGENTUITY_SDK_KEY not found in any file');
 }
 
 export function getCatalystAPIClient(
 	logger: Logger,
 	auth: AuthData,
 	region: string,
-	orgId?: string
+	orgId?: string,
+	config?: Config | null
 ) {
-	const catalystUrl = getCatalystUrl(region);
+	const catalystUrl = getCatalystUrl(region, config?.overrides);
 	const headers: Record<string, string> = {};
 	if (orgId) {
 		headers['x-agentuity-orgid'] = orgId;
@@ -857,7 +869,7 @@ export async function getGlobalCatalystAPIClient(
 	config?: Config | null
 ) {
 	const region = await getDefaultRegion(profileName, config);
-	return getCatalystAPIClient(logger, auth, region, orgId);
+	return getCatalystAPIClient(logger, auth, region, orgId, config);
 }
 
 export function getIONHost(config: Config | null, region: string) {

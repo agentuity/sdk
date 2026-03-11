@@ -160,12 +160,25 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 		const exitCode = await proc.exited;
 
 		// Combine chunks into strings
-		const stdout = new TextDecoder().decode(
-			new Uint8Array(stdoutChunks.reduce((acc, chunk) => [...acc, ...chunk], [] as number[]))
+		const stdoutBytes = new Uint8Array(
+			stdoutChunks.reduce((total, chunk) => total + chunk.length, 0)
 		);
-		const stderr = new TextDecoder().decode(
-			new Uint8Array(stderrChunks.reduce((acc, chunk) => [...acc, ...chunk], [] as number[]))
+		let stdoutOffset = 0;
+		for (const chunk of stdoutChunks) {
+			stdoutBytes.set(chunk, stdoutOffset);
+			stdoutOffset += chunk.length;
+		}
+		const stdout = new TextDecoder().decode(stdoutBytes);
+
+		const stderrBytes = new Uint8Array(
+			stderrChunks.reduce((total, chunk) => total + chunk.length, 0)
 		);
+		let stderrOffset = 0;
+		for (const chunk of stderrChunks) {
+			stderrBytes.set(chunk, stderrOffset);
+			stderrOffset += chunk.length;
+		}
+		const stderr = new TextDecoder().decode(stderrBytes);
 
 		// Log failures in CI for debugging
 		if (exitCode !== 0) {

@@ -13,7 +13,7 @@ const multipleListenersAgent = createAgent('events-multiple', {
 			success: s.boolean(),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, input) => {
 		let callCount = 0;
 
 		// Add multiple listeners for the same event

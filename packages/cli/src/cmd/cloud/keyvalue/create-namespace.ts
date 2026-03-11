@@ -13,14 +13,14 @@ export const createNamespaceSubcommand = createCommand({
 	optional: { project: true },
 	examples: [
 		{
-			command: getCommand('kv create-namespace production'),
+			command: getCommand('cloud kv create-namespace production'),
 			description: 'Create production namespace',
 		},
 		{
-			command: getCommand('kv create staging'),
+			command: getCommand('cloud kv create staging'),
 			description: 'Create staging namespace (using alias)',
 		},
-		{ command: getCommand('kv create cache'), description: 'Create cache namespace' },
+		{ command: getCommand('cloud kv create cache'), description: 'Create cache namespace' },
 	],
 	schema: {
 		args: z.object({

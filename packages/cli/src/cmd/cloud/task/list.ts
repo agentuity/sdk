@@ -55,7 +55,6 @@ const STATUS_COLORS: Record<string, (s: string) => string> = {
 	open: tui.colorSuccess,
 	in_progress: tui.colorWarning,
 	done: tui.colorInfo,
-	closed: tui.muted,
 	cancelled: tui.muted,
 };
 
@@ -108,7 +107,7 @@ export const listSubcommand = createCommand({
 	schema: {
 		options: z.object({
 			status: z
-				.enum(['open', 'in_progress', 'done', 'closed', 'cancelled'])
+				.enum(['open', 'in_progress', 'done', 'cancelled'])
 				.optional()
 				.describe('filter by status'),
 			type: z

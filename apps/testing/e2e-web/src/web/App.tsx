@@ -13,6 +13,10 @@ export function App() {
 	// Simple client-side routing
 	const path = window.location.pathname;
 
+	// Hooks must be called before any conditional returns (React rules of hooks)
+	const [name, setName] = useState('World');
+	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
+
 	if (path === '/streams') {
 		return <StreamsPage />;
 	}
@@ -36,9 +40,6 @@ export function App() {
 	if (path === '/webrtc') {
 		return <WebRTCTestPage />;
 	}
-
-	const [name, setName] = useState('World');
-	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
 
 	return (
 		<div className="app-container">

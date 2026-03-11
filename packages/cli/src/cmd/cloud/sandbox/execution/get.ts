@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { getCommand } from '../../../../command-prefix';
 import { executionGet } from '@agentuity/server';
+import { z } from 'zod';
+import { getCommand } from '../../../../command-prefix';
 import { getGlobalCatalystAPIClient } from '../../../../config';
+import * as tui from '../../../../tui';
+import { createCommand } from '../../../../types';
 
 const ExecutionGetResponseSchema = z.object({
 	executionId: z.string().describe('Execution ID'),
@@ -41,7 +41,13 @@ export const getSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, options, auth, logger, orgId, config } = ctx;
-		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const client = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		const result = await executionGet(client, { executionId: args.executionId, orgId });
 

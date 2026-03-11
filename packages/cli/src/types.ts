@@ -249,6 +249,15 @@ export interface AgentuityConfig {
 	 * Note: Cannot override AGENTUITY_PUBLIC_* or process.env.NODE_ENV
 	 */
 	define?: Record<string, string>;
+	/**
+	 * Glob patterns for additional files to include in the deployment bundle.
+	 * Files matching these patterns will be copied into the .agentuity build
+	 * output directory before the build runs, preserving their relative paths
+	 * from the project root. Build output will overwrite any conflicting files.
+	 *
+	 * @example ['data/**', 'templates/*.json', 'models/weights.bin']
+	 */
+	bundle?: string[];
 }
 
 /**
@@ -310,6 +319,9 @@ export interface GlobalOptions {
 	dryRun?: boolean;
 	validate?: boolean;
 	skipVersionCheck?: boolean;
+	input?: string;
+	describe?: boolean;
+	fields?: string;
 }
 
 export interface PaginationInfo {
@@ -716,6 +728,50 @@ export type SubcommandDefinition =
 			optional?: Optional & { auth?: never };
 	  });
 
+const TemplateResourceSchema = zod.object({
+	type: zod.enum(['database', 'queue']).describe('the type of resource required'),
+	envVar: zod
+		.string()
+		.describe('the environment variable that holds the resource connection info'),
+	description: zod.string().optional().describe('human-readable description of the resource'),
+	defaultName: zod
+		.string()
+		.optional()
+		.describe('suggested default name when provisioning this resource'),
+	queueType: zod
+		.enum(['worker', 'pubsub'])
+		.optional()
+		.describe('queue type — required when type is "queue"'),
+});
+
+const TemplateEnvSchema = zod.object({
+	key: zod.string().describe('the environment variable name'),
+	required: zod.boolean().describe('whether this env var is required'),
+	description: zod.string().optional().describe('human-readable description'),
+	secret: zod.boolean().optional().describe('whether this env var is a secret'),
+	defaultValue: zod.string().optional().describe('default or example value'),
+});
+
+const TemplateSchema = zod.object({
+	source: zod
+		.string()
+		.optional()
+		.describe('where the template came from (e.g. github.com/owner/repo)'),
+	requirements: zod
+		.object({
+			resources: zod
+				.array(TemplateResourceSchema)
+				.optional()
+				.describe('platform resources the project needs'),
+			env: zod
+				.array(TemplateEnvSchema)
+				.optional()
+				.describe('environment variables the project needs'),
+		})
+		.optional()
+		.describe('what the template requires to run'),
+});
+
 export const ProjectSchema = zod.object({
 	projectId: zod.string().describe('the project id'),
 	orgId: zod.string().describe('the organization id'),
@@ -726,6 +782,7 @@ export const ProjectSchema = zod.object({
 		.boolean()
 		.optional()
 		.describe('whether to skip the git integration setup prompt during deploy'),
+	template: TemplateSchema.optional().describe('template metadata and requirements'),
 });
 
 export const BuildMetadataSchema = ServerBuildMetadataSchema;

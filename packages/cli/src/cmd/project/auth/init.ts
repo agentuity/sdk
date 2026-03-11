@@ -1,21 +1,21 @@
-import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import {
-	selectOrCreateDatabase,
-	ensureAuthDependencies,
-	runAuthMigrations,
-	generateAuthFileContent,
-	printIntegrationExamples,
-	detectOrmSetup,
-	generateAuthSchemaSql,
-	getGeneratedSqlDir,
-} from './shared';
-import { readEnvFile, writeEnvFile } from '../../../env-util';
 import enquirer from 'enquirer';
 import * as fs from 'fs';
 import * as path from 'path';
+import { z } from 'zod';
+import { getCommand } from '../../../command-prefix';
+import { readEnvFile, writeEnvFile } from '../../../env-util';
+import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types';
+import {
+	detectOrmSetup,
+	ensureAuthDependencies,
+	generateAuthFileContent,
+	generateAuthSchemaSql,
+	getGeneratedSqlDir,
+	printIntegrationExamples,
+	runAuthMigrations,
+	selectOrCreateDatabase,
+} from './shared';
 
 export const initSubcommand = createSubcommand({
 	name: 'init',
@@ -232,6 +232,7 @@ export const initSubcommand = createSubcommand({
 						region,
 						databaseName,
 						sql,
+						config,
 					});
 					migrationsRun = true;
 				}

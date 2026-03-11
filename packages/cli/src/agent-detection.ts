@@ -294,7 +294,7 @@ function initLinuxFFI(): FFIFunctions {
 			const ppidField = fields[1]; // ppid is 2nd field after state
 			if (!ppidField) return null;
 			const ppid = parseInt(ppidField, 10);
-			return isNaN(ppid) || ppid <= 1 ? null : ppid;
+			return Number.isNaN(ppid) || ppid <= 1 ? null : ppid;
 		} catch {
 			// Ignore errors
 		}

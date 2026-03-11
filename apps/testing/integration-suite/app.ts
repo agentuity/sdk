@@ -1,11 +1,7 @@
 import { createApp } from '@agentuity/runtime';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider';
 import { testSessionEventProvider } from './src/test/helpers/session-event-provider';
-import {
-	mockDatabaseMiddleware,
-	mockAuthMiddleware,
-	analyticsMiddleware,
-} from './src/lib/custom-middleware';
+import { mockAuthMiddleware, analyticsMiddleware } from './src/lib/custom-middleware';
 
 // Import test files to register tests
 import './src/test/basic-agents';
@@ -36,6 +32,7 @@ import './src/test/middleware-patterns';
 import './src/test/evals';
 import './src/test/ai-sdk-gateway';
 import './src/test/session-agent-ids';
+import './src/test/sandbox-basic';
 
 const threadProvider = new InMemoryThreadProvider();
 

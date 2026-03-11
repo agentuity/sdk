@@ -291,12 +291,20 @@ function handleValidationError(
 					? errorMessages[0]
 					: 'Invalid options or arguments';
 
+			const suggestions = [`Run 'agentuity ${commandName} --help' for usage information`];
+			// Add agent-friendly hints when running from an AI agent
+			if (getExecutingAgent()) {
+				suggestions.push(
+					`Run 'agentuity ${commandName} --describe' to see the command schema as JSON`,
+					`Use --input '{...}' to pass arguments and options as a JSON object`
+				);
+			}
 			exitWithError(
 				{
 					code: ErrorCode.VALIDATION_FAILED,
 					message: primaryMessage,
 					details: errorMessages.length > 1 ? { errors: errorMessages } : undefined,
-					suggestions: [`Run 'agentuity ${commandName} --help' for usage information`],
+					suggestions,
 				},
 				baseCtx.logger,
 				baseCtx.options.errorFormat ?? 'text'
@@ -520,7 +528,13 @@ export async function createCLI(version: string): Promise<Command> {
 		.option('--explain', 'Show what the command would do without executing', false)
 		.option('--dry-run', 'Execute command without making changes', false)
 		.option('--validate', 'Validate arguments and options without executing', false)
-		.option('--ai-help', 'Show AI-optimized help in dashdash format', false);
+		.option('--ai-help', 'Show AI-optimized help in dashdash format', false)
+		.option('--input <json>', 'Pass arguments and options as a JSON object (for agents)')
+		.option('--describe', 'Output command schema as JSON for agent introspection', false)
+		.option(
+			'--fields <fields>',
+			'Filter JSON output to specified fields (comma-separated, dot notation for nested)'
+		);
 
 	const skipVersionCheckOption = program.createOption(
 		'--skip-version-check',
@@ -1035,6 +1049,18 @@ async function registerSubcommand(
 				cmd.help();
 			});
 
+		// Handle --describe for command-group nodes
+		cmd.action(async () => {
+			if (baseCtx.options.describe) {
+				const { extractSubcommandSchema } = await import('./schema-generator');
+				const schema = extractSubcommandSchema(subcommand);
+				const { outputJSON } = await import('./output');
+				outputJSON(schema);
+				return;
+			}
+			cmd.help();
+		});
+
 		// Don't add options to parent commands - only to leaf commands
 		return;
 	}
@@ -1189,7 +1215,7 @@ async function registerSubcommand(
 		}
 	}
 
-	// Add hidden --yes alias for --confirm if command has a confirm option
+	// Add hidden --yes and --force aliases for --confirm if command has a confirm option
 	if (subcommand.schema?.options) {
 		const parsed = parseOptionsSchema(subcommand.schema.options);
 		const hasConfirmOption = parsed.some((opt) => opt.name === 'confirm');
@@ -1198,6 +1224,14 @@ async function registerSubcommand(
 			const yesOption = cmd.createOption('--yes', 'Alias for --confirm');
 			yesOption.hideHelp();
 			cmd.addOption(yesOption);
+			// Add hidden --force option that sets confirm to true,
+			// but only if the schema doesn't already declare its own --force option
+			const hasForceOption = parsed.some((opt) => opt.name === 'force');
+			if (!hasForceOption) {
+				const forceOption = cmd.createOption('--force', 'Alias for --confirm');
+				forceOption.hideHelp();
+				cmd.addOption(forceOption);
+			}
 		}
 	}
 
@@ -1215,6 +1249,28 @@ async function registerSubcommand(
 		const cmdObj = rawArgs[rawArgs.length - 1] as { opts: () => Record<string, unknown> };
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
+
+		// Handle --describe mode: output command schema and exit
+		if (baseCtx.options.describe) {
+			const { extractSubcommandSchema } = await import('./schema-generator');
+			const schema = extractSubcommandSchema(subcommand);
+			const { outputJSON } = await import('./output');
+			outputJSON(schema);
+			return;
+		}
+
+		// One-time hint for agents about structured input/output features
+		// Emitted on stderr so it doesn't interfere with --json stdout
+		const detectedAgent = getExecutingAgent();
+		if (detectedAgent) {
+			const { hasAgentSeenInputHint, markAgentInputHintSeen } = await import('./cache');
+			if (!hasAgentSeenInputHint(detectedAgent)) {
+				markAgentInputHintSeen(detectedAgent);
+				console.error(
+					`[agent] This CLI supports structured I/O for agents: --input <json> (structured input), --describe (schema introspection), --fields (output filtering). Run --ai-help for details.`
+				);
+			}
+		}
 
 		// Merge global --org-id and --project-id into subcommand options when the schema
 		// defines these fields. Global options (program-level) capture the values first,
@@ -1415,9 +1471,13 @@ async function registerSubcommand(
 				try {
 					// Check if command uses stdin (don't auto-confirm if it does)
 					const usesStdin = subcommand.tags?.includes('uses-stdin') ?? false;
-					const input = await buildValidationInputAsync(subcommand.schema, args, options, {
-						usesStdin,
-					});
+					const input = await buildValidationInputAsync(
+						subcommand.schema,
+						args,
+						options,
+						{ usesStdin },
+						baseCtx.options.input
+					);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 						config: {
@@ -1705,9 +1765,15 @@ async function registerSubcommand(
 				try {
 					// Check if command uses stdin (don't auto-confirm if it does)
 					const usesStdin = subcommand.tags?.includes('uses-stdin') ?? false;
-					const input = await buildValidationInputAsync(subcommand.schema, args, options, {
-						usesStdin,
-					});
+					const input = await buildValidationInputAsync(
+						subcommand.schema,
+						args,
+						options,
+						{
+							usesStdin,
+						},
+						baseCtx.options.input
+					);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 						config: auth
@@ -1969,9 +2035,15 @@ async function registerSubcommand(
 				try {
 					// Check if command uses stdin (don't auto-confirm if it does)
 					const usesStdin = subcommand.tags?.includes('uses-stdin') ?? false;
-					const input = await buildValidationInputAsync(subcommand.schema, args, options, {
-						usesStdin,
-					});
+					const input = await buildValidationInputAsync(
+						subcommand.schema,
+						args,
+						options,
+						{
+							usesStdin,
+						},
+						baseCtx.options.input
+					);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 					};
@@ -2157,6 +2229,15 @@ export async function registerCommands(
 
 			if (cmdDef.handler) {
 				cmd.action(async () => {
+					// Handle --describe mode: output command schema and exit
+					if (baseCtx.options.describe) {
+						const { extractCommandSchema } = await import('./schema-generator');
+						const schema = extractCommandSchema(cmdDef);
+						const { outputJSON } = await import('./output');
+						outputJSON(schema);
+						return;
+					}
+
 					if (cmdDef.banner) {
 						showBanner();
 					}

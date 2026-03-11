@@ -14,21 +14,23 @@ export const deleteNamespaceSubcommand = createCommand({
 	optional: { project: true },
 	examples: [
 		{
-			command: getCommand('kv delete-namespace staging'),
+			command: getCommand('cloud kv delete-namespace staging'),
 			description: 'Delete staging namespace (interactive)',
 		},
 		{
-			command: getCommand('kv rm-namespace cache --confirm'),
+			command: getCommand('cloud kv rm-namespace cache --confirm'),
 			description: 'Delete cache without confirmation',
 		},
 		{
-			command: getCommand('kv delete-namespace production --confirm'),
+			command: getCommand('cloud kv delete-namespace production --confirm'),
 			description: 'Force delete production',
 		},
 	],
 	schema: {
 		args: z.object({
 			name: z.string().min(1).max(64).describe('the namespace name'),
+		}),
+		options: z.object({
 			confirm: z
 				.boolean()
 				.optional()
@@ -43,10 +45,10 @@ export const deleteNamespaceSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args } = ctx;
+		const { args, opts } = ctx;
 		const kv = await createStorageAdapter(ctx);
 
-		if (!args.confirm) {
+		if (!opts?.confirm) {
 			if (!process.stdin.isTTY) {
 				tui.fatal(
 					'No TTY and --confirm is not set. Refusing to delete',

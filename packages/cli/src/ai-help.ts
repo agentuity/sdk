@@ -91,6 +91,7 @@ function buildContent(schema: CLISchema, config: DashdashConfig): string {
 	const sections = [
 		buildHeader(config),
 		buildWhenToUse(),
+		buildAgentOptimizedIO(),
 		buildQuickReference(schema),
 		buildCommandReference(schema),
 		buildGlobalOptions(schema),
@@ -125,6 +126,66 @@ Do NOT use this CLI for:
 - General file operations (use filesystem tools instead)
 - Non-AI/agent related tasks
 - Direct database queries (use the SDK or cloud console)`;
+}
+
+/**
+ * Build Agent-Optimized Input/Output section
+ */
+function buildAgentOptimizedIO(): string {
+	return `## Agent-Optimized Input/Output
+
+This CLI provides structured input and output modes designed for AI agents:
+
+### Structured Input: \`--input <json>\`
+
+Pass all arguments and options as a single JSON object instead of individual flags:
+
+\`\`\`bash
+# Instead of individual flags:
+agentuity cloud sandbox create --runtime "bun:1" --memory "1Gi" --network --port 8080
+
+# Use structured JSON input:
+agentuity cloud sandbox create --input '{"runtime":"bun:1","memory":"1Gi","network":true,"port":8080}'
+\`\`\`
+
+JSON keys map to argument and option names from the command schema. CLI flags take precedence over \`--input\` values.
+
+### Schema Introspection: \`--describe\`
+
+Discover what any command accepts at runtime without executing it:
+
+\`\`\`bash
+agentuity cloud sandbox create --describe
+# Returns: { "name": "create", "options": [...], "arguments": [...], "response": {...} }
+\`\`\`
+
+No authentication required. Use this to self-serve command schemas instead of reading documentation.
+
+### Output Field Filtering: \`--fields <fields>\`
+
+Limit JSON output to only the fields you need (protects context window):
+
+\`\`\`bash
+agentuity --json --fields "id,name,status" cloud deployment list
+\`\`\`
+
+Supports dot notation for nested fields (e.g., \`properties.title\`). Applies to arrays automatically.
+
+### Input Validation: \`--validate\`
+
+Validate your input without executing the command:
+
+\`\`\`bash
+agentuity --validate cloud kv set --input '{"namespace":"ns","key":"k","value":"v"}'
+# Returns: { "valid": true, "command": "cloud kv set" }
+\`\`\`
+
+### Recommended Agent Workflow
+
+1. **Discover**: \`agentuity <command> --describe\` — learn what the command accepts
+2. **Validate**: \`agentuity --validate <command> --input '{...}'\` — check input before executing
+3. **Execute**: \`agentuity --json <command> --input '{...}' --fields "id,status"\` — run with structured I/O
+4. **Dry-run**: \`agentuity --dry-run <command> --input '{...}'\` — test mutating operations safely`;
 }
 
 /**

@@ -64,10 +64,55 @@ export function shouldDisableColors(options: GlobalOptions): boolean {
 }
 
 /**
+ * Filter data to only include specified fields.
+ * Supports dot notation for nested fields (e.g., "id,name,properties.title").
+ * For arrays, applies the filter to each element.
+ */
+function filterFields(data: unknown, fields: string[]): unknown {
+	if (Array.isArray(data)) {
+		return data.map((item) => filterFields(item, fields));
+	}
+	if (data && typeof data === 'object') {
+		const result: Record<string, unknown> = {};
+		for (const field of fields) {
+			const parts = field.split('.');
+			let current: unknown = data;
+			let target: Record<string, unknown> = result;
+			for (let i = 0; i < parts.length; i++) {
+				const part = parts[i] as string;
+				if (
+					current &&
+					typeof current === 'object' &&
+					part in (current as Record<string, unknown>)
+				) {
+					if (i === parts.length - 1) {
+						target[part] = (current as Record<string, unknown>)[part];
+					} else {
+						target[part] = target[part] || {};
+						target = target[part] as Record<string, unknown>;
+						current = (current as Record<string, unknown>)[part];
+					}
+				} else {
+					break; // path segment not found — stop traversal for this field
+				}
+			}
+		}
+		return result;
+	}
+	return data;
+}
+
+/**
  * Output JSON to stdout (for agent consumption)
  */
 export function outputJSON(data: unknown): void {
-	console.log(JSON.stringify(data, null, 2));
+	let output = data;
+	const options = getOutputOptions();
+	if (options?.fields) {
+		const fields = options.fields.split(',').map((f) => f.trim());
+		output = filterFields(output, fields);
+	}
+	console.log(JSON.stringify(output, null, 2));
 }
 
 /**

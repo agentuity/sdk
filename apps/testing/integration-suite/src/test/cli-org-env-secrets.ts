@@ -9,7 +9,7 @@
  */
 
 import { test } from '@test/suite';
-import { assert, assertEqual, uniqueId, testRunId } from '@test/helpers';
+import { assert, assertEqual, uniqueId } from '@test/helpers';
 import cliAgent from '@agents/cli/agent';
 import { isAuthenticated } from '@test/helpers/cli';
 

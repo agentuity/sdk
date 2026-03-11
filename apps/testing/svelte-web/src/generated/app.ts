@@ -11,6 +11,7 @@ import {
   createCompressionMiddleware,
   getAppState,
   getAppConfig,
+  getUserRouter,
   register,
   getSpanProcessors,
   createServices,
@@ -76,22 +77,11 @@ app.use('*', createBaseMiddleware({
 	meter: otel.meter,
 }));
 
-// Note: Workbench routes use their own CORS middleware (defined in createWorkbenchRouter)
-// which includes signature headers for production authentication
-app.use('/api/*', createCorsMiddleware());
-
-// Critical: otelMiddleware creates session/thread/waitUntilHandler
-// Only apply to routes that need full session tracking:
-// - /api/* routes (agent/API invocations)
-// - /_agentuity/workbench/* routes (workbench API)
-// Explicitly excluded (no session tracking, no Catalyst events):
-// - /_agentuity/webanalytics/* (web analytics - uses lightweight cookie-only middleware)
-// - /_agentuity/health, /_agentuity/ready, /_agentuity/idle (health checks)
+// Workbench routes always get OTel middleware for session tracking
 app.use('/_agentuity/workbench/*', createOtelMiddleware());
-app.use('/api/*', createOtelMiddleware());
 
-// Critical: agentMiddleware sets up agent context
-app.use('/api/*', createAgentMiddleware(''));
+// Note: /api/* middleware (CORS, OTel, agent context) is applied in Step 6
+// after app.ts import, so user-provided routers can specify custom prefixes.
 
 // Step 4: Import user's app.ts (runs createApp, gets state/config)
 await import('../../app.js');
@@ -333,9 +323,26 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	app.get('/*.css', (c: Context) => proxyToVite(c));
 }
 
-// Mount API routes
-const { default: router_0 } = await import('../api/index.js');
-app.route('/api', router_0);
+// Apply middleware and mount API routes
+// If user passed router(s) via createApp({ router }), mount those instead of discovered files
+const __userMounts = getUserRouter();
+if (__userMounts) {
+	for (const mount of __userMounts) {
+		// Apply Agentuity middleware (CORS, OTel, agent context) to each user-provided prefix
+		const prefix = mount.path.endsWith('/') ? mount.path + '*' : mount.path + '/*';
+		app.use(prefix, createCorsMiddleware());
+		app.use(prefix, createOtelMiddleware());
+		app.use(prefix, createAgentMiddleware(''));
+		app.route(mount.path, mount.router);
+	}
+} else {
+	// File-based routing: apply middleware to /api/* and mount discovered route files
+	app.use('/api/*', createCorsMiddleware());
+	app.use('/api/*', createOtelMiddleware());
+	app.use('/api/*', createAgentMiddleware(''));
+	const { default: router_0 } = await import('../api/index.js');
+	app.route('/api', router_0);
+}
 
 // Mount workbench API routes (/_agentuity/workbench/*)
 // Always available for cloud workbench communication

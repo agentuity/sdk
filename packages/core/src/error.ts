@@ -4,17 +4,23 @@
 
 import { safeStringify } from './json.ts';
 
-// Conditionally import util for Node.js environments only
+// Lazy-load node:util to avoid top-level await blocking module initialization
 let util: typeof import('node:util') | undefined;
-if (typeof process !== 'undefined' && process.versions?.node) {
-	try {
-		// Dynamic import for Node.js util module
-		// This is safe because it's only executed in Node.js/Bun environments
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		util = require('node:util');
-	} catch {
-		// Ignore import errors in browser environments
+let utilLoaded = false;
+function ensureNodeUtilLoaded(): void {
+	if (util || utilLoaded) return;
+	if (typeof process === 'undefined' || !process.versions?.node) {
+		utilLoaded = true;
+		return;
 	}
+	utilLoaded = true;
+	void import('node:util')
+		.then((m) => {
+			util = m;
+		})
+		.catch(() => {
+			// Ignore import errors in browser environments
+		});
 }
 
 type PlainObject = Record<string, any>;
@@ -129,6 +135,7 @@ export class RichError extends Error {
 
 			// include plain args as formatted output (if any)
 			if (curAny[_argsSym]) {
+				ensureNodeUtilLoaded();
 				let argsStr: string;
 				if (util?.formatWithOptions) {
 					argsStr = util.formatWithOptions(

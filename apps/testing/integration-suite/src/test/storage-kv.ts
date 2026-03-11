@@ -5,7 +5,7 @@
  */
 
 import { test } from './suite';
-import { assert, assertEqual, assertDefined, uniqueId } from './helpers';
+import { assertEqual, assertDefined, uniqueId } from './helpers';
 import { decodeKVValue } from './helpers/kv';
 
 // Import agents

@@ -17,9 +17,15 @@ export const keysSubcommand = createCommand({
 	optional: { project: true },
 	idempotent: true,
 	examples: [
-		{ command: getCommand('kv keys production'), description: 'List all keys in production' },
-		{ command: getCommand('kv ls cache'), description: 'List all cached keys (using alias)' },
-		{ command: getCommand('kv list staging'), description: 'List all staging keys' },
+		{
+			command: getCommand('cloud kv keys production'),
+			description: 'List all keys in production',
+		},
+		{
+			command: getCommand('cloud kv ls cache'),
+			description: 'List all cached keys (using alias)',
+		},
+		{ command: getCommand('cloud kv list staging'), description: 'List all staging keys' },
 	],
 	schema: {
 		args: z.object({

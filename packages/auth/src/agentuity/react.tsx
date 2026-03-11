@@ -123,11 +123,15 @@ export function createAuthClient<TPlugins extends BetterAuthClientPlugin[] = []>
 	// Merge default plugins with user plugins
 	// We pass through the full options to preserve type inference
 	// The return type preserves plugin type inference via the generic parameter
+	//
+	// The plugins array uses a type assertion because bun's package resolution can create
+	// multiple physical copies of @better-auth/core with different dependency tree hashes,
+	// causing TypeScript to treat structurally identical types as incompatible.
 	return createBetterAuthClient({
 		...options,
 		baseURL,
 		basePath,
-		plugins: [...defaultPlugins, ...userPlugins],
+		plugins: [...defaultPlugins, ...userPlugins] as BetterAuthClientPlugin[],
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	}) as any;
 }
@@ -321,7 +325,14 @@ export function AuthProvider({
 
 		const interval = setInterval(fetchAuthState, refreshInterval);
 		return () => clearInterval(interval);
-	}, [authClient, refreshInterval, tokenEndpoint, setAuthHeader, setAuthLoading]);
+	}, [
+		authClient,
+		refreshInterval,
+		tokenEndpoint,
+		setAuthHeader,
+		setAuthLoading, // Identify user for analytics
+		identify,
+	]);
 
 	const contextValue = useMemo(
 		() => ({

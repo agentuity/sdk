@@ -92,7 +92,7 @@ function PageHeader({ title, description }: Frontmatter) {
 }
 
 // Inner component that renders MDX with frontmatter
-function MDXRenderer({ modulePath, route }: { modulePath: string; route: string }) {
+function MDXRenderer({ modulePath, route: _route }: { modulePath: string; route: string }) {
 	const { setHeadings, setActiveId } = useToc();
 	const mod = mdxModules[modulePath];
 

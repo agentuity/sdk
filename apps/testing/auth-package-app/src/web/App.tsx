@@ -1,5 +1,4 @@
 import { useAPI } from '@agentuity/react';
-import React from 'react';
 import { type ChangeEvent, useState } from 'react';
 import { AuthDemo } from './AuthDemo';
 
@@ -92,9 +91,10 @@ export function App() {
 
 					<div className="output" data-loading={!greeting}>
 						{greeting
-							? (greeting as string)
-									.split('\n')
-									.map((line, i) => <div key={i}>{line || '\u00A0'}</div>)
+							? (greeting as string).split('\n').map((line, i) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: lines from split have no stable id
+									<div key={i}>{line || '\u00A0'}</div>
+								))
 							: 'Waiting for request'}
 					</div>
 				</div>

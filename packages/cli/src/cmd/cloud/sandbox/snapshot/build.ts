@@ -757,7 +757,7 @@ export const buildSubcommand = createCommand({
 			const archiveFile = Bun.file(archivePath);
 			const archiveSize = archiveFile.size;
 
-			const client = getCatalystAPIClient(logger, auth, region);
+			const client = getCatalystAPIClient(logger, auth, region, undefined, config);
 
 			// Auto-detect git info and merge with CLI overrides
 			const autoDetectedGit = await getGitInfo(directory, logger);

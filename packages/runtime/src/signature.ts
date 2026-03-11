@@ -48,7 +48,7 @@ export async function verifySignature(
 	// Verify timestamp is within acceptable range (prevent replay attacks)
 	const ts = parseInt(timestamp, 10);
 	const now = Math.floor(Date.now() / 1000);
-	if (isNaN(ts) || Math.abs(now - ts) > MAX_SIGNATURE_AGE_SECONDS) {
+	if (Number.isNaN(ts) || Math.abs(now - ts) > MAX_SIGNATURE_AGE_SECONDS) {
 		return false;
 	}
 

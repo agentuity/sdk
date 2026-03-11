@@ -10,7 +10,7 @@
  */
 
 import { test } from '@test/suite';
-import { assert, assertEqual, uniqueId } from '@test/helpers';
+import { assert, assertEqual } from '@test/helpers';
 import agentEventsAgent from '@agents/events/agent-events';
 import sessionEventsAgent from '@agents/events/session-events';
 import threadEventsAgent from '@agents/events/thread-events';
