@@ -197,6 +197,10 @@ export class RemoteSession {
 		return commandType === 'prompt' || commandType === 'follow_up' || commandType === 'steer';
 	}
 
+	private shouldObserveRpcResponseAsLive(): boolean {
+		return this.lifecycleState.phase !== 'paused' && this.lifecycleState.phase !== 'replaying';
+	}
+
 	/** Register a handler for RPC events from the sandbox */
 	onEvent(handler: RemoteEventHandler): void {
 		this.eventHandlers.push(handler);
@@ -366,7 +370,9 @@ export class RemoteSession {
 					} else if (broadcastEvent === 'rpc_response') {
 						const response = broadcastData.response as RpcResponse;
 						if (response) {
-							this.observeLiveSignal('rpc_response');
+							if (this.shouldObserveRpcResponseAsLive()) {
+								this.observeLiveSignal('rpc_response');
+							}
 							this.dispatchResponse(response);
 						}
 					} else if (broadcastEvent === 'rpc_ui_request') {
@@ -407,7 +413,9 @@ export class RemoteSession {
 				if (type === 'rpc_response') {
 					const response = data.response as RpcResponse;
 					if (response) {
-						this.observeLiveSignal('rpc_response');
+						if (this.shouldObserveRpcResponseAsLive()) {
+							this.observeLiveSignal('rpc_response');
+						}
 						this.dispatchResponse(response);
 					}
 					return;

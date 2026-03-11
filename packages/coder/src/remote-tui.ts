@@ -569,8 +569,13 @@ export async function runRemoteTui(options: {
 	// InteractiveMode (which calls renderInitialMessages from SessionManager).
 	const sm = session.sessionManager;
 	let resolveHydration: () => void;
+	let hydrationComplete = false;
 	const hydrationReady = new Promise<void>((resolve) => {
-		resolveHydration = resolve;
+		resolveHydration = () => {
+			if (hydrationComplete) return;
+			hydrationComplete = true;
+			resolve();
+		};
 	});
 
 	let hydrationCount = 0;
@@ -749,15 +754,25 @@ export async function runRemoteTui(options: {
 
 	// Wait for hydration message (arrives right after init), with a timeout
 	// in case this is the first connection and there's nothing to hydrate.
-	const HYDRATION_TIMEOUT_MS = sessionResumeSeen ? 5000 : 2000;
 	await Promise.race([
 		hydrationReady,
-		new Promise<void>((resolve) =>
-			setTimeout(() => {
-				log('Hydration timeout — no session_hydration received');
-				resolve();
-			}, HYDRATION_TIMEOUT_MS)
-		),
+		new Promise<void>((resolve) => {
+			const waitStartedAt = Date.now();
+			const poll = (): void => {
+				if (hydrationComplete) {
+					resolve();
+					return;
+				}
+				const timeoutMs = sessionResumeSeen ? 5000 : 2000;
+				if (Date.now() - waitStartedAt >= timeoutMs) {
+					log('Hydration timeout — no session_hydration received');
+					resolve();
+					return;
+				}
+				setTimeout(poll, 50);
+			};
+			poll();
+		}),
 	]);
 	const smEntries = sm.getEntries?.() ?? [];
 	log(`SessionManager has ${smEntries.length} entries after hydration`);

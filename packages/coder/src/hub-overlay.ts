@@ -209,8 +209,45 @@ type ScreenMode = 'list' | 'detail' | 'feed' | 'task';
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 const POLL_MS = 4_000;
 const REQUEST_TIMEOUT_MS = 5_000;
+const HISTORY_FETCH_FAILURE_COOLDOWN_MS = 15_000;
 const MAX_FEED_ITEMS = 80;
 const STREAM_SESSION_LIMIT = 8;
+
+class HubRequestError extends Error {
+	public readonly _tag = 'HubRequestError';
+	public readonly path: string;
+	public readonly status: number;
+	public readonly statusText?: string;
+	public readonly body?: string;
+	public readonly plainArgs: {
+		path: string;
+		status: number;
+		statusText?: string;
+		body?: string;
+	};
+
+	constructor(args: {
+		message: string;
+		path: string;
+		status: number;
+		statusText?: string;
+		body?: string;
+		cause?: unknown;
+	}) {
+		super(args.message, args.cause === undefined ? undefined : { cause: args.cause });
+		this.name = 'HubRequestError';
+		this.path = args.path;
+		this.status = args.status;
+		this.statusText = args.statusText;
+		this.body = args.body;
+		this.plainArgs = {
+			path: args.path,
+			status: args.status,
+			statusText: args.statusText,
+			body: args.body,
+		};
+	}
+}
 
 function visibleWidth(text: string): number {
 	return text.replace(ANSI_RE, '').replace(/\t/g, '    ').length;
@@ -483,8 +520,14 @@ export class HubOverlay implements Component, Focusable {
 	private streamSources = new Map<string, StreamProjectionSource>();
 	private replayLoadedSessions = new Set<string>();
 	private replayInFlight = new Set<string>();
+	private replayRequestControllers = new Map<string, AbortController>();
+	private replayRequestGenerations = new Map<string, number>();
+	private replayFailureUntil = new Map<string, number>();
 	private eventHistoryLoadedSessions = new Set<string>();
 	private eventHistoryInFlight = new Set<string>();
+	private eventHistoryRequestControllers = new Map<string, AbortController>();
+	private eventHistoryRequestGenerations = new Map<string, number>();
+	private eventHistoryFailureUntil = new Map<string, number>();
 	private previousDigests = new Map<string, SessionDigest>();
 
 	private loadingList = true;
@@ -663,6 +706,14 @@ export class HubOverlay implements Component, Focusable {
 			stream.controller.abort();
 		}
 		this.sseControllers.clear();
+		for (const controller of this.replayRequestControllers.values()) {
+			controller.abort();
+		}
+		this.replayRequestControllers.clear();
+		for (const controller of this.eventHistoryRequestControllers.values()) {
+			controller.abort();
+		}
+		this.eventHistoryRequestControllers.clear();
 	}
 
 	private requestRender(): void {
@@ -671,6 +722,81 @@ export class HubOverlay implements Component, Focusable {
 		} catch {
 			// Best effort render invalidation.
 		}
+	}
+
+	private nextRequestGeneration(generations: Map<string, number>, sessionId: string): number {
+		const next = (generations.get(sessionId) ?? 0) + 1;
+		generations.set(sessionId, next);
+		return next;
+	}
+
+	private invalidateSessionRequest(
+		generations: Map<string, number>,
+		controllers: Map<string, AbortController>,
+		inFlight: Set<string>,
+		sessionId: string
+	): void {
+		this.nextRequestGeneration(generations, sessionId);
+		inFlight.delete(sessionId);
+		const controller = controllers.get(sessionId);
+		if (controller) controller.abort();
+		controllers.delete(sessionId);
+	}
+
+	private isCurrentSessionRequest(
+		generations: Map<string, number>,
+		controllers: Map<string, AbortController>,
+		sessionId: string,
+		generation: number,
+		controller: AbortController
+	): boolean {
+		return (
+			!controller.signal.aborted &&
+			generations.get(sessionId) === generation &&
+			controllers.get(sessionId) === controller
+		);
+	}
+
+	private isFailureCoolingDown(failureUntil: Map<string, number>, sessionId: string): boolean {
+		const until = failureUntil.get(sessionId);
+		if (!until) return false;
+		if (until <= Date.now()) {
+			failureUntil.delete(sessionId);
+			return false;
+		}
+		return true;
+	}
+
+	private markFailureCooldown(failureUntil: Map<string, number>, sessionId: string): void {
+		failureUntil.set(sessionId, Date.now() + HISTORY_FETCH_FAILURE_COOLDOWN_MS);
+	}
+
+	private clearReplayFailureCooldown(sessionId: string): void {
+		this.replayFailureUntil.delete(sessionId);
+	}
+
+	private clearEventHistoryFailureCooldown(sessionId: string): void {
+		this.eventHistoryFailureUntil.delete(sessionId);
+	}
+
+	private resetHistoricalSessionState(sessionId: string): void {
+		this.invalidateSessionRequest(
+			this.replayRequestGenerations,
+			this.replayRequestControllers,
+			this.replayInFlight,
+			sessionId
+		);
+		this.invalidateSessionRequest(
+			this.eventHistoryRequestGenerations,
+			this.eventHistoryRequestControllers,
+			this.eventHistoryInFlight,
+			sessionId
+		);
+		this.replayLoadedSessions.delete(sessionId);
+		this.eventHistoryLoadedSessions.delete(sessionId);
+		this.sessionHistoryFeed.delete(sessionId);
+		this.clearReplayFailureCooldown(sessionId);
+		this.clearEventHistoryFailureCooldown(sessionId);
 	}
 
 	private close(): void {
@@ -1058,6 +1184,7 @@ export class HubOverlay implements Component, Focusable {
 
 	private applyReplayEntries(sessionId: string, entries: ConversationEntryLike[]): void {
 		const projection = buildProjectionFromEntries(entries);
+		this.clearReplayFailureCooldown(sessionId);
 		if (this.replaceStreamProjection(sessionId, projection, 'replay')) {
 			this.replayLoadedSessions.add(sessionId);
 		}
@@ -1070,6 +1197,15 @@ export class HubOverlay implements Component, Focusable {
 		taskId?: string
 	): void {
 		if (!chunk) return;
+		this.clearReplayFailureCooldown(sessionId);
+		if (this.replayInFlight.has(sessionId)) {
+			this.invalidateSessionRequest(
+				this.replayRequestGenerations,
+				this.replayRequestControllers,
+				this.replayInFlight,
+				sessionId
+			);
+		}
 		this.setStreamSource(sessionId, 'live');
 
 		// Session stream is lead/top-level only; task-scoped output lives in task buffers.
@@ -1159,16 +1295,21 @@ export class HubOverlay implements Component, Focusable {
 					: {}),
 			};
 			if (apiKey) headers['x-agentuity-auth-api-key'] = apiKey;
+			const signal = init?.signal
+				? AbortSignal.any([controller.signal, init.signal])
+				: controller.signal;
 			const response = await fetch(`${this.baseUrl}${path}`, {
 				...init,
 				headers,
-				signal: controller.signal,
+				signal,
 			});
 			if (!response.ok) {
 				let message = `Hub returned ${response.status}`;
+				let rawBody = '';
 				try {
 					const text = await response.text();
 					if (text) {
+						rawBody = text;
 						try {
 							const parsed = JSON.parse(text) as { error?: unknown; message?: unknown };
 							if (typeof parsed.error === 'string' && parsed.error.trim()) {
@@ -1185,7 +1326,13 @@ export class HubOverlay implements Component, Focusable {
 				} catch {
 					// Fall back to the status-only message.
 				}
-				throw new Error(message);
+				throw new HubRequestError({
+					message,
+					path,
+					status: response.status,
+					statusText: response.statusText || undefined,
+					body: rawBody || undefined,
+				});
 			}
 			return (await response.json()) as T;
 		} finally {
@@ -1254,6 +1401,7 @@ export class HubOverlay implements Component, Focusable {
 	}): {
 		label: string;
 		tone: 'success' | 'warning' | 'error' | 'accent' | 'muted';
+		controlAvailable: boolean;
 	} {
 		const isLocalSession = input.mode === 'tui';
 		const isArchived = this.isArchivedStatus(input.status);
@@ -1263,23 +1411,27 @@ export class HubOverlay implements Component, Focusable {
 		const historyOnly = input.historyOnly === true || bucket === 'history';
 		const canWake = !isLocalSession && !isArchived && bucket === 'paused' && historyOnly !== true;
 
-		if (historyOnly) return { label: 'History only', tone: 'warning' };
+		if (historyOnly) return { label: 'History only', tone: 'warning', controlAvailable };
 		if (isLocalSession && bucket === 'provisioning')
-			return { label: 'Starting', tone: 'warning' };
-		if (isLocalSession && !isArchived) return { label: 'View only', tone: 'muted' };
-		if (bucket === 'provisioning') return { label: 'Starting', tone: 'warning' };
+			return { label: 'Starting', tone: 'warning', controlAvailable };
+		if (isLocalSession && !isArchived)
+			return { label: 'View only', tone: 'muted', controlAvailable };
+		if (bucket === 'provisioning')
+			return { label: 'Starting', tone: 'warning', controlAvailable };
 		if (canWake) {
 			return {
 				label: this.resumeBusySessionId === input.sessionId ? 'Waking' : 'Paused',
 				tone: this.resumeBusySessionId === input.sessionId ? 'accent' : 'warning',
+				controlAvailable,
 			};
 		}
 		if (!isArchived && runtimeAvailable && !controlAvailable) {
-			return { label: 'Read only', tone: 'muted' };
+			return { label: 'Read only', tone: 'muted', controlAvailable };
 		}
-		if (!isArchived && runtimeAvailable) return { label: 'Live', tone: 'success' };
-		if (isArchived) return { label: 'Archived', tone: 'muted' };
-		return { label: 'Disconnected', tone: 'warning' };
+		if (!isArchived && runtimeAvailable)
+			return { label: 'Live', tone: 'success', controlAvailable };
+		if (isArchived) return { label: 'Archived', tone: 'muted', controlAvailable };
+		return { label: 'Disconnected', tone: 'warning', controlAvailable };
 	}
 
 	private formatTagSummary(tags: string[] | undefined, maxCount = 4): string | null {
@@ -1412,6 +1564,9 @@ export class HubOverlay implements Component, Focusable {
 			this.detail = detail;
 			this.detailSessionId = sessionId;
 			this.replaceStreamProjection(sessionId, detail.stream, 'snapshot');
+			if (detail.runtimeAvailable !== false && detail.historyOnly !== true) {
+				this.resetHistoricalSessionState(sessionId);
+			}
 			const taskCount = detail.tasks?.length ?? 0;
 			if (taskCount === 0) {
 				this.selectedTaskIndex = 0;
@@ -1437,24 +1592,64 @@ export class HubOverlay implements Component, Focusable {
 	}
 
 	private async refreshReplay(sessionId: string): Promise<void> {
+		if (this.isFailureCoolingDown(this.replayFailureUntil, sessionId)) return;
 		if (this.replayLoadedSessions.has(sessionId) || this.replayInFlight.has(sessionId)) return;
+		const controller = new AbortController();
+		const generation = this.nextRequestGeneration(this.replayRequestGenerations, sessionId);
 		this.replayInFlight.add(sessionId);
+		this.replayRequestControllers.set(sessionId, controller);
 		try {
 			const data = await this.fetchJson<HubReplayResponse>(
 				`/api/hub/session/${encodeURIComponent(sessionId)}/replay`,
-				15_000
+				15_000,
+				{ signal: controller.signal }
 			);
+			if (
+				!this.isCurrentSessionRequest(
+					this.replayRequestGenerations,
+					this.replayRequestControllers,
+					sessionId,
+					generation,
+					controller
+				)
+			) {
+				return;
+			}
 			this.applyReplayEntries(sessionId, Array.isArray(data.entries) ? data.entries : []);
 			this.replayLoadedSessions.add(sessionId);
 			this.requestRender();
 		} catch (err) {
+			if (
+				controller.signal.aborted ||
+				!this.isCurrentSessionRequest(
+					this.replayRequestGenerations,
+					this.replayRequestControllers,
+					sessionId,
+					generation,
+					controller
+				)
+			) {
+				return;
+			}
+			this.markFailureCooldown(this.replayFailureUntil, sessionId);
 			this.pushFeed(
 				`${this.getSessionLabel(sessionId)}: replay unavailable (${err instanceof Error ? err.message : String(err)})`,
 				sessionId
 			);
 			this.requestRender();
 		} finally {
-			this.replayInFlight.delete(sessionId);
+			if (
+				this.isCurrentSessionRequest(
+					this.replayRequestGenerations,
+					this.replayRequestControllers,
+					sessionId,
+					generation,
+					controller
+				)
+			) {
+				this.replayInFlight.delete(sessionId);
+				this.replayRequestControllers.delete(sessionId);
+			}
 		}
 	}
 
@@ -1471,18 +1666,36 @@ export class HubOverlay implements Component, Focusable {
 	}
 
 	private async refreshEventHistory(sessionId: string): Promise<void> {
+		if (this.isFailureCoolingDown(this.eventHistoryFailureUntil, sessionId)) {
+			return;
+		}
 		if (
 			this.eventHistoryLoadedSessions.has(sessionId) ||
 			this.eventHistoryInFlight.has(sessionId)
 		) {
 			return;
 		}
+		const controller = new AbortController();
+		const generation = this.nextRequestGeneration(this.eventHistoryRequestGenerations, sessionId);
 		this.eventHistoryInFlight.add(sessionId);
+		this.eventHistoryRequestControllers.set(sessionId, controller);
 		try {
 			const data = await this.fetchJson<HubEventHistoryResponse>(
 				`/api/hub/session/${encodeURIComponent(sessionId)}/events/history?limit=100`,
-				15_000
+				15_000,
+				{ signal: controller.signal }
 			);
+			if (
+				!this.isCurrentSessionRequest(
+					this.eventHistoryRequestGenerations,
+					this.eventHistoryRequestControllers,
+					sessionId,
+					generation,
+					controller
+				)
+			) {
+				return;
+			}
 			const entries = (data.events ?? [])
 				.map((event): FeedEntry | null => {
 					const text = this.formatHistoryEventLine(sessionId, event);
@@ -1498,16 +1711,41 @@ export class HubOverlay implements Component, Focusable {
 				.filter((entry): entry is FeedEntry => entry !== null)
 				.sort((a, b) => b.at - a.at);
 			this.sessionHistoryFeed.set(sessionId, entries);
+			this.clearEventHistoryFailureCooldown(sessionId);
 			this.eventHistoryLoadedSessions.add(sessionId);
 			this.requestRender();
 		} catch (err) {
+			if (
+				controller.signal.aborted ||
+				!this.isCurrentSessionRequest(
+					this.eventHistoryRequestGenerations,
+					this.eventHistoryRequestControllers,
+					sessionId,
+					generation,
+					controller
+				)
+			) {
+				return;
+			}
+			this.markFailureCooldown(this.eventHistoryFailureUntil, sessionId);
 			this.pushFeed(
 				`${this.getSessionLabel(sessionId)}: event history unavailable (${err instanceof Error ? err.message : String(err)})`,
 				sessionId
 			);
 			this.requestRender();
 		} finally {
-			this.eventHistoryInFlight.delete(sessionId);
+			if (
+				this.isCurrentSessionRequest(
+					this.eventHistoryRequestGenerations,
+					this.eventHistoryRequestControllers,
+					sessionId,
+					generation,
+					controller
+				)
+			) {
+				this.eventHistoryInFlight.delete(sessionId);
+				this.eventHistoryRequestControllers.delete(sessionId);
+			}
 		}
 	}
 
@@ -1518,14 +1756,15 @@ export class HubOverlay implements Component, Focusable {
 		this.requestRender();
 
 		try {
-			await this.fetchJson<{ resumed?: boolean; error?: string }>(
+			const response = await this.fetchJson<{ resumed?: boolean; error?: string }>(
 				`/api/hub/session/${encodeURIComponent(sessionId)}/resume`,
 				15_000,
 				{ method: 'POST' }
 			);
-			this.replayLoadedSessions.delete(sessionId);
-			this.eventHistoryLoadedSessions.delete(sessionId);
-			this.sessionHistoryFeed.delete(sessionId);
+			if (response.resumed !== true) {
+				throw new Error(response.error || 'Hub declined to resume the session');
+			}
+			this.resetHistoricalSessionState(sessionId);
 			await this.refreshList();
 			await this.refreshDetail(sessionId);
 		} catch (err) {
@@ -2321,7 +2560,7 @@ export class HubOverlay implements Component, Focusable {
 				this.contentLine(
 					`  Connection: ${this.theme.fg(connection.tone, connection.label)}  Runtime: ${
 						session.runtimeAvailable === false ? 'offline' : 'ready'
-					}  Control: ${session.controlAvailable ? 'enabled' : 'read-only'}`,
+					}  Control: ${connection.controlAvailable ? 'enabled' : 'read-only'}`,
 					inner
 				)
 			);
