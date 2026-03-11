@@ -13,6 +13,14 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
+import {
+	applyRemoteLifecycleEvent,
+	createRemoteLifecycleState,
+	getRemoteLifecycleActivityLabel,
+	getRemoteLifecycleLabel,
+	getRemoteLifecycleWorkingMessage,
+	type RemoteLifecycleState,
+} from './remote-lifecycle.ts';
 
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
@@ -54,6 +62,7 @@ export type RemoteUiHandler = (request: RpcUiRequest) => Promise<unknown>;
 export type RemoteConnectionHandler = (
 	state: 'connected' | 'reconnecting' | 'disconnected'
 ) => void;
+export type RemoteLifecycleHandler = (state: RemoteLifecycleState) => void;
 
 // ── Remote Session Client ──
 
@@ -72,6 +81,9 @@ export class RemoteSession {
 	private uiHandler: RemoteUiHandler | null = null;
 	private responseHandlers: RemoteResponseHandler[] = [];
 	private connectionHandlers: RemoteConnectionHandler[] = [];
+	private lifecycleHandlers: RemoteLifecycleHandler[] = [];
+	private lifecycleState: RemoteLifecycleState;
+	private replaySettledTimer: ReturnType<typeof setTimeout> | null = null;
 
 	/** Session ID this client is connected to */
 	public sessionId: string;
@@ -84,6 +96,7 @@ export class RemoteSession {
 
 	constructor(sessionId: string) {
 		this.sessionId = sessionId;
+		this.lifecycleState = createRemoteLifecycleState(sessionId);
 	}
 
 	private dispatchEvent(event: RpcEvent): void {
@@ -106,6 +119,84 @@ export class RemoteSession {
 		}
 	}
 
+	private applyLifecycle(event: Parameters<typeof applyRemoteLifecycleEvent>[1]): void {
+		const next = applyRemoteLifecycleEvent(this.lifecycleState, event);
+		if (next === this.lifecycleState) return;
+		this.lifecycleState = next;
+		for (const handler of this.lifecycleHandlers) {
+			try {
+				handler(this.lifecycleState);
+			} catch (err) {
+				log(`Lifecycle handler error: ${err instanceof Error ? err.message : String(err)}`);
+			}
+		}
+	}
+
+	private clearReplaySettledTimer(): void {
+		if (!this.replaySettledTimer) return;
+		clearTimeout(this.replaySettledTimer);
+		this.replaySettledTimer = null;
+	}
+
+	private scheduleReplaySettled(): void {
+		this.clearReplaySettledTimer();
+		this.replaySettledTimer = setTimeout(() => {
+			this.replaySettledTimer = null;
+			this.applyLifecycle({ type: 'replay_idle' });
+		}, 400);
+	}
+
+	private observeLiveSignal(eventType: string, isStreaming?: boolean): void {
+		const liveEvents = new Set([
+			'agent_start',
+			'agent_end',
+			'message_start',
+			'message_update',
+			'message_end',
+			'thinking_start',
+			'thinking_update',
+			'thinking_end',
+			'tool_call',
+			'tool_result',
+			'tool_execution_start',
+			'tool_execution_end',
+			'task_start',
+			'task_complete',
+			'task_error',
+			'turn_start',
+			'turn_end',
+			'rpc_response',
+			'rpc_ui_request',
+		]);
+		if (!liveEvents.has(eventType)) return;
+
+		this.clearReplaySettledTimer();
+		this.applyLifecycle({ type: 'live_signal', isStreaming });
+	}
+
+	private getLiveSignalStreamingState(eventType: string): boolean | undefined {
+		if (
+			eventType === 'agent_start' ||
+			eventType === 'message_start' ||
+			eventType === 'message_update' ||
+			eventType === 'thinking_start' ||
+			eventType === 'thinking_update' ||
+			eventType === 'tool_execution_start' ||
+			eventType === 'turn_start' ||
+			eventType === 'task_start'
+		) {
+			return true;
+		}
+		if (eventType === 'agent_end' || eventType === 'turn_end') {
+			return false;
+		}
+		return undefined;
+	}
+
+	private shouldMarkResuming(commandType: string): boolean {
+		return commandType === 'prompt' || commandType === 'follow_up' || commandType === 'steer';
+	}
+
 	/** Register a handler for RPC events from the sandbox */
 	onEvent(handler: RemoteEventHandler): void {
 		this.eventHandlers.push(handler);
@@ -126,6 +217,16 @@ export class RemoteSession {
 		this.connectionHandlers.push(handler);
 	}
 
+	/** Register a lifecycle state handler for remote attach/replay/live transitions. */
+	onLifecycleChange(handler: RemoteLifecycleHandler): void {
+		this.lifecycleHandlers.push(handler);
+		handler(this.lifecycleState);
+	}
+
+	getLifecycleState(): RemoteLifecycleState {
+		return this.lifecycleState;
+	}
+
 	/** Connect to the Hub WebSocket as a controller for the remote session */
 	async connect(hubWsUrl: string): Promise<void> {
 		this.hubWsUrl = hubWsUrl;
@@ -137,6 +238,7 @@ export class RemoteSession {
 	private doConnect(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			const isReconnect = this.reconnectAttempts > 0;
+			this.applyLifecycle({ type: 'connect_start', reconnect: isReconnect });
 
 			// Build URL with controller params
 			const url = new URL(this.hubWsUrl);
@@ -180,6 +282,11 @@ export class RemoteSession {
 					this.connected = true;
 					this.reconnectAttempts = 0;
 					if (data.sessionId) this.sessionId = data.sessionId as string;
+					this.applyLifecycle({
+						type: 'init',
+						sessionId: typeof data.sessionId === 'string' ? data.sessionId : undefined,
+						label: typeof data.label === 'string' ? data.label : undefined,
+					});
 					log(`Connected to session ${this.sessionId}`);
 					this.notifyConnectionChange('connected');
 					resolve();
@@ -190,7 +297,55 @@ export class RemoteSession {
 				if (type === 'connection_rejected') {
 					clearTimeout(connectTimeout);
 					const msg = (data.message as string) || 'Connection rejected';
+					this.applyLifecycle({
+						type: 'rpc_command_error',
+						error: msg,
+						paused: false,
+					});
 					reject(new Error(msg));
+					return;
+				}
+
+				if (type === 'session_resume') {
+					this.applyLifecycle({
+						type: 'session_resume',
+						streamId: typeof data.streamId === 'string' ? data.streamId : null,
+						streamUrl: typeof data.streamUrl === 'string' ? data.streamUrl : null,
+					});
+					this.dispatchEvent({
+						type: 'session_resume',
+						...data,
+						_source: 'hub',
+					} as RpcEvent);
+					return;
+				}
+
+				if (type === 'session_stream_ready') {
+					this.applyLifecycle({
+						type: 'stream_ready',
+						streamId: typeof data.streamId === 'string' ? data.streamId : null,
+						streamUrl: typeof data.streamUrl === 'string' ? data.streamUrl : null,
+					});
+					this.dispatchEvent({
+						type: 'session_stream_ready',
+						...data,
+						_source: 'hub',
+					} as RpcEvent);
+					return;
+				}
+
+				if (type === 'rpc_command_error') {
+					const error = typeof data.error === 'string' ? data.error : 'Remote command failed';
+					this.applyLifecycle({
+						type: 'rpc_command_error',
+						error,
+						paused: /sandbox .*not connected|resume/i.test(error),
+					});
+					this.dispatchEvent({
+						type: 'rpc_command_error',
+						...data,
+						_source: 'hub',
+					} as RpcEvent);
 					return;
 				}
 
@@ -201,11 +356,21 @@ export class RemoteSession {
 					const broadcastData = (data.data as Record<string, unknown>) ?? {};
 					if (broadcastEvent === 'rpc_event') {
 						const rpcEvent = broadcastData.event as RpcEvent;
-						if (rpcEvent) this.dispatchEvent({ ...rpcEvent, _source: 'live' } as RpcEvent);
+						if (rpcEvent) {
+							this.observeLiveSignal(
+								rpcEvent.type,
+								this.getLiveSignalStreamingState(rpcEvent.type)
+							);
+							this.dispatchEvent({ ...rpcEvent, _source: 'live' } as RpcEvent);
+						}
 					} else if (broadcastEvent === 'rpc_response') {
 						const response = broadcastData.response as RpcResponse;
-						if (response) this.dispatchResponse(response);
+						if (response) {
+							this.observeLiveSignal('rpc_response');
+							this.dispatchResponse(response);
+						}
 					} else if (broadcastEvent === 'rpc_ui_request') {
+						this.observeLiveSignal('rpc_ui_request');
 						this.handleUiRequest({
 							id: broadcastData.id as string,
 							method: broadcastData.method as string,
@@ -215,6 +380,10 @@ export class RemoteSession {
 						// Lifecycle event broadcasts (agent_start, message_end, turn_start, etc.)
 						// The broadcastData IS the event payload with a `type` field matching broadcastEvent.
 						// Dispatch as a regular event so the TUI can render agent activity.
+						this.observeLiveSignal(
+							broadcastEvent,
+							this.getLiveSignalStreamingState(broadcastEvent)
+						);
 						this.dispatchEvent({
 							type: broadcastEvent,
 							...broadcastData,
@@ -227,17 +396,25 @@ export class RemoteSession {
 				// Raw RPC messages (from Durable Stream replay — historical, not live)
 				if (type === 'rpc_event') {
 					const rpcEvent = data.event as RpcEvent;
-					if (rpcEvent) this.dispatchEvent({ ...rpcEvent, _source: 'replay' } as RpcEvent);
+					if (rpcEvent) {
+						this.applyLifecycle({ type: 'replay_event' });
+						this.scheduleReplaySettled();
+						this.dispatchEvent({ ...rpcEvent, _source: 'replay' } as RpcEvent);
+					}
 					return;
 				}
 
 				if (type === 'rpc_response') {
 					const response = data.response as RpcResponse;
-					if (response) this.dispatchResponse(response);
+					if (response) {
+						this.observeLiveSignal('rpc_response');
+						this.dispatchResponse(response);
+					}
 					return;
 				}
 
 				if (type === 'rpc_ui_request') {
+					this.observeLiveSignal('rpc_ui_request');
 					this.handleUiRequest({
 						id: data.id as string,
 						method: data.method as string,
@@ -248,6 +425,16 @@ export class RemoteSession {
 
 				// Session hydration (conversation entries + task states from observer hydration)
 				if (type === 'session_hydration') {
+					this.applyLifecycle({
+						type: 'hydration',
+						leadConnected:
+							typeof data.leadConnected === 'boolean' ? data.leadConnected : undefined,
+						isStreaming:
+							typeof (data.streamingState as { isStreaming?: unknown } | undefined)
+								?.isStreaming === 'boolean'
+								? Boolean((data.streamingState as { isStreaming?: boolean }).isStreaming)
+								: undefined,
+					});
 					// Pass through as an event so the extension can render it
 					for (const handler of this.eventHandlers) {
 						try {
@@ -276,10 +463,12 @@ export class RemoteSession {
 				clearTimeout(connectTimeout);
 				const wasConnected = this.connected;
 				this.connected = false;
+				this.clearReplaySettledTimer();
 				if (!this.intentionallyClosed) {
 					if (wasConnected) {
 						log('WebSocket closed unexpectedly — scheduling reconnect');
 						this.notifyConnectionChange('reconnecting');
+						this.applyLifecycle({ type: 'connection_change', state: 'reconnecting' });
 						this.scheduleReconnect();
 					} else if (!isReconnect) {
 						// Failed initial connect and not already in reconnect loop
@@ -295,6 +484,7 @@ export class RemoteSession {
 		if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
 			log(`Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached — giving up`);
 			this.notifyConnectionChange('disconnected');
+			this.applyLifecycle({ type: 'connection_change', state: 'disconnected' });
 			return;
 		}
 
@@ -333,6 +523,9 @@ export class RemoteSession {
 		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
 			log('Cannot send command — not connected');
 			return;
+		}
+		if (this.shouldMarkResuming(command.type) && this.lifecycleState.phase === 'paused') {
+			this.applyLifecycle({ type: 'local_resume_requested' });
 		}
 		this.ws.send(
 			JSON.stringify({
@@ -379,12 +572,14 @@ export class RemoteSession {
 	/** Close the connection */
 	close(): void {
 		this.intentionallyClosed = true;
+		this.clearReplaySettledTimer();
 		if (this.reconnectTimer) {
 			clearTimeout(this.reconnectTimer);
 			this.reconnectTimer = null;
 		}
 		this.ws?.close();
 		this.ws = null;
+		this.applyLifecycle({ type: 'connection_change', state: 'disconnected' });
 	}
 
 	get isConnected(): boolean {
@@ -456,6 +651,7 @@ export async function setupRemoteMode(
 	// Called by the extension setup to provide the rendering context
 	(remote as RemoteSessionInternal)._setExtensionCtx = (ctx: ExtensionContext) => {
 		extensionCtxRef = ctx;
+		applyLifecycleUi(remote.getLifecycleState());
 	};
 
 	// ── Render streaming output as a widget ──
@@ -475,6 +671,30 @@ export async function setupRemoteMode(
 	function clearStreamWidget(): void {
 		if (!extensionCtxRef?.hasUI) return;
 		extensionCtxRef.ui.setWidget('remote_stream', undefined);
+	}
+
+	function applyLifecycleUi(state: RemoteLifecycleState): void {
+		if (!extensionCtxRef?.hasUI) return;
+		const shortSession = state.sessionId.slice(0, 16);
+		extensionCtxRef.ui.setStatus(
+			'remote_connection',
+			`Remote: ${shortSession}${shortSession.length < state.sessionId.length ? '...' : ''} ${getRemoteLifecycleLabel(state)}`
+		);
+		const activity = getRemoteLifecycleActivityLabel(state);
+		if (activity) {
+			extensionCtxRef.ui.setStatus('remote_activity', activity);
+		} else {
+			extensionCtxRef.ui.setStatus(
+				'remote_activity',
+				state.isStreaming ? 'agent working...' : 'idle'
+			);
+		}
+		const working = getRemoteLifecycleWorkingMessage(state);
+		if (working) {
+			extensionCtxRef.ui.setWorkingMessage(working);
+		} else if (!state.isStreaming) {
+			extensionCtxRef.ui.setWorkingMessage();
+		}
 	}
 
 	// ── Set up UI handler (wired to Pi's UI later in setupRemoteModeExtension) ──
@@ -582,6 +802,33 @@ export async function setupRemoteMode(
 		const eventType = event.type as string;
 
 		switch (eventType) {
+			case 'session_resume':
+				log(
+					`Session resume signaled (${typeof (event as { streamId?: string }).streamId === 'string' ? (event as { streamId?: string }).streamId : 'no stream id'})`
+				);
+				break;
+
+			case 'session_stream_ready':
+				log(
+					`Durable stream ready (${typeof (event as { streamId?: string }).streamId === 'string' ? (event as { streamId?: string }).streamId : 'no stream id'})`
+				);
+				break;
+
+			case 'rpc_command_error': {
+				const error =
+					typeof (event as { error?: string }).error === 'string'
+						? (event as { error?: string }).error!
+						: 'Remote command failed';
+				if (extensionCtxRef?.hasUI) {
+					extensionCtxRef.ui.notify(error, 'warning');
+					extensionCtxRef.ui.setWorkingMessage();
+				}
+				isStreaming = false;
+				clearStreamWidget();
+				log(`Remote command error: ${error}`);
+				break;
+			}
+
 			case 'message_start':
 				messageBuffer = '';
 				thinkingBuffer = '';
@@ -766,25 +1013,9 @@ export async function setupRemoteMode(
 		}
 	});
 
-	// ── Connection state handling ──
-	remote.onConnectionChange((state) => {
-		if (!extensionCtxRef?.hasUI) return;
-		switch (state) {
-			case 'connected':
-				extensionCtxRef.ui.setStatus(
-					'remote_connection',
-					`Remote: ${sessionId.slice(0, 16)}...`
-				);
-				break;
-			case 'reconnecting':
-				extensionCtxRef.ui.setStatus('remote_connection', 'Reconnecting...');
-				extensionCtxRef.ui.setWorkingMessage('Connection lost — reconnecting...');
-				break;
-			case 'disconnected':
-				extensionCtxRef.ui.setStatus('remote_connection', 'Disconnected');
-				extensionCtxRef.ui.setWorkingMessage('Connection lost');
-				break;
-		}
+	// ── Connection/lifecycle state handling ──
+	remote.onLifecycleChange((state) => {
+		applyLifecycleUi(state);
 	});
 
 	// Request initial state from the sandbox
