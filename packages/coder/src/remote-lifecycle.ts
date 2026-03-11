@@ -23,6 +23,10 @@ export interface RemoteLifecycleState {
 	lastError: string | null;
 }
 
+export interface RemoteLifecycleWorkingMessageUi {
+	setWorkingMessage(message?: string): void;
+}
+
 export type RemoteLifecycleEvent =
 	| { type: 'connect_start'; reconnect: boolean }
 	| { type: 'init'; sessionId?: string; label?: string }
@@ -240,4 +244,27 @@ export function getRemoteLifecycleWorkingMessage(state: RemoteLifecycleState): s
 		case 'live':
 			return undefined;
 	}
+}
+
+export function clearRemoteLifecycleWorkingMessage(
+	ui: RemoteLifecycleWorkingMessageUi,
+	lifecycleOwnsWorkingMessage: boolean
+): boolean {
+	if (lifecycleOwnsWorkingMessage) {
+		ui.setWorkingMessage();
+	}
+	return false;
+}
+
+export function syncRemoteLifecycleWorkingMessage(
+	state: RemoteLifecycleState,
+	ui: RemoteLifecycleWorkingMessageUi,
+	lifecycleOwnsWorkingMessage: boolean
+): boolean {
+	const working = getRemoteLifecycleWorkingMessage(state);
+	if (working) {
+		ui.setWorkingMessage(working);
+		return true;
+	}
+	return clearRemoteLifecycleWorkingMessage(ui, lifecycleOwnsWorkingMessage);
 }

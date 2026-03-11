@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import {
 	applyRemoteLifecycleEvent,
+	clearRemoteLifecycleWorkingMessage,
 	createRemoteLifecycleState,
 	getRemoteLifecycleActivityLabel,
 	getRemoteLifecycleLabel,
 	getRemoteLifecycleWorkingMessage,
+	syncRemoteLifecycleWorkingMessage,
 } from '../src/remote-lifecycle.ts';
 
 describe('remote lifecycle state', () => {
@@ -99,5 +101,48 @@ describe('remote lifecycle state', () => {
 		expect(state.leadConnected).toBe(false);
 		expect(state.isStreaming).toBe(false);
 		expect(state.lastError).toContain('Sandbox is not connected');
+	});
+
+	it('clears lifecycle-owned working text when transitioning to live', () => {
+		const calls: Array<string | undefined> = [];
+		const ui = {
+			setWorkingMessage(message?: string) {
+				calls.push(message);
+			},
+		};
+		let state = createRemoteLifecycleState('sess_live_clear');
+		state = applyRemoteLifecycleEvent(state, { type: 'connect_start', reconnect: false });
+
+		let lifecycleOwnsWorkingMessage = syncRemoteLifecycleWorkingMessage(state, ui, false);
+		expect(lifecycleOwnsWorkingMessage).toBe(true);
+		expect(calls).toEqual(['Connecting to remote sandbox...']);
+
+		state = applyRemoteLifecycleEvent(state, { type: 'live_signal', isStreaming: true });
+		lifecycleOwnsWorkingMessage = syncRemoteLifecycleWorkingMessage(
+			state,
+			ui,
+			lifecycleOwnsWorkingMessage
+		);
+		expect(lifecycleOwnsWorkingMessage).toBe(false);
+		expect(calls).toEqual(['Connecting to remote sandbox...', undefined]);
+	});
+
+	it('does not clear non-lifecycle working text when live lifecycle updates arrive', () => {
+		const calls: Array<string | undefined> = [];
+		const ui = {
+			setWorkingMessage(message?: string) {
+				calls.push(message);
+			},
+		};
+		let state = createRemoteLifecycleState('sess_live_preserve');
+		state = applyRemoteLifecycleEvent(state, { type: 'live_signal', isStreaming: true });
+
+		const lifecycleOwnsWorkingMessage = syncRemoteLifecycleWorkingMessage(state, ui, false);
+		expect(lifecycleOwnsWorkingMessage).toBe(false);
+		expect(calls).toEqual([]);
+
+		const cleared = clearRemoteLifecycleWorkingMessage(ui, false);
+		expect(cleared).toBe(false);
+		expect(calls).toEqual([]);
 	});
 });

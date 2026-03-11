@@ -15,10 +15,11 @@
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
 import {
 	applyRemoteLifecycleEvent,
+	clearRemoteLifecycleWorkingMessage,
 	createRemoteLifecycleState,
 	getRemoteLifecycleActivityLabel,
 	getRemoteLifecycleLabel,
-	getRemoteLifecycleWorkingMessage,
+	syncRemoteLifecycleWorkingMessage,
 	type RemoteLifecycleState,
 } from './remote-lifecycle.ts';
 
@@ -645,16 +646,13 @@ export async function setupRemoteMode(
 ): Promise<RemoteSession> {
 	const remote = new RemoteSession(sessionId);
 
-	// Connect to Hub
-	await remote.connect(hubWsUrl);
-	log(`Remote mode active — session ${sessionId}`);
-
 	// ── Track streaming state for widget rendering ──
 	let messageBuffer = '';
 	let thinkingBuffer = '';
 	let isStreaming = false;
 	let currentTool: string | null = null;
 	let extensionCtxRef: ExtensionContext | null = null;
+	let lifecycleOwnsWorkingMessage = false;
 
 	// Called by the extension setup to provide the rendering context
 	(remote as RemoteSessionInternal)._setExtensionCtx = (ctx: ExtensionContext) => {
@@ -697,12 +695,30 @@ export async function setupRemoteMode(
 				state.isStreaming ? 'agent working...' : 'idle'
 			);
 		}
-		const working = getRemoteLifecycleWorkingMessage(state);
-		if (working) {
-			extensionCtxRef.ui.setWorkingMessage(working);
-		} else if (!state.isStreaming) {
-			extensionCtxRef.ui.setWorkingMessage();
+		lifecycleOwnsWorkingMessage = syncRemoteLifecycleWorkingMessage(
+			state,
+			extensionCtxRef.ui,
+			lifecycleOwnsWorkingMessage
+		);
+	}
+
+	function setNonLifecycleWorkingMessage(message?: string): void {
+		if (!extensionCtxRef?.hasUI) return;
+		extensionCtxRef.ui.setWorkingMessage(message);
+		lifecycleOwnsWorkingMessage = false;
+	}
+
+	function clearWorkingMessage(): void {
+		if (!extensionCtxRef?.hasUI) return;
+		if (lifecycleOwnsWorkingMessage) {
+			lifecycleOwnsWorkingMessage = clearRemoteLifecycleWorkingMessage(
+				extensionCtxRef.ui,
+				lifecycleOwnsWorkingMessage
+			);
+			return;
 		}
+		extensionCtxRef.ui.setWorkingMessage();
+		lifecycleOwnsWorkingMessage = false;
 	}
 
 	// ── Set up UI handler (wired to Pi's UI later in setupRemoteModeExtension) ──
@@ -829,7 +845,7 @@ export async function setupRemoteMode(
 						: 'Remote command failed';
 				if (extensionCtxRef?.hasUI) {
 					extensionCtxRef.ui.notify(error, 'warning');
-					extensionCtxRef.ui.setWorkingMessage();
+					clearWorkingMessage();
 				}
 				isStreaming = false;
 				clearStreamWidget();
@@ -842,7 +858,7 @@ export async function setupRemoteMode(
 				thinkingBuffer = '';
 				isStreaming = true;
 				if (extensionCtxRef?.hasUI) {
-					extensionCtxRef.ui.setWorkingMessage('Responding...');
+					setNonLifecycleWorkingMessage('Responding...');
 				}
 				break;
 
@@ -856,9 +872,7 @@ export async function setupRemoteMode(
 			case 'message_end': {
 				isStreaming = false;
 				clearStreamWidget();
-				if (extensionCtxRef?.hasUI) {
-					extensionCtxRef.ui.setWorkingMessage();
-				}
+				clearWorkingMessage();
 
 				// Extract content — prefer streamed buffer, fall back to message_end payload
 				let finalContent = messageBuffer.trim();
@@ -943,7 +957,7 @@ export async function setupRemoteMode(
 				const tool = (event as { toolName?: string }).toolName ?? 'tool';
 				currentTool = tool;
 				if (extensionCtxRef?.hasUI) {
-					extensionCtxRef.ui.setWorkingMessage(`Running ${tool}...`);
+					setNonLifecycleWorkingMessage(`Running ${tool}...`);
 					extensionCtxRef.ui.setStatus('remote_activity', `Running ${tool}...`);
 				}
 				log(`Tool: ${tool}`);
@@ -954,7 +968,7 @@ export async function setupRemoteMode(
 				const tool = (event as { toolName?: string }).toolName ?? currentTool ?? 'tool';
 				currentTool = null;
 				if (extensionCtxRef?.hasUI) {
-					extensionCtxRef.ui.setWorkingMessage();
+					clearWorkingMessage();
 					extensionCtxRef.ui.setStatus('remote_activity', 'agent working...');
 				}
 				log(`Tool done: ${tool}`);
@@ -971,8 +985,8 @@ export async function setupRemoteMode(
 			case 'turn_end':
 				if (extensionCtxRef?.hasUI) {
 					extensionCtxRef.ui.setStatus('remote_activity', 'idle');
-					extensionCtxRef.ui.setWorkingMessage();
 				}
+				clearWorkingMessage();
 				clearStreamWidget();
 				log('Turn ended');
 				break;
@@ -1009,14 +1023,12 @@ export async function setupRemoteMode(
 
 			case 'auto_compaction_start':
 				if (extensionCtxRef?.hasUI) {
-					extensionCtxRef.ui.setWorkingMessage('Compacting context...');
+					setNonLifecycleWorkingMessage('Compacting context...');
 				}
 				break;
 
 			case 'auto_compaction_end':
-				if (extensionCtxRef?.hasUI) {
-					extensionCtxRef.ui.setWorkingMessage();
-				}
+				clearWorkingMessage();
 				break;
 		}
 	});
@@ -1025,6 +1037,10 @@ export async function setupRemoteMode(
 	remote.onLifecycleChange((state) => {
 		applyLifecycleUi(state);
 	});
+
+	// Connect to Hub after all listeners are attached so hydration/replay frames are not dropped.
+	await remote.connect(hubWsUrl);
+	log(`Remote mode active — session ${sessionId}`);
 
 	// Request initial state from the sandbox
 	remote.getState();

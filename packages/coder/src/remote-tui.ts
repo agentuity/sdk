@@ -39,9 +39,10 @@ import {
 	waitForNativeRemoteExtensionContext,
 } from './native-remote-ui-context.ts';
 import {
+	clearRemoteLifecycleWorkingMessage,
 	getRemoteLifecycleActivityLabel,
 	getRemoteLifecycleLabel,
-	getRemoteLifecycleWorkingMessage,
+	syncRemoteLifecycleWorkingMessage,
 	type RemoteLifecycleState,
 } from './remote-lifecycle.ts';
 import { RemoteSession } from './remote-session.ts';
@@ -111,6 +112,7 @@ export async function runRemoteTui(options: {
 	// Access the Agent instance (typed as `any` for monkey-patching)
 	const agent: any = session.agent;
 	let lifecycleState = remote.getLifecycleState();
+	let lifecycleOwnsWorkingMessage = false;
 
 	function applyLifecycleUi(state: RemoteLifecycleState): void {
 		const ctx = getNativeRemoteExtensionContext();
@@ -129,12 +131,11 @@ export async function runRemoteTui(options: {
 			ctx.ui.setStatus('remote_activity', state.isStreaming ? 'agent working...' : 'idle');
 		}
 
-		const working = getRemoteLifecycleWorkingMessage(state);
-		if (working) {
-			ctx.ui.setWorkingMessage(working);
-		} else if (!state.isStreaming) {
-			ctx.ui.setWorkingMessage();
-		}
+		lifecycleOwnsWorkingMessage = syncRemoteLifecycleWorkingMessage(
+			state,
+			ctx.ui,
+			lifecycleOwnsWorkingMessage
+		);
 	}
 
 	remote.onLifecycleChange((state) => {
@@ -346,7 +347,10 @@ export async function runRemoteTui(options: {
 			const ctx = getNativeRemoteExtensionContext();
 			if (ctx?.hasUI) {
 				ctx.ui.notify(error, 'warning');
-				ctx.ui.setWorkingMessage();
+				lifecycleOwnsWorkingMessage = clearRemoteLifecycleWorkingMessage(
+					ctx.ui,
+					lifecycleOwnsWorkingMessage
+				);
 			}
 			agent._state.error = error;
 			seenAgentStart = false;
