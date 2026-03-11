@@ -1,5 +1,14 @@
 import { type Theme, getMarkdownTheme } from '@mariozechner/pi-coding-agent';
 import { matchesKey, Markdown as MdComponent } from '@mariozechner/pi-tui';
+import {
+	buildProjectionFromEntries,
+	normalizeStreamProjection,
+	shouldReplaceStreamProjection,
+	type ConversationEntryLike,
+	type StreamBuffer,
+	type StreamProjection,
+	type StreamProjectionSource,
+} from './hub-overlay-state.ts';
 import { truncateToWidth } from './renderers.ts';
 
 interface Component {
@@ -26,6 +35,20 @@ interface HubSessionSummary {
 	taskCount: number;
 	participantCount: number;
 	createdAt: string;
+	bucket?: 'running' | 'paused' | 'provisioning' | 'history';
+	runtimeAvailable?: boolean;
+	controlAvailable?: boolean;
+	historyOnly?: boolean;
+	tags?: string[];
+	skills?: HubSessionSkillRef[];
+	defaultAgent?: string;
+}
+
+interface HubSessionSkillRef {
+	skillId: string;
+	repo: string;
+	name?: string;
+	url?: string;
 }
 
 interface HubParticipant {
@@ -72,9 +95,21 @@ type AgentActivity = Record<
 		status?: string;
 		currentTool?: string;
 		toolCallCount?: number;
-		lastActivity?: string;
+		lastActivity?: string | number;
+		currentToolArgs?: string;
+		totalElapsed?: number;
 	}
 >;
+
+interface HubSessionDiagnostics {
+	inactiveRunningTasks?: Array<{
+		taskId: string;
+		agent: string;
+		inactivityMs: number;
+		startedAt: string;
+		lastActivityAt?: string;
+	}>;
+}
 
 interface HubSessionDetail {
 	sessionId: string;
@@ -82,6 +117,18 @@ interface HubSessionDetail {
 	status: string;
 	createdAt: string;
 	mode: string;
+	task?: string;
+	error?: string;
+	streamId?: string | null;
+	streamUrl?: string | null;
+	tags?: string[];
+	skills?: HubSessionSkillRef[];
+	defaultAgent?: string;
+	bucket?: 'running' | 'paused' | 'provisioning' | 'history';
+	runtimeAvailable?: boolean;
+	controlAvailable?: boolean;
+	historyOnly?: boolean;
+	diagnostics?: HubSessionDiagnostics;
 	context?: {
 		branch?: string;
 		workingDirectory?: string;
@@ -92,11 +139,7 @@ interface HubSessionDetail {
 	todoSummary?: HubTodoSummary;
 	todosUnavailable?: string;
 	agentActivity?: AgentActivity;
-	stream?: {
-		output?: string;
-		thinking?: string;
-		tasks?: Record<string, { output?: string; thinking?: string }>;
-	};
+	stream?: StreamProjection;
 }
 
 interface HubTodoListResponse {
@@ -112,6 +155,27 @@ interface HubListResponse {
 	sessions?: {
 		websocket?: HubSessionSummary[];
 	};
+}
+
+interface HubReplayResponse {
+	sessionId: string;
+	entries?: ConversationEntryLike[];
+}
+
+interface HubEventHistoryItem {
+	id: number;
+	event: string;
+	category?: string;
+	agent?: string;
+	taskId?: string;
+	payload?: unknown;
+	occurredAt: string;
+	ingestedAt?: string;
+}
+
+interface HubEventHistoryResponse {
+	sessionId: string;
+	events?: HubEventHistoryItem[];
 }
 
 interface FeedEntry {
@@ -130,11 +194,6 @@ interface SessionDigest {
 interface SessionStreamState {
 	controller: AbortController;
 	mode: 'summary' | 'full';
-}
-
-interface StreamBuffer {
-	output: string;
-	thinking: string;
 }
 
 interface HubOverlayOptions {
@@ -195,8 +254,8 @@ function formatClock(ms: number): string {
 	return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function formatRelative(isoDate: string): string {
-	const ts = Date.parse(isoDate);
+function formatRelative(value: string | number): string {
+	const ts = typeof value === 'number' ? value : Date.parse(value);
 	if (Number.isNaN(ts)) return '-';
 	const seconds = Math.max(0, Math.floor((Date.now() - ts) / 1000));
 	if (seconds < 60) return `${seconds}s ago`;
@@ -206,6 +265,13 @@ function formatRelative(isoDate: string): string {
 	if (hours < 24) return `${hours}h ago`;
 	const days = Math.floor(hours / 24);
 	return `${days}d ago`;
+}
+
+function formatElapsedCompact(ms: number): string {
+	if (ms < 1_000) return `${ms}ms`;
+	if (ms < 60_000) return `${Math.round(ms / 1_000)}s`;
+	if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m`;
+	return `${Math.round(ms / 3_600_000)}h`;
 }
 
 function shortId(id: string): string {
@@ -411,15 +477,22 @@ export class HubOverlay implements Component, Focusable {
 	private cachedTodos: { todos: any[]; summary: any; sessionId: string } | null = null;
 	private feed: FeedEntry[] = [];
 	private sessionFeed = new Map<string, FeedEntry[]>();
+	private sessionHistoryFeed = new Map<string, FeedEntry[]>();
 	private sessionBuffers = new Map<string, StreamBuffer>();
 	private taskBuffers = new Map<string, StreamBuffer>();
-	private hydratedSessions = new Set<string>();
+	private streamSources = new Map<string, StreamProjectionSource>();
+	private replayLoadedSessions = new Set<string>();
+	private replayInFlight = new Set<string>();
+	private eventHistoryLoadedSessions = new Set<string>();
+	private eventHistoryInFlight = new Set<string>();
 	private previousDigests = new Map<string, SessionDigest>();
 
 	private loadingList = true;
 	private loadingDetail = false;
 	private listError = '';
 	private detailError = '';
+	private detailTodoRequestId = 0;
+	private resumeBusySessionId: string | null = null;
 	private lastUpdatedAt = 0;
 	private listInFlight = false;
 	private detailInFlight = false;
@@ -649,6 +722,13 @@ export class HubOverlay implements Component, Focusable {
 
 	private handleDetailInput(data: string): void {
 		const tasks = this.getDetailTasks();
+
+		if ((matchesKey(data, 'w') || data.toLowerCase() === 'w') && this.detailSessionId) {
+			if (this.canResumeSession(this.detail)) {
+				void this.resumeSession(this.detailSessionId);
+			}
+			return;
+		}
 
 		if (matchesKey(data, 'up')) {
 			if (tasks.length > 0) {
@@ -935,6 +1015,54 @@ export class HubOverlay implements Component, Focusable {
 		return buffer;
 	}
 
+	private getStreamSource(sessionId: string): StreamProjectionSource {
+		return this.streamSources.get(sessionId) ?? 'none';
+	}
+
+	private setStreamSource(sessionId: string, source: StreamProjectionSource): void {
+		this.streamSources.set(sessionId, source);
+	}
+
+	private clearTaskBuffers(sessionId: string): void {
+		for (const key of this.taskBuffers.keys()) {
+			if (key.startsWith(`${sessionId}:`)) {
+				this.taskBuffers.delete(key);
+			}
+		}
+	}
+
+	private replaceStreamProjection(
+		sessionId: string,
+		projectionRaw: StreamProjection | null | undefined,
+		source: Exclude<StreamProjectionSource, 'live'>
+	): boolean {
+		if (!projectionRaw) return false;
+		const currentSource = this.getStreamSource(sessionId);
+		if (!shouldReplaceStreamProjection(currentSource, source)) return false;
+
+		const projection = normalizeStreamProjection(projectionRaw);
+		const sessionBuffer = this.getSessionBuffer(sessionId);
+		sessionBuffer.output = projection.output;
+		sessionBuffer.thinking = projection.thinking;
+
+		this.clearTaskBuffers(sessionId);
+		for (const [taskId, block] of Object.entries(projection.tasks)) {
+			const taskBuffer = this.getTaskBuffer(sessionId, taskId);
+			taskBuffer.output = block.output;
+			taskBuffer.thinking = block.thinking;
+		}
+
+		this.setStreamSource(sessionId, source);
+		return true;
+	}
+
+	private applyReplayEntries(sessionId: string, entries: ConversationEntryLike[]): void {
+		const projection = buildProjectionFromEntries(entries);
+		if (this.replaceStreamProjection(sessionId, projection, 'replay')) {
+			this.replayLoadedSessions.add(sessionId);
+		}
+	}
+
 	private appendBufferText(
 		sessionId: string,
 		kind: 'output' | 'thinking',
@@ -942,6 +1070,7 @@ export class HubOverlay implements Component, Focusable {
 		taskId?: string
 	): void {
 		if (!chunk) return;
+		this.setStreamSource(sessionId, 'live');
 
 		// Session stream is lead/top-level only; task-scoped output lives in task buffers.
 		if (!taskId) {
@@ -1013,24 +1142,214 @@ export class HubOverlay implements Component, Focusable {
 		return `  ${tab('1', 'List', active === 'list')}${divider}${tab('2', 'Feed', active === 'feed')}`;
 	}
 
-	private async fetchJson<T>(path: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
+	private async fetchJson<T>(
+		path: string,
+		timeoutMs = REQUEST_TIMEOUT_MS,
+		init?: RequestInit
+	): Promise<T> {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), timeoutMs);
 		try {
 			// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
 			const apiKey = process.env.AGENTUITY_CODER_API_KEY;
-			const headers: Record<string, string> = { accept: 'application/json' };
+			const headers: Record<string, string> = {
+				accept: 'application/json',
+				...(init?.headers && typeof init.headers === 'object'
+					? (init.headers as Record<string, string>)
+					: {}),
+			};
 			if (apiKey) headers['x-agentuity-auth-api-key'] = apiKey;
 			const response = await fetch(`${this.baseUrl}${path}`, {
+				...init,
 				headers,
 				signal: controller.signal,
 			});
 			if (!response.ok) {
-				throw new Error(`Hub returned ${response.status}`);
+				let message = `Hub returned ${response.status}`;
+				try {
+					const text = await response.text();
+					if (text) {
+						try {
+							const parsed = JSON.parse(text) as { error?: unknown; message?: unknown };
+							if (typeof parsed.error === 'string' && parsed.error.trim()) {
+								message = parsed.error;
+							} else if (typeof parsed.message === 'string' && parsed.message.trim()) {
+								message = parsed.message;
+							} else {
+								message = text;
+							}
+						} catch {
+							message = text;
+						}
+					}
+				} catch {
+					// Fall back to the status-only message.
+				}
+				throw new Error(message);
 			}
 			return (await response.json()) as T;
 		} finally {
 			clearTimeout(timeout);
+		}
+	}
+
+	private getSessionSummary(sessionId: string): HubSessionSummary | undefined {
+		return this.sessions.find((item) => item.sessionId === sessionId);
+	}
+
+	private isRuntimeAvailable(sessionId: string): boolean {
+		const detailRuntime =
+			this.detail?.sessionId === sessionId ? this.detail.runtimeAvailable : undefined;
+		if (typeof detailRuntime === 'boolean') return detailRuntime;
+
+		const session = this.getSessionSummary(sessionId);
+		if (typeof session?.runtimeAvailable === 'boolean') return session.runtimeAvailable;
+		if (session?.historyOnly) return false;
+		if (session?.bucket === 'history') return false;
+		return true;
+	}
+
+	private isHistoryOnly(sessionId: string): boolean {
+		if (this.detail?.sessionId === sessionId && typeof this.detail.historyOnly === 'boolean') {
+			return this.detail.historyOnly;
+		}
+		return this.getSessionSummary(sessionId)?.historyOnly === true;
+	}
+
+	private canResumeSession(detail: HubSessionDetail | null): boolean {
+		if (!detail) return false;
+		return (
+			detail.mode === 'sandbox' &&
+			detail.bucket === 'paused' &&
+			detail.historyOnly !== true &&
+			detail.runtimeAvailable === false
+		);
+	}
+
+	private isArchivedStatus(status: string): boolean {
+		return status === 'archived' || status === 'shutdown' || status === 'stopped';
+	}
+
+	private getStatusTone(status: string): 'success' | 'warning' | 'error' | 'muted' {
+		if (status === 'active' || status === 'running' || status === 'connected') {
+			return 'success';
+		}
+		if (status === 'error' || status === 'failed' || status === 'stopped') {
+			return 'error';
+		}
+		if (status === 'archived' || status === 'shutdown') {
+			return 'muted';
+		}
+		return 'warning';
+	}
+
+	private getConnectionState(input: {
+		sessionId: string;
+		mode: string;
+		status: string;
+		bucket?: 'running' | 'paused' | 'provisioning' | 'history';
+		runtimeAvailable?: boolean;
+		controlAvailable?: boolean;
+		historyOnly?: boolean;
+	}): {
+		label: string;
+		tone: 'success' | 'warning' | 'error' | 'accent' | 'muted';
+	} {
+		const isLocalSession = input.mode === 'tui';
+		const isArchived = this.isArchivedStatus(input.status);
+		const bucket = input.bucket ?? (input.historyOnly ? 'history' : 'running');
+		const runtimeAvailable = input.runtimeAvailable !== false;
+		const controlAvailable = input.controlAvailable ?? runtimeAvailable;
+		const historyOnly = input.historyOnly === true || bucket === 'history';
+		const canWake = !isLocalSession && !isArchived && bucket === 'paused' && historyOnly !== true;
+
+		if (historyOnly) return { label: 'History only', tone: 'warning' };
+		if (isLocalSession && bucket === 'provisioning')
+			return { label: 'Starting', tone: 'warning' };
+		if (isLocalSession && !isArchived) return { label: 'View only', tone: 'muted' };
+		if (bucket === 'provisioning') return { label: 'Starting', tone: 'warning' };
+		if (canWake) {
+			return {
+				label: this.resumeBusySessionId === input.sessionId ? 'Waking' : 'Paused',
+				tone: this.resumeBusySessionId === input.sessionId ? 'accent' : 'warning',
+			};
+		}
+		if (!isArchived && runtimeAvailable && !controlAvailable) {
+			return { label: 'Read only', tone: 'muted' };
+		}
+		if (!isArchived && runtimeAvailable) return { label: 'Live', tone: 'success' };
+		if (isArchived) return { label: 'Archived', tone: 'muted' };
+		return { label: 'Disconnected', tone: 'warning' };
+	}
+
+	private formatTagSummary(tags: string[] | undefined, maxCount = 4): string | null {
+		if (!tags || tags.length === 0) return null;
+		const visible = tags.slice(0, maxCount);
+		const remainder = tags.length - visible.length;
+		return remainder > 0 ? `${visible.join(', ')} +${remainder}` : visible.join(', ');
+	}
+
+	private getSessionEventEntries(sessionId: string): FeedEntry[] {
+		if (!this.isRuntimeAvailable(sessionId) || this.isHistoryOnly(sessionId)) {
+			return this.sessionHistoryFeed.get(sessionId) ?? [];
+		}
+		return this.sessionFeed.get(sessionId) ?? [];
+	}
+
+	private async refreshTodos(sessionId: string): Promise<void> {
+		const requestId = ++this.detailTodoRequestId;
+		try {
+			const todosResponse = await this.fetchJson<HubTodoListResponse>(
+				`/api/hub/session/${encodeURIComponent(sessionId)}/todos?includeTerminal=true&includeSync=true&limit=30`,
+				15_000
+			).catch((err: any) => {
+				const isAbort = err?.name === 'AbortError' || err?.message?.includes('aborted');
+				return {
+					_fetchError: true,
+					message: isAbort ? 'Todos loading...' : err?.message || 'Failed to load todos',
+				} as HubTodoListResponse & { _fetchError: true };
+			});
+
+			if (
+				this.disposed ||
+				this.detail?.sessionId !== sessionId ||
+				requestId !== this.detailTodoRequestId
+			) {
+				return;
+			}
+
+			if ((todosResponse as HubTodoListResponse & { _fetchError?: boolean })._fetchError) {
+				if (this.cachedTodos && this.cachedTodos.sessionId === sessionId) {
+					this.detail.todos = this.cachedTodos.todos;
+					this.detail.todoSummary = this.cachedTodos.summary;
+				}
+				this.detail.todosUnavailable = todosResponse.message;
+				this.requestRender();
+				return;
+			}
+
+			this.detail.todos = Array.isArray(todosResponse.todos) ? todosResponse.todos : [];
+			this.detail.todoSummary =
+				todosResponse.summary && typeof todosResponse.summary === 'object'
+					? todosResponse.summary
+					: undefined;
+			this.detail.todosUnavailable = todosResponse.unavailable
+				? typeof todosResponse.message === 'string'
+					? todosResponse.message
+					: 'Task service unavailable'
+				: undefined;
+
+			if (this.detail.todos.length > 0) {
+				this.cachedTodos = {
+					todos: this.detail.todos,
+					summary: this.detail.todoSummary,
+					sessionId,
+				};
+			}
+
+			this.requestRender();
+		} catch {
+			// Best-effort todos loading.
 		}
 	}
 
@@ -1078,47 +1397,21 @@ export class HubOverlay implements Component, Focusable {
 		}
 
 		try {
-			const [detail, todosResponse] = await Promise.all([
-				this.fetchJson<HubSessionDetail>(`/api/hub/session/${encodeURIComponent(sessionId)}`),
-				this.fetchJson<HubTodoListResponse>(
-					`/api/hub/session/${encodeURIComponent(sessionId)}/todos?includeTerminal=true&includeSync=true&limit=30`,
-					15_000
-				).catch((err: any) => {
-					const isAbort = err?.name === 'AbortError' || err?.message?.includes('aborted');
-					return {
-						_fetchError: true,
-						message: isAbort ? 'Todos loading\u2026' : err?.message || 'Failed to load todos',
-					} as any;
-				}),
-			]);
-			if (todosResponse?._fetchError) {
-				// Use cached todos if available, show loading indicator
-				if (this.cachedTodos && this.cachedTodos.sessionId === sessionId) {
-					detail.todos = this.cachedTodos.todos;
-					detail.todoSummary = this.cachedTodos.summary;
-					detail.todosUnavailable = todosResponse.message;
-				} else {
-					detail.todosUnavailable = todosResponse.message;
-				}
-			} else if (todosResponse) {
-				detail.todos = Array.isArray(todosResponse.todos) ? todosResponse.todos : [];
-				detail.todoSummary =
-					todosResponse.summary && typeof todosResponse.summary === 'object'
-						? todosResponse.summary
-						: undefined;
-				detail.todosUnavailable = todosResponse.unavailable
-					? typeof todosResponse.message === 'string'
-						? todosResponse.message
-						: 'Task service unavailable'
-					: undefined;
-				// Cache successful todo data
-				if (detail.todos && detail.todos.length > 0) {
-					this.cachedTodos = { todos: detail.todos, summary: detail.todoSummary, sessionId };
-				}
+			const detail = await this.fetchJson<HubSessionDetail>(
+				`/api/hub/session/${encodeURIComponent(sessionId)}`
+			);
+
+			if (this.cachedTodos && this.cachedTodos.sessionId === sessionId) {
+				detail.todos = this.cachedTodos.todos;
+				detail.todoSummary = this.cachedTodos.summary;
+				detail.todosUnavailable = 'Loading todos...';
+			} else {
+				detail.todosUnavailable = 'Loading todos...';
 			}
+
 			this.detail = detail;
 			this.detailSessionId = sessionId;
-			this.applyStreamProjection(sessionId, detail.stream);
+			this.replaceStreamProjection(sessionId, detail.stream, 'snapshot');
 			const taskCount = detail.tasks?.length ?? 0;
 			if (taskCount === 0) {
 				this.selectedTaskIndex = 0;
@@ -1129,12 +1422,120 @@ export class HubOverlay implements Component, Focusable {
 			this.detailError = '';
 			this.lastUpdatedAt = Date.now();
 			this.requestRender();
+			void this.refreshTodos(sessionId);
+			if (detail.runtimeAvailable === false || detail.historyOnly === true) {
+				void this.refreshReplay(sessionId);
+				void this.refreshEventHistory(sessionId);
+			}
 		} catch (err) {
 			this.loadingDetail = false;
 			this.detailError = err instanceof Error ? err.message : String(err);
 			this.requestRender();
 		} finally {
 			this.detailInFlight = false;
+		}
+	}
+
+	private async refreshReplay(sessionId: string): Promise<void> {
+		if (this.replayLoadedSessions.has(sessionId) || this.replayInFlight.has(sessionId)) return;
+		this.replayInFlight.add(sessionId);
+		try {
+			const data = await this.fetchJson<HubReplayResponse>(
+				`/api/hub/session/${encodeURIComponent(sessionId)}/replay`,
+				15_000
+			);
+			this.applyReplayEntries(sessionId, Array.isArray(data.entries) ? data.entries : []);
+			this.replayLoadedSessions.add(sessionId);
+			this.requestRender();
+		} catch (err) {
+			this.pushFeed(
+				`${this.getSessionLabel(sessionId)}: replay unavailable (${err instanceof Error ? err.message : String(err)})`,
+				sessionId
+			);
+			this.requestRender();
+		} finally {
+			this.replayInFlight.delete(sessionId);
+		}
+	}
+
+	private formatHistoryEventLine(sessionId: string, event: HubEventHistoryItem): string | null {
+		const payload =
+			event.payload && typeof event.payload === 'object'
+				? (event.payload as Record<string, unknown>)
+				: undefined;
+		return (
+			this.formatEventFeedLine(sessionId, event.event, payload) ??
+			this.formatStreamLine(event.event, payload) ??
+			`${event.event}${event.agent ? ` ${event.agent}` : ''}`
+		);
+	}
+
+	private async refreshEventHistory(sessionId: string): Promise<void> {
+		if (
+			this.eventHistoryLoadedSessions.has(sessionId) ||
+			this.eventHistoryInFlight.has(sessionId)
+		) {
+			return;
+		}
+		this.eventHistoryInFlight.add(sessionId);
+		try {
+			const data = await this.fetchJson<HubEventHistoryResponse>(
+				`/api/hub/session/${encodeURIComponent(sessionId)}/events/history?limit=100`,
+				15_000
+			);
+			const entries = (data.events ?? [])
+				.map((event): FeedEntry | null => {
+					const text = this.formatHistoryEventLine(sessionId, event);
+					if (!text) return null;
+					return {
+						at: Number.isNaN(Date.parse(event.occurredAt))
+							? Date.now()
+							: Date.parse(event.occurredAt),
+						sessionId,
+						text,
+					};
+				})
+				.filter((entry): entry is FeedEntry => entry !== null)
+				.sort((a, b) => b.at - a.at);
+			this.sessionHistoryFeed.set(sessionId, entries);
+			this.eventHistoryLoadedSessions.add(sessionId);
+			this.requestRender();
+		} catch (err) {
+			this.pushFeed(
+				`${this.getSessionLabel(sessionId)}: event history unavailable (${err instanceof Error ? err.message : String(err)})`,
+				sessionId
+			);
+			this.requestRender();
+		} finally {
+			this.eventHistoryInFlight.delete(sessionId);
+		}
+	}
+
+	private async resumeSession(sessionId: string): Promise<void> {
+		if (this.resumeBusySessionId) return;
+		this.resumeBusySessionId = sessionId;
+		this.pushFeed(`${this.getSessionLabel(sessionId)}: resume requested`, sessionId);
+		this.requestRender();
+
+		try {
+			await this.fetchJson<{ resumed?: boolean; error?: string }>(
+				`/api/hub/session/${encodeURIComponent(sessionId)}/resume`,
+				15_000,
+				{ method: 'POST' }
+			);
+			this.replayLoadedSessions.delete(sessionId);
+			this.eventHistoryLoadedSessions.delete(sessionId);
+			this.sessionHistoryFeed.delete(sessionId);
+			await this.refreshList();
+			await this.refreshDetail(sessionId);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			this.detailError = message;
+			this.pushFeed(`${this.getSessionLabel(sessionId)}: resume failed (${message})`, sessionId);
+			this.requestRender();
+		} finally {
+			this.resumeBusySessionId = null;
+			this.requestRender();
 		}
 	}
 
@@ -1209,9 +1610,15 @@ export class HubOverlay implements Component, Focusable {
 		if (this.disposed) return;
 		const desiredModes = new Map<string, 'summary' | 'full'>();
 		for (const session of sessions.slice(0, STREAM_SESSION_LIMIT)) {
+			if (session.runtimeAvailable === false || session.historyOnly === true) continue;
 			desiredModes.set(session.sessionId, 'summary');
 		}
-		if (this.detailSessionId && this.isSessionContext()) {
+		if (
+			this.detailSessionId &&
+			this.isSessionContext() &&
+			this.isRuntimeAvailable(this.detailSessionId) &&
+			!this.isHistoryOnly(this.detailSessionId)
+		) {
 			desiredModes.set(this.detailSessionId, 'full');
 		}
 
@@ -1395,50 +1802,22 @@ export class HubOverlay implements Component, Focusable {
 	}
 
 	private applyHydration(sessionId: string, eventData: unknown): void {
-		if (this.hydratedSessions.has(sessionId)) return;
 		if (!eventData || typeof eventData !== 'object') return;
 		const payload = eventData as Record<string, unknown>;
-		const loadedFromProjection = this.applyStreamProjection(sessionId, payload.stream);
+		const loadedFromProjection = this.replaceStreamProjection(
+			sessionId,
+			payload.stream as StreamProjection | undefined,
+			'hydration'
+		);
 
 		if (!loadedFromProjection) {
-			const entries = Array.isArray(payload.entries) ? payload.entries : [];
-			for (const rawEntry of entries) {
-				if (!rawEntry || typeof rawEntry !== 'object') continue;
-				const entry = rawEntry as Record<string, unknown>;
-				const type = typeof entry.type === 'string' ? entry.type : '';
-				const content = typeof entry.content === 'string' ? entry.content : '';
-				const taskId = typeof entry.taskId === 'string' ? entry.taskId : undefined;
-
-				if (!content) continue;
-				if (type === 'message' || type === 'task_result') {
-					this.appendBufferText(sessionId, 'output', content + '\n\n', taskId);
-				} else if (type === 'thinking') {
-					this.appendBufferText(sessionId, 'thinking', content + '\n\n', taskId);
-				}
-			}
+			const entries = Array.isArray(payload.entries)
+				? payload.entries.filter(
+						(entry): entry is ConversationEntryLike => !!entry && typeof entry === 'object'
+					)
+				: [];
+			this.replaceStreamProjection(sessionId, buildProjectionFromEntries(entries), 'hydration');
 		}
-
-		this.hydratedSessions.add(sessionId);
-	}
-
-	private applyStreamProjection(sessionId: string, streamRaw: unknown): boolean {
-		if (!streamRaw || typeof streamRaw !== 'object') return false;
-		const stream = streamRaw as Record<string, unknown>;
-		const sessionBuffer = this.getSessionBuffer(sessionId);
-		sessionBuffer.output = typeof stream.output === 'string' ? stream.output : '';
-		sessionBuffer.thinking = typeof stream.thinking === 'string' ? stream.thinking : '';
-		const taskStreams =
-			stream.tasks && typeof stream.tasks === 'object'
-				? (stream.tasks as Record<string, unknown>)
-				: {};
-		for (const [taskId, rawBlock] of Object.entries(taskStreams)) {
-			if (!rawBlock || typeof rawBlock !== 'object') continue;
-			const block = rawBlock as Record<string, unknown>;
-			const taskBuffer = this.getTaskBuffer(sessionId, taskId);
-			taskBuffer.output = typeof block.output === 'string' ? block.output : '';
-			taskBuffer.thinking = typeof block.thinking === 'string' ? block.thinking : '';
-		}
-		return true;
 	}
 
 	private captureStreamContent(
@@ -1570,7 +1949,7 @@ export class HubOverlay implements Component, Focusable {
 
 	private getFeedEntries(scope: 'global' | 'session'): FeedEntry[] {
 		if (scope === 'session' && this.detailSessionId) {
-			return this.sessionFeed.get(this.detailSessionId) ?? [];
+			return this.getSessionEventEntries(this.detailSessionId);
 		}
 		return this.feed;
 	}
@@ -1777,9 +2156,30 @@ export class HubOverlay implements Component, Focusable {
 			const updated = this.lastUpdatedAt
 				? `${formatClock(this.lastUpdatedAt)} updated`
 				: 'not updated';
+			const liveCount = this.sessions.filter((session) => {
+				const connection = this.getConnectionState({
+					sessionId: session.sessionId,
+					mode: session.mode,
+					status: session.status,
+					bucket: session.bucket,
+					runtimeAvailable: session.runtimeAvailable,
+					controlAvailable: session.controlAvailable,
+					historyOnly: session.historyOnly,
+				});
+				return connection.label === 'Live';
+			}).length;
+			const pausedCount = this.sessions.filter(
+				(session) => session.bucket === 'paused' && session.historyOnly !== true
+			).length;
+			const historyCount = this.sessions.filter(
+				(session) => session.historyOnly === true || session.bucket === 'history'
+			).length;
 			body.push(
 				this.contentLine(
-					this.theme.fg('muted', `  Active: ${this.sessions.length} sessions  ${updated}`),
+					this.theme.fg(
+						'muted',
+						`  Active: ${this.sessions.length} sessions  Live:${liveCount}  Paused:${pausedCount}  History:${historyCount}  ${updated}`
+					),
 					inner
 				)
 			);
@@ -1803,27 +2203,34 @@ export class HubOverlay implements Component, Focusable {
 				const marker = selected ? this.theme.fg('accent', '›') : ' ';
 				const label = session.label || shortId(session.sessionId);
 				const name = selected ? this.theme.bold(label) : label;
-				const statusColor =
-					session.status === 'running'
-						? 'success'
-						: session.status === 'error' || session.status === 'failed'
-							? 'error'
-							: 'warning';
-				const status = this.theme.fg(
-					statusColor as 'success' | 'error' | 'warning',
-					session.status
-				);
+				const status = this.theme.fg(this.getStatusTone(session.status), session.status);
+				const connection = this.getConnectionState({
+					sessionId: session.sessionId,
+					mode: session.mode,
+					status: session.status,
+					bucket: session.bucket,
+					runtimeAvailable: session.runtimeAvailable,
+					controlAvailable: session.controlAvailable,
+					historyOnly: session.historyOnly,
+				});
+				const connectionLabel = this.theme.fg(connection.tone, connection.label);
 				const self =
 					this.currentSessionId === session.sessionId
 						? this.theme.fg('accent', ' (this)')
 						: '';
-				const metrics = this.theme.fg(
-					'muted',
-					`obs:${session.observerCount} agents:${session.subAgentCount} tasks:${session.taskCount} ${formatRelative(session.createdAt)}`
-				);
+				const tagSummary = this.formatTagSummary(session.tags, 2);
+				const metricsParts = [
+					`obs:${session.observerCount}`,
+					`agents:${session.subAgentCount}`,
+					`tasks:${session.taskCount}`,
+					formatRelative(session.createdAt),
+					session.defaultAgent ? `agent:${session.defaultAgent}` : undefined,
+					tagSummary ? `tags:${tagSummary}` : undefined,
+				].filter((part): part is string => !!part);
+				const metrics = this.theme.fg('muted', metricsParts.join('  '));
 				body.push(
 					this.contentLine(
-						` ${marker} ${name}${self}  ${status} ${session.mode}  ${metrics}`,
+						` ${marker} ${name}${self}  ${status} ${session.mode}  ${connectionLabel}  ${metrics}`,
 						inner
 					)
 				);
@@ -1857,12 +2264,14 @@ export class HubOverlay implements Component, Focusable {
 	private renderDetailScreen(width: number, maxLines: number): string[] {
 		const inner = Math.max(0, width - 2);
 		const lines: string[] = [];
-		const title = this.detail?.label || this.detailSessionId || 'Hub Session';
+		const title =
+			this.detail?.label ||
+			(this.detailSessionId ? shortId(this.detailSessionId) : 'Hub Session');
 		const headerRows = 3;
 		const footerRows = 2;
 		const contentBudget = Math.max(5, maxLines - headerRows - footerRows);
 
-		lines.push(buildTopBorder(width, `Session ${shortId(title)}`));
+		lines.push(buildTopBorder(width, `Session ${title}`));
 		lines.push(this.contentLine('', inner));
 		lines.push(this.contentLine(this.buildTopTabs('detail', true), inner));
 
@@ -1878,12 +2287,41 @@ export class HubOverlay implements Component, Focusable {
 			const participants = session.participants ?? [];
 			const tasks = session.tasks ?? [];
 			const activityEntries = Object.entries(session.agentActivity ?? {});
+			const connection = this.getConnectionState({
+				sessionId: session.sessionId,
+				mode: session.mode,
+				status: session.status,
+				bucket: session.bucket,
+				runtimeAvailable: session.runtimeAvailable,
+				controlAvailable: session.controlAvailable,
+				historyOnly: session.historyOnly,
+			});
+			const inactiveTasks = session.diagnostics?.inactiveRunningTasks ?? [];
+			const inactiveTaskById = new Map(
+				inactiveTasks.map((item) => [item.taskId, item] as const)
+			);
+			const pushWrappedLine = (
+				text: string,
+				tone: 'muted' | 'warning' | 'error' | 'dim' = 'muted'
+			): void => {
+				for (const wrapped of wrapText(text, Math.max(12, inner - 4))) {
+					body.push(this.contentLine(this.theme.fg(tone, `  ${wrapped}`), inner));
+				}
+			};
 
 			body.push(this.contentLine(this.theme.bold('  Overview'), inner));
 			body.push(this.contentLine(this.theme.fg('muted', `  ID: ${session.sessionId}`), inner));
 			body.push(
 				this.contentLine(
-					this.theme.fg('muted', `  Status: ${session.status}  Mode: ${session.mode}`),
+					`  Status: ${this.theme.fg(this.getStatusTone(session.status), session.status)}  Mode: ${session.mode}  Bucket: ${session.bucket ?? '-'}`,
+					inner
+				)
+			);
+			body.push(
+				this.contentLine(
+					`  Connection: ${this.theme.fg(connection.tone, connection.label)}  Runtime: ${
+						session.runtimeAvailable === false ? 'offline' : 'ready'
+					}  Control: ${session.controlAvailable ? 'enabled' : 'read-only'}`,
 					inner
 				)
 			);
@@ -1902,6 +2340,26 @@ export class HubOverlay implements Component, Focusable {
 					inner
 				)
 			);
+			if (session.defaultAgent) {
+				body.push(
+					this.contentLine(
+						this.theme.fg('muted', `  Default agent: ${session.defaultAgent}`),
+						inner
+					)
+				);
+			}
+			const tagSummary = this.formatTagSummary(session.tags);
+			if (tagSummary) {
+				pushWrappedLine(`Tags: ${tagSummary}`);
+			}
+			if (session.streamId || session.streamUrl) {
+				const streamState = session.streamId
+					? shortId(session.streamId)
+					: session.streamUrl
+						? 'attached'
+						: 'none';
+				body.push(this.contentLine(this.theme.fg('muted', `  Stream: ${streamState}`), inner));
+			}
 			if (session.context?.branch) {
 				body.push(
 					this.contentLine(
@@ -1916,6 +2374,32 @@ export class HubOverlay implements Component, Focusable {
 						this.theme.fg('muted', `  CWD: ${session.context.workingDirectory}`),
 						inner
 					)
+				);
+			}
+			if (session.task) {
+				body.push(
+					this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+				);
+				body.push(this.contentLine(this.theme.bold('  Root Task'), inner));
+				for (const wrapped of wrapText(session.task, Math.max(12, inner - 4))) {
+					body.push(this.contentLine(`  ${wrapped}`, inner));
+				}
+			}
+			if (session.error) {
+				body.push(
+					this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+				);
+				body.push(this.contentLine(this.theme.bold('  Error'), inner));
+				pushWrappedLine(session.error, 'error');
+			}
+			if (this.canResumeSession(session)) {
+				const resumeMessage =
+					this.resumeBusySessionId === session.sessionId
+						? 'Waking sandbox session...'
+						: 'Press [w] to wake this paused sandbox session.';
+				pushWrappedLine(
+					resumeMessage,
+					this.resumeBusySessionId === session.sessionId ? 'muted' : 'warning'
 				);
 			}
 			body.push(
@@ -1942,19 +2426,28 @@ export class HubOverlay implements Component, Focusable {
 							? 'success'
 							: task.status === 'failed'
 								? 'error'
-								: 'warning';
-					const status = this.theme.fg(
-						statusColor as 'success' | 'error' | 'warning',
-						task.status
-					);
+								: task.status === 'running'
+									? 'accent'
+									: 'warning';
+					const status = this.theme.fg(statusColor, task.status);
+					const inactive = inactiveTaskById.get(task.taskId);
 					const prompt = task.prompt
 						? truncateToWidth(toSingleLine(task.prompt), Math.max(16, inner - 34))
 						: '';
-					const duration = typeof task.duration === 'number' ? ` ${task.duration}ms` : '';
+					const duration =
+						typeof task.duration === 'number'
+							? ` ${formatElapsedCompact(task.duration)}`
+							: '';
+					const idle = inactive
+						? ` ${this.theme.fg(
+								'warning',
+								`idle ${formatElapsedCompact(inactive.inactivityMs)}`
+							)}`
+						: '';
 					const marker = selected ? this.theme.fg('accent', '›') : ' ';
 					body.push(
 						this.contentLine(
-							`${marker} ${shortId(task.taskId).padEnd(12)} ${task.agent.padEnd(9)} ${status}${duration} ${prompt}`,
+							`${marker} ${shortId(task.taskId).padEnd(12)} ${task.agent.padEnd(9)} ${status}${duration}${idle} ${prompt}`,
 							inner
 						)
 					);
@@ -2058,6 +2551,36 @@ export class HubOverlay implements Component, Focusable {
 				}
 			}
 
+			if (inactiveTasks.length > 0) {
+				body.push(
+					this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
+				);
+				body.push(this.contentLine(this.theme.bold('  Diagnostics'), inner));
+				body.push(
+					this.contentLine(
+						this.theme.fg(
+							'warning',
+							`  ${inactiveTasks.length} running task${inactiveTasks.length === 1 ? '' : 's'} without recent activity`
+						),
+						inner
+					)
+				);
+				for (const item of inactiveTasks.slice(0, 8)) {
+					const lastSeen = item.lastActivityAt
+						? `  last ${formatRelative(item.lastActivityAt)}`
+						: '';
+					body.push(
+						this.contentLine(
+							this.theme.fg(
+								'warning',
+								`  ${shortId(item.taskId).padEnd(12)} ${item.agent.padEnd(10)} idle ${formatElapsedCompact(item.inactivityMs)}  started ${formatRelative(item.startedAt)}${lastSeen}`
+							),
+							inner
+						)
+					);
+				}
+			}
+
 			body.push(
 				this.contentLine(this.theme.fg('dim', `  ${hLine(Math.max(0, inner - 2))}`), inner)
 			);
@@ -2066,13 +2589,43 @@ export class HubOverlay implements Component, Focusable {
 				body.push(this.contentLine(this.theme.fg('dim', '  (none)'), inner));
 			} else {
 				for (const [agent, info] of activityEntries.slice(0, 15)) {
-					const tool = info.currentTool ? ` ${info.currentTool}` : '';
-					const calls =
-						typeof info.toolCallCount === 'number'
-							? this.theme.fg('dim', ` (${info.toolCallCount} calls)`)
-							: '';
 					const status = info.status || 'idle';
-					body.push(this.contentLine(`  ${agent.padEnd(12)} ${status}${tool}${calls}`, inner));
+					const statusTone =
+						status === 'completed'
+							? 'success'
+							: status === 'failed'
+								? 'error'
+								: status === 'tool_start' || status === 'running'
+									? 'accent'
+									: 'warning';
+					const tool = info.currentTool ? `  tool:${info.currentTool}` : '';
+					const calls =
+						typeof info.toolCallCount === 'number' ? `  calls:${info.toolCallCount}` : '';
+					const lastSeen =
+						info.lastActivity !== undefined && info.lastActivity !== null
+							? `  last:${formatRelative(info.lastActivity)}`
+							: '';
+					const totalElapsed =
+						typeof info.totalElapsed === 'number'
+							? `  total:${formatElapsedCompact(info.totalElapsed)}`
+							: '';
+					body.push(
+						this.contentLine(
+							`  ${agent.padEnd(12)} ${this.theme.fg(statusTone, status)}${this.theme.fg(
+								'dim',
+								`${tool}${calls}${lastSeen}${totalElapsed}`
+							)}`,
+							inner
+						)
+					);
+					if (info.currentToolArgs) {
+						for (const wrapped of wrapText(
+							toSingleLine(info.currentToolArgs),
+							Math.max(12, inner - 6)
+						)) {
+							body.push(this.contentLine(this.theme.fg('dim', `    ${wrapped}`), inner));
+						}
+					}
 				}
 			}
 		}
@@ -2094,9 +2647,10 @@ export class HubOverlay implements Component, Focusable {
 			this.detailMaxScroll > 0
 				? this.theme.fg('dim', `  scroll ${this.detailScrollOffset}/${this.detailMaxScroll}`)
 				: this.theme.fg('dim', '  scroll 0/0');
+		const wakeHint = this.canResumeSession(this.detail) ? '  [w] Wake' : '';
 		lines.push(
 			this.contentLine(
-				`${scrollInfo}  ${this.theme.fg('dim', '[↑↓] Task  [j/k] Scroll  [Enter] Open  [r] Refresh  [Esc] Back')}`,
+				`${scrollInfo}  ${this.theme.fg('dim', `[↑↓] Task  [j/k] Scroll  [Enter] Open${wakeHint}  [r] Refresh  [Esc] Back`)}`,
 				inner
 			)
 		);
@@ -2111,12 +2665,15 @@ export class HubOverlay implements Component, Focusable {
 		const footerRows = 2;
 		const contentBudget = Math.max(5, maxLines - headerRows - footerRows);
 		const scoped = this.feedScope === 'session' && !!this.detailSessionId;
+		const sessionId = scoped ? this.detailSessionId! : null;
+		const historySession = sessionId
+			? !this.isRuntimeAvailable(sessionId) || this.isHistoryOnly(sessionId)
+			: false;
 		const title = scoped
-			? `${this.feedViewMode === 'events' ? 'Session Events' : 'Session Feed'} ${shortId(this.getSessionLabel(this.detailSessionId!))}`
+			? `${this.feedViewMode === 'events' ? 'Session Events' : 'Session Feed'} ${this.getSessionLabel(sessionId!)}`
 			: 'Global Feed';
 		const entryBudget = Math.max(1, contentBudget - 2);
-		const sessionBuffer =
-			scoped && this.detailSessionId ? this.sessionBuffers.get(this.detailSessionId) : undefined;
+		const sessionBuffer = sessionId ? this.sessionBuffers.get(sessionId) : undefined;
 
 		lines.push(buildTopBorder(width, title));
 		lines.push(this.contentLine('', inner));
@@ -2135,8 +2692,12 @@ export class HubOverlay implements Component, Focusable {
 					'muted',
 					scoped
 						? this.feedViewMode === 'stream'
-							? '  Streaming rendered session output (sub-agent style) — [v] task stream'
-							: '  Streaming full session events'
+							? historySession
+								? '  Rehydrated session output from stored replay — [v] task stream'
+								: '  Live rendered session output (sub-agent style) — [v] task stream'
+							: historySession
+								? '  Stored session events from history'
+								: '  Live full session events'
 						: '  Streaming event summaries across all sessions'
 				),
 				inner
@@ -2155,7 +2716,13 @@ export class HubOverlay implements Component, Focusable {
 				Math.max(12, inner - 4)
 			);
 			if (contentLines.length === 0) {
-				contentLines = [this.theme.fg('dim', '(no streamed output yet)')];
+				if (sessionId && historySession && this.replayInFlight.has(sessionId)) {
+					contentLines = [this.theme.fg('dim', '(loading replay...)')];
+				} else if (sessionId && historySession && this.replayLoadedSessions.has(sessionId)) {
+					contentLines = [this.theme.fg('dim', '(no replay output available)')];
+				} else {
+					contentLines = [this.theme.fg('dim', '(no streamed output yet)')];
+				}
 			}
 		} else {
 			const entries = this.getFeedEntries(scoped ? 'session' : 'global');
@@ -2163,7 +2730,22 @@ export class HubOverlay implements Component, Focusable {
 				.reverse()
 				.map((entry) => `${this.theme.fg('dim', formatClock(entry.at))} ${entry.text}`);
 			if (contentLines.length === 0) {
-				contentLines = [this.theme.fg('dim', '(no feed items yet)')];
+				if (sessionId && historySession && this.eventHistoryInFlight.has(sessionId)) {
+					contentLines = [this.theme.fg('dim', '(loading event history...)')];
+				} else if (
+					sessionId &&
+					historySession &&
+					this.eventHistoryLoadedSessions.has(sessionId)
+				) {
+					contentLines = [this.theme.fg('dim', '(no stored events available)')];
+				} else {
+					contentLines = [
+						this.theme.fg(
+							'dim',
+							scoped ? '(no session feed items yet)' : '(no feed items yet)'
+						),
+					];
+				}
 			}
 		}
 
@@ -2223,6 +2805,10 @@ export class HubOverlay implements Component, Focusable {
 		if (!selected) {
 			body.push(this.contentLine(this.theme.fg('dim', '  No task selected'), inner));
 		} else {
+			const historySession = this.detailSessionId
+				? !this.isRuntimeAvailable(this.detailSessionId) ||
+					this.isHistoryOnly(this.detailSessionId)
+				: false;
 			body.push(this.contentLine(this.theme.bold('  Task Overview'), inner));
 			body.push(
 				this.contentLine(this.theme.fg('muted', `  Task ID: ${selected.taskId}`), inner)
@@ -2231,7 +2817,10 @@ export class HubOverlay implements Component, Focusable {
 			body.push(this.contentLine(this.theme.fg('muted', `  Status: ${selected.status}`), inner));
 			if (typeof selected.duration === 'number') {
 				body.push(
-					this.contentLine(this.theme.fg('muted', `  Duration: ${selected.duration}ms`), inner)
+					this.contentLine(
+						this.theme.fg('muted', `  Duration: ${formatElapsedCompact(selected.duration)}`),
+						inner
+					)
 				);
 			}
 			if (selected.startedAt) {
@@ -2275,7 +2864,15 @@ export class HubOverlay implements Component, Focusable {
 				Math.max(12, inner - 4)
 			);
 			if (rendered.length === 0) {
-				body.push(this.contentLine(this.theme.fg('dim', '  (no task output yet)'), inner));
+				if (
+					historySession &&
+					this.detailSessionId &&
+					this.replayInFlight.has(this.detailSessionId)
+				) {
+					body.push(this.contentLine(this.theme.fg('dim', '  (loading replay...)'), inner));
+				} else {
+					body.push(this.contentLine(this.theme.fg('dim', '  (no task output yet)'), inner));
+				}
 			} else {
 				for (const line of rendered) {
 					body.push(this.contentLine(`  ${line}`, inner));
