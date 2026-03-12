@@ -1,7 +1,6 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { upgradeWebSocket } from 'hono/bun';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
-import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 import { tagRoute } from './_route-meta';
 
@@ -102,9 +101,6 @@ export function websocket<E extends Env = Env>(
 		let closeHandler: ((event: CloseEvent) => void | Promise<void>) | undefined;
 		let initialized = false;
 
-		const asyncLocalStorage = getAgentAsyncLocalStorage();
-		const capturedContext = asyncLocalStorage.getStore();
-
 		// Create done promise for session lifecycle deferral, but ONLY for actual
 		// WebSocket upgrade requests. The factory runs unconditionally for every
 		// request hitting this route (Hono calls createEvents before attempting
@@ -147,11 +143,7 @@ export function websocket<E extends Env = Env>(
 		// See: https://github.com/oven-sh/bun/issues/24766
 		const runHandler = () => {
 			otelContext.with(ROOT_CONTEXT, () => {
-				if (capturedContext) {
-					asyncLocalStorage.run(capturedContext, () => handler(c, wsConnection));
-				} else {
-					handler(c, wsConnection);
-				}
+				handler(c, wsConnection);
 			});
 			initialized = true;
 		};
@@ -165,14 +157,7 @@ export function websocket<E extends Env = Env>(
 					wsConnection.send = (data) => ws.send(data);
 
 					if (openHandler) {
-						const h = openHandler;
-						await otelContext.with(ROOT_CONTEXT, async () => {
-							if (capturedContext) {
-								await asyncLocalStorage.run(capturedContext, () => h(event));
-							} else {
-								await h(event);
-							}
-						});
+						await otelContext.with(ROOT_CONTEXT, () => openHandler!(event));
 					}
 				} catch (err) {
 					c.var.logger?.error('WebSocket onOpen error:', err);
@@ -187,14 +172,7 @@ export function websocket<E extends Env = Env>(
 						runHandler();
 					}
 					if (messageHandler) {
-						const h = messageHandler;
-						await otelContext.with(ROOT_CONTEXT, async () => {
-							if (capturedContext) {
-								await asyncLocalStorage.run(capturedContext, () => h(event));
-							} else {
-								await h(event);
-							}
-						});
+						await otelContext.with(ROOT_CONTEXT, () => messageHandler!(event));
 					}
 				} catch (err) {
 					c.var.logger?.error('WebSocket onMessage error:', err);
@@ -205,14 +183,7 @@ export function websocket<E extends Env = Env>(
 			onClose: async (event: CloseEvent, _ws: any) => {
 				try {
 					if (closeHandler) {
-						const h = closeHandler;
-						await otelContext.with(ROOT_CONTEXT, async () => {
-							if (capturedContext) {
-								await asyncLocalStorage.run(capturedContext, () => h(event));
-							} else {
-								await h(event);
-							}
-						});
+						await otelContext.with(ROOT_CONTEXT, () => closeHandler!(event));
 					}
 				} catch (err) {
 					c.var.logger?.error('WebSocket onClose error:', err);
