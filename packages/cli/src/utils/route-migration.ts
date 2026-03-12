@@ -697,7 +697,8 @@ export function performMigration(rootDir: string, routeFiles: string[]): Migrati
  * Show the migration notice and optionally perform migration.
  *
  * Called during `dev` and `build` after dependency upgrades.
- * Shows a banner the first time, then a shorter reminder on subsequent runs.
+ * Only prompts in interactive TTY sessions and only once — if the user
+ * dismisses the prompt, it won't be shown again.
  *
  * @returns true if migration was performed, false otherwise
  */
@@ -707,6 +708,12 @@ export async function promptRouteMigration(
 	options?: { interactive?: boolean }
 ): Promise<boolean> {
 	const interactive = options?.interactive ?? process.stdin.isTTY;
+
+	// Only show the interactive migration prompt in TTY sessions
+	if (!interactive) {
+		return false;
+	}
+
 	const eligibility = checkMigrationEligibility(rootDir);
 
 	if (!eligibility.available) {
@@ -715,48 +722,30 @@ export async function promptRouteMigration(
 
 	const { routeFiles, alreadyNotified } = eligibility;
 
-	// Non-interactive mode (CI, piped, AI agent): just log a notice
-	if (!interactive) {
-		if (!alreadyNotified) {
-			logger.info(
-				'[migration] This project uses file-based routing with %d route files in src/api/. ' +
-					'Agentuity is moving to explicit routing, which will become the default in the next major release. ' +
-					'Run `agentuity dev --migrate-routes` to migrate.',
-				routeFiles.length
-			);
-			writeMigrationState(rootDir, 'notified');
-		}
+	// Only prompt once — if the user has already been notified or dismissed, don't ask again
+	if (alreadyNotified) {
 		return false;
 	}
 
-	// First time: show full banner
-	if (!alreadyNotified) {
-		tui.newline();
-		tui.banner(
-			'✨ Migrate to Explicit Routing',
-			'Agentuity is moving to explicit routing, which will become the\n' +
-				'default in the next major release. File-based route discovery\n' +
-				'will be deprecated.\n' +
-				'\n' +
-				`Your project has ${routeFiles.length} route files in src/api/ that are\n` +
-				'auto-discovered at build time. Explicit routing gives you a single\n' +
-				'src/api/index.ts that imports and mounts all sub-routers — just\n' +
-				'like a standard Hono application.\n' +
-				'\n' +
-				`${tui.muted('Before:')} ${routeFiles.length} files auto-discovered from src/api/**/*.ts\n` +
-				`${tui.muted('After:')}  One src/api/index.ts that imports and mounts them\n` +
-				'\n' +
-				'Your existing route files are not modified. Your app.ts will be\n' +
-				'updated to import the router and pass it to createApp({ router }).',
-			{ centerTitle: false }
-		);
-	} else {
-		// Subsequent runs: shorter reminder
-		tui.newline();
-		tui.info(
-			`${tui.bold('Explicit routing migration available')} — run with ${tui.muted('--migrate-routes')} or choose below.`
-		);
-	}
+	tui.newline();
+	tui.banner(
+		'✨ Migrate to Explicit Routing',
+		'Agentuity is moving to explicit routing, which will become the\n' +
+			'default in the next major release. File-based route discovery\n' +
+			'will be deprecated.\n' +
+			'\n' +
+			`Your project has ${routeFiles.length} route files in src/api/ that are\n` +
+			'auto-discovered at build time. Explicit routing gives you a single\n' +
+			'src/api/index.ts that imports and mounts all sub-routers — just\n' +
+			'like a standard Hono application.\n' +
+			'\n' +
+			`${tui.muted('Before:')} ${routeFiles.length} files auto-discovered from src/api/**/*.ts\n` +
+			`${tui.muted('After:')}  One src/api/index.ts that imports and mounts them\n` +
+			'\n' +
+			'Your existing route files are not modified. Your app.ts will be\n' +
+			'updated to import the router and pass it to createApp({ router }).',
+		{ centerTitle: false }
+	);
 
 	tui.newline();
 
