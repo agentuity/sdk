@@ -196,6 +196,14 @@ export const MonitorResponseError = StructuredError('MonitorResponseError')<{
 	path?: string;
 }>();
 
+export const MonitorScopeError = StructuredError('MonitorScopeError')<{
+	scope: string;
+}>();
+
+export const MonitorWebSocketError = StructuredError('MonitorWebSocketError')<{
+	code: 'connection_failed' | 'auth_failed' | 'connection_error' | 'max_reconnects_exceeded';
+}>();
+
 export async function listMonitorNodes(client: APIClient): Promise<MachineMonitorState[]> {
 	const resp = await client.get(`/monitor/nodes`, MonitorNodesListResponseSchema);
 	if (resp.success) {
@@ -252,6 +260,12 @@ function toWsUrl(baseUrl: string): string {
 
 function toScopeMessage(scope: MonitorScope) {
 	if (scope.scope === 'machine') {
+		if (!scope.machineId) {
+			throw new MonitorScopeError({
+				message: 'machineId is required for machine scope',
+				scope: 'machine',
+			});
+		}
 		return {
 			type: 'subscribe',
 			scope: 'machine',
@@ -259,6 +273,12 @@ function toScopeMessage(scope: MonitorScope) {
 		};
 	}
 	if (scope.scope === 'deployment') {
+		if (!scope.deploymentId) {
+			throw new MonitorScopeError({
+				message: 'deploymentId is required for deployment scope',
+				scope: 'deployment',
+			});
+		}
 		return {
 			type: 'subscribe',
 			scope: 'deployment',
@@ -286,25 +306,40 @@ function parseMessage(raw: unknown): MonitorMessage | null {
 	const data = raw as Record<string, unknown>;
 	const type = data.type;
 	if (type === 'snapshot') {
+		if (!Array.isArray(data.machines)) {
+			return null;
+		}
 		return {
 			type: 'snapshot',
-			machines: (data.machines as MachineMonitorState[]) ?? [],
+			machines: data.machines as MachineMonitorState[],
 		};
 	}
 
 	if (type === 'update') {
+		const machineId =
+			(typeof data.machineId === 'string' ? data.machineId : null) ??
+			(typeof data.machine_id === 'string' ? data.machine_id : null);
+		if (!machineId || !data.report || typeof data.report !== 'object') {
+			return null;
+		}
 		return {
 			type: 'update',
-			machineId: (data.machineId as string) ?? (data.machine_id as string) ?? '',
+			machineId,
 			health: toStreamHealth(data.health),
 			report: data.report as MonitorUpdate['report'],
 		};
 	}
 
 	if (type === 'state_change') {
+		const machineId =
+			(typeof data.machineId === 'string' ? data.machineId : null) ??
+			(typeof data.machine_id === 'string' ? data.machine_id : null);
+		if (!machineId) {
+			return null;
+		}
 		return {
 			type: 'state_change',
-			machineId: (data.machineId as string) ?? (data.machine_id as string) ?? '',
+			machineId,
 			health: toStreamHealth(data.health),
 			previousHealth: toStreamHealth(data.previousHealth ?? data.previous_health),
 		};
@@ -383,7 +418,12 @@ export class MonitorWebSocketClient {
 			this.#ws = new WebSocket(toWsUrl(baseUrl));
 		} catch (error) {
 			this.#state = 'closed';
-			onError?.(new Error(`Failed to create monitor WebSocket: ${String(error)}`));
+			onError?.(
+				new MonitorWebSocketError({
+					message: `Failed to create monitor WebSocket: ${String(error)}`,
+					code: 'connection_failed',
+				})
+			);
 			this.#scheduleReconnect(
 				autoReconnect,
 				maxReconnectAttempts,
@@ -414,7 +454,12 @@ export class MonitorWebSocketClient {
 				const data = parsed as Record<string, unknown>;
 				if (data.error) {
 					this.#state = 'closed';
-					onError?.(new Error(`Monitor auth failed: ${String(data.error)}`));
+					onError?.(
+						new MonitorWebSocketError({
+							message: `Monitor auth failed: ${String(data.error)}`,
+							code: 'auth_failed',
+						})
+					);
 					this.#intentionallyClosed = true;
 					this.#ws?.close(4001, 'Auth failed');
 					return;
@@ -444,7 +489,12 @@ export class MonitorWebSocketClient {
 		};
 
 		this.#ws.onerror = () => {
-			onError?.(new Error('Monitor WebSocket connection error'));
+			onError?.(
+				new MonitorWebSocketError({
+					message: 'Monitor WebSocket connection error',
+					code: 'connection_error',
+				})
+			);
 		};
 
 		this.#ws.onclose = (event: CloseEvent) => {
@@ -481,7 +531,10 @@ export class MonitorWebSocketClient {
 
 		if (this.#reconnectAttempts >= maxReconnectAttempts) {
 			onError?.(
-				new Error(`Exceeded max monitor reconnection attempts (${maxReconnectAttempts})`)
+				new MonitorWebSocketError({
+					message: `Exceeded max monitor reconnection attempts (${maxReconnectAttempts})`,
+					code: 'max_reconnects_exceeded',
+				})
 			);
 			return;
 		}
@@ -522,9 +575,12 @@ export async function* subscribeToMonitoring(
 		},
 		onError: (error) => {
 			terminalError = error;
-			// Only terminate for fatal errors (e.g., max reconnect attempts exceeded).
+			// Only terminate for fatal errors (e.g., max reconnect attempts exceeded or auth failures).
 			// Transient errors are handled by the client's auto-reconnect logic.
-			if (error.message.includes('Exceeded max')) {
+			if (
+				'code' in error &&
+				(error.code === 'max_reconnects_exceeded' || error.code === 'auth_failed')
+			) {
 				done = true;
 			}
 			wake();
