@@ -397,7 +397,11 @@ async function importExistingProject(
 	const defaultName = await getDefaultProjectName(dir);
 	let projectName: string;
 	if (opts.name) {
-		projectName = opts.name;
+		const trimmed = opts.name.trim();
+		if (trimmed.length === 0) {
+			return { status: 'error', message: 'Project name is required.' };
+		}
+		projectName = trimmed;
 	} else if (opts.confirm) {
 		projectName = defaultName;
 	} else {
@@ -538,7 +542,11 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 	const defaultName = await getDefaultProjectName(dir);
 	let projectName: string;
 	if (opts.name) {
-		projectName = opts.name;
+		const trimmed = opts.name.trim();
+		if (trimmed.length === 0) {
+			return { status: 'error', message: 'Project name is required.' };
+		}
+		projectName = trimmed;
 	} else if (opts.confirm) {
 		projectName = defaultName;
 	} else {

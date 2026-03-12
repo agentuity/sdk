@@ -105,6 +105,7 @@ export const importSubcommand = createSubcommand({
 				env: opts.env,
 				org: orgId,
 				region,
+				confirm: opts.confirm,
 				apiClient,
 				auth,
 				config,
