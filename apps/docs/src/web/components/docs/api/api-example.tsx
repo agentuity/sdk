@@ -135,7 +135,7 @@ export function ApiExample({ method, path, body, headers, description, host }: A
 	const [copiedTab, setCopiedTab] = useState<ExampleTab | null>(null);
 	const [highlightedHtml, setHighlightedHtml] = useState<string>('');
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const mountedRef = useRef(true);
+	const requestIdRef = useRef(0);
 
 	useEffect(
 		() => () => {
@@ -170,16 +170,14 @@ export function ApiExample({ method, path, body, headers, description, host }: A
 	const activeCode = tab === 'curl' ? curlCode : sdkCode;
 
 	useEffect(() => {
-		mountedRef.current = true;
+		const currentRequestId = ++requestIdRef.current;
+		setHighlightedHtml('');
 		const lang = tab === 'curl' ? 'bash' : 'typescript';
 		highlightCode(activeCode, lang, resolvedTheme).then((html) => {
-			if (mountedRef.current) {
+			if (currentRequestId === requestIdRef.current) {
 				setHighlightedHtml(html);
 			}
 		});
-		return () => {
-			mountedRef.current = false;
-		};
 	}, [activeCode, tab, resolvedTheme]);
 
 	const copyCode = async () => {

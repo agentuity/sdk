@@ -1,6 +1,14 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useState,
+	type ReactNode,
+} from 'react';
 
 type RegionCode = 'usw' | 'usc' | 'use';
 
@@ -41,14 +49,17 @@ export function RegionProvider({ children }: { children: ReactNode }) {
 		}
 	}, []);
 
-	const setRegion = (nextRegion: RegionCode) => {
-		setRegionState(nextRegion);
-		try {
-			localStorage.setItem(REGION_STORAGE_KEY, nextRegion);
-		} catch {
-			// localStorage may be unavailable in some environments
-		}
-	};
+	const setRegion = useCallback(
+		(nextRegion: RegionCode) => {
+			setRegionState(nextRegion);
+			try {
+				localStorage.setItem(REGION_STORAGE_KEY, nextRegion);
+			} catch {
+				// localStorage may be unavailable in some environments
+			}
+		},
+		[setRegionState]
+	);
 
 	const value = useMemo<RegionContextValue>(
 		() => ({
@@ -57,7 +68,7 @@ export function RegionProvider({ children }: { children: ReactNode }) {
 			baseUrl: `https://catalyst-${region}.agentuity.cloud`,
 			regions: REGION_OPTIONS,
 		}),
-		[region]
+		[region, setRegion]
 	);
 
 	return <RegionContext.Provider value={value}>{children}</RegionContext.Provider>;

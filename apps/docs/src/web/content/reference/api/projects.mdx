@@ -259,16 +259,17 @@ Check if a project with the given name already exists.
 
 #### Response
 
-Returns true (HTTP 409) if exists, false (HTTP 422) if not.
+Returns HTTP 409 if the project exists, HTTP 422 if it does not.
 
 | Status | Description |
 |--------|-------------|
-| 200 | Check completed |
+| 409 | Project exists |
+| 422 | Project not found |
 | 401 | Unauthorized — invalid or missing API key |
 
 #### Example
 
-<ApiExample method="GET" path="/cli/project/exists/my-project" />
+<ApiExample method="GET" path="/cli/project/exists/my-project?orgId=org_abc123" />
 
 ---
 
@@ -582,7 +583,7 @@ Returns the agent matching the identifier.
 
 #### Example
 
-<ApiExample method="GET" path="/cli/agent/proj_abc123" />
+<ApiExample method="GET" path="/cli/agent/proj_abc123?identifier=agent_xyz" />
 
 ---
 

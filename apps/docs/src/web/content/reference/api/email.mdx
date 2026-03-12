@@ -622,13 +622,20 @@ Empty response on success.
 
 ### Get Activity
 
-<ApiEndpoint method="GET" path="/email/activity/2026-02-28" />
+<ApiEndpoint method="GET" path="/email/activity/{date}" />
 
 Get daily inbound/outbound activity over a date window.
 
 #### Parameters
 
 <ParamTable params={[
+  {
+    "name": "date",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Date for activity lookup (YYYY-MM-DD format)"
+  },
   {
     "name": "days",
     "type": "number",
