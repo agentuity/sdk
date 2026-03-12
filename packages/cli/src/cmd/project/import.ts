@@ -125,6 +125,8 @@ export const importSubcommand = createSubcommand({
 			logger,
 			interactive: validateOnly ? false : isTTY(),
 			validateOnly,
+			orgId,
+			region,
 		});
 
 		if (result.status === 'error') {
