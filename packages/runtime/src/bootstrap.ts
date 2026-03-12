@@ -31,7 +31,13 @@ import {
 import { runAgentSetups, createAgentMiddleware } from './agent';
 import { register } from './otel/config';
 import { createServices, getThreadProvider, getSessionProvider } from './_services';
-import { setGlobalLogger, setGlobalTracer, setGlobalRouter, getSpanProcessors } from './_server';
+import {
+	getRouter,
+	setGlobalLogger,
+	setGlobalTracer,
+	setGlobalRouter,
+	getSpanProcessors,
+} from './_server';
 import { enableProcessExitProtection } from './_process-protection';
 import { hasWaitUntilPending } from './_waituntil';
 import { loadBuildMetadata } from './_metadata';
@@ -386,9 +392,13 @@ export async function bootstrap(): Promise<void> {
 	setGlobalLogger(otel.logger);
 	setGlobalTracer(otel.tracer);
 
-	// Step 3: Create router and set as global
-	const app = createRouter();
-	setGlobalRouter(app);
+	// Step 3: Get or create router
+	// createApp() may have already created the router (so users can add middleware in app.ts)
+	const existingRouter = getRouter();
+	const app = existingRouter ?? createRouter();
+	if (!existingRouter) {
+		setGlobalRouter(app);
+	}
 
 	// Step 4: Apply middleware in correct order
 	app.use('*', createCompressionMiddleware());

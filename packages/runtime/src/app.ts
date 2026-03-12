@@ -589,27 +589,20 @@ export async function createApp<TAppState = Record<string, never>>(
 		url: `http://127.0.0.1:${port}`,
 	};
 
-	// Return a router proxy that lazily resolves to the global router.
-	// The router is created by bootstrap() AFTER app.ts executes, so it may not
-	// exist yet. The proxy ensures it works when actually used (in handlers).
-	const routerProxy = new Proxy({} as Hono<Env<TAppState>>, {
-		get(_target, prop, receiver) {
-			const globalRouter = getRouter();
-			if (!globalRouter) {
-				throw new Error(
-					'Router is not available yet. Ensure bootstrap() has been called. ' +
-						'The router is only available after server startup, not during createApp().'
-				);
-			}
-			return Reflect.get(globalRouter, prop, receiver);
-		},
-	});
+	// Get the global router (created by the entry file before app.ts import)
+	const globalRouter = getRouter();
+	if (!globalRouter) {
+		throw new Error(
+			'Router is not available. Ensure the entry file creates the router before importing app.ts.'
+		);
+	}
+	const router = globalRouter as Hono<Env<TAppState>>;
 
 	return {
 		state,
 		shutdown,
 		config,
-		router: routerProxy,
+		router,
 		server,
 		logger,
 		addEventListener: globalAddEventListener,
