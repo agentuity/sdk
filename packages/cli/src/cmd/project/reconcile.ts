@@ -42,9 +42,9 @@ export interface ReconcileOptions {
 	validateOnly?: boolean;
 	/** If true, auto-confirm all prompts (--confirm flag) */
 	confirm?: boolean;
-	/** Pre-selected organization ID from --org-id flag */
+	/** Pre-selected organization ID (skips org selection prompt) */
 	orgId?: string;
-	/** Pre-selected region from --region flag */
+	/** Pre-selected region (skips region selection prompt) */
 	region?: string;
 	/** Project name from --name flag */
 	name?: string;
@@ -344,13 +344,6 @@ async function importExistingProject(
 	// Select org - use --org-id if provided, otherwise auto-select or prompt
 	let orgId: string;
 	if (opts.orgId) {
-		const org = orgs.find((o) => o.id === opts.orgId);
-		if (!org) {
-			return {
-				status: 'error',
-				message: `Organization "${opts.orgId}" not found or you don't have access.`,
-			};
-		}
 		orgId = opts.orgId;
 	} else if (opts.confirm) {
 		orgId = await tui.selectOrganization(orgs, config.preferences?.orgId, true);
@@ -358,39 +351,32 @@ async function importExistingProject(
 		orgId = await selectOrg(orgs, config, existingConfig.orgId);
 	}
 
-	// Fetch regions and select
-	const regions = await tui.spinner({
-		message: 'Fetching regions',
-		clearOnSuccess: true,
-		callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
-	});
-
-	// Select region - use --region if provided, otherwise auto-select or prompt
+	// Select region (use pre-selected if available, otherwise fetch and prompt/auto-select)
 	let region: string;
 	if (opts.region) {
-		const isValidRegion = regions.some((r) => r.region === opts.region);
-		if (!isValidRegion) {
-			const supportedRegions = regions.map((r) => r.region).join(', ');
-			return {
-				status: 'error',
-				message: `Region "${opts.region}" is not valid. Available: ${supportedRegions}`,
-			};
-		}
 		region = opts.region;
-	} else if (opts.confirm) {
-		// Auto-select: use existing config region if valid, otherwise first available
-		const defaultRegion = existingConfig.region;
-		if (defaultRegion && regions.some((r) => r.region === defaultRegion)) {
-			region = defaultRegion;
-		} else {
-			const firstRegion = regions[0];
-			if (!firstRegion) {
-				return { status: 'error', message: 'No cloud regions available.' };
-			}
-			region = firstRegion.region;
-		}
 	} else {
-		region = await selectRegion(regions, existingConfig.region);
+		const regions = await tui.spinner({
+			message: 'Fetching regions',
+			clearOnSuccess: true,
+			callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
+		});
+
+		if (opts.confirm) {
+			// Auto-select: use existing config region if valid, otherwise first available
+			const defaultRegion = existingConfig.region;
+			if (defaultRegion && regions.some((r) => r.region === defaultRegion)) {
+				region = defaultRegion;
+			} else {
+				const firstRegion = regions[0];
+				if (!firstRegion) {
+					return { status: 'error', message: 'No cloud regions available.' };
+				}
+				region = firstRegion.region;
+			}
+		} else {
+			region = await selectRegion(regions, existingConfig.region);
+		}
 	}
 
 	// Get project name
@@ -480,62 +466,49 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 		tui.newline();
 	}
 
-	// Fetch user's orgs
-	const orgs = await tui.spinner({
-		message: 'Fetching organizations',
-		clearOnSuccess: true,
-		callback: () => listOrganizations(apiClient),
-	});
-
-	if (orgs.length === 0) {
-		return { status: 'error', message: 'No organizations found for your account.' };
-	}
-
-	// Select org - use --org-id if provided, otherwise auto-select or prompt
+	// Select org - use --org-id if provided, otherwise fetch and select/auto-select
 	let orgId: string;
 	if (opts.orgId) {
-		const org = orgs.find((o) => o.id === opts.orgId);
-		if (!org) {
-			return {
-				status: 'error',
-				message: `Organization "${opts.orgId}" not found or you don't have access.`,
-			};
-		}
 		orgId = opts.orgId;
-	} else if (opts.confirm) {
-		orgId = await tui.selectOrganization(orgs, config.preferences?.orgId, true);
 	} else {
-		orgId = await selectOrg(orgs, config);
+		// Fetch user's orgs
+		const orgs = await tui.spinner({
+			message: 'Fetching organizations',
+			clearOnSuccess: true,
+			callback: () => listOrganizations(apiClient),
+		});
+
+		if (orgs.length === 0) {
+			return { status: 'error', message: 'No organizations found for your account.' };
+		}
+
+		if (opts.confirm) {
+			orgId = await tui.selectOrganization(orgs, config.preferences?.orgId, true);
+		} else {
+			orgId = await selectOrg(orgs, config);
+		}
 	}
 
-	// Fetch regions and select
-	const regions = await tui.spinner({
-		message: 'Fetching regions',
-		clearOnSuccess: true,
-		callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
-	});
-
-	// Select region - use --region if provided, otherwise auto-select or prompt
+	// Select region (use pre-selected if available, otherwise fetch and prompt/auto-select)
 	let region: string;
 	if (opts.region) {
-		const isValidRegion = regions.some((r) => r.region === opts.region);
-		if (!isValidRegion) {
-			const supportedRegions = regions.map((r) => r.region).join(', ');
-			return {
-				status: 'error',
-				message: `Region "${opts.region}" is not valid. Available: ${supportedRegions}`,
-			};
-		}
 		region = opts.region;
-	} else if (opts.confirm) {
-		// Auto-select first region in confirm mode
-		const firstRegion = regions[0];
-		if (!firstRegion) {
-			return { status: 'error', message: 'No cloud regions available.' };
-		}
-		region = firstRegion.region;
 	} else {
-		region = await selectRegion(regions);
+		const regions = await tui.spinner({
+			message: 'Fetching regions',
+			clearOnSuccess: true,
+			callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
+		});
+
+		if (opts.confirm) {
+			const firstRegion = regions[0];
+			if (!firstRegion) {
+				return { status: 'error', message: 'No cloud regions available.' };
+			}
+			region = firstRegion.region;
+		} else {
+			region = await selectRegion(regions);
+		}
 	}
 
 	// Get project name from package.json or prompt
