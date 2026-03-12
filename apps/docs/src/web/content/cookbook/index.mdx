@@ -3,7 +3,7 @@ title: Cookbook
 description: Tutorials and patterns for building with Agentuity
 ---
 
-import { BookOpen, Search, Clock, MessageSquare, Timer, Scale, Server, ShoppingCart, Paintbrush, Webhook } from 'lucide-react';
+import { BookOpen, Search, Clock, MessageSquare, Timer, Scale, Server, ShoppingCart, Paintbrush, Webhook, Link } from 'lucide-react';
 
 Learn common patterns and build real-world applications with these guides.
 
@@ -44,6 +44,12 @@ Learn common patterns and build real-world applications with these guides.
     title="Cron with Storage"
     description="Schedule tasks that read and write data"
     icon={<Timer />}
+  />
+  <CardLink
+    href="/cookbook/patterns/hono-rpc-tanstack-query"
+    title="Hono RPC + TanStack Query"
+    description="Type-safe API calls between server and React frontend"
+    icon={<Link />}
   />
   <CardLink
     href="/cookbook/patterns/llm-as-a-judge"
