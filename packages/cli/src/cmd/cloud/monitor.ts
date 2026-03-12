@@ -45,11 +45,11 @@ export const monitorSubcommand = createSubcommand({
 		const { apiClient, options, opts, auth, config, orgId } = ctx;
 
 		if (opts.machine && opts.distressed) {
-			tui.fatal('--machine and --distressed are mutually exclusive.');
+			ctx.logger.fatal('--machine and --distressed are mutually exclusive.');
 		}
 
 		if (opts.deployment && opts.distressed) {
-			tui.fatal('--deployment and --distressed are mutually exclusive.');
+			ctx.logger.fatal('--deployment and --distressed are mutually exclusive.');
 		}
 
 		if (opts.snapshot || options.json) {
@@ -91,6 +91,9 @@ export const monitorSubcommand = createSubcommand({
 
 		tui.info('Connecting to monitoring stream...');
 
+		let processingChain = Promise.resolve();
+		let resolveWait: (() => void) | null = null;
+
 		const monitorClient = new MonitorWebSocketClient({
 			baseUrl: getAPIBaseURL(config),
 			token: auth.apiKey,
@@ -104,15 +107,18 @@ export const monitorSubcommand = createSubcommand({
 			},
 			onClose: () => {
 				tui.info('Monitoring stream disconnected');
+				resolveWait?.();
 			},
-			onMessage: async (message) => {
-				await applyMonitorMessage(machineMap, message, apiClient, opts.deployment);
-				renderWatchTable(machineMap, {
-					mode: 'watch',
-					machineId: opts.machine,
-					deploymentId: opts.deployment,
-					distressed: opts.distressed,
-					lastMessage: message,
+			onMessage: (message) => {
+				processingChain = processingChain.then(async () => {
+					await applyMonitorMessage(machineMap, message, apiClient, opts.deployment);
+					renderWatchTable(machineMap, {
+						mode: 'watch',
+						machineId: opts.machine,
+						deploymentId: opts.deployment,
+						distressed: opts.distressed,
+						lastMessage: message,
+					});
 				});
 			},
 		});
@@ -120,6 +126,7 @@ export const monitorSubcommand = createSubcommand({
 		monitorClient.connect();
 
 		await new Promise<void>((resolve) => {
+			resolveWait = resolve;
 			const onSigInt = () => {
 				monitorClient.close();
 				process.off('SIGINT', onSigInt);
@@ -153,15 +160,16 @@ async function getSnapshotMachines(params: {
 		return machines;
 	}
 
-	const filtered: MachineMonitorState[] = [];
-	for (const machine of machines) {
-		const containers = await listMonitorNodeContainers(apiClient, machine.machineId);
-		const hasDeployment = containers.some((container) => container.deploymentId === deploymentId);
-		if (hasDeployment) {
-			filtered.push(machine);
-		}
-	}
-	return filtered;
+	const results = await Promise.all(
+		machines.map(async (machine) => {
+			const containers = await listMonitorNodeContainers(apiClient, machine.machineId);
+			const hasDeployment = containers.some(
+				(container) => container.deploymentId === deploymentId
+			);
+			return hasDeployment ? machine : null;
+		})
+	);
+	return results.filter((m): m is MachineMonitorState => m !== null);
 }
 
 function toMonitorScope(machineId?: string, deploymentId?: string): MonitorScope {
@@ -230,9 +238,15 @@ async function filterMapByDeployment(
 	apiClient: Parameters<typeof listMonitorNodes>[0],
 	deploymentId: string
 ) {
-	for (const [machineId] of machineMap) {
-		const containers = await listMonitorNodeContainers(apiClient, machineId);
-		const include = containers.some((container) => container.deploymentId === deploymentId);
+	const entries = Array.from(machineMap.keys());
+	const results = await Promise.all(
+		entries.map(async (machineId) => {
+			const containers = await listMonitorNodeContainers(apiClient, machineId);
+			const include = containers.some((container) => container.deploymentId === deploymentId);
+			return { machineId, include };
+		})
+	);
+	for (const { machineId, include } of results) {
 		if (!include) {
 			machineMap.delete(machineId);
 		}

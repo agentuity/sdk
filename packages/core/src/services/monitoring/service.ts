@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { StructuredError } from '../../error.ts';
 import { APIResponseSchema } from '../api.ts';
 import type { APIClient } from '../api.ts';
 import type {
@@ -12,19 +13,183 @@ import type {
 	StreamHealth,
 } from './types.ts';
 
-const MachineMonitorStateSchema = z.custom<MachineMonitorState>();
-const ContainerMetricsSchema = z.custom<ContainerMetrics>();
+// ---------------------------------------------------------------------------
+// Zod schemas mirroring every interface in types.ts
+// ---------------------------------------------------------------------------
+
+const CpuMetricsSchema = z.object({
+	usagePercent: z.number(),
+	coreUsagePercent: z.array(z.number()),
+	loadAvg1: z.number(),
+	loadAvg5: z.number(),
+	loadAvg15: z.number(),
+	coreCount: z.number(),
+});
+
+const MemoryMetricsSchema = z.object({
+	totalBytes: z.number(),
+	usedBytes: z.number(),
+	availableBytes: z.number(),
+	cachedBytes: z.number(),
+	buffersBytes: z.number(),
+	swapTotalBytes: z.number(),
+	swapUsedBytes: z.number(),
+	usagePercent: z.number(),
+});
+
+const DiskMetricsSchema = z.object({
+	mountPoint: z.string(),
+	device: z.string(),
+	fsType: z.string(),
+	totalBytes: z.number(),
+	usedBytes: z.number(),
+	availableBytes: z.number(),
+	usagePercent: z.number(),
+	inodesTotal: z.number(),
+	inodesUsed: z.number(),
+	readBytesDelta: z.number(),
+	writeBytesDelta: z.number(),
+	readOpsDelta: z.number(),
+	writeOpsDelta: z.number(),
+});
+
+const NetworkInterfaceMetricsSchema = z.object({
+	name: z.string(),
+	rxBytesDelta: z.number(),
+	txBytesDelta: z.number(),
+	rxPacketsDelta: z.number(),
+	txPacketsDelta: z.number(),
+	rxErrorsDelta: z.number(),
+	txErrorsDelta: z.number(),
+	rxDropsDelta: z.number(),
+	txDropsDelta: z.number(),
+	linkState: z.string(),
+	speedMbps: z.number(),
+});
+
+const SystemInfoSchema = z.object({
+	hostname: z.string(),
+	kernelVersion: z.string(),
+	os: z.string(),
+	arch: z.string(),
+	uptimeSeconds: z.number(),
+	cpuCount: z.number(),
+	totalMemoryBytes: z.number(),
+});
+
+const HostMetricsSchema = z.object({
+	cpu: CpuMetricsSchema,
+	memory: MemoryMetricsSchema,
+	disks: z.array(DiskMetricsSchema),
+	networkInterfaces: z.array(NetworkInterfaceMetricsSchema),
+	system: SystemInfoSchema,
+});
+
+const CapacitySummarySchema = z.object({
+	cpuPressure: z.number(),
+	memoryPressure: z.number(),
+	diskPressure: z.number(),
+	networkPressure: z.number(),
+	compositeScore: z.number(),
+	totalContainers: z.number(),
+	runningContainers: z.number(),
+});
+
+const NodeEventLevelSchema = z.enum(['UNSPECIFIED', 'INFO', 'WARN', 'ERROR', 'CRITICAL']);
+
+const NodeEventTypeSchema = z.enum([
+	'UNSPECIFIED',
+	'CONTAINER_START',
+	'CONTAINER_STOP',
+	'CONTAINER_OOM',
+	'CONTAINER_HEALTH_CHANGE',
+	'PRESSURE_THRESHOLD',
+	'DISK_NEARLY_FULL',
+	'COLLECTOR_ERROR',
+	'PRESSURE_ALERT',
+	'HEALTH_ALERT',
+]);
+
+const NodeEventSchema = z.object({
+	timestampUs: z.number(),
+	level: NodeEventLevelSchema,
+	type: NodeEventTypeSchema,
+	message: z.string(),
+	metadata: z.record(z.string(), z.string()),
+});
+
+const ContainerMetricsSchema = z.object({
+	deploymentId: z.string(),
+	containerId: z.string(),
+	image: z.string(),
+	state: z.string(),
+	cpuUsagePercent: z.number(),
+	cpuThrottledPeriods: z.number(),
+	cpuTotalPeriods: z.number(),
+	cpuLimitMillicores: z.number(),
+	memoryUsageBytes: z.number(),
+	memoryLimitBytes: z.number(),
+	memoryRssBytes: z.number(),
+	memoryCacheBytes: z.number(),
+	memorySwapBytes: z.number(),
+	oomKillCount: z.number(),
+	netRxBytesDelta: z.number(),
+	netTxBytesDelta: z.number(),
+	netRxPacketsDelta: z.number(),
+	netTxPacketsDelta: z.number(),
+	blkioReadBytesDelta: z.number(),
+	blkioWriteBytesDelta: z.number(),
+	pidCount: z.number(),
+	healthy: z.boolean(),
+	inflightRequests: z.number(),
+	startedAtUs: z.number(),
+	lastUpdatedUs: z.number(),
+	ipv4Address: z.string(),
+	ipv6Address: z.string(),
+});
+
+const NodeMonitorReportSchema = z.object({
+	machineId: z.string(),
+	reportedAtUs: z.number(),
+	seq: z.number(),
+	host: HostMetricsSchema,
+	containers: z.array(ContainerMetricsSchema),
+	capacity: CapacitySummarySchema,
+	events: z.array(NodeEventSchema),
+	reportIntervalSeconds: z.number(),
+});
+
+const StreamHealthSchema = z.enum(['CONNECTED', 'STALE', 'DISCONNECTED']);
+
+const MachineMonitorStateSchema = z.object({
+	machineId: z.string(),
+	orgId: z.string(),
+	report: NodeMonitorReportSchema,
+	compositeScore: z.number(),
+	health: StreamHealthSchema,
+	reportedAt: z.string(),
+	updatedAt: z.string(),
+	gravity: z.string(),
+});
+
+// ---------------------------------------------------------------------------
+// Response schemas
+// ---------------------------------------------------------------------------
 
 const MonitorNodesListResponseSchema = APIResponseSchema(z.array(MachineMonitorStateSchema));
 const MonitorNodeGetResponseSchema = APIResponseSchema(MachineMonitorStateSchema);
 const MonitorNodeContainersResponseSchema = APIResponseSchema(z.array(ContainerMetricsSchema));
+
+export const MonitorResponseError = StructuredError('MonitorResponseError')<{
+	path?: string;
+}>();
 
 export async function listMonitorNodes(client: APIClient): Promise<MachineMonitorState[]> {
 	const resp = await client.get(`/monitor/nodes`, MonitorNodesListResponseSchema);
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message || 'Failed to list monitor nodes');
+	throw new MonitorResponseError({ message: resp.message || 'Failed to list monitor nodes' });
 }
 
 export async function getMonitorNode(
@@ -35,7 +200,10 @@ export async function getMonitorNode(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message || 'Failed to get monitor node');
+	throw new MonitorResponseError({
+		message: resp.message || 'Failed to get monitor node',
+		path: `/monitor/nodes/${machineId}`,
+	});
 }
 
 export async function listDistressedNodes(client: APIClient): Promise<MachineMonitorState[]> {
@@ -43,7 +211,9 @@ export async function listDistressedNodes(client: APIClient): Promise<MachineMon
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message || 'Failed to list distressed monitor nodes');
+	throw new MonitorResponseError({
+		message: resp.message || 'Failed to list distressed monitor nodes',
+	});
 }
 
 export async function listMonitorNodeContainers(
@@ -57,7 +227,10 @@ export async function listMonitorNodeContainers(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message || 'Failed to list monitor containers');
+	throw new MonitorResponseError({
+		message: resp.message || 'Failed to list monitor containers',
+		path: `/monitor/nodes/${machineId}/containers`,
+	});
 }
 
 function toWsUrl(baseUrl: string): string {
@@ -226,6 +399,14 @@ export class MonitorWebSocketClient {
 			}
 
 			if (!authenticated) {
+				const data = parsed as Record<string, unknown>;
+				if (data.error) {
+					this.#state = 'closed';
+					onError?.(new Error(`Monitor auth failed: ${String(data.error)}`));
+					this.#intentionallyClosed = true;
+					this.#ws?.close(4001, 'Auth failed');
+					return;
+				}
 				authenticated = true;
 				this.#state = 'subscribing';
 				this.#ws?.send(JSON.stringify(toScopeMessage(scope)));
@@ -329,7 +510,11 @@ export async function* subscribeToMonitoring(
 		},
 		onError: (error) => {
 			terminalError = error;
-			done = true;
+			// Only terminate for fatal errors (e.g., max reconnect attempts exceeded).
+			// Transient errors are handled by the client's auto-reconnect logic.
+			if (error.message.includes('Exceeded max')) {
+				done = true;
+			}
 			wake();
 		},
 		onClose: (code) => {
