@@ -40,6 +40,10 @@ export interface ReconcileOptions {
 	interactive?: boolean;
 	/** If true, skip prompts and just validate */
 	validateOnly?: boolean;
+	/** Pre-selected organization ID (skips org selection prompt) */
+	orgId?: string;
+	/** Pre-selected region (skips region selection prompt) */
+	region?: string;
 }
 
 /**
@@ -333,16 +337,21 @@ async function importExistingProject(
 		tui.newline();
 	}
 
-	// Select org
-	const orgId = await selectOrg(orgs, config, existingConfig.orgId);
+	// Select org (use pre-selected if available)
+	const orgId = opts.orgId ?? (await selectOrg(orgs, config, existingConfig.orgId));
 
-	// Fetch regions and select
-	const regions = await tui.spinner({
-		message: 'Fetching regions',
-		clearOnSuccess: true,
-		callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
-	});
-	const region = await selectRegion(regions, existingConfig.region);
+	// Select region (use pre-selected if available, otherwise fetch and prompt)
+	let region: string;
+	if (opts.region) {
+		region = opts.region;
+	} else {
+		const regions = await tui.spinner({
+			message: 'Fetching regions',
+			clearOnSuccess: true,
+			callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
+		});
+		region = await selectRegion(regions, existingConfig.region);
+	}
 
 	// Get project name
 	const defaultName = await getDefaultProjectName(dir);
@@ -418,27 +427,37 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 
 	tui.newline();
 
-	// Fetch user's orgs
-	const orgs = await tui.spinner({
-		message: 'Fetching organizations',
-		clearOnSuccess: true,
-		callback: () => listOrganizations(apiClient),
-	});
+	let orgId: string;
+	if (opts.orgId) {
+		orgId = opts.orgId;
+	} else {
+		// Fetch user's orgs
+		const orgs = await tui.spinner({
+			message: 'Fetching organizations',
+			clearOnSuccess: true,
+			callback: () => listOrganizations(apiClient),
+		});
 
-	if (orgs.length === 0) {
-		return { status: 'error', message: 'No organizations found for your account.' };
+		if (orgs.length === 0) {
+			return { status: 'error', message: 'No organizations found for your account.' };
+		}
+
+		// Select org
+		orgId = await selectOrg(orgs, config);
 	}
 
-	// Select org
-	const orgId = await selectOrg(orgs, config);
-
-	// Fetch regions and select
-	const regions = await tui.spinner({
-		message: 'Fetching regions',
-		clearOnSuccess: true,
-		callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
-	});
-	const region = await selectRegion(regions);
+	let region: string;
+	if (opts.region) {
+		region = opts.region;
+	} else {
+		// Fetch regions and select
+		const regions = await tui.spinner({
+			message: 'Fetching regions',
+			clearOnSuccess: true,
+			callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
+		});
+		region = await selectRegion(regions);
+	}
 
 	// Get project name from package.json or prompt
 	const defaultName = await getDefaultProjectName(dir);
