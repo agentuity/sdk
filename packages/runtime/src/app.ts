@@ -124,6 +124,46 @@ export interface CompressionConfig {
 	honoOptions?: HonoCompressOptions;
 }
 
+/**
+ * Web analytics configuration options.
+ */
+export interface AnalyticsOptions {
+	/** Enable/disable analytics @default true */
+	enabled?: boolean;
+	/** Require explicit user consent before tracking @default false */
+	requireConsent?: boolean;
+	/** Track click events on elements with data-analytics attribute @default true */
+	trackClicks?: boolean;
+	/** Track scroll depth @default true */
+	trackScroll?: boolean;
+	/** Track outbound link clicks @default true */
+	trackOutboundLinks?: boolean;
+	/** Track form submissions @default false */
+	trackForms?: boolean;
+	/** Track Core Web Vitals (LCP, FID, CLS) @default true */
+	trackWebVitals?: boolean;
+	/** Track JavaScript errors @default true */
+	trackErrors?: boolean;
+	/** Track SPA navigation changes @default true */
+	trackSPANavigation?: boolean;
+	/** Sampling rate (0-1) @default 1 */
+	sampleRate?: number;
+	/** URL patterns to exclude from tracking */
+	excludePatterns?: string[];
+	/** Global properties attached to every event */
+	globalProperties?: Record<string, unknown>;
+}
+
+/**
+ * Workbench UI configuration options.
+ */
+export interface WorkbenchOptions {
+	/** Route path for the workbench UI @default '/workbench' */
+	route?: string;
+	/** Custom headers to include in workbench responses */
+	headers?: Record<string, string>;
+}
+
 export interface AppConfig<TAppState = Record<string, never>> {
 	/**
 	 * Configure CORS (Cross-Origin Resource Sharing) settings.
@@ -226,6 +266,58 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 * to zero which will cause the request to wait indefinitely.
 	 */
 	requestTimeout?: number;
+
+	/**
+	 * Configure web analytics for frontend tracking.
+	 *
+	 * Set to `true` to enable with defaults, `false` to disable, or provide
+	 * a configuration object to customize tracking behavior.
+	 *
+	 * @default true
+	 *
+	 * @example
+	 * ```typescript
+	 * // Enable with defaults
+	 * const app = await createApp({ analytics: true });
+	 *
+	 * // Disable analytics
+	 * const app = await createApp({ analytics: false });
+	 *
+	 * // Custom configuration
+	 * const app = await createApp({
+	 *   analytics: {
+	 *     trackClicks: false,
+	 *     sampleRate: 0.5,
+	 *   }
+	 * });
+	 * ```
+	 */
+	analytics?: boolean | AnalyticsOptions;
+
+	/**
+	 * Configure the workbench UI for agent testing.
+	 *
+	 * Set to `true` to enable at `/workbench`, a string to set a custom route,
+	 * or an object for full configuration. Only active in development mode.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Enable at default route (/workbench)
+	 * const app = await createApp({ workbench: true });
+	 *
+	 * // Custom route
+	 * const app = await createApp({ workbench: '/debug' });
+	 *
+	 * // Full configuration
+	 * const app = await createApp({
+	 *   workbench: {
+	 *     route: '/debug',
+	 *     headers: { 'X-Custom': 'value' },
+	 *   }
+	 * });
+	 * ```
+	 */
+	workbench?: boolean | string | WorkbenchOptions;
 
 	/**
 	 * **Experimental** — Optional user-provided router(s) to use instead of file-based routing.
@@ -497,21 +589,27 @@ export async function createApp<TAppState = Record<string, never>>(
 		url: `http://127.0.0.1:${port}`,
 	};
 
-	// Get router from global (set by entry file before app.ts import)
-	// In dev mode, router may not be available during bundling
-	const globalRouter = getRouter();
-	if (!globalRouter) {
-		throw new Error(
-			'Router is not available. Ensure router is initialized before calling createApp(). This typically happens during bundling or when the entry file has not properly set up the router.'
-		);
-	}
-	const router = globalRouter as Hono<Env<TAppState>>;
+	// Return a router proxy that lazily resolves to the global router.
+	// The router is created by bootstrap() AFTER app.ts executes, so it may not
+	// exist yet. The proxy ensures it works when actually used (in handlers).
+	const routerProxy = new Proxy({} as Hono<Env<TAppState>>, {
+		get(_target, prop, receiver) {
+			const globalRouter = getRouter();
+			if (!globalRouter) {
+				throw new Error(
+					'Router is not available yet. Ensure bootstrap() has been called. ' +
+						'The router is only available after server startup, not during createApp().'
+				);
+			}
+			return Reflect.get(globalRouter, prop, receiver);
+		},
+	});
 
 	return {
 		state,
 		shutdown,
 		config,
-		router,
+		router: routerProxy,
 		server,
 		logger,
 		addEventListener: globalAddEventListener,

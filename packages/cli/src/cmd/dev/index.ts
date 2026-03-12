@@ -1111,6 +1111,11 @@ export const command = createCommand({
 					process.env.AGENTUITY_BASE_URL =
 						process.env.AGENTUITY_BASE_URL || `http://localhost:${vitePort}`;
 
+					// Signal no-bundle mode to runtime bootstrap
+					if (opts.experimentalNoBundle) {
+						process.env.AGENTUITY_NO_BUNDLE = 'true';
+					}
+
 					if (opts.resume) {
 						process.env.AGENTUITY_CODER_RESUME_SESSION = opts.resume;
 					}
