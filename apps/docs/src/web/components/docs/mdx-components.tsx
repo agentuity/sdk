@@ -20,6 +20,7 @@ import { ThemeImage } from './theme-image';
 import { CLICommand } from './cli-command';
 import { GravityNetworkDiagram } from './gravity-network-diagram';
 import { CopyMigrationPrompt } from './copy-migration-prompt';
+import { RegionPicker, ApiEndpoint, ApiExample, ParamTable, ResponseFields } from './api';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MDXComponents = Record<string, React.ComponentType<any>>;
@@ -483,4 +484,9 @@ export const mdxComponents: MDXComponents = {
 	CLICommand,
 	GravityNetworkDiagram,
 	CopyMigrationPrompt,
+	RegionPicker,
+	ApiEndpoint,
+	ApiExample,
+	ParamTable,
+	ResponseFields,
 };

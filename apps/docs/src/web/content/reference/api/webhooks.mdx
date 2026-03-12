@@ -1,0 +1,775 @@
+---
+title: Webhooks API
+description: Manage webhook endpoints, destinations, receipts, deliveries, and analytics
+---
+
+Manage webhook endpoints, destinations, receipts, deliveries, and analytics.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Webhook Management
+
+### Create Webhook
+
+Create a new webhook endpoint.
+
+<ApiEndpoint method="POST" path="/webhook/create" />
+
+
+
+#### Request Body
+
+Webhook creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Webhook name",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Webhook description",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created webhook. The ingest URL is only returned at creation.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Webhook created |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Webhook ID"
+  },
+  {
+    "name": "created_at",
+    "type": "string",
+    "description": "Creation timestamp"
+  },
+  {
+    "name": "updated_at",
+    "type": "string",
+    "description": "Last update timestamp"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Webhook name"
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Webhook description"
+  },
+  {
+    "name": "url",
+    "type": "string",
+    "description": "Ingest URL — only returned at creation"
+  },
+  {
+    "name": "internal",
+    "type": "boolean",
+    "description": "Whether the webhook is internal"
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Webhook metadata"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/webhook/create" body={{
+  "name": "Payment Events"
+}} />
+
+---
+
+### Get Webhook
+
+Get a specific webhook by ID.
+
+<ApiEndpoint method="GET" path="/webhook/get/{webhookId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID (wh_ prefix)"
+  }
+]} />
+
+#### Response
+
+Returns the webhook object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Webhook returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook not found |
+
+#### Example
+
+<ApiExample method="GET" path="/webhook/get/wh_abc123" />
+
+---
+
+### List Webhooks
+
+List all webhooks with optional pagination.
+
+<ApiEndpoint method="GET" path="/webhook/list" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of webhooks.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Webhooks returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Example
+
+<ApiExample method="GET" path="/webhook/list" />
+
+---
+
+### Update Webhook
+
+Update a webhook's name or description.
+
+<ApiEndpoint method="PUT" path="/webhook/update/{webhookId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  }
+]} />
+
+#### Request Body
+
+Webhook update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Updated webhook name",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Updated description",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated webhook.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Webhook updated |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook not found |
+
+#### Example
+
+<ApiExample method="PUT" path="/webhook/update/wh_abc123" body={{
+  "name": "Updated Webhook"
+}} />
+
+---
+
+### Delete Webhook
+
+Delete a webhook and all associated destinations, receipts, and deliveries.
+
+<ApiEndpoint method="DELETE" path="/webhook/delete/{webhookId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  }
+]} />
+
+#### Response
+
+Deletes the webhook and all associated destinations, receipts, and deliveries.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Webhook deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/webhook/delete/wh_abc123" />
+
+---
+
+## Destinations
+
+### Create Destination
+
+Add a destination to a webhook.
+
+<ApiEndpoint method="POST" path="/webhook/destination-create/{webhookId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  }
+]} />
+
+#### Request Body
+
+Destination creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "type",
+    "type": "string",
+    "description": "'url'",
+    "required": true
+  },
+  {
+    "name": "config",
+    "type": "object",
+    "description": "{ url, headers? }",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the created destination.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Destination created |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook not found |
+
+#### Example
+
+<ApiExample method="POST" path="/webhook/destination-create/wh_abc123" body={{
+  "type": "url",
+  "config": {
+    "url": "https://example.com/handler"
+  }
+}} />
+
+---
+
+### List Destinations
+
+List all destinations for a webhook.
+
+<ApiEndpoint method="GET" path="/webhook/destination-list/{webhookId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  }
+]} />
+
+#### Response
+
+Returns list of destinations.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Destinations returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook not found |
+
+#### Example
+
+<ApiExample method="GET" path="/webhook/destination-list/wh_abc123" />
+
+---
+
+### Update Destination
+
+Update a destination's configuration.
+
+<ApiEndpoint method="PUT" path="/webhook/destination-update/{webhookId}/{destinationId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  },
+  {
+    "name": "destinationId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Destination ID (whds_ prefix)"
+  }
+]} />
+
+#### Request Body
+
+Destination update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "config",
+    "type": "object",
+    "description": "Updated destination config",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated destination.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Destination updated |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook or destination not found |
+
+#### Example
+
+<ApiExample method="PUT" path="/webhook/destination-update/wh_abc123/whds_def456" body={{
+  "config": {
+    "url": "https://example.com/new-handler"
+  }
+}} />
+
+---
+
+### Delete Destination
+
+Delete a destination from a webhook.
+
+<ApiEndpoint method="DELETE" path="/webhook/destination-delete/{webhookId}/{destinationId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  },
+  {
+    "name": "destinationId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Destination ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Destination deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook or destination not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/webhook/destination-delete/wh_abc123/whds_def456" />
+
+---
+
+## Receipts
+
+### List Receipts
+
+List incoming request records (receipts) for a webhook.
+
+<ApiEndpoint method="GET" path="/webhook/receipt-list/{webhookId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns incoming request records (receipts) for a webhook.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Receipts returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook not found |
+
+#### Example
+
+<ApiExample method="GET" path="/webhook/receipt-list/wh_abc123" />
+
+---
+
+### Get Receipt
+
+Get a specific receipt by ID.
+
+<ApiEndpoint method="GET" path="/webhook/receipt-get/{webhookId}/{receiptId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  },
+  {
+    "name": "receiptId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Receipt ID (whrc_ prefix)"
+  }
+]} />
+
+#### Response
+
+Returns the receipt with headers and payload.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Receipt returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook or receipt not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Receipt ID"
+  },
+  {
+    "name": "date",
+    "type": "string",
+    "description": "Receipt timestamp"
+  },
+  {
+    "name": "webhook_id",
+    "type": "string",
+    "description": "Parent webhook ID"
+  },
+  {
+    "name": "headers",
+    "type": "object",
+    "description": "Request headers"
+  },
+  {
+    "name": "payload",
+    "type": "any",
+    "description": "The received payload"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/webhook/receipt-get/wh_abc123/whrc_def456" />
+
+---
+
+## Deliveries
+
+### List Deliveries
+
+List delivery attempts for a webhook.
+
+<ApiEndpoint method="GET" path="/webhook/delivery-list/{webhookId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns list of delivery attempts.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deliveries returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook not found |
+
+#### Example
+
+<ApiExample method="GET" path="/webhook/delivery-list/wh_abc123" />
+
+---
+
+### Retry Delivery
+
+Retry a failed delivery. Only deliveries with 'failed' status can be retried.
+
+<ApiEndpoint method="POST" path="/webhook/delivery-retry/{webhookId}/{deliveryId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "webhookId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Webhook ID"
+  },
+  {
+    "name": "deliveryId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Delivery ID (whdv_ prefix)"
+  }
+]} />
+
+#### Response
+
+Retries a failed delivery. Only deliveries with 'failed' status can be retried.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Delivery retried |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Webhook or delivery not found |
+
+#### Example
+
+<ApiExample method="POST" path="/webhook/delivery-retry/wh_abc123/whdv_def456" body={{}} />
+
+---
+
+## Analytics
+
+### Get Org Analytics
+
+Get aggregate webhook analytics for the organization.
+
+<ApiEndpoint method="GET" path="/webhook/analytics/org" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "start",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "ISO 8601 start date"
+  },
+  {
+    "name": "end",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "ISO 8601 end date"
+  },
+  {
+    "name": "granularity",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'minute', 'hour', or 'day'"
+  }
+]} />
+
+#### Response
+
+Returns aggregate analytics including total received, delivered, and failed counts.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Analytics returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Example
+
+<ApiExample method="GET" path="/webhook/analytics/org" />
+
+---
+
+### Get Analytics Time Series
+
+Get time series webhook analytics for the organization.
+
+<ApiEndpoint method="GET" path="/webhook/analytics/org/timeseries" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "start",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "ISO 8601 start date"
+  },
+  {
+    "name": "end",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "ISO 8601 end date"
+  },
+  {
+    "name": "granularity",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'minute', 'hour', or 'day'"
+  }
+]} />
+
+#### Response
+
+Returns time series data with received, delivered, and failed counts per time bucket.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Time series data returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Example
+
+<ApiExample method="GET" path="/webhook/analytics/org/timeseries" />
+
+---

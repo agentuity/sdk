@@ -1,0 +1,63 @@
+---
+title: Users API
+description: Get authenticated user information and organization memberships
+---
+
+Get authenticated user information and organization memberships.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Get Current User
+
+Retrieve the authenticated user's profile including name and organization memberships.
+
+<ApiEndpoint method="GET" path="/cli/auth/user" />
+
+
+
+### Response
+
+Returns the authenticated user's profile including name and organization memberships.
+
+| Status | Description |
+|--------|-------------|
+| 200 | User profile returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "firstName",
+    "type": "string",
+    "description": "User's first name"
+  },
+  {
+    "name": "lastName",
+    "type": "string",
+    "description": "User's last name"
+  },
+  {
+    "name": "organizations",
+    "type": "array",
+    "description": "List of organizations the user belongs to"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/cli/auth/user" />
+
+---

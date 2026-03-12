@@ -1,0 +1,625 @@
+---
+title: Object Storage API
+description: Store and manage files and binary objects in buckets
+---
+
+Store and manage files and binary objects in buckets.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## List Objects
+
+List objects in a bucket with optional prefix and pagination.
+
+<ApiEndpoint method="GET" path="/storage/objects/{bucket}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "bucket",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Bucket name"
+  },
+  {
+    "name": "prefix",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Only return keys with this prefix"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum objects to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Offset for pagination"
+  }
+]} />
+
+### Response
+
+Paginated object listing.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Object list returned |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "objects",
+    "type": "array",
+    "description": "List of object metadata records"
+  },
+  {
+    "name": "objects[].bucket_name",
+    "type": "string",
+    "description": "Bucket containing the object"
+  },
+  {
+    "name": "objects[].key",
+    "type": "string",
+    "description": "Object key"
+  },
+  {
+    "name": "objects[].size",
+    "type": "number",
+    "description": "Object size in bytes"
+  },
+  {
+    "name": "objects[].etag",
+    "type": "string",
+    "description": "Entity tag"
+  },
+  {
+    "name": "objects[].content_type",
+    "type": "string",
+    "description": "MIME content type"
+  },
+  {
+    "name": "objects[].last_modified",
+    "type": "string",
+    "description": "Last modified timestamp"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total matching objects"
+  },
+  {
+    "name": "prefix",
+    "type": "string",
+    "description": "Applied prefix filter"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Applied limit"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Applied offset"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/storage/objects/my-bucket?prefix=images/&limit=50" />
+
+---
+
+## Delete Objects
+
+Delete objects by key or by prefix. `key` and `prefix` are mutually exclusive query parameters.
+
+<ApiEndpoint method="DELETE" path="/storage/objects/{bucket}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "bucket",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Bucket name"
+  },
+  {
+    "name": "key",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Delete a single object key"
+  },
+  {
+    "name": "prefix",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Delete all objects matching prefix"
+  }
+]} />
+
+### Response
+
+JSON response with deleted object count.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Delete operation completed |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "deleted_count",
+    "type": "number",
+    "description": "Number of objects deleted"
+  }
+]} />
+
+### Example
+
+<ApiExample method="DELETE" path="/storage/objects/my-bucket?key=images/photo.jpg" />
+
+---
+
+## Generate Presigned URL
+
+Generate a time-limited URL for uploading or downloading an object.
+
+<ApiEndpoint method="GET" path="/storage/presign/{bucket}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "bucket",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Bucket name"
+  },
+  {
+    "name": "key",
+    "type": "string",
+    "in": "query",
+    "required": true,
+    "description": "Object key to access"
+  },
+  {
+    "name": "operation",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Operation type: `download` or `upload` (default: `download`)"
+  }
+]} />
+
+### Response
+
+JSON response containing presigned URL and expiry.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Presigned URL generated |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "presigned_url",
+    "type": "string",
+    "description": "Temporary signed URL"
+  },
+  {
+    "name": "expiry_seconds",
+    "type": "number",
+    "description": "URL expiry in seconds"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/storage/presign/my-bucket?key=images/photo.jpg&operation=download" />
+
+---
+
+## Get Bucket Stats
+
+Get object count and total size for a bucket.
+
+<ApiEndpoint method="GET" path="/storage/stats/{bucket}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "bucket",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Bucket name"
+  }
+]} />
+
+### Response
+
+Bucket-level usage and activity statistics.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Bucket stats returned |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "bucket_name",
+    "type": "string",
+    "description": "Bucket name"
+  },
+  {
+    "name": "object_count",
+    "type": "number",
+    "description": "Total number of objects"
+  },
+  {
+    "name": "total_size",
+    "type": "number",
+    "description": "Total size in bytes"
+  },
+  {
+    "name": "last_event_at",
+    "type": "string | null",
+    "description": "Last activity timestamp (ISO 8601)"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/storage/stats/my-bucket" />
+
+---
+
+## Get Storage Analytics
+
+Get aggregated analytics across buckets and daily snapshots.
+
+<ApiEndpoint method="GET" path="/storage/analytics" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "days",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Days of history to include (default: 180)"
+  }
+]} />
+
+### Response
+
+Analytics summary, per-bucket breakdown, and daily trend data.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Analytics returned |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "summary",
+    "type": "object",
+    "description": "Overall storage summary"
+  },
+  {
+    "name": "summary.total_object_count",
+    "type": "number",
+    "description": "Total objects across buckets"
+  },
+  {
+    "name": "summary.total_size",
+    "type": "number",
+    "description": "Total bytes across buckets"
+  },
+  {
+    "name": "summary.estimated_monthly_cost",
+    "type": "number",
+    "description": "Estimated monthly storage cost"
+  },
+  {
+    "name": "summary.cost_per_gb_month",
+    "type": "number",
+    "description": "Cost per GB-month used in estimate"
+  },
+  {
+    "name": "buckets",
+    "type": "array",
+    "description": "Per-bucket stats"
+  },
+  {
+    "name": "daily",
+    "type": "array",
+    "description": "Daily usage snapshots"
+  },
+  {
+    "name": "days",
+    "type": "number",
+    "description": "Applied history window in days"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/storage/analytics?days=30" />
+
+---
+
+## Get Bucket Config
+
+Retrieve effective configuration for a bucket.
+
+<ApiEndpoint method="GET" path="/bucket/config/{bucket}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "bucket",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Bucket name"
+  }
+]} />
+
+### Response
+
+Bucket configuration settings and location metadata.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Bucket config returned |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "bucket_name",
+    "type": "string",
+    "description": "Bucket name"
+  },
+  {
+    "name": "storage_tier",
+    "type": "string | null",
+    "description": "`STANDARD`, `INFREQUENT_ACCESS`, or `ARCHIVE`"
+  },
+  {
+    "name": "ttl",
+    "type": "number | null",
+    "description": "Default object TTL in seconds"
+  },
+  {
+    "name": "public",
+    "type": "boolean | null",
+    "description": "Whether objects are publicly accessible"
+  },
+  {
+    "name": "cache_control",
+    "type": "string | null",
+    "description": "Default Cache-Control header"
+  },
+  {
+    "name": "cors",
+    "type": "object | null",
+    "description": "CORS configuration"
+  },
+  {
+    "name": "additional_headers",
+    "type": "object | null",
+    "description": "Additional response headers"
+  },
+  {
+    "name": "bucket_location",
+    "type": "string | null",
+    "description": "Bucket storage location/region"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/bucket/config/my-bucket" />
+
+---
+
+## Update Bucket Config
+
+Update bucket configuration fields. Omitted fields remain unchanged.
+
+<ApiEndpoint method="PUT" path="/bucket/config/{bucket}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "bucket",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Bucket name"
+  }
+]} />
+
+### Request Body
+
+Partial bucket config update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "storage_tier",
+    "type": "string",
+    "description": "Storage tier override",
+    "required": false
+  },
+  {
+    "name": "ttl",
+    "type": "number | null",
+    "description": "Default TTL in seconds",
+    "required": false
+  },
+  {
+    "name": "public",
+    "type": "boolean",
+    "description": "Public access setting",
+    "required": false
+  },
+  {
+    "name": "cache_control",
+    "type": "string",
+    "description": "Default Cache-Control header",
+    "required": false
+  },
+  {
+    "name": "cors",
+    "type": "object",
+    "description": "CORS configuration",
+    "required": false
+  },
+  {
+    "name": "additional_headers",
+    "type": "object",
+    "description": "Additional response headers",
+    "required": false
+  }
+]} />
+
+### Response
+
+Updated bucket configuration object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Bucket config updated |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "bucket_name",
+    "type": "string",
+    "description": "Bucket name"
+  },
+  {
+    "name": "storage_tier",
+    "type": "string | null",
+    "description": "Configured storage tier"
+  },
+  {
+    "name": "ttl",
+    "type": "number | null",
+    "description": "Configured TTL"
+  },
+  {
+    "name": "public",
+    "type": "boolean | null",
+    "description": "Configured public access"
+  },
+  {
+    "name": "cache_control",
+    "type": "string | null",
+    "description": "Configured Cache-Control"
+  },
+  {
+    "name": "cors",
+    "type": "object | null",
+    "description": "Configured CORS settings"
+  },
+  {
+    "name": "additional_headers",
+    "type": "object | null",
+    "description": "Configured custom headers"
+  },
+  {
+    "name": "bucket_location",
+    "type": "string | null",
+    "description": "Bucket location"
+  }
+]} />
+
+### Example
+
+<ApiExample method="PUT" path="/bucket/config/my-bucket" body={{
+  "ttl": 86400,
+  "public": true,
+  "cache_control": "max-age=3600"
+}} />
+
+---
+
+## Delete Bucket Config
+
+Delete custom bucket config and reset to defaults.
+
+<ApiEndpoint method="DELETE" path="/bucket/config/{bucket}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "bucket",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Bucket name"
+  }
+]} />
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Bucket config deleted/reset |
+| 401 | Unauthorized |
+
+### Example
+
+<ApiExample method="DELETE" path="/bucket/config/my-bucket" />
+
+---

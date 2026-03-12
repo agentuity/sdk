@@ -11,6 +11,7 @@ import {
   createCompressionMiddleware,
   getAppState,
   getAppConfig,
+  getUserRouter,
   register,
   getSpanProcessors,
   createServices,
@@ -76,22 +77,11 @@ app.use('*', createBaseMiddleware({
 	meter: otel.meter,
 }));
 
-// Note: Workbench routes use their own CORS middleware (defined in createWorkbenchRouter)
-// which includes signature headers for production authentication
-app.use('/api/*', createCorsMiddleware());
-
-// Critical: otelMiddleware creates session/thread/waitUntilHandler
-// Only apply to routes that need full session tracking:
-// - /api/* routes (agent/API invocations)
-// - /_agentuity/workbench/* routes (workbench API)
-// Explicitly excluded (no session tracking, no Catalyst events):
-// - /_agentuity/webanalytics/* (web analytics - uses lightweight cookie-only middleware)
-// - /_agentuity/health, /_agentuity/ready, /_agentuity/idle (health checks)
+// Workbench routes always get OTel middleware for session tracking
 app.use('/_agentuity/workbench/*', createOtelMiddleware());
-app.use('/api/*', createOtelMiddleware());
 
-// Critical: agentMiddleware sets up agent context
-app.use('/api/*', createAgentMiddleware(''));
+// Note: /api/* middleware (CORS, OTel, agent context) is applied in Step 6
+// after app.ts import, so user-provided routers can specify custom prefixes.
 
 // Step 4: Import user's app.ts (runs createApp, gets state/config)
 await import('../../app.js');
@@ -333,47 +323,64 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	app.get('/*.css', (c: Context) => proxyToVite(c));
 }
 
-// Mount API routes
-const { default: router_0 } = await import('../api/agent-calls/route.js');
-app.route('/api/agent-calls', router_0);
-const { default: router_1 } = await import('../api/agent-pulse/route.js');
-app.route('/api/agent-pulse', router_1);
-const { default: router_2 } = await import('../api/ai-gateway/route.js');
-app.route('/api/ai-gateway', router_2);
-const { default: router_3 } = await import('../api/chat/route.js');
-app.route('/api/chat', router_3);
-const { default: router_4 } = await import('../api/context/route.js');
-app.route('/api/context', router_4);
-const { default: router_5 } = await import('../api/doc-qa/route.js');
-app.route('/api/doc-qa', router_5);
-const { default: router_6 } = await import('../api/durable-stream/route.js');
-app.route('/api/durable-stream', router_6);
-const { default: router_7 } = await import('../api/evals/route.js');
-app.route('/api/evals', router_7);
-const { default: router_8 } = await import('../api/hello/route.js');
-app.route('/api/hello', router_8);
-const { default: router_9 } = await import('../api/key-value/route.js');
-app.route('/api/key-value', router_9);
-const { default: router_10 } = await import('../api/model-arena/route.js');
-app.route('/api/model-arena', router_10);
-const { default: router_11 } = await import('../api/object-storage/route.js');
-app.route('/api/object-storage', router_11);
-const { default: router_12 } = await import('../api/process-docs/route.js');
-app.route('/api/process-docs', router_12);
-const { default: router_13 } = await import('../api/sandbox/route.js');
-app.route('/api/sandbox', router_13);
-const { default: router_14 } = await import('../api/sessions/route.js');
-app.route('/api/sessions', router_14);
-const { default: router_15 } = await import('../api/sse-stream/route.js');
-app.route('/api/sse-stream', router_15);
-const { default: router_16 } = await import('../api/streaming/route.js');
-app.route('/api/streaming', router_16);
-const { default: router_17 } = await import('../api/title-generator/route.js');
-app.route('/api/title-generator', router_17);
-const { default: router_18 } = await import('../api/vector-storage/route.js');
-app.route('/api/vector-storage', router_18);
-const { default: router_19 } = await import('../api/websocket/route.js');
-app.route('/api/websocket', router_19);
+// Apply middleware and mount API routes
+// If user passed router(s) via createApp({ router }), mount those instead of discovered files
+const __userMounts = getUserRouter();
+if (__userMounts) {
+	for (const mount of __userMounts) {
+		// Apply Agentuity middleware (CORS, OTel, agent context) to each user-provided prefix
+		const prefix = mount.path.endsWith('/') ? mount.path + '*' : mount.path + '/*';
+		app.use(prefix, createCorsMiddleware());
+		app.use(prefix, createOtelMiddleware());
+		app.use(prefix, createAgentMiddleware(''));
+		app.route(mount.path, mount.router);
+	}
+} else {
+	// File-based routing: apply middleware to /api/* and mount discovered route files
+	app.use('/api/*', createCorsMiddleware());
+	app.use('/api/*', createOtelMiddleware());
+	app.use('/api/*', createAgentMiddleware(''));
+	const { default: router_0 } = await import('../api/agent-calls/route.js');
+	app.route('/api/agent-calls', router_0);
+	const { default: router_1 } = await import('../api/agent-pulse/route.js');
+	app.route('/api/agent-pulse', router_1);
+	const { default: router_2 } = await import('../api/ai-gateway/route.js');
+	app.route('/api/ai-gateway', router_2);
+	const { default: router_3 } = await import('../api/chat/route.js');
+	app.route('/api/chat', router_3);
+	const { default: router_4 } = await import('../api/context/route.js');
+	app.route('/api/context', router_4);
+	const { default: router_5 } = await import('../api/doc-qa/route.js');
+	app.route('/api/doc-qa', router_5);
+	const { default: router_6 } = await import('../api/durable-stream/route.js');
+	app.route('/api/durable-stream', router_6);
+	const { default: router_7 } = await import('../api/evals/route.js');
+	app.route('/api/evals', router_7);
+	const { default: router_8 } = await import('../api/hello/route.js');
+	app.route('/api/hello', router_8);
+	const { default: router_9 } = await import('../api/key-value/route.js');
+	app.route('/api/key-value', router_9);
+	const { default: router_10 } = await import('../api/model-arena/route.js');
+	app.route('/api/model-arena', router_10);
+	const { default: router_11 } = await import('../api/object-storage/route.js');
+	app.route('/api/object-storage', router_11);
+	const { default: router_12 } = await import('../api/process-docs/route.js');
+	app.route('/api/process-docs', router_12);
+	const { default: router_13 } = await import('../api/sandbox/route.js');
+	app.route('/api/sandbox', router_13);
+	const { default: router_14 } = await import('../api/sessions/route.js');
+	app.route('/api/sessions', router_14);
+	const { default: router_15 } = await import('../api/sse-stream/route.js');
+	app.route('/api/sse-stream', router_15);
+	const { default: router_16 } = await import('../api/streaming/route.js');
+	app.route('/api/streaming', router_16);
+	const { default: router_17 } = await import('../api/title-generator/route.js');
+	app.route('/api/title-generator', router_17);
+	const { default: router_18 } = await import('../api/vector-storage/route.js');
+	app.route('/api/vector-storage', router_18);
+	const { default: router_19 } = await import('../api/websocket/route.js');
+	app.route('/api/websocket', router_19);
+}
 
 // Mount workbench API routes (/_agentuity/workbench/*)
 // Always available for cloud workbench communication
