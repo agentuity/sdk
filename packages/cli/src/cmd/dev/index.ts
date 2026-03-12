@@ -553,17 +553,38 @@ export const command = createCommand({
 				centerTitle: false,
 			});
 
-			// Start Vite asset server ONCE before restart loop
-			// Vite handles frontend HMR independently and stays running across backend restarts
+			// Detect user route mount paths for Vite proxy configuration
+			// This is a quick AST scan of app.ts — runs before Vite starts
+			let routePaths: string[] = ['/api']; // Default fallback
+			try {
+				const { detectExplicitRouter } = await import('../build/app-router-detector');
+				const detection = await detectExplicitRouter(rootDir, logger);
+				if (detection.detected && detection.mounts.length > 0) {
+					routePaths = detection.mounts.map((m) => m.path);
+					logger.debug('Detected route mount paths: %s', routePaths.join(', '));
+				}
+			} catch (err) {
+				logger.debug('Route detection failed, using default /api: %s', err);
+			}
+
+			// Pick internal port for Bun backend (not user-facing)
+			const bunBackendPort = opts.port + 1;
+
+			// Start Vite dev server ONCE before restart loop
+			// Vite is the primary (user-facing) server — serves frontend natively
+			// and proxies API/WS requests to Bun backend
 			let viteServer: ServerLike | null = null;
 			let vitePort: number;
 
 			try {
-				logger.debug('Starting Vite asset server...');
+				logger.debug('Starting Vite dev server (primary)...');
 				const viteResult = await startViteAssetServer({
 					rootDir,
 					logger,
 					workbenchPath: workbench.config?.route,
+					port: opts.port,
+					backendPort: bunBackendPort,
+					routePaths,
 				});
 				viteServer = viteResult.server;
 				vitePort = viteResult.port;
@@ -572,10 +593,10 @@ export const command = createCommand({
 				await devLock.updatePorts({ vite: vitePort });
 
 				logger.debug(
-					`Vite asset server running on port ${vitePort} (stays running across backend restarts)`
+					`Vite dev server running on port ${vitePort} (primary, proxying backend on port ${bunBackendPort})`
 				);
 			} catch (error) {
-				tui.error(`Failed to start Vite asset server: ${error}`);
+				tui.error(`Failed to start Vite dev server: ${error}`);
 				await devLock.release();
 				originalExit(1);
 				return;
@@ -637,7 +658,7 @@ export const command = createCommand({
 
 				// Stop Bun server
 				try {
-					await stopBunServer(opts.port, logger);
+					await stopBunServer(bunBackendPort, logger);
 				} catch (err) {
 					logger.debug('Error stopping Bun server during cleanup: %s', err);
 				}
@@ -730,7 +751,7 @@ export const command = createCommand({
 
 				// Stop Bun server
 				try {
-					await stopBunServer(opts.port, logger);
+					await stopBunServer(bunBackendPort, logger);
 				} catch (err) {
 					logger.debug('Error stopping Bun server for restart: %s', err);
 				}
@@ -1084,10 +1105,11 @@ export const command = createCommand({
 					if (project?.region) {
 						process.env.AGENTUITY_REGION = project.region;
 					}
-					process.env.PORT = String(opts.port);
-					process.env.AGENTUITY_PORT = process.env.PORT;
+					process.env.PORT = String(bunBackendPort);
+					process.env.AGENTUITY_PORT = String(bunBackendPort);
+					// Base URL points to user-facing Vite server (which proxies to Bun)
 					process.env.AGENTUITY_BASE_URL =
-						process.env.AGENTUITY_BASE_URL || `http://localhost:${opts.port}`;
+						process.env.AGENTUITY_BASE_URL || `http://localhost:${vitePort}`;
 
 					if (opts.resume) {
 						process.env.AGENTUITY_CODER_RESUME_SESSION = opts.resume;
@@ -1111,23 +1133,20 @@ export const command = createCommand({
 					if (devmode?.hostname) {
 						process.env.AGENTUITY_DEVMODE_URL = `https://${devmode.hostname}`;
 					} else {
-						process.env.AGENTUITY_DEVMODE_URL = `http://localhost:${opts.port}`;
+						process.env.AGENTUITY_DEVMODE_URL = `http://localhost:${vitePort}`;
 					}
 
-					// Set Vite port for asset proxying in bundled app
-					process.env.VITE_PORT = String(vitePort);
+					// Start Bun backend server on internal port (Vite proxies to it)
+					logger.debug('Starting Bun backend on internal port %d', bunBackendPort);
 
-					logger.debug('Set VITE_PORT=%s for asset proxying', process.env.VITE_PORT);
-
-					// Start Bun dev server (Vite already running, just start backend)
 					await startBunDevServer({
 						rootDir,
-						port: opts.port,
+						port: bunBackendPort,
 						projectId: project?.projectId,
 						orgId: project?.orgId,
 						deploymentId,
 						logger,
-						vitePort, // Pass port of already-running Vite server
+						vitePort, // Still passed for reference/logging
 						inspect: opts.inspect,
 						inspectWait: opts.inspectWait,
 						inspectBrk: opts.inspectBrk,
@@ -1187,7 +1206,7 @@ export const command = createCommand({
 								'--endpoint-id',
 								devmode.id,
 								'--port',
-								opts.port.toString(),
+								vitePort.toString(),
 								'--url',
 								gravityURL,
 								'--log-level',

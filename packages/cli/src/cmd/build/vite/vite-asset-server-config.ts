@@ -1,8 +1,8 @@
 /**
- * Vite Asset Server Configuration
+ * Vite Dev Server Configuration
  *
- * Minimal Vite config for serving frontend assets with HMR only.
- * Does NOT handle API routes, workbench, or WebSocket - that's the Bun server's job.
+ * Vite is the primary dev server — serves frontend assets natively and proxies
+ * API/WebSocket requests to the Bun backend server.
  */
 
 import { join } from 'node:path';
@@ -14,7 +14,10 @@ export interface GenerateAssetServerConfigOptions {
 	rootDir: string;
 	logger: Logger;
 	workbenchPath?: string;
-	port: number; // The port Vite will run on (for HMR client configuration)
+	port: number; // The port Vite will listen on (user-facing)
+	backendPort: number; // The port Bun backend is running on (internal)
+	/** User-defined route mount paths from createApp({ router }) (e.g., ['/api', '/v1']) */
+	routePaths?: string[];
 }
 
 /**
@@ -23,7 +26,7 @@ export interface GenerateAssetServerConfigOptions {
 export async function generateAssetServerConfig(
 	options: GenerateAssetServerConfigOptions
 ): Promise<InlineConfig> {
-	const { rootDir, logger, workbenchPath, port } = options;
+	const { rootDir, logger, workbenchPath, port, backendPort, routePaths = ['/api'] } = options;
 
 	// Load custom user config for define values and plugins
 	const { loadAgentuityConfig } = await import('./config-loader');
@@ -90,27 +93,47 @@ export async function generateAssetServerConfig(
 		envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 
 		server: {
-			// Use the port we selected
+			// Vite is the primary dev server — listens on the user-facing port
 			port,
 			strictPort: true, // Port is pre-verified as available by findAvailablePort()
 			host: '127.0.0.1',
 
-			// CORS headers to allow Bun server on port 3500 to proxy requests
-			cors: {
-				origin: 'http://127.0.0.1:3500',
-				credentials: true,
+			// Proxy backend routes to Bun server
+			// WebSocket upgrade requests are automatically proxied when ws: true
+			proxy: {
+				// User-defined route mounts (from createApp({ router }))
+				...Object.fromEntries(
+					routePaths.map((routePath) => [
+						routePath,
+						{
+							target: `http://127.0.0.1:${backendPort}`,
+							changeOrigin: true,
+							ws: true,
+						},
+					])
+				),
+				// Agentuity system routes (workbench API, health, analytics, etc.)
+				'/_agentuity': {
+					target: `http://127.0.0.1:${backendPort}`,
+					changeOrigin: true,
+					ws: true,
+				},
+				// Legacy health check routes
+				'/_health': {
+					target: `http://127.0.0.1:${backendPort}`,
+					changeOrigin: true,
+				},
+				'/_idle': {
+					target: `http://127.0.0.1:${backendPort}`,
+					changeOrigin: true,
+				},
 			},
 
-			// HMR configuration for development with tunnel support (*.agentuity.live)
-			// Do NOT set host/protocol - let Vite auto-detect from page origin
-			// This allows HMR to work both locally and through the Gravity tunnel
-			// The Bun server proxies /__vite_hmr WebSocket connections to Vite
-			hmr: {
-				// Use a dedicated path for HMR WebSocket to enable proxying
-				path: '/__vite_hmr',
-			},
+			// HMR works natively — Vite is the primary server, no proxy needed
+			// Auto-detect host/protocol from page origin for tunnel support
+			hmr: true,
 
-			// Don't open browser - Bun server will be the entry point
+			// Don't open browser automatically
 			open: false,
 		},
 
