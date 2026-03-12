@@ -1,7 +1,6 @@
 import { createApp } from '@agentuity/runtime';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider';
 import { testSessionEventProvider } from './src/test/helpers/session-event-provider';
-import { mockAuthMiddleware, analyticsMiddleware } from './src/lib/custom-middleware';
 import router from './src/api/router';
 
 // Import test files to register tests
@@ -49,15 +48,6 @@ const app = await createApp({
 		thread: threadProvider,
 		sessionEvent: testSessionEventProvider,
 	},
-});
-
-// Add app-level middleware (applies to ALL routes)
-// This demonstrates the pattern of adding middleware in app.ts
-app.router.use('/api/*', mockAuthMiddleware());
-app.router.use('/api/*', analyticsMiddleware());
-app.router.use('/api/*', async (c, next) => {
-	c.set('appLevelData', 'set-in-app-ts');
-	await next();
 });
 
 // Log server URL for debugging
