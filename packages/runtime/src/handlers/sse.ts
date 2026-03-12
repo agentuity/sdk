@@ -84,7 +84,7 @@ export interface SSEOptions<TOutput = unknown> {
 	 *
 	 * This schema is used for:
 	 * - Type inference in generated `routes.ts` registry
-	 * - Automatic typing of `useEventStream` hook's `data` property
+	 * - Automatic typing of `EventSource/EventStreamManager` hook's `data` property
 	 *
 	 * The schema is NOT used for runtime validation - SSE messages are sent
 	 * as-is through the stream. Use this for TypeScript type safety only.
@@ -188,8 +188,8 @@ function formatSSEMessage(message: SSEMessage): string {
  *   stream.close();
  * }));
  *
- * // On the frontend, useEventStream will now have typed data:
- * // const { data } = useEventStream('/api/stream');
+ * // On the frontend, EventSource/EventStreamManager will now have typed data:
+ * // const { data } = EventSource/EventStreamManager('/api/stream');
  * // data.type is 'token' | 'complete' | 'error'
  * ```
  *
