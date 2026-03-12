@@ -118,6 +118,15 @@ export async function generateAssetServerConfig(
 					changeOrigin: true,
 					ws: true,
 				},
+				// Workbench UI route (served by Bun, references /@fs/* paths handled by Vite)
+				...(workbenchPath
+					? {
+							[workbenchPath]: {
+								target: `http://127.0.0.1:${backendPort}`,
+								changeOrigin: true,
+							},
+						}
+					: {}),
 				// Legacy health check routes
 				'/_health': {
 					target: `http://127.0.0.1:${backendPort}`,
