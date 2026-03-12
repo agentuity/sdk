@@ -216,7 +216,10 @@ export async function getMonitorNode(
 	client: APIClient,
 	machineId: string
 ): Promise<MachineMonitorState> {
-	const resp = await client.get(`/monitor/nodes/${machineId}`, MonitorNodeGetResponseSchema);
+	const resp = await client.get(
+		`/monitor/nodes/${encodeURIComponent(machineId)}`,
+		MonitorNodeGetResponseSchema
+	);
 	if (resp.success) {
 		return resp.data;
 	}
@@ -241,7 +244,7 @@ export async function listMonitorNodeContainers(
 	machineId: string
 ): Promise<ContainerMetrics[]> {
 	const resp = await client.get(
-		`/monitor/nodes/${machineId}/containers`,
+		`/monitor/nodes/${encodeURIComponent(machineId)}/containers`,
 		MonitorNodeContainersResponseSchema
 	);
 	if (resp.success) {
