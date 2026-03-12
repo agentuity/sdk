@@ -368,7 +368,14 @@ export class MonitorWebSocketClient {
 	}
 
 	connect() {
+		if (this.#state !== 'closed') {
+			return;
+		}
 		this.#intentionallyClosed = false;
+		if (this.#reconnectTimer !== null) {
+			clearTimeout(this.#reconnectTimer);
+			this.#reconnectTimer = null;
+		}
 		this.#connectInternal();
 	}
 
