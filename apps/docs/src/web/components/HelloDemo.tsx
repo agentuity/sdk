@@ -1,10 +1,24 @@
-import { useAPI } from '@agentuity/react';
-import { type ChangeEvent, useState } from 'react';
+import { type ChangeEvent, useState, useCallback } from 'react';
 import { Button, Input } from './ui';
 
 export function HelloDemo() {
 	const [name, setName] = useState('World');
-	const { invoke, isLoading, data: greeting } = useAPI('POST /api/hello');
+	const [greeting, setGreeting] = useState<string | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+
+	const invoke = useCallback(async (input: { name: string }) => {
+		setIsLoading(true);
+		try {
+			const res = await fetch('/api/hello', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(input),
+			});
+			setGreeting(await res.text());
+		} finally {
+			setIsLoading(false);
+		}
+	}, []);
 
 	return (
 		<div className="flex flex-col gap-4">

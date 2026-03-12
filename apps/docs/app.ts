@@ -1,6 +1,13 @@
 import { createApp } from '@agentuity/runtime';
+import router from './src/api';
 
 const { server, logger } = await createApp({
+	router: [
+		{
+			path: '/api',
+			router: router,
+		},
+	],
 	setup: async () => {
 		// anything you return from this will be automatically
 		// available in the ctx.app. this allows you to initialize

@@ -54,6 +54,6 @@ test.describe('RPC Client', () => {
 		await rpcLink.click();
 
 		await expect(page).toHaveURL('/rpc');
-		await expect(page.locator('h1')).toContainText('RPC Client Test');
+		await expect(page.locator('h1')).toContainText('Hono Client Test');
 	});
 });

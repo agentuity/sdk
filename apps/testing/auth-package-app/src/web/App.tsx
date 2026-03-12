@@ -1,4 +1,3 @@
-import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 import { AuthDemo } from './AuthDemo';
 
@@ -7,7 +6,22 @@ const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 export function App() {
 	const [name, setName] = useState('World');
 	const [wantPoem, setWantPoem] = useState(false);
-	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
+	const [greeting, setGreeting] = useState<string | null>(null);
+	const [running, setRunning] = useState(false);
+
+	const invoke = async (input: { name: string; wantPoem: boolean }) => {
+		setRunning(true);
+		try {
+			const res = await fetch('/api/hello', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(input),
+			});
+			setGreeting(await res.text());
+		} finally {
+			setRunning(false);
+		}
+	};
 
 	return (
 		<div className="app-container">

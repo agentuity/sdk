@@ -18,7 +18,6 @@ This directory contains auto-generated TypeScript files created by the Agentuity
 ## Generated Files
 
 - \`registry.ts\` - Agent registry from \`src/agent/**\`
-- \`routes.ts\` - Route registry from \`src/api/**\`
 - \`app.ts\` - Application entry point
 - \`analytics-config.ts\` - Web analytics configuration from \`agentuity.json\`
 - \`webanalytics.ts\` - Web analytics injection and route registration
@@ -63,7 +62,6 @@ const AGENTS_MD_CONTENT = `# AI Agent Instructions
 ## What Gets Generated
 
 - \`registry.ts\` - Built from agent discovery in \`src/agent/\`
-- \`routes.ts\` - Built from route discovery in \`src/api/\`
 - \`app.ts\` - Entry point assembled from project configuration
 - \`analytics-config.ts\` - Web analytics configuration from \`agentuity.json\`
 - \`webanalytics.ts\` - Web analytics injection and route registration

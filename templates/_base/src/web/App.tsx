@@ -1,11 +1,24 @@
-import { useAPI } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../api/index';
 import { type ChangeEvent, useState } from 'react';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
+const client = hc<ApiRouter>('/api');
 
 export function App() {
 	const [name, setName] = useState('World');
-	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
+	const [greeting, setGreeting] = useState<string | null>(null);
+	const [running, setRunning] = useState(false);
+
+	const invoke = async (input: { name: string }) => {
+		setRunning(true);
+		try {
+			const res = await client.hello.$post({ json: input });
+			setGreeting(await res.text());
+		} finally {
+			setRunning(false);
+		}
+	};
 
 	return (
 		<div className="app-container">

@@ -1,10 +1,9 @@
-import { createClient } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api/router';
 import { type ChangeEvent, useState } from 'react';
-import type { RPCRouteRegistry } from '@agentuity/react';
-
-const client = createClient<RPCRouteRegistry>();
 
 export function RpcPage() {
+	const client = hc<AppRouter>(`${window.location.origin}/api`);
 	const [name, setName] = useState('World');
 	const [greeting, setGreeting] = useState<string | null>(null);
 	const [running, setRunning] = useState(false);
@@ -14,8 +13,9 @@ export function RpcPage() {
 		setRunning(true);
 		setError(null);
 		try {
-			const result = await client.hello.post({ name });
-			setGreeting(result);
+			const res = await client.hello.$post({ json: { name } });
+			const data = await res.text();
+			setGreeting(data);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
 		} finally {
@@ -51,10 +51,10 @@ export function RpcPage() {
 						/>
 					</svg>
 
-					<h1 className="title">RPC Client Test</h1>
+					<h1 className="title">Hono Client Test</h1>
 
 					<p className="subtitle">
-						Testing <span className="italic">createClient()</span> API
+						Testing <span className="italic">hc()</span> typed client
 					</p>
 
 					<a href="/" className="back-link">
@@ -64,7 +64,7 @@ export function RpcPage() {
 
 				<div className="card card-interactive">
 					<h2 className="card-title">
-						Try the <span className="highlight">RPC Client</span>
+						Try the <span className="highlight">Hono Client</span>
 					</h2>
 
 					<div className="input-group">
@@ -99,7 +99,7 @@ export function RpcPage() {
 				</div>
 
 				<div className="card">
-					<h3 className="section-title">RPC Client Features</h3>
+					<h3 className="section-title">Hono Client Features</h3>
 
 					<div className="steps-list">
 						{[
@@ -108,7 +108,8 @@ export function RpcPage() {
 								title: 'Type-safe API calls',
 								text: (
 									<>
-										The client automatically infers types from <code>RouteRegistry</code>
+										Types are inferred from your Hono router via{' '}
+										<code>hc&lt;AppRouter&gt;()</code>
 									</>
 								),
 							},
@@ -117,17 +118,17 @@ export function RpcPage() {
 								title: 'Simple API',
 								text: (
 									<>
-										Use <code>client.post.api.hello.run()</code> to invoke endpoints
+										Use <code>client.hello.$post(&#123; json: ... &#125;)</code> for typed
+										requests
 									</>
 								),
 							},
 							{
-								key: 'methods',
-								title: 'Multiple methods',
+								key: 'websocket',
+								title: 'WebSocket support',
 								text: (
 									<>
-										Supports <code>.run()</code>, <code>.websocket()</code>,{' '}
-										<code>.eventstream()</code>, and <code>.stream()</code>
+										Use <code>client.echo.$ws()</code> for typed WebSocket connections
 									</>
 								),
 							},

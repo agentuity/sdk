@@ -2,12 +2,6 @@ export { getProcessEnv } from './env';
 export { buildUrl, defaultBaseUrl } from './url';
 export { deserializeData } from './serialization';
 export { createReconnectManager, type ReconnectOptions, type ReconnectManager } from './reconnect';
-export type {
-	RouteRegistry,
-	WebSocketRouteRegistry,
-	SSERouteRegistry,
-	RPCRouteRegistry,
-} from './types';
 export { jsonEqual } from './memo';
 export {
 	WebSocketManager,
@@ -46,18 +40,6 @@ export type {
 	RecordingHandle,
 	RecordingState,
 } from '@agentuity/core';
-
-// Export client implementation (local to this package)
-export { createClient } from './client/index';
-export type {
-	Client,
-	ClientOptions,
-	RouteEndpoint,
-	WebSocketClient,
-	EventStreamClient,
-	StreamClient,
-	EventHandler,
-} from './client/types';
 
 // Export analytics (beacon is bundled separately via beacon-standalone.ts)
 export {

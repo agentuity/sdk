@@ -242,14 +242,12 @@ export const navData: NavSection[] = [
 			{
 				title: 'React Hooks',
 				url: '/frontend/react-hooks',
-				description:
-					'Call your API routes from React with useAPI, useWebsocket, and useEventStream',
+				description: "Call your API routes from React using Hono's type-safe hc() client",
 			},
 			{
 				title: 'RPC Client',
 				url: '/frontend/rpc-client',
-				description:
-					'Type-safe API calls from any JavaScript environment using createAPIClient',
+				description: "Type-safe API calls using Hono's hc() client",
 			},
 			{
 				title: 'Provider Setup',
@@ -283,7 +281,7 @@ export const navData: NavSection[] = [
 				title: 'Advanced Hooks',
 				url: '/frontend/advanced-hooks',
 				description:
-					'Connect to custom WebSocket and SSE endpoints with useWebsocket and useEventStream',
+					'Connect to WebSocket and SSE endpoints using native APIs or managers from @agentuity/frontend',
 			},
 		],
 	},

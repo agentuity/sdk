@@ -3,6 +3,7 @@ import { upgradeWebSocket } from 'hono/bun';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
 import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
+import { tagRoute } from './_route-meta';
 
 /**
  * Context key for WebSocket close promise.
@@ -92,7 +93,9 @@ export type WebSocketHandler<E extends Env = Env> = (
  * @param handler - Synchronous handler function receiving context and WebSocket connection
  * @returns Hono middleware handler for WebSocket upgrade
  */
-export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): MiddlewareHandler<E> {
+export function websocket<E extends Env = Env>(
+	handler: WebSocketHandler<E>
+): MiddlewareHandler<E, string, { outputFormat: 'ws' }> {
 	const wsHandler = upgradeWebSocket((c: Context<E>) => {
 		let openHandler: ((event: Event) => void | Promise<void>) | undefined;
 		let messageHandler: ((event: MessageEvent) => void | Promise<void>) | undefined;
@@ -222,8 +225,8 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 		};
 	});
 
-	const middleware: MiddlewareHandler<E> = (c, next) =>
-		(wsHandler as unknown as MiddlewareHandler<E>)(c, next);
+	const middleware: MiddlewareHandler<E, string, { outputFormat: 'ws' }> = (c, next) =>
+		(wsHandler as unknown as MiddlewareHandler<E, string, { outputFormat: 'ws' }>)(c, next);
 
-	return middleware;
+	return tagRoute(middleware, { type: 'websocket' });
 }

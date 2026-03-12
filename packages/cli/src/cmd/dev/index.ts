@@ -902,11 +902,11 @@ export const command = createCommand({
 							const srcDir = join(rootDir, 'src');
 							const { discoverAgents } = await import('../build/vite/agent-discovery');
 							const { discoverRoutes } = await import('../build/vite/route-discovery');
-							const { generateAgentRegistry, generateRouteRegistry } = await import(
+							const { generateAgentRegistry } = await import(
 								'../build/vite/registry-generator'
 							);
 
-							const [agentMetadata, { routes, routeInfoList }] = await Promise.all([
+							const [agentMetadata, { routes }] = await Promise.all([
 								discoverAgents(srcDir, project?.projectId ?? '', deploymentId, logger),
 								discoverRoutes(srcDir, project?.projectId ?? '', deploymentId, logger),
 							]);
@@ -916,7 +916,7 @@ export const command = createCommand({
 							const discoveryFingerprint = Bun.hash(
 								JSON.stringify({
 									agents: agentMetadata.map((a) => a.id + a.filename),
-									routes: routeInfoList.map((r) => r.method + r.path + r.filename),
+									routes: routes.map((r) => r.method + r.path + r.filename),
 								})
 							).toString(36);
 
@@ -928,11 +928,9 @@ export const command = createCommand({
 							(globalThis as any).__AGENTUITY_DISCOVERY_FINGERPRINT__ = discoveryFingerprint;
 
 							if (discoveryChanged) {
-								// Generate agent and route registries for type augmentation
-								// (TypeScript needs these files to exist for proper type inference)
+								// Generate agent registry for type augmentation
 								generateAgentRegistry(srcDir, agentMetadata);
-								generateRouteRegistry(srcDir, routeInfoList);
-								logger.debug('Agent and route registries generated for dev mode');
+								logger.debug('Agent registry generated for dev mode');
 
 								// Step 3: Generate entry file with workbench and analytics config
 								// Pass pre-discovered routes to avoid redundant route discovery

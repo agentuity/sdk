@@ -5,6 +5,7 @@ import { StructuredError } from '@agentuity/core';
 import type { Schema } from '@agentuity/schema';
 import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
+import { tagRoute } from './_route-meta';
 
 /**
  * Error thrown when sse() is called without a handler function.
@@ -83,7 +84,7 @@ export interface SSEOptions<TOutput = unknown> {
 	 *
 	 * This schema is used for:
 	 * - Type inference in generated `routes.ts` registry
-	 * - Automatic typing of `useEventStream` hook's `data` property
+	 * - Automatic typing of `EventSource/EventStreamManager` hook's `data` property
 	 *
 	 * The schema is NOT used for runtime validation - SSE messages are sent
 	 * as-is through the stream. Use this for TypeScript type safety only.
@@ -187,8 +188,8 @@ function formatSSEMessage(message: SSEMessage): string {
  *   stream.close();
  * }));
  *
- * // On the frontend, useEventStream will now have typed data:
- * // const { data } = useEventStream('/api/stream');
+ * // On the frontend, EventSource/EventStreamManager will now have typed data:
+ * // const { data } = EventSource/EventStreamManager('/api/stream');
  * // data.type is 'token' | 'complete' | 'error'
  * ```
  *
@@ -225,7 +226,7 @@ export function sse<E extends Env = Env, TOutput = unknown>(
 
 	// Note: options.output is captured for type inference but not used at runtime
 	// The CLI extracts this during build to generate typed route registries
-	return (c: Context<E>) => {
+	const sseHandler: Handler<E> = (c: Context<E>) => {
 		const asyncLocalStorage = getAgentAsyncLocalStorage();
 		const capturedContext = asyncLocalStorage.getStore();
 
@@ -366,4 +367,6 @@ export function sse<E extends Env = Env, TOutput = unknown>(
 			});
 		});
 	};
+
+	return tagRoute(sseHandler, { type: 'sse' });
 }
