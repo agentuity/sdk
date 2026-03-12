@@ -33,9 +33,22 @@ import {
 	InteractiveMode,
 	SessionManager,
 } from '@mariozechner/pi-coding-agent';
+import {
+	getNativeRemoteExtensionContext,
+	setNativeRemoteExtensionContext,
+	waitForNativeRemoteExtensionContext,
+} from './native-remote-ui-context.ts';
+import {
+	clearRemoteLifecycleWorkingMessage,
+	getRemoteLifecycleActivityLabel,
+	getRemoteLifecycleLabel,
+	syncRemoteLifecycleWorkingMessage,
+	type RemoteLifecycleState,
+} from './remote-lifecycle.ts';
 import { RemoteSession } from './remote-session.ts';
 import type { RpcEvent } from './remote-session.ts';
 import { agentuityCoderHub } from './index.ts';
+import { handleRemoteUiRequest, REMOTE_FIRE_AND_FORGET_UI_METHODS } from './remote-ui-handler.ts';
 
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
@@ -63,6 +76,7 @@ export async function runRemoteTui(options: {
 	process.env.AGENTUITY_CODER_HUB_URL = hubWsUrl;
 	process.env.AGENTUITY_CODER_REMOTE_SESSION = sessionId;
 	process.env.AGENTUITY_CODER_NATIVE_REMOTE = '1';
+	setNativeRemoteExtensionContext(null);
 
 	// ── 1. Create RemoteSession (NOT connected yet) ──
 	// We register all handlers BEFORE connecting so that the hydration
@@ -71,6 +85,7 @@ export async function runRemoteTui(options: {
 	// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
 	remote.apiKey = process.env.AGENTUITY_CODER_API_KEY || null;
 	let hydrationStreamingDetected = false;
+	let sessionResumeSeen = false;
 
 	// ── 2. Create AgentSession with coder extension loaded ──
 	// The extension provides Hub UI (footer, /hub overlay, commands, titlebar).
@@ -96,6 +111,41 @@ export async function runRemoteTui(options: {
 
 	// Access the Agent instance (typed as `any` for monkey-patching)
 	const agent: any = session.agent;
+	let lifecycleState = remote.getLifecycleState();
+	let lifecycleOwnsWorkingMessage = false;
+
+	function applyLifecycleUi(state: RemoteLifecycleState): void {
+		const ctx = getNativeRemoteExtensionContext();
+		if (!ctx?.hasUI) return;
+
+		const shortSession = state.sessionId.slice(0, 16);
+		ctx.ui.setStatus(
+			'remote_connection',
+			`Remote: ${shortSession}${shortSession.length < state.sessionId.length ? '...' : ''} ${getRemoteLifecycleLabel(state)}`
+		);
+
+		const activity = getRemoteLifecycleActivityLabel(state);
+		if (activity) {
+			ctx.ui.setStatus('remote_activity', activity);
+		} else {
+			ctx.ui.setStatus('remote_activity', state.isStreaming ? 'agent working...' : 'idle');
+		}
+
+		lifecycleOwnsWorkingMessage = syncRemoteLifecycleWorkingMessage(
+			state,
+			ctx.ui,
+			lifecycleOwnsWorkingMessage
+		);
+	}
+
+	remote.onLifecycleChange((state) => {
+		lifecycleState = state;
+		applyLifecycleUi(state);
+	});
+	void waitForNativeRemoteExtensionContext(10_000).then((ctx) => {
+		if (!ctx) return;
+		applyLifecycleUi(lifecycleState);
+	});
 
 	// ── 3. Patch Agent to be remote-backed ──
 	// Track the running prompt promise so InteractiveMode waits correctly
@@ -273,6 +323,43 @@ export async function runRemoteTui(options: {
 			(rpcEvent as any).replay === true ||
 			(rpcEvent as any).isReplay === true;
 		log(`Event received: ${rpcEvent.type} (source=${source})`);
+
+		if (rpcEvent.type === 'session_resume') {
+			sessionResumeSeen = true;
+			log(
+				`Session resume signaled (${typeof (rpcEvent as any).streamId === 'string' ? (rpcEvent as any).streamId : 'no stream id'})`
+			);
+			return;
+		}
+
+		if (rpcEvent.type === 'session_stream_ready') {
+			log(
+				`Durable stream ready (${typeof (rpcEvent as any).streamId === 'string' ? (rpcEvent as any).streamId : 'no stream id'})`
+			);
+			return;
+		}
+
+		if (rpcEvent.type === 'rpc_command_error') {
+			const error =
+				typeof (rpcEvent as any).error === 'string'
+					? (rpcEvent as any).error
+					: 'Remote command failed';
+			const ctx = getNativeRemoteExtensionContext();
+			if (ctx?.hasUI) {
+				ctx.ui.notify(error, 'warning');
+				lifecycleOwnsWorkingMessage = clearRemoteLifecycleWorkingMessage(
+					ctx.ui,
+					lifecycleOwnsWorkingMessage
+				);
+			}
+			agent._state.error = error;
+			seenAgentStart = false;
+			seenMessageStart = false;
+			resolveRunningPrompt();
+			assistantStreamActive = false;
+			log(`Remote command error: ${error}`);
+			return;
+		}
 
 		// session_hydration is handled separately below — skip it here
 		if (rpcEvent.type === 'session_hydration') return;
@@ -460,11 +547,23 @@ export async function runRemoteTui(options: {
 
 	// ── 6. Wire up UI handlers for extension dialogs from sandbox ──
 	remote.setUiHandler(async (request) => {
-		// TODO: Bridge to InteractiveMode's extension UI context
-		log(`UI request: ${request.method} (no handler yet)`);
-		const fireAndForget = ['notify', 'setStatus', 'setWidget', 'setTitle', 'set_editor_text'];
-		if (fireAndForget.includes(request.method)) return undefined;
-		return null;
+		const ctx =
+			getNativeRemoteExtensionContext() ?? (await waitForNativeRemoteExtensionContext(10_000));
+		if (!ctx) {
+			log(
+				`UI request: ${request.method} (${request.id}) timed out waiting for extension UI context`
+			);
+			return REMOTE_FIRE_AND_FORGET_UI_METHODS.has(request.method) ? undefined : null;
+		}
+
+		try {
+			return await handleRemoteUiRequest(ctx, request);
+		} catch (err) {
+			log(
+				`UI request handler error for ${request.method}: ${err instanceof Error ? err.message : String(err)}`
+			);
+			return REMOTE_FIRE_AND_FORGET_UI_METHODS.has(request.method) ? undefined : null;
+		}
 	});
 
 	// ── 7. Handle hydration (initial state from Hub) ──
@@ -474,8 +573,13 @@ export async function runRemoteTui(options: {
 	// InteractiveMode (which calls renderInitialMessages from SessionManager).
 	const sm = session.sessionManager;
 	let resolveHydration: () => void;
+	let hydrationComplete = false;
 	const hydrationReady = new Promise<void>((resolve) => {
-		resolveHydration = resolve;
+		resolveHydration = () => {
+			if (hydrationComplete) return;
+			hydrationComplete = true;
+			resolve();
+		};
 	});
 
 	let hydrationCount = 0;
@@ -654,15 +758,25 @@ export async function runRemoteTui(options: {
 
 	// Wait for hydration message (arrives right after init), with a timeout
 	// in case this is the first connection and there's nothing to hydrate.
-	const HYDRATION_TIMEOUT_MS = 2000;
 	await Promise.race([
 		hydrationReady,
-		new Promise<void>((resolve) =>
-			setTimeout(() => {
-				log('Hydration timeout — no session_hydration received');
-				resolve();
-			}, HYDRATION_TIMEOUT_MS)
-		),
+		new Promise<void>((resolve) => {
+			const waitStartedAt = Date.now();
+			const poll = (): void => {
+				if (hydrationComplete) {
+					resolve();
+					return;
+				}
+				const timeoutMs = sessionResumeSeen ? 5000 : 2000;
+				if (Date.now() - waitStartedAt >= timeoutMs) {
+					log('Hydration timeout — no session_hydration received');
+					resolve();
+					return;
+				}
+				setTimeout(poll, 50);
+			};
+			poll();
+		}),
 	]);
 	const smEntries = sm.getEntries?.() ?? [];
 	log(`SessionManager has ${smEntries.length} entries after hydration`);
@@ -732,6 +846,7 @@ export async function runRemoteTui(options: {
 	// Handle clean shutdown
 	const cleanup = () => {
 		remote.close();
+		setNativeRemoteExtensionContext(null);
 		interactive.stop();
 	};
 	process.on('SIGINT', cleanup);
@@ -744,6 +859,7 @@ export async function runRemoteTui(options: {
 		throw err;
 	} finally {
 		remote.close();
+		setNativeRemoteExtensionContext(null);
 		log('Remote TUI exited');
 	}
 

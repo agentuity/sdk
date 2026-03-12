@@ -58,6 +58,7 @@ Sandbox operations include `--org-id org_38uEd1JNXIe89KMPaOwx1WJW43o`. Task crea
 - **Always clean up** — delete the sandbox in a finally block, no matter what
 - **Stop on first failure** — record the failure, file the bug, skip remaining actions, go to teardown
 - **Validate every response** — check exit codes, parse JSON output, verify state
+- **Capture session IDs from failures** — if a failed response includes a session ID (format: `sess_` followed by alphanumeric characters, e.g. `sess_abc123def456`), always include it in the bug report. Look for it in JSON response fields, headers, or error messages.
 - **Never hardcode sandbox IDs** — capture from create output and reuse
 - **Working directory inside sandbox is `/home/agentuity`**
 - **Use `--confirm` on destructive commands** to skip interactive prompts
@@ -78,7 +79,7 @@ agentuity cloud task create "<title>" \
   --created-name "sandbox-fuzz-tester" \
   --tag sandbox \
   --description "<description>" \
-  --metadata '{"source":"sandbox-fuzz-test","action_id":"<ACTION_ID>","category":"<CATEGORY>","sandbox_id":"<SANDBOX_ID>","runtime":"<RUNTIME>","region":"<REGION>","seed":"<SEED>"}' \
+  --metadata '{"source":"sandbox-fuzz-test","action_id":"<ACTION_ID>","category":"<CATEGORY>","sandbox_id":"<SANDBOX_ID>","runtime":"<RUNTIME>","region":"<REGION>","seed":"<SEED>","session_id":"<SESSION_ID_IF_PRESENT>"}' \
   --json
 ```
 
@@ -126,6 +127,10 @@ The `--description` field supports **full Markdown** — use headings, code bloc
 ## Output
 
 <relevant stdout/stderr, truncated to 2000 chars if longer>
+
+## Session ID
+
+<session ID from the failed response if present, e.g. sess_abc123def456 — omit this section if no session ID was returned>
 
 ## Environment
 
@@ -692,24 +697,106 @@ agentuity cloud sandbox snapshot get <snapshotId> --json
 
 ## Phase 5: File Bugs & Enhancements
 
-After all actions have been executed (or after the first failure causes early stop):
+During action execution (Phase 4), **collect** all bugs and enhancements into lists but do **NOT** file them immediately. Each collected item should retain all the information needed for filing (title, description, priority, metadata). Only file them here in Phase 5 after all actions have been executed (or after the first failure causes early stop).
 
-### For every failed action:
+### Step 1: Check if there are issues to file
+
+Count the total number of bugs and enhancements collected during testing. If the total is **0** (no bugs and no enhancements), **skip this entire phase** — do not create any issues at all (no parent issue, no child issues).
+
+### Step 2: Create the parent tracking task
+
+If there are >0 issues to report, first create a **parent task** (type `epic`) to track the entire testing session:
+
+```bash
+agentuity cloud task create "Sandbox Fuzz Test Session: <DATE> - <TOTAL_ISSUES> issues found" \
+  --org-id org_2u8RgDTwcZWrZrZ3sZh24T5FCtz \
+  --type epic \
+  --priority medium \
+  --created-type agent \
+  --created-name "sandbox-fuzz-tester" \
+  --tag sandbox \
+  --description "## Sandbox Fuzz Test Session
+
+**Date**: <date>
+**Region**: $REGION (<region name>)
+**Random Seed**: $SEED
+**Sandbox ID**: <sandboxId>
+**Runtime**: <runtime>
+
+### Summary
+
+- **Bugs found**: <N_BUGS>
+- **Enhancements found**: <N_ENHANCEMENTS>
+- **Total issues**: <TOTAL_ISSUES>
+
+### Child Issues
+
+_Will be updated after all child tasks are filed._" \
+  --metadata '{"source":"sandbox-fuzz-test","sandbox_id":"<SANDBOX_ID>","runtime":"<RUNTIME>","region":"<REGION>","seed":"<SEED>"}' \
+  --json
+```
+
+Capture the `task.id` from the JSON response (e.g., `task_abc123`). Store this as `PARENT_TASK_ID` for use in subsequent steps.
+
+### Step 3: File individual bugs
+
+For every failed action collected during testing:
+
 1. Construct the title: `[sandbox-fuzz] <Category>: <short description>`
 2. Determine priority from the Bug Priority Rules table
 3. Construct the description with the reproduction report format
 4. Construct the metadata JSON with `tags: ["sandbox"]`, action_id, category, sandbox_id, runtime, region, seed
-5. Run the `agentuity cloud task create` command with `--type bug`
+5. Run the `agentuity cloud task create` command with `--type bug --parent-id <PARENT_TASK_ID>`
 6. Capture the `task.id` from the response
 7. If task creation fails, log the failure but continue
 
-### For improvement opportunities noticed during testing:
+### Step 4: File individual enhancements
+
+For improvement opportunities noticed during testing:
+
 1. Construct the title: `[sandbox-fuzz] Enhancement: <short description>`
 2. Construct the description with the observation format
-3. Run the `agentuity cloud task create` command with `--type enhancement --priority low`
+3. Run the `agentuity cloud task create` command with `--type enhancement --priority low --parent-id <PARENT_TASK_ID>`
 4. Capture the `task.id` from the response
 
-**Also file bugs for the post-teardown probe** (Phase 7/8) if it fails.
+### Step 5: Update the parent task with child links
+
+After ALL child bugs and enhancements have been filed, update the parent task description to include a list of all children:
+
+```bash
+agentuity cloud task update <PARENT_TASK_ID> \
+  --org-id org_2u8RgDTwcZWrZrZ3sZh24T5FCtz \
+  --description "## Sandbox Fuzz Test Session
+
+**Date**: <date>
+**Region**: $REGION (<region name>)
+**Random Seed**: $SEED
+**Sandbox ID**: <sandboxId>
+**Runtime**: <runtime>
+
+### Summary
+
+- **Bugs found**: <N_BUGS>
+- **Enhancements found**: <N_ENHANCEMENTS>
+- **Total issues**: <TOTAL_ISSUES>
+
+### Child Issues
+
+- [`task_abc123`](https://app.agentuity.com/services/task/task_abc123) — [sandbox-fuzz] Files: cp round-trip content mismatch (bug, high)
+- [`task_def456`](https://app.agentuity.com/services/task/task_def456) — [sandbox-fuzz] Edge: rm non-existent file returns success (bug, medium)
+- [`task_ghi789`](https://app.agentuity.com/services/task/task_ghi789) — [sandbox-fuzz] Enhancement: error message should include path (enhancement, low)"
+```
+
+Each line in the **Child Issues** list follows this format:
+```
+- [`<task_id>`](https://app.agentuity.com/services/task/<task_id>) — <title> (<type>, <priority>)
+```
+
+### Post-teardown probe bugs
+
+**Also collect bugs from the post-teardown probe** (Phase 7) if it fails. If the parent task was already created (i.e., there were bugs/enhancements from Phase 4), file the post-teardown bug using Step 3 with the same `PARENT_TASK_ID`, then re-run Step 5 to update the parent with the additional child link.
+
+If no parent task exists yet (Phase 4 found 0 issues but the post-teardown probe fails), create the parent task (Step 2) first, then file the bug (Step 3), then update the parent (Step 5).
 
 ## Phase 6: Teardown
 
@@ -764,6 +851,7 @@ Output the final report in this exact format:
 **Actions Failed**: N
 **Bugs Filed**: N
 **Enhancements Filed**: N
+**Parent Task**: [<PARENT_TASK_ID>](https://app.agentuity.com/services/task/<PARENT_TASK_ID>) _(or "None — no issues found")_
 **Random Seed**: <seed>
 
 ### Orphan Cleanup
@@ -794,19 +882,20 @@ _(Omit this section if no orphans were found)_
 
 | Task ID | Action | Priority | Title |
 |---------|--------|----------|-------|
-| task_abc123 | B2 | high | [sandbox-fuzz] Files: cp round-trip content mismatch |
-| task_def456 | F5 | medium | [sandbox-fuzz] Edge: rm non-existent file returns success |
+| [task_abc123](https://app.agentuity.com/services/task/task_abc123) | B2 | high | [sandbox-fuzz] Files: cp round-trip content mismatch |
+| [task_def456](https://app.agentuity.com/services/task/task_def456) | F5 | medium | [sandbox-fuzz] Edge: rm non-existent file returns success |
 
 ### Enhancements Filed
 
 | Task ID | Action | Title |
 |---------|--------|-------|
-| task_ghi789 | F4 | [sandbox-fuzz] Enhancement: error message should include attempted path |
+| [task_ghi789](https://app.agentuity.com/services/task/task_ghi789) | F4 | [sandbox-fuzz] Enhancement: error message should include attempted path |
 
 ### Failures (detail)
 
 #### [Action ID]: [Description]
-- **Task ID**: <task_id from bug report>
+- **Task ID**: [<task_id>](https://app.agentuity.com/services/task/<task_id>)
+- **Session ID**: <sess_xxx if present, otherwise omit>
 - **Command(s)**: The exact commands that were run
 - **Expected**: What should have happened
 - **Actual**: What actually happened

@@ -226,6 +226,71 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 * to zero which will cause the request to wait indefinitely.
 	 */
 	requestTimeout?: number;
+
+	/**
+	 * **Experimental** — Optional user-provided router(s) to use instead of file-based routing.
+	 *
+	 * When provided, the CLI's generated entry file mounts these routers instead
+	 * of auto-discovering individual route files from `src/api/`. All Agentuity
+	 * middleware (CORS, OTel, agent context) is applied to each mount path.
+	 *
+	 * Accepts three forms:
+	 * - A plain `Hono` instance → mounted at `/api` (default)
+	 * - A `{ path, router }` object → mounted at the specified path
+	 * - An array of `{ path, router }` objects → each mounted at its path
+	 *
+	 * Use `createRouter()` to get typed access to Agentuity context variables
+	 * (`c.var.logger`, `c.var.thread`, `c.var.session`, etc.), or use
+	 * `new Hono<Env>()` for the same types with a plain Hono instance.
+	 *
+	 * @experimental This API may change in future releases.
+	 *
+	 * @example Single router (mounted at /api)
+	 * ```typescript
+	 * const router = createRouter();
+	 * router.route('/users', usersRouter);
+	 * export const app = await createApp({ router });
+	 * ```
+	 *
+	 * @example Single router at custom path
+	 * ```typescript
+	 * const router = createRouter();
+	 * router.route('/users', usersRouter);
+	 * export const app = await createApp({
+	 *   router: { path: '/v1', router },
+	 * });
+	 * ```
+	 *
+	 * @example Multiple routers at different paths
+	 * ```typescript
+	 * export const app = await createApp({
+	 *   router: [
+	 *     { path: '/api/v1', router: v1Router },
+	 *     { path: '/api/v2', router: v2Router },
+	 *   ],
+	 * });
+	 * ```
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	router?: import('hono').Hono<any, any, any> | RouteMount | RouteMount[];
+}
+
+/**
+ * A user-provided router with its mount path.
+ *
+ * @experimental This API may change in future releases.
+ */
+export interface RouteMount {
+	/**
+	 * The base path to mount the router at (e.g. `/api`, `/api/v1`).
+	 * Agentuity middleware (CORS, OTel, agent context) is applied to `{path}/*`.
+	 */
+	path: string;
+	/**
+	 * The Hono router to mount.
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	router: import('hono').Hono<any, any, any>;
 }
 
 export interface Variables<TAppState = Record<string, never>> {
@@ -373,6 +438,12 @@ export async function createApp<TAppState = Record<string, never>>(
 	(globalThis as any).__AGENTUITY_APP_STATE__ = state;
 	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
 
+	// Store user-provided router(s) normalized as RouteMount[] for the entry file.
+	// When set, the entry file mounts these instead of auto-discovered route files.
+	if (config?.router) {
+		(globalThis as any).__AGENTUITY_USER_ROUTER__ = normalizeRouterConfig(config.router);
+	}
+
 	// Store shutdown function for cleanup
 	const shutdown = config?.shutdown;
 	if (shutdown) {
@@ -462,6 +533,37 @@ export function getAppState<TAppState = any>(): TAppState {
  */
 export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefined {
 	return (globalThis as any).__AGENTUITY_APP_CONFIG__;
+}
+
+/**
+ * Normalize the router config into a consistent RouteMount[] form.
+ * - Plain Hono → [{ path: '/api', router }]
+ * - { path, router } → [{ path, router }]
+ * - [{ path, router }, ...] → as-is
+ * @internal
+ */
+function normalizeRouterConfig(
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	router: import('hono').Hono<any, any, any> | RouteMount | RouteMount[]
+): RouteMount[] {
+	if (Array.isArray(router)) {
+		return router;
+	}
+	if ('router' in router && 'path' in router) {
+		return [router as RouteMount];
+	}
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return [{ path: '/api', router: router as import('hono').Hono<any, any, any> }];
+}
+
+/**
+ * Get the user-provided router mounts from createApp({ router }).
+ * Returns undefined if no user router was provided (file-based routing).
+ * Used by generated entry file to skip file-based route discovery.
+ * @internal
+ */
+export function getUserRouter(): RouteMount[] | undefined {
+	return (globalThis as any).__AGENTUITY_USER_ROUTER__;
 }
 
 /**

@@ -141,6 +141,8 @@ function expandTilde(path: string): string {
 }
 
 let cachedConfig: Config | null | undefined;
+// Track the resolved config path so saveConfig writes back to the same file
+let cachedConfigPath: string | undefined;
 
 export async function loadConfig(
 	customPath?: string,
@@ -217,6 +219,7 @@ export async function loadConfig(
 		// This ensures --config flag is respected across all commands
 		if (!skipCache) {
 			cachedConfig = result.data;
+			cachedConfigPath = configPath;
 		}
 		return result.data;
 	} catch (error) {
@@ -227,6 +230,7 @@ export async function loadConfig(
 		// Note: For long-running processes, consider time-based cache expiry for transient failures.
 		if (!skipCache) {
 			cachedConfig = null;
+			cachedConfigPath = configPath;
 		}
 		return null;
 	}
@@ -275,7 +279,10 @@ function formatYAML(obj: unknown, indent = 0): string {
 }
 
 export async function saveConfig(config: Config, customPath?: string): Promise<void> {
-	const configPath = customPath || (await getProfile());
+	// Use the path the config was originally loaded from (cachedConfigPath) so that
+	// saves go back to the correct profile even when --profile was used to load it.
+	// Falls back to getProfile() if no config has been loaded yet.
+	const configPath = customPath || cachedConfigPath || (await getProfile());
 	await ensureConfigDir();
 
 	const content = formatYAML(config);

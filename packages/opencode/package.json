@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/opencode",
-	"version": "1.0.39",
+	"version": "1.0.41",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Agentuity Open Code plugin with specialized AI coding agents",

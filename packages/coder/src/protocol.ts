@@ -1,76 +1,19 @@
-// ---- Init Message (Server → Client on connect) ----
+// Hub protocol types used by the Coder TUI package.
+// Keep the legacy exported names stable while modeling the newer hub envelopes.
 
 export interface HubToolDefinition {
 	name: string;
 	label: string;
 	description: string;
-	parameters: Record<string, unknown>; // JSON Schema object
+	parameters: Record<string, unknown>;
 	promptSnippet?: string;
-	promptGuidelines?: string;
+	promptGuidelines?: string | string[];
 }
 
-/** Command definition sent by Hub for agent routing slash commands. */
 export interface HubCommandDefinition {
 	name: string;
 	description: string;
 }
-
-export interface AgentDefinition {
-	name: string;
-	description: string;
-	systemPrompt: string;
-	model?: string;
-	tools?: string[];
-	temperature?: number;
-	thinkingLevel?: string;
-	readOnly?: boolean;
-	hubTools?: HubToolDefinition[];
-	capabilities?: string[];
-	status?: 'available' | 'busy' | 'offline';
-}
-
-export interface HubConfig {
-	systemPromptPrefix?: string;
-	systemPromptSuffix?: string;
-}
-
-export interface InitMessage {
-	type: 'init';
-	sessionId?: string;
-	tools?: HubToolDefinition[];
-	commands?: HubCommandDefinition[];
-	agents?: AgentDefinition[];
-	config?: HubConfig;
-}
-
-// ---- Request Messages (Client → Server) ----
-
-export interface EventRequest {
-	id: string;
-	type: 'event';
-	event: string;
-	data: Record<string, unknown>;
-}
-
-export interface ToolRequest {
-	id: string;
-	type: 'tool';
-	name: string;
-	toolCallId: string;
-	params: Record<string, unknown>;
-}
-
-/** Command request (Client -> Server) for slash command execution. */
-export interface CommandRequest {
-	id: string;
-	type: 'command';
-	name: string;
-	args: string;
-}
-
-export type HubRequest = EventRequest | ToolRequest | CommandRequest;
-
-// ---- Actions ----
 
 export interface AckAction {
 	action: 'ACK';
@@ -102,7 +45,7 @@ export interface ReturnAction {
 export interface StatusAction {
 	action: 'STATUS';
 	key: string;
-	text?: string; // undefined = clear status
+	text?: string;
 }
 
 export interface SystemPromptAction {
@@ -129,9 +72,287 @@ export type HubAction =
 	| SystemPromptAction
 	| InjectMessageAction;
 
-// ---- Progress Tracking (Sub-Agent → Parent) ----
+export interface AgentDefinition {
+	name: string;
+	displayName?: string;
+	description: string;
+	systemPrompt: string;
+	model?: string;
+	tools?: string[];
+	temperature?: number;
+	thinkingLevel?: string;
+	readOnly?: boolean;
+	hubTools?: HubToolDefinition[];
+	capabilities?: string[];
+	status?: 'available' | 'busy' | 'offline';
+}
 
-/** Progress update from a running sub-agent */
+export interface HubConfig {
+	systemPromptPrefix?: string;
+	systemPromptSuffix?: string;
+}
+
+export interface InitMessage {
+	type: 'init';
+	sessionId?: string;
+	tools?: HubToolDefinition[];
+	commands?: HubCommandDefinition[];
+	agents?: AgentDefinition[];
+	config?: HubConfig;
+	model?: {
+		provider: string;
+		id: string;
+	};
+	thinkingLevel?: string;
+	task?: string;
+}
+
+export interface EventRequest {
+	id: string;
+	type: 'event';
+	event: string;
+	data: Record<string, unknown>;
+}
+
+export interface ToolRequest {
+	id: string;
+	type: 'tool';
+	name: string;
+	toolCallId: string;
+	params: Record<string, unknown>;
+}
+
+export interface CommandRequest {
+	id: string;
+	type: 'command';
+	name: string;
+	args: string;
+}
+
+export type HubRequest = EventRequest | ToolRequest | CommandRequest;
+
+export interface SessionEntryMessage {
+	type: 'session_entry';
+	path: string;
+	line: string;
+}
+
+export interface SessionWriteMessage {
+	type: 'session_write';
+	path: string;
+	content: string;
+}
+
+export interface RpcCommandMessage {
+	type: 'rpc_command';
+	command: Record<string, unknown>;
+}
+
+export interface RpcUiResponseMessage {
+	type: 'rpc_ui_response';
+	id: string;
+	result: unknown;
+}
+
+export interface PingMessage {
+	type: 'ping';
+	timestamp: number;
+}
+
+export type HubClientMessage =
+	| HubRequest
+	| SessionEntryMessage
+	| SessionWriteMessage
+	| RpcCommandMessage
+	| RpcUiResponseMessage
+	| PingMessage;
+
+export interface HubResponse {
+	id: string;
+	actions: HubAction[];
+}
+
+export interface CoderHubStreamReadyMessage {
+	type: 'session_stream_ready';
+	streamId: string;
+	streamUrl: string;
+}
+
+export interface CoderHubSessionResumeMessage {
+	type: 'session_resume';
+	streamUrl: string;
+	streamId: string;
+	activePrdKey?: string;
+}
+
+export interface ConnectionRejectedMessage {
+	type: 'connection_rejected';
+	code: string;
+	message: string;
+	sessionId?: string;
+	reconnectState?: string;
+	expiredAt?: number;
+	timestamp: number;
+}
+
+export interface ConversationEntry {
+	type:
+		| 'message'
+		| 'thinking'
+		| 'tool_call'
+		| 'tool_result'
+		| 'task_result'
+		| 'turn'
+		| 'user_prompt';
+	agent?: string;
+	content?: string;
+	toolName?: string;
+	toolArgs?: Record<string, unknown>;
+	toolCallId?: string;
+	isError?: boolean;
+	taskId?: string;
+	timestamp: number;
+}
+
+export interface HydrationTaskState {
+	taskId: string;
+	agent: string;
+	status: 'running' | 'completed' | 'failed';
+	prompt: string;
+	duration?: number;
+	result?: string;
+	error?: string;
+}
+
+export interface SessionParticipant {
+	id: string;
+	role: 'lead' | 'observer' | 'controller';
+	transport: 'ws' | 'sse';
+	subscriptions: string[];
+	connectedAt: number;
+	lastActivity: number;
+}
+
+export interface SessionStreamBlock {
+	output: string;
+	thinking: string;
+}
+
+export interface SessionStreamProjection extends SessionStreamBlock {
+	tasks: Record<string, SessionStreamBlock>;
+}
+
+export interface SessionSnapshot {
+	sessionId: string;
+	label: string;
+	status: 'active' | 'paused' | 'shutdown' | 'archived' | 'error' | 'stopped';
+	createdAt: string;
+	mode: 'sandbox' | 'tui';
+	task?: string;
+	error?: string;
+	streamId?: string | null;
+	streamUrl?: string | null;
+	context: {
+		branch?: string;
+		workingDirectory?: string;
+	};
+	participants: SessionParticipant[];
+	tasks: Array<{
+		taskId: string;
+		agent: string;
+		status: 'running' | 'completed' | 'failed';
+		prompt: string;
+		duration?: number;
+		startedAt?: string;
+		completedAt?: string;
+	}>;
+	agentActivity: Record<
+		string,
+		{
+			name?: string;
+			status: string;
+			currentTool?: string;
+			currentToolArgs?: string;
+			toolCallCount: number;
+			lastActivity: number;
+			totalElapsed?: number;
+		}
+	>;
+	stream?: SessionStreamProjection;
+	tags?: string[];
+	defaultAgent?: string;
+	bucket?: 'running' | 'paused' | 'provisioning' | 'history';
+	runtimeAvailable?: boolean;
+	controlAvailable?: boolean;
+	historyOnly?: boolean;
+}
+
+export interface CoderHubHydrationMessage {
+	type: 'session_hydration';
+	sessionId: string;
+	resumedAt: number;
+	entries: ConversationEntry[];
+	tasks: HydrationTaskState[];
+	stream?: SessionStreamProjection;
+	task?: string;
+	streamingState?: {
+		isStreaming?: boolean;
+		activeTasks?: Array<{
+			taskId: string;
+			agent: string;
+		}>;
+	};
+}
+
+export interface PresenceEventMessage {
+	type: 'presence';
+	event: 'session_join' | 'session_leave' | 'presence_update';
+	participant?: SessionParticipant;
+	participants?: SessionParticipant[];
+	sessionId: string;
+	timestamp: number;
+}
+
+export interface BroadcastEventMessage {
+	type: 'broadcast';
+	event: string;
+	data: Record<string, unknown>;
+	category?: string;
+	sessionId?: string;
+	timestamp?: number;
+}
+
+export interface RpcEventMessage {
+	type: 'rpc_event';
+	event: Record<string, unknown>;
+	timestamp: number;
+}
+
+export interface RpcResponseMessage {
+	type: 'rpc_response';
+	response: Record<string, unknown>;
+}
+
+export interface RpcUiRequestMessage {
+	type: 'rpc_ui_request';
+	id: string;
+	method: string;
+	params: Record<string, unknown>;
+}
+
+export type ServerMessage =
+	| InitMessage
+	| HubResponse
+	| CoderHubHydrationMessage
+	| CoderHubStreamReadyMessage
+	| CoderHubSessionResumeMessage
+	| ConnectionRejectedMessage
+	| PresenceEventMessage
+	| BroadcastEventMessage
+	| RpcEventMessage
+	| RpcResponseMessage
+	| RpcUiRequestMessage;
+
 export interface AgentProgressUpdate {
 	agentName: string;
 	status:
@@ -146,12 +367,5 @@ export interface AgentProgressUpdate {
 	currentToolArgs?: string;
 	elapsed: number;
 	tokens?: { input: number; output: number; cost: number };
-	delta?: string; // Streaming token delta for thinking_delta / text_delta
-}
-
-// ---- Response Message (Server → Client) ----
-
-export interface HubResponse {
-	id: string;
-	actions: HubAction[];
+	delta?: string;
 }

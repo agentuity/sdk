@@ -62,6 +62,8 @@ export interface RemoteImportOptions {
 	env?: string[];
 	org?: string;
 	region?: string;
+	/** If true, skip confirmation prompts (--confirm flag) */
+	confirm?: boolean;
 	apiClient: APIClient;
 	auth: AuthData;
 	config: Config;
@@ -744,7 +746,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				optRegion,
 				org
 			);
-		} else if (isTTY()) {
+		} else if (isTTY() && !options.confirm) {
 			// Interactive mode: prompt for org/region/name
 			projectInfo = await createProjectInteractive(apiClient, config, logger, parsed.repo);
 		} else {
@@ -893,7 +895,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		}
 
 		const resourceEnvVars: Record<string, string> = {};
-		const interactive = isTTY();
+		const interactive = isTTY() && !options.confirm;
 		const templateResources = template?.requirements?.resources ?? [];
 		const templateEnvVars = template?.requirements?.env ?? [];
 
