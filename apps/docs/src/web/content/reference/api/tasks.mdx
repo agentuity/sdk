@@ -28,6 +28,7 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 Create a new task within the organization.
 
 
+
 #### Request Body
 
 Task creation payload.
@@ -302,6 +303,7 @@ Update one or more fields on an existing task.
     "description": "Task ID"
   }
 ]} />
+
 #### Request Body
 
 Task update payload. All fields are optional.
@@ -445,6 +447,7 @@ Marks the task as deleted without permanent removal.
 Soft-delete multiple tasks matching filter criteria.
 
 
+
 #### Request Body
 
 Batch delete filter payload.
@@ -483,7 +486,7 @@ Batch delete filter payload.
   {
     "name": "older_than",
     "type": "string",
-    "description": "Duration string: '30m', '24h', '7d', '2w'. Supported units: m (minutes), h (hours), d (days), w (weeks)",
+    "description": "Duration string: '30m', '24h', '7d', '2w' (supported units: s, m, h, d, w)",
     "required": false
   },
   {
@@ -620,6 +623,7 @@ Add a comment to a task.
     "description": "Task ID"
   }
 ]} />
+
 #### Request Body
 
 Comment creation payload.
@@ -709,6 +713,7 @@ Update the body of an existing comment.
     "description": "Comment ID"
   }
 ]} />
+
 #### Request Body
 
 Comment update payload.
@@ -856,6 +861,7 @@ Returns paginated list of comments.
 Create a new tag for organizing tasks.
 
 
+
 #### Request Body
 
 Tag creation payload.
@@ -944,6 +950,7 @@ Update a tag's name or color.
     "description": "Tag ID"
   }
 ]} />
+
 #### Request Body
 
 Tag update payload.
@@ -1174,6 +1181,7 @@ Request a presigned URL for uploading an attachment to a task.
     "description": "Task ID"
   }
 ]} />
+
 #### Request Body
 
 Upload request payload.
@@ -1446,6 +1454,7 @@ Returns list of user entities.
 Create a new user entity for task assignment.
 
 
+
 #### Request Body
 
 User entity creation payload.
@@ -1591,6 +1600,7 @@ Returns list of project entities.
 Create a new project entity for task organization.
 
 
+
 #### Request Body
 
 Project entity creation payload.
@@ -1693,13 +1703,20 @@ Empty response on success.
 
 ### Get Activity Timeline
 
-<ApiEndpoint method="GET" path="/task/activity/2026-02-28" />
+<ApiEndpoint method="GET" path="/task/activity/{date}" />
 
 Get daily activity counts grouped by status over a configurable time range.
 
 #### Parameters
 
 <ParamTable params={[
+  {
+    "name": "date",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Date for activity lookup (YYYY-MM-DD format)"
+  },
   {
     "name": "days",
     "type": "number",

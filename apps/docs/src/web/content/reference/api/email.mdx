@@ -28,6 +28,7 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 Create a managed address at the `@agentuity.email` domain.
 
 
+
 #### Request Body
 
 Address creation payload.
@@ -221,6 +222,7 @@ Create an inbound webhook destination for an address.
     "description": "Address ID"
   }
 ]} />
+
 #### Request Body
 
 Destination creation payload.
@@ -341,6 +343,7 @@ Empty response on success.
 <ApiEndpoint method="POST" path="/email/outbound/send" />
 
 Send an email from an owned address. Delivery is asynchronous and total payload (including attachments) is capped at 25MB.
+
 
 
 #### Request Body

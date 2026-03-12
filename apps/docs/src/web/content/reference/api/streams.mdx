@@ -26,6 +26,7 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 Create a new stream and receive its stream ID.
 
 
+
 ### Request Body
 
 Stream creation payload.
@@ -115,6 +116,7 @@ Get stream metadata, size, public URL, and expiration info.
     "description": "The stream ID"
   }
 ]} />
+
 ### Request Body
 
 Empty JSON object is required.
@@ -209,6 +211,7 @@ Raw binary stream data with original content type.
 <ApiEndpoint method="POST" path="/stream/list" host="pulse" />
 
 List streams with filtering, pagination, and sorting.
+
 
 
 ### Request Body
@@ -373,6 +376,7 @@ Append a binary chunk (up to 5MB) to an open stream.
     "description": "The stream ID"
   }
 ]} />
+
 ### Request Body
 
 Raw binary body. Set `Content-Type: application/octet-stream`.
@@ -389,7 +393,7 @@ Empty response on success.
 
 ### Example
 
-<ApiExample method="POST" path="/stream/stream_abc123/append" host="pulse" headers={{"Content-Type": "application/octet-stream"}} body="<binary data>" />
+<ApiExample method="POST" path="/stream/stream_abc123/append" body="<binary data>" headers={{"Content-Type":"application/octet-stream"}} host="pulse" />
 
 ---
 
@@ -410,6 +414,7 @@ Finalize stream writing and make it available for reading.
     "description": "The stream ID"
   }
 ]} />
+
 ### Request Body
 
 Empty body. Optional header: `X-Compress: gzip` for server-side compression.

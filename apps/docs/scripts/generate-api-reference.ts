@@ -48,6 +48,7 @@ interface Endpoint {
 	statuses: EndpointStatus[];
 	examplePath: string;
 	exampleBody?: string | object;
+	exampleHeaders?: Record<string, string>;
 	ttlNote?: string;
 }
 
@@ -56,6 +57,7 @@ interface Service {
 	slug: string;
 	description: string;
 	host?: string;
+	hasPublicEndpoints?: boolean;
 	endpoints: Endpoint[];
 }
 
@@ -1271,6 +1273,8 @@ const streamsService: Service = {
 				{ code: 413, description: 'Chunk too large' },
 			],
 			examplePath: '/stream/stream_abc123/append',
+			exampleHeaders: { 'Content-Type': 'application/octet-stream' },
+			exampleBody: '<binary data>',
 		},
 		{
 			id: 'complete-stream',
@@ -2500,9 +2504,16 @@ const emailService: Service = {
 			title: 'Get Activity',
 			sectionTitle: 'Activity',
 			method: 'GET',
-			path: '/email/activity/2026-02-28',
+			path: '/email/activity/{date}',
 			description: 'Get daily inbound/outbound activity over a date window.',
-			pathParams: [],
+			pathParams: [
+				{
+					name: 'date',
+					type: 'string',
+					description: 'Date for activity lookup (YYYY-MM-DD format)',
+					required: true,
+				},
+			],
 			queryParams: [
 				{
 					name: 'days',
@@ -4600,10 +4611,11 @@ const projectsService: Service = {
 			requestBody: null,
 			responseDescription: 'Returns true (HTTP 409) if exists, false (HTTP 422) if not.',
 			statuses: [
-				{ code: 200, description: 'Check completed' },
+				{ code: 409, description: 'Project exists' },
+				{ code: 422, description: 'Project does not exist' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 			],
-			examplePath: '/cli/project/exists/my-project',
+			examplePath: '/cli/project/exists/my-project?orgId=org_abc123',
 		},
 		{
 			id: 'update-project-region',
@@ -4764,7 +4776,7 @@ const projectsService: Service = {
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 				{ code: 404, description: 'Agent not found' },
 			],
-			examplePath: '/cli/agent/proj_abc123',
+			examplePath: '/cli/agent/proj_abc123?identifier=my-agent',
 		},
 		{
 			id: 'list-deployments',
@@ -5495,7 +5507,8 @@ const tasksService: Service = {
 					{
 						name: 'older_than',
 						type: 'string',
-						description: "Go-style duration: '30m', '24h', '7d', '2w'",
+						description:
+							"Duration string: '30m', '24h', '7d', '2w' (supported units: s, m, h, d, w)",
 						required: false,
 					},
 					{ name: 'limit', type: 'number', description: 'Max 200', required: false },
@@ -6140,9 +6153,16 @@ const tasksService: Service = {
 			title: 'Get Activity Timeline',
 			sectionTitle: 'Activity',
 			method: 'GET',
-			path: '/task/activity/2026-02-28',
+			path: '/task/activity/{date}',
 			description: 'Get daily activity counts grouped by status over a configurable time range.',
-			pathParams: [],
+			pathParams: [
+				{
+					name: 'date',
+					type: 'string',
+					description: 'Date for activity lookup (YYYY-MM-DD format)',
+					required: true,
+				},
+			],
 			queryParams: [
 				{
 					name: 'days',
@@ -6175,6 +6195,7 @@ const sandboxesService: Service = {
 	slug: 'sandboxes',
 	description:
 		'Create and manage isolated execution environments with full lifecycle, file system, snapshot, and checkpoint support',
+	hasPublicEndpoints: true,
 	endpoints: [
 		// ── Sandbox Management ────────────────────────────────────────────
 		{
@@ -7562,7 +7583,7 @@ function renderEndpointSection(endpoint: Endpoint, headingLevel = 2, host?: stri
 
 	const requestBodyParts: string[] = [];
 	if (endpoint.requestBody) {
-		requestBodyParts.push(`${subHeading} Request Body`, '');
+		requestBodyParts.push('', `${subHeading} Request Body`, '');
 		requestBodyParts.push(endpoint.requestBody.description, '');
 
 		if (endpoint.requestBody.fields && endpoint.requestBody.fields.length > 0) {
@@ -7600,8 +7621,14 @@ function renderEndpointSection(endpoint: Endpoint, headingLevel = 2, host?: stri
 
 	const exampleProp =
 		endpoint.exampleBody !== undefined
-			? ` body={${JSON.stringify(endpoint.exampleBody, null, 2)}}`
+			? typeof endpoint.exampleBody === 'string'
+				? ` body="${endpoint.exampleBody}"`
+				: ` body={${JSON.stringify(endpoint.exampleBody, null, 2)}}`
 			: '';
+
+	const headersProp = endpoint.exampleHeaders
+		? ` headers={${JSON.stringify(endpoint.exampleHeaders)}}`
+		: '';
 
 	const hostProp = host ? ` host="${host}"` : '';
 
@@ -7618,7 +7645,7 @@ function renderEndpointSection(endpoint: Endpoint, headingLevel = 2, host?: stri
 		'',
 		`${subHeading} Example`,
 		'',
-		`<ApiExample method="${endpoint.method}" path="${endpoint.examplePath}"${exampleProp}${hostProp} />`,
+		`<ApiExample method="${endpoint.method}" path="${endpoint.examplePath}"${exampleProp}${headersProp}${hostProp} />`,
 		'',
 		'---',
 	].join('\n');
@@ -7653,7 +7680,7 @@ ${serviceIntro}
 
 ## Authentication
 
-All requests require a Bearer token. Pass your SDK key in the \`Authorization\` header.
+${service.hasPublicEndpoints ? 'Most requests require a Bearer token. Pass your SDK key in the `Authorization` header. Public endpoints (such as listing and fetching public snapshots) are noted below and do not require authentication.' : 'All requests require a Bearer token. Pass your SDK key in the `Authorization` header.'}
 
 | Header | Value |
 |--------|-------|
@@ -7838,7 +7865,7 @@ async function main() {
 				pages: services.map((service) => service.slug),
 			},
 			null,
-			2
+			'\t'
 		)
 	);
 

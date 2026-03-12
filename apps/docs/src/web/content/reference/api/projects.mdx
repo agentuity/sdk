@@ -28,6 +28,7 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 Create a new project within an organization.
 
 
+
 #### Request Body
 
 Project creation payload.
@@ -200,6 +201,7 @@ Returns the project details.
 Delete one or more projects by ID.
 
 
+
 #### Request Body
 
 Project deletion payload.
@@ -259,12 +261,12 @@ Check if a project with the given name already exists.
 
 #### Response
 
-Returns HTTP 409 if the project exists, HTTP 422 if it does not.
+Returns true (HTTP 409) if exists, false (HTTP 422) if not.
 
 | Status | Description |
 |--------|-------------|
 | 409 | Project exists |
-| 422 | Project not found |
+| 422 | Project does not exist |
 | 401 | Unauthorized — invalid or missing API key |
 
 #### Example
@@ -290,6 +292,7 @@ Update the cloud region for a project.
     "description": "Project ID"
   }
 ]} />
+
 #### Request Body
 
 Region update payload.
@@ -340,6 +343,7 @@ Update environment variables and secrets for a project.
     "description": "Project ID"
   }
 ]} />
+
 #### Request Body
 
 Environment variable update payload.
@@ -399,6 +403,7 @@ Delete specific environment variables and secrets from a project.
     "description": "Project ID"
   }
 ]} />
+
 #### Request Body
 
 Environment variable deletion payload.
@@ -583,7 +588,7 @@ Returns the agent matching the identifier.
 
 #### Example
 
-<ApiExample method="GET" path="/cli/agent/proj_abc123?identifier=agent_xyz" />
+<ApiExample method="GET" path="/cli/agent/proj_abc123?identifier=my-agent" />
 
 ---
 
@@ -895,6 +900,7 @@ Start a new deployment for a project.
     "description": "Project ID"
   }
 ]} />
+
 #### Request Body
 
 Deployment configuration payload.
@@ -1116,6 +1122,7 @@ Report a deployment failure with error details.
     "description": "Deployment ID"
   }
 ]} />
+
 #### Request Body
 
 Failure report payload.
@@ -1221,6 +1228,7 @@ Set a vanity hostname for a project.
     "description": "Project ID"
   }
 ]} />
+
 #### Request Body
 
 Hostname configuration payload.
@@ -1286,6 +1294,7 @@ Scan deployment dependencies for known malware.
     "description": "Deployment ID (URL-encoded)"
   }
 ]} />
+
 #### Request Body
 
 Malware scan payload.

@@ -28,6 +28,7 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 Create a queue. If `name` is omitted, a name is auto-generated.
 
 
+
 #### Request Body
 
 Queue creation payload.
@@ -225,6 +226,7 @@ Partially update queue description/settings.
     "description": "Queue name"
   }
 ]} />
+
 #### Request Body
 
 Partial queue update payload.
@@ -316,6 +318,7 @@ Pause queue processing.
     "description": "Queue name"
   }
 ]} />
+
 #### Request Body
 
 Empty JSON object is required.
@@ -353,6 +356,7 @@ Resume queue processing.
     "description": "Queue name"
   }
 ]} />
+
 #### Request Body
 
 Empty JSON object is required.
@@ -399,6 +403,7 @@ Publish a single message to a queue.
     "description": "Set `true` for synchronous publish"
   }
 ]} />
+
 #### Request Body
 
 Message payload and optional delivery controls.
@@ -477,6 +482,7 @@ Publish up to 1000 messages in one request.
     "description": "Queue name"
   }
 ]} />
+
 #### Request Body
 
 Batch publish payload.
@@ -1068,6 +1074,7 @@ Create an HTTP destination for queue deliveries.
     "description": "Queue name"
   }
 ]} />
+
 #### Request Body
 
 Destination creation payload.
@@ -1190,6 +1197,7 @@ Partially update destination fields.
     "description": "Destination ID"
   }
 ]} />
+
 #### Request Body
 
 Partial destination update payload.
