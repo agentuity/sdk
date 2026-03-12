@@ -40,6 +40,14 @@ export interface ReconcileOptions {
 	interactive?: boolean;
 	/** If true, skip prompts and just validate */
 	validateOnly?: boolean;
+	/** If true, auto-confirm all prompts (--confirm flag) */
+	confirm?: boolean;
+	/** Pre-selected organization ID from --org-id flag */
+	orgId?: string;
+	/** Pre-selected region from --region flag */
+	region?: string;
+	/** Project name from --name flag */
+	name?: string;
 }
 
 /**
@@ -315,7 +323,7 @@ async function importExistingProject(
 ): Promise<ReconcileResult> {
 	const { dir, apiClient, config, logger } = opts;
 
-	if (!options?.skipPrompt) {
+	if (!options?.skipPrompt && opts.interactive !== false) {
 		tui.warning(
 			"You don't have access to this project. It may have been deleted or transferred to another organization."
 		);
@@ -333,8 +341,22 @@ async function importExistingProject(
 		tui.newline();
 	}
 
-	// Select org
-	const orgId = await selectOrg(orgs, config, existingConfig.orgId);
+	// Select org - use --org-id if provided, otherwise auto-select or prompt
+	let orgId: string;
+	if (opts.orgId) {
+		const org = orgs.find((o) => o.id === opts.orgId);
+		if (!org) {
+			return {
+				status: 'error',
+				message: `Organization "${opts.orgId}" not found or you don't have access.`,
+			};
+		}
+		orgId = opts.orgId;
+	} else if (opts.confirm) {
+		orgId = await tui.selectOrganization(orgs, config.preferences?.orgId, true);
+	} else {
+		orgId = await selectOrg(orgs, config, existingConfig.orgId);
+	}
 
 	// Fetch regions and select
 	const regions = await tui.spinner({
@@ -342,20 +364,54 @@ async function importExistingProject(
 		clearOnSuccess: true,
 		callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
 	});
-	const region = await selectRegion(regions, existingConfig.region);
+
+	// Select region - use --region if provided, otherwise auto-select or prompt
+	let region: string;
+	if (opts.region) {
+		const isValidRegion = regions.some((r) => r.region === opts.region);
+		if (!isValidRegion) {
+			const supportedRegions = regions.map((r) => r.region).join(', ');
+			return {
+				status: 'error',
+				message: `Region "${opts.region}" is not valid. Available: ${supportedRegions}`,
+			};
+		}
+		region = opts.region;
+	} else if (opts.confirm) {
+		// Auto-select: use existing config region if valid, otherwise first available
+		const defaultRegion = existingConfig.region;
+		if (defaultRegion && regions.some((r) => r.region === defaultRegion)) {
+			region = defaultRegion;
+		} else {
+			const firstRegion = regions[0];
+			if (!firstRegion) {
+				return { status: 'error', message: 'No cloud regions available.' };
+			}
+			region = firstRegion.region;
+		}
+	} else {
+		region = await selectRegion(regions, existingConfig.region);
+	}
 
 	// Get project name
 	const defaultName = await getDefaultProjectName(dir);
-	const projectName = await textPrompt({
-		message: 'Project name:',
-		initial: defaultName,
-		validate: (value: string) => {
-			if (!value || value.trim().length === 0) {
-				return 'Project name is required';
-			}
-			return true;
-		},
-	});
+	let projectName: string;
+	if (opts.name) {
+		projectName = opts.name;
+	} else if (opts.confirm) {
+		projectName = defaultName;
+	} else {
+		projectName = await textPrompt({
+			message: 'Project name:',
+			initial: defaultName,
+			validate: (value: string) => {
+				if (!value || value.trim().length === 0) {
+					return 'Project name is required';
+				}
+				return true;
+			},
+		});
+	}
 
 	// Create the project
 	const newProject = await tui.spinner({
@@ -407,16 +463,18 @@ async function importExistingProject(
 async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult> {
 	const { dir, apiClient, config, logger } = opts;
 
-	tui.warning('This project is not registered with Agentuity Cloud.');
-	tui.newline();
+	if (opts.interactive !== false) {
+		tui.warning('This project is not registered with Agentuity Cloud.');
+		tui.newline();
 
-	const shouldCreate = await tui.confirm('Would you like to register it now?', true);
+		const shouldCreate = await tui.confirm('Would you like to register it now?', true);
 
-	if (!shouldCreate) {
-		return { status: 'skipped', message: 'Project registration cancelled.' };
+		if (!shouldCreate) {
+			return { status: 'skipped', message: 'Project registration cancelled.' };
+		}
+
+		tui.newline();
 	}
-
-	tui.newline();
 
 	// Fetch user's orgs
 	const orgs = await tui.spinner({
@@ -429,8 +487,22 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 		return { status: 'error', message: 'No organizations found for your account.' };
 	}
 
-	// Select org
-	const orgId = await selectOrg(orgs, config);
+	// Select org - use --org-id if provided, otherwise auto-select or prompt
+	let orgId: string;
+	if (opts.orgId) {
+		const org = orgs.find((o) => o.id === opts.orgId);
+		if (!org) {
+			return {
+				status: 'error',
+				message: `Organization "${opts.orgId}" not found or you don't have access.`,
+			};
+		}
+		orgId = opts.orgId;
+	} else if (opts.confirm) {
+		orgId = await tui.selectOrganization(orgs, config.preferences?.orgId, true);
+	} else {
+		orgId = await selectOrg(orgs, config);
+	}
 
 	// Fetch regions and select
 	const regions = await tui.spinner({
@@ -438,20 +510,49 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 		clearOnSuccess: true,
 		callback: () => fetchRegionsWithCache(config.name, apiClient, logger),
 	});
-	const region = await selectRegion(regions);
+
+	// Select region - use --region if provided, otherwise auto-select or prompt
+	let region: string;
+	if (opts.region) {
+		const isValidRegion = regions.some((r) => r.region === opts.region);
+		if (!isValidRegion) {
+			const supportedRegions = regions.map((r) => r.region).join(', ');
+			return {
+				status: 'error',
+				message: `Region "${opts.region}" is not valid. Available: ${supportedRegions}`,
+			};
+		}
+		region = opts.region;
+	} else if (opts.confirm) {
+		// Auto-select first region in confirm mode
+		const firstRegion = regions[0];
+		if (!firstRegion) {
+			return { status: 'error', message: 'No cloud regions available.' };
+		}
+		region = firstRegion.region;
+	} else {
+		region = await selectRegion(regions);
+	}
 
 	// Get project name from package.json or prompt
 	const defaultName = await getDefaultProjectName(dir);
-	const projectName = await textPrompt({
-		message: 'Project name:',
-		initial: defaultName,
-		validate: (value: string) => {
-			if (!value || value.trim().length === 0) {
-				return 'Project name is required';
-			}
-			return true;
-		},
-	});
+	let projectName: string;
+	if (opts.name) {
+		projectName = opts.name;
+	} else if (opts.confirm) {
+		projectName = defaultName;
+	} else {
+		projectName = await textPrompt({
+			message: 'Project name:',
+			initial: defaultName,
+			validate: (value: string) => {
+				if (!value || value.trim().length === 0) {
+					return 'Project name is required';
+				}
+				return true;
+			},
+		});
+	}
 
 	// Create the project
 	const newProject = await tui.spinner({
@@ -627,7 +728,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			}
 
 			// Has agentuity.json but no access - offer to import
-			if (!interactive) {
+			if (!interactive && !opts.confirm) {
 				return {
 					status: 'error',
 					message:
@@ -635,10 +736,12 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 				};
 			}
 
-			return await importExistingProject(opts, projectConfig, userOrgs);
+			return await importExistingProject(opts, projectConfig, userOrgs, {
+				skipPrompt: opts.confirm,
+			});
 		} catch {
 			// Project doesn't exist - offer to import
-			if (!interactive) {
+			if (!interactive && !opts.confirm) {
 				return {
 					status: 'error',
 					message: 'Project not found. Run interactively to import it to your organization.',
@@ -646,7 +749,9 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			}
 
 			const userOrgs = await listOrganizations(apiClient);
-			return await importExistingProject(opts, projectConfig, userOrgs);
+			return await importExistingProject(opts, projectConfig, userOrgs, {
+				skipPrompt: opts.confirm,
+			});
 		}
 	}
 
@@ -670,7 +775,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 		};
 	}
 
-	if (!interactive) {
+	if (!interactive && !opts.confirm) {
 		return {
 			status: 'error',
 			message: 'Project import requires interactive mode.',
