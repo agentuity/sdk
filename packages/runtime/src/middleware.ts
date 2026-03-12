@@ -689,18 +689,27 @@ export function createOtelMiddleware() {
 								}
 							});
 						} else if (wsDone) {
-							// WebSocket connection — defer finalization until onClose fires
+							// WebSocket upgrade — end the span immediately (short-lived upgrade span)
+							// Per OTel conventions, spans should be short-lived. The HTTP upgrade
+							// request is a discrete event that completes in milliseconds. Keeping
+							// a span open for the entire WS connection lifetime (minutes/hours) is
+							// non-standard and causes issues with OTel backends.
 							internal.info(
-								'[request] %s %s - websocket response, deferring finalization until close (session: %s)',
+								'[request] %s %s - websocket upgrade, ending span immediately (session: %s)',
 								method,
 								url.pathname,
 								sessionId
 							);
 
-							// For WebSocket, we end the span inside waitUntil after the connection closes
-							shouldEndSpanInFinally = false;
+							// End the upgrade span now with the upgrade duration
+							const upgradeDurationNs = Math.round(handlerDurationMs * 1_000_000);
+							span.setAttribute('@agentuity/request.duration', upgradeDurationNs);
+							span.setAttribute('http.status_code', responseStatus);
+							span.setStatus({ code: SpanStatusCode.OK });
+							span.end();
+							shouldEndSpanInFinally = false; // already ended
 
-							// Capture pending promises BEFORE adding finalization waitUntil to avoid deadlock
+							// Session finalization still defers until WS close, but without holding a span
 							const pendingPromises = handler.getPendingSnapshot();
 							const hasPendingTasks = pendingPromises.length > 0;
 
@@ -714,11 +723,6 @@ export function createOtelMiddleware() {
 								);
 							}
 
-							// Capture values needed for span attributes
-							const capturedResponseStatus = responseStatus;
-							const capturedErrorMessage = errorMessage;
-
-							// Use waitUntil to handle WebSocket close and finalization
 							handler.waitUntil(async () => {
 								let wsError: unknown = undefined;
 
@@ -741,81 +745,43 @@ export function createOtelMiddleware() {
 									);
 								}
 
-								// Record duration now that WebSocket is closed
-								const wsDurationMs = performance.now() - requestStartTime;
-								const durationNs = Math.round(wsDurationMs * 1_000_000);
-								internal.info(
-									'[request] %s %s - recording websocket duration: %sms (session: %s)',
-									method,
-									url.pathname,
-									wsDurationMs.toFixed(2),
-									sessionId
-								);
-
-								// Determine final status
-								const finalStatus = wsError ? 500 : capturedResponseStatus;
+								const finalStatus = wsError ? 500 : responseStatus;
 								const finalErrorMessage = wsError
 									? wsError instanceof Error
 										? (wsError.stack ?? wsError.message)
 										: String(wsError)
-									: capturedErrorMessage;
+									: errorMessage;
 
-								try {
-									// Wait for pending tasks captured BEFORE this waitUntil was added
-									if (hasPendingTasks) {
-										internal.info(
-											'[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)',
-											method,
-											url.pathname,
-											pendingPromises.length,
-											sessionId
-										);
-										const logger = c.get('logger');
-										await handler.waitForPromises(pendingPromises, logger, sessionId);
-										internal.info(
-											'[request] %s %s - all waitUntil tasks complete (session: %s)',
-											method,
-											url.pathname,
-											sessionId
-										);
-									}
-
-									// Finalize session after WebSocket closes
-									await finalizeSession(
-										finalStatus >= 500 ? finalStatus : undefined,
-										finalErrorMessage
-									);
+								// Wait for pending tasks captured BEFORE this waitUntil was added
+								if (hasPendingTasks) {
 									internal.info(
-										'[request] %s %s - websocket session finalization complete (session: %s)',
+										'[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)',
 										method,
 										url.pathname,
+										pendingPromises.length,
 										sessionId
 									);
-								} finally {
-									// Set span attributes and end span AFTER all work is done
-									span.setAttribute('@agentuity/request.duration', durationNs);
-									span.setAttribute('http.status_code', finalStatus);
-
-									if (wsError) {
-										span.setStatus({
-											code: SpanStatusCode.ERROR,
-											message: finalErrorMessage ?? 'WebSocket ended with error',
-										});
-										if (wsError instanceof Error) {
-											span.recordException(wsError);
-										}
-									} else {
-										span.setStatus({ code: SpanStatusCode.OK });
-									}
-
-									span.end();
+									const logger = c.get('logger');
+									await handler.waitForPromises(pendingPromises, logger, sessionId);
 									internal.info(
-										'[request] %s %s - websocket span ended (session: %s)',
+										'[request] %s %s - all waitUntil tasks complete (session: %s)',
 										method,
 										url.pathname,
 										sessionId
 									);
 								}
+
+								// Finalize session after WebSocket closes
+								await finalizeSession(
+									finalStatus >= 500 ? finalStatus : undefined,
+									finalErrorMessage
+								);
+								internal.info(
+									'[request] %s %s - websocket session finalization complete (session: %s)',
+									method,
+									url.pathname,
+									sessionId
+								);
 							});
 						} else {
 							// Non-streaming: record duration immediately
