@@ -49,17 +49,14 @@ export function RegionProvider({ children }: { children: ReactNode }) {
 		}
 	}, []);
 
-	const setRegion = useCallback(
-		(nextRegion: RegionCode) => {
-			setRegionState(nextRegion);
-			try {
-				localStorage.setItem(REGION_STORAGE_KEY, nextRegion);
-			} catch {
-				// localStorage may be unavailable in some environments
-			}
-		},
-		[setRegionState]
-	);
+	const setRegion = useCallback((nextRegion: RegionCode) => {
+		setRegionState(nextRegion);
+		try {
+			localStorage.setItem(REGION_STORAGE_KEY, nextRegion);
+		} catch {
+			// localStorage may be unavailable in some environments
+		}
+	}, []);
 
 	const value = useMemo<RegionContextValue>(
 		() => ({

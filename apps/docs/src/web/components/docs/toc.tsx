@@ -55,7 +55,7 @@ export function TableOfContents() {
 		}
 
 		return () => observer.disconnect();
-	}, [headings, setActiveId, flatHeadings.length]);
+	}, [flatHeadings, setActiveId]);
 
 	if (flatHeadings.length === 0) {
 		return null;
