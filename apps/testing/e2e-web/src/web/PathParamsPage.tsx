@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { createAPIClient } from '@agentuity/react';
-
-const api = createAPIClient();
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api/router';
 
 export function PathParamsPage() {
+	const client = hc<AppRouter>('/api');
 	const [userId, setUserId] = useState('123');
 	const [orgId, setOrgId] = useState('org-456');
 	const [memberId, setMemberId] = useState('user-789');
@@ -18,8 +18,8 @@ export function PathParamsPage() {
 	const testUserPathParam = async () => {
 		try {
 			setError(null);
-			// Positional argument API: single path param
-			const result = await api.users.userId.get(userId);
+			const res = await client.users[':userId'].$get({ param: { userId } });
+			const result = await res.json();
 			setUserResult(JSON.stringify(result, null, 2));
 		} catch (err) {
 			setError(`User API Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -29,8 +29,10 @@ export function PathParamsPage() {
 	const testMultiplePathParams = async () => {
 		try {
 			setError(null);
-			// Positional arguments API: multiple path params in order
-			const result = await api.organizations.orgId.members.memberId.get(orgId, memberId);
+			const res = await client.organizations[':orgId'].members[':memberId'].$get({
+				param: { orgId, memberId },
+			});
+			const result = await res.json();
 			setMemberResult(JSON.stringify(result, null, 2));
 		} catch (err) {
 			setError(`Member API Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -40,7 +42,8 @@ export function PathParamsPage() {
 	const testQueryParams = async () => {
 		try {
 			setError(null);
-			const result = await api.search.get({ query: { q: searchQuery, limit: searchLimit } });
+			const res = await client.search.$get({ query: { q: searchQuery, limit: searchLimit } });
+			const result = await res.json();
 			setSearchResult(JSON.stringify(result, null, 2));
 		} catch (err) {
 			setError(`Search API Error: ${err instanceof Error ? err.message : String(err)}`);
