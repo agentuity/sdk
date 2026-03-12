@@ -1,0 +1,1508 @@
+---
+title: Message Queues API
+description: Publish, consume, and manage messages with worker and pub/sub queues
+---
+
+Publish, consume, and manage messages with worker and pub/sub queues.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Queue Management
+
+### Create Queue
+
+<ApiEndpoint method="POST" path="/queue/create" />
+
+Create a queue. If `name` is omitted, a name is auto-generated.
+
+
+#### Request Body
+
+Queue creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Queue name",
+    "required": false
+  },
+  {
+    "name": "queue_type",
+    "type": "string",
+    "description": "`worker` or `pubsub`",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Queue description",
+    "required": false
+  },
+  {
+    "name": "settings",
+    "type": "object",
+    "description": "Queue behavior settings",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Queue object including settings, stats, and timestamps.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Queue created |
+| 401 | Unauthorized |
+| 402 | Payment required |
+
+#### Example
+
+<ApiExample method="POST" path="/queue/create" body={{
+  "name": "order-processing",
+  "queue_type": "worker",
+  "description": "Processes customer orders",
+  "settings": {
+    "default_max_retries": 3,
+    "default_visibility_timeout_seconds": 60
+  }
+}} />
+
+---
+
+### Get Queue
+
+<ApiEndpoint method="GET" path="/queue/get/{name}" />
+
+Get a queue by name.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+
+#### Response
+
+Queue object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Queue returned |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Example
+
+<ApiExample method="GET" path="/queue/get/order-processing" />
+
+---
+
+### List Queues
+
+<ApiEndpoint method="GET" path="/queue/list" />
+
+List queues with filtering and pagination.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum queues to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Offset for pagination"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by queue name"
+  },
+  {
+    "name": "queue_type",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "`worker` or `pubsub`"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "`active` or `paused`"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort field"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "`asc` or `desc`"
+  }
+]} />
+
+#### Response
+
+Response with queue array and optional total count.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Queues returned |
+| 401 | Unauthorized |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "queues",
+    "type": "Queue[]",
+    "description": "Queues in the current page"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Optional total queue count",
+    "required": false
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/queue/list?limit=10&queue_type=worker" />
+
+---
+
+### Update Queue
+
+<ApiEndpoint method="PATCH" path="/queue/update/{name}" />
+
+Partially update queue description/settings.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+#### Request Body
+
+Partial queue update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Updated description",
+    "required": false
+  },
+  {
+    "name": "settings",
+    "type": "object",
+    "description": "Partial settings update",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Updated queue object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Queue updated |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/queue/update/order-processing" body={{
+  "description": "Updated",
+  "settings": {
+    "default_max_retries": 5
+  }
+}} />
+
+---
+
+### Delete Queue
+
+<ApiEndpoint method="DELETE" path="/queue/delete/{name}" />
+
+Delete a queue and associated resources.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Queue deleted |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/queue/delete/order-processing" />
+
+---
+
+### Pause Queue
+
+<ApiEndpoint method="POST" path="/queue/pause/{name}" />
+
+Pause queue processing.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+#### Request Body
+
+Empty JSON object is required.
+
+#### Response
+
+Queue object with `paused_at` set.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Queue paused |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Example
+
+<ApiExample method="POST" path="/queue/pause/order-processing" body={{}} />
+
+---
+
+### Resume Queue
+
+<ApiEndpoint method="POST" path="/queue/resume/{name}" />
+
+Resume queue processing.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+#### Request Body
+
+Empty JSON object is required.
+
+#### Response
+
+Queue object with `paused_at` cleared.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Queue resumed |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Example
+
+<ApiExample method="POST" path="/queue/resume/order-processing" body={{}} />
+
+---
+
+## Message Operations
+
+### Publish Message
+
+<ApiEndpoint method="POST" path="/queue/messages/publish/{name}" />
+
+Publish a single message to a queue.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "sync",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Set `true` for synchronous publish"
+  }
+]} />
+#### Request Body
+
+Message payload and optional delivery controls.
+
+<ResponseFields fields={[
+  {
+    "name": "payload",
+    "type": "any",
+    "description": "Message payload",
+    "required": true
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Message metadata",
+    "required": false
+  },
+  {
+    "name": "partition_key",
+    "type": "string",
+    "description": "Partition key for routing",
+    "required": false
+  },
+  {
+    "name": "idempotency_key",
+    "type": "string",
+    "description": "Idempotency key",
+    "required": false
+  },
+  {
+    "name": "ttl_seconds",
+    "type": "number",
+    "description": "Message TTL in seconds",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Published message object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Message published |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Example
+
+<ApiExample method="POST" path="/queue/messages/publish/order-processing" body={{
+  "payload": {
+    "orderId": 123,
+    "action": "process"
+  },
+  "metadata": {
+    "priority": "high"
+  }
+}} />
+
+---
+
+### Batch Publish
+
+<ApiEndpoint method="POST" path="/queue/messages/batch/{name}" />
+
+Publish up to 1000 messages in one request.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+#### Request Body
+
+Batch publish payload.
+
+<ResponseFields fields={[
+  {
+    "name": "messages",
+    "type": "array",
+    "description": "Array of message payload objects (max 1000)",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Batch publish response with created messages and optional failed indexes.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Batch publish completed |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "messages",
+    "type": "Message[]",
+    "description": "Published messages"
+  },
+  {
+    "name": "failed",
+    "type": "number[]",
+    "description": "Indexes that failed",
+    "required": false
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/queue/messages/batch/order-processing" body={{
+  "messages": [
+    {
+      "payload": {
+        "orderId": 1
+      }
+    },
+    {
+      "payload": {
+        "orderId": 2
+      }
+    }
+  ]
+}} />
+
+---
+
+### Get Message
+
+<ApiEndpoint method="GET" path="/queue/messages/get/{name}/{messageId}" />
+
+Get a message by message ID (`msg_...`).
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "messageId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Message ID (`msg_...`)"
+  }
+]} />
+
+#### Response
+
+Message object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Message returned |
+| 401 | Unauthorized |
+| 404 | Message or queue not found |
+
+#### Example
+
+<ApiExample method="GET" path="/queue/messages/get/order-processing/msg_abc123" />
+
+---
+
+### Get Message by Offset
+
+<ApiEndpoint method="GET" path="/queue/messages/offset/{name}/{offset}" />
+
+Get a message by numeric offset.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "path",
+    "required": true,
+    "description": "Message offset"
+  }
+]} />
+
+#### Response
+
+Message object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Message returned |
+| 401 | Unauthorized |
+| 404 | Message or queue not found |
+
+#### Example
+
+<ApiExample method="GET" path="/queue/messages/offset/order-processing/42" />
+
+---
+
+### List Messages
+
+<ApiEndpoint method="GET" path="/queue/messages/list/{name}" />
+
+List messages with pagination and optional state filter.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum messages to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Offset for pagination"
+  },
+  {
+    "name": "state",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "`pending`, `processing`, `completed`, `failed`, or `dead`"
+  }
+]} />
+
+#### Response
+
+Response with message list and optional total count.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Messages returned |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "messages",
+    "type": "Message[]",
+    "description": "Messages in current page"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Optional total message count",
+    "required": false
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/queue/messages/list/order-processing?limit=20&state=pending" />
+
+---
+
+### Delete Message
+
+<ApiEndpoint method="DELETE" path="/queue/messages/delete/{name}/{messageId}" />
+
+Delete a message by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "messageId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Message ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Message deleted |
+| 401 | Unauthorized |
+| 404 | Message or queue not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/queue/messages/delete/order-processing/msg_abc123" />
+
+---
+
+### Replay Message
+
+<ApiEndpoint method="POST" path="/queue/messages/replay/{name}/{messageId}" />
+
+Replay a message back into the queue flow.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "messageId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Message ID"
+  }
+]} />
+
+#### Response
+
+Replayed message object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Message replayed |
+| 401 | Unauthorized |
+| 404 | Message or queue not found |
+
+#### Example
+
+<ApiExample method="POST" path="/queue/messages/replay/order-processing/msg_abc123" />
+
+---
+
+### Consume Messages
+
+<ApiEndpoint method="GET" path="/queue/consume/{name}" />
+
+Log-style consumption starting from offset. Does not mark messages as processing.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": true,
+    "description": "Starting offset"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum messages to return"
+  }
+]} />
+
+#### Response
+
+Response containing consumed messages.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Messages consumed |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "messages",
+    "type": "Message[]",
+    "description": "Consumed messages"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/queue/consume/order-processing?offset=0&limit=10" />
+
+---
+
+### Receive Message
+
+<ApiEndpoint method="GET" path="/queue/receive/{name}" />
+
+Atomically receive and lock the next pending message. Must ack/nack when done.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "timeout",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Long-poll timeout in seconds (0–30)"
+  }
+]} />
+
+#### Response
+
+Response containing a message or `null` when none available.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Receive operation completed |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "message",
+    "type": "Message | null",
+    "description": "Received message if available"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/queue/receive/order-processing?timeout=10" />
+
+---
+
+### Acknowledge Message
+
+<ApiEndpoint method="POST" path="/queue/ack/{name}/{messageId}" />
+
+Mark message as successfully processed (completed).
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "messageId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Message ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Message acknowledged |
+| 401 | Unauthorized |
+| 404 | Message or queue not found |
+
+#### Example
+
+<ApiExample method="POST" path="/queue/ack/order-processing/msg_abc123" />
+
+---
+
+### Negative Acknowledge
+
+<ApiEndpoint method="POST" path="/queue/nack/{name}/{messageId}" />
+
+Return message for retry. After max retries, moves to DLQ.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "messageId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Message ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Message negatively acknowledged |
+| 401 | Unauthorized |
+| 404 | Message or queue not found |
+
+#### Example
+
+<ApiExample method="POST" path="/queue/nack/order-processing/msg_abc123" />
+
+---
+
+### Get Queue Head
+
+<ApiEndpoint method="GET" path="/queue/head/{name}" />
+
+Get offset of the oldest message.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+
+#### Response
+
+JSON object containing the head offset.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Queue head returned |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Oldest message offset"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/queue/head/order-processing" />
+
+---
+
+### Get Queue Tail
+
+<ApiEndpoint method="GET" path="/queue/tail/{name}" />
+
+Get offset of the newest message.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+
+#### Response
+
+JSON object containing the tail offset.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Queue tail returned |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Newest message offset"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/queue/tail/order-processing" />
+
+---
+
+## Destinations
+
+### Create Destination
+
+<ApiEndpoint method="POST" path="/queue/destinations/create/{name}" />
+
+Create an HTTP destination for queue deliveries.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+#### Request Body
+
+Destination creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "destination_type",
+    "type": "string",
+    "description": "Destination type (`http`)",
+    "required": true
+  },
+  {
+    "name": "config",
+    "type": "object",
+    "description": "Destination config (includes `url`)",
+    "required": true
+  },
+  {
+    "name": "retry_attempts",
+    "type": "number",
+    "description": "Retry attempts override",
+    "required": false
+  },
+  {
+    "name": "timeout_seconds",
+    "type": "number",
+    "description": "Delivery timeout override",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Created destination object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Destination created |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Example
+
+<ApiExample method="POST" path="/queue/destinations/create/order-processing" body={{
+  "destination_type": "http",
+  "config": {
+    "url": "https://example.com/webhook"
+  },
+  "retry_attempts": 5,
+  "timeout_seconds": 10
+}} />
+
+---
+
+### List Destinations
+
+<ApiEndpoint method="GET" path="/queue/destinations/list/{name}" />
+
+List queue destinations.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+
+#### Response
+
+Response containing destination list.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Destinations returned |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "destinations",
+    "type": "Destination[]",
+    "description": "Configured destinations"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/queue/destinations/list/order-processing" />
+
+---
+
+### Update Destination
+
+<ApiEndpoint method="PATCH" path="/queue/destinations/update/{name}/{destinationId}" />
+
+Partially update destination fields.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "destinationId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Destination ID"
+  }
+]} />
+#### Request Body
+
+Partial destination update payload.
+
+#### Response
+
+Updated destination object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Destination updated |
+| 401 | Unauthorized |
+| 404 | Queue or destination not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/queue/destinations/update/order-processing/dst_abc123" body={{
+  "timeout_seconds": 20
+}} />
+
+---
+
+### Delete Destination
+
+<ApiEndpoint method="DELETE" path="/queue/destinations/delete/{name}/{destinationId}" />
+
+Delete a queue destination.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "destinationId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Destination ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Destination deleted |
+| 401 | Unauthorized |
+| 404 | Queue or destination not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/queue/destinations/delete/order-processing/dst_abc123" />
+
+---
+
+### List Delivery Logs
+
+<ApiEndpoint method="GET" path="/queue/destinations/deliveries/{name}/{destinationId}" />
+
+List destination delivery logs with optional status filter.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "destinationId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Destination ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum logs to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Offset for pagination"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Delivery status filter"
+  }
+]} />
+
+#### Response
+
+Response containing delivery log entries.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Delivery logs returned |
+| 401 | Unauthorized |
+| 404 | Queue or destination not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "deliveries",
+    "type": "DeliveryLog[]",
+    "description": "Delivery log entries"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/queue/destinations/deliveries/order-processing/dst_abc123?limit=20" />
+
+---
+
+## Dead Letter Queue
+
+### List DLQ Messages
+
+<ApiEndpoint method="GET" path="/queue/dlq/list/{name}" />
+
+List dead-letter queue messages.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum messages to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Offset for pagination"
+  }
+]} />
+
+#### Response
+
+Response containing DLQ messages and optional total.
+
+| Status | Description |
+|--------|-------------|
+| 200 | DLQ messages returned |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "messages",
+    "type": "DeadLetterMessage[]",
+    "description": "DLQ messages"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Optional total DLQ message count",
+    "required": false
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/queue/dlq/list/order-processing?limit=20" />
+
+---
+
+### Replay DLQ Message
+
+<ApiEndpoint method="POST" path="/queue/dlq/replay/{name}/{messageId}" />
+
+Replay a DLQ message back to the queue.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "messageId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "DLQ message ID"
+  }
+]} />
+
+#### Response
+
+Replayed message object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | DLQ message replayed |
+| 401 | Unauthorized |
+| 404 | Queue or message not found |
+
+#### Example
+
+<ApiExample method="POST" path="/queue/dlq/replay/order-processing/msg_abc123" />
+
+---
+
+### Purge DLQ
+
+<ApiEndpoint method="DELETE" path="/queue/dlq/purge/{name}" />
+
+Delete all messages in the dead-letter queue.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | DLQ purged |
+| 401 | Unauthorized |
+| 404 | Queue not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/queue/dlq/purge/order-processing" />
+
+---
+
+### Delete DLQ Message
+
+<ApiEndpoint method="DELETE" path="/queue/dlq/delete/{name}/{messageId}" />
+
+Delete a specific message from the dead-letter queue.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Queue name"
+  },
+  {
+    "name": "messageId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "DLQ message ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | DLQ message deleted |
+| 401 | Unauthorized |
+| 404 | Queue or message not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/queue/dlq/delete/order-processing/msg_abc123" />
+
+---

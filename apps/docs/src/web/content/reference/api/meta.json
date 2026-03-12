@@ -1,0 +1,25 @@
+{
+	"title": "API Reference",
+	"pages": [
+		"key-value",
+		"vector",
+		"object-storage",
+		"streams",
+		"queues",
+		"email",
+		"user",
+		"threads",
+		"evaluations",
+		"api-keys",
+		"regions",
+		"database",
+		"organizations",
+		"machines",
+		"schedules",
+		"webhooks",
+		"sessions",
+		"projects",
+		"tasks",
+		"sandboxes"
+	]
+}

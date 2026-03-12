@@ -70,11 +70,13 @@ import { Route as DocsAgentsCreatingAgentsRouteImport } from './routes/_docs/age
 import { Route as DocsAgentsCallingOtherAgentsRouteImport } from './routes/_docs/agents/calling-other-agents';
 import { Route as DocsAgentsAiSdkIntegrationRouteImport } from './routes/_docs/agents/ai-sdk-integration';
 import { Route as DocsAgentsAiGatewayRouteImport } from './routes/_docs/agents/ai-gateway';
+import { Route as DocsReferenceApiRouteRouteImport } from './routes/_docs/reference/api/route';
 import { Route as DocsServicesStorageIndexRouteImport } from './routes/_docs/services/storage/index';
 import { Route as DocsServicesSandboxIndexRouteImport } from './routes/_docs/services/sandbox/index';
 import { Route as DocsServicesObservabilityIndexRouteImport } from './routes/_docs/services/observability/index';
 import { Route as DocsServicesDatabaseIndexRouteImport } from './routes/_docs/services/database/index';
 import { Route as DocsReferenceCliIndexRouteImport } from './routes/_docs/reference/cli/index';
+import { Route as DocsReferenceApiIndexRouteImport } from './routes/_docs/reference/api/index';
 import { Route as DocsCookbookTutorialsIndexRouteImport } from './routes/_docs/cookbook/tutorials/index';
 import { Route as DocsCookbookPatternsIndexRouteImport } from './routes/_docs/cookbook/patterns/index';
 import { Route as DocsServicesStorageVectorRouteImport } from './routes/_docs/services/storage/vector';
@@ -102,6 +104,26 @@ import { Route as DocsReferenceCliConfigurationRouteImport } from './routes/_doc
 import { Route as DocsReferenceCliClaudeCodePluginRouteImport } from './routes/_docs/reference/cli/claude-code-plugin';
 import { Route as DocsReferenceCliBuildConfigurationRouteImport } from './routes/_docs/reference/cli/build-configuration';
 import { Route as DocsReferenceCliAiCommandsRouteImport } from './routes/_docs/reference/cli/ai-commands';
+import { Route as DocsReferenceApiWebhooksRouteImport } from './routes/_docs/reference/api/webhooks';
+import { Route as DocsReferenceApiVectorRouteImport } from './routes/_docs/reference/api/vector';
+import { Route as DocsReferenceApiUserRouteImport } from './routes/_docs/reference/api/user';
+import { Route as DocsReferenceApiThreadsRouteImport } from './routes/_docs/reference/api/threads';
+import { Route as DocsReferenceApiTasksRouteImport } from './routes/_docs/reference/api/tasks';
+import { Route as DocsReferenceApiStreamsRouteImport } from './routes/_docs/reference/api/streams';
+import { Route as DocsReferenceApiSessionsRouteImport } from './routes/_docs/reference/api/sessions';
+import { Route as DocsReferenceApiSchedulesRouteImport } from './routes/_docs/reference/api/schedules';
+import { Route as DocsReferenceApiSandboxesRouteImport } from './routes/_docs/reference/api/sandboxes';
+import { Route as DocsReferenceApiRegionsRouteImport } from './routes/_docs/reference/api/regions';
+import { Route as DocsReferenceApiQueuesRouteImport } from './routes/_docs/reference/api/queues';
+import { Route as DocsReferenceApiProjectsRouteImport } from './routes/_docs/reference/api/projects';
+import { Route as DocsReferenceApiOrganizationsRouteImport } from './routes/_docs/reference/api/organizations';
+import { Route as DocsReferenceApiObjectStorageRouteImport } from './routes/_docs/reference/api/object-storage';
+import { Route as DocsReferenceApiMachinesRouteImport } from './routes/_docs/reference/api/machines';
+import { Route as DocsReferenceApiKeyValueRouteImport } from './routes/_docs/reference/api/key-value';
+import { Route as DocsReferenceApiEvaluationsRouteImport } from './routes/_docs/reference/api/evaluations';
+import { Route as DocsReferenceApiEmailRouteImport } from './routes/_docs/reference/api/email';
+import { Route as DocsReferenceApiDatabaseRouteImport } from './routes/_docs/reference/api/database';
+import { Route as DocsReferenceApiApiKeysRouteImport } from './routes/_docs/reference/api/api-keys';
 import { Route as DocsCookbookTutorialsUnderstandingAgentsRouteImport } from './routes/_docs/cookbook/tutorials/understanding-agents';
 import { Route as DocsCookbookTutorialsRagAgentRouteImport } from './routes/_docs/cookbook/tutorials/rag-agent';
 import { Route as DocsCookbookPatternsWebhookHandlerRouteImport } from './routes/_docs/cookbook/patterns/webhook-handler';
@@ -417,6 +439,11 @@ const DocsAgentsAiGatewayRoute = DocsAgentsAiGatewayRouteImport.update({
 	path: '/agents/ai-gateway',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsReferenceApiRouteRoute = DocsReferenceApiRouteRouteImport.update({
+	id: '/reference/api',
+	path: '/reference/api',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsServicesStorageIndexRoute = DocsServicesStorageIndexRouteImport.update({
 	id: '/services/storage/',
 	path: '/services/storage/',
@@ -441,6 +468,11 @@ const DocsReferenceCliIndexRoute = DocsReferenceCliIndexRouteImport.update({
 	id: '/reference/cli/',
 	path: '/reference/cli/',
 	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceApiIndexRoute = DocsReferenceApiIndexRouteImport.update({
+	id: '/',
+	path: '/',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
 } as any);
 const DocsCookbookTutorialsIndexRoute = DocsCookbookTutorialsIndexRouteImport.update({
 	id: '/cookbook/tutorials/',
@@ -580,6 +612,106 @@ const DocsReferenceCliAiCommandsRoute = DocsReferenceCliAiCommandsRouteImport.up
 	path: '/reference/cli/ai-commands',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsReferenceApiWebhooksRoute = DocsReferenceApiWebhooksRouteImport.update({
+	id: '/webhooks',
+	path: '/webhooks',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiVectorRoute = DocsReferenceApiVectorRouteImport.update({
+	id: '/vector',
+	path: '/vector',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiUserRoute = DocsReferenceApiUserRouteImport.update({
+	id: '/user',
+	path: '/user',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiThreadsRoute = DocsReferenceApiThreadsRouteImport.update({
+	id: '/threads',
+	path: '/threads',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiTasksRoute = DocsReferenceApiTasksRouteImport.update({
+	id: '/tasks',
+	path: '/tasks',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiStreamsRoute = DocsReferenceApiStreamsRouteImport.update({
+	id: '/streams',
+	path: '/streams',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiSessionsRoute = DocsReferenceApiSessionsRouteImport.update({
+	id: '/sessions',
+	path: '/sessions',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiSchedulesRoute = DocsReferenceApiSchedulesRouteImport.update({
+	id: '/schedules',
+	path: '/schedules',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiSandboxesRoute = DocsReferenceApiSandboxesRouteImport.update({
+	id: '/sandboxes',
+	path: '/sandboxes',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiRegionsRoute = DocsReferenceApiRegionsRouteImport.update({
+	id: '/regions',
+	path: '/regions',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiQueuesRoute = DocsReferenceApiQueuesRouteImport.update({
+	id: '/queues',
+	path: '/queues',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiProjectsRoute = DocsReferenceApiProjectsRouteImport.update({
+	id: '/projects',
+	path: '/projects',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiOrganizationsRoute = DocsReferenceApiOrganizationsRouteImport.update({
+	id: '/organizations',
+	path: '/organizations',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiObjectStorageRoute = DocsReferenceApiObjectStorageRouteImport.update({
+	id: '/object-storage',
+	path: '/object-storage',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiMachinesRoute = DocsReferenceApiMachinesRouteImport.update({
+	id: '/machines',
+	path: '/machines',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiKeyValueRoute = DocsReferenceApiKeyValueRouteImport.update({
+	id: '/key-value',
+	path: '/key-value',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiEvaluationsRoute = DocsReferenceApiEvaluationsRouteImport.update({
+	id: '/evaluations',
+	path: '/evaluations',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiEmailRoute = DocsReferenceApiEmailRouteImport.update({
+	id: '/email',
+	path: '/email',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiDatabaseRoute = DocsReferenceApiDatabaseRouteImport.update({
+	id: '/database',
+	path: '/database',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiApiKeysRoute = DocsReferenceApiApiKeysRouteImport.update({
+	id: '/api-keys',
+	path: '/api-keys',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
 const DocsCookbookTutorialsUnderstandingAgentsRoute =
 	DocsCookbookTutorialsUnderstandingAgentsRouteImport.update({
 		id: '/cookbook/tutorials/understanding-agents',
@@ -653,6 +785,7 @@ export interface FileRoutesByFullPath {
 	'/demo/sse-stream': typeof DemoSseStreamRoute;
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
+	'/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
 	'/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
 	'/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute;
 	'/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute;
@@ -708,6 +841,26 @@ export interface FileRoutesByFullPath {
 	'/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
+	'/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
+	'/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
+	'/reference/api/email': typeof DocsReferenceApiEmailRoute;
+	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
+	'/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
+	'/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
+	'/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
+	'/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
+	'/reference/api/queues': typeof DocsReferenceApiQueuesRoute;
+	'/reference/api/regions': typeof DocsReferenceApiRegionsRoute;
+	'/reference/api/sandboxes': typeof DocsReferenceApiSandboxesRoute;
+	'/reference/api/schedules': typeof DocsReferenceApiSchedulesRoute;
+	'/reference/api/sessions': typeof DocsReferenceApiSessionsRoute;
+	'/reference/api/streams': typeof DocsReferenceApiStreamsRoute;
+	'/reference/api/tasks': typeof DocsReferenceApiTasksRoute;
+	'/reference/api/threads': typeof DocsReferenceApiThreadsRoute;
+	'/reference/api/user': typeof DocsReferenceApiUserRoute;
+	'/reference/api/vector': typeof DocsReferenceApiVectorRoute;
+	'/reference/api/webhooks': typeof DocsReferenceApiWebhooksRoute;
 	'/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute;
 	'/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute;
 	'/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute;
@@ -735,6 +888,7 @@ export interface FileRoutesByFullPath {
 	'/services/storage/vector': typeof DocsServicesStorageVectorRoute;
 	'/cookbook/patterns/': typeof DocsCookbookPatternsIndexRoute;
 	'/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute;
+	'/reference/api/': typeof DocsReferenceApiIndexRoute;
 	'/reference/cli/': typeof DocsReferenceCliIndexRoute;
 	'/services/database/': typeof DocsServicesDatabaseIndexRoute;
 	'/services/observability/': typeof DocsServicesObservabilityIndexRoute;
@@ -812,6 +966,26 @@ export interface FileRoutesByTo {
 	'/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
+	'/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
+	'/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
+	'/reference/api/email': typeof DocsReferenceApiEmailRoute;
+	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
+	'/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
+	'/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
+	'/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
+	'/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
+	'/reference/api/queues': typeof DocsReferenceApiQueuesRoute;
+	'/reference/api/regions': typeof DocsReferenceApiRegionsRoute;
+	'/reference/api/sandboxes': typeof DocsReferenceApiSandboxesRoute;
+	'/reference/api/schedules': typeof DocsReferenceApiSchedulesRoute;
+	'/reference/api/sessions': typeof DocsReferenceApiSessionsRoute;
+	'/reference/api/streams': typeof DocsReferenceApiStreamsRoute;
+	'/reference/api/tasks': typeof DocsReferenceApiTasksRoute;
+	'/reference/api/threads': typeof DocsReferenceApiThreadsRoute;
+	'/reference/api/user': typeof DocsReferenceApiUserRoute;
+	'/reference/api/vector': typeof DocsReferenceApiVectorRoute;
+	'/reference/api/webhooks': typeof DocsReferenceApiWebhooksRoute;
 	'/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute;
 	'/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute;
 	'/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute;
@@ -839,6 +1013,7 @@ export interface FileRoutesByTo {
 	'/services/storage/vector': typeof DocsServicesStorageVectorRoute;
 	'/cookbook/patterns': typeof DocsCookbookPatternsIndexRoute;
 	'/cookbook/tutorials': typeof DocsCookbookTutorialsIndexRoute;
+	'/reference/api': typeof DocsReferenceApiIndexRoute;
 	'/reference/cli': typeof DocsReferenceCliIndexRoute;
 	'/services/database': typeof DocsServicesDatabaseIndexRoute;
 	'/services/observability': typeof DocsServicesObservabilityIndexRoute;
@@ -863,6 +1038,7 @@ export interface FileRoutesById {
 	'/demo/sse-stream': typeof DemoSseStreamRoute;
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
+	'/_docs/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
 	'/_docs/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
 	'/_docs/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute;
 	'/_docs/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute;
@@ -918,6 +1094,26 @@ export interface FileRoutesById {
 	'/_docs/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/_docs/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/_docs/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
+	'/_docs/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
+	'/_docs/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
+	'/_docs/reference/api/email': typeof DocsReferenceApiEmailRoute;
+	'/_docs/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
+	'/_docs/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
+	'/_docs/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/_docs/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
+	'/_docs/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
+	'/_docs/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
+	'/_docs/reference/api/queues': typeof DocsReferenceApiQueuesRoute;
+	'/_docs/reference/api/regions': typeof DocsReferenceApiRegionsRoute;
+	'/_docs/reference/api/sandboxes': typeof DocsReferenceApiSandboxesRoute;
+	'/_docs/reference/api/schedules': typeof DocsReferenceApiSchedulesRoute;
+	'/_docs/reference/api/sessions': typeof DocsReferenceApiSessionsRoute;
+	'/_docs/reference/api/streams': typeof DocsReferenceApiStreamsRoute;
+	'/_docs/reference/api/tasks': typeof DocsReferenceApiTasksRoute;
+	'/_docs/reference/api/threads': typeof DocsReferenceApiThreadsRoute;
+	'/_docs/reference/api/user': typeof DocsReferenceApiUserRoute;
+	'/_docs/reference/api/vector': typeof DocsReferenceApiVectorRoute;
+	'/_docs/reference/api/webhooks': typeof DocsReferenceApiWebhooksRoute;
 	'/_docs/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute;
 	'/_docs/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute;
 	'/_docs/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute;
@@ -945,6 +1141,7 @@ export interface FileRoutesById {
 	'/_docs/services/storage/vector': typeof DocsServicesStorageVectorRoute;
 	'/_docs/cookbook/patterns/': typeof DocsCookbookPatternsIndexRoute;
 	'/_docs/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute;
+	'/_docs/reference/api/': typeof DocsReferenceApiIndexRoute;
 	'/_docs/reference/cli/': typeof DocsReferenceCliIndexRoute;
 	'/_docs/services/database/': typeof DocsServicesDatabaseIndexRoute;
 	'/_docs/services/observability/': typeof DocsServicesObservabilityIndexRoute;
@@ -969,6 +1166,7 @@ export interface FileRouteTypes {
 		| '/demo/sse-stream'
 		| '/demo/streaming'
 		| '/demo/vector-storage'
+		| '/reference/api'
 		| '/agents/ai-gateway'
 		| '/agents/ai-sdk-integration'
 		| '/agents/calling-other-agents'
@@ -1024,6 +1222,26 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/webhook-handler'
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
+		| '/reference/api/api-keys'
+		| '/reference/api/database'
+		| '/reference/api/email'
+		| '/reference/api/evaluations'
+		| '/reference/api/key-value'
+		| '/reference/api/machines'
+		| '/reference/api/object-storage'
+		| '/reference/api/organizations'
+		| '/reference/api/projects'
+		| '/reference/api/queues'
+		| '/reference/api/regions'
+		| '/reference/api/sandboxes'
+		| '/reference/api/schedules'
+		| '/reference/api/sessions'
+		| '/reference/api/streams'
+		| '/reference/api/tasks'
+		| '/reference/api/threads'
+		| '/reference/api/user'
+		| '/reference/api/vector'
+		| '/reference/api/webhooks'
 		| '/reference/cli/ai-commands'
 		| '/reference/cli/build-configuration'
 		| '/reference/cli/claude-code-plugin'
@@ -1051,6 +1269,7 @@ export interface FileRouteTypes {
 		| '/services/storage/vector'
 		| '/cookbook/patterns/'
 		| '/cookbook/tutorials/'
+		| '/reference/api/'
 		| '/reference/cli/'
 		| '/services/database/'
 		| '/services/observability/'
@@ -1128,6 +1347,26 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/webhook-handler'
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
+		| '/reference/api/api-keys'
+		| '/reference/api/database'
+		| '/reference/api/email'
+		| '/reference/api/evaluations'
+		| '/reference/api/key-value'
+		| '/reference/api/machines'
+		| '/reference/api/object-storage'
+		| '/reference/api/organizations'
+		| '/reference/api/projects'
+		| '/reference/api/queues'
+		| '/reference/api/regions'
+		| '/reference/api/sandboxes'
+		| '/reference/api/schedules'
+		| '/reference/api/sessions'
+		| '/reference/api/streams'
+		| '/reference/api/tasks'
+		| '/reference/api/threads'
+		| '/reference/api/user'
+		| '/reference/api/vector'
+		| '/reference/api/webhooks'
 		| '/reference/cli/ai-commands'
 		| '/reference/cli/build-configuration'
 		| '/reference/cli/claude-code-plugin'
@@ -1155,6 +1394,7 @@ export interface FileRouteTypes {
 		| '/services/storage/vector'
 		| '/cookbook/patterns'
 		| '/cookbook/tutorials'
+		| '/reference/api'
 		| '/reference/cli'
 		| '/services/database'
 		| '/services/observability'
@@ -1178,6 +1418,7 @@ export interface FileRouteTypes {
 		| '/demo/sse-stream'
 		| '/demo/streaming'
 		| '/demo/vector-storage'
+		| '/_docs/reference/api'
 		| '/_docs/agents/ai-gateway'
 		| '/_docs/agents/ai-sdk-integration'
 		| '/_docs/agents/calling-other-agents'
@@ -1233,6 +1474,26 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/patterns/webhook-handler'
 		| '/_docs/cookbook/tutorials/rag-agent'
 		| '/_docs/cookbook/tutorials/understanding-agents'
+		| '/_docs/reference/api/api-keys'
+		| '/_docs/reference/api/database'
+		| '/_docs/reference/api/email'
+		| '/_docs/reference/api/evaluations'
+		| '/_docs/reference/api/key-value'
+		| '/_docs/reference/api/machines'
+		| '/_docs/reference/api/object-storage'
+		| '/_docs/reference/api/organizations'
+		| '/_docs/reference/api/projects'
+		| '/_docs/reference/api/queues'
+		| '/_docs/reference/api/regions'
+		| '/_docs/reference/api/sandboxes'
+		| '/_docs/reference/api/schedules'
+		| '/_docs/reference/api/sessions'
+		| '/_docs/reference/api/streams'
+		| '/_docs/reference/api/tasks'
+		| '/_docs/reference/api/threads'
+		| '/_docs/reference/api/user'
+		| '/_docs/reference/api/vector'
+		| '/_docs/reference/api/webhooks'
 		| '/_docs/reference/cli/ai-commands'
 		| '/_docs/reference/cli/build-configuration'
 		| '/_docs/reference/cli/claude-code-plugin'
@@ -1260,6 +1521,7 @@ export interface FileRouteTypes {
 		| '/_docs/services/storage/vector'
 		| '/_docs/cookbook/patterns/'
 		| '/_docs/cookbook/tutorials/'
+		| '/_docs/reference/api/'
 		| '/_docs/reference/cli/'
 		| '/_docs/services/database/'
 		| '/_docs/services/observability/'
@@ -1715,6 +1977,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsAgentsAiGatewayRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/reference/api': {
+			id: '/_docs/reference/api';
+			path: '/reference/api';
+			fullPath: '/reference/api';
+			preLoaderRoute: typeof DocsReferenceApiRouteRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/services/storage/': {
 			id: '/_docs/services/storage/';
 			path: '/services/storage';
@@ -1749,6 +2018,13 @@ declare module '@tanstack/react-router' {
 			fullPath: '/reference/cli/';
 			preLoaderRoute: typeof DocsReferenceCliIndexRouteImport;
 			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/api/': {
+			id: '/_docs/reference/api/';
+			path: '/';
+			fullPath: '/reference/api/';
+			preLoaderRoute: typeof DocsReferenceApiIndexRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
 		};
 		'/_docs/cookbook/tutorials/': {
 			id: '/_docs/cookbook/tutorials/';
@@ -1939,6 +2215,146 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceCliAiCommandsRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/reference/api/webhooks': {
+			id: '/_docs/reference/api/webhooks';
+			path: '/webhooks';
+			fullPath: '/reference/api/webhooks';
+			preLoaderRoute: typeof DocsReferenceApiWebhooksRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/vector': {
+			id: '/_docs/reference/api/vector';
+			path: '/vector';
+			fullPath: '/reference/api/vector';
+			preLoaderRoute: typeof DocsReferenceApiVectorRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/user': {
+			id: '/_docs/reference/api/user';
+			path: '/user';
+			fullPath: '/reference/api/user';
+			preLoaderRoute: typeof DocsReferenceApiUserRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/threads': {
+			id: '/_docs/reference/api/threads';
+			path: '/threads';
+			fullPath: '/reference/api/threads';
+			preLoaderRoute: typeof DocsReferenceApiThreadsRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/tasks': {
+			id: '/_docs/reference/api/tasks';
+			path: '/tasks';
+			fullPath: '/reference/api/tasks';
+			preLoaderRoute: typeof DocsReferenceApiTasksRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/streams': {
+			id: '/_docs/reference/api/streams';
+			path: '/streams';
+			fullPath: '/reference/api/streams';
+			preLoaderRoute: typeof DocsReferenceApiStreamsRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/sessions': {
+			id: '/_docs/reference/api/sessions';
+			path: '/sessions';
+			fullPath: '/reference/api/sessions';
+			preLoaderRoute: typeof DocsReferenceApiSessionsRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/schedules': {
+			id: '/_docs/reference/api/schedules';
+			path: '/schedules';
+			fullPath: '/reference/api/schedules';
+			preLoaderRoute: typeof DocsReferenceApiSchedulesRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/sandboxes': {
+			id: '/_docs/reference/api/sandboxes';
+			path: '/sandboxes';
+			fullPath: '/reference/api/sandboxes';
+			preLoaderRoute: typeof DocsReferenceApiSandboxesRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/regions': {
+			id: '/_docs/reference/api/regions';
+			path: '/regions';
+			fullPath: '/reference/api/regions';
+			preLoaderRoute: typeof DocsReferenceApiRegionsRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/queues': {
+			id: '/_docs/reference/api/queues';
+			path: '/queues';
+			fullPath: '/reference/api/queues';
+			preLoaderRoute: typeof DocsReferenceApiQueuesRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/projects': {
+			id: '/_docs/reference/api/projects';
+			path: '/projects';
+			fullPath: '/reference/api/projects';
+			preLoaderRoute: typeof DocsReferenceApiProjectsRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/organizations': {
+			id: '/_docs/reference/api/organizations';
+			path: '/organizations';
+			fullPath: '/reference/api/organizations';
+			preLoaderRoute: typeof DocsReferenceApiOrganizationsRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/object-storage': {
+			id: '/_docs/reference/api/object-storage';
+			path: '/object-storage';
+			fullPath: '/reference/api/object-storage';
+			preLoaderRoute: typeof DocsReferenceApiObjectStorageRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/machines': {
+			id: '/_docs/reference/api/machines';
+			path: '/machines';
+			fullPath: '/reference/api/machines';
+			preLoaderRoute: typeof DocsReferenceApiMachinesRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/key-value': {
+			id: '/_docs/reference/api/key-value';
+			path: '/key-value';
+			fullPath: '/reference/api/key-value';
+			preLoaderRoute: typeof DocsReferenceApiKeyValueRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/evaluations': {
+			id: '/_docs/reference/api/evaluations';
+			path: '/evaluations';
+			fullPath: '/reference/api/evaluations';
+			preLoaderRoute: typeof DocsReferenceApiEvaluationsRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/email': {
+			id: '/_docs/reference/api/email';
+			path: '/email';
+			fullPath: '/reference/api/email';
+			preLoaderRoute: typeof DocsReferenceApiEmailRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/database': {
+			id: '/_docs/reference/api/database';
+			path: '/database';
+			fullPath: '/reference/api/database';
+			preLoaderRoute: typeof DocsReferenceApiDatabaseRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
+		'/_docs/reference/api/api-keys': {
+			id: '/_docs/reference/api/api-keys';
+			path: '/api-keys';
+			fullPath: '/reference/api/api-keys';
+			preLoaderRoute: typeof DocsReferenceApiApiKeysRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
 		'/_docs/cookbook/tutorials/understanding-agents': {
 			id: '/_docs/cookbook/tutorials/understanding-agents';
 			path: '/cookbook/tutorials/understanding-agents';
@@ -2012,7 +2428,60 @@ declare module '@tanstack/react-router' {
 	}
 }
 
+interface DocsReferenceApiRouteRouteChildren {
+	DocsReferenceApiApiKeysRoute: typeof DocsReferenceApiApiKeysRoute;
+	DocsReferenceApiDatabaseRoute: typeof DocsReferenceApiDatabaseRoute;
+	DocsReferenceApiEmailRoute: typeof DocsReferenceApiEmailRoute;
+	DocsReferenceApiEvaluationsRoute: typeof DocsReferenceApiEvaluationsRoute;
+	DocsReferenceApiKeyValueRoute: typeof DocsReferenceApiKeyValueRoute;
+	DocsReferenceApiMachinesRoute: typeof DocsReferenceApiMachinesRoute;
+	DocsReferenceApiObjectStorageRoute: typeof DocsReferenceApiObjectStorageRoute;
+	DocsReferenceApiOrganizationsRoute: typeof DocsReferenceApiOrganizationsRoute;
+	DocsReferenceApiProjectsRoute: typeof DocsReferenceApiProjectsRoute;
+	DocsReferenceApiQueuesRoute: typeof DocsReferenceApiQueuesRoute;
+	DocsReferenceApiRegionsRoute: typeof DocsReferenceApiRegionsRoute;
+	DocsReferenceApiSandboxesRoute: typeof DocsReferenceApiSandboxesRoute;
+	DocsReferenceApiSchedulesRoute: typeof DocsReferenceApiSchedulesRoute;
+	DocsReferenceApiSessionsRoute: typeof DocsReferenceApiSessionsRoute;
+	DocsReferenceApiStreamsRoute: typeof DocsReferenceApiStreamsRoute;
+	DocsReferenceApiTasksRoute: typeof DocsReferenceApiTasksRoute;
+	DocsReferenceApiThreadsRoute: typeof DocsReferenceApiThreadsRoute;
+	DocsReferenceApiUserRoute: typeof DocsReferenceApiUserRoute;
+	DocsReferenceApiVectorRoute: typeof DocsReferenceApiVectorRoute;
+	DocsReferenceApiWebhooksRoute: typeof DocsReferenceApiWebhooksRoute;
+	DocsReferenceApiIndexRoute: typeof DocsReferenceApiIndexRoute;
+}
+
+const DocsReferenceApiRouteRouteChildren: DocsReferenceApiRouteRouteChildren = {
+	DocsReferenceApiApiKeysRoute: DocsReferenceApiApiKeysRoute,
+	DocsReferenceApiDatabaseRoute: DocsReferenceApiDatabaseRoute,
+	DocsReferenceApiEmailRoute: DocsReferenceApiEmailRoute,
+	DocsReferenceApiEvaluationsRoute: DocsReferenceApiEvaluationsRoute,
+	DocsReferenceApiKeyValueRoute: DocsReferenceApiKeyValueRoute,
+	DocsReferenceApiMachinesRoute: DocsReferenceApiMachinesRoute,
+	DocsReferenceApiObjectStorageRoute: DocsReferenceApiObjectStorageRoute,
+	DocsReferenceApiOrganizationsRoute: DocsReferenceApiOrganizationsRoute,
+	DocsReferenceApiProjectsRoute: DocsReferenceApiProjectsRoute,
+	DocsReferenceApiQueuesRoute: DocsReferenceApiQueuesRoute,
+	DocsReferenceApiRegionsRoute: DocsReferenceApiRegionsRoute,
+	DocsReferenceApiSandboxesRoute: DocsReferenceApiSandboxesRoute,
+	DocsReferenceApiSchedulesRoute: DocsReferenceApiSchedulesRoute,
+	DocsReferenceApiSessionsRoute: DocsReferenceApiSessionsRoute,
+	DocsReferenceApiStreamsRoute: DocsReferenceApiStreamsRoute,
+	DocsReferenceApiTasksRoute: DocsReferenceApiTasksRoute,
+	DocsReferenceApiThreadsRoute: DocsReferenceApiThreadsRoute,
+	DocsReferenceApiUserRoute: DocsReferenceApiUserRoute,
+	DocsReferenceApiVectorRoute: DocsReferenceApiVectorRoute,
+	DocsReferenceApiWebhooksRoute: DocsReferenceApiWebhooksRoute,
+	DocsReferenceApiIndexRoute: DocsReferenceApiIndexRoute,
+};
+
+const DocsReferenceApiRouteRouteWithChildren = DocsReferenceApiRouteRoute._addFileChildren(
+	DocsReferenceApiRouteRouteChildren
+);
+
 interface DocsRouteRouteChildren {
+	DocsReferenceApiRouteRoute: typeof DocsReferenceApiRouteRouteWithChildren;
 	DocsAgentsAiGatewayRoute: typeof DocsAgentsAiGatewayRoute;
 	DocsAgentsAiSdkIntegrationRoute: typeof DocsAgentsAiSdkIntegrationRoute;
 	DocsAgentsCallingOtherAgentsRoute: typeof DocsAgentsCallingOtherAgentsRoute;
@@ -2103,6 +2572,7 @@ interface DocsRouteRouteChildren {
 }
 
 const DocsRouteRouteChildren: DocsRouteRouteChildren = {
+	DocsReferenceApiRouteRoute: DocsReferenceApiRouteRouteWithChildren,
 	DocsAgentsAiGatewayRoute: DocsAgentsAiGatewayRoute,
 	DocsAgentsAiSdkIntegrationRoute: DocsAgentsAiSdkIntegrationRoute,
 	DocsAgentsCallingOtherAgentsRoute: DocsAgentsCallingOtherAgentsRoute,

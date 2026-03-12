@@ -1,0 +1,428 @@
+---
+title: Schedules API
+description: Create and manage cron-based scheduled jobs with destinations and delivery tracking
+---
+
+Create and manage cron-based scheduled jobs with destinations and delivery tracking.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Schedule Management
+
+### Create Schedule
+
+<ApiEndpoint method="POST" path="/schedule/create" />
+
+Create a new cron-based schedule with optional destinations.
+
+
+#### Request Body
+
+Schedule creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Schedule name",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Schedule description",
+    "required": false
+  },
+  {
+    "name": "expression",
+    "type": "string",
+    "description": "Cron expression",
+    "required": true
+  },
+  {
+    "name": "destinations",
+    "type": "array",
+    "description": "Array of { type: 'url'|'sandbox', config }",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created schedule and its destinations.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Schedule created |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "schedule",
+    "type": "object",
+    "description": "The created schedule"
+  },
+  {
+    "name": "destinations",
+    "type": "array",
+    "description": "Associated destinations"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/schedule/create" body={{
+  "name": "Daily Report",
+  "expression": "0 9 * * *",
+  "destinations": [
+    {
+      "type": "url",
+      "config": {
+        "url": "https://example.com/webhook"
+      }
+    }
+  ]
+}} />
+
+---
+
+### List Schedules
+
+<ApiEndpoint method="GET" path="/schedule/list" />
+
+List all schedules with optional pagination.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Max results (max 500)"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of schedules.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Schedules returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "schedules",
+    "type": "array",
+    "description": "List of schedule objects"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total number of schedules"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/schedule/list" />
+
+---
+
+### Get Schedule
+
+<ApiEndpoint method="GET" path="/schedule/get/{scheduleId}" />
+
+Get a specific schedule by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID (sch_ prefix)"
+  }
+]} />
+
+#### Response
+
+Returns the schedule object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Schedule returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Example
+
+<ApiExample method="GET" path="/schedule/get/sch_abc123" />
+
+---
+
+### Update Schedule
+
+<ApiEndpoint method="PUT" path="/schedule/update/{scheduleId}" />
+
+Update a schedule's name, description, or cron expression.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID"
+  }
+]} />
+#### Request Body
+
+Fields to update.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Updated schedule name",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Updated description",
+    "required": false
+  },
+  {
+    "name": "expression",
+    "type": "string",
+    "description": "Updated cron expression",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated schedule.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Schedule updated |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Example
+
+<ApiExample method="PUT" path="/schedule/update/sch_abc123" body={{
+  "expression": "0 */6 * * *"
+}} />
+
+---
+
+### Delete Schedule
+
+<ApiEndpoint method="DELETE" path="/schedule/delete/{scheduleId}" />
+
+Delete a schedule and all associated destinations and delivery history.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID"
+  }
+]} />
+
+#### Response
+
+Deletes the schedule and all associated destinations and delivery history.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Schedule deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/schedule/delete/sch_abc123" />
+
+---
+
+## Destinations
+
+### Create Destination
+
+<ApiEndpoint method="POST" path="/schedule/destinations/create/{scheduleId}" />
+
+Add a destination to a schedule.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID"
+  }
+]} />
+#### Request Body
+
+Destination creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "type",
+    "type": "string",
+    "description": "'url' or 'sandbox'",
+    "required": true
+  },
+  {
+    "name": "config",
+    "type": "object",
+    "description": "Destination config — for url: { url, headers?, method? }",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the created destination.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Destination created |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Example
+
+<ApiExample method="POST" path="/schedule/destinations/create/sch_abc123" body={{
+  "type": "url",
+  "config": {
+    "url": "https://example.com/callback",
+    "method": "POST"
+  }
+}} />
+
+---
+
+### Delete Destination
+
+<ApiEndpoint method="DELETE" path="/schedule/destinations/delete/{destinationId}" />
+
+Delete a destination from a schedule.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "destinationId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Destination ID (sdst_ prefix)"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Destination deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Destination not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/schedule/destinations/delete/sdst_abc123" />
+
+---
+
+## Deliveries
+
+### List Deliveries
+
+<ApiEndpoint method="GET" path="/schedule/deliveries/{scheduleId}" />
+
+List delivery attempts for a schedule.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns delivery attempts with status, retries, and error details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deliveries returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Example
+
+<ApiExample method="GET" path="/schedule/deliveries/sch_abc123" />
+
+---

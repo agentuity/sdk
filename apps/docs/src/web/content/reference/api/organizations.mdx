@@ -1,0 +1,309 @@
+---
+title: Organizations API
+description: Manage organizations, environment variables, and org-level resources
+---
+
+Manage organizations, environment variables, and org-level resources.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## List Organizations
+
+<ApiEndpoint method="GET" path="/cli/organization" />
+
+List all organizations the authenticated user belongs to.
+
+
+
+### Response
+
+Returns all organizations the authenticated user belongs to.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Organizations returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Organization ID"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Organization name"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/cli/organization" />
+
+---
+
+## Environment Variables
+
+### Get Environment Variables
+
+<ApiEndpoint method="GET" path="/cli/organization/{id}/env" />
+
+Retrieve environment variables and secrets for an organization.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  },
+  {
+    "name": "mask",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Mask secret values (default true)"
+  }
+]} />
+
+#### Response
+
+Returns environment variables and secrets for the organization.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Environment variables returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Organization not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Organization ID"
+  },
+  {
+    "name": "env",
+    "type": "object",
+    "description": "Environment variables"
+  },
+  {
+    "name": "secrets",
+    "type": "object",
+    "description": "Secret values (masked by default)"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/cli/organization/org_abc123/env" />
+
+---
+
+### Update Environment Variables
+
+<ApiEndpoint method="PUT" path="/cli/organization/{id}/env" />
+
+Update environment variables and secrets for an organization. Updates are merged with existing values.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Environment variables and secrets to set.
+
+<ResponseFields fields={[
+  {
+    "name": "env",
+    "type": "object",
+    "description": "Environment variables to set",
+    "required": false
+  },
+  {
+    "name": "secrets",
+    "type": "object",
+    "description": "Secrets to set",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Updates are merged with existing values. Returns 204 on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Environment variables updated |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Organization not found |
+
+#### Example
+
+<ApiExample method="PUT" path="/cli/organization/org_abc123/env" body={{
+  "env": {
+    "MY_VAR": "value"
+  },
+  "secrets": {
+    "API_KEY": "sk_..."
+  }
+}} />
+
+---
+
+### Delete Environment Variables
+
+<ApiEndpoint method="DELETE" path="/cli/organization/{id}/env" />
+
+Delete specific environment variables and secrets from an organization.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Keys to delete from environment variables and secrets.
+
+<ResponseFields fields={[
+  {
+    "name": "env",
+    "type": "array",
+    "description": "Environment variable keys to delete",
+    "required": false
+  },
+  {
+    "name": "secrets",
+    "type": "array",
+    "description": "Secret keys to delete",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns 204 on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Environment variables deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Organization not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/cli/organization/org_abc123/env" body={{
+  "env": [
+    "MY_VAR"
+  ],
+  "secrets": [
+    "OLD_KEY"
+  ]
+}} />
+
+---
+
+## Resources
+
+### List All Resources
+
+<ApiEndpoint method="GET" path="/resource" />
+
+List S3 buckets and databases across all regions.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "type",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'all', 's3', or 'db' (default 'all')"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by name"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'name', 'created', or 'region'"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'asc' or 'desc'"
+  }
+]} />
+
+#### Response
+
+Returns S3 buckets and databases across all regions.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Resources returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Example
+
+<ApiExample method="GET" path="/resource" />
+
+---

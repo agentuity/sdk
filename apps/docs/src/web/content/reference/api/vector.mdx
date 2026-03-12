@@ -1,0 +1,610 @@
+---
+title: Vector Search API
+description: Semantic search with automatic embedding generation
+---
+
+Semantic search with automatic embedding generation.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Upsert Vectors
+
+<ApiEndpoint method="PUT" path="/vector/{namespace}" />
+
+Create or update vectors in a namespace. Provide either `document` (auto-embeds) or pre-computed `embeddings` per item.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace name"
+  }
+]} />
+### Request Body
+
+JSON array of vector documents to upsert.
+
+<ResponseFields fields={[
+  {
+    "name": "[].key",
+    "type": "string",
+    "description": "Unique vector key",
+    "required": true
+  },
+  {
+    "name": "[].document",
+    "type": "string",
+    "description": "Source text used for automatic embedding generation",
+    "required": false
+  },
+  {
+    "name": "[].embeddings",
+    "type": "number[]",
+    "description": "Pre-computed embedding vector",
+    "required": false
+  },
+  {
+    "name": "[].metadata",
+    "type": "object",
+    "description": "Optional metadata for filtering and retrieval",
+    "required": false
+  },
+  {
+    "name": "[].ttl",
+    "type": "number | null",
+    "description": "TTL in seconds. `null`/`0` means never expire.",
+    "required": false
+  }
+]} />
+
+### Response
+
+JSON response with inserted/updated vector IDs.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Vectors upserted successfully |
+| 401 | Unauthorized — invalid or missing API key |
+| 402 | Payment required — upgrade to a paid plan |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "Whether the request succeeded"
+  },
+  {
+    "name": "data[].id",
+    "type": "string",
+    "description": "Stored vector ID"
+  }
+]} />
+
+### Notes
+
+TTL behavior:
+- **Omitted**: Vector expires after 30 days (default)
+- **`null` or `0`**: Vector never expires
+- **60–7,776,000**: Expires after specified seconds (values outside range are clamped)
+
+### Example
+
+<ApiExample method="PUT" path="/vector/products" body={[
+  {
+    "key": "chair-001",
+    "document": "Comfortable office chair with lumbar support",
+    "metadata": {
+      "category": "furniture",
+      "price": 299
+    }
+  }
+]} />
+
+---
+
+## Get Vector
+
+<ApiEndpoint method="GET" path="/vector/{namespace}/{key}" />
+
+Fetch a vector by namespace and key.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace name"
+  },
+  {
+    "name": "key",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The vector key"
+  }
+]} />
+
+### Response
+
+JSON response with vector data, metadata, similarity, and expiration fields.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Vector found and returned |
+| 401 | Unauthorized |
+| 404 | Vector not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "Whether the request succeeded"
+  },
+  {
+    "name": "data.id",
+    "type": "string",
+    "description": "Internal vector ID"
+  },
+  {
+    "name": "data.key",
+    "type": "string",
+    "description": "Vector key"
+  },
+  {
+    "name": "data.document",
+    "type": "string",
+    "description": "Original source document text"
+  },
+  {
+    "name": "data.embeddings",
+    "type": "number[]",
+    "description": "Stored embeddings array"
+  },
+  {
+    "name": "data.metadata",
+    "type": "object",
+    "description": "Stored metadata"
+  },
+  {
+    "name": "data.similarity",
+    "type": "number",
+    "description": "Similarity score when relevant"
+  },
+  {
+    "name": "data.expiresAt",
+    "type": "string | null",
+    "description": "ISO 8601 expiration timestamp"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/vector/products/chair-001" />
+
+---
+
+## Search Vectors
+
+<ApiEndpoint method="POST" path="/vector/search/{namespace}" />
+
+Run semantic similarity search in a namespace.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace to search"
+  }
+]} />
+### Request Body
+
+Search criteria and filters.
+
+<ResponseFields fields={[
+  {
+    "name": "query",
+    "type": "string",
+    "description": "The text query for semantic search",
+    "required": true
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Maximum results to return (default: 10)",
+    "required": false
+  },
+  {
+    "name": "similarity",
+    "type": "number",
+    "description": "Minimum similarity threshold (0–1)",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Filter by metadata key-value pairs",
+    "required": false
+  }
+]} />
+
+### Response
+
+JSON response containing matching vectors and similarity scores.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Search results returned |
+| 401 | Unauthorized |
+| 404 | Namespace not found (returns empty array) |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "Whether the request succeeded"
+  },
+  {
+    "name": "data[].id",
+    "type": "string",
+    "description": "Vector ID"
+  },
+  {
+    "name": "data[].key",
+    "type": "string",
+    "description": "Vector key"
+  },
+  {
+    "name": "data[].metadata",
+    "type": "object",
+    "description": "Vector metadata"
+  },
+  {
+    "name": "data[].similarity",
+    "type": "number",
+    "description": "Similarity score (0–1)"
+  },
+  {
+    "name": "data[].expiresAt",
+    "type": "string | null",
+    "description": "ISO 8601 expiration timestamp"
+  }
+]} />
+
+### Example
+
+<ApiExample method="POST" path="/vector/search/products" body={{
+  "query": "comfortable seating for office",
+  "limit": 5,
+  "similarity": 0.7
+}} />
+
+---
+
+## Delete Vector
+
+<ApiEndpoint method="DELETE" path="/vector/{namespace}/{key}" />
+
+Delete a single vector by key.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace name"
+  },
+  {
+    "name": "key",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The vector key to delete"
+  }
+]} />
+
+### Response
+
+JSON response with deleted row count.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Delete operation completed |
+| 401 | Unauthorized |
+| 404 | Vector not found (returns 0) |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "Whether the request succeeded"
+  },
+  {
+    "name": "data",
+    "type": "number",
+    "description": "Number of deleted vectors (0 or 1)"
+  }
+]} />
+
+### Example
+
+<ApiExample method="DELETE" path="/vector/products/chair-001" />
+
+---
+
+## Delete Multiple Vectors
+
+<ApiEndpoint method="DELETE" path="/vector/{namespace}" />
+
+Delete multiple vectors by key. If no body is provided, deletes the entire namespace.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace name"
+  }
+]} />
+### Request Body
+
+Optional JSON body specifying keys to delete.
+
+<ResponseFields fields={[
+  {
+    "name": "keys",
+    "type": "string[]",
+    "description": "Vector keys to delete",
+    "required": true
+  }
+]} />
+
+### Response
+
+JSON response with number of deleted vectors.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Delete operation completed |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "Whether the request succeeded"
+  },
+  {
+    "name": "data",
+    "type": "number",
+    "description": "Number of deleted vectors"
+  }
+]} />
+
+### Example
+
+<ApiExample method="DELETE" path="/vector/products" body={{
+  "keys": [
+    "chair-001",
+    "desk-001"
+  ]
+}} />
+
+---
+
+## Get Namespace Stats
+
+<ApiEndpoint method="GET" path="/vector/stats/{namespace}" />
+
+Get aggregate stats for a namespace.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace name"
+  }
+]} />
+
+### Response
+
+JSON object with namespace size and usage statistics.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stats returned |
+| 401 | Unauthorized |
+| 404 | Namespace not found (returns zeros) |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sum",
+    "type": "number",
+    "description": "Total size in bytes"
+  },
+  {
+    "name": "count",
+    "type": "number",
+    "description": "Number of vectors"
+  },
+  {
+    "name": "createdAt",
+    "type": "number",
+    "description": "Unix timestamp (ms)"
+  },
+  {
+    "name": "lastUsed",
+    "type": "number",
+    "description": "Unix timestamp (ms)"
+  },
+  {
+    "name": "sampledResults",
+    "type": "object",
+    "description": "Sample of vectors (up to 20)",
+    "required": false
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/vector/stats/products" />
+
+---
+
+## List All Namespace Stats
+
+<ApiEndpoint method="GET" path="/vector/stats" />
+
+List namespace stats with pagination, filtering, and sorting.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum namespaces to return (default: 100, max: 1000)"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Offset for pagination"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort by `name`, `size`, `records`, `created`, or `lastUsed`"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort direction: `asc` or `desc`"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter namespaces by name"
+  }
+]} />
+
+### Response
+
+Paginated namespace stats response.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stats returned |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "namespaces",
+    "type": "object",
+    "description": "Map of namespace names to stats"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total namespace count"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Applied page limit"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Applied offset"
+  },
+  {
+    "name": "hasMore",
+    "type": "boolean",
+    "description": "Whether more results exist"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/vector/stats?limit=10&sort=size&direction=desc" />
+
+---
+
+## List Namespaces
+
+<ApiEndpoint method="GET" path="/vector/namespaces" />
+
+List namespace names (up to 1000).
+
+
+
+### Response
+
+JSON array of namespace names.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Namespace list returned |
+| 401 | Unauthorized |
+
+### Example
+
+<ApiExample method="GET" path="/vector/namespaces" />
+
+---

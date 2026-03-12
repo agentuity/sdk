@@ -1,0 +1,2419 @@
+---
+title: Sandboxes API
+description: Create and manage isolated execution environments with full lifecycle, file system, snapshot, and checkpoint support
+---
+
+Create and manage isolated execution environments with full lifecycle, file system, snapshot, and checkpoint support.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Sandbox Management
+
+### Create Sandbox
+
+<ApiEndpoint method="POST" path="/sandbox" />
+
+Create a new sandbox execution environment.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Sandbox creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "description": "Project ID",
+    "required": false
+  },
+  {
+    "name": "runtime",
+    "type": "string",
+    "description": "Runtime identifier",
+    "required": false
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Sandbox name",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Sandbox description",
+    "required": false
+  },
+  {
+    "name": "resources",
+    "type": "object",
+    "description": "{ memory?, cpu?, disk? }",
+    "required": false
+  },
+  {
+    "name": "env",
+    "type": "object",
+    "description": "Environment variables",
+    "required": false
+  },
+  {
+    "name": "network",
+    "type": "object",
+    "description": "{ enabled?, port? (1024-65535) }",
+    "required": false
+  },
+  {
+    "name": "timeout",
+    "type": "object",
+    "description": "{ idle?, execution? }",
+    "required": false
+  },
+  {
+    "name": "command",
+    "type": "object",
+    "description": "{ exec: string[], files?, mode?: 'oneshot'|'interactive' }",
+    "required": false
+  },
+  {
+    "name": "files",
+    "type": "array",
+    "description": "Array of { path, content (base64) }",
+    "required": false
+  },
+  {
+    "name": "snapshot",
+    "type": "string",
+    "description": "Snapshot ID to restore from",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Arbitrary metadata",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the sandbox ID, status, and optional stream URLs for stdout/stderr.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Sandbox created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "'creating', 'idle', 'running', 'paused', etc."
+  },
+  {
+    "name": "stdoutStreamUrl",
+    "type": "string",
+    "description": "Pulse stream URL for stdout"
+  },
+  {
+    "name": "stderrStreamUrl",
+    "type": "string",
+    "description": "Pulse stream URL for stderr"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/sandbox" body={{
+  "name": "dev-sandbox",
+  "runtime": "node-20",
+  "resources": {
+    "memory": 512
+  },
+  "env": {
+    "NODE_ENV": "development"
+  }
+}} />
+
+---
+
+### List Sandboxes
+
+<ApiEndpoint method="GET" path="/sandbox" />
+
+List sandboxes with optional filtering and pagination.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by name"
+  },
+  {
+    "name": "mode",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by mode"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by status"
+  },
+  {
+    "name": "live",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Only running sandboxes"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Field to sort by"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort direction"
+  },
+  {
+    "name": "deletedOnly",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Only deleted sandboxes"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of sandboxes.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Sandboxes returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sandboxes",
+    "type": "array",
+    "description": "Array of sandbox objects"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total matching sandboxes"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox" />
+
+---
+
+### Get Sandbox
+
+<ApiEndpoint method="GET" path="/sandbox/{sandboxId}" />
+
+Retrieve a specific sandbox by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  },
+  {
+    "name": "includeDeleted",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Include deleted sandboxes"
+  }
+]} />
+
+#### Response
+
+Returns full sandbox details including resources, runtime, network, timeout, and usage metrics.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Sandbox returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/sbx_abc123" />
+
+---
+
+### Destroy Sandbox
+
+<ApiEndpoint method="DELETE" path="/sandbox/{sandboxId}" />
+
+Destroy a sandbox and release all resources.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Destroys the sandbox and releases all resources.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Sandbox destroyed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/sandbox/sbx_abc123" />
+
+---
+
+### Get Sandbox Status
+
+<ApiEndpoint method="GET" path="/sandbox/status/{sandboxId}" />
+
+Lightweight status check backed by Redis (~1ms). Optimized for polling.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the sandbox status.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Status returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Current sandbox status"
+  },
+  {
+    "name": "exitCode",
+    "type": "number",
+    "description": "Exit code if terminated"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/status/sbx_abc123" />
+
+---
+
+### Pause Sandbox
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/pause" />
+
+Pause a running sandbox and create a checkpoint.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Pauses the sandbox and creates a checkpoint.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Sandbox paused |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="POST" path="/sandbox/sbx_abc123/pause" />
+
+---
+
+### Resume Sandbox
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/resume" />
+
+Resume a paused sandbox from its checkpoint.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Resumes a paused sandbox from its checkpoint.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Sandbox resumed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="POST" path="/sandbox/sbx_abc123/resume" />
+
+---
+
+### Update Environment
+
+<ApiEndpoint method="PATCH" path="/sandbox/env/{sandboxId}" />
+
+Update environment variables for a sandbox. Set a value to null to delete a variable.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Environment variable updates.
+
+<ResponseFields fields={[
+  {
+    "name": "env",
+    "type": "object",
+    "description": "Key-value pairs. Set value to null to delete a variable.",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the current environment after update.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Environment updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "env",
+    "type": "object",
+    "description": "Current environment after update"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="PATCH" path="/sandbox/env/sbx_abc123" body={{
+  "env": {
+    "NODE_ENV": "production",
+    "OLD_VAR": null
+  }
+}} />
+
+---
+
+## Execution
+
+### Execute Command
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/execute" />
+
+Execute a command in a sandbox.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Command execution payload.
+
+<ResponseFields fields={[
+  {
+    "name": "command",
+    "type": "array",
+    "description": "Command and arguments",
+    "required": true
+  },
+  {
+    "name": "files",
+    "type": "array",
+    "description": "Files to write before execution",
+    "required": false
+  },
+  {
+    "name": "timeout",
+    "type": "string",
+    "description": "Execution timeout",
+    "required": false
+  },
+  {
+    "name": "stream",
+    "type": "object",
+    "description": "{ stdout?, stderr?, timestamps? }",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns execution ID and stream URLs. Returns 409 if sandbox is busy.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Command executed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+| 409 | Conflict — sandbox is busy with another execution |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "executionId",
+    "type": "string",
+    "description": "Execution ID"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "'queued', 'running', 'completed', 'failed', 'timeout', or 'cancelled'"
+  },
+  {
+    "name": "exitCode",
+    "type": "number",
+    "description": "Exit code if completed"
+  },
+  {
+    "name": "durationMs",
+    "type": "number",
+    "description": "Execution duration in milliseconds"
+  },
+  {
+    "name": "stdoutStreamUrl",
+    "type": "string",
+    "description": "Pulse stream URL for stdout"
+  },
+  {
+    "name": "stderrStreamUrl",
+    "type": "string",
+    "description": "Pulse stream URL for stderr"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/sandbox/sbx_abc123/execute" body={{
+  "command": [
+    "node",
+    "-e",
+    "console.log('hello')"
+  ]
+}} />
+
+---
+
+### Get Execution
+
+<ApiEndpoint method="GET" path="/sandbox/execution/{executionId}" />
+
+Retrieve execution details. Use the `wait` parameter for long-polling.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "executionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Execution ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  },
+  {
+    "name": "wait",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Long-poll duration (e.g., '60s', '5m'). Server holds connection until execution completes or timeout."
+  }
+]} />
+
+#### Response
+
+Returns execution details. Use the `wait` parameter for long-polling.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Execution returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Execution not found |
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/execution/exec_abc123" />
+
+---
+
+### List Executions
+
+<ApiEndpoint method="GET" path="/sandbox/sandboxes/{sandboxId}/executions" />
+
+List executions for a specific sandbox.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  }
+]} />
+
+#### Response
+
+Returns list of executions for the sandbox.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Executions returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/sandboxes/sbx_abc123/executions" />
+
+---
+
+## File System
+
+### Write Files
+
+<ApiEndpoint method="POST" path="/fs/{sandboxId}" />
+
+Write one or more files to the sandbox filesystem.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Files to write.
+
+<ResponseFields fields={[
+  {
+    "name": "files",
+    "type": "array",
+    "description": "Array of { path, content (base64-encoded) }",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the number of files written.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Files written |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "filesWritten",
+    "type": "number",
+    "description": "Number of files written"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/fs/sbx_abc123" body={{
+  "files": [
+    {
+      "path": "/app/index.js",
+      "content": "Y29uc29sZS5sb2coJ2hlbGxvJyk="
+    }
+  ]
+}} />
+
+---
+
+### Read File
+
+<ApiEndpoint method="GET" path="/fs/{sandboxId}" />
+
+Read a file from the sandbox filesystem.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "path",
+    "type": "string",
+    "in": "query",
+    "required": true,
+    "description": "File path to read"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the raw file contents as a stream.
+
+| Status | Description |
+|--------|-------------|
+| 200 | File contents returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox or file not found |
+
+#### Example
+
+<ApiExample method="GET" path="/fs/sbx_abc123" />
+
+---
+
+### Create Directory
+
+<ApiEndpoint method="POST" path="/fs/mkdir/{sandboxId}" />
+
+Create a directory in the sandbox filesystem.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Directory creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "path",
+    "type": "string",
+    "description": "Directory path",
+    "required": true
+  },
+  {
+    "name": "recursive",
+    "type": "boolean",
+    "description": "Create parent directories",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Directory created successfully.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Directory created |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="POST" path="/fs/mkdir/sbx_abc123" body={{
+  "path": "/app/src",
+  "recursive": true
+}} />
+
+---
+
+### Remove Directory
+
+<ApiEndpoint method="POST" path="/fs/rmdir/{sandboxId}" />
+
+Remove a directory from the sandbox filesystem.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Directory removal payload.
+
+<ResponseFields fields={[
+  {
+    "name": "path",
+    "type": "string",
+    "description": "Directory path",
+    "required": true
+  },
+  {
+    "name": "recursive",
+    "type": "boolean",
+    "description": "Remove recursively",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Directory removed successfully.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Directory removed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="POST" path="/fs/rmdir/sbx_abc123" body={{
+  "path": "/app/tmp",
+  "recursive": true
+}} />
+
+---
+
+### Remove File
+
+<ApiEndpoint method="POST" path="/fs/rm/{sandboxId}" />
+
+Remove a file from the sandbox filesystem.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+File removal payload.
+
+<ResponseFields fields={[
+  {
+    "name": "path",
+    "type": "string",
+    "description": "File path",
+    "required": true
+  }
+]} />
+
+#### Response
+
+File removed successfully.
+
+| Status | Description |
+|--------|-------------|
+| 200 | File removed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="POST" path="/fs/rm/sbx_abc123" body={{
+  "path": "/app/old-file.js"
+}} />
+
+---
+
+### List Files
+
+<ApiEndpoint method="GET" path="/fs/list/{sandboxId}" />
+
+List files in a sandbox directory.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "path",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Directory to list"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns list of files in the directory.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Files listed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "files",
+    "type": "array",
+    "description": "Array of { path, size, isDir, mode, modTime }"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/fs/list/sbx_abc123" />
+
+---
+
+### Download Archive
+
+<ApiEndpoint method="GET" path="/fs/download/{sandboxId}" />
+
+Download a compressed archive of the sandbox filesystem.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "path",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Directory to archive"
+  },
+  {
+    "name": "format",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'zip' or 'tar.gz'"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns a streaming archive of the sandbox filesystem.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Archive returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="GET" path="/fs/download/sbx_abc123" />
+
+---
+
+### Upload Archive
+
+<ApiEndpoint method="POST" path="/fs/upload/{sandboxId}" />
+
+Upload and extract a compressed archive to the sandbox. Send raw binary with Content-Type: application/octet-stream.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "path",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Target directory"
+  },
+  {
+    "name": "format",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Archive format"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Uploads and extracts a compressed archive to the sandbox. Send raw binary with Content-Type: application/octet-stream.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Archive uploaded and extracted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="POST" path="/fs/upload/sbx_abc123" />
+
+---
+
+## Snapshots
+
+### Create Snapshot
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/snapshot" />
+
+Create a snapshot of the sandbox filesystem.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Snapshot creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Snapshot name",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Snapshot description",
+    "required": false
+  },
+  {
+    "name": "tag",
+    "type": "string",
+    "description": "Snapshot tag",
+    "required": false
+  },
+  {
+    "name": "public",
+    "type": "boolean",
+    "description": "Make snapshot publicly accessible",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created snapshot.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Snapshot created |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="POST" path="/sandbox/sbx_abc123/snapshot" body={{
+  "name": "baseline",
+  "tag": "v1.0"
+}} />
+
+---
+
+### Get Snapshot
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots/{snapshotId}" />
+
+Retrieve a specific snapshot by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "snapshotId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Snapshot ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the snapshot object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Snapshot returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Snapshot not found |
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/snapshots/snp_abc123" />
+
+---
+
+### List Snapshots
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots" />
+
+List snapshots with optional filtering and pagination.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by sandbox"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Field to sort by"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort direction"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of snapshots.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Snapshots returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "snapshots",
+    "type": "array",
+    "description": "Array of snapshot objects"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total matching snapshots"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/snapshots" />
+
+---
+
+### Delete Snapshot
+
+<ApiEndpoint method="DELETE" path="/sandbox/snapshots/{snapshotId}" />
+
+Delete a snapshot.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "snapshotId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Snapshot ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Snapshot deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Snapshot not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/sandbox/snapshots/snp_abc123" />
+
+---
+
+### Update Snapshot Tag
+
+<ApiEndpoint method="PATCH" path="/sandbox/snapshots/{snapshotId}" />
+
+Update the tag on a snapshot.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "snapshotId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Snapshot ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Tag update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "tag",
+    "type": "string",
+    "description": "New tag or null to remove tag",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the updated snapshot.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Snapshot tag updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Snapshot not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/sandbox/snapshots/snp_abc123" body={{
+  "tag": "v2.0"
+}} />
+
+---
+
+### Get Snapshot Lineage
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots/lineage" />
+
+Get the ordered ancestry chain from a specified snapshot to root.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "snapshot",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Snapshot ID or name:tag"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Snapshot name"
+  },
+  {
+    "name": "tag",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Snapshot tag"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns ordered ancestry chain from specified snapshot to root.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Lineage returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/snapshots/lineage" />
+
+---
+
+### Get Public Snapshot
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots/public/{snapshotRef}" />
+
+Retrieve a public snapshot by ID, full name (@slug/name:tag), or name:tag. No authentication required.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "snapshotRef",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Snapshot ID, full name (@slug/name:tag), or name:tag"
+  }
+]} />
+
+#### Response
+
+Returns public snapshot details. No authentication required.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Public snapshot returned |
+| 404 | Snapshot not found |
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/snapshots/public/snp_abc123" />
+
+---
+
+### List Public Snapshots
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots/public" />
+
+List publicly available snapshots.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Max 100"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of public snapshots.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Public snapshots returned |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "snapshots",
+    "type": "array",
+    "description": "Array of public snapshot objects"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total public snapshots"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/snapshots/public" />
+
+---
+
+### Initialize Snapshot Build
+
+<ApiEndpoint method="POST" path="/sandbox/snapshots/build" />
+
+Initialize a snapshot build. Returns a presigned upload URL for the snapshot archive.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Snapshot build initialization payload.
+
+<ResponseFields fields={[
+  {
+    "name": "runtime",
+    "type": "string",
+    "description": "Runtime identifier",
+    "required": true
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Snapshot name",
+    "required": false
+  },
+  {
+    "name": "tag",
+    "type": "string",
+    "description": "Snapshot tag",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Snapshot description",
+    "required": false
+  },
+  {
+    "name": "contentHash",
+    "type": "string",
+    "description": "For deduplication",
+    "required": false
+  },
+  {
+    "name": "force",
+    "type": "boolean",
+    "description": "Force rebuild",
+    "required": false
+  },
+  {
+    "name": "encrypt",
+    "type": "boolean",
+    "description": "Encrypt snapshot",
+    "required": false
+  },
+  {
+    "name": "public",
+    "type": "boolean",
+    "description": "Make snapshot public",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns snapshot ID and presigned upload URL. If unchanged is true, content matches existing snapshot.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Build initialized |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "snapshotId",
+    "type": "string",
+    "description": "Snapshot ID"
+  },
+  {
+    "name": "uploadUrl",
+    "type": "string",
+    "description": "Presigned S3 upload URL"
+  },
+  {
+    "name": "unchanged",
+    "type": "boolean",
+    "description": "True if content hash matches existing snapshot"
+  },
+  {
+    "name": "existingId",
+    "type": "string",
+    "description": "Existing snapshot ID if unchanged"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/sandbox/snapshots/build" body={{
+  "runtime": "node-20",
+  "name": "my-app",
+  "tag": "latest"
+}} />
+
+---
+
+### Finalize Snapshot Build
+
+<ApiEndpoint method="POST" path="/sandbox/snapshots/{snapshotId}/finalize" />
+
+Finalize a snapshot build after uploading the archive.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "snapshotId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Snapshot ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Snapshot finalization payload.
+
+<ResponseFields fields={[
+  {
+    "name": "sizeBytes",
+    "type": "number",
+    "description": "Archive size in bytes",
+    "required": true
+  },
+  {
+    "name": "fileCount",
+    "type": "number",
+    "description": "Number of files",
+    "required": true
+  },
+  {
+    "name": "files",
+    "type": "array",
+    "description": "Array of file metadata",
+    "required": true
+  },
+  {
+    "name": "dependencies",
+    "type": "array",
+    "description": "Dependency list",
+    "required": false
+  },
+  {
+    "name": "packages",
+    "type": "array",
+    "description": "Package list",
+    "required": false
+  },
+  {
+    "name": "env",
+    "type": "object",
+    "description": "Environment variables",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Arbitrary metadata",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the finalized snapshot.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Snapshot finalized |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Snapshot not found |
+
+#### Example
+
+<ApiExample method="POST" path="/sandbox/snapshots/snp_abc123/finalize" body={{
+  "sizeBytes": 1048576,
+  "fileCount": 42,
+  "files": [
+    {
+      "path": "/app/index.js",
+      "size": 1024
+    }
+  ]
+}} />
+
+---
+
+### Upload Public Snapshot
+
+<ApiEndpoint method="PUT" path="/sandbox/snapshots/{snapshotId}/upload" />
+
+Upload a gzip archive for public snapshots. Content-Type must be application/gzip. Includes virus scanning.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "snapshotId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Snapshot ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Uploads a gzip archive for public snapshots. Content-Type must be application/gzip. Includes virus scanning.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Snapshot uploaded |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Snapshot not found |
+
+#### Example
+
+<ApiExample method="PUT" path="/sandbox/snapshots/snp_abc123/upload" />
+
+---
+
+## Disk Checkpoints
+
+### Create Checkpoint
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/checkpoint" />
+
+Create a named checkpoint of the sandbox filesystem.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+#### Request Body
+
+Checkpoint creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Checkpoint name",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the created checkpoint.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Checkpoint created |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Checkpoint ID (ckpt_ prefix)"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Checkpoint name"
+  },
+  {
+    "name": "createdAt",
+    "type": "string",
+    "description": "Creation timestamp"
+  },
+  {
+    "name": "parent",
+    "type": "string",
+    "description": "Parent checkpoint ID"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/sandbox/sbx_abc123/checkpoint" body={{
+  "name": "before-migration"
+}} />
+
+---
+
+### List Checkpoints
+
+<ApiEndpoint method="GET" path="/sandbox/checkpoints/{sandboxId}" />
+
+List checkpoints for a specific sandbox.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns list of checkpoints for the sandbox.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Checkpoints returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/checkpoints/sbx_abc123" />
+
+---
+
+### Restore Checkpoint
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/checkpoint/{checkpointId}/restore" />
+
+Restore the sandbox filesystem to a checkpoint state.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "checkpointId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Checkpoint ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Restores the sandbox filesystem to the checkpoint state.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Checkpoint restored |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox or checkpoint not found |
+
+#### Example
+
+<ApiExample method="POST" path="/sandbox/sbx_abc123/checkpoint/ckpt_def456/restore" />
+
+---
+
+### Delete Checkpoint
+
+<ApiEndpoint method="DELETE" path="/sandbox/{sandboxId}/checkpoint/{checkpointId}" />
+
+Delete a checkpoint.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "checkpointId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Checkpoint ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Checkpoint deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox or checkpoint not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/sandbox/sbx_abc123/checkpoint/ckpt_def456" />
+
+---
+
+## Runtimes
+
+### List Runtimes
+
+<ApiEndpoint method="GET" path="/sandbox/runtimes" />
+
+List available sandbox runtimes with their requirements.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Field to sort by"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort direction"
+  }
+]} />
+
+#### Response
+
+Returns available sandbox runtimes with their requirements.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Runtimes returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "runtimes",
+    "type": "array",
+    "description": "Array of { id, name, description, iconUrl, tags, requirements }"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total available runtimes"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/runtimes" />
+
+---
+
+## CLI Endpoints
+
+### List Sandboxes (Cross-Org)
+
+<ApiEndpoint method="GET" path="/cli/sandbox" />
+
+List sandboxes across all organizations the user belongs to.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by name"
+  },
+  {
+    "name": "mode",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'oneshot' or 'interactive'"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by organization"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by status"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Max 100"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Field to sort by"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort direction"
+  }
+]} />
+
+#### Response
+
+Lists sandboxes across all organizations the user belongs to.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Sandboxes returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/sandbox" />
+
+---
+
+### Resolve Sandbox
+
+<ApiEndpoint method="GET" path="/cli/sandbox/{sandboxId}" />
+
+Resolve a sandbox ID to its org, region, and project. Used for cross-org sandbox lookup.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  }
+]} />
+
+#### Response
+
+Resolves a sandbox ID to its org, region, and project. Used for cross-org sandbox lookup.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Sandbox resolved |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Sandbox name"
+  },
+  {
+    "name": "region",
+    "type": "string",
+    "description": "Region identifier"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Sandbox status"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Organization ID"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "description": "Project ID"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/cli/sandbox/sbx_abc123" />
+
+---

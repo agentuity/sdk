@@ -1,0 +1,328 @@
+---
+title: Evaluations API
+description: List and retrieve evaluations and their run history
+---
+
+List and retrieve evaluations and their run history.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## List Evaluations
+
+<ApiEndpoint method="GET" path="/cli/eval" />
+
+List evaluations with optional filtering by organization, project, or agent.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by organization ID"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project ID"
+  },
+  {
+    "name": "agentId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by agent ID"
+  }
+]} />
+
+### Response
+
+Array of evaluation objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Evaluations returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Evaluation ID"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Evaluation name"
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Evaluation description"
+  },
+  {
+    "name": "identifier",
+    "type": "string",
+    "description": "Unique identifier"
+  },
+  {
+    "name": "agentIdentifier",
+    "type": "string",
+    "description": "Associated agent identifier"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "description": "Project ID"
+  },
+  {
+    "name": "devmode",
+    "type": "boolean",
+    "description": "Whether running in dev mode"
+  },
+  {
+    "name": "createdAt",
+    "type": "string",
+    "description": "Creation timestamp"
+  },
+  {
+    "name": "updatedAt",
+    "type": "string",
+    "description": "Last update timestamp"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/cli/eval" />
+
+---
+
+## Get Evaluation
+
+<ApiEndpoint method="GET" path="/cli/eval/{id}" />
+
+Get a specific evaluation by ID.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Evaluation ID"
+  }
+]} />
+
+### Response
+
+Evaluation object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Evaluation returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Evaluation not found |
+
+### Example
+
+<ApiExample method="GET" path="/cli/eval/eval_abc123" />
+
+---
+
+## Eval Runs
+
+### List Eval Runs
+
+<ApiEndpoint method="GET" path="/cli/eval-run" />
+
+List evaluation runs with optional filtering.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by organization ID"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project ID"
+  },
+  {
+    "name": "agentId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by agent ID"
+  },
+  {
+    "name": "evalId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by evaluation ID"
+  },
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by session ID"
+  }
+]} />
+
+#### Response
+
+Array of evaluation run objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Eval runs returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Eval run ID"
+  },
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Session ID"
+  },
+  {
+    "name": "evalId",
+    "type": "string",
+    "description": "Evaluation ID"
+  },
+  {
+    "name": "evalIdentifier",
+    "type": "string",
+    "description": "Evaluation identifier"
+  },
+  {
+    "name": "evalName",
+    "type": "string",
+    "description": "Evaluation name"
+  },
+  {
+    "name": "agentIdentifier",
+    "type": "string",
+    "description": "Agent identifier"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "description": "Project ID"
+  },
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "description": "Deployment ID"
+  },
+  {
+    "name": "devmode",
+    "type": "boolean",
+    "description": "Whether running in dev mode"
+  },
+  {
+    "name": "pending",
+    "type": "boolean",
+    "description": "Whether the run is pending"
+  },
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "Whether the run succeeded"
+  },
+  {
+    "name": "error",
+    "type": "string",
+    "description": "Error message if failed"
+  },
+  {
+    "name": "result",
+    "type": "object",
+    "description": "Run result data"
+  },
+  {
+    "name": "createdAt",
+    "type": "string",
+    "description": "Creation timestamp"
+  },
+  {
+    "name": "updatedAt",
+    "type": "string",
+    "description": "Last update timestamp"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/cli/eval-run" />
+
+---
+
+### Get Eval Run
+
+<ApiEndpoint method="GET" path="/cli/eval-run/{id}" />
+
+Get a specific evaluation run by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Eval run ID"
+  }
+]} />
+
+#### Response
+
+Evaluation run object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Eval run returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Eval run not found |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/eval-run/er_abc123" />
+
+---

@@ -1,0 +1,1740 @@
+---
+title: Tasks API
+description: Full-featured task management with epics, features, bugs, comments, tags, attachments, and activity tracking
+---
+
+Full-featured task management with epics, features, bugs, comments, tags, attachments, and activity tracking.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Task Management
+
+### Create Task
+
+<ApiEndpoint method="POST" path="/task/2026-02-24" />
+
+Create a new task within the organization.
+
+
+#### Request Body
+
+Task creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "title",
+    "type": "string",
+    "description": "Task title",
+    "required": true
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "'epic', 'feature', 'enhancement', 'bug', or 'task'",
+    "required": true
+  },
+  {
+    "name": "created_id",
+    "type": "string",
+    "description": "Creator user ID",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Task description",
+    "required": false
+  },
+  {
+    "name": "priority",
+    "type": "string",
+    "description": "'high', 'medium', 'low', or 'none' (default 'none')",
+    "required": false
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "'open', 'in_progress', 'done', or 'cancelled' (default 'open')",
+    "required": false
+  },
+  {
+    "name": "assigned_id",
+    "type": "string",
+    "description": "Assigned user ID",
+    "required": false
+  },
+  {
+    "name": "parent_id",
+    "type": "string",
+    "description": "Parent task ID for hierarchy",
+    "required": false
+  },
+  {
+    "name": "tag_ids",
+    "type": "array",
+    "description": "Tag IDs to associate",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created task.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Task created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/task/2026-02-24" body={{
+  "title": "Implement auth flow",
+  "type": "feature",
+  "created_id": "usr_abc123",
+  "priority": "high"
+}} />
+
+---
+
+### Get Task
+
+<ApiEndpoint method="GET" path="/task/2026-02-24/{id}" />
+
+Retrieve a specific task by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Returns the task object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Task returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/2026-02-24/tsk_abc123" />
+
+---
+
+### List Tasks
+
+<ApiEndpoint method="GET" path="/task/2026-02-24" />
+
+List tasks with optional filtering, sorting, and pagination.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "status",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by status"
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by type"
+  },
+  {
+    "name": "priority",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by priority"
+  },
+  {
+    "name": "assigned_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by assigned user"
+  },
+  {
+    "name": "created_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by creator"
+  },
+  {
+    "name": "parent_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by parent task"
+  },
+  {
+    "name": "project_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project"
+  },
+  {
+    "name": "tag_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by tag"
+  },
+  {
+    "name": "deleted",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Include soft-deleted tasks"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Field to sort by — prefix with '-' for descending"
+  },
+  {
+    "name": "order",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'asc' or 'desc'"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of tasks.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tasks returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "tasks",
+    "type": "array",
+    "description": "Array of task objects"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total matching tasks"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Limit applied"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Offset applied"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/2026-02-24" />
+
+---
+
+### Update Task
+
+<ApiEndpoint method="PATCH" path="/task/2026-02-24/{id}" />
+
+Update one or more fields on an existing task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+#### Request Body
+
+Task update payload. All fields are optional.
+
+<ResponseFields fields={[
+  {
+    "name": "title",
+    "type": "string",
+    "description": "Task title",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Task description",
+    "required": false
+  },
+  {
+    "name": "priority",
+    "type": "string",
+    "description": "Task priority",
+    "required": false
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Task status",
+    "required": false
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "Task type",
+    "required": false
+  },
+  {
+    "name": "assigned_id",
+    "type": "string",
+    "description": "Assigned user ID",
+    "required": false
+  },
+  {
+    "name": "parent_id",
+    "type": "string",
+    "description": "Parent task ID",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated task.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Task updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/task/2026-02-24/tsk_abc123" body={{
+  "status": "in_progress",
+  "priority": "high"
+}} />
+
+---
+
+### Close Task
+
+<ApiEndpoint method="DELETE" path="/task/2026-02-24/{id}" />
+
+Sets the task status to 'done' and records the closed date. This does NOT permanently delete the task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Sets the task status to 'done' and records the closed date. This does NOT permanently delete the task.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Task closed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/2026-02-24/tsk_abc123" />
+
+---
+
+### Soft Delete Task
+
+<ApiEndpoint method="POST" path="/task/delete/2026-02-24/{id}" />
+
+Marks the task as deleted without permanent removal.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Marks the task as deleted without permanent removal.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Task soft-deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="POST" path="/task/delete/2026-02-24/tsk_abc123" />
+
+---
+
+### Batch Delete Tasks
+
+<ApiEndpoint method="POST" path="/task/delete/batch/2026-02-24" />
+
+Soft-delete multiple tasks matching filter criteria.
+
+
+#### Request Body
+
+Batch delete filter payload.
+
+<ResponseFields fields={[
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Filter by status",
+    "required": false
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "Filter by type",
+    "required": false
+  },
+  {
+    "name": "priority",
+    "type": "string",
+    "description": "Filter by priority",
+    "required": false
+  },
+  {
+    "name": "parent_id",
+    "type": "string",
+    "description": "Filter by parent task",
+    "required": false
+  },
+  {
+    "name": "created_id",
+    "type": "string",
+    "description": "Filter by creator",
+    "required": false
+  },
+  {
+    "name": "older_than",
+    "type": "string",
+    "description": "Go-style duration: '30m', '24h', '7d', '2w'",
+    "required": false
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Max 200",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the list of deleted tasks and count.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tasks deleted |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "deleted",
+    "type": "array",
+    "description": "Array of { id, title }"
+  },
+  {
+    "name": "count",
+    "type": "number",
+    "description": "Number of tasks deleted"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/task/delete/batch/2026-02-24" body={{
+  "status": "cancelled",
+  "older_than": "30d",
+  "limit": 50
+}} />
+
+---
+
+### Get Changelog
+
+<ApiEndpoint method="GET" path="/task/changelog/2026-02-24/{id}" />
+
+Get the change history for a specific task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns the changelog entries for the task.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Changelog returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "changelog",
+    "type": "array",
+    "description": "Array of { id, created_at, task_id, field, old_value, new_value }"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total changelog entries"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Limit applied"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Offset applied"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/changelog/2026-02-24/tsk_abc123" />
+
+---
+
+## Comments
+
+### Create Comment
+
+<ApiEndpoint method="POST" path="/task/comments/create/2026-02-24/{taskId}" />
+
+Add a comment to a task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+#### Request Body
+
+Comment creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "body",
+    "type": "string",
+    "description": "Comment text",
+    "required": true
+  },
+  {
+    "name": "user_id",
+    "type": "string",
+    "description": "Author user ID",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the created comment.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Comment created |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="POST" path="/task/comments/create/2026-02-24/tsk_abc123" body={{
+  "body": "Looks good, ready for review",
+  "user_id": "usr_abc123"
+}} />
+
+---
+
+### Get Comment
+
+<ApiEndpoint method="GET" path="/task/comments/get/2026-02-24/{commentId}" />
+
+Retrieve a specific comment by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "commentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Comment ID"
+  }
+]} />
+
+#### Response
+
+Returns the comment object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Comment returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Comment not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/comments/get/2026-02-24/cmt_abc123" />
+
+---
+
+### Update Comment
+
+<ApiEndpoint method="PATCH" path="/task/comments/update/2026-02-24/{commentId}" />
+
+Update the body of an existing comment.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "commentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Comment ID"
+  }
+]} />
+#### Request Body
+
+Comment update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "body",
+    "type": "string",
+    "description": "Updated comment text",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the updated comment.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Comment updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Comment not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/task/comments/update/2026-02-24/cmt_abc123" body={{
+  "body": "Updated comment text"
+}} />
+
+---
+
+### Delete Comment
+
+<ApiEndpoint method="DELETE" path="/task/comments/delete/2026-02-24/{commentId}" />
+
+Delete a comment.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "commentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Comment ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Comment deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Comment not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/comments/delete/2026-02-24/cmt_abc123" />
+
+---
+
+### List Comments
+
+<ApiEndpoint method="GET" path="/task/comments/list/2026-02-24/{taskId}" />
+
+List all comments on a task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of comments.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Comments returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "comments",
+    "type": "array",
+    "description": "Array of comment objects"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total comments"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Limit applied"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Offset applied"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/comments/list/2026-02-24/tsk_abc123" />
+
+---
+
+## Tags
+
+### Create Tag
+
+<ApiEndpoint method="POST" path="/task/tags/create/2026-02-24" />
+
+Create a new tag for organizing tasks.
+
+
+#### Request Body
+
+Tag creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Tag name",
+    "required": true
+  },
+  {
+    "name": "color",
+    "type": "string",
+    "description": "Hex color code",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created tag.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Tag created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/task/tags/create/2026-02-24" body={{
+  "name": "urgent",
+  "color": "#ff0000"
+}} />
+
+---
+
+### Get Tag
+
+<ApiEndpoint method="GET" path="/task/tags/get/2026-02-24/{tagId}" />
+
+Retrieve a specific tag by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+
+#### Response
+
+Returns the tag object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tag returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Tag not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/tags/get/2026-02-24/tag_abc123" />
+
+---
+
+### Update Tag
+
+<ApiEndpoint method="PATCH" path="/task/tags/update/2026-02-24/{tagId}" />
+
+Update a tag's name or color.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+#### Request Body
+
+Tag update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Tag name",
+    "required": true
+  },
+  {
+    "name": "color",
+    "type": "string",
+    "description": "Hex color code",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated tag.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tag updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Tag not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/task/tags/update/2026-02-24/tag_abc123" body={{
+  "name": "critical",
+  "color": "#cc0000"
+}} />
+
+---
+
+### Delete Tag
+
+<ApiEndpoint method="DELETE" path="/task/tags/delete/2026-02-24/{tagId}" />
+
+Delete a tag.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Tag deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Tag not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/tags/delete/2026-02-24/tag_abc123" />
+
+---
+
+### List Tags
+
+<ApiEndpoint method="GET" path="/task/tags/list/2026-02-24" />
+
+List all tags in the organization.
+
+
+
+#### Response
+
+Returns list of tags.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tags returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="GET" path="/task/tags/list/2026-02-24" />
+
+---
+
+### Add Tag to Task
+
+<ApiEndpoint method="POST" path="/task/tags/add/2026-02-24/{taskId}/{tagId}" />
+
+Associate a tag with a task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  },
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+
+#### Response
+
+Returns confirmation of the association.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tag added to task |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task or tag not found |
+
+#### Example
+
+<ApiExample method="POST" path="/task/tags/add/2026-02-24/tsk_abc123/tag_def456" />
+
+---
+
+### Remove Tag from Task
+
+<ApiEndpoint method="DELETE" path="/task/tags/remove/2026-02-24/{taskId}/{tagId}" />
+
+Remove a tag association from a task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  },
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Tag removed from task |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task or tag not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/tags/remove/2026-02-24/tsk_abc123/tag_def456" />
+
+---
+
+### List Task Tags
+
+<ApiEndpoint method="GET" path="/task/tags/task/2026-02-24/{taskId}" />
+
+List all tags associated with a specific task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Returns list of tags for the task.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tags returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/tags/task/2026-02-24/tsk_abc123" />
+
+---
+
+## Attachments
+
+### Request Upload URL
+
+<ApiEndpoint method="POST" path="/task/attachments/presign-upload/2026-02-24/{taskId}" />
+
+Request a presigned URL for uploading an attachment to a task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+#### Request Body
+
+Upload request payload.
+
+<ResponseFields fields={[
+  {
+    "name": "filename",
+    "type": "string",
+    "description": "File name",
+    "required": true
+  },
+  {
+    "name": "content_type",
+    "type": "string",
+    "description": "MIME type",
+    "required": false
+  },
+  {
+    "name": "size",
+    "type": "number",
+    "description": "File size in bytes",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns a presigned upload URL. Upload the file via PUT to the URL, then call confirm.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Presigned URL returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "attachment",
+    "type": "object",
+    "description": "Attachment metadata"
+  },
+  {
+    "name": "presigned_url",
+    "type": "string",
+    "description": "Upload URL"
+  },
+  {
+    "name": "expiry_seconds",
+    "type": "number",
+    "description": "URL expiration time in seconds"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/task/attachments/presign-upload/2026-02-24/tsk_abc123" body={{
+  "filename": "screenshot.png",
+  "content_type": "image/png"
+}} />
+
+---
+
+### Confirm Upload
+
+<ApiEndpoint method="POST" path="/task/attachments/confirm/2026-02-24/{attachmentId}" />
+
+Confirm that a file was uploaded successfully to the presigned URL.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "attachmentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Attachment ID"
+  }
+]} />
+
+#### Response
+
+Confirms the file was uploaded successfully.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Upload confirmed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Attachment not found |
+
+#### Example
+
+<ApiExample method="POST" path="/task/attachments/confirm/2026-02-24/att_abc123" />
+
+---
+
+### Request Download URL
+
+<ApiEndpoint method="POST" path="/task/attachments/presign-download/2026-02-24/{attachmentId}" />
+
+Request a presigned URL for downloading an attachment.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "attachmentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Attachment ID"
+  }
+]} />
+
+#### Response
+
+Returns a presigned download URL.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Presigned URL returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Attachment not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "presigned_url",
+    "type": "string",
+    "description": "Download URL"
+  },
+  {
+    "name": "expiry_seconds",
+    "type": "number",
+    "description": "URL expiration time in seconds"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/task/attachments/presign-download/2026-02-24/att_abc123" />
+
+---
+
+### List Attachments
+
+<ApiEndpoint method="GET" path="/task/attachments/list/2026-02-24/{taskId}" />
+
+List all attachments on a task.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Returns list of attachments.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Attachments returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "attachments",
+    "type": "array",
+    "description": "Array of attachment objects"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total attachments"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/attachments/list/2026-02-24/tsk_abc123" />
+
+---
+
+### Delete Attachment
+
+<ApiEndpoint method="DELETE" path="/task/attachments/delete/2026-02-24/{attachmentId}" />
+
+Delete an attachment.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "attachmentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Attachment ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Attachment deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Attachment not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/attachments/delete/2026-02-24/att_abc123" />
+
+---
+
+## Users & Projects
+
+### List Task Users
+
+<ApiEndpoint method="GET" path="/task/users/2026-02-24" />
+
+List all user entities available for task assignment.
+
+
+
+#### Response
+
+Returns list of user entities.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Users returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "users",
+    "type": "array",
+    "description": "Array of { id, name, type }"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/users/2026-02-24" />
+
+---
+
+### Create User Entity
+
+<ApiEndpoint method="POST" path="/task/users/create/2026-02-24" />
+
+Create a new user entity for task assignment.
+
+
+#### Request Body
+
+User entity creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "User name",
+    "required": true
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "'human' or 'agent'",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created user entity.
+
+| Status | Description |
+|--------|-------------|
+| 201 | User entity created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/task/users/create/2026-02-24" body={{
+  "name": "Alice",
+  "type": "human"
+}} />
+
+---
+
+### Get User Entity
+
+<ApiEndpoint method="GET" path="/task/users/get/2026-02-24/{userId}" />
+
+Retrieve a specific user entity by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "userId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "User entity ID"
+  }
+]} />
+
+#### Response
+
+Returns the user entity object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | User entity returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | User entity not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/users/get/2026-02-24/usr_abc123" />
+
+---
+
+### Delete User Entity
+
+<ApiEndpoint method="DELETE" path="/task/users/delete/2026-02-24/{userId}" />
+
+Delete a user entity.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "userId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "User entity ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | User entity deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | User entity not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/users/delete/2026-02-24/usr_abc123" />
+
+---
+
+### List Task Projects
+
+<ApiEndpoint method="GET" path="/task/projects/2026-02-24" />
+
+List all project entities available for task organization.
+
+
+
+#### Response
+
+Returns list of project entities.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Projects returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "projects",
+    "type": "array",
+    "description": "Array of { id, name }"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/projects/2026-02-24" />
+
+---
+
+### Create Project Entity
+
+<ApiEndpoint method="POST" path="/task/projects/create/2026-02-24" />
+
+Create a new project entity for task organization.
+
+
+#### Request Body
+
+Project entity creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Project name",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the created project entity.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Project entity created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/task/projects/create/2026-02-24" body={{
+  "name": "Backend Rewrite"
+}} />
+
+---
+
+### Get Project Entity
+
+<ApiEndpoint method="GET" path="/task/projects/get/2026-02-24/{projectId}" />
+
+Retrieve a specific project entity by ID.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project entity ID"
+  }
+]} />
+
+#### Response
+
+Returns the project entity object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Project entity returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project entity not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/projects/get/2026-02-24/tprj_abc123" />
+
+---
+
+### Delete Project Entity
+
+<ApiEndpoint method="DELETE" path="/task/projects/delete/2026-02-24/{projectId}" />
+
+Delete a project entity.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project entity ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Project entity deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project entity not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/projects/delete/2026-02-24/tprj_abc123" />
+
+---
+
+## Activity
+
+### Get Activity Timeline
+
+<ApiEndpoint method="GET" path="/task/activity/2026-02-28" />
+
+Get daily activity counts grouped by status over a configurable time range.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "days",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Number of days (min 7, max 365, default 90)"
+  }
+]} />
+
+#### Response
+
+Returns daily activity counts grouped by status.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Activity timeline returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "activity",
+    "type": "array",
+    "description": "Array of { date, open, inProgress, done, cancelled }"
+  },
+  {
+    "name": "days",
+    "type": "number",
+    "description": "Number of days in the response"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/activity/2026-02-28" />
+
+---

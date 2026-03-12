@@ -1,0 +1,244 @@
+---
+title: API Keys API
+description: Create and manage API keys for authentication
+---
+
+Create and manage API keys for authentication.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Create API Key
+
+<ApiEndpoint method="POST" path="/cli/apikey" />
+
+Create a new API key. The key value is only returned at creation time.
+
+
+### Request Body
+
+API key creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Display name for the API key",
+    "required": true
+  },
+  {
+    "name": "expiresAt",
+    "type": "string",
+    "description": "ISO 8601 expiration timestamp",
+    "required": true
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "description": "Scope to a specific project",
+    "required": false
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Scope to a specific organization",
+    "required": false
+  }
+]} />
+
+### Response
+
+Returns the new key ID and value. The value is only returned at creation time.
+
+| Status | Description |
+|--------|-------------|
+| 201 | API key created |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "API key ID"
+  },
+  {
+    "name": "value",
+    "type": "string",
+    "description": "The API key — only returned at creation"
+  }
+]} />
+
+### Example
+
+<ApiExample method="POST" path="/cli/apikey" body={{
+  "name": "My API Key",
+  "expiresAt": "2026-12-31T23:59:59Z"
+}} />
+
+---
+
+## List API Keys
+
+<ApiEndpoint method="GET" path="/cli/apikey" />
+
+List API keys with optional filtering by organization or project.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by organization ID"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project ID"
+  }
+]} />
+
+### Response
+
+Array of API key objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | API keys returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "API key ID"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Display name"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Organization ID"
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "Key type"
+  },
+  {
+    "name": "expiresAt",
+    "type": "string",
+    "description": "Expiration timestamp"
+  },
+  {
+    "name": "lastUsedAt",
+    "type": "string",
+    "description": "Last usage timestamp"
+  },
+  {
+    "name": "createdAt",
+    "type": "string",
+    "description": "Creation timestamp"
+  },
+  {
+    "name": "project",
+    "type": "object",
+    "description": "Associated project details"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/cli/apikey" />
+
+---
+
+## Get API Key
+
+<ApiEndpoint method="GET" path="/cli/apikey/{id}" />
+
+Get a specific API key by ID.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "API key ID"
+  }
+]} />
+
+### Response
+
+API key object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | API key returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | API key not found |
+
+### Example
+
+<ApiExample method="GET" path="/cli/apikey/ak_abc123" />
+
+---
+
+## Delete API Key
+
+<ApiEndpoint method="DELETE" path="/cli/apikey/{id}" />
+
+Delete an API key by ID.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "API key ID"
+  }
+]} />
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | API key deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | API key not found |
+
+### Example
+
+<ApiExample method="DELETE" path="/cli/apikey/ak_abc123" />
+
+---

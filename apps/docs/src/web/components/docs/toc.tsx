@@ -54,7 +54,9 @@ export function TableOfContents() {
 		return () => observer.disconnect();
 	}, [headings, setActiveId]);
 
-	const flatHeadings = flattenToc(headings);
+	// Only show h2 and h3 in the TOC — h4+ sub-items (Parameters, Request Body, etc.)
+	// would make the nav unusably long on pages with many endpoints.
+	const flatHeadings = flattenToc(headings).filter((h) => h.depth <= 3);
 
 	if (flatHeadings.length === 0) {
 		return null;

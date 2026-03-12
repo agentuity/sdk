@@ -1,0 +1,362 @@
+---
+title: Sessions API
+description: View agent execution sessions with timing, cost, and observability data
+---
+
+View agent execution sessions with timing, cost, and observability data.
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## List Sessions
+
+<ApiEndpoint method="GET" path="/session" />
+
+List sessions with optional filtering, sorting, and pagination.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Max results, default 10"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "\\`created\\`, \\`updated\\`, \\`duration\\`, or \\`startTime\\`"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "\\`asc\\` or \\`desc\\`"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by organization ID"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project ID"
+  },
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by deployment ID"
+  },
+  {
+    "name": "trigger",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "\\`agent\\`, \\`api\\`, \\`email\\`, \\`sms\\`, \\`cron\\`, \\`manual\\`, \\`discord\\`, or \\`websocket\\`"
+  },
+  {
+    "name": "env",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by environment"
+  },
+  {
+    "name": "devmode",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Filter by devmode status"
+  },
+  {
+    "name": "success",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Filter by success status"
+  },
+  {
+    "name": "threadId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by thread ID"
+  },
+  {
+    "name": "agentIdentifier",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by agent identifier"
+  },
+  {
+    "name": "startAfter",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "ISO 8601 start-after filter"
+  },
+  {
+    "name": "startBefore",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "ISO 8601 start-before filter"
+  },
+  {
+    "name": "metadata",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "JSON-serialized filter"
+  }
+]} />
+
+### Response
+
+Returns sessions matching the specified filters.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Sessions returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Session ID"
+  },
+  {
+    "name": "start_time",
+    "type": "string",
+    "description": "Session start timestamp"
+  },
+  {
+    "name": "end_time",
+    "type": "string",
+    "description": "Session end timestamp"
+  },
+  {
+    "name": "duration",
+    "type": "number",
+    "description": "Duration in nanoseconds"
+  },
+  {
+    "name": "org_id",
+    "type": "string",
+    "description": "Organization ID"
+  },
+  {
+    "name": "project_id",
+    "type": "string",
+    "description": "Project ID"
+  },
+  {
+    "name": "deployment_id",
+    "type": "string",
+    "description": "Deployment ID"
+  },
+  {
+    "name": "agent_ids",
+    "type": "array",
+    "description": "Agent IDs involved in the session"
+  },
+  {
+    "name": "trigger",
+    "type": "string",
+    "description": "Session trigger type"
+  },
+  {
+    "name": "env",
+    "type": "string",
+    "description": "Environment"
+  },
+  {
+    "name": "devmode",
+    "type": "boolean",
+    "description": "Whether devmode was active"
+  },
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "Whether the session succeeded"
+  },
+  {
+    "name": "error",
+    "type": "string",
+    "description": "Error message if failed"
+  },
+  {
+    "name": "llm_cost",
+    "type": "number",
+    "description": "LLM cost for the session"
+  },
+  {
+    "name": "total_cost",
+    "type": "number",
+    "description": "Total cost for the session"
+  },
+  {
+    "name": "thread_id",
+    "type": "string",
+    "description": "Associated thread ID"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/session" />
+
+---
+
+## Get Session
+
+<ApiEndpoint method="GET" path="/session/{id}" />
+
+Retrieve a specific session with enriched data including agent info, eval runs, and route details.
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  }
+]} />
+
+### Response
+
+Returns the session with enriched data including agent info, eval runs, and route details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Session returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Session not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "session",
+    "type": "object",
+    "description": "Full session data"
+  },
+  {
+    "name": "agents",
+    "type": "array",
+    "description": "Agent names and identifiers"
+  },
+  {
+    "name": "eval_runs",
+    "type": "array",
+    "description": "Associated evaluation runs"
+  },
+  {
+    "name": "route",
+    "type": "object",
+    "description": "Route info (id, method, path) or null"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/session/ses_abc123" />
+
+---
+
+## Logs
+
+### Get Session Logs
+
+<ApiEndpoint method="GET" path="/cli/session/{id}/logs" />
+
+Retrieve log entries for a specific session.
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  }
+]} />
+
+#### Response
+
+Returns log entries for the session.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Logs returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Session not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "body",
+    "type": "string",
+    "description": "Log message"
+  },
+  {
+    "name": "severity",
+    "type": "string",
+    "description": "Log level"
+  },
+  {
+    "name": "timestamp",
+    "type": "string",
+    "description": "ISO 8601"
+  }
+]} />
+
+#### Notes
+
+This endpoint uses the App API base URL (`api.agentuity.com`), not the regional Catalyst URL.
+
+#### Example
+
+<ApiExample method="GET" path="/cli/session/ses_abc123/logs" />
+
+---
