@@ -1,9 +1,8 @@
-import { createRouter, validator } from '@agentuity/runtime';
+import { validator, type Env } from '@agentuity/runtime';
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
-
-const router = createRouter();
+import { Hono } from 'hono';
 
 // Schema for conversation message
 export const ConversationMessageSchema = z.object({
@@ -62,17 +61,19 @@ function formatHistory(messages: ConversationMessage[]): string {
 		.join('\n');
 }
 
-// POST /api/title-generator
-router.post('/', validator({ input: TitleGeneratorRequestSchema }), async (c) => {
-	try {
-		const { conversationHistory } = c.req.valid('json');
+const router = new Hono<Env>()
 
-		if (conversationHistory.length === 0) {
-			return c.json({ title: 'New chat' });
-		}
+	// POST /api/title-generator
+	.post('/', validator({ input: TitleGeneratorRequestSchema }), async (c) => {
+		try {
+			const { conversationHistory } = c.req.valid('json');
 
-		const historyText = formatHistory(conversationHistory);
-		const prompt = `Generate a very short session title summarizing the conversation topic.
+			if (conversationHistory.length === 0) {
+				return c.json({ title: 'New chat' });
+			}
+
+			const historyText = formatHistory(conversationHistory);
+			const prompt = `Generate a very short session title summarizing the conversation topic.
 
 Requirements:
 - sentence case
@@ -84,28 +85,28 @@ Requirements:
 Conversation:
 ${historyText}`;
 
-		const response = await generateText({
-			model: openai('gpt-4o-mini'),
-			prompt,
-			system:
-				'You are a title generator for chat sessions. Generate concise, descriptive titles only. Output only the title text, nothing else.',
-		});
+			const response = await generateText({
+				model: openai('gpt-4o-mini'),
+				prompt,
+				system:
+					'You are a title generator for chat sessions. Generate concise, descriptive titles only. Output only the title text, nothing else.',
+			});
 
-		const title = sanitizeTitle(response.text);
+			const title = sanitizeTitle(response.text);
 
-		return c.json({
-			title: title || 'New chat',
-		});
-	} catch (error) {
-		c.var.logger.error('Title generation failed: %s', error);
-		return c.json(
-			{
-				error: 'Failed to generate title',
-				details: error instanceof Error ? error.message : String(error),
-			},
-			500
-		);
-	}
-});
+			return c.json({
+				title: title || 'New chat',
+			});
+		} catch (error) {
+			c.var.logger.error('Title generation failed: %s', error);
+			return c.json(
+				{
+					error: 'Failed to generate title',
+					details: error instanceof Error ? error.message : String(error),
+				},
+				500
+			);
+		}
+	});
 
 export default router;

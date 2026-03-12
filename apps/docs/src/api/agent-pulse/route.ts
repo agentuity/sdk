@@ -1,4 +1,4 @@
-import { createRouter, validator } from '@agentuity/runtime';
+import { validator, type Env } from '@agentuity/runtime';
 import { bearerTokenAuth, cookieAuth } from '../../middleware/auth';
 import { config } from '../../config';
 import agentPulse from '@agent/agent_pulse';
@@ -13,6 +13,7 @@ import {
 	type TutorialData,
 } from '../../services/stream-persistence';
 import { z } from 'zod';
+import { Hono } from 'hono';
 
 // Schema for agent pulse request
 export const AgentPulseRequestSchema = z.object({
@@ -112,91 +113,92 @@ ${historyText}`;
 	}
 }
 
-const router = createRouter();
-
 const SSE_HEADERS = {
 	'Content-Type': 'text/event-stream',
 	'Cache-Control': 'no-cache',
 	Connection: 'keep-alive',
 };
 
-// POST /api/agent-pulse
-router.post(
-	'/',
-	bearerTokenAuth,
-	cookieAuth,
-	validator({ input: AgentPulseRequestSchema }),
-	async (c) => {
-		try {
-			const userId = (c.get as (key: string) => string)('userId');
-			const kv = c.var.kv;
-			const logger = c.var.logger;
+const router = new Hono<Env>()
 
-			const validatedRequest = c.req.valid('json');
-			const conversationHistory: ConversationMessage[] =
-				validatedRequest.conversationHistory || [];
+	// POST /api/agent-pulse
+	.post(
+		'/',
+		bearerTokenAuth,
+		cookieAuth,
+		validator({ input: AgentPulseRequestSchema }),
+		async (c) => {
+			try {
+				const userId = (c.get as (key: string) => string)('userId');
+				const kv = c.var.kv;
+				const logger = c.var.logger;
 
-			// Get current tutorial state if not provided
-			let tutorialData = validatedRequest.tutorialData;
-			if (!tutorialData && userId) {
-				tutorialData = (await getCurrentTutorialState(userId, kv)) || undefined;
+				const validatedRequest = c.req.valid('json');
+				const conversationHistory: ConversationMessage[] =
+					validatedRequest.conversationHistory || [];
+
+				// Get current tutorial state if not provided
+				let tutorialData = validatedRequest.tutorialData;
+				if (!tutorialData && userId) {
+					tutorialData = (await getCurrentTutorialState(userId, kv)) || undefined;
+				}
+
+				// Run agent and get stream
+				const agentStream = await agentPulse.run({
+					message: validatedRequest.message,
+					conversationHistory,
+					tutorialData,
+				});
+
+				// If no sessionId provided, return raw stream (no persistence)
+				if (!validatedRequest.sessionId) {
+					return new Response(agentStream, { headers: SSE_HEADERS });
+				}
+
+				// Wrap stream with persistence
+				const persistedStream = withPersistence(agentStream, {
+					kv,
+					userId,
+					sessionId: validatedRequest.sessionId,
+					kvStoreName: config.kvStoreName,
+					logger,
+					onTutorialProgress: async (td: TutorialData) => {
+						if (userId && td.tutorialId) {
+							await updateTutorialProgress(
+								userId,
+								td.tutorialId,
+								td.currentStep,
+								td.totalSteps ?? 0,
+								kv
+							);
+						}
+					},
+					onSessionSaved: (session: Session) => {
+						// Fire and forget title generation
+						const sessionKey = `${userId}_${validatedRequest.sessionId}`;
+						void generateAndPersistTitle(sessionKey, session, kv, logger);
+					},
+				});
+
+				return new Response(persistedStream, { headers: SSE_HEADERS });
+			} catch (error) {
+				c.var.logger.error(
+					'Agent request failed: %s',
+					error instanceof Error ? error.message : String(error)
+				);
+
+				const statusCode =
+					error instanceof Error && error.message.includes('Invalid') ? 400 : 500;
+
+				return c.json(
+					{
+						error: 'Sorry, I encountered an error while processing your request. Please try again.',
+						details: error instanceof Error ? error.message : String(error),
+					},
+					{ status: statusCode }
+				);
 			}
-
-			// Run agent and get stream
-			const agentStream = await agentPulse.run({
-				message: validatedRequest.message,
-				conversationHistory,
-				tutorialData,
-			});
-
-			// If no sessionId provided, return raw stream (no persistence)
-			if (!validatedRequest.sessionId) {
-				return new Response(agentStream, { headers: SSE_HEADERS });
-			}
-
-			// Wrap stream with persistence
-			const persistedStream = withPersistence(agentStream, {
-				kv,
-				userId,
-				sessionId: validatedRequest.sessionId,
-				kvStoreName: config.kvStoreName,
-				logger,
-				onTutorialProgress: async (td: TutorialData) => {
-					if (userId && td.tutorialId) {
-						await updateTutorialProgress(
-							userId,
-							td.tutorialId,
-							td.currentStep,
-							td.totalSteps ?? 0,
-							kv
-						);
-					}
-				},
-				onSessionSaved: (session: Session) => {
-					// Fire and forget title generation
-					const sessionKey = `${userId}_${validatedRequest.sessionId}`;
-					void generateAndPersistTitle(sessionKey, session, kv, logger);
-				},
-			});
-
-			return new Response(persistedStream, { headers: SSE_HEADERS });
-		} catch (error) {
-			c.var.logger.error(
-				'Agent request failed: %s',
-				error instanceof Error ? error.message : String(error)
-			);
-
-			const statusCode = error instanceof Error && error.message.includes('Invalid') ? 400 : 500;
-
-			return c.json(
-				{
-					error: 'Sorry, I encountered an error while processing your request. Please try again.',
-					details: error instanceof Error ? error.message : String(error),
-				},
-				{ status: statusCode }
-			);
 		}
-	}
-);
+	);
 
 export default router;
