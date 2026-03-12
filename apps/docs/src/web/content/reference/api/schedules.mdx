@@ -23,9 +23,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ### Create Schedule
 
-<ApiEndpoint method="POST" path="/schedule/create" />
-
 Create a new cron-based schedule with optional destinations.
+
+<ApiEndpoint method="POST" path="/schedule/create" />
 
 
 
@@ -103,9 +103,9 @@ Returns the created schedule and its destinations.
 
 ### List Schedules
 
-<ApiEndpoint method="GET" path="/schedule/list" />
-
 List all schedules with optional pagination.
+
+<ApiEndpoint method="GET" path="/schedule/list" />
 
 #### Parameters
 
@@ -158,9 +158,9 @@ Returns paginated list of schedules.
 
 ### Get Schedule
 
-<ApiEndpoint method="GET" path="/schedule/get/{scheduleId}" />
-
 Get a specific schedule by ID.
+
+<ApiEndpoint method="GET" path="/schedule/get/{scheduleId}" />
 
 #### Parameters
 
@@ -192,9 +192,9 @@ Returns the schedule object.
 
 ### Update Schedule
 
-<ApiEndpoint method="PUT" path="/schedule/update/{scheduleId}" />
-
 Update a schedule's name, description, or cron expression.
+
+<ApiEndpoint method="PUT" path="/schedule/update/{scheduleId}" />
 
 #### Parameters
 
@@ -253,9 +253,9 @@ Returns the updated schedule.
 
 ### Delete Schedule
 
-<ApiEndpoint method="DELETE" path="/schedule/delete/{scheduleId}" />
-
 Delete a schedule and all associated destinations and delivery history.
+
+<ApiEndpoint method="DELETE" path="/schedule/delete/{scheduleId}" />
 
 #### Parameters
 
@@ -289,9 +289,9 @@ Deletes the schedule and all associated destinations and delivery history.
 
 ### Create Destination
 
-<ApiEndpoint method="POST" path="/schedule/destinations/create/{scheduleId}" />
-
 Add a destination to a schedule.
+
+<ApiEndpoint method="POST" path="/schedule/destinations/create/{scheduleId}" />
 
 #### Parameters
 
@@ -348,9 +348,9 @@ Returns the created destination.
 
 ### Delete Destination
 
-<ApiEndpoint method="DELETE" path="/schedule/destinations/delete/{destinationId}" />
-
 Delete a destination from a schedule.
+
+<ApiEndpoint method="DELETE" path="/schedule/destinations/delete/{destinationId}" />
 
 #### Parameters
 
@@ -384,9 +384,9 @@ Empty response on success.
 
 ### List Deliveries
 
-<ApiEndpoint method="GET" path="/schedule/deliveries/{scheduleId}" />
-
 List delivery attempts for a schedule.
+
+<ApiEndpoint method="GET" path="/schedule/deliveries/{scheduleId}" />
 
 #### Parameters
 

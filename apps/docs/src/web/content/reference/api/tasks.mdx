@@ -23,9 +23,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ### Create Task
 
-<ApiEndpoint method="POST" path="/task/2026-02-24" />
-
 Create a new task within the organization.
+
+<ApiEndpoint method="POST" path="/task" />
 
 
 
@@ -101,7 +101,7 @@ Returns the created task.
 
 #### Example
 
-<ApiExample method="POST" path="/task/2026-02-24" body={{
+<ApiExample method="POST" path="/task" body={{
   "title": "Implement auth flow",
   "type": "feature",
   "created_id": "usr_abc123",
@@ -112,9 +112,9 @@ Returns the created task.
 
 ### Get Task
 
-<ApiEndpoint method="GET" path="/task/2026-02-24/{id}" />
-
 Retrieve a specific task by ID.
+
+<ApiEndpoint method="GET" path="/task/{id}" />
 
 #### Parameters
 
@@ -140,15 +140,15 @@ Returns the task object.
 
 #### Example
 
-<ApiExample method="GET" path="/task/2026-02-24/tsk_abc123" />
+<ApiExample method="GET" path="/task/tsk_abc123" />
 
 ---
 
 ### List Tasks
 
-<ApiEndpoint method="GET" path="/task/2026-02-24" />
-
 List tasks with optional filtering, sorting, and pagination.
+
+<ApiEndpoint method="GET" path="/task" />
 
 #### Parameters
 
@@ -282,15 +282,15 @@ Returns paginated list of tasks.
 
 #### Example
 
-<ApiExample method="GET" path="/task/2026-02-24" />
+<ApiExample method="GET" path="/task" />
 
 ---
 
 ### Update Task
 
-<ApiEndpoint method="PATCH" path="/task/2026-02-24/{id}" />
-
 Update one or more fields on an existing task.
+
+<ApiEndpoint method="PATCH" path="/task/{id}" />
 
 #### Parameters
 
@@ -365,7 +365,7 @@ Returns the updated task.
 
 #### Example
 
-<ApiExample method="PATCH" path="/task/2026-02-24/tsk_abc123" body={{
+<ApiExample method="PATCH" path="/task/tsk_abc123" body={{
   "status": "in_progress",
   "priority": "high"
 }} />
@@ -374,9 +374,9 @@ Returns the updated task.
 
 ### Close Task
 
-<ApiEndpoint method="DELETE" path="/task/2026-02-24/{id}" />
-
 Sets the task status to 'done' and records the closed date. This does NOT permanently delete the task.
+
+<ApiEndpoint method="DELETE" path="/task/{id}" />
 
 #### Parameters
 
@@ -402,15 +402,15 @@ Sets the task status to 'done' and records the closed date. This does NOT perman
 
 #### Example
 
-<ApiExample method="DELETE" path="/task/2026-02-24/tsk_abc123" />
+<ApiExample method="DELETE" path="/task/tsk_abc123" />
 
 ---
 
 ### Soft Delete Task
 
-<ApiEndpoint method="POST" path="/task/delete/2026-02-24/{id}" />
-
 Marks the task as deleted without permanent removal.
+
+<ApiEndpoint method="POST" path="/task/delete/{id}" />
 
 #### Parameters
 
@@ -436,15 +436,15 @@ Marks the task as deleted without permanent removal.
 
 #### Example
 
-<ApiExample method="POST" path="/task/delete/2026-02-24/tsk_abc123" />
+<ApiExample method="POST" path="/task/delete/tsk_abc123" />
 
 ---
 
 ### Batch Delete Tasks
 
-<ApiEndpoint method="POST" path="/task/delete/batch/2026-02-24" />
-
 Soft-delete multiple tasks matching filter criteria.
+
+<ApiEndpoint method="POST" path="/task/delete/batch" />
 
 
 
@@ -523,7 +523,7 @@ Returns the list of deleted tasks and count.
 
 #### Example
 
-<ApiExample method="POST" path="/task/delete/batch/2026-02-24" body={{
+<ApiExample method="POST" path="/task/delete/batch" body={{
   "status": "cancelled",
   "older_than": "30d",
   "limit": 50
@@ -533,9 +533,9 @@ Returns the list of deleted tasks and count.
 
 ### Get Changelog
 
-<ApiEndpoint method="GET" path="/task/changelog/2026-02-24/{id}" />
-
 Get the change history for a specific task.
+
+<ApiEndpoint method="GET" path="/task/changelog/{id}" />
 
 #### Parameters
 
@@ -600,7 +600,7 @@ Returns the changelog entries for the task.
 
 #### Example
 
-<ApiExample method="GET" path="/task/changelog/2026-02-24/tsk_abc123" />
+<ApiExample method="GET" path="/task/changelog/tsk_abc123" />
 
 ---
 
@@ -608,9 +608,9 @@ Returns the changelog entries for the task.
 
 ### Create Comment
 
-<ApiEndpoint method="POST" path="/task/comments/create/2026-02-24/{taskId}" />
-
 Add a comment to a task.
+
+<ApiEndpoint method="POST" path="/task/comments/create/{taskId}" />
 
 #### Parameters
 
@@ -655,7 +655,7 @@ Returns the created comment.
 
 #### Example
 
-<ApiExample method="POST" path="/task/comments/create/2026-02-24/tsk_abc123" body={{
+<ApiExample method="POST" path="/task/comments/create/tsk_abc123" body={{
   "body": "Looks good, ready for review",
   "user_id": "usr_abc123"
 }} />
@@ -664,9 +664,9 @@ Returns the created comment.
 
 ### Get Comment
 
-<ApiEndpoint method="GET" path="/task/comments/get/2026-02-24/{commentId}" />
-
 Retrieve a specific comment by ID.
+
+<ApiEndpoint method="GET" path="/task/comments/get/{commentId}" />
 
 #### Parameters
 
@@ -692,15 +692,15 @@ Returns the comment object.
 
 #### Example
 
-<ApiExample method="GET" path="/task/comments/get/2026-02-24/cmt_abc123" />
+<ApiExample method="GET" path="/task/comments/get/cmt_abc123" />
 
 ---
 
 ### Update Comment
 
-<ApiEndpoint method="PATCH" path="/task/comments/update/2026-02-24/{commentId}" />
-
 Update the body of an existing comment.
+
+<ApiEndpoint method="PATCH" path="/task/comments/update/{commentId}" />
 
 #### Parameters
 
@@ -739,7 +739,7 @@ Returns the updated comment.
 
 #### Example
 
-<ApiExample method="PATCH" path="/task/comments/update/2026-02-24/cmt_abc123" body={{
+<ApiExample method="PATCH" path="/task/comments/update/cmt_abc123" body={{
   "body": "Updated comment text"
 }} />
 
@@ -747,9 +747,9 @@ Returns the updated comment.
 
 ### Delete Comment
 
-<ApiEndpoint method="DELETE" path="/task/comments/delete/2026-02-24/{commentId}" />
-
 Delete a comment.
+
+<ApiEndpoint method="DELETE" path="/task/comments/delete/{commentId}" />
 
 #### Parameters
 
@@ -775,15 +775,15 @@ Empty response on success.
 
 #### Example
 
-<ApiExample method="DELETE" path="/task/comments/delete/2026-02-24/cmt_abc123" />
+<ApiExample method="DELETE" path="/task/comments/delete/cmt_abc123" />
 
 ---
 
 ### List Comments
 
-<ApiEndpoint method="GET" path="/task/comments/list/2026-02-24/{taskId}" />
-
 List all comments on a task.
+
+<ApiEndpoint method="GET" path="/task/comments/list/{taskId}" />
 
 #### Parameters
 
@@ -848,7 +848,7 @@ Returns paginated list of comments.
 
 #### Example
 
-<ApiExample method="GET" path="/task/comments/list/2026-02-24/tsk_abc123" />
+<ApiExample method="GET" path="/task/comments/list/tsk_abc123" />
 
 ---
 
@@ -856,9 +856,9 @@ Returns paginated list of comments.
 
 ### Create Tag
 
-<ApiEndpoint method="POST" path="/task/tags/create/2026-02-24" />
-
 Create a new tag for organizing tasks.
+
+<ApiEndpoint method="POST" path="/task/tags/create" />
 
 
 
@@ -892,7 +892,7 @@ Returns the created tag.
 
 #### Example
 
-<ApiExample method="POST" path="/task/tags/create/2026-02-24" body={{
+<ApiExample method="POST" path="/task/tags/create" body={{
   "name": "urgent",
   "color": "#ff0000"
 }} />
@@ -901,9 +901,9 @@ Returns the created tag.
 
 ### Get Tag
 
-<ApiEndpoint method="GET" path="/task/tags/get/2026-02-24/{tagId}" />
-
 Retrieve a specific tag by ID.
+
+<ApiEndpoint method="GET" path="/task/tags/get/{tagId}" />
 
 #### Parameters
 
@@ -929,15 +929,15 @@ Returns the tag object.
 
 #### Example
 
-<ApiExample method="GET" path="/task/tags/get/2026-02-24/tag_abc123" />
+<ApiExample method="GET" path="/task/tags/get/tag_abc123" />
 
 ---
 
 ### Update Tag
 
-<ApiEndpoint method="PATCH" path="/task/tags/update/2026-02-24/{tagId}" />
-
 Update a tag's name or color.
+
+<ApiEndpoint method="PATCH" path="/task/tags/update/{tagId}" />
 
 #### Parameters
 
@@ -982,7 +982,7 @@ Returns the updated tag.
 
 #### Example
 
-<ApiExample method="PATCH" path="/task/tags/update/2026-02-24/tag_abc123" body={{
+<ApiExample method="PATCH" path="/task/tags/update/tag_abc123" body={{
   "name": "critical",
   "color": "#cc0000"
 }} />
@@ -991,9 +991,9 @@ Returns the updated tag.
 
 ### Delete Tag
 
-<ApiEndpoint method="DELETE" path="/task/tags/delete/2026-02-24/{tagId}" />
-
 Delete a tag.
+
+<ApiEndpoint method="DELETE" path="/task/tags/delete/{tagId}" />
 
 #### Parameters
 
@@ -1019,15 +1019,15 @@ Empty response on success.
 
 #### Example
 
-<ApiExample method="DELETE" path="/task/tags/delete/2026-02-24/tag_abc123" />
+<ApiExample method="DELETE" path="/task/tags/delete/tag_abc123" />
 
 ---
 
 ### List Tags
 
-<ApiEndpoint method="GET" path="/task/tags/list/2026-02-24" />
-
 List all tags in the organization.
+
+<ApiEndpoint method="GET" path="/task/tags/list" />
 
 
 
@@ -1042,15 +1042,15 @@ Returns list of tags.
 
 #### Example
 
-<ApiExample method="GET" path="/task/tags/list/2026-02-24" />
+<ApiExample method="GET" path="/task/tags/list" />
 
 ---
 
 ### Add Tag to Task
 
-<ApiEndpoint method="POST" path="/task/tags/add/2026-02-24/{taskId}/{tagId}" />
-
 Associate a tag with a task.
+
+<ApiEndpoint method="POST" path="/task/tags/add/{taskId}/{tagId}" />
 
 #### Parameters
 
@@ -1083,15 +1083,15 @@ Returns confirmation of the association.
 
 #### Example
 
-<ApiExample method="POST" path="/task/tags/add/2026-02-24/tsk_abc123/tag_def456" />
+<ApiExample method="POST" path="/task/tags/add/tsk_abc123/tag_def456" />
 
 ---
 
 ### Remove Tag from Task
 
-<ApiEndpoint method="DELETE" path="/task/tags/remove/2026-02-24/{taskId}/{tagId}" />
-
 Remove a tag association from a task.
+
+<ApiEndpoint method="DELETE" path="/task/tags/remove/{taskId}/{tagId}" />
 
 #### Parameters
 
@@ -1124,15 +1124,15 @@ Empty response on success.
 
 #### Example
 
-<ApiExample method="DELETE" path="/task/tags/remove/2026-02-24/tsk_abc123/tag_def456" />
+<ApiExample method="DELETE" path="/task/tags/remove/tsk_abc123/tag_def456" />
 
 ---
 
 ### List Task Tags
 
-<ApiEndpoint method="GET" path="/task/tags/task/2026-02-24/{taskId}" />
-
 List all tags associated with a specific task.
+
+<ApiEndpoint method="GET" path="/task/tags/task/{taskId}" />
 
 #### Parameters
 
@@ -1158,7 +1158,7 @@ Returns list of tags for the task.
 
 #### Example
 
-<ApiExample method="GET" path="/task/tags/task/2026-02-24/tsk_abc123" />
+<ApiExample method="GET" path="/task/tags/task/tsk_abc123" />
 
 ---
 
@@ -1166,9 +1166,9 @@ Returns list of tags for the task.
 
 ### Request Upload URL
 
-<ApiEndpoint method="POST" path="/task/attachments/presign-upload/2026-02-24/{taskId}" />
-
 Request a presigned URL for uploading an attachment to a task.
+
+<ApiEndpoint method="POST" path="/task/attachments/presign-upload/{taskId}" />
 
 #### Parameters
 
@@ -1239,7 +1239,7 @@ Returns a presigned upload URL. Upload the file via PUT to the URL, then call co
 
 #### Example
 
-<ApiExample method="POST" path="/task/attachments/presign-upload/2026-02-24/tsk_abc123" body={{
+<ApiExample method="POST" path="/task/attachments/presign-upload/tsk_abc123" body={{
   "filename": "screenshot.png",
   "content_type": "image/png"
 }} />
@@ -1248,9 +1248,9 @@ Returns a presigned upload URL. Upload the file via PUT to the URL, then call co
 
 ### Confirm Upload
 
-<ApiEndpoint method="POST" path="/task/attachments/confirm/2026-02-24/{attachmentId}" />
-
 Confirm that a file was uploaded successfully to the presigned URL.
+
+<ApiEndpoint method="POST" path="/task/attachments/confirm/{attachmentId}" />
 
 #### Parameters
 
@@ -1276,15 +1276,15 @@ Confirms the file was uploaded successfully.
 
 #### Example
 
-<ApiExample method="POST" path="/task/attachments/confirm/2026-02-24/att_abc123" />
+<ApiExample method="POST" path="/task/attachments/confirm/att_abc123" />
 
 ---
 
 ### Request Download URL
 
-<ApiEndpoint method="POST" path="/task/attachments/presign-download/2026-02-24/{attachmentId}" />
-
 Request a presigned URL for downloading an attachment.
+
+<ApiEndpoint method="POST" path="/task/attachments/presign-download/{attachmentId}" />
 
 #### Parameters
 
@@ -1325,15 +1325,15 @@ Returns a presigned download URL.
 
 #### Example
 
-<ApiExample method="POST" path="/task/attachments/presign-download/2026-02-24/att_abc123" />
+<ApiExample method="POST" path="/task/attachments/presign-download/att_abc123" />
 
 ---
 
 ### List Attachments
 
-<ApiEndpoint method="GET" path="/task/attachments/list/2026-02-24/{taskId}" />
-
 List all attachments on a task.
+
+<ApiEndpoint method="GET" path="/task/attachments/list/{taskId}" />
 
 #### Parameters
 
@@ -1374,15 +1374,15 @@ Returns list of attachments.
 
 #### Example
 
-<ApiExample method="GET" path="/task/attachments/list/2026-02-24/tsk_abc123" />
+<ApiExample method="GET" path="/task/attachments/list/tsk_abc123" />
 
 ---
 
 ### Delete Attachment
 
-<ApiEndpoint method="DELETE" path="/task/attachments/delete/2026-02-24/{attachmentId}" />
-
 Delete an attachment.
+
+<ApiEndpoint method="DELETE" path="/task/attachments/delete/{attachmentId}" />
 
 #### Parameters
 
@@ -1408,7 +1408,7 @@ Empty response on success.
 
 #### Example
 
-<ApiExample method="DELETE" path="/task/attachments/delete/2026-02-24/att_abc123" />
+<ApiExample method="DELETE" path="/task/attachments/delete/att_abc123" />
 
 ---
 
@@ -1416,9 +1416,9 @@ Empty response on success.
 
 ### List Task Users
 
-<ApiEndpoint method="GET" path="/task/users/2026-02-24" />
-
 List all user entities available for task assignment.
+
+<ApiEndpoint method="GET" path="/task/users" />
 
 
 
@@ -1443,15 +1443,15 @@ Returns list of user entities.
 
 #### Example
 
-<ApiExample method="GET" path="/task/users/2026-02-24" />
+<ApiExample method="GET" path="/task/users" />
 
 ---
 
 ### Create User Entity
 
-<ApiEndpoint method="POST" path="/task/users/create/2026-02-24" />
-
 Create a new user entity for task assignment.
+
+<ApiEndpoint method="POST" path="/task/users/create" />
 
 
 
@@ -1485,7 +1485,7 @@ Returns the created user entity.
 
 #### Example
 
-<ApiExample method="POST" path="/task/users/create/2026-02-24" body={{
+<ApiExample method="POST" path="/task/users/create" body={{
   "name": "Alice",
   "type": "human"
 }} />
@@ -1494,9 +1494,9 @@ Returns the created user entity.
 
 ### Get User Entity
 
-<ApiEndpoint method="GET" path="/task/users/get/2026-02-24/{userId}" />
-
 Retrieve a specific user entity by ID.
+
+<ApiEndpoint method="GET" path="/task/users/get/{userId}" />
 
 #### Parameters
 
@@ -1522,15 +1522,15 @@ Returns the user entity object.
 
 #### Example
 
-<ApiExample method="GET" path="/task/users/get/2026-02-24/usr_abc123" />
+<ApiExample method="GET" path="/task/users/get/usr_abc123" />
 
 ---
 
 ### Delete User Entity
 
-<ApiEndpoint method="DELETE" path="/task/users/delete/2026-02-24/{userId}" />
-
 Delete a user entity.
+
+<ApiEndpoint method="DELETE" path="/task/users/delete/{userId}" />
 
 #### Parameters
 
@@ -1556,15 +1556,15 @@ Empty response on success.
 
 #### Example
 
-<ApiExample method="DELETE" path="/task/users/delete/2026-02-24/usr_abc123" />
+<ApiExample method="DELETE" path="/task/users/delete/usr_abc123" />
 
 ---
 
 ### List Task Projects
 
-<ApiEndpoint method="GET" path="/task/projects/2026-02-24" />
-
 List all project entities available for task organization.
+
+<ApiEndpoint method="GET" path="/task/projects" />
 
 
 
@@ -1589,15 +1589,15 @@ Returns list of project entities.
 
 #### Example
 
-<ApiExample method="GET" path="/task/projects/2026-02-24" />
+<ApiExample method="GET" path="/task/projects" />
 
 ---
 
 ### Create Project Entity
 
-<ApiEndpoint method="POST" path="/task/projects/create/2026-02-24" />
-
 Create a new project entity for task organization.
+
+<ApiEndpoint method="POST" path="/task/projects/create" />
 
 
 
@@ -1625,7 +1625,7 @@ Returns the created project entity.
 
 #### Example
 
-<ApiExample method="POST" path="/task/projects/create/2026-02-24" body={{
+<ApiExample method="POST" path="/task/projects/create" body={{
   "name": "Backend Rewrite"
 }} />
 
@@ -1633,9 +1633,9 @@ Returns the created project entity.
 
 ### Get Project Entity
 
-<ApiEndpoint method="GET" path="/task/projects/get/2026-02-24/{projectId}" />
-
 Retrieve a specific project entity by ID.
+
+<ApiEndpoint method="GET" path="/task/projects/get/{projectId}" />
 
 #### Parameters
 
@@ -1661,15 +1661,15 @@ Returns the project entity object.
 
 #### Example
 
-<ApiExample method="GET" path="/task/projects/get/2026-02-24/tprj_abc123" />
+<ApiExample method="GET" path="/task/projects/get/tprj_abc123" />
 
 ---
 
 ### Delete Project Entity
 
-<ApiEndpoint method="DELETE" path="/task/projects/delete/2026-02-24/{projectId}" />
-
 Delete a project entity.
+
+<ApiEndpoint method="DELETE" path="/task/projects/delete/{projectId}" />
 
 #### Parameters
 
@@ -1695,7 +1695,7 @@ Empty response on success.
 
 #### Example
 
-<ApiExample method="DELETE" path="/task/projects/delete/2026-02-24/tprj_abc123" />
+<ApiExample method="DELETE" path="/task/projects/delete/tprj_abc123" />
 
 ---
 
@@ -1703,9 +1703,9 @@ Empty response on success.
 
 ### Get Activity Timeline
 
-<ApiEndpoint method="GET" path="/task/activity/{date}" />
-
 Get daily activity counts grouped by status over a configurable time range.
+
+<ApiEndpoint method="GET" path="/task/activity/{date}" />
 
 #### Parameters
 

@@ -21,9 +21,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ## Upsert Vectors
 
-<ApiEndpoint method="PUT" path="/vector/{namespace}" />
-
 Create or update vectors in a namespace. Provide either `document` (auto-embeds) or pre-computed `embeddings` per item.
+
+<ApiEndpoint method="PUT" path="/vector/{namespace}" />
 
 ### Parameters
 
@@ -123,9 +123,9 @@ TTL behavior:
 
 ## Get Vector
 
-<ApiEndpoint method="GET" path="/vector/{namespace}/{key}" />
-
 Fetch a vector by namespace and key.
+
+<ApiEndpoint method="GET" path="/vector/{namespace}/{key}" />
 
 ### Parameters
 
@@ -209,9 +209,9 @@ JSON response with vector data, metadata, similarity, and expiration fields.
 
 ## Search Vectors
 
-<ApiEndpoint method="POST" path="/vector/search/{namespace}" />
-
 Run semantic similarity search in a namespace.
+
+<ApiEndpoint method="POST" path="/vector/search/{namespace}" />
 
 ### Parameters
 
@@ -313,9 +313,9 @@ JSON response containing matching vectors and similarity scores.
 
 ## Delete Vector
 
-<ApiEndpoint method="DELETE" path="/vector/{namespace}/{key}" />
-
 Delete a single vector by key.
+
+<ApiEndpoint method="DELETE" path="/vector/{namespace}/{key}" />
 
 ### Parameters
 
@@ -369,9 +369,9 @@ JSON response with deleted row count.
 
 ## Delete Multiple Vectors
 
-<ApiEndpoint method="DELETE" path="/vector/{namespace}" />
-
 Delete multiple vectors by key. If no body is provided, deletes the entire namespace.
+
+<ApiEndpoint method="DELETE" path="/vector/{namespace}" />
 
 ### Parameters
 
@@ -394,7 +394,7 @@ Optional JSON body specifying keys to delete.
     "name": "keys",
     "type": "string[]",
     "description": "Vector keys to delete",
-    "required": true
+    "required": false
   }
 ]} />
 
@@ -435,9 +435,9 @@ JSON response with number of deleted vectors.
 
 ## Get Namespace Stats
 
-<ApiEndpoint method="GET" path="/vector/stats/{namespace}" />
-
 Get aggregate stats for a namespace.
+
+<ApiEndpoint method="GET" path="/vector/stats/{namespace}" />
 
 ### Parameters
 
@@ -500,9 +500,9 @@ JSON object with namespace size and usage statistics.
 
 ## List All Namespace Stats
 
-<ApiEndpoint method="GET" path="/vector/stats" />
-
 List namespace stats with pagination, filtering, and sorting.
+
+<ApiEndpoint method="GET" path="/vector/stats" />
 
 ### Parameters
 
@@ -591,9 +591,9 @@ Paginated namespace stats response.
 
 ## List Namespaces
 
-<ApiEndpoint method="GET" path="/vector/namespaces" />
-
 List namespace names (up to 1000).
+
+<ApiEndpoint method="GET" path="/vector/namespaces" />
 
 
 

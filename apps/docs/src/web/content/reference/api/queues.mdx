@@ -23,9 +23,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ### Create Queue
 
-<ApiEndpoint method="POST" path="/queue/create" />
-
 Create a queue. If `name` is omitted, a name is auto-generated.
+
+<ApiEndpoint method="POST" path="/queue/create" />
 
 
 
@@ -86,9 +86,9 @@ Queue object including settings, stats, and timestamps.
 
 ### Get Queue
 
-<ApiEndpoint method="GET" path="/queue/get/{name}" />
-
 Get a queue by name.
+
+<ApiEndpoint method="GET" path="/queue/get/{name}" />
 
 #### Parameters
 
@@ -120,9 +120,9 @@ Queue object.
 
 ### List Queues
 
-<ApiEndpoint method="GET" path="/queue/list" />
-
 List queues with filtering and pagination.
+
+<ApiEndpoint method="GET" path="/queue/list" />
 
 #### Parameters
 
@@ -211,9 +211,9 @@ Response with queue array and optional total count.
 
 ### Update Queue
 
-<ApiEndpoint method="PATCH" path="/queue/update/{name}" />
-
 Partially update queue description/settings.
+
+<ApiEndpoint method="PATCH" path="/queue/update/{name}" />
 
 #### Parameters
 
@@ -269,9 +269,9 @@ Updated queue object.
 
 ### Delete Queue
 
-<ApiEndpoint method="DELETE" path="/queue/delete/{name}" />
-
 Delete a queue and associated resources.
+
+<ApiEndpoint method="DELETE" path="/queue/delete/{name}" />
 
 #### Parameters
 
@@ -303,9 +303,9 @@ Empty response on success.
 
 ### Pause Queue
 
-<ApiEndpoint method="POST" path="/queue/pause/{name}" />
-
 Pause queue processing.
+
+<ApiEndpoint method="POST" path="/queue/pause/{name}" />
 
 #### Parameters
 
@@ -341,9 +341,9 @@ Queue object with `paused_at` set.
 
 ### Resume Queue
 
-<ApiEndpoint method="POST" path="/queue/resume/{name}" />
-
 Resume queue processing.
+
+<ApiEndpoint method="POST" path="/queue/resume/{name}" />
 
 #### Parameters
 
@@ -381,9 +381,9 @@ Queue object with `paused_at` cleared.
 
 ### Publish Message
 
-<ApiEndpoint method="POST" path="/queue/messages/publish/{name}" />
-
 Publish a single message to a queue.
+
+<ApiEndpoint method="POST" path="/queue/messages/publish/{name}" />
 
 #### Parameters
 
@@ -467,9 +467,9 @@ Published message object.
 
 ### Batch Publish
 
-<ApiEndpoint method="POST" path="/queue/messages/batch/{name}" />
-
 Publish up to 1000 messages in one request.
+
+<ApiEndpoint method="POST" path="/queue/messages/batch/{name}" />
 
 #### Parameters
 
@@ -543,9 +543,9 @@ Batch publish response with created messages and optional failed indexes.
 
 ### Get Message
 
-<ApiEndpoint method="GET" path="/queue/messages/get/{name}/{messageId}" />
-
 Get a message by message ID (`msg_...`).
+
+<ApiEndpoint method="GET" path="/queue/messages/get/{name}/{messageId}" />
 
 #### Parameters
 
@@ -584,9 +584,9 @@ Message object.
 
 ### Get Message by Offset
 
-<ApiEndpoint method="GET" path="/queue/messages/offset/{name}/{offset}" />
-
 Get a message by numeric offset.
+
+<ApiEndpoint method="GET" path="/queue/messages/offset/{name}/{offset}" />
 
 #### Parameters
 
@@ -625,9 +625,9 @@ Message object.
 
 ### List Messages
 
-<ApiEndpoint method="GET" path="/queue/messages/list/{name}" />
-
 List messages with pagination and optional state filter.
+
+<ApiEndpoint method="GET" path="/queue/messages/list/{name}" />
 
 #### Parameters
 
@@ -696,9 +696,9 @@ Response with message list and optional total count.
 
 ### Delete Message
 
-<ApiEndpoint method="DELETE" path="/queue/messages/delete/{name}/{messageId}" />
-
 Delete a message by ID.
+
+<ApiEndpoint method="DELETE" path="/queue/messages/delete/{name}/{messageId}" />
 
 #### Parameters
 
@@ -737,9 +737,9 @@ Empty response on success.
 
 ### Replay Message
 
-<ApiEndpoint method="POST" path="/queue/messages/replay/{name}/{messageId}" />
-
 Replay a message back into the queue flow.
+
+<ApiEndpoint method="POST" path="/queue/messages/replay/{name}/{messageId}" />
 
 #### Parameters
 
@@ -778,9 +778,9 @@ Replayed message object.
 
 ### Consume Messages
 
-<ApiEndpoint method="GET" path="/queue/consume/{name}" />
-
 Log-style consumption starting from offset. Does not mark messages as processing.
+
+<ApiEndpoint method="GET" path="/queue/consume/{name}" />
 
 #### Parameters
 
@@ -836,9 +836,9 @@ Response containing consumed messages.
 
 ### Receive Message
 
-<ApiEndpoint method="GET" path="/queue/receive/{name}" />
-
 Atomically receive and lock the next pending message. Must ack/nack when done.
+
+<ApiEndpoint method="GET" path="/queue/receive/{name}" />
 
 #### Parameters
 
@@ -887,9 +887,9 @@ Response containing a message or `null` when none available.
 
 ### Acknowledge Message
 
-<ApiEndpoint method="POST" path="/queue/ack/{name}/{messageId}" />
-
 Mark message as successfully processed (completed).
+
+<ApiEndpoint method="POST" path="/queue/ack/{name}/{messageId}" />
 
 #### Parameters
 
@@ -928,9 +928,9 @@ Empty response on success.
 
 ### Negative Acknowledge
 
-<ApiEndpoint method="POST" path="/queue/nack/{name}/{messageId}" />
-
 Return message for retry. After max retries, moves to DLQ.
+
+<ApiEndpoint method="POST" path="/queue/nack/{name}/{messageId}" />
 
 #### Parameters
 
@@ -969,9 +969,9 @@ Empty response on success.
 
 ### Get Queue Head
 
-<ApiEndpoint method="GET" path="/queue/head/{name}" />
-
 Get offset of the oldest message.
+
+<ApiEndpoint method="GET" path="/queue/head/{name}" />
 
 #### Parameters
 
@@ -1013,9 +1013,9 @@ JSON object containing the head offset.
 
 ### Get Queue Tail
 
-<ApiEndpoint method="GET" path="/queue/tail/{name}" />
-
 Get offset of the newest message.
+
+<ApiEndpoint method="GET" path="/queue/tail/{name}" />
 
 #### Parameters
 
@@ -1059,9 +1059,9 @@ JSON object containing the tail offset.
 
 ### Create Destination
 
-<ApiEndpoint method="POST" path="/queue/destinations/create/{name}" />
-
 Create an HTTP destination for queue deliveries.
+
+<ApiEndpoint method="POST" path="/queue/destinations/create/{name}" />
 
 #### Parameters
 
@@ -1131,9 +1131,9 @@ Created destination object.
 
 ### List Destinations
 
-<ApiEndpoint method="GET" path="/queue/destinations/list/{name}" />
-
 List queue destinations.
+
+<ApiEndpoint method="GET" path="/queue/destinations/list/{name}" />
 
 #### Parameters
 
@@ -1175,9 +1175,9 @@ Response containing destination list.
 
 ### Update Destination
 
-<ApiEndpoint method="PATCH" path="/queue/destinations/update/{name}/{destinationId}" />
-
 Partially update destination fields.
+
+<ApiEndpoint method="PATCH" path="/queue/destinations/update/{name}/{destinationId}" />
 
 #### Parameters
 
@@ -1222,9 +1222,9 @@ Updated destination object.
 
 ### Delete Destination
 
-<ApiEndpoint method="DELETE" path="/queue/destinations/delete/{name}/{destinationId}" />
-
 Delete a queue destination.
+
+<ApiEndpoint method="DELETE" path="/queue/destinations/delete/{name}/{destinationId}" />
 
 #### Parameters
 
@@ -1263,9 +1263,9 @@ Empty response on success.
 
 ### List Delivery Logs
 
-<ApiEndpoint method="GET" path="/queue/destinations/deliveries/{name}/{destinationId}" />
-
 List destination delivery logs with optional status filter.
+
+<ApiEndpoint method="GET" path="/queue/destinations/deliveries/{name}/{destinationId}" />
 
 #### Parameters
 
@@ -1337,9 +1337,9 @@ Response containing delivery log entries.
 
 ### List DLQ Messages
 
-<ApiEndpoint method="GET" path="/queue/dlq/list/{name}" />
-
 List dead-letter queue messages.
+
+<ApiEndpoint method="GET" path="/queue/dlq/list/{name}" />
 
 #### Parameters
 
@@ -1401,9 +1401,9 @@ Response containing DLQ messages and optional total.
 
 ### Replay DLQ Message
 
-<ApiEndpoint method="POST" path="/queue/dlq/replay/{name}/{messageId}" />
-
 Replay a DLQ message back to the queue.
+
+<ApiEndpoint method="POST" path="/queue/dlq/replay/{name}/{messageId}" />
 
 #### Parameters
 
@@ -1442,9 +1442,9 @@ Replayed message object.
 
 ### Purge DLQ
 
-<ApiEndpoint method="DELETE" path="/queue/dlq/purge/{name}" />
-
 Delete all messages in the dead-letter queue.
+
+<ApiEndpoint method="DELETE" path="/queue/dlq/purge/{name}" />
 
 #### Parameters
 
@@ -1476,9 +1476,9 @@ Empty response on success.
 
 ### Delete DLQ Message
 
-<ApiEndpoint method="DELETE" path="/queue/dlq/delete/{name}/{messageId}" />
-
 Delete a specific message from the dead-letter queue.
+
+<ApiEndpoint method="DELETE" path="/queue/dlq/delete/{name}/{messageId}" />
 
 #### Parameters
 

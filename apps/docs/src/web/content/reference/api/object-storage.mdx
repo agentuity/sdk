@@ -21,9 +21,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ## List Objects
 
-<ApiEndpoint method="GET" path="/storage/objects/{bucket}" />
-
 List objects in a bucket with optional prefix and pagination.
+
+<ApiEndpoint method="GET" path="/storage/objects/{bucket}" />
 
 ### Parameters
 
@@ -135,9 +135,9 @@ Paginated object listing.
 
 ## Delete Objects
 
-<ApiEndpoint method="DELETE" path="/storage/objects/{bucket}" />
-
 Delete objects by key or by prefix. `key` and `prefix` are mutually exclusive query parameters.
+
+<ApiEndpoint method="DELETE" path="/storage/objects/{bucket}" />
 
 ### Parameters
 
@@ -192,9 +192,9 @@ JSON response with deleted object count.
 
 ## Generate Presigned URL
 
-<ApiEndpoint method="GET" path="/storage/presign/{bucket}" />
-
 Generate a time-limited URL for uploading or downloading an object.
+
+<ApiEndpoint method="GET" path="/storage/presign/{bucket}" />
 
 ### Parameters
 
@@ -254,9 +254,9 @@ JSON response containing presigned URL and expiry.
 
 ## Get Bucket Stats
 
-<ApiEndpoint method="GET" path="/storage/stats/{bucket}" />
-
 Get object count and total size for a bucket.
+
+<ApiEndpoint method="GET" path="/storage/stats/{bucket}" />
 
 ### Parameters
 
@@ -312,9 +312,9 @@ Bucket-level usage and activity statistics.
 
 ## Get Storage Analytics
 
-<ApiEndpoint method="GET" path="/storage/analytics" />
-
 Get aggregated analytics across buckets and daily snapshots.
+
+<ApiEndpoint method="GET" path="/storage/analytics" />
 
 ### Parameters
 
@@ -390,9 +390,9 @@ Analytics summary, per-bucket breakdown, and daily trend data.
 
 ## Get Bucket Config
 
-<ApiEndpoint method="GET" path="/bucket/config/{bucket}" />
-
 Retrieve effective configuration for a bucket.
+
+<ApiEndpoint method="GET" path="/bucket/config/{bucket}" />
 
 ### Parameters
 
@@ -468,9 +468,9 @@ Bucket configuration settings and location metadata.
 
 ## Update Bucket Config
 
-<ApiEndpoint method="PUT" path="/bucket/config/{bucket}" />
-
 Update bucket configuration fields. Omitted fields remain unchanged.
+
+<ApiEndpoint method="PUT" path="/bucket/config/{bucket}" />
 
 ### Parameters
 
@@ -593,9 +593,9 @@ Updated bucket configuration object.
 
 ## Delete Bucket Config
 
-<ApiEndpoint method="DELETE" path="/bucket/config/{bucket}" />
-
 Delete custom bucket config and reset to defaults.
+
+<ApiEndpoint method="DELETE" path="/bucket/config/{bucket}" />
 
 ### Parameters
 

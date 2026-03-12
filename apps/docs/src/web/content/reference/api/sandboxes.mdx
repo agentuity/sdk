@@ -23,9 +23,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ### Create Sandbox
 
-<ApiEndpoint method="POST" path="/sandbox" />
-
 Create a new sandbox execution environment.
+
+<ApiEndpoint method="POST" path="/sandbox" />
 
 #### Parameters
 
@@ -169,9 +169,9 @@ Returns the sandbox ID, status, and optional stream URLs for stdout/stderr.
 
 ### List Sandboxes
 
-<ApiEndpoint method="GET" path="/sandbox" />
-
 List sandboxes with optional filtering and pagination.
+
+<ApiEndpoint method="GET" path="/sandbox" />
 
 #### Parameters
 
@@ -287,9 +287,9 @@ Returns paginated list of sandboxes.
 
 ### Get Sandbox
 
-<ApiEndpoint method="GET" path="/sandbox/{sandboxId}" />
-
 Retrieve a specific sandbox by ID.
+
+<ApiEndpoint method="GET" path="/sandbox/{sandboxId}" />
 
 #### Parameters
 
@@ -335,9 +335,9 @@ Returns full sandbox details including resources, runtime, network, timeout, and
 
 ### Destroy Sandbox
 
-<ApiEndpoint method="DELETE" path="/sandbox/{sandboxId}" />
-
 Destroy a sandbox and release all resources.
+
+<ApiEndpoint method="DELETE" path="/sandbox/{sandboxId}" />
 
 #### Parameters
 
@@ -376,9 +376,9 @@ Destroys the sandbox and releases all resources.
 
 ### Get Sandbox Status
 
-<ApiEndpoint method="GET" path="/sandbox/status/{sandboxId}" />
-
 Lightweight status check backed by Redis (~1ms). Optimized for polling.
+
+<ApiEndpoint method="GET" path="/sandbox/status/{sandboxId}" />
 
 #### Parameters
 
@@ -437,9 +437,9 @@ Returns the sandbox status.
 
 ### Pause Sandbox
 
-<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/pause" />
-
 Pause a running sandbox and create a checkpoint.
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/pause" />
 
 #### Parameters
 
@@ -478,9 +478,9 @@ Pauses the sandbox and creates a checkpoint.
 
 ### Resume Sandbox
 
-<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/resume" />
-
 Resume a paused sandbox from its checkpoint.
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/resume" />
 
 #### Parameters
 
@@ -519,9 +519,9 @@ Resumes a paused sandbox from its checkpoint.
 
 ### Update Environment
 
-<ApiEndpoint method="PATCH" path="/sandbox/env/{sandboxId}" />
-
 Update environment variables for a sandbox. Set a value to null to delete a variable.
+
+<ApiEndpoint method="PATCH" path="/sandbox/env/{sandboxId}" />
 
 #### Parameters
 
@@ -590,9 +590,9 @@ Returns the current environment after update.
 
 ### Execute Command
 
-<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/execute" />
-
 Execute a command in a sandbox.
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/execute" />
 
 #### Parameters
 
@@ -704,9 +704,9 @@ Returns execution ID and stream URLs. Returns 409 if sandbox is busy.
 
 ### Get Execution
 
-<ApiEndpoint method="GET" path="/sandbox/execution/{executionId}" />
-
 Retrieve execution details. Use the `wait` parameter for long-polling.
+
+<ApiEndpoint method="GET" path="/sandbox/execution/{executionId}" />
 
 #### Parameters
 
@@ -752,9 +752,9 @@ Returns execution details. Use the `wait` parameter for long-polling.
 
 ### List Executions
 
-<ApiEndpoint method="GET" path="/sandbox/sandboxes/{sandboxId}/executions" />
-
 List executions for a specific sandbox.
+
+<ApiEndpoint method="GET" path="/sandbox/sandboxes/{sandboxId}/executions" />
 
 #### Parameters
 
@@ -802,9 +802,9 @@ Returns list of executions for the sandbox.
 
 ### Write Files
 
-<ApiEndpoint method="POST" path="/fs/{sandboxId}" />
-
 Write one or more files to the sandbox filesystem.
+
+<ApiEndpoint method="POST" path="/fs/{sandboxId}" />
 
 #### Parameters
 
@@ -873,9 +873,9 @@ Returns the number of files written.
 
 ### Read File
 
-<ApiEndpoint method="GET" path="/fs/{sandboxId}" />
-
 Read a file from the sandbox filesystem.
+
+<ApiEndpoint method="GET" path="/fs/{sandboxId}" />
 
 #### Parameters
 
@@ -915,15 +915,15 @@ Returns the raw file contents as a stream.
 
 #### Example
 
-<ApiExample method="GET" path="/fs/sbx_abc123" />
+<ApiExample method="GET" path="/fs/sbx_abc123?path=/home/user/file.txt" />
 
 ---
 
 ### Create Directory
 
-<ApiEndpoint method="POST" path="/fs/mkdir/{sandboxId}" />
-
 Create a directory in the sandbox filesystem.
+
+<ApiEndpoint method="POST" path="/fs/mkdir/{sandboxId}" />
 
 #### Parameters
 
@@ -984,9 +984,9 @@ Directory created successfully.
 
 ### Remove Directory
 
-<ApiEndpoint method="POST" path="/fs/rmdir/{sandboxId}" />
-
 Remove a directory from the sandbox filesystem.
+
+<ApiEndpoint method="POST" path="/fs/rmdir/{sandboxId}" />
 
 #### Parameters
 
@@ -1047,9 +1047,9 @@ Directory removed successfully.
 
 ### Remove File
 
-<ApiEndpoint method="POST" path="/fs/rm/{sandboxId}" />
-
 Remove a file from the sandbox filesystem.
+
+<ApiEndpoint method="POST" path="/fs/rm/{sandboxId}" />
 
 #### Parameters
 
@@ -1103,9 +1103,9 @@ File removed successfully.
 
 ### List Files
 
-<ApiEndpoint method="GET" path="/fs/list/{sandboxId}" />
-
 List files in a sandbox directory.
+
+<ApiEndpoint method="GET" path="/fs/list/{sandboxId}" />
 
 #### Parameters
 
@@ -1161,9 +1161,9 @@ Returns list of files in the directory.
 
 ### Download Archive
 
-<ApiEndpoint method="GET" path="/fs/download/{sandboxId}" />
-
 Download a compressed archive of the sandbox filesystem.
+
+<ApiEndpoint method="GET" path="/fs/download/{sandboxId}" />
 
 #### Parameters
 
@@ -1216,9 +1216,9 @@ Returns a streaming archive of the sandbox filesystem.
 
 ### Upload Archive
 
-<ApiEndpoint method="POST" path="/fs/upload/{sandboxId}" />
-
 Upload and extract a compressed archive to the sandbox. Send raw binary with Content-Type: application/octet-stream.
+
+<ApiEndpoint method="POST" path="/fs/upload/{sandboxId}" />
 
 #### Parameters
 
@@ -1265,7 +1265,7 @@ Uploads and extracts a compressed archive to the sandbox. Send raw binary with C
 
 #### Example
 
-<ApiExample method="POST" path="/fs/upload/sbx_abc123" />
+<ApiExample method="POST" path="/fs/upload/sbx_abc123" body="<binary archive data>" headers={{"Content-Type":"application/octet-stream"}} />
 
 ---
 
@@ -1273,9 +1273,9 @@ Uploads and extracts a compressed archive to the sandbox. Send raw binary with C
 
 ### Create Snapshot
 
-<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/snapshot" />
-
 Create a snapshot of the sandbox filesystem.
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/snapshot" />
 
 #### Parameters
 
@@ -1348,9 +1348,9 @@ Returns the created snapshot.
 
 ### Get Snapshot
 
-<ApiEndpoint method="GET" path="/sandbox/snapshots/{snapshotId}" />
-
 Retrieve a specific snapshot by ID.
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots/{snapshotId}" />
 
 #### Parameters
 
@@ -1389,9 +1389,9 @@ Returns the snapshot object.
 
 ### List Snapshots
 
-<ApiEndpoint method="GET" path="/sandbox/snapshots" />
-
 List snapshots with optional filtering and pagination.
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots" />
 
 #### Parameters
 
@@ -1472,9 +1472,9 @@ Returns paginated list of snapshots.
 
 ### Delete Snapshot
 
-<ApiEndpoint method="DELETE" path="/sandbox/snapshots/{snapshotId}" />
-
 Delete a snapshot.
+
+<ApiEndpoint method="DELETE" path="/sandbox/snapshots/{snapshotId}" />
 
 #### Parameters
 
@@ -1513,9 +1513,9 @@ Empty response on success.
 
 ### Update Snapshot Tag
 
-<ApiEndpoint method="PATCH" path="/sandbox/snapshots/{snapshotId}" />
-
 Update the tag on a snapshot.
+
+<ApiEndpoint method="PATCH" path="/sandbox/snapshots/{snapshotId}" />
 
 #### Parameters
 
@@ -1569,9 +1569,9 @@ Returns the updated snapshot.
 
 ### Get Snapshot Lineage
 
-<ApiEndpoint method="GET" path="/sandbox/snapshots/lineage" />
-
 Get the ordered ancestry chain from a specified snapshot to root.
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots/lineage" />
 
 #### Parameters
 
@@ -1630,9 +1630,9 @@ Returns ordered ancestry chain from specified snapshot to root.
 
 ### Get Public Snapshot
 
-<ApiEndpoint method="GET" path="/sandbox/snapshots/public/{snapshotRef}" />
-
 Retrieve a public snapshot by ID, full name (@slug/name:tag), or name:tag. No authentication required.
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots/public/{snapshotRef}" />
 
 #### Parameters
 
@@ -1663,9 +1663,9 @@ Returns public snapshot details. No authentication required.
 
 ### List Public Snapshots
 
-<ApiEndpoint method="GET" path="/sandbox/snapshots/public" />
-
 List publicly available snapshots.
+
+<ApiEndpoint method="GET" path="/sandbox/snapshots/public" />
 
 #### Parameters
 
@@ -1717,9 +1717,9 @@ Returns paginated list of public snapshots.
 
 ### Initialize Snapshot Build
 
-<ApiEndpoint method="POST" path="/sandbox/snapshots/build" />
-
 Initialize a snapshot build. Returns a presigned upload URL for the snapshot archive.
+
+<ApiEndpoint method="POST" path="/sandbox/snapshots/build" />
 
 #### Parameters
 
@@ -1834,9 +1834,9 @@ Returns snapshot ID and presigned upload URL. If unchanged is true, content matc
 
 ### Finalize Snapshot Build
 
-<ApiEndpoint method="POST" path="/sandbox/snapshots/{snapshotId}/finalize" />
-
 Finalize a snapshot build after uploading the archive.
+
+<ApiEndpoint method="POST" path="/sandbox/snapshots/{snapshotId}/finalize" />
 
 #### Parameters
 
@@ -1933,9 +1933,9 @@ Returns the finalized snapshot.
 
 ### Upload Public Snapshot
 
-<ApiEndpoint method="PUT" path="/sandbox/snapshots/{snapshotId}/upload" />
-
 Upload a gzip archive for public snapshots. Content-Type must be application/gzip. Includes virus scanning.
+
+<ApiEndpoint method="PUT" path="/sandbox/snapshots/{snapshotId}/upload" />
 
 #### Parameters
 
@@ -1968,7 +1968,7 @@ Uploads a gzip archive for public snapshots. Content-Type must be application/gz
 
 #### Example
 
-<ApiExample method="PUT" path="/sandbox/snapshots/snp_abc123/upload" />
+<ApiExample method="PUT" path="/sandbox/snapshots/snp_abc123/upload" body="<binary gzip data>" headers={{"Content-Type":"application/gzip"}} />
 
 ---
 
@@ -1976,9 +1976,9 @@ Uploads a gzip archive for public snapshots. Content-Type must be application/gz
 
 ### Create Checkpoint
 
-<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/checkpoint" />
-
 Create a named checkpoint of the sandbox filesystem.
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/checkpoint" />
 
 #### Parameters
 
@@ -2057,9 +2057,9 @@ Returns the created checkpoint.
 
 ### List Checkpoints
 
-<ApiEndpoint method="GET" path="/sandbox/checkpoints/{sandboxId}" />
-
 List checkpoints for a specific sandbox.
+
+<ApiEndpoint method="GET" path="/sandbox/checkpoints/{sandboxId}" />
 
 #### Parameters
 
@@ -2098,9 +2098,9 @@ Returns list of checkpoints for the sandbox.
 
 ### Restore Checkpoint
 
-<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/checkpoint/{checkpointId}/restore" />
-
 Restore the sandbox filesystem to a checkpoint state.
+
+<ApiEndpoint method="POST" path="/sandbox/{sandboxId}/checkpoint/{checkpointId}/restore" />
 
 #### Parameters
 
@@ -2146,9 +2146,9 @@ Restores the sandbox filesystem to the checkpoint state.
 
 ### Delete Checkpoint
 
-<ApiEndpoint method="DELETE" path="/sandbox/{sandboxId}/checkpoint/{checkpointId}" />
-
 Delete a checkpoint.
+
+<ApiEndpoint method="DELETE" path="/sandbox/{sandboxId}/checkpoint/{checkpointId}" />
 
 #### Parameters
 
@@ -2196,9 +2196,9 @@ Empty response on success.
 
 ### List Runtimes
 
-<ApiEndpoint method="GET" path="/sandbox/runtimes" />
-
 List available sandbox runtimes with their requirements.
+
+<ApiEndpoint method="GET" path="/sandbox/runtimes" />
 
 #### Parameters
 
@@ -2274,9 +2274,9 @@ Returns available sandbox runtimes with their requirements.
 
 ### List Sandboxes (Cross-Org)
 
-<ApiEndpoint method="GET" path="/cli/sandbox" />
-
 List sandboxes across all organizations the user belongs to.
+
+<ApiEndpoint method="GET" path="/cli/sandbox" />
 
 #### Parameters
 
@@ -2363,9 +2363,9 @@ Lists sandboxes across all organizations the user belongs to.
 
 ### Resolve Sandbox
 
-<ApiEndpoint method="GET" path="/cli/sandbox/{sandboxId}" />
-
 Resolve a sandbox ID to its org, region, and project. Used for cross-org sandbox lookup.
+
+<ApiEndpoint method="GET" path="/cli/sandbox/{sandboxId}" />
 
 #### Parameters
 

@@ -23,9 +23,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ### Create Project
 
-<ApiEndpoint method="POST" path="/cli/project" />
-
 Create a new project within an organization.
+
+<ApiEndpoint method="POST" path="/cli/project" />
 
 
 
@@ -108,9 +108,9 @@ Returns the created project ID and SDK key.
 
 ### List Projects
 
-<ApiEndpoint method="GET" path="/cli/project" />
-
 List all projects accessible to the authenticated user.
+
+<ApiEndpoint method="GET" path="/cli/project" />
 
 #### Parameters
 
@@ -148,9 +148,9 @@ Returns a list of projects.
 
 ### Get Project
 
-<ApiEndpoint method="GET" path="/cli/project/{id}" />
+Retrieve a specific project by ID. The `mask` and `includeProjectKeys` query parameters both default to `true` when omitted.
 
-Retrieve a specific project by ID.
+<ApiEndpoint method="GET" path="/cli/project/{id}" />
 
 #### Parameters
 
@@ -196,9 +196,9 @@ Returns the project details.
 
 ### Delete Projects
 
-<ApiEndpoint method="DELETE" path="/cli/project" />
-
 Delete one or more projects by ID.
+
+<ApiEndpoint method="DELETE" path="/cli/project" />
 
 
 
@@ -236,9 +236,9 @@ Returns array of deleted project IDs.
 
 ### Check Project Exists
 
-<ApiEndpoint method="GET" path="/cli/project/exists/{name}" />
-
 Check if a project with the given name already exists.
+
+<ApiEndpoint method="GET" path="/cli/project/exists/{name}" />
 
 #### Parameters
 
@@ -277,9 +277,9 @@ Returns true (HTTP 409) if exists, false (HTTP 422) if not.
 
 ### Update Project Region
 
-<ApiEndpoint method="PATCH" path="/cli/project/{id}" />
-
 Update the cloud region for a project.
+
+<ApiEndpoint method="PATCH" path="/cli/project/{id}" />
 
 #### Parameters
 
@@ -328,9 +328,9 @@ Returns the updated project.
 
 ### Update Env Variables
 
-<ApiEndpoint method="PUT" path="/cli/project/{id}/env" />
-
 Update environment variables and secrets for a project.
+
+<ApiEndpoint method="PUT" path="/cli/project/{id}/env" />
 
 #### Parameters
 
@@ -388,9 +388,9 @@ Returns the updated environment variables.
 
 ### Delete Env Variables
 
-<ApiEndpoint method="DELETE" path="/cli/project/{id}/env" />
-
 Delete specific environment variables and secrets from a project.
+
+<ApiEndpoint method="DELETE" path="/cli/project/{id}/env" />
 
 #### Parameters
 
@@ -450,9 +450,9 @@ Empty response on success.
 
 ### List Agents
 
-<ApiEndpoint method="GET" path="/cli/agent/{projectId}" />
-
 List agents for a project.
+
+<ApiEndpoint method="GET" path="/cli/agent/{projectId}" />
 
 #### Parameters
 
@@ -553,9 +553,9 @@ Returns a list of agents for the project.
 
 ### Get Agent by Identifier
 
-<ApiEndpoint method="GET" path="/cli/agent/{projectId}?identifier={agentId}" />
-
 Retrieve a specific agent by its identifier.
+
+<ApiEndpoint method="GET" path="/cli/agent/{projectId}?identifier={identifier}" />
 
 #### Parameters
 
@@ -596,9 +596,9 @@ Returns the agent matching the identifier.
 
 ### List Deployments
 
-<ApiEndpoint method="GET" path="/cli/project/{projectId}/deployments" />
-
 List deployments for a project.
+
+<ApiEndpoint method="GET" path="/cli/project/{projectId}/deployments" />
 
 #### Parameters
 
@@ -644,9 +644,9 @@ Returns a list of deployments for the project.
 
 ### Get Deployment
 
-<ApiEndpoint method="GET" path="/cli/project/{projectId}/deployments/{deploymentId}" />
-
 Retrieve a specific deployment by ID.
+
+<ApiEndpoint method="GET" path="/cli/project/{projectId}/deployments/{deploymentId}" />
 
 #### Parameters
 
@@ -685,9 +685,9 @@ Returns the deployment details.
 
 ### Delete Deployment
 
-<ApiEndpoint method="DELETE" path="/cli/project/{projectId}/deployments/{deploymentId}" />
-
 Delete a specific deployment.
+
+<ApiEndpoint method="DELETE" path="/cli/project/{projectId}/deployments/{deploymentId}" />
 
 #### Parameters
 
@@ -726,9 +726,9 @@ Returns confirmation of deletion.
 
 ### Rollback Deployment
 
-<ApiEndpoint method="POST" path="/cli/project/{projectId}/deployments/{deploymentId}/rollback" />
-
 Rollback to a specific deployment version.
+
+<ApiEndpoint method="POST" path="/cli/project/{projectId}/deployments/{deploymentId}/rollback" />
 
 #### Parameters
 
@@ -767,9 +767,9 @@ Rolls back to the specified deployment version.
 
 ### Undeploy Project
 
-<ApiEndpoint method="POST" path="/cli/project/{projectId}/deployments/undeploy" />
-
 Undeploy all active deployments for a project.
+
+<ApiEndpoint method="POST" path="/cli/project/{projectId}/deployments/undeploy" />
 
 #### Parameters
 
@@ -801,9 +801,9 @@ Returns confirmation of undeployment.
 
 ### Get Deployment Logs
 
-<ApiEndpoint method="GET" path="/cli/project/{projectId}/deployments/{deploymentId}/logs" />
-
 Retrieve logs for a specific deployment.
+
+<ApiEndpoint method="GET" path="/cli/project/{projectId}/deployments/{deploymentId}/logs" />
 
 #### Parameters
 
@@ -849,9 +849,9 @@ Returns deployment log entries.
 
 ### Get Deployment Info
 
-<ApiEndpoint method="GET" path="/cli/deployment/{deploymentId}" />
-
 Lightweight deployment lookup — returns ID, project, org, region, state, and active status.
+
+<ApiEndpoint method="GET" path="/cli/deployment/{deploymentId}" />
 
 #### Parameters
 
@@ -885,9 +885,9 @@ Lightweight deployment lookup — returns ID, project, org, region, state, and a
 
 ### Start Deployment
 
-<ApiEndpoint method="POST" path="/cli/deploy/2/start/{projectId}" />
-
 Start a new deployment for a project.
+
+<ApiEndpoint method="POST" path="/cli/deploy/2/start/{projectId}" />
 
 #### Parameters
 
@@ -980,9 +980,9 @@ Returns deployment details and upload information.
 
 ### Upload Build Metadata
 
-<ApiEndpoint method="PUT" path="/cli/deploy/2/start/{deploymentId}" />
-
 Upload build metadata for a deployment in progress.
+
+<ApiEndpoint method="PUT" path="/cli/deploy/2/start/{deploymentId}" />
 
 #### Parameters
 
@@ -1014,9 +1014,9 @@ Returns pre-signed upload URLs for the deployment archive and assets.
 
 ### Complete Deployment
 
-<ApiEndpoint method="POST" path="/cli/deploy/2/complete/{deploymentId}" />
-
 Signal that a deployment upload is complete and ready for activation.
+
+<ApiEndpoint method="POST" path="/cli/deploy/2/complete/{deploymentId}" />
 
 #### Parameters
 
@@ -1063,9 +1063,9 @@ Returns warmup stream and public URL information.
 
 ### Get Deploy Status
 
-<ApiEndpoint method="GET" path="/cli/deploy/2/status/{deploymentId}" />
-
 Check the current status of a deployment.
+
+<ApiEndpoint method="GET" path="/cli/deploy/2/status/{deploymentId}" />
 
 #### Parameters
 
@@ -1107,9 +1107,9 @@ Returns the current deployment state.
 
 ### Report Deploy Failure
 
-<ApiEndpoint method="POST" path="/cli/deploy/2/fail/{deploymentId}" />
-
 Report a deployment failure with error details.
+
+<ApiEndpoint method="POST" path="/cli/deploy/2/fail/{deploymentId}" />
 
 #### Parameters
 
@@ -1164,9 +1164,9 @@ Returns confirmation of failure report.
 
 ### Get Hostname
 
-<ApiEndpoint method="GET" path="/cli/project/{id}/hostname" />
-
 Get the vanity hostname for a project.
+
+<ApiEndpoint method="GET" path="/cli/project/{id}/hostname" />
 
 #### Parameters
 
@@ -1213,9 +1213,9 @@ Returns the vanity hostname and URL.
 
 ### Set Hostname
 
-<ApiEndpoint method="PUT" path="/cli/project/{id}/hostname" />
-
 Set a vanity hostname for a project.
+
+<ApiEndpoint method="PUT" path="/cli/project/{id}/hostname" />
 
 #### Parameters
 
@@ -1279,9 +1279,9 @@ Returns the configured hostname and URL.
 
 ### Check for Malware
 
-<ApiEndpoint method="POST" path="/security/{deploymentId}/malware-check" />
-
 Scan deployment dependencies for known malware.
+
+<ApiEndpoint method="POST" path="/security/{deploymentId}/malware-check" />
 
 #### Parameters
 

@@ -21,9 +21,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ## Create Stream
 
-<ApiEndpoint method="POST" path="/stream" host="pulse" />
-
 Create a new stream and receive its stream ID.
+
+<ApiEndpoint method="POST" path="/stream" host="pulse" />
 
 
 
@@ -101,9 +101,9 @@ TTL behavior:
 
 ## Get Stream Info
 
-<ApiEndpoint method="POST" path="/stream/{id}/info" host="pulse" />
-
 Get stream metadata, size, public URL, and expiration info.
+
+<ApiEndpoint method="POST" path="/stream/{id}/info" host="pulse" />
 
 ### Parameters
 
@@ -174,9 +174,9 @@ JSON object with stream details.
 
 ## Download Stream
 
-<ApiEndpoint method="GET" path="/stream/{id}" host="pulse" />
-
 Download the finalized stream contents as raw binary data.
+
+<ApiEndpoint method="GET" path="/stream/{id}" host="pulse" />
 
 ### Parameters
 
@@ -208,9 +208,9 @@ Raw binary stream data with original content type.
 
 ## List Streams
 
-<ApiEndpoint method="POST" path="/stream/list" host="pulse" />
-
 List streams with filtering, pagination, and sorting.
+
+<ApiEndpoint method="POST" path="/stream/list" host="pulse" />
 
 
 
@@ -327,9 +327,9 @@ JSON response with stream list and total count.
 
 ## Delete Stream
 
-<ApiEndpoint method="DELETE" path="/stream/{id}" host="pulse" />
-
 Delete a stream by ID.
+
+<ApiEndpoint method="DELETE" path="/stream/{id}" host="pulse" />
 
 ### Parameters
 
@@ -361,9 +361,9 @@ Empty response on success.
 
 ## Append Data
 
-<ApiEndpoint method="POST" path="/stream/{id}/append" host="pulse" />
-
 Append a binary chunk (up to 5MB) to an open stream.
+
+<ApiEndpoint method="POST" path="/stream/{id}/append" host="pulse" />
 
 ### Parameters
 
@@ -399,9 +399,9 @@ Empty response on success.
 
 ## Complete Stream
 
-<ApiEndpoint method="POST" path="/stream/{id}/complete" host="pulse" />
-
 Finalize stream writing and make it available for reading.
+
+<ApiEndpoint method="POST" path="/stream/{id}/complete" host="pulse" />
 
 ### Parameters
 

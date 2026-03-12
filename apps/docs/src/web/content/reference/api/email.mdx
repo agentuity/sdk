@@ -23,9 +23,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ### Create Address
 
-<ApiEndpoint method="POST" path="/email/addresses" />
-
 Create a managed address at the `@agentuity.email` domain.
+
+<ApiEndpoint method="POST" path="/email/addresses" />
 
 
 
@@ -61,9 +61,9 @@ Created `EmailAddress` object.
 
 ### List Addresses
 
-<ApiEndpoint method="GET" path="/email/addresses" />
-
 List managed email addresses.
+
+<ApiEndpoint method="GET" path="/email/addresses" />
 
 
 
@@ -84,9 +84,9 @@ Array of `EmailAddress` objects.
 
 ### Get Address
 
-<ApiEndpoint method="GET" path="/email/addresses/{id}" />
-
 Get a managed address by ID (`eaddr_...`).
+
+<ApiEndpoint method="GET" path="/email/addresses/{id}" />
 
 #### Parameters
 
@@ -118,9 +118,9 @@ Get a managed address by ID (`eaddr_...`).
 
 ### Get Connection Config
 
-<ApiEndpoint method="GET" path="/email/addresses/{id}/connection" />
-
 Get IMAP/POP3 connection settings and credentials for an address.
+
+<ApiEndpoint method="GET" path="/email/addresses/{id}/connection" />
 
 #### Parameters
 
@@ -172,9 +172,9 @@ Connection configuration including IMAP and POP3 details.
 
 ### Delete Address
 
-<ApiEndpoint method="DELETE" path="/email/addresses/{id}" />
-
 Delete a managed email address.
+
+<ApiEndpoint method="DELETE" path="/email/addresses/{id}" />
 
 #### Parameters
 
@@ -207,9 +207,9 @@ Empty response on success.
 
 ### Create Destination
 
-<ApiEndpoint method="POST" path="/email/addresses/{addressId}/destinations" />
-
 Create an inbound webhook destination for an address.
+
+<ApiEndpoint method="POST" path="/email/addresses/{addressId}/destinations" />
 
 #### Parameters
 
@@ -265,9 +265,9 @@ Created `EmailDestination` object.
 
 ### List Destinations
 
-<ApiEndpoint method="GET" path="/email/addresses/{addressId}/destinations" />
-
 List inbound destinations for an address.
+
+<ApiEndpoint method="GET" path="/email/addresses/{addressId}/destinations" />
 
 #### Parameters
 
@@ -298,9 +298,9 @@ Array of `EmailDestination` objects.
 
 ### Delete Destination
 
-<ApiEndpoint method="DELETE" path="/email/addresses/{addressId}/destinations/{destinationId}" />
-
 Delete an inbound destination.
+
+<ApiEndpoint method="DELETE" path="/email/addresses/{addressId}/destinations/{destinationId}" />
 
 #### Parameters
 
@@ -340,9 +340,9 @@ Empty response on success.
 
 ### Send Email
 
-<ApiEndpoint method="POST" path="/email/outbound/send" />
-
 Send an email from an owned address. Delivery is asynchronous and total payload (including attachments) is capped at 25MB.
+
+<ApiEndpoint method="POST" path="/email/outbound/send" />
 
 
 
@@ -421,9 +421,9 @@ Created `EmailOutbound` object with initial `pending` status.
 
 ### List Inbound
 
-<ApiEndpoint method="GET" path="/email/inbound" />
-
 List inbound emails, optionally filtered by address.
+
+<ApiEndpoint method="GET" path="/email/inbound" />
 
 #### Parameters
 
@@ -454,9 +454,9 @@ Array of `EmailInbound` objects.
 
 ### Get Inbound
 
-<ApiEndpoint method="GET" path="/email/inbound/{id}" />
-
 Get a specific inbound email by ID (`einb_...`).
+
+<ApiEndpoint method="GET" path="/email/inbound/{id}" />
 
 #### Parameters
 
@@ -488,9 +488,9 @@ Get a specific inbound email by ID (`einb_...`).
 
 ### Delete Inbound
 
-<ApiEndpoint method="DELETE" path="/email/inbound/{id}" />
-
 Delete an inbound email record.
+
+<ApiEndpoint method="DELETE" path="/email/inbound/{id}" />
 
 #### Parameters
 
@@ -523,9 +523,9 @@ Empty response on success.
 
 ### List Outbound
 
-<ApiEndpoint method="GET" path="/email/outbound" />
-
 List outbound emails, optionally filtered by address.
+
+<ApiEndpoint method="GET" path="/email/outbound" />
 
 #### Parameters
 
@@ -556,9 +556,9 @@ Array of `EmailOutbound` objects.
 
 ### Get Outbound
 
-<ApiEndpoint method="GET" path="/email/outbound/{id}" />
-
 Get an outbound email by ID (`eout_...`).
+
+<ApiEndpoint method="GET" path="/email/outbound/{id}" />
 
 #### Parameters
 
@@ -590,9 +590,9 @@ Get an outbound email by ID (`eout_...`).
 
 ### Delete Outbound
 
-<ApiEndpoint method="DELETE" path="/email/outbound/{id}" />
-
 Delete an outbound email record.
+
+<ApiEndpoint method="DELETE" path="/email/outbound/{id}" />
 
 #### Parameters
 
@@ -625,9 +625,9 @@ Empty response on success.
 
 ### Get Activity
 
-<ApiEndpoint method="GET" path="/email/activity/{date}" />
-
 Get daily inbound/outbound activity over a date window.
+
+<ApiEndpoint method="GET" path="/email/activity/{date}" />
 
 #### Parameters
 

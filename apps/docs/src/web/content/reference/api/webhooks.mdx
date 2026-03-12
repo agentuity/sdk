@@ -23,9 +23,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ### Create Webhook
 
-<ApiEndpoint method="POST" path="/webhook/create" />
-
 Create a new webhook endpoint.
+
+<ApiEndpoint method="POST" path="/webhook/create" />
 
 
 
@@ -112,9 +112,9 @@ Returns the created webhook. The ingest URL is only returned at creation.
 
 ### Get Webhook
 
-<ApiEndpoint method="GET" path="/webhook/get/{webhookId}" />
-
 Get a specific webhook by ID.
+
+<ApiEndpoint method="GET" path="/webhook/get/{webhookId}" />
 
 #### Parameters
 
@@ -146,9 +146,9 @@ Returns the webhook object.
 
 ### List Webhooks
 
-<ApiEndpoint method="GET" path="/webhook/list" />
-
 List all webhooks with optional pagination.
+
+<ApiEndpoint method="GET" path="/webhook/list" />
 
 #### Parameters
 
@@ -186,9 +186,9 @@ Returns paginated list of webhooks.
 
 ### Update Webhook
 
-<ApiEndpoint method="PUT" path="/webhook/update/{webhookId}" />
-
 Update a webhook's name or description.
+
+<ApiEndpoint method="PUT" path="/webhook/update/{webhookId}" />
 
 #### Parameters
 
@@ -241,9 +241,9 @@ Returns the updated webhook.
 
 ### Delete Webhook
 
-<ApiEndpoint method="DELETE" path="/webhook/delete/{webhookId}" />
-
 Delete a webhook and all associated destinations, receipts, and deliveries.
+
+<ApiEndpoint method="DELETE" path="/webhook/delete/{webhookId}" />
 
 #### Parameters
 
@@ -277,9 +277,9 @@ Deletes the webhook and all associated destinations, receipts, and deliveries.
 
 ### Create Destination
 
-<ApiEndpoint method="POST" path="/webhook/destination-create/{webhookId}" />
-
 Add a destination to a webhook.
+
+<ApiEndpoint method="POST" path="/webhook/destination-create/{webhookId}" />
 
 #### Parameters
 
@@ -335,9 +335,9 @@ Returns the created destination.
 
 ### List Destinations
 
-<ApiEndpoint method="GET" path="/webhook/destination-list/{webhookId}" />
-
 List all destinations for a webhook.
+
+<ApiEndpoint method="GET" path="/webhook/destination-list/{webhookId}" />
 
 #### Parameters
 
@@ -369,9 +369,9 @@ Returns list of destinations.
 
 ### Update Destination
 
-<ApiEndpoint method="PUT" path="/webhook/destination-update/{webhookId}/{destinationId}" />
-
 Update a destination's configuration.
+
+<ApiEndpoint method="PUT" path="/webhook/destination-update/{webhookId}/{destinationId}" />
 
 #### Parameters
 
@@ -427,9 +427,9 @@ Returns the updated destination.
 
 ### Delete Destination
 
-<ApiEndpoint method="DELETE" path="/webhook/destination-delete/{webhookId}/{destinationId}" />
-
 Delete a destination from a webhook.
+
+<ApiEndpoint method="DELETE" path="/webhook/destination-delete/{webhookId}/{destinationId}" />
 
 #### Parameters
 
@@ -470,9 +470,9 @@ Empty response on success.
 
 ### List Receipts
 
-<ApiEndpoint method="GET" path="/webhook/receipt-list/{webhookId}" />
-
 List incoming request records (receipts) for a webhook.
+
+<ApiEndpoint method="GET" path="/webhook/receipt-list/{webhookId}" />
 
 #### Parameters
 
@@ -518,9 +518,9 @@ Returns incoming request records (receipts) for a webhook.
 
 ### Get Receipt
 
-<ApiEndpoint method="GET" path="/webhook/receipt-get/{webhookId}/{receiptId}" />
-
 Get a specific receipt by ID.
+
+<ApiEndpoint method="GET" path="/webhook/receipt-get/{webhookId}/{receiptId}" />
 
 #### Parameters
 
@@ -591,9 +591,9 @@ Returns the receipt with headers and payload.
 
 ### List Deliveries
 
-<ApiEndpoint method="GET" path="/webhook/delivery-list/{webhookId}" />
-
 List delivery attempts for a webhook.
+
+<ApiEndpoint method="GET" path="/webhook/delivery-list/{webhookId}" />
 
 #### Parameters
 
@@ -639,9 +639,9 @@ Returns list of delivery attempts.
 
 ### Retry Delivery
 
-<ApiEndpoint method="POST" path="/webhook/delivery-retry/{webhookId}/{deliveryId}" />
-
 Retry a failed delivery. Only deliveries with 'failed' status can be retried.
+
+<ApiEndpoint method="POST" path="/webhook/delivery-retry/{webhookId}/{deliveryId}" />
 
 #### Parameters
 
@@ -682,9 +682,9 @@ Retries a failed delivery. Only deliveries with 'failed' status can be retried.
 
 ### Get Org Analytics
 
-<ApiEndpoint method="GET" path="/webhook/analytics/org" />
-
 Get aggregate webhook analytics for the organization.
+
+<ApiEndpoint method="GET" path="/webhook/analytics/org" />
 
 #### Parameters
 
@@ -729,9 +729,9 @@ Returns aggregate analytics including total received, delivered, and failed coun
 
 ### Get Analytics Time Series
 
-<ApiEndpoint method="GET" path="/webhook/analytics/org/timeseries" />
-
 Get time series webhook analytics for the organization.
+
+<ApiEndpoint method="GET" path="/webhook/analytics/org/timeseries" />
 
 #### Parameters
 

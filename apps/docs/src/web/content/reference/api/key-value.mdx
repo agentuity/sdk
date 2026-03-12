@@ -21,9 +21,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ## Get Value
 
-<ApiEndpoint method="GET" path="/kv/{namespace}/{key}" />
-
 Retrieve a stored value by its namespace and key. Returns the raw value with the original content type.
+
+<ApiEndpoint method="GET" path="/kv/{namespace}/{key}" />
 
 ### Parameters
 
@@ -69,9 +69,9 @@ Returns the raw stored value with the original content type. The response body i
 
 ## Store Value
 
-<ApiEndpoint method="PUT" path="/kv/{namespace}/{key}[/{ttl}]" />
-
 Store a value in key-value storage. The namespace is auto-created if it doesn't exist. Set the Content-Type header to match your data format.
+
+<ApiEndpoint method="PUT" path="/kv/{namespace}/{key}[/{ttl}]" />
 
 ### Parameters
 
@@ -131,9 +131,9 @@ TTL behavior:
 
 ## Delete Value
 
-<ApiEndpoint method="DELETE" path="/kv/{namespace}/{key}" />
-
 Delete a specific key from a namespace.
+
+<ApiEndpoint method="DELETE" path="/kv/{namespace}/{key}" />
 
 ### Parameters
 
@@ -171,9 +171,9 @@ Empty response on success.
 
 ## Search Keys
 
-<ApiEndpoint method="GET" path="/kv/search/{namespace}/{keyword}" />
-
 Search for keys matching a keyword within a namespace. Returns matching keys with their values and metadata.
+
+<ApiEndpoint method="GET" path="/kv/search/{namespace}/{keyword}" />
 
 ### Parameters
 
@@ -251,9 +251,9 @@ JSON object mapping key names to their values and metadata.
 
 ## List Keys
 
-<ApiEndpoint method="GET" path="/kv/keys/{namespace}" />
-
 Get all key names in a namespace.
+
+<ApiEndpoint method="GET" path="/kv/keys/{namespace}" />
 
 ### Parameters
 
@@ -284,9 +284,9 @@ JSON array of key name strings.
 
 ## Get Namespace Stats
 
-<ApiEndpoint method="GET" path="/kv/stats/{namespace}" />
-
 Get statistics for a specific namespace including record count and size.
+
+<ApiEndpoint method="GET" path="/kv/stats/{namespace}" />
 
 ### Parameters
 
@@ -342,9 +342,9 @@ JSON object with namespace statistics.
 
 ## List All Namespace Stats
 
-<ApiEndpoint method="GET" path="/kv/stats" />
-
 Get statistics for all namespaces with optional pagination and filtering.
+
+<ApiEndpoint method="GET" path="/kv/stats" />
 
 ### Parameters
 
@@ -433,9 +433,9 @@ Paginated response with namespace statistics.
 
 ## List Namespaces
 
-<ApiEndpoint method="GET" path="/kv/namespaces" />
-
 Get all namespace names (up to 1000, ordered by creation date, most recent first).
+
+<ApiEndpoint method="GET" path="/kv/namespaces" />
 
 
 
@@ -456,9 +456,9 @@ JSON array of namespace name strings.
 
 ## Create Namespace
 
-<ApiEndpoint method="POST" path="/kv/{namespace}" />
-
 Create a new namespace with optional default TTL configuration.
+
+<ApiEndpoint method="POST" path="/kv/{namespace}" />
 
 ### Parameters
 
@@ -505,9 +505,9 @@ Empty response on success.
 
 ## Delete Namespace
 
-<ApiEndpoint method="DELETE" path="/kv/{namespace}" />
-
 Delete an entire namespace and all its keys.
+
+<ApiEndpoint method="DELETE" path="/kv/{namespace}" />
 
 ### Parameters
 

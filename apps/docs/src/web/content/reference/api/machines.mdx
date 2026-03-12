@@ -23,9 +23,9 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 ### List Machines
 
-<ApiEndpoint method="GET" path="/machine" />
-
 List all machines visible to the authenticated user.
+
+<ApiEndpoint method="GET" path="/machine" />
 
 
 
@@ -46,9 +46,9 @@ Returns all machines visible to the authenticated user.
 
 ### Get Machine
 
-<ApiEndpoint method="GET" path="/machine/{machineId}" />
-
 Get details for a specific machine.
+
+<ApiEndpoint method="GET" path="/machine/{machineId}" />
 
 #### Parameters
 
@@ -140,9 +140,9 @@ Returns machine details.
 
 ### Delete Machine
 
-<ApiEndpoint method="DELETE" path="/machine/{machineId}" />
-
 Delete a machine by ID.
+
+<ApiEndpoint method="DELETE" path="/machine/{machineId}" />
 
 #### Parameters
 
@@ -174,9 +174,9 @@ Empty response on success.
 
 ### List Machine Deployments
 
-<ApiEndpoint method="GET" path="/machine/deployments/{machineId}" />
-
 List all deployments currently running on a specific machine.
+
+<ApiEndpoint method="GET" path="/machine/deployments/{machineId}" />
 
 #### Parameters
 
@@ -210,9 +210,9 @@ Returns all deployments currently running on the specified machine.
 
 ### Enroll Organization
 
-<ApiEndpoint method="POST" path="/cli/auth/org/enroll" />
-
 Enroll an organization for machine authentication.
+
+<ApiEndpoint method="POST" path="/cli/auth/org/enroll" />
 
 
 
@@ -265,9 +265,9 @@ Returns the enrolled organization ID.
 
 ### Get Enrollment Status
 
-<ApiEndpoint method="GET" path="/cli/auth/org/status/{orgId}" />
-
 Get the enrollment status for an organization.
+
+<ApiEndpoint method="GET" path="/cli/auth/org/status/{orgId}" />
 
 #### Parameters
 
@@ -296,7 +296,7 @@ Returns the enrollment status. A null publicKey means not enrolled.
 <ResponseFields fields={[
   {
     "name": "publicKey",
-    "type": "string",
+    "type": "string | null",
     "description": "Public key or null if not enrolled"
   }
 ]} />
@@ -309,9 +309,9 @@ Returns the enrollment status. A null publicKey means not enrolled.
 
 ### Unenroll Organization
 
-<ApiEndpoint method="DELETE" path="/cli/auth/org/unenroll/{orgId}" />
-
 Remove enrollment for an organization.
+
+<ApiEndpoint method="DELETE" path="/cli/auth/org/unenroll/{orgId}" />
 
 #### Parameters
 
