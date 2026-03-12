@@ -3,7 +3,7 @@ import { hc } from 'hono/client';
 import type { AppRouter } from '../api/router';
 
 export function PathParamsPage() {
-	const client = hc<AppRouter>('/api');
+	const client = hc<AppRouter>(`${window.location.origin}/api`);
 	const [userId, setUserId] = useState('123');
 	const [orgId, setOrgId] = useState('org-456');
 	const [memberId, setMemberId] = useState('user-789');

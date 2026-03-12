@@ -3,7 +3,7 @@ import type { AppRouter } from '../api/router';
 import { type ChangeEvent, useState } from 'react';
 
 export function RpcPage() {
-	const client = hc<AppRouter>('/api');
+	const client = hc<AppRouter>(`${window.location.origin}/api`);
 	const [name, setName] = useState('World');
 	const [greeting, setGreeting] = useState<string | null>(null);
 	const [running, setRunning] = useState(false);

@@ -3,7 +3,7 @@ import { hc } from 'hono/client';
 import type { AppRouter } from '../api/router';
 
 export function RpcTestPage() {
-	const client = hc<AppRouter>('/api');
+	const client = hc<AppRouter>(`${window.location.origin}/api`);
 	const [name, setName] = useState('RPC');
 	const [apiResult, setApiResult] = useState<string>('');
 	const [wsMessages, setWsMessages] = useState<string[]>([]);

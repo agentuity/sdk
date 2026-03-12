@@ -14,7 +14,7 @@ export function App() {
 	// Simple client-side routing
 	const path = window.location.pathname;
 
-	const client = hc<AppRouter>('/api');
+	const client = hc<AppRouter>(`${window.location.origin}/api`);
 	const [name, setName] = useState('World');
 	const [greeting, setGreeting] = useState<string | null>(null);
 	const [running, setRunning] = useState(false);

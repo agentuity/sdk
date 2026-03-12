@@ -3,7 +3,7 @@ import type { AppRouter } from '../api/router';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 export function StreamsPage() {
-	const clientRef = useRef(hc<AppRouter>('/api'));
+	const clientRef = useRef(hc<AppRouter>(`${window.location.origin}/api`));
 	const [message, setMessage] = useState('');
 
 	// WebSocket state
