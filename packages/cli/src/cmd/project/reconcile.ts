@@ -739,7 +739,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 	// No agentuity.json - validate structure and create new project
 	const isValid = await isValidProjectStructure(dir);
 
-	if (!isValid) {
+	if (!isValid && !opts.confirm) {
 		return {
 			status: 'error',
 			message:
