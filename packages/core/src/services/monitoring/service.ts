@@ -18,158 +18,170 @@ import type {
 // ---------------------------------------------------------------------------
 
 const CpuMetricsSchema = z.object({
-	usagePercent: z.number(),
-	coreUsagePercent: z.array(z.number()),
-	loadAvg1: z.number(),
-	loadAvg5: z.number(),
-	loadAvg15: z.number(),
-	coreCount: z.number(),
+	usagePercent: z.number().describe('Aggregate CPU usage as a 0-1 fraction'),
+	coreUsagePercent: z.array(z.number()).describe('Per-core CPU usage as 0-1 fractions'),
+	loadAvg1: z.number().describe('1-minute load average'),
+	loadAvg5: z.number().describe('5-minute load average'),
+	loadAvg15: z.number().describe('15-minute load average'),
+	coreCount: z.number().describe('Number of CPU cores'),
 });
 
 const MemoryMetricsSchema = z.object({
-	totalBytes: z.number(),
-	usedBytes: z.number(),
-	availableBytes: z.number(),
-	cachedBytes: z.number(),
-	buffersBytes: z.number(),
-	swapTotalBytes: z.number(),
-	swapUsedBytes: z.number(),
-	usagePercent: z.number(),
+	totalBytes: z.number().describe('Total physical memory in bytes'),
+	usedBytes: z.number().describe('Used memory in bytes'),
+	availableBytes: z.number().describe('Available memory in bytes'),
+	cachedBytes: z.number().describe('Cached memory in bytes'),
+	buffersBytes: z.number().describe('Buffer memory in bytes'),
+	swapTotalBytes: z.number().describe('Total swap space in bytes'),
+	swapUsedBytes: z.number().describe('Used swap space in bytes'),
+	usagePercent: z.number().describe('Memory usage as a percentage'),
 });
 
 const DiskMetricsSchema = z.object({
-	mountPoint: z.string(),
-	device: z.string(),
-	fsType: z.string(),
-	totalBytes: z.number(),
-	usedBytes: z.number(),
-	availableBytes: z.number(),
-	usagePercent: z.number(),
-	inodesTotal: z.number(),
-	inodesUsed: z.number(),
-	readBytesDelta: z.number(),
-	writeBytesDelta: z.number(),
-	readOpsDelta: z.number(),
-	writeOpsDelta: z.number(),
+	mountPoint: z.string().describe('Filesystem mount point'),
+	device: z.string().describe('Block device name'),
+	fsType: z.string().describe('Filesystem type (ext4, xfs, etc.)'),
+	totalBytes: z.number().describe('Total disk capacity in bytes'),
+	usedBytes: z.number().describe('Used disk space in bytes'),
+	availableBytes: z.number().describe('Available disk space in bytes'),
+	usagePercent: z.number().describe('Disk usage as a percentage'),
+	inodesTotal: z.number().describe('Total number of inodes'),
+	inodesUsed: z.number().describe('Number of used inodes'),
+	readBytesDelta: z.number().describe('Bytes read since last report'),
+	writeBytesDelta: z.number().describe('Bytes written since last report'),
+	readOpsDelta: z.number().describe('Read operations since last report'),
+	writeOpsDelta: z.number().describe('Write operations since last report'),
 });
 
 const NetworkInterfaceMetricsSchema = z.object({
-	name: z.string(),
-	rxBytesDelta: z.number(),
-	txBytesDelta: z.number(),
-	rxPacketsDelta: z.number(),
-	txPacketsDelta: z.number(),
-	rxErrorsDelta: z.number(),
-	txErrorsDelta: z.number(),
-	rxDropsDelta: z.number(),
-	txDropsDelta: z.number(),
-	linkState: z.string(),
-	speedMbps: z.number(),
+	name: z.string().describe('Network interface name'),
+	rxBytesDelta: z.number().describe('Bytes received since last report'),
+	txBytesDelta: z.number().describe('Bytes transmitted since last report'),
+	rxPacketsDelta: z.number().describe('Packets received since last report'),
+	txPacketsDelta: z.number().describe('Packets transmitted since last report'),
+	rxErrorsDelta: z.number().describe('Receive errors since last report'),
+	txErrorsDelta: z.number().describe('Transmit errors since last report'),
+	rxDropsDelta: z.number().describe('Receive drops since last report'),
+	txDropsDelta: z.number().describe('Transmit drops since last report'),
+	linkState: z.string().describe('Network link state (up, down, etc.)'),
+	speedMbps: z.number().describe('Link speed in Mbps'),
 });
 
 const SystemInfoSchema = z.object({
-	hostname: z.string(),
-	kernelVersion: z.string(),
-	os: z.string(),
-	arch: z.string(),
-	uptimeSeconds: z.number(),
-	cpuCount: z.number(),
-	totalMemoryBytes: z.number(),
+	hostname: z.string().describe('Machine hostname'),
+	kernelVersion: z.string().describe('Linux kernel version'),
+	os: z.string().describe('Operating system name'),
+	arch: z.string().describe('CPU architecture (amd64, arm64, etc.)'),
+	uptimeSeconds: z.number().describe('System uptime in seconds'),
+	cpuCount: z.number().describe('Number of CPU cores'),
+	totalMemoryBytes: z.number().describe('Total physical memory in bytes'),
 });
 
 const HostMetricsSchema = z.object({
-	cpu: CpuMetricsSchema,
-	memory: MemoryMetricsSchema,
-	disks: z.array(DiskMetricsSchema),
-	networkInterfaces: z.array(NetworkInterfaceMetricsSchema),
-	system: SystemInfoSchema,
+	cpu: CpuMetricsSchema.describe('CPU metrics'),
+	memory: MemoryMetricsSchema.describe('Memory metrics'),
+	disks: z.array(DiskMetricsSchema).describe('Per-disk metrics'),
+	networkInterfaces: z
+		.array(NetworkInterfaceMetricsSchema)
+		.describe('Per-interface network metrics'),
+	system: SystemInfoSchema.describe('Static system information'),
 });
 
 const CapacitySummarySchema = z.object({
-	cpuPressure: z.number(),
-	memoryPressure: z.number(),
-	diskPressure: z.number(),
-	networkPressure: z.number(),
-	compositeScore: z.number(),
-	totalContainers: z.number(),
-	runningContainers: z.number(),
+	cpuPressure: z.number().describe('CPU pressure score (0-1, higher = more pressure)'),
+	memoryPressure: z.number().describe('Memory pressure score (0-1, higher = more pressure)'),
+	diskPressure: z.number().describe('Disk pressure score (0-1, higher = more pressure)'),
+	networkPressure: z.number().describe('Network pressure score (0-1, higher = more pressure)'),
+	compositeScore: z
+		.number()
+		.describe('Weighted composite pressure score (0-1, higher = more pressure)'),
+	totalContainers: z.number().describe('Total number of containers on the node'),
+	runningContainers: z.number().describe('Number of currently running containers'),
 });
 
-const NodeEventLevelSchema = z.enum(['UNSPECIFIED', 'INFO', 'WARN', 'ERROR', 'CRITICAL']);
+const NodeEventLevelSchema = z
+	.enum(['UNSPECIFIED', 'INFO', 'WARN', 'ERROR', 'CRITICAL'])
+	.describe('Severity level of a node event');
 
-const NodeEventTypeSchema = z.enum([
-	'UNSPECIFIED',
-	'CONTAINER_START',
-	'CONTAINER_STOP',
-	'CONTAINER_OOM',
-	'CONTAINER_HEALTH_CHANGE',
-	'PRESSURE_THRESHOLD',
-	'DISK_NEARLY_FULL',
-	'COLLECTOR_ERROR',
-	'PRESSURE_ALERT',
-	'HEALTH_ALERT',
-]);
+const NodeEventTypeSchema = z
+	.enum([
+		'UNSPECIFIED',
+		'CONTAINER_START',
+		'CONTAINER_STOP',
+		'CONTAINER_OOM',
+		'CONTAINER_HEALTH_CHANGE',
+		'PRESSURE_THRESHOLD',
+		'DISK_NEARLY_FULL',
+		'COLLECTOR_ERROR',
+		'PRESSURE_ALERT',
+		'HEALTH_ALERT',
+	])
+	.describe('Type of node event');
 
 const NodeEventSchema = z.object({
-	timestampUs: z.number(),
-	level: NodeEventLevelSchema,
-	type: NodeEventTypeSchema,
-	message: z.string(),
-	metadata: z.record(z.string(), z.string()),
+	timestampUs: z.number().describe('Event timestamp in microseconds since epoch'),
+	level: NodeEventLevelSchema.describe('Event severity level'),
+	type: NodeEventTypeSchema.describe('Event type'),
+	message: z.string().describe('Human-readable event description'),
+	metadata: z.record(z.string(), z.string()).describe('Key-value metadata attached to the event'),
 });
 
 const ContainerMetricsSchema = z.object({
-	deploymentId: z.string(),
-	containerId: z.string(),
-	image: z.string(),
-	state: z.string(),
-	cpuUsagePercent: z.number(),
-	cpuThrottledPeriods: z.number(),
-	cpuTotalPeriods: z.number(),
-	cpuLimitMillicores: z.number(),
-	memoryUsageBytes: z.number(),
-	memoryLimitBytes: z.number(),
-	memoryRssBytes: z.number(),
-	memoryCacheBytes: z.number(),
-	memorySwapBytes: z.number(),
-	oomKillCount: z.number(),
-	netRxBytesDelta: z.number(),
-	netTxBytesDelta: z.number(),
-	netRxPacketsDelta: z.number(),
-	netTxPacketsDelta: z.number(),
-	blkioReadBytesDelta: z.number(),
-	blkioWriteBytesDelta: z.number(),
-	pidCount: z.number(),
-	healthy: z.boolean(),
-	inflightRequests: z.number(),
-	startedAtUs: z.number(),
-	lastUpdatedUs: z.number(),
-	ipv4Address: z.string(),
-	ipv6Address: z.string(),
+	deploymentId: z
+		.string()
+		.describe('Deployment or sandbox ID identifying what the container runs'),
+	containerId: z.string().describe('Docker container ID'),
+	image: z.string().describe('Container image name'),
+	state: z.string().describe('Container state (running, stopped, etc.)'),
+	cpuUsagePercent: z.number().describe('Container CPU usage as a percentage'),
+	cpuThrottledPeriods: z.number().describe('Number of CPU throttled periods'),
+	cpuTotalPeriods: z.number().describe('Total number of CPU scheduling periods'),
+	cpuLimitMillicores: z.number().describe('CPU limit in millicores'),
+	memoryUsageBytes: z.number().describe('Current memory usage in bytes'),
+	memoryLimitBytes: z.number().describe('Memory limit in bytes'),
+	memoryRssBytes: z.number().describe('Resident set size in bytes'),
+	memoryCacheBytes: z.number().describe('Page cache memory in bytes'),
+	memorySwapBytes: z.number().describe('Swap usage in bytes'),
+	oomKillCount: z.number().describe('Number of OOM kill events'),
+	netRxBytesDelta: z.number().describe('Network bytes received since last report'),
+	netTxBytesDelta: z.number().describe('Network bytes transmitted since last report'),
+	netRxPacketsDelta: z.number().describe('Network packets received since last report'),
+	netTxPacketsDelta: z.number().describe('Network packets transmitted since last report'),
+	blkioReadBytesDelta: z.number().describe('Block I/O bytes read since last report'),
+	blkioWriteBytesDelta: z.number().describe('Block I/O bytes written since last report'),
+	pidCount: z.number().describe('Number of running processes'),
+	healthy: z.boolean().describe('Whether the container health check is passing'),
+	inflightRequests: z.number().describe('Number of in-flight HTTP requests'),
+	startedAtUs: z.number().describe('Container start time in microseconds since epoch'),
+	lastUpdatedUs: z.number().describe('Last metrics update time in microseconds since epoch'),
+	ipv4Address: z.string().describe('Container IPv4 address'),
+	ipv6Address: z.string().describe('Container IPv6 address'),
 });
 
 const NodeMonitorReportSchema = z.object({
-	machineId: z.string(),
-	reportedAtUs: z.number(),
-	seq: z.number(),
-	host: HostMetricsSchema,
-	containers: z.array(ContainerMetricsSchema),
-	capacity: CapacitySummarySchema,
-	events: z.array(NodeEventSchema),
-	reportIntervalSeconds: z.number(),
+	machineId: z.string().describe('Unique machine identifier'),
+	reportedAtUs: z.number().describe('Report timestamp in microseconds since epoch'),
+	seq: z.number().describe('Monotonically increasing sequence number'),
+	host: HostMetricsSchema.describe('Host-level metrics'),
+	containers: z.array(ContainerMetricsSchema).describe('Per-container metrics'),
+	capacity: CapacitySummarySchema.describe('Computed capacity and pressure summary'),
+	events: z.array(NodeEventSchema).describe('Node events since last report'),
+	reportIntervalSeconds: z.number().describe('Interval between reports in seconds'),
 });
 
-const StreamHealthSchema = z.enum(['CONNECTED', 'STALE', 'DISCONNECTED']);
+const StreamHealthSchema = z
+	.enum(['CONNECTED', 'STALE', 'DISCONNECTED'])
+	.describe('Machine connection health state');
 
 const MachineMonitorStateSchema = z.object({
-	machineId: z.string(),
-	orgId: z.string(),
-	report: NodeMonitorReportSchema,
-	compositeScore: z.number(),
-	health: StreamHealthSchema,
-	reportedAt: z.string(),
-	updatedAt: z.string(),
-	gravity: z.string(),
+	machineId: z.string().describe('Unique machine identifier'),
+	orgId: z.string().describe('Organization that owns the machine'),
+	report: NodeMonitorReportSchema.describe('Latest monitor report from the node'),
+	compositeScore: z.number().describe('Composite pressure score (0-1, higher = more pressure)'),
+	health: StreamHealthSchema.describe('Machine connection health state'),
+	reportedAt: z.string().describe('ISO 8601 timestamp of the latest report'),
+	updatedAt: z.string().describe('ISO 8601 timestamp of the last state update'),
+	gravity: z.string().describe('Gravity server the machine is connected to'),
 });
 
 // ---------------------------------------------------------------------------
