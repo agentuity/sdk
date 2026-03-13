@@ -3,6 +3,8 @@ title: Vector Search API
 description: Semantic search with automatic embedding generation
 ---
 
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
 Semantic search with automatic embedding generation.
 
 <RegionPicker />
@@ -43,33 +45,21 @@ JSON array of vector documents to upsert.
 
 <ResponseFields fields={[
   {
-    "name": "[].key",
+    "name": "key",
     "type": "string",
-    "description": "Unique vector key",
+    "description": "the key of the vector object which can be used as a reference. the value of this key is opaque to the vector storage.",
     "required": true
   },
   {
-    "name": "[].document",
-    "type": "string",
-    "description": "Source text used for automatic embedding generation",
-    "required": false
-  },
-  {
-    "name": "[].embeddings",
-    "type": "number[]",
-    "description": "Pre-computed embedding vector",
-    "required": false
-  },
-  {
-    "name": "[].metadata",
+    "name": "metadata",
     "type": "object",
-    "description": "Optional metadata for filtering and retrieval",
+    "description": "the metadata to upsert",
     "required": false
   },
   {
-    "name": "[].ttl",
+    "name": "ttl",
     "type": "number | null",
-    "description": "TTL in seconds. `null`/`0` means never expire.",
+    "description": "Time-to-live in seconds for the vector. Controls when the vector expires and is automatically deleted.",
     "required": false
   }
 ]} />
@@ -90,12 +80,20 @@ JSON response with inserted/updated vector IDs.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
+  },
+  {
+    "name": "data",
+    "type": "object[]",
+    "description": "Array of upserted vector results",
+    "required": true
   },
   {
     "name": "data[].id",
     "type": "string",
-    "description": "Stored vector ID"
+    "description": "Stored vector ID",
+    "required": true
   }
 ]} />
 
@@ -162,42 +160,56 @@ JSON response with vector data, metadata, similarity, and expiration fields.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
+  },
+  {
+    "name": "data",
+    "type": "object",
+    "description": "The vector data object",
+    "required": true
   },
   {
     "name": "data.id",
     "type": "string",
-    "description": "Internal vector ID"
+    "description": "Internal vector ID",
+    "required": true
   },
   {
     "name": "data.key",
     "type": "string",
-    "description": "Vector key"
+    "description": "Vector key",
+    "required": true
   },
   {
     "name": "data.document",
     "type": "string",
-    "description": "Original source document text"
+    "description": "Original source document text",
+    "required": false
   },
   {
     "name": "data.embeddings",
     "type": "number[]",
-    "description": "Stored embeddings array"
+    "description": "Stored embeddings array",
+    "required": false
   },
   {
     "name": "data.metadata",
     "type": "object",
-    "description": "Stored metadata"
+    "description": "Stored metadata",
+    "required": false
   },
   {
     "name": "data.similarity",
     "type": "number",
-    "description": "Similarity score when relevant"
+    "description": "Similarity score when relevant",
+    "required": true
   },
   {
     "name": "data.expiresAt",
     "type": "string | null",
-    "description": "ISO 8601 expiration timestamp"
+    "description": "ISO 8601 expiration timestamp",
+    "required": false
   }
 ]} />
 
@@ -233,25 +245,25 @@ Search criteria and filters.
   {
     "name": "query",
     "type": "string",
-    "description": "The text query for semantic search",
+    "description": "The text query to search for in the vector storage. This will be converted to embeddings and used to find semantically similar documents.",
     "required": true
   },
   {
     "name": "limit",
     "type": "number",
-    "description": "Maximum results to return (default: 10)",
+    "description": "Maximum number of search results to return. If not specified, the server default will be used.",
     "required": false
   },
   {
     "name": "similarity",
     "type": "number",
-    "description": "Minimum similarity threshold (0–1)",
+    "description": "Minimum similarity threshold for results. Only vectors with similarity scores greater than or equal to this value will be returned.",
     "required": false
   },
   {
     "name": "metadata",
     "type": "object",
-    "description": "Filter by metadata key-value pairs",
+    "description": "Metadata filters to apply to the search. Only vectors whose metadata matches all specified key-value pairs will be included in results.",
     "required": false
   }
 ]} />
@@ -272,32 +284,44 @@ JSON response containing matching vectors and similarity scores.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
+  },
+  {
+    "name": "data",
+    "type": "object[]",
+    "description": "Array of matching vector results",
+    "required": true
   },
   {
     "name": "data[].id",
     "type": "string",
-    "description": "Vector ID"
+    "description": "Vector ID",
+    "required": true
   },
   {
     "name": "data[].key",
     "type": "string",
-    "description": "Vector key"
+    "description": "Vector key",
+    "required": true
   },
   {
     "name": "data[].metadata",
     "type": "object",
-    "description": "Vector metadata"
+    "description": "Vector metadata",
+    "required": false
   },
   {
     "name": "data[].similarity",
     "type": "number",
-    "description": "Similarity score (0–1)"
+    "description": "Similarity score (0–1)",
+    "required": true
   },
   {
     "name": "data[].expiresAt",
     "type": "string | null",
-    "description": "ISO 8601 expiration timestamp"
+    "description": "ISO 8601 expiration timestamp",
+    "required": false
   }
 ]} />
 
@@ -352,12 +376,14 @@ JSON response with deleted row count.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
   },
   {
     "name": "data",
     "type": "number",
-    "description": "Number of deleted vectors (0 or 1)"
+    "description": "Number of deleted vectors",
+    "required": true
   }
 ]} />
 
@@ -393,8 +419,7 @@ Optional JSON body specifying keys to delete.
   {
     "name": "keys",
     "type": "string[]",
-    "description": "Vector keys to delete",
-    "required": false
+    "description": "Vector keys to delete"
   }
 ]} />
 
@@ -413,12 +438,14 @@ JSON response with number of deleted vectors.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
   },
   {
     "name": "data",
     "type": "number",
-    "description": "Number of deleted vectors"
+    "description": "Number of deleted vectors",
+    "required": true
   }
 ]} />
 
@@ -467,27 +494,31 @@ JSON object with namespace size and usage statistics.
   {
     "name": "sum",
     "type": "number",
-    "description": "Total size in bytes"
+    "description": "Total size in bytes",
+    "required": true
   },
   {
     "name": "count",
     "type": "number",
-    "description": "Number of vectors"
+    "description": "Number of vectors in the namespace",
+    "required": true
   },
   {
     "name": "createdAt",
     "type": "number",
-    "description": "Unix timestamp (ms)"
+    "description": "Unix timestamp (milliseconds) when the namespace was created",
+    "required": false
   },
   {
     "name": "lastUsed",
     "type": "number",
-    "description": "Unix timestamp (ms)"
+    "description": "Unix timestamp (milliseconds) when the namespace was last used",
+    "required": false
   },
   {
     "name": "sampledResults",
     "type": "object",
-    "description": "Sample of vectors (up to 20)",
+    "description": "A sample of vectors in the namespace (up to 20)",
     "required": false
   }
 ]} />
@@ -559,27 +590,32 @@ Paginated namespace stats response.
   {
     "name": "namespaces",
     "type": "object",
-    "description": "Map of namespace names to stats"
+    "description": "Map of namespace names to their statistics",
+    "required": true
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total namespace count"
+    "description": "Total number of namespaces across all pages",
+    "required": true
   },
   {
     "name": "limit",
     "type": "number",
-    "description": "Applied page limit"
+    "description": "Number of namespaces requested per page",
+    "required": true
   },
   {
     "name": "offset",
     "type": "number",
-    "description": "Applied offset"
+    "description": "Number of namespaces skipped",
+    "required": true
   },
   {
     "name": "hasMore",
     "type": "boolean",
-    "description": "Whether more results exist"
+    "description": "Whether there are more namespaces available",
+    "required": true
   }
 ]} />
 

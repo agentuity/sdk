@@ -3,9 +3,11 @@ title: Durable Streams API
 description: Create durable, resumable data streams with public URLs
 ---
 
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
 Create durable, resumable data streams with public URLs.
 
-<RegionPicker host="pulse" />
+<RegionPicker host="streams" />
 
 ## Authentication
 
@@ -23,7 +25,7 @@ You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) 
 
 Create a new stream and receive its stream ID.
 
-<ApiEndpoint method="POST" path="/stream" host="pulse" />
+<ApiEndpoint method="POST" path="/stream" host="streams" />
 
 
 
@@ -95,7 +97,7 @@ TTL behavior:
   "headers": {
     "content-type": "application/json"
   }
-}} host="pulse" />
+}} host="streams" />
 
 ---
 
@@ -103,7 +105,7 @@ TTL behavior:
 
 Get stream metadata, size, public URL, and expiration info.
 
-<ApiEndpoint method="POST" path="/stream/{id}/info" host="pulse" />
+<ApiEndpoint method="POST" path="/stream/{id}/info" host="streams" />
 
 ### Parameters
 
@@ -168,7 +170,7 @@ JSON object with stream details.
 
 ### Example
 
-<ApiExample method="POST" path="/stream/stream_abc123/info" body={{}} host="pulse" />
+<ApiExample method="POST" path="/stream/stream_abc123/info" body={{}} host="streams" />
 
 ---
 
@@ -176,7 +178,7 @@ JSON object with stream details.
 
 Download the finalized stream contents as raw binary data.
 
-<ApiEndpoint method="GET" path="/stream/{id}" host="pulse" />
+<ApiEndpoint method="GET" path="/stream/{id}" host="streams" />
 
 ### Parameters
 
@@ -202,7 +204,7 @@ Raw binary stream data with original content type.
 
 ### Example
 
-<ApiExample method="GET" path="/stream/stream_abc123" host="pulse" />
+<ApiExample method="GET" path="/stream/stream_abc123" host="streams" />
 
 ---
 
@@ -210,7 +212,7 @@ Raw binary stream data with original content type.
 
 List streams with filtering, pagination, and sorting.
 
-<ApiEndpoint method="POST" path="/stream/list" host="pulse" />
+<ApiEndpoint method="POST" path="/stream/list" host="streams" />
 
 
 
@@ -276,7 +278,7 @@ JSON response with stream list and total count.
   },
   {
     "name": "streams",
-    "type": "array",
+    "type": "object[]",
     "description": "Matching streams"
   },
   {
@@ -287,7 +289,7 @@ JSON response with stream list and total count.
   {
     "name": "streams[].name",
     "type": "string",
-    "description": "Namespace"
+    "description": "Namespace name"
   },
   {
     "name": "streams[].metadata",
@@ -297,17 +299,17 @@ JSON response with stream list and total count.
   {
     "name": "streams[].url",
     "type": "string",
-    "description": "Public URL"
+    "description": "Public stream URL"
   },
   {
     "name": "streams[].size_bytes",
     "type": "number",
-    "description": "Size in bytes"
+    "description": "Current stream size in bytes"
   },
   {
     "name": "streams[].expires_at",
     "type": "string | null",
-    "description": "Expiration timestamp"
+    "description": "ISO 8601 expiration timestamp"
   },
   {
     "name": "total",
@@ -321,7 +323,7 @@ JSON response with stream list and total count.
 <ApiExample method="POST" path="/stream/list" body={{
   "name": "agent-logs",
   "limit": 50
-}} host="pulse" />
+}} host="streams" />
 
 ---
 
@@ -329,7 +331,7 @@ JSON response with stream list and total count.
 
 Delete a stream by ID.
 
-<ApiEndpoint method="DELETE" path="/stream/{id}" host="pulse" />
+<ApiEndpoint method="DELETE" path="/stream/{id}" host="streams" />
 
 ### Parameters
 
@@ -355,7 +357,7 @@ Empty response on success.
 
 ### Example
 
-<ApiExample method="DELETE" path="/stream/stream_abc123" host="pulse" />
+<ApiExample method="DELETE" path="/stream/stream_abc123" host="streams" />
 
 ---
 
@@ -363,7 +365,7 @@ Empty response on success.
 
 Append a binary chunk (up to 5MB) to an open stream.
 
-<ApiEndpoint method="POST" path="/stream/{id}/append" host="pulse" />
+<ApiEndpoint method="POST" path="/stream/{id}/append" host="streams" />
 
 ### Parameters
 
@@ -393,7 +395,7 @@ Empty response on success.
 
 ### Example
 
-<ApiExample method="POST" path="/stream/stream_abc123/append" body="<binary data>" headers={{"Content-Type":"application/octet-stream"}} host="pulse" />
+<ApiExample method="POST" path="/stream/stream_abc123/append" body="<binary data>" headers={{"Content-Type":"application/octet-stream"}} host="streams" />
 
 ---
 
@@ -401,7 +403,7 @@ Empty response on success.
 
 Finalize stream writing and make it available for reading.
 
-<ApiEndpoint method="POST" path="/stream/{id}/complete" host="pulse" />
+<ApiEndpoint method="POST" path="/stream/{id}/complete" host="streams" />
 
 ### Parameters
 
@@ -430,6 +432,6 @@ Empty response on success.
 
 ### Example
 
-<ApiExample method="POST" path="/stream/stream_abc123/complete" host="pulse" />
+<ApiExample method="POST" path="/stream/stream_abc123/complete" host="streams" />
 
 ---

@@ -3,6 +3,8 @@ title: Sessions API
 description: View agent execution sessions with timing, cost, and observability data
 ---
 
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
 View agent execution sessions with timing, cost, and observability data.
 
 <RegionPicker />
@@ -157,82 +159,188 @@ Returns sessions matching the specified filters.
   {
     "name": "id",
     "type": "string",
-    "description": "Session ID"
+    "description": "the session id",
+    "required": true
+  },
+  {
+    "name": "created_at",
+    "type": "string",
+    "description": "the creation timestamp",
+    "required": true
+  },
+  {
+    "name": "updated_at",
+    "type": "string",
+    "description": "the last update timestamp",
+    "required": true
+  },
+  {
+    "name": "deleted",
+    "type": "boolean",
+    "description": "whether the session is deleted",
+    "required": true
+  },
+  {
+    "name": "deleted_at",
+    "type": "string | null",
+    "description": "the deletion timestamp",
+    "required": true
+  },
+  {
+    "name": "deleted_by",
+    "type": "string | null",
+    "description": "who deleted the session",
+    "required": true
   },
   {
     "name": "start_time",
     "type": "string",
-    "description": "Session start timestamp"
+    "description": "the session start time",
+    "required": true
   },
   {
     "name": "end_time",
-    "type": "string",
-    "description": "Session end timestamp"
+    "type": "string | null",
+    "description": "the session end time",
+    "required": true
   },
   {
     "name": "duration",
-    "type": "number",
-    "description": "Duration in nanoseconds"
+    "type": "number | null",
+    "description": "the session duration in nanoseconds",
+    "required": true
   },
   {
     "name": "org_id",
     "type": "string",
-    "description": "Organization ID"
+    "description": "the organization id",
+    "required": true
   },
   {
     "name": "project_id",
     "type": "string",
-    "description": "Project ID"
+    "description": "the project id",
+    "required": true
   },
   {
     "name": "deployment_id",
     "type": "string",
-    "description": "Deployment ID"
+    "description": "the deployment id",
+    "required": true
   },
   {
     "name": "agent_ids",
-    "type": "array",
-    "description": "Agent IDs involved in the session"
+    "type": "string[]",
+    "description": "the agent ids involved",
+    "required": true
   },
   {
     "name": "trigger",
     "type": "string",
-    "description": "Session trigger type"
+    "description": "how the session was triggered",
+    "required": true
   },
   {
     "name": "env",
     "type": "string",
-    "description": "Environment"
+    "description": "the environment",
+    "required": true
   },
   {
     "name": "devmode",
     "type": "boolean",
-    "description": "Whether devmode was active"
+    "description": "whether dev mode was enabled",
+    "required": true
+  },
+  {
+    "name": "pending",
+    "type": "boolean",
+    "description": "whether the session is pending",
+    "required": true
   },
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the session succeeded"
+    "description": "whether the session succeeded",
+    "required": true
   },
   {
     "name": "error",
-    "type": "string",
-    "description": "Error message if failed"
+    "type": "string | null",
+    "description": "the error message if failed",
+    "required": true
+  },
+  {
+    "name": "metadata",
+    "type": "object | null",
+    "description": "unencrypted key-value metadata",
+    "required": false
+  },
+  {
+    "name": "cpu_time",
+    "type": "number | null",
+    "description": "the CPU time in nanoseconds",
+    "required": true
   },
   {
     "name": "llm_cost",
-    "type": "number",
-    "description": "LLM cost for the session"
+    "type": "number | null",
+    "description": "the LLM cost",
+    "required": true
+  },
+  {
+    "name": "llm_prompt_token_count",
+    "type": "number | null",
+    "description": "the LLM prompt token count",
+    "required": true
+  },
+  {
+    "name": "llm_completion_token_count",
+    "type": "number | null",
+    "description": "the LLM completion token count",
+    "required": true
   },
   {
     "name": "total_cost",
-    "type": "number",
-    "description": "Total cost for the session"
+    "type": "number | null",
+    "description": "the total cost",
+    "required": true
+  },
+  {
+    "name": "method",
+    "type": "string | null",
+    "description": "the HTTP method",
+    "required": true
+  },
+  {
+    "name": "url",
+    "type": "string | null",
+    "description": "the request URL",
+    "required": true
+  },
+  {
+    "name": "route_id",
+    "type": "string | null",
+    "description": "the route id",
+    "required": true
   },
   {
     "name": "thread_id",
-    "type": "string",
-    "description": "Associated thread ID"
+    "type": "string | null",
+    "description": "the thread id",
+    "required": true
+  },
+  {
+    "name": "timeline",
+    "type": "any | null",
+    "description": "the session timeline tree",
+    "required": false
+  },
+  {
+    "name": "user_data",
+    "type": "string | null",
+    "description": "the user data as JSON",
+    "required": false
   }
 ]} />
 
@@ -276,22 +384,266 @@ Returns the session with enriched data including agent info, eval runs, and rout
   {
     "name": "session",
     "type": "object",
-    "description": "Full session data"
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "session.id",
+    "type": "string",
+    "description": "the session id",
+    "required": true
+  },
+  {
+    "name": "session.created_at",
+    "type": "string",
+    "description": "the creation timestamp",
+    "required": true
+  },
+  {
+    "name": "session.updated_at",
+    "type": "string",
+    "description": "the last update timestamp",
+    "required": true
+  },
+  {
+    "name": "session.deleted",
+    "type": "boolean",
+    "description": "whether the session is deleted",
+    "required": true
+  },
+  {
+    "name": "session.deleted_at",
+    "type": "string | null",
+    "description": "the deletion timestamp",
+    "required": true
+  },
+  {
+    "name": "session.deleted_by",
+    "type": "string | null",
+    "description": "who deleted the session",
+    "required": true
+  },
+  {
+    "name": "session.start_time",
+    "type": "string",
+    "description": "the session start time",
+    "required": true
+  },
+  {
+    "name": "session.end_time",
+    "type": "string | null",
+    "description": "the session end time",
+    "required": true
+  },
+  {
+    "name": "session.duration",
+    "type": "number | null",
+    "description": "the session duration in nanoseconds",
+    "required": true
+  },
+  {
+    "name": "session.org_id",
+    "type": "string",
+    "description": "the organization id",
+    "required": true
+  },
+  {
+    "name": "session.project_id",
+    "type": "string",
+    "description": "the project id",
+    "required": true
+  },
+  {
+    "name": "session.deployment_id",
+    "type": "string",
+    "description": "the deployment id",
+    "required": true
+  },
+  {
+    "name": "session.agent_ids",
+    "type": "string[]",
+    "description": "the agent ids involved",
+    "required": true
+  },
+  {
+    "name": "session.trigger",
+    "type": "string",
+    "description": "how the session was triggered",
+    "required": true
+  },
+  {
+    "name": "session.env",
+    "type": "string",
+    "description": "the environment",
+    "required": true
+  },
+  {
+    "name": "session.devmode",
+    "type": "boolean",
+    "description": "whether dev mode was enabled",
+    "required": true
+  },
+  {
+    "name": "session.pending",
+    "type": "boolean",
+    "description": "whether the session is pending",
+    "required": true
+  },
+  {
+    "name": "session.success",
+    "type": "boolean",
+    "description": "whether the session succeeded",
+    "required": true
+  },
+  {
+    "name": "session.error",
+    "type": "string | null",
+    "description": "the error message if failed",
+    "required": true
+  },
+  {
+    "name": "session.metadata",
+    "type": "object | null",
+    "description": "unencrypted key-value metadata",
+    "required": false
+  },
+  {
+    "name": "session.cpu_time",
+    "type": "number | null",
+    "description": "the CPU time in nanoseconds",
+    "required": true
+  },
+  {
+    "name": "session.llm_cost",
+    "type": "number | null",
+    "description": "the LLM cost",
+    "required": true
+  },
+  {
+    "name": "session.llm_prompt_token_count",
+    "type": "number | null",
+    "description": "the LLM prompt token count",
+    "required": true
+  },
+  {
+    "name": "session.llm_completion_token_count",
+    "type": "number | null",
+    "description": "the LLM completion token count",
+    "required": true
+  },
+  {
+    "name": "session.total_cost",
+    "type": "number | null",
+    "description": "the total cost",
+    "required": true
+  },
+  {
+    "name": "session.method",
+    "type": "string | null",
+    "description": "the HTTP method",
+    "required": true
+  },
+  {
+    "name": "session.url",
+    "type": "string | null",
+    "description": "the request URL",
+    "required": true
+  },
+  {
+    "name": "session.route_id",
+    "type": "string | null",
+    "description": "the route id",
+    "required": true
+  },
+  {
+    "name": "session.thread_id",
+    "type": "string | null",
+    "description": "the thread id",
+    "required": true
+  },
+  {
+    "name": "session.timeline",
+    "type": "any | null",
+    "description": "the session timeline tree",
+    "required": false
+  },
+  {
+    "name": "session.user_data",
+    "type": "string | null",
+    "description": "the user data as JSON",
+    "required": false
   },
   {
     "name": "agents",
-    "type": "array",
-    "description": "Agent names and identifiers"
+    "type": "object[]",
+    "description": "resolved agents",
+    "required": true
+  },
+  {
+    "name": "agents[].name",
+    "type": "string",
+    "description": "agent name",
+    "required": true
+  },
+  {
+    "name": "agents[].identifier",
+    "type": "string",
+    "description": "agent identifier",
+    "required": true
   },
   {
     "name": "eval_runs",
-    "type": "array",
-    "description": "Associated evaluation runs"
+    "type": "object[]",
+    "description": "eval runs for this session",
+    "required": true
+  },
+  {
+    "name": "eval_runs[].id",
+    "type": "string",
+    "description": "eval run id",
+    "required": true
+  },
+  {
+    "name": "eval_runs[].created_at",
+    "type": "string",
+    "description": "creation timestamp",
+    "required": true
+  },
+  {
+    "name": "eval_runs[].eval_id",
+    "type": "string",
+    "description": "evaluation id",
+    "required": true
+  },
+  {
+    "name": "eval_runs[].pending",
+    "type": "boolean",
+    "description": "pending status",
+    "required": true
+  },
+  {
+    "name": "eval_runs[].success",
+    "type": "boolean",
+    "description": "success status",
+    "required": true
+  },
+  {
+    "name": "eval_runs[].error",
+    "type": "string | null",
+    "description": "error message",
+    "required": true
+  },
+  {
+    "name": "eval_runs[].result",
+    "type": "object | null",
+    "description": "result object",
+    "required": true
   },
   {
     "name": "route",
-    "type": "object",
-    "description": "Route info (id, method, path) or null"
+    "type": "object | null",
+    "description": "route information",
+    "required": true
   }
 ]} />
 
@@ -337,17 +689,20 @@ Returns log entries for the session.
   {
     "name": "body",
     "type": "string",
-    "description": "Log message"
+    "description": "the log body",
+    "required": true
   },
   {
     "name": "severity",
     "type": "string",
-    "description": "Log level"
+    "description": "the log severity",
+    "required": true
   },
   {
     "name": "timestamp",
     "type": "string",
-    "description": "ISO 8601"
+    "description": "the log timestamp",
+    "required": true
   }
 ]} />
 

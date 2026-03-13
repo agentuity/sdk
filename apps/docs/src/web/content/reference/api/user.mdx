@@ -3,6 +3,8 @@ title: Users API
 description: Get authenticated user information and organization memberships
 ---
 
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
 Get authenticated user information and organization memberships.
 
 <RegionPicker />
@@ -42,17 +44,32 @@ Returns the authenticated user's profile including name and organization members
   {
     "name": "firstName",
     "type": "string",
-    "description": "User's first name"
+    "description": "the first name of the user",
+    "required": true
   },
   {
     "name": "lastName",
     "type": "string",
-    "description": "User's last name"
+    "description": "the last name of the user",
+    "required": true
   },
   {
     "name": "organizations",
-    "type": "array",
-    "description": "List of organizations the user belongs to"
+    "type": "object[]",
+    "description": "the organizations the user is a member of",
+    "required": true
+  },
+  {
+    "name": "organizations[].id",
+    "type": "string",
+    "description": "the unique id for the organization",
+    "required": true
+  },
+  {
+    "name": "organizations[].name",
+    "type": "string",
+    "description": "the name of the organization",
+    "required": true
   }
 ]} />
 

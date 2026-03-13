@@ -3,6 +3,8 @@ title: Organizations API
 description: Manage organizations, environment variables, and org-level resources
 ---
 
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
 Manage organizations, environment variables, and org-level resources.
 
 <RegionPicker />
@@ -100,17 +102,20 @@ Returns environment variables and secrets for the organization.
   {
     "name": "id",
     "type": "string",
-    "description": "Organization ID"
+    "description": "the organization id",
+    "required": true
   },
   {
     "name": "env",
     "type": "object",
-    "description": "Environment variables"
+    "description": "environment variables",
+    "required": false
   },
   {
     "name": "secrets",
     "type": "object",
-    "description": "Secret values (masked by default)"
+    "description": "secrets (may be masked)",
+    "required": false
   }
 ]} />
 
@@ -146,13 +151,13 @@ Environment variables and secrets to set.
   {
     "name": "env",
     "type": "object",
-    "description": "Environment variables to set",
+    "description": "environment variables to set/update",
     "required": false
   },
   {
     "name": "secrets",
     "type": "object",
-    "description": "Secrets to set",
+    "description": "secrets to set/update",
     "required": false
   }
 ]} />
@@ -205,14 +210,14 @@ Keys to delete from environment variables and secrets.
 <ResponseFields fields={[
   {
     "name": "env",
-    "type": "array",
-    "description": "Environment variable keys to delete",
+    "type": "string[]",
+    "description": "environment variable keys to delete",
     "required": false
   },
   {
     "name": "secrets",
-    "type": "array",
-    "description": "Secret keys to delete",
+    "type": "string[]",
+    "description": "secret keys to delete",
     "required": false
   }
 ]} />

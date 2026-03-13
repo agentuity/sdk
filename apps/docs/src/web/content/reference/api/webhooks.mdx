@@ -3,6 +3,8 @@ title: Webhooks API
 description: Manage webhook endpoints, destinations, receipts, deliveries, and analytics
 ---
 
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
 Manage webhook endpoints, destinations, receipts, deliveries, and analytics.
 
 <RegionPicker />
@@ -37,13 +39,13 @@ Webhook creation payload.
   {
     "name": "name",
     "type": "string",
-    "description": "Webhook name",
+    "description": "Human-readable name for the webhook",
     "required": true
   },
   {
     "name": "description",
     "type": "string",
-    "description": "Webhook description",
+    "description": "Optional description of the webhook's purpose",
     "required": false
   }
 ]} />
@@ -63,42 +65,56 @@ Returns the created webhook. The ingest URL is only returned at creation.
   {
     "name": "id",
     "type": "string",
-    "description": "Webhook ID"
+    "description": "Unique identifier for the webhook (prefixed with wh_)",
+    "required": true
   },
   {
     "name": "created_at",
     "type": "string",
-    "description": "Creation timestamp"
+    "description": "ISO 8601 timestamp when the webhook was created",
+    "required": true
   },
   {
     "name": "updated_at",
     "type": "string",
-    "description": "Last update timestamp"
+    "description": "ISO 8601 timestamp when the webhook was last updated",
+    "required": true
+  },
+  {
+    "name": "created_by",
+    "type": "string",
+    "description": "ID of the user who created the webhook",
+    "required": true
   },
   {
     "name": "name",
     "type": "string",
-    "description": "Webhook name"
+    "description": "Human-readable webhook name",
+    "required": true
   },
   {
     "name": "description",
-    "type": "string",
-    "description": "Webhook description"
+    "type": "string | null",
+    "description": "Optional description of the webhook's purpose",
+    "required": true
   },
   {
     "name": "url",
     "type": "string",
-    "description": "Ingest URL — only returned at creation"
+    "description": "Fully-qualified ingest URL for sending events to this webhook. Only present on create",
+    "required": false
   },
   {
     "name": "internal",
     "type": "boolean",
-    "description": "Whether the webhook is internal"
+    "description": "Whether this is a system-managed webhook (e.g., S3 bucket notifications). Internal webhooks cannot be modified or deleted by users",
+    "required": true
   },
   {
     "name": "metadata",
-    "type": "object",
-    "description": "Webhook metadata"
+    "type": "object | null",
+    "description": "System metadata for internal webhooks (e.g., bucket_name, type). Null for user-created webhooks",
+    "required": true
   }
 ]} />
 
@@ -210,13 +226,13 @@ Webhook update payload.
   {
     "name": "name",
     "type": "string",
-    "description": "Updated webhook name",
+    "description": "New name for the webhook",
     "required": true
   },
   {
     "name": "description",
     "type": "string",
-    "description": "Updated description",
+    "description": "New description for the webhook",
     "required": false
   }
 ]} />
@@ -301,13 +317,13 @@ Destination creation payload.
   {
     "name": "type",
     "type": "string",
-    "description": "'url'",
+    "description": "Type of destination to create",
     "required": true
   },
   {
     "name": "config",
     "type": "object",
-    "description": "{ url, headers? }",
+    "description": "Configuration object for the destination",
     "required": true
   }
 ]} />
@@ -400,7 +416,7 @@ Destination update payload.
   {
     "name": "config",
     "type": "object",
-    "description": "Updated destination config",
+    "description": "Updated configuration object for the destination",
     "required": false
   }
 ]} />
@@ -557,27 +573,32 @@ Returns the receipt with headers and payload.
   {
     "name": "id",
     "type": "string",
-    "description": "Receipt ID"
+    "description": "Unique identifier for the receipt (prefixed with whrc_)",
+    "required": true
   },
   {
     "name": "date",
     "type": "string",
-    "description": "Receipt timestamp"
+    "description": "ISO 8601 timestamp when the receipt was recorded",
+    "required": true
   },
   {
     "name": "webhook_id",
     "type": "string",
-    "description": "Parent webhook ID"
+    "description": "ID of the webhook this receipt belongs to",
+    "required": true
   },
   {
     "name": "headers",
     "type": "object",
-    "description": "Request headers"
+    "description": "HTTP headers from the incoming webhook request",
+    "required": true
   },
   {
     "name": "payload",
     "type": "any",
-    "description": "The received payload"
+    "description": "Raw payload from the incoming webhook request (can be any type)",
+    "required": true
   }
 ]} />
 

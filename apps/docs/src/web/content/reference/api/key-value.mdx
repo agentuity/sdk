@@ -3,6 +3,8 @@ title: Key-Value Storage API
 description: Store and retrieve arbitrary data by key within namespaces
 ---
 
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
 Store and retrieve arbitrary data by key within namespaces.
 
 <RegionPicker />
@@ -315,22 +317,26 @@ JSON object with namespace statistics.
   {
     "name": "sum",
     "type": "number",
-    "description": "Total size in bytes"
+    "description": "Total size in bytes for the namespace.",
+    "required": true
   },
   {
     "name": "count",
     "type": "number",
-    "description": "Number of records in the namespace"
+    "description": "Number of records in the namespace.",
+    "required": true
   },
   {
     "name": "createdAt",
     "type": "number",
-    "description": "Unix timestamp (ms) when the namespace was created"
+    "description": "Unix timestamp (milliseconds) when the namespace was created.",
+    "required": false
   },
   {
     "name": "lastUsedAt",
     "type": "number",
-    "description": "Unix timestamp (ms) when the namespace was last used"
+    "description": "Unix timestamp (milliseconds) when the namespace was last used.",
+    "required": false
   }
 ]} />
 
@@ -411,7 +417,7 @@ Paginated response with namespace statistics.
   {
     "name": "limit",
     "type": "number",
-    "description": "Number of namespaces per page"
+    "description": "Number of namespaces requested per page"
   },
   {
     "name": "offset",
@@ -421,7 +427,7 @@ Paginated response with namespace statistics.
   {
     "name": "hasMore",
     "type": "boolean",
-    "description": "Whether more namespaces are available"
+    "description": "Whether there are more namespaces available"
   }
 ]} />
 
