@@ -315,22 +315,26 @@ JSON object with namespace statistics.
   {
     "name": "sum",
     "type": "number",
-    "description": "Total size in bytes"
+    "description": "Total size in bytes for the namespace.",
+    "required": true
   },
   {
     "name": "count",
     "type": "number",
-    "description": "Number of records in the namespace"
+    "description": "Number of records in the namespace.",
+    "required": true
   },
   {
     "name": "createdAt",
     "type": "number",
-    "description": "Unix timestamp (ms) when the namespace was created"
+    "description": "Unix timestamp (milliseconds) when the namespace was created.",
+    "required": false
   },
   {
     "name": "lastUsedAt",
     "type": "number",
-    "description": "Unix timestamp (ms) when the namespace was last used"
+    "description": "Unix timestamp (milliseconds) when the namespace was last used.",
+    "required": false
   }
 ]} />
 

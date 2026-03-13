@@ -1,34 +1,5 @@
 import { KeyValueStatsSchema } from './service.ts';
-import { fieldsFromSchema, type Service } from '../api-reference.ts';
-
-const namespaceStatsResponseFields = fieldsFromSchema(KeyValueStatsSchema)
-	.filter((field) => ['sum', 'count', 'createdAt', 'lastUsedAt'].includes(field.name))
-	.map((field) => {
-		switch (field.name) {
-			case 'sum':
-				return { name: field.name, type: 'number', description: 'Total size in bytes' };
-			case 'count':
-				return {
-					name: field.name,
-					type: 'number',
-					description: 'Number of records in the namespace',
-				};
-			case 'createdAt':
-				return {
-					name: field.name,
-					type: 'number',
-					description: 'Unix timestamp (ms) when the namespace was created',
-				};
-			case 'lastUsedAt':
-				return {
-					name: field.name,
-					type: 'number',
-					description: 'Unix timestamp (ms) when the namespace was last used',
-				};
-			default:
-				return { name: field.name, type: field.type, description: field.description };
-		}
-	});
+import type { Service } from '../api-reference.ts';
 
 const service: Service = {
 	name: 'Key-Value Storage',
@@ -214,7 +185,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'JSON object with namespace statistics.',
-			responseFields: namespaceStatsResponseFields,
+			responseFields: { schema: KeyValueStatsSchema, omit: ['internal'] },
 			statuses: [
 				{ code: 200, description: 'Stats returned' },
 				{ code: 401, description: 'Unauthorized' },

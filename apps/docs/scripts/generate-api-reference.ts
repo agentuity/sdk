@@ -8,6 +8,7 @@ import type {
 	ResponseHeader,
 	Service,
 } from '../../../packages/core/src/services/api-reference.ts';
+import { resolveFields } from '../../../packages/core/src/services/api-reference.ts';
 import apiKeysService from '../../../packages/core/src/services/apikey/api-reference.ts';
 import databaseService from '../../../packages/core/src/services/db/api-reference.ts';
 import emailService from '../../../packages/core/src/services/email/api-reference.ts';
@@ -121,10 +122,11 @@ function renderEndpointSection(endpoint: Endpoint, headingLevel = 2, host?: stri
 	if (endpoint.requestBody) {
 		requestBodyParts.push('', `${subHeading} Request Body`, '');
 		requestBodyParts.push(endpoint.requestBody.description, '');
+		const resolvedRequestFields = resolveFields(endpoint.requestBody.fields);
 
-		if (endpoint.requestBody.fields && endpoint.requestBody.fields.length > 0) {
+		if (resolvedRequestFields && resolvedRequestFields.length > 0) {
 			requestBodyParts.push(
-				`<ResponseFields fields={${JSON.stringify(endpoint.requestBody.fields, null, 2)}} />`,
+				`<ResponseFields fields={${JSON.stringify(resolvedRequestFields, null, 2)}} />`,
 				''
 			);
 		}
@@ -142,12 +144,13 @@ function renderEndpointSection(endpoint: Endpoint, headingLevel = 2, host?: stri
 		responseParts.push('', renderResponseHeaders(endpoint.responseHeaders, subHeading));
 	}
 
-	if (endpoint.responseFields && endpoint.responseFields.length > 0) {
+	const resolvedResponseFields = resolveFields(endpoint.responseFields);
+	if (resolvedResponseFields && resolvedResponseFields.length > 0) {
 		responseParts.push(
 			'',
 			`${subHeading} Response Fields`,
 			'',
-			`<ResponseFields fields={${JSON.stringify(endpoint.responseFields, null, 2)}} />`
+			`<ResponseFields fields={${JSON.stringify(resolvedResponseFields, null, 2)}} />`
 		);
 	}
 

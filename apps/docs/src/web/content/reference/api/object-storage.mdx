@@ -72,58 +72,69 @@ Paginated object listing.
 <ResponseFields fields={[
   {
     "name": "objects",
-    "type": "array",
-    "description": "List of object metadata records"
+    "type": "object[]",
+    "description": "List of objects",
+    "required": true
   },
   {
     "name": "objects[].bucket_name",
     "type": "string",
-    "description": "Bucket containing the object"
+    "description": "The bucket this object belongs to",
+    "required": true
   },
   {
     "name": "objects[].key",
     "type": "string",
-    "description": "Object key"
+    "description": "Object key (path)",
+    "required": true
   },
   {
     "name": "objects[].size",
     "type": "number",
-    "description": "Object size in bytes"
+    "description": "Object size in bytes",
+    "required": true
   },
   {
     "name": "objects[].etag",
     "type": "string",
-    "description": "Entity tag"
+    "description": "Object ETag",
+    "required": false
   },
   {
     "name": "objects[].content_type",
     "type": "string",
-    "description": "MIME content type"
+    "description": "Object content type",
+    "required": false
   },
   {
     "name": "objects[].last_modified",
     "type": "string",
-    "description": "Last modified timestamp"
+    "description": "Last modified timestamp (ISO8601)",
+    "required": false
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total matching objects"
+    "description": "Total count matching the query",
+    "required": true
   },
   {
     "name": "prefix",
     "type": "string",
-    "description": "Applied prefix filter"
+    "description": "Prefix filter applied",
+    "required": true
   },
   {
     "name": "limit",
     "type": "number",
-    "description": "Applied limit"
+    "description": "Page size",
+    "required": true
   },
   {
     "name": "offset",
     "type": "number",
-    "description": "Applied offset"
+    "description": "Page offset",
+    "required": true
   }
 ]} />
 
@@ -180,7 +191,8 @@ JSON response with deleted object count.
   {
     "name": "deleted_count",
     "type": "number",
-    "description": "Number of objects deleted"
+    "description": "Number of objects deleted",
+    "required": true
   }
 ]} />
 
@@ -237,12 +249,14 @@ JSON response containing presigned URL and expiry.
   {
     "name": "presigned_url",
     "type": "string",
-    "description": "Temporary signed URL"
+    "description": "The presigned URL",
+    "required": true
   },
   {
     "name": "expiry_seconds",
     "type": "number",
-    "description": "URL expiry in seconds"
+    "description": "URL expiry time in seconds",
+    "required": true
   }
 ]} />
 
@@ -285,22 +299,26 @@ Bucket-level usage and activity statistics.
   {
     "name": "bucket_name",
     "type": "string",
-    "description": "Bucket name"
+    "description": "The bucket name",
+    "required": true
   },
   {
     "name": "object_count",
     "type": "number",
-    "description": "Total number of objects"
+    "description": "Number of objects",
+    "required": true
   },
   {
     "name": "total_size",
     "type": "number",
-    "description": "Total size in bytes"
+    "description": "Total size in bytes",
+    "required": true
   },
   {
     "name": "last_event_at",
-    "type": "string | null",
-    "description": "Last activity timestamp (ISO 8601)"
+    "type": "string",
+    "description": "Last event timestamp (ISO8601)",
+    "required": false
   }
 ]} />
 
@@ -343,42 +361,104 @@ Analytics summary, per-bucket breakdown, and daily trend data.
   {
     "name": "summary",
     "type": "object",
-    "description": "Overall storage summary"
+    "description": "Org-wide totals",
+    "required": true
   },
   {
     "name": "summary.total_object_count",
     "type": "number",
-    "description": "Total objects across buckets"
+    "description": "Total objects across all buckets",
+    "required": true
   },
   {
     "name": "summary.total_size",
     "type": "number",
-    "description": "Total bytes across buckets"
+    "description": "Total size in bytes across all buckets",
+    "required": true
   },
   {
     "name": "summary.estimated_monthly_cost",
     "type": "number",
-    "description": "Estimated monthly storage cost"
+    "description": "Estimated monthly cost in USD",
+    "required": true
   },
   {
     "name": "summary.cost_per_gb_month",
     "type": "number",
-    "description": "Cost per GB-month used in estimate"
+    "description": "Cost rate per GB per month in USD",
+    "required": true
   },
   {
     "name": "buckets",
-    "type": "array",
-    "description": "Per-bucket stats"
+    "type": "object[]",
+    "description": "Per-bucket breakdown",
+    "required": true
+  },
+  {
+    "name": "buckets[].bucket_name",
+    "type": "string",
+    "description": "The bucket name",
+    "required": true
+  },
+  {
+    "name": "buckets[].object_count",
+    "type": "number",
+    "description": "Number of objects in this bucket",
+    "required": true
+  },
+  {
+    "name": "buckets[].total_size",
+    "type": "number",
+    "description": "Total size in bytes for this bucket",
+    "required": true
+  },
+  {
+    "name": "buckets[].last_event_at",
+    "type": "string",
+    "description": "Last event timestamp (ISO8601)",
+    "required": false
+  },
+  {
+    "name": "buckets[].estimated_monthly_cost",
+    "type": "number",
+    "description": "Estimated monthly cost for this bucket in USD",
+    "required": true
   },
   {
     "name": "daily",
-    "type": "array",
-    "description": "Daily usage snapshots"
+    "type": "object[]",
+    "description": "Daily snapshots for sparklines",
+    "required": true
+  },
+  {
+    "name": "daily[].date",
+    "type": "string",
+    "description": "Snapshot date (YYYY-MM-DD)",
+    "required": true
+  },
+  {
+    "name": "daily[].total_object_count",
+    "type": "number",
+    "description": "Total objects on this date",
+    "required": true
+  },
+  {
+    "name": "daily[].total_size",
+    "type": "number",
+    "description": "Total size in bytes on this date",
+    "required": true
+  },
+  {
+    "name": "daily[].estimated_cost",
+    "type": "number",
+    "description": "Estimated monthly cost at this snapshot in USD",
+    "required": true
   },
   {
     "name": "days",
     "type": "number",
-    "description": "Applied history window in days"
+    "description": "Number of days requested",
+    "required": true
   }
 ]} />
 
@@ -421,42 +501,50 @@ Bucket configuration settings and location metadata.
   {
     "name": "bucket_name",
     "type": "string",
-    "description": "Bucket name"
+    "description": "The name of the storage bucket",
+    "required": true
   },
   {
     "name": "storage_tier",
     "type": "string | null",
-    "description": "`STANDARD`, `INFREQUENT_ACCESS`, or `ARCHIVE`"
+    "description": "Storage tier: `STANDARD`, `INFREQUENT_ACCESS`, or `ARCHIVE`",
+    "required": false
   },
   {
     "name": "ttl",
     "type": "number | null",
-    "description": "Default object TTL in seconds"
+    "description": "Object TTL in seconds",
+    "required": false
   },
   {
     "name": "public",
     "type": "boolean | null",
-    "description": "Whether objects are publicly accessible"
+    "description": "Whether the bucket is publicly accessible",
+    "required": false
   },
   {
     "name": "cache_control",
     "type": "string | null",
-    "description": "Default Cache-Control header"
+    "description": "Default Cache-Control header for objects",
+    "required": false
   },
   {
     "name": "cors",
     "type": "object | null",
-    "description": "CORS configuration"
+    "description": "Custom CORS configuration",
+    "required": false
   },
   {
     "name": "additional_headers",
     "type": "object | null",
-    "description": "Additional response headers"
+    "description": "Additional response headers as key-value pairs",
+    "required": false
   },
   {
     "name": "bucket_location",
     "type": "string | null",
-    "description": "Bucket storage location/region"
+    "description": "Bucket location or region override",
+    "required": false
   }
 ]} />
 
@@ -491,38 +579,38 @@ Partial bucket config update payload.
 <ResponseFields fields={[
   {
     "name": "storage_tier",
-    "type": "string",
-    "description": "Storage tier override",
+    "type": "string | null",
+    "description": "Storage tier: `STANDARD`, `INFREQUENT_ACCESS`, or `ARCHIVE`",
     "required": false
   },
   {
     "name": "ttl",
     "type": "number | null",
-    "description": "Default TTL in seconds",
+    "description": "Object TTL in seconds (0 to clear)",
     "required": false
   },
   {
     "name": "public",
-    "type": "boolean",
-    "description": "Public access setting",
+    "type": "boolean | null",
+    "description": "Whether the bucket is publicly accessible",
     "required": false
   },
   {
     "name": "cache_control",
-    "type": "string",
-    "description": "Default Cache-Control header",
+    "type": "string | null",
+    "description": "Default Cache-Control header for objects",
     "required": false
   },
   {
     "name": "cors",
-    "type": "object",
-    "description": "CORS configuration",
+    "type": "object | null",
+    "description": "Custom CORS configuration",
     "required": false
   },
   {
     "name": "additional_headers",
-    "type": "object",
-    "description": "Additional response headers",
+    "type": "object | null",
+    "description": "Additional response headers as key-value pairs",
     "required": false
   }
 ]} />
@@ -542,42 +630,50 @@ Updated bucket configuration object.
   {
     "name": "bucket_name",
     "type": "string",
-    "description": "Bucket name"
+    "description": "The name of the storage bucket",
+    "required": true
   },
   {
     "name": "storage_tier",
     "type": "string | null",
-    "description": "Configured storage tier"
+    "description": "Storage tier: `STANDARD`, `INFREQUENT_ACCESS`, or `ARCHIVE`",
+    "required": false
   },
   {
     "name": "ttl",
     "type": "number | null",
-    "description": "Configured TTL"
+    "description": "Object TTL in seconds",
+    "required": false
   },
   {
     "name": "public",
     "type": "boolean | null",
-    "description": "Configured public access"
+    "description": "Whether the bucket is publicly accessible",
+    "required": false
   },
   {
     "name": "cache_control",
     "type": "string | null",
-    "description": "Configured Cache-Control"
+    "description": "Default Cache-Control header for objects",
+    "required": false
   },
   {
     "name": "cors",
     "type": "object | null",
-    "description": "Configured CORS settings"
+    "description": "Custom CORS configuration",
+    "required": false
   },
   {
     "name": "additional_headers",
     "type": "object | null",
-    "description": "Configured custom headers"
+    "description": "Additional response headers as key-value pairs",
+    "required": false
   },
   {
     "name": "bucket_location",
     "type": "string | null",
-    "description": "Bucket location"
+    "description": "Bucket location or region override",
+    "required": false
   }
 ]} />
 

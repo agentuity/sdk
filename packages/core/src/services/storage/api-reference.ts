@@ -1,3 +1,12 @@
+import {
+	BucketConfigSchema,
+	BucketConfigUpdateSchema,
+	StorageAnalyticsResponseSchema,
+	StorageDeleteResponseSchema,
+	StorageListResponseSchema,
+	StoragePresignResponseSchema,
+	StorageStatsResponseSchema,
+} from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -34,27 +43,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Paginated object listing.',
-			responseFields: [
-				{ name: 'objects', type: 'array', description: 'List of object metadata records' },
-				{
-					name: 'objects[].bucket_name',
-					type: 'string',
-					description: 'Bucket containing the object',
-				},
-				{ name: 'objects[].key', type: 'string', description: 'Object key' },
-				{ name: 'objects[].size', type: 'number', description: 'Object size in bytes' },
-				{ name: 'objects[].etag', type: 'string', description: 'Entity tag' },
-				{ name: 'objects[].content_type', type: 'string', description: 'MIME content type' },
-				{
-					name: 'objects[].last_modified',
-					type: 'string',
-					description: 'Last modified timestamp',
-				},
-				{ name: 'total', type: 'number', description: 'Total matching objects' },
-				{ name: 'prefix', type: 'string', description: 'Applied prefix filter' },
-				{ name: 'limit', type: 'number', description: 'Applied limit' },
-				{ name: 'offset', type: 'number', description: 'Applied offset' },
-			],
+			responseFields: { schema: StorageListResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Object list returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -85,9 +74,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'JSON response with deleted object count.',
-			responseFields: [
-				{ name: 'deleted_count', type: 'number', description: 'Number of objects deleted' },
-			],
+			responseFields: { schema: StorageDeleteResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Delete operation completed' },
 				{ code: 401, description: 'Unauthorized' },
@@ -112,10 +99,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'JSON response containing presigned URL and expiry.',
-			responseFields: [
-				{ name: 'presigned_url', type: 'string', description: 'Temporary signed URL' },
-				{ name: 'expiry_seconds', type: 'number', description: 'URL expiry in seconds' },
-			],
+			responseFields: { schema: StoragePresignResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Presigned URL generated' },
 				{ code: 401, description: 'Unauthorized' },
@@ -132,16 +116,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Bucket-level usage and activity statistics.',
-			responseFields: [
-				{ name: 'bucket_name', type: 'string', description: 'Bucket name' },
-				{ name: 'object_count', type: 'number', description: 'Total number of objects' },
-				{ name: 'total_size', type: 'number', description: 'Total size in bytes' },
-				{
-					name: 'last_event_at',
-					type: 'string | null',
-					description: 'Last activity timestamp (ISO 8601)',
-				},
-			],
+			responseFields: { schema: StorageStatsResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Bucket stats returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -165,32 +140,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Analytics summary, per-bucket breakdown, and daily trend data.',
-			responseFields: [
-				{ name: 'summary', type: 'object', description: 'Overall storage summary' },
-				{
-					name: 'summary.total_object_count',
-					type: 'number',
-					description: 'Total objects across buckets',
-				},
-				{
-					name: 'summary.total_size',
-					type: 'number',
-					description: 'Total bytes across buckets',
-				},
-				{
-					name: 'summary.estimated_monthly_cost',
-					type: 'number',
-					description: 'Estimated monthly storage cost',
-				},
-				{
-					name: 'summary.cost_per_gb_month',
-					type: 'number',
-					description: 'Cost per GB-month used in estimate',
-				},
-				{ name: 'buckets', type: 'array', description: 'Per-bucket stats' },
-				{ name: 'daily', type: 'array', description: 'Daily usage snapshots' },
-				{ name: 'days', type: 'number', description: 'Applied history window in days' },
-			],
+			responseFields: { schema: StorageAnalyticsResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Analytics returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -207,36 +157,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Bucket configuration settings and location metadata.',
-			responseFields: [
-				{ name: 'bucket_name', type: 'string', description: 'Bucket name' },
-				{
-					name: 'storage_tier',
-					type: 'string | null',
-					description: '`STANDARD`, `INFREQUENT_ACCESS`, or `ARCHIVE`',
-				},
-				{ name: 'ttl', type: 'number | null', description: 'Default object TTL in seconds' },
-				{
-					name: 'public',
-					type: 'boolean | null',
-					description: 'Whether objects are publicly accessible',
-				},
-				{
-					name: 'cache_control',
-					type: 'string | null',
-					description: 'Default Cache-Control header',
-				},
-				{ name: 'cors', type: 'object | null', description: 'CORS configuration' },
-				{
-					name: 'additional_headers',
-					type: 'object | null',
-					description: 'Additional response headers',
-				},
-				{
-					name: 'bucket_location',
-					type: 'string | null',
-					description: 'Bucket storage location/region',
-				},
-			],
+			responseFields: { schema: BucketConfigSchema },
 			statuses: [
 				{ code: 200, description: 'Bucket config returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -253,59 +174,10 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Partial bucket config update payload.',
-				fields: [
-					{
-						name: 'storage_tier',
-						type: 'string',
-						description: 'Storage tier override',
-						required: false,
-					},
-					{
-						name: 'ttl',
-						type: 'number | null',
-						description: 'Default TTL in seconds',
-						required: false,
-					},
-					{
-						name: 'public',
-						type: 'boolean',
-						description: 'Public access setting',
-						required: false,
-					},
-					{
-						name: 'cache_control',
-						type: 'string',
-						description: 'Default Cache-Control header',
-						required: false,
-					},
-					{ name: 'cors', type: 'object', description: 'CORS configuration', required: false },
-					{
-						name: 'additional_headers',
-						type: 'object',
-						description: 'Additional response headers',
-						required: false,
-					},
-				],
+				fields: { schema: BucketConfigUpdateSchema },
 			},
 			responseDescription: 'Updated bucket configuration object.',
-			responseFields: [
-				{ name: 'bucket_name', type: 'string', description: 'Bucket name' },
-				{ name: 'storage_tier', type: 'string | null', description: 'Configured storage tier' },
-				{ name: 'ttl', type: 'number | null', description: 'Configured TTL' },
-				{ name: 'public', type: 'boolean | null', description: 'Configured public access' },
-				{
-					name: 'cache_control',
-					type: 'string | null',
-					description: 'Configured Cache-Control',
-				},
-				{ name: 'cors', type: 'object | null', description: 'Configured CORS settings' },
-				{
-					name: 'additional_headers',
-					type: 'object | null',
-					description: 'Configured custom headers',
-				},
-				{ name: 'bucket_location', type: 'string | null', description: 'Bucket location' },
-			],
+			responseFields: { schema: BucketConfigSchema },
 			statuses: [
 				{ code: 200, description: 'Bucket config updated' },
 				{ code: 401, description: 'Unauthorized' },

@@ -9,9 +9,19 @@ interface NamedField {
 	required?: boolean;
 }
 
+interface FieldSource {
+	schema: z.ZodType;
+	prefix?: string;
+	pick?: string[];
+	omit?: string[];
+	overrides?: Record<string, Partial<Pick<NamedField, 'type' | 'description'>>>;
+}
+
+type FieldDefinition = NamedField[] | FieldSource;
+
 interface RequestBody {
 	description: string;
-	fields?: NamedField[];
+	fields?: FieldDefinition;
 }
 
 interface Param {
@@ -43,7 +53,7 @@ interface Endpoint {
 	requestBody: RequestBody | null;
 	responseDescription: string;
 	responseHeaders?: ResponseHeader[];
-	responseFields?: NamedField[];
+	responseFields?: FieldDefinition;
 	statuses: EndpointStatus[];
 	examplePath: string;
 	exampleBody?: string | object;
@@ -84,32 +94,85 @@ function jsonSchemaTypeToFieldType(schema: any): string {
 }
 
 function fieldName(prefix: string | undefined, key: string): string {
-	if (!prefix) return key;
-	if (prefix.endsWith('[]') || prefix.endsWith('{key}')) return `${prefix}.${key}`;
-	return `${prefix}.${key}`;
+	return prefix ? `${prefix}.${key}` : key;
+}
+
+function extractFields(
+	jsonSchema: any,
+	prefix: string | undefined,
+	requiredSet: Set<string>
+): NamedField[] {
+	const properties = jsonSchema?.properties;
+	if (!properties || typeof properties !== 'object') return [];
+
+	const fields: NamedField[] = [];
+
+	for (const [key, value] of Object.entries(properties)) {
+		const prop = value as any;
+		const name = fieldName(prefix, key);
+
+		fields.push({
+			name,
+			type: jsonSchemaTypeToFieldType(prop),
+			description: typeof prop?.description === 'string' ? prop.description : '',
+			required: requiredSet.has(key),
+		});
+
+		// Note: nullable objects (anyOf: [object, null]) are not recursed into.
+		// Use a non-nullable sub-schema or manually list sub-fields if expansion is needed.
+		if (prop.type === 'object' && prop.properties) {
+			const nestedRequired = new Set<string>(Array.isArray(prop.required) ? prop.required : []);
+			fields.push(...extractFields(prop, name, nestedRequired));
+		}
+
+		if (prop.type === 'array' && prop.items?.type === 'object' && prop.items?.properties) {
+			const itemRequired = new Set<string>(
+				Array.isArray(prop.items.required) ? prop.items.required : []
+			);
+			fields.push(...extractFields(prop.items, `${name}[]`, itemRequired));
+		}
+	}
+
+	return fields;
 }
 
 function fieldsFromSchema(schema: z.ZodType, prefix?: string): NamedField[] {
 	const jsonSchema = z.toJSONSchema(schema) as any;
-	const properties = jsonSchema?.properties;
 	const required = new Set<string>(Array.isArray(jsonSchema?.required) ? jsonSchema.required : []);
+	return extractFields(jsonSchema, prefix, required);
+}
 
-	if (!properties || typeof properties !== 'object') return [];
+function resolveFields(definition: FieldDefinition | undefined): NamedField[] | undefined {
+	if (!definition) return undefined;
+	if (Array.isArray(definition)) return definition;
 
-	return Object.entries(properties).map(([key, value]) => {
-		const prop = value as any;
-		return {
-			name: fieldName(prefix, key),
-			type: jsonSchemaTypeToFieldType(prop),
-			description: typeof prop?.description === 'string' ? prop.description : '',
-			required: required.has(key),
-		};
-	});
+	let fields = fieldsFromSchema(definition.schema, definition.prefix);
+
+	if (definition.pick) {
+		const pickSet = new Set(definition.pick);
+		fields = fields.filter((field) => pickSet.has(field.name));
+	}
+
+	if (definition.omit) {
+		const omitSet = new Set(definition.omit);
+		fields = fields.filter((field) => !omitSet.has(field.name));
+	}
+
+	if (definition.overrides) {
+		fields = fields.map((field) => {
+			const override = definition.overrides?.[field.name];
+			return override ? { ...field, ...override } : field;
+		});
+	}
+
+	return fields;
 }
 
 export type {
 	HttpMethod,
 	NamedField,
+	FieldSource,
+	FieldDefinition,
 	RequestBody,
 	Param,
 	EndpointStatus,
@@ -117,4 +180,4 @@ export type {
 	Endpoint,
 	Service,
 };
-export { fieldsFromSchema };
+export { fieldsFromSchema, resolveFields };
