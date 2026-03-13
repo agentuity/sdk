@@ -860,7 +860,7 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Checkpoint creation payload.',
-				fields: { schema: DiskCheckpointCreateParamsSchema },
+				fields: { schema: DiskCheckpointCreateParamsSchema, omit: ['sandboxId', 'orgId'] },
 			},
 			responseDescription: 'Returns the created checkpoint.',
 			responseFields: { schema: DiskCheckpointInfoSchema },

@@ -1804,12 +1804,12 @@ Created destination object.
 #### Example
 
 <ApiExample method="POST" path="/queue/destinations/create/order-processing" body={{
+  "name": "my-webhook",
   "destination_type": "http",
   "config": {
     "url": "https://example.com/webhook"
   },
-  "retry_attempts": 5,
-  "timeout_seconds": 10
+  "enabled": true
 }} />
 
 ---

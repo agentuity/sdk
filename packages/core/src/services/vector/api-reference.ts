@@ -9,6 +9,7 @@ import {
 	VectorDeleteMultipleRequestSchema,
 	VectorDeleteResponseSchema,
 	VectorGetResponseSchema,
+	VectorNamespaceListResponseSchema,
 	VectorSearchResponseSchema,
 	VectorUpsertResponseSchema,
 } from './types.ts';
@@ -217,6 +218,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'JSON array of namespace names.',
+			responseFields: { schema: VectorNamespaceListResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Namespace list returned' },
 				{ code: 401, description: 'Unauthorized' },

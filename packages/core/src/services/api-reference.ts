@@ -80,9 +80,19 @@ function jsonSchemaTypeToFieldType(schema: any): string {
 		return [...new Set(mapped)].join(' | ');
 	}
 
+	if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+		const mapped = schema.oneOf.map((part: any) => jsonSchemaTypeToFieldType(part));
+		return [...new Set(mapped)].join(' | ');
+	}
+
+	if (Array.isArray(schema.type)) {
+		const mapped = schema.type.map((t: string) => (t === 'integer' ? 'number' : t));
+		return [...new Set(mapped)].join(' | ');
+	}
+
 	if (schema.type === 'integer') return 'number';
 	if (schema.type === 'array') {
-		if (schema.items?.type) {
+		if (schema.items) {
 			const itemType = jsonSchemaTypeToFieldType(schema.items);
 			return itemType === 'any' ? 'array' : `${itemType}[]`;
 		}
@@ -138,7 +148,7 @@ function extractFields(
 }
 
 function fieldsFromSchema(schema: z.ZodType, prefix?: string): NamedField[] {
-	const jsonSchema = z.toJSONSchema(schema) as any;
+	const jsonSchema = z.toJSONSchema(schema, { unrepresentable: 'any' }) as any;
 	const required = new Set<string>(Array.isArray(jsonSchema?.required) ? jsonSchema.required : []);
 	return extractFields(jsonSchema, prefix, required);
 }

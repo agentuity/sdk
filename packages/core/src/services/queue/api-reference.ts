@@ -525,10 +525,10 @@ const service: Service = {
 			],
 			examplePath: '/queue/destinations/create/order-processing',
 			exampleBody: {
+				name: 'my-webhook',
 				destination_type: 'http',
 				config: { url: 'https://example.com/webhook' },
-				retry_attempts: 5,
-				timeout_seconds: 10,
+				enabled: true,
 			},
 		},
 		{

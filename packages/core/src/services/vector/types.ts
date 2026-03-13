@@ -100,3 +100,13 @@ export const VectorDeleteMultipleRequestSchema = z.object({
 });
 
 export type VectorDeleteMultipleRequest = z.infer<typeof VectorDeleteMultipleRequestSchema>;
+
+/**
+ * Response schema for the list-vector-namespaces endpoint.
+ * The endpoint returns a JSON array of namespace name strings (up to 1000).
+ */
+export const VectorNamespaceListResponseSchema = z
+	.array(z.string().describe('Namespace name'))
+	.describe('Array of namespace names (up to 1000)');
+
+export type VectorNamespaceListResponse = z.infer<typeof VectorNamespaceListResponseSchema>;

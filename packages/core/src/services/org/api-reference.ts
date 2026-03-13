@@ -68,7 +68,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Environment variables and secrets to set.',
-				fields: { schema: OrgEnvUpdateRequestSchema },
+				fields: { schema: OrgEnvUpdateRequestSchema, omit: ['id'] },
 			},
 			responseDescription: 'Updates are merged with existing values. Returns 204 on success.',
 			statuses: [
@@ -92,7 +92,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Keys to delete from environment variables and secrets.',
-				fields: { schema: OrgEnvDeleteRequestSchema },
+				fields: { schema: OrgEnvDeleteRequestSchema, omit: ['id'] },
 			},
 			responseDescription: 'Returns 204 on success.',
 			statuses: [

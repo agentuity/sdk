@@ -3,6 +3,7 @@ import { CreateProjectRequestSchema, NewProjectSchema } from './create.ts';
 import {
 	CreateProjectDeploymentSchema,
 	DeploymentCompleteSchema,
+	DeploymentConfig,
 	DeploymentFailPayloadSchema,
 	DeploymentStatusSchema,
 } from './deploy.ts';
@@ -190,7 +191,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Environment variable update payload.',
-				fields: { schema: ProjectEnvUpdateRequestSchema },
+				fields: { schema: ProjectEnvUpdateRequestSchema, omit: ['id'] },
 			},
 			responseDescription: 'Returns the updated environment variables.',
 			statuses: [
@@ -212,7 +213,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Environment variable deletion payload.',
-				fields: { schema: ProjectEnvDeleteRequestSchema },
+				fields: { schema: ProjectEnvDeleteRequestSchema, omit: ['id'] },
 			},
 			responseDescription: 'Empty response on success.',
 			statuses: [
@@ -262,7 +263,7 @@ const service: Service = {
 			title: 'Get Agent by Identifier',
 			sectionTitle: 'Agents',
 			method: 'GET',
-			path: '/cli/agent/{projectId}?identifier={identifier}',
+			path: '/cli/agent/{projectId}',
 			description: 'Retrieve a specific agent by its identifier.',
 			pathParams: [
 				{ name: 'projectId', type: 'string', description: 'Project ID', required: true },
@@ -458,7 +459,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Deployment configuration payload.',
-				fields: { schema: CreateProjectDeploymentSchema },
+				fields: { schema: DeploymentConfig },
 			},
 			responseDescription: 'Returns deployment details and upload information.',
 			responseFields: { schema: CreateProjectDeploymentSchema, stripRequired: true },

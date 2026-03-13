@@ -519,7 +519,7 @@ Returns paginated list of sandboxes.
   },
   {
     "name": "sandboxes[].snapshot",
-    "type": "any",
+    "type": "object",
     "description": "Snapshot information",
     "required": false
   },
@@ -2821,22 +2821,10 @@ Checkpoint creation payload.
 
 <ResponseFields fields={[
   {
-    "name": "sandboxId",
-    "type": "string",
-    "description": "Sandbox ID for checkpoint creation",
-    "required": true
-  },
-  {
     "name": "name",
     "type": "string",
     "description": "Name to assign to the new checkpoint",
     "required": true
-  },
-  {
-    "name": "orgId",
-    "type": "string",
-    "description": "Optional org id for CLI auth context",
-    "required": false
   }
 ]} />
 

@@ -352,12 +352,6 @@ Environment variable update payload.
 
 <ResponseFields fields={[
   {
-    "name": "id",
-    "type": "string",
-    "description": "the project id",
-    "required": true
-  },
-  {
     "name": "env",
     "type": "object",
     "description": "environment variables to set/update",
@@ -417,12 +411,6 @@ Delete specific environment variables and secrets from a project.
 Environment variable deletion payload.
 
 <ResponseFields fields={[
-  {
-    "name": "id",
-    "type": "string",
-    "description": "the project id",
-    "required": true
-  },
   {
     "name": "env",
     "type": "string[]",
@@ -621,7 +609,7 @@ Returns a list of agents for the project.
 
 Retrieve a specific agent by its identifier.
 
-<ApiEndpoint method="GET" path="/cli/agent/{projectId}?identifier={identifier}" />
+<ApiEndpoint method="GET" path="/cli/agent/{projectId}" />
 
 #### Parameters
 
@@ -973,27 +961,57 @@ Deployment configuration payload.
 
 <ResponseFields fields={[
   {
-    "name": "id",
+    "name": "resources",
+    "type": "object",
+    "description": "the resource requirements for your deployed project",
+    "required": false
+  },
+  {
+    "name": "resources.memory",
     "type": "string",
-    "description": "the unique id for the deployment",
+    "description": "The memory requirements",
     "required": true
   },
   {
-    "name": "orgId",
+    "name": "resources.cpu",
     "type": "string",
-    "description": "the organization id",
+    "description": "The CPU requirements",
     "required": true
   },
   {
-    "name": "publicKey",
+    "name": "resources.disk",
     "type": "string",
-    "description": "the public key to use for encrypting the deployment",
+    "description": "The disk requirements",
     "required": true
   },
   {
-    "name": "buildLogsStreamURL",
+    "name": "mode",
+    "type": "object",
+    "description": "the provisioning mode for the project",
+    "required": false
+  },
+  {
+    "name": "mode.type",
     "type": "string",
-    "description": "the URL for streaming build logs (PUT to write, GET to read)",
+    "description": "on-demand or provisioned",
+    "required": true
+  },
+  {
+    "name": "mode.idle",
+    "type": "string",
+    "description": "duration in seconds if on-demand",
+    "required": false
+  },
+  {
+    "name": "dependencies",
+    "type": "string[]",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "domains",
+    "type": "string[]",
+    "description": "",
     "required": false
   }
 ]} />

@@ -3,9 +3,12 @@ import {
 	CreateScheduleDestinationParamsSchema,
 	CreateScheduleParamsSchema,
 	ScheduleCreateResultSchema,
+	ScheduleDeliveryListResultSchema,
+	ScheduleGetResultSchema,
 	ScheduleListResultSchema,
 	UpdateScheduleParamsSchema,
 } from './service.ts';
+import { ScheduleCreateDestinationResultSchema, ScheduleUpdateResultSchema } from './types.ts';
 
 const service: Service = {
 	name: 'Schedules',
@@ -83,6 +86,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns the schedule object.',
+			responseFields: { schema: ScheduleGetResultSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Schedule returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -106,6 +110,7 @@ const service: Service = {
 				fields: { schema: UpdateScheduleParamsSchema },
 			},
 			responseDescription: 'Returns the updated schedule.',
+			responseFields: { schema: ScheduleUpdateResultSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Schedule updated' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -151,6 +156,7 @@ const service: Service = {
 				fields: { schema: CreateScheduleDestinationParamsSchema },
 			},
 			responseDescription: 'Returns the created destination.',
+			responseFields: { schema: ScheduleCreateDestinationResultSchema, stripRequired: true },
 			statuses: [
 				{ code: 201, description: 'Destination created' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -208,6 +214,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns delivery attempts with status, retries, and error details.',
+			responseFields: { schema: ScheduleDeliveryListResultSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Deliveries returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
