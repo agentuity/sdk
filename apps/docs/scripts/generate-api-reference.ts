@@ -213,6 +213,8 @@ title: ${service.name} API
 description: ${service.description}
 ---
 
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
 ${serviceIntro}
 
 <RegionPicker ${service.host ? `host="${service.host}" ` : ''}/>
@@ -237,6 +239,8 @@ function renderApiIndexMdx() {
 title: REST API Reference
 description: Direct HTTP access to Agentuity platform services
 ---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
 import { Activity, Box, Building, CheckCircle, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Table, Timer, User, Webhook } from 'lucide-react';
 
