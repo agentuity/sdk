@@ -1,200 +1,80 @@
 ---
 name: agentuity-ops
-description: When working with the Agentuity CLI, cloud services (KV, Vector, Storage, Sandbox, Database, SSH), deployments, or infrastructure. Activates when running agentuity commands, managing cloud resources, deploying projects, or configuring infrastructure.
+description: When running Agentuity CLI commands for deploying, managing databases, creating sandboxes, configuring storage, queues, cron jobs, email, or any cloud resource. Also activates for SSH debugging, environment variables, and non-interactive automation.
 version: 1.0.0
 ---
 
-# Agentuity Ops Reference
-
-Deep reference material for the Agentuity CLI, cloud services, deployments, and infrastructure.
+# Agentuity CLI & Operations Reference
 
 ## CLI Accuracy Contract (NON-NEGOTIABLE)
 
-**Never hallucinate CLI flags, subcommands, URLs, or outputs.**
+- **Never guess** flags, subcommands, or argument order
+- If not 100% certain, FIRST run: `agentuity <cmd> --help`
+- **Trust CLI output over memory** — never fabricate URLs or outputs
+- For the full CLI schema: `agentuity ai schema show`
 
-1. **Never guess** flags, subcommands, or argument order
-2. If not 100% certain, FIRST run: `agentuity <cmd> --help`
-3. **Trust CLI output over memory**
-4. **Never fabricate URLs** — read actual command output
-5. Provide **copy/paste-ready commands**
+## Key Conventions
 
-## CRITICAL: Region Configuration
+- Agentuity projects **always use `bun`** (never npm/pnpm) — check for `agentuity.json` or `.agentuity/`
+- Check region config before adding `--region` flags (`~/.config/agentuity/config.json` and `agentuity.json`)
+- Sandbox default working directory is `/home/agentuity` (not `/app`)
+- Always read actual command output for URLs — never fabricate them
 
-Before suggesting `--region` flags, CHECK EXISTING CONFIG:
+## Non-Interactive Execution
 
-```bash
-cat ~/.config/agentuity/config.json 2>/dev/null | grep region
-cat agentuity.json 2>/dev/null | grep region
-```
+When running CLI commands programmatically (in Claude Code, CI, or scripts), skip confirmation prompts:
 
-- If region is configured → NO `--region` flag needed
-- If NOT configured → help user set it in config OR use `--region`
+| Flag | Short | Behavior |
+| --- | --- | --- |
+| `--confirm` | — | Skip confirmation prompts |
+| `--yes` | `-y` | Alias for `--confirm` |
+| `--force` | — | Alias for `--confirm` (when command doesn't have its own `--force`) |
 
-## CRITICAL: Agentuity Projects Use Bun (Always)
+These work on any command with a confirmation prompt (deploy, create, delete, etc.).
 
-- If `agentuity.json` or `.agentuity/` exists → ALWAYS use `bun`
-- Never suggest `npm` or `pnpm` for Agentuity projects
+**Special cases:**
+- `agentuity project import` — requires BOTH `--name` and `--yes` for non-interactive use
+- `agentuity cloud env push` — has its own `--force` flag (overwrites remote values); `--force` does NOT alias `--confirm` here
+- `agentuity cloud deployment remove/undeploy` — has its own `--force` flag for the same reason
 
 ## Golden Commands
 
-| Purpose           | Command                                                        |
-| ----------------- | -------------------------------------------------------------- |
-| Create project    | `agentuity new` (interactive) or `agentuity new --name <name>` |
-| Start dev server  | `bun run dev` → read output for actual URL                     |
-| Deploy            | `agentuity deploy` → read output for deployment URL            |
-| Check auth        | `agentuity auth whoami`                                        |
-| List regions      | `agentuity region list`                                        |
-| Get CLI help      | `agentuity <command> --help`                                   |
-| Show all commands | `agentuity ai schema show`                                     |
+| Purpose          | Command                          |
+| ---------------- | -------------------------------- |
+| Create project   | `agentuity create`               |
+| Start dev server | `agentuity dev` or `bun run dev` |
+| Deploy           | `agentuity deploy`               |
+| Check auth       | `agentuity auth whoami`          |
+| List regions     | `agentuity region list`          |
+| Get help         | `agentuity <command> --help`     |
+| Full CLI schema  | `agentuity ai schema show`       |
 
----
+## Cloud Services
 
-## Cloud Service Commands
+| Service        | CLI Prefix                 | Documentation                                        |
+| -------------- | -------------------------- | ---------------------------------------------------- |
+| KV Storage     | `agentuity cloud kv`      | https://agentuity.dev/reference/cli/storage.md       |
+| Vector Search  | `agentuity cloud vector`  | https://agentuity.dev/reference/cli/storage.md       |
+| Object Storage | `agentuity cloud storage` | https://agentuity.dev/reference/cli/storage.md       |
+| Sandbox        | `agentuity cloud sandbox` | https://agentuity.dev/reference/cli/sandbox.md       |
+| Database       | `agentuity cloud db`      | https://agentuity.dev/services/database.md           |
+| SSH            | `agentuity cloud ssh`     | https://agentuity.dev/reference/cli/debugging.md     |
+| Deployments    | `agentuity deploy`        | https://agentuity.dev/reference/cli/deployment.md    |
 
-### KV (Key-Value Storage)
+## Documentation Links
 
-```bash
-# Namespace management
-agentuity cloud kv list-namespaces --json
-agentuity cloud kv create-namespace <name>
-agentuity cloud kv delete-namespace <name> --json
-
-# Key operations
-agentuity cloud kv set <namespace> <key> <value> [ttl]
-agentuity cloud kv get <namespace> <key> --json
-agentuity cloud kv keys <namespace> --json
-agentuity cloud kv search <namespace> <keyword> --json
-agentuity cloud kv delete <namespace> <key> --json
-agentuity cloud kv stats --json
-```
-
-### Storage (S3-compatible)
-
-```bash
-agentuity cloud storage list --json
-agentuity cloud storage create --json
-agentuity cloud storage upload <bucket> <file> --key <path> --json
-agentuity cloud storage download <bucket> <filename> [output]
-agentuity cloud storage list <bucket> [prefix] --json
-agentuity cloud storage delete <bucket> <filename> --json
-```
-
-### Vector (Semantic Search)
-
-```bash
-agentuity cloud vector upsert <namespace> <key> --document "text" --json
-agentuity cloud vector search <namespace> "query" --limit N --json
-agentuity cloud vector get <namespace> <key> --json
-agentuity cloud vector delete <namespace> <key> --no-confirm --json
-```
-
-### Sandbox (Isolated Execution)
-
-```bash
-# Runtimes
-agentuity cloud sandbox runtime list --json
-
-# Lifecycle
-agentuity cloud sandbox run [--memory 1Gi] [--cpu 1000m] \
-  [--runtime <name>] [--name <name>] [--description <text>] \
-  -- <command>                                             # One-shot
-agentuity cloud sandbox create --json [--memory 1Gi] \
-  [--network] [--port <1024-65535>] \
-  [--runtime <name>] [--name <name>]                       # Persistent
-agentuity cloud sandbox exec <sandboxId> -- <command>
-agentuity cloud sandbox list --json
-agentuity cloud sandbox get <sandboxId> --json
-agentuity cloud sandbox delete <sandboxId> --json
-
-# File operations (default working dir: /home/agentuity)
-agentuity cloud sandbox files <sandboxId> [path] --json
-agentuity cloud sandbox cp ./local sbx_abc123:/home/agentuity
-agentuity cloud sandbox cp sbx_abc123:/home/agentuity ./local
-agentuity cloud sandbox mkdir <sandboxId> /path/to/dir
-agentuity cloud sandbox rm <sandboxId> /path/to/file
-
-# Environment variables
-agentuity cloud sandbox env <sandboxId> VAR1=value1 VAR2=value2
-agentuity cloud sandbox env <sandboxId> --delete VAR1
-
-# Snapshots
-agentuity cloud sandbox snapshot create <sandboxId> \
-  [--name <name>] [--description <text>] [--tag <tag>]
-agentuity cloud sandbox snapshot list --json
-```
-
-**Snapshot tags:** Default to `latest`. Max 128 chars, must match `^[a-zA-Z0-9][a-zA-Z0-9._-]*$`.
-
-### Network & Public URLs
-
-| Scenario                                | Use `--network`? | Use `--port`? |
-| --------------------------------------- | ---------------- | ------------- |
-| Running tests locally                   | No               | No            |
-| Installing npm packages                 | Yes              | No            |
-| Running web server for internal testing | Yes              | No            |
-| Exposing dev preview to share           | Yes              | Yes           |
-| API that external services call         | Yes              | Yes           |
-
-**Public URL format:** `https://s{identifier}.agentuity.run`
-
-### SSH (Remote Access)
-
-```bash
-# SSH into deployed projects
-agentuity cloud ssh                                         # Current project
-agentuity cloud ssh proj_abc123                             # Specific project
-agentuity cloud ssh proj_abc123 'tail -f /var/log/app.log'  # Run command
-
-# SSH into sandboxes
-agentuity cloud ssh sbx_abc123                              # Interactive shell
-
-# File transfer
-agentuity cloud scp upload ./config.json --identifier=proj_abc123
-agentuity cloud scp download /var/log/app.log --identifier=deploy_abc123
-```
-
-### Database (Postgres)
-
-```bash
-agentuity cloud db create <name> [--description "<text>"] --json
-agentuity cloud db list --json
-agentuity cloud db sql <name> "<query>" --json
-agentuity cloud db delete <name> --json
-```
-
----
-
-## Deployment Commands
-
-```bash
-# Deploy current project
-agentuity deploy
-
-# Deploy with specific environment
-agentuity deploy --env production
-
-# List deployments
-agentuity cloud deployment list --json
-
-# Get deployment details
-agentuity cloud deployment get <deploymentId> --json
-```
-
-## Project Configuration
-
-### agentuity.json
-
-```json
-{
-	"projectId": "proj_abc123",
-	"orgId": "org_xyz",
-	"region": "use"
-}
-```
-
-### CLI Profile (~/.config/agentuity/production.yaml)
-
-Contains `orgId` from `preferences.orgId` — used as fallback when `agentuity.json` doesn't have orgId.
+| Topic              | Link                                                     |
+| ------------------ | -------------------------------------------------------- |
+| CLI Getting Started | https://agentuity.dev/reference/cli/getting-started.md  |
+| Build Configuration | https://agentuity.dev/reference/cli/build-configuration.md |
+| Deployment         | https://agentuity.dev/reference/cli/deployment.md        |
+| Local Development  | https://agentuity.dev/reference/cli/development.md       |
+| Debugging          | https://agentuity.dev/reference/cli/debugging.md         |
+| Storage Commands   | https://agentuity.dev/reference/cli/storage.md           |
+| Sandbox Commands   | https://agentuity.dev/reference/cli/sandbox.md           |
+| Configuration      | https://agentuity.dev/reference/cli/configuration.md     |
+| Git Integration    | https://agentuity.dev/reference/cli/git-integration.md   |
+| GitHub App         | https://agentuity.dev/reference/github-app.md            |
 
 ## Common Mistakes
 
@@ -205,3 +85,13 @@ Contains `orgId` from `preferences.orgId` — used as fallback when `agentuity.j
 | Hardcoding sandbox paths as `/app` | Use `/home/agentuity` | That's the default working directory |
 | Making up CLI flags                | Run `--help` first    | Flags change between versions        |
 | Fabricating deployment URLs        | Read actual output    | URLs are generated dynamically       |
+| Using `expect`/`yes |` for prompts | Use `--yes` or `--force` flag | Built-in flag support is cleaner and more reliable |
+
+## When In Doubt, Check the Docs
+
+If you're unsure about any CLI command, flag, or service, **check first** rather than guessing:
+
+- Run `agentuity <command> --help` for flag details
+- Full CLI schema: `agentuity ai schema show`
+- Full docs: https://agentuity.dev
+- LLM-friendly index: https://agentuity.dev/llms.txt
