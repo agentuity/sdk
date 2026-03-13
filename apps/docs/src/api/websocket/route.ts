@@ -59,8 +59,6 @@ router.get(
 		ws.onMessage(async (event) => {
 			try {
 				const message = event.data as string;
-				c.var.logger?.info('WebSocket message received', { message });
-
 				const response = await websocketAgent.run(message);
 
 				ws.send(

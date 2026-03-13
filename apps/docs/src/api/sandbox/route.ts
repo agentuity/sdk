@@ -28,8 +28,6 @@ const router = createRouter();
 
 const SNAPSHOT_ID = process.env.SANDBOX_SNAPSHOT_ID;
 const SANDBOX_EXEC_TIMEOUT = '2m';
-const AI_GATEWAY_URL = 'https://catalyst.agentuity.cloud/gateway';
-
 const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
@@ -92,19 +90,26 @@ router.get(
 
 		const serviceUrls = getServiceUrls(region);
 		const client = new APIClient(serviceUrls.sandbox, logger, apiKey);
+		const transportUrl = process.env.AGENTUITY_TRANSPORT_URL ?? serviceUrls.catalyst;
+		const aiGatewayBaseUrl =
+			process.env.AGENTUITY_AIGATEWAY_URL ||
+			process.env.AGENTUITY_TRANSPORT_URL ||
+			(apiKey ? 'https://agentuity.ai' : '');
 
 		// Build env vars for sandbox
 		const envVars: Record<string, string> = {
 			AGENTUITY_SDK_KEY: apiKey,
 			AGENTUITY_REGION: region,
+			AGENTUITY_TRANSPORT_URL: transportUrl,
+			AGENTUITY_AIGATEWAY_URL: aiGatewayBaseUrl,
 			OPENAI_API_KEY: apiKey,
-			OPENAI_BASE_URL: `${AI_GATEWAY_URL}/openai`,
+			OPENAI_BASE_URL: `${aiGatewayBaseUrl}/gateway/openai`,
 			ANTHROPIC_API_KEY: apiKey,
-			ANTHROPIC_BASE_URL: `${AI_GATEWAY_URL}/anthropic`,
-			GOOGLE_API_KEY: apiKey,
-			GOOGLE_GENERATIVE_AI_BASE_URL: `${AI_GATEWAY_URL}/google`,
+			ANTHROPIC_BASE_URL: `${aiGatewayBaseUrl}/gateway/anthropic`,
+			GOOGLE_GENERATIVE_AI_API_KEY: apiKey,
+			GOOGLE_GENERATIVE_AI_BASE_URL: `${aiGatewayBaseUrl}/gateway/google-ai-studio`,
 			GROQ_API_KEY: apiKey,
-			GROQ_BASE_URL: `${AI_GATEWAY_URL}/groq`,
+			GROQ_BASE_URL: `${aiGatewayBaseUrl}/gateway/groq`,
 		};
 
 		if (process.env.S3_BUCKET) envVars.S3_BUCKET = process.env.S3_BUCKET;

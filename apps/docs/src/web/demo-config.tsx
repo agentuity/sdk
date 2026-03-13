@@ -3,6 +3,8 @@ import { AgentCallsDemo } from './components/AgentCallsDemo';
 import { AIGatewayDemo } from './components/AIGatewayDemo';
 import { ChatDemo } from './components/ChatDemo';
 import { CronDemo } from './components/CronDemo';
+import { DatabaseDemo } from './components/DatabaseDemo';
+import { EmailDemo } from './components/EmailDemo';
 import { EvalsDemo } from './components/EvalsDemo';
 import { HandlerContextDemo } from './components/HandlerContextDemo';
 import { HelloDemo } from './components/HelloDemo';
@@ -14,7 +16,7 @@ import { SSEStreamDemo } from './components/SSEStreamDemo';
 import { StreamingDemo } from './components/StreamingDemo';
 import { VectorSearch } from './components/VectorSearch';
 /* import { WebRTCDemo } from './components/WebRTCDemo'; */
-/* import { WebSocketDemo } from './components/WebSocketDemo'; */
+import { WebSocketDemo } from './components/WebSocketDemo';
 import type { LineHighlight } from './components/CodeBlock';
 
 export type DemoId =
@@ -27,13 +29,15 @@ export type DemoId =
 	| 'ai-gateway'
 	| 'sse-stream'
 	| 'streaming'
-	/* | 'websocket' */
+	| 'websocket'
 	/* | 'webrtc' */
 	| 'durable-stream'
 	| 'cron'
 	| 'agent-calls'
 	| 'object-storage'
-	| 'evals';
+	| 'evals'
+	| 'email'
+	| 'database';
 
 export interface DemoConfig {
 	id: DemoId;
@@ -42,7 +46,7 @@ export interface DemoConfig {
 	description: string;
 	explanation: React.ReactNode;
 	docsUrl?: string;
-	category: 'basics' | 'services' | 'io-patterns' | 'examples';
+	category: 'basics' | 'services' | 'io-patterns' | 'examples' | 'messaging' | 'platform';
 	component: React.ComponentType;
 	codeExample: string;
 	sandboxEnabled?: boolean;
@@ -304,7 +308,6 @@ export const DEMOS: DemoConfig[] = [
 		sandboxInput: { prompt: 'Explain what Server-Sent Events are in 2-3 sentences.' },
 		isRoute: true,
 	},
-	/* Disabled until sandbox snapshot is rebuilt with websocket.js
 	{
 		id: 'websocket',
 		title: 'WebSocket',
@@ -336,7 +339,6 @@ export const DEMOS: DemoConfig[] = [
 		sandboxScript: 'websocket',
 		isRoute: true,
 	},
-	*/
 	/* WebRTC demo temporarily disabled
 	{
 		id: 'webrtc',
@@ -527,6 +529,64 @@ export const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: 'evals',
 		sandboxInput: { question: 'What is Agentuity and what are its main features?' },
+	},
+	// Messaging
+	{
+		id: 'email',
+		title: 'Email',
+		subtitle: 'Send & Receive',
+		description: 'Send templated emails and preview delivery.',
+		explanation: (
+			<>
+				Send transactional emails using <em>ctx.email.send()</em> with full control over HTML
+				content, recipients, and attachments.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					Choose a template and watch the email get sent and previewed
+				</span>
+				. Under the hood, the platform handles delivery, bounce tracking, and DNS configuration.
+				For receiving emails, configure <em>email destinations</em> to route inbound messages to
+				your agent handlers.
+			</>
+		),
+		docsUrl: '/services/email',
+		category: 'messaging',
+		component: EmailDemo,
+		codeExample: CODE_EXAMPLES.email,
+		sandboxEnabled: true,
+		sandboxScript: 'email',
+		sandboxInput: { template: 'welcome' },
+	},
+	// Platform
+	{
+		id: 'database',
+		title: 'Database',
+		subtitle: 'Drizzle ORM',
+		description: 'Query a PostgreSQL database with type-safe Drizzle ORM.',
+		explanation: (
+			<>
+				Query a real PostgreSQL database using <em>Drizzle ORM</em> for type-safe, composable
+				queries.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					Define your schema in TypeScript and query with full autocompletion
+				</span>
+				. The same chairs from the{' '}
+				<a
+					href="/demo/vector-storage"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					Vector Search
+				</a>{' '}
+				demo are stored here in a relational table. Vector found them by meaning, this finds
+				them by exact criteria: price ranges, ratings, and keywords.
+			</>
+		),
+		docsUrl: '/services/database',
+		category: 'platform',
+		component: DatabaseDemo,
+		codeExample: CODE_EXAMPLES.database,
+		sandboxEnabled: true,
+		sandboxScript: 'database',
+		sandboxInput: { query: 'all', seedData: true },
 	},
 ];
 

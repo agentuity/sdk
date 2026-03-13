@@ -549,6 +549,82 @@ function VideoCall({ roomId }: { roomId: string }) {
   // remoteStreams.get(peerId) for each remote video
 }`,
 
+	email: `import { createAgent } from "@agentuity/runtime";
+import { s } from "@agentuity/schema";
+
+const agent = createAgent("email-sender", {
+  description: "Send templated emails",
+  schema: {
+    input: s.object({
+      template: s.string(),
+      name: s.string(),
+    }),
+    output: s.object({
+      id: s.string(),
+      status: s.string(),
+    }),
+  },
+  handler: async (ctx, { template, name }) => {
+    // ctx.email.send() handles delivery via the platform
+    const result = await ctx.email.send({
+      from: "hello-explorer@agentuity.email",
+      to: ["inbox-explorer@agentuity.email"],
+      subject: \`Welcome to Agentuity, \${name}!\`,
+      text: \`Hi \${name}, welcome to the platform.\`,
+      html: \`<h1>Welcome, \${name}!</h1><p>Get started with Agentuity.</p>\`,
+    });
+
+    ctx.logger.info("Email sent", { id: result.id });
+    return { id: result.id, status: result.status };
+  },
+});`,
+
+	database: `// Database: type-safe PostgreSQL queries with Drizzle ORM.
+// Same chairs as the vector demo — found by exact criteria instead of meaning.
+import { createPostgresDrizzle, pgTable, text, real, serial, lt, gte, ilike, sql } from "@agentuity/drizzle";
+
+// Define your schema in TypeScript
+const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  sku: text("sku").notNull().unique(),
+  name: text("name").notNull(),
+  price: real("price").notNull(),
+  avg_rating: real("avg_rating").notNull(),
+  description: text("description").notNull(),
+  customer_feedback: text("customer_feedback").notNull(),
+});
+
+// Connect (uses DATABASE_URL by default)
+const { db, close } = createPostgresDrizzle({ schema: { products } });
+
+// All products
+const all = await db.select().from(products);
+ctx.logger.info("All products", { count: all.length });
+
+// Budget chairs (under $200)
+const budget = await db.select().from(products).where(lt(products.price, 200));
+ctx.logger.info("Budget chairs", { count: budget.length });
+
+// Top rated (4.5+)
+const topRated = await db.select().from(products).where(gte(products.avg_rating, 4.5));
+ctx.logger.info("Top rated", { count: topRated.length });
+
+// Search by keyword
+const search = await db.select().from(products).where(ilike(products.name, "%Ergo%"));
+ctx.logger.info("Search results", { count: search.length });
+
+// Aggregates (raw SQL for functions not in the Drizzle re-exports)
+const result = await db.execute(sql\`
+  SELECT ROUND(AVG(price)::numeric, 2) AS "avgPrice",
+         MIN(price) AS "minPrice", MAX(price) AS "maxPrice",
+         COUNT(*)::int AS "total"
+  FROM products
+\`);
+const summary = result.rows[0];
+ctx.logger.info("Price summary", summary);
+
+await close();`,
+
 	evals: `// Evals run automatically after your agent responds.
 // Define evaluations in a separate file alongside your agent.
 import { answerCompleteness } from "@agentuity/evals";

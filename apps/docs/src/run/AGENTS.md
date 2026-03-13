@@ -19,7 +19,9 @@ src/run/
 ├── ai-gateway.ts        # Multi-provider LLM calls
 ├── chat.ts              # Conversational agent with state
 ├── cron.ts              # Simulated cron job
+├── database.ts          # PostgreSQL with Drizzle ORM
 ├── durable-stream.ts    # Persistent streams with public URLs
+├── email.ts             # Templated email sending
 ├── evals.ts             # Quality evaluations
 ├── handler-context.ts   # AgentContext API exploration
 ├── kv.ts                # Key-value storage
@@ -78,6 +80,22 @@ Demonstrates fetch → cache to KV with TTL → verify → cleanup workflow.
 
 ```bash
 bun run src/run/cron.ts '{}'
+```
+
+### database.ts - PostgreSQL with Drizzle ORM
+
+Demonstrates type-safe database queries using Drizzle ORM. Runs 5 query types against the same chair products from the vector demo: all, budget, top-rated, keyword search, and price summary.
+
+```bash
+bun run src/run/database.ts '{"query":"all","seedData":true}'
+```
+
+### email.ts - Templated Email Sending
+
+Demonstrates `ctx.email.send()` with templated HTML emails. Supports welcome, order-confirmation, and weekly-digest templates.
+
+```bash
+bun run src/run/email.ts '{"template":"welcome"}'
 ```
 
 ### durable-stream.ts - Persistent Streams

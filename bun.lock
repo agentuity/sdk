@@ -47,6 +47,7 @@
       "version": "1.0.40",
       "dependencies": {
         "@agentuity/core": "workspace:*",
+        "@agentuity/drizzle": "workspace:*",
         "@agentuity/evals": "workspace:*",
         "@agentuity/frontend": "workspace:*",
         "@agentuity/react": "workspace:*",

@@ -3,8 +3,10 @@
 import agentPulse from '../agent/agent_pulse/agent.js';
 import chat from '../agent/chat/agent.js';
 import context from '../agent/context/agent.js';
+import database from '../agent/database/agent.js';
 import docProcessing from '../agent/doc_processing/agent.js';
 import docQA from '../agent/doc_qa/agent.js';
+import emailSender from '../agent/email/agent.js';
 import evals from '../agent/evals/agent.js';
 import hello from '../agent/hello/agent.js';
 import kv from '../agent/kv/agent.js';
@@ -127,6 +129,40 @@ export type ContextAgent = AgentRunner<
 >;
 
 /**
+ * Input type for database agent
+ * Query a PostgreSQL database with type-safe Drizzle ORM
+ */
+export type DatabaseInput = InferInput<typeof database['inputSchema']>;
+
+/**
+ * Output type for database agent
+ * Query a PostgreSQL database with type-safe Drizzle ORM
+ */
+export type DatabaseOutput = InferOutput<typeof database['outputSchema']>;
+
+/**
+ * Input schema type for database agent
+ * Query a PostgreSQL database with type-safe Drizzle ORM
+ */
+export type DatabaseInputSchema = typeof database['inputSchema'];
+
+/**
+ * Output schema type for database agent
+ * Query a PostgreSQL database with type-safe Drizzle ORM
+ */
+export type DatabaseOutputSchema = typeof database['outputSchema'];
+
+/**
+ * Agent type for database
+ * Query a PostgreSQL database with type-safe Drizzle ORM
+ */
+export type DatabaseAgent = AgentRunner<
+	DatabaseInputSchema,
+	DatabaseOutputSchema,
+	typeof database['stream'] extends true ? true : false
+>;
+
+/**
  * Input type for DocProcessing agent
  * Documentation Sync Agent - Processes embedded MDX content from GitHub workflows
  */
@@ -192,6 +228,40 @@ export type DocQAAgent = AgentRunner<
 	DocQAInputSchema,
 	DocQAOutputSchema,
 	typeof docQA['stream'] extends true ? true : false
+>;
+
+/**
+ * Input type for email-sender agent
+ * Send templated emails via the Agentuity email service
+ */
+export type EmailSenderInput = InferInput<typeof emailSender['inputSchema']>;
+
+/**
+ * Output type for email-sender agent
+ * Send templated emails via the Agentuity email service
+ */
+export type EmailSenderOutput = InferOutput<typeof emailSender['outputSchema']>;
+
+/**
+ * Input schema type for email-sender agent
+ * Send templated emails via the Agentuity email service
+ */
+export type EmailSenderInputSchema = typeof emailSender['inputSchema'];
+
+/**
+ * Output schema type for email-sender agent
+ * Send templated emails via the Agentuity email service
+ */
+export type EmailSenderOutputSchema = typeof emailSender['outputSchema'];
+
+/**
+ * Agent type for email-sender
+ * Send templated emails via the Agentuity email service
+ */
+export type EmailSenderAgent = AgentRunner<
+	EmailSenderInputSchema,
+	EmailSenderOutputSchema,
+	typeof emailSender['stream'] extends true ? true : false
 >;
 
 /**
@@ -546,6 +616,12 @@ export const AgentDefinitions = {
 	 */
 	context,
 	/**
+	 * database
+	 * Query a PostgreSQL database with type-safe Drizzle ORM
+	 * @type {DatabaseAgent}
+	 */
+	database,
+	/**
 	 * DocProcessing
 	 * Documentation Sync Agent - Processes embedded MDX content from GitHub workflows
 	 * @type {DocProcessingAgent}
@@ -557,6 +633,12 @@ export const AgentDefinitions = {
 	 * @type {DocQAAgent}
 	 */
 	docQA,
+	/**
+	 * email-sender
+	 * Send templated emails via the Agentuity email service
+	 * @type {EmailSenderAgent}
+	 */
+	emailSender,
 	/**
 	 * evals
 	 * Demonstrates binary and score evaluations
@@ -624,8 +706,10 @@ declare module "@agentuity/runtime" {
 		agentPulse: AgentPulseAgent;
 		chat: ChatAgent;
 		context: ContextAgent;
+		database: DatabaseAgent;
 		docProcessing: DocProcessingAgent;
 		docQA: DocQAAgent;
+		emailSender: EmailSenderAgent;
 		evals: EvalsAgent;
 		hello: HelloAgent;
 		kv: KvAgent;

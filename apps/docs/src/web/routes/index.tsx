@@ -40,6 +40,8 @@ function LandingPage() {
 	const services = DEMOS.filter((d) => d.category === 'services');
 	const ioPatterns = DEMOS.filter((d) => d.category === 'io-patterns');
 	const examples = DEMOS.filter((d) => d.category === 'examples');
+	const messaging = DEMOS.filter((d) => d.category === 'messaging');
+	const platform = DEMOS.filter((d) => d.category === 'platform');
 
 	return (
 		<div className="max-w-6xl mx-auto px-6 py-12">
@@ -70,6 +72,26 @@ function LandingPage() {
 				</h2>
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 					{ioPatterns.map((demo) => (
+						<DemoCard key={demo.id} demo={demo} onClick={() => handleSelectDemo(demo.id)} />
+					))}
+				</div>
+			</section>
+
+			{/* Messaging Section */}
+			<section className="mb-12">
+				<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-6">Messaging</h2>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+					{messaging.map((demo) => (
+						<DemoCard key={demo.id} demo={demo} onClick={() => handleSelectDemo(demo.id)} />
+					))}
+				</div>
+			</section>
+
+			{/* Platform Section */}
+			<section className="mb-12">
+				<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-6">Platform</h2>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+					{platform.map((demo) => (
 						<DemoCard key={demo.id} demo={demo} onClick={() => handleSelectDemo(demo.id)} />
 					))}
 				</div>
