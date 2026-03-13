@@ -1,6 +1,8 @@
 import {
 	CreateStreamApiRequestSchema,
+	CreateStreamApiResponseSchema,
 	ListStreamsApiRequestSchema,
+	ListStreamsApiResponseSchema,
 	StreamInfoApiSchema,
 } from './types.ts';
 import type { Service } from '../api-reference.ts';
@@ -9,7 +11,7 @@ const service: Service = {
 	name: 'Durable Streams',
 	slug: 'streams',
 	description: 'Create durable, resumable data streams with public URLs',
-	host: 'pulse',
+	host: 'streams',
 	endpoints: [
 		{
 			id: 'create-stream',
@@ -24,7 +26,7 @@ const service: Service = {
 				fields: { schema: CreateStreamApiRequestSchema },
 			},
 			responseDescription: 'JSON response containing the new stream ID.',
-			responseFields: [{ name: 'id', type: 'string', description: 'Created stream ID' }],
+			responseFields: { schema: CreateStreamApiResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Stream created successfully' },
 				{ code: 401, description: 'Unauthorized' },
@@ -90,21 +92,7 @@ const service: Service = {
 				fields: { schema: ListStreamsApiRequestSchema },
 			},
 			responseDescription: 'JSON response with stream list and total count.',
-			responseFields: [
-				{ name: 'success', type: 'boolean', description: 'Whether the request succeeded' },
-				{ name: 'streams', type: 'array', description: 'Matching streams' },
-				{ name: 'streams[].id', type: 'string', description: 'Stream ID' },
-				{ name: 'streams[].name', type: 'string', description: 'Namespace' },
-				{ name: 'streams[].metadata', type: 'object', description: 'Stream metadata' },
-				{ name: 'streams[].url', type: 'string', description: 'Public URL' },
-				{ name: 'streams[].size_bytes', type: 'number', description: 'Size in bytes' },
-				{
-					name: 'streams[].expires_at',
-					type: 'string | null',
-					description: 'Expiration timestamp',
-				},
-				{ name: 'total', type: 'number', description: 'Total matches' },
-			],
+			responseFields: { schema: ListStreamsApiResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Stream list returned' },
 				{ code: 401, description: 'Unauthorized' },

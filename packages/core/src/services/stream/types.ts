@@ -20,6 +20,13 @@ export const CreateStreamApiRequestSchema = z.object({
 
 export type CreateStreamApiRequest = z.infer<typeof CreateStreamApiRequestSchema>;
 
+/** Response for POST /stream (create stream) */
+export const CreateStreamApiResponseSchema = z.object({
+	id: z.string().describe('Created stream ID'),
+});
+
+export type CreateStreamApiResponse = z.infer<typeof CreateStreamApiResponseSchema>;
+
 /** Request body for POST /stream/list (list streams) */
 export const ListStreamsApiRequestSchema = z.object({
 	name: z.string().optional().describe('Filter by namespace'),
@@ -47,14 +54,7 @@ export const StreamInfoApiSchema = z.object({
 
 export type StreamInfoApi = z.infer<typeof StreamInfoApiSchema>;
 
-/**
- * Response for POST /stream/list.
- *
- * Not currently used by the API reference generator because the nested
- * `streams[].*` fields use shorter descriptions in the docs than the verbose
- * forms defined in {@link StreamInfoApiSchema}. Exported as a type reference
- * for consumers that need the full response shape.
- */
+/** Response for POST /stream/list. */
 export const ListStreamsApiResponseSchema = z.object({
 	success: z.boolean().describe('Whether the request succeeded'),
 	streams: z.array(StreamInfoApiSchema).describe('Matching streams'),
