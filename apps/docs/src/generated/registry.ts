@@ -12,6 +12,7 @@ import hello from '../agent/hello/agent.js';
 import kv from '../agent/kv/agent.js';
 import modelArena from '../agent/model-arena/agent.js';
 import objectstore from '../agent/objectstore/agent.js';
+import queue from '../agent/queue/agent.js';
 import sseStream from '../agent/sse-stream/agent.js';
 import textProcessor from '../agent/text-processor/agent.js';
 import vector from '../agent/vector/agent.js';
@@ -435,6 +436,40 @@ export type ObjectstoreAgent = AgentRunner<
 >;
 
 /**
+ * Input type for queue agent
+ * Demonstrates message queue publish operations
+ */
+export type QueueInput = InferInput<typeof queue['inputSchema']>;
+
+/**
+ * Output type for queue agent
+ * Demonstrates message queue publish operations
+ */
+export type QueueOutput = InferOutput<typeof queue['outputSchema']>;
+
+/**
+ * Input schema type for queue agent
+ * Demonstrates message queue publish operations
+ */
+export type QueueInputSchema = typeof queue['inputSchema'];
+
+/**
+ * Output schema type for queue agent
+ * Demonstrates message queue publish operations
+ */
+export type QueueOutputSchema = typeof queue['outputSchema'];
+
+/**
+ * Agent type for queue
+ * Demonstrates message queue publish operations
+ */
+export type QueueAgent = AgentRunner<
+	QueueInputSchema,
+	QueueOutputSchema,
+	typeof queue['stream'] extends true ? true : false
+>;
+
+/**
  * Input type for sse-stream agent
  * Real-time LLM token streaming via Server-Sent Events
  */
@@ -670,6 +705,12 @@ export const AgentDefinitions = {
 	 */
 	objectstore,
 	/**
+	 * queue
+	 * Demonstrates message queue publish operations
+	 * @type {QueueAgent}
+	 */
+	queue,
+	/**
 	 * sse-stream
 	 * Real-time LLM token streaming via Server-Sent Events
 	 * @type {SseStreamAgent}
@@ -715,6 +756,7 @@ declare module "@agentuity/runtime" {
 		kv: KvAgent;
 		modelArena: ModelArenaAgent;
 		objectstore: ObjectstoreAgent;
+		queue: QueueAgent;
 		sseStream: SseStreamAgent;
 		textProcessor: TextProcessorAgent;
 		vector: VectorAgent;

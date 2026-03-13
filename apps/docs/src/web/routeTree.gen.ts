@@ -16,6 +16,7 @@ import { Route as DemoWebrtcRouteImport } from './routes/demo/webrtc';
 import { Route as DemoVectorStorageRouteImport } from './routes/demo/vector-storage';
 import { Route as DemoStreamingRouteImport } from './routes/demo/streaming';
 import { Route as DemoSseStreamRouteImport } from './routes/demo/sse-stream';
+import { Route as DemoQueueRouteImport } from './routes/demo/queue';
 import { Route as DemoObjectStorageRouteImport } from './routes/demo/object-storage';
 import { Route as DemoModelArenaRouteImport } from './routes/demo/model-arena';
 import { Route as DemoKeyValueRouteImport } from './routes/demo/key-value';
@@ -155,6 +156,11 @@ const DemoStreamingRoute = DemoStreamingRouteImport.update({
 const DemoSseStreamRoute = DemoSseStreamRouteImport.update({
 	id: '/demo/sse-stream',
 	path: '/demo/sse-stream',
+	getParentRoute: () => rootRouteImport,
+} as any);
+const DemoQueueRoute = DemoQueueRouteImport.update({
+	id: '/demo/queue',
+	path: '/demo/queue',
 	getParentRoute: () => rootRouteImport,
 } as any);
 const DemoObjectStorageRoute = DemoObjectStorageRouteImport.update({
@@ -712,6 +718,7 @@ export interface FileRoutesByFullPath {
 	'/demo/key-value': typeof DemoKeyValueRoute;
 	'/demo/model-arena': typeof DemoModelArenaRoute;
 	'/demo/object-storage': typeof DemoObjectStorageRoute;
+	'/demo/queue': typeof DemoQueueRoute;
 	'/demo/sse-stream': typeof DemoSseStreamRoute;
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
@@ -826,6 +833,7 @@ export interface FileRoutesByTo {
 	'/demo/key-value': typeof DemoKeyValueRoute;
 	'/demo/model-arena': typeof DemoModelArenaRoute;
 	'/demo/object-storage': typeof DemoObjectStorageRoute;
+	'/demo/queue': typeof DemoQueueRoute;
 	'/demo/sse-stream': typeof DemoSseStreamRoute;
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
@@ -942,6 +950,7 @@ export interface FileRoutesById {
 	'/demo/key-value': typeof DemoKeyValueRoute;
 	'/demo/model-arena': typeof DemoModelArenaRoute;
 	'/demo/object-storage': typeof DemoObjectStorageRoute;
+	'/demo/queue': typeof DemoQueueRoute;
 	'/demo/sse-stream': typeof DemoSseStreamRoute;
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
@@ -1058,6 +1067,7 @@ export interface FileRouteTypes {
 		| '/demo/key-value'
 		| '/demo/model-arena'
 		| '/demo/object-storage'
+		| '/demo/queue'
 		| '/demo/sse-stream'
 		| '/demo/streaming'
 		| '/demo/vector-storage'
@@ -1172,6 +1182,7 @@ export interface FileRouteTypes {
 		| '/demo/key-value'
 		| '/demo/model-arena'
 		| '/demo/object-storage'
+		| '/demo/queue'
 		| '/demo/sse-stream'
 		| '/demo/streaming'
 		| '/demo/vector-storage'
@@ -1287,6 +1298,7 @@ export interface FileRouteTypes {
 		| '/demo/key-value'
 		| '/demo/model-arena'
 		| '/demo/object-storage'
+		| '/demo/queue'
 		| '/demo/sse-stream'
 		| '/demo/streaming'
 		| '/demo/vector-storage'
@@ -1403,6 +1415,7 @@ export interface RootRouteChildren {
 	DemoKeyValueRoute: typeof DemoKeyValueRoute;
 	DemoModelArenaRoute: typeof DemoModelArenaRoute;
 	DemoObjectStorageRoute: typeof DemoObjectStorageRoute;
+	DemoQueueRoute: typeof DemoQueueRoute;
 	DemoSseStreamRoute: typeof DemoSseStreamRoute;
 	DemoStreamingRoute: typeof DemoStreamingRoute;
 	DemoVectorStorageRoute: typeof DemoVectorStorageRoute;
@@ -1459,6 +1472,13 @@ declare module '@tanstack/react-router' {
 			path: '/demo/sse-stream';
 			fullPath: '/demo/sse-stream';
 			preLoaderRoute: typeof DemoSseStreamRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/demo/queue': {
+			id: '/demo/queue';
+			path: '/demo/queue';
+			fullPath: '/demo/queue';
+			preLoaderRoute: typeof DemoQueueRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		'/demo/object-storage': {
@@ -2416,6 +2436,7 @@ const rootRouteChildren: RootRouteChildren = {
 	DemoKeyValueRoute: DemoKeyValueRoute,
 	DemoModelArenaRoute: DemoModelArenaRoute,
 	DemoObjectStorageRoute: DemoObjectStorageRoute,
+	DemoQueueRoute: DemoQueueRoute,
 	DemoSseStreamRoute: DemoSseStreamRoute,
 	DemoStreamingRoute: DemoStreamingRoute,
 	DemoVectorStorageRoute: DemoVectorStorageRoute,

@@ -23,6 +23,7 @@ src/run/
 ├── durable-stream.ts    # Persistent streams with public URLs
 ├── email.ts             # Templated email sending
 ├── evals.ts             # Quality evaluations
+├── queue.ts             # Message queue publish
 ├── handler-context.ts   # AgentContext API exploration
 ├── kv.ts                # Key-value storage
 ├── objectstore.ts       # S3/object storage
@@ -96,6 +97,14 @@ Demonstrates `ctx.email.send()` with templated HTML emails. Supports welcome, or
 
 ```bash
 bun run src/run/email.ts '{"template":"welcome"}'
+```
+
+### queue.ts - Message Queue
+
+Demonstrates queue publish operations: create queue, publish messages with settings, delete queue.
+
+```bash
+bun run src/run/queue.ts '{}'
 ```
 
 ### durable-stream.ts - Persistent Streams

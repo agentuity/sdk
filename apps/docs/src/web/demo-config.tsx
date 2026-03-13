@@ -5,6 +5,7 @@ import { ChatDemo } from './components/ChatDemo';
 import { CronDemo } from './components/CronDemo';
 import { DatabaseDemo } from './components/DatabaseDemo';
 import { EmailDemo } from './components/EmailDemo';
+import { QueueDemo } from './components/QueueDemo';
 import { EvalsDemo } from './components/EvalsDemo';
 import { HandlerContextDemo } from './components/HandlerContextDemo';
 import { HelloDemo } from './components/HelloDemo';
@@ -37,6 +38,7 @@ export type DemoId =
 	| 'object-storage'
 	| 'evals'
 	| 'email'
+	| 'queue'
 	| 'database';
 
 export interface DemoConfig {
@@ -555,6 +557,30 @@ export const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: 'email',
 		sandboxInput: { template: 'welcome' },
+	},
+	{
+		id: 'queue',
+		title: 'Message Queue',
+		subtitle: 'Publish & Consume',
+		description: 'Publish messages, receive with ack/nack, and explore the dead letter queue.',
+		explanation: (
+			<>
+				Message queues decouple producers from consumers. Publish a message and a worker picks
+				it up later, processes it, and acknowledges completion.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					If processing fails, the message retries automatically
+				</span>
+				. After exhausting retries, it moves to the <em>dead letter queue</em> (DLQ) for
+				inspection and replay. Agents use <em>ctx.queue</em> to create queues and publish.
+				Server routes consume with receive/ack/nack.
+			</>
+		),
+		docsUrl: '/services/queues',
+		category: 'messaging',
+		component: QueueDemo,
+		codeExample: CODE_EXAMPLES.queue,
+		sandboxEnabled: true,
+		sandboxScript: 'queue',
 	},
 	// Platform
 	{

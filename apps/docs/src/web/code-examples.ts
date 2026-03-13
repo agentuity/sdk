@@ -549,6 +549,45 @@ function VideoCall({ roomId }: { roomId: string }) {
   // remoteStreams.get(peerId) for each remote video
 }`,
 
+	queue: `// Message Queue: publish messages for async processing.
+// Agents publish via ctx.queue. Workers receive and ack/nack.
+
+// CREATE a queue with worker type and retry settings
+const queueName = "task-queue";
+await ctx.queue.createQueue(queueName, {
+  queueType: "worker",
+  settings: {
+    defaultMaxRetries: 3,
+    defaultVisibilityTimeoutSeconds: 30,
+  },
+});
+
+// PUBLISH a message (sync mode returns the published message)
+const result = await ctx.queue.publish(queueName, {
+  task: "process-order",
+  orderId: "order-123",
+  priority: "high",
+}, {
+  sync: true,
+  metadata: { source: "checkout" },
+  idempotencyKey: "order-123-v1",
+});
+
+ctx.logger.info("Published", {
+  id: result.id,
+  offset: result.offset,
+});
+
+// PUBLISH another message (fire-and-forget, no sync)
+await ctx.queue.publish(queueName, {
+  task: "send-receipt",
+  orderId: "order-123",
+});
+
+// CLEANUP
+await ctx.queue.deleteQueue(queueName);
+ctx.logger.info("Queue deleted");`,
+
 	email: `import { createAgent } from "@agentuity/runtime";
 import { s } from "@agentuity/schema";
 

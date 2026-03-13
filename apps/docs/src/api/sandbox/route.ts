@@ -91,10 +91,13 @@ router.get(
 		const serviceUrls = getServiceUrls(region);
 		const client = new APIClient(serviceUrls.sandbox, logger, apiKey);
 		const transportUrl = process.env.AGENTUITY_TRANSPORT_URL ?? serviceUrls.catalyst;
-		const aiGatewayBaseUrl =
-			process.env.AGENTUITY_AIGATEWAY_URL ||
-			process.env.AGENTUITY_TRANSPORT_URL ||
-			(apiKey ? 'https://agentuity.ai' : '');
+		const aiGatewayBaseUrl = process.env.AGENTUITY_AIGATEWAY_URL || 'https://agentuity.ai';
+
+		logger?.debug('Resolved sandbox AI routing', {
+			script: scriptName,
+			transportUrl,
+			aiGatewayBaseUrl,
+		});
 
 		// Build env vars for sandbox
 		const envVars: Record<string, string> = {

@@ -370,22 +370,24 @@ if (__userMounts) {
 	app.route('/api/object-storage', router_13);
 	const { default: router_14 } = await import('../api/process-docs/route.js');
 	app.route('/api/process-docs', router_14);
-	const { default: router_15 } = await import('../api/sandbox/route.js');
-	app.route('/api/sandbox', router_15);
-	const { default: router_16 } = await import('../api/sessions/route.js');
-	app.route('/api/sessions', router_16);
-	const { default: router_17 } = await import('../api/sse-stream/route.js');
-	app.route('/api/sse-stream', router_17);
-	const { default: router_18 } = await import('../api/streaming/route.js');
-	app.route('/api/streaming', router_18);
-	const { default: router_19 } = await import('../api/title-generator/route.js');
-	app.route('/api/title-generator', router_19);
-	const { default: router_20 } = await import('../api/vector-storage/route.js');
-	app.route('/api/vector-storage', router_20);
-	const { default: router_21 } = await import('../api/webrtc/route.js');
-	app.route('/api/webrtc', router_21);
-	const { default: router_22 } = await import('../api/websocket/route.js');
-	app.route('/api/websocket', router_22);
+	const { default: router_15 } = await import('../api/queue/route.js');
+	app.route('/api/queue', router_15);
+	const { default: router_16 } = await import('../api/sandbox/route.js');
+	app.route('/api/sandbox', router_16);
+	const { default: router_17 } = await import('../api/sessions/route.js');
+	app.route('/api/sessions', router_17);
+	const { default: router_18 } = await import('../api/sse-stream/route.js');
+	app.route('/api/sse-stream', router_18);
+	const { default: router_19 } = await import('../api/streaming/route.js');
+	app.route('/api/streaming', router_19);
+	const { default: router_20 } = await import('../api/title-generator/route.js');
+	app.route('/api/title-generator', router_20);
+	const { default: router_21 } = await import('../api/vector-storage/route.js');
+	app.route('/api/vector-storage', router_21);
+	const { default: router_22 } = await import('../api/webrtc/route.js');
+	app.route('/api/webrtc', router_22);
+	const { default: router_23 } = await import('../api/websocket/route.js');
+	app.route('/api/websocket', router_23);
 }
 
 // Mount workbench API routes (/_agentuity/workbench/*)

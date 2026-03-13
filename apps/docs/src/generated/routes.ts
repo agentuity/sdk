@@ -511,6 +511,54 @@ declare module '@agentuity/frontend' {
 				stream: typeof docProcessingAgent extends { stream?: infer S } ? S : false;
 				params: never;
 			};
+	'POST /api/queue/ack/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'GET /api/queue/dlq': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/queue/dlq/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/queue/nack/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/queue/publish': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/queue/receive': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/queue/setup': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/queue/status': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'GET /api/sessions': {
 				inputSchema: never;
 				outputSchema: never;
@@ -900,6 +948,60 @@ declare module '@agentuity/frontend' {
 			 */
 			post: { input: POSTApiProcessDocsInput; output: POSTApiProcessDocsOutput; type: 'api'; params: never; paramsTuple: [] };
 		};
+		queue: {
+			ack: {
+				id: {
+					/**
+					 * Route: POST /api/queue/ack/:id
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
+			};
+			dlq: {
+				/**
+				 * Route: GET /api/queue/dlq
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+				id: {
+					/**
+					 * Route: POST /api/queue/dlq/:id
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
+			};
+			nack: {
+				id: {
+					/**
+					 * Route: POST /api/queue/nack/:id
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
+			};
+			publish: {
+				/**
+				 * Route: POST /api/queue/publish
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			receive: {
+				/**
+				 * Route: GET /api/queue/receive
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			setup: {
+				/**
+				 * Route: POST /api/queue/setup
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			status: {
+				/**
+				 * Route: GET /api/queue/status
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
 		sandbox: {
 			run: {
 				/**
@@ -1245,6 +1347,54 @@ declare module '@agentuity/react' {
 				inputSchema: POSTApiProcessDocsInputSchema;
 				outputSchema: POSTApiProcessDocsOutputSchema;
 				stream: typeof docProcessingAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'POST /api/queue/ack/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'GET /api/queue/dlq': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/queue/dlq/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/queue/nack/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/queue/publish': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/queue/receive': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/queue/setup': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/queue/status': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
 				params: never;
 			};
 	'GET /api/sessions': {
@@ -1616,6 +1766,60 @@ declare module '@agentuity/react' {
 			 * Route: POST /api/process-docs
 			 */
 			post: { input: POSTApiProcessDocsInput; output: POSTApiProcessDocsOutput; type: 'api'; params: never; paramsTuple: [] };
+		};
+		queue: {
+			ack: {
+				id: {
+					/**
+					 * Route: POST /api/queue/ack/:id
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
+			};
+			dlq: {
+				/**
+				 * Route: GET /api/queue/dlq
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+				id: {
+					/**
+					 * Route: POST /api/queue/dlq/:id
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
+			};
+			nack: {
+				id: {
+					/**
+					 * Route: POST /api/queue/nack/:id
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
+			};
+			publish: {
+				/**
+				 * Route: POST /api/queue/publish
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			receive: {
+				/**
+				 * Route: GET /api/queue/receive
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			setup: {
+				/**
+				 * Route: POST /api/queue/setup
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			status: {
+				/**
+				 * Route: GET /api/queue/status
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
 		};
 		sandbox: {
 			run: {
@@ -1995,6 +2199,69 @@ const _rpcRouteMetadata = {
 				"post": {
 						"type": "api",
 						"path": "/api/process-docs"
+				}
+		},
+		"queue": {
+				"ack": {
+						"id": {
+								"post": {
+										"type": "api",
+										"path": "/api/queue/ack/:id",
+										"pathParams": [
+												"id"
+										]
+								}
+						}
+				},
+				"dlq": {
+						"get": {
+								"type": "api",
+								"path": "/api/queue/dlq"
+						},
+						"id": {
+								"post": {
+										"type": "api",
+										"path": "/api/queue/dlq/:id",
+										"pathParams": [
+												"id"
+										]
+								}
+						}
+				},
+				"nack": {
+						"id": {
+								"post": {
+										"type": "api",
+										"path": "/api/queue/nack/:id",
+										"pathParams": [
+												"id"
+										]
+								}
+						}
+				},
+				"publish": {
+						"post": {
+								"type": "api",
+								"path": "/api/queue/publish"
+						}
+				},
+				"receive": {
+						"get": {
+								"type": "api",
+								"path": "/api/queue/receive"
+						}
+				},
+				"setup": {
+						"post": {
+								"type": "api",
+								"path": "/api/queue/setup"
+						}
+				},
+				"status": {
+						"get": {
+								"type": "api",
+								"path": "/api/queue/status"
+						}
 				}
 		},
 		"sandbox": {
