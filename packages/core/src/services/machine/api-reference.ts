@@ -1,4 +1,9 @@
 import { MachineSchema } from './machine.ts';
+import {
+	OrgAuthEnrollRequestSchema,
+	OrgAuthEnrollDataSchema,
+	OrgAuthStatusDataSchema,
+} from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -95,20 +100,10 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Enrollment payload with organization ID and public key.',
-				fields: [
-					{ name: 'orgId', type: 'string', description: 'Organization ID', required: true },
-					{
-						name: 'publicKey',
-						type: 'string',
-						description: 'Public key for machine authentication',
-						required: true,
-					},
-				],
+				fields: { schema: OrgAuthEnrollRequestSchema },
 			},
 			responseDescription: 'Returns the enrolled organization ID.',
-			responseFields: [
-				{ name: 'orgId', type: 'string', description: 'The enrolled organization ID' },
-			],
+			responseFields: { schema: OrgAuthEnrollDataSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Organization enrolled' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -129,13 +124,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns the enrollment status. A null publicKey means not enrolled.',
-			responseFields: [
-				{
-					name: 'publicKey',
-					type: 'string | null',
-					description: 'Public key or null if not enrolled',
-				},
-			],
+			responseFields: { schema: OrgAuthStatusDataSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Enrollment status returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },

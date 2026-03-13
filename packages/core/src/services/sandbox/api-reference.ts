@@ -10,11 +10,18 @@ import {
 	WriteFilesRequestSchema,
 } from './files.ts';
 import { SandboxResolveDataSchema } from './resolve.ts';
+import { SnapshotBuildInitResponseSchema } from './snapshot.ts';
 import {
 	ListRuntimesResponseSchema,
 	ListSandboxesResponseSchema,
+	SandboxEnvUpdateRequestSchema,
+	SandboxEnvUpdateResponseSchema,
+	SandboxStatusResponseDataSchema,
+	SnapshotBuildFinalizeRequestSchema,
+	SnapshotBuildInitRequestSchema,
 	SnapshotCreateOptionsSchema,
 	SnapshotListResponseSchema,
+	SnapshotTagUpdateRequestSchema,
 } from './types.ts';
 import type { Service } from '../api-reference.ts';
 
@@ -172,11 +179,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns the sandbox status.',
-			responseFields: [
-				{ name: 'sandboxId', type: 'string', description: 'Sandbox ID' },
-				{ name: 'status', type: 'string', description: 'Current sandbox status' },
-				{ name: 'exitCode', type: 'number', description: 'Exit code if terminated' },
-			],
+			responseFields: { schema: SandboxStatusResponseDataSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Status returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -244,19 +247,10 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Environment variable updates.',
-				fields: [
-					{
-						name: 'env',
-						type: 'object',
-						description: 'Key-value pairs. Set value to null to delete a variable.',
-						required: true,
-					},
-				],
+				fields: { schema: SandboxEnvUpdateRequestSchema },
 			},
 			responseDescription: 'Returns the current environment after update.',
-			responseFields: [
-				{ name: 'env', type: 'object', description: 'Current environment after update' },
-			],
+			responseFields: { schema: SandboxEnvUpdateResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Environment updated' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -681,14 +675,7 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Tag update payload.',
-				fields: [
-					{
-						name: 'tag',
-						type: 'string',
-						description: 'New tag or null to remove tag',
-						required: true,
-					},
-				],
+				fields: { schema: SnapshotTagUpdateRequestSchema },
 			},
 			responseDescription: 'Returns the updated snapshot.',
 			statuses: [
@@ -771,10 +758,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns paginated list of public snapshots.',
-			responseFields: [
-				{ name: 'snapshots', type: 'array', description: 'Array of public snapshot objects' },
-				{ name: 'total', type: 'number', description: 'Total public snapshots' },
-			],
+			responseFields: { schema: SnapshotListResponseSchema, stripRequired: true },
 			statuses: [{ code: 200, description: 'Public snapshots returned' }],
 			examplePath: '/sandbox/snapshots/public',
 		},
@@ -792,58 +776,11 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Snapshot build initialization payload.',
-				fields: [
-					{
-						name: 'runtime',
-						type: 'string',
-						description: 'Runtime identifier',
-						required: true,
-					},
-					{ name: 'name', type: 'string', description: 'Snapshot name', required: false },
-					{ name: 'tag', type: 'string', description: 'Snapshot tag', required: false },
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Snapshot description',
-						required: false,
-					},
-					{
-						name: 'contentHash',
-						type: 'string',
-						description: 'For deduplication',
-						required: false,
-					},
-					{ name: 'force', type: 'boolean', description: 'Force rebuild', required: false },
-					{
-						name: 'encrypt',
-						type: 'boolean',
-						description: 'Encrypt snapshot',
-						required: false,
-					},
-					{
-						name: 'public',
-						type: 'boolean',
-						description: 'Make snapshot public',
-						required: false,
-					},
-				],
+				fields: { schema: SnapshotBuildInitRequestSchema },
 			},
 			responseDescription:
 				'Returns snapshot ID and presigned upload URL. If unchanged is true, content matches existing snapshot.',
-			responseFields: [
-				{ name: 'snapshotId', type: 'string', description: 'Snapshot ID' },
-				{ name: 'uploadUrl', type: 'string', description: 'Presigned S3 upload URL' },
-				{
-					name: 'unchanged',
-					type: 'boolean',
-					description: 'True if content hash matches existing snapshot',
-				},
-				{
-					name: 'existingId',
-					type: 'string',
-					description: 'Existing snapshot ID if unchanged',
-				},
-			],
+			responseFields: { schema: SnapshotBuildInitResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Build initialized' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -866,45 +803,7 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Snapshot finalization payload.',
-				fields: [
-					{
-						name: 'sizeBytes',
-						type: 'number',
-						description: 'Archive size in bytes',
-						required: true,
-					},
-					{
-						name: 'fileCount',
-						type: 'number',
-						description: 'Number of files',
-						required: true,
-					},
-					{
-						name: 'files',
-						type: 'array',
-						description: 'Array of file metadata',
-						required: true,
-					},
-					{
-						name: 'dependencies',
-						type: 'array',
-						description: 'Dependency list',
-						required: false,
-					},
-					{ name: 'packages', type: 'array', description: 'Package list', required: false },
-					{
-						name: 'env',
-						type: 'object',
-						description: 'Environment variables',
-						required: false,
-					},
-					{
-						name: 'metadata',
-						type: 'object',
-						description: 'Arbitrary metadata',
-						required: false,
-					},
-				],
+				fields: { schema: SnapshotBuildFinalizeRequestSchema },
 			},
 			responseDescription: 'Returns the finalized snapshot.',
 			statuses: [

@@ -1,6 +1,7 @@
 import { OrgEnvDeleteRequestSchema } from './env-delete.ts';
 import { OrgEnvDataSchema } from './env-get.ts';
 import { OrgEnvUpdateRequestSchema } from './env-update.ts';
+import { OrgInfoApiSchema } from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -18,10 +19,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns all organizations the authenticated user belongs to.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Organization ID' },
-				{ name: 'name', type: 'string', description: 'Organization name' },
-			],
+			responseFields: { schema: OrgInfoApiSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Organizations returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },

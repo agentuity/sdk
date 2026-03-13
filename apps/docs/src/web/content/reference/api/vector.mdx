@@ -78,12 +78,20 @@ JSON response with inserted/updated vector IDs.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
+  },
+  {
+    "name": "data",
+    "type": "object[]",
+    "description": "Array of upserted vector results",
+    "required": true
   },
   {
     "name": "data[].id",
     "type": "string",
-    "description": "Stored vector ID"
+    "description": "Stored vector ID",
+    "required": true
   }
 ]} />
 
@@ -150,42 +158,56 @@ JSON response with vector data, metadata, similarity, and expiration fields.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
+  },
+  {
+    "name": "data",
+    "type": "object",
+    "description": "The vector data object",
+    "required": true
   },
   {
     "name": "data.id",
     "type": "string",
-    "description": "Internal vector ID"
+    "description": "Internal vector ID",
+    "required": true
   },
   {
     "name": "data.key",
     "type": "string",
-    "description": "Vector key"
+    "description": "Vector key",
+    "required": true
   },
   {
     "name": "data.document",
     "type": "string",
-    "description": "Original source document text"
+    "description": "Original source document text",
+    "required": false
   },
   {
     "name": "data.embeddings",
     "type": "number[]",
-    "description": "Stored embeddings array"
+    "description": "Stored embeddings array",
+    "required": false
   },
   {
     "name": "data.metadata",
     "type": "object",
-    "description": "Stored metadata"
+    "description": "Stored metadata",
+    "required": false
   },
   {
     "name": "data.similarity",
     "type": "number",
-    "description": "Similarity score when relevant"
+    "description": "Similarity score when relevant",
+    "required": true
   },
   {
     "name": "data.expiresAt",
     "type": "string | null",
-    "description": "ISO 8601 expiration timestamp"
+    "description": "ISO 8601 expiration timestamp",
+    "required": false
   }
 ]} />
 
@@ -260,32 +282,44 @@ JSON response containing matching vectors and similarity scores.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
+  },
+  {
+    "name": "data",
+    "type": "object[]",
+    "description": "Array of matching vector results",
+    "required": true
   },
   {
     "name": "data[].id",
     "type": "string",
-    "description": "Vector ID"
+    "description": "Vector ID",
+    "required": true
   },
   {
     "name": "data[].key",
     "type": "string",
-    "description": "Vector key"
+    "description": "Vector key",
+    "required": true
   },
   {
     "name": "data[].metadata",
     "type": "object",
-    "description": "Vector metadata"
+    "description": "Vector metadata",
+    "required": false
   },
   {
     "name": "data[].similarity",
     "type": "number",
-    "description": "Similarity score (0–1)"
+    "description": "Similarity score (0–1)",
+    "required": true
   },
   {
     "name": "data[].expiresAt",
     "type": "string | null",
-    "description": "ISO 8601 expiration timestamp"
+    "description": "ISO 8601 expiration timestamp",
+    "required": false
   }
 ]} />
 
@@ -340,12 +374,14 @@ JSON response with deleted row count.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
   },
   {
     "name": "data",
     "type": "number",
-    "description": "Number of deleted vectors (0 or 1)"
+    "description": "Number of deleted vectors",
+    "required": true
   }
 ]} />
 
@@ -381,8 +417,7 @@ Optional JSON body specifying keys to delete.
   {
     "name": "keys",
     "type": "string[]",
-    "description": "Vector keys to delete",
-    "required": false
+    "description": "Vector keys to delete"
   }
 ]} />
 
@@ -401,12 +436,14 @@ JSON response with number of deleted vectors.
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the request succeeded"
+    "description": "Whether the request succeeded",
+    "required": true
   },
   {
     "name": "data",
     "type": "number",
-    "description": "Number of deleted vectors"
+    "description": "Number of deleted vectors",
+    "required": true
   }
 ]} />
 

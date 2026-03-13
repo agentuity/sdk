@@ -1,8 +1,18 @@
 import {
 	BatchPublishMessagesRequestSchema,
+	BatchPublishResponseSchema,
+	ConsumeMessagesResponseSchema,
 	CreateDestinationRequestSchema,
 	CreateQueueRequestSchema,
+	GetQueueHeadResponseSchema,
+	GetQueueTailResponseSchema,
+	ListDeliveryLogsResponseSchema,
+	ListDestinationsResponseSchema,
+	ListDlqMessagesResponseSchema,
+	ListMessagesResponseSchema,
+	ListQueuesResponseSchema,
 	PublishMessageRequestSchema,
+	ReceiveMessageResponseSchema,
 	UpdateQueueRequestSchema,
 } from './types.ts';
 import type { Service } from '../api-reference.ts';
@@ -96,15 +106,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Response with queue array and optional total count.',
-			responseFields: [
-				{ name: 'queues', type: 'Queue[]', description: 'Queues in the current page' },
-				{
-					name: 'total',
-					type: 'number',
-					description: 'Optional total queue count',
-					required: false,
-				},
-			],
+			responseFields: { schema: ListQueuesResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Queues returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -236,15 +238,7 @@ const service: Service = {
 			},
 			responseDescription:
 				'Batch publish response with created messages and optional failed indexes.',
-			responseFields: [
-				{ name: 'messages', type: 'Message[]', description: 'Published messages' },
-				{
-					name: 'failed',
-					type: 'number[]',
-					description: 'Indexes that failed',
-					required: false,
-				},
-			],
+			responseFields: { schema: BatchPublishResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Batch publish completed' },
 				{ code: 401, description: 'Unauthorized' },
@@ -325,15 +319,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Response with message list and optional total count.',
-			responseFields: [
-				{ name: 'messages', type: 'Message[]', description: 'Messages in current page' },
-				{
-					name: 'total',
-					type: 'number',
-					description: 'Optional total message count',
-					required: false,
-				},
-			],
+			responseFields: { schema: ListMessagesResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Messages returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -403,9 +389,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Response containing consumed messages.',
-			responseFields: [
-				{ name: 'messages', type: 'Message[]', description: 'Consumed messages' },
-			],
+			responseFields: { schema: ConsumeMessagesResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Messages consumed' },
 				{ code: 401, description: 'Unauthorized' },
@@ -432,13 +416,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Response containing a message or `null` when none available.',
-			responseFields: [
-				{
-					name: 'message',
-					type: 'Message | null',
-					description: 'Received message if available',
-				},
-			],
+			responseFields: { schema: ReceiveMessageResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Receive operation completed' },
 				{ code: 401, description: 'Unauthorized' },
@@ -499,7 +477,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'JSON object containing the head offset.',
-			responseFields: [{ name: 'offset', type: 'number', description: 'Oldest message offset' }],
+			responseFields: { schema: GetQueueHeadResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Queue head returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -518,7 +496,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'JSON object containing the tail offset.',
-			responseFields: [{ name: 'offset', type: 'number', description: 'Newest message offset' }],
+			responseFields: { schema: GetQueueTailResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Queue tail returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -564,9 +542,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Response containing destination list.',
-			responseFields: [
-				{ name: 'destinations', type: 'Destination[]', description: 'Configured destinations' },
-			],
+			responseFields: { schema: ListDestinationsResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Destinations returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -652,9 +628,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Response containing delivery log entries.',
-			responseFields: [
-				{ name: 'deliveries', type: 'DeliveryLog[]', description: 'Delivery log entries' },
-			],
+			responseFields: { schema: ListDeliveryLogsResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Delivery logs returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -686,15 +660,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Response containing DLQ messages and optional total.',
-			responseFields: [
-				{ name: 'messages', type: 'DeadLetterMessage[]', description: 'DLQ messages' },
-				{
-					name: 'total',
-					type: 'number',
-					description: 'Optional total DLQ message count',
-					required: false,
-				},
-			],
+			responseFields: { schema: ListDlqMessagesResponseSchema },
 			statuses: [
 				{ code: 200, description: 'DLQ messages returned' },
 				{ code: 401, description: 'Unauthorized' },

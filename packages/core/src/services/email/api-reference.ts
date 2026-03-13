@@ -3,6 +3,7 @@ import {
 	EmailConnectionConfigSchema,
 	EmailSendParamsSchema,
 } from './service.ts';
+import { CreateAddressRequestSchema, CreateEmailDestinationRequestSchema } from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -21,14 +22,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Address creation payload.',
-				fields: [
-					{
-						name: 'local_part',
-						type: 'string',
-						description: 'Local part before `@agentuity.email`',
-						required: true,
-					},
-				],
+				fields: { schema: CreateAddressRequestSchema },
 			},
 			responseDescription: 'Created `EmailAddress` object.',
 			statuses: [
@@ -120,20 +114,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Destination creation payload.',
-				fields: [
-					{
-						name: 'type',
-						type: 'string',
-						description: 'Destination type (`url`)',
-						required: true,
-					},
-					{
-						name: 'config',
-						type: 'object',
-						description: 'Destination config including URL',
-						required: true,
-					},
-				],
+				fields: { schema: CreateEmailDestinationRequestSchema },
 			},
 			responseDescription: 'Created `EmailDestination` object.',
 			statuses: [

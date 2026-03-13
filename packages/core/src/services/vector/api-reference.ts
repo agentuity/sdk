@@ -5,6 +5,13 @@ import {
 	VectorStatsPaginatedSchema,
 	VectorUpsertBaseSchema,
 } from './service.ts';
+import {
+	VectorDeleteMultipleRequestSchema,
+	VectorDeleteResponseSchema,
+	VectorGetResponseSchema,
+	VectorSearchResponseSchema,
+	VectorUpsertResponseSchema,
+} from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -26,10 +33,7 @@ const service: Service = {
 				fields: { schema: VectorUpsertBaseSchema },
 			},
 			responseDescription: 'JSON response with inserted/updated vector IDs.',
-			responseFields: [
-				{ name: 'success', type: 'boolean', description: 'Whether the request succeeded' },
-				{ name: 'data[].id', type: 'string', description: 'Stored vector ID' },
-			],
+			responseFields: { schema: VectorUpsertResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Vectors upserted successfully' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -60,24 +64,7 @@ const service: Service = {
 			requestBody: null,
 			responseDescription:
 				'JSON response with vector data, metadata, similarity, and expiration fields.',
-			responseFields: [
-				{ name: 'success', type: 'boolean', description: 'Whether the request succeeded' },
-				{ name: 'data.id', type: 'string', description: 'Internal vector ID' },
-				{ name: 'data.key', type: 'string', description: 'Vector key' },
-				{ name: 'data.document', type: 'string', description: 'Original source document text' },
-				{ name: 'data.embeddings', type: 'number[]', description: 'Stored embeddings array' },
-				{ name: 'data.metadata', type: 'object', description: 'Stored metadata' },
-				{
-					name: 'data.similarity',
-					type: 'number',
-					description: 'Similarity score when relevant',
-				},
-				{
-					name: 'data.expiresAt',
-					type: 'string | null',
-					description: 'ISO 8601 expiration timestamp',
-				},
-			],
+			responseFields: { schema: VectorGetResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Vector found and returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -102,18 +89,7 @@ const service: Service = {
 				},
 			},
 			responseDescription: 'JSON response containing matching vectors and similarity scores.',
-			responseFields: [
-				{ name: 'success', type: 'boolean', description: 'Whether the request succeeded' },
-				{ name: 'data[].id', type: 'string', description: 'Vector ID' },
-				{ name: 'data[].key', type: 'string', description: 'Vector key' },
-				{ name: 'data[].metadata', type: 'object', description: 'Vector metadata' },
-				{ name: 'data[].similarity', type: 'number', description: 'Similarity score (0–1)' },
-				{
-					name: 'data[].expiresAt',
-					type: 'string | null',
-					description: 'ISO 8601 expiration timestamp',
-				},
-			],
+			responseFields: { schema: VectorSearchResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Search results returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -135,10 +111,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'JSON response with deleted row count.',
-			responseFields: [
-				{ name: 'success', type: 'boolean', description: 'Whether the request succeeded' },
-				{ name: 'data', type: 'number', description: 'Number of deleted vectors (0 or 1)' },
-			],
+			responseFields: { schema: VectorDeleteResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Delete operation completed' },
 				{ code: 401, description: 'Unauthorized' },
@@ -157,20 +130,10 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Optional JSON body specifying keys to delete.',
-				fields: [
-					{
-						name: 'keys',
-						type: 'string[]',
-						description: 'Vector keys to delete',
-						required: false,
-					},
-				],
+				fields: { schema: VectorDeleteMultipleRequestSchema, stripRequired: true },
 			},
 			responseDescription: 'JSON response with number of deleted vectors.',
-			responseFields: [
-				{ name: 'success', type: 'boolean', description: 'Whether the request succeeded' },
-				{ name: 'data', type: 'number', description: 'Number of deleted vectors' },
-			],
+			responseFields: { schema: VectorDeleteResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Delete operation completed' },
 				{ code: 401, description: 'Unauthorized' },

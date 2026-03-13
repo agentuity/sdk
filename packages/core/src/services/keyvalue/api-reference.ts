@@ -1,4 +1,5 @@
-import { KeyValueStatsSchema } from './service.ts';
+import { KeyValueStatsPaginatedSchema, KeyValueStatsSchema } from './service.ts';
+import { CreateNamespaceApiRequestSchema, KeyValueItemMetadataSchema } from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -115,39 +116,11 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'JSON object mapping key names to their values and metadata.',
-			responseFields: [
-				{
-					name: '{key}.value',
-					type: 'any',
-					description: 'The stored value (base64-encoded for binary)',
-				},
-				{
-					name: '{key}.contentType',
-					type: 'string',
-					description: 'MIME type of the stored value',
-				},
-				{ name: '{key}.size', type: 'number', description: 'Size in bytes' },
-				{
-					name: '{key}.expiresAt',
-					type: 'string | null',
-					description: 'ISO 8601 expiration timestamp',
-				},
-				{
-					name: '{key}.firstUsed',
-					type: 'number | null',
-					description: 'Unix timestamp (ms) of first access',
-				},
-				{
-					name: '{key}.lastUsed',
-					type: 'number | null',
-					description: 'Unix timestamp (ms) of last access',
-				},
-				{
-					name: '{key}.count',
-					type: 'number | null',
-					description: 'Number of times accessed',
-				},
-			],
+			responseFields: {
+				schema: KeyValueItemMetadataSchema,
+				prefix: '{key}',
+				stripRequired: true,
+			},
 			statuses: [
 				{ code: 200, description: 'Search results returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -233,25 +206,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Paginated response with namespace statistics.',
-			responseFields: [
-				{
-					name: 'namespaces',
-					type: 'object',
-					description: 'Map of namespace names to their statistics',
-				},
-				{
-					name: 'total',
-					type: 'number',
-					description: 'Total number of namespaces across all pages',
-				},
-				{ name: 'limit', type: 'number', description: 'Number of namespaces per page' },
-				{ name: 'offset', type: 'number', description: 'Number of namespaces skipped' },
-				{
-					name: 'hasMore',
-					type: 'boolean',
-					description: 'Whether more namespaces are available',
-				},
-			],
+			responseFields: { schema: KeyValueStatsPaginatedSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Stats returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -288,15 +243,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Optional JSON body with namespace configuration.',
-				fields: [
-					{
-						name: 'default_ttl_seconds',
-						type: 'number',
-						description:
-							'Default TTL for keys in this namespace (in seconds). If omitted, defaults to 7 days (604,800). Use 0 for keys that never expire.',
-						required: false,
-					},
-				],
+				fields: { schema: CreateNamespaceApiRequestSchema },
 			},
 			responseDescription: 'Empty response on success.',
 			responseHeaders: [],

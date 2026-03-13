@@ -895,17 +895,17 @@ Returns the sandbox status.
   {
     "name": "sandboxId",
     "type": "string",
-    "description": "Sandbox ID"
+    "description": "Unique identifier for the sandbox."
   },
   {
     "name": "status",
     "type": "string",
-    "description": "Current sandbox status"
+    "description": "Current status of the sandbox."
   },
   {
     "name": "exitCode",
     "type": "number",
-    "description": "Exit code if terminated"
+    "description": "Exit code from the last execution, if terminated."
   }
 ]} />
 
@@ -2219,7 +2219,7 @@ Tag update payload.
 <ResponseFields fields={[
   {
     "name": "tag",
-    "type": "string",
+    "type": "string | null",
     "description": "New tag or null to remove tag",
     "required": true
   }
@@ -2375,13 +2375,108 @@ Returns paginated list of public snapshots.
 <ResponseFields fields={[
   {
     "name": "snapshots",
-    "type": "array",
-    "description": "Array of public snapshot objects"
+    "type": "object[]",
+    "description": "List of snapshot entries"
+  },
+  {
+    "name": "snapshots[].snapshotId",
+    "type": "string",
+    "description": "Unique identifier for the snapshot"
+  },
+  {
+    "name": "snapshots[].runtimeId",
+    "type": "string | null",
+    "description": "Runtime ID associated with this snapshot"
+  },
+  {
+    "name": "snapshots[].name",
+    "type": "string",
+    "description": "Display name for the snapshot"
+  },
+  {
+    "name": "snapshots[].fullName",
+    "type": "string",
+    "description": "Full name with org slug for public snapshots (@slug/name:tag)"
+  },
+  {
+    "name": "snapshots[].description",
+    "type": "string | null",
+    "description": "Description of the snapshot"
+  },
+  {
+    "name": "snapshots[].message",
+    "type": "string | null",
+    "description": "Build message for the snapshot"
+  },
+  {
+    "name": "snapshots[].tag",
+    "type": "string | null",
+    "description": "Tag for the snapshot (defaults to \"latest\")"
+  },
+  {
+    "name": "snapshots[].sizeBytes",
+    "type": "number",
+    "description": "Total size of the snapshot in bytes"
+  },
+  {
+    "name": "snapshots[].fileCount",
+    "type": "number",
+    "description": "Number of files in the snapshot"
+  },
+  {
+    "name": "snapshots[].parentSnapshotId",
+    "type": "string | null",
+    "description": "ID of the parent snapshot (for incremental snapshots)"
+  },
+  {
+    "name": "snapshots[].public",
+    "type": "boolean",
+    "description": "Whether the snapshot is publicly accessible"
+  },
+  {
+    "name": "snapshots[].orgName",
+    "type": "string",
+    "description": "Organization name (for public snapshots)"
+  },
+  {
+    "name": "snapshots[].orgSlug",
+    "type": "string",
+    "description": "Organization slug (for public snapshots)"
+  },
+  {
+    "name": "snapshots[].org",
+    "type": "object | null",
+    "description": "Organization details (for public snapshots)"
+  },
+  {
+    "name": "snapshots[].user",
+    "type": "object | null",
+    "description": "User who pushed the snapshot (for private snapshots)"
+  },
+  {
+    "name": "snapshots[].createdAt",
+    "type": "string",
+    "description": "ISO timestamp when the snapshot was created"
+  },
+  {
+    "name": "snapshots[].downloadUrl",
+    "type": "string",
+    "description": "URL to download the snapshot archive"
+  },
+  {
+    "name": "snapshots[].files",
+    "type": "object[] | null",
+    "description": "List of files in the snapshot"
+  },
+  {
+    "name": "snapshots[].userMetadata",
+    "type": "object | null",
+    "description": "User-defined metadata key-value pairs"
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total public snapshots"
+    "description": "Total number of snapshots matching the query"
   }
 ]} />
 
@@ -2417,49 +2512,49 @@ Snapshot build initialization payload.
   {
     "name": "runtime",
     "type": "string",
-    "description": "Runtime identifier",
+    "description": "Runtime identifier (name:tag or runtime ID)",
     "required": true
   },
   {
     "name": "name",
     "type": "string",
-    "description": "Snapshot name",
+    "description": "Display name for the snapshot",
     "required": false
   },
   {
     "name": "tag",
     "type": "string",
-    "description": "Snapshot tag",
+    "description": "Tag for the snapshot",
     "required": false
   },
   {
     "name": "description",
     "type": "string",
-    "description": "Snapshot description",
+    "description": "Description of the snapshot",
     "required": false
   },
   {
     "name": "contentHash",
     "type": "string",
-    "description": "For deduplication",
+    "description": "SHA-256 hash of snapshot content for change detection",
     "required": false
   },
   {
     "name": "force",
     "type": "boolean",
-    "description": "Force rebuild",
+    "description": "Force rebuild even if content is unchanged",
     "required": false
   },
   {
     "name": "encrypt",
     "type": "boolean",
-    "description": "Encrypt snapshot",
+    "description": "Request encryption for the snapshot archive",
     "required": false
   },
   {
     "name": "public",
     "type": "boolean",
-    "description": "Make snapshot public",
+    "description": "Make snapshot public (enables virus scanning, disables encryption)",
     "required": false
   }
 ]} />
@@ -2479,22 +2574,37 @@ Returns snapshot ID and presigned upload URL. If unchanged is true, content matc
   {
     "name": "snapshotId",
     "type": "string",
-    "description": "Snapshot ID"
+    "description": "Unique identifier for the snapshot being built"
   },
   {
     "name": "uploadUrl",
     "type": "string",
-    "description": "Presigned S3 upload URL"
+    "description": "Pre-signed URL for uploading the snapshot archive (private snapshots only)"
+  },
+  {
+    "name": "publicKey",
+    "type": "string",
+    "description": "PEM-encoded public key for encrypting the snapshot archive"
   },
   {
     "name": "unchanged",
     "type": "boolean",
-    "description": "True if content hash matches existing snapshot"
+    "description": "True if snapshot content is unchanged"
   },
   {
     "name": "existingId",
     "type": "string",
-    "description": "Existing snapshot ID if unchanged"
+    "description": "ID of existing unchanged snapshot"
+  },
+  {
+    "name": "existingName",
+    "type": "string",
+    "description": "Name of existing unchanged snapshot"
+  },
+  {
+    "name": "existingTag",
+    "type": "string",
+    "description": "Tag of existing unchanged snapshot"
   }
 ]} />
 
@@ -2541,43 +2651,73 @@ Snapshot finalization payload.
   {
     "name": "sizeBytes",
     "type": "number",
-    "description": "Archive size in bytes",
+    "description": "Total size of the snapshot in bytes",
     "required": true
   },
   {
     "name": "fileCount",
     "type": "number",
-    "description": "Number of files",
+    "description": "Number of files in the snapshot",
     "required": true
   },
   {
     "name": "files",
-    "type": "array",
+    "type": "object[]",
     "description": "Array of file metadata",
     "required": true
   },
   {
+    "name": "files[].path",
+    "type": "string",
+    "description": "File path within the snapshot",
+    "required": true
+  },
+  {
+    "name": "files[].size",
+    "type": "number",
+    "description": "File size in bytes",
+    "required": true
+  },
+  {
+    "name": "files[].sha256",
+    "type": "string",
+    "description": "SHA256 hash of the file contents",
+    "required": true
+  },
+  {
+    "name": "files[].contentType",
+    "type": "string",
+    "description": "MIME type of the file",
+    "required": true
+  },
+  {
+    "name": "files[].mode",
+    "type": "number",
+    "description": "Unix file mode/permissions (e.g., 0o644)",
+    "required": true
+  },
+  {
     "name": "dependencies",
-    "type": "array",
-    "description": "Dependency list",
+    "type": "string[]",
+    "description": "List of apt packages to install",
     "required": false
   },
   {
     "name": "packages",
-    "type": "array",
-    "description": "Package list",
+    "type": "string[]",
+    "description": "List of npm/bun packages to install globally",
     "required": false
   },
   {
     "name": "env",
     "type": "object",
-    "description": "Environment variables",
+    "description": "Environment variables to set",
     "required": false
   },
   {
     "name": "metadata",
     "type": "object",
-    "description": "Arbitrary metadata",
+    "description": "User-defined metadata key-value pairs",
     "required": false
   }
 ]} />

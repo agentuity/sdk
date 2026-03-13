@@ -4,6 +4,7 @@ import {
 	CreateScheduleParamsSchema,
 	ScheduleCreateResultSchema,
 	ScheduleListResultSchema,
+	UpdateScheduleParamsSchema,
 } from './service.ts';
 
 const service: Service = {
@@ -102,26 +103,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Fields to update.',
-				fields: [
-					{
-						name: 'name',
-						type: 'string',
-						description: 'Updated schedule name',
-						required: false,
-					},
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Updated description',
-						required: false,
-					},
-					{
-						name: 'expression',
-						type: 'string',
-						description: 'Updated cron expression',
-						required: false,
-					},
-				],
+				fields: { schema: UpdateScheduleParamsSchema },
 			},
 			responseDescription: 'Returns the updated schedule.',
 			statuses: [

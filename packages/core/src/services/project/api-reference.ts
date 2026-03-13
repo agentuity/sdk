@@ -4,11 +4,18 @@ import {
 	CreateProjectDeploymentSchema,
 	DeploymentCompleteSchema,
 	DeploymentFailPayloadSchema,
+	DeploymentStatusSchema,
 } from './deploy.ts';
 import { ProjectDeleteRequestSchema } from './delete.ts';
 import { ProjectEnvDeleteRequestSchema } from './env-delete.ts';
 import { ProjectEnvUpdateRequestSchema } from './env-update.ts';
 import { ProjectHostnameSetRequestSchema } from './hostname.ts';
+import { MalwareCheckResultSchema } from './malware.ts';
+import {
+	HostnameGetResponseDataSchema,
+	HostnameSetResponseDataSchema,
+	MalwareCheckRequestSchema,
+} from './types.ts';
 import { UpdateRegionRequestSchema } from './update-region.ts';
 import type { Service } from '../api-reference.ts';
 
@@ -454,20 +461,7 @@ const service: Service = {
 				fields: { schema: CreateProjectDeploymentSchema },
 			},
 			responseDescription: 'Returns deployment details and upload information.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Deployment ID' },
-				{ name: 'orgId', type: 'string', description: 'Organization ID' },
-				{
-					name: 'publicKey',
-					type: 'string',
-					description: 'For encrypting the deployment archive',
-				},
-				{
-					name: 'buildLogsStreamURL',
-					type: 'string',
-					description: 'Pulse stream URL for build logs',
-				},
-			],
+			responseFields: { schema: CreateProjectDeploymentSchema, stripRequired: true },
 			statuses: [
 				{ code: 201, description: 'Deployment started' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -531,14 +525,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns the current deployment state.',
-			responseFields: [
-				{
-					name: 'state',
-					type: 'string',
-					description:
-						'\\`pending\\`, \\`building\\`, \\`deploying\\`, \\`failed\\`, or \\`completed\\`',
-				},
-			],
+			responseFields: { schema: DeploymentStatusSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Status returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -581,10 +568,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns the vanity hostname and URL.',
-			responseFields: [
-				{ name: 'hostname', type: 'string', description: 'Vanity hostname or null' },
-				{ name: 'url', type: 'string', description: 'Full URL or null' },
-			],
+			responseFields: { schema: HostnameGetResponseDataSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Hostname returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -606,10 +590,7 @@ const service: Service = {
 				fields: { schema: ProjectHostnameSetRequestSchema },
 			},
 			responseDescription: 'Returns the configured hostname and URL.',
-			responseFields: [
-				{ name: 'hostname', type: 'string', description: 'Configured hostname' },
-				{ name: 'url', type: 'string', description: 'Full URL' },
-			],
+			responseFields: { schema: HostnameSetResponseDataSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Hostname set' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -636,23 +617,11 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Malware scan payload.',
-				fields: [
-					{ name: 'ecosystem', type: 'string', description: '\\`npm\\`', required: true },
-					{
-						name: 'packages',
-						type: 'array',
-						description: 'Array of { name, version }',
-						required: true,
-					},
-				],
+				fields: { schema: MalwareCheckRequestSchema },
 			},
 			responseDescription:
 				"Returns scan results. If action is 'block', the deployment should be blocked.",
-			responseFields: [
-				{ name: 'action', type: 'string', description: '\\`allow\\` or \\`block\\`' },
-				{ name: 'summary', type: 'object', description: '{ scanned, flagged }' },
-				{ name: 'findings', type: 'array', description: 'Array of { name, version, reason }' },
-			],
+			responseFields: { schema: MalwareCheckResultSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Scan completed' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },

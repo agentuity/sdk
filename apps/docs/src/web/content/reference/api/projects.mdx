@@ -1014,22 +1014,22 @@ Returns deployment details and upload information.
   {
     "name": "id",
     "type": "string",
-    "description": "Deployment ID"
+    "description": "the unique id for the deployment"
   },
   {
     "name": "orgId",
     "type": "string",
-    "description": "Organization ID"
+    "description": "the organization id"
   },
   {
     "name": "publicKey",
     "type": "string",
-    "description": "For encrypting the deployment archive"
+    "description": "the public key to use for encrypting the deployment"
   },
   {
     "name": "buildLogsStreamURL",
     "type": "string",
-    "description": "Pulse stream URL for build logs"
+    "description": "the URL for streaming build logs (PUT to write, GET to read)"
   }
 ]} />
 
@@ -1193,7 +1193,7 @@ Returns the current deployment state.
   {
     "name": "state",
     "type": "string",
-    "description": "\\`pending\\`, \\`building\\`, \\`deploying\\`, \\`failed\\`, or \\`completed\\`"
+    "description": "the current deployment state"
   }
 ]} />
 
@@ -1431,13 +1431,13 @@ Returns the vanity hostname and URL.
 <ResponseFields fields={[
   {
     "name": "hostname",
-    "type": "string",
-    "description": "Vanity hostname or null"
+    "type": "string | null",
+    "description": "The vanity hostname for the project, or null if not set."
   },
   {
     "name": "url",
-    "type": "string",
-    "description": "Full URL or null"
+    "type": "string | null",
+    "description": "The full URL for the project hostname, or null if not set."
   }
 ]} />
 
@@ -1500,12 +1500,12 @@ Returns the configured hostname and URL.
   {
     "name": "hostname",
     "type": "string",
-    "description": "Configured hostname"
+    "description": "The vanity hostname that was set."
   },
   {
     "name": "url",
     "type": "string",
-    "description": "Full URL"
+    "description": "The full URL for the project hostname."
   }
 ]} />
 
@@ -1545,13 +1545,25 @@ Malware scan payload.
   {
     "name": "ecosystem",
     "type": "string",
-    "description": "\\`npm\\`",
+    "description": "Package ecosystem (e.g., `npm`)",
     "required": true
   },
   {
     "name": "packages",
-    "type": "array",
-    "description": "Array of { name, version }",
+    "type": "object[]",
+    "description": "Array of packages to scan, each with name and version",
+    "required": true
+  },
+  {
+    "name": "packages[].name",
+    "type": "string",
+    "description": "Package name (e.g., lodash, express)",
+    "required": true
+  },
+  {
+    "name": "packages[].version",
+    "type": "string",
+    "description": "Package version (e.g., 4.17.21)",
     "required": true
   }
 ]} />
@@ -1571,17 +1583,62 @@ Returns scan results. If action is 'block', the deployment should be blocked.
   {
     "name": "action",
     "type": "string",
-    "description": "\\`allow\\` or \\`block\\`"
+    "description": "Action to take based on the scan results (allow or block deployment)."
   },
   {
     "name": "summary",
     "type": "object",
-    "description": "{ scanned, flagged }"
+    "description": "Summary of the malware check scan."
+  },
+  {
+    "name": "summary.scanned",
+    "type": "number",
+    "description": "Total number of packages scanned."
+  },
+  {
+    "name": "summary.flagged",
+    "type": "number",
+    "description": "Number of packages flagged as potentially malicious."
   },
   {
     "name": "findings",
-    "type": "array",
-    "description": "Array of { name, version, reason }"
+    "type": "object[]",
+    "description": "List of malware detection findings."
+  },
+  {
+    "name": "findings[].name",
+    "type": "string",
+    "description": "Name of the flagged package."
+  },
+  {
+    "name": "findings[].version",
+    "type": "string",
+    "description": "Version of the flagged package."
+  },
+  {
+    "name": "findings[].reason",
+    "type": "string",
+    "description": "Reason why the package was flagged as potentially malicious."
+  },
+  {
+    "name": "list",
+    "type": "object",
+    "description": "Metadata about the malware list used, if available."
+  },
+  {
+    "name": "list.fetchedAt",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the malware list was last fetched."
+  },
+  {
+    "name": "list.count",
+    "type": "number",
+    "description": "Number of entries in the malware list."
+  },
+  {
+    "name": "error",
+    "type": "string",
+    "description": "Error message if the malware check encountered an issue."
   }
 ]} />
 

@@ -14,6 +14,14 @@ import {
 	TaskChangelogResultSchema,
 	UpdateTaskParamsSchema,
 } from './service.ts';
+import {
+	CreateCommentRequestSchema,
+	CreateTagRequestSchema,
+	CreateTaskProjectRequestSchema,
+	CreateTaskUserRequestSchema,
+	UpdateCommentRequestSchema,
+	UpdateTagRequestSchema,
+} from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -260,10 +268,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Comment creation payload.',
-				fields: [
-					{ name: 'body', type: 'string', description: 'Comment text', required: true },
-					{ name: 'user_id', type: 'string', description: 'Author user ID', required: true },
-				],
+				fields: { schema: CreateCommentRequestSchema },
 			},
 			responseDescription: 'Returns the created comment.',
 			statuses: [
@@ -307,14 +312,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Comment update payload.',
-				fields: [
-					{
-						name: 'body',
-						type: 'string',
-						description: 'Updated comment text',
-						required: true,
-					},
-				],
+				fields: { schema: UpdateCommentRequestSchema },
 			},
 			responseDescription: 'Returns the updated comment.',
 			statuses: [
@@ -384,10 +382,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Tag creation payload.',
-				fields: [
-					{ name: 'name', type: 'string', description: 'Tag name', required: true },
-					{ name: 'color', type: 'string', description: 'Hex color code', required: false },
-				],
+				fields: { schema: CreateTagRequestSchema },
 			},
 			responseDescription: 'Returns the created tag.',
 			statuses: [
@@ -426,10 +421,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Tag update payload.',
-				fields: [
-					{ name: 'name', type: 'string', description: 'Tag name', required: true },
-					{ name: 'color', type: 'string', description: 'Hex color code', required: false },
-				],
+				fields: { schema: UpdateTagRequestSchema },
 			},
 			responseDescription: 'Returns the updated tag.',
 			statuses: [
@@ -670,10 +662,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'User entity creation payload.',
-				fields: [
-					{ name: 'name', type: 'string', description: 'User name', required: true },
-					{ name: 'type', type: 'string', description: "'human' or 'agent'", required: false },
-				],
+				fields: { schema: CreateTaskUserRequestSchema },
 			},
 			responseDescription: 'Returns the created user entity.',
 			statuses: [
@@ -752,7 +741,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Project entity creation payload.',
-				fields: [{ name: 'name', type: 'string', description: 'Project name', required: true }],
+				fields: { schema: CreateTaskProjectRequestSchema },
 			},
 			responseDescription: 'Returns the created project entity.',
 			statuses: [
