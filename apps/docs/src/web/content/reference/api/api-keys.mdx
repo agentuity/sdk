@@ -35,25 +35,25 @@ API key creation payload.
   {
     "name": "name",
     "type": "string",
-    "description": "Display name for the API key",
+    "description": "Name of the API key",
     "required": true
   },
   {
     "name": "expiresAt",
     "type": "string",
-    "description": "ISO 8601 expiration timestamp",
+    "description": "Expiration timestamp for the API key",
     "required": true
   },
   {
     "name": "projectId",
-    "type": "string",
-    "description": "Scope to a specific project",
+    "type": "string | null",
+    "description": "Optional project scope for the key",
     "required": false
   },
   {
     "name": "orgId",
-    "type": "string",
-    "description": "Scope to a specific organization",
+    "type": "string | null",
+    "description": "Optional organization scope for the key",
     "required": false
   }
 ]} />
@@ -73,12 +73,14 @@ Returns the new key ID and value. The value is only returned at creation time.
   {
     "name": "id",
     "type": "string",
-    "description": "API key ID"
+    "description": "the API key id",
+    "required": true
   },
   {
     "name": "value",
     "type": "string",
-    "description": "The API key — only returned at creation"
+    "description": "the API key value",
+    "required": true
   }
 ]} />
 
@@ -131,42 +133,50 @@ Array of API key objects.
   {
     "name": "id",
     "type": "string",
-    "description": "API key ID"
+    "description": "the API key id",
+    "required": true
   },
   {
     "name": "name",
     "type": "string",
-    "description": "Display name"
+    "description": "the API key name",
+    "required": true
   },
   {
     "name": "orgId",
     "type": "string",
-    "description": "Organization ID"
+    "description": "the organization id",
+    "required": true
   },
   {
     "name": "type",
     "type": "string",
-    "description": "Key type"
+    "description": "the API key type",
+    "required": true
   },
   {
     "name": "expiresAt",
-    "type": "string",
-    "description": "Expiration timestamp"
+    "type": "string | null",
+    "description": "the expiration date",
+    "required": true
   },
   {
     "name": "lastUsedAt",
-    "type": "string",
-    "description": "Last usage timestamp"
+    "type": "string | null",
+    "description": "the last used date",
+    "required": false
   },
   {
     "name": "createdAt",
     "type": "string",
-    "description": "Creation timestamp"
+    "description": "the creation date",
+    "required": true
   },
   {
     "name": "project",
-    "type": "object",
-    "description": "Associated project details"
+    "type": "object | null",
+    "description": "the associated project",
+    "required": false
   }
 ]} />
 

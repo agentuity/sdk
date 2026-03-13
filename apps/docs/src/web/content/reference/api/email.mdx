@@ -150,17 +150,80 @@ Connection configuration including IMAP and POP3 details.
   {
     "name": "email",
     "type": "string",
-    "description": "Email address"
+    "description": "The full email address these settings are for.",
+    "required": true
   },
   {
     "name": "imap",
     "type": "object",
-    "description": "IMAP config object"
+    "description": "IMAP protocol connection settings.",
+    "required": true
+  },
+  {
+    "name": "imap.host",
+    "type": "string",
+    "description": "The mail server hostname.",
+    "required": true
+  },
+  {
+    "name": "imap.port",
+    "type": "number",
+    "description": "The mail server port number.",
+    "required": true
+  },
+  {
+    "name": "imap.tls",
+    "type": "string",
+    "description": "TLS mode (e.g., `'starttls'`, `'ssl'`, `'none'`).",
+    "required": true
+  },
+  {
+    "name": "imap.username",
+    "type": "string",
+    "description": "The authentication username (typically the address ID).",
+    "required": true
+  },
+  {
+    "name": "imap.password",
+    "type": "string",
+    "description": "The authentication password.",
+    "required": true
   },
   {
     "name": "pop3",
     "type": "object",
-    "description": "POP3 config object"
+    "description": "POP3 protocol connection settings.",
+    "required": true
+  },
+  {
+    "name": "pop3.host",
+    "type": "string",
+    "description": "The mail server hostname.",
+    "required": true
+  },
+  {
+    "name": "pop3.port",
+    "type": "number",
+    "description": "The mail server port number.",
+    "required": true
+  },
+  {
+    "name": "pop3.tls",
+    "type": "string",
+    "description": "TLS mode (e.g., `'starttls'`, `'ssl'`, `'none'`).",
+    "required": true
+  },
+  {
+    "name": "pop3.username",
+    "type": "string",
+    "description": "The authentication username (typically the address ID).",
+    "required": true
+  },
+  {
+    "name": "pop3.password",
+    "type": "string",
+    "description": "The authentication password.",
+    "required": true
   }
 ]} />
 
@@ -354,43 +417,61 @@ Outbound email payload.
   {
     "name": "from",
     "type": "string",
-    "description": "Sender address (must be owned)",
+    "description": "The sender email address (must be owned by the organization)",
     "required": true
   },
   {
     "name": "to",
     "type": "string[]",
-    "description": "Recipients (max 50)",
+    "description": "The recipient email addresses",
     "required": true
   },
   {
     "name": "subject",
     "type": "string",
-    "description": "Email subject",
+    "description": "The email subject",
     "required": true
   },
   {
     "name": "text",
     "type": "string",
-    "description": "Plain text body",
+    "description": "Plain text email body",
     "required": false
   },
   {
     "name": "html",
     "type": "string",
-    "description": "HTML body",
+    "description": "HTML email body",
     "required": false
   },
   {
     "name": "attachments",
-    "type": "array",
-    "description": "Attachment descriptors",
+    "type": "object[]",
+    "description": "File attachments",
+    "required": false
+  },
+  {
+    "name": "attachments[].filename",
+    "type": "string",
+    "description": "The filename for the attachment",
+    "required": true
+  },
+  {
+    "name": "attachments[].content",
+    "type": "string",
+    "description": "The base64-encoded content of the attachment",
+    "required": true
+  },
+  {
+    "name": "attachments[].contentType",
+    "type": "string",
+    "description": "The MIME content type of the attachment",
     "required": false
   },
   {
     "name": "headers",
     "type": "object",
-    "description": "Additional outbound headers",
+    "description": "Custom email headers (e.g., In-Reply-To, References for threading)",
     "required": false
   }
 ]} />
@@ -662,28 +743,33 @@ Activity time series grouped by date.
 <ResponseFields fields={[
   {
     "name": "activity",
-    "type": "array",
-    "description": "Daily activity records"
+    "type": "object[]",
+    "description": "Array of daily activity data points, ordered chronologically.",
+    "required": true
   },
   {
     "name": "activity[].date",
     "type": "string",
-    "description": "Date (`YYYY-MM-DD`)"
+    "description": "The date in `YYYY-MM-DD` format.",
+    "required": true
   },
   {
     "name": "activity[].inbound",
     "type": "number",
-    "description": "Inbound count for date"
+    "description": "Number of inbound emails received on this date.",
+    "required": true
   },
   {
     "name": "activity[].outbound",
     "type": "number",
-    "description": "Outbound count for date"
+    "description": "Number of outbound emails sent on this date.",
+    "required": true
   },
   {
     "name": "days",
     "type": "number",
-    "description": "Applied day range"
+    "description": "The number of days of data returned.",
+    "required": true
   }
 ]} />
 

@@ -37,37 +37,37 @@ Project creation payload.
   {
     "name": "name",
     "type": "string",
-    "description": "Project name (1-255 chars)",
+    "description": "the name of the new project",
     "required": true
   },
   {
     "name": "description",
     "type": "string",
-    "description": "Project description",
+    "description": "the description of the project",
     "required": false
   },
   {
     "name": "tags",
-    "type": "array",
-    "description": "Project tags",
+    "type": "string[]",
+    "description": "tags for the project",
     "required": false
   },
   {
     "name": "orgId",
     "type": "string",
-    "description": "Organization ID",
+    "description": "the organization id to create the project in",
     "required": true
   },
   {
     "name": "cloudRegion",
     "type": "string",
-    "description": "Cloud region code",
+    "description": "the cloud region to create the project",
     "required": true
   },
   {
     "name": "domains",
-    "type": "array",
-    "description": "Custom domains",
+    "type": "string[]",
+    "description": "the custom domains for this project",
     "required": false
   }
 ]} />
@@ -87,12 +87,14 @@ Returns the created project ID and SDK key.
   {
     "name": "id",
     "type": "string",
-    "description": "Project ID"
+    "description": "the unique id for the project",
+    "required": true
   },
   {
     "name": "sdkKey",
     "type": "string",
-    "description": "SDK key for the new project"
+    "description": "the SDK key for the project",
+    "required": true
   }
 ]} />
 
@@ -209,8 +211,8 @@ Project deletion payload.
 <ResponseFields fields={[
   {
     "name": "ids",
-    "type": "array",
-    "description": "Array of project IDs to delete",
+    "type": "string[]",
+    "description": "Array of project IDs to delete.",
     "required": true
   }
 ]} />
@@ -301,7 +303,7 @@ Region update payload.
   {
     "name": "cloudRegion",
     "type": "string",
-    "description": "New cloud region",
+    "description": "the cloud region to update the project to",
     "required": true
   }
 ]} />
@@ -350,15 +352,21 @@ Environment variable update payload.
 
 <ResponseFields fields={[
   {
+    "name": "id",
+    "type": "string",
+    "description": "the project id",
+    "required": true
+  },
+  {
     "name": "env",
     "type": "object",
-    "description": "Environment variables",
+    "description": "environment variables to set/update",
     "required": false
   },
   {
     "name": "secrets",
     "type": "object",
-    "description": "Secret values",
+    "description": "secrets to set/update",
     "required": false
   }
 ]} />
@@ -410,15 +418,21 @@ Environment variable deletion payload.
 
 <ResponseFields fields={[
   {
+    "name": "id",
+    "type": "string",
+    "description": "the project id",
+    "required": true
+  },
+  {
     "name": "env",
-    "type": "array",
-    "description": "Env var keys to delete",
+    "type": "string[]",
+    "description": "environment variable keys to delete",
     "required": false
   },
   {
     "name": "secrets",
-    "type": "array",
-    "description": "Secret keys to delete",
+    "type": "string[]",
+    "description": "secret keys to delete",
     "required": false
   }
 ]} />
@@ -496,52 +510,104 @@ Returns a list of agents for the project.
   {
     "name": "id",
     "type": "string",
-    "description": "Agent ID"
+    "description": "Agent ID (same as identifier)",
+    "required": true
   },
   {
     "name": "name",
     "type": "string",
-    "description": "Agent name"
+    "description": "Agent name",
+    "required": true
   },
   {
     "name": "description",
-    "type": "string",
-    "description": "Agent description"
+    "type": "string | null",
+    "description": "Agent description",
+    "required": true
   },
   {
     "name": "identifier",
     "type": "string",
-    "description": "Agent identifier"
+    "description": "Agent identifier",
+    "required": true
   },
   {
     "name": "deploymentId",
-    "type": "string",
-    "description": "Deployment ID"
+    "type": "string | null",
+    "description": "Deployment ID",
+    "required": true
   },
   {
     "name": "devmode",
     "type": "boolean",
-    "description": "Whether devmode is active"
+    "description": "Whether agent is in development mode",
+    "required": true
   },
   {
     "name": "metadata",
-    "type": "object",
-    "description": "Agent metadata"
+    "type": "object | null",
+    "description": "Agent metadata",
+    "required": true
   },
   {
     "name": "createdAt",
     "type": "string",
-    "description": "Creation timestamp"
+    "description": "Creation timestamp",
+    "required": true
   },
   {
     "name": "updatedAt",
     "type": "string",
-    "description": "Last update timestamp"
+    "description": "Last update timestamp",
+    "required": true
   },
   {
     "name": "evals",
-    "type": "array",
-    "description": "Associated evaluations"
+    "type": "object[]",
+    "description": "Associated evaluations",
+    "required": true
+  },
+  {
+    "name": "evals[].id",
+    "type": "string",
+    "description": "Evaluation ID",
+    "required": true
+  },
+  {
+    "name": "evals[].name",
+    "type": "string",
+    "description": "Evaluation name",
+    "required": true
+  },
+  {
+    "name": "evals[].description",
+    "type": "string | null",
+    "description": "Evaluation description",
+    "required": true
+  },
+  {
+    "name": "evals[].identifier",
+    "type": "string | null",
+    "description": "Evaluation identifier",
+    "required": true
+  },
+  {
+    "name": "evals[].devmode",
+    "type": "boolean",
+    "description": "Whether evaluation is in development mode",
+    "required": true
+  },
+  {
+    "name": "evals[].createdAt",
+    "type": "string",
+    "description": "Creation timestamp",
+    "required": true
+  },
+  {
+    "name": "evals[].updatedAt",
+    "type": "string",
+    "description": "Last update timestamp",
+    "required": true
   }
 ]} />
 
@@ -907,27 +973,27 @@ Deployment configuration payload.
 
 <ResponseFields fields={[
   {
-    "name": "resources",
-    "type": "object",
-    "description": "{ memory?, cpu?, disk? }",
-    "required": false
+    "name": "id",
+    "type": "string",
+    "description": "the unique id for the deployment",
+    "required": true
   },
   {
-    "name": "mode",
-    "type": "object",
-    "description": "{ type: 'on-demand'|'provisioned', idle? }",
-    "required": false
+    "name": "orgId",
+    "type": "string",
+    "description": "the organization id",
+    "required": true
   },
   {
-    "name": "dependencies",
-    "type": "array",
-    "description": "Deployment dependencies",
-    "required": false
+    "name": "publicKey",
+    "type": "string",
+    "description": "the public key to use for encrypting the deployment",
+    "required": true
   },
   {
-    "name": "domains",
-    "type": "array",
-    "description": "Custom domains",
+    "name": "buildLogsStreamURL",
+    "type": "string",
+    "description": "the URL for streaming build logs (PUT to write, GET to read)",
     "required": false
   }
 ]} />
@@ -1046,12 +1112,44 @@ Returns warmup stream and public URL information.
   {
     "name": "streamId",
     "type": "string",
-    "description": "Warmup logs stream"
+    "description": "the stream id for warmup logs",
+    "required": false
   },
   {
     "name": "publicUrls",
     "type": "object",
-    "description": "{ latest, deployment, custom[], vanityDeployment?, vanityProject? }"
+    "description": "the map of public urls",
+    "required": true
+  },
+  {
+    "name": "publicUrls.latest",
+    "type": "string",
+    "description": "the public url for the latest deployment",
+    "required": true
+  },
+  {
+    "name": "publicUrls.deployment",
+    "type": "string",
+    "description": "the public url for this deployment",
+    "required": true
+  },
+  {
+    "name": "publicUrls.custom",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "publicUrls.vanityDeployment",
+    "type": "string | null",
+    "description": "the vanity url for this deployment",
+    "required": false
+  },
+  {
+    "name": "publicUrls.vanityProject",
+    "type": "string | null",
+    "description": "the vanity url for the latest deployment",
+    "required": false
   }
 ]} />
 
@@ -1131,13 +1229,151 @@ Failure report payload.
   {
     "name": "error",
     "type": "string",
-    "description": "Error message",
+    "description": "",
     "required": false
   },
   {
     "name": "diagnostics",
     "type": "object",
-    "description": "Diagnostic information",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.success",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors[].type",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors[].scope",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors[].path",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.errors[].line",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.errors[].column",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.errors[].message",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors[].code",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.warnings",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.warnings[].type",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.warnings[].scope",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.warnings[].path",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.warnings[].line",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.warnings[].column",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.warnings[].message",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.warnings[].code",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.diagnostics",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.diagnostics[].name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.diagnostics[].startedAt",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.diagnostics[].completedAt",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.diagnostics[].durationMs",
+    "type": "number",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.error",
+    "type": "string",
+    "description": "",
     "required": false
   }
 ]} />
@@ -1235,9 +1471,15 @@ Hostname configuration payload.
 
 <ResponseFields fields={[
   {
+    "name": "projectId",
+    "type": "string",
+    "description": "the project id",
+    "required": true
+  },
+  {
     "name": "hostname",
     "type": "string",
-    "description": "Desired vanity hostname",
+    "description": "the vanity hostname to set",
     "required": true
   }
 ]} />

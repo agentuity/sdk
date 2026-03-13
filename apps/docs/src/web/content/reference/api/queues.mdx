@@ -37,25 +37,73 @@ Queue creation payload.
   {
     "name": "name",
     "type": "string",
-    "description": "Queue name",
+    "description": "Optional queue name (auto-generated if not provided).",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Optional description of the queue's purpose.",
     "required": false
   },
   {
     "name": "queue_type",
     "type": "string",
-    "description": "`worker` or `pubsub`",
+    "description": "Type of queue to create.",
     "required": true
-  },
-  {
-    "name": "description",
-    "type": "string",
-    "description": "Queue description",
-    "required": false
   },
   {
     "name": "settings",
     "type": "object",
-    "description": "Queue behavior settings",
+    "description": "Optional settings to customize queue behavior (server applies defaults for missing fields).",
+    "required": false
+  },
+  {
+    "name": "settings.default_ttl_seconds",
+    "type": "number | null",
+    "description": "Default time-to-live for messages in seconds. Null means no expiration.",
+    "required": false
+  },
+  {
+    "name": "settings.default_visibility_timeout_seconds",
+    "type": "number",
+    "description": "Time in seconds a message is invisible after being received.",
+    "required": false
+  },
+  {
+    "name": "settings.default_max_retries",
+    "type": "number",
+    "description": "Maximum number of delivery attempts before moving to DLQ.",
+    "required": false
+  },
+  {
+    "name": "settings.default_retry_backoff_ms",
+    "type": "number",
+    "description": "Initial backoff delay in milliseconds for retries.",
+    "required": false
+  },
+  {
+    "name": "settings.default_retry_max_backoff_ms",
+    "type": "number",
+    "description": "Maximum backoff delay in milliseconds for retries.",
+    "required": false
+  },
+  {
+    "name": "settings.default_retry_multiplier",
+    "type": "number",
+    "description": "Multiplier for exponential backoff.",
+    "required": false
+  },
+  {
+    "name": "settings.max_in_flight_per_client",
+    "type": "number",
+    "description": "Maximum number of messages a single client can process concurrently.",
+    "required": false
+  },
+  {
+    "name": "settings.retention_seconds",
+    "type": "number",
+    "description": "Retention period for acknowledged messages in seconds.",
     "required": false
   }
 ]} />
@@ -235,13 +283,61 @@ Partial queue update payload.
   {
     "name": "description",
     "type": "string",
-    "description": "Updated description",
+    "description": "New description for the queue.",
     "required": false
   },
   {
     "name": "settings",
     "type": "object",
-    "description": "Partial settings update",
+    "description": "Settings to update (partial update supported, only provided fields are updated).",
+    "required": false
+  },
+  {
+    "name": "settings.default_ttl_seconds",
+    "type": "number | null",
+    "description": "Default time-to-live for messages in seconds. Null means no expiration.",
+    "required": false
+  },
+  {
+    "name": "settings.default_visibility_timeout_seconds",
+    "type": "number",
+    "description": "Time in seconds a message is invisible after being received.",
+    "required": false
+  },
+  {
+    "name": "settings.default_max_retries",
+    "type": "number",
+    "description": "Maximum number of delivery attempts before moving to DLQ.",
+    "required": false
+  },
+  {
+    "name": "settings.default_retry_backoff_ms",
+    "type": "number",
+    "description": "Initial backoff delay in milliseconds for retries.",
+    "required": false
+  },
+  {
+    "name": "settings.default_retry_max_backoff_ms",
+    "type": "number",
+    "description": "Maximum backoff delay in milliseconds for retries.",
+    "required": false
+  },
+  {
+    "name": "settings.default_retry_multiplier",
+    "type": "number",
+    "description": "Multiplier for exponential backoff.",
+    "required": false
+  },
+  {
+    "name": "settings.max_in_flight_per_client",
+    "type": "number",
+    "description": "Maximum number of messages a single client can process concurrently.",
+    "required": false
+  },
+  {
+    "name": "settings.retention_seconds",
+    "type": "number",
+    "description": "Retention period for acknowledged messages in seconds.",
     "required": false
   }
 ]} />
@@ -412,31 +508,31 @@ Message payload and optional delivery controls.
   {
     "name": "payload",
     "type": "any",
-    "description": "Message payload",
+    "description": "The message payload (JSON object).",
     "required": true
   },
   {
     "name": "metadata",
     "type": "object",
-    "description": "Message metadata",
-    "required": false
-  },
-  {
-    "name": "partition_key",
-    "type": "string",
-    "description": "Partition key for routing",
+    "description": "Optional metadata to attach to the message.",
     "required": false
   },
   {
     "name": "idempotency_key",
     "type": "string",
-    "description": "Idempotency key",
+    "description": "Optional key for deduplication (prevents duplicate messages).",
+    "required": false
+  },
+  {
+    "name": "partition_key",
+    "type": "string",
+    "description": "Optional key for message ordering within a partition.",
     "required": false
   },
   {
     "name": "ttl_seconds",
     "type": "number",
-    "description": "Message TTL in seconds",
+    "description": "Optional time-to-live in seconds.",
     "required": false
   }
 ]} />
@@ -490,9 +586,39 @@ Batch publish payload.
 <ResponseFields fields={[
   {
     "name": "messages",
-    "type": "array",
-    "description": "Array of message payload objects (max 1000)",
+    "type": "object[]",
+    "description": "Array of messages to publish (max 1000 per batch).",
     "required": true
+  },
+  {
+    "name": "messages[].payload",
+    "type": "any",
+    "description": "The message payload (JSON object).",
+    "required": true
+  },
+  {
+    "name": "messages[].metadata",
+    "type": "object",
+    "description": "Optional metadata to attach to the message.",
+    "required": false
+  },
+  {
+    "name": "messages[].idempotency_key",
+    "type": "string",
+    "description": "Optional key for deduplication (prevents duplicate messages).",
+    "required": false
+  },
+  {
+    "name": "messages[].partition_key",
+    "type": "string",
+    "description": "Optional key for message ordering within a partition.",
+    "required": false
+  },
+  {
+    "name": "messages[].ttl_seconds",
+    "type": "number",
+    "description": "Optional time-to-live in seconds.",
+    "required": false
   }
 ]} />
 
@@ -1081,28 +1207,106 @@ Destination creation payload.
 
 <ResponseFields fields={[
   {
+    "name": "name",
+    "type": "string",
+    "description": "Human-readable name for the destination.",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Optional description of the destination.",
+    "required": false
+  },
+  {
     "name": "destination_type",
     "type": "string",
-    "description": "Destination type (`http`)",
+    "description": "Type of destination to create.",
     "required": true
   },
   {
     "name": "config",
     "type": "object",
-    "description": "Destination config (includes `url`)",
+    "description": "HTTP configuration for the destination.",
     "required": true
   },
   {
-    "name": "retry_attempts",
-    "type": "number",
-    "description": "Retry attempts override",
+    "name": "config.url",
+    "type": "string",
+    "description": "The URL to send messages to.",
+    "required": true
+  },
+  {
+    "name": "config.headers",
+    "type": "object",
+    "description": "Optional custom headers to include in requests.",
     "required": false
   },
   {
-    "name": "timeout_seconds",
+    "name": "config.method",
+    "type": "string",
+    "description": "HTTP method to use (default: POST).",
+    "required": true
+  },
+  {
+    "name": "config.timeout_ms",
     "type": "number",
-    "description": "Delivery timeout override",
+    "description": "Request timeout in milliseconds (default: 30000).",
+    "required": true
+  },
+  {
+    "name": "config.retry_policy",
+    "type": "object",
+    "description": "Optional retry policy for failed deliveries.",
     "required": false
+  },
+  {
+    "name": "config.retry_policy.max_attempts",
+    "type": "number",
+    "description": "Maximum number of delivery attempts (default: 5).",
+    "required": true
+  },
+  {
+    "name": "config.retry_policy.initial_backoff_ms",
+    "type": "number",
+    "description": "Initial backoff delay in milliseconds (default: 1000).",
+    "required": true
+  },
+  {
+    "name": "config.retry_policy.max_backoff_ms",
+    "type": "number",
+    "description": "Maximum backoff delay in milliseconds (default: 60000).",
+    "required": true
+  },
+  {
+    "name": "config.retry_policy.backoff_multiplier",
+    "type": "number",
+    "description": "Backoff multiplier for exponential backoff (default: 2.0).",
+    "required": true
+  },
+  {
+    "name": "config.signing",
+    "type": "object",
+    "description": "Optional request signing configuration.",
+    "required": false
+  },
+  {
+    "name": "config.signing.enabled",
+    "type": "boolean",
+    "description": "Whether signing is enabled (default: false).",
+    "required": true
+  },
+  {
+    "name": "config.signing.secret_key",
+    "type": "string",
+    "description": "Secret key for HMAC signing.",
+    "required": false
+  },
+  {
+    "name": "enabled",
+    "type": "boolean",
+    "description": "Whether the destination should be enabled (default: true).",
+    "required": true
   }
 ]} />
 

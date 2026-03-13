@@ -1,3 +1,21 @@
+import { SandboxCreateDataSchema, SandboxCreateRequestSchema } from './create.ts';
+import { DiskCheckpointCreateParamsSchema, DiskCheckpointInfoSchema } from './disk-checkpoint.ts';
+import { ExecuteDataSchema, ExecuteRequestSchema } from './execute.ts';
+import {
+	ListFilesDataSchema,
+	MkDirRequestSchema,
+	RmDirRequestSchema,
+	RmFileRequestSchema,
+	WriteFilesDataSchema,
+	WriteFilesRequestSchema,
+} from './files.ts';
+import { SandboxResolveDataSchema } from './resolve.ts';
+import {
+	ListRuntimesResponseSchema,
+	ListSandboxesResponseSchema,
+	SnapshotCreateOptionsSchema,
+	SnapshotListResponseSchema,
+} from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -21,83 +39,11 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Sandbox creation payload.',
-				fields: [
-					{ name: 'projectId', type: 'string', description: 'Project ID', required: false },
-					{
-						name: 'runtime',
-						type: 'string',
-						description: 'Runtime identifier',
-						required: false,
-					},
-					{ name: 'name', type: 'string', description: 'Sandbox name', required: false },
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Sandbox description',
-						required: false,
-					},
-					{
-						name: 'resources',
-						type: 'object',
-						description: '{ memory?, cpu?, disk? }',
-						required: false,
-					},
-					{
-						name: 'env',
-						type: 'object',
-						description: 'Environment variables',
-						required: false,
-					},
-					{
-						name: 'network',
-						type: 'object',
-						description: '{ enabled?, port? (1024-65535) }',
-						required: false,
-					},
-					{
-						name: 'timeout',
-						type: 'object',
-						description: '{ idle?, execution? }',
-						required: false,
-					},
-					{
-						name: 'command',
-						type: 'object',
-						description: "{ exec: string[], files?, mode?: 'oneshot'|'interactive' }",
-						required: false,
-					},
-					{
-						name: 'files',
-						type: 'array',
-						description: 'Array of { path, content (base64) }',
-						required: false,
-					},
-					{
-						name: 'snapshot',
-						type: 'string',
-						description: 'Snapshot ID to restore from',
-						required: false,
-					},
-					{
-						name: 'metadata',
-						type: 'object',
-						description: 'Arbitrary metadata',
-						required: false,
-					},
-				],
+				fields: { schema: SandboxCreateRequestSchema },
 			},
 			responseDescription:
 				'Returns the sandbox ID, status, and optional stream URLs for stdout/stderr.',
-			responseFields: [
-				{ name: 'sandboxId', type: 'string', description: 'Sandbox ID' },
-				{
-					name: 'status',
-					type: 'string',
-					description: "'creating', 'idle', 'running', 'paused', etc.",
-				},
-				{ name: 'stdoutStreamUrl', type: 'string', description: 'Pulse stream URL for stdout' },
-				{ name: 'stderrStreamUrl', type: 'string', description: 'Pulse stream URL for stderr' },
-			],
+			responseFields: { schema: SandboxCreateDataSchema },
 			statuses: [
 				{ code: 201, description: 'Sandbox created' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -153,10 +99,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns paginated list of sandboxes.',
-			responseFields: [
-				{ name: 'sandboxes', type: 'array', description: 'Array of sandbox objects' },
-				{ name: 'total', type: 'number', description: 'Total matching sandboxes' },
-			],
+			responseFields: { schema: ListSandboxesResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Sandboxes returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -338,51 +281,11 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Command execution payload.',
-				fields: [
-					{
-						name: 'command',
-						type: 'array',
-						description: 'Command and arguments',
-						required: true,
-					},
-					{
-						name: 'files',
-						type: 'array',
-						description: 'Files to write before execution',
-						required: false,
-					},
-					{
-						name: 'timeout',
-						type: 'string',
-						description: 'Execution timeout',
-						required: false,
-					},
-					{
-						name: 'stream',
-						type: 'object',
-						description: '{ stdout?, stderr?, timestamps? }',
-						required: false,
-					},
-				],
+				fields: { schema: ExecuteRequestSchema },
 			},
 			responseDescription:
 				'Returns execution ID and stream URLs. Returns 409 if sandbox is busy.',
-			responseFields: [
-				{ name: 'executionId', type: 'string', description: 'Execution ID' },
-				{
-					name: 'status',
-					type: 'string',
-					description: "'queued', 'running', 'completed', 'failed', 'timeout', or 'cancelled'",
-				},
-				{ name: 'exitCode', type: 'number', description: 'Exit code if completed' },
-				{
-					name: 'durationMs',
-					type: 'number',
-					description: 'Execution duration in milliseconds',
-				},
-				{ name: 'stdoutStreamUrl', type: 'string', description: 'Pulse stream URL for stdout' },
-				{ name: 'stderrStreamUrl', type: 'string', description: 'Pulse stream URL for stderr' },
-			],
+			responseFields: { schema: ExecuteDataSchema },
 			statuses: [
 				{ code: 200, description: 'Command executed' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -466,19 +369,10 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Files to write.',
-				fields: [
-					{
-						name: 'files',
-						type: 'array',
-						description: 'Array of { path, content (base64-encoded) }',
-						required: true,
-					},
-				],
+				fields: { schema: WriteFilesRequestSchema },
 			},
 			responseDescription: 'Returns the number of files written.',
-			responseFields: [
-				{ name: 'filesWritten', type: 'number', description: 'Number of files written' },
-			],
+			responseFields: { schema: WriteFilesDataSchema },
 			statuses: [
 				{ code: 200, description: 'Files written' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -527,15 +421,7 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Directory creation payload.',
-				fields: [
-					{ name: 'path', type: 'string', description: 'Directory path', required: true },
-					{
-						name: 'recursive',
-						type: 'boolean',
-						description: 'Create parent directories',
-						required: false,
-					},
-				],
+				fields: { schema: MkDirRequestSchema },
 			},
 			responseDescription: 'Directory created successfully.',
 			statuses: [
@@ -561,15 +447,7 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Directory removal payload.',
-				fields: [
-					{ name: 'path', type: 'string', description: 'Directory path', required: true },
-					{
-						name: 'recursive',
-						type: 'boolean',
-						description: 'Remove recursively',
-						required: false,
-					},
-				],
+				fields: { schema: RmDirRequestSchema },
 			},
 			responseDescription: 'Directory removed successfully.',
 			statuses: [
@@ -595,7 +473,7 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'File removal payload.',
-				fields: [{ name: 'path', type: 'string', description: 'File path', required: true }],
+				fields: { schema: RmFileRequestSchema },
 			},
 			responseDescription: 'File removed successfully.',
 			statuses: [
@@ -622,13 +500,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns list of files in the directory.',
-			responseFields: [
-				{
-					name: 'files',
-					type: 'array',
-					description: 'Array of { path, size, isDir, mode, modTime }',
-				},
-			],
+			responseFields: { schema: ListFilesDataSchema },
 			statuses: [
 				{ code: 200, description: 'Files listed' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -704,22 +576,7 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Snapshot creation payload.',
-				fields: [
-					{ name: 'name', type: 'string', description: 'Snapshot name', required: false },
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Snapshot description',
-						required: false,
-					},
-					{ name: 'tag', type: 'string', description: 'Snapshot tag', required: false },
-					{
-						name: 'public',
-						type: 'boolean',
-						description: 'Make snapshot publicly accessible',
-						required: false,
-					},
-				],
+				fields: { schema: SnapshotCreateOptionsSchema },
 			},
 			responseDescription: 'Returns the created snapshot.',
 			statuses: [
@@ -780,10 +637,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns paginated list of snapshots.',
-			responseFields: [
-				{ name: 'snapshots', type: 'array', description: 'Array of snapshot objects' },
-				{ name: 'total', type: 'number', description: 'Total matching snapshots' },
-			],
+			responseFields: { schema: SnapshotListResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Snapshots returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -1107,17 +961,10 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Checkpoint creation payload.',
-				fields: [
-					{ name: 'name', type: 'string', description: 'Checkpoint name', required: true },
-				],
+				fields: { schema: DiskCheckpointCreateParamsSchema },
 			},
 			responseDescription: 'Returns the created checkpoint.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Checkpoint ID (ckpt_ prefix)' },
-				{ name: 'name', type: 'string', description: 'Checkpoint name' },
-				{ name: 'createdAt', type: 'string', description: 'Creation timestamp' },
-				{ name: 'parent', type: 'string', description: 'Parent checkpoint ID' },
-			],
+			responseFields: { schema: DiskCheckpointInfoSchema },
 			statuses: [
 				{ code: 201, description: 'Checkpoint created' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -1217,14 +1064,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns available sandbox runtimes with their requirements.',
-			responseFields: [
-				{
-					name: 'runtimes',
-					type: 'array',
-					description: 'Array of { id, name, description, iconUrl, tags, requirements }',
-				},
-				{ name: 'total', type: 'number', description: 'Total available runtimes' },
-			],
+			responseFields: { schema: ListRuntimesResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Runtimes returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -1289,14 +1129,7 @@ const service: Service = {
 			requestBody: null,
 			responseDescription:
 				'Resolves a sandbox ID to its org, region, and project. Used for cross-org sandbox lookup.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Sandbox ID' },
-				{ name: 'name', type: 'string', description: 'Sandbox name' },
-				{ name: 'region', type: 'string', description: 'Region identifier' },
-				{ name: 'status', type: 'string', description: 'Sandbox status' },
-				{ name: 'orgId', type: 'string', description: 'Organization ID' },
-				{ name: 'projectId', type: 'string', description: 'Project ID' },
-			],
+			responseFields: { schema: SandboxResolveDataSchema },
 			statuses: [
 				{ code: 200, description: 'Sandbox resolved' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },

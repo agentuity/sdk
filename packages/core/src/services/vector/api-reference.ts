@@ -1,3 +1,10 @@
+import { z } from 'zod';
+import {
+	VectorNamespaceStatsWithSamplesSchema,
+	VectorSearchParamsSchema,
+	VectorStatsPaginatedSchema,
+	VectorUpsertBaseSchema,
+} from './service.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -16,33 +23,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'JSON array of vector documents to upsert.',
-				fields: [
-					{ name: '[].key', type: 'string', description: 'Unique vector key', required: true },
-					{
-						name: '[].document',
-						type: 'string',
-						description: 'Source text used for automatic embedding generation',
-						required: false,
-					},
-					{
-						name: '[].embeddings',
-						type: 'number[]',
-						description: 'Pre-computed embedding vector',
-						required: false,
-					},
-					{
-						name: '[].metadata',
-						type: 'object',
-						description: 'Optional metadata for filtering and retrieval',
-						required: false,
-					},
-					{
-						name: '[].ttl',
-						type: 'number | null',
-						description: 'TTL in seconds. `null`/`0` means never expire.',
-						required: false,
-					},
-				],
+				fields: { schema: VectorUpsertBaseSchema },
 			},
 			responseDescription: 'JSON response with inserted/updated vector IDs.',
 			responseFields: [
@@ -116,32 +97,9 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Search criteria and filters.',
-				fields: [
-					{
-						name: 'query',
-						type: 'string',
-						description: 'The text query for semantic search',
-						required: true,
-					},
-					{
-						name: 'limit',
-						type: 'number',
-						description: 'Maximum results to return (default: 10)',
-						required: false,
-					},
-					{
-						name: 'similarity',
-						type: 'number',
-						description: 'Minimum similarity threshold (0–1)',
-						required: false,
-					},
-					{
-						name: 'metadata',
-						type: 'object',
-						description: 'Filter by metadata key-value pairs',
-						required: false,
-					},
-				],
+				fields: {
+					schema: VectorSearchParamsSchema(z.record(z.string(), z.unknown())),
+				},
 			},
 			responseDescription: 'JSON response containing matching vectors and similarity scores.',
 			responseFields: [
@@ -230,18 +188,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'JSON object with namespace size and usage statistics.',
-			responseFields: [
-				{ name: 'sum', type: 'number', description: 'Total size in bytes' },
-				{ name: 'count', type: 'number', description: 'Number of vectors' },
-				{ name: 'createdAt', type: 'number', description: 'Unix timestamp (ms)' },
-				{ name: 'lastUsed', type: 'number', description: 'Unix timestamp (ms)' },
-				{
-					name: 'sampledResults',
-					type: 'object',
-					description: 'Sample of vectors (up to 20)',
-					required: false,
-				},
-			],
+			responseFields: { schema: VectorNamespaceStatsWithSamplesSchema, omit: ['internal'] },
 			statuses: [
 				{ code: 200, description: 'Stats returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -290,13 +237,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Paginated namespace stats response.',
-			responseFields: [
-				{ name: 'namespaces', type: 'object', description: 'Map of namespace names to stats' },
-				{ name: 'total', type: 'number', description: 'Total namespace count' },
-				{ name: 'limit', type: 'number', description: 'Applied page limit' },
-				{ name: 'offset', type: 'number', description: 'Applied offset' },
-				{ name: 'hasMore', type: 'boolean', description: 'Whether more results exist' },
-			],
+			responseFields: { schema: VectorStatsPaginatedSchema },
 			statuses: [
 				{ code: 200, description: 'Stats returned' },
 				{ code: 401, description: 'Unauthorized' },

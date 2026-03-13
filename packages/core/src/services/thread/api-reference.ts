@@ -1,4 +1,5 @@
 import type { Service } from '../api-reference.ts';
+import { ThreadSchema } from './list.ts';
 
 const service: Service = {
 	name: 'Threads',
@@ -43,16 +44,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Array of thread objects.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Thread ID' },
-				{ name: 'created_at', type: 'string', description: 'Creation timestamp' },
-				{ name: 'updated_at', type: 'string', description: 'Last update timestamp' },
-				{ name: 'deleted', type: 'boolean', description: 'Whether the thread is deleted' },
-				{ name: 'org_id', type: 'string', description: 'Organization ID' },
-				{ name: 'project_id', type: 'string', description: 'Project ID' },
-				{ name: 'user_data', type: 'object', description: 'User-defined data' },
-				{ name: 'metadata', type: 'object', description: 'Thread metadata' },
-			],
+			responseFields: { schema: ThreadSchema },
 			statuses: [
 				{ code: 200, description: 'Threads returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },

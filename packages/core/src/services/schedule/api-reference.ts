@@ -1,4 +1,10 @@
 import type { Service } from '../api-reference.ts';
+import {
+	CreateScheduleDestinationParamsSchema,
+	CreateScheduleParamsSchema,
+	ScheduleCreateResultSchema,
+	ScheduleListResultSchema,
+} from './service.ts';
 
 const service: Service = {
 	name: 'Schedules',
@@ -17,33 +23,10 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Schedule creation payload.',
-				fields: [
-					{ name: 'name', type: 'string', description: 'Schedule name', required: true },
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Schedule description',
-						required: false,
-					},
-					{
-						name: 'expression',
-						type: 'string',
-						description: 'Cron expression',
-						required: true,
-					},
-					{
-						name: 'destinations',
-						type: 'array',
-						description: "Array of { type: 'url'|'sandbox', config }",
-						required: false,
-					},
-				],
+				fields: { schema: CreateScheduleParamsSchema },
 			},
 			responseDescription: 'Returns the created schedule and its destinations.',
-			responseFields: [
-				{ name: 'schedule', type: 'object', description: 'The created schedule' },
-				{ name: 'destinations', type: 'array', description: 'Associated destinations' },
-			],
+			responseFields: { schema: ScheduleCreateResultSchema },
 			statuses: [
 				{ code: 201, description: 'Schedule created' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -74,10 +57,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns paginated list of schedules.',
-			responseFields: [
-				{ name: 'schedules', type: 'array', description: 'List of schedule objects' },
-				{ name: 'total', type: 'number', description: 'Total number of schedules' },
-			],
+			responseFields: { schema: ScheduleListResultSchema },
 			statuses: [
 				{ code: 200, description: 'Schedules returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -186,15 +166,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Destination creation payload.',
-				fields: [
-					{ name: 'type', type: 'string', description: "'url' or 'sandbox'", required: true },
-					{
-						name: 'config',
-						type: 'object',
-						description: 'Destination config — for url: { url, headers?, method? }',
-						required: true,
-					},
-				],
+				fields: { schema: CreateScheduleDestinationParamsSchema },
 			},
 			responseDescription: 'Returns the created destination.',
 			statuses: [

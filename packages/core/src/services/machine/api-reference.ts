@@ -1,3 +1,4 @@
+import { MachineSchema } from './machine.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -35,19 +36,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns machine details.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Machine ID' },
-				{ name: 'instanceId', type: 'string', description: 'Cloud instance ID' },
-				{ name: 'status', type: 'string', description: 'Current machine status' },
-				{ name: 'provider', type: 'string', description: 'Cloud provider' },
-				{ name: 'region', type: 'string', description: 'Deployment region' },
-				{ name: 'startedAt', type: 'string', description: 'Start timestamp' },
-				{ name: 'stoppedAt', type: 'string', description: 'Stop timestamp' },
-				{ name: 'orgId', type: 'string', description: 'Organization ID' },
-				{ name: 'orgName', type: 'string', description: 'Organization name' },
-				{ name: 'createdAt', type: 'string', description: 'Creation timestamp' },
-				{ name: 'metadata', type: 'object', description: 'Machine metadata' },
-			],
+			responseFields: { schema: MachineSchema },
 			statuses: [
 				{ code: 200, description: 'Machine returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },

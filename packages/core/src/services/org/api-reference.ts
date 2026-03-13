@@ -1,3 +1,6 @@
+import { OrgEnvDeleteRequestSchema } from './env-delete.ts';
+import { OrgEnvDataSchema } from './env-get.ts';
+import { OrgEnvUpdateRequestSchema } from './env-update.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -45,11 +48,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns environment variables and secrets for the organization.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Organization ID' },
-				{ name: 'env', type: 'object', description: 'Environment variables' },
-				{ name: 'secrets', type: 'object', description: 'Secret values (masked by default)' },
-			],
+			responseFields: { schema: OrgEnvDataSchema },
 			statuses: [
 				{ code: 200, description: 'Environment variables returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -71,15 +70,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Environment variables and secrets to set.',
-				fields: [
-					{
-						name: 'env',
-						type: 'object',
-						description: 'Environment variables to set',
-						required: false,
-					},
-					{ name: 'secrets', type: 'object', description: 'Secrets to set', required: false },
-				],
+				fields: { schema: OrgEnvUpdateRequestSchema },
 			},
 			responseDescription: 'Updates are merged with existing values. Returns 204 on success.',
 			statuses: [
@@ -103,20 +94,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Keys to delete from environment variables and secrets.',
-				fields: [
-					{
-						name: 'env',
-						type: 'array',
-						description: 'Environment variable keys to delete',
-						required: false,
-					},
-					{
-						name: 'secrets',
-						type: 'array',
-						description: 'Secret keys to delete',
-						required: false,
-					},
-				],
+				fields: { schema: OrgEnvDeleteRequestSchema },
 			},
 			responseDescription: 'Returns 204 on success.',
 			statuses: [

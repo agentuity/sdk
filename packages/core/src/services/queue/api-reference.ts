@@ -1,3 +1,10 @@
+import {
+	BatchPublishMessagesRequestSchema,
+	CreateDestinationRequestSchema,
+	CreateQueueRequestSchema,
+	PublishMessageRequestSchema,
+	UpdateQueueRequestSchema,
+} from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -16,27 +23,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Queue creation payload.',
-				fields: [
-					{ name: 'name', type: 'string', description: 'Queue name', required: false },
-					{
-						name: 'queue_type',
-						type: 'string',
-						description: '`worker` or `pubsub`',
-						required: true,
-					},
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Queue description',
-						required: false,
-					},
-					{
-						name: 'settings',
-						type: 'object',
-						description: 'Queue behavior settings',
-						required: false,
-					},
-				],
+				fields: { schema: CreateQueueRequestSchema },
 			},
 			responseDescription: 'Queue object including settings, stats, and timestamps.',
 			statuses: [
@@ -135,20 +122,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Partial queue update payload.',
-				fields: [
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Updated description',
-						required: false,
-					},
-					{
-						name: 'settings',
-						type: 'object',
-						description: 'Partial settings update',
-						required: false,
-					},
-				],
+				fields: { schema: UpdateQueueRequestSchema },
 			},
 			responseDescription: 'Updated queue object.',
 			statuses: [
@@ -233,33 +207,7 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Message payload and optional delivery controls.',
-				fields: [
-					{ name: 'payload', type: 'any', description: 'Message payload', required: true },
-					{
-						name: 'metadata',
-						type: 'object',
-						description: 'Message metadata',
-						required: false,
-					},
-					{
-						name: 'partition_key',
-						type: 'string',
-						description: 'Partition key for routing',
-						required: false,
-					},
-					{
-						name: 'idempotency_key',
-						type: 'string',
-						description: 'Idempotency key',
-						required: false,
-					},
-					{
-						name: 'ttl_seconds',
-						type: 'number',
-						description: 'Message TTL in seconds',
-						required: false,
-					},
-				],
+				fields: { schema: PublishMessageRequestSchema },
 			},
 			responseDescription: 'Published message object.',
 			statuses: [
@@ -284,14 +232,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Batch publish payload.',
-				fields: [
-					{
-						name: 'messages',
-						type: 'array',
-						description: 'Array of message payload objects (max 1000)',
-						required: true,
-					},
-				],
+				fields: { schema: BatchPublishMessagesRequestSchema },
 			},
 			responseDescription:
 				'Batch publish response with created messages and optional failed indexes.',
@@ -596,32 +537,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Destination creation payload.',
-				fields: [
-					{
-						name: 'destination_type',
-						type: 'string',
-						description: 'Destination type (`http`)',
-						required: true,
-					},
-					{
-						name: 'config',
-						type: 'object',
-						description: 'Destination config (includes `url`)',
-						required: true,
-					},
-					{
-						name: 'retry_attempts',
-						type: 'number',
-						description: 'Retry attempts override',
-						required: false,
-					},
-					{
-						name: 'timeout_seconds',
-						type: 'number',
-						description: 'Delivery timeout override',
-						required: false,
-					},
-				],
+				fields: { schema: CreateDestinationRequestSchema },
 			},
 			responseDescription: 'Created destination object.',
 			statuses: [

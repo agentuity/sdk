@@ -1,4 +1,12 @@
 import type { Service } from '../api-reference.ts';
+import {
+	CreateWebhookDestinationRequestSchema,
+	CreateWebhookRequestSchema,
+	UpdateWebhookDestinationRequestSchema,
+	UpdateWebhookRequestSchema,
+	WebhookReceiptSchema,
+	WebhookSchema,
+} from './types.ts';
 
 const service: Service = {
 	name: 'Webhooks',
@@ -16,28 +24,11 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Webhook creation payload.',
-				fields: [
-					{ name: 'name', type: 'string', description: 'Webhook name', required: true },
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Webhook description',
-						required: false,
-					},
-				],
+				fields: { schema: CreateWebhookRequestSchema },
 			},
 			responseDescription:
 				'Returns the created webhook. The ingest URL is only returned at creation.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Webhook ID' },
-				{ name: 'created_at', type: 'string', description: 'Creation timestamp' },
-				{ name: 'updated_at', type: 'string', description: 'Last update timestamp' },
-				{ name: 'name', type: 'string', description: 'Webhook name' },
-				{ name: 'description', type: 'string', description: 'Webhook description' },
-				{ name: 'url', type: 'string', description: 'Ingest URL — only returned at creation' },
-				{ name: 'internal', type: 'boolean', description: 'Whether the webhook is internal' },
-				{ name: 'metadata', type: 'object', description: 'Webhook metadata' },
-			],
+			responseFields: { schema: WebhookSchema },
 			statuses: [
 				{ code: 201, description: 'Webhook created' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -108,20 +99,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Webhook update payload.',
-				fields: [
-					{
-						name: 'name',
-						type: 'string',
-						description: 'Updated webhook name',
-						required: true,
-					},
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Updated description',
-						required: false,
-					},
-				],
+				fields: { schema: UpdateWebhookRequestSchema },
 			},
 			responseDescription: 'Returns the updated webhook.',
 			statuses: [
@@ -166,10 +144,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Destination creation payload.',
-				fields: [
-					{ name: 'type', type: 'string', description: "'url'", required: true },
-					{ name: 'config', type: 'object', description: '{ url, headers? }', required: true },
-				],
+				fields: { schema: CreateWebhookDestinationRequestSchema },
 			},
 			responseDescription: 'Returns the created destination.',
 			statuses: [
@@ -219,14 +194,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Destination update payload.',
-				fields: [
-					{
-						name: 'config',
-						type: 'object',
-						description: 'Updated destination config',
-						required: false,
-					},
-				],
+				fields: { schema: UpdateWebhookDestinationRequestSchema },
 			},
 			responseDescription: 'Returns the updated destination.',
 			statuses: [
@@ -310,13 +278,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns the receipt with headers and payload.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Receipt ID' },
-				{ name: 'date', type: 'string', description: 'Receipt timestamp' },
-				{ name: 'webhook_id', type: 'string', description: 'Parent webhook ID' },
-				{ name: 'headers', type: 'object', description: 'Request headers' },
-				{ name: 'payload', type: 'any', description: 'The received payload' },
-			],
+			responseFields: { schema: WebhookReceiptSchema },
 			statuses: [
 				{ code: 200, description: 'Receipt returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },

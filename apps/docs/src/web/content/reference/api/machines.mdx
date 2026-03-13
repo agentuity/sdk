@@ -78,57 +78,122 @@ Returns machine details.
   {
     "name": "id",
     "type": "string",
-    "description": "Machine ID"
+    "description": "Unique identifier for the machine.",
+    "required": true
   },
   {
     "name": "instanceId",
-    "type": "string",
-    "description": "Cloud instance ID"
+    "type": "string | null",
+    "description": "Cloud provider instance ID.",
+    "required": false
+  },
+  {
+    "name": "privateIPv4",
+    "type": "string | null",
+    "description": "Private IPv4 address of the machine.",
+    "required": false
+  },
+  {
+    "name": "availabilityZone",
+    "type": "string | null",
+    "description": "Cloud provider availability zone.",
+    "required": false
+  },
+  {
+    "name": "instanceType",
+    "type": "string | null",
+    "description": "Cloud provider instance type (e.g., n1-standard-2).",
+    "required": false
+  },
+  {
+    "name": "instanceTags",
+    "type": "string[] | null",
+    "description": "Tags assigned to the cloud instance.",
+    "required": false
+  },
+  {
+    "name": "deploymentCount",
+    "type": "number",
+    "description": "Number of active deployments on this machine.",
+    "required": false
   },
   {
     "name": "status",
     "type": "string",
-    "description": "Current machine status"
+    "description": "Current status of the machine (e.g., running, stopped, errored).",
+    "required": true
   },
   {
     "name": "provider",
     "type": "string",
-    "description": "Cloud provider"
+    "description": "Cloud provider (e.g., gcp, aws).",
+    "required": true
   },
   {
     "name": "region",
     "type": "string",
-    "description": "Deployment region"
+    "description": "Cloud region where the machine is deployed.",
+    "required": true
   },
   {
     "name": "startedAt",
-    "type": "string",
-    "description": "Start timestamp"
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine was started.",
+    "required": false
   },
   {
     "name": "stoppedAt",
-    "type": "string",
-    "description": "Stop timestamp"
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine was stopped.",
+    "required": false
+  },
+  {
+    "name": "pausedAt",
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine was paused.",
+    "required": false
+  },
+  {
+    "name": "erroredAt",
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine entered error state.",
+    "required": false
+  },
+  {
+    "name": "error",
+    "type": "string | null",
+    "description": "Error message if the machine is in an error state.",
+    "required": false
   },
   {
     "name": "orgId",
-    "type": "string",
-    "description": "Organization ID"
+    "type": "string | null",
+    "description": "Organization ID that owns this machine.",
+    "required": false
   },
   {
     "name": "orgName",
-    "type": "string",
-    "description": "Organization name"
+    "type": "string | null",
+    "description": "Organization name that owns this machine.",
+    "required": false
   },
   {
     "name": "createdAt",
     "type": "string",
-    "description": "Creation timestamp"
+    "description": "ISO 8601 timestamp when the machine was created.",
+    "required": true
+  },
+  {
+    "name": "updatedAt",
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine was last updated.",
+    "required": false
   },
   {
     "name": "metadata",
-    "type": "object",
-    "description": "Machine metadata"
+    "type": "object | null",
+    "description": "Arbitrary metadata associated with the machine.",
+    "required": false
   }
 ]} />
 

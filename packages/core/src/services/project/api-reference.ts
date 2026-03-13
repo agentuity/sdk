@@ -1,3 +1,15 @@
+import { AgentSchema } from './agent.ts';
+import { CreateProjectRequestSchema, NewProjectSchema } from './create.ts';
+import {
+	CreateProjectDeploymentSchema,
+	DeploymentCompleteSchema,
+	DeploymentFailPayloadSchema,
+} from './deploy.ts';
+import { ProjectDeleteRequestSchema } from './delete.ts';
+import { ProjectEnvDeleteRequestSchema } from './env-delete.ts';
+import { ProjectEnvUpdateRequestSchema } from './env-update.ts';
+import { ProjectHostnameSetRequestSchema } from './hostname.ts';
+import { UpdateRegionRequestSchema } from './update-region.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -17,35 +29,10 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Project creation payload.',
-				fields: [
-					{
-						name: 'name',
-						type: 'string',
-						description: 'Project name (1-255 chars)',
-						required: true,
-					},
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Project description',
-						required: false,
-					},
-					{ name: 'tags', type: 'array', description: 'Project tags', required: false },
-					{ name: 'orgId', type: 'string', description: 'Organization ID', required: true },
-					{
-						name: 'cloudRegion',
-						type: 'string',
-						description: 'Cloud region code',
-						required: true,
-					},
-					{ name: 'domains', type: 'array', description: 'Custom domains', required: false },
-				],
+				fields: { schema: CreateProjectRequestSchema },
 			},
 			responseDescription: 'Returns the created project ID and SDK key.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Project ID' },
-				{ name: 'sdkKey', type: 'string', description: 'SDK key for the new project' },
-			],
+			responseFields: { schema: NewProjectSchema },
 			statuses: [
 				{ code: 201, description: 'Project created' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -126,14 +113,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Project deletion payload.',
-				fields: [
-					{
-						name: 'ids',
-						type: 'array',
-						description: 'Array of project IDs to delete',
-						required: true,
-					},
-				],
+				fields: { schema: ProjectDeleteRequestSchema },
 			},
 			responseDescription: 'Returns array of deleted project IDs.',
 			statuses: [
@@ -181,14 +161,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Region update payload.',
-				fields: [
-					{
-						name: 'cloudRegion',
-						type: 'string',
-						description: 'New cloud region',
-						required: true,
-					},
-				],
+				fields: { schema: UpdateRegionRequestSchema },
 			},
 			responseDescription: 'Returns the updated project.',
 			statuses: [
@@ -210,15 +183,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Environment variable update payload.',
-				fields: [
-					{
-						name: 'env',
-						type: 'object',
-						description: 'Environment variables',
-						required: false,
-					},
-					{ name: 'secrets', type: 'object', description: 'Secret values', required: false },
-				],
+				fields: { schema: ProjectEnvUpdateRequestSchema },
 			},
 			responseDescription: 'Returns the updated environment variables.',
 			statuses: [
@@ -240,20 +205,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Environment variable deletion payload.',
-				fields: [
-					{
-						name: 'env',
-						type: 'array',
-						description: 'Env var keys to delete',
-						required: false,
-					},
-					{
-						name: 'secrets',
-						type: 'array',
-						description: 'Secret keys to delete',
-						required: false,
-					},
-				],
+				fields: { schema: ProjectEnvDeleteRequestSchema },
 			},
 			responseDescription: 'Empty response on success.',
 			statuses: [
@@ -290,18 +242,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns a list of agents for the project.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Agent ID' },
-				{ name: 'name', type: 'string', description: 'Agent name' },
-				{ name: 'description', type: 'string', description: 'Agent description' },
-				{ name: 'identifier', type: 'string', description: 'Agent identifier' },
-				{ name: 'deploymentId', type: 'string', description: 'Deployment ID' },
-				{ name: 'devmode', type: 'boolean', description: 'Whether devmode is active' },
-				{ name: 'metadata', type: 'object', description: 'Agent metadata' },
-				{ name: 'createdAt', type: 'string', description: 'Creation timestamp' },
-				{ name: 'updatedAt', type: 'string', description: 'Last update timestamp' },
-				{ name: 'evals', type: 'array', description: 'Associated evaluations' },
-			],
+			responseFields: { schema: AgentSchema },
 			statuses: [
 				{ code: 200, description: 'Agents returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -510,27 +451,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Deployment configuration payload.',
-				fields: [
-					{
-						name: 'resources',
-						type: 'object',
-						description: '{ memory?, cpu?, disk? }',
-						required: false,
-					},
-					{
-						name: 'mode',
-						type: 'object',
-						description: "{ type: 'on-demand'|'provisioned', idle? }",
-						required: false,
-					},
-					{
-						name: 'dependencies',
-						type: 'array',
-						description: 'Deployment dependencies',
-						required: false,
-					},
-					{ name: 'domains', type: 'array', description: 'Custom domains', required: false },
-				],
+				fields: { schema: CreateProjectDeploymentSchema },
 			},
 			responseDescription: 'Returns deployment details and upload information.',
 			responseFields: [
@@ -589,14 +510,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns warmup stream and public URL information.',
-			responseFields: [
-				{ name: 'streamId', type: 'string', description: 'Warmup logs stream' },
-				{
-					name: 'publicUrls',
-					type: 'object',
-					description: '{ latest, deployment, custom[], vanityDeployment?, vanityProject? }',
-				},
-			],
+			responseFields: { schema: DeploymentCompleteSchema },
 			statuses: [
 				{ code: 200, description: 'Deployment completed' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -645,15 +559,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Failure report payload.',
-				fields: [
-					{ name: 'error', type: 'string', description: 'Error message', required: false },
-					{
-						name: 'diagnostics',
-						type: 'object',
-						description: 'Diagnostic information',
-						required: false,
-					},
-				],
+				fields: { schema: DeploymentFailPayloadSchema },
 			},
 			responseDescription: 'Returns confirmation of failure report.',
 			statuses: [
@@ -697,14 +603,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Hostname configuration payload.',
-				fields: [
-					{
-						name: 'hostname',
-						type: 'string',
-						description: 'Desired vanity hostname',
-						required: true,
-					},
-				],
+				fields: { schema: ProjectHostnameSetRequestSchema },
 			},
 			responseDescription: 'Returns the configured hostname and URL.',
 			responseFields: [

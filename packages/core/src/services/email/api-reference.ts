@@ -1,3 +1,8 @@
+import {
+	EmailActivityResultSchema,
+	EmailConnectionConfigSchema,
+	EmailSendParamsSchema,
+} from './service.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -79,11 +84,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Connection configuration including IMAP and POP3 details.',
-			responseFields: [
-				{ name: 'email', type: 'string', description: 'Email address' },
-				{ name: 'imap', type: 'object', description: 'IMAP config object' },
-				{ name: 'pop3', type: 'object', description: 'POP3 config object' },
-			],
+			responseFields: { schema: EmailConnectionConfigSchema },
 			statuses: [
 				{ code: 200, description: 'Connection config returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -194,30 +195,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Outbound email payload.',
-				fields: [
-					{
-						name: 'from',
-						type: 'string',
-						description: 'Sender address (must be owned)',
-						required: true,
-					},
-					{ name: 'to', type: 'string[]', description: 'Recipients (max 50)', required: true },
-					{ name: 'subject', type: 'string', description: 'Email subject', required: true },
-					{ name: 'text', type: 'string', description: 'Plain text body', required: false },
-					{ name: 'html', type: 'string', description: 'HTML body', required: false },
-					{
-						name: 'attachments',
-						type: 'array',
-						description: 'Attachment descriptors',
-						required: false,
-					},
-					{
-						name: 'headers',
-						type: 'object',
-						description: 'Additional outbound headers',
-						required: false,
-					},
-				],
+				fields: { schema: EmailSendParamsSchema },
 			},
 			responseDescription: 'Created `EmailOutbound` object with initial `pending` status.',
 			statuses: [
@@ -377,13 +355,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Activity time series grouped by date.',
-			responseFields: [
-				{ name: 'activity', type: 'array', description: 'Daily activity records' },
-				{ name: 'activity[].date', type: 'string', description: 'Date (`YYYY-MM-DD`)' },
-				{ name: 'activity[].inbound', type: 'number', description: 'Inbound count for date' },
-				{ name: 'activity[].outbound', type: 'number', description: 'Outbound count for date' },
-				{ name: 'days', type: 'number', description: 'Applied day range' },
-			],
+			responseFields: { schema: EmailActivityResultSchema },
 			statuses: [
 				{ code: 200, description: 'Activity returned' },
 				{ code: 401, description: 'Unauthorized' },

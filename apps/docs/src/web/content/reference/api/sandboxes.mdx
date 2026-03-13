@@ -47,73 +47,205 @@ Sandbox creation payload.
   {
     "name": "projectId",
     "type": "string",
-    "description": "Project ID",
+    "description": "Project ID to associate the sandbox with",
     "required": false
   },
   {
     "name": "runtime",
     "type": "string",
-    "description": "Runtime identifier",
+    "description": "Runtime name (e.g., \"bun:1\", \"python:3.14\")",
+    "required": false
+  },
+  {
+    "name": "runtimeId",
+    "type": "string",
+    "description": "Runtime ID (e.g., \"srt_xxx\")",
     "required": false
   },
   {
     "name": "name",
     "type": "string",
-    "description": "Sandbox name",
+    "description": "Optional sandbox name",
     "required": false
   },
   {
     "name": "description",
     "type": "string",
-    "description": "Sandbox description",
+    "description": "Optional sandbox description",
     "required": false
   },
   {
     "name": "resources",
     "type": "object",
-    "description": "{ memory?, cpu?, disk? }",
+    "description": "Resource constraints for the sandbox",
+    "required": false
+  },
+  {
+    "name": "resources.memory",
+    "type": "string",
+    "description": "Memory limit (e.g., \"512Mi\", \"1Gi\")",
+    "required": false
+  },
+  {
+    "name": "resources.cpu",
+    "type": "string",
+    "description": "CPU limit (e.g., \"0.5\", \"1\")",
+    "required": false
+  },
+  {
+    "name": "resources.disk",
+    "type": "string",
+    "description": "Disk size limit (e.g., \"1Gi\", \"10Gi\")",
     "required": false
   },
   {
     "name": "env",
     "type": "object",
-    "description": "Environment variables",
+    "description": "Environment variables to set in the sandbox",
     "required": false
   },
   {
     "name": "network",
     "type": "object",
-    "description": "{ enabled?, port? (1024-65535) }",
+    "description": "Network configuration for the sandbox",
+    "required": false
+  },
+  {
+    "name": "network.enabled",
+    "type": "boolean",
+    "description": "Whether network access is enabled",
+    "required": false
+  },
+  {
+    "name": "network.port",
+    "type": "number",
+    "description": "Port to expose from the sandbox (1024-65535)",
+    "required": false
+  },
+  {
+    "name": "stream",
+    "type": "object",
+    "description": "Stream configuration for I/O redirection",
+    "required": false
+  },
+  {
+    "name": "stream.stdout",
+    "type": "string",
+    "description": "Stream ID for stdout output",
+    "required": false
+  },
+  {
+    "name": "stream.stderr",
+    "type": "string",
+    "description": "Stream ID for stderr output",
+    "required": false
+  },
+  {
+    "name": "stream.stdin",
+    "type": "string",
+    "description": "Stream ID for stdin input",
+    "required": false
+  },
+  {
+    "name": "stream.timestamps",
+    "type": "boolean",
+    "description": "Whether to include timestamps in output",
     "required": false
   },
   {
     "name": "timeout",
     "type": "object",
-    "description": "{ idle?, execution? }",
+    "description": "Timeout settings for the sandbox",
+    "required": false
+  },
+  {
+    "name": "timeout.idle",
+    "type": "string",
+    "description": "Idle timeout duration (e.g., \"5m\", \"1h\")",
+    "required": false
+  },
+  {
+    "name": "timeout.execution",
+    "type": "string",
+    "description": "Maximum execution time (e.g., \"30m\", \"2h\")",
     "required": false
   },
   {
     "name": "command",
     "type": "object",
-    "description": "{ exec: string[], files?, mode?: 'oneshot'|'interactive' }",
+    "description": "Initial command to run in the sandbox",
+    "required": false
+  },
+  {
+    "name": "command.exec",
+    "type": "string[]",
+    "description": "Command and arguments to execute",
+    "required": true
+  },
+  {
+    "name": "command.files",
+    "type": "object[]",
+    "description": "Files to write before execution (deprecated: use top-level files)",
+    "required": false
+  },
+  {
+    "name": "command.files[].path",
+    "type": "string",
+    "description": "Path to the file relative to the sandbox workspace",
+    "required": true
+  },
+  {
+    "name": "command.files[].content",
+    "type": "string",
+    "description": "Base64-encoded file content",
+    "required": true
+  },
+  {
+    "name": "command.mode",
+    "type": "string",
+    "description": "Execution mode: oneshot runs once, interactive keeps running",
     "required": false
   },
   {
     "name": "files",
-    "type": "array",
-    "description": "Array of { path, content (base64) }",
+    "type": "object[]",
+    "description": "Files to write to sandbox on creation",
     "required": false
+  },
+  {
+    "name": "files[].path",
+    "type": "string",
+    "description": "Path to the file relative to the sandbox workspace",
+    "required": true
+  },
+  {
+    "name": "files[].content",
+    "type": "string",
+    "description": "Base64-encoded file content",
+    "required": true
   },
   {
     "name": "snapshot",
     "type": "string",
-    "description": "Snapshot ID to restore from",
+    "description": "Snapshot ID to restore the sandbox from",
+    "required": false
+  },
+  {
+    "name": "dependencies",
+    "type": "string[]",
+    "description": "Apt packages to install when creating the sandbox",
+    "required": false
+  },
+  {
+    "name": "packages",
+    "type": "string[]",
+    "description": "npm/bun packages to install globally when creating the sandbox",
     "required": false
   },
   {
     "name": "metadata",
     "type": "object",
-    "description": "Arbitrary metadata",
+    "description": "Optional user-defined metadata to associate with the sandbox",
     "required": false
   }
 ]} />
@@ -133,22 +265,50 @@ Returns the sandbox ID, status, and optional stream URLs for stdout/stderr.
   {
     "name": "sandboxId",
     "type": "string",
-    "description": "Sandbox ID"
+    "description": "Unique identifier for the created sandbox",
+    "required": true
   },
   {
     "name": "status",
     "type": "string",
-    "description": "'creating', 'idle', 'running', 'paused', etc."
+    "description": "Current status of the sandbox",
+    "required": true
+  },
+  {
+    "name": "stdoutStreamId",
+    "type": "string",
+    "description": "Stream ID for reading stdout",
+    "required": false
   },
   {
     "name": "stdoutStreamUrl",
     "type": "string",
-    "description": "Pulse stream URL for stdout"
+    "description": "URL for streaming stdout output",
+    "required": false
+  },
+  {
+    "name": "stderrStreamId",
+    "type": "string",
+    "description": "Stream ID for reading stderr",
+    "required": false
   },
   {
     "name": "stderrStreamUrl",
     "type": "string",
-    "description": "Pulse stream URL for stderr"
+    "description": "URL for streaming stderr output",
+    "required": false
+  },
+  {
+    "name": "auditStreamId",
+    "type": "string",
+    "description": "Stream ID for reading audit events",
+    "required": false
+  },
+  {
+    "name": "auditStreamUrl",
+    "type": "string",
+    "description": "URL for streaming audit events",
+    "required": false
   }
 ]} />
 
@@ -269,13 +429,333 @@ Returns paginated list of sandboxes.
 <ResponseFields fields={[
   {
     "name": "sandboxes",
-    "type": "array",
-    "description": "Array of sandbox objects"
+    "type": "object[]",
+    "description": "Array of sandbox information",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].sandboxId",
+    "type": "string",
+    "description": "Unique sandbox identifier",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].identifier",
+    "type": "string",
+    "description": "Short identifier used for DNS hostname",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].name",
+    "type": "string",
+    "description": "Sandbox name",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].description",
+    "type": "string",
+    "description": "Sandbox description",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].status",
+    "type": "string",
+    "description": "Current status",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].mode",
+    "type": "string",
+    "description": "Sandbox mode (interactive or oneshot)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].createdAt",
+    "type": "string",
+    "description": "Creation timestamp (ISO 8601)",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].region",
+    "type": "string",
+    "description": "Region where the sandbox is running",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].runtime",
+    "type": "object",
+    "description": "Runtime information",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].runtime.id",
+    "type": "string",
+    "description": "Unique runtime identifier",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].runtime.name",
+    "type": "string",
+    "description": "Runtime name (e.g., \"bun:1\", \"python:3.14\")",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].runtime.iconUrl",
+    "type": "string",
+    "description": "URL for runtime icon",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].runtime.brandColor",
+    "type": "string",
+    "description": "Brand color for the runtime (hex color code)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].runtime.tags",
+    "type": "string[]",
+    "description": "Optional tags for categorization",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].snapshot",
+    "type": "any",
+    "description": "Snapshot information",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].executions",
+    "type": "number",
+    "description": "Number of executions run in this sandbox",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].exitCode",
+    "type": "number",
+    "description": "Exit code from the last execution (only available for terminated/failed sandboxes)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].stdoutStreamUrl",
+    "type": "string",
+    "description": "URL to the stdout output stream",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].stderrStreamUrl",
+    "type": "string",
+    "description": "URL to the stderr output stream",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].auditStreamId",
+    "type": "string",
+    "description": "ID of the audit event stream (eBPF/Tetragon security events)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].auditStreamUrl",
+    "type": "string",
+    "description": "URL to the audit event stream (eBPF/Tetragon security events)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].dependencies",
+    "type": "string[]",
+    "description": "Apt packages installed in the sandbox",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].packages",
+    "type": "string[]",
+    "description": "npm/bun packages installed globally in the sandbox",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].metadata",
+    "type": "object",
+    "description": "User-defined metadata associated with the sandbox",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].resources",
+    "type": "object",
+    "description": "Resource limits for this sandbox",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].resources.memory",
+    "type": "string",
+    "description": "Memory limit (e.g., \"500Mi\", \"1Gi\")",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].resources.cpu",
+    "type": "string",
+    "description": "CPU limit in millicores (e.g., \"500m\", \"1000m\")",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].resources.disk",
+    "type": "string",
+    "description": "Disk limit (e.g., \"500Mi\", \"1Gi\")",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].cpuTimeMs",
+    "type": "number",
+    "description": "Total CPU time consumed in milliseconds (available when terminated)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].memoryByteSec",
+    "type": "number",
+    "description": "Total memory usage in byte-seconds (available when terminated)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].networkEgressBytes",
+    "type": "number",
+    "description": "Total network egress in bytes (available when terminated)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].networkEnabled",
+    "type": "boolean",
+    "description": "Whether network access is enabled for this sandbox",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].networkPort",
+    "type": "number",
+    "description": "Network port exposed from the sandbox (1024-65535)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].url",
+    "type": "string",
+    "description": "Public URL for the sandbox (only set if networkPort is configured)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].user",
+    "type": "object",
+    "description": "User who created the sandbox (if available)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].user.id",
+    "type": "string",
+    "description": "User ID",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].user.firstName",
+    "type": "string",
+    "description": "User's first name",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].user.lastName",
+    "type": "string",
+    "description": "User's last name",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].agent",
+    "type": "object",
+    "description": "Agent associated with the sandbox (if available)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].agent.id",
+    "type": "string",
+    "description": "Agent ID",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].agent.name",
+    "type": "string",
+    "description": "Agent name",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].project",
+    "type": "object",
+    "description": "Project associated with the sandbox (if available)",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].project.id",
+    "type": "string",
+    "description": "Project ID",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].project.name",
+    "type": "string",
+    "description": "Project name",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].org",
+    "type": "object",
+    "description": "Organization associated with the sandbox",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].org.id",
+    "type": "string",
+    "description": "Organization ID",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].org.name",
+    "type": "string",
+    "description": "Organization name",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].timeout",
+    "type": "object",
+    "description": "Timeout configuration for this sandbox",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].timeout.idle",
+    "type": "string",
+    "description": "Idle timeout duration (e.g., \"10m0s\")",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].timeout.execution",
+    "type": "string",
+    "description": "Execution timeout duration (e.g., \"5m0s\")",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].command",
+    "type": "object",
+    "description": "Startup command configured for this sandbox",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].command.exec",
+    "type": "string[]",
+    "description": "Command and arguments",
+    "required": true
+  },
+  {
+    "name": "sandboxes[].command.mode",
+    "type": "string",
+    "description": "Execution mode",
+    "required": false
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total matching sandboxes"
+    "description": "Total count of sandboxes matching the filter",
+    "required": true
   }
 ]} />
 
@@ -620,26 +1100,56 @@ Command execution payload.
 <ResponseFields fields={[
   {
     "name": "command",
-    "type": "array",
-    "description": "Command and arguments",
+    "type": "string[]",
+    "description": "Command and arguments to execute",
     "required": true
   },
   {
     "name": "files",
-    "type": "array",
+    "type": "object[]",
     "description": "Files to write before execution",
     "required": false
   },
   {
+    "name": "files[].path",
+    "type": "string",
+    "description": "File path relative to workspace",
+    "required": true
+  },
+  {
+    "name": "files[].content",
+    "type": "string",
+    "description": "Base64-encoded file content",
+    "required": true
+  },
+  {
     "name": "timeout",
     "type": "string",
-    "description": "Execution timeout",
+    "description": "Execution timeout (e.g., \"30s\", \"5m\")",
     "required": false
   },
   {
     "name": "stream",
     "type": "object",
-    "description": "{ stdout?, stderr?, timestamps? }",
+    "description": "Stream configuration for output redirection",
+    "required": false
+  },
+  {
+    "name": "stream.stdout",
+    "type": "string",
+    "description": "Stream ID for stdout output",
+    "required": false
+  },
+  {
+    "name": "stream.stderr",
+    "type": "string",
+    "description": "Stream ID for stderr output",
+    "required": false
+  },
+  {
+    "name": "stream.timestamps",
+    "type": "boolean",
+    "description": "Whether to include timestamps in output",
     "required": false
   }
 ]} />
@@ -661,32 +1171,38 @@ Returns execution ID and stream URLs. Returns 409 if sandbox is busy.
   {
     "name": "executionId",
     "type": "string",
-    "description": "Execution ID"
+    "description": "Unique identifier for the execution",
+    "required": true
   },
   {
     "name": "status",
     "type": "string",
-    "description": "'queued', 'running', 'completed', 'failed', 'timeout', or 'cancelled'"
+    "description": "Current status of the execution",
+    "required": true
   },
   {
     "name": "exitCode",
     "type": "number",
-    "description": "Exit code if completed"
+    "description": "Exit code of the executed command",
+    "required": false
   },
   {
     "name": "durationMs",
     "type": "number",
-    "description": "Execution duration in milliseconds"
+    "description": "Execution duration in milliseconds",
+    "required": false
   },
   {
     "name": "stdoutStreamUrl",
     "type": "string",
-    "description": "Pulse stream URL for stdout"
+    "description": "URL for streaming stdout output",
+    "required": false
   },
   {
     "name": "stderrStreamUrl",
     "type": "string",
-    "description": "Pulse stream URL for stderr"
+    "description": "URL for streaming stderr output",
+    "required": false
   }
 ]} />
 
@@ -832,8 +1348,20 @@ Files to write.
 <ResponseFields fields={[
   {
     "name": "files",
-    "type": "array",
-    "description": "Array of { path, content (base64-encoded) }",
+    "type": "object[]",
+    "description": "Array of files to write",
+    "required": true
+  },
+  {
+    "name": "files[].path",
+    "type": "string",
+    "description": "Path to the file relative to the sandbox workspace",
+    "required": true
+  },
+  {
+    "name": "files[].content",
+    "type": "string",
+    "description": "Base64-encoded file content",
     "required": true
   }
 ]} />
@@ -854,7 +1382,8 @@ Returns the number of files written.
   {
     "name": "filesWritten",
     "type": "number",
-    "description": "Number of files written"
+    "description": "Number of files successfully written",
+    "required": true
   }
 ]} />
 
@@ -952,13 +1481,13 @@ Directory creation payload.
   {
     "name": "path",
     "type": "string",
-    "description": "Directory path",
+    "description": "Path to the directory to create",
     "required": true
   },
   {
     "name": "recursive",
     "type": "boolean",
-    "description": "Create parent directories",
+    "description": "Create parent directories if needed",
     "required": false
   }
 ]} />
@@ -1015,13 +1544,13 @@ Directory removal payload.
   {
     "name": "path",
     "type": "string",
-    "description": "Directory path",
+    "description": "Path to the directory to remove",
     "required": true
   },
   {
     "name": "recursive",
     "type": "boolean",
-    "description": "Remove recursively",
+    "description": "Remove directory and all contents",
     "required": false
   }
 ]} />
@@ -1078,7 +1607,7 @@ File removal payload.
   {
     "name": "path",
     "type": "string",
-    "description": "File path",
+    "description": "Path to the file to remove",
     "required": true
   }
 ]} />
@@ -1148,8 +1677,39 @@ Returns list of files in the directory.
 <ResponseFields fields={[
   {
     "name": "files",
-    "type": "array",
-    "description": "Array of { path, size, isDir, mode, modTime }"
+    "type": "object[]",
+    "description": "Array of file information",
+    "required": true
+  },
+  {
+    "name": "files[].path",
+    "type": "string",
+    "description": "File path relative to the listed directory",
+    "required": true
+  },
+  {
+    "name": "files[].size",
+    "type": "number",
+    "description": "File size in bytes",
+    "required": true
+  },
+  {
+    "name": "files[].isDir",
+    "type": "boolean",
+    "description": "Whether the entry is a directory",
+    "required": true
+  },
+  {
+    "name": "files[].mode",
+    "type": "string",
+    "description": "Unix permissions as octal string (e.g., \"0644\")",
+    "required": true
+  },
+  {
+    "name": "files[].modTime",
+    "type": "string",
+    "description": "Modification time in RFC3339 format",
+    "required": true
   }
 ]} />
 
@@ -1304,25 +1864,25 @@ Snapshot creation payload.
   {
     "name": "name",
     "type": "string",
-    "description": "Snapshot name",
+    "description": "Display name for the snapshot (letters, numbers, underscores, dashes only)",
     "required": false
   },
   {
     "name": "description",
     "type": "string",
-    "description": "Snapshot description",
+    "description": "Description of the snapshot",
     "required": false
   },
   {
     "name": "tag",
     "type": "string",
-    "description": "Snapshot tag",
+    "description": "Tag for the snapshot (defaults to \"latest\")",
     "required": false
   },
   {
     "name": "public",
     "type": "boolean",
-    "description": "Make snapshot publicly accessible",
+    "description": "Make the snapshot publicly accessible",
     "required": false
   }
 ]} />
@@ -1454,13 +2014,129 @@ Returns paginated list of snapshots.
 <ResponseFields fields={[
   {
     "name": "snapshots",
-    "type": "array",
-    "description": "Array of snapshot objects"
+    "type": "object[]",
+    "description": "List of snapshot entries",
+    "required": true
+  },
+  {
+    "name": "snapshots[].snapshotId",
+    "type": "string",
+    "description": "Unique identifier for the snapshot",
+    "required": true
+  },
+  {
+    "name": "snapshots[].runtimeId",
+    "type": "string | null",
+    "description": "Runtime ID associated with this snapshot",
+    "required": false
+  },
+  {
+    "name": "snapshots[].name",
+    "type": "string",
+    "description": "Display name for the snapshot",
+    "required": true
+  },
+  {
+    "name": "snapshots[].fullName",
+    "type": "string",
+    "description": "Full name with org slug for public snapshots (@slug/name:tag)",
+    "required": false
+  },
+  {
+    "name": "snapshots[].description",
+    "type": "string | null",
+    "description": "Description of the snapshot",
+    "required": false
+  },
+  {
+    "name": "snapshots[].message",
+    "type": "string | null",
+    "description": "Build message for the snapshot",
+    "required": false
+  },
+  {
+    "name": "snapshots[].tag",
+    "type": "string | null",
+    "description": "Tag for the snapshot (defaults to \"latest\")",
+    "required": false
+  },
+  {
+    "name": "snapshots[].sizeBytes",
+    "type": "number",
+    "description": "Total size of the snapshot in bytes",
+    "required": true
+  },
+  {
+    "name": "snapshots[].fileCount",
+    "type": "number",
+    "description": "Number of files in the snapshot",
+    "required": true
+  },
+  {
+    "name": "snapshots[].parentSnapshotId",
+    "type": "string | null",
+    "description": "ID of the parent snapshot (for incremental snapshots)",
+    "required": false
+  },
+  {
+    "name": "snapshots[].public",
+    "type": "boolean",
+    "description": "Whether the snapshot is publicly accessible",
+    "required": false
+  },
+  {
+    "name": "snapshots[].orgName",
+    "type": "string",
+    "description": "Organization name (for public snapshots)",
+    "required": false
+  },
+  {
+    "name": "snapshots[].orgSlug",
+    "type": "string",
+    "description": "Organization slug (for public snapshots)",
+    "required": false
+  },
+  {
+    "name": "snapshots[].org",
+    "type": "object | null",
+    "description": "Organization details (for public snapshots)",
+    "required": false
+  },
+  {
+    "name": "snapshots[].user",
+    "type": "object | null",
+    "description": "User who pushed the snapshot (for private snapshots)",
+    "required": false
+  },
+  {
+    "name": "snapshots[].createdAt",
+    "type": "string",
+    "description": "ISO timestamp when the snapshot was created",
+    "required": true
+  },
+  {
+    "name": "snapshots[].downloadUrl",
+    "type": "string",
+    "description": "URL to download the snapshot archive",
+    "required": false
+  },
+  {
+    "name": "snapshots[].files",
+    "type": "object[] | null",
+    "description": "List of files in the snapshot",
+    "required": false
+  },
+  {
+    "name": "snapshots[].userMetadata",
+    "type": "object | null",
+    "description": "User-defined metadata key-value pairs",
+    "required": false
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total matching snapshots"
+    "description": "Total number of snapshots matching the query",
+    "required": true
   }
 ]} />
 
@@ -2005,10 +2681,22 @@ Checkpoint creation payload.
 
 <ResponseFields fields={[
   {
+    "name": "sandboxId",
+    "type": "string",
+    "description": "Sandbox ID for checkpoint creation",
+    "required": true
+  },
+  {
     "name": "name",
     "type": "string",
-    "description": "Checkpoint name",
+    "description": "Name to assign to the new checkpoint",
     "required": true
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Optional org id for CLI auth context",
+    "required": false
   }
 ]} />
 
@@ -2028,22 +2716,26 @@ Returns the created checkpoint.
   {
     "name": "id",
     "type": "string",
-    "description": "Checkpoint ID (ckpt_ prefix)"
+    "description": "Globally unique checkpoint ID (ckpt_xxx)",
+    "required": true
   },
   {
     "name": "name",
     "type": "string",
-    "description": "Checkpoint name"
+    "description": "User-provided checkpoint name",
+    "required": true
   },
   {
     "name": "createdAt",
     "type": "string",
-    "description": "Creation timestamp"
+    "description": "ISO timestamp of creation",
+    "required": true
   },
   {
     "name": "parent",
     "type": "string",
-    "description": "Parent checkpoint ID"
+    "description": "Parent checkpoint name (empty for base)",
+    "required": true
   }
 ]} />
 
@@ -2254,13 +2946,93 @@ Returns available sandbox runtimes with their requirements.
 <ResponseFields fields={[
   {
     "name": "runtimes",
-    "type": "array",
-    "description": "Array of { id, name, description, iconUrl, tags, requirements }"
+    "type": "object[]",
+    "description": "Array of runtime information",
+    "required": true
+  },
+  {
+    "name": "runtimes[].id",
+    "type": "string",
+    "description": "Unique runtime identifier",
+    "required": true
+  },
+  {
+    "name": "runtimes[].name",
+    "type": "string",
+    "description": "Runtime name (e.g., \"bun:1\", \"python:3.14\")",
+    "required": true
+  },
+  {
+    "name": "runtimes[].description",
+    "type": "string",
+    "description": "Optional description",
+    "required": false
+  },
+  {
+    "name": "runtimes[].iconUrl",
+    "type": "string",
+    "description": "URL for runtime icon",
+    "required": false
+  },
+  {
+    "name": "runtimes[].brandColor",
+    "type": "string",
+    "description": "Brand color for the runtime (hex color code)",
+    "required": false
+  },
+  {
+    "name": "runtimes[].url",
+    "type": "string",
+    "description": "URL for runtime documentation or homepage",
+    "required": false
+  },
+  {
+    "name": "runtimes[].tags",
+    "type": "string[]",
+    "description": "Optional tags for categorization",
+    "required": false
+  },
+  {
+    "name": "runtimes[].requirements",
+    "type": "object",
+    "description": "Runtime requirements (memory, cpu, disk, network)",
+    "required": false
+  },
+  {
+    "name": "runtimes[].requirements.memory",
+    "type": "string",
+    "description": "Memory requirement (e.g., \"1Gi\")",
+    "required": false
+  },
+  {
+    "name": "runtimes[].requirements.cpu",
+    "type": "string",
+    "description": "CPU requirement (e.g., \"1\")",
+    "required": false
+  },
+  {
+    "name": "runtimes[].requirements.disk",
+    "type": "string",
+    "description": "Disk requirement (e.g., \"500Mi\")",
+    "required": false
+  },
+  {
+    "name": "runtimes[].requirements.networkEnabled",
+    "type": "boolean",
+    "description": "Whether network access is enabled",
+    "required": true
+  },
+  {
+    "name": "runtimes[].readme",
+    "type": "string",
+    "description": "Readme content in markdown format",
+    "required": false
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total available runtimes"
+    "description": "Total count of runtimes",
+    "required": true
   }
 ]} />
 
@@ -2395,32 +3167,38 @@ Resolves a sandbox ID to its org, region, and project. Used for cross-org sandbo
   {
     "name": "id",
     "type": "string",
-    "description": "Sandbox ID"
+    "description": "Unique identifier for the sandbox.",
+    "required": true
   },
   {
     "name": "name",
-    "type": "string",
-    "description": "Sandbox name"
+    "type": "string | null",
+    "description": "Sandbox name, or null if unnamed.",
+    "required": true
   },
   {
     "name": "region",
     "type": "string",
-    "description": "Region identifier"
+    "description": "Cloud region where the sandbox is running.",
+    "required": true
   },
   {
     "name": "status",
     "type": "string",
-    "description": "Sandbox status"
+    "description": "Current status of the sandbox.",
+    "required": true
   },
   {
     "name": "orgId",
     "type": "string",
-    "description": "Organization ID"
+    "description": "Organization ID that owns the sandbox.",
+    "required": true
   },
   {
     "name": "projectId",
-    "type": "string",
-    "description": "Project ID"
+    "type": "string | null",
+    "description": "Project ID the sandbox belongs to, or null if unassigned.",
+    "required": true
   }
 ]} />
 

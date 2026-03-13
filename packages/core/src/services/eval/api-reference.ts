@@ -1,4 +1,6 @@
 import type { Service } from '../api-reference.ts';
+import { EvaluationSchema } from './list.ts';
+import { EvalRunSchema } from './run-list.ts';
 
 const service: Service = {
 	name: 'Evaluations',
@@ -30,17 +32,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Array of evaluation objects.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Evaluation ID' },
-				{ name: 'name', type: 'string', description: 'Evaluation name' },
-				{ name: 'description', type: 'string', description: 'Evaluation description' },
-				{ name: 'identifier', type: 'string', description: 'Unique identifier' },
-				{ name: 'agentIdentifier', type: 'string', description: 'Associated agent identifier' },
-				{ name: 'projectId', type: 'string', description: 'Project ID' },
-				{ name: 'devmode', type: 'boolean', description: 'Whether running in dev mode' },
-				{ name: 'createdAt', type: 'string', description: 'Creation timestamp' },
-				{ name: 'updatedAt', type: 'string', description: 'Last update timestamp' },
-			],
+			responseFields: { schema: EvaluationSchema },
 			statuses: [
 				{ code: 200, description: 'Evaluations returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -101,23 +93,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Array of evaluation run objects.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Eval run ID' },
-				{ name: 'sessionId', type: 'string', description: 'Session ID' },
-				{ name: 'evalId', type: 'string', description: 'Evaluation ID' },
-				{ name: 'evalIdentifier', type: 'string', description: 'Evaluation identifier' },
-				{ name: 'evalName', type: 'string', description: 'Evaluation name' },
-				{ name: 'agentIdentifier', type: 'string', description: 'Agent identifier' },
-				{ name: 'projectId', type: 'string', description: 'Project ID' },
-				{ name: 'deploymentId', type: 'string', description: 'Deployment ID' },
-				{ name: 'devmode', type: 'boolean', description: 'Whether running in dev mode' },
-				{ name: 'pending', type: 'boolean', description: 'Whether the run is pending' },
-				{ name: 'success', type: 'boolean', description: 'Whether the run succeeded' },
-				{ name: 'error', type: 'string', description: 'Error message if failed' },
-				{ name: 'result', type: 'object', description: 'Run result data' },
-				{ name: 'createdAt', type: 'string', description: 'Creation timestamp' },
-				{ name: 'updatedAt', type: 'string', description: 'Last update timestamp' },
-			],
+			responseFields: { schema: EvalRunSchema },
 			statuses: [
 				{ code: 200, description: 'Eval runs returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },

@@ -37,55 +37,127 @@ Task creation payload.
   {
     "name": "title",
     "type": "string",
-    "description": "Task title",
-    "required": true
-  },
-  {
-    "name": "type",
-    "type": "string",
-    "description": "'epic', 'feature', 'enhancement', 'bug', or 'task'",
-    "required": true
-  },
-  {
-    "name": "created_id",
-    "type": "string",
-    "description": "Creator user ID",
+    "description": "The task title (required).",
     "required": true
   },
   {
     "name": "description",
     "type": "string",
-    "description": "Task description",
+    "description": "Detailed description of the task.",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Arbitrary key-value metadata.",
     "required": false
   },
   {
     "name": "priority",
     "type": "string",
-    "description": "'high', 'medium', 'low', or 'none' (default 'none')",
-    "required": false
-  },
-  {
-    "name": "status",
-    "type": "string",
-    "description": "'open', 'in_progress', 'done', or 'cancelled' (default 'open')",
-    "required": false
-  },
-  {
-    "name": "assigned_id",
-    "type": "string",
-    "description": "Assigned user ID",
+    "description": "Priority level. Defaults to `'none'` if not provided.",
     "required": false
   },
   {
     "name": "parent_id",
     "type": "string",
-    "description": "Parent task ID for hierarchy",
+    "description": "ID of the parent task for hierarchical organization.",
     "required": false
   },
   {
+    "name": "type",
+    "type": "string",
+    "description": "The task classification (required).",
+    "required": true
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Initial status. Defaults to `'open'` if not provided.",
+    "required": false
+  },
+  {
+    "name": "created_id",
+    "type": "string",
+    "description": "ID of the creator.",
+    "required": true
+  },
+  {
+    "name": "assigned_id",
+    "type": "string",
+    "description": "ID of the assigned user.",
+    "required": false
+  },
+  {
+    "name": "creator",
+    "type": "object",
+    "description": "Reference to the user creating the task (id, name, and optional type).",
+    "required": false
+  },
+  {
+    "name": "creator.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "creator.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "creator.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "assignee",
+    "type": "object",
+    "description": "Reference to the user being assigned the task.",
+    "required": false
+  },
+  {
+    "name": "assignee.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "assignee.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "assignee.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "project",
+    "type": "object",
+    "description": "Reference to the project this task belongs to.",
+    "required": false
+  },
+  {
+    "name": "project.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "project.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
     "name": "tag_ids",
-    "type": "array",
-    "description": "Tag IDs to associate",
+    "type": "string[]",
+    "description": "Array of tag IDs to associate with the task at creation.",
     "required": false
   }
 ]} />
@@ -260,23 +332,321 @@ Returns paginated list of tasks.
 <ResponseFields fields={[
   {
     "name": "tasks",
-    "type": "array",
-    "description": "Array of task objects"
+    "type": "object[]",
+    "description": "Array of tasks matching the query.",
+    "required": true
+  },
+  {
+    "name": "tasks[].id",
+    "type": "string",
+    "description": "Unique identifier for the task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was created.",
+    "required": true
+  },
+  {
+    "name": "tasks[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was last modified.",
+    "required": true
+  },
+  {
+    "name": "tasks[].title",
+    "type": "string",
+    "description": "The task title.",
+    "required": true
+  },
+  {
+    "name": "tasks[].description",
+    "type": "string",
+    "description": "Detailed description of the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].metadata",
+    "type": "object",
+    "description": "Arbitrary key-value metadata attached to the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].priority",
+    "type": "string",
+    "description": "The priority level of the task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].parent_id",
+    "type": "string",
+    "description": "ID of the parent task, enabling hierarchical task organization",
+    "required": false
+  },
+  {
+    "name": "tasks[].type",
+    "type": "string",
+    "description": "The classification of this task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].status",
+    "type": "string",
+    "description": "The current lifecycle status of the task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].open_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was moved to `'open'` status.",
+    "required": false
+  },
+  {
+    "name": "tasks[].in_progress_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was moved to `'in_progress'` status.",
+    "required": false
+  },
+  {
+    "name": "tasks[].closed_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was closed.",
+    "required": false
+  },
+  {
+    "name": "tasks[].created_id",
+    "type": "string",
+    "description": "ID of the user who created the task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].assigned_id",
+    "type": "string",
+    "description": "ID of the user the task is assigned to.",
+    "required": false
+  },
+  {
+    "name": "tasks[].closed_id",
+    "type": "string",
+    "description": "ID of the user who closed the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].creator",
+    "type": "object",
+    "description": "Reference to the user who created the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].creator.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].creator.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].creator.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "tasks[].assignee",
+    "type": "object",
+    "description": "Reference to the user the task is assigned to.",
+    "required": false
+  },
+  {
+    "name": "tasks[].assignee.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].assignee.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].assignee.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "tasks[].closer",
+    "type": "object",
+    "description": "Reference to the user who closed the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].closer.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].closer.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].closer.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "tasks[].project",
+    "type": "object",
+    "description": "Reference to the project this task belongs to.",
+    "required": false
+  },
+  {
+    "name": "tasks[].project.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].project.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].cancelled_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was cancelled.",
+    "required": false
+  },
+  {
+    "name": "tasks[].tags",
+    "type": "object[]",
+    "description": "Array of tags associated with this task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].tags[].id",
+    "type": "string",
+    "description": "Unique identifier for the tag.",
+    "required": true
+  },
+  {
+    "name": "tasks[].tags[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the tag was created.",
+    "required": true
+  },
+  {
+    "name": "tasks[].tags[].name",
+    "type": "string",
+    "description": "Display name of the tag.",
+    "required": true
+  },
+  {
+    "name": "tasks[].tags[].color",
+    "type": "string",
+    "description": "Optional hex color code for the tag.",
+    "required": false
+  },
+  {
+    "name": "tasks[].comments",
+    "type": "object[]",
+    "description": "Array of comments on this task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].comments[].id",
+    "type": "string",
+    "description": "Unique identifier for the comment.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the comment was created.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the comment was last edited.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].task_id",
+    "type": "string",
+    "description": "ID of the task this comment belongs to.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].user_id",
+    "type": "string",
+    "description": "ID of the user who authored the comment.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].author",
+    "type": "object",
+    "description": "Reference to the comment author with display name.",
+    "required": false
+  },
+  {
+    "name": "tasks[].comments[].author.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].author.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].author.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "tasks[].comments[].body",
+    "type": "string",
+    "description": "The comment text content.",
+    "required": true
+  },
+  {
+    "name": "tasks[].subtask_count",
+    "type": "number",
+    "description": "Number of direct child tasks (subtasks). Only included in list responses.",
+    "required": false
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total matching tasks"
+    "description": "Total number of tasks matching the filters (before pagination).",
+    "required": true
   },
   {
     "name": "limit",
     "type": "number",
-    "description": "Limit applied"
+    "description": "The limit that was applied.",
+    "required": true
   },
   {
     "name": "offset",
     "type": "number",
-    "description": "Offset applied"
+    "description": "The offset that was applied.",
+    "required": true
   }
 ]} />
 
@@ -312,44 +682,122 @@ Task update payload. All fields are optional.
   {
     "name": "title",
     "type": "string",
-    "description": "Task title",
+    "description": "Updated task title.",
     "required": false
   },
   {
     "name": "description",
     "type": "string",
-    "description": "Task description",
+    "description": "Updated description.",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Updated key-value metadata.",
     "required": false
   },
   {
     "name": "priority",
     "type": "string",
-    "description": "Task priority",
-    "required": false
-  },
-  {
-    "name": "status",
-    "type": "string",
-    "description": "Task status",
-    "required": false
-  },
-  {
-    "name": "type",
-    "type": "string",
-    "description": "Task type",
-    "required": false
-  },
-  {
-    "name": "assigned_id",
-    "type": "string",
-    "description": "Assigned user ID",
+    "description": "Updated priority level.",
     "required": false
   },
   {
     "name": "parent_id",
     "type": "string",
-    "description": "Parent task ID",
+    "description": "Updated parent task ID.",
     "required": false
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "Updated task classification.",
+    "required": false
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Updated lifecycle status.",
+    "required": false
+  },
+  {
+    "name": "assigned_id",
+    "type": "string",
+    "description": "Updated assigned user ID.",
+    "required": false
+  },
+  {
+    "name": "closed_id",
+    "type": "string",
+    "description": "ID of the user closing the task.",
+    "required": false
+  },
+  {
+    "name": "assignee",
+    "type": "object",
+    "description": "Reference to the user being assigned the task.",
+    "required": false
+  },
+  {
+    "name": "assignee.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "assignee.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "assignee.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "closer",
+    "type": "object",
+    "description": "Reference to the user closing the task.",
+    "required": false
+  },
+  {
+    "name": "closer.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "closer.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "closer.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "project",
+    "type": "object",
+    "description": "Reference to the project this task belongs to.",
+    "required": false
+  },
+  {
+    "name": "project.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "project.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
   }
 ]} />
 
@@ -456,43 +904,43 @@ Batch delete filter payload.
   {
     "name": "status",
     "type": "string",
-    "description": "Filter by status",
+    "description": "Filter by task status.",
     "required": false
   },
   {
     "name": "type",
     "type": "string",
-    "description": "Filter by type",
+    "description": "Filter by task type.",
     "required": false
   },
   {
     "name": "priority",
     "type": "string",
-    "description": "Filter by priority",
+    "description": "Filter by priority level.",
     "required": false
   },
   {
     "name": "parent_id",
     "type": "string",
-    "description": "Filter by parent task",
+    "description": "Filter by parent task ID (delete subtasks).",
     "required": false
   },
   {
     "name": "created_id",
     "type": "string",
-    "description": "Filter by creator",
+    "description": "Filter by creator ID.",
     "required": false
   },
   {
     "name": "older_than",
     "type": "string",
-    "description": "Duration string: '30m', '24h', '7d', '2w' (supported units: s, m, h, d, w)",
+    "description": "Delete tasks older than this duration.",
     "required": false
   },
   {
     "name": "limit",
     "type": "number",
-    "description": "Max 200",
+    "description": "Maximum number of tasks to delete.",
     "required": false
   }
 ]} />
@@ -511,13 +959,27 @@ Returns the list of deleted tasks and count.
 <ResponseFields fields={[
   {
     "name": "deleted",
-    "type": "array",
-    "description": "Array of { id, title }"
+    "type": "object[]",
+    "description": "Array of tasks that were deleted.",
+    "required": true
+  },
+  {
+    "name": "deleted[].id",
+    "type": "string",
+    "description": "The ID of the deleted task.",
+    "required": true
+  },
+  {
+    "name": "deleted[].title",
+    "type": "string",
+    "description": "The title of the deleted task.",
+    "required": true
   },
   {
     "name": "count",
     "type": "number",
-    "description": "Number of tasks deleted"
+    "description": "Total number of tasks deleted.",
+    "required": true
   }
 ]} />
 
@@ -578,23 +1040,63 @@ Returns the changelog entries for the task.
 <ResponseFields fields={[
   {
     "name": "changelog",
-    "type": "array",
-    "description": "Array of { id, created_at, task_id, field, old_value, new_value }"
+    "type": "object[]",
+    "description": "Array of change records.",
+    "required": true
+  },
+  {
+    "name": "changelog[].id",
+    "type": "string",
+    "description": "Unique identifier for the changelog entry.",
+    "required": true
+  },
+  {
+    "name": "changelog[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the change occurred.",
+    "required": true
+  },
+  {
+    "name": "changelog[].task_id",
+    "type": "string",
+    "description": "ID of the task that was changed.",
+    "required": true
+  },
+  {
+    "name": "changelog[].field",
+    "type": "string",
+    "description": "Name of the field that was changed.",
+    "required": true
+  },
+  {
+    "name": "changelog[].old_value",
+    "type": "string",
+    "description": "The previous value of the field (as a string), or `undefined` if the field was newly set.",
+    "required": false
+  },
+  {
+    "name": "changelog[].new_value",
+    "type": "string",
+    "description": "The new value of the field (as a string), or `undefined` if the field was cleared.",
+    "required": false
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total changelog entries"
+    "description": "Total number of changelog entries.",
+    "required": true
   },
   {
     "name": "limit",
     "type": "number",
-    "description": "Limit applied"
+    "description": "Applied limit.",
+    "required": true
   },
   {
     "name": "offset",
     "type": "number",
-    "description": "Offset applied"
+    "description": "Applied offset.",
+    "required": true
   }
 ]} />
 
@@ -826,23 +1328,87 @@ Returns paginated list of comments.
 <ResponseFields fields={[
   {
     "name": "comments",
-    "type": "array",
-    "description": "Array of comment objects"
+    "type": "object[]",
+    "description": "Array of comments.",
+    "required": true
+  },
+  {
+    "name": "comments[].id",
+    "type": "string",
+    "description": "Unique identifier for the comment.",
+    "required": true
+  },
+  {
+    "name": "comments[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the comment was created.",
+    "required": true
+  },
+  {
+    "name": "comments[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the comment was last edited.",
+    "required": true
+  },
+  {
+    "name": "comments[].task_id",
+    "type": "string",
+    "description": "ID of the task this comment belongs to.",
+    "required": true
+  },
+  {
+    "name": "comments[].user_id",
+    "type": "string",
+    "description": "ID of the user who authored the comment.",
+    "required": true
+  },
+  {
+    "name": "comments[].author",
+    "type": "object",
+    "description": "Reference to the comment author with display name.",
+    "required": false
+  },
+  {
+    "name": "comments[].author.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "comments[].author.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "comments[].author.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "comments[].body",
+    "type": "string",
+    "description": "The comment text content.",
+    "required": true
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total comments"
+    "description": "Total number of comments.",
+    "required": true
   },
   {
     "name": "limit",
     "type": "number",
-    "description": "Limit applied"
+    "description": "Applied limit.",
+    "required": true
   },
   {
     "name": "offset",
     "type": "number",
-    "description": "Offset applied"
+    "description": "Applied offset.",
+    "required": true
   }
 ]} />
 
@@ -1190,19 +1756,19 @@ Upload request payload.
   {
     "name": "filename",
     "type": "string",
-    "description": "File name",
+    "description": "The filename for the attachment (required).",
     "required": true
   },
   {
     "name": "content_type",
     "type": "string",
-    "description": "MIME type",
+    "description": "MIME type of the file.",
     "required": false
   },
   {
     "name": "size",
     "type": "number",
-    "description": "File size in bytes",
+    "description": "File size in bytes.",
     "required": false
   }
 ]} />
@@ -1223,17 +1789,86 @@ Returns a presigned upload URL. Upload the file via PUT to the URL, then call co
   {
     "name": "attachment",
     "type": "object",
-    "description": "Attachment metadata"
+    "description": "The created attachment record.",
+    "required": true
+  },
+  {
+    "name": "attachment.id",
+    "type": "string",
+    "description": "Unique identifier for the attachment.",
+    "required": true
+  },
+  {
+    "name": "attachment.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the attachment was uploaded.",
+    "required": true
+  },
+  {
+    "name": "attachment.task_id",
+    "type": "string",
+    "description": "ID of the task this attachment belongs to.",
+    "required": true
+  },
+  {
+    "name": "attachment.user_id",
+    "type": "string",
+    "description": "ID of the user who uploaded the attachment.",
+    "required": true
+  },
+  {
+    "name": "attachment.author",
+    "type": "object",
+    "description": "Reference to the uploader with display name.",
+    "required": false
+  },
+  {
+    "name": "attachment.author.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "attachment.author.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "attachment.author.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "attachment.filename",
+    "type": "string",
+    "description": "Original filename of the uploaded file.",
+    "required": true
+  },
+  {
+    "name": "attachment.content_type",
+    "type": "string",
+    "description": "MIME type of the file.",
+    "required": false
+  },
+  {
+    "name": "attachment.size",
+    "type": "number",
+    "description": "File size in bytes.",
+    "required": false
   },
   {
     "name": "presigned_url",
     "type": "string",
-    "description": "Upload URL"
+    "description": "A presigned S3 URL to upload the file content via HTTP PUT.",
+    "required": true
   },
   {
     "name": "expiry_seconds",
     "type": "number",
-    "description": "URL expiration time in seconds"
+    "description": "Number of seconds until the presigned URL expires.",
+    "required": true
   }
 ]} />
 
@@ -1314,12 +1949,14 @@ Returns a presigned download URL.
   {
     "name": "presigned_url",
     "type": "string",
-    "description": "Download URL"
+    "description": "A presigned S3 URL to download the file via HTTP GET.",
+    "required": true
   },
   {
     "name": "expiry_seconds",
     "type": "number",
-    "description": "URL expiration time in seconds"
+    "description": "Number of seconds until the presigned URL expires.",
+    "required": true
   }
 ]} />
 
@@ -1362,13 +1999,81 @@ Returns list of attachments.
 <ResponseFields fields={[
   {
     "name": "attachments",
-    "type": "array",
-    "description": "Array of attachment objects"
+    "type": "object[]",
+    "description": "Array of attachment records.",
+    "required": true
+  },
+  {
+    "name": "attachments[].id",
+    "type": "string",
+    "description": "Unique identifier for the attachment.",
+    "required": true
+  },
+  {
+    "name": "attachments[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the attachment was uploaded.",
+    "required": true
+  },
+  {
+    "name": "attachments[].task_id",
+    "type": "string",
+    "description": "ID of the task this attachment belongs to.",
+    "required": true
+  },
+  {
+    "name": "attachments[].user_id",
+    "type": "string",
+    "description": "ID of the user who uploaded the attachment.",
+    "required": true
+  },
+  {
+    "name": "attachments[].author",
+    "type": "object",
+    "description": "Reference to the uploader with display name.",
+    "required": false
+  },
+  {
+    "name": "attachments[].author.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "attachments[].author.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "attachments[].author.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "attachments[].filename",
+    "type": "string",
+    "description": "Original filename of the uploaded file.",
+    "required": true
+  },
+  {
+    "name": "attachments[].content_type",
+    "type": "string",
+    "description": "MIME type of the file.",
+    "required": false
+  },
+  {
+    "name": "attachments[].size",
+    "type": "number",
+    "description": "File size in bytes.",
+    "required": false
   },
   {
     "name": "total",
     "type": "number",
-    "description": "Total attachments"
+    "description": "Total number of attachments.",
+    "required": true
   }
 ]} />
 
@@ -1436,8 +2141,27 @@ Returns list of user entities.
 <ResponseFields fields={[
   {
     "name": "users",
-    "type": "array",
-    "description": "Array of { id, name, type }"
+    "type": "object[]",
+    "description": "Array of user entity references with type information.",
+    "required": true
+  },
+  {
+    "name": "users[].id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "users[].name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "users[].type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
   }
 ]} />
 
@@ -1582,8 +2306,21 @@ Returns list of project entities.
 <ResponseFields fields={[
   {
     "name": "projects",
-    "type": "array",
-    "description": "Array of { id, name }"
+    "type": "object[]",
+    "description": "Array of project entity references.",
+    "required": true
+  },
+  {
+    "name": "projects[].id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "projects[].name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
   }
 ]} />
 
@@ -1740,13 +2477,45 @@ Returns daily activity counts grouped by status.
 <ResponseFields fields={[
   {
     "name": "activity",
-    "type": "array",
-    "description": "Array of { date, open, inProgress, done, cancelled }"
+    "type": "object[]",
+    "description": "Array of daily activity snapshots, ordered chronologically.",
+    "required": true
+  },
+  {
+    "name": "activity[].date",
+    "type": "string",
+    "description": "The date in `YYYY-MM-DD` format.",
+    "required": true
+  },
+  {
+    "name": "activity[].open",
+    "type": "number",
+    "description": "Number of tasks in `'open'` status on this date.",
+    "required": true
+  },
+  {
+    "name": "activity[].inProgress",
+    "type": "number",
+    "description": "Number of tasks in `'in_progress'` status on this date.",
+    "required": true
+  },
+  {
+    "name": "activity[].done",
+    "type": "number",
+    "description": "Number of tasks in `'done'` status on this date.",
+    "required": true
+  },
+  {
+    "name": "activity[].cancelled",
+    "type": "number",
+    "description": "Number of tasks in `'cancelled'` status on this date.",
+    "required": true
   },
   {
     "name": "days",
     "type": "number",
-    "description": "Number of days in the response"
+    "description": "The number of days of data returned.",
+    "required": true
   }
 ]} />
 

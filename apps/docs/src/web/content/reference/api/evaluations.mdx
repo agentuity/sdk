@@ -66,47 +66,56 @@ Array of evaluation objects.
   {
     "name": "id",
     "type": "string",
-    "description": "Evaluation ID"
+    "description": "Evaluation ID",
+    "required": true
   },
   {
     "name": "name",
     "type": "string",
-    "description": "Evaluation name"
+    "description": "Evaluation name",
+    "required": true
   },
   {
     "name": "description",
-    "type": "string",
-    "description": "Evaluation description"
+    "type": "string | null",
+    "description": "Evaluation description",
+    "required": true
   },
   {
     "name": "identifier",
-    "type": "string",
-    "description": "Unique identifier"
+    "type": "string | null",
+    "description": "Stable evaluation identifier",
+    "required": true
   },
   {
     "name": "agentIdentifier",
     "type": "string",
-    "description": "Associated agent identifier"
+    "description": "Agent identifier",
+    "required": true
   },
   {
     "name": "projectId",
     "type": "string",
-    "description": "Project ID"
+    "description": "Project ID",
+    "required": true
   },
   {
     "name": "devmode",
     "type": "boolean",
-    "description": "Whether running in dev mode"
+    "description": "Whether this is a devmode evaluation",
+    "required": true
   },
   {
     "name": "createdAt",
     "type": "string",
-    "description": "Creation timestamp"
+    "description": "Creation timestamp",
+    "required": true
   },
   {
     "name": "updatedAt",
     "type": "string",
-    "description": "Last update timestamp"
+    "description": "Last updated timestamp",
+    "required": true
   }
 ]} />
 
@@ -213,77 +222,92 @@ Array of evaluation run objects.
   {
     "name": "id",
     "type": "string",
-    "description": "Eval run ID"
+    "description": "Eval run ID",
+    "required": true
   },
   {
     "name": "sessionId",
     "type": "string",
-    "description": "Session ID"
+    "description": "Session ID",
+    "required": true
   },
   {
     "name": "evalId",
     "type": "string",
-    "description": "Evaluation ID"
+    "description": "Evaluation record ID",
+    "required": true
   },
   {
     "name": "evalIdentifier",
-    "type": "string",
-    "description": "Evaluation identifier"
+    "type": "string | null",
+    "description": "Stable evaluation identifier",
+    "required": true
   },
   {
     "name": "evalName",
-    "type": "string",
-    "description": "Evaluation name"
+    "type": "string | null",
+    "description": "Evaluation name",
+    "required": true
   },
   {
     "name": "agentIdentifier",
-    "type": "string",
-    "description": "Agent identifier"
+    "type": "string | null",
+    "description": "Agent identifier",
+    "required": true
   },
   {
     "name": "projectId",
     "type": "string",
-    "description": "Project ID"
+    "description": "Project ID",
+    "required": true
   },
   {
     "name": "deploymentId",
-    "type": "string",
-    "description": "Deployment ID"
+    "type": "string | null",
+    "description": "Deployment ID",
+    "required": true
   },
   {
     "name": "devmode",
     "type": "boolean",
-    "description": "Whether running in dev mode"
+    "description": "Whether this is a devmode run",
+    "required": true
   },
   {
     "name": "pending",
     "type": "boolean",
-    "description": "Whether the run is pending"
+    "description": "Whether the eval run is pending",
+    "required": true
   },
   {
     "name": "success",
     "type": "boolean",
-    "description": "Whether the run succeeded"
+    "description": "Whether the eval run succeeded",
+    "required": true
   },
   {
     "name": "error",
-    "type": "string",
-    "description": "Error message if failed"
+    "type": "string | null",
+    "description": "Error message if failed",
+    "required": true
   },
   {
     "name": "result",
-    "type": "object",
-    "description": "Run result data"
+    "type": "any | null",
+    "description": "Eval run result",
+    "required": true
   },
   {
     "name": "createdAt",
     "type": "string",
-    "description": "Creation timestamp"
+    "description": "Creation timestamp",
+    "required": true
   },
   {
     "name": "updatedAt",
     "type": "string",
-    "description": "Last update timestamp"
+    "description": "Last updated timestamp",
+    "required": true
   }
 ]} />
 

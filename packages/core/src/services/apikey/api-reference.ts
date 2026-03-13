@@ -1,4 +1,6 @@
 import type { Service } from '../api-reference.ts';
+import { APIKeyCreateRequestSchema, APIKeyCreateResponseSchema } from './create.ts';
+import { APIKeySchema } from './list.ts';
 
 const service: Service = {
 	name: 'API Keys',
@@ -15,43 +17,11 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'API key creation payload.',
-				fields: [
-					{
-						name: 'name',
-						type: 'string',
-						description: 'Display name for the API key',
-						required: true,
-					},
-					{
-						name: 'expiresAt',
-						type: 'string',
-						description: 'ISO 8601 expiration timestamp',
-						required: true,
-					},
-					{
-						name: 'projectId',
-						type: 'string',
-						description: 'Scope to a specific project',
-						required: false,
-					},
-					{
-						name: 'orgId',
-						type: 'string',
-						description: 'Scope to a specific organization',
-						required: false,
-					},
-				],
+				fields: { schema: APIKeyCreateRequestSchema },
 			},
 			responseDescription:
 				'Returns the new key ID and value. The value is only returned at creation time.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'API key ID' },
-				{
-					name: 'value',
-					type: 'string',
-					description: 'The API key — only returned at creation',
-				},
-			],
+			responseFields: { schema: APIKeyCreateResponseSchema },
 			statuses: [
 				{ code: 201, description: 'API key created' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -82,16 +52,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Array of API key objects.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'API key ID' },
-				{ name: 'name', type: 'string', description: 'Display name' },
-				{ name: 'orgId', type: 'string', description: 'Organization ID' },
-				{ name: 'type', type: 'string', description: 'Key type' },
-				{ name: 'expiresAt', type: 'string', description: 'Expiration timestamp' },
-				{ name: 'lastUsedAt', type: 'string', description: 'Last usage timestamp' },
-				{ name: 'createdAt', type: 'string', description: 'Creation timestamp' },
-				{ name: 'project', type: 'object', description: 'Associated project details' },
-			],
+			responseFields: { schema: APIKeySchema },
 			statuses: [
 				{ code: 200, description: 'API keys returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },

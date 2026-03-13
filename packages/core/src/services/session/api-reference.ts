@@ -1,4 +1,7 @@
 import type { Service } from '../api-reference.ts';
+import { EnrichedSessionDataSchema } from './get.ts';
+import { SessionSchema } from './list.ts';
+import { LogSchema } from './logs.ts';
 
 const service: Service = {
 	name: 'Sessions',
@@ -103,24 +106,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns sessions matching the specified filters.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Session ID' },
-				{ name: 'start_time', type: 'string', description: 'Session start timestamp' },
-				{ name: 'end_time', type: 'string', description: 'Session end timestamp' },
-				{ name: 'duration', type: 'number', description: 'Duration in nanoseconds' },
-				{ name: 'org_id', type: 'string', description: 'Organization ID' },
-				{ name: 'project_id', type: 'string', description: 'Project ID' },
-				{ name: 'deployment_id', type: 'string', description: 'Deployment ID' },
-				{ name: 'agent_ids', type: 'array', description: 'Agent IDs involved in the session' },
-				{ name: 'trigger', type: 'string', description: 'Session trigger type' },
-				{ name: 'env', type: 'string', description: 'Environment' },
-				{ name: 'devmode', type: 'boolean', description: 'Whether devmode was active' },
-				{ name: 'success', type: 'boolean', description: 'Whether the session succeeded' },
-				{ name: 'error', type: 'string', description: 'Error message if failed' },
-				{ name: 'llm_cost', type: 'number', description: 'LLM cost for the session' },
-				{ name: 'total_cost', type: 'number', description: 'Total cost for the session' },
-				{ name: 'thread_id', type: 'string', description: 'Associated thread ID' },
-			],
+			responseFields: { schema: SessionSchema },
 			statuses: [
 				{ code: 200, description: 'Sessions returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -139,12 +125,7 @@ const service: Service = {
 			requestBody: null,
 			responseDescription:
 				'Returns the session with enriched data including agent info, eval runs, and route details.',
-			responseFields: [
-				{ name: 'session', type: 'object', description: 'Full session data' },
-				{ name: 'agents', type: 'array', description: 'Agent names and identifiers' },
-				{ name: 'eval_runs', type: 'array', description: 'Associated evaluation runs' },
-				{ name: 'route', type: 'object', description: 'Route info (id, method, path) or null' },
-			],
+			responseFields: { schema: EnrichedSessionDataSchema },
 			statuses: [
 				{ code: 200, description: 'Session returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -163,11 +144,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns log entries for the session.',
-			responseFields: [
-				{ name: 'body', type: 'string', description: 'Log message' },
-				{ name: 'severity', type: 'string', description: 'Log level' },
-				{ name: 'timestamp', type: 'string', description: 'ISO 8601' },
-			],
+			responseFields: { schema: LogSchema },
 			statuses: [
 				{ code: 200, description: 'Logs returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },

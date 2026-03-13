@@ -94,42 +94,62 @@ Array of thread objects.
   {
     "name": "id",
     "type": "string",
-    "description": "Thread ID"
+    "description": "the thread id",
+    "required": true
   },
   {
     "name": "created_at",
     "type": "string",
-    "description": "Creation timestamp"
+    "description": "the creation timestamp",
+    "required": true
   },
   {
     "name": "updated_at",
     "type": "string",
-    "description": "Last update timestamp"
+    "description": "the last update timestamp",
+    "required": true
   },
   {
     "name": "deleted",
     "type": "boolean",
-    "description": "Whether the thread is deleted"
+    "description": "whether the thread is deleted",
+    "required": true
+  },
+  {
+    "name": "deleted_at",
+    "type": "string | null",
+    "description": "the deletion timestamp",
+    "required": true
+  },
+  {
+    "name": "deleted_by",
+    "type": "string | null",
+    "description": "who deleted the thread",
+    "required": true
   },
   {
     "name": "org_id",
     "type": "string",
-    "description": "Organization ID"
+    "description": "the organization id",
+    "required": true
   },
   {
     "name": "project_id",
     "type": "string",
-    "description": "Project ID"
+    "description": "the project id",
+    "required": true
   },
   {
     "name": "user_data",
-    "type": "object",
-    "description": "User-defined data"
+    "type": "string | null",
+    "description": "the user data as JSON",
+    "required": false
   },
   {
     "name": "metadata",
-    "type": "object",
-    "description": "Thread metadata"
+    "type": "object | null",
+    "description": "unencrypted key-value metadata",
+    "required": false
   }
 ]} />
 

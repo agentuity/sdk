@@ -1,3 +1,19 @@
+import {
+	BatchDeleteTasksParamsSchema,
+	BatchDeleteTasksResultSchema,
+	CreateAttachmentParamsSchema,
+	CreateTaskParamsSchema,
+	ListAttachmentsResultSchema,
+	ListCommentsResultSchema,
+	ListProjectsResultSchema,
+	ListTasksResultSchema,
+	ListUsersResultSchema,
+	PresignDownloadResponseSchema,
+	PresignUploadResponseSchema,
+	TaskActivityResultSchema,
+	TaskChangelogResultSchema,
+	UpdateTaskParamsSchema,
+} from './service.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -18,57 +34,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Task creation payload.',
-				fields: [
-					{ name: 'title', type: 'string', description: 'Task title', required: true },
-					{
-						name: 'type',
-						type: 'string',
-						description: "'epic', 'feature', 'enhancement', 'bug', or 'task'",
-						required: true,
-					},
-					{
-						name: 'created_id',
-						type: 'string',
-						description: 'Creator user ID',
-						required: true,
-					},
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Task description',
-						required: false,
-					},
-					{
-						name: 'priority',
-						type: 'string',
-						description: "'high', 'medium', 'low', or 'none' (default 'none')",
-						required: false,
-					},
-					{
-						name: 'status',
-						type: 'string',
-						description: "'open', 'in_progress', 'done', or 'cancelled' (default 'open')",
-						required: false,
-					},
-					{
-						name: 'assigned_id',
-						type: 'string',
-						description: 'Assigned user ID',
-						required: false,
-					},
-					{
-						name: 'parent_id',
-						type: 'string',
-						description: 'Parent task ID for hierarchy',
-						required: false,
-					},
-					{
-						name: 'tag_ids',
-						type: 'array',
-						description: 'Tag IDs to associate',
-						required: false,
-					},
-				],
+				fields: { schema: CreateTaskParamsSchema },
 			},
 			responseDescription: 'Returns the created task.',
 			statuses: [
@@ -166,12 +132,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns paginated list of tasks.',
-			responseFields: [
-				{ name: 'tasks', type: 'array', description: 'Array of task objects' },
-				{ name: 'total', type: 'number', description: 'Total matching tasks' },
-				{ name: 'limit', type: 'number', description: 'Limit applied' },
-				{ name: 'offset', type: 'number', description: 'Offset applied' },
-			],
+			responseFields: { schema: ListTasksResultSchema },
 			statuses: [
 				{ code: 200, description: 'Tasks returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -189,30 +150,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Task update payload. All fields are optional.',
-				fields: [
-					{ name: 'title', type: 'string', description: 'Task title', required: false },
-					{
-						name: 'description',
-						type: 'string',
-						description: 'Task description',
-						required: false,
-					},
-					{ name: 'priority', type: 'string', description: 'Task priority', required: false },
-					{ name: 'status', type: 'string', description: 'Task status', required: false },
-					{ name: 'type', type: 'string', description: 'Task type', required: false },
-					{
-						name: 'assigned_id',
-						type: 'string',
-						description: 'Assigned user ID',
-						required: false,
-					},
-					{
-						name: 'parent_id',
-						type: 'string',
-						description: 'Parent task ID',
-						required: false,
-					},
-				],
+				fields: { schema: UpdateTaskParamsSchema },
 			},
 			responseDescription: 'Returns the updated task.',
 			statuses: [
@@ -272,42 +210,10 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Batch delete filter payload.',
-				fields: [
-					{ name: 'status', type: 'string', description: 'Filter by status', required: false },
-					{ name: 'type', type: 'string', description: 'Filter by type', required: false },
-					{
-						name: 'priority',
-						type: 'string',
-						description: 'Filter by priority',
-						required: false,
-					},
-					{
-						name: 'parent_id',
-						type: 'string',
-						description: 'Filter by parent task',
-						required: false,
-					},
-					{
-						name: 'created_id',
-						type: 'string',
-						description: 'Filter by creator',
-						required: false,
-					},
-					{
-						name: 'older_than',
-						type: 'string',
-						description:
-							"Duration string: '30m', '24h', '7d', '2w' (supported units: s, m, h, d, w)",
-						required: false,
-					},
-					{ name: 'limit', type: 'number', description: 'Max 200', required: false },
-				],
+				fields: { schema: BatchDeleteTasksParamsSchema },
 			},
 			responseDescription: 'Returns the list of deleted tasks and count.',
-			responseFields: [
-				{ name: 'deleted', type: 'array', description: 'Array of { id, title }' },
-				{ name: 'count', type: 'number', description: 'Number of tasks deleted' },
-			],
+			responseFields: { schema: BatchDeleteTasksResultSchema },
 			statuses: [
 				{ code: 200, description: 'Tasks deleted' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -334,16 +240,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns the changelog entries for the task.',
-			responseFields: [
-				{
-					name: 'changelog',
-					type: 'array',
-					description: 'Array of { id, created_at, task_id, field, old_value, new_value }',
-				},
-				{ name: 'total', type: 'number', description: 'Total changelog entries' },
-				{ name: 'limit', type: 'number', description: 'Limit applied' },
-				{ name: 'offset', type: 'number', description: 'Offset applied' },
-			],
+			responseFields: { schema: TaskChangelogResultSchema },
 			statuses: [
 				{ code: 200, description: 'Changelog returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -467,12 +364,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns paginated list of comments.',
-			responseFields: [
-				{ name: 'comments', type: 'array', description: 'Array of comment objects' },
-				{ name: 'total', type: 'number', description: 'Total comments' },
-				{ name: 'limit', type: 'number', description: 'Limit applied' },
-				{ name: 'offset', type: 'number', description: 'Offset applied' },
-			],
+			responseFields: { schema: ListCommentsResultSchema },
 			statuses: [
 				{ code: 200, description: 'Comments returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -655,23 +547,11 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Upload request payload.',
-				fields: [
-					{ name: 'filename', type: 'string', description: 'File name', required: true },
-					{ name: 'content_type', type: 'string', description: 'MIME type', required: false },
-					{ name: 'size', type: 'number', description: 'File size in bytes', required: false },
-				],
+				fields: { schema: CreateAttachmentParamsSchema },
 			},
 			responseDescription:
 				'Returns a presigned upload URL. Upload the file via PUT to the URL, then call confirm.',
-			responseFields: [
-				{ name: 'attachment', type: 'object', description: 'Attachment metadata' },
-				{ name: 'presigned_url', type: 'string', description: 'Upload URL' },
-				{
-					name: 'expiry_seconds',
-					type: 'number',
-					description: 'URL expiration time in seconds',
-				},
-			],
+			responseFields: { schema: PresignUploadResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Presigned URL returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -713,14 +593,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns a presigned download URL.',
-			responseFields: [
-				{ name: 'presigned_url', type: 'string', description: 'Download URL' },
-				{
-					name: 'expiry_seconds',
-					type: 'number',
-					description: 'URL expiration time in seconds',
-				},
-			],
+			responseFields: { schema: PresignDownloadResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Presigned URL returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -739,10 +612,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns list of attachments.',
-			responseFields: [
-				{ name: 'attachments', type: 'array', description: 'Array of attachment objects' },
-				{ name: 'total', type: 'number', description: 'Total attachments' },
-			],
+			responseFields: { schema: ListAttachmentsResultSchema },
 			statuses: [
 				{ code: 200, description: 'Attachments returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -782,9 +652,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns list of user entities.',
-			responseFields: [
-				{ name: 'users', type: 'array', description: 'Array of { id, name, type }' },
-			],
+			responseFields: { schema: ListUsersResultSchema },
 			statuses: [
 				{ code: 200, description: 'Users returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -866,9 +734,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Returns list of project entities.',
-			responseFields: [
-				{ name: 'projects', type: 'array', description: 'Array of { id, name }' },
-			],
+			responseFields: { schema: ListProjectsResultSchema },
 			statuses: [
 				{ code: 200, description: 'Projects returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -962,14 +828,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns daily activity counts grouped by status.',
-			responseFields: [
-				{
-					name: 'activity',
-					type: 'array',
-					description: 'Array of { date, open, inProgress, done, cancelled }',
-				},
-				{ name: 'days', type: 'number', description: 'Number of days in the response' },
-			],
+			responseFields: { schema: TaskActivityResultSchema },
 			statuses: [
 				{ code: 200, description: 'Activity timeline returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
