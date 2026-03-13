@@ -1,3 +1,8 @@
+import {
+	CreateStreamApiRequestSchema,
+	ListStreamsApiRequestSchema,
+	StreamInfoApiSchema,
+} from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -16,32 +21,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Stream creation payload.',
-				fields: [
-					{
-						name: 'name',
-						type: 'string',
-						description: 'The namespace/group name (1–254 chars)',
-						required: true,
-					},
-					{
-						name: 'metadata',
-						type: 'object',
-						description: 'Optional key-value metadata',
-						required: false,
-					},
-					{
-						name: 'headers',
-						type: 'object',
-						description: 'Optional headers map (commonly includes `content-type`)',
-						required: false,
-					},
-					{
-						name: 'ttl',
-						type: 'number | null',
-						description: 'Stream TTL in seconds',
-						required: false,
-					},
-				],
+				fields: { schema: CreateStreamApiRequestSchema },
 			},
 			responseDescription: 'JSON response containing the new stream ID.',
 			responseFields: [{ name: 'id', type: 'string', description: 'Created stream ID' }],
@@ -71,18 +51,7 @@ const service: Service = {
 				description: 'Empty JSON object is required.',
 			},
 			responseDescription: 'JSON object with stream details.',
-			responseFields: [
-				{ name: 'id', type: 'string', description: 'Stream ID' },
-				{ name: 'name', type: 'string', description: 'Namespace name' },
-				{ name: 'metadata', type: 'object', description: 'Stream metadata' },
-				{ name: 'url', type: 'string', description: 'Public stream URL' },
-				{ name: 'size_bytes', type: 'number', description: 'Current stream size in bytes' },
-				{
-					name: 'expires_at',
-					type: 'string | null',
-					description: 'ISO 8601 expiration timestamp',
-				},
-			],
+			responseFields: { schema: StreamInfoApiSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Stream info returned' },
 				{ code: 401, description: 'Unauthorized' },
@@ -118,45 +87,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Optional list filters and pagination controls.',
-				fields: [
-					{
-						name: 'name',
-						type: 'string',
-						description: 'Filter by namespace',
-						required: false,
-					},
-					{
-						name: 'metadata',
-						type: 'object',
-						description: 'Filter by metadata fields',
-						required: false,
-					},
-					{
-						name: 'limit',
-						type: 'number',
-						description: 'Maximum streams to return',
-						required: false,
-					},
-					{
-						name: 'offset',
-						type: 'number',
-						description: 'Offset for pagination',
-						required: false,
-					},
-					{
-						name: 'sort',
-						type: 'string',
-						description:
-							'Sort by `name`, `created`, `updated`, `size`, `count`, or `lastUsed`',
-						required: false,
-					},
-					{
-						name: 'direction',
-						type: 'string',
-						description: 'Sort direction: `asc` or `desc`',
-						required: false,
-					},
-				],
+				fields: { schema: ListStreamsApiRequestSchema },
 			},
 			responseDescription: 'JSON response with stream list and total count.',
 			responseFields: [

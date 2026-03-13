@@ -1,3 +1,8 @@
+import {
+	CreateResourcesApiRequestSchema,
+	DeleteResourcesApiRequestSchema,
+	RegionInfoApiSchema,
+} from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -15,10 +20,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription: 'Array of region objects.',
-			responseFields: [
-				{ name: 'region', type: 'string', description: 'Region identifier' },
-				{ name: 'description', type: 'string', description: 'Human-readable region name' },
-			],
+			responseFields: { schema: RegionInfoApiSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Regions returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
@@ -61,14 +63,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Resource creation payload.',
-				fields: [
-					{
-						name: 'resources',
-						type: 'array',
-						description: "Array of { type: 'db'|'s3', name?, description? }",
-						required: true,
-					},
-				],
+				fields: { schema: CreateResourcesApiRequestSchema },
 			},
 			responseDescription: 'Created resource objects.',
 			statuses: [
@@ -93,14 +88,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Resource deletion payload.',
-				fields: [
-					{
-						name: 'resources',
-						type: 'array',
-						description: "Array of { type: 'db'|'s3', name }",
-						required: true,
-					},
-				],
+				fields: { schema: DeleteResourcesApiRequestSchema },
 			},
 			responseDescription: 'Empty response on success.',
 			statuses: [

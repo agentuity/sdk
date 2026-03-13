@@ -1,3 +1,4 @@
+import { DbExecuteQueryRequestSchema } from './types.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -78,14 +79,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'SQL query payload.',
-				fields: [
-					{
-						name: 'query',
-						type: 'string',
-						description: 'SQL query to execute',
-						required: true,
-					},
-				],
+				fields: { schema: DbExecuteQueryRequestSchema },
 			},
 			responseDescription:
 				'Returns columns, rows, row count, and whether results were truncated (max 1000 rows).',

@@ -15,6 +15,7 @@ interface FieldSource {
 	pick?: string[];
 	omit?: string[];
 	overrides?: Record<string, Partial<Pick<NamedField, 'type' | 'description'>>>;
+	stripRequired?: boolean;
 }
 
 type FieldDefinition = NamedField[] | FieldSource;
@@ -163,6 +164,10 @@ function resolveFields(definition: FieldDefinition | undefined): NamedField[] | 
 			const override = definition.overrides?.[field.name];
 			return override ? { ...field, ...override } : field;
 		});
+	}
+
+	if (definition.stripRequired) {
+		fields = fields.map(({ required, ...rest }) => rest);
 	}
 
 	return fields;
