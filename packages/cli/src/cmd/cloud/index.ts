@@ -14,6 +14,7 @@ import webhookCommand from './webhook';
 import { agentCommand } from './agent';
 import envCommand from './env';
 import apikeyCommand from './apikey';
+import oidcCommand from './oidc';
 import streamCommand from './stream';
 import vectorCommand from './vector';
 import { emailCommand } from './email';
@@ -39,6 +40,7 @@ export const command = createCommand({
 	],
 	subcommands: [
 		apikeyCommand,
+		oidcCommand,
 		keyvalueCommand,
 		queueCommand,
 		webhookCommand,
