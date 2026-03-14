@@ -17,6 +17,7 @@ export * from './db/index.ts';
 export * from './eval/index.ts';
 export * from './machine/index.ts';
 export * from './monitoring/index.ts';
+export * from './oauth/index.ts';
 export * from './org/index.ts';
 export * from './project/index.ts';
 export * from './queue/index.ts';

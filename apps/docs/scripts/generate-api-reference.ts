@@ -15,6 +15,7 @@ import emailService from '../../../packages/core/src/services/email/api-referenc
 import evaluationsService from '../../../packages/core/src/services/eval/api-reference.ts';
 import kvService from '../../../packages/core/src/services/keyvalue/api-reference.ts';
 import machinesService from '../../../packages/core/src/services/machine/api-reference.ts';
+import oauthService from '../../../packages/core/src/services/oauth/api-reference.ts';
 import organizationsService from '../../../packages/core/src/services/org/api-reference.ts';
 import projectsService from '../../../packages/core/src/services/project/api-reference.ts';
 import queuesService from '../../../packages/core/src/services/queue/api-reference.ts';
@@ -41,6 +42,7 @@ const services: Service[] = [
 	threadService,
 	evaluationsService,
 	apiKeysService,
+	oauthService,
 	regionService,
 	databaseService,
 	organizationsService,
@@ -242,7 +244,7 @@ description: Direct HTTP access to Agentuity platform services
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-import { Activity, Box, Building, CheckCircle, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Table, Timer, User, Webhook } from 'lucide-react';
+import { Activity, Box, Building, CheckCircle, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
 
 Access Agentuity services directly via REST APIs. These endpoints let you integrate from any language or platform without the TypeScript SDK.
 
@@ -306,6 +308,12 @@ Access Agentuity services directly via REST APIs. These endpoints let you integr
     title="API Keys"
     description="Create and manage API keys for authentication"
     icon={<Key className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/oauth"
+    title="OAuth Applications"
+    description="Manage OAuth 2.0/OIDC applications, client credentials, and user consent"
+    icon={<Shield className="size-5" />}
   />
   <CardLink
     href="/reference/api/regions"
