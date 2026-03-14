@@ -1,9 +1,10 @@
-import { oauthClientDelete, type APIClient } from '@agentuity/core';
+import { oauthClientDelete } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
+import { createOAuthClient } from './util';
 
 const OAuthClientDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -23,7 +24,8 @@ export const deleteSubcommand = createSubcommand({
 			description: 'Delete OAuth application without confirmation',
 		},
 	],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
+	webUrl: '/settings/oauth-apps',
 	schema: {
 		args: z.object({
 			id: z.string().describe('the OAuth client id to delete'),
@@ -36,7 +38,8 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, apiClient, options } = ctx;
+		const { args, opts, options } = ctx;
+		const catalystClient = await createOAuthClient(ctx);
 
 		const skipConfirm = opts.force || opts.yes;
 
@@ -48,7 +51,7 @@ export const deleteSubcommand = createSubcommand({
 		}
 
 		await tui.spinner('Deleting OAuth application', () => {
-			return oauthClientDelete(apiClient as APIClient, args.id);
+			return oauthClientDelete(catalystClient, args.id);
 		});
 
 		if (!options.json) {

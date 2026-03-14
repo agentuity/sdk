@@ -1,8 +1,9 @@
-import { oauthClientActivity, type APIClient } from '@agentuity/core';
+import { oauthClientActivity } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
+import { createOAuthClient } from './util';
 
 const OAuthClientActivityResponseSchema = z.array(
 	z.object({
@@ -23,8 +24,9 @@ export const activitySubcommand = createSubcommand({
 			description: 'Show OAuth activity for last 30 days',
 		},
 	],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	idempotent: true,
+	webUrl: (ctx) => `/settings/oauth-apps/${encodeURIComponent(ctx.args.id)}`,
 	schema: {
 		args: z.object({
 			id: z.string().describe('the OAuth client id'),
@@ -36,10 +38,11 @@ export const activitySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, apiClient, options } = ctx;
+		const { args, opts, options } = ctx;
+		const catalystClient = await createOAuthClient(ctx);
 
 		const activity = await tui.spinner('Fetching OAuth activity', () => {
-			return oauthClientActivity(apiClient as APIClient, args.id, opts.days);
+			return oauthClientActivity(catalystClient, args.id, opts.days);
 		});
 
 		if (!options.json) {

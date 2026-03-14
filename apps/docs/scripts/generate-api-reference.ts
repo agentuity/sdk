@@ -32,27 +32,27 @@ import vectorService from '../../../packages/core/src/services/vector/api-refere
 import webhooksService from '../../../packages/core/src/services/webhook/api-reference.ts';
 
 const services: Service[] = [
-	kvService,
-	vectorService,
-	objectStorageService,
-	streamsService,
-	queuesService,
-	emailService,
-	userService,
-	threadService,
-	evaluationsService,
 	apiKeysService,
-	oauthService,
-	regionService,
 	databaseService,
-	organizationsService,
+	streamsService,
+	emailService,
+	evaluationsService,
+	kvService,
 	machinesService,
-	schedulesService,
-	webhooksService,
-	sessionsService,
+	queuesService,
+	oauthService,
+	objectStorageService,
+	organizationsService,
 	projectsService,
-	tasksService,
+	regionService,
 	sandboxesService,
+	schedulesService,
+	sessionsService,
+	tasksService,
+	threadService,
+	userService,
+	vectorService,
+	webhooksService,
 ];
 
 const ROOT_DIR = join(import.meta.dir, '..');
@@ -195,7 +195,6 @@ function renderEndpointSection(endpoint: Endpoint, headingLevel = 2, host?: stri
 function renderServiceMdx(service: Service): string {
 	const endpointSectionsParts: string[] = [];
 	let currentSectionTitle: string | null = null;
-	const serviceIntro = `${service.description}.`;
 
 	for (const endpoint of service.endpoints) {
 		if (endpoint.sectionTitle && endpoint.sectionTitle !== currentSectionTitle) {
@@ -217,7 +216,6 @@ description: ${service.description}
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-${serviceIntro}
 
 <RegionPicker ${service.host ? `host="${service.host}" ` : ''}/>
 
@@ -250,76 +248,10 @@ Access Agentuity services directly via REST APIs. These endpoints let you integr
 
 <Cards>
   <CardLink
-    href="/reference/api/key-value"
-    title="Key-Value Storage"
-    description="Store and retrieve data by key within namespaces"
-    icon={<Database className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/vector"
-    title="Vector Search"
-    description="Semantic search with automatic embedding generation"
-    icon={<Search className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/object-storage"
-    title="Object Storage"
-    description="Store and manage files and binary objects in buckets"
-    icon={<HardDrive className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/streams"
-    title="Durable Streams"
-    description="Create durable, resumable data streams with public URLs"
-    icon={<Activity className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/queues"
-    title="Message Queues"
-    description="Publish, consume, and manage messages with worker and pub/sub queues"
-    icon={<Layers className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/email"
-    title="Email"
-    description="Send and receive emails with managed addresses and webhook destinations"
-    icon={<Mail className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/user"
-    title="User"
-    description="Get authenticated user information and organization memberships"
-    icon={<User className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/threads"
-    title="Threads"
-    description="Manage conversation threads for agent session state and user data"
-    icon={<MessageSquare className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/evaluations"
-    title="Evaluations"
-    description="List and retrieve evaluations and their run history"
-    icon={<CheckCircle className="size-5" />}
-  />
-  <CardLink
     href="/reference/api/api-keys"
     title="API Keys"
     description="Create and manage API keys for authentication"
     icon={<Key className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/oauth"
-    title="OAuth Applications"
-    description="Manage OAuth 2.0/OIDC applications, client credentials, and user consent"
-    icon={<Shield className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/regions"
-    title="Regions"
-    description="List available cloud regions and manage per-region resources"
-    icon={<Globe className="size-5" />}
   />
   <CardLink
     href="/reference/api/database"
@@ -328,10 +260,28 @@ Access Agentuity services directly via REST APIs. These endpoints let you integr
     icon={<Table className="size-5" />}
   />
   <CardLink
-    href="/reference/api/organizations"
-    title="Organizations"
-    description="Manage organizations, environment variables, and org-level resources"
-    icon={<Building className="size-5" />}
+    href="/reference/api/streams"
+    title="Durable Streams"
+    description="Create durable, resumable data streams with public URLs"
+    icon={<Activity className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/email"
+    title="Email"
+    description="Send and receive emails with managed addresses and webhook destinations"
+    icon={<Mail className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/evaluations"
+    title="Evaluations"
+    description="List and retrieve evaluations and their run history"
+    icon={<CheckCircle className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/key-value"
+    title="Key-Value Storage"
+    description="Store and retrieve data by key within namespaces"
+    icon={<Database className="size-5" />}
   />
   <CardLink
     href="/reference/api/machines"
@@ -340,22 +290,28 @@ Access Agentuity services directly via REST APIs. These endpoints let you integr
     icon={<Server className="size-5" />}
   />
   <CardLink
-    href="/reference/api/schedules"
-    title="Schedules"
-    description="Create and manage cron-based scheduled jobs with destinations and delivery tracking"
-    icon={<Clock className="size-5" />}
+    href="/reference/api/queues"
+    title="Message Queues"
+    description="Publish, consume, and manage messages with worker and pub/sub queues"
+    icon={<Layers className="size-5" />}
   />
   <CardLink
-    href="/reference/api/webhooks"
-    title="Webhooks"
-    description="Manage webhook endpoints, destinations, receipts, deliveries, and analytics"
-    icon={<Webhook className="size-5" />}
+    href="/reference/api/oauth"
+    title="OAuth Applications"
+    description="Manage OAuth 2.0/OIDC applications, client credentials, and user consent"
+    icon={<Shield className="size-5" />}
   />
   <CardLink
-    href="/reference/api/sessions"
-    title="Sessions"
-    description="View agent execution sessions with timing, cost, and observability data"
-    icon={<Timer className="size-5" />}
+    href="/reference/api/object-storage"
+    title="Object Storage"
+    description="Store and manage files and binary objects in buckets"
+    icon={<HardDrive className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/organizations"
+    title="Organizations"
+    description="Manage organizations, environment variables, and org-level resources"
+    icon={<Building className="size-5" />}
   />
   <CardLink
     href="/reference/api/projects"
@@ -364,16 +320,58 @@ Access Agentuity services directly via REST APIs. These endpoints let you integr
     icon={<FolderKanban className="size-5" />}
   />
   <CardLink
-    href="/reference/api/tasks"
-    title="Tasks"
-    description="Full-featured task management with epics, features, bugs, comments, tags, attachments, and activity tracking"
-    icon={<ListTodo className="size-5" />}
+    href="/reference/api/regions"
+    title="Regions"
+    description="List available cloud regions and manage per-region resources"
+    icon={<Globe className="size-5" />}
   />
   <CardLink
     href="/reference/api/sandboxes"
     title="Sandboxes"
     description="Create and manage isolated execution environments with full lifecycle, file system, snapshot, and checkpoint support"
     icon={<Box className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/schedules"
+    title="Schedules"
+    description="Create and manage cron-based scheduled jobs with destinations and delivery tracking"
+    icon={<Clock className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/sessions"
+    title="Sessions"
+    description="View agent execution sessions with timing, cost, and observability data"
+    icon={<Timer className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/tasks"
+    title="Tasks"
+    description="Full-featured task management with epics, features, bugs, comments, tags, attachments, and activity tracking"
+    icon={<ListTodo className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/threads"
+    title="Threads"
+    description="Manage conversation threads for agent session state and user data"
+    icon={<MessageSquare className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/user"
+    title="User"
+    description="Get authenticated user information and organization memberships"
+    icon={<User className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/vector"
+    title="Vector Search"
+    description="Semantic search with automatic embedding generation"
+    icon={<Search className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/webhooks"
+    title="Webhooks"
+    description="Manage webhook endpoints, destinations, receipts, deliveries, and analytics"
+    icon={<Webhook className="size-5" />}
   />
 </Cards>`;
 }

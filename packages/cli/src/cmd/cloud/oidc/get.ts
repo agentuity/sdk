@@ -1,9 +1,10 @@
-import { oauthClientGet, type APIClient } from '@agentuity/core';
+import { oauthClientGet } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
+import { createOAuthClient } from './util';
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
@@ -12,8 +13,9 @@ export const getSubcommand = createSubcommand({
 	examples: [
 		{ command: getCommand('cloud oidc get <id>'), description: 'Get OAuth application details' },
 	],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	idempotent: true,
+	webUrl: (ctx) => `/settings/oauth-apps/${encodeURIComponent(ctx.args.id)}`,
 	schema: {
 		args: z.object({
 			id: z.string().describe('the OAuth client id'),
@@ -21,12 +23,13 @@ export const getSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, apiClient, options } = ctx;
+		const { args, options } = ctx;
+		const catalystClient = await createOAuthClient(ctx);
 
 		let client: Awaited<ReturnType<typeof oauthClientGet>>;
 		try {
 			client = await tui.spinner('Fetching OAuth application', () => {
-				return oauthClientGet(apiClient as APIClient, args.id);
+				return oauthClientGet(catalystClient, args.id);
 			});
 		} catch (error) {
 			if (error instanceof Error && error.message.includes('not found')) {
