@@ -363,6 +363,7 @@ export interface AgentProgressUpdate {
 		| 'failed'
 		| 'thinking_delta'
 		| 'text_delta';
+	toolCallId?: string;
 	currentTool?: string;
 	currentToolArgs?: string;
 	elapsed: number;

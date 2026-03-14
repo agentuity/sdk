@@ -6,6 +6,8 @@ import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
 import { resolveHubWsUrl, resolveHubUrl, hubFetchHeaders } from './hub-url';
+import { inspectPiBinaryVersion, SUPPORTED_PI_VERSION_RANGE } from './pi-version';
+import { probeTuiInitAccess } from './tui-init';
 
 /**
  * Resolve the Coder extension path.
@@ -130,9 +132,31 @@ export const startSubcommand = createSubcommand({
 
 		// Resolve Hub URL
 		const hubWsUrl = await resolveHubWsUrl(opts?.hubUrl);
+		const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
 		if (!hubWsUrl) {
 			tui.fatal(
 				'Could not find a running Coder Hub.\n\nEither:\n  - Start the Hub with: bun run dev\n  - Set AGENTUITY_CODER_HUB_URL environment variable\n  - Pass --hub-url flag',
+				ErrorCode.NETWORK_ERROR
+			);
+			return;
+		}
+		if (!hubHttpUrl) {
+			tui.fatal('Could not resolve the Coder Hub HTTP URL.', ErrorCode.NETWORK_ERROR);
+			return;
+		}
+
+		const tuiInitProbe = await probeTuiInitAccess(hubHttpUrl);
+		if (!tuiInitProbe.ok) {
+			if (tuiInitProbe.code === 'unauthorized') {
+				tui.fatal(
+					`Coder Hub at ${hubHttpUrl} requires authentication.\n\nSet AGENTUITY_CODER_API_KEY in your shell and retry.\n\nServer said: ${tuiInitProbe.message}`,
+					ErrorCode.NETWORK_ERROR
+				);
+				return;
+			}
+
+			tui.fatal(
+				`Could not bootstrap the Coder Hub at ${hubHttpUrl}: ${tuiInitProbe.message}`,
 				ErrorCode.NETWORK_ERROR
 			);
 			return;
@@ -160,11 +184,6 @@ export const startSubcommand = createSubcommand({
 				remoteSessionId = remoteValue;
 			} else {
 				// No session ID — fetch connectable sessions and show picker
-				const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
-				if (!hubHttpUrl) {
-					tui.fatal('Could not find Hub URL for session picker.', ErrorCode.NETWORK_ERROR);
-					return;
-				}
 				try {
 					type SessionInfo = {
 						id: string;
@@ -370,14 +389,24 @@ export const startSubcommand = createSubcommand({
 
 		// Build pi command args
 		const piArgs = ['-e', extensionPath];
+		const piVersionInfo = inspectPiBinaryVersion(piBinary);
 
 		if (!options.json) {
 			tui.newline();
 			tui.output(`  Hub:       ${tui.bold(hubWsUrl)}`);
 			tui.output(`  Extension: ${tui.bold(extensionPath)}`);
 			tui.output(`  Pi:        ${tui.bold(piBinary)}`);
+			if (piVersionInfo?.version) {
+				tui.output(`  Pi Ver:    ${tui.bold(piVersionInfo.version)}`);
+			}
 			if (opts?.agent) tui.output(`  Agent:     ${tui.bold(opts.agent)}`);
 			tui.newline();
+		}
+
+		if (!options.json && piVersionInfo?.version && piVersionInfo.supported === false) {
+			tui.warning(
+				`Detected Pi ${piVersionInfo.version}. Agentuity Coder is currently tested with Pi ${SUPPORTED_PI_VERSION_RANGE}. Continuing anyway.`
+			);
 		}
 
 		// Spawn pi as a child process, inheriting stdio for interactive TUI
