@@ -1,0 +1,1618 @@
+---
+title: OAuth Applications API
+description: Manage OAuth 2.0/OIDC applications, client credentials, user consent, and authorization scopes
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## List OAuth Clients
+
+List all OAuth clients for the current organization. Returns client metadata, user counts, and last activity timestamps.
+
+<ApiEndpoint method="GET" path="/oidc/clients" />
+
+
+
+### Response
+
+JSON array of OAuth client objects with usage statistics.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Client list returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "homepage_url",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "icon",
+    "type": "string | null",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client_type",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "post_logout_redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "grant_types",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "response_types",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "org_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "project_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "access_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "refresh_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "id_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "allowed_user_ids",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "created_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "updated_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "user_count",
+    "type": "number",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "last_activity",
+    "type": "string | null",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "link",
+    "type": "string",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/oidc/clients" />
+
+---
+
+## Create OAuth Client
+
+Create a new OAuth client application. Returns the client details and a client secret that should be stored securely — it cannot be retrieved again.
+
+<ApiEndpoint method="POST" path="/oidc/clients" />
+
+
+
+### Request Body
+
+JSON body with the OAuth client configuration.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "homepage_url",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "icon",
+    "type": "string | null",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client_type",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "post_logout_redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "grant_types",
+    "type": "string[]",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "response_types",
+    "type": "string[]",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "scopes",
+    "type": "string[]",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "project_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "access_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "refresh_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "id_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "allowed_user_ids",
+    "type": "string[]",
+    "description": "",
+    "required": false
+  }
+]} />
+
+### Response
+
+JSON object containing the created client and its client secret.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Client created successfully |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "client",
+    "type": "object",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.description",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.homepage_url",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.icon",
+    "type": "string | null",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.client_type",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.post_logout_redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.grant_types",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.response_types",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.scopes",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.org_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.project_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.access_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.refresh_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.id_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.allowed_user_ids",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.created_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.updated_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client_secret",
+    "type": "string",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="POST" path="/oidc/clients" body={{
+  "name": "My App",
+  "description": "An example OAuth application",
+  "homepage_url": "https://example.com",
+  "redirect_uris": [
+    "https://example.com/callback"
+  ],
+  "scopes": [
+    "openid",
+    "profile"
+  ]
+}} />
+
+---
+
+## Get OAuth Client
+
+Retrieve a specific OAuth client by ID, including its configuration, user count, and last activity.
+
+<ApiEndpoint method="GET" path="/oidc/clients/{id}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The OAuth client ID"
+  }
+]} />
+
+### Response
+
+JSON object with the OAuth client details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Client found and returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+| 404 | Client not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "homepage_url",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "icon",
+    "type": "string | null",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client_type",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "post_logout_redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "grant_types",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "response_types",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "org_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "project_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "access_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "refresh_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "id_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "allowed_user_ids",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "created_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "updated_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "user_count",
+    "type": "number",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "last_activity",
+    "type": "string | null",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "link",
+    "type": "string",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/oidc/clients/cli_abc123" />
+
+---
+
+## Update OAuth Client
+
+Update an existing OAuth client. Only the provided fields are updated; omitted fields remain unchanged.
+
+<ApiEndpoint method="PUT" path="/oidc/clients/{id}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The OAuth client ID"
+  }
+]} />
+
+### Request Body
+
+JSON body with the fields to update.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": ""
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": ""
+  },
+  {
+    "name": "homepage_url",
+    "type": "string",
+    "description": ""
+  },
+  {
+    "name": "icon",
+    "type": "string | null",
+    "description": ""
+  },
+  {
+    "name": "client_type",
+    "type": "string",
+    "description": ""
+  },
+  {
+    "name": "redirect_uris",
+    "type": "string[]",
+    "description": ""
+  },
+  {
+    "name": "post_logout_redirect_uris",
+    "type": "string[]",
+    "description": ""
+  },
+  {
+    "name": "grant_types",
+    "type": "string[]",
+    "description": ""
+  },
+  {
+    "name": "response_types",
+    "type": "string[]",
+    "description": ""
+  },
+  {
+    "name": "scopes",
+    "type": "string[]",
+    "description": ""
+  },
+  {
+    "name": "project_id",
+    "type": "string",
+    "description": ""
+  },
+  {
+    "name": "access_token_lifetime_seconds",
+    "type": "number",
+    "description": ""
+  },
+  {
+    "name": "refresh_token_lifetime_seconds",
+    "type": "number",
+    "description": ""
+  },
+  {
+    "name": "id_token_lifetime_seconds",
+    "type": "number",
+    "description": ""
+  },
+  {
+    "name": "allowed_user_ids",
+    "type": "string[]",
+    "description": ""
+  }
+]} />
+
+### Response
+
+JSON object containing the updated client. May include a new client secret if the client type was changed.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Client updated successfully |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+| 404 | Client not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "client",
+    "type": "object",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.description",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.homepage_url",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.icon",
+    "type": "string | null",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.client_type",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.post_logout_redirect_uris",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.grant_types",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.response_types",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.scopes",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.org_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.project_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.access_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.refresh_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.id_token_lifetime_seconds",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "client.allowed_user_ids",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.created_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.updated_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client_secret",
+    "type": "string",
+    "description": "",
+    "required": false
+  }
+]} />
+
+### Example
+
+<ApiExample method="PUT" path="/oidc/clients/cli_abc123" body={{
+  "name": "Updated App Name",
+  "scopes": [
+    "openid",
+    "profile",
+    "email"
+  ]
+}} />
+
+---
+
+## Delete OAuth Client
+
+Delete an OAuth client and revoke all associated tokens and user consent grants.
+
+<ApiEndpoint method="DELETE" path="/oidc/clients/{id}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The OAuth client ID"
+  }
+]} />
+
+### Response
+
+JSON object confirming deletion.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Client deleted successfully |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+| 404 | Client not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "deleted",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="DELETE" path="/oidc/clients/cli_abc123" />
+
+---
+
+## Rotate Client Secret
+
+Generate a new client secret for a confidential OAuth client. The old secret is immediately invalidated. Store the new secret securely — it cannot be retrieved again.
+
+<ApiEndpoint method="POST" path="/oidc/clients/{id}/rotate-secret" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The OAuth client ID"
+  }
+]} />
+
+### Response
+
+JSON object containing the client ID and new client secret.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Secret rotated successfully |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+| 404 | Client not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "client_id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client_secret",
+    "type": "string",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="POST" path="/oidc/clients/cli_abc123/rotate-secret" />
+
+---
+
+## List Client Users
+
+List all users who have granted consent to an OAuth client, including their authorized scopes.
+
+<ApiEndpoint method="GET" path="/oidc/clients/{id}/users" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The OAuth client ID"
+  }
+]} />
+
+### Response
+
+JSON array of consent grant objects for the client.
+
+| Status | Description |
+|--------|-------------|
+| 200 | User list returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+| 404 | Client not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "user_id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "created_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "updated_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/oidc/clients/cli_abc123/users" />
+
+---
+
+## Revoke All Client Users
+
+Revoke consent for all users of an OAuth client. All active tokens for this client are invalidated.
+
+<ApiEndpoint method="DELETE" path="/oidc/clients/{id}/users" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The OAuth client ID"
+  }
+]} />
+
+### Response
+
+JSON object confirming revocation.
+
+| Status | Description |
+|--------|-------------|
+| 200 | All user consent revoked |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+| 404 | Client not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "deleted",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="DELETE" path="/oidc/clients/cli_abc123/users" />
+
+---
+
+## Revoke Client User
+
+Revoke a specific user's consent for an OAuth client. The user's active tokens for this client are invalidated.
+
+<ApiEndpoint method="DELETE" path="/oidc/clients/{id}/users/{user_id}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The OAuth client ID"
+  },
+  {
+    "name": "user_id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The user ID to revoke"
+  }
+]} />
+
+### Response
+
+JSON object confirming revocation.
+
+| Status | Description |
+|--------|-------------|
+| 200 | User consent revoked |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+| 404 | Client or user not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "deleted",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="DELETE" path="/oidc/clients/cli_abc123/users/usr_xyz789" />
+
+---
+
+## Get Client Activity
+
+Get daily activity statistics for an OAuth client, including total access counts and unique user counts.
+
+<ApiEndpoint method="GET" path="/oidc/clients/{id}/activity" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The OAuth client ID"
+  },
+  {
+    "name": "days",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Number of days of activity to return (default: 30)"
+  }
+]} />
+
+### Response
+
+JSON array of daily activity records.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Activity data returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+| 404 | Client not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "activity_date",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "total_access",
+    "type": "number",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "unique_users",
+    "type": "number",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/oidc/clients/cli_abc123/activity?days=7" />
+
+---
+
+## Get Bulk Activity
+
+Get aggregated activity statistics across all OAuth clients for the organization.
+
+<ApiEndpoint method="GET" path="/oidc/clients/activity" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "days",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Number of days of activity to return (default: 30)"
+  }
+]} />
+
+### Response
+
+JSON array of daily activity records per client.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Bulk activity data returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "client_id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "activity_date",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "unique_users",
+    "type": "number",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/oidc/clients/activity?days=7" />
+
+---
+
+## List User Consent
+
+List all OAuth applications the current user has authorized, including granted scopes and client details.
+
+<ApiEndpoint method="GET" path="/oidc/user/consent" />
+
+
+
+### Response
+
+JSON array of user consent objects with client metadata.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Consent list returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "client_id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "created_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "updated_at",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client_name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client_description",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client_icon",
+    "type": "string | null",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client_homepage_url",
+    "type": "string",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/oidc/user/consent" />
+
+---
+
+## Revoke User Consent
+
+Revoke the current user's consent for a specific OAuth client. Active tokens for this client are invalidated.
+
+<ApiEndpoint method="DELETE" path="/oidc/user/consent/{client_id}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "client_id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The OAuth client ID to revoke consent for"
+  }
+]} />
+
+### Response
+
+JSON object confirming revocation.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Consent revoked successfully |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Consent not found for this client |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "deleted",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="DELETE" path="/oidc/user/consent/cli_abc123" />
+
+---
+
+## List Scopes
+
+List all available OAuth scopes and permission categories. Includes scope metadata, consent descriptions, and permission groupings.
+
+<ApiEndpoint method="GET" path="/oidc/scopes" />
+
+
+
+### Response
+
+JSON object containing available scopes and structured permission categories.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Scope list returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "scopes",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes[].name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes[].description",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes[].consent_title",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes[].consent_description",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes[].sensitive",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes[].required",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "scopes[].default",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].label",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].groups",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].groups[].id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].groups[].name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].groups[].description",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].groups[].levels",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].groups[].levels[].label",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].groups[].levels[].value",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "permissions[].groups[].levels[].scopes",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/oidc/scopes" />
+
+---
+
+## List Org Members
+
+List all members of the current organization. Used for configuring allowed user restrictions on OAuth clients.
+
+<ApiEndpoint method="GET" path="/oidc/org/members" />
+
+
+
+### Response
+
+JSON array of organization member objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Member list returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "first_name",
+    "type": "string | null",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "last_name",
+    "type": "string | null",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "email",
+    "type": "string | null",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "photo_url",
+    "type": "string | null",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "role",
+    "type": "string",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/oidc/org/members" />
+
+---
+
+## Rotate Signing Keys
+
+Rotate the OIDC signing keys for the organization. New tokens will be signed with the new key. Existing tokens remain valid until they expire.
+
+<ApiEndpoint method="POST" path="/oidc/keys/rotate" />
+
+
+
+### Response
+
+JSON object confirming key rotation.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Keys rotated successfully |
+| 401 | Unauthorized — invalid or missing API key |
+| 403 | Forbidden — insufficient permissions |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "rotated",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="POST" path="/oidc/keys/rotate" />
+
+---
