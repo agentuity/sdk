@@ -6,7 +6,6 @@ import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
 import { resolveHubWsUrl, resolveHubUrl, hubFetchHeaders } from './hub-url';
-import { inspectPiBinaryVersion, SUPPORTED_PI_VERSION_RANGE } from './pi-version';
 import { probeTuiInitAccess } from './tui-init';
 
 /**
@@ -389,24 +388,14 @@ export const startSubcommand = createSubcommand({
 
 		// Build pi command args
 		const piArgs = ['-e', extensionPath];
-		const piVersionInfo = inspectPiBinaryVersion(piBinary);
 
 		if (!options.json) {
 			tui.newline();
 			tui.output(`  Hub:       ${tui.bold(hubWsUrl)}`);
 			tui.output(`  Extension: ${tui.bold(extensionPath)}`);
 			tui.output(`  Pi:        ${tui.bold(piBinary)}`);
-			if (piVersionInfo?.version) {
-				tui.output(`  Pi Ver:    ${tui.bold(piVersionInfo.version)}`);
-			}
 			if (opts?.agent) tui.output(`  Agent:     ${tui.bold(opts.agent)}`);
 			tui.newline();
-		}
-
-		if (!options.json && piVersionInfo?.version && piVersionInfo.supported === false) {
-			tui.warning(
-				`Detected Pi ${piVersionInfo.version}. Agentuity Coder is currently tested with Pi ${SUPPORTED_PI_VERSION_RANGE}. Continuing anyway.`
-			);
 		}
 
 		// Spawn pi as a child process, inheriting stdio for interactive TUI
