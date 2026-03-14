@@ -1,0 +1,165 @@
+name: Windows WSL CLI Test
+
+on:
+   push:
+      branches:
+         - main
+      paths:
+         - 'packages/cli/**'
+         - 'packages/core/**'
+         - 'packages/server/**'
+         - 'install.sh'
+         - '.github/workflows/test-windows-wsl.yaml'
+   pull_request:
+      paths:
+         - 'packages/cli/**'
+         - 'packages/core/**'
+         - 'packages/server/**'
+         - 'install.sh'
+         - '.github/workflows/test-windows-wsl.yaml'
+   workflow_dispatch:
+
+concurrency:
+   group: ${{ github.workflow }}-${{ github.ref }}
+   cancel-in-progress: true
+
+env:
+   CI: true
+
+jobs:
+   windows-wsl-cli-test:
+      runs-on: windows-latest
+      timeout-minutes: 30
+      name: Windows WSL CLI Smoke Test
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup WSL
+           uses: Vampire/setup-wsl@v5
+           with:
+              distribution: Ubuntu-24.04
+              additional-packages: curl unzip jq
+
+         - name: Setup WSL environment
+           shell: wsl-bash {0}
+           run: |
+              # Write shared env file that all subsequent steps will source.
+              # GitHub expression substitution happens before the script runs,
+              # so secrets/vars are injected at workflow parse time, not by bash.
+              cat > ~/test-env.sh << 'ENDOFENV'
+              export CI=true
+              export AGENTUITY_API_URL="https://api.agentuity.com"
+              export AGENTUITY_USER_ID="${{ vars.AGENTUITY_USER_ID }}"
+              export AGENTUITY_CLOUD_ORG_ID="${{ vars.AGENTUITY_CLOUD_ORG_ID }}"
+              export AGENTUITY_REGION="usw"
+              export PATH="$HOME/.bun/bin:$PATH"
+              ENDOFENV
+
+         - name: Install Bun and build CLI
+           shell: wsl-bash {0}
+           run: |
+              set -e
+              
+              # Install Bun
+              curl -fsSL https://bun.sh/install | bash
+              export PATH="$HOME/.bun/bin:$PATH"
+              echo "Bun version: $(bun --version)"
+
+              # Copy repo to WSL native filesystem for performance
+              # (Windows mounted filesystem is slow for node_modules operations)
+              cp -r "$(pwd)" ~/sdk
+              cd ~/sdk
+
+              # Install dependencies and build
+              bun install
+              bun run build
+
+              # Verify CLI works
+              bun packages/cli/bin/cli.ts --version
+
+         - name: Setup test credentials
+           shell: wsl-bash {0}
+           run: |
+              set -e
+              source ~/test-env.sh
+
+              # Generate CLI API key for authentication
+              APIKEY=$(curl -sf "$AGENTUITY_API_URL/cli/auth/short-token" \
+                -H 'Content-Type: application/json' \
+                --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"$AGENTUITY_USER_ID\"}" | jq -r '.data.apiKey')
+
+              if [ -z "$APIKEY" ] || [ "$APIKEY" = "null" ]; then
+                echo "❌ Failed to generate API key"
+                exit 1
+              fi
+
+              echo "::add-mask::${APIKEY}"
+
+              # Persist API key into the shared env file for subsequent steps
+              echo "export AGENTUITY_CLI_API_KEY='${APIKEY}'" >> ~/test-env.sh
+
+         - name: Create test project
+           shell: wsl-bash {0}
+           run: |
+              set -e
+              source ~/test-env.sh
+              cd ~/sdk
+
+              CLI="bun packages/cli/bin/cli.ts"
+              PROJECT_NAME="test-wsl-${GITHUB_RUN_ID:-local}"
+
+              # Verify authentication
+              $CLI auth whoami
+
+              # Create test project in usw region
+              echo "Creating project: $PROJECT_NAME"
+              $CLI project create \
+                --name "$PROJECT_NAME" \
+                --template default \
+                --database skip \
+                --storage skip \
+                --confirm
+
+              # Extract project ID from agentuity.json
+              PROJECT_ID=$(jq -r '.projectId' "$PROJECT_NAME/agentuity.json")
+              if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
+                echo "❌ Failed to extract project ID from agentuity.json"
+                cat "$PROJECT_NAME/agentuity.json" 2>/dev/null || echo "File not found"
+                exit 1
+              fi
+
+              # Persist project details for deploy and cleanup steps
+              echo "export PROJECT_ID='$PROJECT_ID'" >> ~/test-env.sh
+              echo "export PROJECT_NAME='$PROJECT_NAME'" >> ~/test-env.sh
+              echo "✅ Project created: $PROJECT_ID"
+
+         - name: Deploy test project
+           shell: wsl-bash {0}
+           run: |
+              set -e
+              source ~/test-env.sh
+              cd ~/sdk/$PROJECT_NAME
+
+              CLI="bun $HOME/sdk/packages/cli/bin/cli.ts"
+
+              echo "Deploying project $PROJECT_ID..."
+              $CLI cloud deploy
+
+              echo "✅ Deploy succeeded"
+
+         - name: Cleanup - Delete test project
+           if: always()
+           shell: wsl-bash {0}
+           run: |
+              source ~/test-env.sh 2>/dev/null || true
+              cd ~/sdk 2>/dev/null || exit 0
+
+              CLI="bun packages/cli/bin/cli.ts"
+
+              if [ -n "${PROJECT_ID:-}" ]; then
+                echo "Deleting project: $PROJECT_ID"
+                $CLI project delete "$PROJECT_ID" --confirm \
+                  || echo "⚠️ Warning: Failed to delete project $PROJECT_ID (manual cleanup may be needed)"
+              else
+                echo "No project to clean up"
+              fi

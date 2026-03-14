@@ -1,3 +1,4 @@
+import { readFileSync, lstatSync } from 'node:fs';
 import { relative } from 'node:path';
 import { Glob } from 'bun';
 import AdmZip from 'adm-zip';
@@ -11,7 +12,7 @@ interface Options {
 export async function zipDir(dir: string, outdir: string, options?: Options) {
 	const zip = new AdmZip();
 	const files = await Array.fromAsync(
-		new Glob('**/*').scan({ cwd: dir, absolute: true, dot: true })
+		new Glob('**/*').scan({ cwd: dir, absolute: true, dot: true, followSymlinks: false })
 	);
 	const total = files.length;
 	let count = 0;
@@ -24,7 +25,21 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 			}
 		}
 		if (!skip) {
-			zip.addLocalFile(file, undefined, rel);
+			try {
+				// Skip symlinks and directories — symlinks are workspace artefacts
+				// (e.g. bun's node_modules links) that cannot be resolved portably
+				// across machines and would cause EISDIR errors on extraction.
+				const stat = lstatSync(file);
+				if (!stat.isSymbolicLink() && !stat.isDirectory()) {
+					// Use addFile with explicit Unix permissions (0o644) instead of addLocalFile.
+					// On Windows, addLocalFile relies on OS file stats which may produce zip entries
+					// with incorrect Unix permission bits, causing EACCES errors when extracted on Linux.
+					const data = readFileSync(file);
+					zip.addFile(rel, data, '', 0o644);
+				}
+			} catch (err) {
+				throw new Error(`Failed to add file to zip: ${rel} (${file})`, { cause: err });
+			}
 		}
 		count++;
 		if (options?.progress) {
