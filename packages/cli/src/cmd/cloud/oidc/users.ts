@@ -1,9 +1,9 @@
 import { oauthClientUsers } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
+import { createOAuthClient } from './util';
 
 const OAuthClientUsersResponseSchema = z.array(
 	z.object({
@@ -33,14 +33,8 @@ export const usersSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, logger, auth, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(
-			logger,
-			auth,
-			config?.name,
-			undefined,
-			config
-		);
+		const { args, options } = ctx;
+		const catalystClient = await createOAuthClient(ctx);
 
 		const users = await tui.spinner('Fetching connected OAuth users', () => {
 			return oauthClientUsers(catalystClient, args.id);

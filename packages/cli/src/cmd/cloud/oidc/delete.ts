@@ -1,10 +1,10 @@
 import { oauthClientDelete } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
 import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
+import { createOAuthClient } from './util';
 
 const OAuthClientDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -37,14 +37,8 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, logger, auth, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(
-			logger,
-			auth,
-			config?.name,
-			undefined,
-			config
-		);
+		const { args, opts, options } = ctx;
+		const catalystClient = await createOAuthClient(ctx);
 
 		const skipConfirm = opts.force || opts.yes;
 

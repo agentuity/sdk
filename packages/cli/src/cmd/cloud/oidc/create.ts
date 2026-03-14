@@ -2,9 +2,9 @@ import { oauthClientCreate, oauthScopes, type OAuthClientCreateRequest } from '@
 import enquirer from 'enquirer';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
 import * as tui from '../../../tui';
 import { createSubcommand as createSubcommandHelper } from '../../../types';
+import { createOAuthClient } from './util';
 
 const OAuthClientCreateResponseSchema = z.object({
 	client: z.object({
@@ -70,14 +70,8 @@ export const createSubcommand = createSubcommandHelper({
 	},
 
 	async handler(ctx) {
-		const { opts, logger, auth, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(
-			logger,
-			auth,
-			config?.name,
-			undefined,
-			config
-		);
+		const { opts, options } = ctx;
+		const catalystClient = await createOAuthClient(ctx);
 
 		const availableScopes = await tui.spinner('Fetching available OAuth scopes', () => {
 			return oauthScopes(catalystClient);

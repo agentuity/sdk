@@ -1,10 +1,10 @@
 import { oauthClientGet } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
 import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
+import { createOAuthClient } from './util';
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
@@ -22,14 +22,8 @@ export const getSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, logger, auth, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(
-			logger,
-			auth,
-			config?.name,
-			undefined,
-			config
-		);
+		const { args, options } = ctx;
+		const catalystClient = await createOAuthClient(ctx);
 
 		let client: Awaited<ReturnType<typeof oauthClientGet>>;
 		try {

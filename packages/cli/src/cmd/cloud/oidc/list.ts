@@ -1,8 +1,8 @@
 import { oauthClientList } from '@agentuity/core';
 import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
+import { createOAuthClient } from './util';
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
@@ -17,14 +17,8 @@ export const listSubcommand = createSubcommand({
 	idempotent: true,
 
 	async handler(ctx) {
-		const { logger, auth, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(
-			logger,
-			auth,
-			config?.name,
-			undefined,
-			config
-		);
+		const { options } = ctx;
+		const catalystClient = await createOAuthClient(ctx);
 
 		const clients = await tui.spinner('Fetching OAuth applications', () => {
 			return oauthClientList(catalystClient);
