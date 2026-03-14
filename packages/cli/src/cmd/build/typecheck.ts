@@ -25,6 +25,47 @@ export interface TypecheckOptions {
 }
 
 /**
+ * Filter tsc output to remove lines referencing node_modules paths.
+ *
+ * Some packages (e.g. @agentuity/runtime) ship .ts source files, which
+ * --skipLibCheck does not skip. Errors from those paths can crash the
+ * PEG-based tsc-output-parser because the parser expects every non-blank
+ * line to be a valid tsc error item.  Stripping these lines before parsing
+ * prevents the crash and avoids surfacing errors the user cannot fix.
+ *
+ * We also strip continuation lines (indented with 2+ leading spaces) that
+ * follow a node_modules error line, as they are part of the same diagnostic.
+ */
+function filterNodeModulesErrors(output: string): string {
+	const lines = output.split('\n');
+	const filtered: string[] = [];
+	let skipping = false;
+
+	for (const line of lines) {
+		// A tsc error line starts with a path, e.g. "node_modules/..." or "../node_modules/..."
+		// Also handle Windows-style paths with backslashes
+		const isNodeModulesError =
+			/^\.{0,2}[/\\]?node_modules[/\\]/.test(line) ||
+			/^[A-Za-z]:[/\\].*node_modules[/\\]/.test(line);
+
+		if (isNodeModulesError) {
+			skipping = true;
+			continue;
+		}
+
+		// Continuation lines of a multi-line tsc diagnostic start with whitespace
+		if (skipping && /^\s{2,}/.test(line)) {
+			continue;
+		}
+
+		skipping = false;
+		filtered.push(line);
+	}
+
+	return filtered.join('\n');
+}
+
+/**
  * run the typescript compiler and result formatted results
  *
  * @param dir the absolute path to the directory containing the project (must have tsconfig.json in this folder)
@@ -39,7 +80,25 @@ export async function typecheck(dir: string, options?: TypecheckOptions): Promis
 		.nothrow();
 
 	const output = await result.text();
-	const errors = parse(output) as GrammarItem[];
+
+	// Filter out node_modules errors before parsing to prevent parser crashes.
+	// The PEG parser is strict and fails on lines it cannot match as tsc error items.
+	const filteredOutput = filterNodeModulesErrors(output);
+
+	let errors: GrammarItem[];
+	try {
+		errors = parse(filteredOutput) as GrammarItem[];
+	} catch {
+		// If the parser still fails (e.g. unexpected tsc output format), treat as
+		// an unknown error and show the raw output instead of crashing.
+		if (collector) {
+			collector.addGeneralError('typescript', output || result.stderr.toString());
+		}
+		return {
+			success: false,
+			output: output || result.stderr.toString(),
+		};
+	}
 
 	if (result.exitCode === 0) {
 		return {

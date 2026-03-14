@@ -9,7 +9,7 @@ import { StructuredError, type WorkbenchConfig } from '@agentuity/core';
 import type { LogLevel } from '../../types';
 
 import { existsSync, mkdirSync, statSync } from 'node:fs';
-import JSON5 from 'json5';
+import { parseJSONC } from '../../utils/jsonc';
 import { formatSchemaCode } from './format-schema';
 import { toForwardSlash } from '../../utils/normalize-path';
 import {
@@ -2963,8 +2963,11 @@ async function updateTsconfigPathMapping(rootDir: string, shouldAdd: boolean): P
 	try {
 		const tsconfigContent = await Bun.file(tsconfigPath).text();
 
-		// Use JSON5 to parse tsconfig.json (handles comments in input)
-		const tsconfig = JSON5.parse(tsconfigContent);
+		// Use JSONC parser to handle comments in tsconfig.json
+		const tsconfig = parseJSONC(tsconfigContent) as {
+			compilerOptions?: { paths?: Record<string, string[]> };
+			[key: string]: unknown;
+		};
 		const _before = JSON.stringify(tsconfig);
 
 		// Initialize compilerOptions and paths if they don't exist
