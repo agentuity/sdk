@@ -31,11 +31,6 @@ jobs:
       runs-on: windows-latest
       timeout-minutes: 30
       name: Windows WSL CLI Smoke Test
-      env:
-         AGENTUITY_API_URL: https://api.agentuity.com
-         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
-         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
-         AGENTUITY_REGION: usw
       steps:
          - uses: actions/checkout@v4
 
@@ -45,11 +40,26 @@ jobs:
               distribution: Ubuntu-24.04
               additional-packages: curl unzip jq
 
+         - name: Setup WSL environment
+           shell: wsl-bash {0}
+           run: |
+              # Write shared env file that all subsequent steps will source.
+              # GitHub expression substitution happens before the script runs,
+              # so secrets/vars are injected at workflow parse time, not by bash.
+              cat > ~/test-env.sh << 'ENDOFENV'
+              export CI=true
+              export AGENTUITY_API_URL="https://api.agentuity.com"
+              export AGENTUITY_USER_ID="${{ vars.AGENTUITY_USER_ID }}"
+              export AGENTUITY_CLOUD_ORG_ID="${{ vars.AGENTUITY_CLOUD_ORG_ID }}"
+              export AGENTUITY_REGION="usw"
+              export PATH="$HOME/.bun/bin:$PATH"
+              ENDOFENV
+
          - name: Install Bun and build CLI
            shell: wsl-bash {0}
            run: |
               set -e
-
+              
               # Install Bun
               curl -fsSL https://bun.sh/install | bash
               export PATH="$HOME/.bun/bin:$PATH"
@@ -71,7 +81,7 @@ jobs:
            shell: wsl-bash {0}
            run: |
               set -e
-              export PATH="$HOME/.bun/bin:$PATH"
+              source ~/test-env.sh
 
               # Generate CLI API key for authentication
               APIKEY=$(curl -sf "$AGENTUITY_API_URL/cli/auth/short-token" \
@@ -84,17 +94,19 @@ jobs:
               fi
 
               echo "::add-mask::${APIKEY}"
-              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> "$GITHUB_ENV"
+
+              # Persist API key into the shared env file for subsequent steps
+              echo "export AGENTUITY_CLI_API_KEY='${APIKEY}'" >> ~/test-env.sh
 
          - name: Create test project
            shell: wsl-bash {0}
            run: |
               set -e
-              export PATH="$HOME/.bun/bin:$PATH"
+              source ~/test-env.sh
               cd ~/sdk
 
               CLI="bun packages/cli/bin/cli.ts"
-              PROJECT_NAME="test-wsl-${GITHUB_RUN_ID}"
+              PROJECT_NAME="test-wsl-${GITHUB_RUN_ID:-local}"
 
               # Verify authentication
               $CLI auth whoami
@@ -116,15 +128,16 @@ jobs:
                 exit 1
               fi
 
-              echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
-              echo "PROJECT_NAME=$PROJECT_NAME" >> "$GITHUB_ENV"
+              # Persist project details for deploy and cleanup steps
+              echo "export PROJECT_ID='$PROJECT_ID'" >> ~/test-env.sh
+              echo "export PROJECT_NAME='$PROJECT_NAME'" >> ~/test-env.sh
               echo "✅ Project created: $PROJECT_ID"
 
          - name: Deploy test project
            shell: wsl-bash {0}
            run: |
               set -e
-              export PATH="$HOME/.bun/bin:$PATH"
+              source ~/test-env.sh
               cd ~/sdk/$PROJECT_NAME
 
               CLI="bun $HOME/sdk/packages/cli/bin/cli.ts"
@@ -138,7 +151,7 @@ jobs:
            if: always()
            shell: wsl-bash {0}
            run: |
-              export PATH="$HOME/.bun/bin:$PATH"
+              source ~/test-env.sh 2>/dev/null || true
               cd ~/sdk 2>/dev/null || exit 0
 
               CLI="bun packages/cli/bin/cli.ts"
