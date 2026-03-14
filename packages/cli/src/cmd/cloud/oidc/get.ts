@@ -5,18 +5,6 @@ import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
 
-const OAuthClientGetResponseSchema = z.object({
-	id: z.string(),
-	name: z.string(),
-	description: z.string(),
-	homepage_url: z.string(),
-	client_type: z.enum(['public', 'confidential']),
-	redirect_uris: z.array(z.string()),
-	scopes: z.array(z.string()),
-	created_at: z.string(),
-	updated_at: z.string(),
-});
-
 export const getSubcommand = createSubcommand({
 	name: 'get',
 	description: 'Get a specific OAuth application',
@@ -30,7 +18,6 @@ export const getSubcommand = createSubcommand({
 		args: z.object({
 			id: z.string().describe('the OAuth client id'),
 		}),
-		response: OAuthClientGetResponseSchema,
 	},
 
 	async handler(ctx) {

@@ -1,24 +1,7 @@
 import { oauthClientList, type APIClient } from '@agentuity/core';
-import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
-
-const OAuthClientListResponseSchema = z.array(
-	z.object({
-		id: z.string(),
-		name: z.string(),
-		client_type: z.enum(['public', 'confidential']),
-		scopes: z.array(z.string()),
-		user_count: z.number(),
-		created_at: z.string(),
-	})
-);
-
-function shortId(id: string): string {
-	if (id.length <= 12) return id;
-	return `${id.slice(0, 12)}…`;
-}
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
@@ -31,9 +14,6 @@ export const listSubcommand = createSubcommand({
 	],
 	requires: { auth: true, apiClient: true },
 	idempotent: true,
-	schema: {
-		response: OAuthClientListResponseSchema,
-	},
 
 	async handler(ctx) {
 		const { apiClient, options } = ctx;
@@ -53,7 +33,7 @@ export const listSubcommand = createSubcommand({
 				}
 
 				const rows = clients.map((client) => ({
-					ID: shortId(client.id),
+					ID: client.id,
 					Name: client.name,
 					Type: client.client_type,
 					Scopes: client.scopes.length,

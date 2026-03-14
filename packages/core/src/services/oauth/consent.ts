@@ -21,7 +21,7 @@ export async function oauthUserConsentRevoke(
 	clientId: string
 ): Promise<{ deleted: true }> {
 	const resp = await client.delete(
-		`/oidc/user/consent/${clientId}`,
+		`/oidc/user/consent/${encodeURIComponent(clientId)}`,
 		OAuthUserConsentRevokeResponseSchema
 	);
 

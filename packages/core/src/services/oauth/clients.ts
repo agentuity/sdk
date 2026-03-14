@@ -32,7 +32,10 @@ export async function oauthClientList(client: APIClient): Promise<OAuthClientLis
 }
 
 export async function oauthClientGet(client: APIClient, id: string): Promise<OAuthClientListItem> {
-	const resp = await client.get(`/oidc/clients/${id}`, OAuthClientGetResponseSchema);
+	const resp = await client.get(
+		`/oidc/clients/${encodeURIComponent(id)}`,
+		OAuthClientGetResponseSchema
+	);
 
 	if (resp.success) {
 		return resp.data;
@@ -65,7 +68,7 @@ export async function oauthClientUpdate(
 	request: OAuthClientUpdateRequest
 ): Promise<OAuthClientUpdateData> {
 	const resp = await client.put(
-		`/oidc/clients/${id}`,
+		`/oidc/clients/${encodeURIComponent(id)}`,
 		request,
 		OAuthClientUpdateResponseSchema,
 		OAuthClientUpdateRequestSchema
@@ -79,7 +82,10 @@ export async function oauthClientUpdate(
 }
 
 export async function oauthClientDelete(client: APIClient, id: string): Promise<{ deleted: true }> {
-	const resp = await client.delete(`/oidc/clients/${id}`, OAuthClientDeleteResponseSchema);
+	const resp = await client.delete(
+		`/oidc/clients/${encodeURIComponent(id)}`,
+		OAuthClientDeleteResponseSchema
+	);
 
 	if (resp.success) {
 		return resp.data;
@@ -93,7 +99,7 @@ export async function oauthClientRotateSecret(
 	id: string
 ): Promise<OAuthRotateSecretData> {
 	const resp = await client.post(
-		`/oidc/clients/${id}/rotate-secret`,
+		`/oidc/clients/${encodeURIComponent(id)}/rotate-secret`,
 		undefined,
 		OAuthClientRotateSecretResponseSchema
 	);
@@ -109,7 +115,10 @@ export async function oauthClientUsers(
 	client: APIClient,
 	id: string
 ): Promise<OAuthConsentGrant[]> {
-	const resp = await client.get(`/oidc/clients/${id}/users`, OAuthClientUsersResponseSchema);
+	const resp = await client.get(
+		`/oidc/clients/${encodeURIComponent(id)}/users`,
+		OAuthClientUsersResponseSchema
+	);
 
 	if (resp.success) {
 		return resp.data;
@@ -123,7 +132,7 @@ export async function oauthClientRevokeAllUsers(
 	id: string
 ): Promise<{ deleted: true }> {
 	const resp = await client.delete(
-		`/oidc/clients/${id}/users`,
+		`/oidc/clients/${encodeURIComponent(id)}/users`,
 		OAuthClientRevokeAllUsersResponseSchema
 	);
 
@@ -140,7 +149,7 @@ export async function oauthClientRevokeUser(
 	userId: string
 ): Promise<{ deleted: true }> {
 	const resp = await client.delete(
-		`/oidc/clients/${id}/users/${userId}`,
+		`/oidc/clients/${encodeURIComponent(id)}/users/${encodeURIComponent(userId)}`,
 		OAuthClientRevokeUserResponseSchema
 	);
 

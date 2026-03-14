@@ -13,7 +13,7 @@ export async function oauthClientActivity(
 	days?: number
 ): Promise<OAuthClientActivityItem[]> {
 	const resp = await client.get(
-		`/oidc/clients/${id}/activity${days ? `?days=${days}` : ''}`,
+		`/oidc/clients/${encodeURIComponent(id)}/activity${days ? `?days=${days}` : ''}`,
 		OAuthClientActivityResponseSchema
 	);
 
