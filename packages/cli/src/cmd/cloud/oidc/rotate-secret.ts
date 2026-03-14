@@ -1,6 +1,7 @@
-import { oauthClientRotateSecret, type APIClient } from '@agentuity/core';
+import { oauthClientRotateSecret } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
@@ -24,7 +25,7 @@ export const rotateSecretSubcommand = createSubcommand({
 			description: 'Rotate OAuth client secret without confirmation',
 		},
 	],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	idempotent: false,
 	schema: {
 		args: z.object({
@@ -37,7 +38,14 @@ export const rotateSecretSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, apiClient, options } = ctx;
+		const { args, opts, logger, auth, options, config } = ctx;
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		if (!opts.force) {
 			const confirmed = await tui.confirm(
@@ -50,7 +58,7 @@ export const rotateSecretSubcommand = createSubcommand({
 		}
 
 		const result = await tui.spinner('Rotating OAuth client secret', () => {
-			return oauthClientRotateSecret(apiClient as APIClient, args.id);
+			return oauthClientRotateSecret(catalystClient, args.id);
 		});
 
 		if (!options.json) {

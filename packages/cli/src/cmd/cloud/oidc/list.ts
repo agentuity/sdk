@@ -1,5 +1,6 @@
-import { oauthClientList, type APIClient } from '@agentuity/core';
+import { oauthClientList } from '@agentuity/core';
 import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
 
@@ -12,14 +13,21 @@ export const listSubcommand = createSubcommand({
 		{ command: getCommand('cloud oidc list'), description: 'List OAuth applications' },
 		{ command: getCommand('cloud oidc ls'), description: 'List OAuth applications' },
 	],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	idempotent: true,
 
 	async handler(ctx) {
-		const { apiClient, options } = ctx;
+		const { logger, auth, options, config } = ctx;
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		const clients = await tui.spinner('Fetching OAuth applications', () => {
-			return oauthClientList(apiClient as APIClient);
+			return oauthClientList(catalystClient);
 		});
 
 		if (!options.json) {

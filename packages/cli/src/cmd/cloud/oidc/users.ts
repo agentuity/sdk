@@ -1,6 +1,7 @@
-import { oauthClientUsers, type APIClient } from '@agentuity/core';
+import { oauthClientUsers } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import * as tui from '../../../tui';
 import { createSubcommand } from '../../../types';
 
@@ -22,7 +23,7 @@ export const usersSubcommand = createSubcommand({
 			description: 'List connected users for OAuth application',
 		},
 	],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	idempotent: true,
 	schema: {
 		args: z.object({
@@ -32,10 +33,17 @@ export const usersSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, apiClient, options } = ctx;
+		const { args, logger, auth, options, config } = ctx;
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		const users = await tui.spinner('Fetching connected OAuth users', () => {
-			return oauthClientUsers(apiClient as APIClient, args.id);
+			return oauthClientUsers(catalystClient, args.id);
 		});
 
 		if (!options.json) {

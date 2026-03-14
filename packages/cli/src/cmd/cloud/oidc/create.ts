@@ -1,12 +1,8 @@
-import {
-	oauthClientCreate,
-	oauthScopes,
-	type APIClient,
-	type OAuthClientCreateRequest,
-} from '@agentuity/core';
+import { oauthClientCreate, oauthScopes, type OAuthClientCreateRequest } from '@agentuity/core';
 import enquirer from 'enquirer';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import * as tui from '../../../tui';
 import { createSubcommand as createSubcommandHelper } from '../../../types';
 
@@ -50,7 +46,7 @@ export const createSubcommand = createSubcommandHelper({
 			description: 'Create OAuth application interactively',
 		},
 	],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true },
 	idempotent: false,
 	schema: {
 		options: z.object({
@@ -74,10 +70,17 @@ export const createSubcommand = createSubcommandHelper({
 	},
 
 	async handler(ctx) {
-		const { opts, apiClient, options } = ctx;
+		const { opts, logger, auth, options, config } = ctx;
+		const catalystClient = await getGlobalCatalystAPIClient(
+			logger,
+			auth,
+			config?.name,
+			undefined,
+			config
+		);
 
 		const availableScopes = await tui.spinner('Fetching available OAuth scopes', () => {
-			return oauthScopes(apiClient as APIClient);
+			return oauthScopes(catalystClient);
 		});
 
 		const nonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
@@ -201,7 +204,7 @@ export const createSubcommand = createSubcommandHelper({
 		};
 
 		const result = await tui.spinner('Creating OAuth application', () => {
-			return oauthClientCreate(apiClient as APIClient, request);
+			return oauthClientCreate(catalystClient, request);
 		});
 
 		if (!options.json) {
