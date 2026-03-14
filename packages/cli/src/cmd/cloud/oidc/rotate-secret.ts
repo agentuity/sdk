@@ -27,6 +27,7 @@ export const rotateSecretSubcommand = createSubcommand({
 	],
 	requires: { auth: true },
 	idempotent: false,
+	webUrl: (ctx) => `/settings/oauth-apps/${encodeURIComponent(ctx.args.id)}`,
 	schema: {
 		args: z.object({
 			id: z.string().describe('the OAuth client id'),

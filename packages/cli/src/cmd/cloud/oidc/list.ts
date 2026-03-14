@@ -15,6 +15,7 @@ export const listSubcommand = createSubcommand({
 	],
 	requires: { auth: true },
 	idempotent: true,
+	webUrl: '/settings/oauth-apps',
 
 	async handler(ctx) {
 		const { options } = ctx;

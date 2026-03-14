@@ -25,6 +25,7 @@ export const deleteSubcommand = createSubcommand({
 		},
 	],
 	requires: { auth: true },
+	webUrl: '/settings/oauth-apps',
 	schema: {
 		args: z.object({
 			id: z.string().describe('the OAuth client id to delete'),

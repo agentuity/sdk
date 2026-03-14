@@ -48,6 +48,7 @@ export const createSubcommand = createSubcommandHelper({
 	],
 	requires: { auth: true },
 	idempotent: false,
+	webUrl: '/settings/oauth-apps',
 	schema: {
 		options: z.object({
 			name: z.string().optional().describe('the OAuth application name'),
