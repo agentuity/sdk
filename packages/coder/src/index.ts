@@ -1777,7 +1777,7 @@ async function runSubAgent(
 						return;
 					}
 
-					if (evt.type === 'tool_execution_start' || evt.type === 'tool_call') {
+					if (evt.type === 'tool_execution_start') {
 						const toolName = evt.toolName || evt.name || evt.tool || 'unknown';
 						let toolArgs = '';
 						if (evt.args && typeof evt.args === 'object') {
@@ -1795,14 +1795,16 @@ async function runSubAgent(
 						onProgress({
 							agentName: agentConfig.name,
 							status: 'tool_start',
+							toolCallId: typeof evt.toolCallId === 'string' ? evt.toolCallId : undefined,
 							currentTool: toolName,
 							currentToolArgs: toolArgs,
 							elapsed,
 						});
-					} else if (evt.type === 'tool_execution_end' || evt.type === 'tool_result') {
+					} else if (evt.type === 'tool_execution_end') {
 						onProgress({
 							agentName: agentConfig.name,
 							status: 'tool_end',
+							toolCallId: typeof evt.toolCallId === 'string' ? evt.toolCallId : undefined,
 							elapsed,
 						});
 					}
