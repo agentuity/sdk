@@ -535,6 +535,11 @@ setup_github_actions() {
   if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" = "true" ]; then
     printf "%s\n" "$BUN_INSTALL_BIN" >>"$GITHUB_PATH"
     print_message info "Added $BUN_INSTALL_BIN to \$GITHUB_PATH"
+    # Also add BUN_EXEC_DIR when it differs, so the "bun" shebang resolves
+    if [ "$BUN_EXEC_DIR" != "$BUN_INSTALL_BIN" ]; then
+      printf "%s\n" "$BUN_EXEC_DIR" >>"$GITHUB_PATH"
+      print_message info "Added $BUN_EXEC_DIR to \$GITHUB_PATH"
+    fi
   fi
 }
 

@@ -297,4 +297,21 @@ describe('parseJSONC', () => {
 		const result = parseJSONC(input) as Record<string, unknown>;
 		expect(result).toEqual({ pattern: 'a}b]c' });
 	});
+
+	// Bounds safety — malformed input must not crash the stripper
+	test('unterminated string with trailing backslash does not crash', () => {
+		// Malformed: string ends with a lone backslash and no closing quote.
+		// The stripper should not throw; JSON.parse will reject the result.
+		expect(() => parseJSONC('{"key": "value\\')).toThrow();
+	});
+
+	test('unterminated block comment does not crash', () => {
+		// Malformed: block comment is never closed.
+		// The stripper should not throw; JSON.parse will reject the result.
+		expect(() => parseJSONC('{ /* unterminated comment "key": "value"}')).toThrow();
+	});
+
+	test('unterminated string at end of input does not crash', () => {
+		expect(() => parseJSONC('{"key": "no closing quote')).toThrow();
+	});
 });

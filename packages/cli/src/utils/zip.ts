@@ -25,20 +25,21 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 			}
 		}
 		if (!skip) {
-			// Skip symlinks and directories — symlinks are workspace artefacts
-			// (e.g. bun's node_modules links) that cannot be resolved portably
-			// across machines and would cause EISDIR errors on extraction.
-			const stat = lstatSync(file);
-			if (stat.isSymbolicLink() || stat.isDirectory()) {
-				count++;
-				continue;
+			try {
+				// Skip symlinks and directories — symlinks are workspace artefacts
+				// (e.g. bun's node_modules links) that cannot be resolved portably
+				// across machines and would cause EISDIR errors on extraction.
+				const stat = lstatSync(file);
+				if (!stat.isSymbolicLink() && !stat.isDirectory()) {
+					// Use addFile with explicit Unix permissions (0o644) instead of addLocalFile.
+					// On Windows, addLocalFile relies on OS file stats which may produce zip entries
+					// with incorrect Unix permission bits, causing EACCES errors when extracted on Linux.
+					const data = readFileSync(file);
+					zip.addFile(rel, data, '', 0o644);
+				}
+			} catch (err) {
+				throw new Error(`Failed to add file to zip: ${rel} (${file})`, { cause: err });
 			}
-
-			// Use addFile with explicit Unix permissions (0o644) instead of addLocalFile.
-			// On Windows, addLocalFile relies on OS file stats which may produce zip entries
-			// with incorrect Unix permission bits, causing EACCES errors when extracted on Linux.
-			const data = readFileSync(file);
-			zip.addFile(rel, data, '', 0o644);
 		}
 		count++;
 		if (options?.progress) {

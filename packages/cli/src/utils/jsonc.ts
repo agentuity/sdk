@@ -23,7 +23,7 @@ export function parseJSONC(text: string): unknown {
 			i++; // skip opening quote
 			while (i < len) {
 				if (text[i] === '\\') {
-					i += 2; // skip escaped character
+					i += i + 1 < len ? 2 : 1; // skip escaped character (guard end-of-input)
 				} else if (text[i] === '"') {
 					i++; // skip closing quote
 					break;
@@ -50,7 +50,9 @@ export function parseJSONC(text: string): unknown {
 			while (i < len && !(text[i] === '*' && text[i + 1] === '/')) {
 				i++;
 			}
-			i += 2; // skip closing */
+			if (i < len) {
+				i += 2; // skip closing */
+			}
 			continue;
 		}
 
