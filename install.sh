@@ -441,13 +441,14 @@ configure_path() {
   bun_bin_dir="$BUN_INSTALL_BIN"
   modified_config_file=""
 
-  # Check if bun bin is already on PATH
-  case ":$PATH:" in
-  *":$bun_bin_dir:"*)
-    print_message debug "Bun bin directory already on PATH"
-    return 0
-    ;;
-  esac
+  # NOTE: We intentionally do NOT check the runtime $PATH here and return early.
+  # When running via "curl ... | sh", the install subprocess temporarily adds
+  # directories to $PATH (e.g. BUN_EXEC_DIR). That makes the runtime check pass,
+  # but the user's shell config file is never updated. After the subprocess exits
+  # the PATH change is lost and commands fail with "No such file or directory"
+  # because the shebang interpreter (bun) cannot be found.
+  # Instead, we always proceed to add_to_path() which checks the config FILE
+  # for duplicates — that is the correct deduplication layer.
 
   XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
   current_shell=$(basename "${SHELL:-sh}")
@@ -501,12 +502,27 @@ configure_path() {
     fi
   fi
 
+  # Ensure BUN_EXEC_DIR (where the bun binary lives) is on PATH.
+  # This is critical: globally installed packages use a "#!/usr/bin/env bun"
+  # shebang, so bun must be findable. BUN_EXEC_DIR and BUN_INSTALL_BIN may
+  # differ (e.g. bun at ~/.bun/bin, global packages at ~/.local/bin).
+  if [ "$BUN_EXEC_DIR" != "$bun_bin_dir" ]; then
+    case $current_shell in
+    fish)
+      add_to_path "$config_file" "fish_add_path $BUN_EXEC_DIR" "bun"
+      ;;
+    *)
+      add_to_path "$config_file" "export PATH=$BUN_EXEC_DIR:\$PATH" "bun"
+      ;;
+    esac
+  fi
+
   case $current_shell in
   fish)
-    add_to_path "$config_file" "fish_add_path $bun_bin_dir" "bun"
+    add_to_path "$config_file" "fish_add_path $bun_bin_dir" "bun global packages"
     ;;
   *)
-    add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH" "bun"
+    add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH" "bun global packages"
     ;;
   esac
   
