@@ -40,9 +40,6 @@ const threadProvider = new InMemoryThreadProvider();
 const app = await createApp({
 	router: { path: '/api', router },
 	agents,
-	setup: () => {
-		return { foo: 'bar' };
-	},
 	services: {
 		thread: threadProvider,
 		sessionEvent: testSessionEventProvider,
