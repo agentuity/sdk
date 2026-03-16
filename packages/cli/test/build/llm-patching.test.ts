@@ -336,27 +336,23 @@ describe('buildPatchFilter (cross-platform)', () => {
 
 	test('matches deep filenames (otel patches) on both platforms', () => {
 		const filter = buildPatchFilter('openai', 'resources/chat/completions/completions');
-		expect(filter.test('/p/node_modules/openai/resources/chat/completions/completions.mjs')).toBe(
-			true
-		);
-		expect(
-			filter.test(
-				'C:\\p\\node_modules\\openai\\resources\\chat\\completions\\completions.mjs'
-			)
-		).toBe(true);
+		const unix = '/p/node_modules/openai/resources/chat/completions/completions.mjs';
+		const win = 'C:\\p\\node_modules\\openai\\resources\\chat\\completions\\completions.mjs';
+		expect(filter.test(unix)).toBe(true);
+		expect(filter.test(win)).toBe(true);
 	});
 
 	test('matches without filename (wildcard) on both platforms', () => {
 		const filter = buildPatchFilter('@ai-sdk/openai');
-		expect(filter.test('/project/node_modules/@ai-sdk/openai/dist/index.mjs')).toBe(true);
-		expect(filter.test('C:\\project\\node_modules\\@ai-sdk\\openai\\dist\\index.mjs')).toBe(
-			true
-		);
+		const unix = '/project/node_modules/@ai-sdk/openai/dist/index.mjs';
+		const win = 'C:\\project\\node_modules\\@ai-sdk\\openai\\dist\\index.mjs';
+		expect(filter.test(unix)).toBe(true);
+		expect(filter.test(win)).toBe(true);
 	});
 
 	test('every generated patch produces a filter that matches both platforms', () => {
 		const patches = generatePatches();
-		for (const [name, patch] of patches) {
+		for (const [, patch] of patches) {
 			const filter = buildPatchFilter(patch.module, patch.filename);
 			const file = patch.filename ? `${patch.filename}.mjs` : 'dist/index.mjs';
 			const unix = `/project/node_modules/${patch.module}/${file}`;
