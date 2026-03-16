@@ -265,6 +265,11 @@ export class RemoteSession {
 
 			this.ws.onopen = () => {
 				log('WebSocket connected');
+				try {
+					this.ws?.send(JSON.stringify({ type: 'controller_ready' }));
+				} catch {
+					// Let the normal init timeout surface if bootstrap cannot start.
+				}
 			};
 
 			this.ws.onmessage = (event: MessageEvent) => {
