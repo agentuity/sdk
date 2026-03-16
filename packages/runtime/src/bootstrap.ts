@@ -56,14 +56,14 @@ import { BEACON_SCRIPT } from '@agentuity/frontend';
  * @see https://github.com/oven-sh/bun/issues/20183
  */
 const getEnv = (key: string) => process.env[key];
-const isDevelopment = () => getEnv('NODE' + '_' + 'ENV') !== 'production';
+export const isDevelopment = () => getEnv('NODE' + '_' + 'ENV') !== 'production';
 
 // ============================================================================
 // Analytics helpers
 // ============================================================================
 
 /** Resolve analytics config with defaults */
-function resolveAnalyticsConfig(
+export function resolveAnalyticsConfig(
 	analytics: boolean | AnalyticsOptions | undefined
 ): AnalyticsOptions & { enabled: boolean } {
 	if (analytics === false) {
@@ -87,7 +87,9 @@ function resolveAnalyticsConfig(
 }
 
 /** Resolve workbench config */
-function resolveWorkbenchConfig(workbench: boolean | string | WorkbenchOptions | undefined): {
+export function resolveWorkbenchConfig(
+	workbench: boolean | string | WorkbenchOptions | undefined
+): {
 	enabled: boolean;
 	route: string;
 	headers: Record<string, string>;
@@ -150,7 +152,7 @@ function injectAnalytics(
 }
 
 /** Register analytics routes on the app */
-function registerAnalyticsRoutes(
+export function registerAnalyticsRoutes(
 	app: ReturnType<typeof createRouter>,
 	_analyticsConfig: AnalyticsOptions & { enabled: boolean }
 ): void {
@@ -188,7 +190,7 @@ function registerAnalyticsRoutes(
 // Health routes
 // ============================================================================
 
-function registerHealthRoutes(app: ReturnType<typeof createRouter>): void {
+export function registerHealthRoutes(app: ReturnType<typeof createRouter>): void {
 	// Production health checks
 	if (!isDevelopment()) {
 		const healthHandler = (c: Context) => {
@@ -224,7 +226,7 @@ function registerHealthRoutes(app: ReturnType<typeof createRouter>): void {
 // Web routes (production static serving)
 // ============================================================================
 
-function registerWebRoutes(
+export function registerWebRoutes(
 	app: ReturnType<typeof createRouter>,
 	analyticsConfig: AnalyticsOptions & { enabled: boolean }
 ): void {
@@ -285,7 +287,7 @@ function registerWebRoutes(
 // Workbench UI route (dev only)
 // ============================================================================
 
-function registerWorkbenchUI(
+export function registerWorkbenchUI(
 	app: ReturnType<typeof createRouter>,
 	workbenchConfig: { enabled: boolean; route: string }
 ): void {
@@ -308,7 +310,7 @@ function registerWorkbenchUI(
 // Server startup
 // ============================================================================
 
-function startServer(app: ReturnType<typeof createRouter>): void {
+export function startServer(app: ReturnType<typeof createRouter>): void {
 	if (typeof Bun === 'undefined') return;
 
 	enableProcessExitProtection();

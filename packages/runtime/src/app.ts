@@ -443,7 +443,7 @@ export function getApp(): null {
 
 // Re-export event functions from _events
 export { fireEvent } from './_events';
-import { getLogger, getRouter } from './_server';
+
 import type { Hono } from 'hono';
 
 // ============================================================================
@@ -511,21 +511,121 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	// Store config globally (middleware reads it lazily at request time)
 	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
 
-	// Bootstrap the entire server: OTel, middleware, routes, Bun.serve()
-	const { bootstrap } = await import('./bootstrap');
-	await bootstrap();
+	// --- Imports (lazy to avoid circular deps) ---
+	const { bootstrapRuntimeEnv } = await import('@agentuity/server');
+	const { register } = await import('./otel/config');
+	const { setGlobalLogger, setGlobalTracer, setGlobalRouter, getSpanProcessors } = await import(
+		'./_server'
+	);
+	const { createServices, getThreadProvider, getSessionProvider } = await import('./_services');
+	const {
+		createBaseMiddleware,
+		createCorsMiddleware,
+		createOtelMiddleware,
+		createCompressionMiddleware,
+	} = await import('./middleware');
+	const { runAgentSetups, createAgentMiddleware } = await import('./agent');
+	const { loadBuildMetadata } = await import('./_metadata');
+	const { patchBunS3ForStorageDev } = await import('./bun-s3-patch');
+	const { createWorkbenchRouter } = await import('./workbench');
+	const {
+		isDevelopment,
+		resolveAnalyticsConfig,
+		resolveWorkbenchConfig,
+		registerHealthRoutes,
+		registerAnalyticsRoutes,
+		registerWebRoutes,
+		registerWorkbenchUI,
+		startServer,
+	} = await import('./bootstrap');
 
-	// After bootstrap, logger and router are available
-	const otelLogger = getLogger()!;
-	const appRouter = getRouter()! as Hono<Env>;
+	// --- Step 0: Environment ---
+	if (isDevelopment()) {
+		bootstrapRuntimeEnv();
+	}
+	if (isDevelopment() && process.env.AGENTUITY_NO_BUNDLE === 'true') {
+		const { applyDevPatches } = await import('./dev-patches');
+		await applyDevPatches();
+	}
+	loadBuildMetadata();
+	patchBunS3ForStorageDev();
 
+	// --- Step 1: Telemetry ---
+	const otel = register({
+		processors: getSpanProcessors(),
+		logLevel: (process.env.AGENTUITY_LOG_LEVEL || 'info') as import('@agentuity/core').LogLevel,
+	});
+	setGlobalLogger(otel.logger);
+	setGlobalTracer(otel.tracer);
+
+	// --- Step 2: Router + middleware ---
+	const { createRouter } = await import('./router');
+	const app = createRouter();
+	setGlobalRouter(app);
+
+	app.use('*', createCompressionMiddleware());
+	app.use(
+		'*',
+		createBaseMiddleware({
+			logger: otel.logger,
+			tracer: otel.tracer,
+			meter: otel.meter,
+		})
+	);
+	app.use('/_agentuity/workbench/*', createOtelMiddleware());
+
+	// --- Step 3: Services ---
 	const port = process.env.PORT || '3500';
+	const serverUrl = `http://127.0.0.1:${port}`;
+	createServices(otel.logger, config, serverUrl);
+
+	const appState = getAppState();
+	const threadProvider = getThreadProvider();
+	const sessionProvider = getSessionProvider();
+	await threadProvider.initialize(appState);
+	await sessionProvider.initialize(appState);
+
+	// --- Step 4: Routes ---
+	const analyticsConfig = resolveAnalyticsConfig(config?.analytics);
+	const workbenchConfig = resolveWorkbenchConfig(config?.workbench);
+
+	registerHealthRoutes(app);
+
+	if (analyticsConfig.enabled) {
+		registerAnalyticsRoutes(app, analyticsConfig);
+	}
+
+	// Mount user routers
+	if (config?.router) {
+		const mounts = normalizeRouterConfig(config.router);
+		for (const mount of mounts) {
+			const prefix = mount.path.endsWith('/') ? mount.path + '*' : mount.path + '/*';
+			app.use(prefix, createCorsMiddleware());
+			app.use(prefix, createOtelMiddleware());
+			app.use(prefix, createAgentMiddleware(''));
+			app.route(mount.path, mount.router);
+		}
+	}
+
+	// Workbench
+	const workbenchRouter = createWorkbenchRouter();
+	app.route('/', workbenchRouter);
+	registerWorkbenchUI(app, workbenchConfig);
+
+	// Web (production static serving)
+	registerWebRoutes(app, analyticsConfig);
+
+	// --- Step 5: Agent lifecycle + server ---
+	await runAgentSetups(appState);
+	startServer(app);
+
+	otel.logger.info('Server listening on %s', serverUrl);
 
 	return {
 		config,
-		router: appRouter,
-		server: { url: `http://127.0.0.1:${port}` },
-		logger: otelLogger,
+		router: app as Hono<Env>,
+		server: { url: serverUrl },
+		logger: otel.logger,
 	};
 }
 
