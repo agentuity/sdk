@@ -5,10 +5,10 @@ import type chatAgent from '../agent/chat/agent.js';
 import type docQAAgent from '../agent/doc_qa/index.js';
 import type helloAgent from '../agent/hello/agent.js';
 import type docProcessingAgent from '../agent/doc_processing/index.js';
-import type { AgentPulseRequestSchema as AgentPulseRequestSchema_0 } from '../api/agent-pulse/route';
-import type { SessionSchema as SessionSchema_1 } from '../types/chat';
-import type { AddMessageSchema as AddMessageSchema_2 } from '../api/sessions/route';
-import type { TitleGeneratorRequestSchema as TitleGeneratorRequestSchema_3 } from '../api/title-generator/route';
+import type { AgentPulseRequestSchema } from '../api/agent-pulse/route';
+import type { SessionSchema } from '../types/chat';
+import type { AddMessageSchema } from '../api/sessions/route';
+import type { TitleGeneratorRequestSchema } from '../api/title-generator/route';
 import type { InferInput, InferOutput } from '@agentuity/core';
 
 // ============================================================================
@@ -38,7 +38,7 @@ export type POSTApiAgentCallsProcessOutputSchema = typeof textProcessorAgent ext
 /**
  * Input type for route: POST /api/agent-pulse
  */
-export type POSTApiAgentPulseInput = InferInput<typeof AgentPulseRequestSchema_0>;
+export type POSTApiAgentPulseInput = InferInput<typeof AgentPulseRequestSchema>;
 
 /**
  * Output type for route: POST /api/agent-pulse
@@ -48,7 +48,7 @@ export type POSTApiAgentPulseOutput = never;
 /**
  * Input schema type for route: POST /api/agent-pulse
  */
-export type POSTApiAgentPulseInputSchema = typeof AgentPulseRequestSchema_0;
+export type POSTApiAgentPulseInputSchema = typeof AgentPulseRequestSchema;
 
 /**
  * Output schema type for route: POST /api/agent-pulse
@@ -138,7 +138,7 @@ export type POSTApiProcessDocsOutputSchema = typeof docProcessingAgent extends {
 /**
  * Input type for route: POST /api/sessions
  */
-export type POSTApiSessionsInput = InferInput<typeof SessionSchema_1>;
+export type POSTApiSessionsInput = InferInput<typeof SessionSchema>;
 
 /**
  * Output type for route: POST /api/sessions
@@ -148,7 +148,7 @@ export type POSTApiSessionsOutput = never;
 /**
  * Input schema type for route: POST /api/sessions
  */
-export type POSTApiSessionsInputSchema = typeof SessionSchema_1;
+export type POSTApiSessionsInputSchema = typeof SessionSchema;
 
 /**
  * Output schema type for route: POST /api/sessions
@@ -158,7 +158,7 @@ export type POSTApiSessionsOutputSchema = never;
 /**
  * Input type for route: PUT /api/sessions/:sessionId
  */
-export type PUTApiSessionsSessionIdInput = InferInput<typeof SessionSchema_1>;
+export type PUTApiSessionsSessionIdInput = InferInput<typeof SessionSchema>;
 
 /**
  * Output type for route: PUT /api/sessions/:sessionId
@@ -168,7 +168,7 @@ export type PUTApiSessionsSessionIdOutput = never;
 /**
  * Input schema type for route: PUT /api/sessions/:sessionId
  */
-export type PUTApiSessionsSessionIdInputSchema = typeof SessionSchema_1;
+export type PUTApiSessionsSessionIdInputSchema = typeof SessionSchema;
 
 /**
  * Output schema type for route: PUT /api/sessions/:sessionId
@@ -178,7 +178,7 @@ export type PUTApiSessionsSessionIdOutputSchema = never;
 /**
  * Input type for route: POST /api/sessions/:sessionId/messages
  */
-export type POSTApiSessionsSessionIdMessagesInput = InferInput<typeof AddMessageSchema_2>;
+export type POSTApiSessionsSessionIdMessagesInput = InferInput<typeof AddMessageSchema>;
 
 /**
  * Output type for route: POST /api/sessions/:sessionId/messages
@@ -188,7 +188,7 @@ export type POSTApiSessionsSessionIdMessagesOutput = never;
 /**
  * Input schema type for route: POST /api/sessions/:sessionId/messages
  */
-export type POSTApiSessionsSessionIdMessagesInputSchema = typeof AddMessageSchema_2;
+export type POSTApiSessionsSessionIdMessagesInputSchema = typeof AddMessageSchema;
 
 /**
  * Output schema type for route: POST /api/sessions/:sessionId/messages
@@ -198,7 +198,7 @@ export type POSTApiSessionsSessionIdMessagesOutputSchema = never;
 /**
  * Input type for route: POST /api/title-generator
  */
-export type POSTApiTitleGeneratorInput = InferInput<typeof TitleGeneratorRequestSchema_3>;
+export type POSTApiTitleGeneratorInput = InferInput<typeof TitleGeneratorRequestSchema>;
 
 /**
  * Output type for route: POST /api/title-generator
@@ -208,7 +208,7 @@ export type POSTApiTitleGeneratorOutput = never;
 /**
  * Input schema type for route: POST /api/title-generator
  */
-export type POSTApiTitleGeneratorInputSchema = typeof TitleGeneratorRequestSchema_3;
+export type POSTApiTitleGeneratorInputSchema = typeof TitleGeneratorRequestSchema;
 
 /**
  * Output schema type for route: POST /api/title-generator

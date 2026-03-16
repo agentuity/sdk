@@ -14,6 +14,7 @@ import webhookCommand from './webhook';
 import { agentCommand } from './agent';
 import envCommand from './env';
 import apikeyCommand from './apikey';
+import oidcCommand from './oidc';
 import streamCommand from './stream';
 import vectorCommand from './vector';
 import { emailCommand } from './email';
@@ -23,6 +24,7 @@ import scheduleCommand from './schedule';
 import servicesCommand from './services';
 import { regionSubcommand } from './region';
 import { machineCommand } from './machine';
+import { monitorSubcommand } from './monitor';
 import { evalCommand } from './eval';
 import { evalRunCommand } from './eval-run';
 import { getCommand } from '../../command-prefix';
@@ -38,6 +40,7 @@ export const command = createCommand({
 	],
 	subcommands: [
 		apikeyCommand,
+		oidcCommand,
 		keyvalueCommand,
 		queueCommand,
 		webhookCommand,
@@ -60,6 +63,7 @@ export const command = createCommand({
 		threadCommand,
 		sshSubcommand,
 		scpSubcommand,
+		monitorSubcommand,
 		deploymentCommand,
 		regionSubcommand,
 		machineCommand,

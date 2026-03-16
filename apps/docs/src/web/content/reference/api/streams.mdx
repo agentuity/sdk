@@ -1,0 +1,436 @@
+---
+title: Durable Streams API
+description: Create durable, resumable data streams with public URLs
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker host="streams" />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Create Stream
+
+Create a new stream and receive its stream ID.
+
+<ApiEndpoint method="POST" path="/stream" host="streams" />
+
+
+
+### Request Body
+
+Stream creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "The namespace/group name (1–254 chars)",
+    "required": true
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Optional key-value metadata",
+    "required": false
+  },
+  {
+    "name": "headers",
+    "type": "object",
+    "description": "Optional headers map (commonly includes `content-type`)",
+    "required": false
+  },
+  {
+    "name": "ttl",
+    "type": "number | null",
+    "description": "Stream TTL in seconds",
+    "required": false
+  }
+]} />
+
+### Response
+
+JSON response containing the new stream ID.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stream created successfully |
+| 401 | Unauthorized |
+| 402 | Payment required |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Created stream ID"
+  }
+]} />
+
+### Notes
+
+TTL behavior:
+- **Omitted**: Stream expires after the service default period
+- **`null` or `0`**: Stream never expires
+- **60–7,776,000**: Expires after specified seconds (values outside range are clamped)
+
+### Example
+
+<ApiExample method="POST" path="/stream" body={{
+  "name": "agent-logs",
+  "metadata": {
+    "exportDate": "2024-01-15"
+  },
+  "headers": {
+    "content-type": "application/json"
+  }
+}} host="streams" />
+
+---
+
+## Get Stream Info
+
+Get stream metadata, size, public URL, and expiration info.
+
+<ApiEndpoint method="POST" path="/stream/{id}/info" host="streams" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The stream ID"
+  }
+]} />
+
+### Request Body
+
+Empty JSON object is required.
+
+### Response
+
+JSON object with stream details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stream info returned |
+| 401 | Unauthorized |
+| 404 | Stream not found |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Stream ID"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Namespace name"
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Stream metadata"
+  },
+  {
+    "name": "url",
+    "type": "string",
+    "description": "Public stream URL"
+  },
+  {
+    "name": "size_bytes",
+    "type": "number",
+    "description": "Current stream size in bytes"
+  },
+  {
+    "name": "expires_at",
+    "type": "string | null",
+    "description": "ISO 8601 expiration timestamp"
+  }
+]} />
+
+### Example
+
+<ApiExample method="POST" path="/stream/stream_abc123/info" body={{}} host="streams" />
+
+---
+
+## Download Stream
+
+Download the finalized stream contents as raw binary data.
+
+<ApiEndpoint method="GET" path="/stream/{id}" host="streams" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The stream ID"
+  }
+]} />
+
+### Response
+
+Raw binary stream data with original content type.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stream data returned |
+| 401 | Unauthorized |
+| 404 | Stream not found |
+
+### Example
+
+<ApiExample method="GET" path="/stream/stream_abc123" host="streams" />
+
+---
+
+## List Streams
+
+List streams with filtering, pagination, and sorting.
+
+<ApiEndpoint method="POST" path="/stream/list" host="streams" />
+
+
+
+### Request Body
+
+Optional list filters and pagination controls.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Filter by namespace",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Filter by metadata fields",
+    "required": false
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Maximum streams to return",
+    "required": false
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Offset for pagination",
+    "required": false
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "description": "Sort by `name`, `created`, `updated`, `size`, `count`, or `lastUsed`",
+    "required": false
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "description": "Sort direction: `asc` or `desc`",
+    "required": false
+  }
+]} />
+
+### Response
+
+JSON response with stream list and total count.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stream list returned |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "Whether the request succeeded"
+  },
+  {
+    "name": "streams",
+    "type": "object[]",
+    "description": "Matching streams"
+  },
+  {
+    "name": "streams[].id",
+    "type": "string",
+    "description": "Stream ID"
+  },
+  {
+    "name": "streams[].name",
+    "type": "string",
+    "description": "Namespace name"
+  },
+  {
+    "name": "streams[].metadata",
+    "type": "object",
+    "description": "Stream metadata"
+  },
+  {
+    "name": "streams[].url",
+    "type": "string",
+    "description": "Public stream URL"
+  },
+  {
+    "name": "streams[].size_bytes",
+    "type": "number",
+    "description": "Current stream size in bytes"
+  },
+  {
+    "name": "streams[].expires_at",
+    "type": "string | null",
+    "description": "ISO 8601 expiration timestamp"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total matches"
+  }
+]} />
+
+### Example
+
+<ApiExample method="POST" path="/stream/list" body={{
+  "name": "agent-logs",
+  "limit": 50
+}} host="streams" />
+
+---
+
+## Delete Stream
+
+Delete a stream by ID.
+
+<ApiEndpoint method="DELETE" path="/stream/{id}" host="streams" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The stream ID"
+  }
+]} />
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stream deleted |
+| 401 | Unauthorized |
+| 404 | Stream not found |
+
+### Example
+
+<ApiExample method="DELETE" path="/stream/stream_abc123" host="streams" />
+
+---
+
+## Append Data
+
+Append a binary chunk (up to 5MB) to an open stream.
+
+<ApiEndpoint method="POST" path="/stream/{id}/append" host="streams" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The stream ID"
+  }
+]} />
+
+### Request Body
+
+Raw binary body. Set `Content-Type: application/octet-stream`.
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Data appended |
+| 401 | Unauthorized |
+| 413 | Chunk too large |
+
+### Example
+
+<ApiExample method="POST" path="/stream/stream_abc123/append" body="<binary data>" headers={{"Content-Type":"application/octet-stream"}} host="streams" />
+
+---
+
+## Complete Stream
+
+Finalize stream writing and make it available for reading.
+
+<ApiEndpoint method="POST" path="/stream/{id}/complete" host="streams" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The stream ID"
+  }
+]} />
+
+### Request Body
+
+Empty body. Optional header: `X-Compress: gzip` for server-side compression.
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stream completed |
+| 401 | Unauthorized |
+
+### Example
+
+<ApiExample method="POST" path="/stream/stream_abc123/complete" host="streams" />
+
+---

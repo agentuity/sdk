@@ -1,0 +1,781 @@
+---
+title: Emails API
+description: Send and receive emails with managed addresses and webhook destinations
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Address Management
+
+### Create Address
+
+Create a managed address at the `@agentuity.email` domain.
+
+<ApiEndpoint method="POST" path="/email/addresses" />
+
+
+
+#### Request Body
+
+Address creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "local_part",
+    "type": "string",
+    "description": "Local part before `@agentuity.email`",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Created `EmailAddress` object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Address created |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="POST" path="/email/addresses" body={{
+  "local_part": "support"
+}} />
+
+---
+
+### List Addresses
+
+List managed email addresses.
+
+<ApiEndpoint method="GET" path="/email/addresses" />
+
+
+
+#### Response
+
+Array of `EmailAddress` objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Addresses returned |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="GET" path="/email/addresses" />
+
+---
+
+### Get Address
+
+Get a managed address by ID (`eaddr_...`).
+
+<ApiEndpoint method="GET" path="/email/addresses/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Address ID (`eaddr_...`)"
+  }
+]} />
+
+#### Response
+
+`EmailAddress` object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Address returned |
+| 401 | Unauthorized |
+| 404 | Address not found |
+
+#### Example
+
+<ApiExample method="GET" path="/email/addresses/eaddr_abc123" />
+
+---
+
+### Get Connection Config
+
+Get IMAP/POP3 connection settings and credentials for an address.
+
+<ApiEndpoint method="GET" path="/email/addresses/{id}/connection" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Address ID"
+  }
+]} />
+
+#### Response
+
+Connection configuration including IMAP and POP3 details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Connection config returned |
+| 401 | Unauthorized |
+| 404 | Address not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "email",
+    "type": "string",
+    "description": "The full email address these settings are for.",
+    "required": true
+  },
+  {
+    "name": "imap",
+    "type": "object",
+    "description": "IMAP protocol connection settings.",
+    "required": true
+  },
+  {
+    "name": "imap.host",
+    "type": "string",
+    "description": "The mail server hostname.",
+    "required": true
+  },
+  {
+    "name": "imap.port",
+    "type": "number",
+    "description": "The mail server port number.",
+    "required": true
+  },
+  {
+    "name": "imap.tls",
+    "type": "string",
+    "description": "TLS mode (e.g., `'starttls'`, `'ssl'`, `'none'`).",
+    "required": true
+  },
+  {
+    "name": "imap.username",
+    "type": "string",
+    "description": "The authentication username (typically the address ID).",
+    "required": true
+  },
+  {
+    "name": "imap.password",
+    "type": "string",
+    "description": "The authentication password.",
+    "required": true
+  },
+  {
+    "name": "pop3",
+    "type": "object",
+    "description": "POP3 protocol connection settings.",
+    "required": true
+  },
+  {
+    "name": "pop3.host",
+    "type": "string",
+    "description": "The mail server hostname.",
+    "required": true
+  },
+  {
+    "name": "pop3.port",
+    "type": "number",
+    "description": "The mail server port number.",
+    "required": true
+  },
+  {
+    "name": "pop3.tls",
+    "type": "string",
+    "description": "TLS mode (e.g., `'starttls'`, `'ssl'`, `'none'`).",
+    "required": true
+  },
+  {
+    "name": "pop3.username",
+    "type": "string",
+    "description": "The authentication username (typically the address ID).",
+    "required": true
+  },
+  {
+    "name": "pop3.password",
+    "type": "string",
+    "description": "The authentication password.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/email/addresses/eaddr_abc123/connection" />
+
+---
+
+### Delete Address
+
+Delete a managed email address.
+
+<ApiEndpoint method="DELETE" path="/email/addresses/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Address ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Address deleted |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="DELETE" path="/email/addresses/eaddr_abc123" />
+
+---
+
+## Email Destinations
+
+### Create Destination
+
+Create an inbound webhook destination for an address.
+
+<ApiEndpoint method="POST" path="/email/addresses/{addressId}/destinations" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "addressId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Address ID"
+  }
+]} />
+
+#### Request Body
+
+Destination creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "type",
+    "type": "string",
+    "description": "Destination type (`url`)",
+    "required": true
+  },
+  {
+    "name": "config",
+    "type": "object",
+    "description": "Destination config including URL",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Created `EmailDestination` object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Destination created |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="POST" path="/email/addresses/eaddr_abc123/destinations" body={{
+  "type": "url",
+  "config": {
+    "url": "https://example.com/email-hook",
+    "method": "POST"
+  }
+}} />
+
+---
+
+### List Destinations
+
+List inbound destinations for an address.
+
+<ApiEndpoint method="GET" path="/email/addresses/{addressId}/destinations" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "addressId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Address ID"
+  }
+]} />
+
+#### Response
+
+Array of `EmailDestination` objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Destinations returned |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="GET" path="/email/addresses/eaddr_abc123/destinations" />
+
+---
+
+### Delete Destination
+
+Delete an inbound destination.
+
+<ApiEndpoint method="DELETE" path="/email/addresses/{addressId}/destinations/{destinationId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "addressId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Address ID"
+  },
+  {
+    "name": "destinationId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Destination ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Destination deleted |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="DELETE" path="/email/addresses/eaddr_abc123/destinations/edst_abc123" />
+
+---
+
+## Sending Email
+
+### Send Email
+
+Send an email from an owned address. Delivery is asynchronous and total payload (including attachments) is capped at 25MB.
+
+<ApiEndpoint method="POST" path="/email/outbound/send" />
+
+
+
+#### Request Body
+
+Outbound email payload.
+
+<ResponseFields fields={[
+  {
+    "name": "from",
+    "type": "string",
+    "description": "The sender email address (must be owned by the organization)",
+    "required": true
+  },
+  {
+    "name": "to",
+    "type": "string[]",
+    "description": "The recipient email addresses",
+    "required": true
+  },
+  {
+    "name": "subject",
+    "type": "string",
+    "description": "The email subject",
+    "required": true
+  },
+  {
+    "name": "text",
+    "type": "string",
+    "description": "Plain text email body",
+    "required": false
+  },
+  {
+    "name": "html",
+    "type": "string",
+    "description": "HTML email body",
+    "required": false
+  },
+  {
+    "name": "attachments",
+    "type": "object[]",
+    "description": "File attachments",
+    "required": false
+  },
+  {
+    "name": "attachments[].filename",
+    "type": "string",
+    "description": "The filename for the attachment",
+    "required": true
+  },
+  {
+    "name": "attachments[].content",
+    "type": "string",
+    "description": "The base64-encoded content of the attachment",
+    "required": true
+  },
+  {
+    "name": "attachments[].contentType",
+    "type": "string",
+    "description": "The MIME content type of the attachment",
+    "required": false
+  },
+  {
+    "name": "headers",
+    "type": "object",
+    "description": "Custom email headers (e.g., In-Reply-To, References for threading)",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Created `EmailOutbound` object with initial `pending` status.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Outbound email accepted |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="POST" path="/email/outbound/send" body={{
+  "from": "support@agentuity.email",
+  "to": [
+    "user@example.com"
+  ],
+  "subject": "Welcome!",
+  "text": "Thanks for joining Agentuity."
+}} />
+
+---
+
+## Inbound Email
+
+### List Inbound
+
+List inbound emails, optionally filtered by address.
+
+<ApiEndpoint method="GET" path="/email/inbound" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "address_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by address ID"
+  }
+]} />
+
+#### Response
+
+Array of `EmailInbound` objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Inbound emails returned |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="GET" path="/email/inbound?address_id=eaddr_abc123" />
+
+---
+
+### Get Inbound
+
+Get a specific inbound email by ID (`einb_...`).
+
+<ApiEndpoint method="GET" path="/email/inbound/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Inbound email ID (`einb_...`)"
+  }
+]} />
+
+#### Response
+
+`EmailInbound` object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Inbound email returned |
+| 401 | Unauthorized |
+| 404 | Inbound email not found |
+
+#### Example
+
+<ApiExample method="GET" path="/email/inbound/einb_abc123" />
+
+---
+
+### Delete Inbound
+
+Delete an inbound email record.
+
+<ApiEndpoint method="DELETE" path="/email/inbound/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Inbound email ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Inbound email deleted |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="DELETE" path="/email/inbound/einb_abc123" />
+
+---
+
+## Outbound Email
+
+### List Outbound
+
+List outbound emails, optionally filtered by address.
+
+<ApiEndpoint method="GET" path="/email/outbound" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "address_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by address ID"
+  }
+]} />
+
+#### Response
+
+Array of `EmailOutbound` objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Outbound emails returned |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="GET" path="/email/outbound?address_id=eaddr_abc123" />
+
+---
+
+### Get Outbound
+
+Get an outbound email by ID (`eout_...`).
+
+<ApiEndpoint method="GET" path="/email/outbound/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Outbound email ID (`eout_...`)"
+  }
+]} />
+
+#### Response
+
+`EmailOutbound` object including delivery status and error details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Outbound email returned |
+| 401 | Unauthorized |
+| 404 | Outbound email not found |
+
+#### Example
+
+<ApiExample method="GET" path="/email/outbound/eout_abc123" />
+
+---
+
+### Delete Outbound
+
+Delete an outbound email record.
+
+<ApiEndpoint method="DELETE" path="/email/outbound/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Outbound email ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Outbound email deleted |
+| 401 | Unauthorized |
+
+#### Example
+
+<ApiExample method="DELETE" path="/email/outbound/eout_abc123" />
+
+---
+
+## Activity
+
+### Get Activity
+
+Get daily inbound/outbound activity over a date window.
+
+<ApiEndpoint method="GET" path="/email/activity/{date}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "date",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Date for activity lookup (YYYY-MM-DD format)"
+  },
+  {
+    "name": "days",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Range in days (7–365, default: 7)"
+  }
+]} />
+
+#### Response
+
+Activity time series grouped by date.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Activity returned |
+| 401 | Unauthorized |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "activity",
+    "type": "object[]",
+    "description": "Array of daily activity data points, ordered chronologically.",
+    "required": true
+  },
+  {
+    "name": "activity[].date",
+    "type": "string",
+    "description": "The date in `YYYY-MM-DD` format.",
+    "required": true
+  },
+  {
+    "name": "activity[].inbound",
+    "type": "number",
+    "description": "Number of inbound emails received on this date.",
+    "required": true
+  },
+  {
+    "name": "activity[].outbound",
+    "type": "number",
+    "description": "Number of outbound emails sent on this date.",
+    "required": true
+  },
+  {
+    "name": "days",
+    "type": "number",
+    "description": "The number of days of data returned.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/email/activity/2026-02-28?days=30" />
+
+---

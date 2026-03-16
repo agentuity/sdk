@@ -749,8 +749,6 @@ function unwrap<T>(payload: unknown, key: string): T {
 	return payload as T;
 }
 
-const EMAIL_ACTIVITY_API_VERSION = '2026-02-28';
-
 /**
  * Client for the Agentuity Email service.
  *
@@ -1449,10 +1447,7 @@ export class EmailStorageService implements EmailService {
 		}
 
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/email/activity/${EMAIL_ACTIVITY_API_VERSION}${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/email/activity${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const days = queryParams.get('days');

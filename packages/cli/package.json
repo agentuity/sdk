@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/cli",
-	"version": "1.0.40",
+	"version": "1.0.43",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -54,7 +54,6 @@
 		"enquirer": "^2.4.1",
 		"git-url-parse": "^16.1.0",
 		"json-colorizer": "^3.0.1",
-		"json5": "^2.2.3",
 		"tar": "^7.5.2",
 		"tar-fs": "^3.1.1",
 		"typescript": "^5.9.0",

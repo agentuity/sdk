@@ -1,0 +1,291 @@
+---
+title: Databases API
+description: Execute queries, inspect tables, and monitor database performance
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Get Query Logs
+
+Get query logs for a database with optional filtering.
+
+<ApiEndpoint method="GET" path="/resource/{orgId}/{region}/{database}/logs" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  },
+  {
+    "name": "region",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Region identifier"
+  },
+  {
+    "name": "database",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Database name"
+  },
+  {
+    "name": "startDate",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Start date filter"
+  },
+  {
+    "name": "endDate",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "End date filter"
+  },
+  {
+    "name": "username",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by username"
+  },
+  {
+    "name": "command",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by SQL command type"
+  },
+  {
+    "name": "hasError",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Filter for queries with errors"
+  },
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by session ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum logs to return"
+  }
+]} />
+
+### Response
+
+Array of query log entries.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Query logs returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Database not found |
+
+### Example
+
+<ApiExample method="GET" path="/resource/org_abc123/usw/mydb/logs" />
+
+---
+
+## Execute Query
+
+Execute a SQL query against a database.
+
+<ApiEndpoint method="POST" path="/resource/{orgId}/{region}/{database}/query" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  },
+  {
+    "name": "region",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Region identifier"
+  },
+  {
+    "name": "database",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Database name"
+  }
+]} />
+
+### Request Body
+
+SQL query payload.
+
+<ResponseFields fields={[
+  {
+    "name": "query",
+    "type": "string",
+    "description": "SQL query to execute",
+    "required": true
+  }
+]} />
+
+### Response
+
+Returns columns, rows, row count, and whether results were truncated (max 1000 rows).
+
+| Status | Description |
+|--------|-------------|
+| 200 | Query executed successfully |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Database not found |
+
+### Example
+
+<ApiExample method="POST" path="/resource/org_abc123/usw/mydb/query" body={{
+  "query": "SELECT * FROM users LIMIT 10"
+}} />
+
+---
+
+## Get Query Stats
+
+Get aggregate query statistics for a database over a date range.
+
+<ApiEndpoint method="GET" path="/resource/{orgId}/{region}/{database}/logs/stats" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  },
+  {
+    "name": "region",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Region identifier"
+  },
+  {
+    "name": "database",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Database name"
+  },
+  {
+    "name": "startDate",
+    "type": "string",
+    "in": "query",
+    "required": true,
+    "description": "Start date for stats range"
+  },
+  {
+    "name": "endDate",
+    "type": "string",
+    "in": "query",
+    "required": true,
+    "description": "End date for stats range"
+  }
+]} />
+
+### Response
+
+Aggregate query statistics.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Query stats returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Database not found |
+
+### Example
+
+<ApiExample method="GET" path="/resource/org_abc123/usw/mydb/logs/stats" />
+
+---
+
+## List Tables
+
+List all tables in a database.
+
+<ApiEndpoint method="GET" path="/resource/{orgId}/{region}/{database}/tables" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  },
+  {
+    "name": "region",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Region identifier"
+  },
+  {
+    "name": "database",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Database name"
+  }
+]} />
+
+### Response
+
+Array of table names and metadata.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tables returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Database not found |
+
+### Example
+
+<ApiExample method="GET" path="/resource/org_abc123/usw/mydb/tables" />
+
+---

@@ -1816,15 +1816,41 @@ section "SNAPSHOT WITH FILES IN SUBDIRECTORIES Tests"
 # ============================================
 # Uses the existing SANDBOX_ID (main test sandbox, bun runtime)
 # Tests that nested directory structures are properly included in snapshots
+#
+# NOTE: SANDBOX_ID may have been idle for several minutes during BUILD,
+# MALWARE, and PYTHON tests. Verify it's still alive before proceeding.
+
+# Keepalive check: verify sandbox is still responsive after the long gap
+info "Test: verify main sandbox is still alive"
+KEEPALIVE=$($CLI cloud sandbox exec "$SANDBOX_ID" -- echo "sandbox-alive" 2>&1) || true
+if echo "$KEEPALIVE" | grep -q "sandbox-alive"; then
+	pass "main sandbox is still responsive"
+else
+	fail "main sandbox may have been reaped by idle timeout (was idle during BUILD/MALWARE/PYTHON tests)" "$KEEPALIVE"
+fi
 
 # Test: Create nested directory structure with various file types
+# Use a single combined command to avoid multiple round-trips and reduce flakiness
 info "Test: create nested directory structure in sandbox"
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'mkdir -p /home/agentuity/project/src' >/dev/null 2>&1 || true
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'mkdir -p /home/agentuity/project/config' >/dev/null 2>&1 || true
+MKDIR_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'mkdir -p /home/agentuity/project/src /home/agentuity/project/config && echo "dirs-created"' 2>&1) || true
+if echo "$MKDIR_OUTPUT" | grep -q "dirs-created"; then
+	pass "nested directories created successfully"
+else
+	fail "failed to create nested directories" "$MKDIR_OUTPUT"
+fi
 
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "def main(): print(\"hello\")" > /home/agentuity/project/src/main.py' >/dev/null 2>&1 || true
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "def helper(): return 42" > /home/agentuity/project/src/utils.py' >/dev/null 2>&1 || true
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "{\"debug\": true}" > /home/agentuity/project/config/settings.json' >/dev/null 2>&1 || true
+# Write files - capture output to detect errors instead of silently swallowing them
+WRITE_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c '
+	echo "def main(): print(\"hello\")" > /home/agentuity/project/src/main.py &&
+	echo "def helper(): return 42" > /home/agentuity/project/src/utils.py &&
+	echo "{\"debug\": true}" > /home/agentuity/project/config/settings.json &&
+	echo "files-written"
+' 2>&1) || true
+if echo "$WRITE_OUTPUT" | grep -q "files-written"; then
+	pass "nested files written successfully"
+else
+	fail "failed to write nested files" "$WRITE_OUTPUT"
+fi
 
 # Verify files were created
 NESTED_VERIFY=$($CLI cloud sandbox exec "$SANDBOX_ID" -- find /home/agentuity/project -type f 2>&1) || true
@@ -1981,6 +2007,15 @@ section "SNAPSHOT RE-SNAPSHOT LIFECYCLE Tests"
 # ============================================
 # Uses the existing SANDBOX_ID (main test sandbox)
 # Tests that incremental snapshots properly capture new files
+
+# Keepalive check: verify sandbox is still responsive
+info "Test: verify main sandbox is still alive for lifecycle tests"
+LIFECYCLE_KEEPALIVE=$($CLI cloud sandbox exec "$SANDBOX_ID" -- echo "lifecycle-alive" 2>&1) || true
+if echo "$LIFECYCLE_KEEPALIVE" | grep -q "lifecycle-alive"; then
+	pass "main sandbox is still responsive for lifecycle tests"
+else
+	fail "main sandbox may have been reaped by idle timeout before lifecycle tests" "$LIFECYCLE_KEEPALIVE"
+fi
 
 # Test: Create initial snapshot
 info "Test: create initial snapshot for re-snapshot lifecycle"

@@ -1,0 +1,1676 @@
+---
+title: Projects API
+description: Full project lifecycle management including deployments, agents, environment variables, and hostnames
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Project Management
+
+### Create Project
+
+Create a new project within an organization.
+
+<ApiEndpoint method="POST" path="/cli/project" />
+
+
+
+#### Request Body
+
+Project creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "the name of the new project",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "the description of the project",
+    "required": false
+  },
+  {
+    "name": "tags",
+    "type": "string[]",
+    "description": "tags for the project",
+    "required": false
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "the organization id to create the project in",
+    "required": true
+  },
+  {
+    "name": "cloudRegion",
+    "type": "string",
+    "description": "the cloud region to create the project",
+    "required": true
+  },
+  {
+    "name": "domains",
+    "type": "string[]",
+    "description": "the custom domains for this project",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created project ID and SDK key.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Project created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "the unique id for the project",
+    "required": true
+  },
+  {
+    "name": "sdkKey",
+    "type": "string",
+    "description": "the SDK key for the project",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/cli/project" body={{
+  "name": "my-project",
+  "orgId": "org_abc123",
+  "cloudRegion": "usw"
+}} />
+
+---
+
+### List Projects
+
+List all projects accessible to the authenticated user.
+
+<ApiEndpoint method="GET" path="/cli/project" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "hasDeployment",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Filter to projects with deployments"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Max results (default 1000, max 10000)"
+  }
+]} />
+
+#### Response
+
+Returns a list of projects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Projects returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/project" />
+
+---
+
+### Get Project
+
+Retrieve a specific project by ID. The `mask` and `includeProjectKeys` query parameters both default to `true` when omitted.
+
+<ApiEndpoint method="GET" path="/cli/project/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  },
+  {
+    "name": "mask",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Mask secrets (default true)"
+  },
+  {
+    "name": "includeProjectKeys",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Include SDK keys (default true)"
+  }
+]} />
+
+#### Response
+
+Returns the project details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Project returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/project/proj_abc123" />
+
+---
+
+### Delete Projects
+
+Delete one or more projects by ID.
+
+<ApiEndpoint method="DELETE" path="/cli/project" />
+
+
+
+#### Request Body
+
+Project deletion payload.
+
+<ResponseFields fields={[
+  {
+    "name": "ids",
+    "type": "string[]",
+    "description": "Array of project IDs to delete.",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns array of deleted project IDs.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Projects deleted |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="DELETE" path="/cli/project" body={{
+  "ids": [
+    "proj_abc123"
+  ]
+}} />
+
+---
+
+### Check Project Exists
+
+Check if a project with the given name already exists.
+
+<ApiEndpoint method="GET" path="/cli/project/exists/{name}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "name",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project name (URL-encoded)"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": true,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns true (HTTP 409) if exists, false (HTTP 422) if not.
+
+| Status | Description |
+|--------|-------------|
+| 409 | Project exists |
+| 422 | Project does not exist |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/project/exists/my-project?orgId=org_abc123" />
+
+---
+
+### Update Project Region
+
+Update the cloud region for a project.
+
+<ApiEndpoint method="PATCH" path="/cli/project/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  }
+]} />
+
+#### Request Body
+
+Region update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "cloudRegion",
+    "type": "string",
+    "description": "the cloud region to update the project to",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the updated project.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Project updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/cli/project/proj_abc123" body={{
+  "cloudRegion": "use"
+}} />
+
+---
+
+## Environment Variables
+
+### Update Env Variables
+
+Update environment variables and secrets for a project.
+
+<ApiEndpoint method="PUT" path="/cli/project/{id}/env" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  }
+]} />
+
+#### Request Body
+
+Environment variable update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "env",
+    "type": "object",
+    "description": "environment variables to set/update",
+    "required": false
+  },
+  {
+    "name": "secrets",
+    "type": "object",
+    "description": "secrets to set/update",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated environment variables.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Environment variables updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Example
+
+<ApiExample method="PUT" path="/cli/project/proj_abc123/env" body={{
+  "env": {
+    "DB_HOST": "localhost"
+  },
+  "secrets": {
+    "DB_PASS": "secret"
+  }
+}} />
+
+---
+
+### Delete Env Variables
+
+Delete specific environment variables and secrets from a project.
+
+<ApiEndpoint method="DELETE" path="/cli/project/{id}/env" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  }
+]} />
+
+#### Request Body
+
+Environment variable deletion payload.
+
+<ResponseFields fields={[
+  {
+    "name": "env",
+    "type": "string[]",
+    "description": "environment variable keys to delete",
+    "required": false
+  },
+  {
+    "name": "secrets",
+    "type": "string[]",
+    "description": "secret keys to delete",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Environment variables deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/cli/project/proj_abc123/env" body={{
+  "env": [
+    "OLD_VAR"
+  ],
+  "secrets": [
+    "OLD_SECRET"
+  ]
+}} />
+
+---
+
+## Agents
+
+### List Agents
+
+List agents for a project.
+
+<ApiEndpoint method="GET" path="/cli/agent/{projectId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  },
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by deployment ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by organization ID"
+  }
+]} />
+
+#### Response
+
+Returns a list of agents for the project.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Agents returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Agent ID (same as identifier)",
+    "required": true
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Agent name",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string | null",
+    "description": "Agent description",
+    "required": true
+  },
+  {
+    "name": "identifier",
+    "type": "string",
+    "description": "Agent identifier",
+    "required": true
+  },
+  {
+    "name": "deploymentId",
+    "type": "string | null",
+    "description": "Deployment ID",
+    "required": true
+  },
+  {
+    "name": "devmode",
+    "type": "boolean",
+    "description": "Whether agent is in development mode",
+    "required": true
+  },
+  {
+    "name": "metadata",
+    "type": "object | null",
+    "description": "Agent metadata",
+    "required": true
+  },
+  {
+    "name": "createdAt",
+    "type": "string",
+    "description": "Creation timestamp",
+    "required": true
+  },
+  {
+    "name": "updatedAt",
+    "type": "string",
+    "description": "Last update timestamp",
+    "required": true
+  },
+  {
+    "name": "evals",
+    "type": "object[]",
+    "description": "Associated evaluations",
+    "required": true
+  },
+  {
+    "name": "evals[].id",
+    "type": "string",
+    "description": "Evaluation ID",
+    "required": true
+  },
+  {
+    "name": "evals[].name",
+    "type": "string",
+    "description": "Evaluation name",
+    "required": true
+  },
+  {
+    "name": "evals[].description",
+    "type": "string | null",
+    "description": "Evaluation description",
+    "required": true
+  },
+  {
+    "name": "evals[].identifier",
+    "type": "string | null",
+    "description": "Evaluation identifier",
+    "required": true
+  },
+  {
+    "name": "evals[].devmode",
+    "type": "boolean",
+    "description": "Whether evaluation is in development mode",
+    "required": true
+  },
+  {
+    "name": "evals[].createdAt",
+    "type": "string",
+    "description": "Creation timestamp",
+    "required": true
+  },
+  {
+    "name": "evals[].updatedAt",
+    "type": "string",
+    "description": "Last update timestamp",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/cli/agent/proj_abc123" />
+
+---
+
+### Get Agent by Identifier
+
+Retrieve a specific agent by its identifier.
+
+<ApiEndpoint method="GET" path="/cli/agent/{projectId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  },
+  {
+    "name": "identifier",
+    "type": "string",
+    "in": "query",
+    "required": true,
+    "description": "Agent identifier"
+  }
+]} />
+
+#### Response
+
+Returns the agent matching the identifier.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Agent returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Agent not found |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/agent/proj_abc123?identifier=my-agent" />
+
+---
+
+## Deployments
+
+### List Deployments
+
+List deployments for a project.
+
+<ApiEndpoint method="GET" path="/cli/project/{projectId}/deployments" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Max results (default 10)"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by organization ID"
+  }
+]} />
+
+#### Response
+
+Returns a list of deployments for the project.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deployments returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/project/proj_abc123/deployments" />
+
+---
+
+### Get Deployment
+
+Retrieve a specific deployment by ID.
+
+<ApiEndpoint method="GET" path="/cli/project/{projectId}/deployments/{deploymentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  },
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID"
+  }
+]} />
+
+#### Response
+
+Returns the deployment details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deployment returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Deployment not found |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/project/proj_abc123/deployments/dep_def456" />
+
+---
+
+### Delete Deployment
+
+Delete a specific deployment.
+
+<ApiEndpoint method="DELETE" path="/cli/project/{projectId}/deployments/{deploymentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  },
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID"
+  }
+]} />
+
+#### Response
+
+Returns confirmation of deletion.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deployment deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Deployment not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/cli/project/proj_abc123/deployments/dep_def456" />
+
+---
+
+### Rollback Deployment
+
+Rollback to a specific deployment version.
+
+<ApiEndpoint method="POST" path="/cli/project/{projectId}/deployments/{deploymentId}/rollback" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  },
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID"
+  }
+]} />
+
+#### Response
+
+Rolls back to the specified deployment version.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Rollback initiated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Deployment not found |
+
+#### Example
+
+<ApiExample method="POST" path="/cli/project/proj_abc123/deployments/dep_def456/rollback" />
+
+---
+
+### Undeploy Project
+
+Undeploy all active deployments for a project.
+
+<ApiEndpoint method="POST" path="/cli/project/{projectId}/deployments/undeploy" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  }
+]} />
+
+#### Response
+
+Returns confirmation of undeployment.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Project undeployed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Example
+
+<ApiExample method="POST" path="/cli/project/proj_abc123/deployments/undeploy" />
+
+---
+
+### Get Deployment Logs
+
+Retrieve logs for a specific deployment.
+
+<ApiEndpoint method="GET" path="/cli/project/{projectId}/deployments/{deploymentId}/logs" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  },
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Max results (default 100)"
+  }
+]} />
+
+#### Response
+
+Returns deployment log entries.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Logs returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Deployment not found |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/project/proj_abc123/deployments/dep_def456/logs" />
+
+---
+
+### Get Deployment Info
+
+Lightweight deployment lookup — returns ID, project, org, region, state, and active status.
+
+<ApiEndpoint method="GET" path="/cli/deployment/{deploymentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID"
+  }
+]} />
+
+#### Response
+
+Lightweight deployment lookup — returns ID, project, org, region, state, and active status.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deployment info returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Deployment not found |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/deployment/dep_abc123" />
+
+---
+
+## Deploy Pipeline
+
+### Start Deployment
+
+Start a new deployment for a project.
+
+<ApiEndpoint method="POST" path="/cli/deploy/2/start/{projectId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  }
+]} />
+
+#### Request Body
+
+Deployment configuration payload.
+
+<ResponseFields fields={[
+  {
+    "name": "resources",
+    "type": "object",
+    "description": "the resource requirements for your deployed project",
+    "required": false
+  },
+  {
+    "name": "resources.memory",
+    "type": "string",
+    "description": "The memory requirements",
+    "required": true
+  },
+  {
+    "name": "resources.cpu",
+    "type": "string",
+    "description": "The CPU requirements",
+    "required": true
+  },
+  {
+    "name": "resources.disk",
+    "type": "string",
+    "description": "The disk requirements",
+    "required": true
+  },
+  {
+    "name": "mode",
+    "type": "object",
+    "description": "the provisioning mode for the project",
+    "required": false
+  },
+  {
+    "name": "mode.type",
+    "type": "string",
+    "description": "on-demand or provisioned",
+    "required": true
+  },
+  {
+    "name": "mode.idle",
+    "type": "string",
+    "description": "duration in seconds if on-demand",
+    "required": false
+  },
+  {
+    "name": "dependencies",
+    "type": "string[]",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "domains",
+    "type": "string[]",
+    "description": "",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns deployment details and upload information.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Deployment started |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "the unique id for the deployment"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "the organization id"
+  },
+  {
+    "name": "publicKey",
+    "type": "string",
+    "description": "the public key to use for encrypting the deployment"
+  },
+  {
+    "name": "buildLogsStreamURL",
+    "type": "string",
+    "description": "the URL for streaming build logs (PUT to write, GET to read)"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/cli/deploy/2/start/proj_abc123" body={{
+  "resources": {
+    "memory": 512,
+    "cpu": 1
+  }
+}} />
+
+---
+
+### Upload Build Metadata
+
+Upload build metadata for a deployment in progress.
+
+<ApiEndpoint method="PUT" path="/cli/deploy/2/start/{deploymentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID"
+  }
+]} />
+
+#### Response
+
+Returns pre-signed upload URLs for the deployment archive and assets.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Upload URLs returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Deployment not found |
+
+#### Example
+
+<ApiExample method="PUT" path="/cli/deploy/2/start/dep_abc123" />
+
+---
+
+### Complete Deployment
+
+Signal that a deployment upload is complete and ready for activation.
+
+<ApiEndpoint method="POST" path="/cli/deploy/2/complete/{deploymentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID"
+  }
+]} />
+
+#### Response
+
+Returns warmup stream and public URL information.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deployment completed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Deployment not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "streamId",
+    "type": "string",
+    "description": "the stream id for warmup logs",
+    "required": false
+  },
+  {
+    "name": "publicUrls",
+    "type": "object",
+    "description": "the map of public urls",
+    "required": true
+  },
+  {
+    "name": "publicUrls.latest",
+    "type": "string",
+    "description": "the public url for the latest deployment",
+    "required": true
+  },
+  {
+    "name": "publicUrls.deployment",
+    "type": "string",
+    "description": "the public url for this deployment",
+    "required": true
+  },
+  {
+    "name": "publicUrls.custom",
+    "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "publicUrls.vanityDeployment",
+    "type": "string | null",
+    "description": "the vanity url for this deployment",
+    "required": false
+  },
+  {
+    "name": "publicUrls.vanityProject",
+    "type": "string | null",
+    "description": "the vanity url for the latest deployment",
+    "required": false
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/cli/deploy/2/complete/dep_abc123" />
+
+---
+
+### Get Deploy Status
+
+Check the current status of a deployment.
+
+<ApiEndpoint method="GET" path="/cli/deploy/2/status/{deploymentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID"
+  }
+]} />
+
+#### Response
+
+Returns the current deployment state.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Status returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Deployment not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "state",
+    "type": "string",
+    "description": "the current deployment state"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/cli/deploy/2/status/dep_abc123" />
+
+---
+
+### Report Deploy Failure
+
+Report a deployment failure with error details.
+
+<ApiEndpoint method="POST" path="/cli/deploy/2/fail/{deploymentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID"
+  }
+]} />
+
+#### Request Body
+
+Failure report payload.
+
+<ResponseFields fields={[
+  {
+    "name": "error",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics",
+    "type": "object",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.success",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors[].type",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors[].scope",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors[].path",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.errors[].line",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.errors[].column",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.errors[].message",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.errors[].code",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.warnings",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.warnings[].type",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.warnings[].scope",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.warnings[].path",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.warnings[].line",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.warnings[].column",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.warnings[].message",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.warnings[].code",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "diagnostics.diagnostics",
+    "type": "object[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.diagnostics[].name",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.diagnostics[].startedAt",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.diagnostics[].completedAt",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.diagnostics[].durationMs",
+    "type": "number",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "diagnostics.error",
+    "type": "string",
+    "description": "",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns confirmation of failure report.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Failure reported |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Deployment not found |
+
+#### Example
+
+<ApiExample method="POST" path="/cli/deploy/2/fail/dep_abc123" body={{
+  "error": "Build failed: TypeScript compilation error"
+}} />
+
+---
+
+## Hostname
+
+### Get Hostname
+
+Get the vanity hostname for a project.
+
+<ApiEndpoint method="GET" path="/cli/project/{id}/hostname" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  }
+]} />
+
+#### Response
+
+Returns the vanity hostname and URL.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Hostname returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "hostname",
+    "type": "string | null",
+    "description": "The vanity hostname for the project, or null if not set."
+  },
+  {
+    "name": "url",
+    "type": "string | null",
+    "description": "The full URL for the project hostname, or null if not set."
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/cli/project/proj_abc123/hostname" />
+
+---
+
+### Set Hostname
+
+Set a vanity hostname for a project.
+
+<ApiEndpoint method="PUT" path="/cli/project/{id}/hostname" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project ID"
+  }
+]} />
+
+#### Request Body
+
+Hostname configuration payload.
+
+<ResponseFields fields={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "description": "the project id",
+    "required": true
+  },
+  {
+    "name": "hostname",
+    "type": "string",
+    "description": "the vanity hostname to set",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the configured hostname and URL.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Hostname set |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "hostname",
+    "type": "string",
+    "description": "The vanity hostname that was set."
+  },
+  {
+    "name": "url",
+    "type": "string",
+    "description": "The full URL for the project hostname."
+  }
+]} />
+
+#### Example
+
+<ApiExample method="PUT" path="/cli/project/proj_abc123/hostname" body={{
+  "hostname": "my-app"
+}} />
+
+---
+
+## Security
+
+### Check for Malware
+
+Scan deployment dependencies for known malware.
+
+<ApiEndpoint method="POST" path="/security/{deploymentId}/malware-check" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "deploymentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Deployment ID (URL-encoded)"
+  }
+]} />
+
+#### Request Body
+
+Malware scan payload.
+
+<ResponseFields fields={[
+  {
+    "name": "ecosystem",
+    "type": "string",
+    "description": "Package ecosystem (e.g., `npm`)",
+    "required": true
+  },
+  {
+    "name": "packages",
+    "type": "object[]",
+    "description": "Array of packages to scan, each with name and version",
+    "required": true
+  },
+  {
+    "name": "packages[].name",
+    "type": "string",
+    "description": "Package name (e.g., lodash, express)",
+    "required": true
+  },
+  {
+    "name": "packages[].version",
+    "type": "string",
+    "description": "Package version (e.g., 4.17.21)",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns scan results. If action is 'block', the deployment should be blocked.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Scan completed |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "action",
+    "type": "string",
+    "description": "Action to take based on the scan results (allow or block deployment)."
+  },
+  {
+    "name": "summary",
+    "type": "object",
+    "description": "Summary of the malware check scan."
+  },
+  {
+    "name": "summary.scanned",
+    "type": "number",
+    "description": "Total number of packages scanned."
+  },
+  {
+    "name": "summary.flagged",
+    "type": "number",
+    "description": "Number of packages flagged as potentially malicious."
+  },
+  {
+    "name": "findings",
+    "type": "object[]",
+    "description": "List of malware detection findings."
+  },
+  {
+    "name": "findings[].name",
+    "type": "string",
+    "description": "Name of the flagged package."
+  },
+  {
+    "name": "findings[].version",
+    "type": "string",
+    "description": "Version of the flagged package."
+  },
+  {
+    "name": "findings[].reason",
+    "type": "string",
+    "description": "Reason why the package was flagged as potentially malicious."
+  },
+  {
+    "name": "list",
+    "type": "object",
+    "description": "Metadata about the malware list used, if available."
+  },
+  {
+    "name": "list.fetchedAt",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the malware list was last fetched."
+  },
+  {
+    "name": "list.count",
+    "type": "number",
+    "description": "Number of entries in the malware list."
+  },
+  {
+    "name": "error",
+    "type": "string",
+    "description": "Error message if the malware check encountered an issue."
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/security/dep_abc123/malware-check" body={{
+  "ecosystem": "npm",
+  "packages": [
+    {
+      "name": "lodash",
+      "version": "4.17.21"
+    }
+  ]
+}} />
+
+---

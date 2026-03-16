@@ -980,14 +980,8 @@ export interface TaskStorage {
 	getActivity(params?: TaskActivityParams): Promise<TaskActivityResult>;
 }
 
-/** API version string used for task CRUD, comment, tag, and attachment endpoints. */
-const TASK_API_VERSION = '2026-02-24';
-
 /** Maximum number of tasks that can be deleted in a single batch request. */
 const MAX_BATCH_DELETE_LIMIT = 200;
-
-/** API version string used for the task activity analytics endpoint. */
-const TASK_ACTIVITY_API_VERSION = '2026-02-28';
 
 /** Thrown when a task ID parameter is empty or not a string. */
 const TaskIdRequiredError = StructuredError(
@@ -1157,7 +1151,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskTitleRequiredError();
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/${TASK_API_VERSION}`);
+		const url = buildUrl(this.#baseUrl, '/task');
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
@@ -1211,7 +1205,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskIdRequiredError();
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`);
+		const url = buildUrl(this.#baseUrl, `/task/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
@@ -1277,10 +1271,7 @@ export class TaskStorageService implements TaskStorage {
 		if (params?.offset !== undefined) queryParams.set('offset', String(params.offset));
 
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/${TASK_API_VERSION}${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<ListTasksResult>>(url, {
@@ -1340,7 +1331,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskTitleRequiredError();
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`);
+		const url = buildUrl(this.#baseUrl, `/task/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
@@ -1386,7 +1377,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskIdRequiredError();
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/${TASK_API_VERSION}/${encodeURIComponent(id)}`);
+		const url = buildUrl(this.#baseUrl, `/task/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
@@ -1446,9 +1437,7 @@ export class TaskStorageService implements TaskStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/task/changelog/${TASK_API_VERSION}/${encodeURIComponent(id)}${
-				queryString ? `?${queryString}` : ''
-			}`
+			`/task/changelog/${encodeURIComponent(id)}${queryString ? `?${queryString}` : ''}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 
@@ -1493,10 +1482,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/delete/${TASK_API_VERSION}/${encodeURIComponent(id)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/delete/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
@@ -1552,7 +1538,7 @@ export class TaskStorageService implements TaskStorage {
 			);
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/delete/batch/${TASK_API_VERSION}`);
+		const url = buildUrl(this.#baseUrl, `/task/delete/batch`);
 		const signal = AbortSignal.timeout(60_000);
 
 		const body: Record<string, unknown> = {};
@@ -1632,10 +1618,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new UserIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/comments/create/${TASK_API_VERSION}/${encodeURIComponent(taskId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/comments/create/${encodeURIComponent(taskId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const commentBody: Record<string, unknown> = { body, user_id: userId };
@@ -1684,10 +1667,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new CommentIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/comments/get/${TASK_API_VERSION}/${encodeURIComponent(commentId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/comments/get/${encodeURIComponent(commentId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Comment>>(url, {
@@ -1739,10 +1719,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new CommentBodyRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/comments/update/${TASK_API_VERSION}/${encodeURIComponent(commentId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/comments/update/${encodeURIComponent(commentId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Comment>>(url, {
@@ -1787,10 +1764,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new CommentIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/comments/delete/${TASK_API_VERSION}/${encodeURIComponent(commentId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/comments/delete/${encodeURIComponent(commentId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
@@ -1850,9 +1824,7 @@ export class TaskStorageService implements TaskStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/task/comments/list/${TASK_API_VERSION}/${encodeURIComponent(taskId)}${
-				queryString ? `?${queryString}` : ''
-			}`
+			`/task/comments/list/${encodeURIComponent(taskId)}${queryString ? `?${queryString}` : ''}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 
@@ -1898,7 +1870,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TagNameRequiredError();
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/tags/create/${TASK_API_VERSION}`);
+		const url = buildUrl(this.#baseUrl, '/task/tags/create');
 		const signal = AbortSignal.timeout(30_000);
 
 		const body: Record<string, string> = { name };
@@ -1947,10 +1919,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TagIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/tags/get/${TASK_API_VERSION}/${encodeURIComponent(tagId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/tags/get/${encodeURIComponent(tagId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Tag>>(url, {
@@ -2000,10 +1969,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TagNameRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/tags/update/${TASK_API_VERSION}/${encodeURIComponent(tagId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/tags/update/${encodeURIComponent(tagId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const body: Record<string, string> = { name };
@@ -2051,10 +2017,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TagIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/tags/delete/${TASK_API_VERSION}/${encodeURIComponent(tagId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/tags/delete/${encodeURIComponent(tagId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
@@ -2094,7 +2057,7 @@ export class TaskStorageService implements TaskStorage {
 	 * ```
 	 */
 	async listTags(): Promise<ListTagsResult> {
-		const url = buildUrl(this.#baseUrl, `/task/tags/list/${TASK_API_VERSION}`);
+		const url = buildUrl(this.#baseUrl, '/task/tags/list');
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<ListTagsResult>>(url, {
@@ -2144,7 +2107,7 @@ export class TaskStorageService implements TaskStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/task/tags/add/${TASK_API_VERSION}/${encodeURIComponent(taskId)}/${encodeURIComponent(tagId)}`
+			`/task/tags/add/${encodeURIComponent(taskId)}/${encodeURIComponent(tagId)}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 
@@ -2195,7 +2158,7 @@ export class TaskStorageService implements TaskStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/task/tags/remove/${TASK_API_VERSION}/${encodeURIComponent(taskId)}/${encodeURIComponent(tagId)}`
+			`/task/tags/remove/${encodeURIComponent(taskId)}/${encodeURIComponent(tagId)}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 
@@ -2240,10 +2203,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/tags/task/${TASK_API_VERSION}/${encodeURIComponent(taskId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/tags/task/${encodeURIComponent(taskId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Tag[]>>(url, {
@@ -2305,7 +2265,7 @@ export class TaskStorageService implements TaskStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/task/attachments/presign-upload/${TASK_API_VERSION}/${encodeURIComponent(taskId)}`
+			`/task/attachments/presign-upload/${encodeURIComponent(taskId)}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 
@@ -2358,7 +2318,7 @@ export class TaskStorageService implements TaskStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/task/attachments/confirm/${TASK_API_VERSION}/${encodeURIComponent(attachmentId)}`
+			`/task/attachments/confirm/${encodeURIComponent(attachmentId)}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 
@@ -2405,7 +2365,7 @@ export class TaskStorageService implements TaskStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/task/attachments/presign-download/${TASK_API_VERSION}/${encodeURIComponent(attachmentId)}`
+			`/task/attachments/presign-download/${encodeURIComponent(attachmentId)}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 
@@ -2452,10 +2412,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/attachments/list/${TASK_API_VERSION}/${encodeURIComponent(taskId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/attachments/list/${encodeURIComponent(taskId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<ListAttachmentsResult>>(url, {
@@ -2500,7 +2457,7 @@ export class TaskStorageService implements TaskStorage {
 
 		const url = buildUrl(
 			this.#baseUrl,
-			`/task/attachments/delete/${TASK_API_VERSION}/${encodeURIComponent(attachmentId)}`
+			`/task/attachments/delete/${encodeURIComponent(attachmentId)}`
 		);
 		const signal = AbortSignal.timeout(30_000);
 
@@ -2541,7 +2498,7 @@ export class TaskStorageService implements TaskStorage {
 	 * ```
 	 */
 	async listUsers(): Promise<ListUsersResult> {
-		const url = buildUrl(this.#baseUrl, `/task/users/${TASK_API_VERSION}`);
+		const url = buildUrl(this.#baseUrl, '/task/users');
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<ListUsersResult>>(url, {
@@ -2581,7 +2538,7 @@ export class TaskStorageService implements TaskStorage {
 	 * ```
 	 */
 	async listProjects(): Promise<ListProjectsResult> {
-		const url = buildUrl(this.#baseUrl, `/task/projects/${TASK_API_VERSION}`);
+		const url = buildUrl(this.#baseUrl, '/task/projects');
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<ListProjectsResult>>(url, {
@@ -2626,7 +2583,7 @@ export class TaskStorageService implements TaskStorage {
 		}
 
 		const normalizedName = params.name.trim();
-		const url = buildUrl(this.#baseUrl, `/task/users/create/${TASK_API_VERSION}`);
+		const url = buildUrl(this.#baseUrl, '/task/users/create');
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<UserEntityRef>>(url, {
@@ -2672,10 +2629,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new UserIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/users/get/${TASK_API_VERSION}/${encodeURIComponent(userId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/users/get/${encodeURIComponent(userId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<UserEntityRef>>(url, {
@@ -2718,10 +2672,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new UserIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/users/delete/${TASK_API_VERSION}/${encodeURIComponent(userId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/users/delete/${encodeURIComponent(userId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
@@ -2766,7 +2717,7 @@ export class TaskStorageService implements TaskStorage {
 		}
 
 		const normalizedName = params.name.trim();
-		const url = buildUrl(this.#baseUrl, `/task/projects/create/${TASK_API_VERSION}`);
+		const url = buildUrl(this.#baseUrl, '/task/projects/create');
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<EntityRef>>(url, {
@@ -2812,10 +2763,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new ProjectIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/projects/get/${TASK_API_VERSION}/${encodeURIComponent(projectId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/projects/get/${encodeURIComponent(projectId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<EntityRef>>(url, {
@@ -2858,10 +2806,7 @@ export class TaskStorageService implements TaskStorage {
 			throw new ProjectIdRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/projects/delete/${TASK_API_VERSION}/${encodeURIComponent(projectId)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/projects/delete/${encodeURIComponent(projectId)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<void>>(url, {
@@ -2907,10 +2852,7 @@ export class TaskStorageService implements TaskStorage {
 		if (params?.days !== undefined) queryParams.set('days', String(params.days));
 
 		const queryString = queryParams.toString();
-		const url = buildUrl(
-			this.#baseUrl,
-			`/task/activity/${TASK_ACTIVITY_API_VERSION}${queryString ? `?${queryString}` : ''}`
-		);
+		const url = buildUrl(this.#baseUrl, `/task/activity${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<TaskActivityResult>>(url, {
