@@ -200,7 +200,7 @@ const ServerUrlMissingError = StructuredError(
 );
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createServices(logger: Logger, config?: AppConfig<any>, serverUrl?: string) {
+export function createServices(logger: Logger, config?: AppConfig, serverUrl?: string) {
 	const authenticated = isAuthenticated();
 	const useLocal = config?.services?.useLocal ?? false;
 	adapter = createFetchAdapter(logger);

@@ -29,6 +29,8 @@ export {
 // app.ts exports (all app-related functionality)
 export {
 	type AppConfig,
+	type AnalyticsOptions,
+	type WorkbenchOptions,
 	type CompressionConfig,
 	type CorsConfig,
 	type Variables,
@@ -42,7 +44,6 @@ export {
 	getApp,
 	getAppState,
 	getAppConfig,
-	getUserRouter,
 	runShutdown,
 	registerShutdownHook,
 	fireEvent,

@@ -1,4 +1,5 @@
 import { createRouter } from '@agentuity/runtime';
+import { mockAuthMiddleware, analyticsMiddleware } from '../lib/custom-middleware';
 import api from './index';
 import agentIdsRouter from './agent-ids/route';
 import authRouter from './auth/route';
@@ -8,6 +9,14 @@ import myServiceRouter from './my-service/index';
 import usersProfileRouter from './users/profile/route';
 
 const router = createRouter();
+
+// App-level middleware (applies to all API routes)
+router.use('*', mockAuthMiddleware());
+router.use('*', analyticsMiddleware());
+router.use('*', async (c, next) => {
+	c.set('appLevelData', 'set-in-app-ts');
+	await next();
+});
 
 // Mount root API routes
 router.route('/', api);
