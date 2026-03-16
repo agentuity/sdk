@@ -164,7 +164,7 @@ export interface WorkbenchOptions {
 	headers?: Record<string, string>;
 }
 
-export interface AppConfig<TAppState = Record<string, never>> {
+export interface AppConfig {
 	/**
 	 * Configure CORS (Cross-Origin Resource Sharing) settings.
 	 *
@@ -250,17 +250,6 @@ export interface AppConfig<TAppState = Record<string, never>> {
 		 */
 		email?: EmailService;
 	};
-	/**
-	 * Optional setup function called before server starts
-	 * Returns app state that will be available in all agents and routes
-	 */
-	setup?: () => Promise<TAppState> | TAppState;
-	/**
-	 * Optional shutdown function called when server is stopping
-	 * Receives the app state returned from setup
-	 */
-	shutdown?: (state: TAppState) => Promise<void> | void;
-
 	/**
 	 * Optional request timeout in seconds. If not provided, will default
 	 * to zero which will cause the request to wait indefinitely.
@@ -454,11 +443,6 @@ export function getApp(): null {
 
 // Re-export event functions from _events
 export { fireEvent } from './_events';
-import {
-	addEventListener as globalAddEventListener,
-	removeEventListener as globalRemoveEventListener,
-} from './_events';
-import type { AppEventMap } from './_events';
 import { getLogger, getRouter } from './_server';
 import type { Hono } from 'hono';
 
@@ -476,45 +460,23 @@ export interface Server {
 	url: string;
 }
 
-export interface AppResult<TAppState = Record<string, never>> {
+export interface AppResult {
 	/**
-	 * The application state returned from setup
+	 * App configuration
 	 */
-	state: TAppState;
+	config?: AppConfig;
 	/**
-	 * Shutdown function to call when server stops
+	 * The Hono router instance
 	 */
-	shutdown?: (state: TAppState) => Promise<void> | void;
+	router: import('hono').Hono<Env>;
 	/**
-	 * App configuration (for middleware setup)
-	 */
-	config?: AppConfig<TAppState>;
-	/**
-	 * The router instance (for backwards compatibility)
-	 */
-	router: import('hono').Hono<Env<TAppState>>;
-	/**
-	 * Server information (for backwards compatibility)
+	 * Server information
 	 */
 	server: Server;
 	/**
-	 * Logger instance (for backwards compatibility)
+	 * Logger instance
 	 */
 	logger: Logger;
-	/**
-	 * Add an event listener for app events
-	 */
-	addEventListener<K extends keyof AppEventMap<TAppState>>(
-		eventName: K,
-		callback: (eventName: K, ...args: AppEventMap<TAppState>[K]) => void | Promise<void>
-	): void;
-	/**
-	 * Remove an event listener for app events
-	 */
-	removeEventListener<K extends keyof AppEventMap<TAppState>>(
-		eventName: K,
-		callback: (eventName: K, ...args: AppEventMap<TAppState>[K]) => void | Promise<void>
-	): void;
 }
 
 /**
@@ -545,46 +507,25 @@ export interface AppResult<TAppState = Record<string, never>> {
  * // Access state in agents via ctx.app.db
  * ```
  */
-export async function createApp<TAppState = Record<string, never>>(
-	config?: AppConfig<TAppState>
-): Promise<AppResult<TAppState>> {
-	// Run setup to get app state
-	const state = config?.setup ? await config.setup() : ({} as TAppState);
-
-	// Store state and config globally
-	(globalThis as any).__AGENTUITY_APP_STATE__ = state;
+export async function createApp(config?: AppConfig): Promise<AppResult> {
+	// Store config globally (middleware reads it lazily at request time)
 	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
 
-	// Normalize and store router mounts
-	if (config?.router) {
-		(globalThis as any).__AGENTUITY_USER_ROUTER__ = normalizeRouterConfig(config.router);
-	}
-
-	// Store shutdown function
-	if (config?.shutdown) {
-		(globalThis as any).__AGENTUITY_SHUTDOWN__ = config.shutdown;
-	}
-
 	// Bootstrap the entire server: OTel, middleware, routes, Bun.serve()
-	// This was previously done by the generated entry file + bootstrap()
 	const { bootstrap } = await import('./bootstrap');
 	await bootstrap();
 
 	// After bootstrap, logger and router are available
 	const otelLogger = getLogger()!;
-	const appRouter = getRouter()! as Hono<Env<TAppState>>;
+	const appRouter = getRouter()! as Hono<Env>;
 
 	const port = process.env.PORT || '3500';
 
 	return {
-		state,
-		shutdown: config?.shutdown,
 		config,
 		router: appRouter,
 		server: { url: `http://127.0.0.1:${port}` },
 		logger: otelLogger,
-		addEventListener: globalAddEventListener,
-		removeEventListener: globalRemoveEventListener,
 	};
 }
 
@@ -592,15 +533,15 @@ export async function createApp<TAppState = Record<string, never>>(
  * Get the global app state
  * Used by generated entry file and middleware
  */
-export function getAppState<TAppState = any>(): TAppState {
-	return (globalThis as any).__AGENTUITY_APP_STATE__ || ({} as TAppState);
+export function getAppState(): Record<string, unknown> {
+	return (globalThis as any).__AGENTUITY_APP_STATE__ || {};
 }
 
 /**
- * Get the global app config
- * Used by generated entry file for middleware setup
+ * Get the global app config.
+ * Used by middleware at request time.
  */
-export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefined {
+export function getAppConfig(): AppConfig | undefined {
 	return (globalThis as any).__AGENTUITY_APP_CONFIG__;
 }
 
@@ -611,7 +552,7 @@ export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefine
  * - [{ path, router }, ...] → as-is
  * @internal
  */
-function normalizeRouterConfig(
+export function normalizeRouterConfig(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	router: import('hono').Hono<any, any, any> | RouteMount | RouteMount[]
 ): RouteMount[] {
@@ -639,7 +580,7 @@ export function getUserRouter(): RouteMount[] | undefined {
  * Set the global app config (for testing purposes)
  * @internal
  */
-export function setAppConfig<TAppState = any>(config: AppConfig<TAppState> | undefined): void {
+export function setAppConfig(config: AppConfig | undefined): void {
 	if (config === undefined) {
 		delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
 	} else {

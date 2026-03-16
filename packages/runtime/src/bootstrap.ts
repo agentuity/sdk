@@ -18,7 +18,7 @@ import { join } from 'node:path';
 import type { LogLevel } from '@agentuity/core';
 import { mimeTypes, bootstrapRuntimeEnv } from '@agentuity/server';
 
-import { getAppState, getAppConfig, getUserRouter, runShutdown } from './app';
+import { getAppState, getAppConfig, normalizeRouterConfig, runShutdown } from './app';
 import type { AnalyticsOptions, WorkbenchOptions } from './app';
 import { createRouter } from './router';
 import {
@@ -435,9 +435,9 @@ export async function bootstrap(): Promise<void> {
 	}
 
 	// User-provided routers (from createApp({ router }))
-	const userMounts = getUserRouter();
-	if (userMounts) {
-		for (const mount of userMounts) {
+	if (appConfig?.router) {
+		const mounts = normalizeRouterConfig(appConfig.router);
+		for (const mount of mounts) {
 			const prefix = mount.path.endsWith('/') ? mount.path + '*' : mount.path + '/*';
 			app.use(prefix, createCorsMiddleware());
 			app.use(prefix, createOtelMiddleware());
