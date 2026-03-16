@@ -206,11 +206,16 @@ export interface ConversationEntry {
 		| 'user_prompt';
 	agent?: string;
 	content?: string;
+	thinking?: string;
 	toolName?: string;
 	toolArgs?: Record<string, unknown>;
 	toolCallId?: string;
 	isError?: boolean;
 	taskId?: string;
+	turnId?: string;
+	replyId?: string;
+	sequence?: number;
+	elapsedMs?: number;
 	timestamp: number;
 }
 
