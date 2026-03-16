@@ -49,7 +49,7 @@ export function generateGatewayEnvGuard(
 ): string {
 	return `{
     const _agentuity_sdk_key = process.env.AGENTUITY_SDK_KEY;
-    const _agentuity_url = process.env.AGENTUITY_AIGATEWAY_URL || process.env.AGENTUITY_TRANSPORT_URL || (_agentuity_sdk_key ? 'https://agentuity.ai' : '');
+    const _agentuity_url = process.env.AGENTUITY_AIGATEWAY_URL || process.env.AGENTUITY_TRANSPORT_URL || (_agentuity_sdk_key ? 'https://catalyst.agentuity.cloud' : '');
     if (_agentuity_url && _agentuity_sdk_key) {
         process.env.${apikey} = _agentuity_sdk_key;
         process.env.${apibase} = _agentuity_url + '/gateway/${provider}';
