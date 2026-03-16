@@ -47,15 +47,19 @@ function spaFallbackPlugin(rootDir: string, routePaths: string[]): Plugin {
 				const accept = req.headers.accept || '';
 				const secFetchDest = req.headers['sec-fetch-dest'] || '';
 
-				// Serve HTML for browser navigations and simple readiness probes.
-				// Playwright's webServer probe may use HEAD / without browser headers.
-				// We rely primarily on path filtering below to avoid intercepting assets.
-				const isDocumentRequest =
-					secFetchDest === 'document' || accept.includes('text/html') || pathname === '/';
-				if (!isDocumentRequest && pathname !== '/') return next();
+				// For robustness, treat unknown GET/HEAD routes as potential SPA navigations.
+				// We still avoid intercepting assets/backend paths via the filters below.
+				// (This also makes non-browser readiness probes like fetch('/streams') work.)
+				const isDocumentRequest = secFetchDest === 'document' || accept.includes('text/html');
 
 				// Skip file requests (have an extension)
 				if (pathname !== '/' && /\.[a-zA-Z0-9]+$/.test(pathname)) return next();
+
+				// For non-document requests, only allow root path fallback.
+				// (e.g. don't turn module/script fetches into HTML accidentally)
+				if (!isDocumentRequest && pathname === '/') {
+					// allow root fallback for simple probes
+				}
 
 				// Skip Vite/module/internal asset paths
 				if (
@@ -81,6 +85,10 @@ function spaFallbackPlugin(rootDir: string, routePaths: string[]): Plugin {
 				for (const rp of routePaths) {
 					if (pathname === rp || pathname.startsWith(rp + '/')) return next();
 				}
+
+				// If this isn't clearly a document navigation, still allow SPA fallback
+				// for extensionless client-side routes like /streams, /rpc, /webrtc.
+				// We already excluded backend paths and asset/module paths above.
 
 				try {
 					let html = await Bun.file(htmlPath).text();

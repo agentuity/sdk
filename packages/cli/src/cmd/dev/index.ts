@@ -223,12 +223,7 @@ export const command = createCommand({
 				.boolean()
 				.optional()
 				.describe('Enable bun debugger with breakpoint at first line'),
-			experimentalNoBundle: z
-				.boolean()
-				.optional()
-				.describe(
-					'[Experimental] Skip Bun.build in dev mode — run generated entry file directly'
-				),
+
 			noTypecheck: z
 				.boolean()
 				.optional()
@@ -890,9 +885,7 @@ export const command = createCommand({
 
 					// Generate entry file and bundle for dev server (with LLM patches)
 					await tui.spinner({
-						message: opts.experimentalNoBundle
-							? 'Preparing dev server'
-							: 'Building dev bundle',
+						message: 'Preparing dev server',
 						callback: async () => {
 							// Step 0: typecheck (skip with --no-typecheck)
 							typeCheckErrors = undefined;
@@ -929,21 +922,8 @@ export const command = createCommand({
 								discoverRoutes(srcDir, project?.projectId ?? '', deploymentId, logger),
 							]);
 
-							// Step 4: Bundle the app with LLM patches (skip in --experimental-no-bundle mode)
-							if (!opts.experimentalNoBundle) {
-								// This produces .agentuity/app.js with AI Gateway routing patches applied
-								// Must re-bundle even if discovery unchanged (user code may have changed)
-								const { installExternalsAndBuild } = await import(
-									'../build/vite/server-bundler'
-								);
-								await installExternalsAndBuild({
-									rootDir,
-									dev: true,
-									logger,
-								});
-							} else {
-								logger.debug('Skipping Bun.build (--experimental-no-bundle mode)');
-							}
+							// Step 4: No bundling in dev mode (default no-bundle architecture)
+							logger.debug('Skipping Bun.build in dev mode (no-bundle default)');
 
 							// Generate metadata file (needed for eval ID lookup at runtime)
 							// Reuse agentMetadata and routes from Step 2
@@ -1067,10 +1047,8 @@ export const command = createCommand({
 					process.env.AGENTUITY_BASE_URL =
 						process.env.AGENTUITY_BASE_URL || `http://localhost:${vitePort}`;
 
-					// Signal no-bundle mode to runtime bootstrap
-					if (opts.experimentalNoBundle) {
-						process.env.AGENTUITY_NO_BUNDLE = 'true';
-					}
+					// Dev mode always uses no-bundle architecture
+					process.env.AGENTUITY_NO_BUNDLE = 'true';
 
 					if (opts.resume) {
 						process.env.AGENTUITY_CODER_RESUME_SESSION = opts.resume;
@@ -1111,7 +1089,6 @@ export const command = createCommand({
 						inspect: opts.inspect,
 						inspectWait: opts.inspectWait,
 						inspectBrk: opts.inspectBrk,
-						noBundle: opts.experimentalNoBundle,
 					});
 
 					// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
