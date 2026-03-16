@@ -250,16 +250,7 @@ if [ ! -d ".agentuity" ]; then
     exit 1
 fi
 
-# Verify registry file was generated
-if [ ! -f "src/generated/registry.ts" ]; then
-	log_error "registry.ts not found in src/generated/"
-	log_info "Contents of src/generated/:"
-	ls -la src/generated/ || echo "Directory does not exist"
-    exit 1
-fi
-
 log_success "Build complete, .agentuity directory created"
-log_success "Registry file generated"
 
 # Step 7: Typecheck
 echo ""

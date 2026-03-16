@@ -1,9 +1,11 @@
 import { createApp } from '@agentuity/runtime';
 import router from './src/api/router';
+import counter from './src/agent/counter/agent';
+import hello from './src/agent/hello/agent';
 
-createApp({
-	router: {
-		path: '/api',
-		router,
-	},
+const app = await createApp({
+	router: { path: '/api', router },
+	agents: [counter, hello],
 });
+
+export default app;

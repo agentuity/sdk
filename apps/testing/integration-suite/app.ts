@@ -2,6 +2,7 @@ import { createApp } from '@agentuity/runtime';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider';
 import { testSessionEventProvider } from './src/test/helpers/session-event-provider';
 import router from './src/api/router';
+import agents from './src/agent';
 
 // Import test files to register tests
 import './src/test/basic-agents';
@@ -37,10 +38,8 @@ import './src/test/sandbox-basic';
 const threadProvider = new InMemoryThreadProvider();
 
 const app = await createApp({
-	router: {
-		path: '/api',
-		router,
-	},
+	router: { path: '/api', router },
+	agents,
 	setup: () => {
 		return { foo: 'bar' };
 	},
