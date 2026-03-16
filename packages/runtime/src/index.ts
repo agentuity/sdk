@@ -44,7 +44,6 @@ export {
 	getApp,
 	getAppState,
 	getAppConfig,
-	getUserRouter,
 	runShutdown,
 	registerShutdownHook,
 	fireEvent,
@@ -270,6 +269,3 @@ export { patchBunS3ForStorageDev, isAgentuityStorageEndpoint } from './bun-s3-pa
 
 // dev-patches exports (runtime monkey-patches for --experimental-no-bundle dev mode)
 export { applyDevPatches } from './dev-patches';
-
-// bootstrap — server lifecycle orchestration (replaces entry file codegen)
-export { bootstrap } from './bootstrap';

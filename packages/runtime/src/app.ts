@@ -480,31 +480,21 @@ export interface AppResult {
 }
 
 /**
- * Create an Agentuity application with lifecycle management.
+ * Create and start an Agentuity application.
  *
- * In Vite-native architecture:
- * - This only handles setup/shutdown lifecycle
- * - Router creation and middleware are handled by the generated entry file
- * - Server is managed by Vite (dev) or Bun.serve (prod)
- *
- * @template TAppState - Type of application state from setup()
+ * This is the single entry point for the entire server lifecycle:
+ * OTel, middleware, route mounting, services, and Bun.serve().
  *
  * @example
  * ```typescript
- * // app.ts
  * import { createApp } from '@agentuity/runtime';
+ * import router from './src/api/router';
+ * import agents from './src/agent';
  *
- * const app = await createApp({
- *   setup: async () => {
- *     const db = await connectDB();
- *     return { db };
- *   },
- *   shutdown: async (state) => {
- *     await state.db.close();
- *   }
+ * export default await createApp({
+ *   router: { path: '/api', router },
+ *   agents,
  * });
- *
- * // Access state in agents via ctx.app.db
  * ```
  */
 export async function createApp(config?: AppConfig): Promise<AppResult> {
@@ -667,16 +657,6 @@ export function normalizeRouterConfig(
 }
 
 /**
- * Get the user-provided router mounts from createApp({ router }).
- * Returns undefined if no user router was provided (file-based routing).
- * Used by generated entry file to skip file-based route discovery.
- * @internal
- */
-export function getUserRouter(): RouteMount[] | undefined {
-	return (globalThis as any).__AGENTUITY_USER_ROUTER__;
-}
-
-/**
  * Set the global app config (for testing purposes)
  * @internal
  */
@@ -747,22 +727,12 @@ export function registerShutdownHook(hook: ShutdownHook): () => void {
 }
 
 /**
- * Run the global shutdown function and all registered shutdown hooks.
- * Called by generated entry file on cleanup.
+ * Run all registered shutdown hooks.
+ * Called during graceful shutdown (SIGTERM/SIGINT).
  *
- * Shutdown order:
- * 1. App's shutdown callback (if defined)
- * 2. Registered shutdown hooks (in reverse order - LIFO)
+ * Hooks are called in reverse order of registration (LIFO).
  */
 export async function runShutdown(): Promise<void> {
-	// Run app's shutdown callback first
-	const shutdown = (globalThis as any).__AGENTUITY_SHUTDOWN__;
-	if (shutdown) {
-		const state = getAppState();
-		await shutdown(state);
-	}
-
-	// Run registered shutdown hooks in reverse order (LIFO)
 	const hooks = getShutdownHooks();
 	for (let i = hooks.length - 1; i >= 0; i--) {
 		const hook = hooks[i];
