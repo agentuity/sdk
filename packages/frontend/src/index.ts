@@ -1,5 +1,6 @@
 export { getProcessEnv } from './env';
 export { buildUrl, defaultBaseUrl } from './url';
+export { resolveDevWebSocketUrl } from './dev-ws';
 export { deserializeData } from './serialization';
 export { createReconnectManager, type ReconnectOptions, type ReconnectManager } from './reconnect';
 export { jsonEqual } from './memo';

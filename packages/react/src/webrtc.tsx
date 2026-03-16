@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'r
 import {
 	WebRTCManager,
 	buildUrl,
+	resolveDevWebSocketUrl,
 	type WebRTCManagerOptions,
 	type WebRTCClientCallbacks,
 	type TrackSource,
@@ -217,7 +218,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResul
 		}
 		const base = context?.baseUrl ?? window.location.origin;
 		const wsBase = base.replace(/^http(s?):/, 'ws$1:');
-		return buildUrl(wsBase, options.signalUrl);
+		return resolveDevWebSocketUrl(buildUrl(wsBase, options.signalUrl));
 	}, [context?.baseUrl, options.signalUrl]);
 
 	const managerOptions = useMemo((): WebRTCManagerOptions => {

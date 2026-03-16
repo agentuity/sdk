@@ -565,6 +565,37 @@ export const command = createCommand({
 			// Pick internal port for Bun backend (not user-facing)
 			const bunBackendPort = opts.port + 1;
 
+			// No-bundle dev mode guard: ensure stale bundled app artifact cannot be executed.
+			// We keep other .agentuity artifacts (metadata/workbench files) intact.
+			try {
+				const staleBundlePath = join(rootDir, '.agentuity', 'app.js');
+				if (existsSync(staleBundlePath)) {
+					await Bun.file(staleBundlePath).delete();
+					logger.debug('Removed stale dev bundle artifact: %s', staleBundlePath);
+				}
+			} catch (err) {
+				logger.debug('Failed to remove stale dev bundle artifact: %s', err);
+			}
+
+			// Debug trace: locate unexpected legacy credential warnings.
+			// Enable with AGENTUITY_TRACE_CREDENTIAL_WARNINGS=true.
+			if (process.env.AGENTUITY_TRACE_CREDENTIAL_WARNINGS === 'true') {
+				const originalConsoleError = console.error.bind(console);
+				console.error = (...args: unknown[]) => {
+					try {
+						const first = typeof args[0] === 'string' ? args[0] : '';
+						if (first.includes('No credentials found for this AI provider')) {
+							const stack = new Error('Credential warning trace').stack;
+							originalConsoleError('[TRACE] Credential warning origin stack:');
+							if (stack) originalConsoleError(stack);
+						}
+					} catch {
+						// ignore tracing errors
+					}
+					originalConsoleError(...args);
+				};
+			}
+
 			// Start Vite dev server ONCE before restart loop
 			// Vite is the primary (user-facing) server — serves frontend natively
 			// and proxies API/WS requests to Bun backend
