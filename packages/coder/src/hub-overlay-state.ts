@@ -17,6 +17,7 @@ export interface StreamProjection {
 export interface ConversationEntryLike {
 	type?: string;
 	content?: string;
+	thinking?: string;
 	taskId?: string | null;
 	toolName?: string;
 	toolArgs?: Record<string, unknown>;
@@ -82,9 +83,18 @@ export function buildProjectionFromEntries(
 		}
 
 		const content = typeof entry.content === 'string' ? entry.content : '';
+		const thinking = typeof entry.thinking === 'string' ? entry.thinking : '';
+		if (type === 'message') {
+			if (thinking) {
+				append('thinking', `${thinking}\n\n`, entry.taskId);
+			}
+			if (!content) continue;
+			append('output', `${content}\n\n`, entry.taskId);
+			continue;
+		}
 		if (!content) continue;
 
-		if (type === 'message' || type === 'tool_result' || type === 'task_result') {
+		if (type === 'tool_result' || type === 'task_result') {
 			append('output', `${content}\n\n`, entry.taskId);
 			continue;
 		}
