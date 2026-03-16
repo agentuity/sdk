@@ -923,55 +923,11 @@ export const command = createCommand({
 							const srcDir = join(rootDir, 'src');
 							const { discoverAgents } = await import('../build/vite/agent-discovery');
 							const { discoverRoutes } = await import('../build/vite/route-discovery');
-							const { generateAgentRegistry } = await import(
-								'../build/vite/registry-generator'
-							);
 
 							const [agentMetadata, { routes }] = await Promise.all([
 								discoverAgents(srcDir, project?.projectId ?? '', deploymentId, logger),
 								discoverRoutes(srcDir, project?.projectId ?? '', deploymentId, logger),
 							]);
-
-							// Step 2.5: Compute a hash of discovery results to skip codegen when unchanged
-							// This avoids rewriting identical files on every restart
-							const discoveryFingerprint = Bun.hash(
-								JSON.stringify({
-									agents: agentMetadata.map((a) => a.id + a.filename),
-									routes: routes.map((r) => r.method + r.path + r.filename),
-								})
-							).toString(36);
-
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							const prevFingerprint = (globalThis as any)
-								.__AGENTUITY_DISCOVERY_FINGERPRINT__ as string | undefined;
-							const discoveryChanged = discoveryFingerprint !== prevFingerprint;
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							(globalThis as any).__AGENTUITY_DISCOVERY_FINGERPRINT__ = discoveryFingerprint;
-
-							if (discoveryChanged) {
-								// Generate agent registry for type augmentation
-								generateAgentRegistry(srcDir, agentMetadata);
-								logger.debug('Agent registry generated for dev mode');
-
-								// Step 3: Generate entry file with workbench and analytics config
-								// Pass pre-discovered routes to avoid redundant route discovery
-								const { generateEntryFile } = await import('../build/entry-generator');
-								await generateEntryFile({
-									rootDir,
-									projectId: project?.projectId ?? '',
-									deploymentId,
-									logger,
-									mode: 'dev',
-									workbench: workbenchConfigData.enabled ? workbenchConfigData : undefined,
-									analytics: agentuityConfig?.analytics,
-									noBundle: opts.experimentalNoBundle,
-								});
-							} else {
-								logger.debug(
-									'Discovery unchanged (fingerprint: %s), skipping codegen',
-									discoveryFingerprint
-								);
-							}
 
 							// Step 4: Bundle the app with LLM patches (skip in --experimental-no-bundle mode)
 							if (!opts.experimentalNoBundle) {

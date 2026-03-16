@@ -365,6 +365,31 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 */
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	router?: import('hono').Hono<any, any, any> | RouteMount | RouteMount[];
+
+	/**
+	 * Agents to register with this application.
+	 *
+	 * Each agent is a value returned by `createAgent()`. Importing the agent
+	 * module triggers self-registration; listing them here ensures they are
+	 * included in the build and available for workbench metadata, setup/shutdown
+	 * lifecycle, and agent-to-agent calls via `ctx.invoke()`.
+	 *
+	 * Type safety for agent calls comes from direct imports — use
+	 * `ctx.invoke(() => myAgent.run(input))` for fully typed invocations.
+	 *
+	 * @example
+	 * ```typescript
+	 * import greeting from './agent/greeting/agent';
+	 * import session from './agent/session/agent';
+	 *
+	 * export default await createApp({
+	 *   agents: [greeting, session],
+	 *   router,
+	 * });
+	 * ```
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	agents?: import('./agent').AgentRunner<any, any, any>[];
 }
 
 /**
@@ -526,91 +551,38 @@ export async function createApp<TAppState = Record<string, never>>(
 	// Run setup to get app state
 	const state = config?.setup ? await config.setup() : ({} as TAppState);
 
-	// Store state and config globally for generated entry file to access
+	// Store state and config globally
 	(globalThis as any).__AGENTUITY_APP_STATE__ = state;
 	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
 
-	// Store user-provided router(s) normalized as RouteMount[] for the entry file.
-	// When set, the entry file mounts these instead of auto-discovered route files.
+	// Normalize and store router mounts
 	if (config?.router) {
 		(globalThis as any).__AGENTUITY_USER_ROUTER__ = normalizeRouterConfig(config.router);
 	}
 
-	// Store shutdown function for cleanup
-	const shutdown = config?.shutdown;
-	if (shutdown) {
-		(globalThis as any).__AGENTUITY_SHUTDOWN__ = shutdown;
+	// Store shutdown function
+	if (config?.shutdown) {
+		(globalThis as any).__AGENTUITY_SHUTDOWN__ = config.shutdown;
 	}
 
-	// Return a logger proxy that lazily resolves to the global logger
-	// This is necessary because Vite bundling inlines and reorders module code,
-	// causing app.ts to execute before entry file sets the global logger.
-	// The proxy ensures logger works correctly when actually used (in handlers/callbacks).
-	const logger: Logger = {
-		trace: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.trace(...args);
-		},
-		debug: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.debug(...args);
-		},
-		info: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.info(...args);
-			else console.log('[INFO]', ...args);
-		},
-		warn: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.warn(...args);
-			else console.warn('[WARN]', ...args);
-		},
-		error: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.error(...args);
-			else console.error('[ERROR]', ...args);
-		},
-		fatal: (...args): never => {
-			const gl = getLogger();
-			if (gl) return gl.fatal(...args);
-			// Fallback: log to console but let the real logger handle exit
-			console.error('[FATAL]', ...args);
-			throw new Error('Fatal error');
-		},
-		child: (bindings) => {
-			const gl = getLogger();
-			return gl ? gl.child(bindings) : logger;
-		},
-	};
+	// Bootstrap the entire server: OTel, middleware, routes, Bun.serve()
+	// This was previously done by the generated entry file + bootstrap()
+	const { bootstrap } = await import('./bootstrap');
+	await bootstrap();
 
-	// Create server info from environment
+	// After bootstrap, logger and router are available
+	const otelLogger = getLogger()!;
+	const appRouter = getRouter()! as Hono<Env<TAppState>>;
+
 	const port = process.env.PORT || '3500';
-	const server: Server = {
-		url: `http://127.0.0.1:${port}`,
-	};
-
-	// Lazy router proxy — resolves after bootstrap() creates the router.
-	// Most users don't need app.router; they pass their router via createApp({ router }).
-	const router = new Proxy({} as Hono<Env<TAppState>>, {
-		get(_target, prop, receiver) {
-			const r = getRouter();
-			if (!r) {
-				throw new Error(
-					'Router is not available yet. It is created during bootstrap(). ' +
-						'Add middleware to your own router passed via createApp({ router }) instead.'
-				);
-			}
-			return Reflect.get(r, prop, receiver);
-		},
-	});
 
 	return {
 		state,
-		shutdown,
+		shutdown: config?.shutdown,
 		config,
-		router,
-		server,
-		logger,
+		router: appRouter,
+		server: { url: `http://127.0.0.1:${port}` },
+		logger: otelLogger,
 		addEventListener: globalAddEventListener,
 		removeEventListener: globalRemoveEventListener,
 	};

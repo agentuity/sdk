@@ -53,7 +53,7 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 
 	logger.debug('Starting Bun dev server (Vite already running on port %d)...', vitePort);
 
-	const appPath = noBundle ? `${rootDir}/src/generated/app.ts` : `${rootDir}/.agentuity/app.js`;
+	const appPath = noBundle ? `${rootDir}/app.ts` : `${rootDir}/.agentuity/app.js`;
 
 	// Verify entry file exists before attempting to load
 	const appFile = Bun.file(appPath);
