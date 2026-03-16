@@ -19,7 +19,6 @@ export interface BunDevServerOptions {
 	inspect?: boolean; // Enable bun debugger
 	inspectWait?: boolean; // Enable bun debugger and wait for connection
 	inspectBrk?: boolean; // Enable bun debugger with breakpoint at first line
-	noBundle?: boolean; // Run src/generated/app.ts directly without bundling
 }
 
 export interface BunDevServerResult {
@@ -40,29 +39,16 @@ export interface BunDevServerResult {
  * as a subprocess to enable passing the debugger CLI flags.
  */
 export async function startBunDevServer(options: BunDevServerOptions): Promise<BunDevServerResult> {
-	const {
-		rootDir,
-		port = 3500,
-		logger,
-		vitePort,
-		inspect,
-		inspectWait,
-		inspectBrk,
-		noBundle,
-	} = options;
+	const { rootDir, port = 3500, logger, vitePort, inspect, inspectWait, inspectBrk } = options;
 
 	logger.debug('Starting Bun dev server (Vite already running on port %d)...', vitePort);
 
-	const appPath = noBundle ? `${rootDir}/src/generated/app.ts` : `${rootDir}/.agentuity/app.js`;
+	const appPath = `${rootDir}/app.ts`;
 
 	// Verify entry file exists before attempting to load
 	const appFile = Bun.file(appPath);
 	if (!(await appFile.exists())) {
-		throw new Error(
-			noBundle
-				? `Generated entry not found at ${appPath}. Run the dev command to generate it.`
-				: `Dev bundle not found at ${appPath}. The bundle must be generated before starting the dev server.`
-		);
+		throw new Error(`App entry not found at ${appPath}.`);
 	}
 
 	// Set PORT env var so the generated app uses the correct port
@@ -138,10 +124,9 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 		logger.debug(`Bun dev server started on http://127.0.0.1:${port} with debugger enabled`);
 		logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
 	} else {
-		// Load the app entry - this will start Bun.serve() internally
-		// In bundle mode: imports .agentuity/app.js (with build-time LLM patches)
-		// In no-bundle mode: imports src/generated/app.ts directly (with runtime patches)
-		logger.debug('Loading app from: %s (noBundle: %s)', appPath, !!noBundle);
+		// Load the app entry (app.ts) - this will start Bun.serve() internally
+		// Runtime dev patches are applied by @agentuity/runtime when AGENTUITY_NO_BUNDLE=true.
+		logger.debug('Loading app from: %s', appPath);
 		logger.debug('📦 Loading app entry (Bun server will start)...');
 
 		// Import the generated app with cache-busting query parameter.

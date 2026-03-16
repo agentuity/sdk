@@ -74,15 +74,7 @@ export interface ViteBuildOptions {
  * Uses inline Vite config (customizable via agentuity.config.ts)
  */
 export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
-	const {
-		rootDir,
-		mode,
-		dev = false,
-		projectId = '',
-		deploymentId = '',
-		logger,
-		profile,
-	} = options;
+	const { rootDir, mode, dev = false, deploymentId = '', logger, profile } = options;
 
 	logger.debug(`Running Vite build for mode: ${mode}`);
 
@@ -115,24 +107,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			profile,
 		});
 
-		// Load workbench config for entry file generation
-		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
-		const config = await loadAgentuityConfig(rootDir, logger);
-		const workbenchConfig = getWorkbenchConfig(config, dev);
-
-		// Then, generate the entry file
-		const { generateEntryFile } = await import('../entry-generator');
-		await generateEntryFile({
-			rootDir,
-			projectId,
-			deploymentId: deploymentId || '',
-			logger,
-			mode: dev ? 'dev' : 'prod',
-			workbench: workbenchConfig.configured ? workbenchConfig : undefined,
-			analytics: config?.analytics,
-		});
-
-		// Finally, build with Bun.build
+		// Build with Bun.build (app.ts is the entrypoint)
 		const { installExternalsAndBuild } = await import('./server-bundler');
 		await installExternalsAndBuild({
 			rootDir,
@@ -346,7 +321,6 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 
 	// 1. Discover agents and routes BEFORE builds
 	logger.debug('Discovering agents and routes...');
-	const { generateAgentRegistry } = await import('./registry-generator');
 	const { discoverAgents } = await import('./agent-discovery');
 	const { discoverRoutes } = await import('./route-discovery');
 
@@ -359,10 +333,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	);
 	const { routes } = await discoverRoutes(srcDir, projectId, options.deploymentId || '', logger);
 
-	// Generate agent registry for type augmentation BEFORE builds
-	// (TypeScript needs these files to exist during type checking)
-	generateAgentRegistry(srcDir, agentMetadata);
-	logger.debug('Agent registry generated');
+	// Agent metadata is used for metadata.json generation (no registry codegen needed)
 
 	// Check if web frontend exists
 	const hasWebFrontend = await Bun.file(join(rootDir, 'src', 'web', 'index.html')).exists();

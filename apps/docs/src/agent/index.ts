@@ -1,0 +1,31 @@
+import agentPulse from './agent_pulse/agent';
+import chat from './chat/agent';
+import context from './context/agent';
+import docProcessing from './doc_processing/agent';
+import docQa from './doc_qa/agent';
+import evals from './evals/agent';
+import hello from './hello/agent';
+import kv from './kv/agent';
+import modelArena from './model-arena/agent';
+import objectstore from './objectstore/agent';
+import sseStream from './sse-stream/agent';
+import textProcessor from './text-processor/agent';
+import vector from './vector/agent';
+import websocket from './websocket/agent';
+
+export default [
+	agentPulse,
+	chat,
+	context,
+	docProcessing,
+	docQa,
+	evals,
+	hello,
+	kv,
+	modelArena,
+	objectstore,
+	sseStream,
+	textProcessor,
+	vector,
+	websocket,
+];

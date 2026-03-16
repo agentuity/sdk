@@ -223,12 +223,7 @@ export const command = createCommand({
 				.boolean()
 				.optional()
 				.describe('Enable bun debugger with breakpoint at first line'),
-			experimentalNoBundle: z
-				.boolean()
-				.optional()
-				.describe(
-					'[Experimental] Skip Bun.build in dev mode — run generated entry file directly'
-				),
+
 			noTypecheck: z
 				.boolean()
 				.optional()
@@ -553,17 +548,69 @@ export const command = createCommand({
 				centerTitle: false,
 			});
 
-			// Start Vite asset server ONCE before restart loop
-			// Vite handles frontend HMR independently and stays running across backend restarts
+			// Detect user route mount paths for Vite proxy configuration
+			// This is a quick AST scan of app.ts — runs before Vite starts
+			let routePaths: string[] = ['/api']; // Default fallback
+			try {
+				const { detectExplicitRouter } = await import('../build/app-router-detector');
+				const detection = await detectExplicitRouter(rootDir, logger);
+				if (detection.detected && detection.mounts.length > 0) {
+					routePaths = detection.mounts.map((m) => m.path);
+					logger.debug('Detected route mount paths: %s', routePaths.join(', '));
+				}
+			} catch (err) {
+				logger.debug('Route detection failed, using default /api: %s', err);
+			}
+
+			// Pick internal port for Bun backend (not user-facing)
+			const bunBackendPort = opts.port + 1;
+
+			// No-bundle dev mode guard: ensure stale bundled app artifact cannot be executed.
+			// We keep other .agentuity artifacts (metadata/workbench files) intact.
+			try {
+				const staleBundlePath = join(rootDir, '.agentuity', 'app.js');
+				if (existsSync(staleBundlePath)) {
+					await Bun.file(staleBundlePath).delete();
+					logger.debug('Removed stale dev bundle artifact: %s', staleBundlePath);
+				}
+			} catch (err) {
+				logger.debug('Failed to remove stale dev bundle artifact: %s', err);
+			}
+
+			// Debug trace: locate unexpected legacy credential warnings.
+			// Enable with AGENTUITY_TRACE_CREDENTIAL_WARNINGS=true.
+			if (process.env.AGENTUITY_TRACE_CREDENTIAL_WARNINGS === 'true') {
+				const originalConsoleError = console.error.bind(console);
+				console.error = (...args: unknown[]) => {
+					try {
+						const first = typeof args[0] === 'string' ? args[0] : '';
+						if (first.includes('No credentials found for this AI provider')) {
+							const stack = new Error('Credential warning trace').stack;
+							originalConsoleError('[TRACE] Credential warning origin stack:');
+							if (stack) originalConsoleError(stack);
+						}
+					} catch {
+						// ignore tracing errors
+					}
+					originalConsoleError(...args);
+				};
+			}
+
+			// Start Vite dev server ONCE before restart loop
+			// Vite is the primary (user-facing) server — serves frontend natively
+			// and proxies API/WS requests to Bun backend
 			let viteServer: ServerLike | null = null;
 			let vitePort: number;
 
 			try {
-				logger.debug('Starting Vite asset server...');
+				logger.debug('Starting Vite dev server (primary)...');
 				const viteResult = await startViteAssetServer({
 					rootDir,
 					logger,
 					workbenchPath: workbench.config?.route,
+					port: opts.port,
+					backendPort: bunBackendPort,
+					routePaths,
 				});
 				viteServer = viteResult.server;
 				vitePort = viteResult.port;
@@ -572,10 +619,10 @@ export const command = createCommand({
 				await devLock.updatePorts({ vite: vitePort });
 
 				logger.debug(
-					`Vite asset server running on port ${vitePort} (stays running across backend restarts)`
+					`Vite dev server running on port ${vitePort} (primary, proxying backend on port ${bunBackendPort})`
 				);
 			} catch (error) {
-				tui.error(`Failed to start Vite asset server: ${error}`);
+				tui.error(`Failed to start Vite dev server: ${error}`);
 				await devLock.release();
 				originalExit(1);
 				return;
@@ -637,7 +684,7 @@ export const command = createCommand({
 
 				// Stop Bun server
 				try {
-					await stopBunServer(opts.port, logger);
+					await stopBunServer(bunBackendPort, logger);
 				} catch (err) {
 					logger.debug('Error stopping Bun server during cleanup: %s', err);
 				}
@@ -730,7 +777,7 @@ export const command = createCommand({
 
 				// Stop Bun server
 				try {
-					await stopBunServer(opts.port, logger);
+					await stopBunServer(bunBackendPort, logger);
 				} catch (err) {
 					logger.debug('Error stopping Bun server for restart: %s', err);
 				}
@@ -869,9 +916,7 @@ export const command = createCommand({
 
 					// Generate entry file and bundle for dev server (with LLM patches)
 					await tui.spinner({
-						message: opts.experimentalNoBundle
-							? 'Preparing dev server'
-							: 'Building dev bundle',
+						message: 'Preparing dev server',
 						callback: async () => {
 							// Step 0: typecheck (skip with --no-typecheck)
 							typeCheckErrors = undefined;
@@ -902,71 +947,14 @@ export const command = createCommand({
 							const srcDir = join(rootDir, 'src');
 							const { discoverAgents } = await import('../build/vite/agent-discovery');
 							const { discoverRoutes } = await import('../build/vite/route-discovery');
-							const { generateAgentRegistry } = await import(
-								'../build/vite/registry-generator'
-							);
 
 							const [agentMetadata, { routes }] = await Promise.all([
 								discoverAgents(srcDir, project?.projectId ?? '', deploymentId, logger),
 								discoverRoutes(srcDir, project?.projectId ?? '', deploymentId, logger),
 							]);
 
-							// Step 2.5: Compute a hash of discovery results to skip codegen when unchanged
-							// This avoids rewriting identical files on every restart
-							const discoveryFingerprint = Bun.hash(
-								JSON.stringify({
-									agents: agentMetadata.map((a) => a.id + a.filename),
-									routes: routes.map((r) => r.method + r.path + r.filename),
-								})
-							).toString(36);
-
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							const prevFingerprint = (globalThis as any)
-								.__AGENTUITY_DISCOVERY_FINGERPRINT__ as string | undefined;
-							const discoveryChanged = discoveryFingerprint !== prevFingerprint;
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							(globalThis as any).__AGENTUITY_DISCOVERY_FINGERPRINT__ = discoveryFingerprint;
-
-							if (discoveryChanged) {
-								// Generate agent registry for type augmentation
-								generateAgentRegistry(srcDir, agentMetadata);
-								logger.debug('Agent registry generated for dev mode');
-
-								// Step 3: Generate entry file with workbench and analytics config
-								// Pass pre-discovered routes to avoid redundant route discovery
-								const { generateEntryFile } = await import('../build/entry-generator');
-								await generateEntryFile({
-									rootDir,
-									projectId: project?.projectId ?? '',
-									deploymentId,
-									logger,
-									mode: 'dev',
-									workbench: workbenchConfigData.enabled ? workbenchConfigData : undefined,
-									analytics: agentuityConfig?.analytics,
-									noBundle: opts.experimentalNoBundle,
-								});
-							} else {
-								logger.debug(
-									'Discovery unchanged (fingerprint: %s), skipping codegen',
-									discoveryFingerprint
-								);
-							}
-
-							// Step 4: Bundle the app with LLM patches (skip in --experimental-no-bundle mode)
-							if (!opts.experimentalNoBundle) {
-								// This produces .agentuity/app.js with AI Gateway routing patches applied
-								// Must re-bundle even if discovery unchanged (user code may have changed)
-								const { installExternalsAndBuild } = await import(
-									'../build/vite/server-bundler'
-								);
-								await installExternalsAndBuild({
-									rootDir,
-									dev: true,
-									logger,
-								});
-							} else {
-								logger.debug('Skipping Bun.build (--experimental-no-bundle mode)');
-							}
+							// Step 4: No bundling in dev mode (default no-bundle architecture)
+							logger.debug('Skipping Bun.build in dev mode (no-bundle default)');
 
 							// Generate metadata file (needed for eval ID lookup at runtime)
 							// Reuse agentMetadata and routes from Step 2
@@ -1084,10 +1072,14 @@ export const command = createCommand({
 					if (project?.region) {
 						process.env.AGENTUITY_REGION = project.region;
 					}
-					process.env.PORT = String(opts.port);
-					process.env.AGENTUITY_PORT = process.env.PORT;
+					process.env.PORT = String(bunBackendPort);
+					process.env.AGENTUITY_PORT = String(bunBackendPort);
+					// Base URL points to user-facing Vite server (which proxies to Bun)
 					process.env.AGENTUITY_BASE_URL =
-						process.env.AGENTUITY_BASE_URL || `http://localhost:${opts.port}`;
+						process.env.AGENTUITY_BASE_URL || `http://localhost:${vitePort}`;
+
+					// Dev mode always uses no-bundle architecture
+					process.env.AGENTUITY_NO_BUNDLE = 'true';
 
 					if (opts.resume) {
 						process.env.AGENTUITY_CODER_RESUME_SESSION = opts.resume;
@@ -1111,27 +1103,23 @@ export const command = createCommand({
 					if (devmode?.hostname) {
 						process.env.AGENTUITY_DEVMODE_URL = `https://${devmode.hostname}`;
 					} else {
-						process.env.AGENTUITY_DEVMODE_URL = `http://localhost:${opts.port}`;
+						process.env.AGENTUITY_DEVMODE_URL = `http://localhost:${vitePort}`;
 					}
 
-					// Set Vite port for asset proxying in bundled app
-					process.env.VITE_PORT = String(vitePort);
+					// Start Bun backend server on internal port (Vite proxies to it)
+					logger.debug('Starting Bun backend on internal port %d', bunBackendPort);
 
-					logger.debug('Set VITE_PORT=%s for asset proxying', process.env.VITE_PORT);
-
-					// Start Bun dev server (Vite already running, just start backend)
 					await startBunDevServer({
 						rootDir,
-						port: opts.port,
+						port: bunBackendPort,
 						projectId: project?.projectId,
 						orgId: project?.orgId,
 						deploymentId,
 						logger,
-						vitePort, // Pass port of already-running Vite server
+						vitePort, // Still passed for reference/logging
 						inspect: opts.inspect,
 						inspectWait: opts.inspectWait,
 						inspectBrk: opts.inspectBrk,
-						noBundle: opts.experimentalNoBundle,
 					});
 
 					// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
@@ -1187,7 +1175,7 @@ export const command = createCommand({
 								'--endpoint-id',
 								devmode.id,
 								'--port',
-								opts.port.toString(),
+								vitePort.toString(),
 								'--url',
 								gravityURL,
 								'--log-level',
