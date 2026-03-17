@@ -782,6 +782,24 @@ export async function discoverAgents(
 					allEvals.push(...evalsInSeparateFile);
 				}
 
+				// Check for duplicate eval names across sources (agent file + eval.ts)
+				// Same name + same agent = same stable identifier, which causes a
+				// duplicate key error on the backend database.
+				if (allEvals.length > 1) {
+					const seen = new Map<string, string>();
+					for (const evalItem of allEvals) {
+						const prev = seen.get(evalItem.name);
+						if (prev && prev !== evalItem.filename) {
+							throw new Error(
+								`Duplicate eval name '${evalItem.name}' for agent '${agentMetadata.name}': ` +
+									`defined in both '${prev}' and '${evalItem.filename}'. ` +
+									'Eval names must be unique per agent.'
+							);
+						}
+						seen.set(evalItem.name, evalItem.filename);
+					}
+				}
+
 				if (allEvals.length > 0) {
 					agentMetadata.evals = allEvals;
 					logger.trace('Total %d eval(s) for agent %s', allEvals.length, agentMetadata.name);
