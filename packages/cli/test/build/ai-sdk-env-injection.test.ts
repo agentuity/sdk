@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { join } from 'path';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
-import { generatePatches, applyPatch } from '../../src/cmd/build/patch';
+import { generatePatches, applyPatch, buildPatchFilter } from '../../src/cmd/build/patch';
 import type { BunPlugin } from 'bun';
 
 /**
@@ -73,13 +73,9 @@ export { openai };
 			name: 'agentuity:patch',
 			setup(build) {
 				for (const [, patch] of patches) {
-					let modulePath = join('node_modules', patch.module, '.*');
-					if (patch.filename) {
-						modulePath = join('node_modules', patch.module, patch.filename + '.*');
-					}
 					build.onLoad(
 						{
-							filter: new RegExp(modulePath),
+							filter: buildPatchFilter(patch.module, patch.filename),
 							namespace: 'file',
 						},
 						async (args) => {
@@ -123,13 +119,9 @@ export { openai };
 			name: 'agentuity:patch',
 			setup(build) {
 				for (const [, patch] of patches) {
-					let modulePath = join('node_modules', patch.module, '.*');
-					if (patch.filename) {
-						modulePath = join('node_modules', patch.module, patch.filename + '.*');
-					}
 					build.onLoad(
 						{
-							filter: new RegExp(modulePath),
+							filter: buildPatchFilter(patch.module, patch.filename),
 							namespace: 'file',
 						},
 						async (args) => {

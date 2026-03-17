@@ -61,6 +61,25 @@ export function generateGatewayEnvGuard(
 `;
 }
 
+/**
+ * Build a RegExp filter for a Bun build plugin that matches a patch module's
+ * file path inside node_modules. The pattern matches both forward-slash (Unix)
+ * and backslash (Windows) path separators.
+ */
+export function buildPatchFilter(module: string, filename?: string): RegExp {
+	let pattern: string;
+	if (filename) {
+		pattern = `node_modules/${module}/${filename}.*`;
+	} else {
+		pattern = `node_modules/${module}/.*`;
+	}
+	// Replace / with [\\/] to match both Unix and Windows path separators.
+	// Using path.join() here would produce backslashes on Windows, which are
+	// interpreted as regex escape sequences and silently break the filter.
+	pattern = pattern.replace(/\//g, '[\\\\/]');
+	return new RegExp(pattern);
+}
+
 export function searchBackwards(contents: string, offset: number, val: string): number {
 	for (let i = offset; i >= 0; i--) {
 		if (contents.charAt(i) === val) {
