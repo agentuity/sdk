@@ -11,7 +11,13 @@ import { dirname, join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
 import type { Logger } from '../../../types';
 import { formatSchemaCode } from '../format-schema';
+import { StructuredError } from '@agentuity/core';
 import { toForwardSlash } from '../../../utils/normalize-path';
+
+const DuplicateEvalNameError = StructuredError('DuplicateEvalNameError')<{
+	agent: string;
+	filename: string;
+}>();
 
 interface ASTNode {
 	type: string;
@@ -790,11 +796,14 @@ export async function discoverAgents(
 					for (const evalItem of allEvals) {
 						const prev = seen.get(evalItem.name);
 						if (prev && prev !== evalItem.filename) {
-							throw new Error(
-								`Duplicate eval name '${evalItem.name}' for agent '${agentMetadata.name}': ` +
+							throw new DuplicateEvalNameError({
+								message:
+									`Duplicate eval name '${evalItem.name}' for agent '${agentMetadata.name}': ` +
 									`defined in both '${prev}' and '${evalItem.filename}'. ` +
-									'Eval names must be unique per agent.'
-							);
+									'Eval names must be unique per agent.',
+								agent: agentMetadata.name,
+								filename: evalItem.filename,
+							});
 						}
 						seen.set(evalItem.name, evalItem.filename);
 					}
