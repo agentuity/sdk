@@ -26,15 +26,15 @@ export const eventsSubcommand = createCommand({
 	idempotent: true,
 	examples: [
 		{
-			command: getCommand('cloud sandbox events snbx_abc123'),
+			command: getCommand('cloud sandbox events sbx_abc123'),
 			description: 'List events for a sandbox (oldest first)',
 		},
 		{
-			command: getCommand('cloud sandbox events snbx_abc123 --reverse'),
+			command: getCommand('cloud sandbox events sbx_abc123 --reverse'),
 			description: 'List events newest first',
 		},
 		{
-			command: getCommand('cloud sandbox events snbx_abc123 --limit 10'),
+			command: getCommand('cloud sandbox events sbx_abc123 --limit 10'),
 			description: 'List events with a limit',
 		},
 	],
