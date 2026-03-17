@@ -610,15 +610,26 @@ export async function createCLI(version: string): Promise<Command> {
 			const opts = getOutputOptions();
 			if (opts?.json || opts?.errorFormat === 'json') {
 				// Strip "error: " prefix and trailing newline for clean message
-				const message = str.replace(/^error:\s*/, '').replace(/\n$/, '');
+				let message = str.replace(/^error:\s*/, '').replace(/\n$/, '');
 				let code = ErrorCode.INVALID_OPTION;
 				if (str.includes('unknown command') || str.includes('too many arguments')) {
 					code = ErrorCode.UNKNOWN_COMMAND;
 				} else if (str.includes('missing required argument')) {
 					code = ErrorCode.MISSING_ARGUMENT;
 				}
+				// Extract Commander's "Did you mean" suggestion into a separate field
+				let suggestions: string[] | undefined;
+				const suggestionMatch = message.match(/\n\(Did you mean (.+)\?\)/);
+				if (suggestionMatch?.[1] != null) {
+					suggestions = [suggestionMatch[1] as string];
+					message = message.replace(/\n\(Did you mean .+\?\)/, '');
+				}
+				// Write directly to stderr (not via write/writeErr) to avoid
+				// self-suppression — writeErr suppresses output when jsonErrorEmitted is true
 				jsonErrorEmitted = true;
-				write(formatErrorJSON(createError(code, message)) + '\n');
+				process.stderr.write(
+					formatErrorJSON(createError(code, message, undefined, suggestions)) + '\n'
+				);
 				return;
 			}
 			// Intercept commander.js error messages
