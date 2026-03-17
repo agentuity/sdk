@@ -95,7 +95,7 @@ export const createSubcommand = createCommand({
 				.optional()
 				.describe('task priority (default: none)'),
 			status: z
-				.enum(['open', 'in_progress', 'done', 'cancelled'])
+				.enum(['open', 'in_progress', 'started', 'done', 'completed', 'closed', 'cancelled'])
 				.optional()
 				.describe('initial task status (default: open)'),
 			parentId: z.string().optional().describe('parent task ID for subtasks'),

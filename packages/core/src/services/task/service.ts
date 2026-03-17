@@ -29,12 +29,39 @@ export type TaskType = z.infer<typeof TaskTypeSchema>;
  *
  * - `'open'` — Created, not yet started.
  * - `'in_progress'` — Actively being worked on.
+ * - `'started'` — Alias for `'in_progress'`.
  * - `'done'` — Work completed.
+ * - `'completed'` — Alias for `'done'`.
+ * - `'closed'` — Alias for `'done'`.
  * - `'cancelled'` — Abandoned.
  */
-export const TaskStatusSchema = z.enum(['open', 'in_progress', 'done', 'cancelled']);
+export const TaskStatusSchema = z.enum([
+	'open',
+	'in_progress',
+	'started',
+	'done',
+	'completed',
+	'closed',
+	'cancelled',
+]);
 
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
+
+/**
+ * Normalize a task status value, converting aliases to their canonical form.
+ * Maps `'completed'` → `'done'`, `'closed'` → `'done'`, `'started'` → `'in_progress'`.
+ */
+export function normalizeTaskStatus(status: TaskStatus): TaskStatus {
+	switch (status) {
+		case 'completed':
+		case 'closed':
+			return 'done';
+		case 'started':
+			return 'in_progress';
+		default:
+			return status;
+	}
+}
 
 /**
  * A lightweight reference to a user or project entity, containing just the ID
@@ -1151,20 +1178,23 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskTitleRequiredError();
 		}
 
+		const normalized = params.status
+			? { ...params, status: normalizeTaskStatus(params.status) }
+			: params;
 		const url = buildUrl(this.#baseUrl, '/task');
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
 			method: 'POST',
-			body: safeStringify(params),
+			body: safeStringify(normalized),
 			contentType: 'application/json',
 			signal,
 			telemetry: {
 				name: 'agentuity.task.create',
 				attributes: {
-					type: params.type,
-					priority: params.priority ?? 'none',
-					status: params.status ?? 'open',
+					type: normalized.type,
+					priority: normalized.priority ?? 'none',
+					status: normalized.status ?? 'open',
 				},
 			},
 		});
@@ -1256,7 +1286,7 @@ export class TaskStorageService implements TaskStorage {
 	 */
 	async list(params?: ListTasksParams): Promise<ListTasksResult> {
 		const queryParams = new URLSearchParams();
-		if (params?.status) queryParams.set('status', params.status);
+		if (params?.status) queryParams.set('status', normalizeTaskStatus(params.status));
 		if (params?.type) queryParams.set('type', params.type);
 		if (params?.priority) queryParams.set('priority', params.priority);
 		if (params?.assigned_id) queryParams.set('assigned_id', params.assigned_id);
@@ -1280,7 +1310,7 @@ export class TaskStorageService implements TaskStorage {
 			telemetry: {
 				name: 'agentuity.task.list',
 				attributes: {
-					...(params?.status ? { status: params.status } : {}),
+					...(params?.status ? { status: normalizeTaskStatus(params.status) } : {}),
 					...(params?.type ? { type: params.type } : {}),
 					...(params?.priority ? { priority: params.priority } : {}),
 				},
@@ -1331,12 +1361,15 @@ export class TaskStorageService implements TaskStorage {
 			throw new TaskTitleRequiredError();
 		}
 
+		const normalized = params.status
+			? { ...params, status: normalizeTaskStatus(params.status) }
+			: params;
 		const url = buildUrl(this.#baseUrl, `/task/${encodeURIComponent(id)}`);
 		const signal = AbortSignal.timeout(30_000);
 
 		const res = await this.#adapter.invoke<TaskResponse<Task>>(url, {
 			method: 'PATCH',
-			body: safeStringify(params),
+			body: safeStringify(normalized),
 			contentType: 'application/json',
 			signal,
 			telemetry: {
@@ -1542,7 +1575,7 @@ export class TaskStorageService implements TaskStorage {
 		const signal = AbortSignal.timeout(60_000);
 
 		const body: Record<string, unknown> = {};
-		if (params.status) body.status = params.status;
+		if (params.status) body.status = normalizeTaskStatus(params.status);
 		if (params.type) body.type = params.type;
 		if (params.priority) body.priority = params.priority;
 		if (params.parent_id) body.parent_id = params.parent_id;
@@ -1558,7 +1591,7 @@ export class TaskStorageService implements TaskStorage {
 			telemetry: {
 				name: 'agentuity.task.batchDelete',
 				attributes: {
-					...(params.status ? { status: params.status } : {}),
+					...(params.status ? { status: normalizeTaskStatus(params.status) } : {}),
 					...(params.type ? { type: params.type } : {}),
 					...(params.older_than ? { older_than: params.older_than } : {}),
 				},

@@ -29,7 +29,7 @@ import type {
 	UserEntityRef,
 	EntityRef,
 } from '@agentuity/core';
-import { StructuredError } from '@agentuity/core';
+import { StructuredError, normalizeTaskStatus } from '@agentuity/core';
 import { now } from './_util';
 
 const TaskTitleRequiredError = StructuredError(
@@ -257,7 +257,7 @@ export class LocalTaskStorage implements TaskStorage {
 
 		const id = generateTaskId();
 		const timestamp = now();
-		const status: TaskStatus = params.status ?? 'open';
+		const status: TaskStatus = params.status ? normalizeTaskStatus(params.status) : 'open';
 		const priority: TaskPriority = params.priority ?? 'none';
 		const openDate = status === 'open' ? new Date(timestamp).toISOString() : null;
 		const inProgressDate = status === 'in_progress' ? new Date(timestamp).toISOString() : null;
@@ -366,7 +366,7 @@ export class LocalTaskStorage implements TaskStorage {
 
 		if (params?.status) {
 			filters.push('status = ?');
-			values.push(params.status);
+			values.push(normalizeTaskStatus(params.status));
 		}
 		if (params?.type) {
 			filters.push('type = ?');
@@ -467,6 +467,7 @@ export class LocalTaskStorage implements TaskStorage {
 			}
 			const timestamp = now();
 			const nowIso = new Date(timestamp).toISOString();
+			const normalizedStatus = params.status ? normalizeTaskStatus(params.status) : undefined;
 
 			const updated: TaskRow = {
 				...existing,
@@ -482,21 +483,21 @@ export class LocalTaskStorage implements TaskStorage {
 				priority: params.priority ?? existing.priority,
 				parent_id: params.parent_id !== undefined ? params.parent_id : existing.parent_id,
 				type: params.type ?? existing.type,
-				status: params.status ?? existing.status,
+				status: normalizedStatus ?? existing.status,
 				assigned_id:
 					params.assigned_id !== undefined ? params.assigned_id : existing.assigned_id,
 				closed_id: params.closed_id !== undefined ? params.closed_id : existing.closed_id,
 				updated_at: timestamp,
 			};
 
-			if (params.status && params.status !== existing.status) {
-				if (params.status === 'open' && !existing.open_date) {
+			if (normalizedStatus && normalizedStatus !== existing.status) {
+				if (normalizedStatus === 'open' && !existing.open_date) {
 					updated.open_date = nowIso;
 				}
-				if (params.status === 'in_progress' && !existing.in_progress_date) {
+				if (normalizedStatus === 'in_progress' && !existing.in_progress_date) {
 					updated.in_progress_date = nowIso;
 				}
-				if (params.status === 'done' && !existing.closed_date) {
+				if (normalizedStatus === 'done' && !existing.closed_date) {
 					updated.closed_date = nowIso;
 				}
 			}
@@ -531,7 +532,7 @@ export class LocalTaskStorage implements TaskStorage {
 			if (params.type !== undefined) {
 				compare('type', existing.type, updated.type);
 			}
-			if (params.status !== undefined) {
+			if (normalizedStatus !== undefined) {
 				compare('status', existing.status, updated.status);
 			}
 			if (params.assigned_id !== undefined) {
@@ -774,7 +775,7 @@ export class LocalTaskStorage implements TaskStorage {
 
 		if (params.status) {
 			conditions.push('status = ?');
-			args.push(params.status);
+			args.push(normalizeTaskStatus(params.status));
 		}
 		if (params.type) {
 			conditions.push('type = ?');
