@@ -856,7 +856,7 @@ const service: Service = {
 			method: 'POST',
 			path: '/sandbox/{sandboxId}/checkpoint',
 			description:
-				'Create a named checkpoint of the sandbox filesystem. Checkpoint names must be unique — creating a checkpoint with a name that already exists returns 409 Conflict. Note: disk checkpoints are stored locally on the machine and do not persist across pause/resume cycles.',
+				'Create a named checkpoint of the sandbox filesystem. Checkpoint names must be unique — creating a checkpoint with a name that already exists returns 409 Conflict. Disk checkpoints are persisted across pause/resume cycles.',
 			pathParams: [
 				{ name: 'sandboxId', type: 'string', description: 'Sandbox ID', required: true },
 			],
@@ -888,7 +888,7 @@ const service: Service = {
 			method: 'GET',
 			path: '/sandbox/checkpoints/{sandboxId}',
 			description:
-				'List checkpoints for a specific sandbox. Note: disk checkpoints do not persist across pause/resume cycles.',
+				'List checkpoints for a specific sandbox. Disk checkpoints are persisted across pause/resume cycles.',
 			pathParams: [
 				{ name: 'sandboxId', type: 'string', description: 'Sandbox ID', required: true },
 			],
