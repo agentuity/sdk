@@ -30,6 +30,7 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 | `sandbox snapshot build <dir>` | Build snapshot from declarative file |
 | `sandbox snapshot generate` | Generate template snapshot build file |
 | `sandbox execution` | View execution history |
+| `sandbox events <id>` | List sandbox lifecycle events |
 | `sandbox runtime list` | List available runtimes |
 | `sandbox env <id>` | Manage environment variables |
 
@@ -630,6 +631,35 @@ agentuity cloud sandbox execution get <execution-id>
 ```
 
 Shows command, exit code, duration, and stream URLs for stdout/stderr.
+
+## Events
+
+View lifecycle events for a sandbox. Events are displayed in chronological order (oldest first) by default.
+
+### List Events
+
+```bash
+agentuity cloud sandbox events <sandbox-id> [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--limit <n>` | Maximum number of results (default: 50, max: 100) |
+| `--reverse` | Show newest events first |
+| `--json` | Output as JSON |
+
+```bash
+# List events oldest first (default)
+agentuity cloud sandbox events sbx_abc123
+
+# List events newest first
+agentuity cloud sandbox events sbx_abc123 --reverse
+
+# Limit to last 10 events
+agentuity cloud sandbox events sbx_abc123 --limit 10
+```
+
+Events include lifecycle state changes such as `create`, `destroy`, `pause`, `resume`, `lifecycle:started`, `lifecycle:completed`, `lifecycle:failed`, and `lifecycle:terminated`.
 
 ## Common Workflows
 

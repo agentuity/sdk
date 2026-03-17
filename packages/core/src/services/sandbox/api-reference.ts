@@ -1,5 +1,6 @@
 import { SandboxCreateDataSchema, SandboxCreateRequestSchema } from './create.ts';
 import { DiskCheckpointCreateParamsSchema, DiskCheckpointInfoSchema } from './disk-checkpoint.ts';
+import { SandboxEventListDataSchema } from './events.ts';
 import { ExecuteDataSchema, ExecuteRequestSchema } from './execute.ts';
 import {
 	ListFilesDataSchema,
@@ -346,6 +347,44 @@ const service: Service = {
 				{ code: 404, description: 'Sandbox not found' },
 			],
 			examplePath: '/sandbox/sandboxes/sbx_abc123/executions',
+		},
+		// ── Events ────────────────────────────────────────────────────────
+		{
+			id: 'list-events',
+			title: 'List Events',
+			sectionTitle: 'Events',
+			method: 'GET',
+			path: '/sandbox/sandboxes/{sandboxId}/events',
+			description:
+				'List lifecycle events for a specific sandbox. Events are returned in chronological order (oldest first) by default.',
+			pathParams: [
+				{ name: 'sandboxId', type: 'string', description: 'Sandbox ID', required: true },
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+				{
+					name: 'limit',
+					type: 'number',
+					description: 'Maximum results to return (default: 50, max: 100)',
+					required: false,
+				},
+				{
+					name: 'direction',
+					type: 'string',
+					description:
+						"Sort direction: 'asc' (default, oldest first) or 'desc' (newest first)",
+					required: false,
+				},
+			],
+			requestBody: null,
+			responseDescription: 'Returns list of lifecycle events for the sandbox.',
+			responseFields: { schema: SandboxEventListDataSchema },
+			statuses: [
+				{ code: 200, description: 'Events returned' },
+				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
+				{ code: 404, description: 'Sandbox not found' },
+			],
+			examplePath: '/sandbox/sandboxes/sbx_abc123/events',
 		},
 		// ── File System ───────────────────────────────────────────────────
 		{
