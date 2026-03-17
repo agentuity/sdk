@@ -278,10 +278,14 @@ const service: Service = {
 				fields: { schema: ExecuteRequestSchema },
 			},
 			responseDescription:
-				'Returns execution ID and stream URLs. Returns 409 if sandbox is busy.',
+				'Returns execution ID and stream URLs. If the sandbox was suspended, it is automatically resumed and the response includes `autoResumed: true`. Returns 409 if sandbox is busy.',
 			responseFields: { schema: ExecuteDataSchema },
 			statuses: [
-				{ code: 200, description: 'Command executed' },
+				{
+					code: 200,
+					description:
+						'Command executed (may include autoResumed: true if sandbox was suspended)',
+				},
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 				{ code: 404, description: 'Sandbox not found' },
 				{ code: 409, description: 'Conflict — sandbox is busy with another execution' },
@@ -851,7 +855,8 @@ const service: Service = {
 			sectionTitle: 'Disk Checkpoints',
 			method: 'POST',
 			path: '/sandbox/{sandboxId}/checkpoint',
-			description: 'Create a named checkpoint of the sandbox filesystem.',
+			description:
+				'Create a named checkpoint of the sandbox filesystem. Checkpoint names must be unique — creating a checkpoint with a name that already exists returns 409 Conflict. Note: disk checkpoints are stored locally on the machine and do not persist across pause/resume cycles.',
 			pathParams: [
 				{ name: 'sandboxId', type: 'string', description: 'Sandbox ID', required: true },
 			],
@@ -868,6 +873,10 @@ const service: Service = {
 				{ code: 201, description: 'Checkpoint created' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 				{ code: 404, description: 'Sandbox not found' },
+				{
+					code: 409,
+					description: 'Conflict — checkpoint name already exists, or sandbox is suspended',
+				},
 			],
 			examplePath: '/sandbox/sbx_abc123/checkpoint',
 			exampleBody: { name: 'before-migration' },
@@ -878,7 +887,8 @@ const service: Service = {
 			sectionTitle: 'Disk Checkpoints',
 			method: 'GET',
 			path: '/sandbox/checkpoints/{sandboxId}',
-			description: 'List checkpoints for a specific sandbox.',
+			description:
+				'List checkpoints for a specific sandbox. Note: disk checkpoints do not persist across pause/resume cycles.',
 			pathParams: [
 				{ name: 'sandboxId', type: 'string', description: 'Sandbox ID', required: true },
 			],
@@ -891,6 +901,7 @@ const service: Service = {
 				{ code: 200, description: 'Checkpoints returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 				{ code: 404, description: 'Sandbox not found' },
+				{ code: 409, description: 'Conflict — sandbox is suspended' },
 			],
 			examplePath: '/sandbox/checkpoints/sbx_abc123',
 		},
@@ -914,6 +925,7 @@ const service: Service = {
 				{ code: 200, description: 'Checkpoint restored' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 				{ code: 404, description: 'Sandbox or checkpoint not found' },
+				{ code: 409, description: 'Conflict — sandbox is suspended' },
 			],
 			examplePath: '/sandbox/sbx_abc123/checkpoint/ckpt_def456/restore',
 		},
@@ -937,6 +949,7 @@ const service: Service = {
 				{ code: 204, description: 'Checkpoint deleted' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 				{ code: 404, description: 'Sandbox or checkpoint not found' },
+				{ code: 409, description: 'Conflict — sandbox is suspended' },
 			],
 			examplePath: '/sandbox/sbx_abc123/checkpoint/ckpt_def456',
 		},

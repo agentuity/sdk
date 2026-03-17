@@ -653,6 +653,13 @@ export const ExecutionSchema = z.object({
 		.string()
 		.optional()
 		.describe('URL to stream stderr output for this execution'),
+	/** True if the sandbox was automatically resumed from a suspended state to execute this command */
+	autoResumed: z
+		.boolean()
+		.optional()
+		.describe(
+			'True if the sandbox was automatically resumed from a suspended state to execute this command'
+		),
 });
 export type Execution = z.infer<typeof ExecutionSchema>;
 

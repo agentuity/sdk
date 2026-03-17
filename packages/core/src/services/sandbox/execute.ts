@@ -1,6 +1,6 @@
 import type { ExecuteOptions, Execution, ExecutionStatus } from './types.ts';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api.ts';
+import type { APIClient } from '../api.ts';
 import { SandboxBusyError, throwSandboxError } from './util.ts';
 
 export const ExecuteRequestSchema = z
@@ -40,7 +40,19 @@ export const ExecuteDataSchema = z
 	})
 	.describe('Response data from command execution');
 
-export const ExecuteResponseSchema = APIResponseSchema(ExecuteDataSchema);
+export const ExecuteResponseSchema = z.discriminatedUnion('success', [
+	z.object({
+		success: z.literal(false),
+		message: z.string(),
+		code: z.string().optional(),
+	}),
+	z.object({
+		success: z.literal(true),
+		data: ExecuteDataSchema,
+		/** True if the sandbox was automatically resumed from a suspended state */
+		autoResumed: z.boolean().optional(),
+	}),
+]);
 
 export const SandboxExecuteParamsSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID where command should execute'),
@@ -127,6 +139,7 @@ export async function sandboxExecute(
 			durationMs: resp.data.durationMs,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
+			autoResumed: resp.autoResumed,
 		};
 	}
 
