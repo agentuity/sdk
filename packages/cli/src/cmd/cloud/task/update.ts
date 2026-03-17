@@ -56,7 +56,7 @@ export const updateSubcommand = createCommand({
 				.optional()
 				.describe('new task type'),
 			status: z
-				.enum(['open', 'in_progress', 'done', 'cancelled'])
+				.enum(['open', 'in_progress', 'started', 'done', 'completed', 'closed', 'cancelled'])
 				.optional()
 				.describe('new task status'),
 			assignedId: z.string().optional().describe('new assigned agent or user ID'),
