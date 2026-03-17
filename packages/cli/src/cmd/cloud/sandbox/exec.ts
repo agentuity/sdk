@@ -24,6 +24,10 @@ const SandboxExecResponseSchema = z.object({
 		.optional()
 		.describe('Standard error output (only when separate streams are available)'),
 	output: z.string().optional().describe('Combined stdout/stderr output'),
+	autoResumed: z
+		.boolean()
+		.optional()
+		.describe('True if the sandbox was automatically resumed from a suspended state'),
 });
 
 export const execSubcommand = createCommand({
@@ -86,6 +90,10 @@ export const execSubcommand = createCommand({
 				},
 				orgId,
 			});
+
+			if (execution.autoResumed && !options.json) {
+				tui.warning('Sandbox was automatically resumed from suspended state');
+			}
 
 			const stdoutStreamUrl = execution.stdoutStreamUrl;
 			const stderrStreamUrl = execution.stderrStreamUrl;
@@ -213,6 +221,7 @@ export const execSubcommand = createCommand({
 				stdout: options.json ? stdoutOutput : undefined,
 				stderr: options.json ? stderrOutput : undefined,
 				output: options.json ? output : undefined,
+				autoResumed: execution.autoResumed || undefined,
 			};
 		} finally {
 			process.off('SIGINT', handleSignal);
