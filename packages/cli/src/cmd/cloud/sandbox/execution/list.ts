@@ -1,9 +1,9 @@
-import { executionList } from '@agentuity/server';
+import { executionList, sandboxResolve } from '@agentuity/server';
 import { z } from 'zod';
 import { getCommand } from '../../../../command-prefix';
 import * as tui from '../../../../tui';
 import { createCommand } from '../../../../types';
-import { createSandboxClient, getSandboxRegion } from '../util';
+import { createSandboxClient } from '../util';
 
 const ExecutionInfoSchema = z.object({
 	executionId: z.string().describe('Execution ID'),
@@ -25,7 +25,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List executions for a sandbox',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true, apiClient: true },
 	idempotent: true,
 	examples: [
 		{
@@ -43,22 +43,21 @@ export const listSubcommand = createCommand({
 		}),
 		options: z.object({
 			limit: z.number().optional().describe('Maximum number of results (default: 50, max: 100)'),
-			orgId: z.string().optional().describe('filter by organization id'),
+			orgId: z
+				.string()
+				.optional()
+				.describe('Override organization ID (default: resolved from sandbox)'),
 		}),
 		response: ExecutionListResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, logger, orgId: ctxOrgId, config } = ctx;
-		const effectiveOrgId = opts?.orgId || ctxOrgId;
-		const region = await getSandboxRegion(
-			logger,
-			auth,
-			config?.name,
-			args.sandboxId,
-			effectiveOrgId,
-			config
-		);
+		const { args, opts, options, auth, logger, apiClient } = ctx;
+
+		// Resolve sandbox to get region and orgId (like exec.ts does)
+		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+		const { region, orgId: resolvedOrgId } = sandboxInfo;
+		const effectiveOrgId = opts?.orgId || resolvedOrgId;
 		const client = createSandboxClient(logger, auth, region);
 
 		const result = await executionList(client, {

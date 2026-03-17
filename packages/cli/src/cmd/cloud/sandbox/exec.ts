@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Writable } from 'node:stream';
+import { ErrorCode } from '../../../errors';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createSandboxClient } from './util';
@@ -65,6 +66,18 @@ export const execSubcommand = createCommand({
 
 	async handler(ctx) {
 		const { args, opts, options, auth, logger, apiClient } = ctx;
+
+		// Validate timeout format if provided (fail fast before any network calls)
+		if (opts.timeout) {
+			// Go's time.ParseDuration accepts: "300ms", "1.5h", "2h45m", "5s", "1m", "1h"
+			// Must contain at least one digit followed by a valid unit
+			if (!/^\d/.test(opts.timeout) || !/[smh]/.test(opts.timeout)) {
+				tui.fatal(
+					`Invalid timeout format '${opts.timeout}': expected duration like '5s', '1m', '1h', '300ms'`,
+					ErrorCode.INVALID_ARGUMENT
+				);
+			}
+		}
 
 		// Resolve sandbox to get region and orgId using CLI API
 		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
