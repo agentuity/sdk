@@ -25,6 +25,10 @@ const SandboxExecResponseSchema = z.object({
 		.optional()
 		.describe('Standard error output (only when separate streams are available)'),
 	output: z.string().optional().describe('Combined stdout/stderr output'),
+	outputTruncated: z
+		.boolean()
+		.optional()
+		.describe('Whether the captured output was truncated due to size limits'),
 	autoResumed: z
 		.boolean()
 		.optional()
@@ -234,6 +238,7 @@ export const execSubcommand = createCommand({
 				stdout: options.json ? stdoutOutput : undefined,
 				stderr: options.json ? stderrOutput : undefined,
 				output: options.json ? output : undefined,
+				outputTruncated: finalExecution.outputTruncated || undefined,
 				autoResumed: execution.autoResumed || undefined,
 			};
 		} finally {

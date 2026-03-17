@@ -17,6 +17,10 @@ const ExecutionGetResponseSchema = z.object({
 	error: z.string().optional().describe('Error message if failed'),
 	stdoutStreamUrl: z.string().optional().describe('URL to stream stdout'),
 	stderrStreamUrl: z.string().optional().describe('URL to stream stderr'),
+	outputTruncated: z
+		.boolean()
+		.optional()
+		.describe('Whether the captured output was truncated due to size limits'),
 });
 
 export const getSubcommand = createCommand({
@@ -108,6 +112,7 @@ export const getSubcommand = createCommand({
 			error: result.error,
 			stdoutStreamUrl: result.stdoutStreamUrl,
 			stderrStreamUrl: result.stderrStreamUrl,
+			outputTruncated: result.outputTruncated,
 		};
 	},
 });
