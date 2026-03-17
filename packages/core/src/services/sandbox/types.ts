@@ -657,6 +657,11 @@ export const ExecutionSchema = z.object({
 		.string()
 		.optional()
 		.describe('URL to stream stderr output for this execution'),
+	/** Whether the captured output was truncated due to size limits */
+	outputTruncated: z
+		.boolean()
+		.optional()
+		.describe('Whether the captured output was truncated due to size limits'),
 	/** True if the sandbox was automatically resumed from a suspended state to execute this command */
 	autoResumed: z
 		.boolean()

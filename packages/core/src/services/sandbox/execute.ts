@@ -143,6 +143,7 @@ export async function sandboxExecute(
 			durationMs: resp.data.durationMs,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
+			outputTruncated: resp.data.outputTruncated,
 			autoResumed: resp.autoResumed,
 		};
 	}
