@@ -190,8 +190,10 @@ export async function generateAssetServerConfig(
 			strictPort: true, // Port is pre-verified as available by findAvailablePort()
 			host: '127.0.0.1',
 
-			// Proxy backend routes to Bun server
-			// WebSocket upgrade requests are automatically proxied when ws: true
+			// Proxy backend routes to Bun server (HTTP only).
+			// WebSocket upgrades are handled by the front-door TCP proxy (ws-proxy.ts)
+			// which routes them directly to the Bun backend, bypassing Vite entirely.
+			// This avoids Bun's broken node:http upgrade socket implementation.
 			proxy: {
 				// User-defined route mounts (from createApp({ router }))
 				...Object.fromEntries(
@@ -200,7 +202,6 @@ export async function generateAssetServerConfig(
 						{
 							target: `http://127.0.0.1:${backendPort}`,
 							changeOrigin: true,
-							ws: true,
 						},
 					])
 				),
@@ -208,7 +209,6 @@ export async function generateAssetServerConfig(
 				'/_agentuity': {
 					target: `http://127.0.0.1:${backendPort}`,
 					changeOrigin: true,
-					ws: true,
 				},
 				// Workbench UI route (served by Bun, references /@fs/* paths handled by Vite)
 				...(workbenchPath
