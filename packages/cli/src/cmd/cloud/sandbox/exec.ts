@@ -73,9 +73,9 @@ export const execSubcommand = createCommand({
 
 		// Validate timeout format if provided (fail fast before any network calls)
 		if (opts.timeout) {
-			// Go's time.ParseDuration accepts one or more tokens of: number + unit
-			// Valid units: ns, us, µs, ms, s, m, h — e.g. "300ms", "1.5h", "2h45m"
-			if (!/^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/.test(opts.timeout)) {
+			// Go's time.ParseDuration accepts "0" or one-or-more number+unit tokens.
+			// Valid units: ns, us, µs (U+00B5), μs (U+03BC), ms, s, m, h
+			if (!/^(?:0|(\d+(\.\d+)?(ns|us|[µμ]s|ms|s|m|h))+)$/.test(opts.timeout)) {
 				tui.fatal(
 					`Invalid timeout format '${opts.timeout}': expected duration like '5s', '1m', '1h', '300ms'`,
 					ErrorCode.INVALID_ARGUMENT
@@ -239,7 +239,7 @@ export const execSubcommand = createCommand({
 				stderr: options.json ? stderrOutput : undefined,
 				output: options.json ? output : undefined,
 				outputTruncated: finalExecution.outputTruncated ?? undefined,
-				autoResumed: execution.autoResumed || undefined,
+				autoResumed: execution.autoResumed ?? undefined,
 			};
 		} finally {
 			process.off('SIGINT', handleSignal);
