@@ -384,6 +384,10 @@ export interface SandboxFileInfo {
 	size: number;
 	/** Whether the entry is a directory */
 	isDir: boolean;
+	/** Whether the entry is a symbolic link */
+	isSymlink?: boolean;
+	/** Target path of the symbolic link */
+	linkTarget?: string;
 	/** Unix permissions as octal string (e.g., "0644") */
 	mode: string;
 	/** Modification time in RFC3339 format */
@@ -653,6 +657,11 @@ export const ExecutionSchema = z.object({
 		.string()
 		.optional()
 		.describe('URL to stream stderr output for this execution'),
+	/** Whether the captured output was truncated due to size limits */
+	outputTruncated: z
+		.boolean()
+		.optional()
+		.describe('Whether the captured output was truncated due to size limits'),
 	/** True if the sandbox was automatically resumed from a suspended state to execute this command */
 	autoResumed: z
 		.boolean()

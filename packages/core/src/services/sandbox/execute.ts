@@ -37,6 +37,10 @@ export const ExecuteDataSchema = z
 		durationMs: z.number().optional().describe('Execution duration in milliseconds'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		outputTruncated: z
+			.boolean()
+			.optional()
+			.describe('Whether the captured output was truncated due to size limits'),
 	})
 	.describe('Response data from command execution');
 
@@ -139,6 +143,7 @@ export async function sandboxExecute(
 			durationMs: resp.data.durationMs,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
+			outputTruncated: resp.data.outputTruncated,
 			autoResumed: resp.autoResumed,
 		};
 	}

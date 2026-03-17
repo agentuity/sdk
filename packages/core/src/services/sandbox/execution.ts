@@ -20,6 +20,10 @@ export const ExecutionInfoSchema = z
 		error: z.string().optional().describe('Error message if execution failed'),
 		stdoutStreamUrl: z.string().optional().describe('URL to stream stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL to stream stderr output'),
+		outputTruncated: z
+			.boolean()
+			.optional()
+			.describe('Whether the captured output was truncated due to size limits'),
 	})
 	.describe('Detailed information about a command execution');
 
@@ -93,6 +97,7 @@ export async function executionGet(
 			error: resp.data.error,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
+			outputTruncated: resp.data.outputTruncated,
 		};
 	}
 
