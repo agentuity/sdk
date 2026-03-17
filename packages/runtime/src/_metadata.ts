@@ -136,6 +136,13 @@ export function loadBuildMetadata(): BuildMetadata | undefined {
 
 	if (!existsSync(metadataPath)) {
 		internal.info('[metadata] agentuity.metadata.json not found at %s', metadataPath);
+		// In dev mode, don't cache "not found" — the dev server generates
+		// the metadata file after createApp() has already been called.
+		// Caching undefined would permanently prevent the workbench from
+		// finding agents once the file is later written.
+		if (process.env.NODE_ENV === 'development') {
+			return undefined;
+		}
 		_metadataCache = undefined;
 		return undefined;
 	}
@@ -208,6 +215,13 @@ function ensureAgentMaps(): void {
 	const metadata = loadBuildMetadata();
 	if (!metadata?.agents) {
 		internal.info(`[metadata] ensureAgentMaps: no metadata or no agents found`);
+		// In dev mode, don't cache empty maps — metadata file may appear later
+		if (process.env.NODE_ENV === 'development') {
+			_agentsByName = null;
+			_agentsByAgentId = null;
+			_evalsByAgentName = null;
+			_evalsByAgentId = null;
+		}
 		return;
 	}
 
