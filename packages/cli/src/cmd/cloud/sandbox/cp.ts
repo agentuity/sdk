@@ -59,24 +59,24 @@ export const cpSubcommand = createCommand({
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox cp ./local-file.txt snbx_abc123:/path/to/file.txt'),
+			command: getCommand('cloud sandbox cp ./local-file.txt sbx_abc123:/path/to/file.txt'),
 			description: 'Copy a local file to a sandbox',
 		},
 		{
-			command: getCommand('cloud sandbox cp snbx_abc123:/path/to/file.txt ./local-file.txt'),
+			command: getCommand('cloud sandbox cp sbx_abc123:/path/to/file.txt ./local-file.txt'),
 			description: 'Copy a file from a sandbox to local',
 		},
 		{
-			command: getCommand('cloud sandbox cp --recursive ./local-dir snbx_abc123:/path/to/dir'),
+			command: getCommand('cloud sandbox cp --recursive ./local-dir sbx_abc123:/path/to/dir'),
 			description: 'Copy a local directory to a sandbox recursively',
 		},
 		{
-			command: getCommand('cloud sandbox cp -r snbx_abc123:/path/to/dir ./local-dir'),
+			command: getCommand('cloud sandbox cp -r sbx_abc123:/path/to/dir ./local-dir'),
 			description: 'Copy a directory from a sandbox to local recursively',
 		},
 		{
 			command: getCommand(
-				'cloud sandbox cp --strict ./local-file.txt snbx_abc123:/path/to/file.txt'
+				'cloud sandbox cp --strict ./local-file.txt sbx_abc123:/path/to/file.txt'
 			),
 			description: 'Copy a file, failing if the target directory does not exist',
 		},
@@ -119,7 +119,7 @@ export const cpSubcommand = createCommand({
 
 		if (!source.sandboxId && !destination.sandboxId) {
 			logger.fatal(
-				'At least one path must include a sandbox ID (e.g., snbx_abc123:/path/to/file)'
+				'At least one path must include a sandbox ID (e.g., sbx_abc123:/path/to/file)'
 			);
 		}
 
