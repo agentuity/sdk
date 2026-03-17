@@ -272,7 +272,7 @@ const ctx = {
 
 // Set global output options for utilities to use
 // When --json is used, automatically set error format to json
-if (earlyOpts.json && !earlyOpts.errorFormat) {
+if (earlyOpts.json && earlyOpts.errorFormat !== 'json') {
 	earlyOpts.errorFormat = 'json';
 }
 setOutputOptions(earlyOpts as GlobalOptions);
@@ -369,19 +369,29 @@ try {
 	}
 
 	if (earlyOpts.errorFormat === 'json') {
-		const message = errorWithMessage?.message ?? String(error);
+		let message = errorWithMessage?.message ?? String(error);
 		const code = isStructuredError(error) ? ErrorCode.API_ERROR : ErrorCode.INTERNAL_ERROR;
 		const details: Record<string, unknown> = {};
 		if (isStructuredError(error) && errorWithMessage._tag) {
 			details.tag = errorWithMessage._tag;
 		}
-		if (
-			typeof error === 'object' &&
-			error !== null &&
-			'status' in error &&
-			typeof (error as any).status === 'number'
-		) {
-			details.status = (error as any).status;
+		if (typeof error === 'object' && error !== null) {
+			if ('status' in error && typeof (error as any).status === 'number') {
+				details.status = (error as any).status;
+			}
+			if ('sessionId' in error && (error as any).sessionId) {
+				details.sessionId = (error as any).sessionId;
+			}
+		}
+		// Try to parse embedded JSON in API error messages
+		// API errors often have messages like: '{"success":false,"message":"not found: ..."}'
+		try {
+			const parsed = JSON.parse(message);
+			if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') {
+				message = parsed.message;
+			}
+		} catch {
+			// Not JSON, use message as-is
 		}
 		console.error(
 			formatErrorJSON(
