@@ -45,13 +45,16 @@ const SandboxCpResponseSchema = z.object({
 	directoriesCreated: z
 		.array(z.string())
 		.optional()
-		.describe('Parent directories auto-created on the destination'),
+		.describe(
+			'Parent directories that were auto-created on the destination (not present in --strict mode or when all directories already exist)'
+		),
 });
 
 export const cpSubcommand = createCommand({
 	name: 'cp',
 	aliases: ['copy'],
-	description: 'Copy files or directories to or from a sandbox',
+	description:
+		'Copy files or directories to or from a sandbox. Parent directories are automatically created if they do not exist (similar to mkdir -p).',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, apiClient: true },
 	examples: [
@@ -71,6 +74,12 @@ export const cpSubcommand = createCommand({
 			command: getCommand('cloud sandbox cp -r snbx_abc123:/path/to/dir ./local-dir'),
 			description: 'Copy a directory from a sandbox to local recursively',
 		},
+		{
+			command: getCommand(
+				'cloud sandbox cp --strict ./local-file.txt snbx_abc123:/path/to/file.txt'
+			),
+			description: 'Copy a file, failing if the target directory does not exist',
+		},
 	],
 	schema: {
 		args: z.object({
@@ -82,6 +91,13 @@ export const cpSubcommand = createCommand({
 		options: z.object({
 			timeout: z.string().optional().describe('Operation timeout (e.g., "5m", "1h")'),
 			recursive: z.boolean().default(false).optional().describe('Copy directories recursively'),
+			strict: z
+				.boolean()
+				.default(false)
+				.optional()
+				.describe(
+					'Fail if the target parent directory does not exist instead of auto-creating it'
+				),
 		}),
 		aliases: {
 			recursive: ['r'],
@@ -115,6 +131,7 @@ export const cpSubcommand = createCommand({
 
 		const client = createSandboxClient(logger, auth, region);
 		const recursive = opts.recursive ?? false;
+		const strict = opts.strict ?? false;
 
 		if (source.sandboxId) {
 			return await downloadFromSandbox(
@@ -138,7 +155,8 @@ export const cpSubcommand = createCommand({
 				destination.path,
 				opts.timeout,
 				recursive,
-				options.json ?? false
+				options.json ?? false,
+				strict
 			);
 		}
 	},
@@ -193,7 +211,8 @@ async function uploadToSandbox(
 	remotePath: string,
 	timeout: string | undefined,
 	recursive: boolean,
-	jsonOutput: boolean
+	jsonOutput: boolean,
+	strict: boolean
 ): Promise<z.infer<typeof SandboxCpResponseSchema>> {
 	const resolvedPath = resolve(localPath);
 
@@ -218,7 +237,8 @@ async function uploadToSandbox(
 			resolvedPath,
 			remotePath,
 			timeout,
-			jsonOutput
+			jsonOutput,
+			strict
 		);
 	}
 
@@ -231,20 +251,22 @@ async function uploadToSandbox(
 		localPath,
 		remotePath,
 		timeout,
-		jsonOutput
+		jsonOutput,
+		strict
 	);
 }
 
 async function uploadSingleFile(
 	client: APIClient,
-	_logger: Logger,
+	logger: Logger,
 	orgId: string,
 	sandboxId: string,
 	resolvedPath: string,
 	displayPath: string,
 	remotePath: string,
 	_timeout: string | undefined,
-	jsonOutput: boolean
+	jsonOutput: boolean,
+	strict: boolean
 ): Promise<z.infer<typeof SandboxCpResponseSchema>> {
 	const buffer = readFileSync(resolvedPath);
 
@@ -252,6 +274,32 @@ async function uploadSingleFile(
 	if (!remotePath || remotePath === '' || remotePath.endsWith('/')) {
 		const baseDir = remotePath || '';
 		targetPath = baseDir ? baseDir + basename(resolvedPath) : basename(resolvedPath);
+	}
+
+	if (strict) {
+		const parentDir = dirname(targetPath);
+		const knownDirs = new Set(['/', '/home', '/home/agentuity']);
+		if (!knownDirs.has(parentDir)) {
+			const checkExecution = await sandboxExecute(client, {
+				sandboxId,
+				options: {
+					command: ['test', '-d', parentDir],
+				},
+				orgId,
+			});
+			await waitForExecution(client, orgId, checkExecution.executionId, logger);
+			const execInfo = await executionGet(client, {
+				executionId: checkExecution.executionId,
+				orgId,
+			});
+			if (execInfo.exitCode !== 0) {
+				logger.fatal(
+					`Target directory does not exist: ${parentDir}\n` +
+						`Use without --strict to auto-create parent directories, or create it first with:\n` +
+						`  ${getCommand(`cloud sandbox mkdir ${sandboxId} ${parentDir} -p`)}`
+				);
+			}
+		}
 	}
 
 	const files: FileToWrite[] = [{ path: targetPath, content: buffer }];
@@ -280,7 +328,8 @@ async function uploadDirectory(
 	localDir: string,
 	remotePath: string,
 	_timeout: string | undefined,
-	jsonOutput: boolean
+	jsonOutput: boolean,
+	strict: boolean
 ): Promise<z.infer<typeof SandboxCpResponseSchema>> {
 	const allFiles = getAllFiles(localDir);
 
@@ -294,6 +343,32 @@ async function uploadDirectory(
 	const baseRemotePath = effectiveRemotePath.endsWith('/')
 		? effectiveRemotePath.slice(0, -1)
 		: effectiveRemotePath;
+
+	if (strict) {
+		const parentDir = dirname(baseRemotePath);
+		const knownDirs = new Set(['/', '/home', '/home/agentuity']);
+		if (!knownDirs.has(parentDir)) {
+			const checkExecution = await sandboxExecute(client, {
+				sandboxId,
+				options: {
+					command: ['test', '-d', parentDir],
+				},
+				orgId,
+			});
+			await waitForExecution(client, orgId, checkExecution.executionId, logger);
+			const execInfo = await executionGet(client, {
+				executionId: checkExecution.executionId,
+				orgId,
+			});
+			if (execInfo.exitCode !== 0) {
+				logger.fatal(
+					`Target directory does not exist: ${parentDir}\n` +
+						`Use without --strict to auto-create parent directories, or create it first with:\n` +
+						`  ${getCommand(`cloud sandbox mkdir ${sandboxId} ${parentDir} -p`)}`
+				);
+			}
+		}
+	}
 
 	for (const filePath of allFiles) {
 		const relativePath = toForwardSlash(relative(localDir, filePath));

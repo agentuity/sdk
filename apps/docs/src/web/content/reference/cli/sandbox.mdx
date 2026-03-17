@@ -259,11 +259,18 @@ curl https://my-api-abc123.agentuity.cloud/api/health
 
 ### Copy Files
 
-Copy individual files or directories to and from sandboxes.
+Copy individual files or directories to and from sandboxes. Parent directories are automatically created if they don't exist, similar to `mkdir -p`.
 
 ```bash
-agentuity cloud sandbox cp <source> <destination>
+agentuity cloud sandbox cp <source> <destination> [options]
 ```
+
+| Option | Description |
+|--------|-------------|
+| `-r, --recursive` | Copy directories recursively |
+| `--strict` | Fail if target parent directory doesn't exist (disables auto-creation) |
+| `--timeout <duration>` | Operation timeout (e.g., `5m`, `1h`) |
+| `--json` | JSON output |
 
 ```bash
 # Upload a file
@@ -272,8 +279,39 @@ agentuity cloud sandbox cp ./local-file.txt sbx_abc123:/workspace/file.txt
 # Download a file
 agentuity cloud sandbox cp sbx_abc123:/workspace/output.json ./output.json
 
-# Upload a directory
-agentuity cloud sandbox cp ./src sbx_abc123:/workspace/src
+# Upload a directory recursively
+agentuity cloud sandbox cp -r ./src sbx_abc123:/workspace/src
+
+# Upload to a path with non-existent parent directories (auto-created)
+agentuity cloud sandbox cp ./config.json sbx_abc123:/home/agentuity/app/config/settings.json
+
+# Strict mode — fail if target directory doesn't exist
+agentuity cloud sandbox cp --strict ./file.txt sbx_abc123:/home/agentuity/must-exist/file.txt
+```
+
+<Callout type="info" title="Automatic Parent Directory Creation">
+Unlike POSIX `cp`, `sandbox cp` automatically creates parent directories if they don't exist. For example, copying to `sbx_id:/home/agentuity/new/nested/path/file.txt` will create `/home/agentuity/new` and `/home/agentuity/new/nested/path` automatically. Use `--json` to see which directories were created in the `directoriesCreated` field. Use `--strict` to disable this behavior and fail if the target directory doesn't exist.
+</Callout>
+
+#### JSON Output
+
+When using `--json`, the response includes details about auto-created directories:
+
+```bash
+agentuity cloud sandbox cp ./file.txt sbx_abc123:/home/agentuity/new/path/file.txt --json
+```
+
+```json
+{
+  "source": "./file.txt",
+  "destination": "sbx_abc123:/home/agentuity/new/path/file.txt",
+  "bytesTransferred": 1024,
+  "filesTransferred": 1,
+  "directoriesCreated": [
+    "/home/agentuity/new",
+    "/home/agentuity/new/path"
+  ]
+}
 ```
 
 ### List Files
