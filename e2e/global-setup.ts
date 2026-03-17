@@ -105,6 +105,19 @@ async function globalSetup(): Promise<void> {
 			}
 			console.log('[Global Setup] ✓ Bun backend is ready');
 
+			// Step 6: Verify workbench metadata is generated (dev server creates it asynchronously)
+			const metadataRes = await fetch(`${baseURL}/_agentuity/workbench/metadata.json`, {
+				signal: AbortSignal.timeout(5000),
+			});
+			if (!metadataRes.ok) {
+				console.log(
+					`[Global Setup] Metadata not ready yet (/_agentuity/workbench/metadata.json returned ${metadataRes.status})`
+				);
+				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+				continue;
+			}
+			console.log('[Global Setup] ✓ Workbench metadata is ready');
+
 			console.log('[Global Setup] ✓ All readiness checks passed!');
 			return;
 		} catch (err) {
