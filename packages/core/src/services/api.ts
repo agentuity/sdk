@@ -272,7 +272,7 @@ export class APIClient {
 		signal?: AbortSignal,
 		extraHeaders?: Record<string, string>
 	): Promise<Response> {
-		return this.#makeRequest('GET', endpoint, undefined, signal, undefined, extraHeaders);
+		return this.#makeRequest('GET', endpoint, undefined, signal, undefined, extraHeaders, true);
 	}
 
 	/**
@@ -285,7 +285,7 @@ export class APIClient {
 		contentType: string,
 		signal?: AbortSignal
 	): Promise<Response> {
-		return this.#makeRequest('POST', endpoint, body, signal, contentType);
+		return this.#makeRequest('POST', endpoint, body, signal, contentType, undefined, true);
 	}
 
 	/**
@@ -299,7 +299,7 @@ export class APIClient {
 		signal?: AbortSignal,
 		extraHeaders?: Record<string, string>
 	): Promise<Response> {
-		return this.#makeRequest('PUT', endpoint, body, signal, contentType, extraHeaders);
+		return this.#makeRequest('PUT', endpoint, body, signal, contentType, extraHeaders, true);
 	}
 
 	/**
@@ -375,7 +375,8 @@ export class APIClient {
 		body?: unknown,
 		signal?: AbortSignal,
 		contentType?: string,
-		extraHeaders?: Record<string, string>
+		extraHeaders?: Record<string, string>,
+		raw?: boolean
 	): Promise<Response> {
 		this.#logger.trace('sending %s to %s%s', method, this.#baseUrl, endpoint);
 
@@ -599,7 +600,10 @@ export class APIClient {
 				}
 
 				// Handle error responses
-				if (!response.ok) {
+				// When raw mode is set, skip error handling and return the response as-is
+				// so callers (e.g., sandboxReadFile) can inspect the status and provide
+				// context-aware error messages (including sandbox ID, file path, etc.).
+				if (!raw && !response.ok) {
 					const responseBody = await response.text();
 					const contentType = response.headers.get('content-type');
 

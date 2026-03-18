@@ -34,6 +34,7 @@ import type {
 	ListSandboxesResponse,
 	ExecuteOptions,
 	Execution,
+	ExecutionStatus,
 	StreamReader,
 	SandboxStatus,
 	FileToWrite,
@@ -145,11 +146,28 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 						options,
 						signal: options.signal,
 					});
-					// Wait for execution to reach a terminal state via long-polling
-					const final = await executionGet(client, {
+					// Wait for execution to reach a terminal state via long-polling.
+					// The server holds each request for up to 60s; if the execution
+					// is still running we loop and issue another long-poll request.
+					const terminalStatuses: Set<string> = new Set([
+						'completed',
+						'failed',
+						'timeout',
+						'cancelled',
+					]);
+					let final = await executionGet(client, {
 						executionId: initial.executionId,
 						wait: '60s',
 					});
+					while (!terminalStatuses.has(final.status as ExecutionStatus)) {
+						if (options.signal?.aborted) {
+							throw new DOMException('The operation was aborted.', 'AbortError');
+						}
+						final = await executionGet(client, {
+							executionId: initial.executionId,
+							wait: '60s',
+						});
+					}
 					return {
 						executionId: final.executionId,
 						status: final.status,
