@@ -4,7 +4,9 @@ import { z } from 'zod';
 export const StorageTierValues = ['STANDARD', 'INFREQUENT_ACCESS', 'ARCHIVE'] as const;
 
 /** Storage tier enum schema */
-export const StorageTierSchema = z.enum(StorageTierValues).describe('Storage tier for the bucket');
+export const StorageTierSchema = z
+	.enum(StorageTierValues)
+	.describe('Storage tier: `STANDARD`, `INFREQUENT_ACCESS`, or `ARCHIVE`');
 
 /** Storage tier type */
 export type StorageTier = z.infer<typeof StorageTierSchema>;
@@ -39,7 +41,9 @@ export const CORSConfigSchema = z.object({
 /** Full bucket config (response from GET/PUT) */
 export const BucketConfigSchema = z.object({
 	bucket_name: z.string().describe('The name of the storage bucket'),
-	storage_tier: StorageTierSchema.nullable().optional().describe('Storage tier for the bucket'),
+	storage_tier: StorageTierSchema.nullable()
+		.optional()
+		.describe('Storage tier: `STANDARD`, `INFREQUENT_ACCESS`, or `ARCHIVE`'),
 	ttl: z.number().int().min(0).nullable().optional().describe('Object TTL in seconds'),
 	public: z.boolean().nullable().optional().describe('Whether the bucket is publicly accessible'),
 	cache_control: z
@@ -61,7 +65,9 @@ export const BucketConfigSchema = z.object({
  * Send a field with a value to set it, send null to unset it, omit to leave unchanged.
  */
 export const BucketConfigUpdateSchema = z.object({
-	storage_tier: StorageTierSchema.nullable().optional().describe('Storage tier for the bucket'),
+	storage_tier: StorageTierSchema.nullable()
+		.optional()
+		.describe('Storage tier: `STANDARD`, `INFREQUENT_ACCESS`, or `ARCHIVE`'),
 	ttl: z
 		.number()
 		.int()

@@ -384,6 +384,10 @@ export interface SandboxFileInfo {
 	size: number;
 	/** Whether the entry is a directory */
 	isDir: boolean;
+	/** Whether the entry is a symbolic link */
+	isSymlink?: boolean;
+	/** Target path of the symbolic link */
+	linkTarget?: string;
 	/** Unix permissions as octal string (e.g., "0644") */
 	mode: string;
 	/** Modification time in RFC3339 format */
@@ -653,6 +657,18 @@ export const ExecutionSchema = z.object({
 		.string()
 		.optional()
 		.describe('URL to stream stderr output for this execution'),
+	/** Whether the captured output was truncated due to size limits */
+	outputTruncated: z
+		.boolean()
+		.optional()
+		.describe('Whether the captured output was truncated due to size limits'),
+	/** True if the sandbox was automatically resumed from a suspended state to execute this command */
+	autoResumed: z
+		.boolean()
+		.optional()
+		.describe(
+			'True if the sandbox was automatically resumed from a suspended state to execute this command'
+		),
 });
 export type Execution = z.infer<typeof ExecutionSchema>;
 
@@ -842,6 +858,106 @@ export interface SandboxService {
 	resume(sandboxId: string): Promise<void>;
 	snapshot: SnapshotService;
 }
+
+// ===== API Reference Schemas =====
+
+/**
+ * Request body for updating sandbox environment variables.
+ */
+export const SandboxEnvUpdateRequestSchema = z.object({
+	/** Key-value pairs. Set value to null to delete a variable. */
+	env: z
+		.record(z.string(), z.string().nullable())
+		.describe('Key-value pairs. Set value to null to delete a variable.'),
+});
+export type SandboxEnvUpdateRequest = z.infer<typeof SandboxEnvUpdateRequestSchema>;
+
+/**
+ * Response data for updating sandbox environment variables.
+ */
+export const SandboxEnvUpdateResponseSchema = z.object({
+	/** Current environment after update */
+	env: z.record(z.string(), z.string()).describe('Current environment after update'),
+});
+export type SandboxEnvUpdateResponse = z.infer<typeof SandboxEnvUpdateResponseSchema>;
+
+/**
+ * Response data for sandbox status check (mirrors private SandboxStatusDataSchema in getStatus.ts).
+ */
+export const SandboxStatusResponseDataSchema = z.object({
+	/** Unique identifier for the sandbox */
+	sandboxId: z.string().describe('Unique identifier for the sandbox.'),
+	/** Current status of the sandbox */
+	status: z.string().describe('Current status of the sandbox.'),
+	/** Exit code from the last execution, if terminated */
+	exitCode: z.number().optional().describe('Exit code from the last execution, if terminated.'),
+});
+export type SandboxStatusResponseData = z.infer<typeof SandboxStatusResponseDataSchema>;
+
+/**
+ * Request body for initializing a snapshot build (mirrors private _SnapshotBuildInitParamsSchema in snapshot.ts).
+ */
+export const SnapshotBuildInitRequestSchema = z.object({
+	/** Runtime identifier (name:tag or runtime ID) */
+	runtime: z.string().describe('Runtime identifier (name:tag or runtime ID)'),
+	/** Display name for the snapshot */
+	name: z.string().optional().describe('Display name for the snapshot'),
+	/** Tag for the snapshot */
+	tag: z.string().optional().describe('Tag for the snapshot'),
+	/** Description of the snapshot */
+	description: z.string().optional().describe('Description of the snapshot'),
+	/** SHA-256 hash of snapshot content for change detection */
+	contentHash: z
+		.string()
+		.optional()
+		.describe('SHA-256 hash of snapshot content for change detection'),
+	/** Force rebuild even if content is unchanged */
+	force: z.boolean().optional().describe('Force rebuild even if content is unchanged'),
+	/** Request encryption for the snapshot archive */
+	encrypt: z.boolean().optional().describe('Request encryption for the snapshot archive'),
+	/** Make snapshot public (enables virus scanning, disables encryption) */
+	public: z
+		.boolean()
+		.optional()
+		.describe('Make snapshot public (enables virus scanning, disables encryption)'),
+});
+export type SnapshotBuildInitRequest = z.infer<typeof SnapshotBuildInitRequestSchema>;
+
+/**
+ * Request body for finalizing a snapshot build (mirrors private _SnapshotBuildFinalizeParamsSchema in snapshot.ts).
+ */
+export const SnapshotBuildFinalizeRequestSchema = z.object({
+	/** Total size of the snapshot in bytes */
+	sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
+	/** Number of files in the snapshot */
+	fileCount: z.number().describe('Number of files in the snapshot'),
+	/** Array of file metadata */
+	files: z.array(SnapshotFileInfoSchema).describe('Array of file metadata'),
+	/** List of apt packages to install */
+	dependencies: z.array(z.string()).optional().describe('List of apt packages to install'),
+	/** List of npm/bun packages to install globally */
+	packages: z
+		.array(z.string())
+		.optional()
+		.describe('List of npm/bun packages to install globally'),
+	/** Environment variables to set */
+	env: z.record(z.string(), z.string()).optional().describe('Environment variables to set'),
+	/** User-defined metadata key-value pairs */
+	metadata: z
+		.record(z.string(), z.string())
+		.optional()
+		.describe('User-defined metadata key-value pairs'),
+});
+export type SnapshotBuildFinalizeRequest = z.infer<typeof SnapshotBuildFinalizeRequestSchema>;
+
+/**
+ * Request body for updating a snapshot tag.
+ */
+export const SnapshotTagUpdateRequestSchema = z.object({
+	/** New tag or null to remove tag */
+	tag: z.string().nullable().describe('New tag or null to remove tag'),
+});
+export type SnapshotTagUpdateRequest = z.infer<typeof SnapshotTagUpdateRequestSchema>;
 
 /** Structured error for sandbox operations */
 export const SandboxError = StructuredError('SandboxError')<{

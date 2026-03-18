@@ -485,6 +485,121 @@ export const navData: NavSection[] = [
 		url: '/reference',
 		items: [
 			{
+				title: 'API Reference',
+				url: '/reference/api',
+				items: [
+					{
+						title: 'Key-Value Storage',
+						url: '/reference/api/key-value',
+						description: 'Store and retrieve arbitrary data by key within namespaces',
+					},
+					{
+						title: 'Vector Search',
+						url: '/reference/api/vector',
+						description: 'Semantic search with automatic embedding generation',
+					},
+					{
+						title: 'Object Storage',
+						url: '/reference/api/object-storage',
+						description: 'Store and manage files and binary objects in buckets',
+					},
+					{
+						title: 'Durable Streams',
+						url: '/reference/api/streams',
+						description: 'Create durable, resumable data streams with public URLs',
+					},
+					{
+						title: 'Message Queues',
+						url: '/reference/api/queues',
+						description:
+							'Publish, consume, and manage messages with worker and pub/sub queues',
+					},
+					{
+						title: 'Emails',
+						url: '/reference/api/email',
+						description:
+							'Send and receive emails with managed addresses and webhook destinations',
+					},
+					{
+						title: 'Users',
+						url: '/reference/api/user',
+						description: 'Get authenticated user information and organization memberships',
+					},
+					{
+						title: 'Threads',
+						url: '/reference/api/threads',
+						description: 'Manage conversation threads for agent session state and user data',
+					},
+					{
+						title: 'Evaluations',
+						url: '/reference/api/evaluations',
+						description: 'List and retrieve evaluations and their run history',
+					},
+					{
+						title: 'API Keys',
+						url: '/reference/api/api-keys',
+						description: 'Create and manage API keys for authentication',
+					},
+					{
+						title: 'Regions',
+						url: '/reference/api/regions',
+						description: 'List available cloud regions and manage per-region resources',
+					},
+					{
+						title: 'Databases',
+						url: '/reference/api/database',
+						description: 'Execute queries, inspect tables, and monitor database performance',
+					},
+					{
+						title: 'Organizations',
+						url: '/reference/api/organizations',
+						description:
+							'Manage organizations, environment variables, and org-level resources',
+					},
+					{
+						title: 'Machines',
+						url: '/reference/api/machines',
+						description: 'Manage compute nodes and organization authentication enrollment',
+					},
+					{
+						title: 'Schedules',
+						url: '/reference/api/schedules',
+						description:
+							'Create and manage cron-based scheduled jobs with destinations and delivery tracking',
+					},
+					{
+						title: 'Webhooks',
+						url: '/reference/api/webhooks',
+						description:
+							'Manage webhook endpoints, destinations, receipts, deliveries, and analytics',
+					},
+					{
+						title: 'Sessions',
+						url: '/reference/api/sessions',
+						description:
+							'View agent execution sessions with timing, cost, and observability data',
+					},
+					{
+						title: 'Projects',
+						url: '/reference/api/projects',
+						description:
+							'Full project lifecycle management including deployments, agents, environment variables, and hostnames',
+					},
+					{
+						title: 'Tasks',
+						url: '/reference/api/tasks',
+						description:
+							'Full-featured task management with epics, features, bugs, comments, tags, attachments, and activity tracking',
+					},
+					{
+						title: 'Sandboxes',
+						url: '/reference/api/sandboxes',
+						description:
+							'Create and manage isolated execution environments with full lifecycle, file system, snapshot, and checkpoint support',
+					},
+				],
+			},
+			{
 				title: 'CLI',
 				url: '/reference/cli',
 				items: [

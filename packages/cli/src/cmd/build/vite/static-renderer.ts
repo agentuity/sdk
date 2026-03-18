@@ -29,30 +29,46 @@ interface RouteTreeNode {
 /**
  * Walks a TanStack Router route tree and extracts all non-parameterized paths.
  * Skips layout routes (no path) and parameterized routes (containing $).
+ *
+ * Accumulates the full URL path through the parent chain, since child routes
+ * under layout routes have relative paths (e.g., '/key-value' under a
+ * '/reference/api' layout should resolve to '/reference/api/key-value').
  */
 function extractRoutePaths(node: RouteTreeNode): string[] {
 	const paths = new Set<string>();
 
-	function walk(route: RouteTreeNode) {
-		const path: string | undefined = route.path ?? route.options?.path;
-		if (path && !path.includes('$')) {
-			// Normalize: strip trailing slashes, ensure leading slash
-			const normalized = path === '/' ? '/' : path.replace(/\/+$/, '');
+	function walk(route: RouteTreeNode, parentPath: string) {
+		const segment: string | undefined = route.path ?? route.options?.path;
+
+		// Build the full path by accumulating segments from parent routes.
+		// - Layout routes have no path (undefined) and don't contribute to the URL.
+		// - Index routes have path '/' and resolve to the parent path itself.
+		// - Leaf/layout routes have paths like '/reference/api' or '/key-value'.
+		let currentPath = parentPath;
+		if (segment && segment !== '/') {
+			// Non-root segment: append to parent path.
+			// Segments always start with '/' (TanStack Router convention).
+			currentPath = parentPath === '/' ? segment : parentPath + segment;
+		}
+
+		// Add non-parameterized, non-empty paths
+		if (currentPath && !currentPath.includes('$')) {
+			const normalized = currentPath === '/' ? '/' : currentPath.replace(/\/+$/, '');
 			if (normalized) {
 				paths.add(normalized);
 			}
 		}
 
-		// Recurse into children (TanStack Router stores them as an object)
+		// Recurse into children, passing the accumulated path
 		const children = route.children;
 		if (children && typeof children === 'object') {
 			for (const child of Object.values(children)) {
-				if (child) walk(child);
+				if (child) walk(child, currentPath);
 			}
 		}
 	}
 
-	walk(node);
+	walk(node, '');
 	return [...paths].sort();
 }
 

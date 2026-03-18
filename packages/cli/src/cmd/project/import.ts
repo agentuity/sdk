@@ -46,6 +46,10 @@ export const importSubcommand = createSubcommand({
 			),
 			description: 'Import with resource provisioning and push to new repo',
 		},
+		{
+			command: getCommand('project import --name my-agent --confirm'),
+			description: 'Import project non-interactively, skipping prompts',
+		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { region: true, org: true },
@@ -71,6 +75,7 @@ export const importSubcommand = createSubcommand({
 				.optional()
 				.describe('Target GitHub repo (owner/repo) to push imported code to'),
 			name: z.string().optional().describe('Project name (for non-interactive mode)'),
+			confirm: z.boolean().optional().describe('Skip confirmation prompts'),
 			env: z
 				.array(z.string())
 				.optional()
@@ -100,6 +105,7 @@ export const importSubcommand = createSubcommand({
 				env: opts.env,
 				org: orgId,
 				region,
+				confirm: opts.confirm,
 				apiClient,
 				auth,
 				config,
@@ -123,8 +129,12 @@ export const importSubcommand = createSubcommand({
 			apiClient,
 			config,
 			logger,
-			interactive: validateOnly ? false : isTTY(),
+			interactive: validateOnly ? false : opts.confirm ? false : isTTY(),
 			validateOnly,
+			confirm: opts.confirm === true,
+			orgId,
+			region,
+			name: opts.name,
 		});
 
 		if (result.status === 'error') {

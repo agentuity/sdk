@@ -1,0 +1,353 @@
+---
+title: Evaluations API
+description: List and retrieve evaluations and their run history
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## List Evaluations
+
+List evaluations with optional filtering by organization, project, or agent.
+
+<ApiEndpoint method="GET" path="/cli/eval" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by organization ID"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project ID"
+  },
+  {
+    "name": "agentId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by agent ID"
+  }
+]} />
+
+### Response
+
+Array of evaluation objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Evaluations returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Evaluation ID",
+    "required": true
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Evaluation name",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string | null",
+    "description": "Evaluation description",
+    "required": true
+  },
+  {
+    "name": "identifier",
+    "type": "string | null",
+    "description": "Stable evaluation identifier",
+    "required": true
+  },
+  {
+    "name": "agentIdentifier",
+    "type": "string",
+    "description": "Agent identifier",
+    "required": true
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "description": "Project ID",
+    "required": true
+  },
+  {
+    "name": "devmode",
+    "type": "boolean",
+    "description": "Whether this is a devmode evaluation",
+    "required": true
+  },
+  {
+    "name": "createdAt",
+    "type": "string",
+    "description": "Creation timestamp",
+    "required": true
+  },
+  {
+    "name": "updatedAt",
+    "type": "string",
+    "description": "Last updated timestamp",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/cli/eval" />
+
+---
+
+## Get Evaluation
+
+Get a specific evaluation by ID.
+
+<ApiEndpoint method="GET" path="/cli/eval/{id}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Evaluation ID"
+  }
+]} />
+
+### Response
+
+Evaluation object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Evaluation returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Evaluation not found |
+
+### Example
+
+<ApiExample method="GET" path="/cli/eval/eval_abc123" />
+
+---
+
+## Eval Runs
+
+### List Eval Runs
+
+List evaluation runs with optional filtering.
+
+<ApiEndpoint method="GET" path="/cli/eval-run" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by organization ID"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project ID"
+  },
+  {
+    "name": "agentId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by agent ID"
+  },
+  {
+    "name": "evalId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by evaluation ID"
+  },
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by session ID"
+  }
+]} />
+
+#### Response
+
+Array of evaluation run objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Eval runs returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Eval run ID",
+    "required": true
+  },
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Session ID",
+    "required": true
+  },
+  {
+    "name": "evalId",
+    "type": "string",
+    "description": "Evaluation record ID",
+    "required": true
+  },
+  {
+    "name": "evalIdentifier",
+    "type": "string | null",
+    "description": "Stable evaluation identifier",
+    "required": true
+  },
+  {
+    "name": "evalName",
+    "type": "string | null",
+    "description": "Evaluation name",
+    "required": true
+  },
+  {
+    "name": "agentIdentifier",
+    "type": "string | null",
+    "description": "Agent identifier",
+    "required": true
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "description": "Project ID",
+    "required": true
+  },
+  {
+    "name": "deploymentId",
+    "type": "string | null",
+    "description": "Deployment ID",
+    "required": true
+  },
+  {
+    "name": "devmode",
+    "type": "boolean",
+    "description": "Whether this is a devmode run",
+    "required": true
+  },
+  {
+    "name": "pending",
+    "type": "boolean",
+    "description": "Whether the eval run is pending",
+    "required": true
+  },
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "Whether the eval run succeeded",
+    "required": true
+  },
+  {
+    "name": "error",
+    "type": "string | null",
+    "description": "Error message if failed",
+    "required": true
+  },
+  {
+    "name": "result",
+    "type": "any | null",
+    "description": "Eval run result",
+    "required": true
+  },
+  {
+    "name": "createdAt",
+    "type": "string",
+    "description": "Creation timestamp",
+    "required": true
+  },
+  {
+    "name": "updatedAt",
+    "type": "string",
+    "description": "Last updated timestamp",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/cli/eval-run" />
+
+---
+
+### Get Eval Run
+
+Get a specific evaluation run by ID.
+
+<ApiEndpoint method="GET" path="/cli/eval-run/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Eval run ID"
+  }
+]} />
+
+#### Response
+
+Evaluation run object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Eval run returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Eval run not found |
+
+#### Example
+
+<ApiExample method="GET" path="/cli/eval-run/er_abc123" />
+
+---

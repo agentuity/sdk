@@ -88,7 +88,7 @@ export const deleteSubcommand = createCommand({
 		}),
 		options: z.object({
 			status: z
-				.enum(['open', 'in_progress', 'done', 'cancelled'])
+				.enum(['open', 'in_progress', 'started', 'done', 'completed', 'closed', 'cancelled'])
 				.optional()
 				.describe('filter batch delete by status'),
 			type: z

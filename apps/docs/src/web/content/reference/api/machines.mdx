@@ -1,0 +1,408 @@
+---
+title: Machines API
+description: Manage compute nodes and organization authentication enrollment
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Machine Management
+
+### List Machines
+
+List all machines visible to the authenticated user.
+
+<ApiEndpoint method="GET" path="/machine" />
+
+
+
+#### Response
+
+Returns all machines visible to the authenticated user.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Machines returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Example
+
+<ApiExample method="GET" path="/machine" />
+
+---
+
+### Get Machine
+
+Get details for a specific machine.
+
+<ApiEndpoint method="GET" path="/machine/{machineId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "machineId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Machine ID"
+  }
+]} />
+
+#### Response
+
+Returns machine details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Machine returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Machine not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Unique identifier for the machine.",
+    "required": true
+  },
+  {
+    "name": "instanceId",
+    "type": "string | null",
+    "description": "Cloud provider instance ID.",
+    "required": false
+  },
+  {
+    "name": "privateIPv4",
+    "type": "string | null",
+    "description": "Private IPv4 address of the machine.",
+    "required": false
+  },
+  {
+    "name": "availabilityZone",
+    "type": "string | null",
+    "description": "Cloud provider availability zone.",
+    "required": false
+  },
+  {
+    "name": "instanceType",
+    "type": "string | null",
+    "description": "Cloud provider instance type (e.g., n1-standard-2).",
+    "required": false
+  },
+  {
+    "name": "instanceTags",
+    "type": "string[] | null",
+    "description": "Tags assigned to the cloud instance.",
+    "required": false
+  },
+  {
+    "name": "deploymentCount",
+    "type": "number",
+    "description": "Number of active deployments on this machine.",
+    "required": false
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Current status of the machine (e.g., running, stopped, errored).",
+    "required": true
+  },
+  {
+    "name": "provider",
+    "type": "string",
+    "description": "Cloud provider (e.g., gcp, aws).",
+    "required": true
+  },
+  {
+    "name": "region",
+    "type": "string",
+    "description": "Cloud region where the machine is deployed.",
+    "required": true
+  },
+  {
+    "name": "startedAt",
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine was started.",
+    "required": false
+  },
+  {
+    "name": "stoppedAt",
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine was stopped.",
+    "required": false
+  },
+  {
+    "name": "pausedAt",
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine was paused.",
+    "required": false
+  },
+  {
+    "name": "erroredAt",
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine entered error state.",
+    "required": false
+  },
+  {
+    "name": "error",
+    "type": "string | null",
+    "description": "Error message if the machine is in an error state.",
+    "required": false
+  },
+  {
+    "name": "orgId",
+    "type": "string | null",
+    "description": "Organization ID that owns this machine.",
+    "required": false
+  },
+  {
+    "name": "orgName",
+    "type": "string | null",
+    "description": "Organization name that owns this machine.",
+    "required": false
+  },
+  {
+    "name": "createdAt",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the machine was created.",
+    "required": true
+  },
+  {
+    "name": "updatedAt",
+    "type": "string | null",
+    "description": "ISO 8601 timestamp when the machine was last updated.",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object | null",
+    "description": "Arbitrary metadata associated with the machine.",
+    "required": false
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/machine/mch_abc123" />
+
+---
+
+### Delete Machine
+
+Delete a machine by ID.
+
+<ApiEndpoint method="DELETE" path="/machine/{machineId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "machineId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Machine ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Machine deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Machine not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/machine/mch_abc123" />
+
+---
+
+### List Machine Deployments
+
+List all deployments currently running on a specific machine.
+
+<ApiEndpoint method="GET" path="/machine/deployments/{machineId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "machineId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Machine ID"
+  }
+]} />
+
+#### Response
+
+Returns all deployments currently running on the specified machine.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deployments returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Machine not found |
+
+#### Example
+
+<ApiExample method="GET" path="/machine/deployments/mch_abc123" />
+
+---
+
+## Auth Enrollment
+
+### Enroll Organization
+
+Enroll an organization for machine authentication.
+
+<ApiEndpoint method="POST" path="/cli/auth/org/enroll" />
+
+
+
+#### Request Body
+
+Enrollment payload with organization ID and public key.
+
+<ResponseFields fields={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Organization ID",
+    "required": true
+  },
+  {
+    "name": "publicKey",
+    "type": "string",
+    "description": "Public key for machine authentication",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the enrolled organization ID.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Organization enrolled |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "The enrolled organization ID"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/cli/auth/org/enroll" body={{
+  "orgId": "org_abc123",
+  "publicKey": "ssh-ed25519 AAAA..."
+}} />
+
+---
+
+### Get Enrollment Status
+
+Get the enrollment status for an organization.
+
+<ApiEndpoint method="GET" path="/cli/auth/org/status/{orgId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the enrollment status. A null publicKey means not enrolled.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Enrollment status returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Organization not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "publicKey",
+    "type": "string | null",
+    "description": "Public key or null if not enrolled"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/cli/auth/org/status/org_abc123" />
+
+---
+
+### Unenroll Organization
+
+Remove enrollment for an organization.
+
+<ApiEndpoint method="DELETE" path="/cli/auth/org/unenroll/{orgId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Organization unenrolled |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Organization not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/cli/auth/org/unenroll/org_abc123" />
+
+---

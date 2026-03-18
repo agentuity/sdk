@@ -1664,3 +1664,115 @@ export const WebSocketMessageSchema = z
 	.describe('Web socket message schema');
 
 export type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
+
+// ============================================================================
+// API Response Schemas
+// ============================================================================
+
+/**
+ * Response schema for the list-queues endpoint.
+ */
+export const ListQueuesResponseSchema = z.object({
+	/** Queues in the current page */
+	queues: z.array(QueueSchema).describe('Queues in the current page'),
+	/** Optional total queue count */
+	total: z.number().optional().describe('Optional total queue count'),
+});
+
+export type ListQueuesResponse = z.infer<typeof ListQueuesResponseSchema>;
+
+/**
+ * Response schema for the batch-publish endpoint.
+ */
+export const BatchPublishResponseSchema = z.object({
+	/** Published messages */
+	messages: z.array(MessageSchema).describe('Published messages'),
+	/** Indexes that failed */
+	failed: z.array(z.number()).optional().describe('Indexes that failed'),
+});
+
+export type BatchPublishResponse = z.infer<typeof BatchPublishResponseSchema>;
+
+/**
+ * Response schema for the list-messages endpoint.
+ */
+export const ListMessagesResponseSchema = z.object({
+	/** Messages in current page */
+	messages: z.array(MessageSchema).describe('Messages in current page'),
+	/** Optional total message count */
+	total: z.number().optional().describe('Optional total message count'),
+});
+
+export type ListMessagesResponse = z.infer<typeof ListMessagesResponseSchema>;
+
+/**
+ * Response schema for the consume-messages endpoint.
+ */
+export const ConsumeMessagesResponseSchema = z.object({
+	/** Consumed messages */
+	messages: z.array(MessageSchema).describe('Consumed messages'),
+});
+
+export type ConsumeMessagesResponse = z.infer<typeof ConsumeMessagesResponseSchema>;
+
+/**
+ * Response schema for the receive-message endpoint.
+ */
+export const ReceiveMessageResponseSchema = z.object({
+	/** Received message if available */
+	message: MessageSchema.nullable().describe('Received message if available'),
+});
+
+export type ReceiveMessageResponse = z.infer<typeof ReceiveMessageResponseSchema>;
+
+/**
+ * Response schema for the get-queue-head endpoint.
+ */
+export const GetQueueHeadResponseSchema = z.object({
+	/** Oldest message offset */
+	offset: z.number().describe('Oldest message offset'),
+});
+
+export type GetQueueHeadResponse = z.infer<typeof GetQueueHeadResponseSchema>;
+
+/**
+ * Response schema for the get-queue-tail endpoint.
+ */
+export const GetQueueTailResponseSchema = z.object({
+	/** Newest message offset */
+	offset: z.number().describe('Newest message offset'),
+});
+
+export type GetQueueTailResponse = z.infer<typeof GetQueueTailResponseSchema>;
+
+/**
+ * Response schema for the list-destinations endpoint.
+ */
+export const ListDestinationsResponseSchema = z.object({
+	/** Configured destinations */
+	destinations: z.array(DestinationSchema).describe('Configured destinations'),
+});
+
+export type ListDestinationsResponse = z.infer<typeof ListDestinationsResponseSchema>;
+
+/**
+ * Response schema for the list-delivery-logs endpoint.
+ */
+export const ListDeliveryLogsResponseSchema = z.object({
+	/** Delivery log entries */
+	deliveries: z.array(DeliveryLogSchema).describe('Delivery log entries'),
+});
+
+export type ListDeliveryLogsResponse = z.infer<typeof ListDeliveryLogsResponseSchema>;
+
+/**
+ * Response schema for the list-dlq-messages endpoint.
+ */
+export const ListDlqMessagesResponseSchema = z.object({
+	/** DLQ messages */
+	messages: z.array(DeadLetterMessageSchema).describe('DLQ messages'),
+	/** Optional total DLQ message count */
+	total: z.number().optional().describe('Optional total DLQ message count'),
+});
+
+export type ListDlqMessagesResponse = z.infer<typeof ListDlqMessagesResponseSchema>;

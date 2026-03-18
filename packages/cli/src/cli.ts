@@ -30,9 +30,14 @@ import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser';
 import { defaultProfileName, loadProjectConfig, saveProjectId, saveRegion } from './config';
 import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
-import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
+import { ErrorCode, ExitCode, createError, exitWithError, formatErrorJSON } from './errors';
 import { getCommand } from './command-prefix';
-import { isValidateMode, outputValidation, type ValidationResult } from './output';
+import {
+	getOutputOptions,
+	isValidateMode,
+	outputValidation,
+	type ValidationResult,
+} from './output';
 import { StructuredError } from '@agentuity/core';
 import { setProgram } from './program-ref';
 import { generateIntroPrompt } from './cmd/ai/intro';
@@ -557,6 +562,16 @@ export async function createCLI(version: string): Promise<Command> {
 	// Handle unknown commands
 	program.on('command:*', (operands: string[]) => {
 		const unknownCommand = operands[0];
+		const opts = getOutputOptions();
+		if (opts?.json || opts?.errorFormat === 'json') {
+			console.error(
+				formatErrorJSON(
+					createError(ErrorCode.UNKNOWN_COMMAND, `unknown command '${unknownCommand}'`)
+				)
+			);
+			process.exit(1);
+			return;
+		}
 		console.error(`error: unknown command '${unknownCommand}'`);
 		console.error();
 		const availableCommands = program.commands.map((cmd) => cmd.name());
@@ -571,11 +586,50 @@ export async function createCLI(version: string): Promise<Command> {
 		process.exit(1);
 	});
 
+	// Track whether a JSON error was already emitted by outputError
+	// so we can suppress Commander's help-after-error text in JSON mode
+	let jsonErrorEmitted = false;
+
 	// Custom error handling for argument/command parsing errors
 	program.configureOutput({
+		writeErr: (str) => {
+			// In JSON mode, suppress Commander's help-after-error text
+			// (we already emitted a structured JSON error in outputError)
+			const opts = getOutputOptions();
+			if (jsonErrorEmitted && (opts?.json || opts?.errorFormat === 'json')) {
+				return;
+			}
+			process.stderr.write(str);
+		},
 		outputError: (str, write) => {
 			// Suppress "unknown option '--help'" error since we handle help flags specially
 			if (str.includes("unknown option '--help'")) {
+				return;
+			}
+			// In JSON mode, output structured JSON errors for all Commander parsing errors
+			const opts = getOutputOptions();
+			if (opts?.json || opts?.errorFormat === 'json') {
+				// Strip "error: " prefix and trailing newline for clean message
+				let message = str.replace(/^error:\s*/, '').replace(/\n$/, '');
+				let code = ErrorCode.INVALID_OPTION;
+				if (str.includes('unknown command') || str.includes('too many arguments')) {
+					code = ErrorCode.UNKNOWN_COMMAND;
+				} else if (str.includes('missing required argument')) {
+					code = ErrorCode.MISSING_ARGUMENT;
+				}
+				// Extract Commander's "Did you mean" suggestion into a separate field
+				let suggestions: string[] | undefined;
+				const suggestionMatch = message.match(/\n\(Did you mean (.+)\?\)/);
+				if (suggestionMatch?.[1] != null) {
+					suggestions = [suggestionMatch[1] as string];
+					message = message.replace(/\n\(Did you mean .+\?\)/, '');
+				}
+				// Write directly to stderr (not via write/writeErr) to avoid
+				// self-suppression — writeErr suppresses output when jsonErrorEmitted is true
+				jsonErrorEmitted = true;
+				process.stderr.write(
+					formatErrorJSON(createError(code, message, undefined, suggestions)) + '\n'
+				);
 				return;
 			}
 			// Intercept commander.js error messages
@@ -1215,7 +1269,7 @@ async function registerSubcommand(
 		}
 	}
 
-	// Add hidden --yes alias for --confirm if command has a confirm option
+	// Add hidden --yes and --force aliases for --confirm if command has a confirm option
 	if (subcommand.schema?.options) {
 		const parsed = parseOptionsSchema(subcommand.schema.options);
 		const hasConfirmOption = parsed.some((opt) => opt.name === 'confirm');
@@ -1224,6 +1278,14 @@ async function registerSubcommand(
 			const yesOption = cmd.createOption('--yes', 'Alias for --confirm');
 			yesOption.hideHelp();
 			cmd.addOption(yesOption);
+			// Add hidden --force option that sets confirm to true,
+			// but only if the schema doesn't already declare its own --force option
+			const hasForceOption = parsed.some((opt) => opt.name === 'force');
+			if (!hasForceOption) {
+				const forceOption = cmd.createOption('--force', 'Alias for --confirm');
+				forceOption.hideHelp();
+				cmd.addOption(forceOption);
+			}
 		}
 	}
 

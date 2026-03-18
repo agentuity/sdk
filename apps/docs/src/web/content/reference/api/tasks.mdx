@@ -1,0 +1,2527 @@
+---
+title: Tasks API
+description: Full-featured task management with epics, features, bugs, comments, tags, attachments, and activity tracking
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Task Management
+
+### Create Task
+
+Create a new task within the organization.
+
+<ApiEndpoint method="POST" path="/task" />
+
+
+
+#### Request Body
+
+Task creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "title",
+    "type": "string",
+    "description": "The task title (required).",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Detailed description of the task.",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Arbitrary key-value metadata.",
+    "required": false
+  },
+  {
+    "name": "priority",
+    "type": "string",
+    "description": "Priority level. Defaults to `'none'` if not provided.",
+    "required": false
+  },
+  {
+    "name": "parent_id",
+    "type": "string",
+    "description": "ID of the parent task for hierarchical organization.",
+    "required": false
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "The task classification (required).",
+    "required": true
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Initial status. Defaults to `'open'` if not provided.",
+    "required": false
+  },
+  {
+    "name": "created_id",
+    "type": "string",
+    "description": "ID of the creator.",
+    "required": true
+  },
+  {
+    "name": "assigned_id",
+    "type": "string",
+    "description": "ID of the assigned user.",
+    "required": false
+  },
+  {
+    "name": "creator",
+    "type": "object",
+    "description": "Reference to the user creating the task (id, name, and optional type).",
+    "required": false
+  },
+  {
+    "name": "creator.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "creator.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "creator.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "assignee",
+    "type": "object",
+    "description": "Reference to the user being assigned the task.",
+    "required": false
+  },
+  {
+    "name": "assignee.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "assignee.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "assignee.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "project",
+    "type": "object",
+    "description": "Reference to the project this task belongs to.",
+    "required": false
+  },
+  {
+    "name": "project.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "project.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tag_ids",
+    "type": "string[]",
+    "description": "Array of tag IDs to associate with the task at creation.",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created task.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Task created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/task" body={{
+  "title": "Implement auth flow",
+  "type": "feature",
+  "created_id": "usr_abc123",
+  "priority": "high"
+}} />
+
+---
+
+### Get Task
+
+Retrieve a specific task by ID.
+
+<ApiEndpoint method="GET" path="/task/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Returns the task object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Task returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/tsk_abc123" />
+
+---
+
+### List Tasks
+
+List tasks with optional filtering, sorting, and pagination.
+
+<ApiEndpoint method="GET" path="/task" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "status",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by status"
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by type"
+  },
+  {
+    "name": "priority",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by priority"
+  },
+  {
+    "name": "assigned_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by assigned user"
+  },
+  {
+    "name": "created_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by creator"
+  },
+  {
+    "name": "parent_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by parent task"
+  },
+  {
+    "name": "project_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project"
+  },
+  {
+    "name": "tag_id",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by tag"
+  },
+  {
+    "name": "deleted",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Include soft-deleted tasks"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Field to sort by — prefix with '-' for descending"
+  },
+  {
+    "name": "order",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'asc' or 'desc'"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of tasks.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tasks returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "tasks",
+    "type": "object[]",
+    "description": "Array of tasks matching the query.",
+    "required": true
+  },
+  {
+    "name": "tasks[].id",
+    "type": "string",
+    "description": "Unique identifier for the task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was created.",
+    "required": true
+  },
+  {
+    "name": "tasks[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was last modified.",
+    "required": true
+  },
+  {
+    "name": "tasks[].title",
+    "type": "string",
+    "description": "The task title.",
+    "required": true
+  },
+  {
+    "name": "tasks[].description",
+    "type": "string",
+    "description": "Detailed description of the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].metadata",
+    "type": "object",
+    "description": "Arbitrary key-value metadata attached to the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].priority",
+    "type": "string",
+    "description": "The priority level of the task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].parent_id",
+    "type": "string",
+    "description": "ID of the parent task, enabling hierarchical task organization",
+    "required": false
+  },
+  {
+    "name": "tasks[].type",
+    "type": "string",
+    "description": "The classification of this task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].status",
+    "type": "string",
+    "description": "The current lifecycle status of the task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].open_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was moved to `'open'` status.",
+    "required": false
+  },
+  {
+    "name": "tasks[].in_progress_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was moved to `'in_progress'` status.",
+    "required": false
+  },
+  {
+    "name": "tasks[].closed_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was closed.",
+    "required": false
+  },
+  {
+    "name": "tasks[].created_id",
+    "type": "string",
+    "description": "ID of the user who created the task.",
+    "required": true
+  },
+  {
+    "name": "tasks[].assigned_id",
+    "type": "string",
+    "description": "ID of the user the task is assigned to.",
+    "required": false
+  },
+  {
+    "name": "tasks[].closed_id",
+    "type": "string",
+    "description": "ID of the user who closed the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].creator",
+    "type": "object",
+    "description": "Reference to the user who created the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].creator.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].creator.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].creator.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "tasks[].assignee",
+    "type": "object",
+    "description": "Reference to the user the task is assigned to.",
+    "required": false
+  },
+  {
+    "name": "tasks[].assignee.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].assignee.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].assignee.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "tasks[].closer",
+    "type": "object",
+    "description": "Reference to the user who closed the task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].closer.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].closer.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].closer.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "tasks[].project",
+    "type": "object",
+    "description": "Reference to the project this task belongs to.",
+    "required": false
+  },
+  {
+    "name": "tasks[].project.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].project.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].cancelled_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the task was cancelled.",
+    "required": false
+  },
+  {
+    "name": "tasks[].tags",
+    "type": "object[]",
+    "description": "Array of tags associated with this task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].tags[].id",
+    "type": "string",
+    "description": "Unique identifier for the tag.",
+    "required": true
+  },
+  {
+    "name": "tasks[].tags[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the tag was created.",
+    "required": true
+  },
+  {
+    "name": "tasks[].tags[].name",
+    "type": "string",
+    "description": "Display name of the tag.",
+    "required": true
+  },
+  {
+    "name": "tasks[].tags[].color",
+    "type": "string",
+    "description": "Optional hex color code for the tag.",
+    "required": false
+  },
+  {
+    "name": "tasks[].comments",
+    "type": "object[]",
+    "description": "Array of comments on this task.",
+    "required": false
+  },
+  {
+    "name": "tasks[].comments[].id",
+    "type": "string",
+    "description": "Unique identifier for the comment.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the comment was created.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the comment was last edited.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].task_id",
+    "type": "string",
+    "description": "ID of the task this comment belongs to.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].user_id",
+    "type": "string",
+    "description": "ID of the user who authored the comment.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].author",
+    "type": "object",
+    "description": "Reference to the comment author with display name.",
+    "required": false
+  },
+  {
+    "name": "tasks[].comments[].author.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].author.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "tasks[].comments[].author.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "tasks[].comments[].body",
+    "type": "string",
+    "description": "The comment text content.",
+    "required": true
+  },
+  {
+    "name": "tasks[].subtask_count",
+    "type": "number",
+    "description": "Number of direct child tasks (subtasks). Only included in list responses.",
+    "required": false
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total number of tasks matching the filters (before pagination).",
+    "required": true
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "The limit that was applied.",
+    "required": true
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "The offset that was applied.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task" />
+
+---
+
+### Update Task
+
+Update one or more fields on an existing task.
+
+<ApiEndpoint method="PATCH" path="/task/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Request Body
+
+Task update payload. All fields are optional.
+
+<ResponseFields fields={[
+  {
+    "name": "title",
+    "type": "string",
+    "description": "Updated task title.",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Updated description.",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Updated key-value metadata.",
+    "required": false
+  },
+  {
+    "name": "priority",
+    "type": "string",
+    "description": "Updated priority level.",
+    "required": false
+  },
+  {
+    "name": "parent_id",
+    "type": "string",
+    "description": "Updated parent task ID.",
+    "required": false
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "Updated task classification.",
+    "required": false
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Updated lifecycle status.",
+    "required": false
+  },
+  {
+    "name": "assigned_id",
+    "type": "string",
+    "description": "Updated assigned user ID.",
+    "required": false
+  },
+  {
+    "name": "closed_id",
+    "type": "string",
+    "description": "ID of the user closing the task.",
+    "required": false
+  },
+  {
+    "name": "assignee",
+    "type": "object",
+    "description": "Reference to the user being assigned the task.",
+    "required": false
+  },
+  {
+    "name": "assignee.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "assignee.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "assignee.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "closer",
+    "type": "object",
+    "description": "Reference to the user closing the task.",
+    "required": false
+  },
+  {
+    "name": "closer.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "closer.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "closer.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "project",
+    "type": "object",
+    "description": "Reference to the project this task belongs to.",
+    "required": false
+  },
+  {
+    "name": "project.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "project.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the updated task.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Task updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/task/tsk_abc123" body={{
+  "status": "in_progress",
+  "priority": "high"
+}} />
+
+---
+
+### Close Task
+
+Sets the task status to 'done' and records the closed date. This does NOT permanently delete the task.
+
+<ApiEndpoint method="DELETE" path="/task/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Sets the task status to 'done' and records the closed date. This does NOT permanently delete the task.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Task closed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/tsk_abc123" />
+
+---
+
+### Soft Delete Task
+
+Marks the task as deleted without permanent removal.
+
+<ApiEndpoint method="POST" path="/task/delete/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Marks the task as deleted without permanent removal.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Task soft-deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="POST" path="/task/delete/tsk_abc123" />
+
+---
+
+### Batch Delete Tasks
+
+Soft-delete multiple tasks matching filter criteria.
+
+<ApiEndpoint method="POST" path="/task/delete/batch" />
+
+
+
+#### Request Body
+
+Batch delete filter payload.
+
+<ResponseFields fields={[
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Filter by task status.",
+    "required": false
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "Filter by task type.",
+    "required": false
+  },
+  {
+    "name": "priority",
+    "type": "string",
+    "description": "Filter by priority level.",
+    "required": false
+  },
+  {
+    "name": "parent_id",
+    "type": "string",
+    "description": "Filter by parent task ID (delete subtasks).",
+    "required": false
+  },
+  {
+    "name": "created_id",
+    "type": "string",
+    "description": "Filter by creator ID.",
+    "required": false
+  },
+  {
+    "name": "older_than",
+    "type": "string",
+    "description": "Delete tasks older than this duration.",
+    "required": false
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Maximum number of tasks to delete.",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the list of deleted tasks and count.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tasks deleted |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "deleted",
+    "type": "object[]",
+    "description": "Array of tasks that were deleted.",
+    "required": true
+  },
+  {
+    "name": "deleted[].id",
+    "type": "string",
+    "description": "The ID of the deleted task.",
+    "required": true
+  },
+  {
+    "name": "deleted[].title",
+    "type": "string",
+    "description": "The title of the deleted task.",
+    "required": true
+  },
+  {
+    "name": "count",
+    "type": "number",
+    "description": "Total number of tasks deleted.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/task/delete/batch" body={{
+  "status": "cancelled",
+  "older_than": "30d",
+  "limit": 50
+}} />
+
+---
+
+### Get Changelog
+
+Get the change history for a specific task.
+
+<ApiEndpoint method="GET" path="/task/changelog/{id}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns the changelog entries for the task.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Changelog returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "changelog",
+    "type": "object[]",
+    "description": "Array of change records.",
+    "required": true
+  },
+  {
+    "name": "changelog[].id",
+    "type": "string",
+    "description": "Unique identifier for the changelog entry.",
+    "required": true
+  },
+  {
+    "name": "changelog[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the change occurred.",
+    "required": true
+  },
+  {
+    "name": "changelog[].task_id",
+    "type": "string",
+    "description": "ID of the task that was changed.",
+    "required": true
+  },
+  {
+    "name": "changelog[].field",
+    "type": "string",
+    "description": "Name of the field that was changed.",
+    "required": true
+  },
+  {
+    "name": "changelog[].old_value",
+    "type": "string",
+    "description": "The previous value of the field (as a string), or `undefined` if the field was newly set.",
+    "required": false
+  },
+  {
+    "name": "changelog[].new_value",
+    "type": "string",
+    "description": "The new value of the field (as a string), or `undefined` if the field was cleared.",
+    "required": false
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total number of changelog entries.",
+    "required": true
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Applied limit.",
+    "required": true
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Applied offset.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/changelog/tsk_abc123" />
+
+---
+
+## Comments
+
+### Create Comment
+
+Add a comment to a task.
+
+<ApiEndpoint method="POST" path="/task/comments/create/{taskId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Request Body
+
+Comment creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "body",
+    "type": "string",
+    "description": "Comment text",
+    "required": true
+  },
+  {
+    "name": "user_id",
+    "type": "string",
+    "description": "Author user ID",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the created comment.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Comment created |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="POST" path="/task/comments/create/tsk_abc123" body={{
+  "body": "Looks good, ready for review",
+  "user_id": "usr_abc123"
+}} />
+
+---
+
+### Get Comment
+
+Retrieve a specific comment by ID.
+
+<ApiEndpoint method="GET" path="/task/comments/get/{commentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "commentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Comment ID"
+  }
+]} />
+
+#### Response
+
+Returns the comment object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Comment returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Comment not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/comments/get/cmt_abc123" />
+
+---
+
+### Update Comment
+
+Update the body of an existing comment.
+
+<ApiEndpoint method="PATCH" path="/task/comments/update/{commentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "commentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Comment ID"
+  }
+]} />
+
+#### Request Body
+
+Comment update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "body",
+    "type": "string",
+    "description": "Updated comment text",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the updated comment.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Comment updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Comment not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/task/comments/update/cmt_abc123" body={{
+  "body": "Updated comment text"
+}} />
+
+---
+
+### Delete Comment
+
+Delete a comment.
+
+<ApiEndpoint method="DELETE" path="/task/comments/delete/{commentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "commentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Comment ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Comment deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Comment not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/comments/delete/cmt_abc123" />
+
+---
+
+### List Comments
+
+List all comments on a task.
+
+<ApiEndpoint method="GET" path="/task/comments/list/{taskId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of comments.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Comments returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "comments",
+    "type": "object[]",
+    "description": "Array of comments.",
+    "required": true
+  },
+  {
+    "name": "comments[].id",
+    "type": "string",
+    "description": "Unique identifier for the comment.",
+    "required": true
+  },
+  {
+    "name": "comments[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the comment was created.",
+    "required": true
+  },
+  {
+    "name": "comments[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the comment was last edited.",
+    "required": true
+  },
+  {
+    "name": "comments[].task_id",
+    "type": "string",
+    "description": "ID of the task this comment belongs to.",
+    "required": true
+  },
+  {
+    "name": "comments[].user_id",
+    "type": "string",
+    "description": "ID of the user who authored the comment.",
+    "required": true
+  },
+  {
+    "name": "comments[].author",
+    "type": "object",
+    "description": "Reference to the comment author with display name.",
+    "required": false
+  },
+  {
+    "name": "comments[].author.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "comments[].author.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "comments[].author.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "comments[].body",
+    "type": "string",
+    "description": "The comment text content.",
+    "required": true
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total number of comments.",
+    "required": true
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Applied limit.",
+    "required": true
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Applied offset.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/comments/list/tsk_abc123" />
+
+---
+
+## Tags
+
+### Create Tag
+
+Create a new tag for organizing tasks.
+
+<ApiEndpoint method="POST" path="/task/tags/create" />
+
+
+
+#### Request Body
+
+Tag creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Tag name",
+    "required": true
+  },
+  {
+    "name": "color",
+    "type": "string",
+    "description": "Hex color code",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created tag.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Tag created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/task/tags/create" body={{
+  "name": "urgent",
+  "color": "#ff0000"
+}} />
+
+---
+
+### Get Tag
+
+Retrieve a specific tag by ID.
+
+<ApiEndpoint method="GET" path="/task/tags/get/{tagId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+
+#### Response
+
+Returns the tag object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tag returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Tag not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/tags/get/tag_abc123" />
+
+---
+
+### Update Tag
+
+Update a tag's name or color.
+
+<ApiEndpoint method="PATCH" path="/task/tags/update/{tagId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+
+#### Request Body
+
+Tag update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Tag name",
+    "required": true
+  },
+  {
+    "name": "color",
+    "type": "string",
+    "description": "Hex color code",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated tag.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tag updated |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Tag not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/task/tags/update/tag_abc123" body={{
+  "name": "critical",
+  "color": "#cc0000"
+}} />
+
+---
+
+### Delete Tag
+
+Delete a tag.
+
+<ApiEndpoint method="DELETE" path="/task/tags/delete/{tagId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Tag deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Tag not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/tags/delete/tag_abc123" />
+
+---
+
+### List Tags
+
+List all tags in the organization.
+
+<ApiEndpoint method="GET" path="/task/tags/list" />
+
+
+
+#### Response
+
+Returns list of tags.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tags returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="GET" path="/task/tags/list" />
+
+---
+
+### Add Tag to Task
+
+Associate a tag with a task.
+
+<ApiEndpoint method="POST" path="/task/tags/add/{taskId}/{tagId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  },
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+
+#### Response
+
+Returns confirmation of the association.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tag added to task |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task or tag not found |
+
+#### Example
+
+<ApiExample method="POST" path="/task/tags/add/tsk_abc123/tag_def456" />
+
+---
+
+### Remove Tag from Task
+
+Remove a tag association from a task.
+
+<ApiEndpoint method="DELETE" path="/task/tags/remove/{taskId}/{tagId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  },
+  {
+    "name": "tagId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Tag ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Tag removed from task |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task or tag not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/tags/remove/tsk_abc123/tag_def456" />
+
+---
+
+### List Task Tags
+
+List all tags associated with a specific task.
+
+<ApiEndpoint method="GET" path="/task/tags/task/{taskId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Returns list of tags for the task.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Tags returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/tags/task/tsk_abc123" />
+
+---
+
+## Attachments
+
+### Request Upload URL
+
+Request a presigned URL for uploading an attachment to a task.
+
+<ApiEndpoint method="POST" path="/task/attachments/presign-upload/{taskId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Request Body
+
+Upload request payload.
+
+<ResponseFields fields={[
+  {
+    "name": "filename",
+    "type": "string",
+    "description": "The filename for the attachment (required).",
+    "required": true
+  },
+  {
+    "name": "content_type",
+    "type": "string",
+    "description": "MIME type of the file.",
+    "required": false
+  },
+  {
+    "name": "size",
+    "type": "number",
+    "description": "File size in bytes.",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns a presigned upload URL. Upload the file via PUT to the URL, then call confirm.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Presigned URL returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "attachment",
+    "type": "object",
+    "description": "The created attachment record.",
+    "required": true
+  },
+  {
+    "name": "attachment.id",
+    "type": "string",
+    "description": "Unique identifier for the attachment.",
+    "required": true
+  },
+  {
+    "name": "attachment.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the attachment was uploaded.",
+    "required": true
+  },
+  {
+    "name": "attachment.task_id",
+    "type": "string",
+    "description": "ID of the task this attachment belongs to.",
+    "required": true
+  },
+  {
+    "name": "attachment.user_id",
+    "type": "string",
+    "description": "ID of the user who uploaded the attachment.",
+    "required": true
+  },
+  {
+    "name": "attachment.author",
+    "type": "object",
+    "description": "Reference to the uploader with display name.",
+    "required": false
+  },
+  {
+    "name": "attachment.author.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "attachment.author.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "attachment.author.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "attachment.filename",
+    "type": "string",
+    "description": "Original filename of the uploaded file.",
+    "required": true
+  },
+  {
+    "name": "attachment.content_type",
+    "type": "string",
+    "description": "MIME type of the file.",
+    "required": false
+  },
+  {
+    "name": "attachment.size",
+    "type": "number",
+    "description": "File size in bytes.",
+    "required": false
+  },
+  {
+    "name": "presigned_url",
+    "type": "string",
+    "description": "A presigned S3 URL to upload the file content via HTTP PUT.",
+    "required": true
+  },
+  {
+    "name": "expiry_seconds",
+    "type": "number",
+    "description": "Number of seconds until the presigned URL expires.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/task/attachments/presign-upload/tsk_abc123" body={{
+  "filename": "screenshot.png",
+  "content_type": "image/png"
+}} />
+
+---
+
+### Confirm Upload
+
+Confirm that a file was uploaded successfully to the presigned URL.
+
+<ApiEndpoint method="POST" path="/task/attachments/confirm/{attachmentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "attachmentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Attachment ID"
+  }
+]} />
+
+#### Response
+
+Confirms the file was uploaded successfully.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Upload confirmed |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Attachment not found |
+
+#### Example
+
+<ApiExample method="POST" path="/task/attachments/confirm/att_abc123" />
+
+---
+
+### Request Download URL
+
+Request a presigned URL for downloading an attachment.
+
+<ApiEndpoint method="POST" path="/task/attachments/presign-download/{attachmentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "attachmentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Attachment ID"
+  }
+]} />
+
+#### Response
+
+Returns a presigned download URL.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Presigned URL returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Attachment not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "presigned_url",
+    "type": "string",
+    "description": "A presigned S3 URL to download the file via HTTP GET.",
+    "required": true
+  },
+  {
+    "name": "expiry_seconds",
+    "type": "number",
+    "description": "Number of seconds until the presigned URL expires.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/task/attachments/presign-download/att_abc123" />
+
+---
+
+### List Attachments
+
+List all attachments on a task.
+
+<ApiEndpoint method="GET" path="/task/attachments/list/{taskId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "taskId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Task ID"
+  }
+]} />
+
+#### Response
+
+Returns list of attachments.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Attachments returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Task not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "attachments",
+    "type": "object[]",
+    "description": "Array of attachment records.",
+    "required": true
+  },
+  {
+    "name": "attachments[].id",
+    "type": "string",
+    "description": "Unique identifier for the attachment.",
+    "required": true
+  },
+  {
+    "name": "attachments[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the attachment was uploaded.",
+    "required": true
+  },
+  {
+    "name": "attachments[].task_id",
+    "type": "string",
+    "description": "ID of the task this attachment belongs to.",
+    "required": true
+  },
+  {
+    "name": "attachments[].user_id",
+    "type": "string",
+    "description": "ID of the user who uploaded the attachment.",
+    "required": true
+  },
+  {
+    "name": "attachments[].author",
+    "type": "object",
+    "description": "Reference to the uploader with display name.",
+    "required": false
+  },
+  {
+    "name": "attachments[].author.id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "attachments[].author.name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "attachments[].author.type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  },
+  {
+    "name": "attachments[].filename",
+    "type": "string",
+    "description": "Original filename of the uploaded file.",
+    "required": true
+  },
+  {
+    "name": "attachments[].content_type",
+    "type": "string",
+    "description": "MIME type of the file.",
+    "required": false
+  },
+  {
+    "name": "attachments[].size",
+    "type": "number",
+    "description": "File size in bytes.",
+    "required": false
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total number of attachments.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/attachments/list/tsk_abc123" />
+
+---
+
+### Delete Attachment
+
+Delete an attachment.
+
+<ApiEndpoint method="DELETE" path="/task/attachments/delete/{attachmentId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "attachmentId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Attachment ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Attachment deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Attachment not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/attachments/delete/att_abc123" />
+
+---
+
+## Users & Projects
+
+### List Task Users
+
+List all user entities available for task assignment.
+
+<ApiEndpoint method="GET" path="/task/users" />
+
+
+
+#### Response
+
+Returns list of user entities.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Users returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "users",
+    "type": "object[]",
+    "description": "Array of user entity references with type information.",
+    "required": true
+  },
+  {
+    "name": "users[].id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "users[].name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  },
+  {
+    "name": "users[].type",
+    "type": "string",
+    "description": "The type of user. Defaults to `'human'` if not specified.",
+    "required": false
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/users" />
+
+---
+
+### Create User Entity
+
+Create a new user entity for task assignment.
+
+<ApiEndpoint method="POST" path="/task/users/create" />
+
+
+
+#### Request Body
+
+User entity creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "User name",
+    "required": true
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "'human' or 'agent'",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created user entity.
+
+| Status | Description |
+|--------|-------------|
+| 201 | User entity created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/task/users/create" body={{
+  "name": "Alice",
+  "type": "human"
+}} />
+
+---
+
+### Get User Entity
+
+Retrieve a specific user entity by ID.
+
+<ApiEndpoint method="GET" path="/task/users/get/{userId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "userId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "User entity ID"
+  }
+]} />
+
+#### Response
+
+Returns the user entity object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | User entity returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | User entity not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/users/get/usr_abc123" />
+
+---
+
+### Delete User Entity
+
+Delete a user entity.
+
+<ApiEndpoint method="DELETE" path="/task/users/delete/{userId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "userId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "User entity ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | User entity deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | User entity not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/users/delete/usr_abc123" />
+
+---
+
+### List Task Projects
+
+List all project entities available for task organization.
+
+<ApiEndpoint method="GET" path="/task/projects" />
+
+
+
+#### Response
+
+Returns list of project entities.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Projects returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "projects",
+    "type": "object[]",
+    "description": "Array of project entity references.",
+    "required": true
+  },
+  {
+    "name": "projects[].id",
+    "type": "string",
+    "description": "Unique identifier of the referenced entity.",
+    "required": true
+  },
+  {
+    "name": "projects[].name",
+    "type": "string",
+    "description": "Human-readable display name of the entity.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/projects" />
+
+---
+
+### Create Project Entity
+
+Create a new project entity for task organization.
+
+<ApiEndpoint method="POST" path="/task/projects/create" />
+
+
+
+#### Request Body
+
+Project entity creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Project name",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the created project entity.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Project entity created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/task/projects/create" body={{
+  "name": "Backend Rewrite"
+}} />
+
+---
+
+### Get Project Entity
+
+Retrieve a specific project entity by ID.
+
+<ApiEndpoint method="GET" path="/task/projects/get/{projectId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project entity ID"
+  }
+]} />
+
+#### Response
+
+Returns the project entity object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Project entity returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project entity not found |
+
+#### Example
+
+<ApiExample method="GET" path="/task/projects/get/tprj_abc123" />
+
+---
+
+### Delete Project Entity
+
+Delete a project entity.
+
+<ApiEndpoint method="DELETE" path="/task/projects/delete/{projectId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Project entity ID"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Project entity deleted |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Project entity not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/task/projects/delete/tprj_abc123" />
+
+---
+
+## Activity
+
+### Get Activity Timeline
+
+Get daily activity counts grouped by status over a configurable time range.
+
+<ApiEndpoint method="GET" path="/task/activity/{date}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "date",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Date for activity lookup (YYYY-MM-DD format)"
+  },
+  {
+    "name": "days",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Number of days (min 7, max 365, default 90)"
+  }
+]} />
+
+#### Response
+
+Returns daily activity counts grouped by status.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Activity timeline returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "activity",
+    "type": "object[]",
+    "description": "Array of daily activity snapshots, ordered chronologically.",
+    "required": true
+  },
+  {
+    "name": "activity[].date",
+    "type": "string",
+    "description": "The date in `YYYY-MM-DD` format.",
+    "required": true
+  },
+  {
+    "name": "activity[].open",
+    "type": "number",
+    "description": "Number of tasks in `'open'` status on this date.",
+    "required": true
+  },
+  {
+    "name": "activity[].inProgress",
+    "type": "number",
+    "description": "Number of tasks in `'in_progress'` status on this date.",
+    "required": true
+  },
+  {
+    "name": "activity[].done",
+    "type": "number",
+    "description": "Number of tasks in `'done'` status on this date.",
+    "required": true
+  },
+  {
+    "name": "activity[].cancelled",
+    "type": "number",
+    "description": "Number of tasks in `'cancelled'` status on this date.",
+    "required": true
+  },
+  {
+    "name": "days",
+    "type": "number",
+    "description": "The number of days of data returned.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/task/activity/2026-02-28" />
+
+---

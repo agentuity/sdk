@@ -1,14 +1,14 @@
 {
 	"name": "docs",
-	"version": "1.0.39",
+	"version": "1.0.46",
 	"license": "Apache-2.0",
 	"private": true,
 	"module": ".agentuity/app.js",
 	"type": "module",
 	"scripts": {
-		"predev": "bun run scripts/generate-markdown-files.ts",
-		"prebuild": "bun run scripts/generate-markdown-files.ts",
-		"predeploy": "cd ../.. && bun install && bun run build:packages",
+		"predev": "bun run scripts/generate-api-reference.ts && bun run scripts/generate-markdown-files.ts",
+		"prebuild": "bun run scripts/generate-api-reference.ts && bun run scripts/generate-markdown-files.ts",
+		"predeploy": "cd ../../ && bun install && bun run build:packages && cd apps/docs && bun run prebuild",
 		"build": "bun ../../packages/cli/bin/cli.ts build --dir . --dev",
 		"dev": "bun ../../packages/cli/bin/cli.ts dev --dir .",
 		"start": "bun .agentuity/app.js",

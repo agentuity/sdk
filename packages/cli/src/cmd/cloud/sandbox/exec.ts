@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Writable } from 'node:stream';
+import { ErrorCode } from '../../../errors';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createSandboxClient } from './util';
@@ -24,6 +25,14 @@ const SandboxExecResponseSchema = z.object({
 		.optional()
 		.describe('Standard error output (only when separate streams are available)'),
 	output: z.string().optional().describe('Combined stdout/stderr output'),
+	outputTruncated: z
+		.boolean()
+		.optional()
+		.describe('Whether the captured output was truncated due to size limits'),
+	autoResumed: z
+		.boolean()
+		.optional()
+		.describe('True if the sandbox was automatically resumed from a suspended state'),
 });
 
 export const execSubcommand = createCommand({
@@ -62,6 +71,18 @@ export const execSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options, auth, logger, apiClient } = ctx;
 
+		// Validate timeout format if provided (fail fast before any network calls)
+		if (opts.timeout) {
+			// Go's time.ParseDuration accepts "0" or one-or-more number+unit tokens.
+			// Valid units: ns, us, µs (U+00B5), μs (U+03BC), ms, s, m, h
+			if (!/^(?:0|(\d+(\.\d+)?(ns|us|[µμ]s|ms|s|m|h))+)$/.test(opts.timeout)) {
+				tui.fatal(
+					`Invalid timeout format '${opts.timeout}': expected duration like '5s', '1m', '1h', '300ms'`,
+					ErrorCode.INVALID_ARGUMENT
+				);
+			}
+		}
+
 		// Resolve sandbox to get region and orgId using CLI API
 		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
 		const { region, orgId } = sandboxInfo;
@@ -86,6 +107,10 @@ export const execSubcommand = createCommand({
 				},
 				orgId,
 			});
+
+			if (execution.autoResumed && !options.json) {
+				tui.warning('Sandbox was automatically resumed from suspended state');
+			}
 
 			const stdoutStreamUrl = execution.stdoutStreamUrl;
 			const stderrStreamUrl = execution.stderrStreamUrl;
@@ -213,6 +238,8 @@ export const execSubcommand = createCommand({
 				stdout: options.json ? stdoutOutput : undefined,
 				stderr: options.json ? stderrOutput : undefined,
 				output: options.json ? output : undefined,
+				outputTruncated: finalExecution.outputTruncated ?? undefined,
+				autoResumed: execution.autoResumed ?? undefined,
 			};
 		} finally {
 			process.off('SIGINT', handleSignal);

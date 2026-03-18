@@ -46,7 +46,7 @@ export function applyGatewayPatches(): void {
 	const gatewayUrl =
 		process.env.AGENTUITY_AIGATEWAY_URL ||
 		process.env.AGENTUITY_TRANSPORT_URL ||
-		(sdkKey ? 'https://agentuity.ai' : '');
+		(sdkKey ? 'https://catalyst.agentuity.cloud' : '');
 
 	for (const config of GATEWAY_CONFIGS) {
 		const currentKey = process.env[config.apiKeyEnv];

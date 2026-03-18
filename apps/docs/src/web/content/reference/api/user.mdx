@@ -1,0 +1,79 @@
+---
+title: Users API
+description: Get authenticated user information and organization memberships
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Get Current User
+
+Retrieve the authenticated user's profile including name and organization memberships.
+
+<ApiEndpoint method="GET" path="/cli/auth/user" />
+
+
+
+### Response
+
+Returns the authenticated user's profile including name and organization memberships.
+
+| Status | Description |
+|--------|-------------|
+| 200 | User profile returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "firstName",
+    "type": "string",
+    "description": "the first name of the user",
+    "required": true
+  },
+  {
+    "name": "lastName",
+    "type": "string",
+    "description": "the last name of the user",
+    "required": true
+  },
+  {
+    "name": "organizations",
+    "type": "object[]",
+    "description": "the organizations the user is a member of",
+    "required": true
+  },
+  {
+    "name": "organizations[].id",
+    "type": "string",
+    "description": "the unique id for the organization",
+    "required": true
+  },
+  {
+    "name": "organizations[].name",
+    "type": "string",
+    "description": "the name of the organization",
+    "required": true
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/cli/auth/user" />
+
+---

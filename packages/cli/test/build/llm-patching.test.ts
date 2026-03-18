@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { generatePatches } from '../../src/cmd/build/patch';
+import { generatePatches, buildPatchFilter } from '../../src/cmd/build/patch';
 
 /**
  * Integration test for LLM provider patching during build.
@@ -304,5 +304,61 @@ describe('OTel LLM Instrumentation Patches', () => {
 		// 3. Direct _wrapStream call
 		const tryCount = (code.match(/try\s*\{/g) || []).length;
 		expect(tryCount).toBeGreaterThanOrEqual(3);
+	});
+});
+
+/**
+ * Patch filter regex tests (cross-platform path matching).
+ *
+ * buildPatchFilter produces a RegExp that matches file paths inside node_modules
+ * using both forward slashes (Unix) and backslashes (Windows). This prevents
+ * the AI SDK patches from silently failing on Windows, where path.join()
+ * produces backslashes that break regex patterns.
+ */
+describe('buildPatchFilter (cross-platform)', () => {
+	test('matches Unix paths for simple modules', () => {
+		const filter = buildPatchFilter('groq-sdk', 'index');
+		expect(filter.test('/home/user/project/node_modules/groq-sdk/index.mjs')).toBe(true);
+		expect(filter.test('/home/user/project/node_modules/groq-sdk/index.js')).toBe(true);
+	});
+
+	test('matches Windows paths for simple modules', () => {
+		const filter = buildPatchFilter('groq-sdk', 'index');
+		expect(filter.test('C:\\Users\\user\\project\\node_modules\\groq-sdk\\index.mjs')).toBe(true);
+		expect(filter.test('C:\\Users\\user\\project\\node_modules\\groq-sdk\\index.js')).toBe(true);
+	});
+
+	test('matches scoped packages on both platforms', () => {
+		const filter = buildPatchFilter('@anthropic-ai/sdk', 'index');
+		expect(filter.test('/project/node_modules/@anthropic-ai/sdk/index.mjs')).toBe(true);
+		expect(filter.test('C:\\project\\node_modules\\@anthropic-ai\\sdk\\index.mjs')).toBe(true);
+	});
+
+	test('matches deep filenames (otel patches) on both platforms', () => {
+		const filter = buildPatchFilter('openai', 'resources/chat/completions/completions');
+		const unix = '/p/node_modules/openai/resources/chat/completions/completions.mjs';
+		const win = 'C:\\p\\node_modules\\openai\\resources\\chat\\completions\\completions.mjs';
+		expect(filter.test(unix)).toBe(true);
+		expect(filter.test(win)).toBe(true);
+	});
+
+	test('matches without filename (wildcard) on both platforms', () => {
+		const filter = buildPatchFilter('@ai-sdk/openai');
+		const unix = '/project/node_modules/@ai-sdk/openai/dist/index.mjs';
+		const win = 'C:\\project\\node_modules\\@ai-sdk\\openai\\dist\\index.mjs';
+		expect(filter.test(unix)).toBe(true);
+		expect(filter.test(win)).toBe(true);
+	});
+
+	test('every generated patch produces a filter that matches both platforms', () => {
+		const patches = generatePatches();
+		for (const [, patch] of patches) {
+			const filter = buildPatchFilter(patch.module, patch.filename);
+			const file = patch.filename ? `${patch.filename}.mjs` : 'dist/index.mjs';
+			const unix = `/project/node_modules/${patch.module}/${file}`;
+			const win = `C:\\project\\node_modules\\${patch.module.replace(/\//g, '\\')}\\${file.replace(/\//g, '\\')}`;
+			expect(filter.test(unix)).toBe(true);
+			expect(filter.test(win)).toBe(true);
+		}
 	});
 });

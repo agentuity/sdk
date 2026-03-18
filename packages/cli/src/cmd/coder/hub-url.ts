@@ -41,7 +41,11 @@ export async function resolveHubUrl(flagUrl?: string): Promise<string | null> {
 export async function resolveHubWsUrl(flagUrl?: string): Promise<string | null> {
 	const httpUrl = await resolveHubUrl(flagUrl);
 	if (!httpUrl) return null;
-	return normalizeToWs(httpUrl);
+	return toHubWsUrl(httpUrl);
+}
+
+export function toHubWsUrl(hubHttpUrl: string): string {
+	return normalizeToWs(hubHttpUrl);
 }
 
 /**

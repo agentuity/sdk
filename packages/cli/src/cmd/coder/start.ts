@@ -5,7 +5,8 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { resolveHubWsUrl, resolveHubUrl, hubFetchHeaders } from './hub-url';
+import { toHubWsUrl, resolveHubUrl, hubFetchHeaders } from './hub-url';
+import { probeTuiInitAccess } from './tui-init';
 
 /**
  * Resolve the Coder extension path.
@@ -129,10 +130,28 @@ export const startSubcommand = createSubcommand({
 		const { opts, options } = ctx;
 
 		// Resolve Hub URL
-		const hubWsUrl = await resolveHubWsUrl(opts?.hubUrl);
-		if (!hubWsUrl) {
+		const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
+		if (!hubHttpUrl) {
 			tui.fatal(
 				'Could not find a running Coder Hub.\n\nEither:\n  - Start the Hub with: bun run dev\n  - Set AGENTUITY_CODER_HUB_URL environment variable\n  - Pass --hub-url flag',
+				ErrorCode.NETWORK_ERROR
+			);
+			return;
+		}
+		const hubWsUrl = toHubWsUrl(hubHttpUrl);
+
+		const tuiInitProbe = await probeTuiInitAccess(hubHttpUrl);
+		if (!tuiInitProbe.ok) {
+			if (tuiInitProbe.code === 'unauthorized') {
+				tui.fatal(
+					`Coder Hub at ${hubHttpUrl} requires authentication.\n\nSet AGENTUITY_CODER_API_KEY in your shell and retry.\n\nServer said: ${tuiInitProbe.message}`,
+					ErrorCode.NETWORK_ERROR
+				);
+				return;
+			}
+
+			tui.fatal(
+				`Could not bootstrap the Coder Hub at ${hubHttpUrl}: ${tuiInitProbe.message}`,
 				ErrorCode.NETWORK_ERROR
 			);
 			return;
@@ -160,11 +179,6 @@ export const startSubcommand = createSubcommand({
 				remoteSessionId = remoteValue;
 			} else {
 				// No session ID — fetch connectable sessions and show picker
-				const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
-				if (!hubHttpUrl) {
-					tui.fatal('Could not find Hub URL for session picker.', ErrorCode.NETWORK_ERROR);
-					return;
-				}
 				try {
 					type SessionInfo = {
 						id: string;

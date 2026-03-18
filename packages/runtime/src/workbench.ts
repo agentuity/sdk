@@ -397,14 +397,14 @@ export const createWorkbenchSampleRoute = (): Handler => {
 			const gatewayUrl =
 				process.env.AGENTUITY_AIGATEWAY_URL ||
 				process.env.AGENTUITY_TRANSPORT_URL ||
-				(sdkKey ? 'https://agentuity.ai' : '');
+				(sdkKey ? 'https://catalyst.agentuity.cloud' : '');
 
 			if (!sdkKey || !gatewayUrl) {
 				return ctx.json(
 					{
 						error: 'AGENTUITY_SDK_KEY and gateway URL must be configured',
 						message:
-							'Set AGENTUITY_SDK_KEY and either AGENTUITY_AIGATEWAY_URL, AGENTUITY_TRANSPORT_URL, or use https://agentuity.ai',
+							'Set AGENTUITY_SDK_KEY and either AGENTUITY_AIGATEWAY_URL or AGENTUITY_TRANSPORT_URL',
 					},
 					{ status: 500 }
 				);

@@ -99,7 +99,7 @@ export function getGravityDevModeURL(_region: string, config?: Config | null): s
 		return overrides.gravity_url;
 	}
 	if (config?.name === 'local') {
-		return 'grpc://gravity.agentuity.io:8443';
+		return 'grpc://gravity.agentuity.io:443';
 	}
 	return 'grpc://devmode-us.agentuity.com';
 }

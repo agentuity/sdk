@@ -84,7 +84,7 @@ export const createCommand = createSubcommand({
 					vector_url: 'https://catalyst.agentuity.io',
 					catalyst_url: 'https://catalyst.agentuity.io',
 					ion_url: 'https://ion.agentuity.io',
-					gravity_url: 'grpc://gravity.agentuity.io:8443',
+					gravity_url: 'grpc://gravity.agentuity.io:443',
 				};
 				await saveConfig(localConfig, filename);
 			}

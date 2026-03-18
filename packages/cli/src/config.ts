@@ -10,7 +10,7 @@ import {
 	APIClient as ServerAPIClient,
 } from '@agentuity/server';
 import { YAML } from 'bun';
-import JSON5 from 'json5';
+import { parseJSONC } from './utils/jsonc';
 import { z } from 'zod';
 import { clearProfileCache } from './cache';
 import { getCatalystUrl } from './catalyst';
@@ -141,6 +141,8 @@ function expandTilde(path: string): string {
 }
 
 let cachedConfig: Config | null | undefined;
+// Track the resolved config path so saveConfig writes back to the same file
+let cachedConfigPath: string | undefined;
 
 export async function loadConfig(
 	customPath?: string,
@@ -217,6 +219,7 @@ export async function loadConfig(
 		// This ensures --config flag is respected across all commands
 		if (!skipCache) {
 			cachedConfig = result.data;
+			cachedConfigPath = configPath;
 		}
 		return result.data;
 	} catch (error) {
@@ -227,6 +230,7 @@ export async function loadConfig(
 		// Note: For long-running processes, consider time-based cache expiry for transient failures.
 		if (!skipCache) {
 			cachedConfig = null;
+			cachedConfigPath = configPath;
 		}
 		return null;
 	}
@@ -261,8 +265,19 @@ function formatYAML(obj: unknown, indent = 0): string {
 		} else if (typeof value === 'string') {
 			if (value === '') {
 				lines.push(`${spaces}${key}: ""`);
-			} else if (value.includes(':') || value.includes('#') || value.includes(' ')) {
-				lines.push(`${spaces}${key}: "${value}"`);
+			} else if (
+				value.includes(':') ||
+				value.includes('#') ||
+				value.includes(' ') ||
+				value.includes('\\')
+			) {
+				// Use single quotes to avoid YAML escape-sequence processing.
+				// Double-quoted YAML strings interpret backslash sequences (\n, \t, etc.),
+				// which breaks Windows paths like C:\Users\... where \U would be invalid.
+				// Single-quoted strings treat backslashes literally.
+				// Escape any embedded single quotes by doubling them (YAML spec).
+				const escaped = value.replace(/'/g, "''");
+				lines.push(`${spaces}${key}: '${escaped}'`);
 			} else {
 				lines.push(`${spaces}${key}: ${value}`);
 			}
@@ -275,7 +290,10 @@ function formatYAML(obj: unknown, indent = 0): string {
 }
 
 export async function saveConfig(config: Config, customPath?: string): Promise<void> {
-	const configPath = customPath || (await getProfile());
+	// Use the path the config was originally loaded from (cachedConfigPath) so that
+	// saves go back to the correct profile even when --profile was used to load it.
+	// Falls back to getProfile() if no config has been loaded yet.
+	const configPath = customPath || cachedConfigPath || (await getProfile());
 	await ensureConfigDir();
 
 	const content = formatYAML(config);
@@ -595,7 +613,7 @@ export async function loadProjectConfig(
 		throw new ProjectConfigNotFoundException({ message: 'project config not found' });
 	}
 	const text = await file.text();
-	const parsedConfig = JSON5.parse(text);
+	const parsedConfig = parseJSONC(text);
 	const result = ProjectSchema.safeParse(parsedConfig);
 	if (!result.success) {
 		tui.error(`Invalid project config at ${configPath}:`);
@@ -700,7 +718,7 @@ export async function updateProjectConfig(
 	}
 
 	const text = await file.text();
-	const existing = JSON5.parse(text);
+	const existing = parseJSONC(text) as Record<string, unknown>;
 	const updated = { ...existing, ...updates };
 
 	const result = ProjectSchema.safeParse(updated);
