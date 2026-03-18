@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
+import { tailwindSourcePlugin } from './tailwind-source-plugin';
 import { beaconPlugin } from './beacon-plugin';
 import { publicAssetPathPlugin } from './public-asset-path-plugin';
 import type { BuildReportCollector } from '../../../build-report';
@@ -83,6 +84,16 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		logger,
 		profile,
 	} = options;
+
+	const isViteDebug =
+		process.env.AGENTUITY_VITE_DEBUG === '1' || process.env.AGENTUITY_VITE_DEBUG === 'true';
+	if (isViteDebug) {
+		logger.debug('Vite debug logging enabled via AGENTUITY_VITE_DEBUG');
+		const existing = process.env.DEBUG || '';
+		if (!existing.includes('vite:')) {
+			process.env.DEBUG = existing ? `${existing},vite:*` : 'vite:*';
+		}
+	}
 
 	logger.debug(`Running Vite build for mode: ${mode}`);
 
@@ -199,6 +210,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		}
 
 		const plugins = [
+			tailwindSourcePlugin(),
 			...userPlugins,
 			browserEnvPlugin(),
 			// Fix incorrect public asset paths and rewrite to CDN URLs
@@ -245,7 +257,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				// In dev mode, Vite serves them directly from src/web/public/
 				copyPublicDir: !dev,
 			},
-			logLevel: 'warn',
+			logLevel: isViteDebug ? 'info' : 'warn',
 		};
 	} else if (mode === 'workbench') {
 		const { workbenchRoute = '/workbench' } = options;
@@ -280,7 +292,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				manifest: true,
 				emptyOutDir: true,
 			},
-			logLevel: 'warn',
+			logLevel: isViteDebug ? 'info' : 'warn',
 		};
 	} else {
 		throw new Error(`Unknown build mode: ${mode}`);
