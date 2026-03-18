@@ -42,8 +42,6 @@ export {
 	type ShutdownHook,
 	createApp,
 	getApp,
-	getAppState,
-	getAppConfig,
 	runShutdown,
 	registerShutdownHook,
 	fireEvent,

@@ -4,20 +4,17 @@ import * as LogsAPI from '@opentelemetry/api-logs';
 import type { Logger } from '../logger';
 import ConsoleLogger from '../logger/console';
 
+import { originalConsole as originalConsoleGlobal } from '../_globals';
+
 /**
  * Reference to the original console object before patching.
- * We use a global symbol to ensure we only capture the original console once,
- * preventing double-patching on hot reload.
+ * Stored in a Symbol.for() global to survive hot reloads.
  */
-const ORIGINAL_CONSOLE_KEY = Symbol.for('agentuity.originalConsole');
-
-// Check if we've already saved the original console (prevents double-patching on reload)
-const existingOriginal = (globalThis as Record<symbol, Console>)[ORIGINAL_CONSOLE_KEY];
+const existingOriginal = originalConsoleGlobal.get();
 export const __originalConsole: Console = existingOriginal ?? Object.create(console);
 
-// Save to global if not already saved
 if (!existingOriginal) {
-	(globalThis as Record<symbol, Console>)[ORIGINAL_CONSOLE_KEY] = __originalConsole;
+	originalConsoleGlobal.set(__originalConsole);
 }
 
 export class OtelLogger implements Logger {

@@ -1,8 +1,12 @@
 /**
  * Bun Dev Server
  *
- * Runs Bun server that handles ALL app logic (HTTP + WebSocket) and proxies
- * frontend asset requests to Vite asset server for HMR support.
+ * Spawns Bun with --hot as a subprocess. Bun's --hot mode re-evaluates changed
+ * modules and hot-swaps the default export's `fetch` handler on the running
+ * server — no process restart, no port rebind, no dropped connections.
+ *
+ * The user's app.ts exports the result of createApp() which includes `fetch`
+ * and `port` properties that Bun uses to manage the server lifecycle.
  */
 
 import type { Logger } from '../../../types';
@@ -11,14 +15,11 @@ import { getAgentEnv } from '../../../agent-detection';
 export interface BunDevServerOptions {
 	rootDir: string;
 	port?: number;
-	projectId?: string;
-	orgId?: string;
-	deploymentId?: string;
 	logger: Logger;
-	vitePort: number; // Port of already-running Vite asset server
-	inspect?: boolean; // Enable bun debugger
-	inspectWait?: boolean; // Enable bun debugger and wait for connection
-	inspectBrk?: boolean; // Enable bun debugger with breakpoint at first line
+	vitePort: number;
+	inspect?: boolean;
+	inspectWait?: boolean;
+	inspectBrk?: boolean;
 }
 
 export interface BunDevServerResult {
@@ -26,17 +27,11 @@ export interface BunDevServerResult {
 }
 
 /**
- * Start Bun dev server (Vite asset server must already be running)
+ * Start Bun dev server with --hot (Vite asset server must already be running).
  *
- * IMPORTANT: This function assumes that the dev bundle has already been built:
- * - Entry file generated at src/generated/app.ts (with workbench config if enabled)
- * - Bundled to .agentuity/app.js with LLM patches applied
- *
- * The bundle is loaded here to ensure AI Gateway routing patches are active.
- * Vite port is read from process.env.VITE_PORT at runtime.
- *
- * When debugger flags (inspect, inspectWait, inspectBrk) are passed, bun is spawned
- * as a subprocess to enable passing the debugger CLI flags.
+ * Uses `bun --hot` so Bun watches all imported files and hot-swaps the fetch
+ * handler on the running server. The server stays up — only the changed modules
+ * are re-evaluated.
  */
 export async function startBunDevServer(options: BunDevServerOptions): Promise<BunDevServerResult> {
 	const { rootDir, port = 3500, logger, vitePort, inspect, inspectWait, inspectBrk } = options;
@@ -45,140 +40,84 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 
 	const appPath = `${rootDir}/app.ts`;
 
-	// Verify entry file exists before attempting to load
 	const appFile = Bun.file(appPath);
 	if (!(await appFile.exists())) {
 		throw new Error(`App entry not found at ${appPath}.`);
 	}
 
-	// Set PORT env var so the generated app uses the correct port
 	process.env.PORT = String(port);
 
-	// Check if any debugger flag is enabled
-	const useDebugger = inspect || inspectWait || inspectBrk;
+	const args: string[] = ['bun'];
 
-	if (useDebugger) {
-		// Spawn bun as subprocess with debugger flag
-		logger.debug('📦 Spawning bun with debugger enabled...');
+	// --hot: in-process hot reload — re-evaluates changed modules and swaps
+	// the default export's fetch handler without restarting the process.
+	// --no-clear-screen: don't clear terminal on reload (CLI manages output)
+	args.push('--hot', '--no-clear-screen');
 
-		// Determine which debugger flag to use (priority: inspectBrk > inspectWait > inspect)
-		let debugFlag: string;
-		if (inspectBrk) {
-			debugFlag = '--inspect-brk';
-		} else if (inspectWait) {
-			debugFlag = '--inspect-wait';
-		} else {
-			debugFlag = '--inspect';
-		}
-
-		logger.debug('Using debugger flag: %s', debugFlag);
-
-		const bunProcess = Bun.spawn(['bun', debugFlag, 'run', appPath], {
-			cwd: rootDir,
-			stdout: 'inherit',
-			stderr: 'inherit',
-			env: {
-				...process.env,
-				...getAgentEnv(),
-				PORT: String(port),
-			},
-		});
-
-		// Store the process globally so it can be killed on shutdown
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = bunProcess;
-
-		// Wait for server to actually start listening
-		const maxRetries = 50;
-		const retryDelay = 100;
-		let serverReady = false;
-
-		for (let i = 0; i < maxRetries; i++) {
-			try {
-				await fetch(`http://127.0.0.1:${port}/`, {
-					method: 'HEAD',
-					signal: AbortSignal.timeout(1000),
-				});
-				// Any response (even 404) means server is listening
-				serverReady = true;
-				break;
-			} catch {
-				// Connection refused or timeout - server not ready yet
-			}
-			// Wait before next check
-			await new Promise((resolve) => setTimeout(resolve, retryDelay));
-		}
-
-		if (!serverReady) {
-			// Kill the subprocess if server didn't start
-			try {
-				bunProcess.kill();
-			} catch (err) {
-				logger.debug('Error killing subprocess during startup failure: %s', err);
-			}
-			throw new Error(
-				`Bun server failed to start on port ${port} after ${maxRetries * retryDelay}ms`
-			);
-		}
-
-		logger.debug(`Bun dev server started on http://127.0.0.1:${port} with debugger enabled`);
-		logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
-	} else {
-		// Load the app entry (app.ts) - this will start Bun.serve() internally
-		// Runtime dev patches are applied by @agentuity/runtime when AGENTUITY_NO_BUNDLE=true.
-		logger.debug('Loading app from: %s', appPath);
-		logger.debug('📦 Loading app entry (Bun server will start)...');
-
-		// Import the generated app with cache-busting query parameter.
-		// Bun's module cache is keyed by the full specifier including query string,
-		// so adding a unique timestamp forces a fresh import on each reload.
-		const cacheBuster = `?t=${Date.now()}`;
-		try {
-			await import(appPath + cacheBuster);
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error('Failed to import generated app from %s: %s', appPath, errorMessage);
-			throw new Error(`Failed to load generated app: ${errorMessage}`);
-		}
-
-		// Wait for server to actually start listening
-		// The generated app sets (globalThis as any).__AGENTUITY_SERVER__ when server starts
-		const maxRetries = 50; // Increased retries for slower systems
-		const retryDelay = 100; // ms
-		let serverReady = false;
-
-		for (let i = 0; i < maxRetries; i++) {
-			// Check if global server object exists
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			if ((globalThis as any).__AGENTUITY_SERVER__) {
-				// Server object exists, now verify it's actually listening by making a request
-				try {
-					await fetch(`http://127.0.0.1:${port}/`, {
-						method: 'HEAD',
-						signal: AbortSignal.timeout(1000),
-					});
-					// Any response (even 404) means server is listening
-					serverReady = true;
-					break;
-				} catch {
-					// Connection refused or timeout - server not ready yet
-				}
-			}
-			// Wait before next check
-			await new Promise((resolve) => setTimeout(resolve, retryDelay));
-		}
-
-		if (!serverReady) {
-			throw new Error(
-				`Bun server failed to start on port ${port} after ${maxRetries * retryDelay}ms`
-			);
-		}
-
-		logger.debug(`Bun dev server started on http://127.0.0.1:${port}`);
-		logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
+	if (inspectBrk) {
+		args.push('--inspect-brk');
+	} else if (inspectWait) {
+		args.push('--inspect-wait');
+	} else if (inspect) {
+		args.push('--inspect');
 	}
 
-	return {
-		bunServerPort: port,
-	};
+	args.push('run', appPath);
+
+	logger.debug('Spawning bun subprocess: %s', args.join(' '));
+
+	const bunProcess = Bun.spawn(args, {
+		cwd: rootDir,
+		stdout: 'inherit',
+		stderr: 'inherit',
+		env: {
+			...process.env,
+			...getAgentEnv(),
+			PORT: String(port),
+		},
+	});
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = bunProcess;
+
+	// Wait for server to start listening
+	const maxRetries = 50;
+	const retryDelay = 100;
+	let serverReady = false;
+
+	for (let i = 0; i < maxRetries; i++) {
+		if (bunProcess.exitCode !== null) {
+			throw new Error(`Bun subprocess exited with code ${bunProcess.exitCode} during startup`);
+		}
+
+		try {
+			await fetch(`http://127.0.0.1:${port}/`, {
+				method: 'HEAD',
+				signal: AbortSignal.timeout(1000),
+			});
+			serverReady = true;
+			break;
+		} catch {
+			// Not ready yet
+		}
+		await new Promise((resolve) => setTimeout(resolve, retryDelay));
+	}
+
+	if (!serverReady) {
+		try {
+			bunProcess.kill();
+		} catch (err) {
+			logger.debug('Error killing subprocess during startup failure: %s', err);
+		}
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = undefined;
+		throw new Error(
+			`Bun server failed to start on port ${port} after ${maxRetries * retryDelay}ms`
+		);
+	}
+
+	logger.debug(`Bun dev server started on http://127.0.0.1:${port} (--hot mode)`);
+	logger.debug(`Proxied to Vite:${vitePort}`);
+
+	return { bunServerPort: port };
 }

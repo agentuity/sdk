@@ -142,7 +142,7 @@ export async function startViteAssetServer(
 	// Port was pre-verified and strictPort:true ensures Vite uses exactly this port
 	const actualPort = availablePort;
 
-	logger.info(`Vite dev server running on port ${actualPort} (primary)`);
+	logger.debug(`Vite dev server running on port ${actualPort} (primary)`);
 	logger.debug(`Frontend: HMR, React transformation, source maps (native)`);
 	logger.debug(`Backend: proxying to Bun on port ${backendPort}`);
 

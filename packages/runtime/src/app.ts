@@ -477,6 +477,22 @@ export interface AppResult {
 	 * Logger instance
 	 */
 	logger: Logger;
+	/**
+	 * Fetch handler for the application.
+	 * Bun --hot uses this on the default export to hot-swap the running server's
+	 * request handler without restarting the process.
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	fetch: (req: Request, ...args: any[]) => Response | Promise<Response>;
+	/**
+	 * Port the server listens on.
+	 * Used by Bun --hot alongside `fetch` to configure the server.
+	 */
+	port: number;
+	/**
+	 * Hostname the server binds to.
+	 */
+	hostname: string;
 }
 
 /**
@@ -498,9 +514,6 @@ export interface AppResult {
  * ```
  */
 export async function createApp(config?: AppConfig): Promise<AppResult> {
-	// Store config globally (middleware reads it lazily at request time)
-	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
-
 	// --- Imports (lazy to avoid circular deps) ---
 	const { bootstrapRuntimeEnv } = await import('@agentuity/server');
 	const { register } = await import('./otel/config');
@@ -553,7 +566,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	const app = createRouter();
 	setGlobalRouter(app);
 
-	app.use('*', createCompressionMiddleware());
+	app.use('*', createCompressionMiddleware(config?.compression));
 	app.use(
 		'*',
 		createBaseMiddleware({
@@ -569,11 +582,10 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	const serverUrl = `http://127.0.0.1:${port}`;
 	createServices(otel.logger, config, serverUrl);
 
-	const appState = getAppState();
 	const threadProvider = getThreadProvider();
 	const sessionProvider = getSessionProvider();
-	await threadProvider.initialize(appState);
-	await sessionProvider.initialize(appState);
+	await threadProvider.initialize({});
+	await sessionProvider.initialize({});
 
 	// --- Step 4: Routes ---
 	const analyticsConfig = resolveAnalyticsConfig(config?.analytics);
@@ -590,7 +602,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 		const mounts = normalizeRouterConfig(config.router);
 		for (const mount of mounts) {
 			const prefix = mount.path.endsWith('/') ? mount.path + '*' : mount.path + '/*';
-			app.use(prefix, createCorsMiddleware());
+			app.use(prefix, createCorsMiddleware(config?.cors));
 			app.use(prefix, createOtelMiddleware());
 			app.use(prefix, createAgentMiddleware(''));
 			app.route(mount.path, mount.router);
@@ -606,33 +618,34 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	registerWebRoutes(app, analyticsConfig);
 
 	// --- Step 5: Agent lifecycle + server ---
-	await runAgentSetups(appState);
-	startServer(app);
+	await runAgentSetups({});
 
-	otel.logger.info('Server listening on %s', serverUrl);
+	// In dev mode with --hot, Bun manages the server via the default export's
+	// `fetch` property. In production, we start Bun.serve() explicitly.
+	if (!isDevelopment()) {
+		startServer(app, { requestTimeout: config?.requestTimeout });
+	}
+
+	// Only log on first startup, not on --hot reloads
+	const { serverStarted } = await import('./_globals');
+	if (!serverStarted.get()) {
+		serverStarted.set(true);
+		otel.logger.debug('Server listening on %s', serverUrl);
+	}
+
+	const portNumber = parseInt(port, 10);
 
 	return {
 		config,
 		router: app as Hono<Env>,
 		server: { url: serverUrl },
 		logger: otel.logger,
+		// Bun --hot picks up `fetch` and `port` on the default export to
+		// hot-swap the running server's request handler without restarting.
+		fetch: app.fetch,
+		port: portNumber,
+		hostname: '127.0.0.1',
 	};
-}
-
-/**
- * Get the global app state
- * Used by generated entry file and middleware
- */
-export function getAppState(): Record<string, unknown> {
-	return (globalThis as any).__AGENTUITY_APP_STATE__ || {};
-}
-
-/**
- * Get the global app config.
- * Used by middleware at request time.
- */
-export function getAppConfig(): AppConfig | undefined {
-	return (globalThis as any).__AGENTUITY_APP_CONFIG__;
 }
 
 /**
@@ -657,23 +670,6 @@ export function normalizeRouterConfig(
 }
 
 /**
- * Set the global app config (for testing purposes)
- * @internal
- */
-export function setAppConfig(config: AppConfig | undefined): void {
-	if (config === undefined) {
-		delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
-	} else {
-		(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
-	}
-}
-
-/**
- * Symbol used to store shutdown hooks in globalThis.
- */
-const SHUTDOWN_HOOKS_KEY = Symbol.for('@agentuity/runtime:shutdown-hooks');
-
-/**
  * A shutdown hook function.
  */
 export type ShutdownHook = () => Promise<void> | void;
@@ -682,11 +678,13 @@ export type ShutdownHook = () => Promise<void> | void;
  * Gets the global shutdown hooks registry.
  */
 function getShutdownHooks(): ShutdownHook[] {
-	const global = globalThis as Record<symbol, ShutdownHook[]>;
-	if (!global[SHUTDOWN_HOOKS_KEY]) {
-		global[SHUTDOWN_HOOKS_KEY] = [];
+	const key = Symbol.for('@agentuity/runtime:shutdown-hooks');
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const g = globalThis as any;
+	if (!g[key]) {
+		g[key] = [];
 	}
-	return global[SHUTDOWN_HOOKS_KEY];
+	return g[key];
 }
 
 /**

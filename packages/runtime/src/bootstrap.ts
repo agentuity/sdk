@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { mimeTypes } from '@agentuity/server';
 
-import { getAppConfig, runShutdown } from './app';
+import { runShutdown } from './app';
 import type { AnalyticsOptions, WorkbenchOptions } from './app';
 import { createRouter } from './router';
 import { createWebSessionMiddleware } from './middleware';
@@ -173,8 +173,7 @@ export function registerHealthRoutes(app: ReturnType<typeof createRouter>): void
 			return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		};
 		const idleHandler = (c: Context) => {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const server = (globalThis as any).__AGENTUITY_SERVER__;
+			const server = globalThis.__AGENTUITY_SERVER__;
 			if (!server) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 			if (hasWaitUntilPending())
 				return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -277,16 +276,20 @@ export function registerWorkbenchUI(
 // Server startup
 // ============================================================================
 
-export function startServer(app: ReturnType<typeof createRouter>): void {
+export function startServer(
+	app: ReturnType<typeof createRouter>,
+	options?: { requestTimeout?: number }
+): void {
 	if (typeof Bun === 'undefined') return;
 
 	enableProcessExitProtection();
 
 	const port = parseInt(process.env.PORT || '3500', 10);
+	const requestTimeout = options?.requestTimeout ?? 0;
 
 	const server = Bun.serve({
 		fetch: (req, server) => {
-			server.timeout(req, getAppConfig()?.requestTimeout ?? 0);
+			server.timeout(req, requestTimeout);
 			return app.fetch(req, server);
 		},
 		websocket,
@@ -295,8 +298,7 @@ export function startServer(app: ReturnType<typeof createRouter>): void {
 		development: isDevelopment(),
 	});
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any).__AGENTUITY_SERVER__ = server;
+	globalThis.__AGENTUITY_SERVER__ = server;
 
 	if (!isDevelopment()) {
 		const handleShutdown = async (_signal: string) => {

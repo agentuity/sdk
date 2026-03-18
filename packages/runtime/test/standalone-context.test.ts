@@ -107,10 +107,7 @@ mock.module('../src/_server', () => ({
 }));
 
 // Mock the app module
-mock.module('../src/app', () => ({
-	getAppState: () => testAppState,
-	getAppConfig: () => ({}),
-}));
+mock.module('../src/app', () => ({}));
 
 // Mock the _services module
 mock.module('../src/_services', () => ({
@@ -170,11 +167,11 @@ const statusAgent = createAgent('status-test', {
 describe('createAgentContext', () => {
 	describe('basic creation', () => {
 		test('creates context when globals are available', () => {
-			const ctx = createAgentContext<typeof testAppState>();
+			const ctx = createAgentContext();
 
 			expect(ctx.logger).toBe(testLogger);
 			expect(ctx.tracer).toBe(testTracer);
-			expect(ctx.app.testMode).toBe(true);
+			expect(ctx.app).toEqual({});
 			expect(ctx.kv).toBeDefined();
 			expect(ctx.stream).toBeDefined();
 			expect(ctx.vector).toBeDefined();
@@ -292,12 +289,10 @@ describe('createAgentContext', () => {
 		});
 
 		test('context provides app state', async () => {
-			const ctx = createAgentContext<typeof testAppState>();
+			const ctx = createAgentContext();
 
-			await ctx.invoke(async (_ctx) => {
-				expect(ctx.app).toBeDefined();
-				expect(ctx.app.testMode).toBe(true);
-
+			await ctx.invoke(async () => {
+				expect(ctx.app).toEqual({});
 				return statusAgent.run();
 			});
 		});

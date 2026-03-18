@@ -10,7 +10,7 @@ import { setSignedCookie } from 'hono/cookie';
 import type { Env, CompressionConfig, CorsConfig } from './app';
 import { createTrustedCorsOrigin } from './cors';
 import type { Logger } from './logger';
-import { getAppConfig } from './app';
+
 import { generateId } from './session';
 import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
@@ -111,10 +111,6 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 
 		// Import services dynamically to avoid circular deps
 		const { getServices } = await import('./_services');
-		const { getAppState } = await import('./app');
-
-		c.set('app', getAppState());
-
 		const services = getServices();
 		c.set('kv', services.kv);
 		c.set('stream', services.stream);
@@ -201,13 +197,7 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 export function createCorsMiddleware(staticOptions?: CorsConfig) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
-		// Lazy resolve: merge app config with static options
-		const appConfig = getAppConfig();
-		const appCors = appConfig?.cors;
-		const corsOptions = {
-			...appCors,
-			...staticOptions,
-		};
+		const corsOptions = { ...staticOptions };
 
 		// Extract Agentuity-specific options
 		const { sameOrigin, allowedOrigins, ...honoCorsOptions } = corsOptions;
@@ -1007,30 +997,15 @@ export function createOtelMiddleware() {
  * });
  * ```
  */
-export function createCompressionMiddleware(
-	staticConfig?: CompressionConfig,
-	/**
-	 * Optional config resolver for testing. When provided, this is used instead of getAppConfig().
-	 * @internal
-	 */
-	configResolver?: () => { compression?: CompressionConfig | false } | undefined
-) {
+export function createCompressionMiddleware(staticConfig?: CompressionConfig | false) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
-		// Lazy resolve: merge app config with static config
-		const appConfig = configResolver ? configResolver() : getAppConfig();
-		const appCompressionConfig = appConfig?.compression;
-
 		// Check if compression is explicitly disabled
-		if (appCompressionConfig === false || staticConfig?.enabled === false) {
+		if (staticConfig === false || staticConfig?.enabled === false) {
 			return next();
 		}
 
-		// Merge configs: static config takes precedence over app config
-		const config: CompressionConfig = {
-			...(typeof appCompressionConfig === 'object' ? appCompressionConfig : {}),
-			...staticConfig,
-		};
+		const config: CompressionConfig = { ...staticConfig };
 
 		const { enabled = true, threshold = 1024, filter, honoOptions } = config;
 
