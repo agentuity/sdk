@@ -292,8 +292,9 @@ async function updateTsconfigPathMapping(
 
 	try {
 		const tsconfigContent = await Bun.file(tsconfigPath).text();
-		const { default: JSON5 } = await import('json5');
-		const tsconfig = JSON5.parse(tsconfigContent);
+		const { parseJSONC } = await import('../../../utils/jsonc');
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const tsconfig = parseJSONC(tsconfigContent) as any;
 		const before = JSON.stringify(tsconfig);
 
 		if (!tsconfig.compilerOptions) tsconfig.compilerOptions = {};
