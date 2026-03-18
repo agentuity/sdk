@@ -3,6 +3,7 @@ import { getVersion, getCompareUrl, getReleaseUrl, toTag } from '../../version';
 import { getCommand } from '../../command-prefix';
 import { z } from 'zod';
 import { ErrorCode, createError, exitWithError } from '../../errors';
+import { isJSONMode } from '../../output';
 import * as tui from '../../tui';
 import { tmpdir } from 'node:os';
 import { getInstallationType, type InstallationType } from '../../utils/installation-type';
@@ -235,17 +236,19 @@ export const command = createCommand({
 				};
 			}
 
-			// Show version info
-			tui.info(`Current version: ${tui.muted(normalizedCurrent)}`);
-			tui.info(`Latest version:  ${tui.bold(normalizedLatest)}`);
-			tui.newline();
-			if (toTag(currentVersion) !== toTag(latestVersion)) {
-				tui.warning(
-					`What's changed:  ${tui.link(getCompareUrl(currentVersion, latestVersion))}`
-				);
+			// Show version info (suppress in JSON mode)
+			if (!isJSONMode(options)) {
+				tui.info(`Current version: ${tui.muted(normalizedCurrent)}`);
+				tui.info(`Latest version:  ${tui.bold(normalizedLatest)}`);
+				tui.newline();
+				if (toTag(currentVersion) !== toTag(latestVersion)) {
+					tui.warning(
+						`What's changed:  ${tui.link(getCompareUrl(currentVersion, latestVersion))}`
+					);
+				}
+				tui.success(`Release notes:   ${tui.link(getReleaseUrl(latestVersion))}`);
+				tui.newline();
 			}
-			tui.success(`Release notes:   ${tui.link(getReleaseUrl(latestVersion))}`);
-			tui.newline();
 
 			// Perform the upgrade using bun
 			await tui.spinner({
