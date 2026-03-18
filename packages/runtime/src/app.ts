@@ -493,6 +493,12 @@ export interface AppResult {
 	 * Hostname the server binds to.
 	 */
 	hostname: string;
+	/**
+	 * WebSocket handler for Bun.serve().
+	 * Required by Bun --hot to enable WebSocket upgrade support.
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	websocket?: any;
 }
 
 /**
@@ -541,6 +547,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 		registerWorkbenchUI,
 		startServer,
 	} = await import('./bootstrap');
+	const { websocket } = await import('hono/bun');
 
 	// --- Step 0: Environment ---
 	if (isDevelopment()) {
@@ -645,6 +652,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 		fetch: app.fetch,
 		port: portNumber,
 		hostname: '127.0.0.1',
+		websocket,
 	};
 
 	// In production, startServer() already called Bun.serve(). If we leave
@@ -655,6 +663,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 		delete (result as unknown as Record<string, unknown>).fetch;
 		delete (result as unknown as Record<string, unknown>).port;
 		delete (result as unknown as Record<string, unknown>).hostname;
+		delete (result as unknown as Record<string, unknown>).websocket;
 	}
 
 	return result;
