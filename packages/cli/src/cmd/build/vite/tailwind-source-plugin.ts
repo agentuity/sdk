@@ -37,7 +37,7 @@ export function tailwindSourcePlugin(): Plugin {
 					if (/source\s*\(/.test(rest)) {
 						return match;
 					}
-					return `@import ${quote}tailwindcss${quote} source(none)${rest};`;
+					return `@import ${quote}tailwindcss${quote}${rest} source(none);`;
 				}
 			);
 
