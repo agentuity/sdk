@@ -124,7 +124,7 @@ export async function sandboxReadFile(
 	if (!response.ok) {
 		const text = await response.text().catch(() => 'Unknown error');
 		throw new SandboxResponseError({
-			message: `Failed to read file: ${response.status} ${text}`,
+			message: `Failed to read file "${path}": ${response.status} ${text}`,
 			sandboxId,
 			sessionId,
 		});

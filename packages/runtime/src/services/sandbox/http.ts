@@ -149,25 +149,25 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					// Wait for execution to reach a terminal state via long-polling.
 					// The server holds each request for up to 60s; if the execution
 					// is still running we loop and issue another long-poll request.
+					// The caller's signal is forwarded into every fetch so that
+					// cancellation aborts the in-flight request immediately.
 					const terminalStatuses: Set<string> = new Set([
 						'completed',
 						'failed',
 						'timeout',
 						'cancelled',
 					]);
-					let final = await executionGet(client, {
-						executionId: initial.executionId,
-						wait: '60s',
-					});
-					while (!terminalStatuses.has(final.status as ExecutionStatus)) {
+					let final: Awaited<ReturnType<typeof executionGet>>;
+					do {
 						if (options.signal?.aborted) {
 							throw new DOMException('The operation was aborted.', 'AbortError');
 						}
 						final = await executionGet(client, {
 							executionId: initial.executionId,
 							wait: '60s',
+							signal: options.signal,
 						});
-					}
+					} while (!terminalStatuses.has(final.status as ExecutionStatus));
 					return {
 						executionId: final.executionId,
 						status: final.status,

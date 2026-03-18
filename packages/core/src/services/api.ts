@@ -726,6 +726,12 @@ export class APIClient {
 
 				this.#logger.debug('%s succeeded with status: %d', url, response.status);
 
+				// In raw mode, return the untouched Response (status, headers, body)
+				// so callers can inspect everything themselves.
+				if (raw) {
+					return response;
+				}
+
 				// Successful response; handle empty bodies (e.g., 204 No Content)
 				if (response.status === 204 || response.headers.get('content-length') === '0') {
 					return new Response(null, { status: 204 });

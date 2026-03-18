@@ -691,6 +691,7 @@ describe('SandboxClient', () => {
 				// and throws SandboxResponseError with context
 				expect((error as { _tag?: string })._tag).toBe('SandboxResponseError');
 				expect((error as { sandboxId?: string }).sandboxId).toBe('sandbox-rf-500');
+				expect((error as { message?: string }).message).toContain('/tmp/test.txt');
 			}
 		});
 

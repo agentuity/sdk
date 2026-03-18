@@ -68,11 +68,14 @@ async function waitForExecution(
 		}
 
 		// Use server-side long-polling - the server will hold the connection
-		// until the execution reaches a terminal state or the wait duration expires
+		// until the execution reaches a terminal state or the wait duration expires.
+		// The signal is forwarded so the in-flight fetch is cancelled immediately
+		// when the caller aborts, rather than waiting the full poll duration.
 		const result = await executionGet(client, {
 			executionId,
 			orgId,
 			wait: EXECUTION_WAIT_DURATION,
+			signal,
 		});
 
 		// If the execution reached a terminal state, return immediately
