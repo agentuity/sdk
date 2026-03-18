@@ -86,9 +86,17 @@ Tasks move through a defined set of statuses. The server automatically records t
 |--------|-------------|----------------|
 | `open` | Created, not yet started | `open_date` |
 | `in_progress` | Actively being worked on | `in_progress_date` |
-| `done` | Work completed | (no date field) |
-| `closed` | Resolved and closed | `closed_date` |
+| `done` | Work completed | `closed_date` |
 | `cancelled` | Abandoned | `cancelled_date` |
+
+<Callout type="info" title="Status aliases">
+The SDK accepts shorthand values that normalize to canonical statuses before saving:
+
+- `completed` and `closed` both normalize to `done`
+- `started` normalizes to `in_progress`
+
+The four canonical statuses are `open`, `in_progress`, `done`, and `cancelled`. Use these in queries and comparisons.
+</Callout>
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
@@ -117,7 +125,7 @@ const agent = createAgent('TaskWorker', {
 ```
 
 <Callout type="tip" title="Closing vs Done">
-`ctx.task.close(id)` is a convenience method that sets status to `'closed'` in one call. For `'done'` or `'cancelled'`, use `ctx.task.update(id, { status: '...' })` directly.
+`ctx.task.close(id)` sends a dedicated close request that marks the task as `'done'` and records `closed_date` server-side. For `'cancelled'`, use `ctx.task.update(id, { status: 'cancelled' })`.
 </Callout>
 
 ## Task Types and Priority
@@ -383,7 +391,7 @@ const agent = createAgent('TaskCleaner', {
 
 ## Hierarchical Tasks
 
-Set `parent_id` to build epic-to-feature-to-task hierarchies. Query subtasks with `list({ parent_id: epicId })`.
+Set `parent_id` to build epic-to-feature-to-task hierarchies. Query subtasks with `list({ parent_id: epicId })`. List responses include a `subtask_count` field with the number of direct child tasks, so you can display task counts without fetching all subtasks.
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';

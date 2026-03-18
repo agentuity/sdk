@@ -31,6 +31,7 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 | `sandbox snapshot generate` | Generate template snapshot build file |
 | `sandbox pause <id>` | Pause a running sandbox |
 | `sandbox resume <id>` | Resume a paused sandbox |
+| `sandbox events <id>` | List lifecycle events for a sandbox |
 | `sandbox execution` | View execution history |
 | `sandbox runtime list` | List available runtimes |
 | `sandbox env <id>` | Manage environment variables |
@@ -148,11 +149,23 @@ agentuity cloud sandbox create --project-id proj_abc123
 agentuity cloud sandbox exec <sandbox-id> [options] -- <command>
 ```
 
+| Option | Description |
+|--------|-------------|
+| `--timeout <duration>` | Per-command execution timeout (e.g., `30s`, `5m`, `1h`) |
+| `--timestamps` | Include timestamps in output (default: `false`) |
+
+<Callout type="warning" title="Timeout format">
+The `--timeout` value must be a valid Go-style duration: `30s`, `5m`, `1h`, `300ms`, etc. An invalid format is rejected before any network call is made.
+</Callout>
+
 ```bash
 # Run commands in sequence
 agentuity cloud sandbox exec sbx_abc123 -- npm init -y
 agentuity cloud sandbox exec sbx_abc123 -- npm install zod
 agentuity cloud sandbox exec sbx_abc123 -- npm run build
+
+# With timeout
+agentuity cloud sandbox exec sbx_abc123 --timeout 5m -- bun run build
 ```
 
 ### List Sandboxes
@@ -279,11 +292,16 @@ Use `agentuity cloud sandbox list --status paused` to find all paused sandboxes.
 
 ### Copy Files
 
-Copy individual files or directories to and from sandboxes.
+Copy individual files or directories to and from sandboxes. Parent directories are created automatically if they do not exist (equivalent to `mkdir -p`).
 
 ```bash
-agentuity cloud sandbox cp <source> <destination>
+agentuity cloud sandbox cp [options] <source> <destination>
 ```
+
+| Option | Description |
+|--------|-------------|
+| `-r, --recursive` | Copy directories recursively |
+| `--strict` | Fail if the target parent directory does not exist instead of auto-creating it |
 
 ```bash
 # Upload a file
@@ -293,7 +311,10 @@ agentuity cloud sandbox cp ./local-file.txt sbx_abc123:/workspace/file.txt
 agentuity cloud sandbox cp sbx_abc123:/workspace/output.json ./output.json
 
 # Upload a directory
-agentuity cloud sandbox cp ./src sbx_abc123:/workspace/src
+agentuity cloud sandbox cp -r ./src sbx_abc123:/workspace/src
+
+# Upload and fail if /workspace/output does not already exist
+agentuity cloud sandbox cp --strict ./results.json sbx_abc123:/workspace/output/results.json
 ```
 
 ### List Files
@@ -589,6 +610,38 @@ agentuity cloud sandbox snapshot generate --format json > agentuity-snapshot.jso
 <Callout type="tip" title="Getting Started">
 The generated template includes helpful comments explaining each field. See [Creating and Using Snapshots](/services/sandbox/snapshots) for workflows and use cases.
 </Callout>
+
+## Sandbox Events
+
+List lifecycle events for a sandbox. Events record state transitions such as creation, destruction, and other lifecycle changes.
+
+```bash
+agentuity cloud sandbox events <sandbox-id> [options]
+```
+
+**Alias:** `event`
+
+| Option | Description |
+|--------|-------------|
+| `--limit <n>` | Maximum number of results (default: 50, max: 100) |
+| `--reverse` | Show newest events first (default: oldest first) |
+| `--json` | JSON output |
+
+```bash
+# List events oldest first (default)
+agentuity cloud sandbox events sbx_abc123
+
+# List most recent events first
+agentuity cloud sandbox events sbx_abc123 --reverse
+
+# Limit results
+agentuity cloud sandbox events sbx_abc123 --limit 10
+
+# JSON output
+agentuity cloud sandbox events sbx_abc123 --json
+```
+
+Each event includes an `eventId`, `type` (e.g., `create`, `destroy`, `lifecycle:started`), `createdAt` timestamp, and an `event` data payload.
 
 ## Execution History
 

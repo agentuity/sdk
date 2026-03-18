@@ -214,6 +214,11 @@ export const navData: NavSection[] = [
 				description: 'Define GET, POST, and other HTTP endpoints with createRouter()',
 			},
 			{
+				title: 'Explicit Routing',
+				url: '/routes/explicit-routing',
+				description: 'Compose and mount your own Hono routers with createApp({ router })',
+			},
+			{
 				title: 'Middleware',
 				url: '/routes/middleware',
 				description: 'Add authentication, validation, and request processing to your routes',
@@ -476,6 +481,11 @@ export const navData: NavSection[] = [
 						description: 'Semantic product search with metadata filtering',
 					},
 					{
+						title: 'Hono RPC',
+						url: '/cookbook/patterns/hono-rpc-tanstack-query',
+						description: 'Type-safe API calls between server and React frontend',
+					},
+					{
 						title: 'Tailwind Setup',
 						url: '/cookbook/patterns/tailwind-setup',
 						description: 'Add Tailwind CSS styling to your Agentuity frontend',
@@ -485,6 +495,37 @@ export const navData: NavSection[] = [
 						url: '/cookbook/patterns/webhook-handler',
 						description:
 							'Handle incoming webhooks with signature verification and background processing',
+					},
+				],
+			},
+			{
+				title: 'Integrations',
+				items: [
+					{
+						title: 'Mastra',
+						url: '/cookbook/integrations/mastra',
+						description:
+							'Agent framework with tools, structured output, and multi-agent workflows',
+					},
+					{
+						title: 'LangChain',
+						url: '/cookbook/integrations/langchain',
+						description: 'ReAct agents, dynamic tools, and streaming with LangChain.js',
+					},
+					{
+						title: 'OpenAI Agents SDK',
+						url: '/cookbook/integrations/openai-agents',
+						description: 'Tool calling, handoffs, and streaming with the OpenAI Agents SDK',
+					},
+					{
+						title: 'Next.js',
+						url: '/cookbook/integrations/nextjs',
+						description: 'Add agents to an existing Next.js application',
+					},
+					{
+						title: 'TanStack Start',
+						url: '/cookbook/integrations/tanstack-start',
+						description: 'Add agents to an existing TanStack Start application',
 					},
 				],
 			},
@@ -686,6 +727,18 @@ export const navData: NavSection[] = [
 						title: 'AI Commands',
 						url: '/reference/cli/ai-commands',
 						description: 'CLI commands for AI agents, IDE integration, and schema inspection',
+					},
+					{
+						title: 'OAuth Applications',
+						url: '/reference/cli/oauth',
+						description:
+							'Register and manage OAuth/OIDC applications for third-party integrations',
+					},
+					{
+						title: 'Monitoring',
+						url: '/reference/cli/monitoring',
+						description:
+							'Monitor machine health, resource usage, and distressed nodes in real time',
 					},
 					{
 						title: 'Opencode Plugin',

@@ -44,6 +44,7 @@ import { Route as DocsRoutesWebrtcRouteImport } from './routes/_docs/routes/webr
 import { Route as DocsRoutesSseRouteImport } from './routes/_docs/routes/sse';
 import { Route as DocsRoutesMiddlewareRouteImport } from './routes/_docs/routes/middleware';
 import { Route as DocsRoutesHttpRouteImport } from './routes/_docs/routes/http';
+import { Route as DocsRoutesExplicitRoutingRouteImport } from './routes/_docs/routes/explicit-routing';
 import { Route as DocsRoutesCronRouteImport } from './routes/_docs/routes/cron';
 import { Route as DocsReferenceSdkReferenceRouteImport } from './routes/_docs/reference/sdk-reference';
 import { Route as DocsReferenceMigrationGuideRouteImport } from './routes/_docs/reference/migration-guide';
@@ -101,6 +102,8 @@ import { Route as DocsServicesDatabaseDrizzleRouteImport } from './routes/_docs/
 import { Route as DocsReferenceCliStorageRouteImport } from './routes/_docs/reference/cli/storage';
 import { Route as DocsReferenceCliSandboxRouteImport } from './routes/_docs/reference/cli/sandbox';
 import { Route as DocsReferenceCliOpencodePluginRouteImport } from './routes/_docs/reference/cli/opencode-plugin';
+import { Route as DocsReferenceCliOauthRouteImport } from './routes/_docs/reference/cli/oauth';
+import { Route as DocsReferenceCliMonitoringRouteImport } from './routes/_docs/reference/cli/monitoring';
 import { Route as DocsReferenceCliGitIntegrationRouteImport } from './routes/_docs/reference/cli/git-integration';
 import { Route as DocsReferenceCliGettingStartedRouteImport } from './routes/_docs/reference/cli/getting-started';
 import { Route as DocsReferenceCliDevelopmentRouteImport } from './routes/_docs/reference/cli/development';
@@ -138,9 +141,15 @@ import { Route as DocsCookbookPatternsTailwindSetupRouteImport } from './routes/
 import { Route as DocsCookbookPatternsServerUtilitiesRouteImport } from './routes/_docs/cookbook/patterns/server-utilities';
 import { Route as DocsCookbookPatternsProductSearchRouteImport } from './routes/_docs/cookbook/patterns/product-search';
 import { Route as DocsCookbookPatternsLlmAsAJudgeRouteImport } from './routes/_docs/cookbook/patterns/llm-as-a-judge';
+import { Route as DocsCookbookPatternsHonoRpcTanstackQueryRouteImport } from './routes/_docs/cookbook/patterns/hono-rpc-tanstack-query';
 import { Route as DocsCookbookPatternsCronWithStorageRouteImport } from './routes/_docs/cookbook/patterns/cron-with-storage';
 import { Route as DocsCookbookPatternsChatWithHistoryRouteImport } from './routes/_docs/cookbook/patterns/chat-with-history';
 import { Route as DocsCookbookPatternsBackgroundTasksRouteImport } from './routes/_docs/cookbook/patterns/background-tasks';
+import { Route as DocsCookbookIntegrationsTanstackStartRouteImport } from './routes/_docs/cookbook/integrations/tanstack-start';
+import { Route as DocsCookbookIntegrationsOpenaiAgentsRouteImport } from './routes/_docs/cookbook/integrations/openai-agents';
+import { Route as DocsCookbookIntegrationsNextjsRouteImport } from './routes/_docs/cookbook/integrations/nextjs';
+import { Route as DocsCookbookIntegrationsMastraRouteImport } from './routes/_docs/cookbook/integrations/mastra';
+import { Route as DocsCookbookIntegrationsLangchainRouteImport } from './routes/_docs/cookbook/integrations/langchain';
 
 const DocsRouteRoute = DocsRouteRouteImport.update({
 	id: '/_docs',
@@ -314,6 +323,11 @@ const DocsRoutesMiddlewareRoute = DocsRoutesMiddlewareRouteImport.update({
 const DocsRoutesHttpRoute = DocsRoutesHttpRouteImport.update({
 	id: '/routes/http',
 	path: '/routes/http',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsRoutesExplicitRoutingRoute = DocsRoutesExplicitRoutingRouteImport.update({
+	id: '/routes/explicit-routing',
+	path: '/routes/explicit-routing',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsRoutesCronRoute = DocsRoutesCronRouteImport.update({
@@ -603,6 +617,16 @@ const DocsReferenceCliOpencodePluginRoute = DocsReferenceCliOpencodePluginRouteI
 	path: '/reference/cli/opencode-plugin',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsReferenceCliOauthRoute = DocsReferenceCliOauthRouteImport.update({
+	id: '/reference/cli/oauth',
+	path: '/reference/cli/oauth',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceCliMonitoringRoute = DocsReferenceCliMonitoringRouteImport.update({
+	id: '/reference/cli/monitoring',
+	path: '/reference/cli/monitoring',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsReferenceCliGitIntegrationRoute = DocsReferenceCliGitIntegrationRouteImport.update({
 	id: '/reference/cli/git-integration',
 	path: '/reference/cli/git-integration',
@@ -792,6 +816,12 @@ const DocsCookbookPatternsLlmAsAJudgeRoute = DocsCookbookPatternsLlmAsAJudgeRout
 	path: '/cookbook/patterns/llm-as-a-judge',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsCookbookPatternsHonoRpcTanstackQueryRoute =
+	DocsCookbookPatternsHonoRpcTanstackQueryRouteImport.update({
+		id: '/cookbook/patterns/hono-rpc-tanstack-query',
+		path: '/cookbook/patterns/hono-rpc-tanstack-query',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
 const DocsCookbookPatternsCronWithStorageRoute =
 	DocsCookbookPatternsCronWithStorageRouteImport.update({
 		id: '/cookbook/patterns/cron-with-storage',
@@ -810,6 +840,33 @@ const DocsCookbookPatternsBackgroundTasksRoute =
 		path: '/cookbook/patterns/background-tasks',
 		getParentRoute: () => DocsRouteRoute,
 	} as any);
+const DocsCookbookIntegrationsTanstackStartRoute =
+	DocsCookbookIntegrationsTanstackStartRouteImport.update({
+		id: '/cookbook/integrations/tanstack-start',
+		path: '/cookbook/integrations/tanstack-start',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
+const DocsCookbookIntegrationsOpenaiAgentsRoute =
+	DocsCookbookIntegrationsOpenaiAgentsRouteImport.update({
+		id: '/cookbook/integrations/openai-agents',
+		path: '/cookbook/integrations/openai-agents',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
+const DocsCookbookIntegrationsNextjsRoute = DocsCookbookIntegrationsNextjsRouteImport.update({
+	id: '/cookbook/integrations/nextjs',
+	path: '/cookbook/integrations/nextjs',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsCookbookIntegrationsMastraRoute = DocsCookbookIntegrationsMastraRouteImport.update({
+	id: '/cookbook/integrations/mastra',
+	path: '/cookbook/integrations/mastra',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsCookbookIntegrationsLangchainRoute = DocsCookbookIntegrationsLangchainRouteImport.update({
+	id: '/cookbook/integrations/langchain',
+	path: '/cookbook/integrations/langchain',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 
 export interface FileRoutesByFullPath {
 	'/': typeof IndexRoute;
@@ -860,6 +917,7 @@ export interface FileRoutesByFullPath {
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
 	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
 	'/routes/cron': typeof DocsRoutesCronRoute;
+	'/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/routes/http': typeof DocsRoutesHttpRoute;
 	'/routes/middleware': typeof DocsRoutesMiddlewareRoute;
 	'/routes/sse': typeof DocsRoutesSseRoute;
@@ -879,9 +937,15 @@ export interface FileRoutesByFullPath {
 	'/reference/': typeof DocsReferenceIndexRoute;
 	'/routes/': typeof DocsRoutesIndexRoute;
 	'/services/': typeof DocsServicesIndexRoute;
+	'/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute;
+	'/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute;
+	'/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
+	'/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
+	'/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
+	'/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	'/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -919,6 +983,8 @@ export interface FileRoutesByFullPath {
 	'/reference/cli/development': typeof DocsReferenceCliDevelopmentRoute;
 	'/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute;
 	'/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute;
+	'/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
+	'/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
@@ -992,6 +1058,7 @@ export interface FileRoutesByTo {
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
 	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
 	'/routes/cron': typeof DocsRoutesCronRoute;
+	'/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/routes/http': typeof DocsRoutesHttpRoute;
 	'/routes/middleware': typeof DocsRoutesMiddlewareRoute;
 	'/routes/sse': typeof DocsRoutesSseRoute;
@@ -1011,9 +1078,15 @@ export interface FileRoutesByTo {
 	'/reference': typeof DocsReferenceIndexRoute;
 	'/routes': typeof DocsRoutesIndexRoute;
 	'/services': typeof DocsServicesIndexRoute;
+	'/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute;
+	'/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute;
+	'/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
+	'/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
+	'/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
+	'/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	'/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -1051,6 +1124,8 @@ export interface FileRoutesByTo {
 	'/reference/cli/development': typeof DocsReferenceCliDevelopmentRoute;
 	'/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute;
 	'/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute;
+	'/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
+	'/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
@@ -1127,6 +1202,7 @@ export interface FileRoutesById {
 	'/_docs/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
 	'/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
 	'/_docs/routes/cron': typeof DocsRoutesCronRoute;
+	'/_docs/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/_docs/routes/http': typeof DocsRoutesHttpRoute;
 	'/_docs/routes/middleware': typeof DocsRoutesMiddlewareRoute;
 	'/_docs/routes/sse': typeof DocsRoutesSseRoute;
@@ -1146,9 +1222,15 @@ export interface FileRoutesById {
 	'/_docs/reference/': typeof DocsReferenceIndexRoute;
 	'/_docs/routes/': typeof DocsRoutesIndexRoute;
 	'/_docs/services/': typeof DocsServicesIndexRoute;
+	'/_docs/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute;
+	'/_docs/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute;
+	'/_docs/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
+	'/_docs/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
+	'/_docs/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
 	'/_docs/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/_docs/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/_docs/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
+	'/_docs/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	'/_docs/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	'/_docs/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/_docs/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -1186,6 +1268,8 @@ export interface FileRoutesById {
 	'/_docs/reference/cli/development': typeof DocsReferenceCliDevelopmentRoute;
 	'/_docs/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute;
 	'/_docs/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute;
+	'/_docs/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
+	'/_docs/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/_docs/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
 	'/_docs/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/_docs/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
@@ -1262,6 +1346,7 @@ export interface FileRouteTypes {
 		| '/reference/migration-guide'
 		| '/reference/sdk-reference'
 		| '/routes/cron'
+		| '/routes/explicit-routing'
 		| '/routes/http'
 		| '/routes/middleware'
 		| '/routes/sse'
@@ -1281,9 +1366,15 @@ export interface FileRouteTypes {
 		| '/reference/'
 		| '/routes/'
 		| '/services/'
+		| '/cookbook/integrations/langchain'
+		| '/cookbook/integrations/mastra'
+		| '/cookbook/integrations/nextjs'
+		| '/cookbook/integrations/openai-agents'
+		| '/cookbook/integrations/tanstack-start'
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
+		| '/cookbook/patterns/hono-rpc-tanstack-query'
 		| '/cookbook/patterns/llm-as-a-judge'
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
@@ -1321,6 +1412,8 @@ export interface FileRouteTypes {
 		| '/reference/cli/development'
 		| '/reference/cli/getting-started'
 		| '/reference/cli/git-integration'
+		| '/reference/cli/monitoring'
+		| '/reference/cli/oauth'
 		| '/reference/cli/opencode-plugin'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
@@ -1394,6 +1487,7 @@ export interface FileRouteTypes {
 		| '/reference/migration-guide'
 		| '/reference/sdk-reference'
 		| '/routes/cron'
+		| '/routes/explicit-routing'
 		| '/routes/http'
 		| '/routes/middleware'
 		| '/routes/sse'
@@ -1413,9 +1507,15 @@ export interface FileRouteTypes {
 		| '/reference'
 		| '/routes'
 		| '/services'
+		| '/cookbook/integrations/langchain'
+		| '/cookbook/integrations/mastra'
+		| '/cookbook/integrations/nextjs'
+		| '/cookbook/integrations/openai-agents'
+		| '/cookbook/integrations/tanstack-start'
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
+		| '/cookbook/patterns/hono-rpc-tanstack-query'
 		| '/cookbook/patterns/llm-as-a-judge'
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
@@ -1453,6 +1553,8 @@ export interface FileRouteTypes {
 		| '/reference/cli/development'
 		| '/reference/cli/getting-started'
 		| '/reference/cli/git-integration'
+		| '/reference/cli/monitoring'
+		| '/reference/cli/oauth'
 		| '/reference/cli/opencode-plugin'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
@@ -1528,6 +1630,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/migration-guide'
 		| '/_docs/reference/sdk-reference'
 		| '/_docs/routes/cron'
+		| '/_docs/routes/explicit-routing'
 		| '/_docs/routes/http'
 		| '/_docs/routes/middleware'
 		| '/_docs/routes/sse'
@@ -1547,9 +1650,15 @@ export interface FileRouteTypes {
 		| '/_docs/reference/'
 		| '/_docs/routes/'
 		| '/_docs/services/'
+		| '/_docs/cookbook/integrations/langchain'
+		| '/_docs/cookbook/integrations/mastra'
+		| '/_docs/cookbook/integrations/nextjs'
+		| '/_docs/cookbook/integrations/openai-agents'
+		| '/_docs/cookbook/integrations/tanstack-start'
 		| '/_docs/cookbook/patterns/background-tasks'
 		| '/_docs/cookbook/patterns/chat-with-history'
 		| '/_docs/cookbook/patterns/cron-with-storage'
+		| '/_docs/cookbook/patterns/hono-rpc-tanstack-query'
 		| '/_docs/cookbook/patterns/llm-as-a-judge'
 		| '/_docs/cookbook/patterns/product-search'
 		| '/_docs/cookbook/patterns/server-utilities'
@@ -1587,6 +1696,8 @@ export interface FileRouteTypes {
 		| '/_docs/reference/cli/development'
 		| '/_docs/reference/cli/getting-started'
 		| '/_docs/reference/cli/git-integration'
+		| '/_docs/reference/cli/monitoring'
+		| '/_docs/reference/cli/oauth'
 		| '/_docs/reference/cli/opencode-plugin'
 		| '/_docs/reference/cli/sandbox'
 		| '/_docs/reference/cli/storage'
@@ -1877,6 +1988,13 @@ declare module '@tanstack/react-router' {
 			path: '/routes/http';
 			fullPath: '/routes/http';
 			preLoaderRoute: typeof DocsRoutesHttpRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/routes/explicit-routing': {
+			id: '/_docs/routes/explicit-routing';
+			path: '/routes/explicit-routing';
+			fullPath: '/routes/explicit-routing';
+			preLoaderRoute: typeof DocsRoutesExplicitRoutingRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/routes/cron': {
@@ -2278,6 +2396,20 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceCliOpencodePluginRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/reference/cli/oauth': {
+			id: '/_docs/reference/cli/oauth';
+			path: '/reference/cli/oauth';
+			fullPath: '/reference/cli/oauth';
+			preLoaderRoute: typeof DocsReferenceCliOauthRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/cli/monitoring': {
+			id: '/_docs/reference/cli/monitoring';
+			path: '/reference/cli/monitoring';
+			fullPath: '/reference/cli/monitoring';
+			preLoaderRoute: typeof DocsReferenceCliMonitoringRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/reference/cli/git-integration': {
 			id: '/_docs/reference/cli/git-integration';
 			path: '/reference/cli/git-integration';
@@ -2537,6 +2669,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsCookbookPatternsLlmAsAJudgeRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/cookbook/patterns/hono-rpc-tanstack-query': {
+			id: '/_docs/cookbook/patterns/hono-rpc-tanstack-query';
+			path: '/cookbook/patterns/hono-rpc-tanstack-query';
+			fullPath: '/cookbook/patterns/hono-rpc-tanstack-query';
+			preLoaderRoute: typeof DocsCookbookPatternsHonoRpcTanstackQueryRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/cookbook/patterns/cron-with-storage': {
 			id: '/_docs/cookbook/patterns/cron-with-storage';
 			path: '/cookbook/patterns/cron-with-storage';
@@ -2556,6 +2695,41 @@ declare module '@tanstack/react-router' {
 			path: '/cookbook/patterns/background-tasks';
 			fullPath: '/cookbook/patterns/background-tasks';
 			preLoaderRoute: typeof DocsCookbookPatternsBackgroundTasksRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/tanstack-start': {
+			id: '/_docs/cookbook/integrations/tanstack-start';
+			path: '/cookbook/integrations/tanstack-start';
+			fullPath: '/cookbook/integrations/tanstack-start';
+			preLoaderRoute: typeof DocsCookbookIntegrationsTanstackStartRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/openai-agents': {
+			id: '/_docs/cookbook/integrations/openai-agents';
+			path: '/cookbook/integrations/openai-agents';
+			fullPath: '/cookbook/integrations/openai-agents';
+			preLoaderRoute: typeof DocsCookbookIntegrationsOpenaiAgentsRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/nextjs': {
+			id: '/_docs/cookbook/integrations/nextjs';
+			path: '/cookbook/integrations/nextjs';
+			fullPath: '/cookbook/integrations/nextjs';
+			preLoaderRoute: typeof DocsCookbookIntegrationsNextjsRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/mastra': {
+			id: '/_docs/cookbook/integrations/mastra';
+			path: '/cookbook/integrations/mastra';
+			fullPath: '/cookbook/integrations/mastra';
+			preLoaderRoute: typeof DocsCookbookIntegrationsMastraRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/langchain': {
+			id: '/_docs/cookbook/integrations/langchain';
+			path: '/cookbook/integrations/langchain';
+			fullPath: '/cookbook/integrations/langchain';
+			preLoaderRoute: typeof DocsCookbookIntegrationsLangchainRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 	}
@@ -2649,6 +2823,7 @@ interface DocsRouteRouteChildren {
 	DocsReferenceMigrationGuideRoute: typeof DocsReferenceMigrationGuideRoute;
 	DocsReferenceSdkReferenceRoute: typeof DocsReferenceSdkReferenceRoute;
 	DocsRoutesCronRoute: typeof DocsRoutesCronRoute;
+	DocsRoutesExplicitRoutingRoute: typeof DocsRoutesExplicitRoutingRoute;
 	DocsRoutesHttpRoute: typeof DocsRoutesHttpRoute;
 	DocsRoutesMiddlewareRoute: typeof DocsRoutesMiddlewareRoute;
 	DocsRoutesSseRoute: typeof DocsRoutesSseRoute;
@@ -2668,9 +2843,15 @@ interface DocsRouteRouteChildren {
 	DocsReferenceIndexRoute: typeof DocsReferenceIndexRoute;
 	DocsRoutesIndexRoute: typeof DocsRoutesIndexRoute;
 	DocsServicesIndexRoute: typeof DocsServicesIndexRoute;
+	DocsCookbookIntegrationsLangchainRoute: typeof DocsCookbookIntegrationsLangchainRoute;
+	DocsCookbookIntegrationsMastraRoute: typeof DocsCookbookIntegrationsMastraRoute;
+	DocsCookbookIntegrationsNextjsRoute: typeof DocsCookbookIntegrationsNextjsRoute;
+	DocsCookbookIntegrationsOpenaiAgentsRoute: typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
+	DocsCookbookIntegrationsTanstackStartRoute: typeof DocsCookbookIntegrationsTanstackStartRoute;
 	DocsCookbookPatternsBackgroundTasksRoute: typeof DocsCookbookPatternsBackgroundTasksRoute;
 	DocsCookbookPatternsChatWithHistoryRoute: typeof DocsCookbookPatternsChatWithHistoryRoute;
 	DocsCookbookPatternsCronWithStorageRoute: typeof DocsCookbookPatternsCronWithStorageRoute;
+	DocsCookbookPatternsHonoRpcTanstackQueryRoute: typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	DocsCookbookPatternsLlmAsAJudgeRoute: typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	DocsCookbookPatternsProductSearchRoute: typeof DocsCookbookPatternsProductSearchRoute;
 	DocsCookbookPatternsServerUtilitiesRoute: typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -2687,6 +2868,8 @@ interface DocsRouteRouteChildren {
 	DocsReferenceCliDevelopmentRoute: typeof DocsReferenceCliDevelopmentRoute;
 	DocsReferenceCliGettingStartedRoute: typeof DocsReferenceCliGettingStartedRoute;
 	DocsReferenceCliGitIntegrationRoute: typeof DocsReferenceCliGitIntegrationRoute;
+	DocsReferenceCliMonitoringRoute: typeof DocsReferenceCliMonitoringRoute;
+	DocsReferenceCliOauthRoute: typeof DocsReferenceCliOauthRoute;
 	DocsReferenceCliOpencodePluginRoute: typeof DocsReferenceCliOpencodePluginRoute;
 	DocsReferenceCliSandboxRoute: typeof DocsReferenceCliSandboxRoute;
 	DocsReferenceCliStorageRoute: typeof DocsReferenceCliStorageRoute;
@@ -2746,6 +2929,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceMigrationGuideRoute: DocsReferenceMigrationGuideRoute,
 	DocsReferenceSdkReferenceRoute: DocsReferenceSdkReferenceRoute,
 	DocsRoutesCronRoute: DocsRoutesCronRoute,
+	DocsRoutesExplicitRoutingRoute: DocsRoutesExplicitRoutingRoute,
 	DocsRoutesHttpRoute: DocsRoutesHttpRoute,
 	DocsRoutesMiddlewareRoute: DocsRoutesMiddlewareRoute,
 	DocsRoutesSseRoute: DocsRoutesSseRoute,
@@ -2765,9 +2949,15 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceIndexRoute: DocsReferenceIndexRoute,
 	DocsRoutesIndexRoute: DocsRoutesIndexRoute,
 	DocsServicesIndexRoute: DocsServicesIndexRoute,
+	DocsCookbookIntegrationsLangchainRoute: DocsCookbookIntegrationsLangchainRoute,
+	DocsCookbookIntegrationsMastraRoute: DocsCookbookIntegrationsMastraRoute,
+	DocsCookbookIntegrationsNextjsRoute: DocsCookbookIntegrationsNextjsRoute,
+	DocsCookbookIntegrationsOpenaiAgentsRoute: DocsCookbookIntegrationsOpenaiAgentsRoute,
+	DocsCookbookIntegrationsTanstackStartRoute: DocsCookbookIntegrationsTanstackStartRoute,
 	DocsCookbookPatternsBackgroundTasksRoute: DocsCookbookPatternsBackgroundTasksRoute,
 	DocsCookbookPatternsChatWithHistoryRoute: DocsCookbookPatternsChatWithHistoryRoute,
 	DocsCookbookPatternsCronWithStorageRoute: DocsCookbookPatternsCronWithStorageRoute,
+	DocsCookbookPatternsHonoRpcTanstackQueryRoute: DocsCookbookPatternsHonoRpcTanstackQueryRoute,
 	DocsCookbookPatternsLlmAsAJudgeRoute: DocsCookbookPatternsLlmAsAJudgeRoute,
 	DocsCookbookPatternsProductSearchRoute: DocsCookbookPatternsProductSearchRoute,
 	DocsCookbookPatternsServerUtilitiesRoute: DocsCookbookPatternsServerUtilitiesRoute,
@@ -2784,6 +2974,8 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceCliDevelopmentRoute: DocsReferenceCliDevelopmentRoute,
 	DocsReferenceCliGettingStartedRoute: DocsReferenceCliGettingStartedRoute,
 	DocsReferenceCliGitIntegrationRoute: DocsReferenceCliGitIntegrationRoute,
+	DocsReferenceCliMonitoringRoute: DocsReferenceCliMonitoringRoute,
+	DocsReferenceCliOauthRoute: DocsReferenceCliOauthRoute,
 	DocsReferenceCliOpencodePluginRoute: DocsReferenceCliOpencodePluginRoute,
 	DocsReferenceCliSandboxRoute: DocsReferenceCliSandboxRoute,
 	DocsReferenceCliStorageRoute: DocsReferenceCliStorageRoute,
