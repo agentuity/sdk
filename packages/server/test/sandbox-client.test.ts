@@ -479,6 +479,259 @@ describe('SandboxClient', () => {
 			expect(fullOutput).toBe('Hello World!\n');
 		});
 
+		test('execute should retry long-poll when execution is still running', async () => {
+			let pollCount = 0;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-longpoll',
+								status: 'queued',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('/execution/exec-longpoll')) {
+					pollCount++;
+					// First two polls return 'running', third returns 'completed'
+					if (pollCount < 3) {
+						return new Response(
+							JSON.stringify({
+								success: true,
+								data: {
+									executionId: 'exec-longpoll',
+									sandboxId: 'sandbox-123',
+									status: 'running',
+								},
+							}),
+							{ status: 200, headers: { 'content-type': 'application/json' } }
+						);
+					}
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-longpoll',
+								sandboxId: 'sandbox-123',
+								status: 'completed',
+								exitCode: 0,
+								durationMs: 310000,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { sandboxId: 'sandbox-123', status: 'idle' },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			const result = await sandbox.execute({ command: ['sleep', '300'] });
+
+			expect(pollCount).toBe(3);
+			expect(result.status).toBe('completed');
+			expect(result.exitCode).toBe(0);
+			expect(result.durationMs).toBe(310000);
+		});
+
+		test('execute should return immediately when execution completes on first poll', async () => {
+			let pollCount = 0;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-fast',
+								status: 'queued',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('/execution/exec-fast')) {
+					pollCount++;
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-fast',
+								sandboxId: 'sandbox-123',
+								status: 'completed',
+								exitCode: 0,
+								durationMs: 50,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { sandboxId: 'sandbox-123', status: 'idle' },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			const result = await sandbox.execute({ command: ['echo', 'fast'] });
+
+			expect(pollCount).toBe(1);
+			expect(result.status).toBe('completed');
+			expect(result.exitCode).toBe(0);
+		});
+
+		test('execute should handle failed terminal state from long-poll', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-fail',
+								status: 'queued',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('/execution/exec-fail')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-fail',
+								sandboxId: 'sandbox-123',
+								status: 'failed',
+								exitCode: 1,
+								durationMs: 5000,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { sandboxId: 'sandbox-123', status: 'idle' },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			const result = await sandbox.execute({ command: ['false'] });
+
+			expect(result.status).toBe('failed');
+			expect(result.exitCode).toBe(1);
+		});
+
+		test('readFile should throw SandboxResponseError with context on 500', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { sandboxId: 'sandbox-rf-500', status: 'idle' },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (url.includes('/fs/sandbox-rf-500')) {
+					return new Response('Internal Server Error', {
+						status: 500,
+						headers: { 'x-session-id': 'sess-trace-123' },
+					});
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+
+			try {
+				await sandbox.readFile('/tmp/test.txt');
+				expect(true).toBe(false); // should not reach
+			} catch (error) {
+				// With the raw response fix, sandboxReadFile now gets the response
+				// and throws SandboxResponseError with context
+				expect((error as { _tag?: string })._tag).toBe('SandboxResponseError');
+				expect((error as { sandboxId?: string }).sandboxId).toBe('sandbox-rf-500');
+				expect((error as { message?: string }).message).toContain('/tmp/test.txt');
+			}
+		});
+
+		test('readFile should return stream on success', async () => {
+			const fileContent = new Uint8Array([72, 101, 108, 108, 111]); // Hello
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { sandboxId: 'sandbox-rf-ok', status: 'idle' },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (url.includes('/fs/sandbox-rf-ok')) {
+					return new Response(fileContent, {
+						status: 200,
+						headers: {
+							'content-type': 'application/octet-stream',
+							'content-length': String(fileContent.length),
+						},
+					});
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			const stream = await sandbox.readFile('/tmp/test.txt');
+
+			expect(stream).toBeDefined();
+			const reader = stream.getReader();
+			const { value } = await reader.read();
+			expect(Buffer.from(value!).toString()).toBe('Hello');
+		});
+
 		test('get should call sandbox get API', async () => {
 			let getCalled = false;
 

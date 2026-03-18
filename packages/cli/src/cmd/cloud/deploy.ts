@@ -804,6 +804,7 @@ export const deploySubcommand = createSubcommand({
 									duplex: 'half',
 									headers: {
 										'Content-Type': 'application/zip',
+										'Content-Length': String(fileSize),
 									},
 									body: zipfile,
 									signal: stepCtx.signal,
