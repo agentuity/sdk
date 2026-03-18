@@ -162,6 +162,7 @@ The `useWebRTCCall` hook accepts these options:
 | `connectionTimeout` | `number` | `30000` | Milliseconds before connection attempt times out (optional) |
 | `iceGatheringTimeout` | `number` | `10000` | Milliseconds before ICE gathering times out (optional) |
 | `iceServers` | `RTCIceServer[]` | STUN defaults | ICE/TURN server configuration |
+| `callbacks` | `Partial<WebRTCClientCallbacks>` | `undefined` | Connection lifecycle callbacks (`onConnected`, `onDisconnected`, `onError`, etc.) |
 
 ## Data Channel Methods
 
@@ -205,6 +206,8 @@ await stopScreenShare();
 Common errors and how to handle them:
 
 ```typescript
+import { useWebRTCCall } from '@agentuity/react';
+
 function VideoCallWithErrorHandling({ roomId }: { roomId: string }) {
   const { state, error } = useWebRTCCall({
     roomId,

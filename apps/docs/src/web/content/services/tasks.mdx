@@ -90,7 +90,7 @@ Tasks move through a defined set of statuses. The server automatically records t
 | `cancelled` | Abandoned | `cancelled_date` |
 
 <Callout type="info" title="Status aliases">
-The SDK accepts shorthand values that normalize to canonical statuses before saving:
+The SDK accepts shorthand values that normalize to canonical statuses before sending the request:
 
 - `completed` and `closed` both normalize to `done`
 - `started` normalizes to `in_progress`
