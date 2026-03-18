@@ -635,7 +635,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 
 	const portNumber = parseInt(port, 10);
 
-	return {
+	const result: AppResult = {
 		config,
 		router: app as Hono<Env>,
 		server: { url: serverUrl },
@@ -646,6 +646,18 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 		port: portNumber,
 		hostname: '127.0.0.1',
 	};
+
+	// In production, startServer() already called Bun.serve(). If we leave
+	// `fetch` + `port` on the default export, Bun v1.2+ auto-serves from it
+	// too — causing EADDRINUSE. Strip those properties so only the explicit
+	// Bun.serve() is active.
+	if (!isDevelopment()) {
+		delete (result as unknown as Record<string, unknown>).fetch;
+		delete (result as unknown as Record<string, unknown>).port;
+		delete (result as unknown as Record<string, unknown>).hostname;
+	}
+
+	return result;
 }
 
 /**
