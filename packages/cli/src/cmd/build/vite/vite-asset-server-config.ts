@@ -132,6 +132,7 @@ export async function generateAssetServerConfig(
 		// Try project's node_modules first, fall back to CLI's bundled version
 		plugins: await (async () => {
 			const { browserEnvPlugin } = await import('./browser-env-plugin');
+			const { tailwindSourcePlugin } = await import('./tailwind-source-plugin');
 			const { publicAssetPathPlugin } = await import('./public-asset-path-plugin');
 			const { hasFrameworkPlugin } = await import('./config-loader');
 
@@ -153,6 +154,8 @@ export async function generateAssetServerConfig(
 			}
 
 			return [
+				// Fix Tailwind oxide scanner hang in containers
+				tailwindSourcePlugin(),
 				// User-defined plugins from agentuity.config.ts (framework plugin + extras)
 				...resolvedUserPlugins,
 				// Browser env plugin to map process.env to import.meta.env

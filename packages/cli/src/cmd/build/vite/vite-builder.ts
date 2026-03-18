@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
+import { tailwindSourcePlugin } from './tailwind-source-plugin';
 import { beaconPlugin } from './beacon-plugin';
 import { publicAssetPathPlugin } from './public-asset-path-plugin';
 import type { BuildReportCollector } from '../../../build-report';
@@ -209,6 +210,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		}
 
 		const plugins = [
+			tailwindSourcePlugin(),
 			...userPlugins,
 			browserEnvPlugin(),
 			// Fix incorrect public asset paths and rewrite to CDN URLs
