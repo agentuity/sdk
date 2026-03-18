@@ -48,6 +48,14 @@ import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 
 const TRACER_NAME = 'agentuity.sandbox';
 
+/** Terminal execution statuses that indicate the command has finished. */
+const TERMINAL_STATUSES: Set<ExecutionStatus> = new Set([
+	'completed',
+	'failed',
+	'timeout',
+	'cancelled',
+]);
+
 async function withSpan<T>(
 	name: string,
 	attributes: Record<string, string | number | boolean>,
@@ -151,12 +159,6 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					// is still running we loop and issue another long-poll request.
 					// The caller's signal is forwarded into every fetch so that
 					// cancellation aborts the in-flight request immediately.
-					const terminalStatuses: Set<string> = new Set([
-						'completed',
-						'failed',
-						'timeout',
-						'cancelled',
-					]);
 					let final: Awaited<ReturnType<typeof executionGet>>;
 					do {
 						if (options.signal?.aborted) {
@@ -167,7 +169,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 							wait: '60s',
 							signal: options.signal,
 						});
-					} while (!terminalStatuses.has(final.status as ExecutionStatus));
+					} while (!TERMINAL_STATUSES.has(final.status as ExecutionStatus));
 					return {
 						executionId: final.executionId,
 						status: final.status,
