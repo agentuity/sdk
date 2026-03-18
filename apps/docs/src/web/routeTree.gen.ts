@@ -34,8 +34,13 @@ import { Route as DocsCookbookIndexRouteImport } from './routes/_docs/cookbook/i
 import { Route as DocsCommunityIndexRouteImport } from './routes/_docs/community/index';
 import { Route as DocsApisIndexRouteImport } from './routes/_docs/apis/index';
 import { Route as DocsAgentsIndexRouteImport } from './routes/_docs/agents/index';
+import { Route as DocsServicesWebhooksRouteImport } from './routes/_docs/services/webhooks';
+import { Route as DocsServicesTasksRouteImport } from './routes/_docs/services/tasks';
+import { Route as DocsServicesSchedulesRouteImport } from './routes/_docs/services/schedules';
 import { Route as DocsServicesQueuesRouteImport } from './routes/_docs/services/queues';
+import { Route as DocsServicesEmailRouteImport } from './routes/_docs/services/email';
 import { Route as DocsRoutesWebsocketsRouteImport } from './routes/_docs/routes/websockets';
+import { Route as DocsRoutesWebrtcRouteImport } from './routes/_docs/routes/webrtc';
 import { Route as DocsRoutesSseRouteImport } from './routes/_docs/routes/sse';
 import { Route as DocsRoutesMiddlewareRouteImport } from './routes/_docs/routes/middleware';
 import { Route as DocsRoutesHttpRouteImport } from './routes/_docs/routes/http';
@@ -43,6 +48,7 @@ import { Route as DocsRoutesCronRouteImport } from './routes/_docs/routes/cron';
 import { Route as DocsReferenceSdkReferenceRouteImport } from './routes/_docs/reference/sdk-reference';
 import { Route as DocsReferenceMigrationGuideRouteImport } from './routes/_docs/reference/migration-guide';
 import { Route as DocsReferenceGravityNetworkRouteImport } from './routes/_docs/reference/gravity-network';
+import { Route as DocsReferenceGithubAppRouteImport } from './routes/_docs/reference/github-app';
 import { Route as DocsGetStartedWhatIsAgentuityRouteImport } from './routes/_docs/get-started/what-is-agentuity';
 import { Route as DocsGetStartedQuickstartRouteImport } from './routes/_docs/get-started/quickstart';
 import { Route as DocsGetStartedProjectStructureRouteImport } from './routes/_docs/get-started/project-structure';
@@ -118,6 +124,7 @@ import { Route as DocsReferenceApiQueuesRouteImport } from './routes/_docs/refer
 import { Route as DocsReferenceApiProjectsRouteImport } from './routes/_docs/reference/api/projects';
 import { Route as DocsReferenceApiOrganizationsRouteImport } from './routes/_docs/reference/api/organizations';
 import { Route as DocsReferenceApiObjectStorageRouteImport } from './routes/_docs/reference/api/object-storage';
+import { Route as DocsReferenceApiOauthRouteImport } from './routes/_docs/reference/api/oauth';
 import { Route as DocsReferenceApiMachinesRouteImport } from './routes/_docs/reference/api/machines';
 import { Route as DocsReferenceApiKeyValueRouteImport } from './routes/_docs/reference/api/key-value';
 import { Route as DocsReferenceApiEvaluationsRouteImport } from './routes/_docs/reference/api/evaluations';
@@ -259,14 +266,39 @@ const DocsAgentsIndexRoute = DocsAgentsIndexRouteImport.update({
 	path: '/agents/',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsServicesWebhooksRoute = DocsServicesWebhooksRouteImport.update({
+	id: '/services/webhooks',
+	path: '/services/webhooks',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsServicesTasksRoute = DocsServicesTasksRouteImport.update({
+	id: '/services/tasks',
+	path: '/services/tasks',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsServicesSchedulesRoute = DocsServicesSchedulesRouteImport.update({
+	id: '/services/schedules',
+	path: '/services/schedules',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsServicesQueuesRoute = DocsServicesQueuesRouteImport.update({
 	id: '/services/queues',
 	path: '/services/queues',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsServicesEmailRoute = DocsServicesEmailRouteImport.update({
+	id: '/services/email',
+	path: '/services/email',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsRoutesWebsocketsRoute = DocsRoutesWebsocketsRouteImport.update({
 	id: '/routes/websockets',
 	path: '/routes/websockets',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsRoutesWebrtcRoute = DocsRoutesWebrtcRouteImport.update({
+	id: '/routes/webrtc',
+	path: '/routes/webrtc',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsRoutesSseRoute = DocsRoutesSseRouteImport.update({
@@ -302,6 +334,11 @@ const DocsReferenceMigrationGuideRoute = DocsReferenceMigrationGuideRouteImport.
 const DocsReferenceGravityNetworkRoute = DocsReferenceGravityNetworkRouteImport.update({
 	id: '/reference/gravity-network',
 	path: '/reference/gravity-network',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceGithubAppRoute = DocsReferenceGithubAppRouteImport.update({
+	id: '/reference/github-app',
+	path: '/reference/github-app',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsGetStartedWhatIsAgentuityRoute = DocsGetStartedWhatIsAgentuityRouteImport.update({
@@ -682,6 +719,11 @@ const DocsReferenceApiObjectStorageRoute = DocsReferenceApiObjectStorageRouteImp
 	path: '/object-storage',
 	getParentRoute: () => DocsReferenceApiRouteRoute,
 } as any);
+const DocsReferenceApiOauthRoute = DocsReferenceApiOauthRouteImport.update({
+	id: '/oauth',
+	path: '/oauth',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
 const DocsReferenceApiMachinesRoute = DocsReferenceApiMachinesRouteImport.update({
 	id: '/machines',
 	path: '/machines',
@@ -813,6 +855,7 @@ export interface FileRoutesByFullPath {
 	'/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute;
 	'/get-started/quickstart': typeof DocsGetStartedQuickstartRoute;
 	'/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute;
+	'/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
 	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
@@ -820,8 +863,13 @@ export interface FileRoutesByFullPath {
 	'/routes/http': typeof DocsRoutesHttpRoute;
 	'/routes/middleware': typeof DocsRoutesMiddlewareRoute;
 	'/routes/sse': typeof DocsRoutesSseRoute;
+	'/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/routes/websockets': typeof DocsRoutesWebsocketsRoute;
+	'/services/email': typeof DocsServicesEmailRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
+	'/services/schedules': typeof DocsServicesSchedulesRoute;
+	'/services/tasks': typeof DocsServicesTasksRoute;
+	'/services/webhooks': typeof DocsServicesWebhooksRoute;
 	'/agents/': typeof DocsAgentsIndexRoute;
 	'/apis/': typeof DocsApisIndexRoute;
 	'/community/': typeof DocsCommunityIndexRoute;
@@ -847,6 +895,7 @@ export interface FileRoutesByFullPath {
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
 	'/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
 	'/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/reference/api/oauth': typeof DocsReferenceApiOauthRoute;
 	'/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
 	'/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
 	'/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
@@ -938,6 +987,7 @@ export interface FileRoutesByTo {
 	'/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute;
 	'/get-started/quickstart': typeof DocsGetStartedQuickstartRoute;
 	'/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute;
+	'/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
 	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
@@ -945,8 +995,13 @@ export interface FileRoutesByTo {
 	'/routes/http': typeof DocsRoutesHttpRoute;
 	'/routes/middleware': typeof DocsRoutesMiddlewareRoute;
 	'/routes/sse': typeof DocsRoutesSseRoute;
+	'/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/routes/websockets': typeof DocsRoutesWebsocketsRoute;
+	'/services/email': typeof DocsServicesEmailRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
+	'/services/schedules': typeof DocsServicesSchedulesRoute;
+	'/services/tasks': typeof DocsServicesTasksRoute;
+	'/services/webhooks': typeof DocsServicesWebhooksRoute;
 	'/agents': typeof DocsAgentsIndexRoute;
 	'/apis': typeof DocsApisIndexRoute;
 	'/community': typeof DocsCommunityIndexRoute;
@@ -972,6 +1027,7 @@ export interface FileRoutesByTo {
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
 	'/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
 	'/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/reference/api/oauth': typeof DocsReferenceApiOauthRoute;
 	'/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
 	'/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
 	'/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
@@ -1066,6 +1122,7 @@ export interface FileRoutesById {
 	'/_docs/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute;
 	'/_docs/get-started/quickstart': typeof DocsGetStartedQuickstartRoute;
 	'/_docs/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute;
+	'/_docs/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/_docs/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/_docs/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
 	'/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
@@ -1073,8 +1130,13 @@ export interface FileRoutesById {
 	'/_docs/routes/http': typeof DocsRoutesHttpRoute;
 	'/_docs/routes/middleware': typeof DocsRoutesMiddlewareRoute;
 	'/_docs/routes/sse': typeof DocsRoutesSseRoute;
+	'/_docs/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/_docs/routes/websockets': typeof DocsRoutesWebsocketsRoute;
+	'/_docs/services/email': typeof DocsServicesEmailRoute;
 	'/_docs/services/queues': typeof DocsServicesQueuesRoute;
+	'/_docs/services/schedules': typeof DocsServicesSchedulesRoute;
+	'/_docs/services/tasks': typeof DocsServicesTasksRoute;
+	'/_docs/services/webhooks': typeof DocsServicesWebhooksRoute;
 	'/_docs/agents/': typeof DocsAgentsIndexRoute;
 	'/_docs/apis/': typeof DocsApisIndexRoute;
 	'/_docs/community/': typeof DocsCommunityIndexRoute;
@@ -1100,6 +1162,7 @@ export interface FileRoutesById {
 	'/_docs/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
 	'/_docs/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
 	'/_docs/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/_docs/reference/api/oauth': typeof DocsReferenceApiOauthRoute;
 	'/_docs/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
 	'/_docs/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
 	'/_docs/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
@@ -1194,6 +1257,7 @@ export interface FileRouteTypes {
 		| '/get-started/project-structure'
 		| '/get-started/quickstart'
 		| '/get-started/what-is-agentuity'
+		| '/reference/github-app'
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
 		| '/reference/sdk-reference'
@@ -1201,8 +1265,13 @@ export interface FileRouteTypes {
 		| '/routes/http'
 		| '/routes/middleware'
 		| '/routes/sse'
+		| '/routes/webrtc'
 		| '/routes/websockets'
+		| '/services/email'
 		| '/services/queues'
+		| '/services/schedules'
+		| '/services/tasks'
+		| '/services/webhooks'
 		| '/agents/'
 		| '/apis/'
 		| '/community/'
@@ -1228,6 +1297,7 @@ export interface FileRouteTypes {
 		| '/reference/api/evaluations'
 		| '/reference/api/key-value'
 		| '/reference/api/machines'
+		| '/reference/api/oauth'
 		| '/reference/api/object-storage'
 		| '/reference/api/organizations'
 		| '/reference/api/projects'
@@ -1319,6 +1389,7 @@ export interface FileRouteTypes {
 		| '/get-started/project-structure'
 		| '/get-started/quickstart'
 		| '/get-started/what-is-agentuity'
+		| '/reference/github-app'
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
 		| '/reference/sdk-reference'
@@ -1326,8 +1397,13 @@ export interface FileRouteTypes {
 		| '/routes/http'
 		| '/routes/middleware'
 		| '/routes/sse'
+		| '/routes/webrtc'
 		| '/routes/websockets'
+		| '/services/email'
 		| '/services/queues'
+		| '/services/schedules'
+		| '/services/tasks'
+		| '/services/webhooks'
 		| '/agents'
 		| '/apis'
 		| '/community'
@@ -1353,6 +1429,7 @@ export interface FileRouteTypes {
 		| '/reference/api/evaluations'
 		| '/reference/api/key-value'
 		| '/reference/api/machines'
+		| '/reference/api/oauth'
 		| '/reference/api/object-storage'
 		| '/reference/api/organizations'
 		| '/reference/api/projects'
@@ -1446,6 +1523,7 @@ export interface FileRouteTypes {
 		| '/_docs/get-started/project-structure'
 		| '/_docs/get-started/quickstart'
 		| '/_docs/get-started/what-is-agentuity'
+		| '/_docs/reference/github-app'
 		| '/_docs/reference/gravity-network'
 		| '/_docs/reference/migration-guide'
 		| '/_docs/reference/sdk-reference'
@@ -1453,8 +1531,13 @@ export interface FileRouteTypes {
 		| '/_docs/routes/http'
 		| '/_docs/routes/middleware'
 		| '/_docs/routes/sse'
+		| '/_docs/routes/webrtc'
 		| '/_docs/routes/websockets'
+		| '/_docs/services/email'
 		| '/_docs/services/queues'
+		| '/_docs/services/schedules'
+		| '/_docs/services/tasks'
+		| '/_docs/services/webhooks'
 		| '/_docs/agents/'
 		| '/_docs/apis/'
 		| '/_docs/community/'
@@ -1480,6 +1563,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/api/evaluations'
 		| '/_docs/reference/api/key-value'
 		| '/_docs/reference/api/machines'
+		| '/_docs/reference/api/oauth'
 		| '/_docs/reference/api/object-storage'
 		| '/_docs/reference/api/organizations'
 		| '/_docs/reference/api/projects'
@@ -1725,6 +1809,27 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsAgentsIndexRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/services/webhooks': {
+			id: '/_docs/services/webhooks';
+			path: '/services/webhooks';
+			fullPath: '/services/webhooks';
+			preLoaderRoute: typeof DocsServicesWebhooksRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/services/tasks': {
+			id: '/_docs/services/tasks';
+			path: '/services/tasks';
+			fullPath: '/services/tasks';
+			preLoaderRoute: typeof DocsServicesTasksRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/services/schedules': {
+			id: '/_docs/services/schedules';
+			path: '/services/schedules';
+			fullPath: '/services/schedules';
+			preLoaderRoute: typeof DocsServicesSchedulesRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/services/queues': {
 			id: '/_docs/services/queues';
 			path: '/services/queues';
@@ -1732,11 +1837,25 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsServicesQueuesRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/services/email': {
+			id: '/_docs/services/email';
+			path: '/services/email';
+			fullPath: '/services/email';
+			preLoaderRoute: typeof DocsServicesEmailRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/routes/websockets': {
 			id: '/_docs/routes/websockets';
 			path: '/routes/websockets';
 			fullPath: '/routes/websockets';
 			preLoaderRoute: typeof DocsRoutesWebsocketsRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/routes/webrtc': {
+			id: '/_docs/routes/webrtc';
+			path: '/routes/webrtc';
+			fullPath: '/routes/webrtc';
+			preLoaderRoute: typeof DocsRoutesWebrtcRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/routes/sse': {
@@ -1786,6 +1905,13 @@ declare module '@tanstack/react-router' {
 			path: '/reference/gravity-network';
 			fullPath: '/reference/gravity-network';
 			preLoaderRoute: typeof DocsReferenceGravityNetworkRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/github-app': {
+			id: '/_docs/reference/github-app';
+			path: '/reference/github-app';
+			fullPath: '/reference/github-app';
+			preLoaderRoute: typeof DocsReferenceGithubAppRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/get-started/what-is-agentuity': {
@@ -2313,6 +2439,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceApiObjectStorageRouteImport;
 			parentRoute: typeof DocsReferenceApiRouteRoute;
 		};
+		'/_docs/reference/api/oauth': {
+			id: '/_docs/reference/api/oauth';
+			path: '/oauth';
+			fullPath: '/reference/api/oauth';
+			preLoaderRoute: typeof DocsReferenceApiOauthRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
 		'/_docs/reference/api/machines': {
 			id: '/_docs/reference/api/machines';
 			path: '/machines';
@@ -2435,6 +2568,7 @@ interface DocsReferenceApiRouteRouteChildren {
 	DocsReferenceApiEvaluationsRoute: typeof DocsReferenceApiEvaluationsRoute;
 	DocsReferenceApiKeyValueRoute: typeof DocsReferenceApiKeyValueRoute;
 	DocsReferenceApiMachinesRoute: typeof DocsReferenceApiMachinesRoute;
+	DocsReferenceApiOauthRoute: typeof DocsReferenceApiOauthRoute;
 	DocsReferenceApiObjectStorageRoute: typeof DocsReferenceApiObjectStorageRoute;
 	DocsReferenceApiOrganizationsRoute: typeof DocsReferenceApiOrganizationsRoute;
 	DocsReferenceApiProjectsRoute: typeof DocsReferenceApiProjectsRoute;
@@ -2459,6 +2593,7 @@ const DocsReferenceApiRouteRouteChildren: DocsReferenceApiRouteRouteChildren = {
 	DocsReferenceApiEvaluationsRoute: DocsReferenceApiEvaluationsRoute,
 	DocsReferenceApiKeyValueRoute: DocsReferenceApiKeyValueRoute,
 	DocsReferenceApiMachinesRoute: DocsReferenceApiMachinesRoute,
+	DocsReferenceApiOauthRoute: DocsReferenceApiOauthRoute,
 	DocsReferenceApiObjectStorageRoute: DocsReferenceApiObjectStorageRoute,
 	DocsReferenceApiOrganizationsRoute: DocsReferenceApiOrganizationsRoute,
 	DocsReferenceApiProjectsRoute: DocsReferenceApiProjectsRoute,
@@ -2509,6 +2644,7 @@ interface DocsRouteRouteChildren {
 	DocsGetStartedProjectStructureRoute: typeof DocsGetStartedProjectStructureRoute;
 	DocsGetStartedQuickstartRoute: typeof DocsGetStartedQuickstartRoute;
 	DocsGetStartedWhatIsAgentuityRoute: typeof DocsGetStartedWhatIsAgentuityRoute;
+	DocsReferenceGithubAppRoute: typeof DocsReferenceGithubAppRoute;
 	DocsReferenceGravityNetworkRoute: typeof DocsReferenceGravityNetworkRoute;
 	DocsReferenceMigrationGuideRoute: typeof DocsReferenceMigrationGuideRoute;
 	DocsReferenceSdkReferenceRoute: typeof DocsReferenceSdkReferenceRoute;
@@ -2516,8 +2652,13 @@ interface DocsRouteRouteChildren {
 	DocsRoutesHttpRoute: typeof DocsRoutesHttpRoute;
 	DocsRoutesMiddlewareRoute: typeof DocsRoutesMiddlewareRoute;
 	DocsRoutesSseRoute: typeof DocsRoutesSseRoute;
+	DocsRoutesWebrtcRoute: typeof DocsRoutesWebrtcRoute;
 	DocsRoutesWebsocketsRoute: typeof DocsRoutesWebsocketsRoute;
+	DocsServicesEmailRoute: typeof DocsServicesEmailRoute;
 	DocsServicesQueuesRoute: typeof DocsServicesQueuesRoute;
+	DocsServicesSchedulesRoute: typeof DocsServicesSchedulesRoute;
+	DocsServicesTasksRoute: typeof DocsServicesTasksRoute;
+	DocsServicesWebhooksRoute: typeof DocsServicesWebhooksRoute;
 	DocsAgentsIndexRoute: typeof DocsAgentsIndexRoute;
 	DocsApisIndexRoute: typeof DocsApisIndexRoute;
 	DocsCommunityIndexRoute: typeof DocsCommunityIndexRoute;
@@ -2600,6 +2741,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsGetStartedProjectStructureRoute: DocsGetStartedProjectStructureRoute,
 	DocsGetStartedQuickstartRoute: DocsGetStartedQuickstartRoute,
 	DocsGetStartedWhatIsAgentuityRoute: DocsGetStartedWhatIsAgentuityRoute,
+	DocsReferenceGithubAppRoute: DocsReferenceGithubAppRoute,
 	DocsReferenceGravityNetworkRoute: DocsReferenceGravityNetworkRoute,
 	DocsReferenceMigrationGuideRoute: DocsReferenceMigrationGuideRoute,
 	DocsReferenceSdkReferenceRoute: DocsReferenceSdkReferenceRoute,
@@ -2607,8 +2749,13 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsRoutesHttpRoute: DocsRoutesHttpRoute,
 	DocsRoutesMiddlewareRoute: DocsRoutesMiddlewareRoute,
 	DocsRoutesSseRoute: DocsRoutesSseRoute,
+	DocsRoutesWebrtcRoute: DocsRoutesWebrtcRoute,
 	DocsRoutesWebsocketsRoute: DocsRoutesWebsocketsRoute,
+	DocsServicesEmailRoute: DocsServicesEmailRoute,
 	DocsServicesQueuesRoute: DocsServicesQueuesRoute,
+	DocsServicesSchedulesRoute: DocsServicesSchedulesRoute,
+	DocsServicesTasksRoute: DocsServicesTasksRoute,
+	DocsServicesWebhooksRoute: DocsServicesWebhooksRoute,
 	DocsAgentsIndexRoute: DocsAgentsIndexRoute,
 	DocsApisIndexRoute: DocsApisIndexRoute,
 	DocsCommunityIndexRoute: DocsCommunityIndexRoute,

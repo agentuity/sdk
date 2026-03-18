@@ -1,0 +1,186 @@
+---
+title: Automating Deployments with the GitHub App
+description: How the Agentuity GitHub App automates deployments from your repositories.
+---
+
+Manually deploying after every push is error-prone and slow. Linking a GitHub repository to the Agentuity GitHub App automates deployments on push and creates isolated preview environments for pull requests.
+
+## Events and Actions
+
+Once a repository is linked, Agentuity listens for GitHub events and acts on them:
+
+| Trigger | What Happens |
+|---------|-------------|
+| Push to linked branch | Builds and deploys the project. GitHub Check updates with progress |
+| PR opened or updated | Builds a preview environment. PR comment posted with the preview URL |
+
+Push deploys and preview environments can each be enabled or disabled independently via `agentuity git link`.
+
+## Deployment Flow
+
+**Push to linked branch:**
+
+1. You push to the configured branch (e.g., `main`)
+2. GitHub sends a webhook to Agentuity
+3. Agentuity builds and deploys your project
+4. The GitHub Check on the commit updates to reflect build progress and result
+
+<Callout type="info" title="Rapid Pushes">
+If a new push arrives while a previous deployment is still building, the older deployment is cancelled. Only the latest commit on the branch deploys.
+</Callout>
+
+**Pull request opened or updated:**
+
+1. A PR is opened, reopened, or receives new commits
+2. GitHub sends a webhook to Agentuity
+3. Agentuity builds and deploys an isolated preview environment
+4. A comment is posted on the PR with the preview URL
+5. The preview environment is cleaned up when the PR is closed or merged
+
+<Callout type="info" title="Bot and Automation Commits">
+Commits from Dependabot, Renovate, and GitHub Actions trigger deployments normally. When the commit author doesn't have an Agentuity account, the GitHub App installation owner's identity is used for authorization.
+</Callout>
+
+## Configuration
+
+Use `agentuity git link` to configure GitHub integration for your project. Run it interactively or pass flags directly:
+
+```bash
+# Interactive setup
+agentuity git link
+
+# Non-interactive
+agentuity git link --repo owner/repo --branch main --deploy true --preview true
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--branch` | repo default | Branch that triggers deploys on push |
+| `--deploy` | `true` | Enable automatic deploys on push |
+| `--preview` | `true` | Enable preview environments on PRs |
+| `--root` | `.` | Subdirectory containing `agentuity.json` (monorepos) |
+
+<Callout type="tip" title="Monorepo Setup">
+If your project lives in a subdirectory, set `--root packages/my-agent`. Agentuity uses this path to locate `agentuity.json` and scope the build to that directory.
+</Callout>
+
+## Deployment Events
+
+### Push Deploys
+
+When auto-deploy is enabled, any push to the linked branch triggers a build and live deployment. The project URL updates to point to the new deployment once it succeeds.
+
+Pushes to other branches are ignored. Only the configured branch triggers deploys.
+
+### Preview Environments
+
+When preview environments are enabled, each pull request gets its own isolated deployment. Preview environments:
+
+- Use a unique URL per PR (not the project URL)
+- Are rebuilt when new commits are pushed to the PR branch
+- Are automatically removed when the PR is closed or merged
+- Run independently from the live deployment
+
+<Callout type="warning" title="Preview URL Persistence">
+Preview URLs are tied to the PR, not the commit. The URL stays the same for the lifetime of the PR, but the deployment behind it updates on each new commit.
+</Callout>
+
+## Build Process
+
+When the Agentuity GitHub App builds your project, it downloads your source code, installs dependencies, and runs `agentuity deploy` inside an isolated build environment. What happens during the install step depends on whether you define a `predeploy` script.
+
+### Default Behavior (No predeploy Script)
+
+If your `package.json` does not define a `predeploy` script, the platform runs `bun install` for you:
+
+1. Download and extract your source code
+2. Run `bun install` to install dependencies
+3. Run `agentuity deploy` to build and deploy your project
+
+This is the zero-configuration path. No setup required beyond linking your repository.
+
+### Custom Behavior (With predeploy Script)
+
+If your `package.json` defines a `predeploy` script, it runs **instead of** the automatic `bun install`. You control the entire installation and preparation step:
+
+1. Download and extract your source code
+2. Run `bun run predeploy` (your custom script)
+3. Run `agentuity deploy` to build and deploy your project
+
+```json title="package.json"
+{
+  "scripts": {
+    "predeploy": "cd ../.. && bun install && bun run build:packages",
+    "deploy": "agentuity deploy"
+  }
+}
+```
+
+Use `predeploy` when you need to control dependency installation: monorepo workspaces, shared package builds, or custom preparation steps.
+
+<Callout type="warning" title="predeploy Replaces Automatic Install">
+When you define a `predeploy` script, the platform does not run `bun install`. Your `predeploy` script must handle dependency installation itself, or the build will fail with missing modules.
+</Callout>
+
+### Post-Deploy Scripts
+
+If your `package.json` defines a `postdeploy` script, it runs after `agentuity deploy` completes successfully. Use it for notifications, changelog updates, or other post-deployment tasks.
+
+### Build Resources
+
+The build environment is separate from your runtime environment. If builds time out or run out of memory, increase the build resources in `agentuity.json`:
+
+```json title="agentuity.json"
+{
+  "build": {
+    "timeout": "30m",
+    "resources": {
+      "memory": "4Gi",
+      "cpu": "2",
+      "disk": "4Gi"
+    }
+  }
+}
+```
+
+These are independent from `deployment.resources`, which controls CPU, memory, and disk for your running agents. See [Configuring Build Resources](/reference/cli/deployment#configuring-build-resources) for details.
+
+## Authorization
+
+Agentuity verifies that each push or PR sender has a linked Agentuity account and belongs to the project's organization. If the sender is not authorized, the deployment is skipped and a GitHub Check is posted with `Deploy skipped: user not authorized`.
+
+Every contributor who should trigger deployments must connect their GitHub identity via `agentuity git identity connect` and be a member of the project's organization.
+
+## GitHub Checks and PR Comments
+
+**GitHub Checks** appear on every commit that triggers a build. They show:
+
+- Build status (queued, in progress, succeeded, failed)
+- A link to the deployment in the Agentuity dashboard
+- Build error annotations on failure, with file paths and line numbers
+
+**PR Comments** are posted when a preview environment build starts. Each comment includes:
+
+- Build status (building, failed, or ready)
+- The preview URL (once the build succeeds)
+- The commit SHA the preview was built from
+- Build error details on failure
+
+If a PR already has a comment from a previous build, it is updated in place rather than posting a new one.
+
+## Multi-Account Support
+
+The Agentuity GitHub App can be installed on multiple GitHub accounts, both personal and organization. Each installation grants access to repositories under that account.
+
+To add an account:
+
+```bash
+agentuity git account add
+```
+
+You can link projects to repositories from any installed account. See [Setting Up Git Integration](/reference/cli/git-integration) for the full account setup flow.
+
+## Next Steps
+
+- [Setting Up Git Integration](/reference/cli/git-integration): CLI commands for connecting GitHub, installing the app, and linking repositories
+- [Deployment](/reference/cli/deployment): Deployment configuration, URLs, rollback, and environment variables

@@ -1,4 +1,4 @@
 {
 	"title": "Reference",
-	"pages": ["api", "CLI", "gravity-network", "migration-guide", "sdk-reference"]
+	"pages": ["api", "CLI", "github-app", "gravity-network", "migration-guide", "sdk-reference"]
 }

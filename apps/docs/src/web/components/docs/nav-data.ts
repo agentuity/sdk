@@ -233,6 +233,11 @@ export const navData: NavSection[] = [
 				url: '/routes/sse',
 				description: 'Stream updates from server to client using SSE middleware',
 			},
+			{
+				title: 'WebRTC',
+				url: '/routes/webrtc',
+				description: 'Peer-to-peer audio, video, and data channels with the webrtc middleware',
+			},
 		],
 	},
 	{
@@ -346,6 +351,26 @@ export const navData: NavSection[] = [
 				url: '/services/queues',
 				description:
 					'Publish messages for async processing, webhooks, and event-driven workflows',
+			},
+			{
+				title: 'Tasks',
+				url: '/services/tasks',
+				description: 'Track work items, issues, and agent activity with lifecycle management',
+			},
+			{
+				title: 'Email',
+				url: '/services/email',
+				description: 'Send and receive emails with managed addresses and delivery tracking',
+			},
+			{
+				title: 'Webhooks',
+				url: '/services/webhooks',
+				description: 'Create webhook endpoints with destinations, receipts, and delivery retry',
+			},
+			{
+				title: 'Schedules',
+				url: '/services/schedules',
+				description: 'Platform-managed cron jobs with HTTP and sandbox destinations',
 			},
 			{
 				title: 'Observability',
@@ -675,6 +700,12 @@ export const navData: NavSection[] = [
 							'Install the Agentuity Coder plugin for Claude Code to get specialized agents with persistent memory',
 					},
 				],
+			},
+			{
+				title: 'GitHub App',
+				url: '/reference/github-app',
+				description:
+					'Automate deployments from GitHub repositories with push and PR preview environments',
 			},
 			{
 				title: 'SDK Reference',
