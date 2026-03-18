@@ -3,7 +3,6 @@ import { stream as honoStream } from 'hono/streaming';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
 import { StructuredError } from '@agentuity/core';
 import type { Schema } from '@agentuity/schema';
-import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 import { tagRoute } from './_route-meta';
 
@@ -227,9 +226,6 @@ export function sse<E extends Env = Env, TOutput = unknown>(
 	// Note: options.output is captured for type inference but not used at runtime
 	// The CLI extracts this during build to generate typed route registries
 	const sseHandler: Handler<E> = (c: Context<E>) => {
-		const asyncLocalStorage = getAgentAsyncLocalStorage();
-		const capturedContext = asyncLocalStorage.getStore();
-
 		// Track stream completion for deferred session/thread saving
 		// This promise resolves when the stream closes (normally or via abort)
 		let resolveDone: (() => void) | undefined;
@@ -346,10 +342,6 @@ export function sse<E extends Env = Env, TOutput = unknown>(
 				}
 			};
 
-			// Run handler with AsyncLocalStorage context propagation.
-			// honoStream already uses a fire-and-forget pattern internally,
-			// so we can safely await here - the response is already being sent.
-			//
 			// IMPORTANT: We run in ROOT_CONTEXT (no active OTEL span) to avoid a Bun bug
 			// where OTEL-instrumented fetch conflicts with streaming responses.
 			// This causes "ReadableStream has already been used" errors when AI SDK's
@@ -358,13 +350,7 @@ export function sse<E extends Env = Env, TOutput = unknown>(
 			// our OTEL fetch wrapper use the original unpatched fetch.
 			// See: https://github.com/agentuity/sdk/issues/471
 			// See: https://github.com/oven-sh/bun/issues/24766
-			await otelContext.with(ROOT_CONTEXT, async () => {
-				if (capturedContext) {
-					await asyncLocalStorage.run(capturedContext, runInContext);
-				} else {
-					await runInContext();
-				}
-			});
+			await otelContext.with(ROOT_CONTEXT, runInContext);
 		});
 	};
 

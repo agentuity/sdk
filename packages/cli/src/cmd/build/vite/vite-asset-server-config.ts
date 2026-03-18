@@ -22,6 +22,47 @@ export interface GenerateAssetServerConfigOptions {
 }
 
 /**
+ * Vite plugin that injects analytics scripts in dev mode.
+ *
+ * In production the beacon plugin handles this at build time. In dev mode
+ * the analytics config + session + beacon scripts are served by the Bun
+ * backend at /_agentuity/webanalytics/* routes, but we need to inject the
+ * `<script>` tags into the HTML so the browser loads them.
+ */
+function devAnalyticsPlugin(): Plugin {
+	return {
+		name: 'agentuity:dev-analytics',
+		transformIndexHtml: {
+			order: 'pre',
+			handler(html) {
+				// Default analytics config — matches resolveAnalyticsConfig(undefined) in runtime
+				const config = {
+					enabled: true,
+					trackClicks: true,
+					trackScroll: true,
+					trackOutboundLinks: true,
+					trackForms: false,
+					trackWebVitals: true,
+					trackErrors: true,
+					trackSPANavigation: true,
+					isDevmode: true,
+				};
+
+				const injection =
+					`<script>window.__AGENTUITY_ANALYTICS__=${JSON.stringify(config)};</script>` +
+					'<script src="/_agentuity/webanalytics/session.js" async></script>' +
+					'<script src="/_agentuity/webanalytics/analytics.js"></script>';
+
+				if (html.includes('</head>')) {
+					return html.replace('</head>', `${injection}</head>`);
+				}
+				return html;
+			},
+		},
+	};
+}
+
+/**
  * Vite plugin that serves src/web/index.html as the SPA fallback.
  *
  * Vite's built-in SPA fallback only serves index.html from the project root.
@@ -29,7 +70,7 @@ export interface GenerateAssetServerConfigOptions {
  * this plugin to rewrite the URL so Vite's built-in transform pipeline
  * (including React Fast Refresh injection) processes it correctly.
  */
-function spaFallbackPlugin(rootDir: string, routePaths: string[]): Plugin {
+function spaFallbackPlugin(rootDir: string, routePaths: string[], workbenchPath?: string): Plugin {
 	const htmlPath = join(rootDir, 'src', 'web', 'index.html');
 	const hasHtml = existsSync(htmlPath);
 
@@ -79,6 +120,13 @@ function spaFallbackPlugin(rootDir: string, routePaths: string[]): Plugin {
 					pathname.startsWith('/_agentuity') ||
 					pathname.startsWith('/_health') ||
 					pathname.startsWith('/_idle')
+				) {
+					return next();
+				}
+				// Skip workbench path (served by Bun)
+				if (
+					workbenchPath &&
+					(pathname === workbenchPath || pathname.startsWith(workbenchPath + '/'))
 				) {
 					return next();
 				}
@@ -190,8 +238,10 @@ export async function generateAssetServerConfig(
 			strictPort: true, // Port is pre-verified as available by findAvailablePort()
 			host: '127.0.0.1',
 
-			// Proxy backend routes to Bun server
-			// WebSocket upgrade requests are automatically proxied when ws: true
+			// Proxy backend routes to Bun server (HTTP only).
+			// WebSocket upgrades are handled by the front-door TCP proxy (ws-proxy.ts)
+			// which routes them directly to the Bun backend, bypassing Vite entirely.
+			// This avoids Bun's broken node:http upgrade socket implementation.
 			proxy: {
 				// User-defined route mounts (from createApp({ router }))
 				...Object.fromEntries(
@@ -200,7 +250,6 @@ export async function generateAssetServerConfig(
 						{
 							target: `http://127.0.0.1:${backendPort}`,
 							changeOrigin: true,
-							ws: true,
 						},
 					])
 				),
@@ -208,7 +257,6 @@ export async function generateAssetServerConfig(
 				'/_agentuity': {
 					target: `http://127.0.0.1:${backendPort}`,
 					changeOrigin: true,
-					ws: true,
 				},
 				// Workbench UI route (served by Bun, references /@fs/* paths handled by Vite)
 				...(workbenchPath
@@ -283,8 +331,10 @@ export async function generateAssetServerConfig(
 				browserEnvPlugin(),
 				// Warn about incorrect public asset paths in dev mode
 				publicAssetPathPlugin({ warnInDev: true }),
+				// Inject analytics scripts in dev HTML
+				devAnalyticsPlugin(),
 				// SPA fallback: serve src/web/index.html for navigation requests
-				spaFallbackPlugin(rootDir, routePaths),
+				spaFallbackPlugin(rootDir, routePaths, workbenchPath),
 			];
 		})(),
 

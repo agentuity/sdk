@@ -31,7 +31,15 @@ import { BEACON_SCRIPT } from '@agentuity/frontend';
  * @see https://github.com/oven-sh/bun/issues/20183
  */
 const getEnv = (key: string) => process.env[key];
-export const isDevelopment = () => getEnv('NODE' + '_' + 'ENV') !== 'production';
+/**
+ * Check if running in development mode.
+ *
+ * The CLI dev server explicitly sets NODE_ENV='development'. In production
+ * (cloud deployment, CI integration test running a built app.js), NODE_ENV
+ * may be 'production' or unset entirely. When unset, we assume production
+ * — the dev server always sets it, so absence means production.
+ */
+export const isDevelopment = () => getEnv('NODE' + '_' + 'ENV') === 'development';
 
 // ============================================================================
 // Analytics helpers
@@ -199,8 +207,15 @@ export function registerWebRoutes(
 ): void {
 	if (isDevelopment()) return;
 
-	const clientDir = join(process.cwd(), '.agentuity', 'client');
-	const indexHtmlPath = join(clientDir, 'index.html');
+	// Resolve client dir relative to the built app.js location (import.meta.dir)
+	// rather than process.cwd(), since the app may be run from inside .agentuity/
+	const appDir = typeof import.meta.dir === 'string' ? import.meta.dir : process.cwd();
+	const clientDir = join(appDir, 'client');
+	// Fallback: try process.cwd()/.agentuity/client if appDir/client doesn't exist
+	const resolvedClientDir = existsSync(join(clientDir, 'index.html'))
+		? clientDir
+		: join(process.cwd(), '.agentuity', 'client');
+	const indexHtmlPath = join(resolvedClientDir, 'index.html');
 	const baseIndexHtml = existsSync(indexHtmlPath) ? readFileSync(indexHtmlPath, 'utf-8') : '';
 
 	if (!baseIndexHtml) return;
@@ -214,11 +229,11 @@ export function registerWebRoutes(
 	};
 
 	app.get('/', prodHtmlHandler);
-	app.use('/assets/*', serveStatic({ root: clientDir, mimes: mimeTypes }));
+	app.use('/assets/*', serveStatic({ root: resolvedClientDir, mimes: mimeTypes }));
 	app.use(
 		'/*',
 		serveStatic({
-			root: clientDir,
+			root: resolvedClientDir,
 			rewriteRequestPath: (path: string) => path,
 			mimes: mimeTypes,
 		})
