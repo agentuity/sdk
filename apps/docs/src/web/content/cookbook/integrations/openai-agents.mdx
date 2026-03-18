@@ -32,7 +32,7 @@ const search = tool({
 const assistant = new Agent({
   name: 'Research Assistant',
   instructions: 'You are a helpful assistant. Be concise.',
-  model: 'gpt-4.1',
+  model: 'gpt-5.4',
   tools: [search],
 });
 ```
@@ -81,20 +81,21 @@ Use the SDK's `handoffs` array and `handoff()` function to route requests betwee
 import { Agent, run, handoff, setTracingDisabled } from '@openai/agents';
 import { z } from 'zod';
 
+// ... tool definitions above (lookupInvoice, processRefund)
 setTracingDisabled(true);
 
 // Specialist agents with focused instructions
 const billingAgent = new Agent({
   name: 'Billing Agent',
   instructions: 'Help with invoice lookups and payment status.',
-  model: 'gpt-4.1',
+  model: 'gpt-5.4',
   tools: [lookupInvoice],
 });
 
 const refundAgent = new Agent({
   name: 'Refund Agent',
   instructions: 'Process refund requests immediately.',
-  model: 'gpt-4.1',
+  model: 'gpt-5.4',
   tools: [processRefund],
 });
 
@@ -109,12 +110,13 @@ const triageAgent = Agent.create({ // [!code highlight]
   instructions: `Route requests to the right specialist:
 - Billing questions → Billing Agent
 - Refund requests → Refund Agent (use escalate_to_refund)`,
-  model: 'gpt-4.1',
+  model: 'gpt-5.4',
   handoffs: [
     billingAgent, // basic handoff
     handoff(refundAgent, { // [!code highlight]
       onHandoff: (_ctx, input) => {
-        // _ctx is the OpenAI SDK's run context, not the Agentuity handler context
+        // onHandoff runs at module scope, not inside the agent handler —
+        // ctx.logger is not in scope here, so console.log is correct
         console.log('Refund escalation:', input?.reason);
       },
       inputType: EscalationData,
@@ -185,7 +187,7 @@ const ContactOutput = z.object({
 const assistant = new Agent<UserInfo, typeof ContactOutput>({
   name: 'Contact Finder',
   instructions: 'Look up contacts and return structured data.',
-  model: 'gpt-4.1',
+  model: 'gpt-5.4',
   tools: [lookupContact],
   outputType: ContactOutput, // [!code highlight]
 });

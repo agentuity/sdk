@@ -13,11 +13,12 @@ All routes live in `src/api/`. The signaling endpoint is a WebSocket route that 
 
 The server side is one line. The `webrtc()` middleware creates a signaling server that manages rooms, relays SDP offers/answers, and forwards ICE candidates:
 
-```typescript
+```typescript title="src/api/call/route.ts"
 import { createRouter, webrtc } from '@agentuity/runtime';
 
 const router = createRouter();
 
+// Registered as /signal here; the file path (src/api/call/) + this path = /api/call/signal
 router.get('/signal', webrtc());
 
 export default router;
@@ -204,23 +205,27 @@ await stopScreenShare();
 Common errors and how to handle them:
 
 ```typescript
-const { state, error } = useWebRTCCall({
-  roomId,
-  signalUrl: '/api/call/signal',
-  callbacks: {
-    onError: (err, currentState) => {
-      if (err.name === 'NotAllowedError') {
-        // User denied camera/mic permission
-      }
+function VideoCallWithErrorHandling({ roomId }: { roomId: string }) {
+  const { state, error } = useWebRTCCall({
+    roomId,
+    signalUrl: '/api/call/signal',
+    callbacks: {
+      onError: (err, currentState) => {
+        if (err.name === 'NotAllowedError') {
+          // User denied camera/mic permission
+        }
+      },
+      onReconnecting: (attempt) => {
+        console.log(`Reconnection attempt ${attempt}`);
+      },
+      onReconnectFailed: () => {
+        console.log('Could not reconnect');
+      },
     },
-    onReconnecting: (attempt) => {
-      console.log(`Reconnection attempt ${attempt}`);
-    },
-    onReconnectFailed: () => {
-      console.log('Could not reconnect');
-    },
-  },
-});
+  });
+
+  return <p>State: {state}</p>;
+}
 ```
 
 ## How Signaling Works

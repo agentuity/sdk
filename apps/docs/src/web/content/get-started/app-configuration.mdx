@@ -254,7 +254,7 @@ Instead of commenting out lines when switching contexts, put shared config in `.
 
 **Additional files:**
 
-- **`.env.local`**: Auto-loaded by Bun at startup. Use for machine-specific values (personal API keys, local ports).
+- **`.env.local`**: Loaded automatically by Bun with the highest precedence, overriding all other `.env` files. Use for machine-specific values like personal API keys or local ports. Typically gitignored.
 
 **Git behavior:** The default `.gitignore` ignores `.env`. Other env files (`.env.development`, `.env.local`) are not ignored by default. Add any files containing secrets to your `.gitignore`.
 

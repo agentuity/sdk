@@ -251,7 +251,7 @@ Deploy pull requests to isolated preview environments for testing before merging
 agentuity git link --preview true
 ```
 
-Or toggle it in the [Web App](https://app.agentuity.com) under your project's **Settings > GitHub > Preview Environments**.
+Or toggle it in the Web App under your project's **Settings > GitHub > Preview Environments**.
 
 Once enabled, every pull request to your connected repository automatically deploys to a unique preview URL. This allows you to:
 - Test changes in an isolated environment before merging
@@ -260,7 +260,7 @@ Once enabled, every pull request to your connected repository automatically depl
 
 Preview environments are automatically cleaned up when the pull request is closed or merged.
 
-<Callout type="info" title="GitHub Connection Required">
+<Callout type="warning" title="GitHub Connection Required">
 Preview environments require a connected GitHub repository. See [Agentuity GitHub App](/reference/github-app) for how automated deployments work, or [Setting Up Git Integration](/reference/cli/git-integration) for CLI setup.
 </Callout>
 

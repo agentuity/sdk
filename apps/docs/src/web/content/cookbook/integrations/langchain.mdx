@@ -47,7 +47,7 @@ const handleToolErrors = createMiddleware({
 });
 
 const langchainAgent = createLangChainAgent({
-  model: new ChatOpenAI({ model: 'gpt-4.1', temperature: 0.1 }),
+  model: new ChatOpenAI({ model: 'gpt-5.4', temperature: 0.1 }),
   tools: [search],
   middleware: [handleToolErrors],
   systemPrompt: 'You are a helpful assistant. Be concise.',
@@ -99,13 +99,14 @@ When deployed to Agentuity, model credentials are managed through the [AI Gatewa
 
 Use `agent.stream()` with `streamMode: "values"` to iterate over state snapshots as the agent reasons, calls tools, and generates responses.
 
-```typescript title="src/agent/streaming/index.ts"
+```typescript
+// ... langchainAgent and tools defined above
 import { createAgent as createLangChainAgent, tool } from 'langchain';
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage } from '@langchain/core/messages';
 
 const langchainAgent = createLangChainAgent({
-  model: new ChatOpenAI({ model: 'gpt-4.1', temperature: 0.3 }),
+  model: new ChatOpenAI({ model: 'gpt-5.4', temperature: 0.3 }),
   tools: [search, calculate, getTime],
 });
 
@@ -135,7 +136,8 @@ Each snapshot includes the full message history. Use `_getType()` to distinguish
 
 Use `model.withStructuredOutput()` with a Zod schema to guarantee typed, structured data from the LLM. This works well for extraction tasks where the agent gathers data with tools, then a second model call extracts structured fields.
 
-```typescript title="src/agent/structured-output/index.ts"
+```typescript
+// ... langchainAgent and tools defined above
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 
@@ -146,7 +148,7 @@ const ContactInfoSchema = z.object({
   role: z.string().describe('Job title'),
 });
 
-const structuredModel = new ChatOpenAI({ model: 'gpt-4.1' })
+const structuredModel = new ChatOpenAI({ model: 'gpt-5.4' })
   .withStructuredOutput(ContactInfoSchema); // [!code highlight]
 
 // Step 1: Agent gathers data with tools

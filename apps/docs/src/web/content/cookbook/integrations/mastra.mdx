@@ -19,7 +19,7 @@ const chatAgent = new Agent({
   id: 'chat-agent',
   name: 'Chat Agent',
   instructions: 'You are a helpful assistant with memory.',
-  model: 'openai/gpt-4o-mini',
+  model: 'openai/gpt-5.4',
 });
 ```
 
@@ -56,7 +56,7 @@ export default createAgent('chat', {
 Mastra handles the LLM interaction and tool orchestration. Agentuity provides per-conversation state via `ctx.thread.state` (with a sliding window to cap history size), structured logging, and deployment.
 
 <Callout type="info" title="AI Gateway">
-When deployed on Agentuity, Mastra's `openai/gpt-4o-mini` model string routes through the [AI Gateway](/agents/ai-gateway) automatically. Set `OPENAI_BASE_URL` to point at the gateway, and Mastra uses it without code changes. See the [gateway bridge](#ai-gateway-bridge) section below.
+When deployed on Agentuity, Mastra's `openai/gpt-5.4` model string routes through the [AI Gateway](/agents/ai-gateway) automatically. Set `OPENAI_BASE_URL` to point at the gateway, and Mastra uses it without code changes. See the [gateway bridge](#ai-gateway-bridge) section below.
 </Callout>
 
 ## Tool Calling
@@ -78,18 +78,19 @@ const weatherTool = createTool({
     location: z.string().describe('City or location name'),
   }),
   execute: async ({ location }: { location: string }) => {
-    const res = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=51.5&longitude=-0.1&current=temperature_2m`
-    );
-    const data = await res.json();
-    return `${location}: ${data.current.temperature_2m}C`;
+    const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`);
+    const { results } = await geo.json();
+    const { latitude, longitude } = results[0];
+    const weather = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`);
+    const data = await weather.json();
+    return `${location}: ${data.current.temperature_2m}°C`;
   },
 });
 
 const weatherAgent = new Agent({
   id: 'weather-agent',
   instructions: 'Use the get-weather tool when users ask about weather.',
-  model: 'openai/gpt-4o-mini',
+  model: 'openai/gpt-5.4',
   tools: { weatherTool }, // Mastra handles the function calling loop
 });
 ```
@@ -146,7 +147,7 @@ const DayPlanSchema = z.object({
 const plannerAgent = new Agent({
   id: 'day-planner',
   instructions: 'Create structured daily plans from descriptions.',
-  model: 'openai/gpt-4o-mini',
+  model: 'openai/gpt-5.4',
 });
 ```
 

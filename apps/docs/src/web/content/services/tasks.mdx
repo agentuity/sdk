@@ -263,11 +263,16 @@ const agent = createAgent('AttachmentUploader', {
     );
 
     // Phase 2: upload directly to S3 (bypasses Agentuity servers)
-    await fetch(presigned_url, { // [!code highlight]
+    const uploadResponse = await fetch(presigned_url, { // [!code highlight]
       method: 'PUT',
       body: input.fileBytes,
       headers: { 'Content-Type': 'application/pdf' },
     });
+
+    if (!uploadResponse.ok) {
+      ctx.logger.error('Upload failed', { status: uploadResponse.status });
+      return { error: 'Upload failed' };
+    }
 
     // Phase 3: confirm the upload so the attachment becomes visible
     const confirmed = await ctx.task.confirmAttachment(attachment.id); // [!code highlight]
