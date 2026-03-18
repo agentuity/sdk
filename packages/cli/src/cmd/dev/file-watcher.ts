@@ -409,6 +409,15 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	 */
 	function resume() {
 		paused = false;
+
+		// Clear any pending build cooldown timer so file changes are detected immediately.
+		// Without this, events arriving during the remaining cooldown window after a fast
+		// typecheck failure would be silently dropped.
+		if (buildCooldownTimer) {
+			clearTimeout(buildCooldownTimer);
+			buildCooldownTimer = null;
+		}
+
 		logger.trace('File watchers resumed');
 	}
 

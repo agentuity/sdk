@@ -5,6 +5,7 @@ import {
 	type SandboxInfo,
 	type SandboxStatus,
 	type Execution,
+	type ExecutionStatus,
 	type FileToWrite,
 	type SandboxRunOptions,
 	type SandboxRunResult,
@@ -35,13 +36,25 @@ import { createMinimalLogger } from '../logger.ts';
 import { getServiceUrls } from '../config.ts';
 import { writeAndDrain } from './util.ts';
 
-// Server-side long-poll wait duration (max 5 minutes supported by server)
+// Server-side long-poll wait duration per iteration (max 5 minutes supported by server)
 const EXECUTION_WAIT_DURATION = '5m';
 
+/** Terminal execution statuses that indicate the command has finished. */
+const TERMINAL_STATUSES: Set<ExecutionStatus> = new Set([
+	'completed',
+	'failed',
+	'timeout',
+	'cancelled',
+]);
+
 /**
- * Wait for execution completion using server-side long-polling.
- * This is more efficient than client-side polling and provides immediate
- * error detection if the sandbox is terminated.
+ * Wait for execution completion using server-side long-polling with automatic retry.
+ *
+ * Each iteration asks the server to hold the connection for up to
+ * EXECUTION_WAIT_DURATION. If the execution is still running when the
+ * server-side wait expires, we loop and issue another long-poll request.
+ * This continues until the execution reaches a terminal state or the
+ * caller's AbortSignal fires.
  */
 async function waitForExecution(
 	client: APIClient,
@@ -49,17 +62,30 @@ async function waitForExecution(
 	orgId?: string,
 	signal?: AbortSignal
 ): Promise<ExecutionInfo> {
-	if (signal?.aborted) {
-		throw new DOMException('The operation was aborted.', 'AbortError');
-	}
+	while (true) {
+		if (signal?.aborted) {
+			throw new DOMException('The operation was aborted.', 'AbortError');
+		}
 
-	// Use server-side long-polling - the server will hold the connection
-	// until the execution reaches a terminal state or the wait duration expires
-	return executionGet(client, {
-		executionId,
-		orgId,
-		wait: EXECUTION_WAIT_DURATION,
-	});
+		// Use server-side long-polling - the server will hold the connection
+		// until the execution reaches a terminal state or the wait duration expires.
+		// The signal is forwarded so the in-flight fetch is cancelled immediately
+		// when the caller aborts, rather than waiting the full poll duration.
+		const result = await executionGet(client, {
+			executionId,
+			orgId,
+			wait: EXECUTION_WAIT_DURATION,
+			signal,
+		});
+
+		// If the execution reached a terminal state, return immediately
+		if (TERMINAL_STATUSES.has(result.status as ExecutionStatus)) {
+			return result;
+		}
+
+		// Non-terminal status (e.g., 'running', 'queued') — the server-side
+		// long-poll expired before the command finished. Loop to poll again.
+	}
 }
 
 /**

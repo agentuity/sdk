@@ -109,6 +109,16 @@ export async function runStaticRender(options: StaticRenderOptions): Promise<Sta
 		);
 	}
 
+	const isViteDebug =
+		process.env.AGENTUITY_VITE_DEBUG === '1' || process.env.AGENTUITY_VITE_DEBUG === 'true';
+	if (isViteDebug) {
+		logger.debug('Vite debug logging enabled via AGENTUITY_VITE_DEBUG');
+		const existing = process.env.DEBUG || '';
+		if (!existing.includes('vite:')) {
+			process.env.DEBUG = existing ? `${existing},vite:*` : 'vite:*';
+		}
+	}
+
 	// Step 1: Vite SSR build
 	// This resolves import.meta.glob, MDX imports, and other Vite-specific APIs
 	logger.debug('Running Vite SSR build for static rendering...');
@@ -150,7 +160,7 @@ export async function runStaticRender(options: StaticRenderOptions): Promise<Sta
 			// resolved at build time. Node built-ins are still externalized.
 			noExternal: true,
 		},
-		logLevel: 'warn',
+		logLevel: isViteDebug ? 'info' : 'warn',
 	});
 
 	// Steps 2–4: wrapped in try-finally so SSR artifacts are always cleaned up,

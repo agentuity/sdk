@@ -20,6 +20,10 @@ export const ExecutionInfoSchema = z
 		error: z.string().optional().describe('Error message if execution failed'),
 		stdoutStreamUrl: z.string().optional().describe('URL to stream stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL to stream stderr output'),
+		outputTruncated: z
+			.boolean()
+			.optional()
+			.describe('Whether the captured output was truncated due to size limits'),
 	})
 	.describe('Detailed information about a command execution');
 
@@ -40,6 +44,8 @@ export const ExecutionGetParamsSchema = z.object({
 	orgId: z.string().optional().describe('organization id'),
 	/** Optional wait duration for long-polling. */
 	wait: z.string().optional().describe('wait duration for long-polling'),
+	/** Optional AbortSignal to cancel the in-flight request. */
+	signal: z.custom<AbortSignal>().optional().describe('abort signal for cancellation'),
 });
 export type ExecutionGetParams = z.infer<typeof ExecutionGetParamsSchema>;
 
@@ -63,7 +69,7 @@ export async function executionGet(
 	client: APIClient,
 	params: ExecutionGetParams
 ): Promise<ExecutionInfo> {
-	const { executionId, orgId, wait } = params;
+	const { executionId, orgId, wait, signal } = params;
 	const queryParams = new URLSearchParams();
 	if (orgId) {
 		queryParams.set('orgId', orgId);
@@ -76,7 +82,8 @@ export async function executionGet(
 
 	const resp = await client.get<z.infer<typeof ExecutionGetResponseSchema>>(
 		url,
-		ExecutionGetResponseSchema
+		ExecutionGetResponseSchema,
+		signal
 	);
 
 	if (resp.success) {
@@ -93,6 +100,7 @@ export async function executionGet(
 			error: resp.data.error,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
+			outputTruncated: resp.data.outputTruncated,
 		};
 	}
 
