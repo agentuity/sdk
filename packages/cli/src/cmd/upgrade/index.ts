@@ -236,34 +236,16 @@ export const command = createCommand({
 			}
 
 			// Show version info
-			if (!force) {
-				tui.info(`Current version: ${tui.muted(normalizedCurrent)}`);
-				tui.info(`Latest version:  ${tui.bold(normalizedLatest)}`);
-				tui.newline();
-				if (toTag(currentVersion) !== toTag(latestVersion)) {
-					tui.warning(
-						`What's changed:  ${tui.link(getCompareUrl(currentVersion, latestVersion))}`
-					);
-				}
-				tui.success(`Release notes:   ${tui.link(getReleaseUrl(latestVersion))}`);
-				tui.newline();
+			tui.info(`Current version: ${tui.muted(normalizedCurrent)}`);
+			tui.info(`Latest version:  ${tui.bold(normalizedLatest)}`);
+			tui.newline();
+			if (toTag(currentVersion) !== toTag(latestVersion)) {
+				tui.warning(
+					`What's changed:  ${tui.link(getCompareUrl(currentVersion, latestVersion))}`
+				);
 			}
-
-			// Confirm upgrade
-			if (!force) {
-				const shouldUpgrade = await tui.confirm('Do you want to upgrade?', true);
-
-				if (!shouldUpgrade) {
-					const message = 'Upgrade cancelled';
-					tui.info(message);
-					return {
-						upgraded: false,
-						from: currentVersion,
-						to: latestVersion,
-						message,
-					};
-				}
-			}
+			tui.success(`Release notes:   ${tui.link(getReleaseUrl(latestVersion))}`);
+			tui.newline();
 
 			// Perform the upgrade using bun
 			await tui.spinner({
