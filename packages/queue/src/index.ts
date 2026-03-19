@@ -27,11 +27,18 @@ import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
 import { z } from 'zod';
 
+const isLogger = (val: unknown): val is Logger =>
+	typeof val === 'object' &&
+	val !== null &&
+	['info', 'warn', 'error', 'debug', 'trace'].every(
+		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
+	);
+
 export const QueueClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
 	url: z.string().optional().describe('Base URL for the Queue API'),
 	orgId: z.string().optional().describe('Organization ID for multi-tenant operations'),
-	logger: z.custom<Logger>().optional().describe('Custom logger instance'),
+	logger: z.custom<Logger>(isLogger).optional().describe('Custom logger instance'),
 });
 export type QueueClientOptions = z.infer<typeof QueueClientOptionsSchema>;
 
@@ -49,17 +56,18 @@ export class QueueClient {
 
 		const logger = validatedOptions.logger ?? createMinimalLogger();
 
-		const adapter = createServerFetchAdapter(
-			{
-				headers: apiKey
-					? {
-							Authorization: `Bearer ${apiKey}`,
-							'Content-Type': 'application/json',
-						}
-					: { 'Content-Type': 'application/json' },
-			},
-			logger
-		);
+		const headers: Record<string, string> = apiKey
+			? {
+					Authorization: `Bearer ${apiKey}`,
+					'Content-Type': 'application/json',
+				}
+			: { 'Content-Type': 'application/json' };
+
+		if (validatedOptions.orgId) {
+			headers['x-agentuity-orgid'] = validatedOptions.orgId;
+		}
+
+		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new QueueStorageService(url, adapter);
 	}
 

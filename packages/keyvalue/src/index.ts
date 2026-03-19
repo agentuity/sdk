@@ -37,11 +37,18 @@ import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
 import { z } from 'zod';
 
+const isLogger = (val: unknown): val is Logger =>
+	typeof val === 'object' &&
+	val !== null &&
+	['info', 'warn', 'error', 'debug', 'trace'].every(
+		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
+	);
+
 export const KeyValueClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
 	url: z.string().optional().describe('Base URL for the KV API'),
 	orgId: z.string().optional().describe('Organization ID for multi-tenant operations'),
-	logger: z.custom<Logger>().optional().describe('Custom logger instance'),
+	logger: z.custom<Logger>(isLogger).optional().describe('Custom logger instance'),
 });
 export type KeyValueClientOptions = z.infer<typeof KeyValueClientOptionsSchema>;
 

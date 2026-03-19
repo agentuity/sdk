@@ -89,11 +89,18 @@ import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
 import { z } from 'zod';
 
+const isLogger = (val: unknown): val is Logger =>
+	typeof val === 'object' &&
+	val !== null &&
+	['info', 'warn', 'error', 'debug', 'trace'].every(
+		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
+	);
+
 export const TaskClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
 	url: z.string().optional().describe('Base URL for the Task API'),
 	orgId: z.string().optional().describe('Organization ID for multi-tenant operations'),
-	logger: z.custom<Logger>().optional().describe('Custom logger instance'),
+	logger: z.custom<Logger>(isLogger).optional().describe('Custom logger instance'),
 });
 export type TaskClientOptions = z.infer<typeof TaskClientOptionsSchema>;
 
@@ -102,15 +109,17 @@ export class TaskClient {
 	readonly #orgId?: string;
 
 	constructor(options: TaskClientOptions = {}) {
-		const apiKey = options.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
+		const validatedOptions = TaskClientOptionsSchema.parse(options);
+		const apiKey =
+			validatedOptions.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
 		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
 		const serviceUrls = getServiceUrls(region);
 
-		const url = options.url || getEnv('AGENTUITY_TASK_URL') || serviceUrls.catalyst;
+		const url = validatedOptions.url || getEnv('AGENTUITY_TASK_URL') || serviceUrls.catalyst;
 
-		const logger = options.logger ?? createMinimalLogger();
+		const logger = validatedOptions.logger ?? createMinimalLogger();
 
-		this.#orgId = options.orgId;
+		this.#orgId = validatedOptions.orgId;
 
 		const adapter = createServerFetchAdapter(
 			{
