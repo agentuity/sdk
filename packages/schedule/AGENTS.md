@@ -14,7 +14,7 @@ Standalone package for the Agentuity Schedule service. Provides a simple, ergono
 
 - **Runtime**: Node.js and Bun compatible
 - **Exports**: ScheduleClient and all types from @agentuity/core/schedule
-- **Dependencies**: @agentuity/core, zod
+- **Dependencies**: @agentuity/core, @agentuity/server, zod
 
 ## Usage
 

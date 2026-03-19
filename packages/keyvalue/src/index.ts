@@ -47,8 +47,6 @@ export type KeyValueClientOptions = z.infer<typeof KeyValueClientOptionsSchema>;
 
 export class KeyValueClient {
 	readonly #service: KeyValueStorageService;
-	readonly #orgId?: string;
-	readonly #apiKey?: string;
 
 	constructor(options: KeyValueClientOptions = {}) {
 		const apiKey = options.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
@@ -58,9 +56,6 @@ export class KeyValueClient {
 		const url = options.url || getEnv('AGENTUITY_KEYVALUE_URL') || serviceUrls.keyvalue;
 
 		const logger = options.logger ?? createMinimalLogger();
-
-		this.#orgId = options.orgId;
-		this.#apiKey = apiKey;
 
 		const adapter = createServerFetchAdapter(
 			{

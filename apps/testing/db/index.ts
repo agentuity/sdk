@@ -62,8 +62,10 @@ async function main() {
 
 	if (tables.length > 0) {
 		const tableName = tables[0].table_name;
-		console.log(`\n🔍 Running: SELECT * FROM ${tableName} LIMIT 5...`);
-		const result3 = await client.query(`SELECT * FROM ${tableName} LIMIT 5`);
+		// Safely quote the identifier to prevent SQL injection
+		const quotedTableName = `"${tableName.replace(/"/g, '""')}"`;
+		console.log(`\n🔍 Running: SELECT * FROM ${quotedTableName} LIMIT 5...`);
+		const result3 = await client.query(`SELECT * FROM ${quotedTableName} LIMIT 5`);
 		console.log(`   Rows returned: ${result3.rows.length}`);
 		if (result3.rows.length > 0) {
 			console.log(`   Columns: ${Object.keys(result3.rows[0]).join(', ')}`);
@@ -78,7 +80,11 @@ async function main() {
 	console.log('═'.repeat(60));
 }
 
-main().catch((error) => {
-	console.error('❌ Error:', error.message);
+main().catch((error: unknown) => {
+	if (error instanceof Error) {
+		console.error('❌ Error:', error.message);
+	} else {
+		console.error('❌ Error:', String(error));
+	}
 	process.exit(1);
 });

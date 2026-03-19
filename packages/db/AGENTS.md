@@ -14,7 +14,7 @@ Standalone package for the Agentuity Database service. Provides a simple, ergono
 
 - **Runtime**: Node.js and Bun compatible
 - **Exports**: DBClient and all types from @agentuity/core/db
-- **Dependencies**: @agentuity/core, zod
+- **Dependencies**: @agentuity/core, @agentuity/server, zod
 
 ## Usage
 

@@ -6,6 +6,17 @@ export {
 	SandboxClientOptionsSchema,
 	SandboxClientExecuteOptionsSchema,
 	SandboxClientRunIOSchema,
+	type JobInstance,
+	type DiskCheckpointInstance,
+	type SnapshotInfo,
+	type SnapshotListResponse,
+	type SnapshotLineageResponse,
+	type ExecutionInfo,
+	type ExecutionListResponse,
+	type SandboxEventListResponse,
+	type DiskCheckpointInfo,
+	type Job,
+	type JobListResponse,
+	type ListSandboxesResponse,
+	type ListRuntimesResponse,
 } from '@agentuity/core/sandbox';
-
-export * from '@agentuity/core/sandbox';

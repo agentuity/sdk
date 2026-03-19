@@ -50,7 +50,6 @@ export type ScheduleClientOptions = z.infer<typeof ScheduleClientOptionsSchema>;
 
 export class ScheduleClient {
 	readonly #service: ScheduleService;
-	readonly #orgId?: string;
 
 	constructor(options: ScheduleClientOptions = {}) {
 		const apiKey = options.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
@@ -60,8 +59,6 @@ export class ScheduleClient {
 		const url = options.url || getEnv('AGENTUITY_SCHEDULE_URL') || serviceUrls.catalyst;
 
 		const logger = options.logger ?? createMinimalLogger();
-
-		this.#orgId = options.orgId;
 
 		const adapter = createServerFetchAdapter(
 			{
