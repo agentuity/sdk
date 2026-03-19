@@ -175,12 +175,12 @@ export const JobSchema = z.object({
 	sandboxId: z.string().describe('ID of the sandbox where the job is running'),
 	command: z.array(z.string()).describe('Command and arguments being executed'),
 	status: JobStatusSchema.describe('Current status of the job'),
-	exitCode: z.number().optional().describe('Exit code of the job (set when completed)'),
-	startedAt: z.string().optional().describe('ISO timestamp when the job started'),
-	completedAt: z.string().optional().describe('ISO timestamp when the job completed'),
-	error: z.string().optional().describe('Error message if the job failed'),
-	stdoutStreamUrl: z.string().optional().describe('URL to stream stdout output'),
-	stderrStreamUrl: z.string().optional().describe('URL to stream stderr output'),
+	exitCode: z.number().nullish().describe('Exit code of the job (set when completed)'),
+	startedAt: z.string().nullish().describe('ISO timestamp when the job started'),
+	completedAt: z.string().nullish().describe('ISO timestamp when the job completed'),
+	error: z.string().nullish().describe('Error message if the job failed'),
+	stdoutStreamUrl: z.string().nullish().describe('URL to stream stdout output'),
+	stderrStreamUrl: z.string().nullish().describe('URL to stream stderr output'),
 });
 export type Job = z.infer<typeof JobSchema>;
 
