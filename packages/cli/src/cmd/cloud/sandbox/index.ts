@@ -9,6 +9,7 @@ import { snapshotCommand } from './snapshot';
 import { runtimeCommand } from './runtime';
 import { cpSubcommand } from './cp';
 import { command as executionCommand } from './execution';
+import { command as jobCommand } from './job';
 import { mkdirSubcommand } from './mkdir';
 import { rmdirSubcommand } from './rmdir';
 import { rmSubcommand } from './rm';
@@ -53,6 +54,7 @@ export const command = createCommand({
 		runtimeCommand,
 		cpSubcommand,
 		executionCommand,
+		jobCommand,
 		mkdirSubcommand,
 		rmdirSubcommand,
 		rmSubcommand,

@@ -167,6 +167,35 @@ export const ExecutionStatusSchema = z.enum([
 ]);
 export type ExecutionStatus = z.infer<typeof ExecutionStatusSchema>;
 
+export const JobStatusSchema = z.enum(['pending', 'running', 'completed', 'failed', 'cancelled']);
+export type JobStatus = z.infer<typeof JobStatusSchema>;
+
+export const JobSchema = z.object({
+	jobId: z.string().describe('Unique identifier for the job'),
+	sandboxId: z.string().describe('ID of the sandbox where the job is running'),
+	command: z.array(z.string()).describe('Command and arguments being executed'),
+	status: JobStatusSchema.describe('Current status of the job'),
+	exitCode: z.number().optional().describe('Exit code of the job (set when completed)'),
+	startedAt: z.string().optional().describe('ISO timestamp when the job started'),
+	completedAt: z.string().optional().describe('ISO timestamp when the job completed'),
+	error: z.string().optional().describe('Error message if the job failed'),
+	stdoutStreamUrl: z.string().optional().describe('URL to stream stdout output'),
+	stderrStreamUrl: z.string().optional().describe('URL to stream stderr output'),
+});
+export type Job = z.infer<typeof JobSchema>;
+
+export const CreateJobOptionsSchema = z.object({
+	command: z.array(z.string()).describe('Command and arguments to execute'),
+	streams: z
+		.object({
+			stdout: z.string().optional().describe('Stream ID for stdout output'),
+			stderr: z.string().optional().describe('Stream ID for stderr output'),
+		})
+		.optional()
+		.describe('Stream configuration for output redirection'),
+});
+export type CreateJobOptions = z.infer<typeof CreateJobOptionsSchema>;
+
 /** Read-only stream interface for consuming streams without write access */
 export const StreamReaderSchema = z.object({
 	/** Unique stream identifier */
