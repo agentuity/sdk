@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/coder",
-	"version": "1.0.51",
+	"version": "1.0.52",
 	"description": "Agentuity Coder Hub extension for Pi coding agent",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
