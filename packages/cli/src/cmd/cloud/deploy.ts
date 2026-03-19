@@ -801,9 +801,9 @@ export const deploySubcommand = createSubcommand({
 								ctx.logger.trace(`Upload file size: ${fileSize} bytes`);
 								const resp = await fetch(instructions.deployment, {
 									method: 'PUT',
-									duplex: 'half',
 									headers: {
 										'Content-Type': 'application/zip',
+										'Content-Length': String(fileSize),
 									},
 									body: zipfile,
 									signal: stepCtx.signal,
