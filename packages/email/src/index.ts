@@ -59,7 +59,6 @@ export type EmailClientOptions = z.infer<typeof EmailClientOptionsSchema>;
 
 export class EmailClient {
 	readonly #service: EmailStorageService;
-	readonly #orgId?: string;
 
 	constructor(options: EmailClientOptions = {}) {
 		const validatedOptions = EmailClientOptionsSchema.parse(options);
@@ -72,19 +71,18 @@ export class EmailClient {
 
 		const logger = validatedOptions.logger ?? createMinimalLogger();
 
-		this.#orgId = validatedOptions.orgId;
+		const headers: Record<string, string> = apiKey
+			? {
+					Authorization: `Bearer ${apiKey}`,
+					'Content-Type': 'application/json',
+				}
+			: { 'Content-Type': 'application/json' };
 
-		const adapter = createServerFetchAdapter(
-			{
-				headers: apiKey
-					? {
-							Authorization: `Bearer ${apiKey}`,
-							'Content-Type': 'application/json',
-						}
-					: { 'Content-Type': 'application/json' },
-			},
-			logger
-		);
+		if (validatedOptions.orgId) {
+			headers['x-agentuity-orgid'] = validatedOptions.orgId;
+		}
+
+		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new EmailStorageService(url, adapter);
 	}
 

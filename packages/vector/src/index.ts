@@ -72,7 +72,6 @@ export type VectorClientOptions = z.infer<typeof VectorClientOptionsSchema>;
 
 export class VectorClient {
 	readonly #service: VectorStorageService;
-	readonly #orgId?: string;
 
 	constructor(options: VectorClientOptions = {}) {
 		const validatedOptions = VectorClientOptionsSchema.parse(options);
@@ -85,19 +84,18 @@ export class VectorClient {
 
 		const logger = validatedOptions.logger ?? createMinimalLogger();
 
-		this.#orgId = validatedOptions.orgId;
+		const headers: Record<string, string> = apiKey
+			? {
+					Authorization: `Bearer ${apiKey}`,
+					'Content-Type': 'application/json',
+				}
+			: { 'Content-Type': 'application/json' };
 
-		const adapter = createServerFetchAdapter(
-			{
-				headers: apiKey
-					? {
-							Authorization: `Bearer ${apiKey}`,
-							'Content-Type': 'application/json',
-						}
-					: { 'Content-Type': 'application/json' },
-			},
-			logger
-		);
+		if (validatedOptions.orgId) {
+			headers['x-agentuity-orgid'] = validatedOptions.orgId;
+		}
+
+		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new VectorStorageService(url, adapter);
 	}
 

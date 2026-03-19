@@ -66,17 +66,18 @@ export class KeyValueClient {
 
 		const logger = validatedOptions.logger ?? createMinimalLogger();
 
-		const adapter = createServerFetchAdapter(
-			{
-				headers: apiKey
-					? {
-							Authorization: `Bearer ${apiKey}`,
-							'Content-Type': 'application/json',
-						}
-					: { 'Content-Type': 'application/json' },
-			},
-			logger
-		);
+		const headers: Record<string, string> = apiKey
+			? {
+					Authorization: `Bearer ${apiKey}`,
+					'Content-Type': 'application/json',
+				}
+			: { 'Content-Type': 'application/json' };
+
+		if (validatedOptions.orgId) {
+			headers['x-agentuity-orgid'] = validatedOptions.orgId;
+		}
+
+		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new KeyValueStorageService(url, adapter);
 	}
 
