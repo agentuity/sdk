@@ -118,6 +118,7 @@ import { Route as DocsReferenceApiQueuesRouteImport } from './routes/_docs/refer
 import { Route as DocsReferenceApiProjectsRouteImport } from './routes/_docs/reference/api/projects';
 import { Route as DocsReferenceApiOrganizationsRouteImport } from './routes/_docs/reference/api/organizations';
 import { Route as DocsReferenceApiObjectStorageRouteImport } from './routes/_docs/reference/api/object-storage';
+import { Route as DocsReferenceApiOauthRouteImport } from './routes/_docs/reference/api/oauth';
 import { Route as DocsReferenceApiMachinesRouteImport } from './routes/_docs/reference/api/machines';
 import { Route as DocsReferenceApiKeyValueRouteImport } from './routes/_docs/reference/api/key-value';
 import { Route as DocsReferenceApiEvaluationsRouteImport } from './routes/_docs/reference/api/evaluations';
@@ -682,6 +683,11 @@ const DocsReferenceApiObjectStorageRoute = DocsReferenceApiObjectStorageRouteImp
 	path: '/object-storage',
 	getParentRoute: () => DocsReferenceApiRouteRoute,
 } as any);
+const DocsReferenceApiOauthRoute = DocsReferenceApiOauthRouteImport.update({
+	id: '/oauth',
+	path: '/oauth',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
 const DocsReferenceApiMachinesRoute = DocsReferenceApiMachinesRouteImport.update({
 	id: '/machines',
 	path: '/machines',
@@ -847,6 +853,7 @@ export interface FileRoutesByFullPath {
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
 	'/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
 	'/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/reference/api/oauth': typeof DocsReferenceApiOauthRoute;
 	'/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
 	'/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
 	'/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
@@ -972,6 +979,7 @@ export interface FileRoutesByTo {
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
 	'/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
 	'/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/reference/api/oauth': typeof DocsReferenceApiOauthRoute;
 	'/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
 	'/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
 	'/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
@@ -1100,6 +1108,7 @@ export interface FileRoutesById {
 	'/_docs/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
 	'/_docs/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
 	'/_docs/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/_docs/reference/api/oauth': typeof DocsReferenceApiOauthRoute;
 	'/_docs/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
 	'/_docs/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
 	'/_docs/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
@@ -1228,6 +1237,7 @@ export interface FileRouteTypes {
 		| '/reference/api/evaluations'
 		| '/reference/api/key-value'
 		| '/reference/api/machines'
+		| '/reference/api/oauth'
 		| '/reference/api/object-storage'
 		| '/reference/api/organizations'
 		| '/reference/api/projects'
@@ -1353,6 +1363,7 @@ export interface FileRouteTypes {
 		| '/reference/api/evaluations'
 		| '/reference/api/key-value'
 		| '/reference/api/machines'
+		| '/reference/api/oauth'
 		| '/reference/api/object-storage'
 		| '/reference/api/organizations'
 		| '/reference/api/projects'
@@ -1480,6 +1491,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/api/evaluations'
 		| '/_docs/reference/api/key-value'
 		| '/_docs/reference/api/machines'
+		| '/_docs/reference/api/oauth'
 		| '/_docs/reference/api/object-storage'
 		| '/_docs/reference/api/organizations'
 		| '/_docs/reference/api/projects'
@@ -2313,6 +2325,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceApiObjectStorageRouteImport;
 			parentRoute: typeof DocsReferenceApiRouteRoute;
 		};
+		'/_docs/reference/api/oauth': {
+			id: '/_docs/reference/api/oauth';
+			path: '/oauth';
+			fullPath: '/reference/api/oauth';
+			preLoaderRoute: typeof DocsReferenceApiOauthRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
 		'/_docs/reference/api/machines': {
 			id: '/_docs/reference/api/machines';
 			path: '/machines';
@@ -2435,6 +2454,7 @@ interface DocsReferenceApiRouteRouteChildren {
 	DocsReferenceApiEvaluationsRoute: typeof DocsReferenceApiEvaluationsRoute;
 	DocsReferenceApiKeyValueRoute: typeof DocsReferenceApiKeyValueRoute;
 	DocsReferenceApiMachinesRoute: typeof DocsReferenceApiMachinesRoute;
+	DocsReferenceApiOauthRoute: typeof DocsReferenceApiOauthRoute;
 	DocsReferenceApiObjectStorageRoute: typeof DocsReferenceApiObjectStorageRoute;
 	DocsReferenceApiOrganizationsRoute: typeof DocsReferenceApiOrganizationsRoute;
 	DocsReferenceApiProjectsRoute: typeof DocsReferenceApiProjectsRoute;
@@ -2459,6 +2479,7 @@ const DocsReferenceApiRouteRouteChildren: DocsReferenceApiRouteRouteChildren = {
 	DocsReferenceApiEvaluationsRoute: DocsReferenceApiEvaluationsRoute,
 	DocsReferenceApiKeyValueRoute: DocsReferenceApiKeyValueRoute,
 	DocsReferenceApiMachinesRoute: DocsReferenceApiMachinesRoute,
+	DocsReferenceApiOauthRoute: DocsReferenceApiOauthRoute,
 	DocsReferenceApiObjectStorageRoute: DocsReferenceApiObjectStorageRoute,
 	DocsReferenceApiOrganizationsRoute: DocsReferenceApiOrganizationsRoute,
 	DocsReferenceApiProjectsRoute: DocsReferenceApiProjectsRoute,

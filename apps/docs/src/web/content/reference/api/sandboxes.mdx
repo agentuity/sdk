@@ -276,6 +276,12 @@ Returns the sandbox ID, status, and optional stream URLs for stdout/stderr.
     "required": true
   },
   {
+    "name": "url",
+    "type": "string",
+    "description": "Public URL for the sandbox (only set when a network port is configured)",
+    "required": false
+  },
+  {
     "name": "stdoutStreamId",
     "type": "string",
     "description": "Stream ID for reading stdout",
@@ -1157,11 +1163,11 @@ Command execution payload.
 
 #### Response
 
-Returns execution ID and stream URLs. Returns 409 if sandbox is busy.
+Returns execution ID and stream URLs. If the sandbox was suspended, it is automatically resumed and the response includes `autoResumed: true`. Returns 409 if sandbox is busy.
 
 | Status | Description |
 |--------|-------------|
-| 200 | Command executed |
+| 200 | Command executed (may include autoResumed: true if sandbox was suspended) |
 | 401 | Unauthorized — invalid or missing API key |
 | 404 | Sandbox not found |
 | 409 | Conflict — sandbox is busy with another execution |
@@ -1203,6 +1209,12 @@ Returns execution ID and stream URLs. Returns 409 if sandbox is busy.
     "name": "stderrStreamUrl",
     "type": "string",
     "description": "URL for streaming stderr output",
+    "required": false
+  },
+  {
+    "name": "outputTruncated",
+    "type": "boolean",
+    "description": "Whether the captured output was truncated due to size limits",
     "required": false
   }
 ]} />
@@ -1312,6 +1324,104 @@ Returns list of executions for the sandbox.
 #### Example
 
 <ApiExample method="GET" path="/sandbox/sandboxes/sbx_abc123/executions" />
+
+---
+
+## Events
+
+### List Events
+
+List lifecycle events for a specific sandbox. Events are returned in chronological order (oldest first) by default.
+
+<ApiEndpoint method="GET" path="/sandbox/sandboxes/{sandboxId}/events" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sandboxId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Sandbox ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return (default: 50, max: 100)"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort direction: 'asc' (default, oldest first) or 'desc' (newest first)"
+  }
+]} />
+
+#### Response
+
+Returns list of lifecycle events for the sandbox.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Events returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Sandbox not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "events",
+    "type": "object[]",
+    "description": "List of sandbox events",
+    "required": true
+  },
+  {
+    "name": "events[].eventId",
+    "type": "string",
+    "description": "Unique identifier for the event",
+    "required": true
+  },
+  {
+    "name": "events[].sandboxId",
+    "type": "string",
+    "description": "ID of the sandbox this event belongs to",
+    "required": true
+  },
+  {
+    "name": "events[].type",
+    "type": "string",
+    "description": "Type of event (e.g., create, destroy, lifecycle:started)",
+    "required": true
+  },
+  {
+    "name": "events[].event",
+    "type": "object",
+    "description": "Event data payload",
+    "required": true
+  },
+  {
+    "name": "events[].createdAt",
+    "type": "string",
+    "description": "ISO timestamp when the event was recorded",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/sandbox/sandboxes/sbx_abc123/events" />
 
 ---
 
@@ -1699,6 +1809,18 @@ Returns list of files in the directory.
     "type": "boolean",
     "description": "Whether the entry is a directory",
     "required": true
+  },
+  {
+    "name": "files[].isSymlink",
+    "type": "boolean",
+    "description": "Whether the entry is a symbolic link",
+    "required": false
+  },
+  {
+    "name": "files[].linkTarget",
+    "type": "string",
+    "description": "Target path of the symbolic link",
+    "required": false
   },
   {
     "name": "files[].mode",
@@ -2793,7 +2915,7 @@ Uploads a gzip archive for public snapshots. Content-Type must be application/gz
 
 ### Create Checkpoint
 
-Create a named checkpoint of the sandbox filesystem.
+Create a named checkpoint of the sandbox filesystem. Checkpoint names must be unique — creating a checkpoint with a name that already exists returns 409 Conflict. Disk checkpoints are persisted across pause/resume cycles.
 
 <ApiEndpoint method="POST" path="/sandbox/{sandboxId}/checkpoint" />
 
@@ -2838,6 +2960,7 @@ Returns the created checkpoint.
 | 201 | Checkpoint created |
 | 401 | Unauthorized — invalid or missing API key |
 | 404 | Sandbox not found |
+| 409 | Conflict — checkpoint name already exists, or sandbox is suspended |
 
 #### Response Fields
 
@@ -2878,7 +3001,7 @@ Returns the created checkpoint.
 
 ### List Checkpoints
 
-List checkpoints for a specific sandbox.
+List checkpoints for a specific sandbox. Disk checkpoints are persisted across pause/resume cycles.
 
 <ApiEndpoint method="GET" path="/sandbox/checkpoints/{sandboxId}" />
 
@@ -2910,6 +3033,7 @@ Returns list of checkpoints for the sandbox.
 | 200 | Checkpoints returned |
 | 401 | Unauthorized — invalid or missing API key |
 | 404 | Sandbox not found |
+| 409 | Conflict — sandbox is suspended |
 
 #### Example
 
@@ -2958,6 +3082,7 @@ Restores the sandbox filesystem to the checkpoint state.
 | 200 | Checkpoint restored |
 | 401 | Unauthorized — invalid or missing API key |
 | 404 | Sandbox or checkpoint not found |
+| 409 | Conflict — sandbox is suspended |
 
 #### Example
 
@@ -3006,6 +3131,7 @@ Empty response on success.
 | 204 | Checkpoint deleted |
 | 401 | Unauthorized — invalid or missing API key |
 | 404 | Sandbox or checkpoint not found |
+| 409 | Conflict — sandbox is suspended |
 
 #### Example
 

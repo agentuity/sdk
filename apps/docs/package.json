@@ -6,8 +6,8 @@
 	"module": ".agentuity/app.js",
 	"type": "module",
 	"scripts": {
-		"predev": "bun run scripts/generate-api-reference.ts && bun run scripts/generate-markdown-files.ts",
-		"prebuild": "bun run scripts/generate-api-reference.ts && bun run scripts/generate-markdown-files.ts",
+		"predev": "bun run scripts/generate-api-reference.ts && bun run scripts/generate-markdown-files.ts && bun run scripts/generate-nav-data.ts",
+		"prebuild": "bun run scripts/generate-api-reference.ts && bun run scripts/generate-markdown-files.ts && bun run scripts/generate-nav-data.ts",
 		"predeploy": "cd ../../ && bun install && bun run build:packages && cd apps/docs && bun run prebuild",
 		"build": "bun ../../packages/cli/bin/cli.ts build --dir . --dev",
 		"dev": "bun ../../packages/cli/bin/cli.ts dev --dir .",
