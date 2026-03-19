@@ -665,12 +665,12 @@ else
 fi
 
 # Test: Remove a file
-info "Test: sandbox rm"
-RM_OUTPUT=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/todelete.txt 2>&1) || true
+info "Test: sandbox fs rm"
+RM_OUTPUT=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/todelete.txt 2>&1) || true
 if echo "$RM_OUTPUT" | grep -qi "Removed file"; then
-	pass "sandbox rm removes file"
+	pass "sandbox fs rm removes file"
 else
-	fail "sandbox rm failed" "$RM_OUTPUT"
+	fail "sandbox fs rm failed" "$RM_OUTPUT"
 fi
 
 # Verify file removed
@@ -682,60 +682,60 @@ else
 fi
 
 # Test: Remove non-existent file (should fail gracefully)
-info "Test: sandbox rm - non-existent file"
-RM_NOFILE=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/nonexistent.txt 2>&1) || true
+info "Test: sandbox fs rm - non-existent file"
+RM_NOFILE=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/nonexistent.txt 2>&1) || true
 if echo "$RM_NOFILE" | grep -qi "not found\|error\|fail"; then
-	pass "sandbox rm reports error for non-existent file"
+	pass "sandbox fs rm reports error for non-existent file"
 else
-	fail "sandbox rm did not report error for non-existent file" "$RM_NOFILE"
+	fail "sandbox fs rm did not report error for non-existent file" "$RM_NOFILE"
 fi
 
 # Test: rm on directory should fail (use rmdir instead)
-info "Test: sandbox rm - fails on directory"
+info "Test: sandbox fs rm - fails on directory"
 $CLI cloud sandbox fs mkdir "$SANDBOX_ID" /home/agentuity/testrmdir >/dev/null 2>&1 || true
-RM_DIR=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/testrmdir 2>&1) || true
+RM_DIR=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/testrmdir 2>&1) || true
 if echo "$RM_DIR" | grep -qi "directory\|error\|fail"; then
-	pass "sandbox rm correctly fails on directory"
+	pass "sandbox fs rm correctly fails on directory"
 else
-	fail "sandbox rm should fail on directory" "$RM_DIR"
+	fail "sandbox fs rm should fail on directory" "$RM_DIR"
 fi
 # Clean up test directory
 $CLI cloud sandbox fs rmdir "$SANDBOX_ID" /home/agentuity/testrmdir >/dev/null 2>&1 || true
 
 # Test: JSON output
-info "Test: sandbox rm --json"
+info "Test: sandbox fs rm --json"
 RM_JSON_READY=0
 set +e
 RM_JSON_CREATE=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "json test" > /home/agentuity/jsontest.txt' 2>&1)
 RM_JSON_CREATE_EXIT=$?
 set -e
 if [ "$RM_JSON_CREATE_EXIT" -ne 0 ]; then
-	fail "sandbox rm --json setup failed to create file (exit code $RM_JSON_CREATE_EXIT)" "$RM_JSON_CREATE"
+	fail "sandbox fs rm --json setup failed to create file (exit code $RM_JSON_CREATE_EXIT)" "$RM_JSON_CREATE"
 else
 	set +e
 	RM_JSON_EXISTS=$($CLI cloud sandbox exec "$SANDBOX_ID" -- test -f /home/agentuity/jsontest.txt 2>&1)
 	RM_JSON_EXISTS_EXIT=$?
 	set -e
 	if [ "$RM_JSON_EXISTS_EXIT" -ne 0 ]; then
-		fail "sandbox rm --json setup could not verify file exists" "$RM_JSON_EXISTS"
+		fail "sandbox fs rm --json setup could not verify file exists" "$RM_JSON_EXISTS"
 	else
 		RM_JSON_READY=1
 	fi
 fi
 if [ "$RM_JSON_READY" -eq 1 ]; then
 	set +e
-	RM_JSON=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/jsontest.txt --json 2>&1)
+	RM_JSON=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/jsontest.txt --json 2>&1)
 	RM_JSON_EXIT=$?
 	set -e
 	if [ "$RM_JSON_EXIT" -ne 0 ]; then
-		fail "sandbox rm --json failed to remove file (exit code $RM_JSON_EXIT)" "$RM_JSON"
+		fail "sandbox fs rm --json failed to remove file (exit code $RM_JSON_EXIT)" "$RM_JSON"
 	else
-		pass "sandbox rm --json exits successfully"
+		pass "sandbox fs rm --json exits successfully"
 	fi
 	if echo "$RM_JSON" | grep -q '"success"' && echo "$RM_JSON" | grep -q '"path"'; then
-		pass "sandbox rm --json returns structured data"
+		pass "sandbox fs rm --json returns structured data"
 	else
-		fail "sandbox rm --json missing expected fields" "$RM_JSON"
+		fail "sandbox fs rm --json missing expected fields" "$RM_JSON"
 	fi
 fi
 
