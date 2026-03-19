@@ -1,4 +1,12 @@
 {
 	"title": "Integrations",
-	"pages": ["mastra", "langchain", "openai-agents", "nextjs", "tanstack-start"]
+	"pages": [
+		"mastra",
+		"langchain",
+		"openai-agents",
+		"claude-agent",
+		"chat-sdk",
+		"nextjs",
+		"tanstack-start"
+	]
 }

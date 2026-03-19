@@ -3,7 +3,7 @@ title: Cookbook
 description: Tutorials and patterns for building with Agentuity
 ---
 
-import { BookOpen, Search, Clock, MessageSquare, Timer, Scale, Server, ShoppingCart, Paintbrush, Webhook, Link } from 'lucide-react';
+import { BookOpen, Search, Clock, MessageSquare, Timer, Scale, Server, ShoppingCart, Paintbrush, Webhook, Link, Globe } from 'lucide-react';
 
 Learn common patterns and build real-world applications with these guides.
 
@@ -27,6 +27,12 @@ Learn common patterns and build real-world applications with these guides.
 ## Patterns
 
 <Cards>
+  <CardLink
+    href="/cookbook/patterns/autonomous-research"
+    title="Autonomous Research"
+    description="Recursive research loop with native tool calling"
+    icon={<Search />}
+  />
   <CardLink
     href="/cookbook/patterns/background-tasks"
     title="Background Tasks"
@@ -76,6 +82,12 @@ Learn common patterns and build real-world applications with these guides.
     icon={<Paintbrush />}
   />
   <CardLink
+    href="/cookbook/patterns/web-exploration"
+    title="Web Exploration"
+    description="Headless browser in a sandbox for AI-guided browsing"
+    icon={<Globe />}
+  />
+  <CardLink
     href="/cookbook/patterns/webhook-handler"
     title="Webhook Handler"
     description="Handle incoming webhooks"
@@ -103,6 +115,18 @@ Learn common patterns and build real-world applications with these guides.
     title="OpenAI Agents SDK"
     description="Tool calling, handoffs, and streaming with the OpenAI Agents SDK"
     icon={<picture><img src="/public/images/integrations/openai.svg" alt="OpenAI" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/cookbook/integrations/claude-agent"
+    title="Claude Agent SDK"
+    description="Conversational code intelligence with sandbox execution"
+    icon={<picture><img src="/public/images/integrations/claude.svg" alt="Anthropic" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/cookbook/integrations/chat-sdk"
+    title="Chat SDK"
+    description="Multi-platform chatbots for Slack and Discord"
+    icon={<picture><img src="/public/images/integrations/vercel.svg" alt="Chat SDK" width={28} height={28} /></picture>}
   />
   <CardLink
     href="/cookbook/integrations/nextjs"

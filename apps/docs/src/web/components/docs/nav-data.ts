@@ -448,6 +448,12 @@ export const navData: NavSection[] = [
 				title: 'Patterns',
 				items: [
 					{
+						title: 'Autonomous Research',
+						url: '/cookbook/patterns/autonomous-research',
+						description:
+							'Build a recursive research loop using the Anthropic SDK with native tool calling',
+					},
+					{
 						title: 'Background Tasks',
 						url: '/cookbook/patterns/background-tasks',
 						description: 'Use waitUntil to run work after responding to the client',
@@ -491,6 +497,12 @@ export const navData: NavSection[] = [
 						description: 'Add Tailwind CSS styling to your Agentuity frontend',
 					},
 					{
+						title: 'Web Exploration',
+						url: '/cookbook/patterns/web-exploration',
+						description:
+							'Run a headless browser in a sandbox to let agents browse, screenshot, and extract web content',
+					},
+					{
 						title: 'Webhook Handler',
 						url: '/cookbook/patterns/webhook-handler',
 						description:
@@ -516,6 +528,17 @@ export const navData: NavSection[] = [
 						title: 'OpenAI Agents SDK',
 						url: '/cookbook/integrations/openai-agents',
 						description: 'Tool calling, handoffs, and streaming with the OpenAI Agents SDK',
+					},
+					{
+						title: 'Claude Agent SDK',
+						url: '/cookbook/integrations/claude-agent',
+						description: 'Conversational code intelligence with sandbox execution',
+					},
+					{
+						title: 'Chat SDK',
+						url: '/cookbook/integrations/chat-sdk',
+						description:
+							'Multi-platform chatbots for Slack and Discord with conversation memory',
 					},
 					{
 						title: 'Next.js',

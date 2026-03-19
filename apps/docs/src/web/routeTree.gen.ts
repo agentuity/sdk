@@ -137,6 +137,7 @@ import { Route as DocsReferenceApiApiKeysRouteImport } from './routes/_docs/refe
 import { Route as DocsCookbookTutorialsUnderstandingAgentsRouteImport } from './routes/_docs/cookbook/tutorials/understanding-agents';
 import { Route as DocsCookbookTutorialsRagAgentRouteImport } from './routes/_docs/cookbook/tutorials/rag-agent';
 import { Route as DocsCookbookPatternsWebhookHandlerRouteImport } from './routes/_docs/cookbook/patterns/webhook-handler';
+import { Route as DocsCookbookPatternsWebExplorationRouteImport } from './routes/_docs/cookbook/patterns/web-exploration';
 import { Route as DocsCookbookPatternsTailwindSetupRouteImport } from './routes/_docs/cookbook/patterns/tailwind-setup';
 import { Route as DocsCookbookPatternsServerUtilitiesRouteImport } from './routes/_docs/cookbook/patterns/server-utilities';
 import { Route as DocsCookbookPatternsProductSearchRouteImport } from './routes/_docs/cookbook/patterns/product-search';
@@ -145,11 +146,14 @@ import { Route as DocsCookbookPatternsHonoRpcTanstackQueryRouteImport } from './
 import { Route as DocsCookbookPatternsCronWithStorageRouteImport } from './routes/_docs/cookbook/patterns/cron-with-storage';
 import { Route as DocsCookbookPatternsChatWithHistoryRouteImport } from './routes/_docs/cookbook/patterns/chat-with-history';
 import { Route as DocsCookbookPatternsBackgroundTasksRouteImport } from './routes/_docs/cookbook/patterns/background-tasks';
+import { Route as DocsCookbookPatternsAutonomousResearchRouteImport } from './routes/_docs/cookbook/patterns/autonomous-research';
 import { Route as DocsCookbookIntegrationsTanstackStartRouteImport } from './routes/_docs/cookbook/integrations/tanstack-start';
 import { Route as DocsCookbookIntegrationsOpenaiAgentsRouteImport } from './routes/_docs/cookbook/integrations/openai-agents';
 import { Route as DocsCookbookIntegrationsNextjsRouteImport } from './routes/_docs/cookbook/integrations/nextjs';
 import { Route as DocsCookbookIntegrationsMastraRouteImport } from './routes/_docs/cookbook/integrations/mastra';
 import { Route as DocsCookbookIntegrationsLangchainRouteImport } from './routes/_docs/cookbook/integrations/langchain';
+import { Route as DocsCookbookIntegrationsClaudeAgentRouteImport } from './routes/_docs/cookbook/integrations/claude-agent';
+import { Route as DocsCookbookIntegrationsChatSdkRouteImport } from './routes/_docs/cookbook/integrations/chat-sdk';
 
 const DocsRouteRoute = DocsRouteRouteImport.update({
 	id: '/_docs',
@@ -795,6 +799,12 @@ const DocsCookbookPatternsWebhookHandlerRoute =
 		path: '/cookbook/patterns/webhook-handler',
 		getParentRoute: () => DocsRouteRoute,
 	} as any);
+const DocsCookbookPatternsWebExplorationRoute =
+	DocsCookbookPatternsWebExplorationRouteImport.update({
+		id: '/cookbook/patterns/web-exploration',
+		path: '/cookbook/patterns/web-exploration',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
 const DocsCookbookPatternsTailwindSetupRoute = DocsCookbookPatternsTailwindSetupRouteImport.update({
 	id: '/cookbook/patterns/tailwind-setup',
 	path: '/cookbook/patterns/tailwind-setup',
@@ -840,6 +850,12 @@ const DocsCookbookPatternsBackgroundTasksRoute =
 		path: '/cookbook/patterns/background-tasks',
 		getParentRoute: () => DocsRouteRoute,
 	} as any);
+const DocsCookbookPatternsAutonomousResearchRoute =
+	DocsCookbookPatternsAutonomousResearchRouteImport.update({
+		id: '/cookbook/patterns/autonomous-research',
+		path: '/cookbook/patterns/autonomous-research',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
 const DocsCookbookIntegrationsTanstackStartRoute =
 	DocsCookbookIntegrationsTanstackStartRouteImport.update({
 		id: '/cookbook/integrations/tanstack-start',
@@ -865,6 +881,17 @@ const DocsCookbookIntegrationsMastraRoute = DocsCookbookIntegrationsMastraRouteI
 const DocsCookbookIntegrationsLangchainRoute = DocsCookbookIntegrationsLangchainRouteImport.update({
 	id: '/cookbook/integrations/langchain',
 	path: '/cookbook/integrations/langchain',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsCookbookIntegrationsClaudeAgentRoute =
+	DocsCookbookIntegrationsClaudeAgentRouteImport.update({
+		id: '/cookbook/integrations/claude-agent',
+		path: '/cookbook/integrations/claude-agent',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
+const DocsCookbookIntegrationsChatSdkRoute = DocsCookbookIntegrationsChatSdkRouteImport.update({
+	id: '/cookbook/integrations/chat-sdk',
+	path: '/cookbook/integrations/chat-sdk',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 
@@ -937,11 +964,14 @@ export interface FileRoutesByFullPath {
 	'/reference/': typeof DocsReferenceIndexRoute;
 	'/routes/': typeof DocsRoutesIndexRoute;
 	'/services/': typeof DocsServicesIndexRoute;
+	'/cookbook/integrations/chat-sdk': typeof DocsCookbookIntegrationsChatSdkRoute;
+	'/cookbook/integrations/claude-agent': typeof DocsCookbookIntegrationsClaudeAgentRoute;
 	'/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute;
 	'/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute;
 	'/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
 	'/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
 	'/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
+	'/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute;
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
@@ -950,6 +980,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
 	'/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute;
+	'/cookbook/patterns/web-exploration': typeof DocsCookbookPatternsWebExplorationRoute;
 	'/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
@@ -1078,11 +1109,14 @@ export interface FileRoutesByTo {
 	'/reference': typeof DocsReferenceIndexRoute;
 	'/routes': typeof DocsRoutesIndexRoute;
 	'/services': typeof DocsServicesIndexRoute;
+	'/cookbook/integrations/chat-sdk': typeof DocsCookbookIntegrationsChatSdkRoute;
+	'/cookbook/integrations/claude-agent': typeof DocsCookbookIntegrationsClaudeAgentRoute;
 	'/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute;
 	'/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute;
 	'/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
 	'/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
 	'/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
+	'/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute;
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
@@ -1091,6 +1125,7 @@ export interface FileRoutesByTo {
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
 	'/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute;
+	'/cookbook/patterns/web-exploration': typeof DocsCookbookPatternsWebExplorationRoute;
 	'/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
@@ -1222,11 +1257,14 @@ export interface FileRoutesById {
 	'/_docs/reference/': typeof DocsReferenceIndexRoute;
 	'/_docs/routes/': typeof DocsRoutesIndexRoute;
 	'/_docs/services/': typeof DocsServicesIndexRoute;
+	'/_docs/cookbook/integrations/chat-sdk': typeof DocsCookbookIntegrationsChatSdkRoute;
+	'/_docs/cookbook/integrations/claude-agent': typeof DocsCookbookIntegrationsClaudeAgentRoute;
 	'/_docs/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute;
 	'/_docs/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute;
 	'/_docs/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
 	'/_docs/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
 	'/_docs/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
+	'/_docs/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute;
 	'/_docs/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/_docs/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/_docs/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
@@ -1235,6 +1273,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/_docs/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
 	'/_docs/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute;
+	'/_docs/cookbook/patterns/web-exploration': typeof DocsCookbookPatternsWebExplorationRoute;
 	'/_docs/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/_docs/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/_docs/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
@@ -1366,11 +1405,14 @@ export interface FileRouteTypes {
 		| '/reference/'
 		| '/routes/'
 		| '/services/'
+		| '/cookbook/integrations/chat-sdk'
+		| '/cookbook/integrations/claude-agent'
 		| '/cookbook/integrations/langchain'
 		| '/cookbook/integrations/mastra'
 		| '/cookbook/integrations/nextjs'
 		| '/cookbook/integrations/openai-agents'
 		| '/cookbook/integrations/tanstack-start'
+		| '/cookbook/patterns/autonomous-research'
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
@@ -1379,6 +1421,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
 		| '/cookbook/patterns/tailwind-setup'
+		| '/cookbook/patterns/web-exploration'
 		| '/cookbook/patterns/webhook-handler'
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
@@ -1507,11 +1550,14 @@ export interface FileRouteTypes {
 		| '/reference'
 		| '/routes'
 		| '/services'
+		| '/cookbook/integrations/chat-sdk'
+		| '/cookbook/integrations/claude-agent'
 		| '/cookbook/integrations/langchain'
 		| '/cookbook/integrations/mastra'
 		| '/cookbook/integrations/nextjs'
 		| '/cookbook/integrations/openai-agents'
 		| '/cookbook/integrations/tanstack-start'
+		| '/cookbook/patterns/autonomous-research'
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
@@ -1520,6 +1566,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
 		| '/cookbook/patterns/tailwind-setup'
+		| '/cookbook/patterns/web-exploration'
 		| '/cookbook/patterns/webhook-handler'
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
@@ -1650,11 +1697,14 @@ export interface FileRouteTypes {
 		| '/_docs/reference/'
 		| '/_docs/routes/'
 		| '/_docs/services/'
+		| '/_docs/cookbook/integrations/chat-sdk'
+		| '/_docs/cookbook/integrations/claude-agent'
 		| '/_docs/cookbook/integrations/langchain'
 		| '/_docs/cookbook/integrations/mastra'
 		| '/_docs/cookbook/integrations/nextjs'
 		| '/_docs/cookbook/integrations/openai-agents'
 		| '/_docs/cookbook/integrations/tanstack-start'
+		| '/_docs/cookbook/patterns/autonomous-research'
 		| '/_docs/cookbook/patterns/background-tasks'
 		| '/_docs/cookbook/patterns/chat-with-history'
 		| '/_docs/cookbook/patterns/cron-with-storage'
@@ -1663,6 +1713,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/patterns/product-search'
 		| '/_docs/cookbook/patterns/server-utilities'
 		| '/_docs/cookbook/patterns/tailwind-setup'
+		| '/_docs/cookbook/patterns/web-exploration'
 		| '/_docs/cookbook/patterns/webhook-handler'
 		| '/_docs/cookbook/tutorials/rag-agent'
 		| '/_docs/cookbook/tutorials/understanding-agents'
@@ -2641,6 +2692,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsCookbookPatternsWebhookHandlerRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/cookbook/patterns/web-exploration': {
+			id: '/_docs/cookbook/patterns/web-exploration';
+			path: '/cookbook/patterns/web-exploration';
+			fullPath: '/cookbook/patterns/web-exploration';
+			preLoaderRoute: typeof DocsCookbookPatternsWebExplorationRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/cookbook/patterns/tailwind-setup': {
 			id: '/_docs/cookbook/patterns/tailwind-setup';
 			path: '/cookbook/patterns/tailwind-setup';
@@ -2697,6 +2755,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsCookbookPatternsBackgroundTasksRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/cookbook/patterns/autonomous-research': {
+			id: '/_docs/cookbook/patterns/autonomous-research';
+			path: '/cookbook/patterns/autonomous-research';
+			fullPath: '/cookbook/patterns/autonomous-research';
+			preLoaderRoute: typeof DocsCookbookPatternsAutonomousResearchRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/cookbook/integrations/tanstack-start': {
 			id: '/_docs/cookbook/integrations/tanstack-start';
 			path: '/cookbook/integrations/tanstack-start';
@@ -2730,6 +2795,20 @@ declare module '@tanstack/react-router' {
 			path: '/cookbook/integrations/langchain';
 			fullPath: '/cookbook/integrations/langchain';
 			preLoaderRoute: typeof DocsCookbookIntegrationsLangchainRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/claude-agent': {
+			id: '/_docs/cookbook/integrations/claude-agent';
+			path: '/cookbook/integrations/claude-agent';
+			fullPath: '/cookbook/integrations/claude-agent';
+			preLoaderRoute: typeof DocsCookbookIntegrationsClaudeAgentRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/chat-sdk': {
+			id: '/_docs/cookbook/integrations/chat-sdk';
+			path: '/cookbook/integrations/chat-sdk';
+			fullPath: '/cookbook/integrations/chat-sdk';
+			preLoaderRoute: typeof DocsCookbookIntegrationsChatSdkRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 	}
@@ -2843,11 +2922,14 @@ interface DocsRouteRouteChildren {
 	DocsReferenceIndexRoute: typeof DocsReferenceIndexRoute;
 	DocsRoutesIndexRoute: typeof DocsRoutesIndexRoute;
 	DocsServicesIndexRoute: typeof DocsServicesIndexRoute;
+	DocsCookbookIntegrationsChatSdkRoute: typeof DocsCookbookIntegrationsChatSdkRoute;
+	DocsCookbookIntegrationsClaudeAgentRoute: typeof DocsCookbookIntegrationsClaudeAgentRoute;
 	DocsCookbookIntegrationsLangchainRoute: typeof DocsCookbookIntegrationsLangchainRoute;
 	DocsCookbookIntegrationsMastraRoute: typeof DocsCookbookIntegrationsMastraRoute;
 	DocsCookbookIntegrationsNextjsRoute: typeof DocsCookbookIntegrationsNextjsRoute;
 	DocsCookbookIntegrationsOpenaiAgentsRoute: typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
 	DocsCookbookIntegrationsTanstackStartRoute: typeof DocsCookbookIntegrationsTanstackStartRoute;
+	DocsCookbookPatternsAutonomousResearchRoute: typeof DocsCookbookPatternsAutonomousResearchRoute;
 	DocsCookbookPatternsBackgroundTasksRoute: typeof DocsCookbookPatternsBackgroundTasksRoute;
 	DocsCookbookPatternsChatWithHistoryRoute: typeof DocsCookbookPatternsChatWithHistoryRoute;
 	DocsCookbookPatternsCronWithStorageRoute: typeof DocsCookbookPatternsCronWithStorageRoute;
@@ -2856,6 +2938,7 @@ interface DocsRouteRouteChildren {
 	DocsCookbookPatternsProductSearchRoute: typeof DocsCookbookPatternsProductSearchRoute;
 	DocsCookbookPatternsServerUtilitiesRoute: typeof DocsCookbookPatternsServerUtilitiesRoute;
 	DocsCookbookPatternsTailwindSetupRoute: typeof DocsCookbookPatternsTailwindSetupRoute;
+	DocsCookbookPatternsWebExplorationRoute: typeof DocsCookbookPatternsWebExplorationRoute;
 	DocsCookbookPatternsWebhookHandlerRoute: typeof DocsCookbookPatternsWebhookHandlerRoute;
 	DocsCookbookTutorialsRagAgentRoute: typeof DocsCookbookTutorialsRagAgentRoute;
 	DocsCookbookTutorialsUnderstandingAgentsRoute: typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
@@ -2949,11 +3032,14 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceIndexRoute: DocsReferenceIndexRoute,
 	DocsRoutesIndexRoute: DocsRoutesIndexRoute,
 	DocsServicesIndexRoute: DocsServicesIndexRoute,
+	DocsCookbookIntegrationsChatSdkRoute: DocsCookbookIntegrationsChatSdkRoute,
+	DocsCookbookIntegrationsClaudeAgentRoute: DocsCookbookIntegrationsClaudeAgentRoute,
 	DocsCookbookIntegrationsLangchainRoute: DocsCookbookIntegrationsLangchainRoute,
 	DocsCookbookIntegrationsMastraRoute: DocsCookbookIntegrationsMastraRoute,
 	DocsCookbookIntegrationsNextjsRoute: DocsCookbookIntegrationsNextjsRoute,
 	DocsCookbookIntegrationsOpenaiAgentsRoute: DocsCookbookIntegrationsOpenaiAgentsRoute,
 	DocsCookbookIntegrationsTanstackStartRoute: DocsCookbookIntegrationsTanstackStartRoute,
+	DocsCookbookPatternsAutonomousResearchRoute: DocsCookbookPatternsAutonomousResearchRoute,
 	DocsCookbookPatternsBackgroundTasksRoute: DocsCookbookPatternsBackgroundTasksRoute,
 	DocsCookbookPatternsChatWithHistoryRoute: DocsCookbookPatternsChatWithHistoryRoute,
 	DocsCookbookPatternsCronWithStorageRoute: DocsCookbookPatternsCronWithStorageRoute,
@@ -2962,6 +3048,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsCookbookPatternsProductSearchRoute: DocsCookbookPatternsProductSearchRoute,
 	DocsCookbookPatternsServerUtilitiesRoute: DocsCookbookPatternsServerUtilitiesRoute,
 	DocsCookbookPatternsTailwindSetupRoute: DocsCookbookPatternsTailwindSetupRoute,
+	DocsCookbookPatternsWebExplorationRoute: DocsCookbookPatternsWebExplorationRoute,
 	DocsCookbookPatternsWebhookHandlerRoute: DocsCookbookPatternsWebhookHandlerRoute,
 	DocsCookbookTutorialsRagAgentRoute: DocsCookbookTutorialsRagAgentRoute,
 	DocsCookbookTutorialsUnderstandingAgentsRoute: DocsCookbookTutorialsUnderstandingAgentsRoute,
