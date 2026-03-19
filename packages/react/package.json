@@ -4,6 +4,7 @@
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
+	"deprecated": "Use @agentuity/frontend directly and your auth provider's React hooks. See README for migration guide.",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {

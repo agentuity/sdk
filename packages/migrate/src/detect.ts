@@ -64,6 +64,8 @@ export interface DetectionResult {
 export interface FrontendFinding {
 	file: string;
 	apis: string[];
+	/** APIs that are deprecated (still work but should migrate away) */
+	deprecatedApis?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +80,22 @@ const REMOVED_REACT_APIS = new Set([
 	'RPCRouteRegistry',
 	'SSERouteRegistry',
 	'WebSocketRouteRegistry',
+]);
+
+/**
+ * APIs that are deprecated (still work but will be removed).
+ * Users should migrate away from these.
+ */
+const DEPRECATED_REACT_APIS = new Set([
+	'AgentuityProvider',
+	'AgentuityContext',
+	'useAgentuity',
+	'useAuth',
+	'useAnalytics',
+	'useTrackOnMount',
+	'withPageTracking',
+	'useWebRTCCall',
+	'useJsonMemo',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -237,6 +255,7 @@ async function scanFrontendFiles(projectDir: string): Promise<FrontendFinding[]>
 	for (const file of walkFiles(webDir, ['.ts', '.tsx'])) {
 		const sourceFile = await parseTs(file);
 		const usedApis: string[] = [];
+		const deprecatedApis: string[] = [];
 
 		function visit(node: ts.Node) {
 			// Check named imports from @agentuity/react or @agentuity/frontend
@@ -253,6 +272,9 @@ async function scanFrontendFiles(projectDir: string): Promise<FrontendFinding[]>
 							if (REMOVED_REACT_APIS.has(name)) {
 								usedApis.push(name);
 							}
+							if (DEPRECATED_REACT_APIS.has(name)) {
+								deprecatedApis.push(name);
+							}
 						}
 					}
 				}
@@ -262,8 +284,12 @@ async function scanFrontendFiles(projectDir: string): Promise<FrontendFinding[]>
 
 		visit(sourceFile);
 
-		if (usedApis.length > 0) {
-			findings.push({ file: rel(projectDir, file), apis: [...new Set(usedApis)] });
+		if (usedApis.length > 0 || deprecatedApis.length > 0) {
+			findings.push({
+				file: rel(projectDir, file),
+				apis: [...new Set(usedApis)],
+				deprecatedApis: [...new Set(deprecatedApis)],
+			});
 		}
 	}
 
@@ -417,6 +443,10 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 	const configPath = join(absDir, 'agentuity.config.ts');
 	result.hasAgentuityConfig = existsSync(configPath);
 
+	// Check for vite.config.ts (v2 approach)
+	const viteConfigPath = join(absDir, 'vite.config.ts');
+	const hasViteConfig = existsSync(viteConfigPath);
+
 	// In v2, agentuity.config.ts is DEPRECATED.
 	// ALL config is consolidated into createApp() or native Vite config:
 	// - Vite keys (plugins, define, render, bundle) → vite.config.ts
@@ -557,21 +587,40 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 	// ── 7. Frontend removed APIs ─────────────────────────────────────────────
 	result.frontendRemovedApis = await scanFrontendFiles(absDir);
 	for (const fe of result.frontendRemovedApis) {
-		findings.push({
-			id: `frontend-removed:${fe.file}`,
-			severity: 'manual',
-			message: `Frontend file uses removed APIs: ${fe.apis.join(', ')}`,
-			file: fe.file,
-			hint:
-				'Replace with Hono RPC client (hono/client):\n' +
-				'\n' +
-				"  import { hc } from 'hono/client';\n" +
-				"  import type { AppRouter } from '../api'; // your barrel\n" +
-				"  const client = hc<AppRouter>(window.location.origin + '/api');\n" +
-				"  const res = await client.hello.$post({ json: { name: 'World' } });\n" +
-				'\n' +
-				'See: https://hono.dev/docs/guides/rpc',
-		});
+		if (fe.apis.length > 0) {
+			findings.push({
+				id: `frontend-removed:${fe.file}`,
+				severity: 'manual',
+				message: `Frontend file uses removed APIs: ${fe.apis.join(', ')}`,
+				file: fe.file,
+				hint:
+					'Replace with Hono RPC client (hono/client):\n' +
+					'\n' +
+					"  import { hc } from 'hono/client';\n" +
+					"  import type { AppRouter } from '../api'; // your barrel\n" +
+					"  const client = hc<AppRouter>(window.location.origin + '/api');\n" +
+					"  const res = await client.hello.$post({ json: { name: 'World' } });\n" +
+					'\n' +
+					'See: https://hono.dev/docs/guides/rpc',
+			});
+		}
+		if (fe.deprecatedApis && fe.deprecatedApis.length > 0) {
+			findings.push({
+				id: `frontend-deprecated:${fe.file}`,
+				severity: 'guided',
+				message: `Frontend file uses deprecated @agentuity/react APIs: ${fe.deprecatedApis.join(', ')}`,
+				file: fe.file,
+				hint:
+					'@agentuity/react is deprecated. Migration options:\n' +
+					'\n' +
+					'• AgentuityProvider/useAuth → Use your auth provider directly (better-auth, Clerk, etc.)\n' +
+					'• useAnalytics → Use getAnalytics() from @agentuity/frontend\n' +
+					'• useWebRTCCall → Use WebRTCManager from @agentuity/frontend\n' +
+					'• WebSocketManager/EventStreamManager → Import from @agentuity/frontend\n' +
+					'\n' +
+					'The package will continue to work but will not receive updates.',
+			});
+		}
 	}
 
 	// ── 7b. Hono RPC recommendation (whenever routes exist) ─────────────────
@@ -585,6 +634,31 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 
 	const frontendDir = join(absDir, 'src', 'web');
 	const hasFrontend = existsSync(frontendDir);
+
+	// ── 7c. Vite config check ───────────────────────────────────────────────
+	// If there's a frontend, vite.config.ts should exist with framework plugins
+	if (hasFrontend && !hasViteConfig) {
+		findings.push({
+			id: 'missing-vite-config',
+			severity: 'guided',
+			message: 'No vite.config.ts found - frontend requires Vite configuration',
+			hint:
+				'Create vite.config.ts with your frontend framework plugin:\n' +
+				'\n' +
+				'  // vite.config.ts\n' +
+				"  import { defineConfig } from 'vite';\n" +
+				"  import react from '@vitejs/plugin-react';\n" +
+				'\n' +
+				'  export default defineConfig({\n' +
+				'    plugins: [react()],\n' +
+				'  });\n' +
+				'\n' +
+				'For other frameworks:\n' +
+				"  • Svelte: import { svelte } from '@sveltejs/vite-plugin-svelte'\n" +
+				"  • Vue: import vue from '@vitejs/plugin-vue'\n" +
+				"  • Solid: import solid from 'vite-plugin-solid'",
+		});
+	}
 
 	if (hasApiRoutes && hasFrontend && result.frontendRemovedApis.length === 0) {
 		// Only show this if there are no already-detected frontend issues (avoid duplication)

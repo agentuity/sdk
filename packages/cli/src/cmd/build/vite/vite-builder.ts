@@ -117,22 +117,18 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		return;
 	}
 
-	// Dynamically import vite and react plugin
+	// Dynamically import vite
 	// Try project's node_modules first (for custom vite configs), fall back to CLI's
 	const projectRequire = createRequire(join(rootDir, 'package.json'));
 	let vitePath = 'vite';
-	let reactPluginPath = '@vitejs/plugin-react';
 	try {
 		vitePath = projectRequire.resolve('vite');
-		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
 	} catch {
 		// Project doesn't have vite, use CLI's bundled version
 	}
-	const { build: viteBuild } = await import(vitePath);
-	const reactModule = await import(reactPluginPath);
-	const react = reactModule.default;
+	const { build: viteBuild, loadConfigFromFile, mergeConfig } = await import(vitePath);
 
-	// For client/workbench, use inline config (no agentuity plugin needed)
+	// For client/workbench, use inline config with vite.config.ts loading
 	let viteConfig: InlineConfig;
 
 	if (mode === 'client') {
@@ -155,26 +151,28 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const cdnBaseUrl =
 			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
 
-		// Load custom user plugins from agentuity.config.ts if it exists
+		// Load vite.config.ts if it exists (v2 approach)
 		const clientOutDir = join(rootDir, '.agentuity/client');
-		const { loadAgentuityConfig, hasFrameworkPlugin } = await import('./config-loader');
-		const userConfig = await loadAgentuityConfig(rootDir, logger);
-		const userPlugins = userConfig?.plugins || [];
+		let userConfig: InlineConfig = {};
+		const viteConfigPath = join(rootDir, 'vite.config.ts');
 
-		// Auto-add React plugin if no framework plugin is present (backwards compatibility)
-		if (userPlugins.length === 0 || !hasFrameworkPlugin(userPlugins)) {
-			logger.debug(
-				'No framework plugin found in agentuity.config.ts plugins, adding React automatically'
-			);
-			userPlugins.unshift(react());
+		if (await Bun.file(viteConfigPath).exists()) {
+			try {
+				const loaded = await loadConfigFromFile(
+					{ command: 'build', mode: dev ? 'development' : 'production' },
+					viteConfigPath
+				);
+				if (loaded?.config) {
+					userConfig = loaded.config as InlineConfig;
+					logger.debug('Loaded vite.config.ts for client build');
+				}
+			} catch (error) {
+				logger.warn('Failed to load vite.config.ts: %s', error);
+			}
 		}
 
-		if (userPlugins.length > 0) {
-			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
-		}
-
-		const plugins = [
-			...userPlugins,
+		// Agentuity-specific plugins to add
+		const agentuityPlugins: Plugin[] = [
 			browserEnvPlugin(),
 			// Fix incorrect public asset paths and rewrite to CDN URLs
 			publicAssetPathPlugin({ cdnBaseUrl }),
@@ -183,27 +181,16 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			beaconPlugin({ enabled: analyticsEnabled && !dev }),
 		];
 
-		// Merge custom define values from user config
-		const userDefine = userConfig?.define || {};
-		if (Object.keys(userDefine).length > 0) {
-			logger.debug(
-				'Loaded %d custom define(s) from agentuity.config.ts',
-				Object.keys(userDefine).length
-			);
-		}
-
-		viteConfig = {
-			// Use project root as Vite root so plugins (e.g., TanStack Router) resolve paths
-			// from the repo root, matching where agentuity.config.ts is located
+		// Merge user config with Agentuity overrides
+		viteConfig = mergeConfig(userConfig, {
+			// Use project root as Vite root
 			root: rootDir,
-			plugins,
+			// Add Agentuity plugins after user plugins
+			plugins: agentuityPlugins,
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 			publicDir: join(rootDir, 'src', 'web', 'public'),
 			base: cdnBaseUrl, // CDN URL for production assets
 			define: {
-				// Merge user-defined constants first
-				...userDefine,
-				// Then add default defines (these will override any user-defined protected keys)
 				// Set workbench path if enabled (use import.meta.env for client code)
 				'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': workbenchEnabled
 					? JSON.stringify(workbenchRoute)
@@ -221,32 +208,22 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				copyPublicDir: !dev,
 			},
 			logLevel: 'warn',
-		};
+		});
 	} else if (mode === 'workbench') {
 		const { workbenchRoute = '/workbench' } = options;
 		// Ensure route ends with / for Vite base
 		const base = workbenchRoute.endsWith('/') ? workbenchRoute : `${workbenchRoute}/`;
 
-		// Load custom user config for define values (same as client mode)
-		const { loadAgentuityConfig } = await import('./config-loader');
-		const userConfig = await loadAgentuityConfig(rootDir, logger);
-		const userDefine = userConfig?.define || {};
-		if (Object.keys(userDefine).length > 0) {
-			logger.debug(
-				'Loaded %d custom define(s) from agentuity.config.ts for workbench',
-				Object.keys(userDefine).length
-			);
-		}
+		// Workbench is built with React (internal UI)
+		// Use CLI's bundled React plugin since workbench is our code
+		const reactModule = await import('@vitejs/plugin-react');
+		const react = reactModule.default;
 
 		viteConfig = {
 			root: join(rootDir, '.agentuity/workbench-src'), // Use generated workbench source
 			base, // All workbench assets are under the configured route
 			plugins: [react()],
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
-			define: {
-				// Merge user-defined constants
-				...userDefine,
-			},
 			build: {
 				outDir: join(rootDir, '.agentuity/workbench'),
 				rollupOptions: {
@@ -297,25 +274,11 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		static: { included: false, duration: 0, routes: 0 },
 	};
 
-	// Load config to check if workbench/analytics are enabled
-	// v2: prefer runtime config from app.ts, fallback to deprecated agentuity.config.ts
-	const { loadAgentuityConfig, getWorkbenchConfig, loadRuntimeConfig } = await import(
-		'./config-loader'
-	);
+	// Load runtime config from createApp() in app.ts (v2 approach)
+	const { getWorkbenchConfig, loadRuntimeConfig } = await import('./config-loader');
 	const runtimeConfig = await loadRuntimeConfig(rootDir, logger);
-	const config = await loadAgentuityConfig(rootDir, logger); // deprecated
 
-	// Copy bundle files if configured (before build so build output takes priority)
-	if (config?.bundle?.length) {
-		const { copyBundleFiles } = await import('./bundle-files');
-		const outDir = join(rootDir, '.agentuity');
-		const count = await copyBundleFiles(rootDir, outDir, config.bundle, logger);
-		if (count > 0) {
-			logger.debug(`Copied ${count} bundle file(s) to .agentuity`);
-		}
-	}
-
-	const workbenchConfig = getWorkbenchConfig(config, dev, runtimeConfig);
+	const workbenchConfig = getWorkbenchConfig(dev, runtimeConfig);
 	// Generate workbench files BEFORE any builds if enabled (dev mode only)
 	if (workbenchConfig.enabled) {
 		logger.debug('Workbench enabled (dev mode), generating files before build...');
@@ -343,12 +306,10 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	const hasWebFrontend = await Bun.file(join(rootDir, 'src', 'web', 'index.html')).exists();
 
 	// Check if analytics is enabled
-	// v2: prefer runtime config from createApp()
+	// v2: analytics config comes from createApp()
 	const analyticsFromRuntime = runtimeConfig?.analytics;
 	const analyticsEnabled =
-		analyticsFromRuntime !== undefined
-			? analyticsFromRuntime !== false
-			: config?.analytics !== false; // fallback to deprecated config
+		analyticsFromRuntime !== undefined ? analyticsFromRuntime !== false : true;
 
 	// 2. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
@@ -369,15 +330,15 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Skipping client build - no src/web/index.html found');
 	}
 
-	// 2b. Static rendering (if configured)
-	if (config?.render === 'static' && hasWebFrontend) {
+	// 2b. Static rendering (if entry-server.tsx exists)
+	const entryServerPath = join(rootDir, 'src', 'web', 'entry-server.tsx');
+	if (existsSync(entryServerPath) && hasWebFrontend) {
 		logger.debug('Running static rendering (pre-rendering all routes)...');
 		const endStaticDiagnostic = collector?.startDiagnostic('static-render');
 		const { runStaticRender } = await import('./static-renderer');
 		const staticResult = await runStaticRender({
 			rootDir,
 			logger,
-			userPlugins: config?.plugins || [],
 		});
 		result.static.included = true;
 		result.static.duration = staticResult.duration;

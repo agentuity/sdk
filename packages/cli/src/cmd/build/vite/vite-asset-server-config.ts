@@ -7,7 +7,6 @@
 
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import type { InlineConfig, Plugin } from 'vite';
 import type { Logger } from '../../../types';
 
@@ -168,22 +167,6 @@ export async function generateAssetServerConfig(
 ): Promise<InlineConfig> {
 	const { rootDir, logger, workbenchPath, port, backendPort, routePaths = ['/api'] } = options;
 
-	// Load custom user config for define values and plugins
-	const { loadAgentuityConfig } = await import('./config-loader');
-	const userConfig = await loadAgentuityConfig(rootDir, logger);
-	const userDefine = userConfig?.define || {};
-	const userPlugins = userConfig?.plugins || [];
-
-	if (Object.keys(userDefine).length > 0) {
-		logger.debug(
-			'Loaded %d custom define(s) from agentuity.config.ts',
-			Object.keys(userDefine).length
-		);
-	}
-	if (userPlugins.length > 0) {
-		logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
-	}
-
 	// Load path aliases from tsconfig.json if available
 	const tsconfigPath = join(rootDir, 'tsconfig.json');
 	let alias = {};
@@ -217,16 +200,14 @@ export async function generateAssetServerConfig(
 
 		resolve: {
 			alias,
-			// Deduplicate React to prevent multiple instances
+			// Deduplicate React to prevent multiple instances (if used)
 			dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
 		},
 
-		// Pre-bundle dependencies to avoid React preamble issues with pre-built JSX
+		// Pre-bundle dependencies to avoid issues with pre-built packages
 		// Only include @agentuity/workbench if workbench is enabled
 		optimizeDeps: {
-			include: workbenchPath
-				? ['@agentuity/workbench', '@agentuity/core', '@agentuity/react']
-				: ['@agentuity/core', '@agentuity/react'],
+			include: workbenchPath ? ['@agentuity/workbench', '@agentuity/core'] : ['@agentuity/core'],
 		},
 
 		// Only allow frontend env vars (server uses process.env)
@@ -288,9 +269,6 @@ export async function generateAssetServerConfig(
 
 		// Define environment variables for browser
 		define: {
-			// Merge user-defined constants first
-			...userDefine,
-			// Then add default defines (these will override any user-defined protected keys)
 			...(workbenchPath
 				? { 'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': JSON.stringify(workbenchPath) }
 				: {}),
@@ -300,33 +278,12 @@ export async function generateAssetServerConfig(
 			'process.env.NODE_ENV': JSON.stringify('development'),
 		},
 
-		// Plugins: User plugins first (includes framework plugin like React/Svelte/Vue), then browser env
-		// Try project's node_modules first, fall back to CLI's bundled version
+		// Agentuity-specific plugins (Vite loads user plugins from vite.config.ts automatically)
 		plugins: await (async () => {
 			const { browserEnvPlugin } = await import('./browser-env-plugin');
 			const { publicAssetPathPlugin } = await import('./public-asset-path-plugin');
-			const { hasFrameworkPlugin } = await import('./config-loader');
-
-			// Auto-add React plugin if no framework plugin is present (backwards compatibility)
-			const resolvedUserPlugins = [...userPlugins];
-			if (resolvedUserPlugins.length === 0 || !hasFrameworkPlugin(resolvedUserPlugins)) {
-				logger.debug(
-					'No framework plugin found in agentuity.config.ts plugins, adding React automatically for dev server'
-				);
-				const projectRequire = createRequire(join(rootDir, 'package.json'));
-				let reactPluginPath = '@vitejs/plugin-react';
-				try {
-					reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
-				} catch {
-					// Project doesn't have @vitejs/plugin-react, use CLI's bundled version
-				}
-				const reactModule = await import(reactPluginPath);
-				resolvedUserPlugins.unshift(reactModule.default());
-			}
 
 			return [
-				// User-defined plugins from agentuity.config.ts (framework plugin + extras)
-				...resolvedUserPlugins,
 				// Browser env plugin to map process.env to import.meta.env
 				browserEnvPlugin(),
 				// Warn about incorrect public asset paths in dev mode

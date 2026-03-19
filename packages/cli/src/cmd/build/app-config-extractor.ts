@@ -172,10 +172,10 @@ export async function extractAppConfig(
 		const config = extractCreateAppConfig(sourceFile);
 
 		if (config.analytics !== undefined) {
-			logger.trace('[config-extract] Found analytics in createApp(): %o', config.analytics);
+			logger.debug('[config-extract] Found analytics in createApp(): %o', config.analytics);
 		}
 		if (config.workbench !== undefined) {
-			logger.trace('[config-extract] Found workbench in createApp(): %o', config.workbench);
+			logger.debug('[config-extract] Found workbench in createApp(): %o', config.workbench);
 		}
 
 		return config;

@@ -17,7 +17,6 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import type { Logger } from '../../../types';
-import { hasFrameworkPlugin } from './config-loader';
 
 /** Minimal shape of a TanStack Router route tree node. */
 interface RouteTreeNode {
@@ -75,8 +74,6 @@ function extractRoutePaths(node: RouteTreeNode): string[] {
 export interface StaticRenderOptions {
 	rootDir: string;
 	logger: Logger;
-	/** User plugins from agentuity.config.ts */
-	userPlugins: import('vite').PluginOption[];
 }
 
 export interface StaticRenderResult {
@@ -85,7 +82,7 @@ export interface StaticRenderResult {
 }
 
 export async function runStaticRender(options: StaticRenderOptions): Promise<StaticRenderResult> {
-	const { rootDir, logger, userPlugins } = options;
+	const { rootDir, logger } = options;
 	const started = Date.now();
 
 	const clientDir = join(rootDir, '.agentuity/client');
@@ -115,27 +112,36 @@ export async function runStaticRender(options: StaticRenderOptions): Promise<Sta
 
 	const projectRequire = createRequire(join(rootDir, 'package.json'));
 	let vitePath = 'vite';
-	let reactPluginPath = '@vitejs/plugin-react';
 	try {
 		vitePath = projectRequire.resolve('vite');
-		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
 	} catch {
 		// Use CLI's bundled version
 	}
 
-	const { build: viteBuild } = await import(vitePath);
-	const reactModule = await import(reactPluginPath);
-	const react = reactModule.default;
+	const { build: viteBuild, loadConfigFromFile, mergeConfig } = await import(vitePath);
 
-	// Build plugin list: auto-add React if no framework plugin present
-	const plugins = [...(userPlugins || [])];
-	if (plugins.length === 0 || !hasFrameworkPlugin(plugins)) {
-		plugins.unshift(react());
+	// Load vite.config.ts if it exists (v2 approach)
+	let userConfig: import('vite').InlineConfig = {};
+	const viteConfigPath = join(rootDir, 'vite.config.ts');
+
+	if (await Bun.file(viteConfigPath).exists()) {
+		try {
+			const loaded = await loadConfigFromFile(
+				{ command: 'build', mode: 'production' },
+				viteConfigPath
+			);
+			if (loaded?.config) {
+				userConfig = loaded.config as import('vite').InlineConfig;
+				logger.debug('Loaded vite.config.ts for SSR build');
+			}
+		} catch (error) {
+			logger.warn('Failed to load vite.config.ts: %s', error);
+		}
 	}
 
-	await viteBuild({
+	// Merge user config with SSR build settings
+	const ssrConfig = mergeConfig(userConfig, {
 		root: rootDir,
-		plugins,
 		build: {
 			ssr: entryServerPath,
 			outDir: ssrOutDir,
@@ -152,6 +158,8 @@ export async function runStaticRender(options: StaticRenderOptions): Promise<Sta
 		},
 		logLevel: 'warn',
 	});
+
+	await viteBuild(ssrConfig);
 
 	// Steps 2–4: wrapped in try-finally so SSR artifacts are always cleaned up,
 	// even if an exception is thrown during module import, validation, or rendering.

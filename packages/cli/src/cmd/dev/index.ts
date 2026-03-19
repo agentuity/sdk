@@ -20,6 +20,7 @@ import { isTTY, hasLoggedInBefore } from '../../auth';
 
 import { prepareDevLock, releaseLockSync } from './dev-lock';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
+import { initProcessManager } from './process-manager';
 
 import { ErrorCode } from '../../errors';
 
@@ -31,12 +32,13 @@ const MAX_PORT = 65535;
 interface ProcessLike {
 	kill: (signal?: number | NodeJS.Signals) => void;
 	exitCode: number | null;
+	pid?: number;
 	stdout?: AsyncIterable<Uint8Array>;
 	stderr?: AsyncIterable<Uint8Array>;
 }
 
 interface ServerLike {
-	close: () => void;
+	close: () => void | Promise<void>;
 }
 
 /**
@@ -428,14 +430,12 @@ export const command = createCommand({
 				}
 			}
 
-			// Get workbench info from config (v2: read from createApp in app.ts)
-			const { loadAgentuityConfig, getWorkbenchConfig, loadRuntimeConfig } = await import(
+			// Get workbench info from createApp() in app.ts (v2 approach)
+			const { getWorkbenchConfig, loadRuntimeConfig } = await import(
 				'../build/vite/config-loader'
 			);
-			// v2: prefer runtime config from app.ts, fallback to deprecated agentuity.config.ts
-			const runtimeConfig = await loadRuntimeConfig(rootDir, ctx.logger);
-			const agentuityConfig = await loadAgentuityConfig(rootDir, ctx.logger); // deprecated
-			const workbenchConfigData = getWorkbenchConfig(agentuityConfig, true, runtimeConfig); // dev mode
+			const runtimeConfig = await loadRuntimeConfig(rootDir, logger);
+			const workbenchConfigData = getWorkbenchConfig(true, runtimeConfig); // dev mode
 			const workbench = {
 				hasWorkbench: workbenchConfigData.enabled,
 				config: workbenchConfigData.enabled
@@ -531,6 +531,9 @@ export const command = createCommand({
 			let viteServer: ServerLike | null = null;
 			let vitePort: number;
 
+			// Initialize process manager to track all servers/processes
+			const procManager = initProcessManager(logger);
+
 			try {
 				logger.debug('Starting Vite dev server (internal port %d)...', viteInternalPort);
 				const viteResult = await startViteAssetServer({
@@ -544,6 +547,14 @@ export const command = createCommand({
 				viteServer = viteResult.server;
 				vitePort = viteResult.port;
 
+				// Register Vite server with process manager
+				procManager.registerServer({
+					id: 'vite',
+					server: viteServer,
+					description: 'Vite dev server (frontend assets)',
+					port: vitePort,
+				});
+
 				// Update dev lock with actual Vite port
 				await devLock.updatePorts({ vite: vitePort });
 
@@ -552,6 +563,7 @@ export const command = createCommand({
 				);
 			} catch (error) {
 				tui.error(`Failed to start Vite dev server: ${error}`);
+				await procManager.cleanup('vite startup failure');
 				await devLock.release();
 				originalExit(1);
 				return;
@@ -571,11 +583,25 @@ export const command = createCommand({
 					routePaths,
 					logger,
 				});
+
+				// Register front-door proxy with process manager
+				procManager.registerServer({
+					id: 'front-door-proxy',
+					server: {
+						close: () => {
+							frontDoorServer?.close();
+						},
+					},
+					description: 'Front-door TCP proxy (WS routing)',
+					port: opts.port,
+				});
+
 				logger.debug(
 					`Front-door proxy on port ${opts.port} (Vite:${vitePort}, Bun:${bunBackendPort})`
 				);
 			} catch (error) {
 				tui.error(`Failed to start front-door proxy: ${error}`);
+				await procManager.cleanup('front-door proxy startup failure');
 				await devLock.release();
 				originalExit(1);
 				return;
@@ -587,63 +613,29 @@ export const command = createCommand({
 			let stdinListenerRegistered = false;
 			let stdinDataHandler: ((data: Buffer | string) => void) | null = null;
 			let shutdownRequested = false;
-			let cleaningUp = false;
 
 			/**
 			 * Centralized cleanup function for all resources.
+			 * Uses the process manager for tracked servers/processes.
 			 */
 			const cleanup = async (exitAfter = false, exitCode = 0, silent = false) => {
-				if (cleaningUp) return;
-				cleaningUp = true;
+				if (shutdownRequested) return;
+				shutdownRequested = true;
 
 				if (!silent) {
 					tui.info('Shutting down...');
 				}
 
-				// Stop front-door proxy
-				try {
-					frontDoorServer?.close();
-				} catch (err) {
-					logger.debug('Error stopping front-door proxy: %s', err);
-				}
-
-				// Kill Bun subprocess
-				killBunSubprocess(logger);
-
-				// Stop gravity heartbeat interval
+				// Stop gravity heartbeat interval first
 				if (gravityHeartbeatInterval) {
 					clearInterval(gravityHeartbeatInterval);
 					gravityHeartbeatInterval = null;
 				}
 
-				// Kill gravity client
-				if (gravityProcess) {
-					try {
-						gravityProcess.kill('SIGTERM');
-						await new Promise((resolve) => setTimeout(resolve, 150));
-						if (gravityProcess.exitCode === null) {
-							gravityProcess.kill('SIGKILL');
-						}
-					} catch (err) {
-						logger.debug('Error killing gravity: %s', err);
-					} finally {
-						gravityProcess = null;
-					}
-				}
+				// Use process manager for tracked cleanup
+				await procManager.cleanup('shutdown');
 
-				// Close Vite
-				if (viteServer) {
-					try {
-						const closePromise = viteServer.close();
-						const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 2000));
-						await Promise.race([closePromise, timeoutPromise]);
-					} catch (err) {
-						logger.debug('Error closing Vite: %s', err);
-					} finally {
-						viteServer = null;
-					}
-				}
-
+				// Additional cleanup for non-tracked resources
 				await devLock.release();
 				await killLingeringGravityProcesses(logger);
 
@@ -850,15 +842,35 @@ export const command = createCommand({
 			// Step 3: Start Bun backend with --hot (handles its own HMR)
 			// ================================================================
 
-			await startBunDevServer({
-				rootDir,
-				port: bunBackendPort,
-				logger,
-				vitePort,
-				inspect: opts.inspect,
-				inspectWait: opts.inspectWait,
-				inspectBrk: opts.inspectBrk,
-			});
+			try {
+				await startBunDevServer({
+					rootDir,
+					port: bunBackendPort,
+					logger,
+					vitePort,
+					inspect: opts.inspect,
+					inspectWait: opts.inspectWait,
+					inspectBrk: opts.inspectBrk,
+				});
+
+				// Register Bun subprocess with process manager
+				// The subprocess is stored in globalThis.__AGENTUITY_BUN_SUBPROCESS__
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const bunSubprocess = (globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ as ProcessLike;
+				if (bunSubprocess) {
+					procManager.registerProcess({
+						id: 'bun-backend',
+						process: bunSubprocess,
+						description: 'Bun backend server (--hot)',
+						port: bunBackendPort,
+						critical: true,
+					});
+				}
+			} catch (error) {
+				tui.error(`Failed to start Bun backend server: ${error}`);
+				await cleanup(true, 1, true);
+				return;
+			}
 
 			// ================================================================
 			// Step 4: Start gravity tunnel (if public URL enabled)
@@ -867,94 +879,111 @@ export const command = createCommand({
 			if (gravityBin && gravityURL && devmode && project) {
 				const privateKeyPEM = devmode.privateKey ?? savedPrivateKey;
 				if (!privateKeyPEM) {
-					throw new Error(
+					tui.error(
 						'No private key available for gravity connection. Please re-run to generate a new key.'
 					);
+					await cleanup(true, 1, true);
+					return;
 				}
-				gravityProcess = Bun.spawn(
-					[
-						gravityBin,
-						'--endpoint-id',
-						devmode.id,
-						'--port',
-						vitePort.toString(),
-						'--url',
-						gravityURL,
-						'--log-level',
-						process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
-						'--org-id',
-						project.orgId,
-						'--project-id',
-						project.projectId,
-						'--private-key',
-						Buffer.from(privateKeyPEM).toString('base64'),
-						'--health-check',
-					],
-					{
-						cwd: rootDir,
-						stdout: 'pipe',
-						stderr: 'pipe',
-						detached: false,
+
+				try {
+					gravityProcess = Bun.spawn(
+						[
+							gravityBin,
+							'--endpoint-id',
+							devmode.id,
+							'--port',
+							vitePort.toString(),
+							'--url',
+							gravityURL,
+							'--log-level',
+							process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
+							'--org-id',
+							project.orgId,
+							'--project-id',
+							project.projectId,
+							'--private-key',
+							Buffer.from(privateKeyPEM).toString('base64'),
+							'--health-check',
+						],
+						{
+							cwd: rootDir,
+							stdout: 'pipe',
+							stderr: 'pipe',
+							detached: false,
+						}
+					);
+
+					const gravityPid = (gravityProcess as { pid?: number }).pid;
+					if (gravityPid) {
+						await devLock.registerChild({
+							pid: gravityPid,
+							type: 'gravity',
+							description: 'Gravity public URL tunnel',
+						});
+
+						// Register with process manager
+						procManager.registerProcess({
+							id: 'gravity',
+							process: gravityProcess,
+							description: 'Gravity public URL tunnel',
+							critical: false,
+						});
 					}
-				);
 
-				const gravityPid = (gravityProcess as { pid?: number }).pid;
-				if (gravityPid) {
-					await devLock.registerChild({
-						pid: gravityPid,
-						type: 'gravity',
-						description: 'Gravity public URL tunnel',
-					});
-				}
+					// Log gravity output and detect heartbeat port
+					(async () => {
+						try {
+							if (gravityProcess?.stdout) {
+								for await (const chunk of gravityProcess.stdout) {
+									const text = new TextDecoder().decode(chunk);
+									const trimmed = text.trim();
 
-				// Log gravity output and detect heartbeat port
-				(async () => {
-					try {
-						if (gravityProcess?.stdout) {
-							for await (const chunk of gravityProcess.stdout) {
-								const text = new TextDecoder().decode(chunk);
-								const trimmed = text.trim();
+									const match = trimmed.match(/^HEARTBEAT_PORT=(\d+)$/m);
+									if (match?.[1]) {
+										const heartbeatPort = parseInt(match[1], 10);
+										logger.debug('Gravity heartbeat port: %d', heartbeatPort);
 
-								const match = trimmed.match(/^HEARTBEAT_PORT=(\d+)$/m);
-								if (match?.[1]) {
-									const heartbeatPort = parseInt(match[1], 10);
-									logger.debug('Gravity heartbeat port: %d', heartbeatPort);
-
-									if (!gravityHeartbeatInterval) {
-										const sendHeartbeat = async () => {
-											try {
-												await fetch(`http://127.0.0.1:${heartbeatPort}/heartbeat`, {
-													method: 'POST',
-													signal: AbortSignal.timeout(2000),
-												});
-											} catch {
-												// Ignore heartbeat failures
-											}
-										};
-										sendHeartbeat();
-										gravityHeartbeatInterval = setInterval(sendHeartbeat, 5000);
+										if (!gravityHeartbeatInterval) {
+											const sendHeartbeat = async () => {
+												try {
+													await fetch(`http://127.0.0.1:${heartbeatPort}/heartbeat`, {
+														method: 'POST',
+														signal: AbortSignal.timeout(2000),
+													});
+												} catch {
+													// Ignore heartbeat failures
+												}
+											};
+											sendHeartbeat();
+											gravityHeartbeatInterval = setInterval(sendHeartbeat, 5000);
+										}
+									} else if (trimmed) {
+										logger.debug('[gravity] %s', trimmed);
 									}
-								} else if (trimmed) {
-									logger.debug('[gravity] %s', trimmed);
 								}
 							}
+						} catch (err) {
+							logger.error('Error reading gravity stdout: %s', err);
 						}
-					} catch (err) {
-						logger.error('Error reading gravity stdout: %s', err);
-					}
-				})();
+					})();
 
-				(async () => {
-					try {
-						if (gravityProcess?.stderr) {
-							for await (const chunk of gravityProcess.stderr) {
-								logger.warn('[gravity] %s', new TextDecoder().decode(chunk).trim());
+					(async () => {
+						try {
+							if (gravityProcess?.stderr) {
+								for await (const chunk of gravityProcess.stderr) {
+									logger.warn('[gravity] %s', new TextDecoder().decode(chunk).trim());
+								}
 							}
+						} catch (err) {
+							logger.error('Error reading gravity stderr: %s', err);
 						}
-					} catch (err) {
-						logger.error('Error reading gravity stderr: %s', err);
-					}
-				})();
+					})();
+				} catch (error) {
+					tui.error(`Failed to start gravity tunnel: ${error}`);
+					await cleanup(true, 1, true);
+					return;
+				}
 			}
 
 			// ================================================================
