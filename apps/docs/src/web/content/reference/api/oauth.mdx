@@ -144,6 +144,12 @@ JSON array of OAuth client objects with usage statistics.
     "required": true
   },
   {
+    "name": "internal",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
     "name": "created_at",
     "type": "string",
     "description": "",
@@ -408,6 +414,12 @@ JSON object containing the created client and its client secret.
     "required": true
   },
   {
+    "name": "client.internal",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
     "name": "client.created_at",
     "type": "string",
     "description": "",
@@ -575,6 +587,12 @@ JSON object with the OAuth client details.
   {
     "name": "allowed_user_ids",
     "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "internal",
+    "type": "boolean",
     "description": "",
     "required": true
   },
@@ -835,6 +853,12 @@ JSON object containing the updated client. May include a new client secret if th
   {
     "name": "client.allowed_user_ids",
     "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.internal",
+    "type": "boolean",
     "description": "",
     "required": true
   },
