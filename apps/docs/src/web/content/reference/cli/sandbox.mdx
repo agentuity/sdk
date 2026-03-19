@@ -220,27 +220,33 @@ Port constraints:
 
 ### Access the Public URL
 
-After creating a sandbox with a port, use `get` to retrieve the public URL:
+When you create a sandbox with `--port`, the public URL is returned directly in the create response:
+
+```bash
+agentuity cloud sandbox create --port 3000 --network --name my-server --json
+# { "sandboxId": "sbx_abc123", "status": "creating", "url": "https://my-server-abc123.agentuity.cloud", ... }
+```
+
+In human-readable output, the URL is displayed after creation:
+
+```
+✓ created sandbox sbx_abc123 in 1200ms
+ℹ url: https://my-server-abc123.agentuity.cloud
+```
+
+You can also retrieve the URL later with `get`:
 
 ```bash
 agentuity cloud sandbox get sbx_abc123
 ```
 
-The output includes the public URL when a port is configured:
-
-```
-ID:       sbx_abc123
-Status:   running
-Port:     3000
-URL:      https://my-server-abc123.agentuity.cloud
-```
-
 ### Example: Run a Web Server
 
 ```bash
-# Create sandbox with port 3000
+# Create sandbox with port 3000 — the URL is returned immediately
 agentuity cloud sandbox create --port 3000 --network --name my-api
-# sbx_abc123
+# ✓ created sandbox sbx_abc123 in 1200ms
+# ℹ url: https://my-api-abc123.agentuity.cloud
 
 # Upload server code
 agentuity cloud sandbox cp ./server.js sbx_abc123:/home/agentuity/
@@ -248,11 +254,7 @@ agentuity cloud sandbox cp ./server.js sbx_abc123:/home/agentuity/
 # Start the server
 agentuity cloud sandbox exec sbx_abc123 -- bun run /home/agentuity/server.js
 
-# Get the public URL
-agentuity cloud sandbox get sbx_abc123
-# URL: https://my-api-abc123.agentuity.cloud
-
-# Test from anywhere
+# Test from anywhere using the URL from create
 curl https://my-api-abc123.agentuity.cloud/api/health
 ```
 
