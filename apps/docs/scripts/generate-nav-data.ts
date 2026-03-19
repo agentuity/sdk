@@ -202,12 +202,15 @@ function ind(n: number): string {
 	return '\t'.repeat(n);
 }
 
-/** Quote a string for TypeScript output, using double quotes if it contains a single quote. */
+/** Quote a string for TypeScript output. Uses JSON.stringify for standards-compliant escaping
+ *  of control characters, then prefers single quotes when possible (Biome convention). */
 function quoteStr(s: string): string {
-	if (s.includes("'")) {
-		return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+	const json = JSON.stringify(s); // fully escaped, double-quoted
+	if (!s.includes("'")) {
+		// Convert to single quotes: strip outer `"`, unescape `\"` → `"`, wrap in `'`
+		return `'${json.slice(1, -1).replace(/\\"/g, '"')}'`;
 	}
-	return `'${s.replace(/\\/g, '\\\\')}'`;
+	return json;
 }
 
 /** Emit a string property, wrapping to a second line if it would exceed 100 visual cols. */

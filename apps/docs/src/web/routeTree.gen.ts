@@ -132,6 +132,7 @@ import { Route as DocsCookbookPatternsTailwindSetupRouteImport } from './routes/
 import { Route as DocsCookbookPatternsServerUtilitiesRouteImport } from './routes/_docs/cookbook/patterns/server-utilities';
 import { Route as DocsCookbookPatternsProductSearchRouteImport } from './routes/_docs/cookbook/patterns/product-search';
 import { Route as DocsCookbookPatternsLlmAsAJudgeRouteImport } from './routes/_docs/cookbook/patterns/llm-as-a-judge';
+import { Route as DocsCookbookPatternsHonoRpcTanstackQueryRouteImport } from './routes/_docs/cookbook/patterns/hono-rpc-tanstack-query';
 import { Route as DocsCookbookPatternsCronWithStorageRouteImport } from './routes/_docs/cookbook/patterns/cron-with-storage';
 import { Route as DocsCookbookPatternsChatWithHistoryRouteImport } from './routes/_docs/cookbook/patterns/chat-with-history';
 import { Route as DocsCookbookPatternsBackgroundTasksRouteImport } from './routes/_docs/cookbook/patterns/background-tasks';
@@ -756,6 +757,12 @@ const DocsCookbookPatternsLlmAsAJudgeRoute = DocsCookbookPatternsLlmAsAJudgeRout
 	path: '/cookbook/patterns/llm-as-a-judge',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsCookbookPatternsHonoRpcTanstackQueryRoute =
+	DocsCookbookPatternsHonoRpcTanstackQueryRouteImport.update({
+		id: '/cookbook/patterns/hono-rpc-tanstack-query',
+		path: '/cookbook/patterns/hono-rpc-tanstack-query',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
 const DocsCookbookPatternsCronWithStorageRoute =
 	DocsCookbookPatternsCronWithStorageRouteImport.update({
 		id: '/cookbook/patterns/cron-with-storage',
@@ -840,6 +847,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
+	'/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	'/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -966,6 +974,7 @@ export interface FileRoutesByTo {
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
+	'/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	'/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -1095,6 +1104,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/_docs/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/_docs/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
+	'/_docs/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	'/_docs/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	'/_docs/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/_docs/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -1224,6 +1234,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
+		| '/cookbook/patterns/hono-rpc-tanstack-query'
 		| '/cookbook/patterns/llm-as-a-judge'
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
@@ -1350,6 +1361,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
+		| '/cookbook/patterns/hono-rpc-tanstack-query'
 		| '/cookbook/patterns/llm-as-a-judge'
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
@@ -1478,6 +1490,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/patterns/background-tasks'
 		| '/_docs/cookbook/patterns/chat-with-history'
 		| '/_docs/cookbook/patterns/cron-with-storage'
+		| '/_docs/cookbook/patterns/hono-rpc-tanstack-query'
 		| '/_docs/cookbook/patterns/llm-as-a-judge'
 		| '/_docs/cookbook/patterns/product-search'
 		| '/_docs/cookbook/patterns/server-utilities'
@@ -2423,6 +2436,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsCookbookPatternsLlmAsAJudgeRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/cookbook/patterns/hono-rpc-tanstack-query': {
+			id: '/_docs/cookbook/patterns/hono-rpc-tanstack-query';
+			path: '/cookbook/patterns/hono-rpc-tanstack-query';
+			fullPath: '/cookbook/patterns/hono-rpc-tanstack-query';
+			preLoaderRoute: typeof DocsCookbookPatternsHonoRpcTanstackQueryRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/cookbook/patterns/cron-with-storage': {
 			id: '/_docs/cookbook/patterns/cron-with-storage';
 			path: '/cookbook/patterns/cron-with-storage';
@@ -2551,6 +2571,7 @@ interface DocsRouteRouteChildren {
 	DocsCookbookPatternsBackgroundTasksRoute: typeof DocsCookbookPatternsBackgroundTasksRoute;
 	DocsCookbookPatternsChatWithHistoryRoute: typeof DocsCookbookPatternsChatWithHistoryRoute;
 	DocsCookbookPatternsCronWithStorageRoute: typeof DocsCookbookPatternsCronWithStorageRoute;
+	DocsCookbookPatternsHonoRpcTanstackQueryRoute: typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	DocsCookbookPatternsLlmAsAJudgeRoute: typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	DocsCookbookPatternsProductSearchRoute: typeof DocsCookbookPatternsProductSearchRoute;
 	DocsCookbookPatternsServerUtilitiesRoute: typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -2642,6 +2663,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsCookbookPatternsBackgroundTasksRoute: DocsCookbookPatternsBackgroundTasksRoute,
 	DocsCookbookPatternsChatWithHistoryRoute: DocsCookbookPatternsChatWithHistoryRoute,
 	DocsCookbookPatternsCronWithStorageRoute: DocsCookbookPatternsCronWithStorageRoute,
+	DocsCookbookPatternsHonoRpcTanstackQueryRoute: DocsCookbookPatternsHonoRpcTanstackQueryRoute,
 	DocsCookbookPatternsLlmAsAJudgeRoute: DocsCookbookPatternsLlmAsAJudgeRoute,
 	DocsCookbookPatternsProductSearchRoute: DocsCookbookPatternsProductSearchRoute,
 	DocsCookbookPatternsServerUtilitiesRoute: DocsCookbookPatternsServerUtilitiesRoute,
