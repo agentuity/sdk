@@ -6,6 +6,10 @@
  * to @import "tailwindcss" disables the oxide filesystem scanner while still
  * allowing @tailwindcss/vite to detect class usage through Vite's module graph.
  *
+ * Only applies during production builds (apply: 'build'). In dev mode, the
+ * oxide scanner runs natively and source(none) would prevent Tailwind from
+ * discovering utility classes since Vite's module graph is built lazily.
+ *
  * @see https://github.com/tailwindlabs/tailwindcss/discussions/19661
  */
 
@@ -15,6 +19,7 @@ export function tailwindSourcePlugin(): Plugin {
 	return {
 		name: 'agentuity:tailwind-source',
 		enforce: 'pre',
+		apply: 'build',
 
 		transform(code, id) {
 			// Only transform CSS files
