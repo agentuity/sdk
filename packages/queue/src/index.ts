@@ -22,10 +22,10 @@ import {
 	type QueueCreateResult,
 } from '@agentuity/core/queue';
 import { createServerFetchAdapter, type Logger } from '@agentuity/server';
-import { createMinimalLogger } from '@agentuity/core';
+import { createMinimalLogger, StructuredError } from '@agentuity/core';
 import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 
 const isLogger = (val: unknown): val is Logger =>
 	typeof val === 'object' &&
@@ -33,6 +33,11 @@ const isLogger = (val: unknown): val is Logger =>
 	['info', 'warn', 'error', 'debug', 'trace'].every(
 		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
 	);
+
+const QueueClientValidationError = StructuredError('QueueClientValidationError')<{
+	schema: string;
+	issues: Array<{ path: string; message: string }>;
+}>();
 
 export const QueueClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
@@ -46,7 +51,23 @@ export class QueueClient {
 	readonly #service: QueueStorageService;
 
 	constructor(options: QueueClientOptions = {}) {
-		const validatedOptions = QueueClientOptionsSchema.parse(options);
+		let validatedOptions: QueueClientOptions;
+		try {
+			validatedOptions = QueueClientOptionsSchema.parse(options);
+		} catch (err) {
+			if (err instanceof ZodError) {
+				throw new QueueClientValidationError({
+					message: 'Invalid QueueClient options',
+					schema: 'QueueClientOptionsSchema',
+					issues: err.issues.map((i) => ({
+						path: i.path.join('.'),
+						message: i.message,
+					})),
+					cause: err,
+				});
+			}
+			throw err;
+		}
 		const apiKey =
 			validatedOptions.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
 		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
