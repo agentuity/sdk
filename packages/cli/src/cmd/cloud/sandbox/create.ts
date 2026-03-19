@@ -3,7 +3,7 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createSandboxClient, parseFileArgs, cacheSandboxRegion } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxCreate, sandboxGet } from '@agentuity/server';
+import { sandboxCreate } from '@agentuity/server';
 import { StructuredError } from '@agentuity/core';
 import { validateAptDependencies } from '../../../utils/apt-validator';
 import { ErrorCode } from '../../../errors';
@@ -198,32 +198,21 @@ export const createSubcommand = createCommand({
 			orgId,
 		});
 
-		// If a port was specified, fetch sandbox info to get the public URL
-		let url: string | undefined;
-		if (opts.port) {
-			try {
-				const info = await sandboxGet(client, { sandboxId: result.sandboxId, orgId });
-				url = info.url;
-			} catch {
-				// URL retrieval is best-effort; don't fail the create command
-			}
-		}
-
 		// Cache the region for future lookups
 		await cacheSandboxRegion(config?.name, result.sandboxId, region);
 
 		if (!options.json) {
 			const duration = Date.now() - started;
 			tui.success(`created sandbox ${tui.bold(result.sandboxId)} in ${duration}ms`);
-			if (url) {
-				tui.info(`url: ${tui.link(url)}`);
+			if (result.url) {
+				tui.info(`url: ${tui.link(result.url)}`);
 			}
 		}
 
 		return {
 			sandboxId: result.sandboxId,
 			status: result.status,
-			url,
+			url: result.url,
 			stdoutStreamUrl: result.stdoutStreamUrl,
 			stderrStreamUrl: result.stderrStreamUrl,
 			auditStreamUrl: result.auditStreamUrl,
