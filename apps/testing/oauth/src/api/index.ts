@@ -1,19 +1,9 @@
 import { createRouter } from '@agentuity/runtime';
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
+import { buildAuthorizeUrl, exchangeToken, fetchUserInfo } from '@agentuity/core/oauth';
 import type {} from '@agentuity/react';
 
 const api = createRouter();
-
-// Helper to build the OAuth authorize URL
-function buildAuthorizeUrl(redirectUri: string): string {
-	const params = new URLSearchParams({
-		client_id: process.env.OAUTH_CLIENT_ID || '',
-		redirect_uri: redirectUri,
-		response_type: 'code',
-		scope: process.env.OAUTH_SCOPES || 'openid profile email',
-	});
-	return `${process.env.OAUTH_AUTHORIZE_URL}?${params.toString()}`;
-}
 
 // Helper to get the base URL from a request
 function getBaseUrl(c: any): string {
@@ -30,14 +20,12 @@ api.get('/oauth/me', async (c) => {
 			const user = JSON.parse(decodeURIComponent(session));
 			return c.json({ loggedIn: true, user });
 		} catch {
-			// Invalid cookie, treat as not logged in
 			deleteCookie(c, 'oauth_session');
 		}
 	}
 
-	const baseUrl = getBaseUrl(c);
-	const redirectUri = `${baseUrl}/api/oauth/login`;
-	const loginUrl = buildAuthorizeUrl(redirectUri);
+	const redirectUri = `${getBaseUrl(c)}/api/oauth/login`;
+	const loginUrl = buildAuthorizeUrl(redirectUri, { prompt: 'consent' });
 
 	return c.json({ loggedIn: false, loginUrl });
 });
@@ -50,55 +38,24 @@ api.get('/oauth/login', async (c) => {
 		return c.json({ error: 'No authorization code provided' }, 400);
 	}
 
-	const baseUrl = getBaseUrl(c);
-	const redirectUri = `${baseUrl}/api/oauth/login`;
+	const redirectUri = `${getBaseUrl(c)}/api/oauth/login`;
 
 	try {
-		// Exchange code for access token
-		const tokenResponse = await fetch(process.env.OAUTH_TOKEN_URL!, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({
-				grant_type: 'authorization_code',
-				code,
-				redirect_uri: redirectUri,
-				client_id: process.env.OAUTH_CLIENT_ID || '',
-				client_secret: process.env.OAUTH_CLIENT_SECRET || '',
-			}),
-		});
+		const token = await exchangeToken(code, redirectUri);
+		const user = await fetchUserInfo(token.access_token);
 
-		if (!tokenResponse.ok) {
-			const error = await tokenResponse.text();
-			return c.json({ error: 'Token exchange failed', details: error }, 500);
-		}
-
-		const tokenData = (await tokenResponse.json()) as { access_token: string };
-
-		// Fetch user info
-		const userResponse = await fetch(process.env.OAUTH_USERINFO_URL!, {
-			headers: { Authorization: `Bearer ${tokenData.access_token}` },
-		});
-
-		if (!userResponse.ok) {
-			const error = await userResponse.text();
-			return c.json({ error: 'Failed to fetch user info', details: error }, 500);
-		}
-
-		const user = await userResponse.json();
-
-		// Store user info in a cookie
 		setCookie(c, 'oauth_session', encodeURIComponent(JSON.stringify(user)), {
 			path: '/',
 			httpOnly: true,
-			secure: false, // set to true in production
+			secure: false,
 			sameSite: 'Lax',
-			maxAge: 60 * 60 * 24, // 24 hours
+			maxAge: 60 * 60 * 24,
 		});
 
-		// Redirect to home page
 		return c.redirect('/');
 	} catch (err) {
-		return c.json({ error: 'OAuth flow failed', details: String(err) }, 500);
+		const message = err instanceof Error ? err.message : String(err);
+		return c.json({ error: 'OAuth flow failed', details: message }, 500);
 	}
 });
 
