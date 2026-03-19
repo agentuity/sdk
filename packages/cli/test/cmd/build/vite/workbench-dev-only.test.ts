@@ -5,6 +5,7 @@
 import { test, expect, describe } from 'bun:test';
 import { getWorkbenchConfig } from '../../../../src/cmd/build/vite/config-loader';
 import type { AgentuityConfig } from '../../../../src/types';
+import type { ExtractedAppConfig } from '../../../../src/cmd/build/app-config-extractor';
 
 describe('Workbench Implicit Enablement', () => {
 	test('workbench is enabled in dev mode when config.workbench is present', () => {
@@ -14,7 +15,7 @@ describe('Workbench Implicit Enablement', () => {
 			},
 		};
 
-		const result = getWorkbenchConfig(config, true); // dev = true
+		const result = getWorkbenchConfig(config, true, undefined); // dev = true
 
 		expect(result.enabled).toBe(true);
 		expect(result.route).toBe('/workbench');
@@ -27,7 +28,7 @@ describe('Workbench Implicit Enablement', () => {
 			},
 		};
 
-		const result = getWorkbenchConfig(config, false); // dev = false (production)
+		const result = getWorkbenchConfig(config, false, undefined); // dev = false (production)
 
 		expect(result.enabled).toBe(false); // CRITICAL: must be false in production
 	});
@@ -37,8 +38,8 @@ describe('Workbench Implicit Enablement', () => {
 			workbench: {}, // Empty object still counts as "present"
 		};
 
-		const devResult = getWorkbenchConfig(config, true);
-		const prodResult = getWorkbenchConfig(config, false);
+		const devResult = getWorkbenchConfig(config, true, undefined);
+		const prodResult = getWorkbenchConfig(config, false, undefined);
 
 		expect(devResult.enabled).toBe(true); // Enabled in dev because workbench object exists
 		expect(prodResult.enabled).toBe(false); // Never in production
@@ -49,8 +50,8 @@ describe('Workbench Implicit Enablement', () => {
 			// No workbench config
 		};
 
-		const devResult = getWorkbenchConfig(config, true);
-		const prodResult = getWorkbenchConfig(config, false);
+		const devResult = getWorkbenchConfig(config, true, undefined);
+		const prodResult = getWorkbenchConfig(config, false, undefined);
 
 		// Disabled in both because workbench config is absent
 		expect(devResult.enabled).toBe(false);
@@ -58,8 +59,8 @@ describe('Workbench Implicit Enablement', () => {
 	});
 
 	test('workbench is disabled when config is null', () => {
-		const devResult = getWorkbenchConfig(null, true);
-		const prodResult = getWorkbenchConfig(null, false);
+		const devResult = getWorkbenchConfig(null, true, undefined);
+		const prodResult = getWorkbenchConfig(null, false, undefined);
 
 		expect(devResult.enabled).toBe(false);
 		expect(prodResult.enabled).toBe(false);
@@ -70,7 +71,7 @@ describe('Workbench Implicit Enablement', () => {
 			workbench: {}, // No route specified
 		};
 
-		const result = getWorkbenchConfig(config, true);
+		const result = getWorkbenchConfig(config, true, undefined);
 
 		expect(result.enabled).toBe(true); // Enabled because workbench present
 		expect(result.route).toBe('/workbench'); // Default route
@@ -83,7 +84,7 @@ describe('Workbench Implicit Enablement', () => {
 			},
 		};
 
-		const result = getWorkbenchConfig(config, true);
+		const result = getWorkbenchConfig(config, true, undefined);
 
 		expect(result.enabled).toBe(true);
 		expect(result.route).toBe('/custom-workbench');
@@ -98,9 +99,24 @@ describe('Workbench Implicit Enablement', () => {
 			},
 		};
 
-		const result = getWorkbenchConfig(config, true);
+		const result = getWorkbenchConfig(config, true, undefined);
 
 		expect(result.enabled).toBe(true);
 		expect(result.headers).toEqual({ 'X-Custom-Header': 'value' });
+	});
+
+	// v2: runtime config tests
+	test('workbench uses runtime config from createApp() over config file', () => {
+		const config: AgentuityConfig = {
+			workbench: { route: '/old-route' },
+		};
+		const runtimeConfig: ExtractedAppConfig = {
+			workbench: '/new-route',
+		};
+
+		const result = getWorkbenchConfig(config, true, runtimeConfig);
+
+		expect(result.enabled).toBe(true);
+		expect(result.route).toBe('/new-route'); // Uses runtime config, not file
 	});
 });

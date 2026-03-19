@@ -1,14 +1,23 @@
 /**
- * Config loader for agentuity.config.ts
+ * Config loader for agentuity.config.ts (DEPRECATED in v2)
+ *
+ * In v2, all runtime config (analytics, workbench) goes in createApp().
+ * Vite-specific config (plugins, define, render, bundle) goes in vite.config.ts.
+ *
+ * This loader still exists for backwards compatibility but will emit a deprecation
+ * warning. Runtime config values are now extracted from app.ts via app-config-extractor.
  */
 
 import { join } from 'node:path';
 import type { Logger } from '../../../types';
 import type { AgentuityConfig } from '../../../types';
+import { extractAppConfig, type ExtractedAppConfig } from '../app-config-extractor';
 
 /**
- * Load agentuity.config.ts from the project root
- * Returns null if the file doesn't exist or fails to load
+ * Load agentuity.config.ts from the project root (DEPRECATED)
+ *
+ * Returns null if the file doesn't exist or fails to load.
+ * Emits a deprecation warning if the file exists.
  */
 export async function loadAgentuityConfig(
 	rootDir: string,
@@ -21,6 +30,14 @@ export async function loadAgentuityConfig(
 		return null;
 	}
 
+	// DEPRECATION WARNING
+	logger.warn(
+		'agentuity.config.ts is deprecated in v2.\n' +
+			'  • Runtime config (analytics, workbench) should be in createApp() options.\n' +
+			'  • Vite config (plugins, define, render, bundle) should be in vite.config.ts.\n' +
+			'  Please delete this file after migrating your config.\n'
+	);
+
 	try {
 		const config = await import(configPath);
 		const userConfig = config.default as AgentuityConfig | undefined;
@@ -30,7 +47,7 @@ export async function loadAgentuityConfig(
 			return null;
 		}
 
-		logger.trace('Loaded agentuity.config.ts');
+		logger.trace('Loaded agentuity.config.ts (deprecated)');
 		return userConfig;
 	} catch (error) {
 		logger.warn('Failed to load agentuity.config.ts:', error);
@@ -39,36 +56,80 @@ export async function loadAgentuityConfig(
 }
 
 /**
- * Get workbench configuration with defaults
- * NOTE: Workbench is only enabled at runtime in dev mode, but we need to know
- * if it's configured at build time so we can generate the correct code.
+ * Load runtime config from createApp() in app.ts (v2 approach).
  *
- * Presence of workbench config implicitly enables it (no explicit 'enabled' flag needed)
- * Missing workbench config implicitly disables it
+ * This is the preferred way to get analytics/workbench config in v2.
+ * The CLI reads these values directly from the user's createApp() call.
+ */
+export async function loadRuntimeConfig(
+	rootDir: string,
+	logger: Logger
+): Promise<ExtractedAppConfig> {
+	return extractAppConfig(rootDir, logger);
+}
+
+/**
+ * Get workbench configuration with defaults.
+ *
+ * In v2, workbench config is extracted from createApp() in app.ts.
+ * For backwards compatibility, if agentuity.config.ts exists, its workbench
+ * value is used as a fallback, but a deprecation warning is emitted.
  */
 export function getWorkbenchConfig(
 	config: AgentuityConfig | null,
-	dev: boolean
+	dev: boolean,
+	runtimeConfig?: ExtractedAppConfig
 ): {
 	configured: boolean;
 	enabled: boolean;
 	route: string;
 	headers: Record<string, string>;
 } {
-	const configured = config?.workbench !== undefined;
+	// v2: prefer runtime config from createApp()
+	const workbenchFromRuntime = runtimeConfig?.workbench;
+	const workbenchFromFile = config?.workbench;
+
+	// Use runtime config (createApp) as primary source
+	const hasWorkbench = workbenchFromRuntime !== undefined || workbenchFromFile !== undefined;
+	const configured = hasWorkbench;
 
 	// Workbench is enabled if:
 	// 1. In dev mode (never in production)
-	// 2. Config has a workbench object (presence implies enablement)
-	const enabled = dev && configured;
+	// 2. Workbench is configured (in createApp or legacy config file)
+	const enabled = dev && hasWorkbench;
 
-	const workbench = config?.workbench || {};
+	// Extract values from the appropriate source
+	let route = '/workbench';
+	let headers: Record<string, string> = {};
+
+	// Prefer runtime config (from createApp)
+	if (workbenchFromRuntime !== undefined) {
+		if (typeof workbenchFromRuntime === 'string') {
+			route = workbenchFromRuntime;
+		} else if (typeof workbenchFromRuntime === 'object' && workbenchFromRuntime !== null) {
+			if ('route' in workbenchFromRuntime && typeof workbenchFromRuntime.route === 'string') {
+				route = workbenchFromRuntime.route;
+			}
+			if (
+				'headers' in workbenchFromRuntime &&
+				typeof workbenchFromRuntime.headers === 'object'
+			) {
+				headers = workbenchFromRuntime.headers as Record<string, string>;
+			}
+		}
+		// boolean true uses defaults
+	} else if (workbenchFromFile !== undefined) {
+		// Fallback to legacy config file (deprecated)
+		const workbench = workbenchFromFile || {};
+		route = workbench.route ?? '/workbench';
+		headers = workbench.headers ?? {};
+	}
 
 	return {
 		configured,
 		enabled,
-		route: workbench.route ?? '/workbench',
-		headers: workbench.headers ?? {},
+		route,
+		headers,
 	};
 }
 

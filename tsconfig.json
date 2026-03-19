@@ -11,7 +11,8 @@
 		{ "path": "./packages/server" },
 		{ "path": "./packages/workbench" },
 		{ "path": "./packages/claude-code" },
-		{ "path": "./packages/coder" }
+		{ "path": "./packages/coder" },
+		{ "path": "./packages/migrate" }
 	],
 	"exclude": ["e2e", "test-results", "playwright-report", "playwright.config.ts"]
 }

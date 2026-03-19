@@ -428,12 +428,14 @@ export const command = createCommand({
 				}
 			}
 
-			// Get workbench info from config (new Vite approach)
-			const { loadAgentuityConfig, getWorkbenchConfig } = await import(
+			// Get workbench info from config (v2: read from createApp in app.ts)
+			const { loadAgentuityConfig, getWorkbenchConfig, loadRuntimeConfig } = await import(
 				'../build/vite/config-loader'
 			);
-			const agentuityConfig = await loadAgentuityConfig(rootDir, ctx.logger);
-			const workbenchConfigData = getWorkbenchConfig(agentuityConfig, true); // dev mode
+			// v2: prefer runtime config from app.ts, fallback to deprecated agentuity.config.ts
+			const runtimeConfig = await loadRuntimeConfig(rootDir, ctx.logger);
+			const agentuityConfig = await loadAgentuityConfig(rootDir, ctx.logger); // deprecated
+			const workbenchConfigData = getWorkbenchConfig(agentuityConfig, true, runtimeConfig); // dev mode
 			const workbench = {
 				hasWorkbench: workbenchConfigData.enabled,
 				config: workbenchConfigData.enabled

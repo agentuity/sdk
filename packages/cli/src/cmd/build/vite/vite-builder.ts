@@ -297,9 +297,13 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		static: { included: false, duration: 0, routes: 0 },
 	};
 
-	// Load config to check if workbench is enabled (dev mode only)
-	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
-	const config = await loadAgentuityConfig(rootDir, logger);
+	// Load config to check if workbench/analytics are enabled
+	// v2: prefer runtime config from app.ts, fallback to deprecated agentuity.config.ts
+	const { loadAgentuityConfig, getWorkbenchConfig, loadRuntimeConfig } = await import(
+		'./config-loader'
+	);
+	const runtimeConfig = await loadRuntimeConfig(rootDir, logger);
+	const config = await loadAgentuityConfig(rootDir, logger); // deprecated
 
 	// Copy bundle files if configured (before build so build output takes priority)
 	if (config?.bundle?.length) {
@@ -311,7 +315,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		}
 	}
 
-	const workbenchConfig = getWorkbenchConfig(config, dev);
+	const workbenchConfig = getWorkbenchConfig(config, dev, runtimeConfig);
 	// Generate workbench files BEFORE any builds if enabled (dev mode only)
 	if (workbenchConfig.enabled) {
 		logger.debug('Workbench enabled (dev mode), generating files before build...');
@@ -339,7 +343,12 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	const hasWebFrontend = await Bun.file(join(rootDir, 'src', 'web', 'index.html')).exists();
 
 	// Check if analytics is enabled
-	const analyticsEnabled = config?.analytics !== false;
+	// v2: prefer runtime config from createApp()
+	const analyticsFromRuntime = runtimeConfig?.analytics;
+	const analyticsEnabled =
+		analyticsFromRuntime !== undefined
+			? analyticsFromRuntime !== false
+			: config?.analytics !== false; // fallback to deprecated config
 
 	// 2. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
