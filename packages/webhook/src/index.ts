@@ -68,7 +68,7 @@ import {
 	type WebhookOrgAnalytics,
 	type WebhookReceipt,
 } from '@agentuity/core/webhook';
-import { createServerFetchAdapter, type Logger } from '@agentuity/server';
+import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/server';
 import { createMinimalLogger } from '@agentuity/core';
 import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
@@ -91,7 +91,6 @@ export type WebhookClientOptions = z.infer<typeof WebhookClientOptionsSchema>;
 
 export class WebhookClient {
 	readonly #service: WebhookService;
-	readonly #orgId?: string;
 
 	constructor(options: WebhookClientOptions = {}) {
 		const validatedOptions = WebhookClientOptionsSchema.parse(options);
@@ -104,19 +103,12 @@ export class WebhookClient {
 
 		const logger = validatedOptions.logger ?? createMinimalLogger();
 
-		this.#orgId = validatedOptions.orgId;
+		const headers = buildClientHeaders({
+			apiKey,
+			orgId: validatedOptions.orgId,
+		});
 
-		const adapter = createServerFetchAdapter(
-			{
-				headers: apiKey
-					? {
-							Authorization: `Bearer ${apiKey}`,
-							'Content-Type': 'application/json',
-						}
-					: { 'Content-Type': 'application/json' },
-			},
-			logger
-		);
+		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new WebhookService(url, adapter);
 	}
 

@@ -21,7 +21,7 @@ import {
 	type QueueCreateParams,
 	type QueueCreateResult,
 } from '@agentuity/core/queue';
-import { createServerFetchAdapter, type Logger } from '@agentuity/server';
+import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/server';
 import { createMinimalLogger, StructuredError } from '@agentuity/core';
 import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
@@ -77,16 +77,10 @@ export class QueueClient {
 
 		const logger = validatedOptions.logger ?? createMinimalLogger();
 
-		const headers: Record<string, string> = apiKey
-			? {
-					Authorization: `Bearer ${apiKey}`,
-					'Content-Type': 'application/json',
-				}
-			: { 'Content-Type': 'application/json' };
-
-		if (validatedOptions.orgId) {
-			headers['x-agentuity-orgid'] = validatedOptions.orgId;
-		}
+		const headers = buildClientHeaders({
+			apiKey,
+			orgId: validatedOptions.orgId,
+		});
 
 		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new QueueStorageService(url, adapter);

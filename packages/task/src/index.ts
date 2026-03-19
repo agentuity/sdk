@@ -83,7 +83,7 @@ import {
 	type Attachment,
 	type EntityRef,
 } from '@agentuity/core/task';
-import { createServerFetchAdapter, type Logger } from '@agentuity/server';
+import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/server';
 import { createMinimalLogger } from '@agentuity/core';
 import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
@@ -106,7 +106,6 @@ export type TaskClientOptions = z.infer<typeof TaskClientOptionsSchema>;
 
 export class TaskClient {
 	readonly #service: TaskStorageService;
-	readonly #orgId?: string;
 
 	constructor(options: TaskClientOptions = {}) {
 		const validatedOptions = TaskClientOptionsSchema.parse(options);
@@ -119,19 +118,12 @@ export class TaskClient {
 
 		const logger = validatedOptions.logger ?? createMinimalLogger();
 
-		this.#orgId = validatedOptions.orgId;
+		const headers = buildClientHeaders({
+			apiKey,
+			orgId: validatedOptions.orgId,
+		});
 
-		const adapter = createServerFetchAdapter(
-			{
-				headers: apiKey
-					? {
-							Authorization: `Bearer ${apiKey}`,
-							'Content-Type': 'application/json',
-						}
-					: { 'Content-Type': 'application/json' },
-			},
-			logger
-		);
+		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new TaskStorageService(url, adapter);
 	}
 
