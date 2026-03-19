@@ -550,6 +550,12 @@ export const navData: NavSection[] = [
 						url: '/cookbook/integrations/tanstack-start',
 						description: 'Add agents to an existing TanStack Start application',
 					},
+					{
+						title: 'Turborepo',
+						url: '/cookbook/integrations/turborepo',
+						description:
+							'Add Agentuity agents as a workspace package in a Turborepo monorepo with shared types',
+					},
 				],
 			},
 		],

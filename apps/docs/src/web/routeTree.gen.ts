@@ -147,6 +147,7 @@ import { Route as DocsCookbookPatternsCronWithStorageRouteImport } from './route
 import { Route as DocsCookbookPatternsChatWithHistoryRouteImport } from './routes/_docs/cookbook/patterns/chat-with-history';
 import { Route as DocsCookbookPatternsBackgroundTasksRouteImport } from './routes/_docs/cookbook/patterns/background-tasks';
 import { Route as DocsCookbookPatternsAutonomousResearchRouteImport } from './routes/_docs/cookbook/patterns/autonomous-research';
+import { Route as DocsCookbookIntegrationsTurborepoRouteImport } from './routes/_docs/cookbook/integrations/turborepo';
 import { Route as DocsCookbookIntegrationsTanstackStartRouteImport } from './routes/_docs/cookbook/integrations/tanstack-start';
 import { Route as DocsCookbookIntegrationsOpenaiAgentsRouteImport } from './routes/_docs/cookbook/integrations/openai-agents';
 import { Route as DocsCookbookIntegrationsNextjsRouteImport } from './routes/_docs/cookbook/integrations/nextjs';
@@ -856,6 +857,11 @@ const DocsCookbookPatternsAutonomousResearchRoute =
 		path: '/cookbook/patterns/autonomous-research',
 		getParentRoute: () => DocsRouteRoute,
 	} as any);
+const DocsCookbookIntegrationsTurborepoRoute = DocsCookbookIntegrationsTurborepoRouteImport.update({
+	id: '/cookbook/integrations/turborepo',
+	path: '/cookbook/integrations/turborepo',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsCookbookIntegrationsTanstackStartRoute =
 	DocsCookbookIntegrationsTanstackStartRouteImport.update({
 		id: '/cookbook/integrations/tanstack-start',
@@ -971,6 +977,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
 	'/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
 	'/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
+	'/cookbook/integrations/turborepo': typeof DocsCookbookIntegrationsTurborepoRoute;
 	'/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute;
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
@@ -1116,6 +1123,7 @@ export interface FileRoutesByTo {
 	'/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
 	'/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
 	'/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
+	'/cookbook/integrations/turborepo': typeof DocsCookbookIntegrationsTurborepoRoute;
 	'/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute;
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
@@ -1264,6 +1272,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
 	'/_docs/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
 	'/_docs/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
+	'/_docs/cookbook/integrations/turborepo': typeof DocsCookbookIntegrationsTurborepoRoute;
 	'/_docs/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute;
 	'/_docs/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/_docs/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
@@ -1412,6 +1421,7 @@ export interface FileRouteTypes {
 		| '/cookbook/integrations/nextjs'
 		| '/cookbook/integrations/openai-agents'
 		| '/cookbook/integrations/tanstack-start'
+		| '/cookbook/integrations/turborepo'
 		| '/cookbook/patterns/autonomous-research'
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
@@ -1557,6 +1567,7 @@ export interface FileRouteTypes {
 		| '/cookbook/integrations/nextjs'
 		| '/cookbook/integrations/openai-agents'
 		| '/cookbook/integrations/tanstack-start'
+		| '/cookbook/integrations/turborepo'
 		| '/cookbook/patterns/autonomous-research'
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
@@ -1704,6 +1715,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/integrations/nextjs'
 		| '/_docs/cookbook/integrations/openai-agents'
 		| '/_docs/cookbook/integrations/tanstack-start'
+		| '/_docs/cookbook/integrations/turborepo'
 		| '/_docs/cookbook/patterns/autonomous-research'
 		| '/_docs/cookbook/patterns/background-tasks'
 		| '/_docs/cookbook/patterns/chat-with-history'
@@ -2762,6 +2774,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsCookbookPatternsAutonomousResearchRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/cookbook/integrations/turborepo': {
+			id: '/_docs/cookbook/integrations/turborepo';
+			path: '/cookbook/integrations/turborepo';
+			fullPath: '/cookbook/integrations/turborepo';
+			preLoaderRoute: typeof DocsCookbookIntegrationsTurborepoRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/cookbook/integrations/tanstack-start': {
 			id: '/_docs/cookbook/integrations/tanstack-start';
 			path: '/cookbook/integrations/tanstack-start';
@@ -2929,6 +2948,7 @@ interface DocsRouteRouteChildren {
 	DocsCookbookIntegrationsNextjsRoute: typeof DocsCookbookIntegrationsNextjsRoute;
 	DocsCookbookIntegrationsOpenaiAgentsRoute: typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
 	DocsCookbookIntegrationsTanstackStartRoute: typeof DocsCookbookIntegrationsTanstackStartRoute;
+	DocsCookbookIntegrationsTurborepoRoute: typeof DocsCookbookIntegrationsTurborepoRoute;
 	DocsCookbookPatternsAutonomousResearchRoute: typeof DocsCookbookPatternsAutonomousResearchRoute;
 	DocsCookbookPatternsBackgroundTasksRoute: typeof DocsCookbookPatternsBackgroundTasksRoute;
 	DocsCookbookPatternsChatWithHistoryRoute: typeof DocsCookbookPatternsChatWithHistoryRoute;
@@ -3039,6 +3059,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsCookbookIntegrationsNextjsRoute: DocsCookbookIntegrationsNextjsRoute,
 	DocsCookbookIntegrationsOpenaiAgentsRoute: DocsCookbookIntegrationsOpenaiAgentsRoute,
 	DocsCookbookIntegrationsTanstackStartRoute: DocsCookbookIntegrationsTanstackStartRoute,
+	DocsCookbookIntegrationsTurborepoRoute: DocsCookbookIntegrationsTurborepoRoute,
 	DocsCookbookPatternsAutonomousResearchRoute: DocsCookbookPatternsAutonomousResearchRoute,
 	DocsCookbookPatternsBackgroundTasksRoute: DocsCookbookPatternsBackgroundTasksRoute,
 	DocsCookbookPatternsChatWithHistoryRoute: DocsCookbookPatternsChatWithHistoryRoute,
