@@ -21,6 +21,7 @@ const SnapshotCreateResponseSchema = z.object({
 
 export const createSubcommand = createCommand({
 	name: 'create',
+	aliases: ['new'],
 	description: 'Create a snapshot from a sandbox',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, org: true },

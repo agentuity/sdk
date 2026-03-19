@@ -11,26 +11,26 @@ const DeploymentRemoveResponseSchema = z.object({
 });
 
 export const removeSubcommand = createSubcommand({
-	name: 'remove',
-	description: 'Remove a specific deployment',
+	name: 'delete',
+	aliases: ['rm', 'del', 'remove', 'terminate'],
+	description: 'Delete a specific deployment',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	examples: [
 		{
-			command: getCommand('cloud deployment remove dep_abc123xyz'),
-			description: 'Remove with confirmation',
+			command: getCommand('cloud deployment delete deploy_abc123xyz'),
+			description: 'Delete with confirmation',
 		},
 		{
-			command: getCommand('cloud deployment remove dep_abc123xyz --force'),
-			description: 'Remove without confirmation',
+			command: getCommand('cloud deployment delete deploy_abc123xyz --force'),
+			description: 'Delete without confirmation',
 		},
 		{
 			command: getCommand(
-				'cloud deployment remove deployment-2024-11-20 --project-id=proj_abc123xyz'
+				'cloud deployment delete deployment-2024-11-20 --project-id=proj_abc123xyz'
 			),
-			description: 'Remove deployment from specific project',
+			description: 'Delete deployment from specific project',
 		},
 	],
-	aliases: ['rm', 'delete'],
 	idempotent: false,
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },

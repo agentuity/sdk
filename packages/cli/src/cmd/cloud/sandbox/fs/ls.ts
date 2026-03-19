@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { createSandboxClient } from '../util';
+import { getCommand } from '../../../../command-prefix';
 import { sandboxListFiles, sandboxResolve } from '@agentuity/server';
 
 const FileInfoSchema = z.object({
@@ -19,26 +19,26 @@ const LsResponseSchema = z.object({
 });
 
 export const lsSubcommand = createCommand({
-	name: 'files',
-	aliases: ['lsf'],
+	name: 'ls',
+	aliases: ['list', 'dir'],
 	description: 'List files in a sandbox directory',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox files sbx_abc123'),
+			command: getCommand('cloud sandbox fs ls sbx_abc123'),
 			description: 'List files in the sandbox root directory',
 		},
 		{
-			command: getCommand('cloud sandbox files sbx_abc123 /path/to/dir'),
+			command: getCommand('cloud sandbox fs ls sbx_abc123 /path/to/dir'),
 			description: 'List files in a specific directory',
 		},
 		{
-			command: getCommand('cloud sandbox files sbx_abc123 -l'),
+			command: getCommand('cloud sandbox fs ls sbx_abc123 -l'),
 			description: 'List files with permissions and modification time',
 		},
 		{
-			command: getCommand('cloud sandbox files sbx_abc123 --json'),
+			command: getCommand('cloud sandbox fs ls sbx_abc123 --json'),
 			description: 'List files with JSON output',
 		},
 	],

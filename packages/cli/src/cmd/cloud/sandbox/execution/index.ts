@@ -10,7 +10,7 @@ export const command = createCommand({
 	tags: ['read-only', 'requires-auth'],
 	examples: [
 		{
-			command: getCommand('cloud sandbox execution list snbx_abc123'),
+			command: getCommand('cloud sandbox execution list sbx_abc123'),
 			description: 'List executions for a sandbox',
 		},
 		{

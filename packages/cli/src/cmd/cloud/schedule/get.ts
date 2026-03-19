@@ -30,6 +30,7 @@ const ScheduleGetResponseSchema = z.object({
 
 export const getSubcommand = createCommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get schedule details',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true },

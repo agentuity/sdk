@@ -10,7 +10,7 @@ const DeleteStreamResponseSchema = z.object({
 
 export const deleteSubcommand = createCommand({
 	name: 'delete',
-	aliases: ['del', 'rm'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete a stream by ID (soft delete)',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,

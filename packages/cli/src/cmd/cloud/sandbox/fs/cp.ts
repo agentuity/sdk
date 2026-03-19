@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { readFileSync, writeFileSync, mkdirSync, statSync, readdirSync } from 'node:fs';
 import { dirname, resolve, basename, join, relative } from 'node:path';
-import { createCommand } from '../../../types';
-import { toForwardSlash } from '../../../utils/normalize-path';
-import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../../types';
+import { toForwardSlash } from '../../../../utils/normalize-path';
+import * as tui from '../../../../tui';
+import { createSandboxClient } from '../util';
+import { getCommand } from '../../../../command-prefix';
 import {
 	sandboxWriteFiles,
 	sandboxReadFile,
@@ -31,7 +31,7 @@ function parsePath(pathArg: string): ParsedPath {
 	}
 	const prefix = pathArg.slice(0, colonIndex);
 	const path = pathArg.slice(colonIndex + 1);
-	if (prefix.startsWith('snbx_') || prefix.startsWith('sbx_')) {
+	if (prefix.startsWith('sbx_')) {
 		return { sandboxId: prefix, path };
 	}
 	return { sandboxId: null, path: pathArg };
@@ -59,19 +59,19 @@ export const cpSubcommand = createCommand({
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox cp ./local-file.txt sbx_abc123:/path/to/file.txt'),
+			command: getCommand('cloud sandbox fs cp ./local-file.txt sbx_abc123:/path/to/file.txt'),
 			description: 'Copy a local file to a sandbox',
 		},
 		{
-			command: getCommand('cloud sandbox cp sbx_abc123:/path/to/file.txt ./local-file.txt'),
+			command: getCommand('cloud sandbox fs cp sbx_abc123:/path/to/file.txt ./local-file.txt'),
 			description: 'Copy a file from a sandbox to local',
 		},
 		{
-			command: getCommand('cloud sandbox cp --recursive ./local-dir sbx_abc123:/path/to/dir'),
+			command: getCommand('cloud sandbox fs cp --recursive ./local-dir sbx_abc123:/path/to/dir'),
 			description: 'Copy a local directory to a sandbox recursively',
 		},
 		{
-			command: getCommand('cloud sandbox cp -r sbx_abc123:/path/to/dir ./local-dir'),
+			command: getCommand('cloud sandbox fs cp -r sbx_abc123:/path/to/dir ./local-dir'),
 			description: 'Copy a directory from a sandbox to local recursively',
 		},
 		{
@@ -296,7 +296,7 @@ async function uploadSingleFile(
 				logger.fatal(
 					`Target directory does not exist: ${parentDir}\n` +
 						`Use without --strict to auto-create parent directories, or create it first with:\n` +
-						`  ${getCommand(`cloud sandbox mkdir ${sandboxId} ${parentDir} -p`)}`
+						`  ${getCommand(`cloud sandbox fs mkdir ${sandboxId} ${parentDir} -p`)}`
 				);
 			}
 		}
@@ -364,7 +364,7 @@ async function uploadDirectory(
 				logger.fatal(
 					`Target directory does not exist: ${parentDir}\n` +
 						`Use without --strict to auto-create parent directories, or create it first with:\n` +
-						`  ${getCommand(`cloud sandbox mkdir ${sandboxId} ${parentDir} -p`)}`
+						`  ${getCommand(`cloud sandbox fs mkdir ${sandboxId} ${parentDir} -p`)}`
 				);
 			}
 		}

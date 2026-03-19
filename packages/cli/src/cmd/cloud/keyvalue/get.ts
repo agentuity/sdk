@@ -13,6 +13,7 @@ const KVGetResponseSchema = z.object({
 
 export const getSubcommand = createCommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get a value from the keyvalue storage',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true, region: true },

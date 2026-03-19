@@ -15,7 +15,7 @@ const SSHDeleteResponseSchema = z.object({
 
 export const deleteCommand = createSubcommand({
 	name: 'delete',
-	aliases: ['rm', 'del', 'remove'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete an SSH key from your account',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	requires: { apiClient: true, auth: true },

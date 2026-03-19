@@ -8,6 +8,7 @@ import { AgentSchema } from './schema';
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get details about a specific agent',
 	requires: { auth: true, apiClient: true, project: true },
 	examples: [
