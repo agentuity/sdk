@@ -184,10 +184,15 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 		}
 
 		tui.info('4️⃣ Deploying your project...');
-		const deployExit = await runCommand(
-			['bunx', '--bun', 'agentuity', 'deploy', ...buildDeployArgs(opts)],
-			projectDir
-		);
+		// Use the locally installed CLI binary instead of bunx to avoid
+		// bunx resolution crashes on certain Bun versions (e.g. arm64 segfaults)
+		const localCliBin = join(projectDir, 'node_modules', '.bin', 'agentuity');
+		const cliExists = await stat(localCliBin).catch(() => null);
+		const deployCmd = cliExists
+			? ['bun', localCliBin, 'deploy', ...buildDeployArgs(opts)]
+			: ['bunx', '--bun', 'agentuity', 'deploy', ...buildDeployArgs(opts)];
+		tui.info(`Using CLI: ${cliExists ? localCliBin : 'bunx --bun agentuity'}`);
+		const deployExit = await runCommand(deployCmd, projectDir);
 		if (deployExit !== 0) {
 			tui.fatal(`Deploy failed (exit ${deployExit})`, ErrorCode.BUILD_FAILED);
 		}
