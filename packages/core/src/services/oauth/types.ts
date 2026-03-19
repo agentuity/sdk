@@ -238,3 +238,69 @@ export type OAuthUserConsentRevokeResponse = z.infer<typeof OAuthUserConsentRevo
 export type OAuthScopesResponse = z.infer<typeof OAuthScopesResponseSchema>;
 export type OAuthOrgMembersResponse = z.infer<typeof OAuthOrgMembersResponseSchema>;
 export type OAuthKeysRotateResponse = z.infer<typeof OAuthKeysRotateResponseSchema>;
+
+// ============================================================================
+// OAuth 2.0 Authorization Code Flow Types
+// ============================================================================
+
+export const OAuthFlowConfigSchema = z.object({
+	clientId: z.string().optional().describe('OAuth client ID. Defaults to OAUTH_CLIENT_ID env var'),
+	clientSecret: z
+		.string()
+		.optional()
+		.describe('OAuth client secret. Defaults to OAUTH_CLIENT_SECRET env var'),
+	issuer: z
+		.string()
+		.optional()
+		.describe(
+			'OIDC issuer base URL. Defaults to OAUTH_ISSUER env var. Used to derive authorize/token/userinfo URLs'
+		),
+	authorizeUrl: z
+		.string()
+		.optional()
+		.describe('Authorization endpoint. Defaults to OAUTH_AUTHORIZE_URL or {issuer}/authorize'),
+	tokenUrl: z
+		.string()
+		.optional()
+		.describe('Token endpoint. Defaults to OAUTH_TOKEN_URL or {issuer}/oauth/token'),
+	userinfoUrl: z
+		.string()
+		.optional()
+		.describe('UserInfo endpoint. Defaults to OAUTH_USERINFO_URL or {issuer}/userinfo'),
+	scopes: z
+		.string()
+		.optional()
+		.describe('Space-separated scopes. Defaults to OAUTH_SCOPES or "openid profile email"'),
+	prompt: z
+		.enum(['none', 'login', 'consent', 'select_account'])
+		.optional()
+		.describe(
+			'OIDC prompt parameter. Controls authentication UX: "login" forces re-auth, "consent" forces consent screen, "none" fails if not authenticated, "select_account" lets user pick an account'
+		),
+});
+
+export type OAuthFlowConfig = z.infer<typeof OAuthFlowConfigSchema>;
+
+export const OAuthTokenResponseSchema = z.object({
+	access_token: z.string(),
+	token_type: z.string().optional(),
+	expires_in: z.number().optional(),
+	refresh_token: z.string().optional(),
+	scope: z.string().optional(),
+	id_token: z.string().optional(),
+});
+
+export type OAuthTokenResponse = z.infer<typeof OAuthTokenResponseSchema>;
+
+export const OAuthUserInfoSchema = z
+	.object({
+		sub: z.string(),
+		name: z.string().optional(),
+		given_name: z.string().optional(),
+		family_name: z.string().optional(),
+		email: z.string().optional(),
+		email_verified: z.boolean().optional(),
+	})
+	.catchall(z.unknown());
+
+export type OAuthUserInfo = z.infer<typeof OAuthUserInfoSchema>;
