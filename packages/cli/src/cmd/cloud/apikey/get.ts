@@ -7,6 +7,7 @@ import { ErrorCode } from '../../../errors';
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get a specific API key by id',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [{ command: getCommand('cloud apikey get <id>'), description: 'Get item details' }],

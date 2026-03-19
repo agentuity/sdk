@@ -25,6 +25,7 @@ const EvalRunGetResponseSchema = z.object({
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get details about a specific eval run',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [

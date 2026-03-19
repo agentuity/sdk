@@ -12,7 +12,7 @@ import { createSubcommand } from '../../../types';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
-	aliases: ['rm', 'del'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete a database resource',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: false,

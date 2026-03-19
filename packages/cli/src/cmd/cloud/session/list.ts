@@ -21,6 +21,7 @@ const SessionListResponseSchema = z.array(
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
+	aliases: ['ls'],
 	description: 'List recent sessions',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [
@@ -58,7 +59,6 @@ export const listSubcommand = createSubcommand({
 			description: 'List all sessions regardless of project context',
 		},
 	],
-	aliases: ['ls'],
 	requires: { auth: true },
 	optional: { project: true },
 	idempotent: true,

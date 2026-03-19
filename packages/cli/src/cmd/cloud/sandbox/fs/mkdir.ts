@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { createSandboxClient } from '../util';
+import { getCommand } from '../../../../command-prefix';
 import { sandboxMkDir, sandboxResolve } from '@agentuity/server';
 
 const MkDirResponseSchema = z.object({
@@ -17,11 +17,11 @@ export const mkdirSubcommand = createCommand({
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox mkdir sbx_abc123 /path/to/dir'),
+			command: getCommand('cloud sandbox fs mkdir sbx_abc123 /path/to/dir'),
 			description: 'Create a directory in the sandbox',
 		},
 		{
-			command: getCommand('cloud sandbox mkdir sbx_abc123 /path/to/nested/dir -p'),
+			command: getCommand('cloud sandbox fs mkdir sbx_abc123 /path/to/nested/dir -p'),
 			description: 'Create nested directories recursively',
 		},
 	],

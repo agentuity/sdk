@@ -15,7 +15,7 @@ const VectorDeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createCommand({
 	name: 'delete',
-	aliases: ['del', 'rm'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete one or more vectors by key',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	requires: { auth: true, region: true },

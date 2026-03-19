@@ -26,7 +26,7 @@ export const deleteSubcommand = createSubcommand({
 			description: 'Delete a machine without confirmation',
 		},
 	],
-	aliases: ['rm', 'remove'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	requires: { auth: true, org: true },
 	idempotent: false,
 	schema: {

@@ -8,6 +8,7 @@ import { createOAuthClient } from './util';
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get a specific OAuth application',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [

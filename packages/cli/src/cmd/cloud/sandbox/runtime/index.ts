@@ -4,7 +4,7 @@ import { getCommand } from '../../../../command-prefix';
 
 export const runtimeCommand = createCommand({
 	name: 'runtime',
-	aliases: ['rt'],
+	aliases: ['rt', 'runtimes'],
 	description: 'Manage sandbox runtimes',
 	tags: ['slow', 'requires-auth'],
 	examples: [

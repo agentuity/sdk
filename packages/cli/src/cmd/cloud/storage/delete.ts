@@ -13,7 +13,7 @@ import { createS3Client } from './utils';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
-	aliases: ['rm', 'del', 'remove'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete a storage resource, file, or folder',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: false,

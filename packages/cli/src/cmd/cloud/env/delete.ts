@@ -18,7 +18,7 @@ const EnvDeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
-	aliases: ['del', 'remove', 'rm'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete one or more environment variables or secrets',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,

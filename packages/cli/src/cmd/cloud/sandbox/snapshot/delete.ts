@@ -13,7 +13,7 @@ const SnapshotDeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createCommand({
 	name: 'delete',
-	aliases: ['del', 'rm', 'remove'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete a snapshot',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	requires: { auth: true, org: true },

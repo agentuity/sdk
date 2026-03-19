@@ -19,13 +19,13 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 | `sandbox get <id>` | Get sandbox details |
 | `sandbox delete <id>` | Destroy sandbox |
 | `sandbox exec <id> -- <cmd>` | Execute in existing sandbox |
-| `sandbox cp` | Copy files to/from sandbox |
-| `sandbox files <id>` | List files in sandbox |
-| `sandbox mkdir <id> <path>` | Create directory |
-| `sandbox rmdir <id> <path>` | Remove directory |
-| `sandbox rm <id> <path>` | Remove file |
-| `sandbox download <id> <output>` | Download as archive |
-| `sandbox upload <id> <archive>` | Upload and extract archive |
+| `sandbox fs cp` | Copy files to/from sandbox |
+| `sandbox fs ls <id>` | List files in sandbox |
+| `sandbox fs mkdir <id> <path>` | Create directory |
+| `sandbox fs rmdir <id> <path>` | Remove directory |
+| `sandbox fs rm <id> <path>` | Remove file |
+| `sandbox fs download <id> <output>` | Download as archive |
+| `sandbox fs upload <id> <archive>` | Upload and extract archive |
 | `sandbox snapshot` | Manage snapshots |
 | `sandbox snapshot build <dir>` | Build snapshot from declarative file |
 | `sandbox snapshot generate` | Generate template snapshot build file |
@@ -35,7 +35,14 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 | `sandbox env <id>` | Manage environment variables |
 | `sandbox job` | Manage background jobs |
 
-**Alias:** `sb` (e.g., `agentuity cloud sb list`)
+**Aliases:**
+- `sb` → `sandbox` (e.g., `agentuity cloud sb list`)
+- `sandbox rm` → `sandbox delete` (e.g., `agentuity cloud sandbox rm sbx_abc123`)
+- `sandbox delete` also accepts: `rm`, `del`, `remove`, `destroy`, `terminate`
+- `sandbox fs` also accepts: `files`, `file`
+- All `get` commands also accept: `show`, `info`
+- All `list` commands also accept: `ls`
+- All `create` commands also accept: `new`
 
 ## SSH Access
 
@@ -199,10 +206,19 @@ Shows sandbox status, creation time, resource usage, and execution count.
 agentuity cloud sandbox delete <sandbox-id> [--confirm]
 ```
 
+**Aliases:** `rm`, `del`, `remove`, `destroy`, `terminate`
+
 ```bash
 agentuity cloud sandbox delete sbx_abc123
 agentuity cloud sandbox delete sbx_abc123 --confirm  # Skip prompt
+
+# Using alias
+agentuity cloud sandbox rm sbx_abc123
 ```
+
+<Callout type="info" title="sandbox rm vs sandbox fs rm">
+`sandbox rm <sandbox-id>` deletes the sandbox itself (alias for `sandbox delete`). To remove a file *inside* a sandbox, use `sandbox fs rm <sandbox-id> <path>`.
+</Callout>
 
 ## Port Mapping
 
@@ -250,7 +266,7 @@ agentuity cloud sandbox create --port 3000 --network --name my-api
 # ℹ url: https://my-api-abc123.agentuity.cloud
 
 # Upload server code
-agentuity cloud sandbox cp ./server.js sbx_abc123:/home/agentuity/
+agentuity cloud sandbox fs cp ./server.js sbx_abc123:/home/agentuity/
 
 # Start the server
 agentuity cloud sandbox exec sbx_abc123 -- bun run /home/agentuity/server.js
@@ -261,12 +277,14 @@ curl https://my-api-abc123.agentuity.cloud/api/health
 
 ## File Operations
 
+File operations are grouped under the `sandbox fs` subcommand.
+
 ### Copy Files
 
 Copy individual files or directories to and from sandboxes. Parent directories are automatically created if they don't exist, similar to `mkdir -p`.
 
 ```bash
-agentuity cloud sandbox cp <source> <destination> [options]
+agentuity cloud sandbox fs cp <source> <destination> [options]
 ```
 
 | Option | Description |
@@ -278,23 +296,23 @@ agentuity cloud sandbox cp <source> <destination> [options]
 
 ```bash
 # Upload a file
-agentuity cloud sandbox cp ./local-file.txt sbx_abc123:/workspace/file.txt
+agentuity cloud sandbox fs cp ./local-file.txt sbx_abc123:/workspace/file.txt
 
 # Download a file
-agentuity cloud sandbox cp sbx_abc123:/workspace/output.json ./output.json
+agentuity cloud sandbox fs cp sbx_abc123:/workspace/output.json ./output.json
 
 # Upload a directory recursively
-agentuity cloud sandbox cp -r ./src sbx_abc123:/workspace/src
+agentuity cloud sandbox fs cp -r ./src sbx_abc123:/workspace/src
 
 # Upload to a path with non-existent parent directories (auto-created)
-agentuity cloud sandbox cp ./config.json sbx_abc123:/home/agentuity/app/config/settings.json
+agentuity cloud sandbox fs cp ./config.json sbx_abc123:/home/agentuity/app/config/settings.json
 
 # Strict mode — fail if target directory doesn't exist
-agentuity cloud sandbox cp --strict ./file.txt sbx_abc123:/home/agentuity/must-exist/file.txt
+agentuity cloud sandbox fs cp --strict ./file.txt sbx_abc123:/home/agentuity/must-exist/file.txt
 ```
 
 <Callout type="info" title="Automatic Parent Directory Creation">
-Unlike POSIX `cp`, `sandbox cp` automatically creates parent directories if they don't exist. For example, copying to `sbx_id:/home/agentuity/new/nested/path/file.txt` will create `/home/agentuity/new` and `/home/agentuity/new/nested/path` automatically. Use `--json` to see which directories were created in the `directoriesCreated` field. Use `--strict` to disable this behavior and fail if the target directory doesn't exist.
+Unlike POSIX `cp`, `sandbox fs cp` automatically creates parent directories if they don't exist. For example, copying to `sbx_id:/home/agentuity/new/nested/path/file.txt` will create `/home/agentuity/new` and `/home/agentuity/new/nested/path` automatically. Use `--json` to see which directories were created in the `directoriesCreated` field. Use `--strict` to disable this behavior and fail if the target directory doesn't exist.
 </Callout>
 
 #### JSON Output
@@ -302,7 +320,7 @@ Unlike POSIX `cp`, `sandbox cp` automatically creates parent directories if they
 When using `--json`, the response includes details about auto-created directories:
 
 ```bash
-agentuity cloud sandbox cp ./file.txt sbx_abc123:/home/agentuity/new/path/file.txt --json
+agentuity cloud sandbox fs cp ./file.txt sbx_abc123:/home/agentuity/new/path/file.txt --json
 ```
 
 ```json
@@ -323,7 +341,7 @@ agentuity cloud sandbox cp ./file.txt sbx_abc123:/home/agentuity/new/path/file.t
 List files and directories in a sandbox.
 
 ```bash
-agentuity cloud sandbox files <sandbox-id> [path] [options]
+agentuity cloud sandbox fs ls <sandbox-id> [path] [options]
 ```
 
 | Option | Description |
@@ -331,23 +349,21 @@ agentuity cloud sandbox files <sandbox-id> [path] [options]
 | `-l, --long` | Show permissions and timestamps |
 | `--json` | JSON output |
 
-**Alias:** `lsf`
-
 ```bash
 # List root directory
-agentuity cloud sandbox files sbx_abc123
+agentuity cloud sandbox fs ls sbx_abc123
 
 # List specific directory
-agentuity cloud sandbox files sbx_abc123 /workspace/src
+agentuity cloud sandbox fs ls sbx_abc123 /workspace/src
 
 # Long format with details
-agentuity cloud sandbox files sbx_abc123 -l
+agentuity cloud sandbox fs ls sbx_abc123 -l
 ```
 
 ### Create Directory
 
 ```bash
-agentuity cloud sandbox mkdir <sandbox-id> <path> [options]
+agentuity cloud sandbox fs mkdir <sandbox-id> <path> [options]
 ```
 
 | Option | Description |
@@ -356,20 +372,22 @@ agentuity cloud sandbox mkdir <sandbox-id> <path> [options]
 
 ```bash
 # Create a directory
-agentuity cloud sandbox mkdir sbx_abc123 /workspace/output
+agentuity cloud sandbox fs mkdir sbx_abc123 /workspace/output
 
 # Create nested directories
-agentuity cloud sandbox mkdir sbx_abc123 /workspace/data/processed -p
+agentuity cloud sandbox fs mkdir sbx_abc123 /workspace/data/processed -p
 ```
 
 ### Remove Files and Directories
 
+Use `sandbox fs rm` to remove individual files and `sandbox fs rmdir` to remove directories. The `rmdir` command requires the `-r` flag to remove directories that contain files.
+
 ```bash
 # Remove a file
-agentuity cloud sandbox rm <sandbox-id> <path>
+agentuity cloud sandbox fs rm <sandbox-id> <path>
 
 # Remove a directory
-agentuity cloud sandbox rmdir <sandbox-id> <path> [options]
+agentuity cloud sandbox fs rmdir <sandbox-id> <path> [options]
 ```
 
 | Option | Description |
@@ -378,13 +396,13 @@ agentuity cloud sandbox rmdir <sandbox-id> <path> [options]
 
 ```bash
 # Remove a file
-agentuity cloud sandbox rm sbx_abc123 /workspace/temp.txt
+agentuity cloud sandbox fs rm sbx_abc123 /workspace/temp.txt
 
 # Remove empty directory
-agentuity cloud sandbox rmdir sbx_abc123 /workspace/old
+agentuity cloud sandbox fs rmdir sbx_abc123 /workspace/old
 
 # Remove directory with contents
-agentuity cloud sandbox rmdir sbx_abc123 /workspace/cache -r
+agentuity cloud sandbox fs rmdir sbx_abc123 /workspace/cache -r
 ```
 
 ### Download Archive
@@ -392,7 +410,7 @@ agentuity cloud sandbox rmdir sbx_abc123 /workspace/cache -r
 Download sandbox files as a compressed archive.
 
 ```bash
-agentuity cloud sandbox download <sandbox-id> <output-file> [options]
+agentuity cloud sandbox fs download <sandbox-id> <output-file> [options]
 ```
 
 | Option | Description |
@@ -404,13 +422,13 @@ agentuity cloud sandbox download <sandbox-id> <output-file> [options]
 
 ```bash
 # Download entire sandbox
-agentuity cloud sandbox download sbx_abc123 ./backup.tar.gz
+agentuity cloud sandbox fs download sbx_abc123 ./backup.tar.gz
 
 # Download as zip
-agentuity cloud sandbox download sbx_abc123 ./backup.zip --format zip
+agentuity cloud sandbox fs download sbx_abc123 ./backup.zip --format zip
 
 # Download specific directory
-agentuity cloud sandbox download sbx_abc123 ./src.tar.gz --path /workspace/src
+agentuity cloud sandbox fs download sbx_abc123 ./src.tar.gz --path /workspace/src
 ```
 
 ### Upload Archive
@@ -418,7 +436,7 @@ agentuity cloud sandbox download sbx_abc123 ./src.tar.gz --path /workspace/src
 Upload and extract an archive into a sandbox.
 
 ```bash
-agentuity cloud sandbox upload <sandbox-id> <archive-file> [options]
+agentuity cloud sandbox fs upload <sandbox-id> <archive-file> [options]
 ```
 
 | Option | Description |
@@ -430,10 +448,10 @@ agentuity cloud sandbox upload <sandbox-id> <archive-file> [options]
 
 ```bash
 # Upload and extract to root
-agentuity cloud sandbox upload sbx_abc123 ./project.tar.gz
+agentuity cloud sandbox fs upload sbx_abc123 ./project.tar.gz
 
 # Upload to specific directory
-agentuity cloud sandbox upload sbx_abc123 ./deps.zip --path /workspace/node_modules
+agentuity cloud sandbox fs upload sbx_abc123 ./deps.zip --path /workspace/node_modules
 ```
 
 ## Snapshot Commands
@@ -693,11 +711,11 @@ agentuity cloud sandbox create --snapshot python-ml
 # sbx_def456
 
 # Upload and run code
-agentuity cloud sandbox cp ./analysis.py sbx_def456:/workspace/
+agentuity cloud sandbox fs cp ./analysis.py sbx_def456:/workspace/
 agentuity cloud sandbox exec sbx_def456 -- python3 /workspace/analysis.py
 
 # Download results
-agentuity cloud sandbox cp sbx_def456:/workspace/output.csv ./results.csv
+agentuity cloud sandbox fs cp sbx_def456:/workspace/output.csv ./results.csv
 
 # Clean up
 agentuity cloud sandbox delete sbx_def456

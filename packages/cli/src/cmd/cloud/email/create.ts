@@ -8,7 +8,7 @@ import { defaultProfileName, getDefaultRegion } from '../../../config';
 
 export const createSubcommand = createCommand({
 	name: 'create',
-	aliases: ['add'],
+	aliases: ['new', 'add'],
 	description: 'Create an email address',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
 	requires: { auth: true },

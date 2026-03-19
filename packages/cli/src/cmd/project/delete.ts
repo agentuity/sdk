@@ -18,7 +18,7 @@ export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	description: 'Delete a project',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
-	aliases: ['rm', 'del'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	requires: { auth: true, apiClient: true },
 	idempotent: false,
 	examples: [

@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { createSandboxClient } from '../util';
+import { getCommand } from '../../../../command-prefix';
 import { sandboxRmFile, sandboxResolve } from '@agentuity/server';
 
 const RmFileResponseSchema = z.object({
@@ -12,12 +12,13 @@ const RmFileResponseSchema = z.object({
 
 export const rmSubcommand = createCommand({
 	name: 'rm',
+	aliases: ['del', 'remove'],
 	description: 'Remove a file from a sandbox',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox rm sbx_abc123 /path/to/file.txt'),
+			command: getCommand('cloud sandbox fs rm sbx_abc123 /path/to/file.txt'),
 			description: 'Remove a file from the sandbox',
 		},
 	],

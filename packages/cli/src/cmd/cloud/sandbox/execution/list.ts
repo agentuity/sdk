@@ -29,11 +29,11 @@ export const listSubcommand = createCommand({
 	idempotent: true,
 	examples: [
 		{
-			command: getCommand('cloud sandbox execution list snbx_abc123'),
+			command: getCommand('cloud sandbox execution list sbx_abc123'),
 			description: 'List executions for a sandbox',
 		},
 		{
-			command: getCommand('cloud sandbox execution list snbx_abc123 --limit 10'),
+			command: getCommand('cloud sandbox execution list sbx_abc123 --limit 10'),
 			description: 'List with a limit',
 		},
 	],
