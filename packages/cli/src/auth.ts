@@ -107,14 +107,24 @@ async function resolveCachedOrgId(ctx: {
 }
 
 export async function resolveOrgIdWithoutPrompt(ctx: {
-	options: { orgId?: string };
+	options: { orgId?: string | boolean };
 	config: Config | null;
 	args?: Record<string, unknown> | unknown[];
 	opts?: Record<string, unknown> | unknown[];
 }): Promise<string | undefined> {
 	const { options, config, args, opts } = ctx;
 	const envOrgId = process.env[ORG_ID_ENV_VAR];
-	const flagOrgId = options.orgId && options.orgId !== envOrgId ? options.orgId : undefined;
+
+	// Handle --org flag: could be true (use default), false, or a string org ID
+	let flagOrgId: string | undefined;
+	if (options.orgId === true) {
+		// --org without argument means "use default org" - will fall through to preference/env
+		flagOrgId = undefined;
+	} else if (typeof options.orgId === 'string' && options.orgId !== envOrgId) {
+		flagOrgId = options.orgId;
+	} else {
+		flagOrgId = undefined;
+	}
 
 	if (flagOrgId) {
 		return flagOrgId;

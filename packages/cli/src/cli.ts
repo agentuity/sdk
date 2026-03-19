@@ -541,10 +541,10 @@ export async function createCLI(version: string): Promise<Command> {
 			'Filter JSON output to specified fields (comma-separated, dot notation for nested)'
 		);
 
-	// Add hidden --org alias for --org-id (agents prefer --org over --org-id)
-	const orgIdAlias = program.createOption('--org <id>', 'Alias for --org-id');
-	orgIdAlias.hideHelp();
-	program.addOption(orgIdAlias);
+	// Note: We intentionally do NOT add a global --org alias for --org-id because
+	// some subcommands (like env commands) define their own --org option with
+	// different semantics (boolean for "use org scope" vs string for specific org ID).
+	// Adding a global --org would shadow the subcommand's --org option.
 
 	const skipVersionCheckOption = program.createOption(
 		'--skip-version-check',
@@ -1303,7 +1303,8 @@ async function registerSubcommand(
 			? parseOptionsSchema(subcommand.schema.options).some((o) => o.name === 'org')
 			: false;
 		if (!schemaDefinesOrg) {
-			const orgAlias = cmd.createOption('--org <id>', 'Alias for --org-id');
+			// Use [id] (optional) to allow --org without argument for default org
+			const orgAlias = cmd.createOption('--org [id]', 'Alias for --org-id');
 			orgAlias.hideHelp();
 			cmd.addOption(orgAlias);
 		}
@@ -1359,7 +1360,12 @@ async function registerSubcommand(
 			hasExplicitOrgId &&
 			baseCtx.options.orgId
 		) {
-			options.orgId = baseCtx.options.orgId;
+			// Handle --org flag: could be true (use default org) or a string org ID
+			// When true, skip assignment here - org resolution will happen later via requireOrg/selectOptionalOrg
+			if (typeof baseCtx.options.orgId === 'string') {
+				options.orgId = baseCtx.options.orgId;
+			}
+			// If boolean true, don't assign - let the org resolution logic handle it
 		}
 		if (
 			hasProjectIdInSchema &&
