@@ -78,8 +78,6 @@ export {
 	executionGet,
 	executionList,
 } from './execution.ts';
-export type { Job, JobStatus, CreateJobOptions } from './types.ts';
-export { JobSchema, JobStatusSchema, CreateJobOptionsSchema } from './types.ts';
 export type {
 	JobCreateParams,
 	JobGetParams,

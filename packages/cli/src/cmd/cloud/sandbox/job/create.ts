@@ -12,11 +12,11 @@ export const createSubcommand = createCommand({
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox job create snbx_abc123 -- bun run build'),
+			command: getCommand('cloud sandbox job create sbx_abc123 -- bun run build'),
 			description: 'Create a background job',
 		},
 		{
-			command: getCommand('cloud sandbox job create snbx_abc123 -- npm install'),
+			command: getCommand('cloud sandbox job create sbx_abc123 -- npm install'),
 			description: 'Run npm install as a background job',
 		},
 	],

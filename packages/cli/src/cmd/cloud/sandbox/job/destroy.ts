@@ -13,11 +13,11 @@ export const destroySubcommand = createCommand({
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox job destroy snbx_abc123 job_xyz789'),
+			command: getCommand('cloud sandbox job destroy sbx_abc123 job_xyz789'),
 			description: 'Terminate a job gracefully',
 		},
 		{
-			command: getCommand('cloud sandbox job destroy snbx_abc123 job_xyz789 --force'),
+			command: getCommand('cloud sandbox job destroy sbx_abc123 job_xyz789 --force'),
 			description: 'Force kill a job',
 		},
 	],

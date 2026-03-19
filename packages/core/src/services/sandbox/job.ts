@@ -1,18 +1,9 @@
 import { type APIClient, APIResponseSchema } from '../api.ts';
-import { CreateJobOptionsSchema, JobSchema, type Job, type JobStatus } from './types.ts';
+import { CreateJobOptionsSchema, JobSchema, type Job } from './types.ts';
 import { throwSandboxError } from './util.ts';
 import { z } from 'zod';
 
-export const CreateJobRequestSchema = z.object({
-	command: z.array(z.string()).describe('Command and arguments to execute'),
-	streams: z
-		.object({
-			stdout: z.string().optional().describe('Stream ID for stdout output'),
-			stderr: z.string().optional().describe('Stream ID for stderr output'),
-		})
-		.optional()
-		.describe('Stream configuration for output redirection'),
-});
+export const CreateJobRequestSchema = CreateJobOptionsSchema;
 
 export const CreateJobDataSchema = JobSchema;
 
@@ -51,18 +42,7 @@ export async function jobCreate(client: APIClient, params: JobCreateParams): Pro
 	);
 
 	if (resp.success) {
-		return {
-			jobId: resp.data.jobId,
-			sandboxId: resp.data.sandboxId,
-			command: resp.data.command,
-			status: resp.data.status as JobStatus,
-			exitCode: resp.data.exitCode,
-			startedAt: resp.data.startedAt,
-			completedAt: resp.data.completedAt,
-			error: resp.data.error,
-			stdoutStreamUrl: resp.data.stdoutStreamUrl,
-			stderrStreamUrl: resp.data.stderrStreamUrl,
-		};
+		return resp.data;
 	}
 
 	throwSandboxError(resp, { sandboxId });
@@ -96,18 +76,7 @@ export async function jobGet(client: APIClient, params: JobGetParams): Promise<J
 	);
 
 	if (resp.success) {
-		return {
-			jobId: resp.data.jobId,
-			sandboxId: resp.data.sandboxId,
-			command: resp.data.command,
-			status: resp.data.status as JobStatus,
-			exitCode: resp.data.exitCode,
-			startedAt: resp.data.startedAt,
-			completedAt: resp.data.completedAt,
-			error: resp.data.error,
-			stdoutStreamUrl: resp.data.stdoutStreamUrl,
-			stderrStreamUrl: resp.data.stderrStreamUrl,
-		};
+		return resp.data;
 	}
 
 	throwSandboxError(resp, { sandboxId, jobId: params.jobId });
@@ -185,18 +154,7 @@ export async function jobStop(client: APIClient, params: JobStopParams): Promise
 	);
 
 	if (resp.success) {
-		return {
-			jobId: resp.data.jobId,
-			sandboxId: resp.data.sandboxId,
-			command: resp.data.command,
-			status: resp.data.status as JobStatus,
-			exitCode: resp.data.exitCode,
-			startedAt: resp.data.startedAt,
-			completedAt: resp.data.completedAt,
-			error: resp.data.error,
-			stdoutStreamUrl: resp.data.stdoutStreamUrl,
-			stderrStreamUrl: resp.data.stderrStreamUrl,
-		};
+		return resp.data;
 	}
 
 	throwSandboxError(resp, { sandboxId, jobId: params.jobId });
