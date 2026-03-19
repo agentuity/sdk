@@ -152,7 +152,7 @@ async function readFrontmatter(mdxPath: string): Promise<{ title: string; descri
 	const raw = await readFile(mdxPath, 'utf-8');
 	const { data } = matter(raw);
 	return {
-		title: data.title || 'Untitled',
+		title: data.short_title || data.title || 'Untitled',
 		description: data.description || undefined,
 	};
 }

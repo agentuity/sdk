@@ -211,6 +211,7 @@ function renderServiceMdx(service: Service): string {
 
 	return `---
 title: ${service.name} API
+short_title: ${service.name}
 description: ${service.description}
 ---
 

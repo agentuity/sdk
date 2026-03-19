@@ -137,7 +137,7 @@ export const navData: NavSection[] = [
 				description: 'Build agents with createAgent(), schemas, and handlers',
 			},
 			{
-				title: 'Testing with Workbench',
+				title: 'Workbench',
 				url: '/agents/workbench',
 				description:
 					'Use the built-in development UI to test agents, validate schemas, and debug responses',
@@ -148,22 +148,22 @@ export const navData: NavSection[] = [
 				description: 'Choose from built-in, Zod, Valibot, or ArkType for validation',
 			},
 			{
-				title: 'Using the AI Gateway',
+				title: 'AI Gateway',
 				url: '/agents/ai-gateway',
 				description: 'Automatic LLM routing with observability and cost tracking',
 			},
 			{
-				title: 'Using the AI SDK',
+				title: 'AI SDK Integration',
 				url: '/agents/ai-sdk-integration',
 				description: 'Generate text, structured data, and streams with the Vercel AI SDK',
 			},
 			{
-				title: 'Returning Streaming Responses',
+				title: 'Streaming Responses',
 				url: '/agents/streaming-responses',
 				description: 'Return real-time LLM output with streaming agents',
 			},
 			{
-				title: 'Managing State',
+				title: 'State Management',
 				url: '/agents/state-management',
 				description: 'Request and thread state for stateful agents',
 			},
@@ -173,13 +173,13 @@ export const navData: NavSection[] = [
 				description: 'Build multi-agent systems with type-safe agent-to-agent communication',
 			},
 			{
-				title: 'Running Agents Without HTTP',
+				title: 'Standalone Execution',
 				url: '/agents/standalone-execution',
 				description:
 					'Execute agents programmatically for cron jobs, bots, CLI tools, and background workers',
 			},
 			{
-				title: 'Adding Evaluations',
+				title: 'Evaluations',
 				url: '/agents/evaluations',
 				description: 'Automatically test and validate agent outputs for quality and compliance',
 			},
@@ -195,12 +195,12 @@ export const navData: NavSection[] = [
 		url: '/apis',
 		items: [
 			{
-				title: 'Routes vs Agents',
+				title: 'When to Use',
 				url: '/apis/when-to-use',
 				description: 'When to use simple routes vs agents for your endpoints',
 			},
 			{
-				title: 'Calling Agents from Routes',
+				title: 'Calling Agents',
 				url: '/apis/calling-agents',
 				description: 'Import and invoke agents from your routes',
 			},
@@ -211,27 +211,27 @@ export const navData: NavSection[] = [
 		url: '/routes',
 		items: [
 			{
-				title: 'Creating HTTP Routes',
+				title: 'HTTP',
 				url: '/routes/http',
 				description: 'Define GET, POST, and other HTTP endpoints with createRouter()',
 			},
 			{
-				title: 'Middleware & Authentication',
+				title: 'Middleware',
 				url: '/routes/middleware',
 				description: 'Add authentication, validation, and request processing to your routes',
 			},
 			{
-				title: 'Scheduling Cron Jobs',
+				title: 'Cron',
 				url: '/routes/cron',
 				description: 'Run tasks on a schedule with the cron() middleware',
 			},
 			{
-				title: 'Using WebSockets',
+				title: 'WebSockets',
 				url: '/routes/websockets',
 				description: 'Real-time bidirectional communication with the websocket middleware',
 			},
 			{
-				title: 'Streaming with SSE',
+				title: 'SSE',
 				url: '/routes/sse',
 				description: 'Stream updates from server to client using SSE middleware',
 			},
@@ -260,12 +260,12 @@ export const navData: NavSection[] = [
 					'Configure AgentuityProvider for local development and production deployments',
 			},
 			{
-				title: 'Adding Authentication',
+				title: 'Authentication',
 				url: '/frontend/authentication',
 				description: 'Add user authentication with Agentuity Auth',
 			},
 			{
-				title: 'Workbench Configuration',
+				title: 'Workbench',
 				url: '/frontend/workbench',
 				description:
 					'Configure routes, authentication, and embed Workbench in custom frontends',
@@ -299,12 +299,12 @@ export const navData: NavSection[] = [
 				url: '/services/database',
 				items: [
 					{
-						title: 'Resilient Postgres Client',
+						title: 'Postgres',
 						url: '/services/database/postgres',
 						description: 'Auto-reconnecting PostgreSQL client for serverless environments',
 					},
 					{
-						title: 'Drizzle ORM',
+						title: 'Drizzle',
 						url: '/services/database/drizzle',
 						description: 'Type-safe database access with Drizzle ORM',
 					},
@@ -315,18 +315,18 @@ export const navData: NavSection[] = [
 				url: '/services/storage',
 				items: [
 					{
-						title: 'Key-Value Storage',
+						title: 'Key-Value',
 						url: '/services/storage/key-value',
 						description:
 							'Fast, ephemeral storage for caching, session data, and configuration',
 					},
 					{
-						title: 'Vector Storage',
+						title: 'Vector',
 						url: '/services/storage/vector',
 						description: 'Semantic search and retrieval for knowledge bases and RAG systems',
 					},
 					{
-						title: 'Object Storage (S3)',
+						title: 'Object',
 						url: '/services/storage/object',
 						description: "Durable file storage using Bun's native S3 APIs",
 					},
@@ -337,7 +337,7 @@ export const navData: NavSection[] = [
 							'Streaming storage for large exports, audit logs, and real-time data',
 					},
 					{
-						title: 'Custom Storage',
+						title: 'Custom',
 						url: '/services/storage/custom',
 						description:
 							'Local development storage and bringing your own storage implementations',
@@ -383,12 +383,12 @@ export const navData: NavSection[] = [
 				url: '/services/sandbox',
 				items: [
 					{
-						title: 'Using the Sandbox API',
+						title: 'SDK Usage',
 						url: '/services/sandbox/sdk-usage',
 						description: 'Programmatic API for creating and managing sandboxes',
 					},
 					{
-						title: 'Creating and Using Snapshots',
+						title: 'Snapshots',
 						url: '/services/sandbox/snapshots',
 						description: 'Save and restore sandbox filesystem states for faster cold starts',
 					},
@@ -404,13 +404,13 @@ export const navData: NavSection[] = [
 				title: 'Tutorials',
 				items: [
 					{
-						title: 'Understanding How Agents Work',
+						title: 'Understanding Agents',
 						url: '/cookbook/tutorials/understanding-agents',
 						description:
 							'Learn how AI agents use tools, run in loops with stopping conditions, and leverage LLMs to complete tasks autonomously',
 					},
 					{
-						title: 'Build a RAG Agent',
+						title: 'RAG Agent',
 						url: '/cookbook/tutorials/rag-agent',
 						description:
 							'Create a retrieval-augmented generation agent with vector search and citations',
@@ -426,7 +426,7 @@ export const navData: NavSection[] = [
 						description: 'Use waitUntil to run work after responding to the client',
 					},
 					{
-						title: 'Chat with Conversation History',
+						title: 'Chat with History',
 						url: '/cookbook/patterns/chat-with-history',
 						description:
 							'Build a chat agent that remembers previous messages using thread state',
@@ -437,7 +437,7 @@ export const navData: NavSection[] = [
 						description: 'Cache scheduled task results in KV for later retrieval',
 					},
 					{
-						title: 'Type-Safe API Calls with Hono RPC and TanStack Query',
+						title: 'Hono RPC + TanStack Query',
 						url: '/cookbook/patterns/hono-rpc-tanstack-query',
 						description:
 							'Get end-to-end type safety between your Agentuity API routes and React frontend using Hono RPC and TanStack Query',
@@ -449,18 +449,18 @@ export const navData: NavSection[] = [
 							'Use LLMs to evaluate and score agent outputs for quality, safety, and compliance',
 					},
 					{
-						title: 'SDK Utilities for External Apps',
+						title: 'Server Utilities',
 						url: '/cookbook/patterns/server-utilities',
 						description:
 							'Use storage, queues, logging, and error handling utilities from external backends like Next.js or Express',
 					},
 					{
-						title: 'Product Search with Vector',
+						title: 'Product Search',
 						url: '/cookbook/patterns/product-search',
 						description: 'Semantic product search with metadata filtering',
 					},
 					{
-						title: 'Tailwind CSS Setup',
+						title: 'Tailwind Setup',
 						url: '/cookbook/patterns/tailwind-setup',
 						description: 'Add Tailwind CSS styling to your Agentuity frontend',
 					},
@@ -494,116 +494,116 @@ export const navData: NavSection[] = [
 				url: '/reference/api',
 				items: [
 					{
-						title: 'API Keys API',
+						title: 'API Keys',
 						url: '/reference/api/api-keys',
 						description: 'Create and manage API keys for authentication',
 					},
 					{
-						title: 'Databases API',
+						title: 'Databases',
 						url: '/reference/api/database',
 						description: 'Execute queries, inspect tables, and monitor database performance',
 					},
 					{
-						title: 'Emails API',
+						title: 'Emails',
 						url: '/reference/api/email',
 						description:
 							'Send and receive emails with managed addresses and webhook destinations',
 					},
 					{
-						title: 'Evaluations API',
+						title: 'Evaluations',
 						url: '/reference/api/evaluations',
 						description: 'List and retrieve evaluations and their run history',
 					},
 					{
-						title: 'Key-Value Storage API',
+						title: 'Key-Value Storage',
 						url: '/reference/api/key-value',
 						description: 'Store and retrieve arbitrary data by key within namespaces',
 					},
 					{
-						title: 'Machines API',
+						title: 'Machines',
 						url: '/reference/api/machines',
 						description: 'Manage compute nodes and organization authentication enrollment',
 					},
 					{
-						title: 'OAuth Applications API',
+						title: 'OAuth Applications',
 						url: '/reference/api/oauth',
 						description:
 							'Manage OAuth 2.0/OIDC applications, client credentials, user consent, and authorization scopes',
 					},
 					{
-						title: 'Object Storage API',
+						title: 'Object Storage',
 						url: '/reference/api/object-storage',
 						description: 'Store and manage files and binary objects in buckets',
 					},
 					{
-						title: 'Organizations API',
+						title: 'Organizations',
 						url: '/reference/api/organizations',
 						description:
 							'Manage organizations, environment variables, and org-level resources',
 					},
 					{
-						title: 'Projects API',
+						title: 'Projects',
 						url: '/reference/api/projects',
 						description:
 							'Full project lifecycle management including deployments, agents, environment variables, and hostnames',
 					},
 					{
-						title: 'Message Queues API',
+						title: 'Message Queues',
 						url: '/reference/api/queues',
 						description:
 							'Publish, consume, and manage messages with worker and pub/sub queues',
 					},
 					{
-						title: 'Regions API',
+						title: 'Regions',
 						url: '/reference/api/regions',
 						description: 'List available cloud regions and manage per-region resources',
 					},
 					{
-						title: 'Sandboxes API',
+						title: 'Sandboxes',
 						url: '/reference/api/sandboxes',
 						description:
 							'Create and manage isolated execution environments with full lifecycle, file system, snapshot, and checkpoint support',
 					},
 					{
-						title: 'Schedules API',
+						title: 'Schedules',
 						url: '/reference/api/schedules',
 						description:
 							'Create and manage cron-based scheduled jobs with destinations and delivery tracking',
 					},
 					{
-						title: 'Sessions API',
+						title: 'Sessions',
 						url: '/reference/api/sessions',
 						description:
 							'View agent execution sessions with timing, cost, and observability data',
 					},
 					{
-						title: 'Durable Streams API',
+						title: 'Durable Streams',
 						url: '/reference/api/streams',
 						description: 'Create durable, resumable data streams with public URLs',
 					},
 					{
-						title: 'Tasks API',
+						title: 'Tasks',
 						url: '/reference/api/tasks',
 						description:
 							'Full-featured task management with epics, features, bugs, comments, tags, attachments, and activity tracking',
 					},
 					{
-						title: 'Threads API',
+						title: 'Threads',
 						url: '/reference/api/threads',
 						description: 'Manage conversation threads for agent session state and user data',
 					},
 					{
-						title: 'Users API',
+						title: 'Users',
 						url: '/reference/api/user',
 						description: 'Get authenticated user information and organization memberships',
 					},
 					{
-						title: 'Vector Search API',
+						title: 'Vector Search',
 						url: '/reference/api/vector',
 						description: 'Semantic search with automatic embedding generation',
 					},
 					{
-						title: 'Webhooks API',
+						title: 'Webhooks',
 						url: '/reference/api/webhooks',
 						description:
 							'Manage webhook endpoints, destinations, receipts, deliveries, and analytics',
@@ -615,13 +615,13 @@ export const navData: NavSection[] = [
 				url: '/reference/cli',
 				items: [
 					{
-						title: 'Getting Started with the CLI',
+						title: 'Getting Started',
 						url: '/reference/cli/getting-started',
 						description:
 							'Install the Agentuity CLI and authenticate to start building agents.',
 					},
 					{
-						title: 'Local Development',
+						title: 'Development',
 						url: '/reference/cli/development',
 						description:
 							'Run the development server with hot reload, local mode, and the interactive Workbench.',
@@ -633,35 +633,35 @@ export const navData: NavSection[] = [
 							'Customize the build process with Vite plugins, build-time constants, and file bundling',
 					},
 					{
-						title: 'Deploying to the Cloud',
+						title: 'Deployment',
 						url: '/reference/cli/deployment',
 						description:
 							'Deploy your agents to Agentuity Cloud with automatic infrastructure provisioning.',
 					},
 					{
-						title: 'Connecting GitHub Repositories',
+						title: 'Git Integration',
 						url: '/reference/cli/git-integration',
 						description:
 							'Link your GitHub account and repositories to enable preview deployments and CI/CD.',
 					},
 					{
-						title: 'Storage Commands',
+						title: 'Storage',
 						url: '/reference/cli/storage',
 						description:
 							'Manage Key-Value, S3, Vector, Database, and Stream storage from the CLI.',
 					},
 					{
-						title: 'Sandbox Commands',
+						title: 'Sandbox',
 						url: '/reference/cli/sandbox',
 						description: 'Create and manage isolated execution environments from the CLI',
 					},
 					{
-						title: 'Configuration Commands',
+						title: 'Configuration',
 						url: '/reference/cli/configuration',
 						description: 'Manage environment variables, secrets, and API keys from the CLI.',
 					},
 					{
-						title: 'Debugging Deployments',
+						title: 'Debugging',
 						url: '/reference/cli/debugging',
 						description:
 							'SSH into containers, inspect sessions, and troubleshoot issues in your deployed agents.',
@@ -697,7 +697,7 @@ export const navData: NavSection[] = [
 				description: "The layered infrastructure powering Agentuity's services",
 			},
 			{
-				title: 'Migrating from v0 to v1',
+				title: 'Migration Guide',
 				url: '/reference/migration-guide',
 				description: "Moving from v0? Here's everything you need to update.",
 			},
