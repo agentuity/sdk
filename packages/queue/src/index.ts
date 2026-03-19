@@ -1,0 +1,82 @@
+export {
+	QueueStorageService,
+	QueueService,
+	type QueuePublishParams,
+	type QueuePublishResult,
+	type QueueCreateParams,
+	type QueueCreateResult,
+	QueuePublishParamsSchema,
+	QueuePublishResultSchema,
+	QueueCreateParamsSchema,
+	QueueCreateResultSchema,
+	QueuePublishError,
+	QueueNotFoundError,
+	QueueValidationError,
+} from '@agentuity/core/queue';
+
+import {
+	QueueStorageService,
+	type QueuePublishParams,
+	type QueuePublishResult,
+	type QueueCreateParams,
+	type QueueCreateResult,
+} from '@agentuity/core/queue';
+import { createServerFetchAdapter, type Logger } from '@agentuity/server';
+import { createMinimalLogger } from '@agentuity/core';
+import { getEnv } from '@agentuity/core';
+import { getServiceUrls } from '@agentuity/core/config';
+import { z } from 'zod';
+
+export const QueueClientOptionsSchema = z.object({
+	apiKey: z.string().optional().describe('API key for authentication'),
+	url: z.string().optional().describe('Base URL for the Queue API'),
+	orgId: z.string().optional().describe('Organization ID for multi-tenant operations'),
+	logger: z.custom<Logger>().optional().describe('Custom logger instance'),
+});
+export type QueueClientOptions = z.infer<typeof QueueClientOptionsSchema>;
+
+export class QueueClient {
+	readonly #service: QueueStorageService;
+	readonly #orgId?: string;
+
+	constructor(options: QueueClientOptions = {}) {
+		const apiKey = options.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
+		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
+		const serviceUrls = getServiceUrls(region);
+
+		const url = options.url || getEnv('AGENTUITY_QUEUE_URL') || serviceUrls.catalyst;
+
+		const logger = options.logger ?? createMinimalLogger();
+
+		this.#orgId = options.orgId;
+
+		const adapter = createServerFetchAdapter(
+			{
+				headers: apiKey
+					? {
+							Authorization: `Bearer ${apiKey}`,
+							'Content-Type': 'application/json',
+						}
+					: { 'Content-Type': 'application/json' },
+			},
+			logger
+		);
+		this.#service = new QueueStorageService(url, adapter);
+	}
+
+	async publish(
+		queueName: string,
+		payload: string | object,
+		params?: QueuePublishParams
+	): Promise<QueuePublishResult> {
+		return this.#service.publish(queueName, payload, params);
+	}
+
+	async createQueue(queueName: string, params?: QueueCreateParams): Promise<QueueCreateResult> {
+		return this.#service.createQueue(queueName, params);
+	}
+
+	async deleteQueue(queueName: string): Promise<void> {
+		return this.#service.deleteQueue(queueName);
+	}
+}

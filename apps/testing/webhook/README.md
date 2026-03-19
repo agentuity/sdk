@@ -1,0 +1,37 @@
+# Webhook Test App
+
+A simple standalone Bun app to test the `WebhookClient` from `@agentuity/webhook`.
+
+## Usage
+
+### Prerequisites
+
+Set the required environment variables:
+
+```bash
+export AGENTUITY_SDK_KEY="your-api-key"
+export AGENTUITY_REGION="local"  # or "usc" for production
+```
+
+Or use a `.env.local` file (Bun auto-loads it):
+
+```bash
+AGENTUITY_SDK_KEY=your-api-key
+```
+
+### Run
+
+```bash
+# Install dependencies
+bun install
+
+# Run the test
+bun run start
+```
+
+### What it does
+
+1. Creates a WebhookClient instance
+2. Creates webhook endpoints
+3. Adds destinations to webhooks
+4. Demonstrates basic webhook management
