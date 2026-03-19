@@ -133,6 +133,10 @@ export const SandboxCreateDataSchema = z
 				'failed',
 			])
 			.describe('Current status of the sandbox'),
+		url: z
+			.string()
+			.optional()
+			.describe('Public URL for the sandbox (only set when a network port is configured)'),
 		stdoutStreamId: z.string().optional().describe('Stream ID for reading stdout'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamId: z.string().optional().describe('Stream ID for reading stderr'),

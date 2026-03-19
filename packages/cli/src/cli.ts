@@ -541,6 +541,11 @@ export async function createCLI(version: string): Promise<Command> {
 			'Filter JSON output to specified fields (comma-separated, dot notation for nested)'
 		);
 
+	// Add hidden --org alias for --org-id (agents prefer --org over --org-id)
+	const orgIdAlias = program.createOption('--org <id>', 'Alias for --org-id');
+	orgIdAlias.hideHelp();
+	program.addOption(orgIdAlias);
+
 	const skipVersionCheckOption = program.createOption(
 		'--skip-version-check',
 		'Skip version compatibility check (dev only)'
@@ -1292,6 +1297,16 @@ async function registerSubcommand(
 	// Add --org-id if command requires/optional org and doesn't define it in schema
 	if (_deferOrgIdFlag && !hasOrgIdInSchema) {
 		cmd.option('--org-id <id>', 'organization ID');
+		// Add hidden --org alias, but only if schema doesn't define its own --org option
+		// (e.g., env commands use --org for "org scope" which is different from --org-id)
+		const schemaDefinesOrg = subcommand.schema?.options
+			? parseOptionsSchema(subcommand.schema.options).some((o) => o.name === 'org')
+			: false;
+		if (!schemaDefinesOrg) {
+			const orgAlias = cmd.createOption('--org <id>', 'Alias for --org-id');
+			orgAlias.hideHelp();
+			cmd.addOption(orgAlias);
+		}
 	}
 
 	// Add --project-id if command requires/optional project and doesn't define it in schema
@@ -1331,7 +1346,10 @@ async function registerSubcommand(
 		// so subcommand-level options may not have them. Only merge when the user
 		// explicitly passed the flag on the CLI (not from env var defaults).
 		const argv = process.argv;
-		const hasExplicitOrgId = argv.some((a) => a === '--org-id' || a.startsWith('--org-id='));
+		const hasExplicitOrgId = argv.some(
+			(a) =>
+				a === '--org-id' || a.startsWith('--org-id=') || a === '--org' || a.startsWith('--org=')
+		);
 		const hasExplicitProjectId = argv.some(
 			(a) => a === '--project-id' || a.startsWith('--project-id=')
 		);
