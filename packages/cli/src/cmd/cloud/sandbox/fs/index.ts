@@ -10,6 +10,7 @@ import { uploadSubcommand } from './upload';
 
 export const command = createCommand({
 	name: 'fs',
+	aliases: ['files', 'file'],
 	description: 'Filesystem operations for sandboxes',
 	tags: ['slow', 'requires-auth'],
 	examples: [
