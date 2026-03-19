@@ -39,13 +39,15 @@ export class QueueClient {
 	readonly #service: QueueStorageService;
 
 	constructor(options: QueueClientOptions = {}) {
-		const apiKey = options.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
+		const validatedOptions = QueueClientOptionsSchema.parse(options);
+		const apiKey =
+			validatedOptions.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
 		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
 		const serviceUrls = getServiceUrls(region);
 
-		const url = options.url || getEnv('AGENTUITY_QUEUE_URL') || serviceUrls.catalyst;
+		const url = validatedOptions.url || getEnv('AGENTUITY_QUEUE_URL') || serviceUrls.catalyst;
 
-		const logger = options.logger ?? createMinimalLogger();
+		const logger = validatedOptions.logger ?? createMinimalLogger();
 
 		const adapter = createServerFetchAdapter(
 			{

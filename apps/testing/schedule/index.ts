@@ -6,6 +6,7 @@
  */
 
 import { ScheduleClient } from '@agentuity/schedule';
+import { isStructuredError } from '@agentuity/core';
 
 async function main() {
 	console.log('🚀 Starting Schedule Test...\n');
@@ -103,7 +104,10 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-	if (error instanceof Error) {
+	if (isStructuredError(error)) {
+		console.error('❌ Error:', error.message);
+		console.error('   Code:', error._tag);
+	} else if (error instanceof Error) {
 		console.error('❌ Error:', error.message);
 	} else {
 		console.error('❌ Error:', String(error));

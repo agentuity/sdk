@@ -49,13 +49,15 @@ export class KeyValueClient {
 	readonly #service: KeyValueStorageService;
 
 	constructor(options: KeyValueClientOptions = {}) {
-		const apiKey = options.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
+		const validatedOptions = KeyValueClientOptionsSchema.parse(options);
+		const apiKey =
+			validatedOptions.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
 		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
 		const serviceUrls = getServiceUrls(region);
 
-		const url = options.url || getEnv('AGENTUITY_KEYVALUE_URL') || serviceUrls.keyvalue;
+		const url = validatedOptions.url || getEnv('AGENTUITY_KEYVALUE_URL') || serviceUrls.keyvalue;
 
-		const logger = options.logger ?? createMinimalLogger();
+		const logger = validatedOptions.logger ?? createMinimalLogger();
 
 		const adapter = createServerFetchAdapter(
 			{
