@@ -1,6 +1,6 @@
 import type { Logger } from '@agentuity/core';
 import { spawn } from 'bun';
-import { mkdir, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ErrorCode } from '../../errors';
@@ -65,7 +65,7 @@ async function downloadSource(url: string, targetPath: string): Promise<void> {
 
 	for (let attempt = 1; attempt <= 3; attempt++) {
 		try {
-			const response = await fetch(url);
+			const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
 			if (!response.ok) {
 				throw new Error(`Download failed with status ${response.status}`);
 			}
@@ -138,21 +138,27 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 			tui.fatal('Could not determine extracted source directory', ErrorCode.BUILD_FAILED);
 		}
 
-		let projectDir = join(extractPath, sourceRoot.name);
+		const sourceRootDir = join(extractPath, sourceRoot.name);
+		let projectDir = sourceRootDir;
 		if (opts.directory) {
-			if (opts.directory.includes('..')) {
-				tui.fatal(
-					'Directory path cannot contain path traversal sequences',
-					ErrorCode.CONFIG_INVALID
-				);
-			}
-			projectDir = join(projectDir, opts.directory);
+			projectDir = join(sourceRootDir, opts.directory);
 		}
 
 		const projectStats = await stat(projectDir).catch(() => null);
 		if (!projectStats?.isDirectory()) {
 			tui.fatal(`Build directory not found: ${projectDir}`, ErrorCode.CONFIG_INVALID);
 		}
+
+		// Resolve symlinks and verify the project dir is within the source root
+		const realProjectDir = await realpath(projectDir).catch(() => null);
+		const realSourceRoot = await realpath(sourceRootDir).catch(() => null);
+		if (!realProjectDir || !realSourceRoot || !realProjectDir.startsWith(realSourceRoot)) {
+			tui.fatal(
+				'Directory path escapes the source root (path traversal denied)',
+				ErrorCode.CONFIG_INVALID
+			);
+		}
+		projectDir = realProjectDir;
 
 		const sdkKey = process.env.AGENTUITY_SDK_KEY;
 		if (sdkKey) {

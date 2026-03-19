@@ -83,7 +83,7 @@ export const command = createCommand({
 
 			return {
 				success: true,
-				bundlePath: projectDir,
+				bundlePath: '', // CI build deploys directly; no local bundle path
 				projectName: project?.projectId || 'unknown',
 				dev: false,
 			};
