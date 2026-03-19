@@ -454,6 +454,17 @@ export function buildValidationInput(
 				value = true;
 			}
 
+			// Handle --org alias for --org-id: if orgId is not set but org is, use that value
+			// Only treat --org as an --org-id alias if the schema does NOT declare a separate 'org' option
+			if (
+				(opt.name === 'orgId' || opt.name === 'org-id') &&
+				value === undefined &&
+				rawOptions.org !== undefined &&
+				!parsed.some((o) => o.name === 'org')
+			) {
+				value = rawOptions.org;
+			}
+
 			if (value !== undefined) {
 				result.options[opt.name] = value;
 			}
