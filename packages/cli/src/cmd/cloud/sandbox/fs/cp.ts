@@ -76,7 +76,7 @@ export const cpSubcommand = createCommand({
 		},
 		{
 			command: getCommand(
-				'cloud sandbox cp --strict ./local-file.txt sbx_abc123:/path/to/file.txt'
+				'cloud sandbox fs cp --strict ./local-file.txt sbx_abc123:/path/to/file.txt'
 			),
 			description: 'Copy a file, failing if the target directory does not exist',
 		},

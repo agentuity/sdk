@@ -380,6 +380,8 @@ agentuity cloud sandbox fs mkdir sbx_abc123 /workspace/data/processed -p
 
 ### Remove Files and Directories
 
+Use `sandbox fs rm` to remove individual files and `sandbox fs rmdir` to remove directories. The `rmdir` command requires the `-r` flag to remove directories that contain files.
+
 ```bash
 # Remove a file
 agentuity cloud sandbox fs rm <sandbox-id> <path>
