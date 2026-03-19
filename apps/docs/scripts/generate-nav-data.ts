@@ -151,9 +151,12 @@ async function readMetaJson(dirPath: string): Promise<MetaJson> {
 async function readFrontmatter(mdxPath: string): Promise<{ title: string; description?: string }> {
 	const raw = await readFile(mdxPath, 'utf-8');
 	const { data } = matter(raw);
+	const shortTitle = typeof data.short_title === 'string' ? data.short_title : undefined;
+	const title = typeof data.title === 'string' ? data.title : undefined;
+	const description = typeof data.description === 'string' ? data.description : undefined;
 	return {
-		title: data.short_title || data.title || 'Untitled',
-		description: data.description || undefined,
+		title: shortTitle || title || 'Untitled',
+		description,
 	};
 }
 
