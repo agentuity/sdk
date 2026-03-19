@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { readFileSync, statSync } from 'node:fs';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { createSandboxClient } from '../util';
+import { getCommand } from '../../../../command-prefix';
 import { sandboxUploadArchive, sandboxResolve } from '@agentuity/server';
 
 export const uploadSubcommand = createCommand({
@@ -14,15 +14,15 @@ export const uploadSubcommand = createCommand({
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox upload sbx_abc123 ./archive.tar.gz'),
+			command: getCommand('cloud sandbox fs upload sbx_abc123 ./archive.tar.gz'),
 			description: 'Upload and extract a tar.gz archive to sandbox root',
 		},
 		{
-			command: getCommand('cloud sandbox upload sbx_abc123 ./archive.zip --path /subdir'),
+			command: getCommand('cloud sandbox fs upload sbx_abc123 ./archive.zip --path /subdir'),
 			description: 'Upload and extract a zip archive to a specific directory',
 		},
 		{
-			command: getCommand('cloud sandbox upload sbx_abc123 ./archive.bin --format tar.gz'),
+			command: getCommand('cloud sandbox fs upload sbx_abc123 ./archive.bin --format tar.gz'),
 			description: 'Upload with explicit format specification',
 		},
 	],

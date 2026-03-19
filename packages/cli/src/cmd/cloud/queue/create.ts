@@ -14,6 +14,7 @@ const QueueCreateResponseSchema = z.object({
 
 export const createSubcommand = createCommand({
 	name: 'create',
+	aliases: ['new'],
 	description: 'Create a new queue',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
 	requires: { auth: true, org: true },

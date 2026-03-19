@@ -12,6 +12,7 @@ const HostnameGetResponseSchema = z.object({
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Show the current vanity hostname for the project',
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
 	requires: { auth: true, apiClient: true, project: true },

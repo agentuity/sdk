@@ -541,10 +541,10 @@ export async function createCLI(version: string): Promise<Command> {
 			'Filter JSON output to specified fields (comma-separated, dot notation for nested)'
 		);
 
-	// Add hidden --org alias for --org-id (agents prefer --org over --org-id)
-	const orgIdAlias = program.createOption('--org <id>', 'Alias for --org-id');
-	orgIdAlias.hideHelp();
-	program.addOption(orgIdAlias);
+	// Note: We intentionally do NOT add a global --org alias for --org-id because
+	// some subcommands (like env commands) define their own --org option with
+	// different semantics (boolean for "use org scope" vs string for specific org ID).
+	// Adding a global --org would shadow the subcommand's --org option.
 
 	const skipVersionCheckOption = program.createOption(
 		'--skip-version-check',
@@ -1303,7 +1303,8 @@ async function registerSubcommand(
 			? parseOptionsSchema(subcommand.schema.options).some((o) => o.name === 'org')
 			: false;
 		if (!schemaDefinesOrg) {
-			const orgAlias = cmd.createOption('--org <id>', 'Alias for --org-id');
+			// Use [id] (optional) to allow --org without argument for default org
+			const orgAlias = cmd.createOption('--org [id]', 'Alias for --org-id');
 			orgAlias.hideHelp();
 			cmd.addOption(orgAlias);
 		}
@@ -1318,6 +1319,19 @@ async function registerSubcommand(
 		const cmdObj = rawArgs[rawArgs.length - 1] as { opts: () => Record<string, unknown> };
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
+
+		// Normalize --org to --org-id for downstream code
+		// The --org [id] option is parsed into options.org, but code uses options.orgId
+		// Handle: --org (true -> undefined for default org), --org org_123 (string -> string)
+		if (options.org !== undefined && options.orgId === undefined) {
+			if (options.org === true) {
+				// --org without argument: mark as explicitly requested (use default org)
+				// Set to undefined so org resolution falls through to preference/env/prompt
+				options.orgId = undefined;
+			} else if (typeof options.org === 'string') {
+				options.orgId = options.org;
+			}
+		}
 
 		// Handle --describe mode: output command schema and exit
 		if (baseCtx.options.describe) {

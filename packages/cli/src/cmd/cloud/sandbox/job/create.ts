@@ -7,6 +7,7 @@ import { jobCreate, sandboxResolve } from '@agentuity/server';
 
 export const createSubcommand = createCommand({
 	name: 'create',
+	aliases: ['new'],
 	description: 'Create a background job in a sandbox',
 	tags: ['requires-auth'],
 	requires: { auth: true, apiClient: true },

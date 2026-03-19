@@ -6,6 +6,7 @@ import { jobGet, sandboxResolve } from '@agentuity/server';
 
 export const getSubcommand = createCommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get details of a specific job',
 	tags: ['read-only', 'requires-auth'],
 	requires: { auth: true, apiClient: true },

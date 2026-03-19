@@ -7,6 +7,7 @@ import { getWebhook, WebhookSchema } from '@agentuity/server';
 
 export const getSubcommand = createCommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get webhook details',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true },

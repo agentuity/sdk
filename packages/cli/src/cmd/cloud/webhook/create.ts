@@ -14,6 +14,7 @@ const WebhookCreateResponseSchema = WebhookSchema.pick({
 
 export const createSubcommand = createCommand({
 	name: 'create',
+	aliases: ['new'],
 	description: 'Create a new webhook',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
 	requires: { auth: true, org: true },

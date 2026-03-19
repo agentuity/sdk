@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { createSandboxClient } from '../util';
+import { getCommand } from '../../../../command-prefix';
 import { sandboxRmDir, sandboxResolve } from '@agentuity/server';
 
 const RmDirResponseSchema = z.object({
@@ -17,11 +17,11 @@ export const rmdirSubcommand = createCommand({
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox rmdir sbx_abc123 /path/to/dir'),
+			command: getCommand('cloud sandbox fs rmdir sbx_abc123 /path/to/dir'),
 			description: 'Remove an empty directory from the sandbox',
 		},
 		{
-			command: getCommand('cloud sandbox rmdir sbx_abc123 /path/to/dir -r'),
+			command: getCommand('cloud sandbox fs rmdir sbx_abc123 /path/to/dir -r'),
 			description: 'Remove a directory and all its contents recursively',
 		},
 	],

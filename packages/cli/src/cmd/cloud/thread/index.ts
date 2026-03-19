@@ -6,6 +6,7 @@ import { getCommand } from '../../../command-prefix';
 
 export const threadCommand = createCommand({
 	name: 'thread',
+	aliases: ['threads'],
 	description: 'Manage threads',
 	tags: ['requires-auth'],
 	examples: [

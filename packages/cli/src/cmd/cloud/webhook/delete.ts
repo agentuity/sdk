@@ -13,7 +13,7 @@ const DeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createCommand({
 	name: 'delete',
-	aliases: ['rm'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete a webhook by ID',
 	tags: ['mutating', 'deletes-resource', 'requires-auth'],
 	requires: { auth: true },

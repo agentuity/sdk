@@ -60,7 +60,7 @@ const TaskDeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createCommand({
 	name: 'delete',
-	aliases: ['del', 'rm'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Soft-delete a task by ID or batch-delete tasks by filter',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	requires: { auth: true },

@@ -108,6 +108,7 @@ function printTimeline(node: SpanNode, prefix: string, isLast = true): void {
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get details about a specific session',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [

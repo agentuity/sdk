@@ -15,7 +15,7 @@ const CheckpointDeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createCommand({
 	name: 'delete',
-	aliases: ['del', 'rm', 'remove'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete a disk checkpoint',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	requires: { auth: true, apiClient: true },

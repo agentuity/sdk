@@ -54,6 +54,7 @@ function displayMessage(message: Message): void {
 
 export const getSubcommand = createCommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get queue or message details',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true },

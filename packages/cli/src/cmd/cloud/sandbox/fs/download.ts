@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { writeFileSync } from 'node:fs';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../../types';
+import * as tui from '../../../../tui';
+import { createSandboxClient } from '../util';
+import { getCommand } from '../../../../command-prefix';
 import { sandboxDownloadArchive, sandboxResolve } from '@agentuity/server';
 
 export const downloadSubcommand = createCommand({
@@ -14,15 +14,15 @@ export const downloadSubcommand = createCommand({
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox download sbx_abc123 ./backup.tar.gz'),
+			command: getCommand('cloud sandbox fs download sbx_abc123 ./backup.tar.gz'),
 			description: 'Download sandbox files as tar.gz archive',
 		},
 		{
-			command: getCommand('cloud sandbox download sbx_abc123 ./backup.zip --format zip'),
+			command: getCommand('cloud sandbox fs download sbx_abc123 ./backup.zip --format zip'),
 			description: 'Download sandbox files as zip archive',
 		},
 		{
-			command: getCommand('cloud sandbox download sbx_abc123 ./backup.tar.gz --path /subdir'),
+			command: getCommand('cloud sandbox fs download sbx_abc123 ./backup.tar.gz --path /subdir'),
 			description: 'Download only a specific directory',
 		},
 	],

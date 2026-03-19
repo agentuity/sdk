@@ -27,6 +27,7 @@ const SandboxCreateResponseSchema = z.object({
 
 export const createSubcommand = createCommand({
 	name: 'create',
+	aliases: ['new'],
 	description: 'Create an interactive sandbox for multiple executions',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, region: true, org: true },

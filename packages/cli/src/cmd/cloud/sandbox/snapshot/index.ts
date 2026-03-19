@@ -10,7 +10,7 @@ import { getCommand } from '../../../../command-prefix';
 
 export const snapshotCommand = createCommand({
 	name: 'snapshot',
-	aliases: ['snap'],
+	aliases: ['snap', 'snapshots'],
 	description: 'Manage sandbox snapshots',
 	tags: ['slow', 'requires-auth'],
 	examples: [
