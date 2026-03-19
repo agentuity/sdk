@@ -3,6 +3,7 @@ import { getVersion, getCompareUrl, getReleaseUrl, toTag } from '../../version';
 import { getCommand } from '../../command-prefix';
 import { z } from 'zod';
 import { ErrorCode, createError, exitWithError } from '../../errors';
+import { isJSONMode } from '../../output';
 import * as tui from '../../tui';
 import { tmpdir } from 'node:os';
 import { getInstallationType, type InstallationType } from '../../utils/installation-type';
@@ -235,8 +236,8 @@ export const command = createCommand({
 				};
 			}
 
-			// Show version info
-			if (!force) {
+			// Show version info (suppress in JSON mode)
+			if (!isJSONMode(options)) {
 				tui.info(`Current version: ${tui.muted(normalizedCurrent)}`);
 				tui.info(`Latest version:  ${tui.bold(normalizedLatest)}`);
 				tui.newline();
@@ -247,22 +248,6 @@ export const command = createCommand({
 				}
 				tui.success(`Release notes:   ${tui.link(getReleaseUrl(latestVersion))}`);
 				tui.newline();
-			}
-
-			// Confirm upgrade
-			if (!force) {
-				const shouldUpgrade = await tui.confirm('Do you want to upgrade?', true);
-
-				if (!shouldUpgrade) {
-					const message = 'Upgrade cancelled';
-					tui.info(message);
-					return {
-						upgraded: false,
-						from: currentVersion,
-						to: latestVersion,
-						message,
-					};
-				}
 			}
 
 			// Perform the upgrade using bun

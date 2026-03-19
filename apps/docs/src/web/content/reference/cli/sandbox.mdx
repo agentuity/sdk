@@ -33,6 +33,7 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 | `sandbox events <id>` | List sandbox lifecycle events |
 | `sandbox runtime list` | List available runtimes |
 | `sandbox env <id>` | Manage environment variables |
+| `sandbox job` | Manage background jobs |
 
 **Alias:** `sb` (e.g., `agentuity cloud sb list`)
 
@@ -220,27 +221,33 @@ Port constraints:
 
 ### Access the Public URL
 
-After creating a sandbox with a port, use `get` to retrieve the public URL:
+When you create a sandbox with `--port`, the public URL is returned directly in the create response:
+
+```bash
+agentuity cloud sandbox create --port 3000 --network --name my-server --json
+# { "sandboxId": "sbx_abc123", "status": "creating", "url": "https://my-server-abc123.agentuity.cloud", ... }
+```
+
+In human-readable output, the URL is displayed after creation:
+
+```
+✓ created sandbox sbx_abc123 in 1200ms
+ℹ url: https://my-server-abc123.agentuity.cloud
+```
+
+You can also retrieve the URL later with `get`:
 
 ```bash
 agentuity cloud sandbox get sbx_abc123
 ```
 
-The output includes the public URL when a port is configured:
-
-```
-ID:       sbx_abc123
-Status:   running
-Port:     3000
-URL:      https://my-server-abc123.agentuity.cloud
-```
-
 ### Example: Run a Web Server
 
 ```bash
-# Create sandbox with port 3000
+# Create sandbox with port 3000 — the URL is returned immediately
 agentuity cloud sandbox create --port 3000 --network --name my-api
-# sbx_abc123
+# ✓ created sandbox sbx_abc123 in 1200ms
+# ℹ url: https://my-api-abc123.agentuity.cloud
 
 # Upload server code
 agentuity cloud sandbox cp ./server.js sbx_abc123:/home/agentuity/
@@ -248,11 +255,7 @@ agentuity cloud sandbox cp ./server.js sbx_abc123:/home/agentuity/
 # Start the server
 agentuity cloud sandbox exec sbx_abc123 -- bun run /home/agentuity/server.js
 
-# Get the public URL
-agentuity cloud sandbox get sbx_abc123
-# URL: https://my-api-abc123.agentuity.cloud
-
-# Test from anywhere
+# Test from anywhere using the URL from create
 curl https://my-api-abc123.agentuity.cloud/api/health
 ```
 
@@ -780,6 +783,81 @@ agentuity cloud sandbox env sbx_abc123 --delete MY_VAR
 # Delete multiple variables
 agentuity cloud sandbox env sbx_abc123 -d VAR1 -d VAR2
 ```
+
+## Background Jobs
+
+Run long-running commands in a sandbox without blocking. Jobs execute in parallel and continue even after the command that created them returns.
+
+### Create Job
+
+```bash
+agentuity cloud sandbox job create <sandbox-id> -- <command>
+```
+
+```bash
+# Create a background job
+agentuity cloud sandbox job create sbx_abc123 -- bun run build
+
+# Run npm install in background
+agentuity cloud sandbox job create sbx_abc123 -- npm install
+```
+
+### List Jobs
+
+```bash
+agentuity cloud sandbox job list <sandbox-id>
+```
+
+```bash
+agentuity cloud sandbox job list sbx_abc123
+```
+
+### Get Job Status
+
+```bash
+agentuity cloud sandbox job get <sandbox-id> <job-id>
+```
+
+Shows job status, exit code, start/completion times, and stream URLs for stdout/stderr.
+
+### Stop Job
+
+```bash
+agentuity cloud sandbox job destroy <sandbox-id> <job-id> [--force]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--force` | Force kill with SIGKILL instead of SIGTERM |
+
+```bash
+# Graceful stop
+agentuity cloud sandbox job destroy sbx_abc123 job_xyz789
+
+# Force kill
+agentuity cloud sandbox job destroy sbx_abc123 job_xyz789 --force
+```
+
+### Job Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Job created but not yet started |
+| `running` | Job is actively executing |
+| `completed` | Job finished successfully (exit code 0) |
+| `failed` | Job failed (non-zero exit code) |
+| `cancelled` | Job was terminated by user |
+
+### Use Cases
+
+- **Build processes**: Run builds in background while continuing other work
+- **Long-running tests**: Execute test suites without blocking
+- **Data processing**: Process large datasets asynchronously
+- **Service daemons**: Run background services within a sandbox
+
+<Callout type="info" title="Job Output">
+Job stdout and stderr are captured to streams. Use the stream URLs from `job get` to retrieve output via the Pulse API.
+</Callout>
 
 ## Next Steps
 

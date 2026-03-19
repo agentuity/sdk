@@ -358,7 +358,7 @@ export function generateCLISchema(
 				name: 'org-id',
 				type: 'string',
 				required: false,
-				description: 'Use a specific organization when performing operations',
+				description: 'Use a specific organization when performing operations (alias: --org)',
 			},
 			{
 				name: 'color-scheme',
