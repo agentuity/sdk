@@ -1320,6 +1320,19 @@ async function registerSubcommand(
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
 
+		// Normalize --org to --org-id for downstream code
+		// The --org [id] option is parsed into options.org, but code uses options.orgId
+		// Handle: --org (true -> undefined for default org), --org org_123 (string -> string)
+		if (options.org !== undefined && options.orgId === undefined) {
+			if (options.org === true) {
+				// --org without argument: mark as explicitly requested (use default org)
+				// Set to undefined so org resolution falls through to preference/env/prompt
+				options.orgId = undefined;
+			} else if (typeof options.org === 'string') {
+				options.orgId = options.org;
+			}
+		}
+
 		// Handle --describe mode: output command schema and exit
 		if (baseCtx.options.describe) {
 			const { extractSubcommandSchema } = await import('./schema-generator');
@@ -1360,12 +1373,7 @@ async function registerSubcommand(
 			hasExplicitOrgId &&
 			baseCtx.options.orgId
 		) {
-			// Handle --org flag: could be true (use default org) or a string org ID
-			// When true, skip assignment here - org resolution will happen later via requireOrg/selectOptionalOrg
-			if (typeof baseCtx.options.orgId === 'string') {
-				options.orgId = baseCtx.options.orgId;
-			}
-			// If boolean true, don't assign - let the org resolution logic handle it
+			options.orgId = baseCtx.options.orgId;
 		}
 		if (
 			hasProjectIdInSchema &&
