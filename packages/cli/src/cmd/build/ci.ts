@@ -50,8 +50,8 @@ async function runCommand(cmd: string[], cwd: string): Promise<number> {
 	const proc = spawn({
 		cmd,
 		cwd,
-		env: process.env,
-		stdin: 'inherit',
+		env: { ...process.env, CI: 'true' },
+		stdin: 'ignore',
 		stdout: 'pipe',
 		stderr: 'pipe',
 	});
