@@ -119,7 +119,7 @@ The browser will prompt for camera/microphone permission on the first call.
 
 ## Connection States
 
-The `state` property tracks the connection lifecycle:
+The hook also exposes `isDataOnly` (true when `media: false` was passed) and the following states via the `state` property:
 
 | State | Meaning |
 |-------|---------|
@@ -159,17 +159,25 @@ The `useWebRTCCall` hook accepts these options:
 | `autoReconnect` | `boolean` | `true` | Reconnect on failure |
 | `maxReconnectAttempts` | `number` | `5` | Max reconnection attempts |
 | `polite` | `boolean` | `undefined` | Perfect negotiation role |
-| `connectionTimeout` | `number` | `30000` | Milliseconds before connection attempt times out (optional) |
-| `iceGatheringTimeout` | `number` | `10000` | Milliseconds before ICE gathering times out (optional) |
+| `connectionTimeout` | `number` | `30000` | Milliseconds before connection attempt times out |
+| `iceGatheringTimeout` | `number` | `10000` | Milliseconds before ICE gathering times out |
 | `iceServers` | `RTCIceServer[]` | STUN defaults | ICE/TURN server configuration |
-| `callbacks` | `Partial<WebRTCClientCallbacks>` | `undefined` | Connection lifecycle callbacks (`onConnected`, `onDisconnected`, `onError`, etc.) |
+| `callbacks` | `Partial<WebRTCClientCallbacks>` | `undefined` | Lifecycle callbacks (`onStateChange`, `onError`, `onReconnecting`, `onReconnectFailed`) |
 
 ## Data Channel Methods
 
 When using data channels, these methods are available:
 
 ```typescript
-const { sendString, sendStringTo, sendJSON, sendBinary, closeDataChannel } = useWebRTCCall({
+const {
+  sendString, sendStringTo,
+  sendJSON, sendJSONTo,
+  sendBinary, sendBinaryTo,
+  createDataChannel,
+  getDataChannelLabels,
+  getDataChannelState,
+  closeDataChannel,
+} = useWebRTCCall({
   // ...options
 });
 
@@ -180,6 +188,15 @@ sendBinary('file', new Uint8Array([...]));
 
 // Send to a specific peer
 sendStringTo(peerId, 'chat', 'Private message');
+sendJSONTo(peerId, 'state', { x: 100, y: 200 });
+sendBinaryTo(peerId, 'file', new Uint8Array([...]));
+
+// Inspect channel state
+const labels = getDataChannelLabels();
+const channelState = getDataChannelState(peerId, 'chat');
+
+// Add a channel after connect
+createDataChannel({ label: 'extra', ordered: false });
 
 // Close a channel
 closeDataChannel('chat');
@@ -288,7 +305,7 @@ All numeric fields are optional: they're omitted when the stat is not available 
 Record a local or remote stream by passing a stream ID to `startRecording`. Use `'local'` for the local camera/mic stream or a peer ID for any remote stream:
 
 ```typescript
-const { startRecording, stopAllRecordings } = useWebRTCCall({ /* ...options */ });
+const { startRecording, stopAllRecordings, isRecording } = useWebRTCCall({ /* ...options */ });
 
 // Start recording the local stream
 const handle = startRecording('local', {
@@ -306,6 +323,9 @@ if (blob) {
   const url = URL.createObjectURL(blob);
   // trigger download, preview, or upload
 }
+
+// Check if a stream is currently being recorded
+const active = isRecording('local');
 
 // Stop all active recordings at once (e.g. on hangup)
 // Returns Map<streamId, Blob>
