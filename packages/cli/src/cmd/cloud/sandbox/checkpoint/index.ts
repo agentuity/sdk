@@ -7,7 +7,7 @@ import { getCommand } from '../../../../command-prefix';
 
 export const checkpointCommand = createCommand({
 	name: 'checkpoint',
-	aliases: ['ckpt'],
+	aliases: ['ckpt', 'checkpoints'],
 	description: 'Manage disk checkpoints for sandbox filesystem',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, apiClient: true },

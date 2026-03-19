@@ -12,6 +12,7 @@ import { getCommand } from '../../../command-prefix';
 
 export const taskCommand = createCommand({
 	name: 'task',
+	aliases: ['tasks'],
 	description: 'Manage tasks for your projects',
 	tags: ['requires-auth', 'slow'],
 	examples: [
