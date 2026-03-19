@@ -19,6 +19,7 @@ export const OAuthClientSchema = z.object({
 	refresh_token_lifetime_seconds: z.number().optional(),
 	id_token_lifetime_seconds: z.number().optional(),
 	allowed_user_ids: z.array(z.string()),
+	internal: z.boolean().optional().default(false),
 	created_at: z.string(),
 	updated_at: z.string(),
 });
