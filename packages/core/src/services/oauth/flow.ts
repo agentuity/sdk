@@ -3,6 +3,8 @@ import { OAuthResponseError } from './util.ts';
 import { OAuthTokenResponseSchema, OAuthUserInfoSchema } from './types.ts';
 import type { OAuthFlowConfig, OAuthTokenResponse, OAuthUserInfo } from './types.ts';
 
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 /**
  * Resolve OAuth configuration by merging explicit config with environment variables.
  * Priority: explicit config > env vars > issuer-derived URLs > defaults.
@@ -116,17 +118,33 @@ export async function exchangeToken(
 		});
 	}
 
-	const response = await fetch(resolved.tokenUrl, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			grant_type: 'authorization_code',
-			code,
-			redirect_uri: redirectUri,
-			client_id: resolved.clientId,
-			client_secret: resolved.clientSecret,
-		}),
-	});
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+	let response: Response;
+	try {
+		response = await fetch(resolved.tokenUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({
+				grant_type: 'authorization_code',
+				code,
+				redirect_uri: redirectUri,
+				client_id: resolved.clientId,
+				client_secret: resolved.clientSecret,
+			}),
+			signal: controller.signal,
+		});
+	} catch (err) {
+		clearTimeout(timer);
+		if (err instanceof DOMException && err.name === 'AbortError') {
+			throw new OAuthResponseError({
+				message: `Token exchange timed out after ${DEFAULT_TIMEOUT_MS}ms`,
+			});
+		}
+		throw err;
+	}
+	clearTimeout(timer);
 
 	if (!response.ok) {
 		const error = await response.text();
@@ -165,9 +183,25 @@ export async function fetchUserInfo(
 		});
 	}
 
-	const response = await fetch(resolved.userinfoUrl, {
-		headers: { Authorization: `Bearer ${accessToken}` },
-	});
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+	let response: Response;
+	try {
+		response = await fetch(resolved.userinfoUrl, {
+			headers: { Authorization: `Bearer ${accessToken}` },
+			signal: controller.signal,
+		});
+	} catch (err) {
+		clearTimeout(timer);
+		if (err instanceof DOMException && err.name === 'AbortError') {
+			throw new OAuthResponseError({
+				message: `Userinfo request timed out after ${DEFAULT_TIMEOUT_MS}ms`,
+			});
+		}
+		throw err;
+	}
+	clearTimeout(timer);
 
 	if (!response.ok) {
 		const error = await response.text();

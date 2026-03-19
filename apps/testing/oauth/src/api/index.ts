@@ -1,4 +1,5 @@
 import { createRouter } from '@agentuity/runtime';
+import type { Context } from 'hono';
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import { buildAuthorizeUrl, exchangeToken, fetchUserInfo } from '@agentuity/core/oauth';
 import type {} from '@agentuity/react';
@@ -6,7 +7,7 @@ import type {} from '@agentuity/react';
 const api = createRouter();
 
 // Helper to get the base URL from a request
-function getBaseUrl(c: any): string {
+function getBaseUrl(c: Context): string {
 	const url = new URL(c.req.url);
 	return `${url.protocol}//${url.host}`;
 }
@@ -47,7 +48,8 @@ api.get('/oauth/login', async (c) => {
 		setCookie(c, 'oauth_session', encodeURIComponent(JSON.stringify(user)), {
 			path: '/',
 			httpOnly: true,
-			secure: false,
+			// secure: true in production, false for local development over HTTP
+			secure: new URL(c.req.url).protocol === 'https:',
 			sameSite: 'Lax',
 			maxAge: 60 * 60 * 24,
 		});
