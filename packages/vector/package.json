@@ -1,0 +1,42 @@
+{
+	"name": "@agentuity/vector",
+	"version": "1.0.52",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"src",
+		"dist"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/server": "workspace:*",
+		"zod": "^4.3.5"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/node": "^22.0.0",
+		"bun-types": "latest",
+		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false
+}

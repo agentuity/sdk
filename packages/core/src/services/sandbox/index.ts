@@ -11,6 +11,8 @@ export type {
 	SandboxClientOptions,
 	SandboxClientRunIO,
 	SandboxInstance,
+	JobInstance,
+	DiskCheckpointInstance,
 } from './client.ts';
 export {
 	ExecuteOptionsSchema as SandboxClientExecuteOptionsSchema,
