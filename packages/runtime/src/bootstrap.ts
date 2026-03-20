@@ -214,7 +214,16 @@ export function registerWebRoutes(
 	const resolvedClientDir = existsSync(join(clientDir, 'index.html'))
 		? clientDir
 		: join(process.cwd(), '.agentuity', 'client');
-	const indexHtmlPath = join(resolvedClientDir, 'index.html');
+
+	// Vite may output index.html at either:
+	// 1. client/index.html (when input is just index.html at root)
+	// 2. client/src/web/index.html (when input is src/web/index.html with root='.')
+	// Check both locations to support different vite.config.ts setups
+	let indexHtmlPath = join(resolvedClientDir, 'index.html');
+	if (!existsSync(indexHtmlPath)) {
+		indexHtmlPath = join(resolvedClientDir, 'src', 'web', 'index.html');
+	}
+
 	const baseIndexHtml = existsSync(indexHtmlPath) ? readFileSync(indexHtmlPath, 'utf-8') : '';
 
 	if (!baseIndexHtml) return;
