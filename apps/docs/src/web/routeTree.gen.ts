@@ -118,6 +118,7 @@ import { Route as DocsReferenceApiQueuesRouteImport } from './routes/_docs/refer
 import { Route as DocsReferenceApiProjectsRouteImport } from './routes/_docs/reference/api/projects';
 import { Route as DocsReferenceApiOrganizationsRouteImport } from './routes/_docs/reference/api/organizations';
 import { Route as DocsReferenceApiObjectStorageRouteImport } from './routes/_docs/reference/api/object-storage';
+import { Route as DocsReferenceApiOauthRouteImport } from './routes/_docs/reference/api/oauth';
 import { Route as DocsReferenceApiMachinesRouteImport } from './routes/_docs/reference/api/machines';
 import { Route as DocsReferenceApiKeyValueRouteImport } from './routes/_docs/reference/api/key-value';
 import { Route as DocsReferenceApiEvaluationsRouteImport } from './routes/_docs/reference/api/evaluations';
@@ -131,6 +132,7 @@ import { Route as DocsCookbookPatternsTailwindSetupRouteImport } from './routes/
 import { Route as DocsCookbookPatternsServerUtilitiesRouteImport } from './routes/_docs/cookbook/patterns/server-utilities';
 import { Route as DocsCookbookPatternsProductSearchRouteImport } from './routes/_docs/cookbook/patterns/product-search';
 import { Route as DocsCookbookPatternsLlmAsAJudgeRouteImport } from './routes/_docs/cookbook/patterns/llm-as-a-judge';
+import { Route as DocsCookbookPatternsHonoRpcTanstackQueryRouteImport } from './routes/_docs/cookbook/patterns/hono-rpc-tanstack-query';
 import { Route as DocsCookbookPatternsCronWithStorageRouteImport } from './routes/_docs/cookbook/patterns/cron-with-storage';
 import { Route as DocsCookbookPatternsChatWithHistoryRouteImport } from './routes/_docs/cookbook/patterns/chat-with-history';
 import { Route as DocsCookbookPatternsBackgroundTasksRouteImport } from './routes/_docs/cookbook/patterns/background-tasks';
@@ -682,6 +684,11 @@ const DocsReferenceApiObjectStorageRoute = DocsReferenceApiObjectStorageRouteImp
 	path: '/object-storage',
 	getParentRoute: () => DocsReferenceApiRouteRoute,
 } as any);
+const DocsReferenceApiOauthRoute = DocsReferenceApiOauthRouteImport.update({
+	id: '/oauth',
+	path: '/oauth',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
 const DocsReferenceApiMachinesRoute = DocsReferenceApiMachinesRouteImport.update({
 	id: '/machines',
 	path: '/machines',
@@ -750,6 +757,12 @@ const DocsCookbookPatternsLlmAsAJudgeRoute = DocsCookbookPatternsLlmAsAJudgeRout
 	path: '/cookbook/patterns/llm-as-a-judge',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsCookbookPatternsHonoRpcTanstackQueryRoute =
+	DocsCookbookPatternsHonoRpcTanstackQueryRouteImport.update({
+		id: '/cookbook/patterns/hono-rpc-tanstack-query',
+		path: '/cookbook/patterns/hono-rpc-tanstack-query',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
 const DocsCookbookPatternsCronWithStorageRoute =
 	DocsCookbookPatternsCronWithStorageRouteImport.update({
 		id: '/cookbook/patterns/cron-with-storage',
@@ -834,6 +847,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
+	'/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	'/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -847,6 +861,7 @@ export interface FileRoutesByFullPath {
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
 	'/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
 	'/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/reference/api/oauth': typeof DocsReferenceApiOauthRoute;
 	'/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
 	'/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
 	'/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
@@ -959,6 +974,7 @@ export interface FileRoutesByTo {
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
+	'/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	'/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -972,6 +988,7 @@ export interface FileRoutesByTo {
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
 	'/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
 	'/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/reference/api/oauth': typeof DocsReferenceApiOauthRoute;
 	'/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
 	'/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
 	'/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
@@ -1087,6 +1104,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/_docs/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/_docs/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
+	'/_docs/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	'/_docs/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	'/_docs/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/_docs/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -1100,6 +1118,7 @@ export interface FileRoutesById {
 	'/_docs/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
 	'/_docs/reference/api/key-value': typeof DocsReferenceApiKeyValueRoute;
 	'/_docs/reference/api/machines': typeof DocsReferenceApiMachinesRoute;
+	'/_docs/reference/api/oauth': typeof DocsReferenceApiOauthRoute;
 	'/_docs/reference/api/object-storage': typeof DocsReferenceApiObjectStorageRoute;
 	'/_docs/reference/api/organizations': typeof DocsReferenceApiOrganizationsRoute;
 	'/_docs/reference/api/projects': typeof DocsReferenceApiProjectsRoute;
@@ -1215,6 +1234,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
+		| '/cookbook/patterns/hono-rpc-tanstack-query'
 		| '/cookbook/patterns/llm-as-a-judge'
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
@@ -1228,6 +1248,7 @@ export interface FileRouteTypes {
 		| '/reference/api/evaluations'
 		| '/reference/api/key-value'
 		| '/reference/api/machines'
+		| '/reference/api/oauth'
 		| '/reference/api/object-storage'
 		| '/reference/api/organizations'
 		| '/reference/api/projects'
@@ -1340,6 +1361,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
+		| '/cookbook/patterns/hono-rpc-tanstack-query'
 		| '/cookbook/patterns/llm-as-a-judge'
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
@@ -1353,6 +1375,7 @@ export interface FileRouteTypes {
 		| '/reference/api/evaluations'
 		| '/reference/api/key-value'
 		| '/reference/api/machines'
+		| '/reference/api/oauth'
 		| '/reference/api/object-storage'
 		| '/reference/api/organizations'
 		| '/reference/api/projects'
@@ -1467,6 +1490,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/patterns/background-tasks'
 		| '/_docs/cookbook/patterns/chat-with-history'
 		| '/_docs/cookbook/patterns/cron-with-storage'
+		| '/_docs/cookbook/patterns/hono-rpc-tanstack-query'
 		| '/_docs/cookbook/patterns/llm-as-a-judge'
 		| '/_docs/cookbook/patterns/product-search'
 		| '/_docs/cookbook/patterns/server-utilities'
@@ -1480,6 +1504,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/api/evaluations'
 		| '/_docs/reference/api/key-value'
 		| '/_docs/reference/api/machines'
+		| '/_docs/reference/api/oauth'
 		| '/_docs/reference/api/object-storage'
 		| '/_docs/reference/api/organizations'
 		| '/_docs/reference/api/projects'
@@ -2313,6 +2338,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceApiObjectStorageRouteImport;
 			parentRoute: typeof DocsReferenceApiRouteRoute;
 		};
+		'/_docs/reference/api/oauth': {
+			id: '/_docs/reference/api/oauth';
+			path: '/oauth';
+			fullPath: '/reference/api/oauth';
+			preLoaderRoute: typeof DocsReferenceApiOauthRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
 		'/_docs/reference/api/machines': {
 			id: '/_docs/reference/api/machines';
 			path: '/machines';
@@ -2404,6 +2436,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsCookbookPatternsLlmAsAJudgeRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/cookbook/patterns/hono-rpc-tanstack-query': {
+			id: '/_docs/cookbook/patterns/hono-rpc-tanstack-query';
+			path: '/cookbook/patterns/hono-rpc-tanstack-query';
+			fullPath: '/cookbook/patterns/hono-rpc-tanstack-query';
+			preLoaderRoute: typeof DocsCookbookPatternsHonoRpcTanstackQueryRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/cookbook/patterns/cron-with-storage': {
 			id: '/_docs/cookbook/patterns/cron-with-storage';
 			path: '/cookbook/patterns/cron-with-storage';
@@ -2435,6 +2474,7 @@ interface DocsReferenceApiRouteRouteChildren {
 	DocsReferenceApiEvaluationsRoute: typeof DocsReferenceApiEvaluationsRoute;
 	DocsReferenceApiKeyValueRoute: typeof DocsReferenceApiKeyValueRoute;
 	DocsReferenceApiMachinesRoute: typeof DocsReferenceApiMachinesRoute;
+	DocsReferenceApiOauthRoute: typeof DocsReferenceApiOauthRoute;
 	DocsReferenceApiObjectStorageRoute: typeof DocsReferenceApiObjectStorageRoute;
 	DocsReferenceApiOrganizationsRoute: typeof DocsReferenceApiOrganizationsRoute;
 	DocsReferenceApiProjectsRoute: typeof DocsReferenceApiProjectsRoute;
@@ -2459,6 +2499,7 @@ const DocsReferenceApiRouteRouteChildren: DocsReferenceApiRouteRouteChildren = {
 	DocsReferenceApiEvaluationsRoute: DocsReferenceApiEvaluationsRoute,
 	DocsReferenceApiKeyValueRoute: DocsReferenceApiKeyValueRoute,
 	DocsReferenceApiMachinesRoute: DocsReferenceApiMachinesRoute,
+	DocsReferenceApiOauthRoute: DocsReferenceApiOauthRoute,
 	DocsReferenceApiObjectStorageRoute: DocsReferenceApiObjectStorageRoute,
 	DocsReferenceApiOrganizationsRoute: DocsReferenceApiOrganizationsRoute,
 	DocsReferenceApiProjectsRoute: DocsReferenceApiProjectsRoute,
@@ -2530,6 +2571,7 @@ interface DocsRouteRouteChildren {
 	DocsCookbookPatternsBackgroundTasksRoute: typeof DocsCookbookPatternsBackgroundTasksRoute;
 	DocsCookbookPatternsChatWithHistoryRoute: typeof DocsCookbookPatternsChatWithHistoryRoute;
 	DocsCookbookPatternsCronWithStorageRoute: typeof DocsCookbookPatternsCronWithStorageRoute;
+	DocsCookbookPatternsHonoRpcTanstackQueryRoute: typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute;
 	DocsCookbookPatternsLlmAsAJudgeRoute: typeof DocsCookbookPatternsLlmAsAJudgeRoute;
 	DocsCookbookPatternsProductSearchRoute: typeof DocsCookbookPatternsProductSearchRoute;
 	DocsCookbookPatternsServerUtilitiesRoute: typeof DocsCookbookPatternsServerUtilitiesRoute;
@@ -2621,6 +2663,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsCookbookPatternsBackgroundTasksRoute: DocsCookbookPatternsBackgroundTasksRoute,
 	DocsCookbookPatternsChatWithHistoryRoute: DocsCookbookPatternsChatWithHistoryRoute,
 	DocsCookbookPatternsCronWithStorageRoute: DocsCookbookPatternsCronWithStorageRoute,
+	DocsCookbookPatternsHonoRpcTanstackQueryRoute: DocsCookbookPatternsHonoRpcTanstackQueryRoute,
 	DocsCookbookPatternsLlmAsAJudgeRoute: DocsCookbookPatternsLlmAsAJudgeRoute,
 	DocsCookbookPatternsProductSearchRoute: DocsCookbookPatternsProductSearchRoute,
 	DocsCookbookPatternsServerUtilitiesRoute: DocsCookbookPatternsServerUtilitiesRoute,
