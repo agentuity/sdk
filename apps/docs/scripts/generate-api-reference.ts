@@ -211,6 +211,7 @@ function renderServiceMdx(service: Service): string {
 
 	return `---
 title: ${service.name} API
+short_title: ${service.name}
 description: ${service.description}
 ---
 
@@ -221,7 +222,7 @@ description: ${service.description}
 
 ## Authentication
 
-${service.hasPublicEndpoints ? 'Most requests require a Bearer token. Pass your SDK key in the `Authorization` header. Public endpoints (such as listing and fetching public snapshots) are noted below and do not require authentication.' : 'All requests require a Bearer token. Pass your SDK key in the `Authorization` header.'}
+${service.hasPublicEndpoints ? 'Most requests require a Bearer token. Pass your API or SDK key in the `Authorization` header. Public endpoints (such as listing and fetching public snapshots) are noted below and do not require authentication.' : 'All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.'}
 
 | Header | Value |
 |--------|-------|
@@ -244,7 +245,7 @@ description: Direct HTTP access to Agentuity platform services
 
 import { Activity, Box, Building, CheckCircle, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
 
-Access Agentuity services directly via REST APIs. These endpoints let you integrate from any language or platform without the TypeScript SDK.
+Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK or the CLI.
 
 <Cards>
   <CardLink
