@@ -22,6 +22,7 @@ const EvalRunListResponseSchema = z.array(
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
+	aliases: ['ls'],
 	description: 'List eval runs',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [
@@ -51,7 +52,6 @@ export const listSubcommand = createSubcommand({
 			description: 'List all eval runs regardless of project context',
 		},
 	],
-	aliases: ['ls'],
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
 	idempotent: true,

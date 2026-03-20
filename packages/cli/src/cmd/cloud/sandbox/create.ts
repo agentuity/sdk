@@ -16,6 +16,10 @@ const InvalidMetadataError = StructuredError(
 const SandboxCreateResponseSchema = z.object({
 	sandboxId: z.string().describe('Unique sandbox identifier'),
 	status: z.string().describe('Current sandbox status'),
+	url: z
+		.string()
+		.optional()
+		.describe('Public URL for the sandbox (only set when --port is specified)'),
 	stdoutStreamUrl: z.string().optional().describe('URL to the stdout output stream'),
 	stderrStreamUrl: z.string().optional().describe('URL to the stderr output stream'),
 	auditStreamUrl: z.string().optional().describe('URL to the audit event stream'),
@@ -23,6 +27,7 @@ const SandboxCreateResponseSchema = z.object({
 
 export const createSubcommand = createCommand({
 	name: 'create',
+	aliases: ['new'],
 	description: 'Create an interactive sandbox for multiple executions',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, region: true, org: true },
@@ -200,11 +205,15 @@ export const createSubcommand = createCommand({
 		if (!options.json) {
 			const duration = Date.now() - started;
 			tui.success(`created sandbox ${tui.bold(result.sandboxId)} in ${duration}ms`);
+			if (result.url) {
+				tui.info(`url: ${tui.link(result.url)}`);
+			}
 		}
 
 		return {
 			sandboxId: result.sandboxId,
 			status: result.status,
+			url: result.url,
 			stdoutStreamUrl: result.stdoutStreamUrl,
 			stderrStreamUrl: result.stderrStreamUrl,
 			auditStreamUrl: result.auditStreamUrl,

@@ -176,6 +176,7 @@ export const SnapshotNotFoundError = StructuredError('SnapshotNotFoundError')<{
 export const SandboxErrorContextSchema = z.object({
 	sandboxId: z.string().optional().describe('sandbox id'),
 	executionId: z.string().optional().describe('execution id'),
+	jobId: z.string().optional().describe('job id'),
 	sessionId: z.string().nullish().describe('session id'),
 	snapshotId: z.string().optional().describe('snapshot id'),
 });

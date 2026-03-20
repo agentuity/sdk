@@ -1,5 +1,6 @@
 ---
 title: OAuth Applications API
+short_title: OAuth Applications
 description: Manage OAuth 2.0/OIDC applications, client credentials, user consent, and authorization scopes
 ---
 
@@ -10,7 +11,7 @@ description: Manage OAuth 2.0/OIDC applications, client credentials, user consen
 
 ## Authentication
 
-All requests require a Bearer token. Pass your SDK key in the `Authorization` header.
+All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.
 
 | Header | Value |
 |--------|-------|
@@ -140,6 +141,12 @@ JSON array of OAuth client objects with usage statistics.
   {
     "name": "allowed_user_ids",
     "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "internal",
+    "type": "boolean",
     "description": "",
     "required": true
   },
@@ -408,6 +415,12 @@ JSON object containing the created client and its client secret.
     "required": true
   },
   {
+    "name": "client.internal",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
     "name": "client.created_at",
     "type": "string",
     "description": "",
@@ -575,6 +588,12 @@ JSON object with the OAuth client details.
   {
     "name": "allowed_user_ids",
     "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "internal",
+    "type": "boolean",
     "description": "",
     "required": true
   },
@@ -835,6 +854,12 @@ JSON object containing the updated client. May include a new client secret if th
   {
     "name": "client.allowed_user_ids",
     "type": "string[]",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.internal",
+    "type": "boolean",
     "description": "",
     "required": true
   },

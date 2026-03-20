@@ -1,0 +1,13 @@
+{
+	"sections": [
+		"get-started",
+		"agents",
+		"apis",
+		"routes",
+		"frontend",
+		"services",
+		"cookbook",
+		"community",
+		"reference"
+	]
+}

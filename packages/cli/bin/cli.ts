@@ -154,6 +154,11 @@ if (!hasHelp) {
 }
 const earlyOpts = program.opts();
 
+// Normalize --org alias → orgId (agents prefer --org over --org-id)
+if (earlyOpts.org !== undefined && earlyOpts.orgId === undefined) {
+	earlyOpts.orgId = earlyOpts.org;
+}
+
 // Set JSON error format early, BEFORE any code that might throw,
 // so that startup failures also use the JSON error formatter.
 // Note: --error-format defaults to 'text', so we must check !== 'json'

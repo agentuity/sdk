@@ -541,6 +541,11 @@ export async function createCLI(version: string): Promise<Command> {
 			'Filter JSON output to specified fields (comma-separated, dot notation for nested)'
 		);
 
+	// Note: We intentionally do NOT add a global --org alias for --org-id because
+	// some subcommands (like env commands) define their own --org option with
+	// different semantics (boolean for "use org scope" vs string for specific org ID).
+	// Adding a global --org would shadow the subcommand's --org option.
+
 	const skipVersionCheckOption = program.createOption(
 		'--skip-version-check',
 		'Skip version compatibility check (dev only)'
@@ -1292,6 +1297,17 @@ async function registerSubcommand(
 	// Add --org-id if command requires/optional org and doesn't define it in schema
 	if (_deferOrgIdFlag && !hasOrgIdInSchema) {
 		cmd.option('--org-id <id>', 'organization ID');
+		// Add hidden --org alias, but only if schema doesn't define its own --org option
+		// (e.g., env commands use --org for "org scope" which is different from --org-id)
+		const schemaDefinesOrg = subcommand.schema?.options
+			? parseOptionsSchema(subcommand.schema.options).some((o) => o.name === 'org')
+			: false;
+		if (!schemaDefinesOrg) {
+			// Use [id] (optional) to allow --org without argument for default org
+			const orgAlias = cmd.createOption('--org [id]', 'Alias for --org-id');
+			orgAlias.hideHelp();
+			cmd.addOption(orgAlias);
+		}
 	}
 
 	// Add --project-id if command requires/optional project and doesn't define it in schema
@@ -1303,6 +1319,19 @@ async function registerSubcommand(
 		const cmdObj = rawArgs[rawArgs.length - 1] as { opts: () => Record<string, unknown> };
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
+
+		// Normalize --org to --org-id for downstream code
+		// The --org [id] option is parsed into options.org, but code uses options.orgId
+		// Handle: --org (true -> undefined for default org), --org org_123 (string -> string)
+		if (options.org !== undefined && options.orgId === undefined) {
+			if (options.org === true) {
+				// --org without argument: mark as explicitly requested (use default org)
+				// Set to undefined so org resolution falls through to preference/env/prompt
+				options.orgId = undefined;
+			} else if (typeof options.org === 'string') {
+				options.orgId = options.org;
+			}
+		}
 
 		// Handle --describe mode: output command schema and exit
 		if (baseCtx.options.describe) {
@@ -1331,7 +1360,10 @@ async function registerSubcommand(
 		// so subcommand-level options may not have them. Only merge when the user
 		// explicitly passed the flag on the CLI (not from env var defaults).
 		const argv = process.argv;
-		const hasExplicitOrgId = argv.some((a) => a === '--org-id' || a.startsWith('--org-id='));
+		const hasExplicitOrgId = argv.some(
+			(a) =>
+				a === '--org-id' || a.startsWith('--org-id=') || a === '--org' || a.startsWith('--org=')
+		);
 		const hasExplicitProjectId = argv.some(
 			(a) => a === '--project-id' || a.startsWith('--project-id=')
 		);

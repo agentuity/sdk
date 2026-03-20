@@ -3,7 +3,11 @@ export * from '@agentuity/core';
 
 // Server-specific exports (these remain in @agentuity/server only)
 export { type ColorScheme, ConsoleLogger, createLogger } from './logger.ts';
-export { createServerFetchAdapter } from './server.ts';
+export {
+	createServerFetchAdapter,
+	buildClientHeaders,
+	type BuildClientHeadersOptions,
+} from './server.ts';
 export { toJSONSchema } from './schema.ts';
 export { getContentType, mimeTypes } from './util/mime.ts';
 export {

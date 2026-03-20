@@ -11,6 +11,8 @@ export type {
 	SandboxClientOptions,
 	SandboxClientRunIO,
 	SandboxInstance,
+	JobInstance,
+	DiskCheckpointInstance,
 } from './client.ts';
 export {
 	ExecuteOptionsSchema as SandboxClientExecuteOptionsSchema,
@@ -78,6 +80,24 @@ export {
 	executionGet,
 	executionList,
 } from './execution.ts';
+export type {
+	JobCreateParams,
+	JobGetParams,
+	JobListParams,
+	JobListResponse,
+	JobStopParams,
+} from './job.ts';
+export {
+	JobCreateParamsSchema,
+	JobGetParamsSchema,
+	JobListParamsSchema,
+	JobListResponseSchema,
+	JobStopParamsSchema,
+	jobCreate,
+	jobGet,
+	jobList,
+	jobStop,
+} from './job.ts';
 export type {
 	SandboxEventInfo,
 	SandboxEventListParams,

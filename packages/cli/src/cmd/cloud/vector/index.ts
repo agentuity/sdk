@@ -10,7 +10,7 @@ import { getCommand } from '../../../command-prefix';
 
 export const vectorCommand = createCommand({
 	name: 'vector',
-	aliases: ['vec'],
+	aliases: ['vec', 'vectors'],
 	description: 'Manage vector storage for your projects',
 	tags: ['requires-auth', 'slow'],
 	examples: [

@@ -1,167 +1,114 @@
-/**
- * Sandbox Test App
- *
- * A simple standalone Bun app to test the SandboxClient from @agentuity/server.
- * This demonstrates different output handling patterns:
- * 1. Interactive sandbox with piped output
- * 2. One-shot run() with automatic output capture
- * 3. One-shot run() with custom streams AND capture
- */
-
-import { Writable } from 'node:stream';
-import { SandboxClient } from '@agentuity/server';
+import { SandboxClient } from '@agentuity/sandbox';
 
 async function main() {
-	console.log('🚀 Starting Sandbox Test...\n');
+	console.log('=== Sandbox Test App ===\n');
 
 	const client = new SandboxClient();
 
-	// ============================================================
-	// Test 1: Interactive sandbox with piped output
-	// ============================================================
-	console.log('═'.repeat(60));
-	console.log('Test 1: Interactive sandbox with piped output');
-	console.log('═'.repeat(60));
-
-	console.log('\n📦 Creating sandbox...');
-	const sandbox = await client.create({
-		resources: {
-			memory: '512Mi',
-			cpu: '500m',
-		},
-	});
-	console.log(`✅ Sandbox created: ${sandbox.id}`);
-	console.log(`   Status: ${sandbox.status}`);
-
-	console.log('\n📋 Getting sandbox info...');
-	const info = await sandbox.get();
-	console.log(`   ID: ${info.sandboxId}`);
-	console.log(`   Status: ${info.status}`);
-
-	console.log('\n🔧 Executing command: echo "Hello from sandbox!" (piping to stdout)');
-	const execution = await sandbox.execute({
-		command: ['echo', 'Hello from sandbox!'],
-		pipe: {
-			stdout: process.stdout,
-		},
-	});
-	console.log(`   Exit code: ${execution.exitCode ?? 'N/A'}`);
-
-	console.log('\n🔧 Executing command: ls -la (piping to stdout)');
-	const lsExecution = await sandbox.execute({
-		command: ['ls', '-la'],
-		pipe: {
-			stdout: process.stdout,
-		},
-	});
-	console.log(`   Exit code: ${lsExecution.exitCode ?? 'N/A'}`);
-
-	console.log('\n🔧 Executing command: uname -a (piping to stdout)');
-	const unameExecution = await sandbox.execute({
-		command: ['uname', '-a'],
-		pipe: {
-			stdout: process.stdout,
-		},
-	});
-	console.log(`   Exit code: ${unameExecution.exitCode ?? 'N/A'}`);
-
-	console.log('\n🗑️  Destroying sandbox...');
-	await sandbox.destroy();
-	console.log('✅ Sandbox destroyed');
-
-	// ============================================================
-	// Test 2: One-shot run() with automatic output capture
-	// ============================================================
-	console.log('\n' + '═'.repeat(60));
-	console.log('Test 2: One-shot run() with automatic output capture');
-	console.log('═'.repeat(60));
-
-	console.log('\n🔧 Running: echo "Hello from one-shot sandbox!"');
-	const runResult1 = await client.run({
-		command: { exec: ['echo', 'Hello from one-shot sandbox!'] },
-	});
-	console.log(`   Sandbox ID: ${runResult1.sandboxId}`);
-	console.log(`   Exit code: ${runResult1.exitCode}`);
-	console.log(`   Duration: ${runResult1.durationMs}ms`);
-	console.log(`   Captured stdout: "${runResult1.stdout?.trim()}"`);
-	console.log(`   Captured stderr: "${runResult1.stderr?.trim()}"`);
-
-	console.log('\n🔧 Running: ls -la /home');
-	const runResult2 = await client.run({
-		command: { exec: ['ls', '-la', '/home'] },
-	});
-	console.log(`   Exit code: ${runResult2.exitCode}`);
-	console.log(`   Captured stdout (${runResult2.stdout?.length ?? 0} chars):`);
-	console.log(
-		runResult2.stdout
-			?.split('\n')
-			.map((l) => `      ${l}`)
-			.join('\n')
-	);
-
-	console.log('\n🔧 Running: command that writes to stderr');
-	const runResult3 = await client.run({
-		command: { exec: ['sh', '-c', 'echo "stdout message" && echo "stderr message" >&2'] },
-	});
-	console.log(`   Exit code: ${runResult3.exitCode}`);
-	console.log(`   Captured stdout: "${runResult3.stdout?.trim()}"`);
-	console.log(`   Captured stderr: "${runResult3.stderr?.trim()}"`);
-
-	// ============================================================
-	// Test 3: One-shot run() with custom streams AND capture
-	// ============================================================
-	console.log('\n' + '═'.repeat(60));
-	console.log('Test 3: One-shot run() with custom streams AND capture');
-	console.log('═'.repeat(60));
-
-	// Create a custom writable that collects output
-	const customChunks: string[] = [];
-	const customStream = new Writable({
-		write(chunk, _encoding, callback) {
-			const text = chunk.toString();
-			customChunks.push(text);
-			// Also write to console with prefix
-			process.stdout.write(`   [STREAM] ${text}`);
-			callback();
-		},
-	});
-
-	console.log('\n🔧 Running with custom stdout stream: echo "Testing tee output"');
-	const runResult4 = await client.run(
-		{
-			command: { exec: ['echo', 'Testing tee output'] },
-		},
-		{
-			stdout: customStream,
-			stderr: process.stderr,
+	try {
+		// List available runtimes
+		console.log('Listing runtimes...');
+		const runtimes = await client.listRuntimes();
+		console.log(`  Found ${runtimes.total} runtime(s):`);
+		for (const runtime of runtimes.runtimes.slice(0, 5)) {
+			console.log(`    - ${runtime.name} (${runtime.id})`);
 		}
-	);
-	console.log(`   Exit code: ${runResult4.exitCode}`);
-	console.log(`   Custom stream received: "${customChunks.join('').trim()}"`);
-	console.log(`   Result also captured: "${runResult4.stdout?.trim()}"`);
-	console.log(`   ✅ Both match: ${customChunks.join('').trim() === runResult4.stdout?.trim()}`);
+		console.log();
 
-	// ============================================================
-	// Test 4: One-shot run() with failing command
-	// ============================================================
-	console.log('\n' + '═'.repeat(60));
-	console.log('Test 4: One-shot run() with failing command');
-	console.log('═'.repeat(60));
+		// List existing sandboxes
+		console.log('Listing sandboxes...');
+		const sandboxes = await client.list({ limit: 5 });
+		console.log(`  Found ${sandboxes.total} sandbox(es)`);
+		console.log();
 
-	console.log('\n🔧 Running: exit 42');
-	const runResult5 = await client.run({
-		command: { exec: ['sh', '-c', 'echo "About to fail" && exit 42'] },
-	});
-	console.log(`   Exit code: ${runResult5.exitCode}`);
-	console.log(`   Captured stdout: "${runResult5.stdout?.trim()}"`);
-	console.log(`   ✅ Exit code is 42: ${runResult5.exitCode === 42}`);
+		// Create a sandbox
+		console.log('Creating sandbox...');
+		const sandbox = await client.create();
+		console.log(`  Created sandbox: ${sandbox.id}`);
+		console.log(`  Status: ${sandbox.status}\n`);
 
-	console.log('\n' + '═'.repeat(60));
-	console.log('✨ All sandbox tests completed successfully!');
-	console.log('═'.repeat(60));
+		// Execute a command
+		console.log('Executing command...');
+		const execution = await sandbox.execute({
+			command: ['node', '-e', 'console.log("Hello from sandbox!")'],
+		});
+		console.log(`  Execution ID: ${execution.executionId}`);
+		console.log(`  Status: ${execution.status}`);
+		console.log(`  Exit Code: ${execution.exitCode}`);
+		console.log();
+
+		// Create a job
+		console.log('Creating a job...');
+		const job = await client.createJob(sandbox.id, {
+			command: ['node', '-e', 'let i=0; setInterval(()=>console.log(++i), 1000)'],
+		});
+		console.log(`  Created job: ${job.id}`);
+		console.log(`  Status: ${job.status}\n`);
+
+		// List jobs
+		console.log('Listing jobs...');
+		const jobs = await client.listJobs(sandbox.id);
+		console.log(`  Found ${jobs.jobs.length} job(s):`);
+		for (const j of jobs.jobs) {
+			console.log(`    - ${j.jobId} (${j.status})`);
+		}
+		console.log();
+
+		// Stop the job
+		console.log('Stopping job...');
+		const stoppedJob = await job.stop(true);
+		console.log(`  Job ${stoppedJob.jobId} stopped (status: ${stoppedJob.status})\n`);
+
+		// Create a disk checkpoint
+		console.log('Creating disk checkpoint...');
+		const checkpoint = await client.createDiskCheckpoint(sandbox.id, 'test-checkpoint');
+		console.log(`  Created checkpoint: ${checkpoint.id}`);
+		console.log(`  Name: ${checkpoint.name}\n`);
+
+		// List checkpoints
+		console.log('Listing disk checkpoints...');
+		const checkpoints = await client.listDiskCheckpoints(sandbox.id);
+		console.log(`  Found ${checkpoints.length} checkpoint(s):`);
+		for (const cp of checkpoints) {
+			console.log(`    - ${cp.name} (${cp.id})`);
+		}
+		console.log();
+
+		// Delete the checkpoint
+		console.log('Deleting checkpoint...');
+		try {
+			await checkpoint.delete();
+			console.log('  Checkpoint deleted\n');
+		} catch (err: unknown) {
+			// 409 Conflict - checkpoint can't be deleted while sandbox is running
+			// This is expected behavior, so we continue
+			const message = err instanceof Error ? err.message : String(err);
+			if (message.includes('conflict') || message.includes('409')) {
+				console.log('  ⚠️  Cannot delete checkpoint while sandbox is running (expected)\n');
+			} else {
+				throw err;
+			}
+		}
+
+		// List events
+		console.log('Listing events...');
+		const events = await client.listEvents(sandbox.id, { limit: 5 });
+		console.log(`  Found ${events.events.length} event(s):`);
+		for (const event of events.events.slice(0, 3)) {
+			console.log(`    - ${event.type} at ${event.createdAt}`);
+		}
+		console.log();
+
+		// Clean up
+		console.log('Destroying sandbox...');
+		await sandbox.destroy();
+		console.log('  Sandbox destroyed\n');
+
+		console.log('=== Test Complete ===');
+	} catch (error) {
+		console.error('Error:', error);
+		process.exit(1);
+	}
 }
 
-main().catch((error) => {
-	console.error('❌ Error:', error.message);
-	process.exit(1);
-});
+main();

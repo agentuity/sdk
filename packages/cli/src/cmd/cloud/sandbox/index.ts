@@ -7,14 +7,9 @@ import { getSubcommand } from './get';
 import { deleteSubcommand } from './delete';
 import { snapshotCommand } from './snapshot';
 import { runtimeCommand } from './runtime';
-import { cpSubcommand } from './cp';
+import { command as fsCommand } from './fs';
 import { command as executionCommand } from './execution';
-import { mkdirSubcommand } from './mkdir';
-import { rmdirSubcommand } from './rmdir';
-import { rmSubcommand } from './rm';
-import { lsSubcommand } from './ls';
-import { downloadSubcommand } from './download';
-import { uploadSubcommand } from './upload';
+import { command as jobCommand } from './job';
 import { envSubcommand } from './env';
 import { pauseSubcommand } from './pause';
 import { resumeSubcommand } from './resume';
@@ -51,14 +46,9 @@ export const command = createCommand({
 		deleteSubcommand,
 		snapshotCommand,
 		runtimeCommand,
-		cpSubcommand,
+		fsCommand,
 		executionCommand,
-		mkdirSubcommand,
-		rmdirSubcommand,
-		rmSubcommand,
-		lsSubcommand,
-		downloadSubcommand,
-		uploadSubcommand,
+		jobCommand,
 		envSubcommand,
 		pauseSubcommand,
 		resumeSubcommand,

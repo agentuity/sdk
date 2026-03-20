@@ -22,6 +22,7 @@ const RemoveResponseSchema = z.object({
 
 export const removeSubcommand = createSubcommand({
 	name: 'remove',
+	aliases: ['rm', 'del', 'delete', 'terminate'],
 	description: 'Remove a GitHub App installation',
 	tags: ['mutating', 'destructive', 'slow'],
 	idempotent: false,

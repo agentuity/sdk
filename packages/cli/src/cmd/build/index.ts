@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { resolve, join, relative } from 'node:path';
-import { createCommand } from '../../types';
+import { createCommand, DeployOptionsSchema } from '../../types';
 import { viteBundle } from './vite-bundler';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
@@ -16,6 +16,22 @@ const BuildResponseSchema = z.object({
 	size: z.number().optional().describe('Build size in bytes'),
 });
 
+const BuildOptionsSchema = z.intersection(
+	DeployOptionsSchema,
+	z.object({
+		dev: z.boolean().optional().describe('Enable development mode'),
+		outdir: z.string().optional().describe('Output directory for build artifacts'),
+		skipTypeCheck: z.boolean().default(false).optional().describe('Skip typecheck after build'),
+		reportFile: z
+			.string()
+			.optional()
+			.describe('file path to save build report JSON with errors, warnings, and diagnostics'),
+		ci: z.boolean().optional().describe('Enable CI build mode'),
+		url: z.string().optional().describe('Source code download URL (required with --ci)'),
+		directory: z.string().optional().describe('Subdirectory within extracted source'),
+	})
+);
+
 export const command = createCommand({
 	name: 'build',
 	description: 'Build Agentuity application for deployment',
@@ -26,27 +42,52 @@ export const command = createCommand({
 	examples: [
 		{ command: getCommand('build'), description: 'Build the project' },
 		{ command: getCommand('build --dev'), description: 'Run in development mode' },
+		{
+			command: getCommand('build --ci --url https://example.com/source.zip'),
+			description: 'Run CI build from source URL',
+		},
 		{ command: getCommand('bundle'), description: 'Bundle the project' },
 	],
 	schema: {
-		options: z.object({
-			dev: z.boolean().optional().describe('Enable development mode'),
-			outdir: z.string().optional().describe('Output directory for build artifacts'),
-			skipTypeCheck: z
-				.boolean()
-				.default(false)
-				.optional()
-				.describe('Skip typecheck after build'),
-			reportFile: z
-				.string()
-				.optional()
-				.describe('file path to save build report JSON with errors, warnings, and diagnostics'),
-		}),
+		options: BuildOptionsSchema,
 		response: BuildResponseSchema,
 	},
 
 	async handler(ctx) {
 		const { opts, projectDir, project } = ctx;
+
+		if (opts.ci) {
+			if (!opts.url) {
+				tui.fatal('--url is required when using --ci mode', ErrorCode.CONFIG_INVALID);
+			}
+
+			const { runCIBuild } = await import('./ci');
+			await runCIBuild(
+				{
+					url: opts.url,
+					directory: opts.directory,
+					trigger: opts.trigger,
+					event: opts.event,
+					message: opts.message,
+					commit: opts.commit,
+					commitUrl: opts.commitUrl,
+					branch: opts.branch,
+					repo: opts.repo,
+					provider: opts.provider,
+					pullRequestNumber: opts.pullRequestNumber,
+					pullRequestUrl: opts.pullRequestUrl,
+					logsUrl: opts.logsUrl,
+				},
+				ctx.logger
+			);
+
+			return {
+				success: true,
+				bundlePath: projectDir,
+				projectName: project?.projectId || 'unknown',
+				dev: false,
+			};
+		}
 
 		// Initialize build report collector if reportFile is specified
 		const collector = new BuildReportCollector();

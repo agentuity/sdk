@@ -168,6 +168,74 @@ const agent = createAgent('ProjectBuilder', {
 });
 ```
 
+## Background Jobs
+
+Jobs let you run long-running commands in a sandbox without blocking. Unlike regular execution, jobs:
+
+- **Run in parallel**: Multiple jobs can execute simultaneously
+- **Don't block**: Control returns immediately after creation
+- **Persist**: Jobs continue even after the creating request completes
+- **Capture output**: Stdout/stderr are captured to streams for later retrieval
+
+### Creating Jobs
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+const agent = createAgent('BuildRunner', {
+  handler: async (ctx, input) => {
+    const sandbox = await ctx.sandbox.create({
+      resources: { memory: '2Gi' },
+      network: { enabled: true },
+    });
+
+    // Create a background job
+    const job = await sandbox.jobCreate({
+      command: ['npm', 'run', 'build'],
+    });
+
+    ctx.logger.info('Build started', { jobId: job.jobId });
+
+    // Check status later
+    const status = await sandbox.jobGet({ jobId: job.jobId });
+    if (status.status === 'completed') {
+      ctx.logger.info('Build succeeded', { exitCode: status.exitCode });
+    }
+
+    return { jobId: job.jobId };
+  },
+});
+```
+
+### Job Lifecycle
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Job created, waiting to start |
+| `running` | Job actively executing |
+| `completed` | Finished with exit code 0 |
+| `failed` | Finished with non-zero exit code |
+| `cancelled` | Terminated by user request |
+
+### Stopping Jobs
+
+```typescript
+// Graceful stop (SIGTERM, then SIGKILL after grace period)
+await sandbox.jobStop({ jobId: job.jobId });
+
+// Force kill immediately
+await sandbox.jobStop({ jobId: job.jobId, force: true });
+```
+
+### Use Cases
+
+| Use Case | Example |
+|----------|---------|
+| Build processes | Run `npm run build` in background |
+| Long-running tests | Execute test suites without blocking |
+| Data processing | Process large files asynchronously |
+| Service daemons | Run background services in sandbox |
+
 ## SDK Access
 
 | Context | Access |

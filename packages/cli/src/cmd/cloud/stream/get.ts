@@ -24,6 +24,7 @@ const GetStreamResponseSchema = z.object({
 
 export const getSubcommand = createCommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get detailed information about a specific stream',
 	tags: ['read-only', 'slow', 'requires-auth'],
 	requires: { auth: true, apiClient: true },

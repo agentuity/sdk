@@ -18,6 +18,7 @@ const ThreadListResponseSchema = z.array(
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
+	aliases: ['ls'],
 	description: 'List recent threads',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [
@@ -39,7 +40,6 @@ export const listSubcommand = createSubcommand({
 			description: 'List all threads regardless of project context',
 		},
 	],
-	aliases: ['ls'],
 	requires: { auth: true },
 	optional: { project: true },
 	idempotent: true,

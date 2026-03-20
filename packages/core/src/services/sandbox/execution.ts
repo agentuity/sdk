@@ -44,6 +44,8 @@ export const ExecutionGetParamsSchema = z.object({
 	orgId: z.string().optional().describe('organization id'),
 	/** Optional wait duration for long-polling. */
 	wait: z.string().optional().describe('wait duration for long-polling'),
+	/** Optional AbortSignal to cancel the in-flight request. */
+	signal: z.custom<AbortSignal>().optional().describe('abort signal for cancellation'),
 });
 export type ExecutionGetParams = z.infer<typeof ExecutionGetParamsSchema>;
 
@@ -67,7 +69,7 @@ export async function executionGet(
 	client: APIClient,
 	params: ExecutionGetParams
 ): Promise<ExecutionInfo> {
-	const { executionId, orgId, wait } = params;
+	const { executionId, orgId, wait, signal } = params;
 	const queryParams = new URLSearchParams();
 	if (orgId) {
 		queryParams.set('orgId', orgId);
@@ -80,7 +82,8 @@ export async function executionGet(
 
 	const resp = await client.get<z.infer<typeof ExecutionGetResponseSchema>>(
 		url,
-		ExecutionGetResponseSchema
+		ExecutionGetResponseSchema,
+		signal
 	);
 
 	if (resp.success) {

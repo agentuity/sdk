@@ -15,6 +15,7 @@ const EnvGetResponseSchema = z.object({
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get an environment variable or secret value',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [

@@ -22,6 +22,48 @@ interface ServiceAdapterConfig {
 }
 
 /**
+ * Options for building client request headers.
+ */
+export interface BuildClientHeadersOptions {
+	/** API key for authentication (Bearer token) */
+	apiKey?: string;
+	/** Organization ID for multi-tenant requests */
+	orgId?: string;
+}
+
+/**
+ * Builds standard headers for Agentuity service clients.
+ *
+ * This helper creates the header object needed by `createServerFetchAdapter`,
+ * handling authentication and multi-tenant scoping consistently across all clients.
+ *
+ * @param options - Options containing apiKey and/or orgId
+ * @returns Headers object ready to pass to createServerFetchAdapter
+ *
+ * @example
+ * ```typescript
+ * import { buildClientHeaders, createServerFetchAdapter } from '@agentuity/server';
+ *
+ * const headers = buildClientHeaders({ apiKey: 'sk_xxx', orgId: 'org_xxx' });
+ * const adapter = createServerFetchAdapter({ headers }, logger);
+ * ```
+ */
+export function buildClientHeaders(options: BuildClientHeadersOptions): Record<string, string> {
+	const headers: Record<string, string> = options.apiKey
+		? {
+				Authorization: `Bearer ${options.apiKey}`,
+				'Content-Type': 'application/json',
+			}
+		: { 'Content-Type': 'application/json' };
+
+	if (options.orgId) {
+		headers['x-agentuity-orgid'] = options.orgId;
+	}
+
+	return headers;
+}
+
+/**
  * Headers that contain sensitive information and should be redacted in debug logs.
  * Includes authentication tokens, API keys, cookies, and proxy credentials.
  */

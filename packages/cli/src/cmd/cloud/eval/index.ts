@@ -5,6 +5,7 @@ import { getCommand } from '../../../command-prefix';
 
 export const evalCommand = createCommand({
 	name: 'eval',
+	aliases: ['evals'],
 	description: 'Manage evals',
 	tags: ['requires-auth'],
 	examples: [
