@@ -126,7 +126,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	} catch {
 		// Project doesn't have vite, use CLI's bundled version
 	}
-	const { build: viteBuild, loadConfigFromFile, mergeConfig } = await import(vitePath);
+	const { build: viteBuild, loadConfigFromFile } = await import(vitePath);
 
 	// For client/workbench, use inline config with vite.config.ts loading
 	let viteConfig: InlineConfig;
@@ -182,23 +182,32 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		];
 
 		// Merge user config with Agentuity overrides
-		viteConfig = mergeConfig(userConfig, {
-			// Use project root as Vite root
-			root: rootDir,
-			// Add Agentuity plugins after user plugins
-			plugins: agentuityPlugins,
-			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
-			publicDir: join(rootDir, 'src', 'web', 'public'),
-			base: cdnBaseUrl, // CDN URL for production assets
+		// Note: mergeConfig does a shallow merge for arrays, so we need to handle plugins specially
+		// User plugins should come FIRST (especially important for Svelte, Vue, etc.)
+		const userPlugins = (userConfig.plugins as Plugin[] | undefined) || [];
+		const allPlugins = [...userPlugins, ...agentuityPlugins];
+
+		viteConfig = {
+			...userConfig,
+			// Use project root as Vite root (unless user specified otherwise)
+			root: userConfig.root ?? rootDir,
+			// User plugins first, then Agentuity plugins
+			plugins: allPlugins,
+			envPrefix: userConfig.envPrefix ?? ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
+			publicDir: userConfig.publicDir ?? join(rootDir, 'src', 'web', 'public'),
+			base: userConfig.base ?? cdnBaseUrl, // CDN URL for production assets
 			define: {
 				// Set workbench path if enabled (use import.meta.env for client code)
 				'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': workbenchEnabled
 					? JSON.stringify(workbenchRoute)
 					: 'undefined',
+				...(userConfig.define as Record<string, string>),
 			},
 			build: {
+				...userConfig.build,
 				outDir: clientOutDir,
 				rollupOptions: {
+					...(userConfig.build as InlineConfig['build'])?.rollupOptions,
 					input: htmlPath,
 				},
 				manifest: true,
@@ -208,7 +217,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				copyPublicDir: !dev,
 			},
 			logLevel: 'warn',
-		});
+		};
 	} else if (mode === 'workbench') {
 		const { workbenchRoute = '/workbench' } = options;
 		// Ensure route ends with / for Vite base
