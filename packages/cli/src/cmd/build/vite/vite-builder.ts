@@ -5,46 +5,10 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, renameSync, rmSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import type { InlineConfig, Plugin } from 'vite';
+import { existsSync, rmSync } from 'node:fs';
+import type { InlineConfig } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
-import { browserEnvPlugin } from './browser-env-plugin';
-import { beaconPlugin } from './beacon-plugin';
-import { publicAssetPathPlugin } from './public-asset-path-plugin';
 import type { BuildReportCollector } from '../../../build-report';
-
-/**
- * Vite plugin to flatten the output structure for index.html
- *
- * When root is set to the project root (for TanStack Router compatibility),
- * Vite outputs index.html to .agentuity/client/src/web/index.html instead of
- * .agentuity/client/index.html. This plugin moves it to the expected location.
- */
-function flattenHtmlOutputPlugin(outDir: string): Plugin {
-	return {
-		name: 'agentuity:flatten-html-output',
-		apply: 'build',
-		closeBundle() {
-			const nestedHtmlPath = join(outDir, 'src', 'web', 'index.html');
-			const targetHtmlPath = join(outDir, 'index.html');
-
-			if (existsSync(nestedHtmlPath)) {
-				renameSync(nestedHtmlPath, targetHtmlPath);
-
-				// Clean up empty src/web directory structure
-				const srcWebDir = join(outDir, 'src', 'web');
-				const srcDir = join(outDir, 'src');
-				try {
-					rmSync(srcWebDir, { recursive: true, force: true });
-					rmSync(srcDir, { recursive: true, force: true });
-				} catch {
-					// Ignore cleanup errors
-				}
-			}
-		},
-	};
-}
 
 export interface ViteBuildOptions {
 	rootDir: string;
@@ -117,107 +81,41 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		return;
 	}
 
-	// Dynamically import vite
-	// Try project's node_modules first (for custom vite configs), fall back to CLI's
-	const projectRequire = createRequire(join(rootDir, 'package.json'));
-	let vitePath = 'vite';
-	try {
-		vitePath = projectRequire.resolve('vite');
-	} catch {
-		// Project doesn't have vite, use CLI's bundled version
-	}
-	const { build: viteBuild, loadConfigFromFile } = await import(vitePath);
+	// Dynamically import vite for workbench builds
+	const { build: viteBuild } = await import('vite');
 
 	// For client/workbench, use inline config with vite.config.ts loading
 	let viteConfig: InlineConfig;
 
 	if (mode === 'client') {
-		// Vite needs index.html as entry point for web apps
-		const htmlPath = join(rootDir, 'src', 'web', 'index.html');
-
-		// Use workbench config passed from runAllBuilds
-		const {
-			workbenchEnabled = false,
-			workbenchRoute = '/workbench',
-			analyticsEnabled = false,
-		} = options;
-
-		// Determine CDN base URL for production builds
-		// Use CDN for all non-dev builds with a deploymentId (including local region)
-		const isLocalRegion = options.region === 'local';
-		const cdnDomain = isLocalRegion
-			? 'localstack-static-assets.t3.storageapi.dev'
-			: 'cdn.agentuity.com';
-		const cdnBaseUrl =
-			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
-
-		// Load vite.config.ts if it exists (v2 approach)
+		// For client builds, spawn vite as a subprocess.
+		// This avoids issues with Bun's module loading that cause problems
+		// with certain plugins like @sveltejs/vite-plugin-svelte.
+		// The vite.config.ts in the project handles all configuration.
+		const buildMode = dev ? 'development' : 'production';
 		const clientOutDir = join(rootDir, '.agentuity/client');
-		let userConfig: InlineConfig = {};
-		const viteConfigPath = join(rootDir, 'vite.config.ts');
 
-		if (await Bun.file(viteConfigPath).exists()) {
-			try {
-				const loaded = await loadConfigFromFile(
-					{ command: 'build', mode: dev ? 'development' : 'production' },
-					viteConfigPath
-				);
-				if (loaded?.config) {
-					userConfig = loaded.config as InlineConfig;
-					logger.debug('Loaded vite.config.ts for client build');
-				}
-			} catch (error) {
-				logger.warn('Failed to load vite.config.ts: %s', error);
+		logger.debug('Spawning vite build for client (subprocess mode)');
+		logger.debug('  outDir: %s', clientOutDir);
+		logger.debug('  mode: %s', buildMode);
+
+		const viteProcess = Bun.spawn(
+			['bun', 'x', 'vite', 'build', '--mode', buildMode, '--outDir', clientOutDir],
+			{
+				cwd: rootDir,
+				stdout: 'inherit',
+				stderr: 'inherit',
 			}
+		);
+
+		const exitCode = await viteProcess.exited;
+
+		if (exitCode !== 0) {
+			throw new Error(`Vite build exited with code ${exitCode}`);
 		}
 
-		// Agentuity-specific plugins to add
-		const agentuityPlugins: Plugin[] = [
-			browserEnvPlugin(),
-			// Fix incorrect public asset paths and rewrite to CDN URLs
-			publicAssetPathPlugin({ cdnBaseUrl }),
-			flattenHtmlOutputPlugin(clientOutDir),
-			// Emit analytics beacon as hashed CDN asset (prod builds only)
-			beaconPlugin({ enabled: analyticsEnabled && !dev }),
-		];
-
-		// Merge user config with Agentuity overrides
-		// Note: mergeConfig does a shallow merge for arrays, so we need to handle plugins specially
-		// User plugins should come FIRST (especially important for Svelte, Vue, etc.)
-		const userPlugins = (userConfig.plugins as Plugin[] | undefined) || [];
-		const allPlugins = [...userPlugins, ...agentuityPlugins];
-
-		viteConfig = {
-			...userConfig,
-			// Use project root as Vite root (unless user specified otherwise)
-			root: userConfig.root ?? rootDir,
-			// User plugins first, then Agentuity plugins
-			plugins: allPlugins,
-			envPrefix: userConfig.envPrefix ?? ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
-			publicDir: userConfig.publicDir ?? join(rootDir, 'src', 'web', 'public'),
-			base: userConfig.base ?? cdnBaseUrl, // CDN URL for production assets
-			define: {
-				// Set workbench path if enabled (use import.meta.env for client code)
-				'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': workbenchEnabled
-					? JSON.stringify(workbenchRoute)
-					: 'undefined',
-				...(userConfig.define as Record<string, string>),
-			},
-			build: {
-				...userConfig.build,
-				outDir: clientOutDir,
-				rollupOptions: {
-					...(userConfig.build as InlineConfig['build'])?.rollupOptions,
-					input: htmlPath,
-				},
-				manifest: true,
-				emptyOutDir: true,
-				// Copy public files to output for CDN upload (production builds only)
-				// In dev mode, Vite serves them directly from src/web/public/
-				copyPublicDir: !dev,
-			},
-			logLevel: 'warn',
-		};
+		logger.debug('Vite build complete for mode: client');
+		return;
 	} else if (mode === 'workbench') {
 		const { workbenchRoute = '/workbench' } = options;
 		// Ensure route ends with / for Vite base
@@ -247,8 +145,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		throw new Error(`Unknown build mode: ${mode}`);
 	}
 
-	// Build with Vite
-	// Force the build to use the correct mode
+	// For workbench mode, use programmatic vite build
 	const buildMode = dev ? 'development' : 'production';
 
 	await viteBuild({

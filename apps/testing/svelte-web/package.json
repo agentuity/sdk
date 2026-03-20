@@ -17,13 +17,13 @@
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/workbench": "workspace:*",
-		"hono": "^4.7.13",
-		"svelte": "^5.33.0"
+		"hono": "^4.12.8",
+		"svelte": "^5.54.0"
 	},
 	"devDependencies": {
-		"@sveltejs/vite-plugin-svelte": "^6.2.4",
+		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@types/bun": "latest",
-		"svelte-check": "^4.2.1",
-		"vite": "^7.2.7"
+		"svelte-check": "^4.4.5",
+		"vite": "^7.3.1"
 	}
 }
